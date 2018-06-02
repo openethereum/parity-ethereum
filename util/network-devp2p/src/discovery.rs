@@ -43,6 +43,7 @@ const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 
 const PING_TIMEOUT: Duration = Duration::from_millis(300);
+const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
 const EXPIRY_TIME: Duration = Duration::from_secs(60);
 const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
 
@@ -66,6 +67,7 @@ struct PendingRequest {
 	packet_id: u8,
 	sent_at: Instant,
 	packet_hash: H256,
+	response_count: usize, // Some requests (eg. FIND_NODE) have multi-packet responses
 }
 
 impl Default for NodeBucket {
@@ -98,6 +100,7 @@ pub struct Discovery {
 	node_buckets: Vec<NodeBucket>,
 	in_flight_requests: HashMap<NodeId, PendingRequest>,
 	expiring_pings: VecDeque<(NodeId, Instant)>,
+	expiring_finds: VecDeque<(NodeId, Instant)>,
 	send_queue: VecDeque<Datagram>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
@@ -122,6 +125,7 @@ impl Discovery {
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
 			in_flight_requests: HashMap::new(),
 			expiring_pings: VecDeque::new(),
+			expiring_finds: VecDeque::new(),
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
 			adding_nodes: Vec::new(),
@@ -225,17 +229,17 @@ impl Discovery {
 		{
 			let nearest = self.nearest_node_entries(&self.discovery_id).into_iter();
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
+			let target = self.discovery_id.clone();
 			for r in nearest {
-				let mut rlp = RlpStream::new_list(2);
-				rlp.append(&self.discovery_id);
-				append_expiration(&mut rlp);
-				match self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp.drain()) {
-					Ok(_) => (),
-					Err(e) => warn!("Error sending node discovery packet for {:?}: {:?}", &r.endpoint, e),
-				}
-				self.discovery_nodes.insert(r.id.clone());
-				tried_count += 1;
-				trace!(target: "discovery", "Sent FindNode to {:?}", &r.endpoint);
+				match self.send_find_node(&r, &target) {
+					Ok(()) => {
+						self.discovery_nodes.insert(r.id.clone());
+						tried_count += 1;
+					},
+					Err(e) => {
+						warn!(target: "discovery", "Error sending node discovery packet for {:?}: {:?}", &r.endpoint, e);
+					},
+				};
 			}
 		}
 
@@ -291,11 +295,31 @@ impl Discovery {
 			packet_id: PACKET_PING,
 			sent_at: Instant::now(),
 			packet_hash: hash,
+			response_count: 0,
 		};
 		self.expiring_pings.push_back((node.id, request_info.sent_at));
 		self.in_flight_requests.insert(node.id, request_info);
 
 		trace!(target: "discovery", "Sent Ping to {:?}", &node.endpoint);
+		Ok(())
+	}
+
+	fn send_find_node(&mut self, node: &NodeEntry, target: &NodeId) -> Result<(), Error> {
+		let mut rlp = RlpStream::new_list(2);
+		rlp.append(target);
+		append_expiration(&mut rlp);
+		let hash = self.send_packet(PACKET_FIND_NODE, &node.endpoint.udp_address(), &rlp.drain())?;
+
+		let request_info = PendingRequest {
+			packet_id: PACKET_FIND_NODE,
+			sent_at: Instant::now(),
+			packet_hash: hash,
+			response_count: 0,
+		};
+		self.expiring_finds.push_back((node.id, request_info.sent_at));
+		self.in_flight_requests.insert(node.id, request_info);
+
+		trace!(target: "discovery", "Sent FindNode to {:?}", &node.endpoint);
 		Ok(())
 	}
 
@@ -498,9 +522,36 @@ impl Discovery {
 		packets.collect()
 	}
 
-	fn on_neighbours(&mut self, rlp: &Rlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
-		// TODO: validate packet
-		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count()?, &from);
+	fn on_neighbours(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+		let results_count = rlp.at(0)?.item_count()?;
+
+		let is_expected = match self.in_flight_requests.entry(*node_id) {
+			Entry::Occupied(mut entry) => {
+				let result = {
+					let request = entry.get_mut();
+					if request.packet_id == PACKET_FIND_NODE &&
+						request.response_count + results_count <= BUCKET_SIZE
+					{
+						request.response_count += results_count;
+						true
+					} else {
+						false
+					}
+				};
+				if entry.get().response_count == BUCKET_SIZE {
+					entry.remove();
+				}
+				result
+			}
+			Entry::Vacant(_) => false,
+		};
+
+		if !is_expected {
+			debug!(target: "discovery", "Got unexpected Neighbors from {:?}", &from);
+			return Ok(None);
+		}
+
+		trace!(target: "discovery", "Got {} Neighbours from {:?}", results_count, &from);
 		for r in rlp.at(0)?.iter() {
 			let endpoint = NodeEndpoint::from_rlp(&r)?;
 			if !endpoint.is_valid() {
@@ -528,25 +579,35 @@ impl Discovery {
 				self.expiring_pings.push_front((node_id, sent_at));
 				break;
 			}
+			self.expire_in_flight_request(node_id, sent_at, &mut removed);
+		}
+		while let Some((node_id, sent_at)) = self.expiring_finds.pop_front() {
+			if time.duration_since(sent_at) <= FIND_NODE_TIMEOUT {
+				self.expiring_finds.push_front((node_id, sent_at));
+				break;
+			}
+			self.expire_in_flight_request(node_id, sent_at, &mut removed);
+		}
+		removed
+	}
 
-			if let Entry::Occupied(entry) = self.in_flight_requests.entry(node_id) {
-				if entry.get().sent_at == sent_at {
-					entry.remove();
+	fn expire_in_flight_request(&mut self, node_id: NodeId, sent_at: Instant, removed: &mut HashSet<NodeId>) {
+		if let Entry::Occupied(entry) = self.in_flight_requests.entry(node_id) {
+			if entry.get().sent_at == sent_at {
+				entry.remove();
 
-					// Attempt to remove from bucket if in one.
-					let id_hash = keccak(&node_id);
-					let dist = Discovery::distance(&self.id_hash, &id_hash)
-						.expect("distance is None only if id hashes are equal; will never send request to self; qed");
-					let bucket = &mut self.node_buckets[dist];
-					if let Some(index) = bucket.nodes.iter().position(|n| n.id_hash == id_hash) {
-						removed.insert(node_id);
-						let node = bucket.nodes.remove(index).expect("index was located in if condition");
-						trace!(target: "discovery", "Removed expired node {:?}", &node.address);
-					}
+				// Attempt to remove from bucket if in one.
+				let id_hash = keccak(&node_id);
+				let dist = Discovery::distance(&self.id_hash, &id_hash)
+					.expect("distance is None only if id hashes are equal; will never send request to self; qed");
+				let bucket = &mut self.node_buckets[dist];
+				if let Some(index) = bucket.nodes.iter().position(|n| n.id_hash == id_hash) {
+					removed.insert(node_id);
+					let node = bucket.nodes.remove(index).expect("index was located in if condition");
+					trace!(target: "discovery", "Removed expired node {:?}", &node.address);
 				}
 			}
 		}
-		removed
 	}
 
 	pub fn round(&mut self) -> Option<TableUpdates> {
@@ -708,9 +769,11 @@ mod tests {
 			node_buckets.iter().map(|bucket| bucket.nodes.len()).sum()
 		};
 
-		for _ in 0..1200 {
-			discovery.update_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
-		}
+		let node_entries = (0..1200)
+			.map(|_| NodeEntry { id: NodeId::random(), endpoint: ep.clone() })
+			.collect::<Vec<_>>();
+
+		discovery.init_node_list(node_entries.clone());
 		assert_eq!(total_bucket_nodes(&discovery.node_buckets), 1200);
 
 		// Requests have not expired yet.
@@ -731,6 +794,29 @@ mod tests {
 		let removed = discovery.check_expired(Instant::now() + PING_TIMEOUT).len();
 		assert_eq!(removed, 0);
 		assert_eq!(discovery.in_flight_requests.len(), 0);
+
+		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
+
+		// FIND_NODE times out because it doesn't receive k results.
+		let key = Random.generate().unwrap();
+		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
+		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..116]) {
+			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
+			discovery.on_packet(&packet, from.clone()).unwrap();
+		}
+
+		let removed = discovery.check_expired(Instant::now() + FIND_NODE_TIMEOUT).len();
+		assert!(removed > 0);
+
+		// FIND_NODE does not time out because it receives k results.
+		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
+		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..117]) {
+			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
+			discovery.on_packet(&packet, from.clone()).unwrap();
+		}
+
+		let removed = discovery.check_expired(Instant::now() + FIND_NODE_TIMEOUT).len();
+		assert_eq!(removed, 0);
 	}
 
 	#[test]
