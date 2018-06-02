@@ -40,7 +40,7 @@ fn accounts_provider_with_vaults_support(temp_path: &str) -> Arc<AccountProvider
 }
 
 fn setup_with_accounts_provider(accounts_provider: Arc<AccountProvider>) -> ParityAccountsTester {
-	let opt_ap = Some(accounts_provider.clone());
+	let opt_ap = accounts_provider.clone();
 	let parity_accounts = ParityAccountsClient::new(&opt_ap);
 	let mut io = IoHandler::default();
 	io.extend_with(parity_accounts.to_delegate());

@@ -101,7 +101,7 @@ impl EthTester {
 
 	fn from_spec(spec: Spec) -> Self {
 		let account_provider = account_provider();
-		let opt_account_provider = Some(account_provider.clone());
+		let opt_account_provider = account_provider.clone();
 		let miner_service = miner_service(&spec, account_provider.clone());
 		let snapshot_service = snapshot_service();
 

@@ -25,18 +25,17 @@ use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Result;
 use v1::helpers::errors;
-use v1::helpers::accounts::unwrap_provider;
 use v1::traits::ParityAccounts;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo};
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
-	accounts: Option<Arc<AccountProvider>>,
+	accounts: Arc<AccountProvider>,
 }
 
 impl ParityAccountsClient {
 	/// Creates new PersonalClient
-	pub fn new(store: &Option<Arc<AccountProvider>>) -> Self {
+	pub fn new(store: &Arc<AccountProvider>) -> Self {
 		ParityAccountsClient {
 			accounts: store.clone(),
 		}
@@ -45,7 +44,7 @@ impl ParityAccountsClient {
 	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
 	/// set.
 	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		unwrap_provider(&self.accounts)
+		Ok(self.accounts.clone())
 	}
 }
 

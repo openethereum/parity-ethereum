@@ -68,14 +68,6 @@ pub fn light_unimplemented(details: Option<String>) -> Error {
 	}
 }
 
-pub fn public_unsupported(details: Option<String>) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Method disallowed when running parity as a public node.".into(),
-		data: details.map(Value::String),
-	}
-}
-
 pub fn unsupported<T: Into<String>>(msg: T, details: Option<T>) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),

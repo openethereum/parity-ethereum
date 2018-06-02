@@ -39,7 +39,6 @@ use PROTOCOL_VERSION;
 use node_table::*;
 use network::{NetworkConfiguration, NetworkIoMessage, ProtocolId, PeerId, PacketId};
 use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
-use network::HostInfo as HostInfoTrait;
 use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
 use discovery::{Discovery, TableUpdates, NodeEntry};
 use ip_utils::{map_external_address, select_public_address};
@@ -223,10 +222,8 @@ impl HostInfo {
 	pub(crate) fn secret(&self) -> &Secret {
 		self.keys.secret()
 	}
-}
 
-impl HostInfoTrait for HostInfo {
-	fn id(&self) -> &NodeId {
+	pub(crate) fn id(&self) -> &NodeId {
 		self.keys.public()
 	}
 }
@@ -997,7 +994,6 @@ impl IoHandler<NetworkIoMessage> for Host {
 				let reserved = self.reserved_nodes.read();
 				h.initialize(
 					&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved),
-					&*self.info.read(),
 				);
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
