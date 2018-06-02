@@ -21,7 +21,7 @@
 use transaction::UnverifiedTransaction;
 
 use io::TimerToken;
-use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
+use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
 use kvdb::DBValue;
@@ -1082,7 +1082,7 @@ fn punish(peer: PeerId, io: &IoContext, e: Error) {
 }
 
 impl NetworkProtocolHandler for LightProtocol {
-	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
+	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
 		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL)

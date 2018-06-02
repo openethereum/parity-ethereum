@@ -26,7 +26,7 @@ use node_table::NodeId;
 use io::{IoContext, StreamToken};
 use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
 use ethkey::crypto::{ecdh, ecies};
-use network::{Error, ErrorKind, HostInfo as HostInfoTrait};
+use network::{Error, ErrorKind};
 use host::HostInfo;
 
 #[derive(PartialEq, Eq, Debug)]

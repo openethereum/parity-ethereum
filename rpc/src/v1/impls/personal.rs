@@ -28,7 +28,6 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use v1::helpers::errors;
 use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith};
-use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Personal;
 use v1::types::{
 	H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U128 as RpcU128,
@@ -42,23 +41,23 @@ use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
-	accounts: Option<Arc<AccountProvider>>,
+	accounts: Arc<AccountProvider>,
 	dispatcher: D,
 	allow_perm_unlock: bool,
 }
 
 impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
-	pub fn new(accounts: Option<Arc<AccountProvider>>, dispatcher: D, allow_perm_unlock: bool) -> Self {
+	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
-			accounts,
+			accounts: accounts.clone(),
 			dispatcher,
 			allow_perm_unlock,
 		}
 	}
 
 	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		unwrap_provider(&self.accounts)
+		Ok(self.accounts.clone())
 	}
 }
 
