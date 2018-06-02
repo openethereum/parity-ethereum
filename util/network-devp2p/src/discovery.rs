@@ -600,6 +600,26 @@ mod tests {
 	}
 
 	#[test]
+	fn ping_queue() {
+		let key = Random.generate().unwrap();
+		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
+		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+
+		for i in 1..(MAX_NODES_PING+1) {
+			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
+			assert_eq!(discovery.in_flight_requests.len(), i);
+			assert_eq!(discovery.send_queue.len(), i);
+			assert_eq!(discovery.adding_nodes.len(), 0);
+		}
+		for i in 1..20 {
+			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
+			assert_eq!(discovery.in_flight_requests.len(), MAX_NODES_PING);
+			assert_eq!(discovery.send_queue.len(), MAX_NODES_PING);
+			assert_eq!(discovery.adding_nodes.len(), i);
+		}
+	}
+
+	#[test]
 	fn discovery() {
 		let mut discovery_handlers = (0..5).map(|i| {
 			let key = Random.generate().unwrap();
@@ -839,17 +859,57 @@ mod tests {
 	fn test_ping() {
 		let key1 = Random.generate().unwrap();
 		let key2 = Random.generate().unwrap();
+		let key3 = Random.generate().unwrap();
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40344").unwrap(), udp_port: 40344 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40345").unwrap(), udp_port: 40345 };
+		let ep3 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40346").unwrap(), udp_port: 40345 };
 		let mut discovery1 = Discovery::new(&key1, ep1.clone(), IpFilter::default());
 		let mut discovery2 = Discovery::new(&key2, ep2.clone(), IpFilter::default());
 
 		discovery1.ping(&NodeEntry { id: discovery2.id, endpoint: ep2.clone() }).unwrap();
 		let ping_data = discovery1.dequeue_send().unwrap();
-		discovery2.on_packet(&ping_data.payload, ep1.address.clone()).ok();
+		assert!(!discovery1.any_sends_queued());
+		let data = &ping_data.payload[(32 + 65)..];
+		assert_eq!(data[0], PACKET_PING);
+		let rlp = Rlp::new(&data[1..]);
+		assert_eq!(ep1, NodeEndpoint::from_rlp(&rlp.at(1).unwrap()).unwrap());
+		assert_eq!(ep2, NodeEndpoint::from_rlp(&rlp.at(2).unwrap()).unwrap());
+
+		if let Some(_) = discovery2.on_packet(&ping_data.payload, ep1.address.clone()).unwrap() {
+			panic!("Expected no changes to discovery2's table");
+		}
 		let pong_data = discovery2.dequeue_send().unwrap();
 		let data = &pong_data.payload[(32 + 65)..];
+		assert_eq!(data[0], PACKET_PONG);
 		let rlp = Rlp::new(&data[1..]);
-		assert_eq!(ping_data.payload[0..32], rlp.val_at::<Vec<u8>>(1).unwrap()[..])
+		assert_eq!(ping_data.payload[0..32], rlp.val_at::<Vec<u8>>(1).unwrap()[..]);
+
+		if let Some(table_updates) = discovery1.on_packet(&pong_data.payload, ep2.address.clone()).unwrap() {
+			assert_eq!(table_updates.added.len(), 1);
+			assert_eq!(table_updates.removed.len(), 0);
+			assert!(table_updates.added.contains_key(&discovery2.id));
+		} else {
+			panic!("Expected discovery1 to be added to discovery1's table");
+		}
+
+		let ping_back = discovery2.dequeue_send().unwrap();
+		assert!(!discovery2.any_sends_queued());
+		let data = &ping_back.payload[(32 + 65)..];
+		assert_eq!(data[0], PACKET_PING);
+		let rlp = Rlp::new(&data[1..]);
+		assert_eq!(ep2, NodeEndpoint::from_rlp(&rlp.at(1).unwrap()).unwrap());
+		assert_eq!(ep1, NodeEndpoint::from_rlp(&rlp.at(2).unwrap()).unwrap());
+
+		// Deliver an unexpected PONG message to discover1.
+		let mut unexpected_pong_rlp = RlpStream::new_list(3);
+		ep3.to_rlp_list(&mut unexpected_pong_rlp);
+		unexpected_pong_rlp.append(&H256::default());
+		append_expiration(&mut unexpected_pong_rlp);
+		let unexpected_pong = assemble_packet(
+			PACKET_PONG, &unexpected_pong_rlp.drain(), key3.secret()
+		).unwrap();
+		if let Some(_) = discovery1.on_packet(&unexpected_pong, ep3.address.clone()).unwrap() {
+			panic!("Expected no changes to discovery1's table for unexpected pong");
+		}
 	}
 }
