@@ -145,7 +145,6 @@ impl LightFetch {
 		};
 
 		Either::B(self.send_requests(reqs, |res|
-		self.send_requests(reqs, |res|
 			extract_header(&res, header_ref)
 				.expect("these responses correspond to requests that header_ref belongs to \
 						therefore it will not fail; qed")
