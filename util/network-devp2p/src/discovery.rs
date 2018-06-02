@@ -55,7 +55,7 @@ pub struct NodeEntry {
 pub struct BucketEntry {
 	pub address: NodeEntry,
 	pub id_hash: H256,
-	pub timeout: Option<Instant>,
+	pub last_seen: Instant,
 }
 
 pub struct NodeBucket {
@@ -64,6 +64,7 @@ pub struct NodeBucket {
 
 struct PendingRequest {
 	packet_id: u8,
+	sent_at: Instant,
 }
 
 impl Default for NodeBucket {
@@ -95,6 +96,7 @@ pub struct Discovery {
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
 	in_flight_requests: HashMap<NodeId, PendingRequest>,
+	expiring_pings: VecDeque<(NodeId, Instant)>,
 	send_queue: VecDeque<Datagram>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
@@ -118,6 +120,7 @@ impl Discovery {
 			discovery_nodes: HashSet::new(),
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
 			in_flight_requests: HashMap::new(),
+			expiring_pings: VecDeque::new(),
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
 			adding_nodes: Vec::new(),
@@ -169,18 +172,21 @@ impl Discovery {
 			let bucket = &mut self.node_buckets[dist];
 			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
 				node.address = e.clone();
-				node.timeout = None;
+				node.last_seen = Instant::now();
 				true
 			} else { false };
 
 			if !updated {
 				added_map.insert(e.id, e.clone());
-				bucket.nodes.push_front(BucketEntry { address: e, timeout: None, id_hash: id_hash });
+				bucket.nodes.push_front(BucketEntry {
+					id_hash: id_hash,
+					address: e,
+					last_seen: Instant::now(),
+				});
 
 				if bucket.nodes.len() > BUCKET_SIZE {
 					//ping least active node
 					let last = bucket.nodes.back_mut().expect("Last item is always present when len() > 0");
-					last.timeout = Some(Instant::now());
 					Some(last.address.clone())
 				} else { None }
 			} else { None }
@@ -278,7 +284,9 @@ impl Discovery {
 		append_expiration(&mut rlp);
 		self.send_packet(PACKET_PING, &node.endpoint.udp_address(), &rlp.drain())?;
 
-		self.in_flight_requests.insert(node.id, PendingRequest { packet_id: PACKET_PING });
+		let request_info = PendingRequest { packet_id: PACKET_PING, sent_at: Instant::now() };
+		self.expiring_pings.push_back((node.id, request_info.sent_at));
+		self.in_flight_requests.insert(node.id, request_info);
 
 		trace!(target: "discovery", "Sent Ping to {:?}", &node.endpoint);
 		Ok(())
@@ -501,28 +509,36 @@ impl Discovery {
 		Ok(None)
 	}
 
-	fn check_expired(&mut self, force: bool) -> HashSet<NodeId> {
-		let now = Instant::now();
+	fn check_expired(&mut self, time: Instant) -> HashSet<NodeId> {
 		let mut removed: HashSet<NodeId> = HashSet::new();
-		for bucket in &mut self.node_buckets {
-			bucket.nodes.retain(|node| {
-				if let Some(timeout) = node.timeout {
-					if !force && now.duration_since(timeout) < PING_TIMEOUT {
-						true
-					}
-					else {
+		while let Some((node_id, sent_at)) = self.expiring_pings.pop_front() {
+			if time.duration_since(sent_at) <= PING_TIMEOUT {
+				self.expiring_pings.push_front((node_id, sent_at));
+				break;
+			}
+
+			if let Entry::Occupied(entry) = self.in_flight_requests.entry(node_id) {
+				if entry.get().sent_at == sent_at {
+					entry.remove();
+
+					// Attempt to remove from bucket if in one.
+					let id_hash = keccak(&node_id);
+					let dist = Discovery::distance(&self.id_hash, &id_hash)
+						.expect("distance is None only if id hashes are equal; will never send request to self; qed");
+					let bucket = &mut self.node_buckets[dist];
+					if let Some(index) = bucket.nodes.iter().position(|n| n.id_hash == id_hash) {
+						removed.insert(node_id);
+						let node = bucket.nodes.remove(index).expect("index was located in if condition");
 						trace!(target: "discovery", "Removed expired node {:?}", &node.address);
-						removed.insert(node.address.id.clone());
-						false
 					}
-				} else { true }
-			});
+				}
+			}
 		}
 		removed
 	}
 
 	pub fn round(&mut self) -> Option<TableUpdates> {
-		let removed = self.check_expired(false);
+		let removed = self.check_expired(Instant::now());
 		self.discover();
 		if !removed.is_empty() {
 			Some(TableUpdates { added: HashMap::new(), removed: removed })
@@ -675,12 +691,34 @@ mod tests {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+
+		let total_bucket_nodes = |node_buckets: &Vec<NodeBucket>| -> usize {
+			node_buckets.iter().map(|bucket| bucket.nodes.len()).sum()
+		};
+
 		for _ in 0..1200 {
 			discovery.update_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
 		}
-		assert!(discovery.nearest_node_entries(&NodeId::new()).len() <= 16);
-		let removed = discovery.check_expired(true).len();
+		assert_eq!(total_bucket_nodes(&discovery.node_buckets), 1200);
+
+		// Requests have not expired yet.
+		let removed = discovery.check_expired(Instant::now()).len();
+		assert_eq!(removed, 0);
+
+		// Expiring pings to bucket nodes removes them from bucket.
+		let removed = discovery.check_expired(Instant::now() + PING_TIMEOUT).len();
 		assert!(removed > 0);
+		assert_eq!(total_bucket_nodes(&discovery.node_buckets), 1200 - removed);
+
+		for _ in 0..100 {
+			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
+		}
+		assert!(discovery.in_flight_requests.len() > 0);
+
+		// Expire pings to nodes that are not in buckets.
+		let removed = discovery.check_expired(Instant::now() + PING_TIMEOUT).len();
+		assert_eq!(removed, 0);
+		assert_eq!(discovery.in_flight_requests.len(), 0);
 	}
 
 	#[test]
@@ -694,7 +732,7 @@ mod tests {
 		for _ in 0..(16 + 10) {
 			discovery.node_buckets[0].nodes.push_back(BucketEntry {
 				address: NodeEntry { id: NodeId::new(), endpoint: ep.clone() },
-				timeout: None,
+				last_seen: Instant::now(),
 				id_hash: keccak(NodeId::new()),
 			});
 		}
