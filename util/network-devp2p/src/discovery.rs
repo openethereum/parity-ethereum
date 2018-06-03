@@ -571,18 +571,18 @@ impl Discovery {
 		self.start();
 	}
 
-	pub fn register_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
-		event_loop.register(&self.udp_socket, Token(self.token), Ready::all(), PollOpt::edge()).expect("Error registering UDP socket");
+	pub fn register_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+		event_loop.register(&self.udp_socket, reg, Ready::all(), PollOpt::edge()).expect("Error registering UDP socket");
 		Ok(())
 	}
 
-	pub fn update_registration<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+	pub fn update_registration<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		let registration = if !self.send_queue.is_empty() {
 			Ready::readable() | Ready::writable()
 		} else {
 			Ready::readable()
 		};
-		event_loop.reregister(&self.udp_socket, Token(self.token), registration, PollOpt::edge()).expect("Error reregistering UDP socket");
+		event_loop.reregister(&self.udp_socket, reg, registration, PollOpt::edge()).expect("Error reregistering UDP socket");
 		Ok(())
 	}
 }

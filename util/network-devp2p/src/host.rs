@@ -1055,7 +1055,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 					session.lock().register_socket(reg, event_loop).expect("Error registering socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.register_socket(event_loop).ok()).expect("Error registering discovery socket"),
+			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.register_socket(reg, event_loop).ok()).expect("Error registering discovery socket"),
 			TCP_ACCEPT => event_loop.register(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
 		}
@@ -1086,7 +1086,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 					connection.lock().update_socket(reg, event_loop).expect("Error updating socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.update_registration(event_loop).ok()).expect("Error reregistering discovery socket"),
+			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.update_registration(reg, event_loop).ok()).expect("Error reregistering discovery socket"),
 			TCP_ACCEPT => event_loop.reregister(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			_ => warn!("Unexpected stream update")
 		}
