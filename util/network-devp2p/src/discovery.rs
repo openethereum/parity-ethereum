@@ -21,7 +21,7 @@ use std::default::Default;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use hash::keccak;
 use ethereum_types::{H256, H520};
-use rlp::{Rlp, RlpStream, encode_list};
+use rlp::{Rlp, RlpStream};
 use node_table::*;
 use network::{Error, ErrorKind};
 use ethkey::{Secret, KeyPair, sign, recover};
@@ -42,6 +42,7 @@ const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 
 const PING_TIMEOUT: Duration = Duration::from_millis(300);
+const EXPIRY_TIME: Duration = Duration::from_secs(60);
 const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
 
 #[derive(Clone, Debug)]
@@ -220,8 +221,10 @@ impl Discovery {
 			let nearest = self.nearest_node_entries(&self.discovery_id).into_iter();
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
 			for r in nearest {
-				let rlp = encode_list(&(&[self.discovery_id.clone()][..]));
-				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp)
+				let mut rlp = RlpStream::new_list(2);
+				rlp.append(&self.discovery_id);
+				append_expiration(&mut rlp);
+				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp.drain())
 					.unwrap_or_else(|e| warn!("Error sending node discovery packet for {:?}: {:?}", &r.endpoint, e));
 				self.discovery_nodes.insert(r.id.clone());
 				tried_count += 1;
@@ -252,41 +255,18 @@ impl Discovery {
 	}
 
 	fn ping(&mut self, node: &NodeEndpoint) {
-		let mut rlp = RlpStream::new_list(3);
+		let mut rlp = RlpStream::new_list(4);
 		rlp.append(&PROTOCOL_VERSION);
 		self.public_endpoint.to_rlp_list(&mut rlp);
 		node.to_rlp_list(&mut rlp);
+		append_expiration(&mut rlp);
 		trace!(target: "discovery", "Sent Ping to {:?}", &node);
 		self.send_packet(PACKET_PING, &node.udp_address(), &rlp.drain())
 			.unwrap_or_else(|e| warn!("Error sending Ping packet: {:?}", e))
 	}
 
 	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<(), Error> {
-		let mut rlp = RlpStream::new();
-		rlp.append_raw(&[packet_id], 1);
-		let source = Rlp::new(payload);
-		rlp.begin_list(source.item_count()? + 1);
-		for i in 0 .. source.item_count()? {
-			rlp.append_raw(source.at(i)?.as_raw(), 1);
-		}
-		let timestamp = 60 + SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as u32;
-		rlp.append(&timestamp);
-
-		let bytes = rlp.drain();
-		let hash = keccak(bytes.as_ref());
-		let signature = match sign(&self.secret, &hash) {
-			Ok(s) => s,
-			Err(e) => {
-				warn!("Error signing UDP packet");
-				return Err(Error::from(e));
-			}
-		};
-		let mut packet = Bytes::with_capacity(bytes.len() + 32 + 65);
-		packet.extend(hash.iter());
-		packet.extend(signature.iter());
-		packet.extend(bytes.iter());
-		let signed_hash = keccak(&packet[32..]);
-		packet[0..32].clone_from_slice(&signed_hash);
+		let packet = assemble_packet(packet_id, payload, &self.secret)?;
 		self.send_to(packet, address.clone());
 		Ok(())
 	}
@@ -406,9 +386,10 @@ impl Discovery {
 			self.update_node(entry.clone());
 			added_map.insert(node.clone(), entry);
 		}
-		let mut response = RlpStream::new_list(2);
+		let mut response = RlpStream::new_list(3);
 		dest.to_rlp_list(&mut response);
 		response.append(&echo_hash);
+		append_expiration(&mut response);
 		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
 		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
@@ -450,13 +431,14 @@ impl Discovery {
 		let limit = (MAX_DATAGRAM_SIZE - 109) / 90;
 		let chunks = nearest.chunks(limit);
 		let packets = chunks.map(|c| {
-			let mut rlp = RlpStream::new_list(1);
+			let mut rlp = RlpStream::new_list(2);
 			rlp.begin_list(c.len());
 			for n in 0 .. c.len() {
 				rlp.begin_list(4);
 				c[n].endpoint.to_rlp(&mut rlp);
 				rlp.append(&c[n].id);
 			}
+			append_expiration(&mut rlp);
 			rlp.out()
 		});
 		packets.collect()
@@ -531,6 +513,32 @@ impl Discovery {
 	pub fn requeue_send(&mut self, datagram: Datagram) {
 		self.send_queue.push_front(datagram)
 	}
+}
+
+fn append_expiration(rlp: &mut RlpStream) {
+	let expiry = SystemTime::now() + EXPIRY_TIME;
+	let timestamp = expiry.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as u32;
+	rlp.append(&timestamp);
+}
+
+fn assemble_packet(packet_id: u8, bytes: &[u8], secret: &Secret) -> Result<Bytes, Error> {
+	let mut packet = Bytes::with_capacity(bytes.len() + 32 + 65 + 1);
+	packet.resize(32 + 65, 0); // Filled in below
+	packet.push(packet_id);
+	packet.extend_from_slice(bytes);
+
+	let hash = keccak(&packet[(32 + 65)..]);
+	let signature = match sign(secret, &hash) {
+		Ok(s) => s,
+		Err(e) => {
+			warn!(target: "discovery", "Error signing UDP packet");
+			return Err(Error::from(e));
+		}
+	};
+	packet[32..(32 + 65)].copy_from_slice(&signature[..]);
+	let signed_hash = keccak(&packet[32..]);
+	packet[0..32].copy_from_slice(&signed_hash);
+	Ok(packet)
 }
 
 #[cfg(test)]
