@@ -22,14 +22,12 @@ use hyper::StatusCode;
 use parity_version::version;
 
 use handlers::add_security_headers;
-use Embeddable;
 
 #[derive(Debug, Clone)]
 pub struct ContentHandler {
 	code: StatusCode,
 	content: String,
 	mimetype: mime::Mime,
-	safe_to_embed_on: Embeddable,
 }
 
 impl ContentHandler {
@@ -37,8 +35,8 @@ impl ContentHandler {
 		Self::new(StatusCode::Ok, content, mimetype)
 	}
 
-	pub fn html(code: StatusCode, content: String, embeddable_on: Embeddable) -> Self {
-		Self::new_embeddable(code, content, mime::TEXT_HTML, embeddable_on)
+	pub fn html(code: StatusCode, content: String) -> Self {
+		Self::new(code, content, mime::TEXT_HTML)
 	}
 
 	pub fn error(
@@ -46,7 +44,6 @@ impl ContentHandler {
 		title: &str,
 		message: &str,
 		details: Option<&str>,
-		embeddable_on: Embeddable,
 	) -> Self {
 		Self::html(code, format!(
 			include_str!("../error_tpl.html"),
@@ -54,24 +51,18 @@ impl ContentHandler {
 			message=message,
 			details=details.unwrap_or_else(|| ""),
 			version=version(),
-		), embeddable_on)
+		))
 	}
 
-	pub fn new(code: StatusCode, content: String, mimetype: mime::Mime) -> Self {
-		Self::new_embeddable(code, content, mimetype, None)
-	}
-
-	pub fn new_embeddable(
+	pub fn new(
 		code: StatusCode,
 		content: String,
 		mimetype: mime::Mime,
-		safe_to_embed_on: Embeddable,
 	) -> Self {
 		ContentHandler {
 			code,
 			content,
 			mimetype,
-			safe_to_embed_on,
 		}
 	}
 }
@@ -82,7 +73,7 @@ impl Into<hyper::Response> for ContentHandler {
 			.with_status(self.code)
 			.with_header(header::ContentType(self.mimetype))
 			.with_body(self.content);
-		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on, false);
+		add_security_headers(&mut res.headers_mut(), false);
 		res
 	}
 }

@@ -29,7 +29,6 @@ use apps::fetcher::Fetcher;
 use endpoint::{self, Endpoint, EndpointPath};
 use Endpoints;
 use handlers;
-use Embeddable;
 
 /// Special endpoints are accessible on every domain (every dapp)
 #[derive(Debug, PartialEq, Hash, Eq)]
@@ -52,7 +51,6 @@ pub struct Router {
 	endpoints: Option<Endpoints>,
 	fetch: Arc<Fetcher>,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
-	embeddable_on: Embeddable,
 	dapps_domain: String,
 }
 
@@ -132,7 +130,6 @@ impl Router {
 						"404 Not Found",
 						"Requested content was not found.",
 						None,
-						self.embeddable_on.clone(),
 					).into())))
 				}
 			},
@@ -161,7 +158,6 @@ impl Router {
 					"404 Not Found",
 					"Requested content was not found.",
 					None,
-					self.embeddable_on.clone(),
 				).into())))
 			},
 		})
@@ -190,14 +186,12 @@ impl Router {
 		content_fetcher: Arc<Fetcher>,
 		endpoints: Option<Endpoints>,
 		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
-		embeddable_on: Embeddable,
 		dapps_domain: String,
 	) -> Self {
 		Router {
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,
-			embeddable_on: embeddable_on,
 			dapps_domain: format!(".{}", dapps_domain),
 		}
 	}

@@ -27,7 +27,6 @@ use mime_guess::Mime;
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
 use handlers::{ContentValidator, ValidatorResponse};
 use page::{local, PageCache};
-use Embeddable;
 
 type OnDone = Box<Fn(Option<local::Dapp>) + Send>;
 
@@ -124,17 +123,15 @@ pub struct Dapp {
 	id: String,
 	dapps_path: PathBuf,
 	on_done: OnDone,
-	embeddable_on: Embeddable,
 	pool: CpuPool,
 }
 
 impl Dapp {
-	pub fn new(id: String, dapps_path: PathBuf, on_done: OnDone, embeddable_on: Embeddable, pool: CpuPool) -> Self {
+	pub fn new(id: String, dapps_path: PathBuf, on_done: OnDone, pool: CpuPool) -> Self {
 		Dapp {
 			id,
 			dapps_path,
 			on_done,
-			embeddable_on,
 			pool,
 		}
 	}
@@ -170,7 +167,6 @@ impl ContentValidator for Dapp {
 	fn validate_and_install(self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
 		let id = self.id.clone();
 		let pool = self.pool;
-		let embeddable_on = self.embeddable_on;
 		let validate = move |dapp_path: PathBuf| {
 			let (file, zip_path) = write_response_and_check_hash(&id, dapp_path.clone(), &format!("{}.zip", id), response)?;
 			trace!(target: "dapps", "Opening dapp bundle at {:?}", zip_path);
@@ -210,7 +206,7 @@ impl ContentValidator for Dapp {
 			let mut manifest_file = fs::File::create(manifest_path)?;
 			manifest_file.write_all(manifest_str.as_bytes())?;
 			// Create endpoint
-			let endpoint = local::Dapp::new(pool, dapp_path, manifest.into(), PageCache::Enabled, embeddable_on);
+			let endpoint = local::Dapp::new(pool, dapp_path, manifest.into(), PageCache::Enabled);
 			Ok(endpoint)
 		};
 

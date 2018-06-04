@@ -40,7 +40,7 @@ impl Into<hyper::Response> for EchoHandler {
 			.with_header(content_type.unwrap_or(header::ContentType::json()))
 			.with_body(self.request.body());
 
-		add_security_headers(res.headers_mut(), None, false);
+		add_security_headers(res.headers_mut(), false);
 		res
 	}
 }

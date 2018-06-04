@@ -23,15 +23,13 @@ use parity_dapps::{WebApp, Info};
 
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Request, Response};
 use page::{handler, PageCache};
-use Embeddable;
 
+/// Represents a builtin Dapp.
 pub struct Dapp<T: WebApp + 'static> {
 	/// futures cpu pool
 	pool: CpuPool,
 	/// Content of the files
 	app: T,
-	/// Safe to be loaded in frame by other origin. (use wisely!)
-	safe_to_embed_on: Embeddable,
 	info: EndpointInfo,
 	fallback_to_index_html: bool,
 }
@@ -43,7 +41,6 @@ impl<T: WebApp + 'static> Dapp<T> {
 		Dapp {
 			pool,
 			app,
-			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
 			fallback_to_index_html: false,
 		}
@@ -56,23 +53,8 @@ impl<T: WebApp + 'static> Dapp<T> {
 		Dapp {
 			pool,
 			app,
-			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
 			fallback_to_index_html: true,
-		}
-	}
-
-	/// Creates new `Dapp` which can be safely used in iframe
-	/// even from different origin. It might be dangerous (clickjacking).
-	/// Use wisely!
-	pub fn new_safe_to_embed(pool: CpuPool, app: T, address: Embeddable) -> Self {
-		let info = app.info();
-		Dapp {
-			pool,
-			app,
-			safe_to_embed_on: address,
-			info: EndpointInfo::from(info),
-			fallback_to_index_html: false,
 		}
 	}
 
@@ -121,7 +103,6 @@ impl<T: WebApp> Endpoint for Dapp<T> {
 		let (reader, response) = handler::PageHandler {
 			file,
 			cache: PageCache::Disabled,
-			safe_to_embed_on: self.safe_to_embed_on.clone(),
 			allow_js_eval: self.info.allow_js_eval.clone().unwrap_or(false),
 		}.into_response();
 

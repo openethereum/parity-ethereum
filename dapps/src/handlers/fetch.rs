@@ -30,7 +30,6 @@ use parking_lot::Mutex;
 use endpoint::{self, EndpointPath};
 use handlers::{ContentHandler, StreamingHandler};
 use page::local;
-use {Embeddable};
 
 const FETCH_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -135,7 +134,7 @@ impl Future for WaitingHandler {
 							return Ok(futures::Async::Ready(handler.into()));
 						},
 						WaitResult::NonAwaitable => {
-							let errors = Errors { embeddable_on: None };
+							let errors = Errors { };
 							return Ok(futures::Async::Ready(errors.streaming().into()));
 						},
 						WaitResult::Done(endpoint) => {
@@ -154,9 +153,7 @@ impl Future for WaitingHandler {
 }
 
 #[derive(Debug, Clone)]
-struct Errors {
-	embeddable_on: Embeddable,
-}
+struct Errors { }
 
 impl Errors {
 	fn streaming(&self) -> ContentHandler {
@@ -165,7 +162,6 @@ impl Errors {
 			"Streaming Error",
 			"This content is being streamed in other place.",
 			None,
-			self.embeddable_on.clone(),
 		)
 	}
 
@@ -175,7 +171,6 @@ impl Errors {
 			"Download Error",
 			"There was an error when fetching the content.",
 			Some(&format!("{:?}", e)),
-			self.embeddable_on.clone(),
 		)
 	}
 
@@ -185,7 +180,6 @@ impl Errors {
 			"Invalid Dapp",
 			"Downloaded bundle does not contain a valid content.",
 			Some(&format!("{:?}", e)),
-			self.embeddable_on.clone(),
 		)
 	}
 
@@ -195,7 +189,6 @@ impl Errors {
 			"Download Timeout",
 			&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT.as_secs()),
 			None,
-			self.embeddable_on.clone(),
 		)
 	}
 
@@ -205,7 +198,6 @@ impl Errors {
 			"Method Not Allowed",
 			"Only <code>GET</code> requests are allowed.",
 			None,
-			self.embeddable_on.clone(),
 		)
 	}
 }
@@ -251,12 +243,11 @@ impl ContentFetcherHandler {
 		url: &str,
 		path: EndpointPath,
 		installer: H,
-		embeddable_on: Embeddable,
 		fetch: F,
 		pool: CpuPool,
 	) -> Self {
 		let fetch_control = FetchControl::default();
-		let errors = Errors { embeddable_on };
+		let errors = Errors { };
 
 		// Validation of method
 		let status = match *method {
