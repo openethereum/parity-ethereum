@@ -17,7 +17,6 @@
 //! Updater for Parity executables
 
 #![warn(missing_docs)]
-#![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
 
 extern crate ethabi;
 extern crate ethcore;

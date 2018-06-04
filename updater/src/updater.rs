@@ -360,7 +360,7 @@ impl GenRange for ThreadRngGenRange {
 }
 
 impl Updater {
-    /// `Updater` constructor
+	/// `Updater` constructor
 	pub fn new(
 		client: &Weak<BlockChainClient>,
 		sync: &Weak<SyncProvider>,
@@ -389,6 +389,9 @@ impl Updater {
 			state: Mutex::new(Default::default()),
 		});
 		*r.weak_self.lock() = Arc::downgrade(&r);
+
+		info!("this is hardcoded to an old version this must be fixed before merging {}:{}", file!(), line!());
+
 		r.poll();
 		r
 	}
@@ -608,14 +611,16 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 
 		// We rely on a secure state. Bail if we're unsure about it.
 		if self.client.upgrade().map_or(true, |c| !c.chain_info().security_level().is_full()) {
-			return;
+			info!("The `security_level` check is DISABLED!!!!! It is just diabled to test the updater-verification and should be removed later, {}:{}", file!(), line!());
+			// return;
 		}
 
 		// Only check for updates every n blocks
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-		// if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
-		//	return;
-		// }
+		if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
+			info!("The `updater_policy frequency` check is DISABLED!!!!!. This check is just diabled to test the updater and should be removed later, {}:{}", file!(), line!());
+			// return;
+		}
 
 		let mut state = self.state.lock();
 

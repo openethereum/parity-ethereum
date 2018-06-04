@@ -17,7 +17,6 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
 
 extern crate ctrlc;
 extern crate dir;
@@ -54,6 +53,7 @@ const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 enum Error {
 	BinaryNotFound,
 	StatusCode(i32),
+	Restart,
 	UnknownStatusCode,
 }
 
@@ -66,10 +66,10 @@ fn update_path(name: &str) -> PathBuf {
 fn latest_exe_path() -> Result<PathBuf, Error> {
 	File::open(update_path("latest")).and_then(|mut f| { 
 			let mut exe = String::new(); 
-			println!("latest_exe: {:?}", f); 
+			trace!(target: "updater", "latest binary path: {:?}", f); 
 			f.read_to_string(&mut exe).map(|_| update_path(&exe))
-	}).or(Err(Error::BinaryNotFound))
-
+	})
+	.or(Err(Error::BinaryNotFound))
 }
 
 fn latest_binary_is_newer(current_binary: &Option<PathBuf>, latest_binary: &Option<PathBuf>) -> bool {
@@ -138,6 +138,7 @@ fn global_cleanup() {}
 // Starts parity binary installed via `parity-updater` and returns the code it exits with.
 fn run_parity() -> Result<(), Error> {
 	global_init();
+
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
 	
 	let res: Result<(), Error> = latest_exe_path()
@@ -147,13 +148,12 @@ fn run_parity() -> Result<(), Error> {
 		.ok()
 		.map_or(Err(Error::UnknownStatusCode), |es| {
 			match es.code() {
-
 				// Process success
 				Some(0) => Ok(()),
-
+				// Please restart
+				Some(PLEASE_RESTART_EXIT_CODE) => Err(Error::Restart),
 				// Process error code `c`
 				Some(c) => Err(Error::StatusCode(c)),
-				
 				// Unknown error, couldn't determine error code
 				_ => Err(Error::UnknownStatusCode),
 			}
@@ -354,14 +354,8 @@ fn main() {
 	let same_name = exe_path
 		.as_ref()
 		.map_or(false, |p| { 
-			p.file_stem().map_or(false, |n| n == "parity") && p.extension().map_or(false, |ext| ext == "exe")
+			p.file_stem().map_or(false, |n| n == "parity") 
 		});
-
-	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", 
-				std::env::current_exe().ok().map_or_else(|| "<unknown>".into(), |x| format!("{}", x.display())), 
-				force_direct, 
-				development, 
-				same_name);
 
 	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", 
 				std::env::current_exe().ok().map_or_else(|| "<unknown>".into(), |x| format!("{}", x.display())), 
@@ -380,7 +374,7 @@ fn main() {
 			// `Latest´ binary exist
 			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
 			
-			// Canonicalized  path to the current binary is not the same as to latest binary
+			// Canonicalized path to the current binary is not the same as to latest binary
 			let canonicalized_path_not_same = exe_path
 				.as_ref()
 				.map_or(false, |exe| latest_exe.as_ref()
@@ -395,8 +389,11 @@ fn main() {
 							latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 				match run_parity() {
 					Ok(_) => 0,
+					// Restart parity
+					Err(Error::Restart) => PLEASE_RESTART_EXIT_CODE,
+					// Fall back to local version
 					Err(e) => {
-						trace_main!("Updated binary could not be executed: {:?}\n Failing back to local version", e); 
+						error!(target: "updater", "Updated binary could not be executed error: {:?}. Falling back to local version", e); 
 						main_direct(true)
 					}
 				}
@@ -409,7 +406,7 @@ fn main() {
 				trace_main!("Quitting...");
 				process::exit(exit_code);
 			}
-			trace_main!("Rerunning...");
+			trace!(target: "updater", "Re-running updater loop");
 		}
 	} else {
 		trace_main!("Running direct");
