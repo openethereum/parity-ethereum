@@ -196,8 +196,6 @@ mod server {
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
 		_dapps_domain: &str,
-		_extra_embed_on: Vec<(String, u16)>,
-		_extra_script_src: Vec<(String, u16)>,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
