@@ -26,6 +26,8 @@ use node_codec::NodeCodec;
 pub type NodeKey = ElasticArray36<u8>;
 
 impl<'a> NodeCodec<'a> for Node<'a> {
+	type Encoding = Rlp<'a>;
+	type StreamEncoding = RlpStream;
 	fn encoded(&self) -> Bytes {
 		match *self {
 			Node::Leaf(ref slice, ref value) => {
@@ -93,6 +95,21 @@ impl<'a> NodeCodec<'a> for Node<'a> {
 			None
 		}
 	}
+
+	fn new_encoded(data: &'a [u8]) -> Self::Encoding {
+		Rlp::new(data)
+	}
+
+	fn encoded_stream() -> Self::StreamEncoding {
+		RlpStream::new()
+	}
+
+	fn encoded_list(size: usize) -> Self::StreamEncoding {
+		RlpStream::new_list(size)
+	}
+
+
+
 }
 
 /// Type of node in the trie and essential information thereof.

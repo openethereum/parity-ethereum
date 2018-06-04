@@ -103,11 +103,11 @@ impl<H: Hasher> Node<H> where H::Out: Decodable {
 			RlpNode::Extension(key, cb) => {
 				Node::Extension(key.encoded(false), Self::inline_or_hash(cb, db, storage))
 			}
-			RlpNode::Branch(ref children_rlp, val) => {
-				let mut child = |i| {
-					let raw = children_rlp[i];
-					let child_rlp = Rlp::new(raw);
-					if !child_rlp.is_empty() {
+			RlpNode::Branch(ref encoded_children, val) => {
+				let mut child = |i:usize| {
+					let raw = encoded_children[i];
+					let encoded_child = RlpNode::new_encoded(raw);
+					if !encoded_child.is_empty() {
 						Some(Self::inline_or_hash(raw, db, storage))
 					} else {
 						None
@@ -129,28 +129,29 @@ impl<H: Hasher> Node<H> where H::Out: Decodable {
 	// encode a node to RLP
 	// TODO: parallelize
 	fn into_rlp<F>(self, mut child_cb: F) -> ElasticArray1024<u8>
-		where F: FnMut(NodeHandle<H>, &mut RlpStream)
+		where F: FnMut(NodeHandle<H>, &mut RlpStream) // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
+//		where F: FnMut(NodeHandle<H>, &mut <RlpNode as NodeCodec>::StreamEncoding)
 	{
 		match self {
 			Node::Empty => {
-				let mut stream = RlpStream::new();
+				let mut stream = RlpNode::encoded_stream();
 				stream.append_empty_data();
 				stream.drain()
 			}
 			Node::Leaf(partial, value) => {
-				let mut stream = RlpStream::new_list(2);
+				let mut stream = RlpNode::encoded_list(2);
 				stream.append(&&*partial);
 				stream.append(&&*value);
 				stream.drain()
 			}
 			Node::Extension(partial, child) => {
-				let mut stream = RlpStream::new_list(2);
+				let mut stream = RlpNode::encoded_list(2);
 				stream.append(&&*partial);
 				child_cb(child, &mut stream);
 				stream.drain()
 			}
 			Node::Branch(mut children, value) => {
-				let mut stream = RlpStream::new_list(17);
+				let mut stream = RlpNode::encoded_list(17);
 				for child in children.iter_mut().map(Option::take) {
 					if let Some(handle) = child {
 						child_cb(handle, &mut stream);
@@ -839,6 +840,11 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 	/// commit a node, hashing it, committing it to the db,
 	/// and writing it to the rlp stream as necessary.
 	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut RlpStream) {
+//	fn commit_node(
+//		&mut self, handle: NodeHandle<H>,
+//		stream: &mut <RlpNode as NodeCodec>::StreamEncoding
+//	)
+//	{
 		match handle {
 			NodeHandle::Hash(h) => stream.append(&h),
 			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
