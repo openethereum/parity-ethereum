@@ -70,7 +70,9 @@ impl fmt::Display for TransactionRequest {
 				"{} ETH from {} to 0x{:?}",
 				Colour::White.bold().paint(format_ether(eth)),
 				Colour::White.bold().paint(
-					self.from.as_ref().map(|f| format!("0x{:?}", f)).unwrap_or("?".to_string())),
+					self.from.as_ref()
+						.map(|f| format!("0x{:?}", f))
+						.unwrap_or_else(|| "?".to_string())),
 				to
 			),
 			None => write!(
@@ -78,7 +80,9 @@ impl fmt::Display for TransactionRequest {
 				"{} ETH from {} for contract creation",
 				Colour::White.bold().paint(format_ether(eth)),
 				Colour::White.bold().paint(
-					self.from.as_ref().map(|f| format!("0x{:?}", f)).unwrap_or("?".to_string())),
+					self.from.as_ref()
+						.map(|f| format!("0x{:?}", f))
+						.unwrap_or_else(|| "?".to_string())),
 			),
 		}
 	}
