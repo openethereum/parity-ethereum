@@ -184,6 +184,7 @@ impl Middleware {
 		};
 
 		let special = special_endpoints(
+			pool.clone(),
 			health,
 			content_fetcher.clone(),
 		);
@@ -209,11 +210,13 @@ impl http::RequestMiddleware for Middleware {
 }
 
 fn special_endpoints(
+	pool: CpuPool,
 	health: NodeHealth,
 	content_fetcher: Arc<apps::fetcher::Fetcher>,
 ) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
 	let mut special = HashMap::new();
 	special.insert(router::SpecialEndpoint::Rpc, None);
+	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils(pool)));
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
 		health,

@@ -14,8 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+#[cfg(feature = "parity-ui-dev")]
+mod inner {
+	extern crate parity_ui_dev;
+
+	pub use self::parity_ui_dev::*;
+}
+
+#[cfg(feature = "parity-ui-precompiled")]
+mod inner {
+	extern crate parity_ui_precompiled;
+
+	pub use self::parity_ui_precompiled::*;
+}
+
 #[cfg(feature = "parity-ui-old-dev")]
-pub mod wallet {
+pub mod old {
 	extern crate parity_ui_old_dev;
 
 	pub use self::parity_ui_old_dev::*;
@@ -27,3 +41,5 @@ pub mod old {
 
 	pub use self::parity_ui_old_precompiled::*;
 }
+
+pub use self::inner::*;

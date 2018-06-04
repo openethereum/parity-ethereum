@@ -315,7 +315,7 @@ mod tests {
 			icon_url: "".into(),
 			local_url: Some("".into()),
 			allow_js_eval: None,
-		}, Default::default(), None);
+		}, Default::default());
 
 		// when
 		fetcher.set_status("test", ContentStatus::Ready(handler));
