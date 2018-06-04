@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -144,7 +144,6 @@ fn should_subscribe_to_logs() {
 		+ r#"","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"removed"},"subscription":"0x416d77337e24399d"}}"#;
 	assert_eq!(res, Some(response.into()));
 
-
 	// And unsubscribe
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -153,7 +152,6 @@ fn should_subscribe_to_logs() {
 	let (res, _receiver) = receiver.into_future().wait().unwrap();
 	assert_eq!(res, None);
 }
-
 
 #[test]
 fn should_subscribe_to_pending_transactions() {

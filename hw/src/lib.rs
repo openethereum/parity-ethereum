@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -91,7 +91,6 @@ pub trait Wallet<'a> {
 	fn open_path<R, F>(&self, f: F) -> Result<R, Self::Error>
 		where F: Fn() -> Result<R, &'static str>;
 }
-
 
 /// Hardware wallet error.
 #[derive(Debug)]

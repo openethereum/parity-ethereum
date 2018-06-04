@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -126,7 +126,6 @@ pub fn request(server: Server, request: &str) -> http_client::Response {
 pub fn assert_security_headers(headers: &[String]) {
 	http_client::assert_security_headers_present(headers, None)
 }
-
 
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder<T: Fetch = FetchClient> {

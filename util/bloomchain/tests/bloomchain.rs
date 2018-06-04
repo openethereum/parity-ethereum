@@ -1,3 +1,19 @@
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 extern crate bloomchain;
 extern crate rustc_hex;
 
@@ -53,7 +69,6 @@ fn partly_matching_bloom_searach() {
 
 	db.insert_blooms(modified_blooms_1);
 
-
 	let chain = BloomChain::new(config, &db);
 	assert_eq!(chain.with_bloom(&(0..100), &bloom2), vec![14, 15]);
 }
@@ -100,7 +115,6 @@ fn bloom_replace() {
 	};
 
 	db.insert_blooms(modified_blooms_3);
-
 
 	let reset_modified_blooms = {
 		let chain = BloomChain::new(config, &db);

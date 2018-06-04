@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -85,7 +85,6 @@ pub const PROTOCOL_VERSIONS: &'static [(u8, u8)] = &[
 
 /// Max protocol version.
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
-
 
 // packet ID definitions.
 mod packet {

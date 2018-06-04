@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -89,7 +89,6 @@ impl ConnectionFilter for NodeFilter {
 		if let Some(res) = cache.get_mut(&key) {
 			return *res;
 		}
-
 
 		let address = self.contract_address;
 		let own_low = H256::from_slice(&own_id[0..32]);

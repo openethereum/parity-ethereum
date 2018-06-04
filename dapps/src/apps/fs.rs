@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -77,7 +77,6 @@ pub fn local_endpoint<P: AsRef<Path>>(path: P, pool: CpuPool) -> Option<(String,
 	})
 }
 
-
 fn local_dapp(name: String, path: PathBuf) -> LocalDapp {
 	// try to get manifest file
 	let info = read_manifest(&name, path.clone());
@@ -100,7 +99,6 @@ pub fn local_endpoints<P: AsRef<Path>>(dapps_path: P, pool: CpuPool) -> BTreeMap
 	}
 	pages
 }
-
 
 fn local_dapps(dapps_path: &Path) -> Vec<LocalDapp> {
 	let files = fs::read_dir(dapps_path);

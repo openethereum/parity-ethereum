@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -265,8 +265,6 @@ pub mod tests {
 		let calls = registrar.calls.clone();
 		let urlhint = URLHintContract::new(Arc::new(registrar));
 
-
-
 		// when
 		let res = urlhint.resolve("test".as_bytes().into()).wait().unwrap();
 		let calls = calls.lock();
@@ -352,7 +350,6 @@ pub mod tests {
 		let url3 = "https://parity.io/parity#something&content-type=image/png";
 		let url4 = "https://parity.io/parity.png#content-type=image/jpeg";
 		let url5 = "https://parity.io/parity.png";
-
 
 		assert_eq!(guess_mime_type(url1), None);
 		assert_eq!(guess_mime_type(url2), Some(mime::IMAGE_PNG));

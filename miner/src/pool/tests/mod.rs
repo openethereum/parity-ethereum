@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -491,7 +491,6 @@ fn should_accept_same_transaction_twice_if_removed() {
 	let (tx1, _) = txs.clone();
 	let (hash, _) = txs.hash();
 
-
 	let res = txq.import(TestClient::new(), txs.local().into_vec());
 	assert_eq!(res, vec![Ok(()), Ok(())]);
 	assert_eq!(txq.status().status.transaction_count, 2);
@@ -730,7 +729,6 @@ fn should_not_return_transactions_over_nonce_cap() {
 	let all = txq.pending(TestClient::new(), 0, 0, None);
 	// This should invalidate the cache!
 	let limited = txq.pending(TestClient::new(), 0, 0, Some(123.into()));
-
 
 	// then
 	assert_eq!(all.len(), 3);
