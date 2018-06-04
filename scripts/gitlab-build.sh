@@ -44,7 +44,7 @@ set_env_win () {
   set RUST_BACKTRACE=1
   #export RUSTFLAGS=$RUSTFLAGS
   rustup default stable-x86_64-pc-windows-msvc
-  echo "MsBuild.exe windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release" > msbuild.cmd
+  echo "MsBuild.exe /p:Platform=x64 /p:Configuration=Release" > msbuild.cmd
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
@@ -168,13 +168,6 @@ sign_exe () {
 }
 make_exe () {
   ./msbuild.cmd
-  ./sign.cmd $keyfile $certpass windows/ptray/x64/release/ptray.exe
-  cd nsis
-  curl -sL --url "https://github.com/paritytech/win-build/raw/master/vc_redist.x64.exe" -o vc_redist.x64.exe
-  echo "makensis.exe installer.nsi" > nsis.cmd
-  ./nsis.cmd
-  cd ..
-  cp nsis/installer.exe "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
   ./sign.cmd $keyfile $certpass "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
   $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
