@@ -380,11 +380,13 @@ impl Miner {
 
 		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
 			client.clone(),
-			chain_info.best_block_number,
-			chain_info.best_block_timestamp,
-			nonce_cap,
-			max_transactions,
-			miner::PendingOrdering::Priority,
+			pool::PendingSettings {
+				block_number: chain_info.best_block_number,
+				current_timestamp: chain_info.best_block_timestamp,
+				nonce_cap,
+				max_len: max_transactions,
+				ordering: miner::PendingOrdering::Priority,
+			}
 		);
 
 		let took_ms = |elapsed: &Duration| {
@@ -830,11 +832,13 @@ impl miner::MinerService for Miner {
 
 			self.transaction_queue.pending(
 				CachedNonceClient::new(chain, &self.nonce_cache),
-				chain_info.best_block_number,
-				chain_info.best_block_timestamp,
-				nonce_cap,
-				max_len,
-				ordering
+				pool::PendingSettings {
+					block_number: chain_info.best_block_number,
+					current_timestamp: chain_info.best_block_timestamp,
+					nonce_cap,
+					max_len,
+					ordering,
+				},
 			)
 		};
 

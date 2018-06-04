@@ -27,7 +27,10 @@ use rayon::prelude::*;
 use transaction;
 use txpool::{self, Verifier};
 
-use pool::{self, scoring, verifier, client, ready, listener, PrioritizationStrategy, PendingOrdering};
+use pool::{
+	self, scoring, verifier, client, ready, listener,
+	PrioritizationStrategy, PendingOrdering, PendingSettings,
+};
 use pool::local_transactions::LocalTransactionsList;
 
 type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
@@ -220,15 +223,11 @@ impl TransactionQueue {
 	pub fn pending<C>(
 		&self,
 		client: C,
-		block_number: u64,
-		current_timestamp: u64,
-		nonce_cap: Option<U256>,
-		max_len: usize,
-		ordering: PendingOrdering,
+		settings: PendingSettings,
 	) -> Vec<Arc<pool::VerifiedTransaction>> where
 		C: client::NonceClient,
 	{
-
+		let PendingSettings { block_number, current_timestamp, nonce_cap, max_len, ordering } = settings;
 		if let Some(pending) = self.cached_pending.read().pending(block_number, current_timestamp, nonce_cap.as_ref(), max_len) {
 			return pending;
 		}
@@ -468,7 +467,7 @@ mod tests {
 	fn should_get_pending_transactions() {
 		let queue = TransactionQueue::new(txpool::Options::default(), verifier::Options::default(), PrioritizationStrategy::GasPriceOnly);
 
-		let pending: Vec<_> = queue.pending(TestClient::default(), 0, 0, None);
+		let pending: Vec<_> = queue.pending(TestClient::default(), PendingSettings::all_prioritized(0, 0));
 
 		for tx in pending {
 			assert!(tx.signed().nonce > 0.into());

@@ -149,6 +149,10 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
 const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
+// Maximal number of transactions queried from miner to propagate.
+// This set is used to diff with transactions known by the peer and
+// we will send a difference of length up to `MAX_TRANSACTIONS_TO_PROPAGATE`.
+const MAX_TRANSACTIONS_TO_QUERY: usize = 1024;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
