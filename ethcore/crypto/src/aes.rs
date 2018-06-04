@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -51,4 +51,3 @@ pub fn decrypt_128_cbc(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) -
 	encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut buffer, true)?;
 	Ok(len - buffer.remaining())
 }
-

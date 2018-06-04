@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -76,7 +76,6 @@ fn signer_tester() -> SignerTester {
 	}
 }
 
-
 #[test]
 fn should_return_list_of_items_to_confirm() {
 	// given
@@ -106,7 +105,6 @@ fn should_return_list_of_items_to_confirm() {
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 }
-
 
 #[test]
 fn should_reject_transaction_from_queue_without_dispatching() {

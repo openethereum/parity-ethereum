@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -316,7 +316,6 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 	}
 }
 
-
 #[inline]
 fn mem_needed_const<Gas: evm::CostType>(mem: &U256, add: usize) -> vm::Result<Gas> {
 	Gas::from_u256(overflowing!(mem.overflowing_add(U256::from(add))))
@@ -369,4 +368,3 @@ fn test_calculate_mem_cost() {
 	assert_eq!(new_mem_gas, 3);
 	assert_eq!(mem_size, 32);
 }
-

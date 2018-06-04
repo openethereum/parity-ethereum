@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -382,7 +382,6 @@ fn should_correctly_handle_long_label_when_splitted() {
 	fetch.assert_requested("https://contribution.melonport.com/styles.css?test=123");
 	fetch.assert_no_more_requests();
 }
-
 
 #[test]
 fn should_support_base32_encoded_web_urls_as_path() {

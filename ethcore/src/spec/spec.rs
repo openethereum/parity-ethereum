@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -319,7 +319,6 @@ impl<'a, T: AsRef<Path>> From<&'a T> for SpecParams<'a> {
 		Self::from_path(path.as_ref())
 	}
 }
-
 
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
@@ -847,7 +846,6 @@ impl Spec {
 
 	/// Create the EthereumMachine corresponding to Spec::new_test.
 	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
-
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
 	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }

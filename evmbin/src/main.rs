@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -82,7 +82,6 @@ General options:
     --chain CHAIN      Chain spec file path.
     -h, --help         Display this message and exit.
 "#;
-
 
 fn main() {
 	panic_hook::set();

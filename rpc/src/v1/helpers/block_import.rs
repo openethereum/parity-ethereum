@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,7 +34,6 @@ mod tests {
 	use ethcore::client::BlockQueueInfo;
 	use sync::SyncState;
 	use super::is_major_importing;
-
 
 	fn queue_info(unverified: usize, verified: usize) -> BlockQueueInfo {
 		BlockQueueInfo {

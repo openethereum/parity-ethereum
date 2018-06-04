@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -411,7 +411,6 @@ impl TransactionQueue {
 		(pool.listener_mut().1).0.add(f);
 	}
 }
-
 
 fn convert_error(err: txpool::Error) -> transaction::Error {
 	use self::txpool::ErrorKind;

@@ -281,7 +281,6 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 		Ok(result)
 	}
 
-
 	/// consumes slice prefix of length `len`
 	fn consume(bytes: &'a [u8], len: usize) -> Result<&'a [u8], DecoderError> {
 		match bytes.len() >= len {

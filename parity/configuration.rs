@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -1981,7 +1981,6 @@ mod tests {
 		assert_eq!(conf0.secretstore_config().unwrap().http_port, 8083);
 		assert_eq!(conf0.ipfs_config().port, 5002);
 		assert_eq!(conf0.stratum_options().unwrap().unwrap().port, 8009);
-
 
 		assert_eq!(conf1.net_addresses().unwrap().0.port(), 30304);
 		assert_eq!(conf1.network_settings().unwrap().network_port, 30304);
