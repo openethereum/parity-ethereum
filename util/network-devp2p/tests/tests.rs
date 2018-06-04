@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -98,7 +98,6 @@ impl NetworkProtocolHandler for TestProtocol {
 		self.got_timeout.store(true, AtomicOrdering::Relaxed);
 	}
 }
-
 
 #[test]
 fn net_service() {

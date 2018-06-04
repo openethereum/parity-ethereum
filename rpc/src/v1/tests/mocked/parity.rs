@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -149,7 +149,6 @@ fn rpc_parity_accounts_info() {
 fn rpc_parity_default_account() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
-
 
 	// Check empty
 	let address = Address::default();

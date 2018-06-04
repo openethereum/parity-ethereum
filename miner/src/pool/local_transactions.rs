@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -189,7 +189,6 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		self.insert(*tx.hash(), Status::Canceled(tx.clone()));
 		self.clear_old();
 	}
-
 
 	/// The transaction has been mined.
 	fn mined(&mut self, tx: &Arc<Transaction>) {

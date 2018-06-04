@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -253,7 +253,6 @@ fn high_td_attach() {
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
 }
 
-
 #[test]
 fn disconnect_on_unrelated_chain() {
 	::env_logger::init().ok();
@@ -267,4 +266,3 @@ fn disconnect_on_unrelated_chain() {
 	net.sync();
 	assert_eq!(net.disconnect_events, vec![(0, 0)]);
 }
-

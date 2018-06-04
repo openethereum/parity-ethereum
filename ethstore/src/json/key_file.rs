@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -101,7 +101,6 @@ impl<'a> Deserialize<'a> for KeyFile {
 		deserializer.deserialize_struct("KeyFile", FIELDS, KeyFileVisitor)
 	}
 }
-
 
 fn none_if_empty<'a, T>(v: Option<serde_json::Value>) -> Option<T> where
 	T: DeserializeOwned

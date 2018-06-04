@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -149,7 +149,6 @@ fn rpc_eth_syncing() {
 	// causes TestBlockChainClient to return 1000 for its best block number.
 	tester.add_blocks(1000, EachBlockWith::Nothing);
 
-
 	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(true_res.to_owned()));
 
@@ -220,7 +219,6 @@ fn rpc_eth_logs() {
 		transaction_hash: H256::default(),
 		log_index: 1,
 	}]);
-
 
 	let request1 = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{}], "id": 1}"#;
 	let request2 = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{"limit":1}], "id": 1}"#;
@@ -582,7 +580,6 @@ fn rpc_eth_pending_transaction_by_hash() {
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
-
 #[test]
 fn rpc_eth_uncle_count_by_block_hash() {
 	let request = r#"{
@@ -932,7 +929,6 @@ fn rpc_eth_send_transaction_with_bad_to() {
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 }
-
 
 #[test]
 fn rpc_eth_send_transaction_error() {
