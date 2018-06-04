@@ -1357,16 +1357,9 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: Some("127.0.0.1:8180".into()),
 			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true,
 			max_connections: 100,
-		}, UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: true,
 		}, LogConfig {
             color: true,
             mode: None,
@@ -1435,12 +1428,10 @@ mod tests {
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
 			ipfs_conf: Default::default(),
-			ui_conf: Default::default(),
 			secretstore_conf: Default::default(),
 			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
-			ui: false,
 			dapp: None,
 			name: "".into(),
 			custom_bootnodes: false,
@@ -1624,49 +1615,6 @@ mod tests {
 	}
 
 	#[test]
-	fn should_disable_signer_in_geth_compat() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity", "--geth"]);
-		let conf1 = parse(&["parity", "--geth", "--force-ui"]);
-		let conf2 = parse(&["parity", "--geth", "ui"]);
-		let conf3 = parse(&["parity"]);
-
-		// then
-		assert_eq!(conf0.ui_enabled(), UiEnabled {
-			enabled: false,
-			info_page_only: true,
-		});
-		assert_eq!(conf1.ui_enabled(), UiEnabled {
-			enabled: true,
-			info_page_only: false,
-		});
-		assert_eq!(conf2.ui_enabled(), UiEnabled {
-			enabled: true,
-			info_page_only: false,
-		});
-		assert_eq!(conf3.ui_enabled(), UiEnabled {
-			enabled: true,
-			info_page_only: true,
-		});
-	}
-
-	#[test]
-	fn should_disable_signer_when_account_is_unlocked() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity", "--unlock", "0x0"]);
-
-		// then
-		assert_eq!(conf0.ui_enabled(), UiEnabled {
-			enabled: false,
-			info_page_only: true,
-		});
-	}
-
-	#[test]
 	fn should_parse_ui_configuration() {
 		// given
 
@@ -1676,69 +1624,22 @@ mod tests {
 		let conf2 = parse(&["parity", "--ui-path=signer", "--ui-port", "3123"]);
 		let conf3 = parse(&["parity", "--ui-path=signer", "--ui-interface", "test"]);
 		let conf4 = parse(&["parity", "--ui-path=signer", "--force-ui"]);
-		let conf5 = parse(&["parity", "--ui-path=signer", "ui"]);
 
 		// then
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
-		assert_eq!(conf0.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: true,
-		});
 
 		assert!(conf1.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf1.ws_config().unwrap().origins, None);
+		assert_eq!(conf1.ws_config().unwrap().origins, Some(vec!["parity://*".into(), "chrome-extension://*".into(), "moz-extension://*".into()]));
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
-		assert_eq!(conf1.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: true,
-		});
-		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
 
 		assert!(conf2.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
-		assert_eq!(conf2.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 3123,
-			hosts: Some(vec![]),
-			info_page_only: true,
-		});
 
 		assert!(conf3.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
-		assert_eq!(conf3.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "test".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: true,
-		});
 
 		assert!(conf4.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf4.directories().signer, "signer".to_owned());
-		assert_eq!(conf4.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: false,
-		});
-
-		assert!(conf5.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf5.directories().signer, "signer".to_owned());
-		assert_eq!(conf5.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: false,
-		});
 	}
 
 	#[test]
@@ -1895,7 +1796,6 @@ mod tests {
 		assert_eq!(conf0.network_settings().unwrap().rpc_port, 8546);
 		assert_eq!(conf0.http_config().unwrap().port, 8546);
 		assert_eq!(conf0.ws_config().unwrap().port, 8547);
-		assert_eq!(conf0.ui_config().port, 8181);
 		assert_eq!(conf0.secretstore_config().unwrap().port, 8084);
 		assert_eq!(conf0.secretstore_config().unwrap().http_port, 8083);
 		assert_eq!(conf0.ipfs_config().port, 5002);
@@ -1907,7 +1807,6 @@ mod tests {
 		assert_eq!(conf1.network_settings().unwrap().rpc_port, 8545);
 		assert_eq!(conf1.http_config().unwrap().port, 8545);
 		assert_eq!(conf1.ws_config().unwrap().port, 8547);
-		assert_eq!(conf1.ui_config().port, 8181);
 		assert_eq!(conf1.secretstore_config().unwrap().port, 8084);
 		assert_eq!(conf1.secretstore_config().unwrap().http_port, 8083);
 		assert_eq!(conf1.ipfs_config().port, 5002);

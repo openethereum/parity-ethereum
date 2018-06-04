@@ -1310,7 +1310,7 @@ struct Whisper {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, LegacyUi, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
+		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
 		Snapshots, Misc, Whisper, SecretStore,
 	};
 	use toml;
@@ -1564,9 +1564,9 @@ mod tests {
 			flag_force_ui: false,
 			flag_no_ui: false,
 			arg_ui_port: 8180u16,
-			arg_ui_interface: "127.0.0.1".into(),
+			arg_ui_interface: "local".into(),
 			arg_ui_hosts: "none".into(),
-			arg_ui_path: "none".into(),
+			arg_ui_path: "$HOME/.parity/signer".into(),
 			flag_ui_no_validation: false,
 
 			// -- Networking Options
@@ -1817,7 +1817,14 @@ mod tests {
 				disable_hardware: None,
 				fast_unlock: None,
 			}),
-			_legacy_ui: Some(LegacyUi { }),
+			ui: Some(Ui {
+				path: None,
+				_legacy_force: None,
+				_legacy_disable: Some(true),
+				_legacy_port: None,
+				_legacy_interface: None,
+				_legacy_hosts: None,
+			}),
 			network: Some(Network {
 				warp: Some(false),
 				warp_barrier: None,
