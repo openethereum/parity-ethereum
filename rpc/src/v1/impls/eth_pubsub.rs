@@ -199,7 +199,7 @@ impl LightClient for LightFetch {
 	}
 
 	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>> {
-		LightFetch::logs(self, filter)
+		Box::new(LightFetch::logs(self, filter)) as BoxFuture<_>
 	}
 }
 

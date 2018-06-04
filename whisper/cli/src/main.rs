@@ -19,6 +19,9 @@
 //! Spawns an Ethereum network instance and attaches the Whisper protocol RPCs to it.
 //!
 
+#![warn(missing_docs)]
+#![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
+
 extern crate docopt;
 extern crate ethcore_network_devp2p as devp2p;
 extern crate ethcore_network as net;
@@ -215,7 +218,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	let network = devp2p::NetworkService::new(net::NetworkConfiguration::new_local(), None)?;
 
 	// Start network service
-	network.start()?;
+	network.start().map_err(|(err, _)| err)?;
 
 	// Attach whisper protocol to the network service
 	network.register_protocol(whisper_network_handler.clone(), whisper::net::PROTOCOL_ID,

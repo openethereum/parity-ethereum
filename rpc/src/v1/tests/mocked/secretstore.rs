@@ -40,7 +40,7 @@ impl Dependencies {
 	}
 
 	pub fn client(&self) -> SecretStoreClient {
-		SecretStoreClient::new(&Some(self.accounts.clone()))
+		SecretStoreClient::new(&self.accounts)
 	}
 
 	fn default_client(&self) -> IoHandler<Metadata> {

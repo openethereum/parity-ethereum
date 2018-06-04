@@ -120,8 +120,9 @@ impl SyncSupplier {
 				None => return Ok(Some((BLOCK_HEADERS_PACKET, RlpStream::new_list(0)))) //no such header, return nothing
 			}
 		} else {
-			trace!(target: "sync", "{} -> GetBlockHeaders (number: {}, max: {}, skip: {}, reverse:{})", peer_id, r.val_at::<BlockNumber>(0)?, max_headers, skip, reverse);
-			r.val_at(0)?
+			let number = r.val_at::<BlockNumber>(0)?;
+			trace!(target: "sync", "{} -> GetBlockHeaders (number: {}, max: {}, skip: {}, reverse:{})", peer_id, number, max_headers, skip, reverse);
+			number
 		};
 
 		let mut number = if reverse {
@@ -135,7 +136,10 @@ impl SyncSupplier {
 		let inc = (skip + 1) as BlockNumber;
 		let overlay = io.chain_overlay().read();
 
-		while number <= last && count < max_count {
+		// We are checking the `overlay` as well since it's where the ForkBlock
+		// header is cached : so peers can confirm we are on the right fork,
+		// even if we are not synced until the fork block
+		while (number <= last || overlay.contains_key(&number)) && count < max_count {
 			if let Some(hdr) = overlay.get(&number) {
 				trace!(target: "sync", "{}: Returning cached fork header", peer_id);
 				data.extend_from_slice(hdr);
@@ -152,8 +156,7 @@ impl SyncSupplier {
 					break;
 				}
 				number -= inc;
-			}
-			else {
+			} else {
 				number += inc;
 			}
 		}
@@ -237,20 +240,20 @@ impl SyncSupplier {
 	/// Respond to GetSnapshotManifest request
 	fn return_snapshot_manifest(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let count = r.item_count().unwrap_or(0);
-		trace!(target: "sync", "{} -> GetSnapshotManifest", peer_id);
+		trace!(target: "warp", "{} -> GetSnapshotManifest", peer_id);
 		if count != 0 {
-			debug!(target: "sync", "Invalid GetSnapshotManifest request, ignoring.");
+			debug!(target: "warp", "Invalid GetSnapshotManifest request, ignoring.");
 			return Ok(None);
 		}
 		let rlp = match io.snapshot_service().manifest() {
 			Some(manifest) => {
-				trace!(target: "sync", "{} <- SnapshotManifest", peer_id);
+				trace!(target: "warp", "{} <- SnapshotManifest", peer_id);
 				let mut rlp = RlpStream::new_list(1);
 				rlp.append_raw(&manifest.into_rlp(), 1);
 				rlp
 			},
 			None => {
-				trace!(target: "sync", "{}: No manifest to return", peer_id);
+				trace!(target: "warp", "{}: No snapshot manifest to return", peer_id);
 				RlpStream::new_list(0)
 			}
 		};
@@ -260,15 +263,16 @@ impl SyncSupplier {
 	/// Respond to GetSnapshotData request
 	fn return_snapshot_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let hash: H256 = r.val_at(0)?;
-		trace!(target: "sync", "{} -> GetSnapshotData {:?}", peer_id, hash);
+		trace!(target: "warp", "{} -> GetSnapshotData {:?}", peer_id, hash);
 		let rlp = match io.snapshot_service().chunk(hash) {
 			Some(data) => {
 				let mut rlp = RlpStream::new_list(1);
-				trace!(target: "sync", "{} <- SnapshotData", peer_id);
+				trace!(target: "warp", "{} <- SnapshotData", peer_id);
 				rlp.append(&data);
 				rlp
 			},
 			None => {
+				trace!(target: "warp", "{}: No snapshot data to return", peer_id);
 				RlpStream::new_list(0)
 			}
 		};

@@ -94,7 +94,7 @@ pub struct ClusterConfiguration {
 /// Shadow decryption result.
 #[derive(Clone, Debug, PartialEq)]
 pub struct EncryptedDocumentKeyShadow {
-	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
+	/// Decrypted secret point. It is partially decrypted if shadow decryption was requested.
 	pub decrypted_secret: ethkey::Public,
 	/// Shared common point.
 	pub common_point: Option<ethkey::Public>,

@@ -70,7 +70,7 @@ impl TestProtocol {
 }
 
 impl NetworkProtocolHandler for TestProtocol {
-	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
+	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(0, Duration::from_millis(10)).unwrap();
 	}
 
@@ -112,7 +112,7 @@ fn net_start_stop() {
 	let config = NetworkConfiguration::new_local();
 	let service = NetworkService::new(config, None).unwrap();
 	service.start().unwrap();
-	service.stop().unwrap();
+	service.stop();
 	service.start().unwrap();
 }
 

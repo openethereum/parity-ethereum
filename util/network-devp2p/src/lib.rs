@@ -29,7 +29,7 @@
 //! struct MyHandler;
 //!
 //! impl NetworkProtocolHandler for MyHandler {
-//!		fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
+//!		fn initialize(&self, io: &NetworkContext) {
 //!			io.register_timer(0, Duration::from_secs(1));
 //!		}
 //!
@@ -106,10 +106,8 @@ mod discovery;
 mod service;
 mod node_table;
 mod ip_utils;
-mod connection_filter;
 
 pub use service::NetworkService;
-pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use host::NetworkContext;
 
 pub use io::TimerToken;

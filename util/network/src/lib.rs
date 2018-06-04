@@ -23,12 +23,18 @@ extern crate ethkey;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate snappy;
+extern crate libc;
+
+#[cfg(test)] #[macro_use]
+extern crate assert_matches;
 
 #[macro_use]
 extern crate error_chain;
 
+mod connection_filter;
 mod error;
 
+pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
 pub use error::{Error, ErrorKind, DisconnectReason};
 
@@ -40,7 +46,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
 use ethkey::Secret;
-use ethereum_types::{H256, H512};
+use ethereum_types::H512;
 use rlp::{Decodable, DecoderError, Rlp};
 
 /// Protocol handler level packet id
@@ -327,23 +333,12 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 	}
 }
 
-pub trait HostInfo {
-	/// Returns public key
-	fn id(&self) -> &NodeId;
-	/// Returns secret key
-	fn secret(&self) -> &Secret;
-	/// Increments and returns connection nonce.
-	fn next_nonce(&mut self) -> H256;
-    /// Returns the client version.
-	fn client_version(&self) -> &str;
-}
-
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.
 /// `Message` is the type for message data.
 pub trait NetworkProtocolHandler: Sync + Send {
 	/// Initialize the handler
-	fn initialize(&self, _io: &NetworkContext, _host_info: &HostInfo) {}
+	fn initialize(&self, _io: &NetworkContext) {}
 	/// Called when new network packet received.
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]);
 	/// Called when new peer is connected. Only called when peer supports the same protocol.

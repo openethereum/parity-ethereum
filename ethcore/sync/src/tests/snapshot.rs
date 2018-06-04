@@ -80,6 +80,10 @@ impl SnapshotService for TestSnapshotService {
 		Some((1, 2))
 	}
 
+	fn completed_chunks(&self) -> Option<Vec<H256>> {
+		Some(vec![])
+	}
+
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
 		self.chunks.get(&hash).cloned()
 	}
@@ -128,6 +132,10 @@ impl SnapshotService for TestSnapshotService {
 		if self.restoration_manifest.lock().as_ref().map_or(false, |m| m.block_hashes.iter().any(|h| h == &hash)) {
 			self.block_restoration_chunks.lock().insert(hash, chunk);
 		}
+	}
+
+	fn shutdown(&self) {
+		self.abort_restore();
 	}
 }
 

@@ -116,8 +116,6 @@ pub enum ApiSet {
 	SafeContext,
 	// Unsafe context (like jsonrpc over http)
 	UnsafeContext,
-	// Public context (like public jsonrpc over http)
-	PublicContext,
 	// All possible APIs
 	All,
 	// Local "unsafe" context and accounts access
@@ -219,7 +217,7 @@ pub struct FullDependencies {
 	pub snapshot: Arc<SnapshotService>,
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
-	pub secret_store: Option<Arc<AccountProvider>>,
+	pub secret_store: Arc<AccountProvider>,
 	pub private_tx_service: Option<Arc<PrivateTxService>>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
@@ -316,7 +314,7 @@ impl FullDependencies {
 					}
 				},
 				Api::Personal => {
-					handler.extend_with(PersonalClient::new(self.secret_store.clone(), dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
 					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
@@ -475,7 +473,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				{
 					let deps = &$deps;
 					let dispatcher = dispatcher.clone();
-					let secret_store = Some(deps.secret_store.clone());
+					let secret_store = deps.secret_store.clone();
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(
 							SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &secret_store)
@@ -533,12 +531,10 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(EthPubSub::to_delegate(client));
 				},
 				Api::Personal => {
-					let secret_store = Some(self.secret_store.clone());
-					handler.extend_with(PersonalClient::new(secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
-					let secret_store = Some(self.secret_store.clone());
-					handler.extend_with(SignerClient::new(&secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
+					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
 				},
 				Api::Parity => {
 					let signer = match self.signer_service.is_enabled() {
@@ -571,8 +567,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					}
 				},
 				Api::ParityAccounts => {
-					let secret_store = Some(self.secret_store.clone());
-					handler.extend_with(ParityAccountsClient::new(&secret_store).to_delegate());
+					handler.extend_with(ParityAccountsClient::new(&self.secret_store).to_delegate());
 				},
 				Api::ParitySet => {
 					handler.extend_with(light::ParitySetClient::new(
@@ -590,8 +585,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(RpcClient::new(modules).to_delegate());
 				},
 				Api::SecretStore => {
-					let secret_store = Some(self.secret_store.clone());
-					handler.extend_with(SecretStoreClient::new(&secret_store).to_delegate());
+					handler.extend_with(SecretStoreClient::new(&self.secret_store).to_delegate());
 				},
 				Api::Whisper => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
@@ -637,7 +631,7 @@ impl ApiSet {
 	}
 
 	pub fn list_apis(&self) -> HashSet<Api> {
-		let mut public_list = [
+		let mut public_list: HashSet<Api> = [
 			Api::Web3,
 			Api::Net,
 			Api::Eth,
@@ -651,7 +645,6 @@ impl ApiSet {
 
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
-			ApiSet::PublicContext => public_list,
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);

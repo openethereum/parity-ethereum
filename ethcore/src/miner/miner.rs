@@ -290,10 +290,12 @@ impl Miner {
 	{
 		self.sealing.lock().queue
 			.peek_last_ref()
-			.and_then(|b| if b.block().header().number() > latest_block_number {
-				Some(f(b))
-			} else {
-				None
+			.and_then(|b| {
+				if b.block().header().number() > latest_block_number {
+					Some(f(b))
+				} else {
+					None
+				}
 			})
 	}
 
