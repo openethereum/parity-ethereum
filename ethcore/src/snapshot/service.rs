@@ -69,6 +69,22 @@ pub trait DatabaseRestore: Send + Sync {
 	fn restore_db(&self, new_db: &str) -> Result<(), Error>;
 }
 
+struct RestorationIo {
+	reader: LooseReader,
+	writer: LooseWriter,
+}
+
+impl RestorationIo {
+	fn new(restoration_path: PathBuf) -> Result<RestorationIo, Error> {
+		let io = RestorationIo {
+			reader: LooseReader::new(restoration_path.clone())?,
+			writer: LooseWriter::new(restoration_path.clone())?,
+		};
+
+		Ok(io)
+	}
+}
+
 /// State restoration manager.
 struct Restoration {
 	manifest: ManifestData,
@@ -76,7 +92,7 @@ struct Restoration {
 	block_chunks_left: HashSet<H256>,
 	state: StateRebuilder,
 	secondary: Box<Rebuilder>,
-	writer: Option<LooseWriter>,
+	io: Option<RestorationIo>,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
@@ -87,7 +103,7 @@ struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
 	db: Arc<KeyValueDB>, // database
-	writer: Option<LooseWriter>, // writer for recovered snapshot.
+	io: Option<RestorationIo>, // IO (writer and reader) for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
 	engine: &'a EthEngine,
@@ -117,7 +133,7 @@ impl Restoration {
 			block_chunks_left: block_chunks,
 			state: StateRebuilder::new(raw_db.clone(), params.pruning),
 			secondary: secondary,
-			writer: params.writer,
+			io: params.io,
 			snappy_buffer: Vec::new(),
 			final_state_root: root,
 			guard: params.guard,
@@ -137,8 +153,8 @@ impl Restoration {
 
 			self.state.feed(&self.snappy_buffer[..len], flag)?;
 
-			if let Some(ref mut writer) = self.writer.as_mut() {
-				writer.write_state_chunk(hash, chunk)?;
+			if let Some(ref mut io) = self.io.as_mut() {
+				io.writer.write_state_chunk(hash, chunk)?;
 			}
 
 			self.state_chunks_left.remove(&hash);
@@ -158,8 +174,8 @@ impl Restoration {
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
 			self.secondary.feed(&self.snappy_buffer[..len], engine, flag)?;
-			if let Some(ref mut writer) = self.writer.as_mut() {
-				 writer.write_block_chunk(hash, chunk)?;
+			if let Some(ref mut io) = self.io.as_mut() {
+				io.writer.write_block_chunk(hash, chunk)?;
 			}
 
 			self.block_chunks_left.remove(&hash);
@@ -187,8 +203,8 @@ impl Restoration {
 		// connect out-of-order chunks and verify chain integrity.
 		self.secondary.finalize(engine)?;
 
-		if let Some(writer) = self.writer {
-			writer.finish(self.manifest)?;
+		if let Some(io) = self.io {
+			io.writer.finish(self.manifest)?;
 		}
 
 		self.guard.disarm();
@@ -201,8 +217,8 @@ impl Restoration {
 	}
 
 	fn read_chunk(&self, hash: H256) -> Option<Bytes> {
-		if let Some(ref writer) = self.writer {
-			writer.read_chunk(hash).ok()
+		if let Some(ref io) = self.io {
+			io.reader.chunk(hash).ok()
 		} else {
 			None
 		}
@@ -465,8 +481,8 @@ impl Service {
 		fs::create_dir_all(&rest_dir)?;
 
 		// make new restoration.
-		let writer = match recover {
-			true => Some(LooseWriter::new(recovery_temp)?),
+		let restoration_io = match recover {
+			true => Some(RestorationIo::new(recovery_temp)?),
 			false => None
 		};
 
@@ -474,7 +490,7 @@ impl Service {
 			manifest: manifest.clone(),
 			pruning: self.pruning,
 			db: self.restoration_db_handler.open(&rest_db)?,
-			writer: writer,
+			io: restoration_io,
 			genesis: &self.genesis_block,
 			guard: Guard::new(rest_db),
 			engine: &*self.engine,
@@ -562,7 +578,7 @@ impl Service {
 	fn finalize_restoration(&self, rest: &mut Option<Restoration>) -> Result<(), Error> {
 		trace!(target: "snapshot", "finalizing restoration");
 
-		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
+		let recover = rest.as_ref().map_or(false, |rest| rest.io.is_some());
 
 		// destroy the restoration before replacing databases and snapshot.
 		rest.take()

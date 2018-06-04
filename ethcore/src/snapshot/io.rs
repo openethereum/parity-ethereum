@@ -37,9 +37,6 @@ const SNAPSHOT_VERSION: u64 = 2;
 /// Writing the same chunk multiple times will lead to implementation-defined
 /// behavior, and is not advised.
 pub trait SnapshotWriter {
-	/// Get a raw chunk by hash
-	fn read_chunk(&self, hash: H256) -> io::Result<Bytes>;
-
 	/// Write a compressed state chunk.
 	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()>;
 
@@ -82,42 +79,29 @@ impl PackedWriter {
 			cur_len: 0,
 		})
 	}
-}
 
-impl SnapshotWriter for PackedWriter {
-	fn read_chunk(&self, hash: H256) -> io::Result<Bytes> {
-		let &ChunkInfo(_, len, off) = self.state_hashes.iter()
-			.chain(self.block_hashes.iter())
-			.find(|&chunk_info| chunk_info.0 == hash)
-			.expect("only chunks in the manifest can be requested; qed");
-
-		let mut file = &self.file;
-
-		file.seek(SeekFrom::Start(off))?;
-		let mut buf = vec![0; len as usize];
-
-		file.read_exact(&mut buf[..])?;
-
-		Ok(buf)
-	}
-
-	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
+	/// Write a chunk to the file and return the new chunk information
+	fn write_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<ChunkInfo> {
 		self.file.write_all(chunk)?;
 
 		let len = chunk.len() as u64;
-		self.state_hashes.push(ChunkInfo(hash, len, self.cur_len));
+		let chunk_info = ChunkInfo(hash, len, self.cur_len);
 
 		self.cur_len += len;
+		Ok(chunk_info)
+	}
+}
+
+impl SnapshotWriter for PackedWriter {
+	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
+		let chunk_info = self.write_chunk(hash, chunk)?;
+		self.state_hashes.push(chunk_info);
 		Ok(())
 	}
 
 	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		self.file.write_all(chunk)?;
-
-		let len = chunk.len() as u64;
-		self.block_hashes.push(ChunkInfo(hash, len, self.cur_len));
-
-		self.cur_len += len;
+		let chunk_info = self.write_chunk(hash, chunk)?;
+		self.block_hashes.push(chunk_info);
 		Ok(())
 	}
 
@@ -183,14 +167,6 @@ impl LooseWriter {
 }
 
 impl SnapshotWriter for LooseWriter {
-	fn read_chunk(&self, hash: H256) -> io::Result<Bytes> {
-		let path = self.dir.join(format!("{:x}", hash));
-		let mut buf = Vec::new();
-		let mut file = File::open(&path)?;
-		file.read_to_end(&mut buf)?;
-		Ok(buf)
-	}
-
 	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
 		self.write_chunk(hash, chunk)
 	}
