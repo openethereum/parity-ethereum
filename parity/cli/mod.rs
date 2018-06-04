@@ -371,6 +371,11 @@ usage! {
 			"--private-passwords=[FILE]...",
 			"Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
 
+		["UI options"]
+			ARG arg_ui_path: (String) = "$BASE/signer", or |c: &Config| c.ui.as_ref()?.path.clone(),
+			"--ui-path=[PATH]",
+			"Specify directory where Trusted UIs tokens should be stored.",
+
 		["Networking options"]
 			FLAG flag_no_warp: (bool) = false, or |c: &Config| c.network.as_ref()?.warp.clone().map(|w| !w),
 			"--no-warp",
@@ -922,7 +927,6 @@ usage! {
 			"--no-ui",
 			"Does nothing; UI is now a separate project.",
 
-			// NOTE [todr] For security reasons don't put this to config files
 			FLAG flag_ui_no_validation: (bool) = false, or |_| None,
 			"--ui-no-validation",
 			"Does nothing; UI is now a separate project.",
@@ -933,10 +937,6 @@ usage! {
 
 			ARG arg_ui_hosts: (String) = "none", or |_| None,
 			"--ui-hosts=[HOSTS]",
-			"Does nothing; UI is now a separate project.",
-
-			ARG arg_ui_path: (String) = "none", or |_| None,
-			"--ui-path=[PATH]",
 			"Does nothing; UI is now a separate project.",
 
 			ARG arg_ui_port: (u16) = 8180u16, or |_| None,
@@ -1038,6 +1038,7 @@ usage! {
 struct Config {
 	parity: Option<Operating>,
 	account: Option<Account>,
+	ui: Option<Ui>,
 	network: Option<Network>,
 	rpc: Option<Rpc>,
 	websockets: Option<Ws>,
@@ -1052,9 +1053,6 @@ struct Config {
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
 	whisper: Option<Whisper>,
-
-	#[serde(rename="ui")]
-	_legacy_ui: Option<LegacyUi>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1103,6 +1101,23 @@ struct PrivateTransactions {
 	passwords: Option<String>,
 	sstore_url: Option<String>,
 	sstore_threshold: Option<u32>,
+}
+
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Ui {
+	path: Option<String>,
+
+	#[serde(rename="force")]
+	_legacy_force: Option<bool>,
+	#[serde(rename="disable")]
+	_legacy_disable: Option<bool>,
+	#[serde(rename="port")]
+	_legacy_port: Option<u16>,
+	#[serde(rename="interface")]
+	_legacy_interface: Option<String>,
+	#[serde(rename="hosts")]
+	_legacy_hosts: Option<Vec<String>>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1290,9 +1305,6 @@ struct Whisper {
 	enabled: Option<bool>,
 	pool_size: Option<usize>,
 }
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-struct LegacyUi { }
 
 #[cfg(test)]
 mod tests {

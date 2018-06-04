@@ -825,7 +825,7 @@ impl Configuration {
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
-		if self.args.flag_unsafe_expose || self.args.flag_ui_no_validation {
+		if self.args.flag_unsafe_expose {
 			return None;
 		}
 
@@ -1143,12 +1143,6 @@ impl Configuration {
 			target_message_pool_size: self.args.arg_whisper_pool_size * 1024 * 1024,
 		}
 	}
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-struct UiEnabled {
-	pub enabled: bool,
-	pub info_page_only: bool,
 }
 
 fn into_secretstore_service_contract_address(s: &str) -> Result<Option<SecretStoreContractAddress>, String> {
