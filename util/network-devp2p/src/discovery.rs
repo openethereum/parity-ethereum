@@ -157,7 +157,7 @@ impl Discovery {
 		let dist = match Discovery::distance(&self.id_hash, &id_hash) {
 			Some(dist) => dist,
 			None => {
-				warn!(target: "discovery", "Attempted to update own entry: {:?}", e);
+				debug!(target: "discovery", "Attempted to update own entry: {:?}", e);
 				return;
 			}
 		};
@@ -191,7 +191,7 @@ impl Discovery {
 		let dist = match Discovery::distance(&self.id_hash, &keccak(id)) {
 			Some(dist) => dist,
 			None => {
-				warn!(target: "discovery", "Received ping from self");
+				debug!(target: "discovery", "Received ping from self");
 				return
 			}
 		};
@@ -358,19 +358,19 @@ impl Discovery {
 				Ok(Some(size)) if size == data.payload.len() => {
 				},
 				Ok(Some(_)) => {
-					warn!("UDP sent incomplete datagramm");
+					debug!(target: "discovery", "UDP sent incomplete datagramm");
 				},
 				Ok(None) => {
 					self.send_queue.push_front(data);
 					return;
 				}
 				Err(e) => {
-					debug!("UDP send error: {:?}, address: {:?}", e, &data.address);
+					debug!(target: "discovery", "UDP send error: {:?}, address: {:?}", e, &data.address);
 					return;
 				}
 			}
 		}
-		io.update_registration(self.token).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
+		io.update_registration(self.token).unwrap_or_else(|e| debug!(target: "discovery", "Error updating discovery registration: {:?}", e));
 	}
 
 	fn send_to(&mut self, payload: Bytes, address: SocketAddr) {
@@ -382,18 +382,18 @@ impl Discovery {
 		let writable = !self.send_queue.is_empty();
 		let res = match self.udp_socket.recv_from(&mut buf) {
 			Ok(Some((len, address))) => self.on_packet(&buf[0..len], address).unwrap_or_else(|e| {
-				debug!("Error processing UDP packet: {:?}", e);
+				debug!(target: "discovery", "Error processing UDP packet: {:?}", e);
 				None
 			}),
 			Ok(_) => None,
 			Err(e) => {
-				debug!("Error reading UPD socket: {:?}", e);
+				debug!(target: "discovery", "Error reading UPD socket: {:?}", e);
 				None
 			}
 		};
 		let new_writable = !self.send_queue.is_empty();
 		if writable != new_writable {
-			io.update_registration(self.token).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
+			io.update_registration(self.token).unwrap_or_else(|e| debug!(target: "discovery", "Error updating discovery registration: {:?}", e));
 		}
 		res
 	}
@@ -421,7 +421,7 @@ impl Discovery {
 			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
 			_ => {
-				debug!("Unknown UDP packet: {}", packet_id);
+				debug!(target: "discovery", "Unknown UDP packet: {}", packet_id);
 				Ok(None)
 			}
 		}
