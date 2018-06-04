@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -169,6 +169,10 @@ impl SnapshotService for TestSnapshotService {
 		if self.restoration_manifest.lock().as_ref().map_or(false, |m| m.block_hashes.iter().any(|h| h == &hash)) {
 			self.block_restoration_chunks.lock().insert(hash, chunk);
 		}
+	}
+
+	fn shutdown(&self) {
+		self.abort_restore();
 	}
 }
 

@@ -240,10 +240,6 @@ usage! {
 	{
 		// Global flags and arguments
 		["Operating Options"]
-			FLAG flag_public_node: (bool) = false, or |c: &Config| c.parity.as_ref()?.public_node.clone(),
-			"--public-node",
-			"Start Parity as a public web server. Account storage and transaction signing will be delegated to the UI.",
-
 			FLAG flag_no_download: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_download.clone(),
 			"--no-download",
 			"Normally new releases will be downloaded ready for updating. This disables it. Not recommended.",
@@ -437,6 +433,10 @@ usage! {
 			ARG arg_port: (u16) = 30303u16, or |c: &Config| c.network.as_ref()?.port.clone(),
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
+
+			ARG arg_interface: (String)  = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
+			"--interface=[IP]",
+			"Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want parity to listen to.",
 
 			ARG arg_min_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
 			"--min-peers=[NUM]",
@@ -944,6 +944,10 @@ usage! {
 			"--rpc",
 			"Does nothing; JSON-RPC is on by default now.",
 
+			FLAG flag_public_node: (bool) = false, or |_| None,
+			"--public-node",
+			"Does nothing; Public node is removed from Parity.",
+
 			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
 			"--dapps-port=[PORT]",
 			"Dapps server is merged with RPC server. Use --jsonrpc-port.",
@@ -1066,7 +1070,6 @@ struct Operating {
 	auto_update_delay: Option<u16>,
 	auto_update_check_frequency: Option<u16>,
 	release_track: Option<String>,
-	public_node: Option<bool>,
 	no_download: Option<bool>,
 	no_consensus: Option<bool>,
 	chain: Option<String>,
@@ -1077,6 +1080,9 @@ struct Operating {
 	light: Option<bool>,
 	no_persistent_txqueue: Option<bool>,
 	no_hardcoded_sync: Option<bool>,
+
+	#[serde(rename="public_node")]
+	_legacy_public_node: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1119,6 +1125,7 @@ struct Network {
 	warp: Option<bool>,
 	warp_barrier: Option<u64>,
 	port: Option<u16>,
+	interface: Option<String>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
 	snapshot_peers: Option<u16>,
@@ -1567,6 +1574,7 @@ mod tests {
 			// -- Networking Options
 			flag_no_warp: false,
 			arg_port: 30303u16,
+			arg_interface: "all".into(),
 			arg_min_peers: Some(25u16),
 			arg_max_peers: Some(50u16),
 			arg_max_pending_peers: 64u16,
@@ -1791,7 +1799,6 @@ mod tests {
 				auto_update_delay: None,
 				auto_update_check_frequency: None,
 				release_track: None,
-				public_node: None,
 				no_download: None,
 				no_consensus: None,
 				chain: Some("./chain.json".into()),
@@ -1802,6 +1809,7 @@ mod tests {
 				light: None,
 				no_hardcoded_sync: None,
 				no_persistent_txqueue: None,
+				_legacy_public_node: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
@@ -1823,6 +1831,7 @@ mod tests {
 				warp: Some(false),
 				warp_barrier: None,
 				port: None,
+				interface: None,
 				min_peers: Some(10),
 				max_peers: Some(20),
 				max_pending_peers: Some(30),

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -159,7 +159,6 @@ fn should_serve_rpc_at_slash_rpc() {
 	response.assert_status("HTTP/1.1 200 OK");
 	assert_eq!(response.body, format!("4C\n{}\n\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error"},"id":null}"#));
 }
-
 
 #[test]
 fn should_serve_proxy_pac() {

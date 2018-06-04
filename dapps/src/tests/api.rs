@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -62,7 +62,6 @@ fn should_handle_ping() {
 	assert_eq!(response.body, "0\n\n".to_owned());
 	assert_security_headers(&response.headers);
 }
-
 
 #[test]
 fn should_try_to_resolve_dapp() {

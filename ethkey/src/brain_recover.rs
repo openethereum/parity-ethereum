@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,6 @@ use edit_distance::edit_distance;
 use parity_wordlist;
 
 use super::{Address, Brain, Generator};
-
 
 /// Tries to find a phrase for address, given the number
 /// of expected words and a partial phrase.
@@ -149,7 +148,6 @@ impl Iterator for PhrasesIterator {
 #[cfg(test)]
 mod tests {
 	use super::PhrasesIterator;
-
 
 	#[test]
 	fn should_generate_possible_combinations() {

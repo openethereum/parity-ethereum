@@ -141,6 +141,35 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	}
 }
 
+#[cfg(feature = "deadlock_detection")]
+fn run_deadlock_detection_thread() {
+	use std::thread;
+	use std::time::Duration;
+	use parking_lot::deadlock;
+
+	info!("Starting deadlock detection thread.");
+	// Create a background thread which checks for deadlocks every 10s
+	thread::spawn(move || {
+		loop {
+			thread::sleep(Duration::from_secs(10));
+			let deadlocks = deadlock::check_deadlock();
+			if deadlocks.is_empty() {
+				continue;
+			}
+
+			warn!("{} {} detected", deadlocks.len(), Style::new().bold().paint("deadlock(s)"));
+			for (i, threads) in deadlocks.iter().enumerate() {
+				warn!("{} #{}", Style::new().bold().paint("Deadlock"), i);
+				for t in threads {
+					warn!("Thread Id {:#?}", t.thread_id());
+					warn!("{:#?}", t.backtrace());
+				}
+			}
+		}
+	});
+}
+
+
 /// Action that Parity performed when running `start`.
 pub enum ExecutionAction {
 	/// The execution didn't require starting a node, and thus has finished.
@@ -160,6 +189,9 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 	// TODO: move this to `main()` and expose in the C API so that users can setup logging the way
 	// 		they want
 	let logger = setup_log(&command.logger).expect("Logger is initialized only once; qed");
+
+	#[cfg(feature = "deadlock_detection")]
+	run_deadlock_detection_thread();
 
 	match command.cmd {
 		Cmd::Run(run_cmd) => {

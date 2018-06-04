@@ -1,4 +1,4 @@
-// Copyright 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -101,7 +101,7 @@ impl EthTester {
 
 	fn from_spec(spec: Spec) -> Self {
 		let account_provider = account_provider();
-		let opt_account_provider = Some(account_provider.clone());
+		let opt_account_provider = account_provider.clone();
 		let miner_service = miner_service(&spec, account_provider.clone());
 		let snapshot_service = snapshot_service();
 

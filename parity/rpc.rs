@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -211,7 +211,6 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let domain = DAPPS_DOMAIN;
 	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
-
 
 	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps);
 	let handler = {

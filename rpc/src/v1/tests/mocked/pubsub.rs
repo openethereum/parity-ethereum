@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -75,4 +75,3 @@ fn should_subscribe_to_a_method() {
 	let (res, _receiver) = receiver.into_future().wait().unwrap();
 	assert_eq!(res, None);
 }
-
