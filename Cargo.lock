@@ -22,7 +22,7 @@ version = "1.2.1"
 source = "git+https://github.com/paritytech/app-dirs-rs#0b37f9481ce29e9d5174ad185bca695b206368eb"
 dependencies = [
  "ole32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "shell32-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "shell32-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "xdg 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2995,10 +2995,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "shell32-sys"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "winapi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -4032,7 +4032,7 @@ dependencies = [
 "checksum serde_ignored 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "190e9765dcedb56be63b6e0993a006c7e3b071a016a304736e4a315dc01fb142"
 "checksum serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)" = "c9db7266c7d63a4c4b7fe8719656ccdd51acf1bed6124b174f933b009fb10bcb"
 "checksum sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cc30b1e1e8c40c121ca33b86c23308a090d19974ef001b4bf6e61fd1a0fb095c"
-"checksum shell32-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "72f20b8f3c060374edb8046591ba28f62448c369ccbdc7b02075103fb3a9e38d"
+"checksum shell32-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9ee04b46101f57121c9da2b151988283b6beb79b34f5bb29a58ee48cb695122c"
 "checksum siphasher 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "833011ca526bd88f16778d32c699d325a9ad302fa06381cd66f7be63351d3f6d"
 "checksum siphasher 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "0df90a788073e8d0235a67e50441d47db7c8ad9debd91cbf43736a2a92d36537"
 "checksum skeptic 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "24ebf8a06f5f8bae61ae5bbc7af7aac4ef6907ae975130faba1199e5fe82256a"
