@@ -20,57 +20,13 @@ use nibblevec::NibbleVec;
 use bytes::*;
 use rlp::{Rlp, RlpStream, Prototype, DecoderError, self};
 use hashdb::DBValue;
+use node_codec::NodeCodec;
 
 /// Partial node key type.
 pub type NodeKey = ElasticArray36<u8>;
 
-/// Type of node in the trie and essential information thereof.
-#[derive(Eq, PartialEq, Debug, Clone)]
-pub enum Node<'a> {
-	/// Null trie node; could be an empty root or an empty branch entry.
-	Empty,
-	/// Leaf node; has key slice and value. Value may not be empty.
-	Leaf(NibbleSlice<'a>, &'a [u8]),
-	/// Extension node; has key slice and node data. Data may not be null.
-	Extension(NibbleSlice<'a>, &'a [u8]),
-	/// Branch node; has array of 16 child nodes (each possibly null) and an optional immediate node data.
-	Branch([&'a [u8]; 16], Option<&'a [u8]>),
-}
-
-impl<'a> Node<'a> {
-	/// Decode the `node_rlp` and return the Node.
-	pub fn decoded(node_rlp: &'a [u8]) -> Result<Self, DecoderError> {
-		let r = Rlp::new(node_rlp);
-		match r.prototype()? {
-			// either leaf or extension - decode first item with NibbleSlice::???
-			// and use is_leaf return to figure out which.
-			// if leaf, second item is a value (is_data())
-			// if extension, second item is a node (either SHA3 to be looked up and
-			// fed back into this function or inline RLP which can be fed back into this function).
-			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0)?.data()?) {
-				(slice, true) => Ok(Node::Leaf(slice, r.at(1)?.data()?)),
-				(slice, false) => Ok(Node::Extension(slice, r.at(1)?.as_raw())),
-			},
-			// branch - first 16 are nodes, 17th is a value (or empty).
-			Prototype::List(17) => {
-				let mut nodes = [&[] as &[u8]; 16];
-				for i in 0..16 {
-					nodes[i] = r.at(i)?.as_raw();
-				}
-				Ok(Node::Branch(nodes, if r.at(16)?.is_empty() { None } else { Some(r.at(16)?.data()?) }))
-			},
-			// an empty branch index.
-			Prototype::Data(0) => Ok(Node::Empty),
-			// something went wrong.
-			_ => Err(DecoderError::Custom("Rlp is not valid."))
-		}
-	}
-
-	/// Encode the node into RLP.
-	///
-	/// Will always return the direct node RLP even if it's 32 or more bytes. To get the
-	/// RLP which would be valid for using in another node, use `encoded_and_added()`.
-	pub fn encoded(&self) -> Bytes {
+impl<'a> NodeCodec<'a> for Node<'a> {
+	fn encoded(&self) -> Bytes {
 		match *self {
 			Node::Leaf(ref slice, ref value) => {
 				let mut stream = RlpStream::new_list(2);
@@ -101,18 +57,55 @@ impl<'a> Node<'a> {
 				stream.out()
 			}
 		}
-	}
 
-	pub fn try_decode_hash<O>(node_data: &[u8]) -> Option<O>
-	where O: rlp::Decodable // REVIEW: this is not necessary but is perhaps useful when reading the code? Keep or leave out?
-	{
-		let r = Rlp::new(node_data);
+	}
+	fn decoded(data: &'a [u8]) -> Result<Self, DecoderError> {
+		let r = Rlp::new(data);
+		match r.prototype()? {
+			// either leaf or extension - decode first item with NibbleSlice::???
+			// and use is_leaf return to figure out which.
+			// if leaf, second item is a value (is_data())
+			// if extension, second item is a node (either SHA3 to be looked up and
+			// fed back into this function or inline RLP which can be fed back into this function).
+			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0)?.data()?) {
+				(slice, true) => Ok(Node::Leaf(slice, r.at(1)?.data()?)),
+				(slice, false) => Ok(Node::Extension(slice, r.at(1)?.as_raw())),
+			},
+			// branch - first 16 are nodes, 17th is a value (or empty).
+			Prototype::List(17) => {
+				let mut nodes = [&[] as &[u8]; 16];
+				for i in 0..16 {
+					nodes[i] = r.at(i)?.as_raw();
+				}
+				Ok(Node::Branch(nodes, if r.at(16)?.is_empty() { None } else { Some(r.at(16)?.data()?) }))
+			},
+			// an empty branch index.
+			Prototype::Data(0) => Ok(Node::Empty),
+			// something went wrong.
+			_ => Err(DecoderError::Custom("Rlp is not valid."))
+		}
+	}
+	fn try_decode_hash<O>(data: &[u8]) -> Option<O> where O: rlp::Decodable {
+		let r = Rlp::new(data);
 		if r.is_data() && r.size() == 32 {
 			Some(r.as_val().expect("Hash is the correct size of 32 bytes; qed"))
 		} else {
 			None
 		}
 	}
+}
+
+/// Type of node in the trie and essential information thereof.
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub enum Node<'a> {
+	/// Null trie node; could be an empty root or an empty branch entry.
+	Empty,
+	/// Leaf node; has key slice and value. Value may not be empty.
+	Leaf(NibbleSlice<'a>, &'a [u8]),
+	/// Extension node; has key slice and node data. Data may not be null.
+	Extension(NibbleSlice<'a>, &'a [u8]),
+	/// Branch node; has array of 16 child nodes (each possibly null) and an optional immediate node data.
+	Branch([&'a [u8]; 16], Option<&'a [u8]>),
 }
 
 /// An owning node type. Useful for trie iterators.

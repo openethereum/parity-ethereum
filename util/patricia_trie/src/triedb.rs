@@ -18,6 +18,7 @@ use std::fmt;
 use hashdb::*;
 use nibbleslice::NibbleSlice;
 use super::node::{Node, OwnedNode};
+use node_codec::NodeCodec;
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
 use bytes::Bytes;
@@ -150,7 +151,6 @@ impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> where H::
 		}
 	}
 }
-
 
 impl<'db, H: Hasher> fmt::Debug for TrieDB<'db, H> where H::Out: Decodable {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -485,7 +485,6 @@ fn get_len() {
 	assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()), Ok(Some(5)));
 	assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()), Ok(None));
 }
-
 
 #[test]
 fn debug_output_supports_pretty_print() {

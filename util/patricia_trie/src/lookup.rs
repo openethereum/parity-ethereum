@@ -20,6 +20,7 @@ use hashdb::{HashDB, Hasher};
 use nibbleslice::NibbleSlice;
 use rlp::Decodable;
 use super::node::Node;
+use node_codec::NodeCodec;
 use super::{TrieError, Query};
 
 /// Trie lookup helper object.

@@ -36,6 +36,7 @@ use hashdb::{HashDB, DBValue, Hasher};
 use std::marker::PhantomData;
 
 pub mod node;
+pub mod node_codec;
 pub mod triedb;
 pub mod triedbmut;
 //pub mod sectriedb;
@@ -246,6 +247,7 @@ macro_rules! wrapper {
 		}
 	}
 }
+
 impl<'db, H: Hasher> Trie for TrieKinds<'db, H> where H::Out: rlp::Decodable + rlp::Encodable {
 	type H = H;
 	fn root(&self) -> &<Self::H as Hasher>::Out {
@@ -271,9 +273,7 @@ impl<'db, H: Hasher> Trie for TrieKinds<'db, H> where H::Out: rlp::Decodable + r
 	}
 }
 
-impl<H: Hasher> TrieFactory<H>
-where H::Out: rlp::Decodable + rlp::Encodable
-{
+impl<H: Hasher> TrieFactory<H> where H::Out: rlp::Decodable + rlp::Encodable {
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {
 		TrieFactory { spec, marker: PhantomData }

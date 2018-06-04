@@ -19,6 +19,7 @@
 use super::{TrieError, TrieMut};
 use super::lookup::Lookup;
 use super::node::Node as RlpNode;
+use node_codec::NodeCodec;
 use super::node::NodeKey;
 
 use hashdb::HashDB;
@@ -89,14 +90,14 @@ impl<H: Hasher> Node<H> where H::Out: Decodable {
 		RlpNode::try_decode_hash::<H::Out>(&node)
 			.map(NodeHandle::Hash)
 			.unwrap_or_else(|| {
-				let child = Node::from_rlp(node, db, storage);
+				let child = Node::from_encoded(node, db, storage);
 				NodeHandle::InMemory(storage.alloc(Stored::New(child)))
 			})
 	}
 
 	// decode a node from rlp without getting its children.
-	fn from_rlp(rlp: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> Self {
-		match RlpNode::decoded(rlp).expect("rlp read from db; qed") {
+	fn from_encoded(data: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> Self {
+		match RlpNode::decoded(data).expect("encoded bytes read from db; qed") {
 			RlpNode::Empty => Node::Empty,
 			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
 			RlpNode::Extension(key, cb) => {
@@ -346,8 +347,8 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 
 	// cache a node by hash
 	fn cache(&mut self, hash: H::Out) -> super::Result<StorageHandle, H::Out> {
-		let node_rlp = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
-		let node = Node::from_rlp(&node_rlp, &*self.db, &mut self.storage);
+		let node_encoded = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
+		let node = Node::from_encoded(&node_encoded, &*self.db, &mut self.storage);
 		Ok(self.storage.alloc(Stored::Cached(node, hash)))
 	}
 
