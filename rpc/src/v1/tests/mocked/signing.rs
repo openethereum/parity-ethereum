@@ -56,7 +56,6 @@ impl Default for SigningTester {
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
-		let opt_accounts = accounts.clone();
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 		let mut io = IoHandler::default();
 
@@ -64,9 +63,9 @@ impl Default for SigningTester {
 
 		let remote = Remote::new_thread_per_future();
 
-		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), remote.clone(), &opt_accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), remote.clone(), &accounts);
 		io.extend_with(EthSigning::to_delegate(rpc));
-		let rpc = SigningQueueClient::new(&signer, dispatcher, remote, &opt_accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher, remote, &accounts);
 		io.extend_with(ParitySigning::to_delegate(rpc));
 
 		SigningTester {

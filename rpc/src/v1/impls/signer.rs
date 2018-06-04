@@ -77,17 +77,12 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		}
 	}
 
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
-	}
-
 	fn confirm_internal<F, T>(&self, id: U256, modification: TransactionModification, f: F) -> BoxFuture<WithToken<ConfirmationResponse>> where
 		F: FnOnce(D, Arc<AccountProvider>, ConfirmationPayload) -> T,
 		T: IntoFuture<Item=WithToken<ConfirmationResponse>, Error=Error>,
 		T::Future: Send + 'static
 	{
 		let id = id.into();
-		let accounts = try_bf!(self.account_provider());
 		let dispatcher = self.dispatcher.clone();
 		let signer = self.signer.clone();
 
@@ -110,7 +105,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 					request.condition = condition.clone().map(Into::into);
 				}
 			}
-			let fut = f(dispatcher, accounts, payload);
+			let fut = f(dispatcher, self.accounts.clone(), payload);
 			Either::A(fut.into_future().then(move |result| {
 				// Execute
 				if let Ok(ref response) = result {
