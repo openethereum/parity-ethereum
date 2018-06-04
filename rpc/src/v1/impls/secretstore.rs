@@ -25,7 +25,6 @@ use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Result;
 use v1::helpers::errors;
-use v1::helpers::accounts::unwrap_provider;
 use v1::helpers::secretstore::{generate_document_key, encrypt_document,
 	decrypt_document, decrypt_document_with_shadow, ordered_servers_keccak};
 use v1::traits::SecretStore;
@@ -33,12 +32,12 @@ use v1::types::{H160, H256, H512, Bytes, EncryptedDocumentKey};
 
 /// Parity implementation.
 pub struct SecretStoreClient {
-	accounts: Option<Arc<AccountProvider>>,
+	accounts: Arc<AccountProvider>,
 }
 
 impl SecretStoreClient {
 	/// Creates new SecretStoreClient
-	pub fn new(store: &Option<Arc<AccountProvider>>) -> Self {
+	pub fn new(store: &Arc<AccountProvider>) -> Self {
 		SecretStoreClient {
 			accounts: store.clone(),
 		}
@@ -47,7 +46,7 @@ impl SecretStoreClient {
 	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
 	/// set.
 	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		unwrap_provider(&self.accounts)
+		Ok(self.accounts.clone())
 	}
 
 	/// Decrypt public key using account' private key

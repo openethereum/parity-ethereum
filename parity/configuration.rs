@@ -35,7 +35,6 @@ use ethcore::verification::queue::VerifierSettings;
 use miner::pool;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration};
-use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization, passwords_from_files};
@@ -138,7 +137,6 @@ impl Configuration {
 		let fat_db = self.args.arg_fat_db.parse()?;
 		let compaction = self.args.arg_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
-		let public_node = self.args.flag_public_node;
 		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let dapps_conf = self.dapps_config();
@@ -379,7 +377,6 @@ impl Configuration {
 				vm_type: vm_type,
 				warp_sync: warp_sync,
 				warp_barrier: self.args.arg_warp_barrier,
-				public_node: public_node,
 				geth_compatibility: geth_compatibility,
 				net_settings: self.network_settings()?,
 				dapps_conf: dapps_conf,
@@ -914,10 +911,7 @@ impl Configuration {
 			enabled: self.rpc_enabled(),
 			interface: self.rpc_interface(),
 			port: self.args.arg_ports_shift + self.args.arg_rpcport.unwrap_or(self.args.arg_jsonrpc_port),
-			apis: match self.args.flag_public_node {
-				false => self.rpc_apis().parse()?,
-				true => self.rpc_apis().parse::<ApiSet>()?.retain(ApiSet::PublicContext),
-			},
+			apis: self.rpc_apis().parse()?,
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
 			server_threads: match self.args.arg_jsonrpc_server_threads {
@@ -935,10 +929,8 @@ impl Configuration {
 		let http = self.http_config()?;
 
 		let support_token_api =
-			// never enabled for public node
-			!self.args.flag_public_node
-			// enabled when not unlocking unless the ui is forced
-			&& (self.args.arg_unlock.is_none() || ui.enabled);
+			// enabled when not unlocking
+			self.args.arg_unlock.is_none();
 
 		let conf = WsConfiguration {
 			enabled: self.ws_enabled(),
@@ -1263,6 +1255,7 @@ mod tests {
 	use params::SpecType;
 	use presale::ImportWallet;
 	use rpc::{WsConfiguration, UiConfiguration};
+	use rpc_apis::ApiSet;
 	use run::RunCmd;
 
 	use network::{AllowIP, IpFilter};
@@ -1499,7 +1492,6 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
-			public_node: false,
 			warp_sync: true,
 			warp_barrier: None,
 			acc_conf: Default::default(),

@@ -21,7 +21,7 @@ use std::ops::Range;
 use std::time::Duration;
 use bytes::Bytes;
 use devp2p::NetworkService;
-use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, ProtocolId,
+use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
 	ConnectionFilter};
 use ethereum_types::{H256, H512, U256};
@@ -375,7 +375,7 @@ struct SyncProtocolHandler {
 }
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
-	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
+	fn initialize(&self, io: &NetworkContext) {
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
 			io.register_timer(PEERS_TIMER, Duration::from_millis(700)).expect("Error registering sync timer");
 			io.register_timer(SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
