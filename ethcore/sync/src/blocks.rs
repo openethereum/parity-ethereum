@@ -266,7 +266,7 @@ impl BlockCollection {
 		}
 	}
 
-	/// Get a valid chain of blocks ordered in descending order and ready for importing into blockchain.
+	/// Get a valid chain of blocks ordered in ascending order and ready for importing into blockchain.
 	pub fn drain(&mut self) -> Vec<BlockAndReceipts> {
 		if self.blocks.is_empty() || self.head.is_none() {
 			return Vec::new();
