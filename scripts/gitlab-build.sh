@@ -44,7 +44,6 @@ set_env_win () {
   set RUST_BACKTRACE=1
   #export RUSTFLAGS=$RUSTFLAGS
   rustup default stable-x86_64-pc-windows-msvc
-  echo "MsBuild.exe /p:Platform=x64 /p:Configuration=Release" > msbuild.cmd
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
@@ -165,12 +164,6 @@ make_pkg () {
 }
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
-}
-make_exe () {
-  ./msbuild.cmd
-  ./sign.cmd $keyfile $certpass "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
-  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
 }
 push_binaries () {
   echo "Push binaries to AWS S3"
@@ -349,7 +342,6 @@ case $BUILD_PLATFORM in
     build
     sign_exe
     calculate_checksums
-    make_exe
     make_archive
     push_binaries
     updater_push_release
