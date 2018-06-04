@@ -18,6 +18,7 @@
 extern crate log;
 
 extern crate elastic_array;
+extern crate fs_swap;
 extern crate interleaved_ordered;
 extern crate num_cpus;
 extern crate parking_lot;
@@ -590,34 +591,8 @@ impl Database {
 	pub fn restore(&self, new_db: &str) -> Result<()> {
 		self.close();
 
-		let mut backup_db = PathBuf::from(&self.path);
-		backup_db.pop();
-		backup_db.push("backup_db");
-
-		let existed = match fs::rename(&self.path, &backup_db) {
-			Ok(_) => true,
-			Err(e) => if let io::ErrorKind::NotFound = e.kind() {
-				false
-			} else {
-				return Err(e.into());
-			}
-		};
-
-		match fs::rename(&new_db, &self.path) {
-			Ok(_) => {
-				// clean up the backup.
-				if existed {
-					fs::remove_dir_all(&backup_db)?;
-				}
-			}
-			Err(e) => {
-				// restore the backup.
-				if existed {
-					fs::rename(&backup_db, &self.path)?;
-				}
-				return Err(e.into())
-			}
-		}
+		fs_swap::swap(&self.path, new_db)?;
+		fs::remove_dir_all(new_db)?;
 
 		// reopen the database and steal handles into self
 		let db = Self::open(&self.config, &self.path)?;
