@@ -28,7 +28,6 @@ pub const CODES_FILENAME: &'static str = "authcodes";
 
 pub struct NewToken {
 	pub token: String,
-	pub url: String,
 	pub message: String,
 }
 
@@ -49,45 +48,26 @@ pub fn codes_path(path: &Path) -> PathBuf {
 	p
 }
 
-pub fn execute(ws_conf: rpc::WsConfiguration, ui_conf: rpc::UiConfiguration, logger_config: LogConfig) -> Result<String, String> {
-	Ok(generate_token_and_url(&ws_conf, &ui_conf, &logger_config)?.message)
+pub fn execute(ws_conf: rpc::WsConfiguration, logger_config: LogConfig) -> Result<String, String> {
+	Ok(generate_token_and_url(&ws_conf, &logger_config)?.message)
 }
 
-pub fn generate_token_and_url(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<NewToken, String> {
+pub fn generate_token_and_url(ws_conf: &rpc::WsConfiguration, logger_config: &LogConfig) -> Result<NewToken, String> {
 	let code = generate_new_token(&ws_conf.signer_path, logger_config.color).map_err(|err| format!("Error generating token: {:?}", err))?;
-	let auth_url = format!("http://{}:{}/#/auth?token={}", ui_conf.interface, ui_conf.port, code);
 	let colored = |s: String| match logger_config.color {
 		true => format!("{}", White.bold().paint(s)),
 		false => s,
 	};
 
-	if !ui_conf.enabled {
-		return Ok(NewToken {
-			token: code.clone(),
-			url: auth_url.clone(),
-			message: format!(
-				r#"
+	Ok(NewToken {
+		token: code.clone(),
+		message: format!(
+			r#"
 Generated token:
 {}
 "#,
-				colored(code)
-			),
-		})
-	}
-
-	// And print in to the console
-	Ok(NewToken {
-		token: code.clone(),
-		url: auth_url.clone(),
-		message: format!(
-			r#"
-Open: {}
-to authorize your browser.
-Or use the generated token:
-{}"#,
-			colored(auth_url),
-			code
-		)
+			colored(code)
+		),
 	})
 }
 
