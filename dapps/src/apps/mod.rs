@@ -23,6 +23,7 @@ use proxypac::ProxyPac;
 use web::Web;
 use fetch::Fetch;
 use WebProxyTokens;
+use page;
 
 mod app;
 mod cache;
@@ -58,6 +59,15 @@ pub fn all_endpoints<F: Fetch>(
 		}
 	}
 
+	pages.insert(
+		"v1".into(),
+		Box::new({
+			let mut page = page::builtin::Dapp::new(pool.clone(), ::parity_ui::old::App::default());
+			// allow JS eval on old Wallet
+			page.allow_js_eval();
+			page
+		})
+	);
 	pages.insert(
 		"proxy".into(),
 		ProxyPac::boxed(dapps_domain.to_owned())

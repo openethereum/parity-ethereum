@@ -88,7 +88,9 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = { git = "https://github.com/paritytech/daemonize" }
 
 [features]
-default = ["dapps"]
+default = ["ui-precompiled"]
+ui = ["dapps", "parity-dapps/ui"]
+ui-precompiled = ["dapps", "parity-dapps/ui-precompiled"]
 dapps = ["parity-dapps"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
