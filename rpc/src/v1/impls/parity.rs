@@ -40,7 +40,6 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
-use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -62,7 +61,7 @@ pub struct ParityClient<C, M, U>  {
 	sync: Arc<SyncProvider>,
 	net: Arc<ManageNetwork>,
 	health: NodeHealth,
-	accounts: Option<Arc<AccountProvider>>,
+	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
@@ -82,7 +81,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 		updater: Arc<U>,
 		net: Arc<ManageNetwork>,
 		health: NodeHealth,
-		accounts: Option<Arc<AccountProvider>>,
+		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -110,7 +109,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
 	/// set.
 	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		unwrap_provider(&self.accounts)
+		Ok(self.accounts.clone())
 	}
 }
 
@@ -212,13 +211,14 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn net_peers(&self) -> Result<Peers> {
 		let sync_status = self.sync.status();
-		let net_config = self.net.network_config();
+		let num_peers_range = self.net.num_peers_range();
+		debug_assert!(num_peers_range.end > num_peers_range.start);
 		let peers = self.sync.peers().into_iter().map(Into::into).collect();
 
 		Ok(Peers {
 			active: sync_status.num_active_peers,
 			connected: sync_status.num_peers,
-			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
+			max: sync_status.current_max_peers(num_peers_range.start, num_peers_range.end - 1),
 			peers: peers
 		})
 	}
@@ -348,11 +348,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>> {
-		// Return nothing if accounts are disabled (running as public node)
-		if self.accounts.is_none() {
-			return Ok(BTreeMap::new());
-		}
-
 		let transactions = self.miner.local_transactions();
 		let block_number = self.client.chain_info().best_block_number;
 		Ok(transactions
@@ -417,13 +412,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	fn node_kind(&self) -> Result<::v1::types::NodeKind> {
 		use ::v1::types::{NodeKind, Availability, Capability};
 
-		let availability = match self.accounts {
-			Some(_) => Availability::Personal,
-			None => Availability::Public
-		};
-
 		Ok(NodeKind {
-			availability: availability,
+			availability: Availability::Personal,
 			capability: Capability::Full,
 		})
 	}

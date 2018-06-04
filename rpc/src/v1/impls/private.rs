@@ -47,7 +47,7 @@ impl PrivateClient {
 	fn unwrap_manager(&self) -> Result<&PrivateTransactionManager, Error> {
 		match self.private {
 			Some(ref arc) => Ok(&**arc),
-			None => Err(errors::public_unsupported(None)),
+			None => Err(errors::light_unimplemented(None)),
 		}
 	}
 }
@@ -119,4 +119,3 @@ impl Private for PrivateClient {
 		Ok(key.into())
 	}
 }
-

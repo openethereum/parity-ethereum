@@ -17,7 +17,6 @@
 #[macro_use]
 pub mod errors;
 
-pub mod accounts;
 pub mod block_import;
 pub mod dapps;
 pub mod dispatch;
