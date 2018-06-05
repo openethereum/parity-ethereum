@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -98,7 +98,6 @@ pub struct RunCmd {
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
 	pub warp_barrier: Option<u64>,
-	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer_conf: GasPricerConfig,
 	pub miner_extras: MinerExtras,
@@ -721,11 +720,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	// set up dependencies for rpc servers
 	let rpc_stats = Arc::new(informant::RpcStats::default());
-	let secret_store = match cmd.public_node {
-		true => None,
-		false => Some(account_provider.clone())
-	};
-
+	let secret_store = account_provider.clone();
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.logger_config));
 
 	// the dapps server

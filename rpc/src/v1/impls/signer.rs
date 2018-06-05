@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,7 +30,6 @@ use jsonrpc_core::futures::{future, Future, IntoFuture};
 use jsonrpc_core::futures::future::Either;
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
-use v1::helpers::accounts::unwrap_provider;
 use v1::helpers::dispatch::{self, Dispatcher, WithToken, eth_data_hash};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest, Subscribers};
 use v1::metadata::Metadata;
@@ -40,7 +39,7 @@ use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationRespon
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<D: Dispatcher> {
 	signer: Arc<SignerService>,
-	accounts: Option<Arc<AccountProvider>>,
+	accounts: Arc<AccountProvider>,
 	dispatcher: D,
 	subscribers: Arc<Mutex<Subscribers<Sink<Vec<ConfirmationRequest>>>>>,
 }
@@ -48,7 +47,7 @@ pub struct SignerClient<D: Dispatcher> {
 impl<D: Dispatcher + 'static> SignerClient<D> {
 	/// Create new instance of signer client.
 	pub fn new(
-		store: &Option<Arc<AccountProvider>>,
+		store: &Arc<AccountProvider>,
 		dispatcher: D,
 		signer: &Arc<SignerService>,
 		remote: Remote,
@@ -78,17 +77,12 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		}
 	}
 
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		unwrap_provider(&self.accounts)
-	}
-
 	fn confirm_internal<F, T>(&self, id: U256, modification: TransactionModification, f: F) -> BoxFuture<WithToken<ConfirmationResponse>> where
 		F: FnOnce(D, Arc<AccountProvider>, ConfirmationPayload) -> T,
 		T: IntoFuture<Item=WithToken<ConfirmationResponse>, Error=Error>,
 		T::Future: Send + 'static
 	{
 		let id = id.into();
-		let accounts = try_bf!(self.account_provider());
 		let dispatcher = self.dispatcher.clone();
 		let signer = self.signer.clone();
 
@@ -111,7 +105,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 					request.condition = condition.clone().map(Into::into);
 				}
 			}
-			let fut = f(dispatcher, accounts, payload);
+			let fut = f(dispatcher, self.accounts.clone(), payload);
 			Either::A(fut.into_future().then(move |result| {
 				// Execute
 				if let Ok(ref response) = result {

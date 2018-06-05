@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -12,7 +12,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity. If not, see <http://www.gnu.org/licenses/>.
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! I/O and event context generalizations.
 
@@ -45,7 +45,6 @@ pub trait IoContext {
 	/// Persistent peer id
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
 }
-
 
 impl<T> IoContext for T where T: ?Sized + NetworkContext {
 	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {

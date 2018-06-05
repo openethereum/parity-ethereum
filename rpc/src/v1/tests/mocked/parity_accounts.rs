@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -40,7 +40,7 @@ fn accounts_provider_with_vaults_support(temp_path: &str) -> Arc<AccountProvider
 }
 
 fn setup_with_accounts_provider(accounts_provider: Arc<AccountProvider>) -> ParityAccountsTester {
-	let opt_ap = Some(accounts_provider.clone());
+	let opt_ap = accounts_provider.clone();
 	let parity_accounts = ParityAccountsClient::new(&opt_ap);
 	let mut io = IoHandler::default();
 	io.extend_with(parity_accounts.to_delegate());
@@ -205,7 +205,6 @@ fn rpc_parity_set_and_get_new_dapps_default_address() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x000000000000000000000000000000000000000a","id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
-
 
 #[test]
 fn rpc_parity_recent_dapps() {
@@ -473,7 +472,6 @@ fn derive_key_index() {
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 }
-
 
 #[test]
 fn should_export_account() {

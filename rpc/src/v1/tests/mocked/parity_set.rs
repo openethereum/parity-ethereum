@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -180,7 +180,6 @@ fn rpc_parity_set_engine_signer() {
 	assert_eq!(miner.authoring_params().author, Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
 	assert_eq!(*miner.password.read(), "password".to_string());
 }
-
 
 #[test]
 fn rpc_parity_set_transactions_limit() {

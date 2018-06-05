@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -430,7 +430,6 @@ impl Importer {
 
 		Ok(locked_block)
 	}
-
 
 	/// Import a block with transaction receipts.
 	///
@@ -923,7 +922,6 @@ impl Client {
 		*cached_hashes = VecDeque::from(last_hashes.clone());
 		Arc::new(last_hashes)
 	}
-
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
@@ -1572,7 +1570,6 @@ impl BlockChainClient for Client {
 			})))
 	}
 
-
 	fn mode(&self) -> IpcMode {
 		let r = self.mode.lock().clone().into();
 		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
@@ -2209,7 +2206,7 @@ impl ImportSealedBlock for Client {
 			route
 		};
 		let route = ChainRoute::from([route].as_ref());
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), true);
+		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), self.engine.seals_internally().is_some());
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
@@ -2307,7 +2304,6 @@ impl ProvingBlockChainClient for Client {
 			false,
 		)
 	}
-
 
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
 		// pending transitions are never deleted, and do not contain

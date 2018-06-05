@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -81,7 +81,6 @@ pub trait MinerService : Send + Sync {
 	fn update_sealing<C>(&self, chain: &C)
 		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
-
 	// Notifications
 
 	/// Called when blocks are imported to chain, updates transactions queue.
@@ -89,7 +88,6 @@ pub trait MinerService : Send + Sync {
 	/// so we shouldn't attempt creating new block again.
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256], is_internal_import: bool)
 		where C: BlockChainClient;
-
 
 	// Pending block
 

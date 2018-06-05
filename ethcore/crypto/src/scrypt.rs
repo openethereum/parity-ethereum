@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,4 +36,3 @@ pub fn derive_key(pass: &str, salt: &[u8; 32], n: u32, p: u32, r: u32) -> Result
 	let derived_left_bits = &derived_key[KEY_LENGTH_AES..KEY_LENGTH];
 	Ok((derived_right_bits.to_vec(), derived_left_bits.to_vec()))
 }
-

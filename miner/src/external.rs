@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -105,7 +105,6 @@ mod tests {
 		// when
 		m.submit_hashrate(U256::from(15), H256::from(1));
 		m.submit_hashrate(U256::from(20), H256::from(2));
-
 
 		// then
 		assert_eq!(m.hashrate(), U256::from(35));

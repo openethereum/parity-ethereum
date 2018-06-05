@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -56,7 +56,6 @@ impl Default for SigningTester {
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
-		let opt_accounts = Some(accounts.clone());
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 		let mut io = IoHandler::default();
 
@@ -64,9 +63,9 @@ impl Default for SigningTester {
 
 		let remote = Remote::new_thread_per_future();
 
-		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), remote.clone(), &opt_accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), remote.clone(), &accounts);
 		io.extend_with(EthSigning::to_delegate(rpc));
-		let rpc = SigningQueueClient::new(&signer, dispatcher, remote, &opt_accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher, remote, &accounts);
 		io.extend_with(ParitySigning::to_delegate(rpc));
 
 		SigningTester {
@@ -393,7 +392,6 @@ fn should_decrypt_message_if_account_is_unlocked() {
 	let (address, public) = tester.accounts.new_account_and_public("test").unwrap();
 	tester.accounts.unlock_account_permanently(address, "test".into()).unwrap();
 
-
 	// First encrypt message
 	let request = format!("{}0x{:x}{}",
 		r#"{"jsonrpc": "2.0", "method": "parity_encryptMessage", "params":[""#,
@@ -472,7 +470,6 @@ fn should_compose_transaction() {
 	let response = r#"{"jsonrpc":"2.0","result":{"condition":null,"data":"0x","from":"0x"#.to_owned()
 		+ &from
 		+ r#"","gas":"0x5208","gasPrice":"0x4a817c800","nonce":"0x0","to":null,"value":"0x5"},"id":1}"#;
-
 
 	// then
 	let res = tester.io.handle_request(&request).wait().unwrap();

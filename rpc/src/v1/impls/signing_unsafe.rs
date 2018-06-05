@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,7 +24,6 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use v1::helpers::{errors, DefaultAccount};
 use v1::helpers::dispatch::{self, Dispatcher};
-use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning};
 use v1::types::{
@@ -39,25 +38,21 @@ use v1::types::{
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningUnsafeClient<D> {
-	accounts: Option<Arc<AccountProvider>>,
+	accounts: Arc<AccountProvider>,
 	dispatcher: D,
 }
 
 impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	/// Creates new SigningUnsafeClient.
-	pub fn new(accounts: &Option<Arc<AccountProvider>>, dispatcher: D) -> Self {
+	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
 			accounts: accounts.clone(),
 			dispatcher: dispatcher,
 		}
 	}
 
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		unwrap_provider(&self.accounts)
-	}
-
 	fn handle(&self, payload: RpcConfirmationPayload, account: DefaultAccount) -> BoxFuture<RpcConfirmationResponse> {
-		let accounts = try_bf!(self.account_provider());
+		let accounts = self.accounts.clone();
 		let default = match account {
 			DefaultAccount::Provided(acc) => acc,
 			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
@@ -108,7 +103,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 	type Metadata = Metadata;
 
 	fn compose_transaction(&self, meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest> {
-		let accounts = try_bf!(self.account_provider());
+		let accounts = self.accounts.clone();
 		let default_account = accounts.dapp_default_address(meta.dapp_id().into()).ok().unwrap_or_default();
 		Box::new(self.dispatcher.fill_optional_fields(transaction.into(), default_account, true).map(Into::into))
 	}

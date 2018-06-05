@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -519,7 +519,6 @@ impl IncompleteRequest for CheckedRequest {
 			CheckedRequest::Signal(_, req) => req.complete().map(CompleteRequest::Signal),
 		}
 	}
-
 
 	fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
 		match_me!(*self, (_, ref mut req) => req.adjust_refs(mapping))
