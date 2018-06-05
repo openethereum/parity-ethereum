@@ -340,6 +340,7 @@ mod tests {
 	use hash::keccak;
 	use engines::EthEngine;
 	use error::BlockError::*;
+	use error::Error;
 	use ethkey::{Random, Generator};
 	use spec::{CommonParams, Spec};
 	use tests::helpers::{create_test_block_with_data, create_test_block};
@@ -627,7 +628,7 @@ mod tests {
 		bad_header.set_transactions_root(eip86_transactions_root.clone());
 		bad_header.set_uncles_hash(good_uncles_hash.clone());
 		match basic_test(&create_test_block_with_data(&bad_header, &eip86_transactions, &good_uncles), engine) {
-			Err(Error(ErrorKind::Transaction(ref e), _)) if e == &::ethkey::Error::InvalidSignature.into() => (),
+			Err(Error::Transaction(ref e)) if e == &::ethkey::Error::InvalidSignature.into() => (),
 			e => panic!("Block verification failed.\nExpected: Transaction Error (Invalid Signature)\nGot: {:?}", e),
 		}
 

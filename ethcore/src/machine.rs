@@ -475,8 +475,10 @@ mod tests {
 
 	#[test]
 	fn should_disallow_unsigned_transactions() {
+		use tests::helpers::get_default_ethash_extensions;
+
 		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080".into();
-		let transaction: UnverifiedTransaction = ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
+		let transaction: UnverifiedTransaction = ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap());
 		let spec = ::ethereum::new_ropsten_test();
 		let ethparams = get_default_ethash_extensions();
 
@@ -489,7 +491,10 @@ mod tests {
 		header.set_number(15);
 
 		let res = machine.verify_transaction_basic(&transaction, &header);
-		assert_eq!(res, Err(transaction::Error::InvalidSignature("Crypto error (Invalid EC signature)".into())));
+		match res {
+			Err(Error::Transaction(transaction::Error::InvalidSignature(_))) => (),
+			e => panic!("Expected: Transaction Invalid Signature, Got: {:?}", e),
+		}
 	}
 
 	#[test]
