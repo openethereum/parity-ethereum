@@ -35,7 +35,6 @@ pub use self::app::App;
 pub const HOME_PAGE: &'static str = "home";
 pub const RPC_PATH: &'static str = "rpc";
 pub const API_PATH: &'static str = "api";
-pub const UTILS_PATH: &'static str = "parity-utils";
 pub const WEB_PATH: &'static str = "web";
 pub const URL_REFERER: &'static str = "__referer=";
 

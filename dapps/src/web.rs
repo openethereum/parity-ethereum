@@ -150,8 +150,7 @@ impl ContentValidator for WebInstaller {
 		);
 		if is_html {
 			handler.set_initial_content(&format!(
-				r#"<script src="/{}/inject.js"></script><script>history.replaceState({{}}, "", "/?{}{}/{}")</script>"#,
-				apps::UTILS_PATH,
+				r#"<script>history.replaceState({{}}, "", "/?{}{}/{}")</script>"#,
 				apps::URL_REFERER,
 				apps::WEB_PATH,
 				&self.token,
