@@ -22,6 +22,7 @@ mod fetch;
 mod reader;
 mod redirect;
 mod streaming;
+mod errors;
 
 pub use self::content::ContentHandler;
 pub use self::echo::EchoHandler;
@@ -31,6 +32,9 @@ pub use self::redirect::Redirection;
 pub use self::streaming::StreamingHandler;
 
 use hyper::header;
+use std::time::Duration;
+
+const FETCH_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Adds security-related headers to the Response.
 pub fn add_security_headers(headers: &mut header::Headers, allow_js_eval: bool) {
