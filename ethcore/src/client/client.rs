@@ -2083,7 +2083,7 @@ impl IoClient for Client {
 						&receipts_bytes,
 						&**client.db.read(),
 						&*client.chain.read()
-					).map(|_| ()).unwrap_or_else(|e| {
+					).ok().map_or((), |e| {
 						error!(target: "client", "Error importing ancient block: {}", e);
 					});
 					// remove from pending
