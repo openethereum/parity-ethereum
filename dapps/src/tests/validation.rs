@@ -46,7 +46,7 @@ fn should_serve_dapps_domains() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: v1.web3.site\r\n\
+			Host: proxy.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 			{}
