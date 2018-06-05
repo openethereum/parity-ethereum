@@ -36,9 +36,7 @@ use ethkey::{Address, Signature};
 
 use parking_lot::Mutex;
 use std::fmt;
-use std::sync::Arc;
-use std::sync::atomic;
-use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, atomic, atomic::AtomicBool};
 use ethereum_types::U256;
 
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
