@@ -84,6 +84,8 @@ impl<H: Hasher> Recorder<H> {
 	}
 }
 
+/*
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -214,3 +216,4 @@ mod tests {
 		]);
 	}
 }
+*/

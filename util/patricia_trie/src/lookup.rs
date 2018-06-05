@@ -22,18 +22,20 @@ use rlp::Decodable;
 use super::node::Node;
 use node_codec::NodeCodec;
 use super::{TrieError, Query};
+use std::marker::PhantomData;
 
 /// Trie lookup helper object.
-pub struct Lookup<'a, H: Hasher + 'a, Q: Query<H>> {
+pub struct Lookup<'a, H: Hasher + 'a, C: NodeCodec<H>, Q: Query<H>> {
 	/// database to query from.
 	pub db: &'a HashDB<H=H>,
 	/// Query object to record nodes and transform data.
 	pub query: Q,
 	/// Hash to start at
 	pub hash: H::Out,
+	pub marker: PhantomData<C>, // TODO: probably not needed when all is said and done? When Query is made generic?
 }
 
-impl<'a, H: Hasher + 'a, Q: Query<H>> Lookup<'a, H, Q> where H::Out: Decodable {
+impl<'a, H: Hasher + 'a, C: NodeCodec<H>, Q: Query<H>> Lookup<'a, H, C, Q> where H::Out: Decodable {
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
 	pub fn look_up(mut self, mut key: NibbleSlice) -> super::Result<Option<Q::Item>, H::Out> {
@@ -55,7 +57,7 @@ impl<'a, H: Hasher + 'a, Q: Query<H>> Lookup<'a, H, Q> where H::Out: Decodable {
 			// without incrementing the depth.
 			let mut node_data = &node_data[..];
 			loop {
-				match Node::decoded(node_data)? {
+				match C::decode(node_data)? {
 					Node::Leaf(slice, value) => {
 						return Ok(match slice == key {
 							true => Some(self.query.decode(value)),
@@ -81,7 +83,8 @@ impl<'a, H: Hasher + 'a, Q: Query<H>> Lookup<'a, H, Q> where H::Out: Decodable {
 				}
 
 				// check if new node data is inline or hash.
-				if let Some(h) = Node::try_decode_hash::<H::Out>(&node_data) {
+//				if let Some(h) = Node::try_decode_hash::<H::Out>(&node_data) {
+				if let Some(h) = C::try_decode_hash(&node_data) {
 					hash = h;
 					break
 				}

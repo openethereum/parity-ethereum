@@ -56,6 +56,7 @@ pub use self::triedbmut::TrieDBMut;
 //pub use self::fatdb::{FatDB, FatDBIterator};
 //pub use self::fatdbmut::FatDBMut;
 pub use self::recorder::Recorder;
+use node_codec::NodeCodec;
 
 /// Trie Errors.
 ///
@@ -217,20 +218,21 @@ impl Default for TrieSpec {
 
 /// Trie factory.
 #[derive(Default, Clone)]
-pub struct TrieFactory<H: Hasher> {
+pub struct TrieFactory<H: Hasher, C: NodeCodec<H>> {
 	spec: TrieSpec,
-	marker: PhantomData<H>
+	mark_hash: PhantomData<H>,
+	mark_codec: PhantomData<C>,
 }
 
 /// All different kinds of tries.
 /// This is used to prevent a heap allocation for every created trie.
-pub enum TrieKinds<'db, H: Hasher + 'db> {
+pub enum TrieKinds<'db, H: Hasher + 'db, C: NodeCodec<H>> {
 	/// A generic trie db.
-	Generic(TrieDB<'db, H>),
+	Generic(TrieDB<'db, H, C>),
 	/// A secure trie db.
-	Secure(TrieDB<'db, H>),
+	Secure(TrieDB<'db, H, C>),
 	/// A fat trie db.
-	Fat(TrieDB<'db, H>),
+	Fat(TrieDB<'db, H, C>),
 //	/// A secure trie db.
 //	Secure(SecTrieDB<'db, H>),
 //	/// A fat trie db.
@@ -248,7 +250,7 @@ macro_rules! wrapper {
 	}
 }
 
-impl<'db, H: Hasher> Trie for TrieKinds<'db, H> where H::Out: rlp::Decodable + rlp::Encodable {
+impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> where H::Out: rlp::Decodable + rlp::Encodable {
 	type H = H;
 	fn root(&self) -> &<Self::H as Hasher>::Out {
 		wrapper!(self, root,)
@@ -273,14 +275,14 @@ impl<'db, H: Hasher> Trie for TrieKinds<'db, H> where H::Out: rlp::Decodable + r
 	}
 }
 
-impl<H: Hasher> TrieFactory<H> where H::Out: rlp::Decodable + rlp::Encodable {
+impl<H: Hasher, C: NodeCodec<H>> TrieFactory<H, C> where H::Out: rlp::Decodable + rlp::Encodable {
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {
-		TrieFactory { spec, marker: PhantomData }
+		TrieFactory { spec, mark_hash: PhantomData, mark_codec: PhantomData }
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn readonly<'db>(&self, db: &'db HashDB<H=H>, root: &'db H::Out) -> Result<TrieKinds<'db, H>, H::Out> {
+	pub fn readonly<'db>(&self, db: &'db HashDB<H=H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out> {
 		match self.spec {
 			TrieSpec::Generic => Ok(TrieKinds::Generic(TrieDB::new(db, root)?)),
 			TrieSpec::Secure => Ok(TrieKinds::Secure(TrieDB::new(db, root)?)),
@@ -290,6 +292,7 @@ impl<H: Hasher> TrieFactory<H> where H::Out: rlp::Decodable + rlp::Encodable {
 		}
 	}
 
+/*
 	/// Create new mutable instance of Trie.
 	pub fn create<'db>(&self, db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Box<TrieMut<H=H> + 'db> {
 		match self.spec {
@@ -300,7 +303,7 @@ impl<H: Hasher> TrieFactory<H> where H::Out: rlp::Decodable + rlp::Encodable {
 //			TrieSpec::Fat => Box::new(FatDBMut::new(db, root)),
 		}
 	}
-
+*/
 //	/// Create new mutable instance of trie and check for errors.
 //	pub fn from_existing<'db>(&self, db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H=H> + 'db>, H::Out> {
 //		match self.spec {

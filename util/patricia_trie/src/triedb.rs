@@ -23,6 +23,7 @@ use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
 use bytes::Bytes;
 use rlp::{Decodable, Encodable};
+use std::marker::PhantomData;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -40,31 +41,39 @@ use rlp::{Decodable, Encodable};
 /// use hashdb::*;
 /// use memorydb::*;
 /// use ethereum_types::H256;
+/// use node_codec::RlpNodeCodec;
+///
+/// type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::<KeccakHasher>::new();
 ///   let mut root = H256::new();
-///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
-///   let t = TrieDB::new(&memdb, &root).unwrap();
+///   TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
+///   let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
 /// }
 /// ```
-pub struct TrieDB<'db, H: Hasher + 'db> {
+pub struct TrieDB<'db, H, C>
+	where H: Hasher + 'db, C: NodeCodec<H>
+{
 	db: &'db HashDB<H=H>,
 	root: &'db H::Out,
 	/// The number of hashes performed so far in operations on this trie.
 	hash_count: usize,
+	codec_marker: PhantomData<C>,
 }
 
-impl<'db, H: Hasher> TrieDB<'db, H> where H::Out: Decodable {
+impl<'db, H, C> TrieDB<'db, H, C>
+	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+{
 	/// Create a new trie with the backing database `db` and `root`
 	/// Returns an error if `root` does not exist
 	pub fn new(db: &'db HashDB<H=H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
 		if !db.contains(root) {
 			Err(Box::new(TrieError::InvalidStateRoot(*root)))
 		} else {
-			Ok(TrieDB {db, root, hash_count: 0})
+			Ok(TrieDB {db, root, hash_count: 0, codec_marker: PhantomData})
 		}
 	}
 
@@ -82,8 +91,7 @@ impl<'db, H: Hasher> TrieDB<'db, H> where H::Out: Decodable {
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
 	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> super::Result<DBValue, H::Out> {
-		// REVIEW: is it better to parametrize on `H` or like this with `H::Out` (saves us from adding `use hashdb::Hasher`)
-		match Node::try_decode_hash::<H::Out>(node) {
+		match C::try_decode_hash(node) {
 			Some(key) => {
 				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
@@ -92,7 +100,9 @@ impl<'db, H: Hasher> TrieDB<'db, H> where H::Out: Decodable {
 	}
 }
 
-impl<'db, H: Hasher> Trie for TrieDB<'db, H> where H::Out: Decodable + Encodable {
+impl<'db, H, C> Trie for TrieDB<'db, H, C>
+	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
 	type H = H;
 	fn root(&self) -> &<Self::H as Hasher>::Out { self.root }
 
@@ -103,6 +113,7 @@ impl<'db, H: Hasher> Trie for TrieDB<'db, H> where H::Out: Decodable + Encodable
 			db: self.db,
 			query: query,
 			hash: self.root.clone(),
+			marker: PhantomData::<C>,
 		}.look_up(NibbleSlice::new(key))
 	}
 
@@ -112,15 +123,19 @@ impl<'db, H: Hasher> Trie for TrieDB<'db, H> where H::Out: Decodable + Encodable
 }
 
 // This is for pretty debug output only
-struct TrieAwareDebugNode<'db, 'a, H: Hasher + 'db> {
-	trie: &'db TrieDB<'db, H>,
+struct TrieAwareDebugNode<'db, 'a, H, C>
+where H: Hasher + 'db, C: NodeCodec<H> + 'db
+{
+	trie: &'db TrieDB<'db, H, C>,
 	key: &'a[u8]
 }
 
-impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> where H::Out: Decodable {
+impl<'db, 'a, H, C> fmt::Debug for TrieAwareDebugNode<'db, 'a, H, C>
+	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+{
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		if let Ok(node) = self.trie.get_raw_or_lookup(self.key) {
-			match Node::decoded(&node) {
+			match C::decode(&node) {
 				Ok(Node::Leaf(slice, value)) => f.debug_struct("Node::Leaf")
 						.field("slice", &slice)
 						.field("value", &value)
@@ -130,7 +145,7 @@ impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> where H::
 						.field("item", &TrieAwareDebugNode{trie: self.trie, key: item})
 					.finish(),
 				Ok(Node::Branch(ref nodes, ref value)) => {
-					let nodes: Vec<TrieAwareDebugNode<H>> = nodes.into_iter().map(|n| TrieAwareDebugNode{trie: self.trie, key: n} ).collect();
+					let nodes: Vec<TrieAwareDebugNode<H, C>> = nodes.into_iter().map(|n| TrieAwareDebugNode{trie: self.trie, key: n} ).collect();
 					f.debug_struct("Node::Branch")
 						.field("nodes", &nodes)
 						.field("value", &value)
@@ -152,7 +167,9 @@ impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> where H::
 	}
 }
 
-impl<'db, H: Hasher> fmt::Debug for TrieDB<'db, H> where H::Out: Decodable {
+impl<'db, H, C> fmt::Debug for TrieDB<'db, H, C>
+	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+{
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
 		f.debug_struct("TrieDB")
@@ -193,21 +210,16 @@ impl Crumb {
 }
 
 /// Iterator for going through all values in the trie.
-pub struct TrieDBIterator<'a, H: Hasher + 'a> {
-	db: &'a TrieDB<'a, H>,
+pub struct TrieDBIterator<'a, H: Hasher + 'a, C: NodeCodec<H> + 'a> {
+	db: &'a TrieDB<'a, H, C>,
 	trail: Vec<Crumb>,
 	key_nibbles: Bytes,
 }
 
-impl<'a, H: Hasher> TrieDBIterator<'a, H> where H::Out: Decodable {
+impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> where H::Out: Decodable {
 	/// Create a new iterator.
-	pub fn new(db: &'a TrieDB<H>) -> super::Result<TrieDBIterator<'a, H>, H::Out> {
-		let mut r = TrieDBIterator {
-			db: db,
-			trail: vec![],
-			key_nibbles: Vec::new(),
-		};
-
+	pub fn new(db: &'a TrieDB<H, C>) -> super::Result<TrieDBIterator<'a, H, C>, H::Out> {
+		let mut r = TrieDBIterator { db, trail: vec![], key_nibbles: Vec::new() };
 		db.root_data().and_then(|root| r.descend(&root))?;
 		Ok(r)
 	}
@@ -215,7 +227,8 @@ impl<'a, H: Hasher> TrieDBIterator<'a, H> where H::Out: Decodable {
 	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<(), H::Out> {
 		loop {
 			let (data, mid) = {
-				let node = Node::decoded(&node_data).expect("rlp read from db; qed");
+//				let node = Node::decoded(&node_data).expect("rlp read from db; qed");
+				let node = C::decode(&node_data).expect("rlp read from db; qed");
 				match node {
 					Node::Leaf(slice, _) => {
 						if slice == key {
@@ -278,16 +291,14 @@ impl<'a, H: Hasher> TrieDBIterator<'a, H> where H::Out: Decodable {
 	/// Descend into a payload.
 	fn descend(&mut self, d: &[u8]) -> super::Result<(), H::Out> {
 		let node_data = &self.db.get_raw_or_lookup(d)?;
-		let node = Node::decoded(&node_data).expect("rlp read from db; qed");
+//		let node = Node::decoded(&node_data).expect("rlp read from db; qed");
+		let node = C::decode(&node_data).expect("rlp read from db; qed");
 		Ok(self.descend_into_node(node.into()))
 	}
 
 	/// Descend into a payload.
 	fn descend_into_node(&mut self, node: OwnedNode) {
-		self.trail.push(Crumb {
-			status: Status::Entering,
-			node: node,
-		});
+		self.trail.push(Crumb { status: Status::Entering, node });
 		match &self.trail.last().expect("just pushed item; qed").node {
 			&OwnedNode::Leaf(ref n, _) | &OwnedNode::Extension(ref n, _) => {
 				self.key_nibbles.extend((0..n.len()).map(|i| n.at(i)));
@@ -311,7 +322,7 @@ impl<'a, H: Hasher> TrieDBIterator<'a, H> where H::Out: Decodable {
 	}
 }
 
-impl<'a, H: Hasher> TrieIterator<H> for TrieDBIterator<'a, H> where H::Out: Decodable {
+impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H> for TrieDBIterator<'a, H, C> where H::Out: Decodable {
 	/// Position the iterator on the first element with key >= `key`
 	fn seek(&mut self, key: &[u8]) -> super::Result<(), H::Out> {
 		self.trail.clear();
@@ -321,8 +332,7 @@ impl<'a, H: Hasher> TrieIterator<H> for TrieDBIterator<'a, H> where H::Out: Deco
 	}
 }
 
-
-impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> where H::Out: Decodable {
+impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> where H::Out: Decodable {
 	type Item = TrieItem<'a, H>;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -376,7 +386,7 @@ impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> where H::Out: Decodable {
 					self.trail.pop();
 				},
 				IterStep::Descend::<H::Out>(Ok(d)) => {
-					let node = Node::decoded(&d).expect("rlp read from db; qed");
+					let node = C::decode(&d).expect("rlp read from db; qed");
 					self.descend_into_node(node.into())
 				},
 				IterStep::Descend::<H::Out>(Err(e)) => {
@@ -399,114 +409,108 @@ impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> where H::Out: Decodable {
 	}
 }
 
-#[test]
-fn iterator() {
+#[cfg(test)]
+mod tests {
+	use node_codec::RlpNodeCodec;
+	use hashdb::{Hasher, KeccakHasher, DBValue};
 	use memorydb::*;
-	use super::TrieMut;
-	use super::triedbmut::*;
+	use super::{TrieDB, Trie, Lookup, NibbleSlice};
+	use super::super::{TrieMut, triedbmut::*};
 
-	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
+	type RlpCodec = RlpNodeCodec<KeccakHasher>;
 
-	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::new();
-	{
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		for x in &d {
-			t.insert(x, x).unwrap();
+	#[test]
+	fn iterator() {
+		let d = vec![DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B")];
+
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut root = <KeccakHasher as Hasher>::Out::new();
+		{
+			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			for x in &d {
+				t.insert(x, x).unwrap();
+			}
 		}
+
+		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		assert_eq!(d.iter().map(|i| i.clone().into_vec()).collect::<Vec<_>>(), t.iter().unwrap().map(|x| x.unwrap().0).collect::<Vec<_>>());
+		assert_eq!(d, t.iter().unwrap().map(|x| x.unwrap().1).collect::<Vec<_>>());
 	}
 
-	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(d.iter().map(|i| i.clone().into_vec()).collect::<Vec<_>>(), t.iter().unwrap().map(|x| x.unwrap().0).collect::<Vec<_>>());
-	assert_eq!(d, t.iter().unwrap().map(|x| x.unwrap().1).collect::<Vec<_>>());
-}
-
-#[test]
-fn iterator_seek() {
-	use memorydb::*;
-	use super::TrieMut;
-	use super::triedbmut::*;
-
-	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
-
-	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::new();
-	{
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		for x in &d {
-			t.insert(x, x).unwrap();
+	#[test]
+	fn iterator_seek() {
+		let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
+	
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut root = <KeccakHasher as Hasher>::Out::new();
+		{
+			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			for x in &d {
+				t.insert(x, x).unwrap();
+			}
 		}
+	
+		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		let mut iter = t.iter().unwrap();
+		assert_eq!(iter.next(), Some(Ok((b"A".to_vec(), DBValue::from_slice(b"A")))));
+		iter.seek(b"!").unwrap();
+		assert_eq!(d, iter.map(|x| x.unwrap().1).collect::<Vec<_>>());
+		let mut iter = t.iter().unwrap();
+		iter.seek(b"A").unwrap();
+		assert_eq!(&d[1..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+		let mut iter = t.iter().unwrap();
+		iter.seek(b"AA").unwrap();
+		assert_eq!(&d[2..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+		let mut iter = t.iter().unwrap();
+		iter.seek(b"A!").unwrap();
+		assert_eq!(&d[1..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+		let mut iter = t.iter().unwrap();
+		iter.seek(b"AB").unwrap();
+		assert_eq!(&d[3..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+		let mut iter = t.iter().unwrap();
+		iter.seek(b"AB!").unwrap();
+		assert_eq!(&d[3..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+		let mut iter = t.iter().unwrap();
+		iter.seek(b"B").unwrap();
+		assert_eq!(&d[4..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+		let mut iter = t.iter().unwrap();
+		iter.seek(b"C").unwrap();
+		assert_eq!(&d[4..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
 	}
 
-	let t = TrieDB::new(&memdb, &root).unwrap();
-	let mut iter = t.iter().unwrap();
-	assert_eq!(iter.next(), Some(Ok((b"A".to_vec(), DBValue::from_slice(b"A")))));
-	iter.seek(b"!").unwrap();
-	assert_eq!(d, iter.map(|x| x.unwrap().1).collect::<Vec<_>>());
-	let mut iter = t.iter().unwrap();
-	iter.seek(b"A").unwrap();
-	assert_eq!(&d[1..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
-	let mut iter = t.iter().unwrap();
-	iter.seek(b"AA").unwrap();
-	assert_eq!(&d[2..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
-	let mut iter = t.iter().unwrap();
-	iter.seek(b"A!").unwrap();
-	assert_eq!(&d[1..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
-	let mut iter = t.iter().unwrap();
-	iter.seek(b"AB").unwrap();
-	assert_eq!(&d[3..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
-	let mut iter = t.iter().unwrap();
-	iter.seek(b"AB!").unwrap();
-	assert_eq!(&d[3..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
-	let mut iter = t.iter().unwrap();
-	iter.seek(b"B").unwrap();
-	assert_eq!(&d[4..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
-	let mut iter = t.iter().unwrap();
-	iter.seek(b"C").unwrap();
-	assert_eq!(&d[4..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
-}
+	#[test]
+	fn get_len() {
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut root = <KeccakHasher as Hasher>::Out::new();
+		{
+			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			t.insert(b"A", b"ABC").unwrap();
+			t.insert(b"B", b"ABCBA").unwrap();
+		}
 
-#[test]
-fn get_len() {
-	use memorydb::*;
-	use super::TrieMut;
-	use super::triedbmut::*;
-
-	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::new();
-	{
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(b"A", b"ABC").unwrap();
-		t.insert(b"B", b"ABCBA").unwrap();
+		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		assert_eq!(t.get_with(b"A", |x: &[u8]| x.len()), Ok(Some(3)));
+		assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()), Ok(Some(5)));
+		assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()), Ok(None));
 	}
 
-	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get_with(b"A", |x: &[u8]| x.len()), Ok(Some(3)));
-	assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()), Ok(Some(5)));
-	assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()), Ok(None));
-}
+	#[test]
+	fn debug_output_supports_pretty_print() {
+		let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
 
-#[test]
-fn debug_output_supports_pretty_print() {
-	use memorydb::*;
-	use super::TrieMut;
-	use super::triedbmut::*;
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let root = {
+			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			for x in &d {
+				t.insert(x, x).unwrap();
+			}
+			t.root().clone()
+		};
+		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
 
-	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
-
-	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::new();
-	let root = {
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		for x in &d {
-			t.insert(x, x).unwrap();
-		}
-		t.root().clone()
-	};
-	let t = TrieDB::new(&memdb, &root).unwrap();
-
-	assert_eq!(format!("{:?}", t), "TrieDB { hash_count: 0, root: Node::Extension { slice: 4, item: Node::Branch { nodes: [Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Leaf { slice: , value: [65, 65] }, Node::Leaf { slice: , value: [65, 66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: Some([65]) }, Node::Leaf { slice: , value: [66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None } } }");
-	assert_eq!(format!("{:#?}", t),
+		assert_eq!(format!("{:?}", t), "TrieDB { hash_count: 0, root: Node::Extension { slice: 4, item: Node::Branch { nodes: [Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Leaf { slice: , value: [65, 65] }, Node::Leaf { slice: , value: [65, 66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: Some([65]) }, Node::Leaf { slice: , value: [66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None } } }");
+		assert_eq!(format!("{:#?}", t),
 "TrieDB {
     hash_count: 0,
     root: Node::Extension {
@@ -595,29 +599,28 @@ fn debug_output_supports_pretty_print() {
         }
     }
 }");
-}
-
-#[test]
-fn test_lookup_with_corrupt_data_returns_decoder_error() {
-	use memorydb::*;
-	use super::TrieMut;
-	use super::triedbmut::*;
-	use rlp;
-	use ethereum_types::H512;
-
-	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::new();
-	{
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(b"A", b"ABC").unwrap();
-		t.insert(b"B", b"ABCBA").unwrap();
 	}
 
-	let t = TrieDB::new(&memdb, &root).unwrap();
+	#[test]
+	fn test_lookup_with_corrupt_data_returns_decoder_error() {
+		use rlp;
+		use ethereum_types::H512;
+		use std::marker::PhantomData;
 
-	// query for an invalid data type to trigger an error
-	let q = rlp::decode::<H512>;
-	let lookup = Lookup{ db: t.db, query: q, hash: root };
-	let query_result = lookup.look_up(NibbleSlice::new(b"A"));
-	assert_eq!(query_result.unwrap().unwrap().unwrap_err(), rlp::DecoderError::RlpIsTooShort);
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut root = <KeccakHasher as Hasher>::Out::new();
+		{
+			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			t.insert(b"A", b"ABC").unwrap();
+			t.insert(b"B", b"ABCBA").unwrap();
+		}
+
+		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+
+		// query for an invalid data type to trigger an error
+		let q = rlp::decode::<H512>;
+		let lookup = Lookup::<_, RlpCodec, _>{ db: t.db, query: q, hash: root, marker: PhantomData };
+		let query_result = lookup.look_up(NibbleSlice::new(b"A"));
+		assert_eq!(query_result.unwrap().unwrap().unwrap_err(), rlp::DecoderError::RlpIsTooShort);
+	}
 }

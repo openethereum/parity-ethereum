@@ -22,16 +22,17 @@ use super::node::Node as RlpNode;
 use node_codec::NodeCodec;
 use super::node::NodeKey;
 
-use hashdb::HashDB;
 use bytes::ToPretty;
+use hashdb::HashDB;
+use hashdb::{Hasher, DBValue};
 use nibbleslice::NibbleSlice;
 use rlp::{Rlp, RlpStream, Encodable, Decodable};
-use hashdb::{Hasher, DBValue};
 
+use elastic_array::ElasticArray1024;
 use std::collections::{HashSet, VecDeque};
+use std::marker::PhantomData;
 use std::mem;
 use std::ops::Index;
-use elastic_array::ElasticArray1024;
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -86,29 +87,35 @@ enum Node<H: Hasher> {
 
 impl<H: Hasher> Node<H> where H::Out: Decodable {
 	// load an inline node into memory or get the hash to do the lookup later.
-	fn inline_or_hash(node: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> NodeHandle<H> {
-		RlpNode::try_decode_hash::<H::Out>(&node)
+	fn inline_or_hash<C>(node: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> NodeHandle<H> 
+	where C: NodeCodec<H>
+	{
+		C::try_decode_hash(&node)
 			.map(NodeHandle::Hash)
 			.unwrap_or_else(|| {
-				let child = Node::from_encoded(node, db, storage);
+				let child = Node::from_encoded::<C>(node, db, storage);
 				NodeHandle::InMemory(storage.alloc(Stored::New(child)))
 			})
 	}
 
 	// decode a node from rlp without getting its children.
-	fn from_encoded(data: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> Self {
-		match RlpNode::decoded(data).expect("encoded bytes read from db; qed") {
+	fn from_encoded<C>(data: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> Self
+	where C: NodeCodec<H>
+	{
+		match C::decode(data).expect("encoded bytes read from db; qed") {
 			RlpNode::Empty => Node::Empty,
 			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
 			RlpNode::Extension(key, cb) => {
-				Node::Extension(key.encoded(false), Self::inline_or_hash(cb, db, storage))
+				Node::Extension(
+					key.encoded(false),
+					Self::inline_or_hash::<C>(cb, db, storage))
 			}
 			RlpNode::Branch(ref encoded_children, val) => {
 				let mut child = |i:usize| {
 					let raw = encoded_children[i];
-					let encoded_child = RlpNode::new_encoded(raw);
+					let encoded_child = C::new_encoded(raw);
 					if !encoded_child.is_empty() {
-						Some(Self::inline_or_hash(raw, db, storage))
+						Some(Self::inline_or_hash::<C>(raw, db, storage))
 					} else {
 						None
 					}
@@ -128,30 +135,32 @@ impl<H: Hasher> Node<H> where H::Out: Decodable {
 
 	// encode a node to RLP
 	// TODO: parallelize
-	fn into_rlp<F>(self, mut child_cb: F) -> ElasticArray1024<u8>
-		where F: FnMut(NodeHandle<H>, &mut RlpStream) // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
+	fn into_rlp<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
+		where
+			F: FnMut(NodeHandle<H>, &mut RlpStream), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
+			C: NodeCodec<H>,
 //		where F: FnMut(NodeHandle<H>, &mut <RlpNode as NodeCodec>::StreamEncoding)
 	{
 		match self {
 			Node::Empty => {
-				let mut stream = RlpNode::encoded_stream();
+				let mut stream = C::encoded_stream();
 				stream.append_empty_data();
 				stream.drain()
 			}
 			Node::Leaf(partial, value) => {
-				let mut stream = RlpNode::encoded_list(2);
+				let mut stream = C::encoded_list(2);
 				stream.append(&&*partial);
 				stream.append(&&*value);
 				stream.drain()
 			}
 			Node::Extension(partial, child) => {
-				let mut stream = RlpNode::encoded_list(2);
+				let mut stream = C::encoded_list(2);
 				stream.append(&&*partial);
 				child_cb(child, &mut stream);
 				stream.drain()
 			}
 			Node::Branch(mut children, value) => {
-				let mut stream = RlpNode::encoded_list(17);
+				let mut stream = C::encoded_list(17);
 				for child in children.iter_mut().map(Option::take) {
 					if let Some(handle) = child {
 						child_cb(handle, &mut stream);
@@ -278,11 +287,14 @@ impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
 /// use hashdb::*;
 /// use memorydb::*;
 /// use ethereum_types::H256;
+/// use node_codec::RlpNodeCodec;
+///
+/// type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::<KeccakHasher>::new();
 ///   let mut root = H256::new();
-///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
+///   let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
 ///   assert_eq!(*t.root(), KECCAK_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
@@ -292,7 +304,11 @@ impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
 ///   assert!(!t.contains(b"foo").unwrap());
 /// }
 /// ```
-pub struct TrieDBMut<'a, H: Hasher + 'a> where H::Out: Decodable + Encodable {
+pub struct TrieDBMut<'a, H, C>
+	where H: Hasher + 'a,
+	      H::Out: Decodable + Encodable,
+	      C: NodeCodec<H>
+{
 	storage: NodeStorage<H>,
 	db: &'a mut HashDB<H=H>,
 	root: &'a mut H::Out,
@@ -301,9 +317,14 @@ pub struct TrieDBMut<'a, H: Hasher + 'a> where H::Out: Decodable + Encodable {
 	/// The number of hash operations this trie has performed.
 	/// Note that none are performed until changes are committed.
 	hash_count: usize,
+	marker: PhantomData<C>, // TODO: rpheimer: "we could have the NodeCodec trait take &self to its methods and then we don't need PhantomData. we can just store an instance of C: NodeCodec in the trie struct. If it's a ZST it won't have any additional overhead anyway"
 }
 
-impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
+impl<'a, H, C> TrieDBMut<'a, H, C>
+	where H: Hasher,
+	      H::Out: Decodable + Encodable,
+	      C: NodeCodec<H>
+{
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB<H=H>, root: &'a mut H::Out) -> Self {
 		*root = H::HASHED_NULL_RLP;
@@ -316,6 +337,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 			root_handle: root_handle,
 			death_row: HashSet::new(),
 			hash_count: 0,
+			marker: PhantomData, // TODO: prolly not needed
 		}
 	}
 
@@ -334,6 +356,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 			root_handle: root_handle,
 			death_row: HashSet::new(),
 			hash_count: 0,
+			marker: PhantomData, // TODO: prolly not needed
 		})
 	}
 	/// Get the backing database.
@@ -349,7 +372,11 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 	// cache a node by hash
 	fn cache(&mut self, hash: H::Out) -> super::Result<StorageHandle, H::Out> {
 		let node_encoded = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
-		let node = Node::from_encoded(&node_encoded, &*self.db, &mut self.storage);
+		let node = Node::from_encoded::<C>(
+			&node_encoded,
+			&*self.db,
+			&mut self.storage
+		);
 		Ok(self.storage.alloc(Stored::Cached(node, hash)))
 	}
 
@@ -384,10 +411,11 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 		let mut handle = handle;
 		loop {
 			let (mid, child) = match *handle {
-				NodeHandle::Hash(ref hash) => return Lookup {
+				NodeHandle::Hash(ref hash) => return Lookup{
 					db: &*self.db,
 					query: DBValue::from_slice,
 					hash: hash.clone(),
+					marker: PhantomData::<C>,
 				}.look_up(partial),
 				NodeHandle::InMemory(ref handle) => match self.storage[handle] {
 					Node::Empty => return Ok(None),
@@ -822,7 +850,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 
 		match self.storage.destroy(handle) {
 			Stored::New(node) => {
-				let root_rlp = node.into_rlp(|child, stream| self.commit_node(child, stream));
+				let root_rlp = node.into_rlp::<_, C>(|child, stream| self.commit_node(child, stream));
 				*self.root = self.db.insert(&root_rlp[..]);
 				self.hash_count += 1;
 
@@ -850,7 +878,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
 				Stored::Cached(_, h) => stream.append(&h),
 				Stored::New(node) => {
-					let node_rlp = node.into_rlp(|child, stream| self.commit_node(child, stream));
+					let node_rlp = node.into_rlp::<_, C>(|child, stream| self.commit_node(child, stream));
 					if node_rlp.len() >= 32 {
 						let hash = self.db.insert(&node_rlp[..]);
 						self.hash_count += 1;
@@ -872,7 +900,11 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 	}
 }
 
-impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
+impl<'a, H, C> TrieMut for TrieDBMut<'a, H, C>
+	where H: Hasher,
+	      H::Out: Decodable + Encodable,
+	      C: NodeCodec<H>
+{
 	type H = H;
 
 	fn root(&mut self) -> &<Self::H as Hasher>::Out {
@@ -890,10 +922,11 @@ impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> where H::Out: Decodable + Encod
 		}
 	}
 
-	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> where 'x: 'key {
+	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out>
+		where 'x: 'key
+	{
 		self.lookup(NibbleSlice::new(key), &self.root_handle)
 	}
-
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> {
 		if value.is_empty() { return self.remove(key) }
@@ -939,7 +972,11 @@ impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> where H::Out: Decodable + Encod
 	}
 }
 
-impl<'a, H: Hasher> Drop for TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
+impl<'a, H, C> Drop for TrieDBMut<'a, H, C>
+	where H: Hasher,
+	      H::Out: Decodable + Encodable,
+	      C: NodeCodec<H>
+{
 	fn drop(&mut self) {
 		self.commit();
 	}
@@ -949,17 +986,20 @@ impl<'a, H: Hasher> Drop for TrieDBMut<'a, H> where H::Out: Decodable + Encodabl
 mod tests {
 	extern crate triehash;
 
-	use self::triehash::trie_root;
+	use bytes::ToPretty;
 	use hashdb::*;
 	use memorydb::*;
-	use super::*;
-	use bytes::ToPretty;
-	use super::super::TrieMut;
-	use standardmap::*;
+	use node_codec::RlpNodeCodec;
 	use rlp::{Decodable, Encodable};
+	use self::triehash::trie_root;
+	use standardmap::*;
+	use super::*;
+	use super::super::TrieMut;
 
-	fn populate_trie<'db, H: Hasher>(db: &'db mut HashDB<H=H>, root: &'db mut H::Out, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db, H>
-		where H::Out: Decodable + Encodable
+	type RlpCodec = RlpNodeCodec<KeccakHasher>;
+
+	fn populate_trie<'db, H, C>(db: &'db mut HashDB<H=H>, root: &'db mut H::Out, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db, H, C>
+		where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
 	{
 		let mut t = TrieDBMut::new(db, root);
 		for i in 0..v.len() {
@@ -970,7 +1010,7 @@ mod tests {
 		t
 	}
 
-	fn unpopulate_trie<'db, H: Hasher>(t: &mut TrieDBMut<'db, H>, v: &[(Vec<u8>, Vec<u8>)])
+	fn unpopulate_trie<'db, H: Hasher, C: NodeCodec<H>>(t: &mut TrieDBMut<'db, H, C>, v: &[(Vec<u8>, Vec<u8>)])
 		where H::Out: Decodable + Encodable
 	{
 		for i in v {
@@ -999,7 +1039,7 @@ mod tests {
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::<KeccakHasher>::new();
 			let mut root = <KeccakHasher as Hasher>::Out::new();
-			let mut memtrie = populate_trie(&mut memdb, &mut root, &x);
+			let mut memtrie = populate_trie::<_, RlpCodec>(&mut memdb, &mut root, &x);
 
 			memtrie.commit();
 			if *memtrie.root() != real {
@@ -1029,7 +1069,7 @@ mod tests {
 	fn init() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		assert_eq!(*t.root(), KeccakHasher::HASHED_NULL_RLP);
 	}
 
@@ -1037,7 +1077,7 @@ mod tests {
 	fn insert_on_empty() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
 	}
@@ -1048,12 +1088,13 @@ mod tests {
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t1 = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t1.insert(&[0x01, 0x23], big_value).unwrap();
 		t1.insert(&[0x01, 0x34], big_value).unwrap();
 		let mut memdb2 = MemoryDB::<KeccakHasher>::new();
 		let mut root2 = <KeccakHasher as Hasher>::Out::default();
-		let mut t2 = TrieDBMut::new(&mut memdb2, &mut root2);
+		let mut t2 = TrieDBMut::<_, RlpCodec>::new(&mut memdb2, &mut root2);
+
 		t2.insert(&[0x01], big_value).unwrap();
 		t2.insert(&[0x01, 0x23], big_value).unwrap();
 		t2.insert(&[0x01, 0x34], big_value).unwrap();
@@ -1064,7 +1105,7 @@ mod tests {
 	fn insert_replace_root() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
@@ -1074,7 +1115,7 @@ mod tests {
 	fn insert_make_branch_root() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1087,7 +1128,7 @@ mod tests {
 	fn insert_into_branch_root() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]).unwrap();
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]).unwrap();
@@ -1102,7 +1143,7 @@ mod tests {
 	fn insert_value_into_branch_root() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[], &[0x0]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1115,7 +1156,7 @@ mod tests {
 	fn insert_split_leaf() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1128,7 +1169,7 @@ mod tests {
 	fn insert_split_extenstion() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01, 0x23, 0x45], &[0x01]).unwrap();
 		t.insert(&[0x01, 0xf3, 0x45], &[0x02]).unwrap();
 		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]).unwrap();
@@ -1146,7 +1187,7 @@ mod tests {
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value0).unwrap();
 		t.insert(&[0x11u8, 0x23], big_value1).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1161,7 +1202,7 @@ mod tests {
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value).unwrap();
 		t.insert(&[0x11u8, 0x23], big_value).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1174,7 +1215,7 @@ mod tests {
 	fn test_at_empty() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let t = TrieDBMut::new(&mut memdb, &mut root);
+		let t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		assert_eq!(t.get(&[0x5]), Ok(None));
 	}
 
@@ -1182,7 +1223,7 @@ mod tests {
 	fn test_at_one() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		assert_eq!(t.get(&[0x1, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x1u8, 0x23]));
 		t.commit();
@@ -1193,7 +1234,7 @@ mod tests {
 	fn test_at_three() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]).unwrap();
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]).unwrap();
@@ -1223,12 +1264,12 @@ mod tests {
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::<KeccakHasher>::new();
 			let mut root = <KeccakHasher as Hasher>::Out::default();
-			let mut memtrie = populate_trie(&mut memdb, &mut root, &x);
+			let mut memtrie = populate_trie::<_, RlpCodec>(&mut memdb, &mut root, &x);
 			let mut y = x.clone();
 			y.sort_by(|ref a, ref b| a.0.cmp(&b.0));
 			let mut memdb2 = MemoryDB::<KeccakHasher>::new();
 			let mut root2 = <KeccakHasher as Hasher>::Out::default();
-			let mut memtrie_sorted = populate_trie(&mut memdb2, &mut root2, &y);
+			let mut memtrie_sorted = populate_trie::<_, RlpCodec>(&mut memdb2, &mut root2, &y);
 			if *memtrie.root() != real || *memtrie_sorted.root() != real {
 				println!("TRIE MISMATCH");
 				println!("");
@@ -1251,12 +1292,12 @@ mod tests {
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
 		{
-			let mut t = TrieDBMut::new(&mut db, &mut root);
+			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
 			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		}
 
 		{
-		 	let _ = TrieDBMut::from_existing(&mut db, &mut root);
+			 let _ = TrieDBMut::<_, RlpCodec>::from_existing(&mut db, &mut root);
 		}
 	}
 
@@ -1273,7 +1314,7 @@ mod tests {
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
-		let mut t = TrieDBMut::new(&mut db, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root); // TODO: `t` was immutable – how could this pass?
 		for &(ref key, ref value) in &x {
 			t.insert(key, value).unwrap();
 		}
@@ -1301,7 +1342,7 @@ mod tests {
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
-		let mut t = TrieDBMut::new(&mut db, &mut root);
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root); // TODO: `t` was immutable – how could this pass?
 		for &(ref key, ref value) in &x {
 			assert!(t.insert(key, value).unwrap().is_none());
 			assert_eq!(t.insert(key, value).unwrap(), Some(DBValue::from_slice(value)));
