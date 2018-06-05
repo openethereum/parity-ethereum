@@ -1,15 +1,15 @@
 !include WinMessages.nsh
 
-!define WND_CLASS "Parity"
-!define WND_TITLE "Parity"
+!define WND_CLASS "Purity"
+!define WND_TITLE "Purity"
 !define WAIT_MS 5000
 !define SYNC_TERM 0x00100001
 
-!define APPNAME "Parity"
+!define APPNAME "Purity"
 !define COMPANYNAME "Parity Technologies"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
-!define VERSIONMAJOR 1
-!define VERSIONMINOR 12
+!define VERSIONMAJOR 2
+!define VERSIONMINOR 0
 !define VERSIONBUILD 0
 !define ARGS ""
 !define FIRST_START_ARGS "--mode=passive ui"
@@ -88,7 +88,7 @@ section "install"
 	!insertmacro TerminateApp
 
 	# Files added here should be removed by the uninstaller (see section "uninstall")
-	file /oname=parity.exe ..\target\x86_64-pc-windows-msvc\release\parity.exe
+	file /oname=purity.exe ..\target\x86_64-pc-windows-msvc\release\purity.exe
   file /oname=parity-evm.exe ..\target\x86_64-pc-windows-msvc\release\parity-evm.exe
   file /oname=ethstore.exe ..\target\x86_64-pc-windows-msvc\release\ethstore.exe
   file /oname=ethkey.exe ..\target\x86_64-pc-windows-msvc\release\ethkey.exe
@@ -107,15 +107,15 @@ section "install"
 	createShortCut "$DESKTOP\${APPNAME} Ethereum.lnk" "$INSTDIR\ptray.exe" "ui" "$INSTDIR\logo.ico"
 
 	# Firewall remove rules if exists
-	SimpleFC::AdvRemoveRule "Parity incoming peers (TCP:30303)"
-	SimpleFC::AdvRemoveRule "Parity outgoing peers (TCP:30303)"
-	SimpleFC::AdvRemoveRule       "Parity web queries (TCP:80)"
-	SimpleFC::AdvRemoveRule  "Parity UDP discovery (UDP:30303)"
+	SimpleFC::AdvRemoveRule "Purity incoming peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule "Purity outgoing peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule       "Purity web queries (TCP:80)"
+	SimpleFC::AdvRemoveRule  "Purity UDP discovery (UDP:30303)"
 
 	# Firewall exception rules
-	SimpleFC::AdvAddRule "Parity incoming peers (TCP:30303)" ""  6 1 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity" 30303    "" "" ""
-	SimpleFC::AdvAddRule "Parity outgoing peers (TCP:30303)" ""  6 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    "" 30303 "" ""
-	SimpleFC::AdvAddRule  "Parity UDP discovery (UDP:30303)" "" 17 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    "" 30303 "" ""
+	SimpleFC::AdvAddRule "Purity incoming peers (TCP:30303)" ""  6 1 1 2147483647 1 "$INSTDIR\purity.exe" "" "" "Purity" 30303    "" "" ""
+	SimpleFC::AdvAddRule "Purity outgoing peers (TCP:30303)" ""  6 2 1 2147483647 1 "$INSTDIR\purity.exe" "" "" "Purity"    "" 30303 "" ""
+	SimpleFC::AdvAddRule  "Purity UDP discovery (UDP:30303)" "" 17 2 1 2147483647 1 "$INSTDIR\purity.exe" "" "" "Purity"    "" 30303 "" ""
 
 	# Registry information for add/remove programs
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${APPNAME} - ${DESCRIPTION}"
@@ -165,7 +165,7 @@ section "uninstall"
 	rmDir "$SMPROGRAMS\${COMPANYNAME}"
 
 	# Remove files
-	delete $INSTDIR\parity.exe
+	delete $INSTDIR\purity.exe
   delete $INSTDIR\parity-evm.exe
   delete $INSTDIR\ethstore.exe
   delete $INSTDIR\ethkey.exe
@@ -179,10 +179,10 @@ section "uninstall"
 	rmDir $INSTDIR
 
 	# Firewall exception rules
-	SimpleFC::AdvRemoveRule "Parity incoming peers (TCP:30303)"
-	SimpleFC::AdvRemoveRule "Parity outgoing peers (TCP:30303)"
-	SimpleFC::AdvRemoveRule       "Parity web queries (TCP:80)"
-	SimpleFC::AdvRemoveRule  "Parity UDP discovery (UDP:30303)"
+	SimpleFC::AdvRemoveRule "Purity incoming peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule "Purity outgoing peers (TCP:30303)"
+	SimpleFC::AdvRemoveRule       "Purity web queries (TCP:80)"
+	SimpleFC::AdvRemoveRule  "Purity UDP discovery (UDP:30303)"
 
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
