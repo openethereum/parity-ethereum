@@ -3,7 +3,7 @@
 [package]
 name = "parity-version"
 # NOTE: this value is used for Parity version string (via env CARGO_PKG_VERSION)
-version = "1.11.2"
+version = "1.11.3"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -13,7 +13,7 @@ build = "build.rs"
 track = "beta"
 
 # Indicates a critical release in this track (i.e. consensus issue)
-critical = false
+critical = true
 
 # Latest supported fork blocks for various networks. Used ONLY by auto-updater.
 [package.metadata.forks]
