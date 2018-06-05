@@ -1102,7 +1102,7 @@ mod tests {
 	use rustc_hex::FromHex;
 
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
-	use miner::MinerService;
+	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 	use transaction::{Transaction};
 
@@ -1198,7 +1198,7 @@ mod tests {
 		assert_eq!(res.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 1);
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 1);
-		assert_eq!(miner.ready_transactions(&client).len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
 		assert!(!miner.prepare_pending_block(&client));
 	}
@@ -1217,7 +1217,7 @@ mod tests {
 		assert_eq!(res.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block), None);
 		assert_eq!(miner.pending_receipts(best_block), None);
-		assert_eq!(miner.ready_transactions(&client).len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 	}
 
 	#[test]
@@ -1236,11 +1236,11 @@ mod tests {
 		assert_eq!(miner.pending_transactions(best_block), None);
 		assert_eq!(miner.pending_receipts(best_block), None);
 		// By default we use PendingSet::AlwaysSealing, so no transactions yet.
-		assert_eq!(miner.ready_transactions(&client).len(), 0);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
 		assert!(miner.prepare_pending_block(&client));
 		// After pending block is created we should see a transaction.
-		assert_eq!(miner.ready_transactions(&client).len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 	}
 
 	#[test]
