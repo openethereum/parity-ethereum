@@ -94,9 +94,10 @@ impl SyncRequester {
 	}
 
 	/// Request snapshot bitfield from a peer.
-	pub fn request_snapshot_bitfield(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+	pub fn request_snapshot_bitfield(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, snapshot_hash: &H256) {
 		trace!(target: "sync", "{} <- GetSnapshotBitfield", peer_id);
-		let rlp = RlpStream::new_list(0);
+		let mut rlp = RlpStream::new_list(1);
+		rlp.append(snapshot_hash);
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotBitfield, GET_SNAPSHOT_BITFIELD_PACKET, rlp.out());
 	}
 

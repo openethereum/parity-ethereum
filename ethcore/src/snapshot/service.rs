@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
+use super::{Bitfield, ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
@@ -69,12 +69,14 @@ pub trait DatabaseRestore: Send + Sync {
 	fn restore_db(&self, new_db: &str) -> Result<(), Error>;
 }
 
+/// I/O for Snapshot Restoration: a writer and a reader
 struct RestorationIo {
 	reader: LooseReader,
 	writer: LooseWriter,
 }
 
 impl RestorationIo {
+	/// Create a new Restoration I/O that will read and write from the given path
 	fn new(restoration_path: PathBuf) -> Result<RestorationIo, Error> {
 		let io = RestorationIo {
 			reader: LooseReader::new(restoration_path.clone())?,
@@ -141,9 +143,12 @@ impl Restoration {
 		})
 	}
 
-	// feeds a state chunk, aborts early if `flag` becomes false.
-	fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
-		if self.state_chunks_left.contains(&hash) {
+	// Fee a chunk, aborts early if `flag` becomes false
+	fn feed_chunk(&mut self, hash: H256, chunk: &[u8], engine: &EthEngine, flag: &AtomicBool) -> Result<(), Error> {
+		let is_secondary = self.block_chunks_left.contains(&hash);
+		let is_state = self.state_chunks_left.contains(&hash);
+
+		if is_secondary || is_state {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
@@ -151,34 +156,25 @@ impl Restoration {
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
-			self.state.feed(&self.snappy_buffer[..len], flag)?;
+			if is_state {
+				self.state.feed(&self.snappy_buffer[..len], flag)?;
+			} else {
+				self.secondary.feed(&self.snappy_buffer[..len], engine, flag)?;
+			}
 
 			if let Some(ref mut io) = self.io.as_mut() {
-				io.writer.write_state_chunk(hash, chunk)?;
+				if is_state {
+					io.writer.write_state_chunk(hash, chunk)?;
+				} else {
+					io.writer.write_block_chunk(hash, chunk)?;
+				}
 			}
 
-			self.state_chunks_left.remove(&hash);
-		}
-
-		Ok(())
-	}
-
-	// feeds a block chunk
-	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &EthEngine, flag: &AtomicBool) -> Result<(), Error> {
-		if self.block_chunks_left.contains(&hash) {
-			let expected_len = snappy::decompressed_len(chunk)?;
-			if expected_len > MAX_CHUNK_SIZE {
-				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+			if is_state {
+				self.state_chunks_left.remove(&hash);
+			} else {
+				self.block_chunks_left.remove(&hash);
 			}
-			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
-
-			self.secondary.feed(&self.snappy_buffer[..len], engine, flag)?;
-			if let Some(ref mut io) = self.io.as_mut() {
-				io.writer.write_block_chunk(hash, chunk)?;
-			}
-
-			self.block_chunks_left.remove(&hash);
 		}
 
 		Ok(())
@@ -632,10 +628,8 @@ impl Service {
 							None => return Ok(()),
 						};
 
-						(match is_state {
-							true => rest.feed_state(hash, chunk, &self.restoring_snapshot),
-							false => rest.feed_blocks(hash, chunk, &*self.engine, &self.restoring_snapshot),
-						}.map(|_| rest.is_done()), rest.db.clone())
+						(rest.feed_chunk(hash, chunk, &*self.engine, &self.restoring_snapshot)
+							.map(|_| rest.is_done()), rest.db.clone())
 					};
 
 					let res = match res {
@@ -688,13 +682,13 @@ impl Service {
 			}
 		}
 	}
-}
 
-impl SnapshotService for Service {
-	fn manifest(&self) -> Option<ManifestData> {
+	/// Get the completed Snapshot Manifest (if any), read from FS
+	fn completed_manifest(&self) -> Option<ManifestData> {
 		self.reader.read().as_ref().map(|r| r.manifest().clone())
 	}
 
+	/// Get the currently partially restored Snapshot Manifest (if any)
 	fn partial_manifest(&self) -> Option<ManifestData> {
 		let restoration = self.restoration.lock();
 
@@ -704,6 +698,33 @@ impl SnapshotService for Service {
 				Some(restoration.manifest.clone())
 			},
 			None => None,
+		}
+	}
+}
+
+impl SnapshotService for Service {
+	fn manifest(&self, support_partial: bool) -> Option<ManifestData> {
+		if support_partial {
+			match self.partial_manifest() {
+				Some(manifest) => return Some(manifest),
+				_ => (),
+			}
+		}
+
+		self.completed_manifest()
+	}
+
+	fn bitfield(&self, manifest_hash: H256) -> Option<Bitfield> {
+		if let Some(manifest) = self.completed_manifest() {
+			if manifest.clone().hash() != manifest_hash {
+				return None;
+			}
+
+			let mut bitfield = Bitfield::new_from_manifest(&manifest);
+			bitfield.mark_all();
+			Some(bitfield)
+		} else {
+			None
 		}
 	}
 

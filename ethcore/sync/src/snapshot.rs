@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::snapshot::{ManifestData, SnapshotService};
+use ethcore::snapshot::{Bitfield, ManifestData, SnapshotService};
 use chain::PeerInfo;
 use ethereum_types::H256;
 use hash::keccak;
 use rand::{thread_rng, Rng};
 
-use bitfield::Bitfield;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -194,10 +193,8 @@ impl Snapshot {
 		self.total_chunks() == self.done_chunks()
 	}
 
-	// The bitfield is represented as an array of
-	// 8-bits uints
-	pub fn bitfield(&self) -> Option<Vec<u8>> {
-		self.bitfield.as_ref().map(|bitfield| bitfield.as_raw())
+	pub fn bitfield(&self) -> Option<Bitfield> {
+		self.bitfield.clone()
 	}
 
 	pub fn bitfield_size(&self) -> Option<usize> {

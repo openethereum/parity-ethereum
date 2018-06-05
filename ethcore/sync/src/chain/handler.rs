@@ -15,13 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use api::WARP_SYNC_PROTOCOL_ID;
-use bitfield::Bitfield;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
 use ethcore::error::*;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::snapshot::{ManifestData, RestorationStatus};
+use ethcore::snapshot::{Bitfield, ManifestData, RestorationStatus};
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
@@ -528,7 +527,7 @@ impl SyncHandler {
 		let bitfield_bytes: Vec<u8> = r.as_list()?;
 
 		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-			if let Some(manifest) = io.snapshot_service().partial_manifest() {
+			if let Some(manifest) = io.snapshot_service().manifest(true) {
 				let bitfield = Bitfield::new_from_bytes(&manifest, &bitfield_bytes);
 				peer.snapshot_bitfield = Some(bitfield);
 				peer.ask_bitfield_time = Instant::now();

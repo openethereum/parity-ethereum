@@ -97,7 +97,6 @@ use std::sync::Arc;
 use std::collections::{HashSet, HashMap};
 use std::cmp;
 use std::time::{Duration, Instant};
-use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
 use plain_hasher::H256FastMap;
@@ -107,7 +106,7 @@ use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use ethcore::header::BlockNumber;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
-use ethcore::snapshot::{ManifestData, RestorationStatus};
+use ethcore::snapshot::{Bitfield, RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::BlockDownloader;
@@ -117,7 +116,6 @@ use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use transaction::UnverifiedTransaction;
-use bitfield::Bitfield;
 
 use self::handler::SyncHandler;
 use self::propagator::SyncPropagator;
@@ -400,27 +398,10 @@ impl PeerInfo {
 		protocol_version >= PAR_PROTOCOL_VERSION_4.0
 	}
 
-	/// Update the bitfield, which sets to all available for peers
-	/// that doesn't support partial seeding (thus must already have all pieces)
-	pub fn update_bitfield(&mut self, manifest: &ManifestData) {
-		// Don't update if it's already set
-		if self.snapshot_bitfield.is_some() {
-			return;
-		}
-
-		// If the peer doesn't support partial seeding, mark all chunks as available
-		if !PeerInfo::supports_partial_snapshots(self.protocol_version) {
-			let mut bitfield = Bitfield::new_from_manifest(manifest);
-			bitfield.mark_all();
-
-			self.snapshot_bitfield = Some(bitfield);
-		}
-	}
-
 	/// Whether the Bitfield should be requested: only for peers
 	/// supporting the request, which bitfield isn't know yet
 	pub fn should_request_bitfield(&self) -> bool {
-		if PeerInfo::supports_partial_snapshots(self.protocol_version) {
+		if self.snapshot_hash.is_some() && PeerInfo::supports_partial_snapshots(self.protocol_version) {
 			// Ask for bitfield if it's expired or if it's not set yet
 			self.snapshot_bitfield.is_none() ||
 			 	(Instant::now() - self.ask_bitfield_time) > BITFIELD_REFRESH_DURATION
@@ -868,17 +849,14 @@ impl ChainSync {
 				}
 
 				// Asks peer bitfield if it is supported and they are not set yet
-				if let Some(manifest) = io.snapshot_service().partial_manifest() {
-					let request_bitfield = if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
-						peer.update_bitfield(&manifest);
-						peer.should_request_bitfield()
-					} else {
-						false
-					};
-					if request_bitfield {
-						SyncRequester::request_snapshot_bitfield(self, io, peer_id);
-						return;
+				let (request_bitfield, snapshot_hash) = self.peers.get_mut(&peer_id).as_ref().map_or((false, None), |peer| {
+					(peer.should_request_bitfield(), peer.snapshot_hash)
+				});
+				if request_bitfield {
+					if let Some(snapshot_hash) = snapshot_hash {
+						SyncRequester::request_snapshot_bitfield(self, io, peer_id, &snapshot_hash);
 					}
+					return;
 				}
 
 				match io.snapshot_service().status() {
@@ -974,9 +952,10 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		if warp_protocol {
-			let manifest = SyncSupplier::get_snapshot_manifest(io, protocol);
+			let supports_partial = PeerInfo::supports_partial_snapshots(protocol);
+			let manifest = io.snapshot_service().manifest(supports_partial);
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
-			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
+			let manifest_hash = manifest.map_or(H256::new(), |m| m.hash());
 			packet.append(&manifest_hash);
 			packet.append(&block_number);
 		}

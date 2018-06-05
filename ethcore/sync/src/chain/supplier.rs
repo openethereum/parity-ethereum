@@ -14,11 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use bitfield::Bitfield;
 use bytes::Bytes;
 use ethcore::client::BlockId;
 use ethcore::header::BlockNumber;
-use ethcore::snapshot::ManifestData;
 use ethereum_types::H256;
 use network::PeerId;
 use parking_lot::RwLock;
@@ -234,61 +232,33 @@ impl SyncSupplier {
 		Ok(Some((RECEIPTS_PACKET, rlp_result)))
 	}
 
-	/// Respond to GetSnapshotBitfield request
+	/// Respond to GetSnapshotBitfield request: should contain the manifest's hash!
 	fn return_snapshot_bitfield(sync: &RwLock<ChainSync>, io: &mut SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		trace!(target: "warp", "{} -> GetSnapshotBitfield", peer_id);
-		if r.item_count().unwrap_or(0) != 0 {
+		// The request must contain the Snapshot's Hash
+		if r.item_count().unwrap_or(0) != 1 {
 			debug!(target: "warp", "Invalid GetSnapshotBitfield request, ignoring.");
 			return Ok(None);
 		}
-		let peer_protocol = sync.read().peers.get(&peer_id).map_or(0, |ref peer| peer.protocol_version);
-		let rlp = match SyncSupplier::get_snapshot_bitfield(sync, io, peer_protocol) {
+		let manifest_hash: H256 = r.val_at(0)?;
+		let bitfield = if sync.read().snapshot.snapshot_hash().map_or(false, |h|  manifest_hash == h) {
+			sync.read().snapshot.bitfield()
+		} else {
+			io.snapshot_service().bitfield(manifest_hash)
+		};
+		let rlp = match bitfield {
 			Some(bitfield) => {
-				trace!(target: "warp", "{} <- SnapshotBitfield [{:?}]", peer_id, bitfield);
-				let mut rlp = RlpStream::new();
-				rlp.append_list(&bitfield);
+				trace!(target: "warp", "{} <- SnapshotBitfield [{:x}]", peer_id, manifest_hash);
+				let mut rlp = RlpStream::new_list(1);
+				rlp.append_raw(&bitfield.into_rlp(), 1);
 				rlp
 			},
 			None => {
-				trace!(target: "warp", "{}: No snapshot Bitfield to return", peer_id);
+				trace!(target: "warp", "{}: No snapshot Bitfield to return for {:x}", peer_id, manifest_hash);
 				RlpStream::new_list(0)
 			},
 		};
 		Ok(Some((SNAPSHOT_BITFIELD_PACKET, rlp)))
-	}
-
-	/// Whether we should return partial snapshot data for the given peer protocol
-	pub fn should_return_partial(io: &SyncIo, peer_protocol: u8) -> bool {
-		// Check that the peer supports partial snapshots
-		if !PeerInfo::supports_partial_snapshots(peer_protocol) {
-			return false;
-		}
-
-		// Return partial manifest if available (otherwise should default to the
-		// complete one)
-		io.snapshot_service().partial_manifest().is_some()
-	}
-
-	pub fn get_snapshot_bitfield(sync: &RwLock<ChainSync>, io: &SyncIo, peer_protocol: u8) -> Option<Vec<u8>> {
-		if SyncSupplier::should_return_partial(io, peer_protocol) {
-			sync.read().snapshot.bitfield()
-		} else if let Some(manifest) = io.snapshot_service().manifest() {
-			let mut bitfield = Bitfield::new();
-			bitfield.reset_to(&manifest);
-			bitfield.mark_all();
-
-			Some(bitfield.as_raw())
-		} else {
-			None
-		}
-	}
-
-	pub fn get_snapshot_manifest(io: &SyncIo, peer_protocol: u8) -> Option<ManifestData> {
-		if SyncSupplier::should_return_partial(io, peer_protocol) {
-			io.snapshot_service().partial_manifest()
-		} else {
-			io.snapshot_service().manifest()
-		}
 	}
 
 	/// Respond to GetSnapshotManifest request
@@ -301,7 +271,8 @@ impl SyncSupplier {
 		}
 
 		let peer_protocol = sync.read().peers.get(&peer_id).map_or(0, |ref peer| peer.protocol_version);
-		let rlp = match SyncSupplier::get_snapshot_manifest(io, peer_protocol) {
+		let supports_partial = PeerInfo::supports_partial_snapshots(peer_protocol);
+		let rlp = match io.snapshot_service().manifest(supports_partial) {
 			Some(manifest) => {
 				trace!(target: "warp", "{} <- SnapshotManifest", peer_id);
 				let mut rlp = RlpStream::new_list(1);

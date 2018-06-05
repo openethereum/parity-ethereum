@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::snapshot::ManifestData;
+use super::snapshot_manifest::ManifestData;
+use bytes::Bytes;
 use ethereum_types::H256;
+use rlp::RlpStream;
 
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -118,6 +120,13 @@ impl Bitfield {
 		bitfield.completion = BitfieldCompletion::new_from_bytes(bytes, bitfield.len());
 
 		bitfield
+	}
+
+	/// Encode the manifest bitfield to rlp.
+	pub fn into_rlp(self) -> Bytes {
+		let mut stream = RlpStream::new();
+		stream.append_list(&self.completion.bytes());
+		stream.out()
 	}
 
 	pub fn available_chunks(&self) -> Vec<H256> {

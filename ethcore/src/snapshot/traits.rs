@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{ManifestData, RestorationStatus};
+use super::{Bitfield, ManifestData, RestorationStatus};
 use ethereum_types::H256;
 use bytes::Bytes;
 
@@ -23,11 +23,13 @@ use bytes::Bytes;
 ///    - restoration of snapshots to temporary databases.
 ///    - responding to queries for snapshot manifests and chunks
 pub trait SnapshotService : Sync + Send {
-	/// Query the most recent manifest data.
-	fn manifest(&self) -> Option<ManifestData>;
+	/// Query the most recent manifest data. If `support_partial` is set,
+	/// it will return the partially restored snapshot manifest first,
+	/// falling back to the complete one
+	fn manifest(&self, support_partial: bool) -> Option<ManifestData>;
 
-	/// Query the partially downloaded snapshot manifest
-	fn partial_manifest(&self) -> Option<ManifestData>;
+	/// Returns the Bitfield value corresponding to the given Manifest's hash
+	fn bitfield(&self, manifest_hash: H256) -> Option<Bitfield>;
 
 	/// Get the supported range of snapshot version numbers.
 	/// `None` indicates warp sync isn't supported by the consensus engine.

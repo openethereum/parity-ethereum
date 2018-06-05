@@ -16,9 +16,10 @@
 
 //! Snapshot manifest type definition
 
-use ethereum_types::H256;
-use rlp::{Rlp, RlpStream, DecoderError};
 use bytes::Bytes;
+use ethereum_types::H256;
+use hash::keccak;
+use rlp::{Rlp, RlpStream, DecoderError};
 
 /// Manifest data.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,6 +39,11 @@ pub struct ManifestData {
 }
 
 impl ManifestData {
+	/// Get this manifest's hash
+	pub fn hash(self) -> H256 {
+		keccak(self.into_rlp())
+	}
+
 	/// Encode the manifest data to rlp.
 	pub fn into_rlp(self) -> Bytes {
 		let mut stream = RlpStream::new_list(6);
