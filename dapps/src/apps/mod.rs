@@ -17,7 +17,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use endpoint::{Endpoints, Endpoint};
+use endpoint::Endpoints;
 use futures_cpupool::CpuPool;
 use proxypac::ProxyPac;
 use web::Web;
@@ -39,10 +39,6 @@ pub const API_PATH: &'static str = "api";
 pub const UTILS_PATH: &'static str = "parity-utils";
 pub const WEB_PATH: &'static str = "web";
 pub const URL_REFERER: &'static str = "__referer=";
-
-pub fn utils(pool: CpuPool) -> Box<Endpoint> {
-	Box::new(page::builtin::Dapp::new(pool, ::parity_ui::App::default()))
-}
 
 pub fn all_endpoints<F: Fetch>(
 	dapps_path: PathBuf,

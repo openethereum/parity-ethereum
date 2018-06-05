@@ -56,24 +56,3 @@ fn should_serve_dapps_domains() {
 	// then
 	response.assert_status("HTTP/1.1 200 OK");
 }
-
-#[test]
-// NOTE [todr] This is required for error pages to be styled properly.
-fn should_allow_parity_utils_even_on_invalid_domain() {
-	// given
-	let server = serve_hosts(Some(vec!["localhost:8080".into()]));
-
-	// when
-	let response = request(server,
-		"\
-			GET /parity-utils/styles.css HTTP/1.1\r\n\
-			Host: 127.0.0.1:8080\r\n\
-			Connection: close\r\n\
-			\r\n\
-			{}
-		"
-	);
-
-	// then
-	response.assert_status("HTTP/1.1 200 OK");
-}
