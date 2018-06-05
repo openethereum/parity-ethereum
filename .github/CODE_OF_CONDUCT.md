@@ -2,11 +2,11 @@
 
 ## 1. Purpose
 
-A primary goal of Parity is to be inclusive to the largest number of contributors, with the most varied and diverse backgrounds possible. As such, we are committed to providing a friendly, safe and welcoming environment for all, regardless of gender, sexual orientation, ability, ethnicity, socioeconomic status, and religion (or lack thereof).
+A primary goal of Purity is to be inclusive to the largest number of contributors, with the most varied and diverse backgrounds possible. As such, we are committed to providing a friendly, safe and welcoming environment for all, regardless of gender, sexual orientation, ability, ethnicity, socioeconomic status, and religion (or lack thereof).
 
 This code of conduct outlines our expectations for all those who participate in our community, as well as the consequences for unacceptable behavior.
 
-We invite all those who participate in Parity to help us create safe and positive experiences for everyone.
+We invite all those who participate in Purity to help us create safe and positive experiences for everyone.
 
 ## 2. Open Source Citizenship
 
@@ -73,7 +73,7 @@ This code of conduct and its related procedures also applies to unacceptable beh
 
 ## 9. Contact info
 
-You can contact Parity via Email: community@parity.io
+You can contact Parity Technologies via Email: community@parity.io
 
 ## 10. License and attribution
 

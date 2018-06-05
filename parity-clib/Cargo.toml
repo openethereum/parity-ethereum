@@ -6,12 +6,12 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
-name = "parity"
+name = "purity"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-parity = { path = "../", default-features = false }
+purity = { path = "../", default-features = false }
 
 [features]
 default = []
-final = ["parity/final"]
+final = ["purity/final"]

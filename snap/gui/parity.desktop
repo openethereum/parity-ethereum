@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Encoding=UTF-8
-Name=parity
+Name=purity
 Comment=Fast, light, robust Ethereum implementation
-Exec=parity
+Exec=purity
 Icon=/usr/share/pixmaps/icon.png
 Terminal=true

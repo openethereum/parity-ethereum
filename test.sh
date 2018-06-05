@@ -1,5 +1,5 @@
 #!/bin/sh
-# Running Parity Full Test Suite
+# Running Purity Full Test Suite
 
 FEATURES="json-tests"
 OPTIONS="--release"
@@ -55,5 +55,5 @@ cd parity-clib-example && \
   cd ..
 
 # Running tests
-echo "________Running Parity Full Test Suite________"
+echo "________Running Purity Full Test Suite________"
 cargo test -j 8 $OPTIONS --features "$FEATURES" --all $1
