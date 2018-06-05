@@ -27,4 +27,5 @@ pretty_assertions = "0.1"
 tempdir = "0.3"
 
 [features]
+default = ["ethcore/test-helpers"]
 evm-debug = ["ethcore/evm-debug-tests"]
