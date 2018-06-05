@@ -744,6 +744,62 @@ fn should_not_return_transactions_over_nonce_cap() {
 }
 
 #[test]
+fn should_return_cached_pending_even_if_unordered_is_requested() {
+	// given
+	let txq = new_queue();
+	let tx1 = Tx::default().signed();
+	let (tx2_1, tx2_2)= Tx::default().signed_pair();
+	let tx2_1_hash = tx2_1.hash();
+	let res = txq.import(TestClient::new(), vec![tx1].unverified());
+	assert_eq!(res, vec![Ok(())]);
+	let res = txq.import(TestClient::new(), vec![tx2_1, tx2_2].local());
+	assert_eq!(res, vec![Ok(()), Ok(())]);
+
+	// when
+	let all = txq.pending(TestClient::new(), PendingSettings::all_prioritized(0, 0));
+	assert_eq!(all[0].hash, tx2_1_hash);
+	assert_eq!(all.len(), 3);
+
+	// This should not invalidate the cache!
+	let limited = txq.pending(TestClient::new(), PendingSettings {
+		block_number: 0,
+		current_timestamp: 0,
+		nonce_cap: None,
+		max_len: 3,
+		ordering: PendingOrdering::Unordered,
+	});
+
+	// then
+	assert_eq!(all, limited);
+}
+
+#[test]
+fn should_return_unordered_and_not_populate_the_cache() {
+	// given
+	let txq = new_queue();
+	let tx1 = Tx::default().signed();
+	let (tx2_1, tx2_2)= Tx::default().signed_pair();
+	let res = txq.import(TestClient::new(), vec![tx1].unverified());
+	assert_eq!(res, vec![Ok(())]);
+	let res = txq.import(TestClient::new(), vec![tx2_1, tx2_2].local());
+	assert_eq!(res, vec![Ok(()), Ok(())]);
+
+	// when
+	// This should not invalidate the cache!
+	let limited = txq.pending(TestClient::new(), PendingSettings {
+		block_number: 0,
+		current_timestamp: 0,
+		nonce_cap: None,
+		max_len: usize::max_value(),
+		ordering: PendingOrdering::Unordered,
+	});
+
+	// then
+	assert_eq!(limited.len(), 3);
+	assert!(!txq.is_pending_cached());
+}
+
+#[test]
 fn should_clear_cache_after_timeout_for_local() {
 	// given
 	let txq = new_queue();

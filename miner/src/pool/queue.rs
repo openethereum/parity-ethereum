@@ -441,6 +441,12 @@ impl TransactionQueue {
 		let mut pool = self.pool.write();
 		(pool.listener_mut().1).0.add(f);
 	}
+
+	/// Check if pending set is cached.
+	#[cfg(test)]
+	pub fn is_pending_cached(&self) -> bool {
+		self.cached_pending.read().pending.is_some()
+	}
 }
 
 
