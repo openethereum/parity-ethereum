@@ -196,7 +196,7 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 	match command.cmd {
 		Cmd::Run(run_cmd) => {
 			if run_cmd.ui_conf.enabled && !run_cmd.ui_conf.info_page_only {
-				warn!("{}", Style::new().bold().paint("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
+				warn!("{}", Style::new().bold().paint("Purity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
 				warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
 			}
 

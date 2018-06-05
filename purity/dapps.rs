@@ -218,14 +218,14 @@ mod server {
 		_extra_embed_on: Vec<(String, u16)>,
 		_extra_script_src: Vec<(String, u16)>,
 	) -> Result<Middleware, String> {
-		Err("Your Parity version has been compiled without WebApps support.".into())
+		Err("Your Purity version has been compiled without WebApps support.".into())
 	}
 
 	pub fn ui_middleware(
 		_deps: Dependencies,
 		_dapps_domain: &str,
 	) -> Result<Middleware, String> {
-		Err("Your Parity version has been compiled without UI support.".into())
+		Err("Your Purity version has been compiled without UI support.".into())
 	}
 
 	pub fn service(_: &Option<Middleware>) -> Option<Arc<rpc_apis::DappsService>> {

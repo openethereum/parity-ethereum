@@ -18,7 +18,7 @@
 
 #![warn(missing_docs)]
 
-extern crate parity;
+extern crate purity;
 
 extern crate ctrlc;
 extern crate dir;
@@ -38,7 +38,7 @@ use std::sync::Arc;
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
-use parity::{start, ExecutionAction};
+use purity::{start, ExecutionAction};
 use parking_lot::{Condvar, Mutex};
 
 fn updates_path(name: &str) -> PathBuf {
@@ -119,7 +119,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 
 	let mut conf = {
 		let args = std::env::args().collect::<Vec<_>>();
-		parity::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
+		purity::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
 	if let Some(spec_override) = take_spec_name_override() {
@@ -198,11 +198,11 @@ fn main() {
 	panic_hook::set();
 
 	// assuming the user is not running with `--force-direct`, then:
-	// if argv[0] == "parity" and this executable != ~/.parity-updates/parity, run that instead.
+	// if argv[0] == "purity" and this executable != ~/.parity-updates/purity, run that instead.
 	let force_direct = std::env::args().any(|arg| arg == "--force-direct");
 	let exe = std::env::current_exe().ok();
 	let development = exe.as_ref().and_then(|p| p.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).map(|n| n == "target")).unwrap_or(false);
-	let same_name = exe.as_ref().map(|p| p.file_stem().map_or(false, |s| s == "parity") && p.extension().map_or(true, |x| x == "exe")).unwrap_or(false);
+	let same_name = exe.as_ref().map(|p| p.file_stem().map_or(false, |s| s == "purity") && p.extension().map_or(true, |x| x == "exe")).unwrap_or(false);
 	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
 	if !force_direct && !development && same_name {
 		// looks like we're not running ~/.parity-updates/parity when the user is expecting otherwise.

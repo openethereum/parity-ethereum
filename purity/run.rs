@@ -373,7 +373,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
 	let http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
-	let ui_server = rpc::new_http("Parity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
+	let ui_server = rpc::new_http("Purity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
 
 	// the informant
 	let informant = Arc::new(Informant::new(
@@ -1080,7 +1080,7 @@ fn insert_dev_account(account_provider: &AccountProvider) {
 
 // Construct an error `String` with an adaptive hint on how to create an account.
 fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
-	format!("You can create an account via RPC, UI or `parity account new --chain {} --keys-path {}`.", spec, keys)
+	format!("You can create an account via RPC, UI or `purity account new --chain {} --keys-path {}`.", spec, keys)
 }
 
 fn wait_for_drop<T>(w: Weak<T>) {
