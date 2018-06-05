@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![cfg_attr(feature="use-precompiled-js", allow(dead_code))]
-#![cfg_attr(feature="use-precompiled-js", allow(unused_imports))]
+#![cfg_attr(feature = "use-precompiled-js", allow(dead_code))]
+#![cfg_attr(feature = "use-precompiled-js", allow(unused_imports))]
 
 use std::fmt;
 use std::process::Command;

@@ -76,7 +76,7 @@ extern crate registrar;
 #[macro_use]
 extern crate log as rlog;
 
-#[cfg(feature="secretstore")]
+#[cfg(feature = "secretstore")]
 extern crate ethcore_secretstore;
 
 #[cfg(feature = "dapps")]
