@@ -16,8 +16,8 @@
 
 //! Hardware wallet management.
 
-#[warn(missing_docs)]
-#[warn(warnings)]
+#![warn(missing_docs)]
+#![warn(warnings)]
 
 extern crate ethereum_types;
 extern crate ethkey;
@@ -34,22 +34,24 @@ extern crate trezor_sys;
 mod ledger;
 mod trezor;
 
-use ethkey::{Address, Signature};
-
-use parking_lot::Mutex;
-use std::{fmt, time::Duration};
 use std::sync::{Arc, atomic, atomic::AtomicBool};
+use std::{fmt, time::Duration};
+
 use ethereum_types::U256;
+use ethkey::{Address, Signature};
+use parking_lot::Mutex;
 
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
 const POLLING_DURATION: Duration = Duration::from_millis(500);
 
+/// `HardwareWallet` device
 #[derive(Debug)]
 pub struct Device {
 	path: String,
 	info: WalletInfo,
 }
 
+/// `Wallet` trait
 pub trait Wallet<'a> {
 	/// Error
 	type Error;
@@ -109,7 +111,7 @@ pub enum Error {
 }
 
 /// This is the transaction info we need to supply to Trezor message. It's more
-/// or less a duplicate of ethcore::transaction::Transaction, but we can't
+/// or less a duplicate of `ethcore::transaction::Transaction`, but we can't
 /// import ethcore here as that would be a circular dependency.
 pub struct TransactionInfo {
 	/// Nonce
@@ -163,7 +165,7 @@ impl fmt::Display for Error {
 }
 
 impl From<ledger::Error> for Error {
-	fn from(err: ledger::Error) -> Error {
+	fn from(err: ledger::Error) -> Self {
 		match err {
 			ledger::Error::KeyNotFound => Error::KeyNotFound,
 			_ => Error::LedgerDevice(err),
@@ -172,7 +174,7 @@ impl From<ledger::Error> for Error {
 }
 
 impl From<trezor::Error> for Error {
-	fn from(err: trezor::Error) -> Error {
+	fn from(err: trezor::Error) -> Self {
 		match err {
 			trezor::Error::KeyNotFound => Error::KeyNotFound,
 			_ => Error::TrezorDevice(err),
@@ -181,7 +183,7 @@ impl From<trezor::Error> for Error {
 }
 
 impl From<libusb::Error> for Error {
-	fn from(err: libusb::Error) -> Error {
+	fn from(err: libusb::Error) -> Self {
 		Error::Usb(err)
 	}
 }
@@ -189,8 +191,10 @@ impl From<libusb::Error> for Error {
 /// Specifies the direction of the `HardwareWallet` i.e, whether it arrived or left
 #[derive(Debug, Copy, Clone)]
 pub enum DeviceDirection {
-    Arrived,
-    Left,
+	/// Device arrived
+	Arrived,
+	/// Device left
+	Left,
 }
 
 impl fmt::Display for DeviceDirection {
@@ -211,16 +215,16 @@ pub struct HardwareWalletManager {
 
 impl HardwareWalletManager {
 	/// Hardware wallet constructor
-	pub fn new() -> Result<HardwareWalletManager, Error> {
+	pub fn new() -> Result<Self, Error> {
 		let exiting = Arc::new(AtomicBool::new(false));
 		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|e| Error::Hid(e.to_string().clone()))?));
 		let ledger = ledger::Manager::new(hidapi.clone(), exiting.clone())?;
 		let trezor = trezor::Manager::new(hidapi.clone(), exiting.clone())?;
 
-		Ok(HardwareWalletManager {
-			exiting: exiting,
-			ledger: ledger,
-			trezor: trezor,
+		Ok(Self {
+			exiting,
+			ledger,
+			trezor,
 		})
 	}
 
