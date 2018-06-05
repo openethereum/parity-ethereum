@@ -377,9 +377,9 @@ struct SyncProtocolHandler {
 impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn initialize(&self, io: &NetworkContext) {
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
-			io.register_timer(PEERS_TIMER, Duration::from_millis(700)).expect("Error registering sync timer");
+			io.register_timer(PEERS_TIMER, Duration::from_millis(700)).expect("Error registering peers timer");
 			io.register_timer(SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
-			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering sync timer");
+			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
 		}
 	}
 

@@ -259,7 +259,7 @@ fn should_return_unordered_iterator() {
 	let tx0 = txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
 	let tx1 = txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap();
 	let tx2 = txq.import(b.tx().nonce(2).new()).unwrap();
-	let tx3 =txq.import(b.tx().nonce(3).gas_price(4).new()).unwrap();
+	let tx3 = txq.import(b.tx().nonce(3).gas_price(4).new()).unwrap();
 	//gap
 	txq.import(b.tx().nonce(5).new()).unwrap();
 

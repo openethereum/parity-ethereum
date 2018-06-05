@@ -185,7 +185,7 @@ impl TransactionQueue {
 		transactions: Vec<verifier::Transaction>,
 	) -> Vec<Result<(), transaction::Error>> {
 		// Run verification
-		let _timer = ::trace_time::PerfTimer::new("queue::verifyAndImport");
+		trace_time!("queue::verifyAndImport");
 		let options = self.options.read().clone();
 
 		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
@@ -282,7 +282,7 @@ impl TransactionQueue {
 		>) -> T,
 	{
 		debug!(target: "txqueue", "Re-computing pending set for block: {}", block_number);
-		let _timer = ::trace_time::PerfTimer::new("pool::collect_pending");
+		trace_time!("pool::collect_pending");
 		let ready = Self::ready(client, block_number, current_timestamp, nonce_cap);
 		collect(self.pool.read().pending(ready))
 	}
