@@ -77,10 +77,17 @@ struct RestorationIo {
 
 impl RestorationIo {
 	/// Create a new Restoration I/O that will read and write from the given path
-	fn new(restoration_path: PathBuf) -> Result<RestorationIo, Error> {
+	fn new(restoration_path: PathBuf, manifest: &ManifestData) -> Result<RestorationIo, Error> {
+		// Create the writer first, and write the Manifest file!
+		// Otherwise the reader will fail to read
+		// if the directory doesn't exist yet!
+		let writer = LooseWriter::new(restoration_path.clone())?;
+		writer.write_manifest(manifest.clone())?;
+		let reader = LooseReader::new(restoration_path.clone())?;
+
 		let io = RestorationIo {
-			reader: LooseReader::new(restoration_path.clone())?,
-			writer: LooseWriter::new(restoration_path.clone())?,
+			reader,
+			writer,
 		};
 
 		Ok(io)
@@ -478,7 +485,7 @@ impl Service {
 
 		// make new restoration.
 		let restoration_io = match recover {
-			true => Some(RestorationIo::new(recovery_temp)?),
+			true => Some(RestorationIo::new(recovery_temp, &manifest)?),
 			false => None
 		};
 

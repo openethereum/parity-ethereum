@@ -164,6 +164,18 @@ impl LooseWriter {
 		file.write_all(chunk)?;
 		Ok(())
 	}
+
+	/// Write the given Manifest file
+	pub fn write_manifest(&self, manifest: ManifestData) -> io::Result<()> {
+		let rlp = manifest.into_rlp();
+		let mut path = self.dir.clone();
+		path.push("MANIFEST");
+
+		let mut file = File::create(path)?;
+		file.write_all(&rlp[..])?;
+
+		Ok(())
+	}
 }
 
 impl SnapshotWriter for LooseWriter {
@@ -176,14 +188,7 @@ impl SnapshotWriter for LooseWriter {
 	}
 
 	fn finish(self, manifest: ManifestData) -> io::Result<()> {
-		let rlp = manifest.into_rlp();
-		let mut path = self.dir.clone();
-		path.push("MANIFEST");
-
-		let mut file = File::create(path)?;
-		file.write_all(&rlp[..])?;
-
-		Ok(())
+		self.write_manifest(manifest)
 	}
 }
 
