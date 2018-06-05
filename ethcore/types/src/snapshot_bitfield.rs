@@ -17,7 +17,7 @@
 use super::snapshot_manifest::ManifestData;
 use bytes::Bytes;
 use ethereum_types::H256;
-use rlp::RlpStream;
+use rlp::{Rlp, RlpStream, DecoderError};
 
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -124,9 +124,17 @@ impl Bitfield {
 
 	/// Encode the manifest bitfield to rlp.
 	pub fn into_rlp(self) -> Bytes {
-		let mut stream = RlpStream::new();
+		let mut stream = RlpStream::new_list(1);
 		stream.append_list(&self.completion.bytes());
 		stream.out()
+	}
+
+	/// Try to restore bitfield data from raw bytes, interpreted as RLP.
+	pub fn from_rlp(raw: &[u8], manifest: &ManifestData) -> Result<Self, DecoderError> {
+		let decoder = Rlp::new(raw);
+		let raw_bytes: Vec<u8> = decoder.list_at(0)?;
+
+		Ok(Bitfield::new_from_bytes(manifest, &raw_bytes))
 	}
 
 	pub fn available_chunks(&self) -> Vec<H256> {

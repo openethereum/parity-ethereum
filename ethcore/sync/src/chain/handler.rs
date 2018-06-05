@@ -516,21 +516,26 @@ impl SyncHandler {
 			return Ok(());
 		}
 
-		let expected_length = sync.snapshot.bitfield_size().unwrap_or(0);
-
-		if r.item_count().unwrap_or(0) != expected_length {
-			trace!(target: "sync", "Wrong snapshot bitifield from {}", peer_id);
-			io.disable_peer(peer_id);
-			return Ok(());
-		}
-
-		let bitfield_bytes: Vec<u8> = r.as_list()?;
-
-		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+		{
+			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
+			// Find the corresponding manifest and check that it matches the peer's
+			// manifest
 			if let Some(manifest) = io.snapshot_service().manifest(true) {
-				let bitfield = Bitfield::new_from_bytes(&manifest, &bitfield_bytes);
-				peer.snapshot_bitfield = Some(bitfield);
-				peer.ask_bitfield_time = Instant::now();
+				let correct_manifest = peer.snapshot_hash.map_or(false, |h| h == manifest.clone().hash());
+				if correct_manifest {
+					let bitfield_rlp = r.at(0)?;
+					match Bitfield::from_rlp(bitfield_rlp.as_raw(), &manifest) {
+						Err(e) => {
+							trace!(target: "sync", "{}: Ignored bad bitfield: {:?}", peer_id, e);
+							io.disable_peer(peer_id);
+							return Ok(());
+						},
+						Ok(bitfield) => {
+							peer.snapshot_bitfield = Some(bitfield);
+							peer.ask_bitfield_time = Instant::now();
+						},
+					}
+				}
 			}
 		}
 

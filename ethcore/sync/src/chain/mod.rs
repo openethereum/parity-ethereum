@@ -398,16 +398,16 @@ impl PeerInfo {
 		protocol_version >= PAR_PROTOCOL_VERSION_4.0
 	}
 
+	/// Check whether the Bitfield from peer is expired
+	pub fn is_bitfield_expired(&self) -> bool {
+		(Instant::now() - self.ask_bitfield_time) > BITFIELD_REFRESH_DURATION
+	}
+
 	/// Whether the Bitfield should be requested: only for peers
 	/// supporting the request, which bitfield isn't know yet
 	pub fn should_request_bitfield(&self) -> bool {
-		if self.snapshot_hash.is_some() && PeerInfo::supports_partial_snapshots(self.protocol_version) {
-			// Ask for bitfield if it's expired or if it's not set yet
-			self.snapshot_bitfield.is_none() ||
-			 	(Instant::now() - self.ask_bitfield_time) > BITFIELD_REFRESH_DURATION
-		} else {
-			false
-		}
+		PeerInfo::supports_partial_snapshots(self.protocol_version) &&
+			self.snapshot_bitfield.is_none()
 	}
 }
 
@@ -849,13 +849,11 @@ impl ChainSync {
 				}
 
 				// Asks peer bitfield if it is supported and they are not set yet
-				let (request_bitfield, snapshot_hash) = self.peers.get_mut(&peer_id).as_ref().map_or((false, None), |peer| {
-					(peer.should_request_bitfield(), peer.snapshot_hash)
+				let request_bitfield = self.peers.get_mut(&peer_id).as_ref().map_or(false, |peer| {
+					peer.should_request_bitfield()
 				});
 				if request_bitfield {
-					if let Some(snapshot_hash) = snapshot_hash {
-						SyncRequester::request_snapshot_bitfield(self, io, peer_id, &snapshot_hash);
-					}
+					SyncRequester::request_snapshot_bitfield(self, io, peer_id);
 					return;
 				}
 

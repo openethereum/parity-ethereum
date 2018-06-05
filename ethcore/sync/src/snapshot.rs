@@ -196,10 +196,6 @@ impl Snapshot {
 	pub fn bitfield(&self) -> Option<Bitfield> {
 		self.bitfield.clone()
 	}
-
-	pub fn bitfield_size(&self) -> Option<usize> {
-		self.bitfield.as_ref().map(|bitfield| bitfield.len())
-	}
 }
 
 #[cfg(test)]

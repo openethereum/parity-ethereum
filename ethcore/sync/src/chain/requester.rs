@@ -90,14 +90,27 @@ impl SyncRequester {
 
 		if let Some(hash) = hash {
 			SyncRequester::request_snapshot_chunk(sync, io, peer_id, &hash);
+		} else {
+			// Request the bitfield if no more chunks available and is expired
+			let request_bitfield = sync.peers.get(&peer_id).map_or(false, |peer| {
+				peer.bitfield().is_some() && peer.is_bitfield_expired()
+			});
+
+			if request_bitfield {
+				SyncRequester::request_snapshot_bitfield(sync, io, peer_id);
+			}
 		}
+
 	}
 
 	/// Request snapshot bitfield from a peer.
-	pub fn request_snapshot_bitfield(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, snapshot_hash: &H256) {
-		trace!(target: "sync", "{} <- GetSnapshotBitfield", peer_id);
+	pub fn request_snapshot_bitfield(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+		let snapshot_hash: H256 = sync.peers.get(&peer_id)
+			.and_then(|peer| peer.snapshot_hash)
+			.unwrap_or_default();
+		trace!(target: "sync", "{} <- GetSnapshotBitfield ({:x})", peer_id, snapshot_hash);
 		let mut rlp = RlpStream::new_list(1);
-		rlp.append(snapshot_hash);
+		rlp.append(&snapshot_hash);
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotBitfield, GET_SNAPSHOT_BITFIELD_PACKET, rlp.out());
 	}
 
