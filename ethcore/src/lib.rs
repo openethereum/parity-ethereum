@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="benches", feature(test))]
+#![cfg_attr(feature = "benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -173,9 +173,9 @@ mod tx_filter;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
-#[cfg(feature="json-tests")]
+#[cfg(feature = "json-tests")]
 mod json_tests;
-#[cfg(any(test, feature="test-helpers"))]
+#[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 #[cfg(test)]
 mod test_helpers_internal;
