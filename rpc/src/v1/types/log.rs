@@ -47,6 +47,9 @@ pub struct Log {
 	/// Log Type
 	#[serde(rename="type")]
 	pub log_type: String,
+	/// Whether Log Type is Removed (Geth Compatibility Field)
+	#[serde(default)]
+	pub removed: bool,
 }
 
 impl From<LocalizedLogEntry> for Log {
@@ -62,6 +65,7 @@ impl From<LocalizedLogEntry> for Log {
 			log_index: Some(e.log_index.into()),
 			transaction_log_index: Some(e.transaction_log_index.into()),
 			log_type: "mined".to_owned(),
+			removed: false,
 		}
 	}
 }
@@ -79,6 +83,7 @@ impl From<LogEntry> for Log {
 			log_index: None,
 			transaction_log_index: None,
 			log_type: "pending".to_owned(),
+			removed: false,
 		}
 	}
 }
@@ -107,6 +112,7 @@ mod tests {
 			transaction_log_index: Some(1.into()),
 			log_index: Some(U256::from(1)),
 			log_type: "mined".to_owned(),
+			removed: false,
 		};
 
 		let serialized = serde_json::to_string(&log).unwrap();

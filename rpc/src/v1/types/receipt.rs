@@ -155,6 +155,7 @@ mod tests {
 				transaction_log_index: None,
 				log_index: Some(1.into()),
 				log_type: "mined".into(),
+				removed: false,
 			}],
 			logs_bloom: 15.into(),
 			state_root: Some(10.into()),
