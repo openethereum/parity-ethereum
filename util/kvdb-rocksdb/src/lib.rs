@@ -18,7 +18,6 @@
 extern crate log;
 
 extern crate elastic_array;
-extern crate fs_swap;
 extern crate interleaved_ordered;
 extern crate num_cpus;
 extern crate parking_lot;
@@ -31,8 +30,8 @@ extern crate kvdb;
 use std::cmp;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::path::{PathBuf, Path};
-use std::{fs, io, mem, result};
+use std::path::Path;
+use std::{fs, mem, result};
 
 use parking_lot::{Mutex, MutexGuard, RwLock};
 use rocksdb::{
@@ -591,8 +590,10 @@ impl Database {
 	pub fn restore(&self, new_db: &str) -> Result<()> {
 		self.close();
 
-		fs_swap::swap(&self.path, new_db)?;
-		fs::remove_dir_all(new_db)?;
+		// rename is guaranteed to be atomic on unix
+		// on windows is guaranteed to be atomic if it is the same volume
+		// if it is not, then os crates a backup for us
+		fs::rename(new_db, &self.path)?;
 
 		// reopen the database and steal handles into self
 		let db = Self::open(&self.config, &self.path)?;

@@ -6,7 +6,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 elastic-array = "0.10"
 ethereum-types = "0.3"
-fs-swap = "0.1"
 interleaved-ordered = "0.1.0"
 kvdb = { path = "../kvdb" }
 log = "0.3"
