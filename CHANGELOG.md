@@ -4,17 +4,17 @@ Parity 1.11.3 is a security-relevant release. Please upgrade your nodes as soon 
 
 The full list of included changes:
 
-- Parity-version: bump beta to 1.11.3 (#8806)
+- Parity-version: bump beta to 1.11.3 ([#8806](https://github.com/paritytech/parity/pull/8806))
   - Parity-version: bump beta to 1.11.3
-  - Disallow unsigned transactions in case EIP-86 is disabled (#8802)
-  - Fix ancient blocks queue deadlock (#8751)
-- Update shell32-sys to fix windows build (#8792)
-- Backports (#8785)
-  - Fix light sync with initial validator-set contract (#8528)
+  - Disallow unsigned transactions in case EIP-86 is disabled ([#8802](https://github.com/paritytech/parity/pull/8802))
+  - Fix ancient blocks queue deadlock ([#8751](https://github.com/paritytech/parity/pull/8751))
+- Update shell32-sys to fix windows build ([#8792](https://github.com/paritytech/parity/pull/8792))
+- Backports ([#8785](https://github.com/paritytech/parity/pull/8785))
+  - Fix light sync with initial validator-set contract ([#8528](https://github.com/paritytech/parity/pull/8528))
     - Fix #8468
     - Use U256::max_value() instead
     - Also change initial transaction gas
-  - Resumable warp-sync / Seed downloaded snapshots (#8544)
+  - Resumable warp-sync / Seed downloaded snapshots ([#8544](https://github.com/paritytech/parity/pull/8544))
     - Start dividing sync chain : first supplier method
     - WIP - updated chain sync supplier
     - Finish refactoring the Chain Sync Supplier
@@ -41,28 +41,28 @@ The full list of included changes:
     - Update informant log
     - Refactor resuming snapshots
     - Update informant message : show chunks done
-  - Don't open Browser post-install on Mac (#8641)
-  - Fix not downloading old blocks (#8642)
-  - Fix PoW blockchains sealing notifications in chain_new_blocks (#8656)
-  - Shutdown the Snapshot Service early (#8658)
+  - Don't open Browser post-install on Mac ([#8641](https://github.com/paritytech/parity/pull/8641))
+  - Fix not downloading old blocks ([#8642](https://github.com/paritytech/parity/pull/8642))
+  - Fix PoW blockchains sealing notifications in chain_new_blocks ([#8656](https://github.com/paritytech/parity/pull/8656))
+  - Shutdown the Snapshot Service early ([#8658](https://github.com/paritytech/parity/pull/8658))
     - Shutdown the Snapshot Service when shutting down the runner
     - Rename `service` to `client_service`
     - Fix tests
-  - Fix cli signer (#8682)
+  - Fix cli signer ([#8682](https://github.com/paritytech/parity/pull/8682))
     - Update ethereum-types so `{:#x}` applies 0x prefix
-  - Set the request index to that of the current request (#8683)
+  - Set the request index to that of the current request ([#8683](https://github.com/paritytech/parity/pull/8683))
     - Set the request index to that of the current request
-  - Network-devp2p: handle UselessPeer disconnect (#8686)
-  - Fix local transactions policy. (#8691)
-  - CI: Fixes for Android Pipeline (#8745)
+  - Network-devp2p: handle UselessPeer disconnect ([#8686](https://github.com/paritytech/parity/pull/8686))
+  - Fix local transactions policy. ([#8691](https://github.com/paritytech/parity/pull/8691))
+  - CI: Fixes for Android Pipeline ([#8745](https://github.com/paritytech/parity/pull/8745))
     - Ci: Remove check for shared libraries in gitlab script
     - Ci: allow android arm build to fail
-  - Custom Error Messages on ENFILE and EMFILE IO Errors (#8744)
+  - Custom Error Messages on ENFILE and EMFILE IO Errors ([#8744](https://github.com/paritytech/parity/pull/8744))
     - Custom Error Messages on ENFILE and EMFILE IO Errors
     - Use assert-matches for more readable tests
     - Fix Wording and consistency
-  - Ethcore-sync: fix connection to peers behind chain fork block (#8710)
-- Parity-version: bump beta to 1.11.2 (#8750)  …
+  - Ethcore-sync: fix connection to peers behind chain fork block ([#8710](https://github.com/paritytech/parity/pull/8710))
+- Parity-version: bump beta to 1.11.2 ([#8750](https://github.com/paritytech/parity/pull/8750))
   - Parity-version: bump beta to 1.11.2
   - Parity-version: unset critical flag
 

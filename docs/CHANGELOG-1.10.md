@@ -10,29 +10,29 @@ If you can not upgrade to 1.10+ yet, please use the following branches and build
 
 The full list of included changes:
 
-- Parity-version: bump stable to 1.10.6 (#8805)
+- Parity-version: bump stable to 1.10.6 ([#8805](https://github.com/paritytech/parity/pull/8805))
   - Parity-version: bump stable to 1.10.6
-  - Disallow unsigned transactions in case EIP-86 is disabled (#8802)  …
-- Update shell32-sys to fix windows build (#8793)
-- Backports (#8782)
-  - Fix light sync with initial validator-set contract (#8528)
+  - Disallow unsigned transactions in case EIP-86 is disabled ([#8802](https://github.com/paritytech/parity/pull/8802))
+- Update shell32-sys to fix windows build ([#8793](https://github.com/paritytech/parity/pull/8793))
+- Backports ([#8782](https://github.com/paritytech/parity/pull/8782))
+  - Fix light sync with initial validator-set contract ([#8528](https://github.com/paritytech/parity/pull/8528))
     - Fix #8468
     - Use U256::max_value() instead
     - Fix again
     - Also change initial transaction gas
-  - Don't open Browser post-install on Mac (#8641)
+  - Don't open Browser post-install on Mac ([#8641](https://github.com/paritytech/parity/pull/8641))
   - Prefix uint fmt with `0x` with alternate flag
-  - Set the request index to that of the current request (#8683)
+  - Set the request index to that of the current request ([#8683](https://github.com/paritytech/parity/pull/8683))
     - Set the request index to that of the current request
-  - Node table sorting according to last contact data (#8541)
+  - Node table sorting according to last contact data ([#8541](https://github.com/paritytech/parity/pull/8541))
     - Network-devp2p: sort nodes in node table using last contact data
     - Network-devp2p: rename node contact types in node table json output
     - Network-devp2p: fix node table tests
     - Network-devp2p: note node failure when failed to establish connection
     - Network-devp2p: handle UselessPeer error
     - Network-devp2p: note failure when marking node as useless
-  - Network-devp2p: handle UselessPeer disconnect (#8686)
-- Parity: bump stable version to 1.10.5 (#8749)
+  - Network-devp2p: handle UselessPeer disconnect ([#8686](https://github.com/paritytech/parity/pull/8686))
+- Parity: bump stable version to 1.10.5 ([#8749](https://github.com/paritytech/parity/pull/8749))
   - Parity: bump stable version to 1.10.5
   - Fix failing doc tests running on non-code
 
