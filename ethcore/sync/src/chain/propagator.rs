@@ -489,7 +489,7 @@ mod tests {
 				last_sent_transactions: HashSet::new(),
 				expired: false,
 				confirmation: ForkConfirmation::Confirmed,
-				snapshot_bitfield: None,
+				snapshot_chunks: None,
 				snapshot_number: None,
 				snapshot_hash: None,
 				asking_snapshot_data: None,

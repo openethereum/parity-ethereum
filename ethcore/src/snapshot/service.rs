@@ -888,7 +888,7 @@ mod tests {
 
 		let service = Service::new(snapshot_params).unwrap();
 
-		assert!(service.manifest().is_none());
+		assert!(service.manifest(false).is_none());
 		assert!(service.chunk(Default::default()).is_none());
 		assert_eq!(service.status(), RestorationStatus::Inactive);
 
@@ -932,7 +932,7 @@ mod tests {
 			},
 			pruning: Algorithm::Archive,
 			db: restoration_db_handler(db_config).open(&tempdir.path().to_owned()).unwrap(),
-			writer: None,
+			io: None,
 			genesis: &gb,
 			guard: Guard::benign(),
 			engine: &*spec.engine.clone(),
@@ -942,12 +942,12 @@ mod tests {
 		let definitely_bad_chunk = [1, 2, 3, 4, 5];
 
 		for hash in state_hashes {
-			assert!(restoration.feed_state(hash, &definitely_bad_chunk, &flag).is_err());
+			assert!(restoration.feed_chunk(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
 			assert!(!restoration.is_done());
 		}
 
 		for hash in block_hashes {
-			assert!(restoration.feed_blocks(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
+			assert!(restoration.feed_chunk(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
 			assert!(!restoration.is_done());
 		}
 	}

@@ -20,7 +20,7 @@ use hash::keccak;
 use ethereum_types::H256;
 use parking_lot::Mutex;
 use bytes::Bytes;
-use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
+use ethcore::snapshot::{Bitfield, SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
 use ethcore::client::EachBlockWith;
 use super::helpers::*;
@@ -87,12 +87,20 @@ impl TestSnapshotService {
 }
 
 impl SnapshotService for TestSnapshotService {
-	fn manifest(&self) -> Option<ManifestData> {
+	fn manifest(&self, supports_partial: bool) -> Option<ManifestData> {
+		if supports_partial {
+			let partial_manifest = self.restoration_manifest.lock().as_ref().cloned();
+
+			if partial_manifest.is_some() {
+				return partial_manifest;
+			}
+		}
+
 		self.manifest.as_ref().cloned()
 	}
 
-	fn partial_manifest(&self) -> Option<ManifestData> {
-		self.restoration_manifest.lock().as_ref().cloned()
+	fn bitfield(&self, _manifest_hash: H256) -> Option<Bitfield> {
+		None
 	}
 
 	fn supported_versions(&self) -> Option<(u64, u64)> {

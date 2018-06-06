@@ -196,9 +196,9 @@ mod test {
 	fn is_empty(snapshot: &Snapshot) -> bool {
 		snapshot.pending_block_chunks.is_empty() &&
 		snapshot.pending_state_chunks.is_empty() &&
-		snapshot.completed_chunks.is_empty() &&
 		snapshot.downloading_chunks.is_empty() &&
-		snapshot.snapshot_hash.is_none()
+		snapshot.snapshot_hash.is_none() &&
+		snapshot.done_chunks() == 0
 	}
 
 	fn test_manifest() -> (ManifestData, H256, Vec<Bytes>, Vec<Bytes>) {
@@ -250,11 +250,11 @@ mod test {
 		assert_eq!(snapshot.downloading_chunks.len(), 40);
 
 		assert_eq!(snapshot.validate_chunk(&state_chunks[4]), Ok(ChunkType::State(manifest.state_hashes[4].clone())));
-		assert_eq!(snapshot.completed_chunks.len(), 1);
+		assert_eq!(snapshot.done_chunks(), 1);
 		assert_eq!(snapshot.downloading_chunks.len(), 39);
 
 		assert_eq!(snapshot.validate_chunk(&block_chunks[10]), Ok(ChunkType::Block(manifest.block_hashes[10].clone())));
-		assert_eq!(snapshot.completed_chunks.len(), 2);
+		assert_eq!(snapshot.done_chunks(), 2);
 		assert_eq!(snapshot.downloading_chunks.len(), 38);
 
 		for (i, data) in state_chunks.iter().enumerate() {

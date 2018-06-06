@@ -76,7 +76,7 @@ fn restored_is_equivalent() {
 	let service = Service::new(service_params).unwrap();
 	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
 
-	let manifest = service.manifest().unwrap();
+	let manifest = service.manifest(false).unwrap();
 
 	service.init_restore(manifest.clone(), true).unwrap();
 	assert!(service.init_restore(manifest.clone(), true).is_ok());
