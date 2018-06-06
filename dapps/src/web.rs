@@ -30,10 +30,9 @@ use handlers::{
 	ContentFetcherHandler, ContentHandler, ContentValidator, ValidatorResponse,
 	StreamingHandler,
 };
-use {Embeddable, WebProxyTokens};
+use WebProxyTokens;
 
 pub struct Web<F> {
-	embeddable_on: Embeddable,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	fetch: F,
 	pool: CpuPool,
@@ -41,13 +40,11 @@ pub struct Web<F> {
 
 impl<F: Fetch> Web<F> {
 	pub fn boxed(
-		embeddable_on: Embeddable,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
 		pool: CpuPool,
 	) -> Box<Endpoint> {
 		Box::new(Web {
-			embeddable_on,
 			web_proxy_tokens,
 			fetch,
 			pool,
@@ -64,7 +61,6 @@ impl<F: Fetch> Web<F> {
 				"Invalid parameter",
 				"Couldn't parse given parameter:",
 				path.app_params.get(0).map(String::as_str),
-				self.embeddable_on.clone()
 			))?;
 
 		let mut token_it = token_and_url.split('+');
@@ -76,7 +72,7 @@ impl<F: Fetch> Web<F> {
 			Some(domain) => domain,
 			_ => {
 				return Err(ContentHandler::error(
-					StatusCode::BadRequest, "Invalid Access Token", "Invalid or old web proxy access token supplied.", Some("Try refreshing the page."), self.embeddable_on.clone()
+					StatusCode::BadRequest, "Invalid Access Token", "Invalid or old web proxy access token supplied.", Some("Try refreshing the page."),
 				));
 			}
 		};
@@ -86,14 +82,14 @@ impl<F: Fetch> Web<F> {
 			Some(url) if url.starts_with("http://") || url.starts_with("https://") => url.to_owned(),
 			_ => {
 				return Err(ContentHandler::error(
-					StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used.", None, self.embeddable_on.clone()
+					StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used.", None,
 				));
 			}
 		};
 
 		if !target_url.starts_with(&*domain) {
 			return Err(ContentHandler::error(
-				StatusCode::BadRequest, "Invalid Domain", "Dapp attempted to access invalid domain.", Some(&target_url), self.embeddable_on.clone(),
+				StatusCode::BadRequest, "Invalid Domain", "Dapp attempted to access invalid domain.", Some(&target_url),
 			));
 		}
 
@@ -128,10 +124,8 @@ impl<F: Fetch> Endpoint for Web<F> {
 			&target_url,
 			path,
 			WebInstaller {
-				embeddable_on: self.embeddable_on.clone(),
 				token,
 			},
-			self.embeddable_on.clone(),
 			self.fetch.clone(),
 			self.pool.clone(),
 		))
@@ -139,7 +133,6 @@ impl<F: Fetch> Endpoint for Web<F> {
 }
 
 struct WebInstaller {
-	embeddable_on: Embeddable,
 	token: String,
 }
 
@@ -154,12 +147,10 @@ impl ContentValidator for WebInstaller {
 			fetch::BodyReader::new(response),
 			status,
 			mime,
-			self.embeddable_on,
 		);
 		if is_html {
 			handler.set_initial_content(&format!(
-				r#"<script src="/{}/inject.js"></script><script>history.replaceState({{}}, "", "/?{}{}/{}")</script>"#,
-				apps::UTILS_PATH,
+				r#"<script>history.replaceState({{}}, "", "/?{}{}/{}")</script>"#,
 				apps::URL_REFERER,
 				apps::WEB_PATH,
 				&self.token,
