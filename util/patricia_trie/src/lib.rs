@@ -39,22 +39,22 @@ pub mod node;
 pub mod node_codec;
 pub mod triedb;
 pub mod triedbmut;
-//pub mod sectriedb;
-//pub mod sectriedbmut;
+pub mod sectriedb;
+pub mod sectriedbmut;
 pub mod recorder;
 
-//mod fatdb;
-//mod fatdbmut;
+mod fatdb;
+mod fatdbmut;
 mod lookup;
 mod nibbleslice;
 mod nibblevec;
 
 pub use self::triedb::{TrieDB, TrieDBIterator};
 pub use self::triedbmut::TrieDBMut;
-//pub use self::sectriedbmut::SecTrieDBMut;
-//pub use self::sectriedb::SecTrieDB;
-//pub use self::fatdb::{FatDB, FatDBIterator};
-//pub use self::fatdbmut::FatDBMut;
+pub use self::sectriedbmut::SecTrieDBMut;
+pub use self::sectriedb::SecTrieDB;
+pub use self::fatdb::{FatDB, FatDBIterator};
+pub use self::fatdbmut::FatDBMut;
 pub use self::recorder::Recorder;
 use node_codec::NodeCodec;
 
@@ -230,13 +230,9 @@ pub enum TrieKinds<'db, H: Hasher + 'db, C: NodeCodec<H>> {
 	/// A generic trie db.
 	Generic(TrieDB<'db, H, C>),
 	/// A secure trie db.
-	Secure(TrieDB<'db, H, C>),
+	Secure(SecTrieDB<'db, H, C>),
 	/// A fat trie db.
-	Fat(TrieDB<'db, H, C>),
-//	/// A secure trie db.
-//	Secure(SecTrieDB<'db, H>),
-//	/// A fat trie db.
-//	Fat(FatDB<'db, H>),
+	Fat(FatDB<'db, H, C>),
 }
 
 // wrapper macro for making the match easier to deal with.
@@ -275,44 +271,41 @@ impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> where H::Out
 	}
 }
 
-impl<H: Hasher, C: NodeCodec<H>> TrieFactory<H, C> where H::Out: rlp::Decodable + rlp::Encodable {
+impl<'db, H, C> TrieFactory<H, C>
+	where H: Hasher, H::Out: rlp::Decodable + rlp::Encodable, C: NodeCodec<H> + 'db
+{
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {
 		TrieFactory { spec, mark_hash: PhantomData, mark_codec: PhantomData }
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn readonly<'db>(&self, db: &'db HashDB<H=H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out> {
+	pub fn readonly(&self, db: &'db HashDB<H=H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out> {
 		match self.spec {
 			TrieSpec::Generic => Ok(TrieKinds::Generic(TrieDB::new(db, root)?)),
-			TrieSpec::Secure => Ok(TrieKinds::Secure(TrieDB::new(db, root)?)),
-			TrieSpec::Fat => Ok(TrieKinds::Fat(TrieDB::new(db, root)?)),
-//			TrieSpec::Secure => Ok(TrieKinds::Secure(SecTrieDB::new(db, root)?)),
-//			TrieSpec::Fat => Ok(TrieKinds::Fat(FatDB::new(db, root)?)),
+			TrieSpec::Secure => Ok(TrieKinds::Secure(SecTrieDB::new(db, root)?)),
+			TrieSpec::Fat => Ok(TrieKinds::Fat(FatDB::new(db, root)?)),
 		}
 	}
 
-/*
 	/// Create new mutable instance of Trie.
-	pub fn create<'db>(&self, db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Box<TrieMut<H=H> + 'db> {
+	pub fn create(&self, db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Box<TrieMut<H=H> + 'db> {
 		match self.spec {
-			TrieSpec::Generic => Box::new(TrieDBMut::new(db, root)),
-			TrieSpec::Secure => Box::new(TrieDBMut::new(db, root)),
-			TrieSpec::Fat => Box::new(TrieDBMut::new(db, root)),
-//			TrieSpec::Secure => Box::new(SecTrieDBMut::new(db, root)),
-//			TrieSpec::Fat => Box::new(FatDBMut::new(db, root)),
+			TrieSpec::Generic => Box::new(TrieDBMut::<_, C>::new(db, root)),
+			TrieSpec::Secure => Box::new(SecTrieDBMut::<_, C>::new(db, root)),
+			TrieSpec::Fat => Box::new(FatDBMut::<_, C>::new(db, root)),
 		}
 	}
-*/
-//	/// Create new mutable instance of trie and check for errors.
-//	pub fn from_existing<'db>(&self, db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H=H> + 'db>, H::Out> {
-//		match self.spec {
-//			TrieSpec::Generic => Ok(Box::new(TrieDBMut::from_existing(db, root)?)),
-//			TrieSpec::Secure => Ok(Box::new(SecTrieDBMut::from_existing(db, root)?)),
-//			TrieSpec::Fat => Ok(Box::new(FatDBMut::from_existing(db, root)?)),
-//		}
-//	}
 
-//	/// Returns true iff the trie DB is a fat DB (allows enumeration of keys).
-//	pub fn is_fat(&self) -> bool { self.spec == TrieSpec::Fat }
+	/// Create new mutable instance of trie and check for errors.
+	pub fn from_existing(&self, db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H=H> + 'db>, H::Out> {
+		match self.spec {
+			TrieSpec::Generic => Ok(Box::new(TrieDBMut::<_, C>::from_existing(db, root)?)),
+			TrieSpec::Secure => Ok(Box::new(SecTrieDBMut::<_, C>::from_existing(db, root)?)),
+			TrieSpec::Fat => Ok(Box::new(FatDBMut::<_, C>::from_existing(db, root)?)),
+		}
+	}
+
+	/// Returns true iff the trie DB is a fat DB (allows enumeration of keys).
+	pub fn is_fat(&self) -> bool { self.spec == TrieSpec::Fat }
 }

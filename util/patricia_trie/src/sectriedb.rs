@@ -20,15 +20,20 @@ use hashdb::{HashDB, Hasher};
 use super::triedb::TrieDB;
 use super::{Trie, TrieItem, TrieIterator, Query};
 use rlp::{Decodable, Encodable};
+use node_codec::NodeCodec;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
 /// Use it as a `Trie` trait object. You can use `raw()` to get the backing `TrieDB` object.
-pub struct SecTrieDB<'db, H: Hasher + 'db> {
-	raw: TrieDB<'db, H>
+pub struct SecTrieDB<'db, H, C>
+	where H: Hasher + 'db, C: NodeCodec<H>
+{
+	raw: TrieDB<'db, H, C>
 }
 
-impl<'db, H: Hasher> SecTrieDB<'db, H> where H::Out: Decodable {
+impl<'db, H, C> SecTrieDB<'db, H, C>
+	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+{
 	/// Create a new trie with the backing database `db` and empty `root`
 	///
 	/// Initialise to the state entailed by the genesis block.
@@ -39,17 +44,19 @@ impl<'db, H: Hasher> SecTrieDB<'db, H> where H::Out: Decodable {
 	}
 
 	/// Get a reference to the underlying raw `TrieDB` struct.
-	pub fn raw(&self) -> &TrieDB<H> {
+	pub fn raw(&self) -> &TrieDB<H, C> {
 		&self.raw
 	}
 
 	/// Get a mutable reference to the underlying raw `TrieDB` struct.
-	pub fn raw_mut(&mut self) -> &mut TrieDB<'db, H> {
+	pub fn raw_mut(&mut self) -> &mut TrieDB<'db, H, C> {
 		&mut self.raw
 	}
 }
 
-impl<'db, H: Hasher> Trie for SecTrieDB<'db, H> where H::Out: Decodable + Encodable {
+impl<'db, H, C> Trie for SecTrieDB<'db, H, C>
+	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
 	type H = H;
 
 	fn root(&self) -> &<Self::H as Hasher>::Out { self.raw.root() }
@@ -58,7 +65,7 @@ impl<'db, H: Hasher> Trie for SecTrieDB<'db, H> where H::Out: Decodable + Encoda
 		self.raw.contains(Self::H::hash(key).as_ref())
 	}
 
-	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>,  <Self::H as Hasher>::Out>
+	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>, <Self::H as Hasher>::Out>
 		where 'a: 'key
 	{
 		self.raw.get_with(Self::H::hash(key).as_ref(), query)
@@ -77,13 +84,14 @@ fn trie_to_sectrie() {
 	use super::TrieMut;
 	use hashdb::KeccakHasher;
 	use keccak;
+	use node_codec::RlpNodeCodec;
 
 	let mut memdb = MemoryDB::<KeccakHasher>::new();
 	let mut root = <KeccakHasher as Hasher>::Out::default();
 	{
-		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::<_, RlpNodeCodec<_>>::new(&mut memdb, &mut root);
 		t.insert(&keccak::keccak(&[0x01u8, 0x23]), &[0x01u8, 0x23]).unwrap();
 	}
-	let t = SecTrieDB::new(&memdb, &root).unwrap();
+	let t = SecTrieDB::<_, RlpNodeCodec<_>>::new(&memdb, &root).unwrap();
 	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

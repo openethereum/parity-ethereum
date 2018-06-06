@@ -17,16 +17,21 @@
 use hashdb::{HashDB, Hasher};
 use super::{TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};
 use rlp::{Decodable, Encodable};
+use node_codec::NodeCodec;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
 ///
 /// Use it as a `Trie` or `TrieMut` trait object.
-pub struct FatDB<'db, H: Hasher + 'db> {
-	raw: TrieDB<'db, H>,
+pub struct FatDB<'db, H, C>
+	where H: Hasher + 'db, C: NodeCodec<H>
+{
+	raw: TrieDB<'db, H, C>,
 }
 
-impl<'db, H: Hasher> FatDB<'db, H> where H::Out: Decodable {
+impl<'db, H, C> FatDB<'db, H, C>
+	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+{
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
@@ -38,7 +43,9 @@ impl<'db, H: Hasher> FatDB<'db, H> where H::Out: Decodable {
 	pub fn db(&self) -> &HashDB<H=H> { self.raw.db() }
 }
 
-impl<'db, H: Hasher> Trie for FatDB<'db, H> where H::Out: Decodable + Encodable  {
+impl<'db, H, C> Trie for FatDB<'db, H, C>
+	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
 	type H = H;
 
 	fn root(&self) -> &<Self::H as Hasher>::Out { self.raw.root() }
@@ -54,19 +61,23 @@ impl<'db, H: Hasher> Trie for FatDB<'db, H> where H::Out: Decodable + Encodable 
 	}
 
 	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out> {
-		FatDBIterator::<Self::H>::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
+		FatDBIterator::<Self::H, C>::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
 
 /// Itarator over inserted pairs of key values.
-pub struct FatDBIterator<'db, H: Hasher + 'db> {
-	trie_iterator: TrieDBIterator<'db, H>,
-	trie: &'db TrieDB<'db, H>,
+pub struct FatDBIterator<'db, H, C>
+	where H: Hasher + 'db, C: NodeCodec<H> + 'db
+{
+	trie_iterator: TrieDBIterator<'db, H, C>,
+	trie: &'db TrieDB<'db, H, C>,
 }
 
-impl<'db, H: Hasher> FatDBIterator<'db, H> where H::Out: Decodable {
+impl<'db, H, C> FatDBIterator<'db, H, C>
+	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+{
 	/// Creates new iterator.
-	pub fn new(trie: &'db TrieDB<H>) -> super::Result<Self, H::Out> {
+	pub fn new(trie: &'db TrieDB<H, C>) -> super::Result<Self, H::Out> {
 		Ok(FatDBIterator {
 			trie_iterator: TrieDBIterator::new(trie)?,
 			trie: trie,
@@ -74,14 +85,18 @@ impl<'db, H: Hasher> FatDBIterator<'db, H> where H::Out: Decodable {
 	}
 }
 
-impl<'db, H: Hasher> TrieIterator<H> for FatDBIterator<'db, H> where H::Out: Decodable {
+impl<'db, H, C> TrieIterator<H> for FatDBIterator<'db, H, C>
+	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+{
 	fn seek(&mut self, key: &[u8]) -> super::Result<(), H::Out> {
 		let hashed_key = H::hash(key);
 		self.trie_iterator.seek(hashed_key.as_ref())
 	}
 }
 
-impl<'db, H: Hasher> Iterator for FatDBIterator<'db, H> where H::Out: Decodable {
+impl<'db, H, C> Iterator for FatDBIterator<'db, H, C>
+	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+{
 	type Item = TrieItem<'db, H>;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -102,14 +117,15 @@ fn fatdb_to_trie() {
 	use super::fatdbmut::FatDBMut;
 	use super::TrieMut;
 	use hashdb::KeccakHasher;
+	use node_codec::RlpNodeCodec;
 
 	let mut memdb = MemoryDB::<KeccakHasher>::new();
 	let mut root = <KeccakHasher as Hasher>::Out::default();
 	{
-		let mut t = FatDBMut::new(&mut memdb, &mut root);
+		let mut t = FatDBMut::<_, RlpNodeCodec<_>>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
-	let t = FatDB::new(&memdb, &root).unwrap();
+	let t = FatDB::<_, RlpNodeCodec<_>>::new(&memdb, &root).unwrap();
 	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 	assert_eq!(
 		t.iter().unwrap().map(Result::unwrap).collect::<Vec<_>>(),

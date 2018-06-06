@@ -19,16 +19,21 @@
 use hashdb::{HashDB, DBValue, Hasher};
 use super::{TrieDBMut, TrieMut};
 use rlp::{Encodable, Decodable};
+use node_codec::NodeCodec;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
 ///
 /// Use it as a `Trie` or `TrieMut` trait object.
-pub struct FatDBMut<'db, H: Hasher + 'db> where H::Out: Decodable + Encodable {
-	raw: TrieDBMut<'db, H>,
+pub struct FatDBMut<'db, H, C>
+	where H: Hasher + 'db, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
+	raw: TrieDBMut<'db, H, C>,
 }
 
-impl<'db, H: Hasher> FatDBMut<'db, H> where H::Out: Decodable + Encodable {
+impl<'db, H, C> FatDBMut<'db, H, C>
+	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
@@ -54,7 +59,9 @@ impl<'db, H: Hasher> FatDBMut<'db, H> where H::Out: Decodable + Encodable {
 	}
 }
 
-impl<'db, H: Hasher> TrieMut for FatDBMut<'db, H> where H::Out: Decodable + Encodable {
+impl<'db, H, C> TrieMut for FatDBMut<'db, H, C>
+	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
 	type H = H;
 	fn root(&mut self) -> &<Self::H as Hasher>::Out { self.raw.root() }
 
@@ -103,13 +110,14 @@ fn fatdbmut_to_trie() {
 	use super::Trie;
 	use hashdb::KeccakHasher;
 	use keccak;
+	use node_codec::RlpNodeCodec;
 
 	let mut memdb = MemoryDB::<KeccakHasher>::new();
 	let mut root = <KeccakHasher as Hasher>::Out::default();
 	{
-		let mut t = FatDBMut::new(&mut memdb, &mut root);
+		let mut t = FatDBMut::<_, RlpNodeCodec<_>>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
-	let t = TrieDB::new(&memdb, &root).unwrap();
+	let t = TrieDB::<_, RlpNodeCodec<_>>::new(&memdb, &root).unwrap();
 	assert_eq!(t.get(&keccak::keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

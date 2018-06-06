@@ -18,15 +18,20 @@ use hashdb::{HashDB, DBValue, Hasher};
 use super::triedbmut::TrieDBMut;
 use super::TrieMut;
 use rlp::{Encodable, Decodable};
+use node_codec::NodeCodec;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
 /// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDBMut` object.
-pub struct SecTrieDBMut<'db, H: Hasher + 'db> where H::Out: Decodable + Encodable {
-	raw: TrieDBMut<'db, H>
+pub struct SecTrieDBMut<'db, H, C>
+	where H: Hasher + 'db, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
+	raw: TrieDBMut<'db, H, C>
 }
 
-impl<'db, H: Hasher> SecTrieDBMut<'db, H> where H::Out: Decodable + Encodable {
+impl<'db, H, C> SecTrieDBMut<'db, H, C>
+	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
@@ -48,7 +53,9 @@ impl<'db, H: Hasher> SecTrieDBMut<'db, H> where H::Out: Decodable + Encodable {
 	pub fn db_mut(&mut self) -> &mut HashDB<H=H> { self.raw.db_mut() }
 }
 
-impl<'db, H: Hasher> TrieMut for SecTrieDBMut<'db, H> where H::Out: Decodable + Encodable {
+impl<'db, H, C> TrieMut for SecTrieDBMut<'db, H, C>
+	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+{
 	type H = H;
 	fn root(&mut self) -> &<Self::H as Hasher>::Out {
 		self.raw.root()
@@ -84,13 +91,14 @@ fn sectrie_to_trie() {
 	use super::Trie;
 	use hashdb::KeccakHasher;
 	use keccak;
+	use node_codec::RlpNodeCodec;
 
 	let mut memdb = MemoryDB::<KeccakHasher>::new();
 	let mut root = <KeccakHasher as Hasher>::Out::default();
 	{
-		let mut t = SecTrieDBMut::new(&mut memdb, &mut root);
+		let mut t = SecTrieDBMut::<_, RlpNodeCodec<_>>::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
-	let t = TrieDB::new(&memdb, &root).unwrap();
+	let t = TrieDB::<_, RlpNodeCodec<_>>::new(&memdb, &root).unwrap();
 	assert_eq!(t.get(&keccak::keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

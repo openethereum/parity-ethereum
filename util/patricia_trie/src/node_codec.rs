@@ -1,23 +1,9 @@
 use bytes::*;
 use nibbleslice::NibbleSlice;
-//use nibblevec::NibbleVec;
-use rlp::{self, Prototype, Rlp, RlpStream, DecoderError, Decodable, Encodable};
+use rlp::{Prototype, Rlp, RlpStream, DecoderError, Decodable, Encodable};
 use hashdb::Hasher;
 use node::Node;
 use std::marker::PhantomData;
-//pub trait OldNodeCodec<'a>: Sized {
-//	type Encoding;
-//	type StreamEncoding;
-//
-//	fn encoded(&self) -> Bytes;
-//	fn decoded(data: &'a [u8]) -> Result<Self, DecoderError>;
-//	fn try_decode_hash<O>(data: &[u8]) -> Option<O> where O: Decodable;
-//
-//	fn new_encoded(data: &'a[u8]) -> Self::Encoding;
-//	fn encoded_stream() -> Self::StreamEncoding;
-//	fn encoded_list(size: usize) -> Self::StreamEncoding;
-//}
-
 
 pub trait NodeCodec<H: Hasher>: Sized {
 	fn encode(&Node) -> Bytes;

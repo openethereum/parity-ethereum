@@ -26,7 +26,7 @@ use bytes::ToPretty;
 use hashdb::HashDB;
 use hashdb::{Hasher, DBValue};
 use nibbleslice::NibbleSlice;
-use rlp::{Rlp, RlpStream, Encodable, Decodable};
+use rlp::{RlpStream, Encodable, Decodable};
 
 use elastic_array::ElasticArray1024;
 use std::collections::{HashSet, VecDeque};
@@ -54,6 +54,7 @@ impl<H: Hasher> From<StorageHandle> for NodeHandle<H> {
 	}
 }
 
+// TODO: is this used anywhere?
 //impl From<H256> for NodeHandle {
 //	fn from(hash: H256) -> Self {
 //		NodeHandle::Hash(hash)
