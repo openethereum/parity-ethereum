@@ -36,7 +36,6 @@ pub mod call_analytics;
 pub mod filter;
 pub mod ids;
 pub mod log_entry;
-pub mod mode;
 pub mod pruning_info;
 pub mod receipt;
 pub mod restoration_status;
