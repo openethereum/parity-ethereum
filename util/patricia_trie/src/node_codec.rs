@@ -6,8 +6,9 @@ use node::Node;
 use std::marker::PhantomData;
 
 pub trait NodeCodec<H: Hasher>: Sized {
+	type E: ::std::error::Error;
 	fn encode(&Node) -> Bytes;
-	fn decode(data: &[u8]) -> Result<Node, DecoderError>; // TODO: make the error generic here, perhaps an associated type on the trait
+	fn decode(data: &[u8]) -> Result<Node, Self::E>;
 	fn try_decode_hash(data: &[u8]) -> Option<H::Out>;
 
 	// TODO: We don't want these here, but where do they go? Helper trait?
@@ -19,6 +20,7 @@ pub trait NodeCodec<H: Hasher>: Sized {
 pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
 
 impl<H: Hasher> NodeCodec<H> for RlpNodeCodec<H> where H::Out: Encodable + Decodable {
+	type E = DecoderError;
 	fn encode(node: &Node) -> Bytes {
 		match *node {
 			Node::Leaf(ref slice, ref value) => {
@@ -51,7 +53,7 @@ impl<H: Hasher> NodeCodec<H> for RlpNodeCodec<H> where H::Out: Encodable + Decod
 			}
 		}
 	}
-	fn decode(data: &[u8]) -> Result<Node, DecoderError> {
+	fn decode(data: &[u8]) -> Result<Node, Self::E> {
 		let r = Rlp::new(data);
 		match r.prototype()? {
 			// either leaf or extension - decode first item with NibbleSlice::???

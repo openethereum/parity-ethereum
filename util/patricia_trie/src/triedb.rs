@@ -361,7 +361,9 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> where
 					(Status::At, &OwnedNode::Leaf(_, ref v)) | (Status::At, &OwnedNode::Branch(_, Some(ref v))) => {
 						return Some(Ok((self.key(), v.clone())));
 					},
-					(Status::At, &OwnedNode::Extension(_, ref d)) => IterStep::Descend::<H::Out>(self.db.get_raw_or_lookup(&*d)),
+					(Status::At, &OwnedNode::Extension(_, ref d)) => {
+						IterStep::Descend::<H::Out>(self.db.get_raw_or_lookup(&*d))
+					},
 					(Status::At, &OwnedNode::Branch(_, _)) => IterStep::Continue,
 					(Status::AtChild(i), &OwnedNode::Branch(ref children, _)) if children[i].len() > 0 => {
 						match i {
@@ -400,6 +402,11 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> where
 					    |
 					    = note: expected type `std::boxed::Box<TrieError<H>>`
 					               found type `std::boxed::Box<TrieError<<H as hashdb::Hasher>::Out>>`
+					*/
+					/*
+					The only way we end up here is when `self.db.get_raw_or_lookup()` fails. When it does it
+					returns `Box::new(TrieError::IncompleteDatabase(key))`, i.e. a proper `Box<TrieError<H::Out>>`.
+					I'm missing something.
 					*/
 					panic!("FIXME: this causes `expected type parameter, found associated type`")
 				}
