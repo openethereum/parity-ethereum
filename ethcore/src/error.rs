@@ -267,12 +267,6 @@ error_chain! {
 			display("Snapshot error {}", err)
 		}
 
-		#[doc = "Snapshot aborted error."]
-		SnapshotAborted {
-			description("Snapshot aborted error.")
-			display("Snapshot aborted.")
-		}
-
 		#[doc = "Account Provider error"]
 		AccountProvider(err: AccountsError) {
 			description("Accounts Provider error")
@@ -346,7 +340,6 @@ impl From<SnapshotError> for Error {
 			SnapshotError::Io(err) => ErrorKind::StdIo(err).into(),
 			SnapshotError::Trie(err) => ErrorKind::Trie(err).into(),
 			SnapshotError::Decoder(err) => err.into(),
-			SnapshotError::RestorationAborted => ErrorKind::SnapshotAborted.into(),
 			other => ErrorKind::Snapshot(other).into(),
 		}
 	}

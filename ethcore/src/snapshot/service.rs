@@ -670,7 +670,7 @@ impl Service {
 			Ok(()) => (),
 			Err(e) => {
 				match e.kind() {
-					::error::ErrorKind::SnapshotAborted => {
+					::error::ErrorKind::Snapshot(SnapshotError::RestorationAborted) => {
 						debug!(target: "snapshot", "Restoration aborted.");
 					},
 					_ => {
@@ -690,7 +690,7 @@ impl Service {
 			Ok(()) => (),
 			Err(e) => {
 				match e.kind() {
-					::error::ErrorKind::SnapshotAborted => {
+					::error::ErrorKind::Snapshot(SnapshotError::RestorationAborted) => {
 						debug!(target: "snapshot", "Restoration aborted.");
 					},
 					_ => {
