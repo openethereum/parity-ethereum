@@ -88,7 +88,7 @@ pub struct Discovery {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
-	pub send_queue: VecDeque<Datagramm>,
+	send_queue: VecDeque<Datagramm>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
 	ip_filter: IpFilter,
@@ -519,6 +519,18 @@ impl Discovery {
 	pub fn refresh(&mut self) {
 		self.start();
 	}
+
+	pub fn any_sends_queued(&self) -> bool {
+		!self.send_queue.is_empty()
+	}
+
+	pub fn dequeue_send(&mut self) -> Option<Datagramm> {
+		self.send_queue.pop_front()
+	}
+
+	pub fn requeue_send(&mut self, datagramm: Datagramm) {
+		self.send_queue.push_front(datagramm)
+	}
 }
 
 #[cfg(test)]
@@ -566,14 +578,12 @@ mod tests {
 		discovery2.refresh();
 
 		for _ in 0 .. 10 {
-			while !discovery1.send_queue.is_empty() {
-				let datagramm = discovery1.send_queue.pop_front().unwrap();
+			while let Some(datagramm) = discovery1.dequeue_send() {
 				if datagramm.address == ep2.address {
 					discovery2.on_packet(&datagramm.payload, ep1.address.clone()).ok();
 				}
 			}
-			while !discovery2.send_queue.is_empty() {
-				let datagramm = discovery2.send_queue.pop_front().unwrap();
+			while let Some(datagramm) = discovery2.dequeue_send() {
 				if datagramm.address == ep1.address {
 					discovery1.on_packet(&datagramm.payload, ep2.address.clone()).ok();
 				}
@@ -778,9 +788,9 @@ mod tests {
 		let mut discovery2 = Discovery::new(&key2, ep2.clone(), IpFilter::default());
 
 		discovery1.ping(&ep2);
-		let ping_data = discovery1.send_queue.pop_front().unwrap();
+		let ping_data = discovery1.dequeue_send().unwrap();
 		discovery2.on_packet(&ping_data.payload, ep1.address.clone()).ok();
-		let pong_data = discovery2.send_queue.pop_front().unwrap();
+		let pong_data = discovery2.dequeue_send().unwrap();
 		let data = &pong_data.payload[(32 + 65)..];
 		let rlp = Rlp::new(&data[1..]);
 		assert_eq!(ping_data.payload[0..32], rlp.val_at::<Vec<u8>>(1).unwrap()[..])

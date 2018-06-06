@@ -829,7 +829,7 @@ impl Host {
 		let node_changes = match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
 			(Some(udp_socket), Some(discovery)) => {
 				let mut buf = [0u8; MAX_DATAGRAM_SIZE];
-				let writable = !discovery.send_queue.is_empty();
+				let writable = discovery.any_sends_queued();
 				let res = match udp_socket.recv_from(&mut buf) {
 					Ok(Some((len, address))) => discovery.on_packet(&buf[0..len], address).unwrap_or_else(|e| {
 						debug!("Error processing UDP packet: {:?}", e);
@@ -841,7 +841,7 @@ impl Host {
 						None
 					}
 				};
-				let new_writable = !discovery.send_queue.is_empty();
+				let new_writable = discovery.any_sends_queued();
 				if writable != new_writable {
 					io.update_registration(DISCOVERY)
 						.unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
@@ -858,7 +858,7 @@ impl Host {
 	fn discovery_writable(&self, io: &IoContext<NetworkIoMessage>) {
 		match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
 			(Some(udp_socket), Some(discovery)) => {
-				while let Some(data) = discovery.send_queue.pop_front() {
+				while let Some(data) = discovery.dequeue_send() {
 					match udp_socket.send_to(&data.payload, &data.address) {
 						Ok(Some(size)) if size == data.payload.len() => {
 						},
@@ -866,7 +866,7 @@ impl Host {
 							warn!("UDP sent incomplete datagramm");
 						},
 						Ok(None) => {
-							discovery.send_queue.push_front(data);
+							discovery.requeue_send(data);
 							return;
 						}
 						Err(e) => {
@@ -1150,7 +1150,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 			}
 			DISCOVERY => match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_ref()) {
 				(Some(udp_socket), Some(discovery)) => {
-					let registration = if !discovery.send_queue.is_empty() {
+					let registration = if discovery.any_sends_queued() {
 						Ready::readable() | Ready::writable()
 					} else {
 						Ready::readable()
