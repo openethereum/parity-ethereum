@@ -24,7 +24,6 @@ use std::cmp::{min, max};
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write, self};
 use std::fs;
-use std::mem;
 use std::time::Duration;
 use ethkey::{KeyPair, Secret, Random, Generator};
 use hash::keccak;
@@ -829,7 +828,7 @@ impl Host {
 	fn discovery_readable(&self, io: &IoContext<NetworkIoMessage>) {
 		let node_changes = match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
 			(Some(udp_socket), Some(discovery)) => {
-				let mut buf: [u8; MAX_DATAGRAM_SIZE] = unsafe { mem::uninitialized() };
+				let mut buf = [0u8; MAX_DATAGRAM_SIZE];
 				let writable = !discovery.send_queue.is_empty();
 				let res = match udp_socket.recv_from(&mut buf) {
 					Ok(Some((len, address))) => discovery.on_packet(&buf[0..len], address).unwrap_or_else(|e| {
