@@ -368,6 +368,10 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
 	let http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
+<<<<<<< HEAD:purity/run.rs
+	let ui_server = rpc::new_http("Purity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
+=======
+>>>>>>> master:parity/run.rs
 
 	// the informant
 	let informant = Arc::new(Informant::new(

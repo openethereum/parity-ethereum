@@ -1615,15 +1615,70 @@ mod tests {
 	}
 
 	#[test]
+<<<<<<< HEAD:purity/configuration.rs
+	fn should_disable_signer_in_geth_compat() {
+		// given
+
+		// when
+		let conf0 = parse(&["purity", "--geth"]);
+		let conf1 = parse(&["purity", "--geth", "--force-ui"]);
+		let conf2 = parse(&["purity", "--geth", "ui"]);
+		let conf3 = parse(&["purity"]);
+
+		// then
+		assert_eq!(conf0.ui_enabled(), UiEnabled {
+			enabled: false,
+			info_page_only: true,
+		});
+		assert_eq!(conf1.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: false,
+		});
+		assert_eq!(conf2.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: false,
+		});
+		assert_eq!(conf3.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: true,
+		});
+	}
+
+	#[test]
+	fn should_disable_signer_when_account_is_unlocked() {
+		// given
+
+		// when
+		let conf0 = parse(&["purity", "--unlock", "0x0"]);
+
+		// then
+		assert_eq!(conf0.ui_enabled(), UiEnabled {
+			enabled: false,
+			info_page_only: true,
+		});
+	}
+
+	#[test]
+=======
+>>>>>>> master:parity/configuration.rs
 	fn should_parse_ui_configuration() {
 		// given
 
 		// when
+<<<<<<< HEAD:purity/configuration.rs
 		let conf0 = parse(&["purity", "--ui-path=signer"]);
 		let conf1 = parse(&["purity", "--ui-path=signer", "--ui-no-validation"]);
 		let conf2 = parse(&["purity", "--ui-path=signer", "--ui-port", "3123"]);
 		let conf3 = parse(&["purity", "--ui-path=signer", "--ui-interface", "test"]);
 		let conf4 = parse(&["purity", "--ui-path=signer", "--force-ui"]);
+		let conf5 = parse(&["purity", "--ui-path=signer", "ui"]);
+=======
+		let conf0 = parse(&["parity", "--ui-path=signer"]);
+		let conf1 = parse(&["parity", "--ui-path=signer", "--ui-no-validation"]);
+		let conf2 = parse(&["parity", "--ui-path=signer", "--ui-port", "3123"]);
+		let conf3 = parse(&["parity", "--ui-path=signer", "--ui-interface", "test"]);
+		let conf4 = parse(&["parity", "--ui-path=signer", "--force-ui"]);
+>>>>>>> master:parity/configuration.rs
 
 		// then
 		assert_eq!(conf0.directories().signer, "signer".to_owned());

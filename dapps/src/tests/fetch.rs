@@ -19,7 +19,7 @@ use rustc_hex::FromHex;
 use tests::helpers::{
 	serve_with_registrar, serve_with_registrar_and_sync, serve_with_fetch,
 	serve_with_registrar_and_fetch,
-	request, assert_security_headers_for_embed,
+	request, assert_security_headers
 };
 
 #[test]
@@ -40,7 +40,7 @@ fn should_resolve_dapp() {
 	// then
 	response.assert_status("HTTP/1.1 404 Not Found");
 	assert_eq!(registrar.calls.lock().len(), 4);
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn should_return_503_when_syncing_but_should_make_the_calls() {
 	// then
 	response.assert_status("HTTP/1.1 503 Service Unavailable");
 	assert_eq!(registrar.calls.lock().len(), 2);
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 }
 
 const GAVCOIN_DAPP: &'static str = "00000000000000000000000000000000000000000000000000000000000000609faf32e1e3845e237cc6efd27187cee13b3b99db000000000000000000000000000000000000000000000000d8bd350823e28ff75e74a34215faefdc8a52fd8e00000000000000000000000000000000000000000000000000000000000000116761766f66796f726b2f676176636f696e000000000000000000000000000000";
@@ -95,7 +95,7 @@ fn should_return_502_on_hash_mismatch() {
 
 	response.assert_status("HTTP/1.1 502 Bad Gateway");
 	assert!(response.body.contains("HashMismatch"), "Expected hash mismatch response, got: {:?}", response.body);
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn should_return_error_for_invalid_dapp_zip() {
 
 	response.assert_status("HTTP/1.1 502 Bad Gateway");
 	assert!(response.body.contains("InvalidArchive"), "Expected invalid zip response, got: {:?}", response.body);
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn should_return_fetched_dapp_content() {
 	fetch.assert_no_more_requests();
 
 	response1.assert_status("HTTP/1.1 200 OK");
-	assert_security_headers_for_embed(&response1.headers);
+	assert_security_headers(&response1.headers);
 	assert!(
 		response1.body.contains(r#"18
 <h1>Hello Gavcoin!</h1>
@@ -178,7 +178,7 @@ fn should_return_fetched_dapp_content() {
 	);
 
 	response2.assert_status("HTTP/1.1 200 OK");
-	assert_security_headers_for_embed(&response2.headers);
+	assert_security_headers(&response2.headers);
 	assert_eq!(
 		response2.body,
 		r#"EA
@@ -331,7 +331,7 @@ fn should_stream_web_content() {
 
 	// then
 	response.assert_status("HTTP/1.1 200 OK");
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 
 	fetch.assert_requested("https://parity.io/");
 	fetch.assert_no_more_requests();
@@ -354,7 +354,7 @@ fn should_support_base32_encoded_web_urls() {
 
 	// then
 	response.assert_status("HTTP/1.1 200 OK");
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 
 	fetch.assert_requested("https://parity.io/styles.css?test=123");
 	fetch.assert_no_more_requests();
@@ -377,7 +377,7 @@ fn should_correctly_handle_long_label_when_splitted() {
 
 	// then
 	response.assert_status("HTTP/1.1 200 OK");
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 
 	fetch.assert_requested("https://contribution.melonport.com/styles.css?test=123");
 	fetch.assert_no_more_requests();
@@ -400,7 +400,7 @@ fn should_support_base32_encoded_web_urls_as_path() {
 
 	// then
 	response.assert_status("HTTP/1.1 200 OK");
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 
 	fetch.assert_requested("https://parity.io/styles.css?test=123");
 	fetch.assert_no_more_requests();
@@ -423,7 +423,7 @@ fn should_return_error_on_non_whitelisted_domain() {
 
 	// then
 	response.assert_status("HTTP/1.1 400 Bad Request");
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 
 	fetch.assert_no_more_requests();
 }
@@ -445,7 +445,7 @@ fn should_return_error_on_invalid_token() {
 
 	// then
 	response.assert_status("HTTP/1.1 400 Bad Request");
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 
 	fetch.assert_no_more_requests();
 }
@@ -467,7 +467,7 @@ fn should_return_error_on_invalid_protocol() {
 
 	// then
 	response.assert_status("HTTP/1.1 400 Bad Request");
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 
 	fetch.assert_no_more_requests();
 }
@@ -492,7 +492,7 @@ fn should_disallow_non_get_requests() {
 
 	// then
 	response.assert_status("HTTP/1.1 405 Method Not Allowed");
-	assert_security_headers_for_embed(&response.headers);
+	assert_security_headers(&response.headers);
 
 	fetch.assert_no_more_requests();
 }

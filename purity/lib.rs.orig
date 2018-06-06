@@ -76,7 +76,7 @@ extern crate registrar;
 #[macro_use]
 extern crate log as rlog;
 
-#[cfg(feature="secretstore")]
+#[cfg(feature = "secretstore")]
 extern crate ethcore_secretstore;
 
 #[cfg(feature = "dapps")]
@@ -193,6 +193,27 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 
 	match command.cmd {
 		Cmd::Run(run_cmd) => {
+<<<<<<< HEAD:purity/lib.rs
+			if run_cmd.ui_conf.enabled && !run_cmd.ui_conf.info_page_only {
+				warn!("{}", Style::new().bold().paint("Purity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
+				warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
+			}
+
+			if run_cmd.ui && run_cmd.dapps_conf.enabled {
+				// Check if Parity is already running
+				let addr = format!("{}:{}", run_cmd.ui_conf.interface, run_cmd.ui_conf.port);
+				if !TcpListener::bind(&addr as &str).is_ok() {
+					return open_ui(&run_cmd.ws_conf, &run_cmd.ui_conf, &run_cmd.logger_config).map(|_| ExecutionAction::Instant(None));
+				}
+			}
+
+			// start ui
+			if run_cmd.ui {
+				open_ui(&run_cmd.ws_conf, &run_cmd.ui_conf, &run_cmd.logger_config)?;
+			}
+
+=======
+>>>>>>> master:parity/lib.rs
 			if let Some(ref dapp) = run_cmd.dapp {
 				open_dapp(&run_cmd.dapps_conf, &run_cmd.http_conf, dapp)?;
 			}
