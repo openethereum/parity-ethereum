@@ -89,3 +89,5 @@ json-tests = ["ethcore-transaction/json-tests"]
 test-heavy = []
 # Compile benches
 benches = []
+# Compile test helpers
+test-helpers = []

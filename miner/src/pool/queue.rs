@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -185,7 +185,7 @@ impl TransactionQueue {
 		transactions: Vec<verifier::Transaction>,
 	) -> Vec<Result<(), transaction::Error>> {
 		// Run verification
-		trace_time!("queue::verifyAndImport");
+		trace_time!("pool::verify_and_import");
 		let options = self.options.read().clone();
 
 		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
@@ -448,7 +448,6 @@ impl TransactionQueue {
 		self.cached_pending.read().pending.is_some()
 	}
 }
-
 
 fn convert_error(err: txpool::Error) -> transaction::Error {
 	use self::txpool::ErrorKind;

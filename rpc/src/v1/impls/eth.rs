@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -168,12 +168,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			options: options,
 			eip86_transition: client.eip86_transition(),
 		}
-	}
-
-	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
 	}
 
 	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
@@ -404,10 +398,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	}
 
 	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>> {
-		let store = self.account_provider()?;
-		store
+		self.accounts
 			.note_dapp_used(dapp.clone())
-			.and_then(|_| store.dapp_addresses(dapp))
+			.and_then(|_| self.accounts.dapp_addresses(dapp))
 			.map_err(|e| errors::account("Could not fetch accounts.", e))
 	}
 
@@ -494,7 +487,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				(true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done)),
 			_ => (false, None, None),
 		};
-
 
 		if warping || is_major_importing(Some(status.state), client.queue_info()) {
 			let chain_info = client.chain_info();

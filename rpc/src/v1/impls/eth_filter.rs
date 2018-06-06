@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -101,8 +101,6 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> { &self.polls }
 }
-
-
 
 impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	fn new_filter(&self, filter: Filter) -> Result<RpcU256> {

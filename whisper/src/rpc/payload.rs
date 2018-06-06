@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -183,7 +183,6 @@ pub fn decode(payload: &[u8]) -> Result<Decoded, &'static str> {
 				return Err("unexpected end of payload")
 			}
 		};
-
 
 		if next_slice(1)?[0] != STANDARD_PAYLOAD_VERSION {
 			return Err("unknown payload version.");

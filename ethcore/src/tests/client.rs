@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -130,7 +130,6 @@ fn fails_to_import_block_with_invalid_rlp() {
 	}
 }
 
-
 #[test]
 fn query_none_block() {
 	let tempdir = TempDir::new("").unwrap();
@@ -220,7 +219,6 @@ fn can_collect_garbage() {
 	client.tick(true);
 	assert!(client.blockchain_cache_info().blocks < 100 * 1024);
 }
-
 
 #[test]
 fn can_generate_gas_price_median() {

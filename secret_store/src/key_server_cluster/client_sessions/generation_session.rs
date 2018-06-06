@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -1298,7 +1298,6 @@ pub mod tests {
 			public_share: math::generate_random_point().unwrap().into(),
 		}).unwrap_err(), Error::InvalidMessage);
 	}
-
 
 	#[test]
 	fn encryption_fails_on_session_timeout() {
