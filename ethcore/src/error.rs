@@ -241,7 +241,7 @@ error_chain! {
 		Util(UtilError, util_error::ErrorKind) #[doc = "Error concerning a utility"];
 		Import(ImportError, ImportErrorKind) #[doc = "Error concerning block import." ];
 	}
-		
+
 	foreign_links {
 		Io(IoError) #[doc = "Io create error"];
 		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
@@ -267,18 +267,24 @@ error_chain! {
 			display("Snapshot error {}", err)
 		}
 
+		#[doc = "Snapshot aborted error."]
+		SnapshotAborted {
+			description("Snapshot aborted error.")
+			display("Snapshot aborted.")
+		}
+
 		#[doc = "Account Provider error"]
 		AccountProvider(err: AccountsError) {
 			description("Accounts Provider error")
 			display("Accounts Provider error {}", err)
-		} 
+		}
 
 		#[doc = "PoW hash is invalid or out of date."]
 		PowHashInvalid {
 			description("PoW hash is invalid or out of date.")
 			display("PoW hash is invalid or out of date.")
 		}
-	
+
 		#[doc = "The value of the nonce or mishash is invalid."]
 		PowInvalid {
 			description("The value of the nonce or mishash is invalid.")
@@ -311,10 +317,10 @@ impl From<ClientError> for Error {
 	}
 }
 
-impl From<AccountsError> for Error { 
-	fn from(err: AccountsError) -> Error { 
+impl From<AccountsError> for Error {
+	fn from(err: AccountsError) -> Error {
 		ErrorKind::AccountProvider(err).into()
-	} 
+	}
 }
 
 impl From<::rlp::DecoderError> for Error {
@@ -340,6 +346,7 @@ impl From<SnapshotError> for Error {
 			SnapshotError::Io(err) => ErrorKind::StdIo(err).into(),
 			SnapshotError::Trie(err) => ErrorKind::Trie(err).into(),
 			SnapshotError::Decoder(err) => err.into(),
+			SnapshotError::RestorationAborted => ErrorKind::SnapshotAborted.into(),
 			other => ErrorKind::Snapshot(other).into(),
 		}
 	}

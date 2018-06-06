@@ -92,11 +92,7 @@ impl SyncRequester {
 			SyncRequester::request_snapshot_chunk(sync, io, peer_id, &hash);
 		} else {
 			// Request the bitfield if no more chunks available and is expired
-			let request_bitfield = sync.peers.get(&peer_id).map_or(false, |peer| {
-				peer.bitfield().is_some() && peer.is_bitfield_expired()
-			});
-
-			if request_bitfield {
+			if sync.peers.get(&peer_id).map_or(false, |p| p.should_renew_bitfield()) {
 				SyncRequester::request_snapshot_bitfield(sync, io, peer_id);
 			}
 		}

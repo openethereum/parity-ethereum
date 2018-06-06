@@ -34,7 +34,6 @@ pub struct Snapshot {
 	pending_state_chunks: Vec<H256>,
 	pending_block_chunks: Vec<H256>,
 	downloading_chunks: HashSet<H256>,
-	completed_chunks: HashSet<H256>,
 	snapshot_hash: Option<H256>,
 	bad_hashes: HashSet<H256>,
 	initialized: bool,
@@ -48,7 +47,6 @@ impl Snapshot {
 			pending_state_chunks: Vec::new(),
 			pending_block_chunks: Vec::new(),
 			downloading_chunks: HashSet::new(),
-			completed_chunks: HashSet::new(),
 			snapshot_hash: None,
 			bad_hashes: HashSet::new(),
 			initialized: false,
@@ -62,11 +60,10 @@ impl Snapshot {
 		}
 
 		if let Some(completed_chunks) = snapshot_service.completed_chunks() {
+			let completed_chunks = HashSet::from_iter(completed_chunks);
 			if let Some(ref mut bitfield) = self.bitfield {
-				bitfield.reset();
 				bitfield.mark_some(&completed_chunks);
 			}
-			self.completed_chunks = HashSet::from_iter(completed_chunks);
 		}
 
 		trace!(
@@ -84,7 +81,6 @@ impl Snapshot {
 		self.pending_state_chunks.clear();
 		self.pending_block_chunks.clear();
 		self.downloading_chunks.clear();
-		self.completed_chunks.clear();
 		self.snapshot_hash = None;
 		self.initialized = false;
 	}
@@ -97,7 +93,7 @@ impl Snapshot {
 	/// Reset collection for a manifest RLP
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
-		self.bitfield = Some(Bitfield::new_from_manifest(manifest));
+		self.bitfield = Some(Bitfield::new(manifest));
 		self.pending_state_chunks = manifest.state_hashes.clone();
 		self.pending_block_chunks = manifest.block_hashes.clone();
 		self.snapshot_hash = Some(hash.clone());
@@ -106,18 +102,12 @@ impl Snapshot {
 	/// Validate chunk and mark it as downloaded
 	pub fn validate_chunk(&mut self, chunk: &[u8]) -> Result<ChunkType, ()> {
 		let hash = keccak(chunk);
-		if self.completed_chunks.contains(&hash) {
-			trace!(target: "sync", "Ignored proccessed chunk: {:x}", hash);
-			return Err(());
-		}
 		self.downloading_chunks.remove(&hash);
 		if self.pending_block_chunks.iter().any(|h| h == &hash) {
-			self.completed_chunks.insert(hash.clone());
 			self.bitfield.as_mut().map(|bitfield| bitfield.mark_one(&hash));
 			return Ok(ChunkType::Block(hash));
 		}
 		if self.pending_state_chunks.iter().any(|h| h == &hash) {
-			self.completed_chunks.insert(hash.clone());
 			self.bitfield.as_mut().map(|bitfield| bitfield.mark_one(&hash));
 			return Ok(ChunkType::State(hash));
 		}
@@ -129,9 +119,7 @@ impl Snapshot {
 	/// TODO: request block chunks first, then state chunks
 	pub fn needed_chunk(&mut self, peer: &PeerInfo) -> Option<H256> {
 		// Get the available chunks from the peer
-		let avail_chunks: Option<HashSet<H256>> = peer.bitfield()
-			.map(|b| b.available_chunks())
-			.map(|chunks| HashSet::from_iter(chunks));
+		let avail_chunks = peer.available_chunks();
 
 		if let Some(ref avail_chunks) = avail_chunks {
 			trace!(target: "warp", "Found {} available chunks from peer", avail_chunks.len());

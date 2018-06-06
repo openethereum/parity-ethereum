@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use super::{Bitfield, ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
+use super::{Error as SnapshotError, Bitfield, ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
@@ -159,7 +159,7 @@ impl Restoration {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+				return Err(SnapshotError::ChunkTooLarge.into());
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
@@ -669,10 +669,17 @@ impl Service {
 		match self.feed_chunk(hash, chunk, true) {
 			Ok(()) => (),
 			Err(e) => {
-				warn!("Encountered error during state restoration: {}", e);
+				match e.kind() {
+					::error::ErrorKind::SnapshotAborted => {
+						debug!(target: "snapshot", "Restoration aborted.");
+					},
+					_ => {
+						warn!("Encountered error during state restoration: {}", e);
+						let _ = fs::remove_dir_all(self.restoration_dir());
+					},
+				}
 				*self.restoration.lock() = None;
 				*self.status.lock() = RestorationStatus::Failed;
-				let _ = fs::remove_dir_all(self.restoration_dir());
 			}
 		}
 	}
@@ -682,7 +689,15 @@ impl Service {
 		match self.feed_chunk(hash, chunk, false) {
 			Ok(()) => (),
 			Err(e) => {
-				warn!("Encountered error during block restoration: {}", e);
+				match e.kind() {
+					::error::ErrorKind::SnapshotAborted => {
+						debug!(target: "snapshot", "Restoration aborted.");
+					},
+					_ => {
+						warn!("Encountered error during block restoration: {}", e);
+						let _ = fs::remove_dir_all(self.restoration_dir());
+					},
+				}
 				*self.restoration.lock() = None;
 				*self.status.lock() = RestorationStatus::Failed;
 				let _ = fs::remove_dir_all(self.restoration_dir());
@@ -727,7 +742,7 @@ impl SnapshotService for Service {
 				return None;
 			}
 
-			let mut bitfield = Bitfield::new_from_manifest(&manifest);
+			let mut bitfield = Bitfield::new(&manifest);
 			bitfield.mark_all();
 			Some(bitfield)
 		} else {

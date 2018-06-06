@@ -524,14 +524,14 @@ impl SyncHandler {
 				let correct_manifest = peer.snapshot_hash.map_or(false, |h| h == manifest.clone().hash());
 				if correct_manifest {
 					let bitfield_rlp = r.at(0)?;
-					match Bitfield::from_rlp(bitfield_rlp.as_raw(), &manifest) {
+					match Bitfield::read_rlp(&manifest, bitfield_rlp.as_raw()) {
 						Err(e) => {
 							trace!(target: "sync", "{}: Ignored bad bitfield: {:?}", peer_id, e);
 							io.disable_peer(peer_id);
 							return Ok(());
 						},
-						Ok(bitfield) => {
-							peer.snapshot_bitfield = Some(bitfield);
+						Ok(available_chunks) => {
+							peer.snapshot_chunks = Some(available_chunks);
 							peer.ask_bitfield_time = Instant::now();
 						},
 					}
@@ -677,7 +677,7 @@ impl SyncHandler {
 			expired: false,
 			confirmation: if sync.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
 			asking_snapshot_data: None,
-			snapshot_bitfield: None,
+			snapshot_chunks: None,
 			snapshot_hash: if warp_protocol { Some(r.val_at(5)?) } else { None },
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,

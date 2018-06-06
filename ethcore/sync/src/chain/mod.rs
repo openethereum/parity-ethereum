@@ -106,7 +106,7 @@ use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use ethcore::header::BlockNumber;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
-use ethcore::snapshot::{Bitfield, RestorationStatus};
+use ethcore::snapshot::RestorationStatus;
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::BlockDownloader;
@@ -338,8 +338,8 @@ pub struct PeerInfo {
 	expired: bool,
 	/// Peer fork confirmation status
 	confirmation: ForkConfirmation,
-	/// Peer's current snapshot bitfield
-	snapshot_bitfield: Option<Bitfield>,
+	/// Peer's current snapshot available chunks
+	snapshot_chunks: Option<HashSet<H256>>,
 	/// Best snapshot hash
 	snapshot_hash: Option<H256>,
 	/// Best snapshot block number
@@ -365,12 +365,17 @@ impl PeerInfo {
 			last_sent_transactions: HashSet::new(),
 			expired: false,
 			confirmation: ForkConfirmation::Unconfirmed,
-			snapshot_bitfield: None,
+			snapshot_chunks: None,
 			snapshot_number: None,
 			snapshot_hash: None,
 			asking_snapshot_data: None,
 			block_set: None,
 		}
+	}
+
+	/// Checks whether the given protocol version supports Partial Snapshoting
+	pub fn supports_partial_snapshots(protocol_version: u8) -> bool {
+		protocol_version >= PAR_PROTOCOL_VERSION_4.0
 	}
 
 	fn can_sync(&self) -> bool {
@@ -390,24 +395,22 @@ impl PeerInfo {
 		}
 	}
 
-	pub fn bitfield(&self) -> Option<&Bitfield> {
-		self.snapshot_bitfield.as_ref()
+	/// Returns the known available chunks from the Peer, if any
+	pub fn available_chunks(&self) -> Option<&HashSet<H256>> {
+		self.snapshot_chunks.as_ref()
 	}
 
-	pub fn supports_partial_snapshots(protocol_version: u8) -> bool {
-		protocol_version >= PAR_PROTOCOL_VERSION_4.0
-	}
-
-	/// Check whether the Bitfield from peer is expired
-	pub fn is_bitfield_expired(&self) -> bool {
-		(Instant::now() - self.ask_bitfield_time) > BITFIELD_REFRESH_DURATION
+	/// Check whether the Bitfield should be renewed (ie. set and expired)
+	pub fn should_renew_bitfield(&self) -> bool {
+		self.snapshot_chunks.is_some() &&
+			(Instant::now() - self.ask_bitfield_time) > BITFIELD_REFRESH_DURATION
 	}
 
 	/// Whether the Bitfield should be requested: only for peers
 	/// supporting the request, which bitfield isn't know yet
 	pub fn should_request_bitfield(&self) -> bool {
 		PeerInfo::supports_partial_snapshots(self.protocol_version) &&
-			self.snapshot_bitfield.is_none()
+			self.snapshot_chunks.is_none()
 	}
 }
 

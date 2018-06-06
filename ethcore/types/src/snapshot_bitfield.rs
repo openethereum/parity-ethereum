@@ -31,42 +31,19 @@ struct BitfieldCompletion {
 }
 
 impl BitfieldCompletion {
-	pub fn new() -> BitfieldCompletion {
+	pub fn new(length: usize) -> BitfieldCompletion {
 		BitfieldCompletion {
-			bytes: Vec::new(),
+			bytes: vec![0; length],
 			num_available: 0,
 		}
 	}
 
-	pub fn new_from_bytes(bytes: &Vec<u8>, length: usize) -> BitfieldCompletion {
-		let mut num_available = 0;
-
-		// Count the number of pieces available
-		for index in 0..length {
-			let byte_index = index / 8;
-			let bit_index = index % 8;
-
-			if bytes[byte_index] & (1 << (7 - bit_index)) != 0 {
-				num_available += 1;
-			}
-		}
-
-		BitfieldCompletion {
-			bytes: bytes.clone(),
-			num_available,
-		}
-	}
-
-	pub fn reset(&mut self, length: usize) {
-		self.bytes = vec![0; length];
-		self.num_available = 0;
-	}
-
-	pub fn is_available(&self, index: usize) -> bool {
+	pub fn is_available(index: usize, bytes: &Vec<u8>) -> bool {
 		let byte_index = index / 8;
 		let bit_index = index % 8;
+		let mask = 1 << (7 - bit_index);
 
-		self.bytes[byte_index] & (1 << (7 - bit_index)) != 0
+		bytes[byte_index] & mask != 0
 	}
 
 	/// Set the given hash at the given index as completed
@@ -75,9 +52,11 @@ impl BitfieldCompletion {
 		let bit_index = index % 8;
 		let mask = 1 << (7 - bit_index);
 
-		// Update `bytes` and `completed chunks`
-		self.bytes[byte_index] |= mask;
-		self.num_available += 1;
+		// Update `bytes` and `completed chunks` only if not set yet
+		if self.bytes[byte_index] & mask == 0 {
+			self.bytes[byte_index] |= mask;
+			self.num_available += 1;
+		}
 	}
 
 	pub fn bytes(&self) -> Vec<u8> {
@@ -86,10 +65,6 @@ impl BitfieldCompletion {
 
 	pub fn num_available(&self) -> usize {
 		self.num_available
-	}
-
-	pub fn len(&self) -> usize {
-		self.bytes.len()
 	}
 }
 
@@ -100,26 +75,13 @@ pub struct Bitfield {
 }
 
 impl Bitfield {
-	pub fn new() -> Bitfield {
+	pub fn new(manifest: &ManifestData) -> Bitfield {
+		let (hashes, len) = Bitfield::read_manifest(manifest);
+
 		Bitfield {
-			completion: BitfieldCompletion::new(),
-			hashes: Vec::new(),
+			hashes,
+			completion: BitfieldCompletion::new(len),
 		}
-	}
-
-	pub fn new_from_manifest(manifest: &ManifestData) -> Bitfield {
-		let mut bitfield = Bitfield::new();
-		bitfield.reset_to(manifest);
-
-		bitfield
-	}
-
-	pub fn new_from_bytes(manifest: &ManifestData, bytes: &Vec<u8>) -> Bitfield {
-		let mut bitfield = Bitfield::new();
-		bitfield.reset_to(manifest);
-		bitfield.completion = BitfieldCompletion::new_from_bytes(bytes, bitfield.len());
-
-		bitfield
 	}
 
 	/// Encode the manifest bitfield to rlp.
@@ -129,64 +91,59 @@ impl Bitfield {
 		stream.out()
 	}
 
-	/// Try to restore bitfield data from raw bytes, interpreted as RLP.
-	pub fn from_rlp(raw: &[u8], manifest: &ManifestData) -> Result<Self, DecoderError> {
+	/// Converts the given bitfield (RLP encoded) to a hashset of available chunks
+	pub fn read_rlp(manifest: &ManifestData, raw: &[u8]) -> Result<HashSet<H256>, DecoderError> {
 		let decoder = Rlp::new(raw);
 		let raw_bytes: Vec<u8> = decoder.list_at(0)?;
 
-		Ok(Bitfield::new_from_bytes(manifest, &raw_bytes))
+		let (hashes, len) = Bitfield::read_manifest(manifest);
+		let mut available_chunks = HashSet::new();
+
+		if raw_bytes.len() != len {
+			return Err(DecoderError::RlpIncorrectListLen);
+		}
+
+		for (index, hash) in hashes.iter().enumerate() {
+			if BitfieldCompletion::is_available(index, &raw_bytes) {
+				available_chunks.insert(*hash);
+			}
+		}
+
+		Ok(available_chunks)
 	}
 
-	pub fn available_chunks(&self) -> Vec<H256> {
-		self.hashes.iter().enumerate()
-			.filter(|(i, _)| self.completion.is_available(*i))
-			.map(|(_, h)| *h)
-			.collect()
-	}
-
-	pub fn needed_chunks(&self) -> Vec<H256> {
-		self.hashes.iter().enumerate()
-			.filter(|(i, _)| !self.completion.is_available(*i))
-			.map(|(_, h)| *h)
-			.collect()
-	}
-
-	/// Returns the length of the bitfield
-	pub fn len(&self) -> usize {
-		self.completion.len()
-	}
-
-	pub fn num_available(&self) -> usize {
-		self.completion.num_available()
-	}
-
-	/// Reset the current Bitfield
-	pub fn reset(&mut self) {
-		let length = self.completion.len();
-		self.completion.reset(length);
-	}
-
-	pub fn reset_to(&mut self, manifest: &ManifestData) {
-		self.hashes = manifest.block_hashes
+	/// Read the given Manifest file to collect the bytes length
+	/// and the corresponding hashes
+	pub fn read_manifest(manifest: &ManifestData) -> (Vec<H256>, usize) {
+		let hashes = manifest.block_hashes
 			.iter()
 			.chain(manifest.state_hashes.iter())
 			.map(|h| *h)
 			.collect::<Vec<H256>>();
 
-		let length = (self.hashes.len() as f64 / 8 as f64).ceil() as usize;
-		self.completion.reset(length);
+		let length = (hashes.len() as f64 / 8 as f64).ceil() as usize;
+		(hashes, length)
 	}
 
-	/// Mark some hashes as completed
-	pub fn mark_some(&mut self, completed_hashes: &Vec<H256>) {
-		let iter = completed_hashes.iter().map(|&h| h).clone();
-		let completed_hashes: HashSet<H256> = HashSet::from_iter(iter);
+	/// Returns a HashSet of available chunks
+	pub fn available_chunks(&self) -> HashSet<H256> {
+		let iter = self.hashes.iter().enumerate()
+			.filter(|(i, _)| BitfieldCompletion::is_available(*i, &self.completion.bytes))
+			.map(|(_, h)| *h);
+		HashSet::from_iter(iter)
+	}
 
-		for (index, hash) in self.hashes.iter().enumerate() {
-			if completed_hashes.contains(&hash) {
-				self.completion.mark(index);
-			}
-		}
+	/// Returns a HashSet of needed chunks
+	pub fn needed_chunks(&self) -> HashSet<H256> {
+		let iter = self.hashes.iter().enumerate()
+			.filter(|(i, _)| !BitfieldCompletion::is_available(*i, &self.completion.bytes))
+			.map(|(_, h)| *h);
+		HashSet::from_iter(iter)
+	}
+
+	/// Returns the number of available chunks
+	pub fn num_available(&self) -> usize {
+		self.completion.num_available()
 	}
 
 	/// Mark one hash as completed
@@ -197,14 +154,19 @@ impl Bitfield {
 		}
 	}
 
+	/// Mark some hashes as completed
+	pub fn mark_some(&mut self, completed_hashes: &HashSet<H256>) {
+		for (index, hash) in self.hashes.iter().enumerate() {
+			if completed_hashes.contains(&hash) {
+				self.completion.mark(index);
+			}
+		}
+	}
+
 	/// Mark all chunks as available
 	pub fn mark_all(&mut self) {
 		for (index, _) in self.hashes.iter().enumerate() {
 			self.completion.mark(index);
 		}
-	}
-
-	pub fn as_raw(&self) -> Vec<u8> {
-		self.completion.bytes()
 	}
 }
