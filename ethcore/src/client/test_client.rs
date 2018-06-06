@@ -36,7 +36,7 @@ use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Ac
 use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
-	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient
@@ -51,7 +51,6 @@ use vm::Schedule;
 use miner::{Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
-use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
 use verification::queue::QueueInfo;
