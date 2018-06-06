@@ -22,7 +22,6 @@ use futures_cpupool::CpuPool;
 use page::handler::{self, PageCache};
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Request, Response};
 use hyper::mime::Mime;
-use Embeddable;
 
 #[derive(Clone)]
 pub struct Dapp {
@@ -31,7 +30,6 @@ pub struct Dapp {
 	mime: Option<Mime>,
 	info: Option<EndpointInfo>,
 	cache: PageCache,
-	embeddable_on: Embeddable,
 }
 
 impl fmt::Debug for Dapp {
@@ -41,20 +39,18 @@ impl fmt::Debug for Dapp {
 			.field("mime", &self.mime)
 			.field("info", &self.info)
 			.field("cache", &self.cache)
-			.field("embeddable_on", &self.embeddable_on)
 			.finish()
 	}
 }
 
 impl Dapp {
-	pub fn new(pool: CpuPool, path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_on: Embeddable) -> Self {
+	pub fn new(pool: CpuPool, path: PathBuf, info: EndpointInfo, cache: PageCache) -> Self {
 		Dapp {
 			pool,
 			path,
 			mime: None,
 			info: Some(info),
 			cache,
-			embeddable_on,
 		}
 	}
 
@@ -65,7 +61,6 @@ impl Dapp {
 			mime: Some(mime),
 			info: None,
 			cache,
-			embeddable_on: None,
 		}
 	}
 
@@ -96,7 +91,6 @@ impl Dapp {
 		let (reader, response) = handler::PageHandler {
 			file: self.get_file(path),
 			cache: self.cache,
-			safe_to_embed_on: self.embeddable_on.clone(),
 			allow_js_eval: self.info.as_ref().and_then(|x| x.allow_js_eval).unwrap_or(false),
 		}.into_response();
 

@@ -21,6 +21,7 @@ use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
+use client::Mode;
 use encoded;
 use vm::LastHashes;
 use error::{ImportResult, CallError, BlockImportError};
@@ -48,7 +49,6 @@ use types::trace_filter::Filter as TraceFilter;
 use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
-use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
 /// State information to be used during client query

@@ -101,6 +101,9 @@ pub fn new_morden<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 /// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { load(None, include_bytes!("../../res/ethereum/frontier_test.json")) }
 
+/// Create a new Ropsten chain spec.
+pub fn new_ropsten_test() -> Spec { load(None, include_bytes!("../../res/ethereum/ropsten.json")) }
+
 /// Create a new Foundation Homestead-era chain spec as though it never changed from Frontier.
 pub fn new_homestead_test() -> Spec { load(None, include_bytes!("../../res/ethereum/homestead_test.json")) }
 

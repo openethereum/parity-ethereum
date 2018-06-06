@@ -304,7 +304,7 @@ impl<T: InformantData> Informant<T> {
 						paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 						if self.target.executes_transactions() {
 							format!("{} blk/s {} tx/s {} Mgas/s",
-								paint(Yellow.bold(), format!("{:5.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
+								paint(Yellow.bold(), format!("{:7.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
 								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_milliseconds() as f64)),
 								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
 							)

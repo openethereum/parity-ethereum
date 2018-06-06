@@ -30,7 +30,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService};
-use ethcore::mode::Mode;
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
@@ -365,12 +364,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn mode(&self) -> Result<String> {
-		Ok(match self.client.mode() {
-			Mode::Off => "offline",
-			Mode::Dark(..) => "dark",
-			Mode::Passive(..) => "passive",
-			Mode::Active => "active",
-		}.into())
+		Ok(self.client.mode().to_string())
 	}
 
 	fn enode(&self) -> Result<String> {

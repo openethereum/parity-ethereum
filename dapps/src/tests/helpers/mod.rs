@@ -36,8 +36,6 @@ mod fetch;
 use self::registrar::FakeRegistrar;
 use self::fetch::FakeFetch;
 
-const SIGNER_PORT: u16 = 18180;
-
 #[derive(Debug)]
 struct FakeSync(bool);
 impl SyncStatus for FakeSync {
@@ -63,8 +61,7 @@ pub fn init_server<F, B>(process: F, io: IoHandler) -> (Server, Arc<FakeRegistra
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
 
-	let mut builder = ServerBuilder::new(FetchClient::new().unwrap(), &dapps_path, registrar.clone());
-	builder.signer_address = Some(("127.0.0.1".into(), SIGNER_PORT));
+	let builder = ServerBuilder::new(FetchClient::new().unwrap(), &dapps_path, registrar.clone());
 	let server = process(builder).start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), io).unwrap();
 	(
 		server,
@@ -122,22 +119,12 @@ pub fn serve() -> Server {
 	init_server(|builder| builder, Default::default()).0
 }
 
-pub fn serve_ui() -> Server {
-	init_server(|mut builder| {
-		builder.serve_ui = true;
-		builder
-	}, Default::default()).0
-}
-
 pub fn request(server: Server, request: &str) -> http_client::Response {
 	http_client::request(server.addr(), request)
 }
 
 pub fn assert_security_headers(headers: &[String]) {
 	http_client::assert_security_headers_present(headers, None)
-}
-pub fn assert_security_headers_for_embed(headers: &[String]) {
-	http_client::assert_security_headers_present(headers, Some(SIGNER_PORT))
 }
 
 /// Webapps HTTP+RPC server build.
@@ -146,10 +133,8 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 	registrar: Arc<RegistrarClient<Call=Asynchronous>>,
 	sync_status: Arc<SyncStatus>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
-	signer_address: Option<(String, u16)>,
 	allowed_hosts: DomainsValidation<Host>,
 	fetch: T,
-	serve_ui: bool,
 }
 
 impl ServerBuilder {
@@ -160,10 +145,8 @@ impl ServerBuilder {
 			registrar: registrar,
 			sync_status: Arc::new(FakeSync(false)),
 			web_proxy_tokens: Arc::new(|_| None),
-			signer_address: None,
 			allowed_hosts: DomainsValidation::Disabled,
 			fetch: fetch,
-			serve_ui: false,
 		}
 	}
 }
@@ -176,10 +159,8 @@ impl<T: Fetch> ServerBuilder<T> {
 			registrar: self.registrar,
 			sync_status: self.sync_status,
 			web_proxy_tokens: self.web_proxy_tokens,
-			signer_address: self.signer_address,
 			allowed_hosts: self.allowed_hosts,
 			fetch: fetch,
-			serve_ui: self.serve_ui,
 		}
 	}
 
@@ -190,7 +171,6 @@ impl<T: Fetch> ServerBuilder<T> {
 			addr,
 			io,
 			self.allowed_hosts,
-			self.signer_address,
 			self.dapps_path,
 			vec![],
 			self.registrar,
@@ -198,7 +178,6 @@ impl<T: Fetch> ServerBuilder<T> {
 			self.web_proxy_tokens,
 			Remote::new_sync(),
 			self.fetch,
-			self.serve_ui,
 		)
 	}
 }
@@ -215,7 +194,6 @@ impl Server {
 		addr: &SocketAddr,
 		io: IoHandler,
 		allowed_hosts: DomainsValidation<Host>,
-		signer_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		registrar: Arc<RegistrarClient<Call=Asynchronous>>,
@@ -223,7 +201,6 @@ impl Server {
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		remote: Remote,
 		fetch: F,
-		serve_ui: bool,
 	) -> io::Result<Server> {
 		let health = NodeHealth::new(
 			sync_status.clone(),
@@ -231,23 +208,10 @@ impl Server {
 			remote.clone(),
 		);
 		let pool = ::futures_cpupool::CpuPool::new(1);
-		let middleware = if serve_ui {
-			Middleware::ui(
-				pool,
-				health,
-				DAPPS_DOMAIN.into(),
-				registrar,
-				sync_status,
-				fetch,
-				false,
-			)
-		} else {
+		let middleware =
 			Middleware::dapps(
 				pool,
 				health,
-				signer_address,
-				vec![],
-				vec![],
 				dapps_path,
 				extra_dapps,
 				DAPPS_DOMAIN.into(),
@@ -255,8 +219,7 @@ impl Server {
 				sync_status,
 				web_proxy_tokens,
 				fetch,
-			)
-		};
+			);
 
 		let mut allowed_hosts: Option<Vec<Host>> = allowed_hosts.into();
 		allowed_hosts.as_mut().map(|hosts| {
