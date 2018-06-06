@@ -25,7 +25,9 @@ use bytes::Bytes;
 use rlp::{Decodable, Encodable};
 use std::marker::PhantomData;
 
-/// A `Trie` implementation using a generic `HashDB` backing database.
+/// A `Trie` implementation using a generic `HashDB` backing database, a `Hasher`
+/// implementation to generate keys and a `NodeCodec` implementation to encode/decode
+/// the nodes.
 ///
 /// Use it as a `Trie` trait object. You can use `db()` to get the backing database object.
 /// Use `get` and `contains` to query values associated with keys in the trie.

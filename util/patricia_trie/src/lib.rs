@@ -96,10 +96,10 @@ impl<T> From<rlp::DecoderError> for Box<TrieError<T>> {
 	fn from(e: rlp::DecoderError) -> Self { Box::new(TrieError::DecoderError(e)) }
 }
 
-/// Trie result type. Boxed to avoid copying around extra space for `H256`s on successful queries.
+/// Trie result type. Boxed to avoid copying around extra space for the `Hasher`s `Out`s on successful queries.
 pub type Result<T, U> = ::std::result::Result<T, Box<TrieError<U>>>;
 
-/// Trie-Item type.
+/// Trie-Item type used for iterators over trie data.
 pub type TrieItem<'a, U> = Result<(Vec<u8>, DBValue), U>;
 
 /// Description of what kind of query will be made to the trie.
@@ -193,7 +193,7 @@ pub trait TrieMut {
 	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out>;
 }
 
-/// A trie iterator that also supports random access.
+/// A trie iterator that also supports random access (`seek()`).
 pub trait TrieIterator<H: Hasher>: Iterator {
 	/// Position the iterator on the first element with key > `key`
 	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out>;
