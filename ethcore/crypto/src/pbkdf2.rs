@@ -1,4 +1,4 @@
-// Copyright 2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,4 +26,3 @@ pub fn sha256(iter: u32, salt: Salt, sec: Secret, out: &mut [u8; 32]) {
 pub fn sha512(iter: u32, salt: Salt, sec: Secret, out: &mut [u8; 64]) {
 	ring::pbkdf2::derive(&ring::digest::SHA512, iter, salt.0, sec.0, &mut out[..])
 }
-

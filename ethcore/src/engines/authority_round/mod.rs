@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -654,7 +654,6 @@ impl AuthorityRound {
 				e.parent_hash == parent_hash
 		}).cloned().collect()
 	}
-
 
 	fn clear_empty_steps(&self, step: U256) {
 		// clear old `empty_steps` messages

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -39,7 +39,6 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 	post_columns: Some(8),
 	version: 12,
 };
-
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;

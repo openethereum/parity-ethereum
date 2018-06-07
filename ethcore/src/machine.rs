@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -472,7 +472,6 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -484,6 +483,25 @@ mod tests {
 			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
 			dao_hardfork_accounts: Vec::new(),
 		}
+	}
+
+	#[test]
+	fn should_disallow_unsigned_transactions() {
+		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080".into();
+		let transaction: UnverifiedTransaction = ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
+		let spec = ::ethereum::new_ropsten_test();
+		let ethparams = get_default_ethash_extensions();
+
+		let machine = EthereumMachine::with_ethash_extensions(
+			spec.params().clone(),
+			Default::default(),
+			ethparams,
+		);
+		let mut header = ::header::Header::new();
+		header.set_number(15);
+
+		let res = machine.verify_transaction_basic(&transaction, &header);
+		assert_eq!(res, Err(transaction::Error::InvalidSignature("Crypto error (Invalid EC signature)".into())));
 	}
 
 	#[test]

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -108,12 +108,8 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		}
 	}
 
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
-	}
-
 	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount, origin: Origin) -> BoxFuture<DispatchResult> {
-		let accounts = try_bf!(self.account_provider());
+		let accounts = self.accounts.clone();
 		let default_account = match default_account {
 			DefaultAccount::Provided(acc) => acc,
 			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
@@ -143,8 +139,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
 	fn compose_transaction(&self, meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest> {
-		let accounts = try_bf!(self.account_provider());
-		let default_account = accounts.dapp_default_address(meta.dapp_id().into()).ok().unwrap_or_default();
+		let default_account = self.accounts.dapp_default_address(meta.dapp_id().into()).ok().unwrap_or_default();
 		Box::new(self.dispatcher.fill_optional_fields(transaction.into(), default_account, true).map(Into::into))
 	}
 

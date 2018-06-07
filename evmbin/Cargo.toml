@@ -10,7 +10,7 @@ path = "./src/main.rs"
 
 [dependencies]
 docopt = "0.8"
-ethcore = { path = "../ethcore" }
+ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethjson = { path = "../json" }
 ethcore-bytes = { path = "../util/bytes" }
 ethcore-transaction = { path = "../ethcore/transaction" }

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -102,7 +102,6 @@ enum InstructionResult<Gas> {
 	},
 	StopExecution,
 }
-
 
 /// Intepreter EVM implementation
 pub struct Interpreter<Cost: CostType> {
@@ -958,7 +957,6 @@ fn u256_to_address(value: &U256) -> Address {
 fn address_to_u256(value: Address) -> U256 {
 	U256::from(&*H256::from(value))
 }
-
 
 #[cfg(test)]
 mod tests {

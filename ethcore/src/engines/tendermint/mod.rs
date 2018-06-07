@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -358,7 +358,6 @@ impl Tendermint {
 		self.last_lock.load(AtomicOrdering::SeqCst) < lock_change_view
 			&& lock_change_view < self.view.load(AtomicOrdering::SeqCst)
 	}
-
 
 	fn has_enough_any_votes(&self) -> bool {
 		let step_votes = self.votes.count_round_votes(&VoteStep::new(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst), *self.step.read()));

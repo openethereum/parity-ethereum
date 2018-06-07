@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -120,7 +120,6 @@ pub struct MinerOptions {
 	/// NOTE: Such block will contain all pending transactions but
 	/// will be invalid if mined.
 	pub infinite_pending_block: bool,
-
 
 	/// Strategy to use for prioritizing transactions in the queue.
 	pub tx_queue_strategy: PrioritizationStrategy,
@@ -505,7 +504,6 @@ impl Miner {
 			|| self.transaction_queue.has_local_pending_transactions()
 			|| self.engine.seals_internally() == Some(true)
 			|| had_requests;
-
 
 		let should_disable_sealing = !sealing_enabled;
 

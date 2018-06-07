@@ -44,7 +44,6 @@ set_env_win () {
   set RUST_BACKTRACE=1
   #export RUSTFLAGS=$RUSTFLAGS
   rustup default stable-x86_64-pc-windows-msvc
-  echo "MsBuild.exe windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release" > msbuild.cmd
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
@@ -166,19 +165,6 @@ make_pkg () {
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
 }
-make_exe () {
-  ./msbuild.cmd
-  ./sign.cmd $keyfile $certpass windows/ptray/x64/release/ptray.exe
-  cd nsis
-  curl -sL --url "https://github.com/paritytech/win-build/raw/master/vc_redist.x64.exe" -o vc_redist.x64.exe
-  echo "makensis.exe installer.nsi" > nsis.cmd
-  ./nsis.cmd
-  cd ..
-  cp nsis/installer.exe "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
-  ./sign.cmd $keyfile $certpass "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
-  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
-}
 push_binaries () {
   echo "Push binaries to AWS S3"
   aws configure set aws_access_key_id $s3_key
@@ -205,9 +191,6 @@ push_binaries () {
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN --body target/$PLATFORM/release/whisper$S3WIN
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.md5 --body whisper$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.sha256 --body whisper$S3WIN.sha256
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
 }
 make_archive () {
   echo "add artifacts to archive"
@@ -356,7 +339,6 @@ case $BUILD_PLATFORM in
     build
     sign_exe
     calculate_checksums
-    make_exe
     make_archive
     push_binaries
     updater_push_release

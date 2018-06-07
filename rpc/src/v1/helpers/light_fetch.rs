@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -85,7 +85,6 @@ pub fn extract_transaction_at_index(block: encoded::Block, index: usize, eip86_t
 		})
 		.map(|tx| Transaction::from_localized(tx, eip86_transition))
 }
-
 
 /// Type alias for convenience.
 pub type ExecutionResult = ::std::result::Result<Executed, ExecutionError>;

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -51,7 +51,6 @@ lazy_static! {
 	// rich address' secret.
 	static ref RICH_SECRET: Secret = secret!("1");
 }
-
 
 /// Contract code used here: https://gist.github.com/anonymous/2a43783647e0f0dfcc359bd6fd81d6d9
 /// Account with secrets keccak("1") is initially the validator.
