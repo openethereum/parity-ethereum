@@ -57,6 +57,7 @@ impl Default for Options {
 }
 
 /// Transaction to verify.
+#[cfg_attr(test, derive(Clone))]
 pub enum Transaction {
 	/// Fresh, never verified transaction.
 	///

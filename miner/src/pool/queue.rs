@@ -23,7 +23,6 @@ use std::collections::BTreeMap;
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
-use rayon::prelude::*;
 use transaction;
 use txpool::{self, Verifier};
 
