@@ -72,7 +72,6 @@ use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
 use types::filter::Filter;
-use types::mode::Mode as IpcMode;
 use types::ancestry_action::AncestryAction;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
@@ -1570,19 +1569,19 @@ impl BlockChainClient for Client {
 			})))
 	}
 
-	fn mode(&self) -> IpcMode {
+	fn mode(&self) -> Mode {
 		let r = self.mode.lock().clone().into();
 		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
 		r
 	}
 
 	fn disable(&self) {
-		self.set_mode(IpcMode::Off);
+		self.set_mode(Mode::Off);
 		self.enabled.store(false, AtomicOrdering::Relaxed);
 		self.clear_queue();
 	}
 
-	fn set_mode(&self, new_mode: IpcMode) {
+	fn set_mode(&self, new_mode: Mode) {
 		trace!(target: "mode", "Client::set_mode({:?})", new_mode);
 		if !self.enabled.load(AtomicOrdering::Relaxed) {
 			return;
@@ -1597,8 +1596,8 @@ impl BlockChainClient for Client {
 			}
 		}
 		match new_mode {
-			IpcMode::Active => self.wake_up(),
-			IpcMode::Off => self.sleep(),
+			Mode::Active => self.wake_up(),
+			Mode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
 		}
 	}
@@ -2074,15 +2073,16 @@ impl IoClient for Client {
 				let first = queued.write().1.pop_front();
 				if let Some((header, block_bytes, receipts_bytes)) = first {
 					let hash = header.hash();
-					client.importer.import_old_block(
+					let result = client.importer.import_old_block(
 						&header,
 						&block_bytes,
 						&receipts_bytes,
 						&**client.db.read(),
-						&*client.chain.read()
-					).ok().map_or((), |e| {
+						&*client.chain.read(),
+					);
+					if let Err(e) = result {
 						error!(target: "client", "Error importing ancient block: {}", e);
-					});
+					}
 					// remove from pending
 					queued.write().0.remove(&hash);
 				} else {
