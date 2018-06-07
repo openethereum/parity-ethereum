@@ -2336,6 +2336,11 @@ fn transaction_receipt(machine: &::machine::EthereumMachine, mut tx: LocalizedTr
 	let transaction_index = tx.transaction_index;
 
 	LocalizedReceipt {
+		from: sender,
+		to: match tx.action {
+				Action::Create => None,
+				Action::Call(ref address) => Some(address.clone().into())
+		},
 		transaction_hash: transaction_hash,
 		transaction_index: transaction_index,
 		block_hash: block_hash,
@@ -2461,6 +2466,11 @@ mod tests {
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {
+			from: tx1.sender().into(),
+			to: match tx1.action {
+				Action::Create => None,
+				Action::Call(ref address) => Some(address.clone().into())
+			},
 			transaction_hash: tx1.hash(),
 			transaction_index: 1,
 			block_hash: block_hash,
