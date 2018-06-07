@@ -103,7 +103,10 @@ impl<'db, H, C> TrieDB<'db, H, C>
 }
 
 impl<'db, H, C> Trie for TrieDB<'db, H, C>
-	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+where
+	H: Hasher,
+	H::Out: Decodable + Encodable,
+	C: NodeCodec<H>
 {
 	type H = H;
 	fn root(&self) -> &<Self::H as Hasher>::Out { self.root }
@@ -461,7 +464,7 @@ mod tests {
 	
 		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
 		let mut iter = t.iter().unwrap();
-		assert_eq!(iter.next(), Some(Ok((b"A".to_vec(), DBValue::from_slice(b"A")))));
+		assert_eq!(iter.next().unwrap().unwrap(), (b"A".to_vec(), DBValue::from_slice(b"A")));
 		iter.seek(b"!").unwrap();
 		assert_eq!(d, iter.map(|x| x.unwrap().1).collect::<Vec<_>>());
 		let mut iter = t.iter().unwrap();
@@ -498,9 +501,9 @@ mod tests {
 		}
 
 		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
-		assert_eq!(t.get_with(b"A", |x: &[u8]| x.len()), Ok(Some(3)));
-		assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()), Ok(Some(5)));
-		assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()), Ok(None));
+		assert_eq!(t.get_with(b"A", |x: &[u8]| x.len()).unwrap(), Some(3));
+		assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()).unwrap(), Some(5));
+		assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()).unwrap(), None);
 	}
 
 	#[test]

@@ -6,7 +6,7 @@ use node::Node;
 use std::marker::PhantomData;
 
 pub trait NodeCodec<H: Hasher>: Sized {
-	type E: ::std::error::Error;
+	type E: ::std::error::Error + 'static;
 	fn encode(&Node) -> Bytes;
 	fn decode(data: &[u8]) -> Result<Node, Self::E>;
 	fn try_decode_hash(data: &[u8]) -> Option<H::Out>;
@@ -19,7 +19,9 @@ pub trait NodeCodec<H: Hasher>: Sized {
 }
 pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
 
-impl<H: Hasher> NodeCodec<H> for RlpNodeCodec<H> where H::Out: Encodable + Decodable {
+impl<H: Hasher> NodeCodec<H> for RlpNodeCodec<H>
+where H::Out: Encodable + Decodable
+{
 	type E = DecoderError;
 	fn encode(node: &Node) -> Bytes {
 		match *node {

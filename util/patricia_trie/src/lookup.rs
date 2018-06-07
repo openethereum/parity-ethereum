@@ -40,7 +40,7 @@ where
 	H: Hasher + 'a,
 	H::Out: Decodable,
 	C: NodeCodec<H>,
-	Q: Query<H>
+	Q: Query<H>,
 {
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
@@ -63,22 +63,7 @@ where
 			// without incrementing the depth.
 			let mut node_data = &node_data[..];
 			loop {
-//				match C::decode(node_data)? { // REVIEW: I can't figure out how to write a conversion for this. The error looks like this:
-				/*
-				error[E0277]: the trait bound `std::boxed::Box<TrieError<<H as hashdb::Hasher>::Out>>: std::convert::From<<C as node_codec::NodeCodec<H>>::E>` is not satisfied
-				  --> util/patricia_trie/src/lookup.rs:61:11
-				   |
-				61 |                 match C::decode(node_data)? {
-				   |                       ^^^^^^^^^^^^^^^^^^^^^ the trait `std::convert::From<<C as node_codec::NodeCodec<H>>::E>` is not implemented for `std::boxed::Box<TrieError<<H as hashdb::Hasher>::Out>>`
-				   |
-				   = help: consider adding a `where std::boxed::Box<TrieError<<H as hashdb::Hasher>::Out>>: std::convert::From<<C as node_codec::NodeCodec<H>>::E>` bound
-				   = note: required by `std::convert::From::from`
-				*/
-				/*
-				Need help writing the conversion!
-				*/
-//				match C::decode(node_data).expect("FIXME: should use `?`") {
-				match C::decode(node_data).map_err(|_| TrieError::DecoderError(hash))? {
+				match C::decode(node_data).map_err(|e| TrieError::DecoderError(hash, e.into()))? {
 					Node::Leaf(slice, value) => {
 						return Ok(match slice == key {
 							true => Some(self.query.decode(value)),
@@ -104,7 +89,6 @@ where
 				}
 
 				// check if new node data is inline or hash.
-//				if let Some(h) = Node::try_decode_hash::<H::Out>(&node_data) {
 				if let Some(h) = C::try_decode_hash(&node_data) {
 					hash = h;
 					break

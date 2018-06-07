@@ -1217,7 +1217,7 @@ mod tests {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
 		let t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
-		assert_eq!(t.get(&[0x5]), Ok(None));
+		assert_eq!(t.get(&[0x5]).unwrap(), None);
 	}
 
 	#[test]
@@ -1242,12 +1242,12 @@ mod tests {
 		assert_eq!(t.get(&[0x01, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 		assert_eq!(t.get(&[0xf1, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0xf1u8, 0x23]));
 		assert_eq!(t.get(&[0x81, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x81u8, 0x23]));
-		assert_eq!(t.get(&[0x82, 0x23]), Ok(None));
+		assert_eq!(t.get(&[0x82, 0x23]).unwrap(), None);
 		t.commit();
 		assert_eq!(t.get(&[0x01, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 		assert_eq!(t.get(&[0xf1, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0xf1u8, 0x23]));
 		assert_eq!(t.get(&[0x81, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x81u8, 0x23]));
-		assert_eq!(t.get(&[0x82, 0x23]), Ok(None));
+		assert_eq!(t.get(&[0x82, 0x23]).unwrap(), None);
 	}
 
 	#[test]

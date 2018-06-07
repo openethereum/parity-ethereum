@@ -62,14 +62,14 @@ use node_codec::NodeCodec;
 ///
 /// These borrow the data within them to avoid excessive copying on every
 /// trie operation.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug)]
 pub enum TrieError<T> {
 	/// Attempted to create a trie with a state root not in the DB.
 	InvalidStateRoot(T),
 	/// Trie item not found in the database,
 	IncompleteDatabase(T),
 	/// Corrupt Trie item
-	DecoderError(T),
+	DecoderError(T, Box<error::Error>),
 }
 
 impl<T> fmt::Display for TrieError<T> where T: std::fmt::Debug {
@@ -77,7 +77,7 @@ impl<T> fmt::Display for TrieError<T> where T: std::fmt::Debug {
 		match *self {
 			TrieError::InvalidStateRoot(ref root) => write!(f, "Invalid state root: {:?}", root),
 			TrieError::IncompleteDatabase(ref missing) => write!(f, "Database missing expected key: {:?}", missing),
-			TrieError::DecoderError(ref err) =>  write!(f, "Decoding failed for {:?}", err),
+			TrieError::DecoderError(ref hash, ref decoder_err) =>  write!(f, "Decoding failed for hash {:?}; err: {:?}", hash, decoder_err),
 		}
 	}
 }
@@ -87,7 +87,7 @@ impl<T> error::Error for TrieError<T> where T: std::fmt::Debug {
 		match *self {
 			TrieError::InvalidStateRoot(_) => "Invalid state root",
 			TrieError::IncompleteDatabase(_) => "Incomplete database",
-			TrieError::DecoderError(_) => "Decoder error",
+			TrieError::DecoderError(_, ref err) => err.description(),
 		}
 	}
 }
