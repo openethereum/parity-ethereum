@@ -106,7 +106,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	fn new_filter(&self, filter: Filter) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
 		let block_number = self.best_block_number();
-		let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
+		let id = polls.create_poll(PollFilter::Logs(block_number, None, Default::default(), filter));
 		Ok(id.into())
 	}
 
@@ -164,7 +164,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					// return new hashes
 					Either::A(future::ok(FilterChanges::Hashes(new_hashes)))
 				},
-				PollFilter::Logs(ref mut block_number, ref mut previous_logs, ref filter) => {
+				PollFilter::Logs(ref mut block_number, ref mut block_hash, ref mut previous_logs, ref filter) => {
 					// retrive the current block number
 					let current_number = self.best_block_number();
 
@@ -214,7 +214,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 			let mut polls = self.polls().lock();
 
 			match polls.poll(&index.value()) {
-				Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => filter.clone(),
+				Some(&PollFilter::Logs(ref _block_number, ref _block_hash, ref _previous_log, ref filter)) => filter.clone(),
 				// just empty array
 				Some(_) => return Box::new(future::ok(Vec::new())),
 				None => return Box::new(future::err(errors::filter_not_found())),

@@ -30,7 +30,7 @@ pub enum PollFilter {
 	/// Hashes of all transactions which client was notified about.
 	PendingTransaction(Vec<H256>),
 	/// Number of From block number, pending logs and log filter itself.
-	Logs(BlockNumber, HashSet<Log>, Filter)
+	Logs(BlockNumber, Option<H256>, HashSet<Log>, Filter)
 }
 
 /// Returns only last `n` logs
