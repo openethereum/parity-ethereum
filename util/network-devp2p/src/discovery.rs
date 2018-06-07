@@ -46,7 +46,12 @@ const PING_TIMEOUT: Duration = Duration::from_millis(300);
 const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
 const EXPIRY_TIME: Duration = Duration::from_secs(60);
 const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
-const REQUEST_BACKOFF: [u64; 4] = [1, 4, 16, 64];
+const REQUEST_BACKOFF: [Duration; 4] = [
+	Duration::from_secs(1),
+	Duration::from_secs(4),
+	Duration::from_secs(16),
+	Duration::from_secs(64)
+];
 
 #[derive(Clone, Debug)]
 pub struct NodeEntry {
@@ -105,7 +110,7 @@ pub struct Datagram {
 	pub address: SocketAddr,
 }
 
-pub struct Discovery {
+pub struct Discovery<'a> {
 	id: NodeId,
 	id_hash: H256,
 	secret: Secret,
@@ -121,7 +126,7 @@ pub struct Discovery {
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
 	ip_filter: IpFilter,
-	request_backoff: Vec<Duration>,
+	request_backoff: &'a [Duration],
 }
 
 pub struct TableUpdates {
@@ -129,8 +134,8 @@ pub struct TableUpdates {
 	pub removed: HashSet<NodeId>,
 }
 
-impl Discovery {
-	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery {
+impl<'a> Discovery<'a> {
+	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery<'static> {
 		Discovery {
 			id: key.public().clone(),
 			id_hash: keccak(key.public()),
@@ -147,7 +152,7 @@ impl Discovery {
 			check_timestamps: true,
 			adding_nodes: Vec::new(),
 			ip_filter: ip_filter,
-			request_backoff: REQUEST_BACKOFF.iter().map(|s| Duration::from_secs(*s)).collect(),
+			request_backoff: &REQUEST_BACKOFF,
 		}
 	}
 
@@ -800,8 +805,9 @@ mod tests {
 	fn removes_expired() {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
-		discovery.request_backoff = vec![];
+		let discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+
+		let mut discovery = Discovery { request_backoff: &[], ..discovery };
 
 		let total_bucket_nodes = |node_buckets: &Vec<NodeBucket>| -> usize {
 			node_buckets.iter().map(|bucket| bucket.nodes.len()).sum()
@@ -857,7 +863,8 @@ mod tests {
 		assert_eq!(removed, 0);
 
 		// Test bucket evictions with retries.
-		discovery.request_backoff = vec![Duration::new(0, 0); 2];
+		let request_backoff = [Duration::new(0, 0); 2];
+		let mut discovery = Discovery { request_backoff: &request_backoff, ..discovery };
 
 		for _ in 0..2 {
 			discovery.ping(&node_entries[101]).unwrap();
