@@ -165,6 +165,22 @@ make_pkg () {
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/purity.exe"
 }
+<<<<<<< HEAD
+make_exe () {
+  ./msbuild.cmd
+  ./sign.cmd $keyfile $certpass windows/ptray/x64/release/ptray.exe
+  cd nsis
+  curl -sL --url "https://github.com/paritytech/win-build/raw/master/vc_redist.x64.exe" -o vc_redist.x64.exe
+  echo "makensis.exe installer.nsi" > nsis.cmd
+  ./nsis.cmd
+  cd ..
+  cp nsis/installer.exe "purity_"$VER"_"$IDENT"_"$ARC"."$EXT
+  ./sign.cmd $keyfile $certpass "purity_"$VER"_"$IDENT"_"$ARC"."$EXT
+  $MD5_BIN "purity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "purity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
+  $SHA256_BIN "purity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "purity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
+}
+=======
+>>>>>>> master
 push_binaries () {
   echo "Push binaries to AWS S3"
   aws configure set aws_access_key_id $s3_key
@@ -191,6 +207,12 @@ push_binaries () {
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN --body target/$PLATFORM/release/whisper$S3WIN
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.md5 --body whisper$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.sha256 --body whisper$S3WIN.sha256
+<<<<<<< HEAD
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"purity_"$VER"_"$IDENT"_"$ARC"."$EXT --body "purity_"$VER"_"$IDENT"_"$ARC"."$EXT
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"purity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5" --body "purity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"purity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256" --body "purity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
+=======
+>>>>>>> master
 }
 make_archive () {
   echo "add artifacts to archive"

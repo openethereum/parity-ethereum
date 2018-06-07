@@ -90,7 +90,7 @@ pub struct Execute {
 	pub cmd: Cmd,
 }
 
-/// Configuration for the Parity client.
+/// Configuration for the Purity client.
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
 	/// Arguments to be interpreted.
@@ -103,7 +103,7 @@ impl Configuration {
 	/// # Example
 	///
 	/// ```
-	/// let _cfg = parity::Configuration::parse_cli(&["--light", "--chain", "koven"]).unwrap();
+	/// let _cfg = purity::Configuration::parse_cli(&["--light", "--chain", "koven"]).unwrap();
 	/// ```
 	pub fn parse_cli<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 		let config = Configuration {
@@ -1195,14 +1195,14 @@ mod tests {
 
 	#[test]
 	fn test_command_version() {
-		let args = vec!["parity", "--version"];
+		let args = vec!["purity", "--version"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Version);
 	}
 
 	#[test]
 	fn test_command_account_new() {
-		let args = vec!["parity", "account", "new"];
+		let args = vec!["purity", "account", "new"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
@@ -1214,7 +1214,7 @@ mod tests {
 
 	#[test]
 	fn test_command_account_list() {
-		let args = vec!["parity", "account", "list"];
+		let args = vec!["purity", "account", "list"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
 			AccountCmd::List(ListAccounts {
@@ -1226,7 +1226,7 @@ mod tests {
 
 	#[test]
 	fn test_command_account_import() {
-		let args = vec!["parity", "account", "import", "my_dir", "another_dir"];
+		let args = vec!["purity", "account", "import", "my_dir", "another_dir"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
@@ -1237,7 +1237,7 @@ mod tests {
 
 	#[test]
 	fn test_command_wallet_import() {
-		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
+		let args = vec!["purity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
@@ -1250,7 +1250,7 @@ mod tests {
 
 	#[test]
 	fn test_command_blockchain_import() {
-		let args = vec!["parity", "import", "blockchain.json"];
+		let args = vec!["purity", "import", "blockchain.json"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
 			spec: Default::default(),
@@ -1275,7 +1275,7 @@ mod tests {
 
 	#[test]
 	fn test_command_blockchain_export() {
-		let args = vec!["parity", "export", "blocks", "blockchain.json"];
+		let args = vec!["purity", "export", "blocks", "blockchain.json"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
@@ -1298,7 +1298,7 @@ mod tests {
 
 	#[test]
 	fn test_command_state_export() {
-		let args = vec!["parity", "export", "state", "state.json"];
+		let args = vec!["purity", "export", "state", "state.json"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::ExportState(ExportState {
 			spec: Default::default(),
@@ -1323,7 +1323,7 @@ mod tests {
 
 	#[test]
 	fn test_command_blockchain_export_with_custom_format() {
-		let args = vec!["parity", "export", "blocks", "--format", "hex", "blockchain.json"];
+		let args = vec!["purity", "export", "blocks", "--format", "hex", "blockchain.json"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
@@ -1346,7 +1346,7 @@ mod tests {
 
 	#[test]
 	fn test_command_signer_new_token() {
-		let args = vec!["parity", "signer", "new-token"];
+		let args = vec!["purity", "signer", "new-token"];
 		let conf = parse(&args);
 		let expected = Directories::default().signer;
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(WsConfiguration {
@@ -1369,7 +1369,7 @@ mod tests {
 
 	#[test]
 	fn test_ws_max_connections() {
-		let args = vec!["parity", "--ws-max-connections", "1"];
+		let args = vec!["purity", "--ws-max-connections", "1"];
 		let conf = parse(&args);
 
 		assert_eq!(conf.ws_config().unwrap(), WsConfiguration {
@@ -1380,7 +1380,7 @@ mod tests {
 
 	#[test]
 	fn test_run_cmd() {
-		let args = vec!["parity"];
+		let args = vec!["purity"];
 		let conf = parse(&args);
 		let mut expected = RunCmd {
 			cache_config: Default::default(),
@@ -1458,8 +1458,8 @@ mod tests {
 		let mut mining_options = MinerOptions::default();
 
 		// when
-		let conf0 = parse(&["parity"]);
-		let conf2 = parse(&["parity", "--tx-queue-strategy", "gas_price"]);
+		let conf0 = parse(&["purity"]);
+		let conf2 = parse(&["purity", "--tx-queue-strategy", "gas_price"]);
 
 		// then
 		assert_eq!(conf0.miner_options().unwrap(), mining_options);
@@ -1469,7 +1469,7 @@ mod tests {
 
 	#[test]
 	fn should_fail_on_force_reseal_and_reseal_min_period() {
-		let conf = parse(&["parity", "--chain", "dev", "--force-sealing", "--reseal-min-period", "0"]);
+		let conf = parse(&["purity", "--chain", "dev", "--force-sealing", "--reseal-min-period", "0"]);
 
 		assert!(conf.miner_options().is_err());
 	}
@@ -1477,10 +1477,10 @@ mod tests {
 	#[test]
 	fn should_parse_updater_options() {
 		// when
-		let conf0 = parse(&["parity", "--release-track=testing"]);
-		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta", "--auto-update-delay=300", "--auto-update-check-frequency=100"]);
-		let conf3 = parse(&["parity", "--auto-update=xxx"]);
+		let conf0 = parse(&["purity", "--release-track=testing"]);
+		let conf1 = parse(&["purity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
+		let conf2 = parse(&["purity", "--no-download", "--auto-update=all", "--release-track=beta", "--auto-update-delay=300", "--auto-update-check-frequency=100"]);
+		let conf3 = parse(&["purity", "--auto-update=xxx"]);
 
 		// then
 		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy {
@@ -1521,7 +1521,7 @@ mod tests {
 		// given
 
 		// when
-		let conf = parse(&["parity", "--testnet", "--identity", "testname"]);
+		let conf = parse(&["purity", "--testnet", "--identity", "testname"]);
 
 		// then
 		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
@@ -1547,13 +1547,13 @@ mod tests {
 		}
 
 		// when
-		let conf1 = parse(&["parity", "-j",
+		let conf1 = parse(&["purity", "-j",
 						 "--jsonrpc-port", "8000",
 						 "--jsonrpc-interface", "all",
 						 "--jsonrpc-cors", "*",
 						 "--jsonrpc-apis", "web3,eth"
 						 ]);
-		let conf2 = parse(&["parity", "--rpc",
+		let conf2 = parse(&["purity", "--rpc",
 						  "--rpcport", "8000",
 						  "--rpcaddr", "all",
 						  "--rpccorsdomain", "*",
@@ -1570,10 +1570,10 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--jsonrpc-hosts", "none"]);
-		let conf2 = parse(&["parity", "--jsonrpc-hosts", "all"]);
-		let conf3 = parse(&["parity", "--jsonrpc-hosts", "parity.io,something.io"]);
+		let conf0 = parse(&["purity"]);
+		let conf1 = parse(&["purity", "--jsonrpc-hosts", "none"]);
+		let conf2 = parse(&["purity", "--jsonrpc-hosts", "all"]);
+		let conf3 = parse(&["purity", "--jsonrpc-hosts", "parity.io,something.io"]);
 
 		// then
 		assert_eq!(conf0.rpc_hosts(), Some(Vec::new()));
@@ -1587,10 +1587,10 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--ipfs-api-hosts", "none"]);
-		let conf2 = parse(&["parity", "--ipfs-api-hosts", "all"]);
-		let conf3 = parse(&["parity", "--ipfs-api-hosts", "parity.io,something.io"]);
+		let conf0 = parse(&["purity"]);
+		let conf1 = parse(&["purity", "--ipfs-api-hosts", "none"]);
+		let conf2 = parse(&["purity", "--ipfs-api-hosts", "all"]);
+		let conf3 = parse(&["purity", "--ipfs-api-hosts", "parity.io,something.io"]);
 
 		// then
 		assert_eq!(conf0.ipfs_hosts(), Some(Vec::new()));
@@ -1604,9 +1604,9 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--ipfs-api-cors", "*"]);
-		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://parity.io,http://something.io"]);
+		let conf0 = parse(&["purity"]);
+		let conf1 = parse(&["purity", "--ipfs-api-cors", "*"]);
+		let conf2 = parse(&["purity", "--ipfs-api-cors", "http://parity.io,http://something.io"]);
 
 		// then
 		assert_eq!(conf0.ipfs_cors(), Some(vec![]));
@@ -1619,11 +1619,11 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity", "--ui-path=signer"]);
-		let conf1 = parse(&["parity", "--ui-path=signer", "--ui-no-validation"]);
-		let conf2 = parse(&["parity", "--ui-path=signer", "--ui-port", "3123"]);
-		let conf3 = parse(&["parity", "--ui-path=signer", "--ui-interface", "test"]);
-		let conf4 = parse(&["parity", "--ui-path=signer", "--force-ui"]);
+		let conf0 = parse(&["purity", "--ui-path=signer"]);
+		let conf1 = parse(&["purity", "--ui-path=signer", "--ui-no-validation"]);
+		let conf2 = parse(&["purity", "--ui-path=signer", "--ui-port", "3123"]);
+		let conf3 = parse(&["purity", "--ui-path=signer", "--ui-interface", "test"]);
+		let conf4 = parse(&["purity", "--ui-path=signer", "--force-ui"]);
 
 		// then
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
@@ -1648,7 +1648,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 
 		// when
-		let conf0 = parse(&["parity", "dapp", tempdir.path().to_str().unwrap()]);
+		let conf0 = parse(&["purity", "dapp", tempdir.path().to_str().unwrap()]);
 
 		// then
 		assert_eq!(conf0.dapp_to_open(), Ok(Some(tempdir.path().file_name().unwrap().to_str().unwrap().into())));
@@ -1661,7 +1661,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let filename = tempdir.path().join("peers");
 		File::create(&filename).unwrap().write_all(b"  \n\t\n").unwrap();
-		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
+		let args = vec!["purity", "--reserved-peers", filename.to_str().unwrap()];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
@@ -1671,7 +1671,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let filename = tempdir.path().join("peers_comments");
 		File::create(&filename).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
-		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
+		let args = vec!["purity", "--reserved-peers", filename.to_str().unwrap()];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		let reserved_nodes = conf.init_reserved_nodes();
 		assert!(reserved_nodes.is_ok());
@@ -1680,7 +1680,7 @@ mod tests {
 
 	#[test]
 	fn test_dev_preset() {
-		let args = vec!["parity", "--config", "dev"];
+		let args = vec!["purity", "--config", "dev"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1694,7 +1694,7 @@ mod tests {
 
 	#[test]
 	fn test_mining_preset() {
-		let args = vec!["parity", "--config", "mining"];
+		let args = vec!["purity", "--config", "mining"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1716,7 +1716,7 @@ mod tests {
 
 	#[test]
 	fn test_non_standard_ports_preset() {
-		let args = vec!["parity", "--config", "non-standard-ports"];
+		let args = vec!["purity", "--config", "non-standard-ports"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1729,7 +1729,7 @@ mod tests {
 
 	#[test]
 	fn test_insecure_preset() {
-		let args = vec!["parity", "--config", "insecure"];
+		let args = vec!["purity", "--config", "insecure"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1749,7 +1749,7 @@ mod tests {
 
 	#[test]
 	fn test_dev_insecure_preset() {
-		let args = vec!["parity", "--config", "dev-insecure"];
+		let args = vec!["purity", "--config", "dev-insecure"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1772,7 +1772,7 @@ mod tests {
 
 	#[test]
 	fn test_override_preset() {
-		let args = vec!["parity", "--config", "mining", "--min-peers=99"];
+		let args = vec!["purity", "--config", "mining", "--min-peers=99"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1787,8 +1787,8 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity", "--ports-shift", "1", "--stratum"]);
-		let conf1 = parse(&["parity", "--ports-shift", "1", "--jsonrpc-port", "8544"]);
+		let conf0 = parse(&["purity", "--ports-shift", "1", "--stratum"]);
+		let conf1 = parse(&["purity", "--ports-shift", "1", "--jsonrpc-port", "8544"]);
 
 		// then
 		assert_eq!(conf0.net_addresses().unwrap().0.port(), 30304);
@@ -1816,7 +1816,7 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity", "--unsafe-expose"]);
+		let conf0 = parse(&["purity", "--unsafe-expose"]);
 
 		// then
 		assert_eq!(&conf0.network_settings().unwrap().rpc_interface, "0.0.0.0");
@@ -1833,12 +1833,12 @@ mod tests {
 
 	#[test]
 	fn allow_ips() {
-		let all = parse(&["parity", "--allow-ips", "all"]);
-		let private = parse(&["parity", "--allow-ips", "private"]);
-		let block_custom = parse(&["parity", "--allow-ips", "-10.0.0.0/8"]);
-		let combo = parse(&["parity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
-		let ipv6_custom_public = parse(&["parity", "--allow-ips", "public fc00::/7"]);
-		let ipv6_custom_private = parse(&["parity", "--allow-ips", "private -fc00::/7"]);
+		let all = parse(&["purity", "--allow-ips", "all"]);
+		let private = parse(&["purity", "--allow-ips", "private"]);
+		let block_custom = parse(&["purity", "--allow-ips", "-10.0.0.0/8"]);
+		let combo = parse(&["purity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
+		let ipv6_custom_public = parse(&["purity", "--allow-ips", "public fc00::/7"]);
+		let ipv6_custom_private = parse(&["purity", "--allow-ips", "private -fc00::/7"]);
 
 		assert_eq!(all.ip_filter().unwrap(), IpFilter {
 			predefined: AllowIP::All,
@@ -1879,8 +1879,8 @@ mod tests {
 
 	#[test]
 	fn should_use_correct_cache_path_if_base_is_set() {
-		let std = parse(&["parity"]);
-		let base = parse(&["parity", "--base-path", "/test"]);
+		let std = parse(&["purity"]);
+		let base = parse(&["purity", "--base-path", "/test"]);
 
 		let base_path = ::dir::default_data_path();
 		let local_path = ::dir::default_local_path();
@@ -1890,7 +1890,7 @@ mod tests {
 
 	#[test]
 	fn should_respect_only_max_peers_and_default() {
-		let args = vec!["parity", "--max-peers=50"];
+		let args = vec!["purity", "--max-peers=50"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1903,7 +1903,7 @@ mod tests {
 
 	#[test]
 	fn should_respect_only_max_peers_less_than_default() {
-		let args = vec!["parity", "--max-peers=5"];
+		let args = vec!["purity", "--max-peers=5"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1916,7 +1916,7 @@ mod tests {
 
 	#[test]
 	fn should_respect_only_min_peers_and_default() {
-		let args = vec!["parity", "--min-peers=5"];
+		let args = vec!["purity", "--min-peers=5"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1929,7 +1929,7 @@ mod tests {
 
 	#[test]
 	fn should_respect_only_min_peers_and_greater_than_default() {
-		let args = vec!["parity", "--min-peers=500"];
+		let args = vec!["purity", "--min-peers=500"];
 		let conf = Configuration::parse_cli(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {

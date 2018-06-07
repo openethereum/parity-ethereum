@@ -37,7 +37,7 @@ pub fn to_duration(s: &str) -> Result<Duration, String> {
 
 fn to_seconds(s: &str) -> Result<u64, String> {
 	let bad = |_| {
-		format!("{}: Invalid duration given. See parity --help for more information.", s)
+		format!("{}: Invalid duration given. See purity --help for more information.", s)
 	};
 
 	match s {
@@ -267,7 +267,7 @@ pub fn execute_upgrades(
 			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},
 		Err(e) => {
-			return Err(format!("Error upgrading parity data: {:?}", e));
+			return Err(format!("Error upgrading purity data: {:?}", e));
 		},
 		_ => {},
 	}

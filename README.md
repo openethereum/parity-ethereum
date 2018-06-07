@@ -1,4 +1,4 @@
-# Parity - fast, light, and robust Ethereum client
+# Purity - fast, light, and robust Ethereum client
 
 ## [» Download the latest release «](https://github.com/paritytech/parity/releases/latest)
 
@@ -23,23 +23,23 @@ Official website: https://parity.io | Be sure to check out [our wiki](https://wi
 
 ----
 
-## About Parity
+## About Purity
 
-Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
+Purity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Purity using the sophisticated and cutting-edge Rust programming language. Purity is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
 From Parity Ethereum client version 1.10.0, the User Interface (UI) is accessible in a separate application called Parity UI. To keep using the UI in the browser (deprecated), [follow these steps](https://wiki.parity.io/FAQ-Basic-Operations,-Configuration,-and-Synchronization#the-parity-ui-application-isnt-working-the-way-i-want).
 
-By default, Parity will also run a JSONRPC server on `127.0.0.1:8545` and a websockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
+By default, Purity will run a JSONRPC server on `127.0.0.1:8545` and a websockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
 
-If you run into an issue while using Parity, feel free to file one in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.MD](SECURITY.md).
+If you run into an issue while using Purity, feel free to file one in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.MD](SECURITY.md).
 
-Parity's current beta-release is 1.11. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
+Purity's current beta-release is 2.0. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
 
 ----
 
 ## Build dependencies
 
-**Parity requires Rust version 1.26.0 to build**
+**Purity requires Rust version 1.26.1 to build**
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
@@ -48,7 +48,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
 
-	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev` and `pkg-config` packages to be installed.
+	Purity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev` and `pkg-config` packages to be installed.
 
 - OSX:
 	```bash
@@ -68,7 +68,7 @@ Once you have rustup installed, then you need to install:
 * [Perl](https://www.perl.org)
 * [Yasm](http://yasm.tortall.net)
 
-Make sure that these binaries are in your `PATH`. After that you should be able to build parity from source.
+Make sure that these binaries are in your `PATH`. After that you should be able to build `purity` from source.
 
 ----
 
@@ -97,7 +97,7 @@ sudo snap install parity --edge
 ## Build from source
 
 ```bash
-# download Parity code
+# download Purity code
 $ git clone https://github.com/paritytech/parity
 $ cd parity
 
@@ -147,22 +147,22 @@ The one-line installer always defaults to the latest beta release. To install a 
 bash <(curl https://get.parity.io -L) -r stable
 ```
 
-## Start Parity
+## Start Purity
 
 ### Manually
 
-To start Parity manually, just run
+To start Purity manually, just run
 
 ```bash
-$ ./target/release/parity
+$ ./target/release/purity
 ```
 
-and Parity will begin syncing the Ethereum blockchain.
+and Purity will begin syncing the Ethereum blockchain.
 
 ### Using systemd service file
 
-To start Parity as a regular user using systemd init:
+To start Purity as a regular user using systemd init:
 
 1. Copy `./scripts/parity.service` to your
 systemd user directory (usually `~/.config/systemd/user`).
-2. To configure Parity, write a `/etc/parity/config.toml` config file, see [Configuring Parity](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+2. To configure Purity, write a `/etc/parity/config.toml` config file, see [Configuring Purity](https://paritytech.github.io/wiki/Configuring-Parity) for details.

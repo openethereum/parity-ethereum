@@ -38,7 +38,8 @@ node_modules
 
 # Build artifacts
 out/
-
+**/build/
 .vscode
 rls/
 /parity.*
+/purity.*

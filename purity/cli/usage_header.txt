@@ -1,0 +1,3 @@
+Purity. The Parity Ethereum Client.
+	By Wood/Paronyan/Kotewicz/Drwięga/Volf et al.
+	Copyright 2015 - 2018 Parity Technologies (UK) Ltd

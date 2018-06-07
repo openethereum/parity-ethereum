@@ -37,7 +37,7 @@ usage! {
 
 		CMD cmd_daemon
 		{
-			"Use Parity as a daemon",
+			"Use Purity as a daemon",
 
 			ARG arg_daemon_pid_file: (Option<String>) = None,
 			"<PID-FILE>",
@@ -254,11 +254,11 @@ usage! {
 
 			FLAG flag_force_direct: (bool) = false, or |_| None,
 			"--force-direct",
-			"Run the originally installed version of Parity, ignoring any updates that have since been installed.",
+			"Run the originally installed version of Purity, ignoring any updates that have since been installed.",
 
 			ARG arg_mode: (String) = "last", or |c: &Config| c.parity.as_ref()?.mode.clone(),
 			"--mode=[MODE]",
-			"Set the operating mode. MODE can be one of: last - Uses the last-used mode, active if none; active - Parity continuously syncs the chain; passive - Parity syncs initially, then sleeps and wakes regularly to resync; dark - Parity syncs only when the RPC is active; offline - Parity doesn't sync.",
+			"Set the operating mode. MODE can be one of: last - Uses the last-used mode, active if none; active - Purity continuously syncs the chain; passive - Purity syncs initially, then sleeps and wakes regularly to resync; dark - Purity syncs only when the RPC is active; offline - Purity doesn't sync.",
 
 			ARG arg_mode_timeout: (u64) = 300u64, or |c: &Config| c.parity.as_ref()?.mode_timeout.clone(),
 			"--mode-timeout=[SECS]",
@@ -315,7 +315,7 @@ usage! {
 
 			ARG arg_ports_shift: (u16) = 0u16, or |c: &Config| c.misc.as_ref()?.ports_shift,
 			"--ports-shift=[SHIFT]",
-			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (RPC, WebSockets, UI, IPFS, SecretStore).",
+			"Add SHIFT to all port numbers Purity is listening on. Includes network port and all servers (RPC, WebSockets, UI, IPFS, SecretStore).",
 
 		["Account options"]
 			FLAG flag_no_hardware_wallets: (bool) = false, or |c: &Config| c.account.as_ref()?.disable_hardware.clone(),
@@ -776,7 +776,7 @@ usage! {
 
 			ARG arg_ntp_servers: (String) = "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123", or |c: &Config| c.misc.as_ref()?.ntp_servers.clone().map(|vec| vec.join(",")),
 			"--ntp-servers=[HOSTS]",
-			"Comma separated list of NTP servers to provide current time (host:port). Used to verify node health. Parity uses pool.ntp.org NTP servers; consider joining the pool: http://www.pool.ntp.org/join.html",
+			"Comma separated list of NTP servers to provide current time (host:port). Used to verify node health. Purity uses pool.ntp.org NTP servers; consider joining the pool: http://www.pool.ntp.org/join.html",
 
 			ARG arg_logging: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?.logging.clone(),
 			"-l, --logging=[LOGGING]",
@@ -917,7 +917,7 @@ usage! {
 
 			FLAG flag_public_node: (bool) = false, or |_| None,
 			"--public-node",
-			"Does nothing; Public node is removed from Parity.",
+			"Does nothing; Public node is removed from Purity.",
 
 			FLAG flag_force_ui: (bool) = false, or |_| None,
 			"--force-ui",
@@ -1662,7 +1662,7 @@ mod tests {
 			arg_price_update_period: "hourly".into(),
 			arg_gas_floor_target: "4700000".into(),
 			arg_gas_cap: "6283184".into(),
-			arg_extra_data: Some("Parity".into()),
+			arg_extra_data: Some("Purity".into()),
 			arg_tx_queue_size: 8192usize,
 			arg_tx_queue_per_sender: None,
 			arg_tx_queue_mem_limit: 4u32,

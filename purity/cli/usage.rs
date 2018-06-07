@@ -390,7 +390,7 @@ macro_rules! usage {
 
 				// Subcommands
 				let mut subcommands_wrapper = Wrapper::new(term_width).subsequent_indent(TAB);
-				help.push_str("parity [options]\n");
+				help.push_str("purity [options]\n");
 				$(
 					{
 						let mut subc_subc_exist = false;
@@ -408,7 +408,7 @@ macro_rules! usage {
 
 							help.push_str(&subcommands_wrapper.fill(
 								format!(
-									"parity [options] {} {} {}\n",
+									"purity [options] {} {} {}\n",
 									underscore_to_hyphen!(&stringify!($subc)[4..]),
 									underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]),
 									subc_subc_usages.join(" ")
@@ -429,7 +429,7 @@ macro_rules! usage {
 
 							help.push_str(&subcommands_wrapper.fill(
 								format!(
-									"parity [options] {} {}\n",
+									"purity [options] {} {}\n",
 									underscore_to_hyphen!(&stringify!($subc)[4..]),
 									subc_usages.join(" ")
 								).as_ref())
@@ -607,7 +607,7 @@ macro_rules! usage {
 					}
 				)*
 
-				let matches = App::new("Parity")
+				let matches = App::new("Purity")
 				    	.global_setting(AppSettings::VersionlessSubcommands)
 						.global_setting(AppSettings::DisableHelpSubcommand)
 						.max_term_width(MAX_TERM_WIDTH)
@@ -630,7 +630,7 @@ macro_rules! usage {
 								.about($subc_help)
 								.args(&subc_usages.get(stringify!($subc)).unwrap().iter().map(|u| Arg::from_usage(u).use_delimiter(false).allow_hyphen_values(true)).collect::<Vec<Arg>>())
 								$(
-									.setting(AppSettings::SubcommandRequired) // prevent from running `parity account`
+									.setting(AppSettings::SubcommandRequired) // prevent from running `purity account`
 									.subcommand(
 										SubCommand::with_name(&underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]))
 										.about($subc_subc_help)

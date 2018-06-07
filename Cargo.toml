@@ -1,8 +1,8 @@
 [package]
-description = "Parity Ethereum client"
-name = "parity"
+description = "Purity - The Parity Ethereum Client"
+name = "purity"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "1.12.0"
+version = "2.0.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -100,11 +100,11 @@ final = ["parity-version/final"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
 [lib]
-path = "parity/lib.rs"
+path = "purity/lib.rs"
 
 [[bin]]
-path = "parity/main.rs"
-name = "parity"
+path = "purity/main.rs"
+name = "purity"
 
 [profile.dev]
 panic = "abort"

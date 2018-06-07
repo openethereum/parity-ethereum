@@ -12,7 +12,7 @@ confinement: strict
 
 apps:
   parity:
-    command: parity
+    command: purity
     plugs: [home, network, network-bind, mount-observe, x11, unity7, desktop, desktop-legacy, wayland]
     desktop: usr/share/applications/parity.desktop
 
