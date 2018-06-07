@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,19 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Mode type
+use std::sync::Arc;
+use ethcore::account_provider::AccountProvider;
+use jsonrpc_core::Error;
+use v1::helpers::errors;
 
-pub use std::time::Duration;
-
-/// IPC-capable shadow-type for `client::config::Mode`
-#[derive(Clone, Debug)]
-pub enum Mode {
-	/// Same as `ClientMode::Off`.
-	Off,
-	/// Same as `ClientMode::Dark`; values in seconds.
-	Dark(u64),
-	/// Same as `ClientMode::Passive`; values in seconds.
-	Passive(u64, u64),
-	/// Same as `ClientMode::Active`.
-	Active,
+pub fn unwrap_provider(provider: &Option<Arc<AccountProvider>>) -> Result<Arc<AccountProvider>, Error> {
+	match *provider {
+		Some(ref arc) => Ok(arc.clone()),
+		None => Err(errors::public_unsupported(None)),
+	}
 }

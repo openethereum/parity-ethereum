@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -213,7 +213,6 @@ impl PackedReader {
 			// ensure we don't seek before beginning.
 			return Ok(None);
 		}
-
 
 		file.seek(SeekFrom::End(-8))?;
 		let mut off_bytes = [0u8; 8];

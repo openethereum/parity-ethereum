@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -283,7 +283,6 @@ fn hash256aux<A: AsRef<[u8]>, B: AsRef<[u8]>>(input: &[(A, B)], pre_len: usize, 
 	};
 }
 
-
 #[test]
 fn test_nibbles() {
 	let v = vec![0x31, 0x23, 0x45];
@@ -295,7 +294,6 @@ fn test_nibbles() {
 	let e = vec![4, 1];
 	assert_eq!(as_nibbles(&v), e);
 }
-
 
 #[cfg(test)]
 mod tests {

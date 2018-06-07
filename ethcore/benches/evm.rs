@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,7 +27,6 @@ extern crate ethcore_bigint;
 
 use self::test::{Bencher};
 use rand::{StdRng};
-
 
 #[bench]
 fn bn_128_pairing(b: &mut Bencher) {
@@ -92,4 +91,3 @@ fn ecrecover(b: &mut Bencher) {
 		let _ = ec_recover(&s, &hash);
 	});
 }
-

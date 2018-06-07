@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -408,6 +408,10 @@ impl UnverifiedTransaction {
 	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>, allow_empty_signature: bool) -> Result<(), error::Error> {
 		if check_low_s && !(allow_empty_signature && self.is_unsigned()) {
 			self.check_low_s()?;
+		}
+		// Disallow unsigned transactions in case EIP-86 is disabled.
+		if !allow_empty_signature && self.is_unsigned() {
+			return Err(ethkey::Error::InvalidSignature.into());
 		}
 		// EIP-86: Transactions of this form MUST have gasprice = 0, nonce = 0, value = 0, and do NOT increment the nonce of account 0.
 		if allow_empty_signature && self.is_unsigned() && !(self.gas_price.is_zero() && self.value.is_zero() && self.nonce.is_zero()) {

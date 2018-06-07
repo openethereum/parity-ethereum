@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -337,7 +337,6 @@ fn change_field<T>(hash: &mut Option<H256>, field: &mut T, value: T) where T: Pa
 		*hash = None;
 	}
 }
-
 
 impl Decodable for Header {
 	fn decode(r: &Rlp) -> Result<Self, DecoderError> {

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -95,4 +95,3 @@ impl<S : fmt::Display> Stack<S> for VecStack<S> {
 		&self.stack[self.stack.len() - no_from_top .. self.stack.len()]
 	}
 }
-
