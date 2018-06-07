@@ -832,19 +832,21 @@ impl Host {
 				let writable = discovery.any_sends_queued();
 				let res = match udp_socket.recv_from(&mut buf) {
 					Ok(Some((len, address))) => discovery.on_packet(&buf[0..len], address).unwrap_or_else(|e| {
-						debug!("Error processing UDP packet: {:?}", e);
+						debug!(target: "network", "Error processing UDP packet: {:?}", e);
 						None
 					}),
 					Ok(_) => None,
 					Err(e) => {
-						debug!("Error reading UPD socket: {:?}", e);
+						debug!(target: "network", "Error reading UPD socket: {:?}", e);
 						None
 					}
 				};
 				let new_writable = discovery.any_sends_queued();
 				if writable != new_writable {
 					io.update_registration(DISCOVERY)
-						.unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
+						.unwrap_or_else(|e| {
+							debug!(target: "network" ,"Error updating discovery registration: {:?}", e)
+						});
 				}
 				res
 			},
@@ -863,20 +865,22 @@ impl Host {
 						Ok(Some(size)) if size == data.payload.len() => {
 						},
 						Ok(Some(_)) => {
-							warn!("UDP sent incomplete datagram");
+							warn!(target: "network", "UDP sent incomplete datagram");
 						},
 						Ok(None) => {
 							discovery.requeue_send(data);
 							return;
 						}
 						Err(e) => {
-							debug!("UDP send error: {:?}, address: {:?}", e, &data.address);
+							debug!(target: "network", "UDP send error: {:?}, address: {:?}", e, &data.address);
 							return;
 						}
 					}
 				}
 				io.update_registration(DISCOVERY)
-					.unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
+					.unwrap_or_else(|e| {
+						debug!(target: "network", "Error updating discovery registration: {:?}", e)
+					});
 			},
 			_ => (),
 		}
