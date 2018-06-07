@@ -52,6 +52,9 @@ pub trait Filterable {
 
 	/// Get a reference to the poll manager.
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>>;
+
+	/// Get a route from the given block to the nearest canon block, not including the canon block.
+	fn canon_route(&self, block_hash: H256) -> Vec<H256>;
 }
 
 /// Eth filter rpc implementation for a full node.
@@ -100,6 +103,26 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 	}
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> { &self.polls }
+
+	fn canon_route(&self, block_hash: H256) -> Vec<H256> {
+		let inner = || -> Option<Vec<H256>> {
+			let mut route = Vec::new();
+
+			let mut current_block_hash = block_hash;
+			let mut current_block_header = self.client.block_header(BlockId::Hash(current_block_hash))?;
+
+			while current_block_hash != self.client.block_hash(BlockId::Number(current_block_header.number()))? {
+				route.push(current_block_hash);
+
+				current_block_hash = current_block_header.parent_hash();
+				current_block_header = self.client.block_header(BlockId::Hash(current_block_hash))?;
+			}
+
+			Some(route)
+		};
+
+		inner().unwrap_or_default()
+	}
 }
 
 impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
