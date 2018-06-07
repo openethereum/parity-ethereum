@@ -35,7 +35,13 @@ pub struct Lookup<'a, H: Hasher + 'a, C: NodeCodec<H>, Q: Query<H>> {
 	pub marker: PhantomData<C>, // TODO: probably not needed when all is said and done? When Query is made generic?
 }
 
-impl<'a, H: Hasher + 'a, C: NodeCodec<H>, Q: Query<H>> Lookup<'a, H, C, Q> where H::Out: Decodable {
+impl<'a, H, C, Q> Lookup<'a, H, C, Q>
+where
+	H: Hasher + 'a,
+	H::Out: Decodable,
+	C: NodeCodec<H>,
+	Q: Query<H>
+{
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
 	pub fn look_up(mut self, mut key: NibbleSlice) -> super::Result<Option<Q::Item>, H::Out> {
@@ -71,7 +77,8 @@ impl<'a, H: Hasher + 'a, C: NodeCodec<H>, Q: Query<H>> Lookup<'a, H, C, Q> where
 				/*
 				Need help writing the conversion!
 				*/
-				match C::decode(node_data).expect("FIXME: should use `?`") {
+//				match C::decode(node_data).expect("FIXME: should use `?`") {
+				match C::decode(node_data).map_err(|_| TrieError::DecoderError(hash))? {
 					Node::Leaf(slice, value) => {
 						return Ok(match slice == key {
 							true => Some(self.query.decode(value)),
