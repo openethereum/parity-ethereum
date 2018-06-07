@@ -29,14 +29,12 @@ use apps::fetcher::Fetcher;
 use endpoint::{self, Endpoint, EndpointPath};
 use Endpoints;
 use handlers;
-use Embeddable;
 
 /// Special endpoints are accessible on every domain (every dapp)
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub enum SpecialEndpoint {
 	Rpc,
 	Api,
-	Utils,
 	Home,
 	None,
 }
@@ -52,16 +50,14 @@ pub struct Router {
 	endpoints: Option<Endpoints>,
 	fetch: Arc<Fetcher>,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
-	embeddable_on: Embeddable,
 	dapps_domain: String,
 }
 
 impl Router {
-	fn resolve_request(&self, req: hyper::Request, refresh_dapps: bool) -> (bool, Response) {
+	fn resolve_request(&self, req: hyper::Request, refresh_dapps: bool) -> Response {
 		// Choose proper handler depending on path / domain
 		let endpoint = extract_endpoint(req.uri(), req.headers().get(), &self.dapps_domain);
 		let referer = extract_referer_endpoint(&req, &self.dapps_domain);
-		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
 		let is_get_request = *req.method() == hyper::Method::Get;
 		let is_head_request = *req.method() == hyper::Method::Head;
 		let has_dapp = |dapp: &str| self.endpoints
@@ -71,7 +67,7 @@ impl Router {
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", req.uri(), req);
 		debug!(target: "dapps", "Handling endpoint request: {:?}, referer: {:?}", endpoint, referer);
 
-		(is_utils, match (endpoint.0, endpoint.1, referer) {
+		match (endpoint.0, endpoint.1, referer) {
 			// Handle invalid web requests that we can recover from
 			(ref path, SpecialEndpoint::None, Some(ref referer))
 				if referer.app_id == apps::WEB_PATH
@@ -132,7 +128,6 @@ impl Router {
 						"404 Not Found",
 						"Requested content was not found.",
 						None,
-						self.embeddable_on.clone(),
 					).into())))
 				}
 			},
@@ -161,20 +156,19 @@ impl Router {
 					"404 Not Found",
 					"Requested content was not found.",
 					None,
-					self.embeddable_on.clone(),
 				).into())))
 			},
-		})
+		}
 	}
 }
 
 impl http::RequestMiddleware for Router {
 	fn on_request(&self, req: hyper::Request) -> http::RequestMiddlewareAction {
 		let is_origin_set = req.headers().get::<header::Origin>().is_some();
-		let (is_utils, response) = self.resolve_request(req, self.endpoints.is_some());
+		let response = self.resolve_request(req, self.endpoints.is_some());
 		match response {
 			Response::Some(response) => http::RequestMiddlewareAction::Respond {
-				should_validate_hosts: !is_utils,
+				should_validate_hosts: true,
 				response,
 			},
 			Response::None(request) => http::RequestMiddlewareAction::Proceed {
@@ -190,14 +184,12 @@ impl Router {
 		content_fetcher: Arc<Fetcher>,
 		endpoints: Option<Endpoints>,
 		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
-		embeddable_on: Embeddable,
 		dapps_domain: String,
 	) -> Self {
 		Router {
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,
-			embeddable_on: embeddable_on,
 			dapps_domain: format!(".{}", dapps_domain),
 		}
 	}
@@ -250,7 +242,6 @@ fn extract_endpoint(url: &Uri, extra_host: Option<&header::Host>, dapps_domain: 
 		match path[0].as_ref() {
 			apps::RPC_PATH => SpecialEndpoint::Rpc,
 			apps::API_PATH => SpecialEndpoint::Api,
-			apps::UTILS_PATH => SpecialEndpoint::Utils,
 			apps::HOME_PAGE => SpecialEndpoint::Home,
 			_ => SpecialEndpoint::None,
 		}
@@ -349,30 +340,6 @@ mod tests {
 				port: 8080,
 				using_dapps_domains: false,
 			}), SpecialEndpoint::Rpc)
-		);
-
-		assert_eq!(
-			extract_endpoint(&"http://my.status.web3.site/parity-utils/inject.js".parse().unwrap(), None, dapps_domain),
-			(Some(EndpointPath {
-				app_id: "status".to_owned(),
-				app_params: vec!["my".into(), "inject.js".into()],
-				query: None,
-				host: "my.status.web3.site".to_owned(),
-				port: 80,
-				using_dapps_domains: true,
-			}), SpecialEndpoint::Utils)
-		);
-
-		assert_eq!(
-			extract_endpoint(&"http://my.status.web3.site/inject.js".parse().unwrap(), None, dapps_domain),
-			(Some(EndpointPath {
-				app_id: "status".to_owned(),
-				app_params: vec!["my".into(), "inject.js".into()],
-				query: None,
-				host: "my.status.web3.site".to_owned(),
-				port: 80,
-				using_dapps_domains: true,
-			}), SpecialEndpoint::None)
 		);
 
 		// By Subdomain

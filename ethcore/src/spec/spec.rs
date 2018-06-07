@@ -515,7 +515,7 @@ macro_rules! load_bundled {
 	};
 }
 
-#[cfg(any(test, feature="test-helpers"))]
+#[cfg(any(test, feature = "test-helpers"))]
 macro_rules! load_machine_bundled {
 	($e:expr) => {
 		Spec::load_machine(
@@ -847,28 +847,28 @@ impl Spec {
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a
 	/// NullEngine consensus.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test() -> Spec {
 		load_bundled!("null_morden")
 	}
 
 	/// Create the EthereumMachine corresponding to Spec::new_test.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
 
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
 	/// secret is keccak('').
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_null() -> Spec {
 		load_bundled!("null")
 	}
 
 	/// Create a new Spec which constructs a contract at address 5 with storage at 0 equal to 1.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_constructor() -> Spec {
 		load_bundled!("constructor")
 	}
@@ -876,7 +876,7 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
 	/// requiring work).
 	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round() -> Self {
 		load_bundled!("authority_round")
 	}
@@ -884,7 +884,7 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
 	/// requiring work) with empty step messages enabled.
 	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round_empty_steps() -> Self {
 		load_bundled!("authority_round_empty_steps")
 	}
@@ -892,7 +892,7 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus (with empty steps) using a block reward
 	/// contract. The contract source code can be found at:
 	/// https://github.com/parity-contracts/block-reward/blob/daf7d44383b6cdb11cb6b953b018648e2b027cfb/contracts/ExampleBlockReward.sol
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round_block_reward_contract() -> Self {
 		load_bundled!("authority_round_block_reward_contract")
 	}
@@ -900,7 +900,7 @@ impl Spec {
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_tendermint() -> Self {
 		load_bundled!("tendermint")
 	}
@@ -913,7 +913,7 @@ impl Spec {
 	/// "0xbfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1" and added
 	/// back in using
 	/// "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_safe_contract() -> Self {
 		load_bundled!("validator_safe_contract")
 	}
@@ -921,7 +921,7 @@ impl Spec {
 	/// The same as the `safeContract`, but allows reporting and uses AuthorityRound.
 	/// Account is marked with `reportBenign` it can be checked as disliked with "0xd8f2e0bf".
 	/// Validator can be removed with `reportMalicious`.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_contract() -> Self {
 		load_bundled!("validator_contract")
 	}
@@ -930,7 +930,7 @@ impl Spec {
 	/// height.
 	/// Account with secrets keccak("0") is the validator for block 1 and with keccak("1")
 	/// onwards.
-	#[cfg(any(test, feature="test-helpers"))]
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_multi() -> Self {
 		load_bundled!("validator_multi")
 	}
