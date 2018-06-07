@@ -2073,15 +2073,16 @@ impl IoClient for Client {
 				let first = queued.write().1.pop_front();
 				if let Some((header, block_bytes, receipts_bytes)) = first {
 					let hash = header.hash();
-					client.importer.import_old_block(
+					let result = client.importer.import_old_block(
 						&header,
 						&block_bytes,
 						&receipts_bytes,
 						&**client.db.read(),
-						&*client.chain.read()
-					).ok().map_or((), |e| {
+						&*client.chain.read(),
+					);
+					if let Err(e) = result {
 						error!(target: "client", "Error importing ancient block: {}", e);
-					});
+					}
 					// remove from pending
 					queued.write().0.remove(&hash);
 				} else {
