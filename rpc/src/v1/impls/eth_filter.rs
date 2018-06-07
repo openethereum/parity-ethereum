@@ -53,8 +53,8 @@ pub trait Filterable {
 	/// Get a reference to the poll manager.
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>>;
 
-	/// Get a route from the given block to the nearest canon block, not including the canon block.
-	fn canon_route(&self, block_hash: H256) -> Vec<H256>;
+	/// Get removed logs within route from the given block to the nearest canon block, not including the canon block. Also returns how many logs have been traversed.
+	fn canon_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64);
 }
 
 /// Eth filter rpc implementation for a full node.
@@ -104,7 +104,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> { &self.polls }
 
-	fn canon_route(&self, block_hash: H256) -> Vec<H256> {
+	fn canon_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64) {
 		let inner = || -> Option<Vec<H256>> {
 			let mut route = Vec::new();
 
@@ -121,7 +121,20 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 			Some(route)
 		};
 
-		inner().unwrap_or_default()
+		let route = inner().unwrap_or_default();
+		let route_len = route.len() as u64;
+		(route.into_iter().flat_map(|block_hash| {
+			let mut filter = filter.clone();
+			filter.from_block = BlockId::Hash(block_hash);
+			filter.to_block = filter.from_block;
+
+			self.client.logs(filter).into_iter().map(|log| {
+				let mut log: Log = log.into();
+				log.log_type = "removed".into();
+
+				log
+			})
+		}).collect(), route_len)
 	}
 }
 
@@ -199,6 +212,10 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					filter.from_block = BlockId::Number(*block_number);
 					filter.to_block = BlockId::Latest;
 
+					// retrieve reorg logs
+					let (mut reorg, reorg_len) = last_block_hash.map_or_else(|| (Vec::new(), 0), |h| self.canon_logs(h, &filter));
+					*block_number -= reorg_len as u64;
+
 					// retrieve pending logs
 					let pending = if include_pending {
 						let pending_logs = self.pending_logs(current_number, &filter);
@@ -228,6 +245,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 					let limit = filter.limit;
 					Either::B(self.logs(filter)
+						.map(move |logs| { reorg.extend(logs); reorg }) // append reorg logs in the front
 						.map(move |mut logs| { logs.extend(pending); logs }) // append fetched pending logs
 						.map(move |logs| limit_logs(logs, limit)) // limit the logs
 						.map(FilterChanges::Logs))
