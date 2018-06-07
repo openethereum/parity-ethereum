@@ -131,6 +131,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 			self.client.logs(filter).into_iter().map(|log| {
 				let mut log: Log = log.into();
 				log.log_type = "removed".into();
+				log.removed = true;
 
 				log
 			})
