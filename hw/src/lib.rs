@@ -61,7 +61,7 @@ pub trait Wallet<'a> {
 
 	/// Re-populate device list
 	/// Note, this assumes all devices are iterated over and updated
-	fn update_devices(&self) -> Result<usize, Self::Error>;
+	fn update_devices(&self, device_direction: DeviceDirection) -> Result<usize, Self::Error>;
 
 	/// Read device info
 	fn read_device(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Self::Error>;
@@ -181,6 +181,13 @@ impl From<libusb::Error> for Error {
 	fn from(err: libusb::Error) -> Error {
 		Error::Usb(err)
 	}
+}
+
+/// Specifies whether a `HardwareWallet` arrived or left
+#[derive(Debug, Copy, Clone)]
+pub enum DeviceDirection {
+    Arrived,
+    Left,
 }
 
 /// Hardware wallet management interface.

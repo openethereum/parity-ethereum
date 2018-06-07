@@ -19,7 +19,7 @@
 //! and https://github.com/trezor/trezor-common/blob/master/protob/protocol.md
 //! for protocol details.
 
-use super::{WalletInfo, TransactionInfo, KeyPath, Wallet, Device, USB_DEVICE_CLASS_DEVICE};
+use super::{DeviceDirection, WalletInfo, TransactionInfo, KeyPath, Wallet, Device, USB_DEVICE_CLASS_DEVICE};
 
 use std::cmp::{min, max};
 use std::fmt;
@@ -127,7 +127,7 @@ impl Manager {
 		thread::Builder::new()
 			.name("hw_wallet_trezor".to_string())
 			.spawn(move || {
-				if let Err(e) = m.update_devices() {
+				if let Err(e) = m.update_devices(DeviceDirection::Arrived) {
 					debug!(target: "hw", "Trezor couldn't connect at startup, error: {}", e);
 				}
 				loop {
@@ -160,7 +160,7 @@ impl Manager {
 
 			}
 		};
-		self.update_devices()?;
+		self.update_devices(DeviceDirection::Arrived)?;
 		unlocked
 	}
 
@@ -325,7 +325,7 @@ impl <'a>Wallet<'a> for Manager {
 		*self.key_path.write() = key_path;
 	}
 
-	fn update_devices(&self) -> Result<usize, Error> {
+	fn update_devices(&self, _dir: DeviceDirection) -> Result<usize, Error> {
 		let mut usb = self.usb.lock();
 		usb.refresh_devices();
 		let devices = usb.devices();
@@ -428,10 +428,10 @@ impl <'a>Wallet<'a> for Manager {
 }
 
 // Try to connect to the device using polling in at most the time specified by the `timeout`
-fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
+fn try_connect_polling(trezor: Arc<Manager>, duration: Duration, dir: DeviceDirection) -> bool {
 	let start_time = Instant::now();
 	while start_time.elapsed() <= duration {
-		if let Ok(_) = trezor.update_devices() {
+		if let Ok(_) = trezor.update_devices(dir) {
 			return true
 		}
 	}
@@ -458,7 +458,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 arrived");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if try_connect_polling(trezor, Duration::from_millis(500)) != true {
+			if try_connect_polling(trezor, Duration::from_millis(500), DeviceDirection::Arrived) != true {
 				debug!(target: "hw", "Ledger connect timeout");
 			}
 		}
@@ -467,7 +467,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_left(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 left");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if try_connect_polling(trezor, Duration::from_millis(500)) != true {
+			if try_connect_polling(trezor, Duration::from_millis(500), DeviceDirection::Left) != true {
 				debug!(target: "hw", "Ledger disconnect timeout");
 			}
 		}
@@ -485,7 +485,7 @@ fn test_signature() {
 	let manager = Manager::new(hidapi.clone(), Arc::new(AtomicBool::new(false))).unwrap();
 	let addr: Address = H160::from("some_addr");
 
-	assert_eq!(try_connect_polling(manager.clone(), Duration::from_millis(500)), true);
+	assert_eq!(try_connect_polling(manager.clone(), Duration::from_millis(500), DeviceDirection::Arrived), true);
 
 	let t_info = TransactionInfo {
 		nonce: U256::from(1),
