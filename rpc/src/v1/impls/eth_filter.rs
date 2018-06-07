@@ -39,7 +39,7 @@ pub trait Filterable {
 	fn best_block_number(&self) -> u64;
 
 	/// Get a block hash by block id.
-	fn block_hash(&self, id: BlockId) -> Option<RpcH256>;
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// pending transaction hashes at the given block.
 	fn pending_transactions_hashes(&self) -> Vec<H256>;
@@ -80,8 +80,8 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 		self.client.chain_info().best_block_number
 	}
 
-	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
-		self.client.block_hash(id).map(Into::into)
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		self.client.block_hash(id)
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
@@ -134,7 +134,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					let current_number = self.best_block_number() + 1;
 					let hashes = (*block_number..current_number).into_iter()
 						.map(BlockId::Number)
-						.filter_map(|id| self.block_hash(id))
+						.filter_map(|id| self.block_hash(id).map(Into::into))
 						.collect::<Vec<RpcH256>>();
 
 					*block_number = current_number;
@@ -164,7 +164,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					// return new hashes
 					Either::A(future::ok(FilterChanges::Hashes(new_hashes)))
 				},
-				PollFilter::Logs(ref mut block_number, ref mut block_hash, ref mut previous_logs, ref filter) => {
+				PollFilter::Logs(ref mut block_number, ref mut last_block_hash, ref mut previous_logs, ref filter) => {
 					// retrive the current block number
 					let current_number = self.best_block_number();
 
@@ -198,6 +198,10 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					// we want to get logs
 					*block_number = current_number + 1;
 
+					// save the current block hash, which we used to get back to the
+					// canon chain in case of reorg.
+					*last_block_hash = self.block_hash(BlockId::Number(current_number));
+
 					// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 					let limit = filter.limit;
 					Either::B(self.logs(filter)
@@ -214,7 +218,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 			let mut polls = self.polls().lock();
 
 			match polls.poll(&index.value()) {
-				Some(&PollFilter::Logs(ref _block_number, ref _block_hash, ref _previous_log, ref filter)) => filter.clone(),
+				Some(&PollFilter::Logs(ref _block_number, ref _last_block_hash, ref _previous_log, ref filter)) => filter.clone(),
 				// just empty array
 				Some(_) => return Box::new(future::ok(Vec::new())),
 				None => return Box::new(future::err(errors::filter_not_found())),
