@@ -100,7 +100,13 @@ impl SnapshotService for TestSnapshotService {
 	}
 
 	fn bitfield(&self, _manifest_hash: H256) -> Option<Bitfield> {
-		None
+		if let Some(ref manifest) = self.manifest {
+			let mut bitfield = Bitfield::new(manifest);
+			bitfield.mark_all();
+			Some(bitfield)
+		} else {
+			None
+		}
 	}
 
 	fn supported_versions(&self) -> Option<(u64, u64)> {
