@@ -74,7 +74,7 @@ impl NodeBucket {
 	}
 }
 
-pub struct Datagramm {
+pub struct Datagram {
 	pub payload: Bytes,
 	pub address: SocketAddr,
 }
@@ -88,7 +88,7 @@ pub struct Discovery {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
-	send_queue: VecDeque<Datagramm>,
+	send_queue: VecDeque<Datagram>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
 	ip_filter: IpFilter,
@@ -343,7 +343,7 @@ impl Discovery {
 	}
 
 	fn send_to(&mut self, payload: Bytes, address: SocketAddr) {
-		self.send_queue.push_back(Datagramm { payload: payload, address: address });
+		self.send_queue.push_back(Datagram { payload: payload, address: address });
 	}
 
 
@@ -524,12 +524,12 @@ impl Discovery {
 		!self.send_queue.is_empty()
 	}
 
-	pub fn dequeue_send(&mut self) -> Option<Datagramm> {
+	pub fn dequeue_send(&mut self) -> Option<Datagram> {
 		self.send_queue.pop_front()
 	}
 
-	pub fn requeue_send(&mut self, datagramm: Datagramm) {
-		self.send_queue.push_front(datagramm)
+	pub fn requeue_send(&mut self, datagram: Datagram) {
+		self.send_queue.push_front(datagram)
 	}
 }
 
@@ -578,14 +578,14 @@ mod tests {
 		discovery2.refresh();
 
 		for _ in 0 .. 10 {
-			while let Some(datagramm) = discovery1.dequeue_send() {
-				if datagramm.address == ep2.address {
-					discovery2.on_packet(&datagramm.payload, ep1.address.clone()).ok();
+			while let Some(datagram) = discovery1.dequeue_send() {
+				if datagram.address == ep2.address {
+					discovery2.on_packet(&datagram.payload, ep1.address.clone()).ok();
 				}
 			}
-			while let Some(datagramm) = discovery2.dequeue_send() {
-				if datagramm.address == ep1.address {
-					discovery1.on_packet(&datagramm.payload, ep2.address.clone()).ok();
+			while let Some(datagram) = discovery2.dequeue_send() {
+				if datagram.address == ep1.address {
+					discovery1.on_packet(&datagram.payload, ep2.address.clone()).ok();
 				}
 			}
 			discovery2.round();

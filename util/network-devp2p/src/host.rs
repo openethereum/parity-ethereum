@@ -863,7 +863,7 @@ impl Host {
 						Ok(Some(size)) if size == data.payload.len() => {
 						},
 						Ok(Some(_)) => {
-							warn!("UDP sent incomplete datagramm");
+							warn!("UDP sent incomplete datagram");
 						},
 						Ok(None) => {
 							discovery.requeue_send(data);
