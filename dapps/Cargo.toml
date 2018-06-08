@@ -34,8 +34,6 @@ fetch = { path = "../util/fetch" }
 node-health = { path = "./node-health" }
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
-parity-ui = { path = "./ui" }
-parity-ui-deprecation = { path = "./ui-deprecation" }
 keccak-hash = { path = "../util/hash" }
 parity-version = { path = "../util/version" }
 registrar = { path = "../registrar" }
@@ -43,7 +41,3 @@ registrar = { path = "../registrar" }
 [dev-dependencies]
 env_logger = "0.4"
 ethcore-devtools = { path = "../devtools" }
-
-[features]
-ui = ["parity-ui/no-precompiled-js"]
-ui-precompiled = ["parity-ui/use-precompiled-js"]

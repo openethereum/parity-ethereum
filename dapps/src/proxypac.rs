@@ -21,25 +21,20 @@ use endpoint::{Endpoint, Request, Response, EndpointPath};
 use futures::future;
 use handlers::ContentHandler;
 use hyper::mime;
-use {address, Embeddable};
 
 pub struct ProxyPac {
-	embeddable: Embeddable,
 	dapps_domain: String,
 }
 
 impl ProxyPac {
-	pub fn boxed(embeddable: Embeddable, dapps_domain: String) -> Box<Endpoint> {
-		Box::new(ProxyPac { embeddable, dapps_domain })
+	pub fn boxed(dapps_domain: String) -> Box<Endpoint> {
+		Box::new(ProxyPac { dapps_domain })
 	}
 }
 
 impl Endpoint for ProxyPac {
 	fn respond(&self, path: EndpointPath, _req: Request) -> Response {
-		let ui = self.embeddable
-			.as_ref()
-			.map(|ref parent| address(&parent.host, parent.port))
-			.unwrap_or_else(|| format!("{}:{}", path.host, path.port));
+		let ui = format!("{}:{}", path.host, path.port);
 
 		let content = format!(
 r#"

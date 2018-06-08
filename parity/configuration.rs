@@ -20,7 +20,6 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
 use std::cmp;
-use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
 use ethereum_types::{U256, H256, Address};
@@ -34,7 +33,7 @@ use ethcore::miner::{stratum, MinerOptions};
 use ethcore::verification::queue::VerifierSettings;
 use miner::pool;
 
-use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration};
+use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization, passwords_from_files};
@@ -65,7 +64,7 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(WsConfiguration, UiConfiguration, LogConfig),
+	SignerToken(WsConfiguration, LogConfig),
 	SignerSign {
 		id: Option<usize>,
 		pwfile: Option<PathBuf>,
@@ -130,7 +129,6 @@ impl Configuration {
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
 		let net_conf = self.net_config()?;
-		let ui_conf = self.ui_config();
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
 		let tracing = self.args.arg_tracing.parse()?;
@@ -150,7 +148,7 @@ impl Configuration {
 			let authfile = ::signer::codes_path(&ws_conf.signer_path);
 
 			if self.args.cmd_signer_new_token {
-				Cmd::SignerToken(ws_conf, ui_conf, logger_config.clone())
+				Cmd::SignerToken(ws_conf, logger_config.clone())
 			} else if self.args.cmd_signer_sign {
 				let pwfile = self.accounts_config()?.password_files.first().map(|pwfile| {
 					PathBuf::from(pwfile)
@@ -381,13 +379,11 @@ impl Configuration {
 				net_settings: self.network_settings()?,
 				dapps_conf: dapps_conf,
 				ipfs_conf: ipfs_conf,
-				ui_conf: ui_conf,
 				secretstore_conf: secretstore_conf,
 				private_provider_conf: private_provider_conf,
 				private_encryptor_conf: private_enc_conf,
 				private_tx_enabled,
 				dapp: self.dapp_to_open()?,
-				ui: self.args.cmd_ui,
 				name: self.args.arg_identity,
 				custom_bootnodes: self.args.arg_bootnodes.is_some(),
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
@@ -588,29 +584,11 @@ impl Configuration {
 		})
 	}
 
-	fn ui_port(&self) -> u16 {
-		self.args.arg_ports_shift + self.args.arg_ui_port
-	}
-
 	fn ntp_servers(&self) -> Vec<String> {
 		self.args.arg_ntp_servers.split(",").map(str::to_owned).collect()
 	}
 
-	fn ui_config(&self) -> UiConfiguration {
-		let ui = self.ui_enabled();
-		UiConfiguration {
-			enabled: ui.enabled,
-			interface: self.ui_interface(),
-			port: self.ui_port(),
-			hosts: self.ui_hosts(),
-			info_page_only: ui.info_page_only,
-		}
-	}
-
 	fn dapps_config(&self) -> DappsConfiguration {
-		let dev_ui = if self.args.flag_ui_no_validation { vec![("127.0.0.1".to_owned(), 3000)] } else { vec![] };
-		let ui_port = self.ui_port();
-
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
 			dapps_path: PathBuf::from(self.directories().dapps),
@@ -619,31 +597,6 @@ impl Configuration {
 			} else {
 				vec![]
 			},
-			extra_embed_on: {
-				let mut extra_embed = dev_ui.clone();
-				match self.ui_hosts() {
-					// In case host validation is disabled allow all frame ancestors
-					None => {
-						// NOTE Chrome does not seem to support "*:<port>"
-						// we use `http(s)://*:<port>` instead.
-						extra_embed.push(("http://*".to_owned(), ui_port));
-						extra_embed.push(("https://*".to_owned(), ui_port));
-					},
-					Some(hosts) => extra_embed.extend(hosts.into_iter().filter_map(|host| {
-						let mut it = host.split(":");
-						let host = it.next();
-						let port = it.next().and_then(|v| u16::from_str(v).ok());
-
-						match (host, port) {
-							(Some(host), Some(port)) => Some((host.into(), port)),
-							(Some(host), None) => Some((host.into(), ui_port)),
-							_ => None,
-						}
-					})),
-				}
-				extra_embed
-			},
-			extra_script_src: dev_ui,
 		}
 	}
 
@@ -863,10 +816,6 @@ impl Configuration {
 		Some(hosts)
 	}
 
-	fn ui_hosts(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.arg_ui_hosts, &self.ui_interface())
-	}
-
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
 		self.hosts(&self.args.arg_jsonrpc_hosts, &self.rpc_interface())
 	}
@@ -876,7 +825,7 @@ impl Configuration {
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
-		if self.args.flag_unsafe_expose || self.args.flag_ui_no_validation {
+		if self.args.flag_unsafe_expose {
 			return None;
 		}
 
@@ -925,7 +874,6 @@ impl Configuration {
 	}
 
 	fn ws_config(&self) -> Result<WsConfiguration, String> {
-		let ui = self.ui_config();
 		let http = self.http_config()?;
 
 		let support_token_api =
@@ -941,7 +889,6 @@ impl Configuration {
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
 			support_token_api,
-			ui_address: ui.address(),
 			dapps_address: http.address(),
 			max_connections: self.args.arg_ws_max_connections,
 		};
@@ -1065,10 +1012,6 @@ impl Configuration {
 		}.into()
 	}
 
-	fn ui_interface(&self) -> String {
-		self.interface(&self.args.arg_ui_interface)
-	}
-
 	fn rpc_interface(&self) -> String {
 		let rpc_interface = self.args.arg_rpcaddr.clone().unwrap_or(self.args.arg_jsonrpc_interface.clone());
 		self.interface(&rpc_interface)
@@ -1184,24 +1127,6 @@ impl Configuration {
 		into_secretstore_service_contract_address(self.args.arg_secretstore_doc_sretr_contract.as_ref())
 	}
 
-	fn ui_enabled(&self) -> UiEnabled {
-		if self.args.flag_force_ui {
-			return UiEnabled {
-				enabled: true,
-				info_page_only: false,
-			};
-		}
-
-		let ui_disabled = self.args.arg_unlock.is_some() ||
-			self.args.flag_geth ||
-			self.args.flag_no_ui;
-
-		return UiEnabled {
-			enabled: (self.args.cmd_ui || !ui_disabled) && cfg!(feature = "ui-enabled"),
-			info_page_only: !self.args.cmd_ui,
-		}
-	}
-
 	fn verifier_settings(&self) -> VerifierSettings {
 		let mut settings = VerifierSettings::default();
 		settings.scale_verifiers = self.args.flag_scale_verifiers;
@@ -1218,12 +1143,6 @@ impl Configuration {
 			target_message_pool_size: self.args.arg_whisper_pool_size * 1024 * 1024,
 		}
 	}
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-struct UiEnabled {
-	pub enabled: bool,
-	pub info_page_only: bool,
 }
 
 fn into_secretstore_service_contract_address(s: &str) -> Result<Option<SecretStoreContractAddress>, String> {
@@ -1254,7 +1173,7 @@ mod tests {
 	use helpers::{default_network_config};
 	use params::SpecType;
 	use presale::ImportWallet;
-	use rpc::{WsConfiguration, UiConfiguration};
+	use rpc::WsConfiguration;
 	use rpc_apis::ApiSet;
 	use run::RunCmd;
 
@@ -1438,16 +1357,9 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: Some("127.0.0.1:8180".into()),
 			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true,
 			max_connections: 100,
-		}, UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: true,
 		}, LogConfig {
             color: true,
             mode: None,
@@ -1516,12 +1428,10 @@ mod tests {
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
 			ipfs_conf: Default::default(),
-			ui_conf: Default::default(),
 			secretstore_conf: Default::default(),
 			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
-			ui: false,
 			dapp: None,
 			name: "".into(),
 			custom_bootnodes: false,
@@ -1705,49 +1615,6 @@ mod tests {
 	}
 
 	#[test]
-	fn should_disable_signer_in_geth_compat() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity", "--geth"]);
-		let conf1 = parse(&["parity", "--geth", "--force-ui"]);
-		let conf2 = parse(&["parity", "--geth", "ui"]);
-		let conf3 = parse(&["parity"]);
-
-		// then
-		assert_eq!(conf0.ui_enabled(), UiEnabled {
-			enabled: false,
-			info_page_only: true,
-		});
-		assert_eq!(conf1.ui_enabled(), UiEnabled {
-			enabled: true,
-			info_page_only: false,
-		});
-		assert_eq!(conf2.ui_enabled(), UiEnabled {
-			enabled: true,
-			info_page_only: false,
-		});
-		assert_eq!(conf3.ui_enabled(), UiEnabled {
-			enabled: true,
-			info_page_only: true,
-		});
-	}
-
-	#[test]
-	fn should_disable_signer_when_account_is_unlocked() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity", "--unlock", "0x0"]);
-
-		// then
-		assert_eq!(conf0.ui_enabled(), UiEnabled {
-			enabled: false,
-			info_page_only: true,
-		});
-	}
-
-	#[test]
 	fn should_parse_ui_configuration() {
 		// given
 
@@ -1757,69 +1624,22 @@ mod tests {
 		let conf2 = parse(&["parity", "--ui-path=signer", "--ui-port", "3123"]);
 		let conf3 = parse(&["parity", "--ui-path=signer", "--ui-interface", "test"]);
 		let conf4 = parse(&["parity", "--ui-path=signer", "--force-ui"]);
-		let conf5 = parse(&["parity", "--ui-path=signer", "ui"]);
 
 		// then
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
-		assert_eq!(conf0.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: true,
-		});
 
 		assert!(conf1.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf1.ws_config().unwrap().origins, None);
+		assert_eq!(conf1.ws_config().unwrap().origins, Some(vec!["parity://*".into(), "chrome-extension://*".into(), "moz-extension://*".into()]));
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
-		assert_eq!(conf1.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: true,
-		});
-		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
 
 		assert!(conf2.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
-		assert_eq!(conf2.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 3123,
-			hosts: Some(vec![]),
-			info_page_only: true,
-		});
 
 		assert!(conf3.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
-		assert_eq!(conf3.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "test".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: true,
-		});
 
 		assert!(conf4.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf4.directories().signer, "signer".to_owned());
-		assert_eq!(conf4.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: false,
-		});
-
-		assert!(conf5.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf5.directories().signer, "signer".to_owned());
-		assert_eq!(conf5.ui_config(), UiConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-			info_page_only: false,
-		});
 	}
 
 	#[test]
@@ -1976,7 +1796,6 @@ mod tests {
 		assert_eq!(conf0.network_settings().unwrap().rpc_port, 8546);
 		assert_eq!(conf0.http_config().unwrap().port, 8546);
 		assert_eq!(conf0.ws_config().unwrap().port, 8547);
-		assert_eq!(conf0.ui_config().port, 8181);
 		assert_eq!(conf0.secretstore_config().unwrap().port, 8084);
 		assert_eq!(conf0.secretstore_config().unwrap().http_port, 8083);
 		assert_eq!(conf0.ipfs_config().port, 5002);
@@ -1987,7 +1806,6 @@ mod tests {
 		assert_eq!(conf1.network_settings().unwrap().rpc_port, 8545);
 		assert_eq!(conf1.http_config().unwrap().port, 8545);
 		assert_eq!(conf1.ws_config().unwrap().port, 8547);
-		assert_eq!(conf1.ui_config().port, 8181);
 		assert_eq!(conf1.secretstore_config().unwrap().port, 8084);
 		assert_eq!(conf1.secretstore_config().unwrap().http_port, 8083);
 		assert_eq!(conf1.ipfs_config().port, 5002);
@@ -2007,8 +1825,6 @@ mod tests {
 		assert_eq!(&conf0.ws_config().unwrap().interface, "0.0.0.0");
 		assert_eq!(conf0.ws_config().unwrap().hosts, None);
 		assert_eq!(conf0.ws_config().unwrap().origins, None);
-		assert_eq!(&conf0.ui_config().interface, "0.0.0.0");
-		assert_eq!(conf0.ui_config().hosts, None);
 		assert_eq!(&conf0.secretstore_config().unwrap().interface, "0.0.0.0");
 		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
 		assert_eq!(&conf0.ipfs_config().interface, "0.0.0.0");
