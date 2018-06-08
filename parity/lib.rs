@@ -154,6 +154,7 @@ fn run_deadlock_detection_thread() {
 	use std::thread;
 	use std::time::Duration;
 	use parking_lot::deadlock;
+	use ansi_term::Style;
 
 	info!("Starting deadlock detection thread.");
 	// Create a background thread which checks for deadlocks every 10s
