@@ -954,7 +954,7 @@ impl miner::MinerService for Miner {
 	}
 
 	fn is_currently_sealing(&self) -> bool {
-		self.sealing.lock().queue.is_in_use()
+		self.sealing.lock().enabled
 	}
 
 	fn work_package<C>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> where
