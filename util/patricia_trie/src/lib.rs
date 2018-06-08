@@ -32,7 +32,7 @@ extern crate trie_standardmap as standardmap;
 extern crate log;
 
 use std::{fmt, error};
-use hashdb::{HashDB, DBValue, Hasher};
+use hashdb::{HashDB, DBValue, Hasher, KeccakHasher};
 use std::marker::PhantomData;
 
 pub mod node;
@@ -58,18 +58,27 @@ pub use self::fatdbmut::FatDBMut;
 pub use self::recorder::Recorder;
 use node_codec::NodeCodec;
 
+// REVIEW: is this overdoing it?
+pub type KeccakRlpNodeCodec = node_codec::RlpNodeCodec<hashdb::KeccakHasher>;
+pub type KeccakTrieResult<T> = Result<T, <KeccakHasher as Hasher>::Out>;
+
 /// Trie Errors.
 ///
 /// These borrow the data within them to avoid excessive copying on every
 /// trie operation.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TrieError<T> {
 	/// Attempted to create a trie with a state root not in the DB.
 	InvalidStateRoot(T),
 	/// Trie item not found in the database,
 	IncompleteDatabase(T),
 	/// Corrupt Trie item
-	DecoderError(T, Box<error::Error>),
+	// TODO: what we'd really like to do here is include the `rlp::DecoderError` in the `TrieError`
+	// but if we add a `Box<Error>` here we run into issues in the `ethcore` crate:
+	//  "the trait bound `std::error::Error + 'static: std::marker::Send` is not satisfied"
+	// Investigate if using `Box<Error + Send>` would help here (it does compile).
+	// Another potential problem is that the PartialEq, Eq and Clone derives do not work.
+	DecoderError(T, String),
 }
 
 impl<T> fmt::Display for TrieError<T> where T: std::fmt::Debug {
@@ -87,7 +96,7 @@ impl<T> error::Error for TrieError<T> where T: std::fmt::Debug {
 		match *self {
 			TrieError::InvalidStateRoot(_) => "Invalid state root",
 			TrieError::IncompleteDatabase(_) => "Incomplete database",
-			TrieError::DecoderError(_, ref err) => err.description(),
+			TrieError::DecoderError(_, ref errString) => errString,
 		}
 	}
 }

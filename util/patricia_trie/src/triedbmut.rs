@@ -23,8 +23,7 @@ use node_codec::NodeCodec;
 use super::node::NodeKey;
 
 use bytes::ToPretty;
-use hashdb::HashDB;
-use hashdb::{Hasher, DBValue};
+use hashdb::{HashDB, Hasher, DBValue};
 use nibbleslice::NibbleSlice;
 use rlp::{RlpStream, Encodable, Decodable};
 

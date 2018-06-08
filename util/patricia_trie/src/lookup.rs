@@ -63,7 +63,8 @@ where
 			// without incrementing the depth.
 			let mut node_data = &node_data[..];
 			loop {
-				match C::decode(node_data).map_err(|e| TrieError::DecoderError(hash, e.into()))? {
+				// TODO: see comment on `TrieError::DecoderError` for what to do here
+				match C::decode(node_data).map_err(|e| TrieError::DecoderError(hash, format!("{:?}",e)))? {
 					Node::Leaf(slice, value) => {
 						return Ok(match slice == key {
 							true => Some(self.query.decode(value)),

@@ -1,7 +1,7 @@
 use bytes::*;
 use nibbleslice::NibbleSlice;
 use rlp::{Prototype, Rlp, RlpStream, DecoderError, Decodable, Encodable};
-use hashdb::Hasher;
+use hashdb::{Hasher, KeccakHasher};
 use node::Node;
 use std::marker::PhantomData;
 
