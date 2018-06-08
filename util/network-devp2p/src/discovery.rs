@@ -79,7 +79,7 @@ impl NodeBucket {
 	}
 }
 
-struct Datagramm {
+struct Datagram {
 	payload: Bytes,
 	address: SocketAddr,
 }
@@ -95,7 +95,7 @@ pub struct Discovery {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
-	send_queue: VecDeque<Datagramm>,
+	send_queue: VecDeque<Datagram>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
 	ip_filter: IpFilter,
@@ -358,7 +358,7 @@ impl Discovery {
 				Ok(Some(size)) if size == data.payload.len() => {
 				},
 				Ok(Some(_)) => {
-					debug!(target: "discovery", "UDP sent incomplete datagramm");
+					debug!(target: "discovery", "UDP sent incomplete datagram");
 				},
 				Ok(None) => {
 					self.send_queue.push_front(data);
@@ -374,7 +374,7 @@ impl Discovery {
 	}
 
 	fn send_to(&mut self, payload: Bytes, address: SocketAddr) {
-		self.send_queue.push_back(Datagramm { payload: payload, address: address });
+		self.send_queue.push_back(Datagram { payload: payload, address: address });
 	}
 
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Option<TableUpdates> where Message: Send + Sync + Clone {
@@ -633,15 +633,15 @@ mod tests {
 
 		for _ in 0 .. 10 {
 			while !discovery1.send_queue.is_empty() {
-				let datagramm = discovery1.send_queue.pop_front().unwrap();
-				if datagramm.address == ep2.address {
-					discovery2.on_packet(&datagramm.payload, ep1.address.clone()).ok();
+				let datagram = discovery1.send_queue.pop_front().unwrap();
+				if datagram.address == ep2.address {
+					discovery2.on_packet(&datagram.payload, ep1.address.clone()).ok();
 				}
 			}
 			while !discovery2.send_queue.is_empty() {
-				let datagramm = discovery2.send_queue.pop_front().unwrap();
-				if datagramm.address == ep1.address {
-					discovery1.on_packet(&datagramm.payload, ep2.address.clone()).ok();
+				let datagram = discovery2.send_queue.pop_front().unwrap();
+				if datagram.address == ep1.address {
+					discovery1.on_packet(&datagram.payload, ep2.address.clone()).ok();
 				}
 			}
 			discovery2.round();
