@@ -146,22 +146,6 @@ make_rpm () {
   $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC".rpm" > "parity_"$VER"_"$IDENT"_"$ARC".rpm.md5"
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".rpm" > "parity_"$VER"_"$IDENT"_"$ARC".rpm.sha256"
 }
-make_pkg () {
-  echo "make PKG"
-  cp target/$PLATFORM/release/parity target/release/parity
-  cp target/$PLATFORM/release/parity-evm target/release/parity-evm
-  cp target/$PLATFORM/release/ethstore target/release/ethstore
-  cp target/$PLATFORM/release/ethkey target/release/ethkey
-  cp target/$PLATFORM/release/whisper target/release/whisper
-  cd mac
-  xcodebuild -configuration Release
-  cd ..
-  packagesbuild -v mac/Parity.pkgproj
-  productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/release/Parity\ Ethereum.pkg target/release/Parity\ Ethereum-signed.pkg
-  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$IDENT"_"$ARC".pkg"
-  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.md5"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.sha256"
-}
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
 }
@@ -291,11 +275,9 @@ case $BUILD_PLATFORM in
   x86_64-apple-darwin)
     STRIP_BIN="strip"
     PLATFORM="x86_64-apple-darwin"
-    EXT="pkg"
     build
     strip_binaries
     calculate_checksums
-    make_pkg
     make_archive
     push_binaries
     updater_push_release
