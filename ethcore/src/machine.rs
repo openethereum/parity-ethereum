@@ -500,7 +500,7 @@ mod tests {
 		let mut header = ::header::Header::new();
 		header.set_number(15);
 
-		let res = machine.verify_transaction_basic(&transaction, &header);
+		let res = machine.verify_transaction_basic(&transaction, &header, false);
 		assert_eq!(res, Err(transaction::Error::InvalidSignature("Crypto error (Invalid EC signature)".into())));
 	}
 
