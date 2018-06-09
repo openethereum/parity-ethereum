@@ -32,6 +32,7 @@ use super::{WalletInfo, KeyPath, Device, DeviceDirection, Wallet, USB_DEVICE_CLA
 
 const APDU_TAG: u8 = 0x05;
 const APDU_CLA: u8 = 0xe0;
+const APDU_PAYLOAD_HEADER_LEN: usize = 7;
 
 const ETH_DERIVATION_PATH_BE: [u8; 17] = [4, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/0'/0
 const ETC_DERIVATION_PATH_BE: [u8; 21] = [5, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0x02, 0x73, 0xd0, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/160720'/0'/0
@@ -41,6 +42,7 @@ const LEDGER_VID: u16 = 0x2c97;
 /// Ledger product IDs: [Nano S and Blue]
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001];
 const LEDGER_POLLING_INTERVAL: Duration = Duration::from_millis(500);
+const LEDGER_TRANSPORT_HEADER_LEN: usize = 5;
 
 const MAX_CHUNK_SIZE: usize = 255;
 
@@ -108,7 +110,7 @@ impl From<libusb::Error> for Error {
 }
 
 /// Ledger device manager.
-pub struct Manager {
+pub (crate) struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: RwLock<Vec<Device>>,
 	key_path: RwLock<KeyPath>,
@@ -153,7 +155,6 @@ impl Manager {
 		Ok(manager)
 	}
 
-
 	// Transport Protocol:
 	//		* Communication Channel Id		(2 bytes big endian )
 	//		* Command Tag					(1 byte) 
@@ -169,53 +170,65 @@ impl Manager {
 	//		* APDU_LENGTH					(1 byte)
 	//		* APDU_Payload					(Variable)
 	// 
-	fn send_apdu(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<Vec<u8>, Error> {
+	fn write(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<(), Error> {
+		let data_len = data.len();
 		let mut offset = 0;
-		let mut chunk_index = 0;
-
-		const TRANSPORT_HEADER_LEN: usize = 5;
-		const APDU_PAYLOAD_HEADER_LEN: usize = 7;
-
-		loop {
-			let mut hid_chunk: [u8; HID_PACKET_SIZE] = [0; HID_PACKET_SIZE];
-			let mut chunk_size = if chunk_index == 0 { TRANSPORT_HEADER_LEN + APDU_PAYLOAD_HEADER_LEN } else { TRANSPORT_HEADER_LEN };
-			let size = min(64 - chunk_size, data.len() - offset);
-
+		let mut sequence_number = 0;
+		let mut hid_chunk = [0_u8; HID_PACKET_SIZE];
+		
+		while sequence_number == 0 || offset < data_len {
+			let header = if sequence_number == 0 { LEDGER_TRANSPORT_HEADER_LEN + APDU_PAYLOAD_HEADER_LEN } else { LEDGER_TRANSPORT_HEADER_LEN };
+			let size = min(64 - header, data_len - offset);
 			{
 				let chunk = &mut hid_chunk[HID_PREFIX_ZERO..];
-				&mut chunk[0..5].copy_from_slice(&[0x01, 0x01, APDU_TAG, (chunk_index >> 8) as u8, (chunk_index & 0xff) as u8 ]);
+				&mut chunk[0..5].copy_from_slice(&[0x01, 0x01, APDU_TAG, (sequence_number >> 8) as u8, (sequence_number & 0xff) as u8 ]);
 
-				// If it is the first message then write payload header into the packet
-				if chunk_index == 0 {
-					let data_len = data.len() + TRANSPORT_HEADER_LEN;
-					&mut chunk[5..12].copy_from_slice(&[(data_len >> 8) as u8, (data_len & 0xff) as u8, APDU_CLA, command, p1, p2, data.len() as u8 ]);
+				if sequence_number == 0 {
+					let data_len = data.len() + 5;
+					&mut chunk[5..12].copy_from_slice(&[(data_len >> 8) as u8, (data_len & 0xff) as u8, APDU_CLA, command, p1, p2, data.len() as u8]);
 				}
 
-				&mut chunk[chunk_size..chunk_size + size].copy_from_slice(&data[offset..offset + size]);
-				offset += size;
-				chunk_size += size;
+				&mut chunk[header..header + size].copy_from_slice(&data[offset..offset + size]);
 			}
-
-			trace!(target: "hw", "writing {:?}", &hid_chunk[..]);
+			trace!("writing {:?}", &hid_chunk[..]);
 			let n = handle.write(&hid_chunk[..])?;
-			if n < chunk_size {
+			if n < size + header {
 				return Err(Error::Protocol("Write data size mismatch"));
 			}
-			if offset == data.len() {
-				break;
+			offset += size;
+			sequence_number += 1;
+			if sequence_number >= 0xffff {
+				return Err(Error::Protocol("Maximum sequence number reached"));
 			}
-			chunk_index += 1;
 		}
-
-		// Read response
-		chunk_index = 0;
+		Ok(())
+	}
+	
+	// Transport Protocol:
+	//		* Communication Channel Id		(2 bytes big endian )
+	//		* Command Tag					(1 byte) 
+	//		* Packet Sequence ID			(2 bytes big endian)
+	//		* Payload						(Optional)
+	//
+	// Payload
+	//		* APDU Total Length				(2 bytes big endian)
+	//		* APDU_CLA						(1 byte)
+	//		* APDU_INS						(1 byte)
+	//		* APDU_P1						(1 byte)
+	//		* APDU_P2						(1 byte)
+	//		* APDU_LENGTH					(1 byte)
+	//		* APDU_Payload					(Variable)
+	// 
+	fn read(handle: &hidapi::HidDevice) -> Result<Vec<u8>, Error> {
 		let mut message_size = 0;
 		let mut message = Vec::new();
-		loop {
+
+		// terminate the loop if `sequence_number` reaches its max_value and report error
+		for chunk_index in 0..=0xffff {
 			let mut chunk: [u8; HID_PACKET_SIZE] = [0; HID_PACKET_SIZE];
 			let chunk_size = handle.read(&mut chunk)?;
 			trace!("read {:?}", &chunk[..]);
-			if chunk_size < 5 || chunk[0] != 0x01 || chunk[1] != 0x01 || chunk[2] != APDU_TAG {
+			if chunk_size < LEDGER_TRANSPORT_HEADER_LEN || chunk[0] != 0x01 || chunk[1] != 0x01 || chunk[2] != APDU_TAG {
 				return Err(Error::Protocol("Unexpected chunk header"));
 			}
 			let seq = (chunk[3] as usize) << 8 | (chunk[4] as usize);
@@ -237,7 +250,6 @@ impl Manager {
 			if message.len() == message_size {
 				break;
 			}
-			chunk_index += 1;
 		}
 		if message.len() < 2 {
 			return Err(Error::Protocol("No status word"));
@@ -263,6 +275,11 @@ impl Manager {
 		Ok(message)
 	}
 
+	fn send_apdu(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<Vec<u8>, Error> {
+		Self::write(&handle, command, p1, p2, data)?;
+		Self::read(&handle)
+	}
+
 	fn is_valid_ledger(device: &libusb::Device) -> Result<(), Error> {
 		let desc = device.device_descriptor()?;
 		let vendor_id = desc.vendor_id();
@@ -275,7 +292,7 @@ impl Manager {
 		}
 	}
 
-	fn get_firmware_version(&self, handle: &hidapi::HidDevice) -> Result<FirmwareVersion, Error> {
+	fn get_firmware_version(handle: &hidapi::HidDevice) -> Result<FirmwareVersion, Error> {
 		let ver = Self::send_apdu(&handle, commands::GET_APP_CONFIGURATION, 0, 0, &[])?;
 		if ver.len() != 4 {
 			return Err(Error::Protocol("Version packet size mismatch"));
@@ -298,7 +315,7 @@ impl Manager {
 
 		// Signing personal messages are only support by Ledger firmware version 1.0.8 or newer
 		if command == commands::SIGN_ETH_PERSONAL_MESSAGE {
-			let version = self.get_firmware_version(&handle)?;
+			let version = Self::get_firmware_version(&handle)?;
 			if version < FirmwareVersion::new(1, 0, 8) {
 				return Err(Error::Protocol("Signing personal messages with Ledger requires version 1.0.8"));
 			}
@@ -450,7 +467,7 @@ impl <'a>Wallet<'a> for Manager {
 	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Self::Error> {
 		trace!(target: "hw", "read_device");
 
-		let ledger_version = self.get_firmware_version(&device)?;
+		let ledger_version = Self::get_firmware_version(&device)?;
 		if ledger_version < FirmwareVersion::new(1, 0, 3) {
 			return Err(Error::Protocol("Ledger version 1.0.3 is required"));
 		}
