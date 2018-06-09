@@ -20,7 +20,6 @@ use hyper::{self, header, StatusCode};
 use hyper::mime::{Mime};
 
 use handlers::{Reader, ContentHandler, add_security_headers};
-use {Embeddable};
 
 /// Represents a file that can be sent to client.
 /// Implementation should keep track of bytes already sent internally.
@@ -54,8 +53,6 @@ impl Default for PageCache {
 pub struct PageHandler<T: DappFile> {
 	/// File currently being served
 	pub file: Option<T>,
-	/// Flag indicating if the file can be safely embeded (put in iframe).
-	pub safe_to_embed_on: Embeddable,
 	/// Cache settings for this page.
 	pub cache: PageCache,
 	/// Allow JS unsafe-eval.
@@ -70,7 +67,6 @@ impl<T: DappFile> PageHandler<T> {
 				"File not found",
 				"Requested file has not been found.",
 				None,
-				self.safe_to_embed_on,
 			).into()),
 			Some(file) => file,
 		};
@@ -94,7 +90,7 @@ impl<T: DappFile> PageHandler<T> {
 
 			headers.set(header::ContentType(file.content_type().to_owned()));
 
-			add_security_headers(&mut headers, self.safe_to_embed_on, self.allow_js_eval);
+			add_security_headers(&mut headers, self.allow_js_eval);
 		}
 
 		let (reader, body) = Reader::pair(file.into_reader(), Vec::new());

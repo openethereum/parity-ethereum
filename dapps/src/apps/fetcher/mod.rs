@@ -31,7 +31,7 @@ use hash_fetch::urlhint::{URLHintContract, URLHint, URLHintResult};
 use hyper::StatusCode;
 
 use ethereum_types::H256;
-use {Embeddable, SyncStatus, random_filename};
+use {SyncStatus, random_filename};
 use parking_lot::Mutex;
 use page::local;
 use handlers::{ContentHandler, ContentFetcherHandler};
@@ -50,7 +50,6 @@ pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + 'static = URLHint
 	resolver: R,
 	cache: Arc<Mutex<ContentCache>>,
 	sync: Arc<SyncStatus>,
-	embeddable_on: Embeddable,
 	fetch: F,
 	pool: CpuPool,
 	only_content: bool,
@@ -78,7 +77,6 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 			resolver,
 			sync,
 			cache: Arc::new(Mutex::new(ContentCache::default())),
-			embeddable_on: None,
 			fetch,
 			pool,
 			only_content: true,
@@ -90,38 +88,30 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 		self
 	}
 
-	pub fn embeddable_on(mut self, embeddable_on: Embeddable) -> Self {
-		self.embeddable_on = embeddable_on;
-		self
-	}
-
-	fn not_found(embeddable: Embeddable) -> endpoint::Response {
+	fn not_found() -> endpoint::Response {
 		Box::new(future::ok(ContentHandler::error(
 			StatusCode::NotFound,
 			"Resource Not Found",
 			"Requested resource was not found.",
 			None,
-			embeddable,
 		).into()))
 	}
 
-	fn still_syncing(embeddable: Embeddable) -> endpoint::Response {
+	fn still_syncing() -> endpoint::Response {
 		Box::new(future::ok(ContentHandler::error(
 			StatusCode::ServiceUnavailable,
 			"Sync In Progress",
 			"Your node is still syncing. We cannot resolve any content before it's fully synced.",
 			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>"),
-			embeddable,
 		).into()))
 	}
 
-	fn dapps_disabled(address: Embeddable) -> endpoint::Response {
+	fn dapps_disabled() -> endpoint::Response {
 		Box::new(future::ok(ContentHandler::error(
 			StatusCode::ServiceUnavailable,
 			"Network Dapps Not Available",
 			"This interface doesn't support network dapps for security reasons.",
 			None,
-			address,
 		).into()))
 	}
 
@@ -195,10 +185,10 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 					match content {
 						// Don't serve dapps if we are still syncing (but serve content)
 						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
-							(None, Self::still_syncing(self.embeddable_on.clone()))
+							(None, Self::still_syncing())
 						},
 						Some(URLHintResult::Dapp(_)) if self.only_content => {
-							(None, Self::dapps_disabled(self.embeddable_on.clone()))
+							(None, Self::dapps_disabled())
 						},
 						Some(content) => {
 							let handler = match content {
@@ -211,10 +201,8 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 											content_id.clone(),
 											self.cache_path.clone(),
 											Box::new(on_done),
-											self.embeddable_on.clone(),
 											self.pool.clone(),
 										),
-										self.embeddable_on.clone(),
 										self.fetch.clone(),
 										self.pool.clone(),
 									)
@@ -228,10 +216,8 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 											content_id.clone(),
 											self.cache_path.clone(),
 											Box::new(on_done),
-											self.embeddable_on.clone(),
 											self.pool.clone(),
 										),
-										self.embeddable_on.clone(),
 										self.fetch.clone(),
 										self.pool.clone(),
 									)
@@ -248,7 +234,6 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 											Box::new(on_done),
 											self.pool.clone(),
 										),
-										self.embeddable_on.clone(),
 										self.fetch.clone(),
 										self.pool.clone(),
 									)
@@ -258,12 +243,12 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 							(Some(ContentStatus::Fetching(handler.fetch_control())), Box::new(handler) as endpoint::Response)
 						},
 						None if self.sync.is_major_importing() => {
-							(None, Self::still_syncing(self.embeddable_on.clone()))
+							(None, Self::still_syncing())
 						},
 						None => {
 							// This may happen when sync status changes in between
 							// `contains` and `to_handler`
-							(None, Self::not_found(self.embeddable_on.clone()))
+							(None, Self::not_found())
 						},
 					}
 				},
@@ -330,7 +315,7 @@ mod tests {
 			icon_url: "".into(),
 			local_url: Some("".into()),
 			allow_js_eval: None,
-		}, Default::default(), None);
+		}, Default::default());
 
 		// when
 		fetcher.set_status("test", ContentStatus::Ready(handler));

@@ -111,7 +111,7 @@ mod server {
 	}
 }
 
-#[cfg(feature="secretstore")]
+#[cfg(feature = "secretstore")]
 mod server {
 	use std::sync::Arc;
 	use ethcore_secretstore;

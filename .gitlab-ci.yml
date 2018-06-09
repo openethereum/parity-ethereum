@@ -173,7 +173,7 @@ windows:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc installer "" "" windows
+    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc amd64 "" "" windows
   tags:
    - rust-windows
   artifacts:
@@ -201,6 +201,8 @@ docker-build:
   stage: build
   only:
     - tags
+    - beta
+    - stable
     - triggers
   before_script:
     - docker info
