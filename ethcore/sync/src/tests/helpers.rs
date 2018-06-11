@@ -508,6 +508,7 @@ impl<C: FlushingBlockChainClient> TestNet<EthPeer<C>> {
 pub struct TestIoHandler {
 	pub client: Arc<EthcoreClient>,
 	pub private_tx_queued: Mutex<usize>,
+	pub private_signed_tx_queued: Mutex<usize>,
 }
 
 impl TestIoHandler {
@@ -515,6 +516,7 @@ impl TestIoHandler {
 		TestIoHandler {
 			client,
 			private_tx_queued: Mutex::default(),
+			private_signed_tx_queued: Mutex::default(),
 		}
 	}
 }
@@ -525,6 +527,9 @@ impl IoHandler<ClientIoMessage> for TestIoHandler {
 			ClientIoMessage::Execute(ref exec) => {
 				*self.private_tx_queued.lock() += 1;
 				(*exec.0)(&self.client);
+			},
+			ClientIoMessage::NewSignedPrivateTransaction => {
+				*self.private_signed_tx_queued.lock() += 1;
 			},
 			_ => {} // ignore other messages
 		}
