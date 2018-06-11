@@ -65,6 +65,7 @@ stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
+ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }

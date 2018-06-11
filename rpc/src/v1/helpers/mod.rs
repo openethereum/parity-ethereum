@@ -44,7 +44,7 @@ pub use self::requests::{
 	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
 };
 pub use self::signing_queue::{
-	ConfirmationsQueue, ConfirmationReceiver, ConfirmationResult,
+	ConfirmationsQueue, ConfirmationReceiver, ConfirmationResult, ConfirmationSender,
 	SigningQueue, QueueEvent, DefaultAccount,
 	QUEUE_LIMIT as SIGNING_QUEUE_LIMIT,
 };
