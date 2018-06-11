@@ -754,12 +754,19 @@ impl miner::MinerService for Miner {
 			transactions.into_iter().map(pool::verifier::Transaction::Unverified).collect(),
 		);
 
+		// --------------------------------------------------------------------------
+		// | NOTE Code below requires sealing locks.                                |
+		// | Make sure to release the locks before calling that method.             |
+		// --------------------------------------------------------------------------
 		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.sealing.lock().reseal_allowed() {
-			// --------------------------------------------------------------------------
-			// | NOTE Code below requires sealing locks.                                |
-			// | Make sure to release the locks before calling that method.             |
-			// --------------------------------------------------------------------------
-			self.update_sealing(chain);
+			// Make sure to do it after transaction is imported and lock is droped.
+			// We need to create pending block and enable sealing.
+			if self.engine.seals_internally().unwrap_or(false) || !self.prepare_pending_block(chain) {
+				// If new block has not been prepared (means we already had one)
+				// or Engine might be able to seal internally,
+				// we need to update sealing.
+				self.update_sealing(chain);
+			}
 		}
 
 		results
