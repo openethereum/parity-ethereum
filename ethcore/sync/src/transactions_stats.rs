@@ -18,6 +18,7 @@ use api::TransactionStats;
 use std::collections::{HashSet, HashMap};
 use ethereum_types::{H256, H512};
 use plain_hasher::H256FastMap;
+use hashdb::KeccakHasher;
 
 type NodeId = H512;
 type BlockNumber = u64;
@@ -51,7 +52,7 @@ impl<'a> From<&'a Stats> for TransactionStats {
 
 #[derive(Debug, Default)]
 pub struct TransactionsStats {
-	pending_transactions: H256FastMap<Stats>,
+	pending_transactions: H256FastMap<KeccakHasher, Stats>,
 }
 
 impl TransactionsStats {
@@ -69,7 +70,7 @@ impl TransactionsStats {
 		self.pending_transactions.get(hash)
 	}
 
-	pub fn stats(&self) -> &H256FastMap<Stats> {
+	pub fn stats(&self) -> &H256FastMap<KeccakHasher, Stats> {
 		&self.pending_transactions
 	}
 

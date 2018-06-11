@@ -97,6 +97,7 @@ use std::collections::{HashSet, HashMap};
 use std::cmp;
 use std::time::{Duration, Instant};
 use hash::keccak;
+use hashdb::KeccakHasher;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
 use plain_hasher::H256FastMap;
@@ -485,7 +486,7 @@ impl ChainSync {
 	}
 
 	/// Returns transactions propagation statistics
-	pub fn transactions_stats(&self) -> &H256FastMap<TransactionStats> {
+	pub fn transactions_stats(&self) -> &H256FastMap<KeccakHasher, TransactionStats> {
 		self.transactions_stats.stats()
 	}
 
