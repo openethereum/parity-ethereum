@@ -1301,4 +1301,22 @@ mod tests {
 
 		assert!(!miner.is_currently_sealing());
 	}
+
+	#[test]
+	fn should_mine_if_fetch_work_request() {
+		struct DummyNotifyWork;
+
+		impl NotifyWork for DummyNotifyWork {
+			fn notify(&self, _pow_hash: H256, _difficulty: U256, _number: u64) { }
+		}
+
+		let spec = Spec::new_test();
+		let miner = Miner::new_for_tests(&spec, None);
+		miner.add_work_listener(Box::new(DummyNotifyWork));
+
+		let client = generate_dummy_client(2);
+		miner.update_sealing(&*client);
+
+		assert!(miner.is_currently_sealing());
+	}
 }
