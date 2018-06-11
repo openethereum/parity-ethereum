@@ -24,7 +24,7 @@ use hashdb::{Hasher, KeccakHasher};
 #[derive(Debug)]
 pub enum Error {
 	/// TrieDB-related error.
-	Trie(TrieError<<KeccakHasher as Hasher>::Out>),
+	Trie(TrieError<<KeccakHasher as Hasher>::Out>), // TODO: this doesn't look right – need to make `Error` generic too? :/
 	/// Database error
 	Database(kvdb::Error),
 	/// Util error
@@ -33,7 +33,9 @@ pub enum Error {
 
 impl<T> From<TrieError<T>> for Error {
 	fn from(err: TrieError<T>) -> Self {
-		Error::Trie(err)
+		// Error::Trie(err)
+		// Error::Trie(<KeccakHasher as Hasher>::Out::new()) // TODO: fix this
+		Error::Trie(TrieError::InvalidStateRoot(<KeccakHasher as Hasher>::Out::new())) // TODO: fix this
 	}
 }
 

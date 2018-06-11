@@ -609,9 +609,7 @@ impl Importer {
 
 						let call = move |addr, data| {
 							let mut state_db = state_db.boxed_clone();
-							use ::state::backend::{Proving, Backend}; // TODO: really needed? Maybe, for inference to work?
-							let backend = Proving::new(state_db.as_hashdb_mut());
-//							let backend = ::state::backend::Proving::new(state_db.as_hashdb_mut());
+							let backend = ::state::backend::Proving::new(state_db.as_hashdb_mut());
 
 							let transaction =
 								client.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);

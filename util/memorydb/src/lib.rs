@@ -23,7 +23,7 @@ extern crate rlp;
 #[cfg(test)] extern crate tiny_keccak;
 #[cfg(test)] extern crate ethereum_types;
 
-use hashdb::{HashDB, Hasher, DBValue, KeccakHasher};
+use hashdb::{HashDB, Hasher, DBValue, KeccakHasher, AsHashDB};
 use heapsize::HeapSizeOf;
 use plain_hasher::H256FastMap;
 use rlp::NULL_RLP;
@@ -271,6 +271,11 @@ impl<H: Hasher> HashDB<H> for MemoryDB<H> {
 			},
 		}
 	}
+}
+
+impl<H: Hasher> AsHashDB<H> for MemoryDB<H> {
+	fn as_hashdb(&self) -> &HashDB<H> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { self }
 }
 
 #[cfg(test)]

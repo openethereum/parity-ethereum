@@ -49,7 +49,7 @@ pub enum Error {
 	/// Restoration aborted.
 	RestorationAborted,
 	/// Trie error.
-	Trie(TrieError<<KeccakHasher as Hasher>::Out>),
+	Trie(TrieError<<KeccakHasher as Hasher>::Out>), // TODO: this doesn't look right. 
 	/// Decoder error.
 	Decoder(DecoderError),
 	/// Io error.
@@ -104,7 +104,9 @@ impl From<::std::io::Error> for Error {
 
 impl<T> From<TrieError<T>> for Error {
 	fn from(err: TrieError<T>) -> Self {
-		Error::Trie(err)
+		// Error::Trie(err)
+		// Error::Trie(<KeccakHasher as Hasher>::Out::new()) // TODO: fix this
+		Error::Trie(TrieError::InvalidStateRoot(<KeccakHasher as Hasher>::Out::new())) // TODO: fix this
 	}
 }
 

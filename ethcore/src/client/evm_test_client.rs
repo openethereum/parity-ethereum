@@ -25,12 +25,14 @@ use {state, state_db, client, executive, trace, transaction, db, spec, pod_state
 use factory::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
+use hashdb::{Hasher, KeccakHasher};
 
 /// EVM test Error.
 #[derive(Debug)]
 pub enum EvmTestError {
 	/// Trie integrity error.
-	Trie(trie::TrieError),
+	// Trie(trie::TrieError<T>),
+	Trie(trie::TrieError<<KeccakHasher as Hasher>::Out>), // TODO: this doesn't look right. 	
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.

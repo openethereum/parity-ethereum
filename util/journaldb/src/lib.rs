@@ -54,9 +54,31 @@ pub mod overlaydb;
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
 
-/// Convenience type for crates that need a `JournalDB` with Keccak hashes
-//pub type KeccakJournalDB = JournalDB; // TODO: use this in the `journaldb` crate
-// TODO: do we need/want additional convenience exports like this? `KeccakArchiveDB`, `KeccakEarlymergeDB` etc?
+use archivedb::ArchiveDB;
+impl AsHashDB<KeccakHasher> for ArchiveDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+use earlymergedb::EarlyMergeDB;
+impl AsHashDB<KeccakHasher> for EarlyMergeDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+use overlayrecentdb::OverlayRecentDB;
+impl AsHashDB<KeccakHasher> for OverlayRecentDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+use refcounteddb::RefCountedDB;
+impl AsHashDB<KeccakHasher> for RefCountedDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+use overlaydb::OverlayDB;
+impl AsHashDB<KeccakHasher> for OverlayDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
 
 /// Journal database operating strategy.
 #[derive(Debug, PartialEq, Clone, Copy)]

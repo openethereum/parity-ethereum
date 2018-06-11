@@ -65,7 +65,7 @@ impl PodAccount {
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut HashDB<H=KeccakHasher>, factory: &TrieFactory<KeccakHasher, KeccakRlpNodeCodec>) {
+	pub fn insert_additional(&self, db: &mut HashDB<KeccakHasher>, factory: &TrieFactory<KeccakHasher, KeccakRlpNodeCodec>) {
 		match self.code {
 			Some(ref c) if !c.is_empty() => { db.insert(c); }
 			_ => {}

@@ -35,9 +35,9 @@ use rand::Rng;
 
 use kvdb::{KeyValueDB, DBValue};
 use ethereum_types::H256;
-use hashdb::HashDB;
+use hashdb::{HashDB, KeccakHasher};
 use journaldb;
-use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie};
+use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie, KeccakRlpNodeCodec};
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
 
 // the proportion of accounts we will alter each tick.
@@ -60,10 +60,10 @@ impl StateProducer {
 
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
-	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {
+	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
-			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
+			let trie = TrieDB::<_, KeccakRlpNodeCodec>::new(&*db, &self.state_root).unwrap();
 			let temp = trie.iter().unwrap() // binding required due to complicated lifetime stuff
 				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
 				.map(Result::unwrap)
@@ -82,7 +82,7 @@ impl StateProducer {
 		}
 
 		// sweep again to alter account trie.
-		let mut trie = TrieDBMut::from_existing(db, &mut self.state_root).unwrap();
+		let mut trie = TrieDBMut::<_, KeccakRlpNodeCodec>::from_existing(db, &mut self.state_root).unwrap();
 
 		for (address_hash, account_data) in accounts_to_modify {
 			trie.insert(&address_hash[..], &account_data).unwrap();
@@ -117,9 +117,9 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 	};
 	{
 		let mut trie = if *root == KECCAK_NULL_RLP {
-			SecTrieDBMut::new(&mut db, root)
+			SecTrieDBMut::<_, KeccakRlpNodeCodec>::new(&mut db, root)
 		} else {
-			SecTrieDBMut::from_existing(&mut db, root).unwrap()
+			SecTrieDBMut::<_, KeccakRlpNodeCodec>::from_existing(&mut db, root).unwrap()
 		};
 
 		for (k, v) in map.make_with(seed) {
@@ -129,7 +129,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 }
 
 /// Compare two state dbs.
-pub fn compare_dbs(one: &HashDB, two: &HashDB) {
+pub fn compare_dbs(one: &HashDB<KeccakHasher>, two: &HashDB<KeccakHasher>) {
 	let keys = one.keys();
 
 	for key in keys.keys() {

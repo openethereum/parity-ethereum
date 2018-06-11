@@ -34,10 +34,10 @@ use hashdb::{AsHashDB, HashDB, DBValue, Hasher, KeccakHasher};
 /// State backend. See module docs for more details.
 pub trait Backend: Send {
 	/// Treat the backend as a read-only hashdb.
-	fn as_hashdb(&self) -> &HashDB<H=KeccakHasher>;
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher>;
 
 	/// Treat the backend as a writeable hashdb.
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=KeccakHasher>;
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher>;
 
 	/// Add an account entry to the cache.
 	fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool);
@@ -87,8 +87,7 @@ impl ProofCheck {
 	}
 }
 
-impl HashDB for ProofCheck {
-	type H = KeccakHasher;
+impl HashDB<KeccakHasher> for ProofCheck {
 	fn keys(&self) -> HashMap<H256, i32> { self.0.keys() }
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		self.0.get(key)
@@ -109,9 +108,14 @@ impl HashDB for ProofCheck {
 	fn remove(&mut self, _key: &H256) { }
 }
 
+impl AsHashDB<KeccakHasher> for ProofCheck {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+
 impl Backend for ProofCheck {
-	fn as_hashdb(&self) -> &HashDB<H=KeccakHasher> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=KeccakHasher> { self }
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
 	fn add_to_account_cache(&mut self, _addr: Address, _data: Option<Account>, _modified: bool) {}
 	fn cache_code(&self, _hash: H256, _code: Arc<Vec<u8>>) {}
 	fn get_cached_account(&self, _addr: &Address) -> Option<Option<Account>> { None }
@@ -136,8 +140,12 @@ pub struct Proving<H: AsHashDB<KeccakHasher>> {
 	proof: Mutex<HashSet<DBValue>>,
 }
 
-impl<H: AsHashDB<KeccakHasher> + Send + Sync> HashDB for Proving<H> {
-	type H = KeccakHasher;
+impl<AH: AsHashDB<KeccakHasher> + Send + Sync> AsHashDB<KeccakHasher> for Proving<AH> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+
+impl<H: AsHashDB<KeccakHasher> + Send + Sync> HashDB<KeccakHasher> for Proving<H> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut keys = self.base.as_hashdb().keys();
 		keys.extend(self.changed.keys());
@@ -175,11 +183,11 @@ impl<H: AsHashDB<KeccakHasher> + Send + Sync> HashDB for Proving<H> {
 }
 
 impl<H: AsHashDB<KeccakHasher> + Send + Sync> Backend for Proving<H> {
-	fn as_hashdb(&self) -> &HashDB<H=KeccakHasher> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> {
 		self
 	}
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=KeccakHasher> {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
 		self
 	}
 
@@ -233,11 +241,11 @@ impl<H: AsHashDB<KeccakHasher> + Clone> Clone for Proving<H> {
 pub struct Basic<H>(pub H);
 
 impl<H: AsHashDB<KeccakHasher> + Send + Sync> Backend for Basic<H> {
-	fn as_hashdb(&self) -> &HashDB<H=KeccakHasher> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> {
 		self.0.as_hashdb()
 	}
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=KeccakHasher> {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
 		self.0.as_hashdb_mut()
 	}
 
