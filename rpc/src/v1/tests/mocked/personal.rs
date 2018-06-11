@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -52,13 +52,12 @@ fn miner_service() -> Arc<TestMinerService> {
 
 fn setup() -> PersonalTester {
 	let accounts = accounts_provider();
-	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
 	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
-	let personal = PersonalClient::new(opt_accounts, dispatcher, false);
+	let personal = PersonalClient::new(&accounts, dispatcher, false);
 
 	let mut io = IoHandler::default();
 	io.extend_with(personal.to_delegate());

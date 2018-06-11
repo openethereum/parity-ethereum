@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -86,7 +86,6 @@ impl<'a> Visitor<'a> for BytesVisitor {
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -118,4 +117,3 @@ mod tests {
 		assert_eq!(bytes6, Bytes(vec![0x1, 0x23]));
 	}
 }
-

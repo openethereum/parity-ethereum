@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,7 +29,6 @@ extern crate keccak_hash as hash;
 extern crate linked_hash_map;
 extern crate parking_lot;
 extern crate price_info;
-extern crate rayon;
 extern crate rlp;
 extern crate trace_time;
 extern crate transaction_pool as txpool;

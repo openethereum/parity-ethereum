@@ -15,3 +15,6 @@ rlp = { path = "../util/rlp" }
 cid = "0.2"
 multihash = "0.7"
 unicase = "2.0"
+
+[dev-dependencies]
+ethcore = { path = "../ethcore", features = ["test-helpers"] }

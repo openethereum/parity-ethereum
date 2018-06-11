@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![cfg_attr(feature="use-precompiled-js", allow(dead_code))]
-#![cfg_attr(feature="use-precompiled-js", allow(unused_imports))]
+#![cfg_attr(feature = "use-precompiled-js", allow(dead_code))]
+#![cfg_attr(feature = "use-precompiled-js", allow(unused_imports))]
 
 use std::fmt;
 use std::process::Command;

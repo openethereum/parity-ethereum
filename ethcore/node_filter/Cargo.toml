@@ -19,6 +19,7 @@ ethabi-contract = "5.0"
 lru-cache = "0.1"
 
 [dev-dependencies]
+ethcore = { path = "..", features = ["test-helpers"] }
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
 ethcore-io = { path = "../../util/io" }
 tempdir = "0.3"

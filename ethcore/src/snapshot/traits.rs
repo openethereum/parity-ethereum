@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -54,4 +54,7 @@ pub trait SnapshotService : Sync + Send {
 	/// Feed a raw block chunk to the service to be processed asynchronously.
 	/// no-op if currently restoring.
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
+
+	/// Shutdown the Snapshot Service by aborting any ongoing restore
+	fn shutdown(&self);
 }

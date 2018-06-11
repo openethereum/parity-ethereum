@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -237,7 +237,7 @@ pub fn fetch_gas_price_corpus(
 
 /// Returns a eth_sign-compatible hash of data to sign.
 /// The data is prepended with special message to prevent
-/// chosen-plaintext attacks.
+/// malicious DApps from using the function to sign forged transactions.
 pub fn eth_data_hash(mut data: Bytes) -> H256 {
 	let mut message_data =
 		format!("\x19Ethereum Signed Message:\n{}", data.len())

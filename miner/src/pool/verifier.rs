@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -57,6 +57,7 @@ impl Default for Options {
 }
 
 /// Transaction to verify.
+#[cfg_attr(test, derive(Clone))]
 pub enum Transaction {
 	/// Fresh, never verified transaction.
 	///
@@ -75,7 +76,8 @@ pub enum Transaction {
 }
 
 impl Transaction {
-	fn hash(&self) -> H256 {
+	/// Return transaction hash
+	pub fn hash(&self) -> H256 {
 		match *self {
 			Transaction::Unverified(ref tx) => tx.hash(),
 			Transaction::Retracted(ref tx) => tx.hash(),
@@ -90,7 +92,6 @@ impl Transaction {
 			Transaction::Local(ref tx) => &tx.gas,
 		}
 	}
-
 
 	fn gas_price(&self) -> &U256 {
 		match *self {

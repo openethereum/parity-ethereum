@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -294,6 +294,8 @@ pub enum BlockSet {
 pub enum ForkConfirmation {
 	/// Fork block confirmation pending.
 	Unconfirmed,
+	/// Peer's chain is too short to confirm the fork.
+	TooShort,
 	/// Fork is confirmed.
 	Confirmed,
 }
@@ -1345,7 +1347,6 @@ pub mod tests {
 			client.set_balance(sender, U256::from(10_000_000_000_000_000_000u64));
 			client.set_nonce(sender, U256::from(0));
 		}
-
 
 		// when
 		{

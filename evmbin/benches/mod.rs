@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -83,4 +83,3 @@ fn rng(gas: U256, b: &mut Bencher) {
 		run_vm(params)
 	});
 }
-

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -491,7 +491,6 @@ fn should_accept_same_transaction_twice_if_removed() {
 	let (tx1, _) = txs.clone();
 	let (hash, _) = txs.hash();
 
-
 	let res = txq.import(TestClient::new(), txs.local().into_vec());
 	assert_eq!(res, vec![Ok(()), Ok(())]);
 	assert_eq!(txq.status().status.transaction_count, 2);
@@ -731,7 +730,6 @@ fn should_not_return_transactions_over_nonce_cap() {
 	// This should invalidate the cache!
 	let limited = txq.pending(TestClient::new(), 0, 0, Some(123.into()));
 
-
 	// then
 	assert_eq!(all.len(), 3);
 	assert_eq!(limited.len(), 1);
@@ -766,4 +764,69 @@ fn should_reject_big_transaction() {
 		verifier::Transaction::Local(PendingTransaction::new(big_tx, transaction::Condition::Timestamp(1000).into()))
 	]);
 	assert_eq!(res, vec![Err(transaction::Error::TooBig)]);
+}
+
+#[test]
+fn should_include_local_transaction_to_a_full_pool() {
+	// given
+	let txq = TransactionQueue::new(
+		txpool::Options {
+			max_count: 1,
+			max_per_sender: 2,
+			max_mem_usage: 50
+		},
+		verifier::Options {
+			minimal_gas_price: 1.into(),
+			block_gas_limit: 1_000_000.into(),
+			tx_gas_limit: 1_000_000.into(),
+		},
+		PrioritizationStrategy::GasPriceOnly,
+	);
+	let tx1 = Tx::gas_price(10_000).signed().unverified();
+	let tx2 = Tx::gas_price(1).signed().local();
+
+	let res = txq.import(TestClient::new().with_balance(1_000_000_000), vec![tx1]);
+	assert_eq!(res, vec![Ok(())]);
+	assert_eq!(txq.status().status.transaction_count, 1);
+
+	// when
+	let res = txq.import(TestClient::new(), vec![tx2]);
+	assert_eq!(res, vec![Ok(())]);
+
+	// then
+	assert_eq!(txq.status().status.transaction_count, 1);
+}
+
+#[test]
+fn should_avoid_verifying_transaction_already_in_pool() {
+	// given
+	let txq = TransactionQueue::new(
+		txpool::Options {
+			max_count: 1,
+			max_per_sender: 2,
+			max_mem_usage: 50
+		},
+		verifier::Options {
+			minimal_gas_price: 1.into(),
+			block_gas_limit: 1_000_000.into(),
+			tx_gas_limit: 1_000_000.into(),
+		},
+		PrioritizationStrategy::GasPriceOnly,
+	);
+	let client = TestClient::new();
+	let tx1 = Tx::default().signed().unverified();
+
+	let res = txq.import(client.clone(), vec![tx1.clone()]);
+	assert_eq!(res, vec![Ok(())]);
+	assert_eq!(txq.status().status.transaction_count, 1);
+	assert!(client.was_verification_triggered());
+
+	// when
+	let client = TestClient::new();
+	let res = txq.import(client.clone(), vec![tx1]);
+	assert_eq!(res, vec![Err(transaction::Error::AlreadyImported)]);
+	assert!(!client.was_verification_triggered());
+
+	// then
+	assert_eq!(txq.status().status.transaction_count, 1);
 }
