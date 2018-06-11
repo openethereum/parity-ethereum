@@ -285,7 +285,7 @@ impl<'db, H, C> TrieFactory<H, C>
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn readonly(&self, db: &'db HashDB<H=H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out> {
+	pub fn readonly(&self, db: &'db HashDB<H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out> {
 		match self.spec {
 			TrieSpec::Generic => Ok(TrieKinds::Generic(TrieDB::new(db, root)?)),
 			TrieSpec::Secure => Ok(TrieKinds::Secure(SecTrieDB::new(db, root)?)),
@@ -294,7 +294,7 @@ impl<'db, H, C> TrieFactory<H, C>
 	}
 
 	/// Create new mutable instance of Trie.
-	pub fn create(&self, db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Box<TrieMut<H=H> + 'db> {
+	pub fn create(&self, db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Box<TrieMut<H=H> + 'db> {
 		match self.spec {
 			TrieSpec::Generic => Box::new(TrieDBMut::<_, C>::new(db, root)),
 			TrieSpec::Secure => Box::new(SecTrieDBMut::<_, C>::new(db, root)),
@@ -303,7 +303,7 @@ impl<'db, H, C> TrieFactory<H, C>
 	}
 
 	/// Create new mutable instance of trie and check for errors.
-	pub fn from_existing(&self, db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H=H> + 'db>, H::Out> {
+	pub fn from_existing(&self, db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H=H> + 'db>, H::Out> {
 		match self.spec {
 			TrieSpec::Generic => Ok(Box::new(TrieDBMut::<_, C>::from_existing(db, root)?)),
 			TrieSpec::Secure => Ok(Box::new(SecTrieDBMut::<_, C>::from_existing(db, root)?)),

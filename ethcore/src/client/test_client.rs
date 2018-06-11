@@ -581,10 +581,10 @@ impl Call for TestBlockChainClient {
 }
 
 impl StateInfo for () {
-	fn nonce(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
-	fn balance(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
-	fn storage_at(&self, _address: &Address, _key: &H256) -> trie::Result<H256> { unimplemented!() }
-	fn code(&self, _address: &Address) -> trie::Result<Option<Arc<Bytes>>> { unimplemented!() }
+	fn nonce(&self, _address: &Address) -> trie::KeccakTrieResult<U256> { unimplemented!() }
+	fn balance(&self, _address: &Address) -> trie::KeccakTrieResult<U256> { unimplemented!() }
+	fn storage_at(&self, _address: &Address, _key: &H256) -> trie::KeccakTrieResult<H256> { unimplemented!() }
+	fn code(&self, _address: &Address) -> trie::KeccakTrieResult<Option<Arc<Bytes>>> { unimplemented!() }
 }
 
 impl StateClient for TestBlockChainClient {

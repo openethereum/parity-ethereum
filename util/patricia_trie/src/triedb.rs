@@ -59,7 +59,7 @@ use std::marker::PhantomData;
 pub struct TrieDB<'db, H, C>
 	where H: Hasher + 'db, C: NodeCodec<H>
 {
-	db: &'db HashDB<H=H>,
+	db: &'db HashDB<H>,
 	root: &'db H::Out,
 	/// The number of hashes performed so far in operations on this trie.
 	hash_count: usize,
@@ -71,7 +71,7 @@ impl<'db, H, C> TrieDB<'db, H, C>
 {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Returns an error if `root` does not exist
-	pub fn new(db: &'db HashDB<H=H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
 		if !db.contains(root) {
 			Err(Box::new(TrieError::InvalidStateRoot(*root)))
 		} else {
@@ -80,7 +80,7 @@ impl<'db, H, C> TrieDB<'db, H, C>
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB<H=H> { self.db }
+	pub fn db(&'db self) -> &'db HashDB<H> { self.db }
 
 	/// Get the data of the root node.
 	fn root_data(&self) -> super::Result<DBValue, H::Out> {
@@ -396,7 +396,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> where
 					let node = C::decode(&d).expect("rlp read from db; qed");
 					self.descend_into_node(node.into())
 				},
-				IterStep::Descend::<H::Out>(Err(e)) => {
+				IterStep::Descend::<H::Out>(Err(_e)) => {
 //					return Some(Err(e)) // <–– REVIEW: This causes a compiler error I can't figure out:
  					/*
 					error[E0308]: mismatched types

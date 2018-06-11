@@ -152,8 +152,7 @@ impl OverlayDB {
 	}
 }
 
-impl HashDB for OverlayDB {
-	type H = KeccakHasher;
+impl HashDB<KeccakHasher> for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| {

@@ -23,7 +23,7 @@ extern crate rlp;
 #[cfg(test)] extern crate tiny_keccak;
 #[cfg(test)] extern crate ethereum_types;
 
-use hashdb::{HashDB, Hasher, DBValue, KeccakHasher};
+use hashdb::{HashDB, Hasher, DBValue, KeccakHasher, AsHashDB};
 use heapsize::HeapSizeOf;
 use plain_hasher::H256FastMap;
 use rlp::NULL_RLP;
@@ -179,14 +179,13 @@ impl<H: Hasher> MemoryDB<H> {
 	}
 }
 
-impl<H: Hasher> HashDB for MemoryDB<H> {
-	type H = H;
+impl<H: Hasher> HashDB<H> for MemoryDB<H> {
 
 	// REVIEW: this method is what made it necessary to add a type param to H256FastMap, which I'd rather have avoided.
 	//         The problem is that the keys returned are `H256` and type inference fails on the `collect()` call.
 	//         I could not make it work without parameterizing H256FastMap too. It all sort of adds up as I could
 	//         avoid adding PhantomData to MemoryDB, but still quite annoying. What's a better way?
-	fn keys(&self) -> HashMap<<Self::H as Hasher>::Out, i32> {
+	fn keys(&self) -> HashMap<H::Out, i32> {
 		self.data.iter()
 			.filter_map(|(k, v)| if v.1 != 0 {
 				Some((*k, v.1))
@@ -196,8 +195,8 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 			.collect()
 	}
 
-	fn get(&self, key: &<Self::H as Hasher>::Out) -> Option<DBValue> {
-		if key == &Self::H::HASHED_NULL_RLP {
+	fn get(&self, key: &H::Out) -> Option<DBValue> {
+		if key == &H::HASHED_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 
@@ -207,8 +206,8 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 		}
 	}
 
-	fn contains(&self, key: &<Self::H as Hasher>::Out) -> bool {
-		if key == &Self::H::HASHED_NULL_RLP {
+	fn contains(&self, key: &H::Out) -> bool {
+		if key == &H::HASHED_NULL_RLP {
 			return true;
 		}
 
@@ -218,11 +217,11 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 		}
 	}
 
-	fn insert(&mut self, value: &[u8]) -> <Self::H as Hasher>::Out {
+	fn insert(&mut self, value: &[u8]) -> H::Out {
 		if value == &NULL_RLP {
-			return Self::H::HASHED_NULL_RLP.clone();
+			return H::HASHED_NULL_RLP.clone();
 		}
-		let key = Self::H::hash(value);
+		let key = H::hash(value);
 		match self.data.entry(key) {
 			Entry::Occupied(mut entry) => {
 				let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
@@ -238,7 +237,7 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 		key
 	}
 
-	fn emplace(&mut self, key:<Self::H as Hasher>::Out, value: DBValue) {
+	fn emplace(&mut self, key:H::Out, value: DBValue) {
 		if &*value == &NULL_RLP {
 			return;
 		}
@@ -257,8 +256,8 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 		}
 	}
 
-	fn remove(&mut self, key: &<Self::H as Hasher>::Out) {
-		if key == &Self::H::HASHED_NULL_RLP {
+	fn remove(&mut self, key: &H::Out) {
+		if key == &H::HASHED_NULL_RLP {
 			return;
 		}
 
@@ -272,6 +271,11 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 			},
 		}
 	}
+}
+
+impl<H: Hasher> AsHashDB<H> for MemoryDB<H> {
+	fn as_hashdb(&self) -> &HashDB<H> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { self }
 }
 
 #[cfg(test)]

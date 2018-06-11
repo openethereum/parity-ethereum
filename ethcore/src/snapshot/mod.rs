@@ -39,7 +39,7 @@ use bytes::Bytes;
 use parking_lot::Mutex;
 use journaldb::{self, Algorithm, JournalDB};
 use kvdb::KeyValueDB;
-use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
+use trie::{TrieDB, TrieDBMut, Trie, TrieMut, KeccakRlpNodeCodec};
 use rlp::{RlpStream, Rlp};
 use bloom_journal::Bloom;
 
@@ -127,7 +127,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	engine: &EthEngine,
 	chain: &BlockChain,
 	block_at: H256,
-	state_db: &HashDB<H=KeccakHasher>,
+	state_db: &HashDB<KeccakHasher>,
 	writer: W,
 	p: &Progress
 ) -> Result<(), Error> {
@@ -265,8 +265,8 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB<H=KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
-	let account_trie = TrieDB::new(db, &root)?;
+pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
+	let account_trie = TrieDB::<KeccakHasher, KeccakRlpNodeCodec>::new(db, &root)?;
 
 	let mut chunker = StateChunker {
 		hashes: Vec::new(),
@@ -305,7 +305,7 @@ pub fn chunk_state<'a>(db: &HashDB<H=KeccakHasher>, root: &H256, writer: &Mutex<
 
 /// Used to rebuild the state trie piece by piece.
 pub struct StateRebuilder {
-	db: Box<JournalDB<H=KeccakHasher>>,
+	db: Box<JournalDB>,
 	state_root: H256,
 	known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
@@ -363,7 +363,7 @@ impl StateRebuilder {
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != KECCAK_NULL_RLP {
-				TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root)?
+				TrieDBMut::<_, KeccakRlpNodeCodec>::from_existing(self.db.as_hashdb_mut(), &mut self.state_root)?
 			} else {
 				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
 			};
@@ -390,7 +390,7 @@ impl StateRebuilder {
 	/// Finalize the restoration. Check for accounts missing code and make a dummy
 	/// journal entry.
 	/// Once all chunks have been fed, there should be nothing missing.
-	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB<H=KeccakHasher>>, ::error::Error> {
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB>, ::error::Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
 
@@ -415,7 +415,7 @@ struct RebuiltStatus {
 // rebuild a set of accounts and their storage.
 // returns a status detailing newly-loaded code and accounts missing code.
 fn rebuild_accounts(
-	db: &mut HashDB<H=KeccakHasher>,
+	db: &mut HashDB<KeccakHasher>,
 	account_fat_rlps: Rlp,
 	out_chunk: &mut [(H256, Bytes)],
 	known_code: &HashMap<H256, H256>,

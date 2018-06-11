@@ -54,9 +54,31 @@ pub mod overlaydb;
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
 
-/// Convenience type for crates that need a `JournalDB` with Keccak hashes
-//pub type KeccakJournalDB = JournalDB<H=KeccakHasher>; // TODO: use this in the `journaldb` crate
-// TODO: do we need/want additional convenience exports like this? `KeccakArchiveDB`, `KeccakEarlymergeDB` etc?
+use archivedb::ArchiveDB;
+impl AsHashDB<KeccakHasher> for ArchiveDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+use earlymergedb::EarlyMergeDB;
+impl AsHashDB<KeccakHasher> for EarlyMergeDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+use overlayrecentdb::OverlayRecentDB;
+impl AsHashDB<KeccakHasher> for OverlayRecentDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+use refcounteddb::RefCountedDB;
+impl AsHashDB<KeccakHasher> for RefCountedDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+use overlaydb::OverlayDB;
+impl AsHashDB<KeccakHasher> for OverlayDB {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
 
 /// Journal database operating strategy.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -145,7 +167,7 @@ impl fmt::Display for Algorithm {
 }
 
 /// Create a new `JournalDB` trait object over a generic key-value database.
-pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u32>) -> Box<JournalDB<H=KeccakHasher>> {
+pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u32>) -> Box<JournalDB> {
 	match algorithm {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(backing, col)),
 		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(backing, col)),

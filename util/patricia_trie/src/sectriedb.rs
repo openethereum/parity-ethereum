@@ -39,7 +39,7 @@ impl<'db, H, C> SecTrieDB<'db, H, C>
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	/// Returns an error if root does not exist.
-	pub fn new(db: &'db HashDB<H=H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
 		Ok(SecTrieDB { raw: TrieDB::new(db, root)? })
 	}
 

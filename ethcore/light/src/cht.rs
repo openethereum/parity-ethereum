@@ -25,10 +25,10 @@
 
 use ethcore::ids::BlockId;
 use ethereum_types::{H256, U256};
-use hashdb::HashDB;
+use hashdb::{HashDB, KeccakHasher};
 use memorydb::MemoryDB;
 use bytes::Bytes;
-use trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
+use trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder, KeccakRlpNodeCodec};
 use rlp::{RlpStream, Rlp};
 
 // encode a key.
@@ -50,13 +50,13 @@ pub const SIZE: u64 = 2048;
 /// A canonical hash trie. This is generic over any database it can query.
 /// See module docs for more details.
 #[derive(Debug, Clone)]
-pub struct CHT<DB: HashDB> {
+pub struct CHT<DB: HashDB<KeccakHasher>> {
 	db: DB,
 	root: H256, // the root of this CHT.
 	number: u64,
 }
 
-impl<DB: HashDB> CHT<DB> {
+impl<DB: HashDB<KeccakHasher>> CHT<DB> {
 	/// Query the root of the CHT.
 	pub fn root(&self) -> H256 { self.root }
 
@@ -66,11 +66,11 @@ impl<DB: HashDB> CHT<DB> {
 	/// Generate an inclusion proof for the entry at a specific block.
 	/// Nodes before level `from_level` will be omitted.
 	/// Returns an error on an incomplete trie, and `Ok(None)` on an unprovable request.
-	pub fn prove(&self, num: u64, from_level: u32) -> trie::Result<Option<Vec<Bytes>>> {
+	pub fn prove(&self, num: u64, from_level: u32) -> trie::KeccakTrieResult<Option<Vec<Bytes>>> {
 		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
 
 		let mut recorder = Recorder::with_depth(from_level);
-		let t = TrieDB::new(&self.db, &self.root)?;
+		let t = TrieDB::<_, KeccakRlpNodeCodec>::new(&self.db, &self.root)?;
 		t.get_with(&key!(num), &mut recorder)?;
 
 		Ok(Some(recorder.drain().into_iter().map(|x| x.data).collect()))
@@ -90,10 +90,10 @@ pub struct BlockInfo {
 /// Build an in-memory CHT from a closure which provides necessary information
 /// about blocks. If the fetcher ever fails to provide the info, the CHT
 /// will not be generated.
-pub fn build<F>(cht_num: u64, mut fetcher: F) ->  Option<CHT<MemoryDB>>
+pub fn build<F>(cht_num: u64, mut fetcher: F) ->  Option<CHT<MemoryDB<KeccakHasher>>>
 	where F: FnMut(BlockId) -> Option<BlockInfo>
 {
-	let mut db = MemoryDB::new();
+	let mut db = MemoryDB::<KeccakHasher>::new();
 
 	// start from the last block by number and work backwards.
 	let last_num = start_number(cht_num + 1) - 1;
@@ -102,7 +102,7 @@ pub fn build<F>(cht_num: u64, mut fetcher: F) ->  Option<CHT<MemoryDB>>
 	let mut root = H256::default();
 
 	{
-		let mut t = TrieDBMut::new(&mut db, &mut root);
+		let mut t = TrieDBMut::<_, KeccakRlpNodeCodec>::new(&mut db, &mut root);
 		for blk_num in (0..SIZE).map(|n| last_num - n) {
 			let info = match fetcher(id) {
 				Some(info) => info,
@@ -147,10 +147,10 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 /// verify the given trie branch and extract the canonical hash and total difficulty.
 // TODO: better support for partially-checked queries.
 pub fn check_proof(proof: &[Bytes], num: u64, root: H256) -> Option<(H256, U256)> {
-	let mut db = MemoryDB::new();
+	let mut db = MemoryDB::<KeccakHasher>::new();
 
 	for node in proof { db.insert(&node[..]); }
-	let res = match TrieDB::new(&db, &root) {
+	let res = match TrieDB::<_, KeccakRlpNodeCodec>::new(&db, &root) {
 		Err(_) => return None,
 		Ok(trie) => trie.get_with(&key!(num), |val: &[u8]| {
 			let rlp = Rlp::new(val);

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::Address;
+use ethereum_types::{Address, H256};
 use rlp::DecoderError;
 use trie::TrieError;
 use ethcore::account_provider::SignError;
@@ -26,7 +26,7 @@ error_chain! {
 	foreign_links {
 		Io(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		Decoder(DecoderError) #[doc = "RLP decoding error."];
-		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
+		Trie(TrieError<H256>) #[doc = "Error concerning TrieDBs."]; // REVIEW: error_chain requires concrete types, but this probably is not ok. What's a better way?
 	}
 
 	errors {

@@ -62,8 +62,7 @@ impl ArchiveDB {
 	}
 }
 
-impl HashDB for ArchiveDB {
-	type H = KeccakHasher;
+impl HashDB<KeccakHasher> for ArchiveDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -109,7 +108,7 @@ impl HashDB for ArchiveDB {
 }
 
 impl JournalDB for ArchiveDB {
-	fn boxed_clone(&self) -> Box<JournalDB<H=KeccakHasher>> {
+	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(ArchiveDB {
 			overlay: self.overlay.clone(),
 			backing: self.backing.clone(),

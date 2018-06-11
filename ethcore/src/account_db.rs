@@ -57,7 +57,7 @@ impl Default for Factory {
 impl Factory {
 	/// Create a read-only accountdb.
 	/// This will panic when write operations are called.
-	pub fn readonly<'db>(&self, db: &'db HashDB<H=KeccakHasher>, address_hash: H256) -> Box<HashDB<H=KeccakHasher> + 'db> {
+	pub fn readonly<'db>(&self, db: &'db HashDB<KeccakHasher>, address_hash: H256) -> Box<HashDB<KeccakHasher> + 'db> {
 		match *self {
 			Factory::Mangled => Box::new(AccountDB::from_hash(db, address_hash)),
 			Factory::Plain => Box::new(Wrapping(db)),
@@ -65,7 +65,7 @@ impl Factory {
 	}
 
 	/// Create a new mutable hashdb.
-	pub fn create<'db>(&self, db: &'db mut HashDB<H=KeccakHasher>, address_hash: H256) -> Box<HashDB<H=KeccakHasher> + 'db> {
+	pub fn create<'db>(&self, db: &'db mut HashDB<KeccakHasher>, address_hash: H256) -> Box<HashDB<KeccakHasher> + 'db> {
 		match *self {
 			Factory::Mangled => Box::new(AccountDBMut::from_hash(db, address_hash)),
 			Factory::Plain => Box::new(WrappingMut(db)),
@@ -77,25 +77,19 @@ impl Factory {
 /// DB backend wrapper for Account trie
 /// Transforms trie node keys for the database
 pub struct AccountDB<'db> {
-	db: &'db HashDB<H=KeccakHasher>,
+	db: &'db HashDB<KeccakHasher>,
 	address_hash: H256,
 }
-
-// No: orphan rules
-//impl<'db> AsHashDB<KeccakHasher> for AccountDB<'db> {
-//	fn as_hashdb(&self) -> &HashDB<H=KeccakHasher> { self.db.as_hashdb() }
-//	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=KeccakHasher> { self.db.as_hashdb_mut() }
-//}
 
 impl<'db> AccountDB<'db> {
 	/// Create a new AccountDB from an address.
 	#[cfg(test)]
-	pub fn new(db: &'db HashDB<H=KeccakHasher>, address: &Address) -> Self {
+	pub fn new(db: &'db HashDB<KeccakHasher>, address: &Address) -> Self {
 		Self::from_hash(db, keccak(address))
 	}
 
 	/// Create a new AcountDB from an address' hash.
-	pub fn from_hash(db: &'db HashDB<H=KeccakHasher>, address_hash: H256) -> Self {
+	pub fn from_hash(db: &'db HashDB<KeccakHasher>, address_hash: H256) -> Self {
 		AccountDB {
 			db: db,
 			address_hash: address_hash,
@@ -103,8 +97,12 @@ impl<'db> AccountDB<'db> {
 	}
 }
 
-impl<'db> HashDB for AccountDB<'db>{
-	type H = KeccakHasher;
+impl<'db> AsHashDB<KeccakHasher> for AccountDB<'db> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+
+impl<'db> HashDB<KeccakHasher> for AccountDB<'db> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		unimplemented!()
 	}
@@ -138,19 +136,19 @@ impl<'db> HashDB for AccountDB<'db>{
 
 /// DB backend wrapper for Account trie
 pub struct AccountDBMut<'db> {
-	db: &'db mut HashDB<H=KeccakHasher>,
+	db: &'db mut HashDB<KeccakHasher>,
 	address_hash: H256,
 }
 
 impl<'db> AccountDBMut<'db> {
 	/// Create a new AccountDB from an address.
 	#[cfg(test)]
-	pub fn new(db: &'db mut HashDB<H=KeccakHasher>, address: &Address) -> Self {
+	pub fn new(db: &'db mut HashDB<KeccakHasher>, address: &Address) -> Self {
 		Self::from_hash(db, keccak(address))
 	}
 
 	/// Create a new AcountDB from an address' hash.
-	pub fn from_hash(db: &'db mut HashDB<H=KeccakHasher>, address_hash: H256) -> Self {
+	pub fn from_hash(db: &'db mut HashDB<KeccakHasher>, address_hash: H256) -> Self {
 		AccountDBMut {
 			db: db,
 			address_hash: address_hash,
@@ -163,8 +161,7 @@ impl<'db> AccountDBMut<'db> {
 	}
 }
 
-impl<'db> HashDB for AccountDBMut<'db>{
-	type H = KeccakHasher;
+impl<'db> HashDB<KeccakHasher> for AccountDBMut<'db>{
 	fn keys(&self) -> HashMap<H256, i32> {
 		unimplemented!()
 	}
@@ -210,10 +207,19 @@ impl<'db> HashDB for AccountDBMut<'db>{
 	}
 }
 
-struct Wrapping<'db>(&'db HashDB<H=KeccakHasher>);
+impl<'db> AsHashDB<KeccakHasher> for AccountDBMut<'db> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
 
-impl<'db> HashDB for Wrapping<'db> {
-	type H = KeccakHasher;
+struct Wrapping<'db>(&'db HashDB<KeccakHasher>);
+
+impl<'db> AsHashDB<KeccakHasher> for Wrapping<'db> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+
+impl<'db> HashDB<KeccakHasher> for Wrapping<'db> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		unimplemented!()
 	}
@@ -245,10 +251,13 @@ impl<'db> HashDB for Wrapping<'db> {
 	}
 }
 
-struct WrappingMut<'db>(&'db mut HashDB<H=KeccakHasher>);
+struct WrappingMut<'db>(&'db mut HashDB<KeccakHasher>);
+impl<'db> AsHashDB<KeccakHasher> for WrappingMut<'db> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
 
-impl<'db> HashDB for WrappingMut<'db>{
-	type H = KeccakHasher;
+impl<'db> HashDB<KeccakHasher> for WrappingMut<'db>{
 	fn keys(&self) -> HashMap<H256, i32> {
 		unimplemented!()
 	}

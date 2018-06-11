@@ -118,8 +118,10 @@ pub enum ExecutionError {
 }
 
 impl<T> From<Box<trie::TrieError<T>>> for ExecutionError {
-	fn from(err: Box<trie::TrieError<T>>) -> Self {
-		ExecutionError::Internal(format!("{:?}", err))
+	// TODO: sort out the error types
+	fn from(_err: Box<trie::TrieError<T>>) -> Self {
+		// ExecutionError::Internal(format!("{:?}", err))
+		ExecutionError::Internal(format!("TODO: sort out the trie error types"))
 	}
 }
 

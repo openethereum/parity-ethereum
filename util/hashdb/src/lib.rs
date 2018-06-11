@@ -47,57 +47,54 @@ impl Hasher for KeccakHasher {
 	}
 }
 /// Convenience type for crates that need a `HashDB` with Keccak hashes
-pub type KeccakHashDB = HashDB<H=KeccakHasher>;
+pub type KeccakHashDB = HashDB<KeccakHasher>;
 
 /// `HashDB` value type.
 pub type DBValue = ElasticArray128<u8>;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
 // TODO: move `H: Hasher` to be a generic param instead of an associated type
-pub trait HashDB: Send + Sync {
-	type H: Hasher;
+pub trait HashDB<H: Hasher>: Send + Sync + AsHashDB<H> {
 	/// Get the keys in the database together with number of underlying references.
-	fn keys(&self) -> HashMap<<Self::H as Hasher>::Out, i32>;
+	fn keys(&self) -> HashMap<H::Out, i32>;
 
 	/// Look up a given hash into the bytes that hash to it, returning None if the
 	/// hash is not known.
-	fn get(&self, key: &<Self::H as Hasher>::Out) -> Option<DBValue>;
+	fn get(&self, key: &H::Out) -> Option<DBValue>;
 
 	/// Check for the existance of a hash-key.
-	fn contains(&self, key: &<Self::H as Hasher>::Out) -> bool;
+	fn contains(&self, key: &H::Out) -> bool;
 
 	/// Insert a datum item into the DB and return the datum's hash for a later lookup. Insertions
 	/// are counted and the equivalent number of `remove()`s must be performed before the data
 	/// is considered dead.
-	fn insert(&mut self, value: &[u8]) -> <Self::H as Hasher>::Out;
+	fn insert(&mut self, value: &[u8]) -> H::Out;
 
 	/// Like `insert()`, except you provide the key and the data is all moved.
-	fn emplace(&mut self, key: <Self::H as Hasher>::Out, value: DBValue);
+	fn emplace(&mut self, key: H::Out, value: DBValue);
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB. It can be "owed" more than once.
-	fn remove(&mut self, key: &<Self::H as Hasher>::Out);
+	fn remove(&mut self, key: &H::Out);
 }
 
 /// Upcast trait.
 pub trait AsHashDB<H: Hasher> {
 	/// Perform upcast to HashDB for anything that derives from HashDB.
-	fn as_hashdb(&self) -> &HashDB<H=H>;
+	fn as_hashdb(&self) -> &HashDB<H>;
 	/// Perform mutable upcast to HashDB for anything that derives from HashDB.
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H>;
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H>;
 }
 
-impl<H: Hasher, T: HashDB<H=H>> AsHashDB<H> for T {
-	fn as_hashdb(&self) -> &HashDB<H=H> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H> { self }
+//impl<H: Hasher, T: HashDB<H>> AsHashDB<H> for T {
+//	fn as_hashdb(&self) -> &HashDB<H> { self }
+//	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { self }
+//}
+
+// TODO: This conflicts with the impl `for T`, see https://stackoverflow.com/questions/48432842/implementing-a-trait-for-reference-and-non-reference-types-causes-conflicting-im
+// I wonder why it didn't conflict before, when `H` was an associated type
+impl<'a, H: Hasher> AsHashDB<H> for &'a mut HashDB<H> {
+	fn as_hashdb(&self) -> &HashDB<H> { &**self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { &mut **self }
 }
 
-impl<'a, H: Hasher> AsHashDB<H> for &'a mut HashDB<H=H> {
-	fn as_hashdb(&self) -> &HashDB<H=H> {
-		&**self
-	}
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H> {
-		&mut **self
-	}
-}
-}
