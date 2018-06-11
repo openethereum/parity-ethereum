@@ -12,7 +12,7 @@
 ### Running coverage
 
 set -x
-RUSTFLAGS="-C link-dead-code" cargo test --all --no-run || exit $?
+RUSTFLAGS="-C link-dead-code" cargo test -j 8 --all --no-run || exit $?
 KCOV_TARGET="target/cov"
 KCOV_FLAGS="--verify"
 EXCLUDE="/usr/lib,/usr/include,$HOME/.cargo,$HOME/.multirust,rocksdb,secp256k1"
