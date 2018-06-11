@@ -55,7 +55,7 @@ pub mod overlaydb;
 pub use self::traits::JournalDB;
 
 /// Convenience type for crates that need a `JournalDB` with Keccak hashes
-//pub type KeccakJournalDB = JournalDB<H=KeccakHasher>; // TODO: use this in the `journaldb` crate
+//pub type KeccakJournalDB = JournalDB; // TODO: use this in the `journaldb` crate
 // TODO: do we need/want additional convenience exports like this? `KeccakArchiveDB`, `KeccakEarlymergeDB` etc?
 
 /// Journal database operating strategy.
@@ -145,7 +145,7 @@ impl fmt::Display for Algorithm {
 }
 
 /// Create a new `JournalDB` trait object over a generic key-value database.
-pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u32>) -> Box<JournalDB<H=KeccakHasher>> {
+pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u32>) -> Box<JournalDB> {
 	match algorithm {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(backing, col)),
 		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(backing, col)),

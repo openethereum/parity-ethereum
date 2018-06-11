@@ -242,7 +242,7 @@ fn to_short_key(key: &H256) -> H256 {
 }
 
 impl JournalDB for OverlayRecentDB {
-	fn boxed_clone(&self) -> Box<JournalDB<H=KeccakHasher>> {
+	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(self.clone())
 	}
 
@@ -438,8 +438,7 @@ impl JournalDB for OverlayRecentDB {
 	}
 }
 
-impl HashDB for OverlayRecentDB {
-	type H = KeccakHasher;
+impl HashDB<KeccakHasher> for OverlayRecentDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))

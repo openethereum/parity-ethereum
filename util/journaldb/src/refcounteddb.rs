@@ -78,8 +78,7 @@ impl RefCountedDB {
 	}
 }
 
-impl HashDB for RefCountedDB {
-	type H = KeccakHasher;
+impl HashDB<KeccakHasher> for RefCountedDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
 	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
 	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
@@ -89,7 +88,7 @@ impl HashDB for RefCountedDB {
 }
 
 impl JournalDB for RefCountedDB {
-	fn boxed_clone(&self) -> Box<JournalDB<H=KeccakHasher>> {
+	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(RefCountedDB {
 			forward: self.forward.clone(),
 			backing: self.backing.clone(),
