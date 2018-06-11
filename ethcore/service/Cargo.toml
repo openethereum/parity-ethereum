@@ -18,3 +18,4 @@ trace-time = { path = "../../util/trace-time" }
 [dev-dependencies]
 tempdir = "0.3"
 kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
+ethcore = { path = "..", features = ["test-helpers"] }
