@@ -83,6 +83,9 @@ pub trait SigningQueue: Send + Sync {
 	/// Notifies possible token holders that request was confirmed and given hash was assigned.
 	fn request_confirmed(&self, sender: ConfirmationSender, result: ConfirmationResult) -> Option<ConfirmationRequest>;
 
+	/// Put a taken request back to the queue.
+	fn request_untouched(&self, sender: ConfirmationSender);
+
 	/// Returns and removes a request if it is contained in the queue.
 	fn take(&self, id: &U256) -> Option<ConfirmationSender>;
 
@@ -205,6 +208,10 @@ impl SigningQueue for ConfirmationsQueue {
 	fn request_confirmed(&self, sender: ConfirmationSender, result: ConfirmationResult) -> Option<ConfirmationRequest> {
 		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", sender.request.id);
 		self.request_notify(sender, Some(result))
+	}
+
+	fn request_untouched(&self, sender: ConfirmationSender) {
+		self.queue.write().insert(sender.request.id, sender);
 	}
 
 	fn requests(&self) -> Vec<ConfirmationRequest> {

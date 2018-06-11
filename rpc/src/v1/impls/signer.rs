@@ -110,6 +110,8 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 				// Execute
 				if let Ok(ref response) = result {
 					signer.request_confirmed(sender, Ok((*response).clone()));
+				} else {
+					signer.request_untouched(sender);
 				}
 
 				result
@@ -220,6 +222,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 			};
 			if let Ok(ref response) = result {
 				self.signer.request_confirmed(sender, Ok(response.clone()));
+			} else {
+				self.signer.request_untouched(sender);
 			}
 			result
 		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
