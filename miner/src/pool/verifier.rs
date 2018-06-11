@@ -169,7 +169,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		if tx.gas() > &gas_limit {
 			debug!(
 				target: "txqueue",
-				"[{:?}] Dropping transaction above gas limit: {} > min({}, {})",
+				"[{:?}] Rejected transaction above gas limit: {} > min({}, {})",
 				hash,
 				tx.gas(),
 				self.options.block_gas_limit,
@@ -184,7 +184,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		let minimal_gas = self.client.required_gas(tx.transaction());
 		if tx.gas() < &minimal_gas {
 			trace!(target: "txqueue",
-				"[{:?}] Dropping transaction with insufficient gas: {} < {}",
+				"[{:?}] Rejected transaction with insufficient gas: {} < {}",
 				hash,
 				tx.gas(),
 				minimal_gas,
