@@ -190,11 +190,12 @@ fn main() {
 		Ok(_) => {
 			println!("whisper-cli terminated");
 			process::exit(1);
-		}
+		},
+		Err(Error::Docopt(ref e)) => e.exit(),
 		Err(err) => {
 			println!("{}", err);
 			process::exit(1);
-		},
+		}
 	}
 }
 
