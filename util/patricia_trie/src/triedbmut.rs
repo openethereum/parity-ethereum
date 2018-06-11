@@ -87,7 +87,7 @@ enum Node<H: Hasher> {
 
 impl<H: Hasher> Node<H> where H::Out: Decodable {
 	// load an inline node into memory or get the hash to do the lookup later.
-	fn inline_or_hash<C>(node: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> NodeHandle<H> 
+	fn inline_or_hash<C>(node: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> NodeHandle<H> 
 	where C: NodeCodec<H>
 	{
 		C::try_decode_hash(&node)
@@ -99,7 +99,7 @@ impl<H: Hasher> Node<H> where H::Out: Decodable {
 	}
 
 	// decode a node from rlp without getting its children.
-	fn from_encoded<C>(data: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> Self
+	fn from_encoded<C>(data: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> Self
 	where C: NodeCodec<H>
 	{
 		match C::decode(data).expect("encoded bytes read from db; qed") {
@@ -310,7 +310,7 @@ pub struct TrieDBMut<'a, H, C>
 	      C: NodeCodec<H>
 {
 	storage: NodeStorage<H>,
-	db: &'a mut HashDB<H=H>,
+	db: &'a mut HashDB<H>,
 	root: &'a mut H::Out,
 	root_handle: NodeHandle<H>,
 	death_row: HashSet<H::Out>,
@@ -326,7 +326,7 @@ impl<'a, H, C> TrieDBMut<'a, H, C>
 	      C: NodeCodec<H>
 {
 	/// Create a new trie with backing database `db` and empty `root`.
-	pub fn new(db: &'a mut HashDB<H=H>, root: &'a mut H::Out) -> Self {
+	pub fn new(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Self {
 		*root = H::HASHED_NULL_RLP;
 		let root_handle = NodeHandle::Hash(H::HASHED_NULL_RLP);
 
@@ -343,7 +343,7 @@ impl<'a, H, C> TrieDBMut<'a, H, C>
 
 	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
-	pub fn from_existing(db: &'a mut HashDB<H=H>, root: &'a mut H::Out) -> super::Result<Self, H::Out> {
+	pub fn from_existing(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> super::Result<Self, H::Out> {
 		if !db.contains(root) {
 			return Err(Box::new(TrieError::InvalidStateRoot(*root)));
 		}
@@ -360,12 +360,12 @@ impl<'a, H, C> TrieDBMut<'a, H, C>
 		})
 	}
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB<H=H> {
+	pub fn db(&self) -> &HashDB<H> {
 		self.db
 	}
 
 	/// Get the backing database mutably.
-	pub fn db_mut(&mut self) -> &mut HashDB<H=H> {
+	pub fn db_mut(&mut self) -> &mut HashDB<H> {
 		self.db
 	}
 
@@ -998,7 +998,7 @@ mod tests {
 
 	type RlpCodec = RlpNodeCodec<KeccakHasher>;
 
-	fn populate_trie<'db, H, C>(db: &'db mut HashDB<H=H>, root: &'db mut H::Out, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db, H, C>
+	fn populate_trie<'db, H, C>(db: &'db mut HashDB<H>, root: &'db mut H::Out, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db, H, C>
 		where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
 	{
 		let mut t = TrieDBMut::new(db, root);

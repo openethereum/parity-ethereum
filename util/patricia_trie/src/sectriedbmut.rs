@@ -35,22 +35,22 @@ impl<'db, H, C> SecTrieDBMut<'db, H, C>
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Self {
+	pub fn new(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Self {
 		SecTrieDBMut { raw: TrieDBMut::new(db, root) }
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> super::Result<Self, H::Out> {
+	pub fn from_existing(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> super::Result<Self, H::Out> {
 		Ok(SecTrieDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB<H=H> { self.raw.db() }
+	pub fn db(&self) -> &HashDB<H> { self.raw.db() }
 
 	/// Get the backing database.
-	pub fn db_mut(&mut self) -> &mut HashDB<H=H> { self.raw.db_mut() }
+	pub fn db_mut(&mut self) -> &mut HashDB<H> { self.raw.db_mut() }
 }
 
 impl<'db, H, C> TrieMut for SecTrieDBMut<'db, H, C>

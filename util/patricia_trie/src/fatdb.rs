@@ -35,12 +35,12 @@ impl<'db, H, C> FatDB<'db, H, C>
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB<H=H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
 		Ok(FatDB { raw: TrieDB::new(db, root)? })
 	}
 
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB<H=H> { self.raw.db() }
+	pub fn db(&self) -> &HashDB<H> { self.raw.db() }
 }
 
 impl<'db, H, C> Trie for FatDB<'db, H, C>
