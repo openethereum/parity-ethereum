@@ -1,12 +1,12 @@
 use bytes::*;
 use nibbleslice::NibbleSlice;
 use rlp::{Prototype, Rlp, RlpStream, DecoderError, Decodable, Encodable};
-use hashdb::{Hasher, KeccakHasher};
+use hashdb::Hasher;
 use node::Node;
 use std::marker::PhantomData;
 
 pub trait NodeCodec<H: Hasher>: Sized {
-	type E: ::std::error::Error + 'static;
+	type E: ::std::error::Error;
 	fn encode(&Node) -> Bytes;
 	fn decode(data: &[u8]) -> Result<Node, Self::E>;
 	fn try_decode_hash(data: &[u8]) -> Option<H::Out>;
@@ -17,6 +17,8 @@ pub trait NodeCodec<H: Hasher>: Sized {
 	fn encoded_list(size: usize) -> RlpStream;
 
 }
+
+#[derive(Default, Clone)]
 pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
 
 impl<H: Hasher> NodeCodec<H> for RlpNodeCodec<H>

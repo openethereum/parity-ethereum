@@ -23,13 +23,14 @@ extern crate rlp;
 #[cfg(test)] extern crate tiny_keccak;
 #[cfg(test)] extern crate ethereum_types;
 
-use hashdb::{HashDB, Hasher, DBValue};
+use hashdb::{HashDB, Hasher, DBValue, KeccakHasher};
 use heapsize::HeapSizeOf;
 use plain_hasher::H256FastMap;
 use rlp::NULL_RLP;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem;
+
 /// Reference-counted memory-based `HashDB` implementation.
 ///
 /// Use `new()` to create a new database. Insert items with `insert()`, remove items
@@ -78,6 +79,9 @@ use std::mem;
 pub struct MemoryDB<H: Hasher> {
 	data: H256FastMap<H, (DBValue, i32)>,
 }
+
+/// Convenience type for crates that need a `MemoryDB` with Keccak hashes
+pub type KeccakMemoryDB = MemoryDB<KeccakHasher>;
 
 impl<H: Hasher> MemoryDB<H> {
 	/// Create a new instance of the memory DB.

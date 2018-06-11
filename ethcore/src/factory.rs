@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use trie::TrieFactory;
+use trie::{TrieFactory, KeccakRlpNodeCodec};
 use account_db::Factory as AccountFactory;
 use evm::{Factory as EvmFactory, VMType};
 use vm::{Vm, ActionParams, Schedule};
 use wasm::WasmInterpreter;
+use hashdb::KeccakHasher;
 
 const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
@@ -54,7 +55,7 @@ pub struct Factories {
 	/// factory for evm.
 	pub vm: VmFactory,
 	/// factory for tries.
-	pub trie: TrieFactory,
+	pub trie: TrieFactory<KeccakHasher, KeccakRlpNodeCodec>,
 	/// factory for account databases.
 	pub accountdb: AccountFactory,
 }

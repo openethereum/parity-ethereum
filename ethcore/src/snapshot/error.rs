@@ -23,6 +23,7 @@ use ids::BlockId;
 use ethereum_types::H256;
 use trie::TrieError;
 use rlp::DecoderError;
+use hashdb::{Hasher, KeccakHasher};
 
 /// Snapshot-related errors.
 #[derive(Debug)]
@@ -48,7 +49,7 @@ pub enum Error {
 	/// Restoration aborted.
 	RestorationAborted,
 	/// Trie error.
-	Trie(TrieError),
+	Trie(TrieError<<KeccakHasher as Hasher>::Out>),
 	/// Decoder error.
 	Decoder(DecoderError),
 	/// Io error.
@@ -101,8 +102,8 @@ impl From<::std::io::Error> for Error {
 	}
 }
 
-impl From<TrieError> for Error {
-	fn from(err: TrieError) -> Self {
+impl<T> From<TrieError<T>> for Error {
+	fn from(err: TrieError<T>) -> Self {
 		Error::Trie(err)
 	}
 }

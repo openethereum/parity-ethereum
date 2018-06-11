@@ -25,7 +25,7 @@ use bytes::Bytes;
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
-pub trait JournalDB: HashDB {
+pub trait JournalDB: HashDB<H=KeccakHasher> + AsHashDB<KeccakHasher> {
 	/// Return a copy of ourself, in a box.
 	fn boxed_clone(&self) -> Box<JournalDB<H=KeccakHasher>>;
 

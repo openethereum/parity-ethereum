@@ -16,22 +16,23 @@
 
 //! State database abstraction. For more info, see the doc for `StateDB`
 
-use std::collections::{VecDeque, HashSet};
-use std::sync::Arc;
-use lru_cache::LruCache;
-use memory_cache::MemoryLruCache;
+use bloom_journal::{Bloom, BloomJournal};
+use byteorder::{LittleEndian, ByteOrder};
+use db::COL_ACCOUNT_BLOOM;
+use ethereum_types::{H256, Address};
+use hash::keccak;
+use hashdb::{Hasher, KeccakHasher, HashDB, AsHashDB};
+use header::BlockNumber;
 use journaldb::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::{H256, Address};
-use hashdb::HashDB;
-use state::{self, Account};
-use header::BlockNumber;
-use hash::keccak;
+use lru_cache::LruCache;
+use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
+use state::{self, Account};
+use std::collections::{VecDeque, HashSet};
+use std::sync::Arc;
 use util_error::UtilError;
-use bloom_journal::{Bloom, BloomJournal};
-use db::COL_ACCOUNT_BLOOM;
-use byteorder::{LittleEndian, ByteOrder};
+
 
 /// Value used to initialize bloom bitmap size.
 ///
@@ -104,7 +105,7 @@ struct BlockChanges {
 /// `StateDB` is propagated into the global cache.
 pub struct StateDB {
 	/// Backing database.
-	db: Box<JournalDB>,
+	db: Box<JournalDB<H=KeccakHasher>>,
 	/// Shared canonical state cache.
 	account_cache: Arc<Mutex<AccountCache>>,
 	/// DB Code cache. Maps code hashes to shared bytes.
@@ -129,7 +130,7 @@ impl StateDB {
 	/// of the LRU cache in bytes. Actual used memory may (read: will) be higher due to bookkeeping.
 	// TODO: make the cache size actually accurate by moving the account storage cache
 	// into the `AccountCache` structure as its own `LruCache<(Address, H256), H256>`.
-	pub fn new(db: Box<JournalDB>, cache_size: usize) -> StateDB {
+	pub fn new(db: Box<JournalDB<H=KeccakHasher>>, cache_size: usize) -> StateDB {
 		let bloom = Self::load_bloom(&**db.backing());
 		let acc_cache_size = cache_size * ACCOUNT_CACHE_RATIO / 100;
 		let code_cache_size = cache_size - acc_cache_size;
@@ -309,13 +310,15 @@ impl StateDB {
 		}
 	}
 
+	// TODO: needed?
 	/// Conversion method to interpret self as `HashDB` reference
-	pub fn as_hashdb(&self) -> &HashDB {
+	pub fn as_hashdb(&self) -> &HashDB<H=KeccakHasher> {
 		self.db.as_hashdb()
 	}
 
+	// TODO: needed?
 	/// Conversion method to interpret self as mutable `HashDB` reference
-	pub fn as_hashdb_mut(&mut self) -> &mut HashDB {
+	pub fn as_hashdb_mut(&mut self) -> &mut HashDB<H=KeccakHasher> {
 		self.db.as_hashdb_mut()
 	}
 
@@ -365,7 +368,7 @@ impl StateDB {
 	}
 
 	/// Returns underlying `JournalDB`.
-	pub fn journal_db(&self) -> &JournalDB {
+	pub fn journal_db(&self) -> &JournalDB<H=KeccakHasher> {
 		&*self.db
 	}
 
@@ -410,11 +413,9 @@ impl StateDB {
 }
 
 impl state::Backend for StateDB {
-	fn as_hashdb(&self) -> &HashDB {
-		self.db.as_hashdb()
-	}
+	fn as_hashdb(&self) -> &HashDB<H=KeccakHasher> { self.db.as_hashdb() }
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=KeccakHasher> {
 		self.db.as_hashdb_mut()
 	}
 

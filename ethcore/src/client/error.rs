@@ -19,19 +19,20 @@ use util_error::UtilError;
 use kvdb;
 use trie::TrieError;
 
+use hashdb::{Hasher, KeccakHasher};
 /// Client configuration errors.
 #[derive(Debug)]
 pub enum Error {
 	/// TrieDB-related error.
-	Trie(TrieError),
+	Trie(TrieError<<KeccakHasher as Hasher>::Out>),
 	/// Database error
 	Database(kvdb::Error),
 	/// Util error
 	Util(UtilError),
 }
 
-impl From<TrieError> for Error {
-	fn from(err: TrieError) -> Self {
+impl<T> From<TrieError<T>> for Error {
+	fn from(err: TrieError<T>) -> Self {
 		Error::Trie(err)
 	}
 }

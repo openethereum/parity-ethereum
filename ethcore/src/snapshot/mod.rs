@@ -31,7 +31,8 @@ use header::Header;
 use ids::BlockId;
 
 use ethereum_types::{H256, U256};
-use hashdb::HashDB;
+//use hashdb::{HashDB, KeccakHasher};
+use hashdb::{AsHashDB, HashDB, KeccakHasher};
 use kvdb::DBValue;
 use snappy;
 use bytes::Bytes;
@@ -126,7 +127,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	engine: &EthEngine,
 	chain: &BlockChain,
 	block_at: H256,
-	state_db: &HashDB,
+	state_db: &HashDB<H=KeccakHasher>,
 	writer: W,
 	p: &Progress
 ) -> Result<(), Error> {
@@ -264,7 +265,7 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(db: &HashDB<H=KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
 	let account_trie = TrieDB::new(db, &root)?;
 
 	let mut chunker = StateChunker {
@@ -304,7 +305,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 
 /// Used to rebuild the state trie piece by piece.
 pub struct StateRebuilder {
-	db: Box<JournalDB>,
+	db: Box<JournalDB<H=KeccakHasher>>,
 	state_root: H256,
 	known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
@@ -389,7 +390,7 @@ impl StateRebuilder {
 	/// Finalize the restoration. Check for accounts missing code and make a dummy
 	/// journal entry.
 	/// Once all chunks have been fed, there should be nothing missing.
-	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB>, ::error::Error> {
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB<H=KeccakHasher>>, ::error::Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
 
@@ -414,7 +415,7 @@ struct RebuiltStatus {
 // rebuild a set of accounts and their storage.
 // returns a status detailing newly-loaded code and accounts missing code.
 fn rebuild_accounts(
-	db: &mut HashDB,
+	db: &mut HashDB<H=KeccakHasher>,
 	account_fat_rlps: Rlp,
 	out_chunk: &mut [(H256, Bytes)],
 	known_code: &HashMap<H256, H256>,

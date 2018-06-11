@@ -104,6 +104,7 @@ enum RemoveFrom {
 /// ```
 ///
 /// TODO: `store_reclaim_period`
+
 pub struct EarlyMergeDB {
 	overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,

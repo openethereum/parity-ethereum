@@ -231,6 +231,8 @@ impl From<Error> for TransactionImportError {
 	}
 }
 
+use hashdb::{Hasher, KeccakHasher};
+//Trie(TrieError<<KeccakHasher as Hasher>::Out>) #[doc = "Error concerning TrieDBs."];
 error_chain! {
 	types {
 		Error, ErrorKind, ErrorResultExt, EthcoreResult;
@@ -245,7 +247,7 @@ error_chain! {
 	foreign_links {
 		Io(IoError) #[doc = "Io create error"];
 		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
-		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
+		Trie(TrieError<H256>) #[doc = "Error concerning TrieDBs."];
 		Execution(ExecutionError) #[doc = "Error concerning EVM code execution."];
 		Block(BlockError) #[doc = "Error concerning block processing."];
 		Transaction(TransactionError) #[doc = "Error concerning transaction processing."];

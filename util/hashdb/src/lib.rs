@@ -34,7 +34,7 @@ pub trait Hasher: Sync + Send {
 }
 
 // REVIEW: Where do the concrete Hasher implementations go? Own crate?
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct KeccakHasher;
 impl Hasher for KeccakHasher {
 	type Out = H256;
@@ -46,11 +46,14 @@ impl Hasher for KeccakHasher {
 		out.into()
 	}
 }
+/// Convenience type for crates that need a `HashDB` with Keccak hashes
+pub type KeccakHashDB = HashDB<H=KeccakHasher>;
 
 /// `HashDB` value type.
 pub type DBValue = ElasticArray128<u8>;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
+// TODO: move `H: Hasher` to be a generic param instead of an associated type
 pub trait HashDB: Send + Sync {
 	type H: Hasher;
 	/// Get the keys in the database together with number of underlying references.
@@ -85,20 +88,16 @@ pub trait AsHashDB<H: Hasher> {
 }
 
 impl<H: Hasher, T: HashDB<H=H>> AsHashDB<H> for T {
-	fn as_hashdb(&self) -> &HashDB<H=H> {
-		self
-	}
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H> {
-		self
-	}
+	fn as_hashdb(&self) -> &HashDB<H=H> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H> { self }
 }
 
 impl<'a, H: Hasher> AsHashDB<H> for &'a mut HashDB<H=H> {
 	fn as_hashdb(&self) -> &HashDB<H=H> {
 		&**self
 	}
-
 	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H> {
 		&mut **self
 	}
+}
 }

@@ -39,7 +39,7 @@ extern crate kvdb_memorydb;
 
 use std::{fmt, str};
 use std::sync::Arc;
-use hashdb::KeccakHasher;
+use hashdb::{AsHashDB, HashDB, KeccakHasher};
 
 /// Export the journaldb module.
 mod traits;
@@ -53,6 +53,10 @@ pub mod overlaydb;
 
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
+
+/// Convenience type for crates that need a `JournalDB` with Keccak hashes
+//pub type KeccakJournalDB = JournalDB<H=KeccakHasher>; // TODO: use this in the `journaldb` crate
+// TODO: do we need/want additional convenience exports like this? `KeccakArchiveDB`, `KeccakEarlymergeDB` etc?
 
 /// Journal database operating strategy.
 #[derive(Debug, PartialEq, Clone, Copy)]
