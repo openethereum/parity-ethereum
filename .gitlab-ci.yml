@@ -189,7 +189,7 @@ android-armv7:
     - stable
     - triggers
   script:
-    - cargo build --target=armv7-linux-androideabi
+    - cargo build -j 8 --target=armv7-linux-androideabi
   tags:
     - rust-arm
   allow_failure: true

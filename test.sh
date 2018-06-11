@@ -32,9 +32,9 @@ set -e
 if [ "$VALIDATE" -eq "1" ]; then
 # Validate --no-default-features build
 echo "________Validate build________"
-cargo check --no-default-features
-cargo check --manifest-path util/io/Cargo.toml --no-default-features
-cargo check --manifest-path util/io/Cargo.toml --features "mio"
+cargo check -j 8 --no-default-features
+cargo check -j 8 --manifest-path util/io/Cargo.toml --no-default-features
+cargo check -j 8 --manifest-path util/io/Cargo.toml --features "mio"
 
 # Validate chainspecs
 echo "________Validate chainspecs________"
@@ -48,7 +48,7 @@ cd parity-clib-example && \
   mkdir -p build && \
   cd build && \
   cmake .. && \
-  make && \
+  make -j 8 && \
   ./parity-example && \
   cd .. && \
   rm -rf build && \

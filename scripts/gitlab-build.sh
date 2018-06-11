@@ -33,6 +33,8 @@ set_env () {
   export HOST_CXX=g++
   rm -rf .cargo
   mkdir -p .cargo
+  echo "[build]" >> .cargo/config
+  echo "jobs=8" >> .cargo/config
   echo "[target.$PLATFORM]" >> .cargo/config
   echo "linker= \"$CC\"" >> .cargo/config
   cat .cargo/config
@@ -54,15 +56,15 @@ build () {
     rm -rf cargo/registry/index/*.
   fi
   echo "Build parity:"
-  cargo build --target $PLATFORM --features final --release
+  cargo build -j 8 --target $PLATFORM --features final --release
   echo "Build evmbin:"
-  cargo build --target $PLATFORM --release -p evmbin
+  cargo build -j 8 --target $PLATFORM --release -p evmbin
   echo "Build ethstore-cli:"
-  cargo build --target $PLATFORM --release -p ethstore-cli
+  cargo build -j 8 --target $PLATFORM --release -p ethstore-cli
   echo "Build ethkey-cli:"
-  cargo build --target $PLATFORM --release -p ethkey-cli
+  cargo build -j 8 --target $PLATFORM --release -p ethkey-cli
   echo "Build whisper-cli:"
-  cargo build --target $PLATFORM --release -p whisper-cli
+  cargo build -j 8 --target $PLATFORM --release -p whisper-cli
 }
 strip_binaries () {
   echo "Strip binaries:"
