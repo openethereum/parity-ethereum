@@ -189,7 +189,7 @@ impl Manager {
 
 				&mut chunk[header..header + size].copy_from_slice(&data[offset..offset + size]);
 			}
-			trace!("writing {:?}", &hid_chunk[..]);
+			trace!(target: "hw", "Ledger write {:?}", &hid_chunk[..]);
 			let n = handle.write(&hid_chunk[..])?;
 			if n < size + header {
 				return Err(Error::Protocol("Write data size mismatch"));
@@ -226,7 +226,7 @@ impl Manager {
 		for chunk_index in 0..=0xffff {
 			let mut chunk: [u8; HID_PACKET_SIZE] = [0; HID_PACKET_SIZE];
 			let chunk_size = handle.read(&mut chunk)?;
-			trace!("read {:?}", &chunk[..]);
+			trace!(target: "hw", "Ledger read {:?}", &chunk[..]);
 			if chunk_size < LEDGER_TRANSPORT_HEADER_LEN || chunk[0] != 0x01 || chunk[1] != 0x01 || chunk[2] != APDU_TAG {
 				return Err(Error::Protocol("Unexpected chunk header"));
 			}
@@ -366,7 +366,8 @@ impl Manager {
 fn try_connect_polling(ledger: Arc<Manager>, timeout: &Duration, device_direction: DeviceDirection) -> bool {
 	let start_time = Instant::now();
 	while start_time.elapsed() <= *timeout {
-		if let Ok(_d) = ledger.update_devices(device_direction) {
+		if let Ok(num_devices) = ledger.update_devices(device_direction) {
+			trace!(target: "hw", "{} number of Ledger(s) {}", num_devices, device_direction);
 			return true;
 		}
 	}
@@ -462,8 +463,6 @@ impl <'a>Wallet<'a> for Manager {
 	}
 
 	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Self::Error> {
-		trace!(target: "hw", "read_device");
-
 		let ledger_version = Self::get_firmware_version(&device)?;
 		if ledger_version < FirmwareVersion::new(1, 0, 3) {
 			return Err(Error::Protocol("Ledger version 1.0.3 is required"));
@@ -535,7 +534,7 @@ mod tests {
 
 	/// This test can't be run without an actual ledger device connected with the `Ledger Wallet Ethereum application` running
 	#[test]
-    #[ignore]
+	#[ignore]
 	fn sign_personal_message() {
 		let manager = Manager::new(
 			Arc::new(Mutex::new(hidapi::HidApi::new().expect("HidApi"))),

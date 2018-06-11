@@ -41,7 +41,7 @@ pub use ethstore::{Derivation, IndexDerivation, KeyFile};
 enum Unlock {
 	/// If account is unlocked temporarily, it should be locked after first usage.
 	OneTime,
-	/// Account unlocked permantently can always sign message.
+	/// Account unlocked permanently can always sign message.
 	/// Use with caution.
 	Perm,
 	/// Account unlocked with a timeout
@@ -495,7 +495,7 @@ impl AccountProvider {
 		self.address_book.write().set_meta(account, meta)
 	}
 
-	/// Removes and address from the addressbook
+	/// Removes and address from the address book
 	pub fn remove_address(&self, addr: Address) {
 		self.address_book.write().remove(addr)
 	}
@@ -585,7 +585,7 @@ impl AccountProvider {
 	fn unlock_account(&self, address: Address, password: String, unlock: Unlock) -> Result<(), Error> {
 		let account = self.sstore.account_ref(&address)?;
 
-		// check if account is already unlocked pernamently, if it is, do nothing
+		// check if account is already unlocked permanently, if it is, do nothing
 		let mut unlocked = self.unlocked.write();
 		if let Some(data) = unlocked.get(&account) {
 			if let Unlock::Perm = data.unlock {

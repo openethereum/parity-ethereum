@@ -186,7 +186,7 @@ impl From<libusb::Error> for Error {
 	}
 }
 
-/// Specifies whether a `HardwareWallet` arrived or left
+/// Specifies the direction of the `HardwareWallet` i.e, whether it arrived or left
 #[derive(Debug, Copy, Clone)]
 pub enum DeviceDirection {
     Arrived,
