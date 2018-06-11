@@ -37,11 +37,12 @@ mod trezor;
 use ethkey::{Address, Signature};
 
 use parking_lot::Mutex;
-use std::fmt;
+use std::{fmt, time::Duration};
 use std::sync::{Arc, atomic, atomic::AtomicBool};
 use ethereum_types::U256;
 
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
+const POLLING_DURATION: Duration = Duration::from_millis(500);
 
 #[derive(Debug)]
 pub struct Device {
@@ -190,6 +191,15 @@ impl From<libusb::Error> for Error {
 pub enum DeviceDirection {
     Arrived,
     Left,
+}
+
+impl fmt::Display for DeviceDirection {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			DeviceDirection::Arrived => write!(f, "arrived"),
+			DeviceDirection::Left => write!(f, "left"),
+		}
+	}
 }
 
 /// Hardware wallet management interface.

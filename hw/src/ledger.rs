@@ -28,7 +28,7 @@ use std::str::FromStr;
 use std::sync::{atomic, atomic::AtomicBool, Arc, Weak};
 use std::time::{Duration, Instant};
 use std::{fmt, thread};
-use super::{WalletInfo, KeyPath, Device, DeviceDirection, Wallet, USB_DEVICE_CLASS_DEVICE};
+use super::{WalletInfo, KeyPath, Device, DeviceDirection, Wallet, USB_DEVICE_CLASS_DEVICE, POLLING_DURATION};
 
 const APDU_TAG: u8 = 0x05;
 const APDU_CLA: u8 = 0xe0;
@@ -41,7 +41,6 @@ const ETC_DERIVATION_PATH_BE: [u8; 21] = [5, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x8
 const LEDGER_VID: u16 = 0x2c97;
 /// Ledger product IDs: [Nano S and Blue]
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001];
-const LEDGER_POLLING_INTERVAL: Duration = Duration::from_millis(500);
 const LEDGER_TRANSPORT_HEADER_LEN: usize = 5;
 
 const MAX_CHUNK_SIZE: usize = 255;
@@ -367,8 +366,7 @@ impl Manager {
 fn try_connect_polling(ledger: Arc<Manager>, timeout: &Duration, device_direction: DeviceDirection) -> bool {
 	let start_time = Instant::now();
 	while start_time.elapsed() <= *timeout {
-		if let Ok(d) = ledger.update_devices(device_direction) {
-			trace!(target: "hw", "Detected {} new Ledger devices", d);
+		if let Ok(_d) = ledger.update_devices(device_direction) {
 			return true;
 		}
 	}
@@ -513,8 +511,8 @@ impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, device: libusb::Device) {
 		debug!(target: "hw", "Ledger arrived");
 		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
-			if try_connect_polling(ledger, &LEDGER_POLLING_INTERVAL, DeviceDirection::Arrived) != true {
-				debug!(target: "hw", "Ledger connect timeout");
+			if try_connect_polling(ledger, &POLLING_DURATION, DeviceDirection::Arrived) != true {
+				debug!(target: "hw", "No Ledger device was connected");
 			}
 		}
 	}
@@ -522,8 +520,8 @@ impl libusb::Hotplug for EventHandler {
 	fn device_left(&mut self, device: libusb::Device) {
 		debug!(target: "hw", "Ledger left");
 		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
-			if try_connect_polling(ledger, &LEDGER_POLLING_INTERVAL, DeviceDirection::Left) != true {
-				debug!(target: "hw", "Ledger disconnect timeout");
+			if try_connect_polling(ledger, &POLLING_DURATION, DeviceDirection::Left) != true {
+				debug!(target: "hw", "No Ledger device was disconnected");
 			}
 		}
 	}
