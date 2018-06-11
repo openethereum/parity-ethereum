@@ -27,9 +27,8 @@ use std::sync::Arc;
 use state::Account;
 use parking_lot::Mutex;
 use ethereum_types::{Address, H256};
-//use memorydb::MemoryDB;
 use memorydb::KeccakMemoryDB;
-use hashdb::{AsHashDB, HashDB, DBValue, Hasher, KeccakHasher};
+use hashdb::{AsHashDB, HashDB, DBValue, KeccakHasher};
 
 /// State backend. See module docs for more details.
 pub trait Backend: Send {

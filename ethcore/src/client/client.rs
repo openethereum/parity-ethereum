@@ -1149,7 +1149,6 @@ impl Client {
 			},
 		};
 
-		use ::state::backend::Backend;
 		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p)?;
 
 		Ok(())

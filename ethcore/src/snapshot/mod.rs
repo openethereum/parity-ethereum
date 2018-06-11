@@ -31,8 +31,7 @@ use header::Header;
 use ids::BlockId;
 
 use ethereum_types::{H256, U256};
-//use hashdb::{HashDB, KeccakHasher};
-use hashdb::{AsHashDB, HashDB, KeccakHasher};
+use hashdb::{HashDB, KeccakHasher};
 use kvdb::DBValue;
 use snappy;
 use bytes::Bytes;

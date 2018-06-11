@@ -231,8 +231,6 @@ impl From<Error> for TransactionImportError {
 	}
 }
 
-use hashdb::{Hasher, KeccakHasher};
-//Trie(TrieError<<KeccakHasher as Hasher>::Out>) #[doc = "Error concerning TrieDBs."];
 error_chain! {
 	types {
 		Error, ErrorKind, ErrorResultExt, EthcoreResult;

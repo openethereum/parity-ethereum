@@ -21,7 +21,7 @@ use byteorder::{LittleEndian, ByteOrder};
 use db::COL_ACCOUNT_BLOOM;
 use ethereum_types::{H256, Address};
 use hash::keccak;
-use hashdb::{Hasher, KeccakHasher, HashDB, AsHashDB};
+use hashdb::{KeccakHasher, HashDB};
 use header::BlockNumber;
 use journaldb::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
