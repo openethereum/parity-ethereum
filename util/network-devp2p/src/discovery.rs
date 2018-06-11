@@ -147,7 +147,7 @@ impl Discovery {
 		let dist = match Discovery::distance(&self.id_hash, &id_hash) {
 			Some(dist) => dist,
 			None => {
-				warn!(target: "discovery", "Attempted to update own entry: {:?}", e);
+				debug!(target: "discovery", "Attempted to update own entry: {:?}", e);
 				return;
 			}
 		};
@@ -181,7 +181,7 @@ impl Discovery {
 		let dist = match Discovery::distance(&self.id_hash, &keccak(id)) {
 			Some(dist) => dist,
 			None => {
-				warn!(target: "discovery", "Received ping from self");
+				debug!(target: "discovery", "Received ping from self");
 				return
 			}
 		};
@@ -370,7 +370,7 @@ impl Discovery {
 			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
 			_ => {
-				debug!("Unknown UDP packet: {}", packet_id);
+				debug!(target: "discovery", "Unknown UDP packet: {}", packet_id);
 				Ok(None)
 			}
 		}
