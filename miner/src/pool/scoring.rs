@@ -37,6 +37,12 @@ use super::{PrioritizationStrategy, VerifiedTransaction};
 /// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
 const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
+/// Calculate minimal gas price requirement.
+#[inline]
+pub fn bump_gas_price(old_gp: U256) -> U256 {
+	old_gp.saturating_add(old_gp >> GAS_PRICE_BUMP_SHIFT)
+}
+
 /// Simple, gas-price based scoring for transactions.
 ///
 /// NOTE: Currently penalization does not apply to new transactions that enter the pool.
@@ -60,7 +66,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		let old_gp = old.transaction.gas_price;
 		let new_gp = new.transaction.gas_price;
 
-		let min_required_gp = old_gp + (old_gp >> GAS_PRICE_BUMP_SHIFT);
+		let min_required_gp = bump_gas_price(old_gp);
 
 		match min_required_gp.cmp(&new_gp) {
 			cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,

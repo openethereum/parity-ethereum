@@ -392,6 +392,26 @@ impl<T, S, L> Pool<T, S, L> where
 		self.worst_transactions.iter().next().map(|x| x.transaction.transaction.clone())
 	}
 
+	/// Returns the score of the worst transaction if the pool is almost full.
+	///
+	/// This method can be used to determine what is the minimal required score
+	/// for the replacement transaction. If `None` is returned it means that
+	/// there is still plenty of room in the pool. Otherwise we return
+	/// `Some` with the score of the worst transaction.
+	pub fn minimal_entry_score(&self) -> Option<S::Score> {
+		let threshold = |x: usize| x * 9 / 10;
+		let is_full = {
+			self.by_hash.len() > threshold(self.options.max_count)
+			|| self.mem_usage > threshold(self.options.max_mem_usage)
+		};
+
+		if !is_full {
+			return None
+		}
+
+		self.worst_transactions.iter().next().map(|x| x.score.clone())
+	}
+
 	/// Returns an iterator of pending (ready) transactions.
 	pub fn pending<R: Ready<T>>(&self, ready: R) -> PendingIterator<T, R, S, L> {
 		PendingIterator {

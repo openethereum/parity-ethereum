@@ -129,15 +129,22 @@ impl Transaction {
 pub struct Verifier<C> {
 	client: C,
 	options: Options,
+	min_effective_gas_price: Option<U256>,
 	id: Arc<AtomicUsize>,
 }
 
 impl<C> Verifier<C> {
 	/// Creates new transaction verfier with specified options.
-	pub fn new(client: C, options: Options, id: Arc<AtomicUsize>) -> Self {
+	pub fn new(
+		client: C,
+		options: Options,
+		id: Arc<AtomicUsize>,
+		min_effective_gas_price: Option<U256>,
+	) -> Self {
 		Verifier {
 			client,
 			options,
+			min_effective_gas_price,
 			id,
 		}
 	}
@@ -190,22 +197,40 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		}
 
 		let is_own = tx.is_local();
-		// Quick exit for non-service transactions
-		if tx.gas_price() < &self.options.minimal_gas_price
-			&& !tx.gas_price().is_zero()
-			&& !is_own
-		{
-			trace!(
-				target: "txqueue",
-				"[{:?}] Rejected tx below minimal gas price threshold: {} < {}",
-				hash,
-				tx.gas_price(),
-				self.options.minimal_gas_price,
-			);
-			bail!(transaction::Error::InsufficientGasPrice {
-				minimal: self.options.minimal_gas_price,
-				got: *tx.gas_price(),
-			});
+		// Quick exit for non-service and non-local transactions
+		//
+		// We're checking if the transaction is below configured minimal gas price
+		// or the effective minimal gas price in case the pool is full.
+		if  !tx.gas_price().is_zero() && !is_own {
+			if tx.gas_price() < &self.options.minimal_gas_price {
+				trace!(
+					target: "txqueue",
+					"[{:?}] Rejected tx below minimal gas price threshold: {} < {}",
+					hash,
+					tx.gas_price(),
+					self.options.minimal_gas_price,
+				);
+				bail!(transaction::Error::InsufficientGasPrice {
+					minimal: self.options.minimal_gas_price,
+					got: *tx.gas_price(),
+				});
+			}
+
+			if let Some(ref gp) = self.min_effective_gas_price {
+				if tx.gas_price() < gp  {
+					trace!(
+						target: "txqueue",
+						"[{:?}] Rejected tx below minimal effective gas price threshold: {} < {}",
+						hash,
+						tx.gas_price(),
+						gp,
+					);
+					bail!(transaction::Error::InsufficientGasPrice {
+						minimal: *gp,
+						got: *tx.gas_price(),
+					});
+				}
+			}
 		}
 
 		// Some more heavy checks below.

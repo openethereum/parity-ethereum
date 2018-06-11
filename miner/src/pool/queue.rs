@@ -177,7 +177,8 @@ impl TransactionQueue {
 		let _timer = ::trace_time::PerfTimer::new("pool::verify_and_import");
 		let options = self.options.read().clone();
 
-		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
+		let min_effective_gas_price = self.pool.read().minimal_entry_score().map(scoring::bump_gas_price);
+		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone(), min_effective_gas_price);
 		let results = transactions
 			.into_par_iter()
 			.map(|transaction| verifier.verify_transaction(transaction))
