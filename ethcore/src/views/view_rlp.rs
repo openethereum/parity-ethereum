@@ -53,10 +53,11 @@ impl<'a, 'view> ViewRlp<'a> where 'a : 'view {
 	}
 
 	fn expect_valid_rlp<T>(&self, r: Result<T, DecoderError>) -> T {
-		r.unwrap_or_else(|_| panic!(
-			"View rlp is trusted and should be valid. Constructed in {} on line {}",
+		r.unwrap_or_else(|e| panic!(
+			"View rlp is trusted and should be valid. Constructed in {} on line {}: {}",
 			self.file,
-			self.line
+			self.line,
+			e
 		))
 	}
 
