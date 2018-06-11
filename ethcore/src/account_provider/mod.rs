@@ -280,10 +280,10 @@ impl AccountProvider {
 	pub fn accounts(&self) -> Result<Vec<Address>, Error> {
 		let accounts = self.sstore.accounts()?;
 		Ok(accounts
-		   .into_iter()
-		   .map(|a| a.address)
-		   .filter(|address| !self.blacklisted_accounts.contains(address))
-		   .collect()
+			.into_iter()
+			.map(|a| a.address)
+			.filter(|address| !self.blacklisted_accounts.contains(address))
+			.collect()
 		)
 	}
 
@@ -809,8 +809,17 @@ impl AccountProvider {
 			.map_err(Into::into)
 	}
 
+	/// Sign message with hardware wallet.
+	pub fn sign_message_with_hardware(&self, address: &Address, message: &[u8]) -> Result<Signature, SignError> {
+		match self.hardware_store.as_ref().map(|s| s.sign_message(address, message)) {
+			None | Some(Err(HardwareError::KeyNotFound)) => Err(SignError::NotFound),
+			Some(Err(e)) => Err(From::from(e)),
+			Some(Ok(s)) => Ok(s),
+		}
+	}
+
 	/// Sign transaction with hardware wallet.
-	pub fn sign_with_hardware(&self, address: Address, transaction: &Transaction, chain_id: Option<u64>, rlp_encoded_transaction: &[u8]) -> Result<Signature, SignError> {
+	pub fn sign_transaction_with_hardware(&self, address: &Address, transaction: &Transaction, chain_id: Option<u64>, rlp_encoded_transaction: &[u8]) -> Result<Signature, SignError> {
 		let t_info = TransactionInfo {
 			nonce: transaction.nonce,
 			gas_price: transaction.gas_price,

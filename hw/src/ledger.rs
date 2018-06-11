@@ -358,10 +358,9 @@ impl Manager {
 		Ok(Signature::from_rsv(&r, &s, v))
 	}
 
-
-		pub fn sign_personal_message(&self, address: &Address, msg: &[u8]) -> Result<Signature, Error> {
-			self.signer_helper(address, msg, commands::SIGN_ETH_PERSONAL_MESSAGE)
-		}
+	pub fn sign_message(&self, address: &Address, msg: &[u8]) -> Result<Signature, Error> {
+		self.signer_helper(address, msg, commands::SIGN_ETH_PERSONAL_MESSAGE)
+	}
 }
 
 // Try to connect to the device using polling in at most the time specified by the `timeout`
@@ -383,7 +382,7 @@ impl <'a>Wallet<'a> for Manager {
 	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error> {
 		self.signer_helper(address, transaction, commands::SIGN_ETH_TRANSACTION)
 	}
-
+	
 	fn set_key_path(&self, key_path: KeyPath) {
 		*self.key_path.write() = key_path;
 	}
@@ -538,7 +537,7 @@ mod tests {
 
 	/// This test can't be run without an actual ledger device connected with the `Ledger Wallet Ethereum application` running
 	#[test]
-	#[ignore]
+    #[ignore]
 	fn sign_personal_message() {
 		let manager = Manager::new(
 			Arc::new(Mutex::new(hidapi::HidApi::new().expect("HidApi"))),

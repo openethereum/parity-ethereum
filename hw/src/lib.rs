@@ -57,7 +57,7 @@ pub trait Wallet<'a> {
 
 	/// Sign transaction data with wallet managing `address`.
 	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error>;
-
+	
 	/// Set key derivation path for a chain.
 	fn set_key_path(&self, key_path: KeyPath);
 
@@ -243,6 +243,17 @@ impl HardwareWalletManager {
 			Some(info)
 		} else {
 			self.trezor.get_wallet(address)
+		}
+	}
+
+	/// Sign a message with the wallet (only supported by Ledger)
+	pub fn sign_message(&self, address: &Address, msg: &[u8]) -> Result<Signature, Error> {
+		if self.ledger.get_wallet(address).is_some() {
+			Ok(self.ledger.sign_message(address, msg)?)
+		} else if self.trezor.get_wallet(address).is_some() {
+			Err(Error::TrezorDevice(trezor::Error::NoSigningMessage))
+		} else {
+			Err(Error::KeyNotFound)
 		}
 	}
 

@@ -62,6 +62,8 @@ pub enum Error {
 	BadMessageType,
 	/// Trying to read from a closed device at the given path
 	LockedDevice(String),
+	/// Signing messages are not supported by Trezor
+	NoSigningMessage,
 }
 
 impl fmt::Display for Error {
@@ -73,6 +75,7 @@ impl fmt::Display for Error {
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
 			Error::BadMessageType => write!(f, "Bad Message Type in RPC call"),
 			Error::LockedDevice(ref s) => write!(f, "Device is locked, needs PIN to perform operations: {}", s),
+			Error::NoSigningMessage=> write!(f, "Signing messages are not supported by Trezor"),
 		}
 	}
 }
@@ -89,8 +92,8 @@ impl From<protobuf::ProtobufError> for Error {
 	}
 }
 
-/// Ledger device manager
-pub struct Manager {
+/// Trezor device manager
+pub (crate) struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: RwLock<Vec<Device>>,
 	locked_devices: RwLock<Vec<String>>,
@@ -132,7 +135,7 @@ impl Manager {
 				}
 				loop {
 					usb_context.handle_events(Some(Duration::from_millis(500)))
-							   .unwrap_or_else(|e| debug!(target: "hw", "Trezor event handler error: {}", e));
+						.unwrap_or_else(|e| debug!(target: "hw", "Trezor event handler error: {}", e));
 					if exiting.load(atomic::Ordering::Acquire) {
 						break;
 					}
