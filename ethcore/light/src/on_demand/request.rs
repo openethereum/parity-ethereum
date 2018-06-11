@@ -33,11 +33,11 @@ use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, O
 use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
-use hashdb::HashDB;
+use hashdb::{HashDB, Hasher, KeccakHasher};
 use kvdb::DBValue;
 use bytes::Bytes;
 use memorydb::MemoryDB;
-use trie::{Trie, TrieDB, TrieError};
+use trie::{Trie, TrieDB, TrieError, KeccakRlpNodeCodec};
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 
@@ -627,7 +627,7 @@ pub enum Error {
 	/// Empty response.
 	Empty,
 	/// Trie lookup error (result of bad proof)
-	Trie(TrieError),
+	Trie(TrieError<<KeccakHasher as Hasher>::Out>), // TODO: fix error handling
 	/// Bad inclusion proof
 	BadProof,
 	/// Header by number instead of hash.
@@ -650,9 +650,10 @@ impl From<::rlp::DecoderError> for Error {
 	}
 }
 
-impl From<Box<TrieError>> for Error {
-	fn from(err: Box<TrieError>) -> Self {
-		Error::Trie(*err)
+impl<T> From<Box<TrieError<T>>> for Error {
+	fn from(err: Box<TrieError<T>>) -> Self {
+		// Error::Trie(*err)
+		Error::Trie(TrieError::InvalidStateRoot(<KeccakHasher as Hasher>::Out::new())) // TODO: error handling zomg
 	}
 }
 
@@ -828,7 +829,7 @@ impl Account {
 		let mut db = MemoryDB::new();
 		for node in proof { db.insert(&node[..]); }
 
-		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
+		match TrieDB::<_, KeccakRlpNodeCodec>::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
 			Some(val) => {
 				let rlp = Rlp::new(&val);
 				Ok(Some(BasicAccount {
@@ -939,7 +940,7 @@ mod tests {
 	use trie::recorder::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
+	use ::ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
 	use ethcore::receipt::{Receipt, TransactionOutcome};
@@ -1051,7 +1052,7 @@ mod tests {
 			stream.out()
 		};
 		{
-			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
+			let mut trie = SecTrieDBMut::<_, KeccakRlpNodeCodec>::new(&mut db, &mut root);
 			for _ in 0..100 {
 				let address = Address::random();
 				trie.insert(&*address, &rand_acc()).unwrap();
@@ -1061,7 +1062,7 @@ mod tests {
 		}
 
 		let proof = {
-			let trie = SecTrieDB::new(&db, &root).unwrap();
+			let trie = SecTrieDB::<_, KeccakRlpNodeCodec>::new(&db, &root).unwrap();
 			let mut recorder = Recorder::new();
 
 			trie.get_with(&*addr, &mut recorder).unwrap().unwrap();

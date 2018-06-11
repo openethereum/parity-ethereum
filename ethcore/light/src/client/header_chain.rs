@@ -41,11 +41,12 @@ use ethcore::engines::epoch::{
 	PendingTransition as PendingEpochTransition
 };
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
-use heapsize::HeapSizeOf;
 use ethereum_types::{H256, H264, U256};
-use plain_hasher::H256FastMap;
+use hashdb::KeccakHasher;
+use heapsize::HeapSizeOf;
 use kvdb::{DBTransaction, KeyValueDB};
+use plain_hasher::H256FastMap;
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
 use cache::Cache;
 use parking_lot::{Mutex, RwLock};
@@ -207,7 +208,7 @@ pub struct HeaderChain {
 	genesis_header: encoded::Header, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
 	best_block: RwLock<BlockDescriptor>,
-	live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
+	live_epoch_proofs: RwLock<H256FastMap<KeccakHasher,EpochTransition>>,
 	db: Arc<KeyValueDB>,
 	col: Option<u32>,
 	cache: Arc<Mutex<Cache>>,
