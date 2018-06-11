@@ -144,6 +144,7 @@ fn send_private_transaction() {
 	//process signed response
 	let signed_private_transaction = received_signed_private_transactions[0].clone();
 	assert!(pm0.import_signed_private_transaction(&signed_private_transaction).is_ok());
+	assert!(pm0.on_signed_private_transaction_queued().is_ok());
 	let local_transactions = net.peer(0).miner.local_transactions();
 	assert_eq!(local_transactions.len(), 1);
 }
