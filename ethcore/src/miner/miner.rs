@@ -1268,4 +1268,26 @@ mod tests {
 		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
 		assert!(match client.miner().set_author(addr, Some("".into())) { Err(AccountError::NotFound) => true, _ => false });
 	}
+
+	#[test]
+	fn should_mine_if_internal_sealing_is_enabled() {
+		let spec = Spec::new_instant();
+		let miner = Miner::new_for_tests(&spec, None);
+
+		let client = generate_dummy_client(2);
+		miner.update_sealing(&*client);
+
+		assert!(miner.is_currently_sealing());
+	}
+
+	#[test]
+	fn should_not_mine_if_internal_sealing_is_disabled() {
+		let spec = Spec::new_test_round();
+		let miner = Miner::new_for_tests(&spec, None);
+
+		let client = generate_dummy_client(2);
+		miner.update_sealing(&*client);
+
+		assert!(!miner.is_currently_sealing());
+	}
 }
