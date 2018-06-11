@@ -717,21 +717,29 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us signed private transaction packet
-	fn on_signed_private_transaction(sync: &ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
+	fn on_signed_private_transaction(sync: &mut ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
 
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
-		if let Err(e) = sync.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
-			trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
-		}
+		match self.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
+			Ok(transaction_hash) => {
+				//don't send the packet back
+				if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+					peer.last_sent_signed_private_transactions.insert(transaction_hash);
+				}
+			},
+			Err(e) => {
+				trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
+			}
+ 		}
 		Ok(())
 	}
 
 	/// Called when peer sends us new private transaction packet
-	fn on_private_transaction(sync: &ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
+	fn on_private_transaction(sync: &mut ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
@@ -739,9 +747,17 @@ impl SyncHandler {
 
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
 
-		if let Err(e) = sync.private_tx_handler.import_private_transaction(r.as_raw()) {
-			trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
-		}
+		match self.private_tx_handler.import_private_transaction(r.as_raw()) {
+			Ok(transaction_hash) => {
+				//don't send the packet back
+				if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+					peer.last_sent_private_transactions.insert(transaction_hash);
+				}
+			},
+			Err(e) => {
+				trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
+			}
+ 		}
 		Ok(())
 	}
 }

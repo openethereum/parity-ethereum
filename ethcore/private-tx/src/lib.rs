@@ -540,12 +540,12 @@ impl Provider where {
 
 pub trait Importer {
 	/// Process received private transaction
-	fn import_private_transaction(&self, _rlp: &[u8]) -> Result<(), Error>;
+	fn import_private_transaction(&self, _rlp: &[u8]) -> Result<H256, Error>;
 
 	/// Add signed private transaction into the store
 	///
 	/// Creates corresponding public transaction if last required signature collected and sends it to the chain
-	fn import_signed_private_transaction(&self, _rlp: &[u8]) -> Result<(), Error>;
+	fn import_signed_private_transaction(&self, _rlp: &[u8]) -> Result<H256, Error>;
 }
 
 // TODO [ToDr] Offload more heavy stuff to the IoService thread.
@@ -554,7 +554,7 @@ pub trait Importer {
 // for both verification and execution.
 
 impl Importer for Arc<Provider> {
-	fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), Error> {
+	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, Error> {
 		trace!("Private transaction received");
 		let private_tx: PrivateTransaction = Rlp::new(rlp).as_val()?;
 		let contract = private_tx.contract;
@@ -570,19 +570,22 @@ impl Importer for Arc<Provider> {
 		self.transactions_for_verification.lock().add_transaction(
 			original_tx,
 			validation_account.map(|&account| account),
-			private_tx,
+			private_tx.clone(),
 			self.pool_client(&nonce_cache),
 		)?;
-		self.channel.send(ClientIoMessage::execute(move |_| {
+		if let Err(e) = self.channel.send(ClientIoMessage::execute(move |_| {
 					if let Some(provider) = provider.upgrade() {
 						if let Err(e) = provider.process_queue() {
 							debug!("Unable to process the queue: {}", e);
 						}
 					}
-				})).map_err(|_| ErrorKind::ClientIsMalformed.into())
+				})) {
+			trace!("Error sending NewPrivateTransaction message: {:?}", e);
+		}
+		Ok(private_tx.hash())
 	}
 
-	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<(), Error> {
+	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, Error> {
 		let tx: SignedPrivateTransaction = Rlp::new(rlp).as_val()?;
 		trace!("Signature for private transaction received: {:?}", tx);
 		let private_hash = tx.private_transaction_hash();
@@ -590,7 +593,7 @@ impl Importer for Arc<Provider> {
 			None => {
 				// Not our transaction, broadcast further to peers
 				self.broadcast_signed_private_transaction(tx.hash(), rlp.into());
-				return Ok(());
+				return Ok(private_hash);
 			},
 			Some(desc) => desc,
 		};
@@ -642,7 +645,7 @@ impl Importer for Arc<Provider> {
 				}
 			}
 		}
-		Ok(())
+		Ok(private_hash)
 	}
 }
 

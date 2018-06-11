@@ -21,6 +21,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use ansi_term::Colour;
+use ethereum_types::H256;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use kvdb::{KeyValueDB, KeyValueDBHandler};
 use stop_guard::StopGuard;
@@ -54,11 +55,11 @@ impl PrivateTxService {
 }
 
 impl PrivateTxHandler for PrivateTxService {
-	fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), String> {
+	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
 		self.provider.import_private_transaction(rlp).map_err(|e| e.to_string())
 	}
 
-	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<(), String> {
+	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
 		self.provider.import_signed_private_transaction(rlp).map_err(|e| e.to_string())
 	}
 }
