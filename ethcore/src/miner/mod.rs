@@ -26,6 +26,7 @@ pub mod pool_client;
 pub mod stratum;
 
 pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams};
+pub use ethcore_miner::pool::PendingOrdering;
 
 use std::sync::Arc;
 use std::collections::BTreeMap;
@@ -156,10 +157,12 @@ pub trait MinerService : Send + Sync {
 	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256
 		where C: Nonce + Sync;
 
-	/// Get a list of all ready transactions.
+	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper).
 	///
 	/// Depending on the settings may look in transaction pool or only in pending block.
-	fn ready_transactions<C>(&self, chain: &C) -> Vec<Arc<VerifiedTransaction>>
+	/// If you don't need a full set of transactions, you can add `max_len` and create only a limited set of
+	/// transactions.
+	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: PendingOrdering) -> Vec<Arc<VerifiedTransaction>>
 		where C: ChainInfo + Nonce + Sync;
 
 	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).
