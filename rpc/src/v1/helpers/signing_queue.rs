@@ -204,7 +204,7 @@ impl SigningQueue for ConfirmationsQueue {
 	}
 
 	fn request_confirmed(&self, sender: ConfirmationSender, result: ConfirmationResult) -> Option<ConfirmationRequest> {
-		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", sender.request.id);
+		debug!(target: "own_tx", "Signer: Request confirmed ({:?}).", sender.request.id);
 		self.notify_result(sender, Some(result))
 	}
 
