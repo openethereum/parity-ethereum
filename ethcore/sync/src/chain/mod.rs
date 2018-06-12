@@ -149,6 +149,10 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
 const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
+// Maximal number of transactions queried from miner to propagate.
+// This set is used to diff with transactions known by the peer and
+// we will send a difference of length up to `MAX_TRANSACTIONS_TO_PROPAGATE`.
+const MAX_TRANSACTIONS_TO_QUERY: usize = 4096;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
@@ -1143,7 +1147,7 @@ pub mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
-	use ethcore::miner::MinerService;
+	use ethcore::miner::{MinerService, PendingOrdering};
 	use private_tx::NoopPrivateTxHandler;
 
 	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
@@ -1355,7 +1359,7 @@ pub mod tests {
 			let mut io = TestIo::new(&mut client, &ss, &queue, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
-			assert_eq!(io.chain.miner.ready_transactions(io.chain).len(), 1);
+			assert_eq!(io.chain.miner.ready_transactions(io.chain, 10, PendingOrdering::Priority).len(), 1);
 		}
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
@@ -1371,7 +1375,7 @@ pub mod tests {
 		}
 
 		// then
-		assert_eq!(client.miner.ready_transactions(&client).len(), 1);
+		assert_eq!(client.miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 	}
 
 	#[test]

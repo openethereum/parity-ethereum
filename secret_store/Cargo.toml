@@ -39,5 +39,6 @@ ethabi-derive = "5.0"
 ethabi-contract = "5.0"
 
 [dev-dependencies]
+ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }

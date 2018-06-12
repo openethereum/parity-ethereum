@@ -1,0 +1,43 @@
+{
+	"name": "TestNodeFilterContract",
+	"engine": {
+		"authorityRound": {
+			"params": {
+				"stepDuration": 1,
+				"startStep": 2,
+				"validators": {
+					"contract": "0x0000000000000000000000000000000000000000"
+				}
+			}
+		}
+	},
+	"params": {
+		"accountStartNonce": "0x0",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID" : "0x69",
+		"gasLimitBoundDivisor": "0x0400",
+		"transactionPermissionContract": "0x0000000000000000000000000000000000000005"
+	},
+	"genesis": {
+		"seal": {
+			"generic": "0xc180"
+		},
+		"difficulty": "0x20000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x",
+		"gasLimit": "0x222222"
+	},
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": {
+			"balance": "1",
+			"constructor": "6060604052341561000f57600080fd5b5b6101868061001f6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063e17512211461003e575b600080fd5b341561004957600080fd5b610075600480803573ffffffffffffffffffffffffffffffffffffffff16906020019091905050610097565b604051808263ffffffff1663ffffffff16815260200191505060405180910390f35b6000737e5f4552091a69125d5dfcb7b8c2659029395bdf8273ffffffffffffffffffffffffffffffffffffffff1614156100d75763ffffffff9050610155565b732b5ad5c4795c026514f8317c7a215e218dccd6cf8273ffffffffffffffffffffffffffffffffffffffff1614156101155760026001179050610155565b736813eb9362372eef6200f3b1dbc3f819671cba698273ffffffffffffffffffffffffffffffffffffffff1614156101505760019050610155565b600090505b9190505600a165627a7a72305820f1f21cb978925a8a92c6e30c8c81adf598adff6d1ef941cf5ed6c0ec7ad1ae3d0029"
+		}
+	}
+}

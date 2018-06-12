@@ -16,5 +16,6 @@ stop-guard = { path = "../../util/stop-guard" }
 trace-time = { path = "../../util/trace-time" }
 
 [dev-dependencies]
+ethcore = { path = "..", features = ["test-helpers"] }
 tempdir = "0.3"
 kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
