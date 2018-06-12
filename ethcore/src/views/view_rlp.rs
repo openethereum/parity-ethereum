@@ -39,10 +39,10 @@ impl<'a, 'view> ViewRlp<'a> where 'a : 'view {
 
 	/// Returns a new instance replacing existing rlp with new rlp, maintaining debug info
 	fn new_from_rlp(&self, rlp: Rlp<'a>) -> Self {
-		ViewRlp { 
-			rlp, 
+		ViewRlp {
+			rlp,
 			file: self.file,
-			line: self.line 
+			line: self.line
 		}
 	}
 
@@ -53,7 +53,12 @@ impl<'a, 'view> ViewRlp<'a> where 'a : 'view {
 	}
 
 	fn expect_valid_rlp<T>(&self, r: Result<T, DecoderError>) -> T {
-		r.expect(&format!("View rlp is trusted and should be valid. Constructed in {} on line {}", self.file, self.line))
+		r.unwrap_or_else(|e| panic!(
+			"View rlp is trusted and should be valid. Constructed in {} on line {}: {}",
+			self.file,
+			self.line,
+			e
+		))
 	}
 
 	/// Returns rlp at the given index, panics if no rlp at that index
@@ -75,7 +80,7 @@ impl<'a, 'view> ViewRlp<'a> where 'a : 'view {
 	/// Returns decoded value at the given index, panics not present or valid at that index
 	pub fn val_at<T>(&self, index: usize) -> T where T : Decodable {
 		self.expect_valid_rlp(self.rlp.val_at(index))
-	} 
+	}
 
 	/// Returns decoded list of values, panics if rlp is invalid
 	pub fn list_at<T>(&self, index: usize) -> Vec<T> where T: Decodable {
