@@ -52,7 +52,7 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 use std::fs::File;
 #[cfg(target_os = "linux")]
-use std::path::Path;
+use std::path::PathBuf;
 
 const DB_DEFAULT_MEMORY_BUDGET_MB: usize = 128;
 
