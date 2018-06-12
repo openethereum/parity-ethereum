@@ -303,15 +303,19 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Trailing<usize>) -> Result<Vec<Transaction>> {
 		let block_number = self.client.chain_info().best_block_number;
-		let ready_transactions = self.miner.ready_transactions(&*self.client);
+		let ready_transactions = self.miner.ready_transactions(
+			&*self.client,
+			limit.unwrap_or_else(usize::max_value),
+			miner::PendingOrdering::Priority,
+		);
 
 		Ok(ready_transactions
 		   .into_iter()
 		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
 		   .collect()
-	  )
+		)
 	}
 
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {

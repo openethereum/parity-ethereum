@@ -16,7 +16,7 @@
 
 //! Transaction Pool
 
-use ethereum_types::{H256, Address};
+use ethereum_types::{U256, H256, Address};
 use heapsize::HeapSizeOf;
 use transaction;
 use txpool;
@@ -43,6 +43,43 @@ pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 pub enum PrioritizationStrategy {
 	/// Simple gas-price based prioritization.
 	GasPriceOnly,
+}
+
+/// Transaction ordering when requesting pending set.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PendingOrdering {
+	/// Get pending transactions ordered by their priority (potentially expensive)
+	Priority,
+	/// Get pending transactions without any care of particular ordering (cheaper).
+	Unordered,
+}
+
+/// Pending set query settings
+#[derive(Debug, Clone)]
+pub struct PendingSettings {
+	/// Current block number (affects readiness of some transactions).
+	pub block_number: u64,
+	/// Current timestamp (affects readiness of some transactions).
+	pub current_timestamp: u64,
+	/// Nonce cap (for dust protection; EIP-168)
+	pub nonce_cap: Option<U256>,
+	/// Maximal number of transactions in pending the set.
+	pub max_len: usize,
+	/// Ordering of transactions.
+	pub ordering: PendingOrdering,
+}
+
+impl PendingSettings {
+	/// Get all transactions (no cap or len limit) prioritized.
+	pub fn all_prioritized(block_number: u64, current_timestamp: u64) -> Self {
+		PendingSettings {
+			block_number,
+			current_timestamp,
+			nonce_cap: None,
+			max_len: usize::max_value(),
+			ordering: PendingOrdering::Priority,
+		}
+	}
 }
 
 /// Transaction priority.

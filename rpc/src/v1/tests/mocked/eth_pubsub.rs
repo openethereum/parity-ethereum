@@ -181,7 +181,7 @@ fn should_subscribe_to_pending_transactions() {
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 
 	// Send new transactions
-	handler.new_transactions(&[5.into(), 7.into()]);
+	handler.notify_new_transactions(&[5.into(), 7.into()]);
 
 	let (res, receiver) = receiver.into_future().wait().unwrap();
 	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":"0x0000000000000000000000000000000000000000000000000000000000000005","subscription":"0x416d77337e24399d"}}"#;
