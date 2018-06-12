@@ -48,13 +48,14 @@ use std::sync::Arc;
 use std::{process, env, ffi::OsString};
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
+const PARITY_EXECUTABLE_NAME: &str = "parity";
 
 #[derive(Debug)]
 enum Error {
 	BinaryNotFound,
-	StatusCode(i32),
+	ExitCode(i32),
 	Restart,
-	UnknownStatusCode,
+	Unknown
 }
 
 fn update_path(name: &str) -> PathBuf {
@@ -146,16 +147,16 @@ fn run_parity() -> Result<(), Error> {
 		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
 		.status()
 		.ok()
-		.map_or(Err(Error::UnknownStatusCode), |es| {
+		.map_or(Err(Error::Unknown), |es| {
 			match es.code() {
 				// Process success
 				Some(0) => Ok(()),
 				// Please restart
 				Some(PLEASE_RESTART_EXIT_CODE) => Err(Error::Restart),
 				// Process error code `c`
-				Some(c) => Err(Error::StatusCode(c)),
+				Some(c) => Err(Error::ExitCode(c)),
 				// Unknown error, couldn't determine error code
-				_ => Err(Error::UnknownStatusCode),
+				_ => Err(Error::Unknown),
 			}
 		})
 	);	
@@ -354,7 +355,7 @@ fn main() {
 	let same_name = exe_path
 		.as_ref()
 		.map_or(false, |p| { 
-			p.file_stem().map_or(false, |n| n == "parity") 
+			p.file_stem().map_or(false, |n| n == PARITY_EXECUTABLE_NAME) 
 		});
 
 	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", 
@@ -365,7 +366,7 @@ fn main() {
 
 	if !force_direct && !development && same_name {
 		// Try to run the latest installed version of `parity`, 
-		// upon failure it fails fall back into the locally installed version of `parity`
+		// Upon failure it falls back to the locally installed version of `parity`
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly.
 		loop {
 			// `Path` to the latest downloaded binary
