@@ -180,7 +180,7 @@ struct SealingWork {
 	next_allowed_reseal: Instant,
 	next_mandatory_reseal: Instant,
 	// block number when sealing work was last requested
-	last_request: u64,
+	last_request: Option<u64>,
 }
 
 impl SealingWork {
@@ -231,7 +231,7 @@ impl Miner {
 					|| spec.engine.seals_internally().is_some(),
 				next_allowed_reseal: Instant::now(),
 				next_mandatory_reseal: Instant::now() + options.reseal_max_period,
-				last_request: 0,
+				last_request: None,
 			}),
 			params: RwLock::new(AuthoringParams::default()),
 			listeners: RwLock::new(vec![]),
@@ -496,8 +496,10 @@ impl Miner {
 		trace!(target: "miner", "requires_reseal: sealing enabled");
 
 		// Disable sealing if there were no requests for SEALING_TIMEOUT_IN_BLOCKS
-		let had_requests = best_block > sealing.last_request
-			&& best_block - sealing.last_request <= SEALING_TIMEOUT_IN_BLOCKS;
+		let had_requests = sealing.last_request.map(|last_request| {
+			best_block > last_request
+				&& best_block - last_request <= SEALING_TIMEOUT_IN_BLOCKS
+		}).unwrap_or(false);
 
 		// keep sealing enabled if any of the conditions is met
 		let sealing_enabled = self.forced_sealing()
@@ -516,7 +518,7 @@ impl Miner {
 		);
 
 		if should_disable_sealing {
-			trace!(target: "miner", "Miner sleeping (current {}, last {})", best_block, sealing.last_request);
+			trace!(target: "miner", "Miner sleeping (current {}, last {})", best_block, sealing.last_request.unwrap_or(0));
 			sealing.enabled = false;
 			sealing.queue.reset();
 			false
@@ -676,13 +678,13 @@ impl Miner {
 
 		let best_number = client.chain_info().best_block_number;
 		let mut sealing = self.sealing.lock();
-		if sealing.last_request != best_number {
+		if sealing.last_request != Some(best_number) {
 			trace!(
 				target: "miner",
 				"prepare_pending_block: Miner received request (was {}, now {}) - waking up.",
-				sealing.last_request, best_number
+				sealing.last_request.unwrap_or(0), best_number
 			);
-			sealing.last_request = best_number;
+			sealing.last_request = Some(best_number);
 		}
 
 		// Return if we restarted
@@ -954,7 +956,7 @@ impl miner::MinerService for Miner {
 	}
 
 	fn is_currently_sealing(&self) -> bool {
-		self.sealing.lock().queue.is_in_use()
+		self.sealing.lock().enabled
 	}
 
 	fn work_package<C>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> where
@@ -1265,5 +1267,56 @@ mod tests {
 		let addr = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
 		assert!(match client.miner().set_author(addr, Some("".into())) { Err(AccountError::NotFound) => true, _ => false });
+	}
+
+	#[test]
+	fn should_mine_if_internal_sealing_is_enabled() {
+		let spec = Spec::new_instant();
+		let miner = Miner::new_for_tests(&spec, None);
+
+		let client = generate_dummy_client(2);
+		miner.update_sealing(&*client);
+
+		assert!(miner.is_currently_sealing());
+	}
+
+	#[test]
+	fn should_not_mine_if_internal_sealing_is_disabled() {
+		let spec = Spec::new_test_round();
+		let miner = Miner::new_for_tests(&spec, None);
+
+		let client = generate_dummy_client(2);
+		miner.update_sealing(&*client);
+
+		assert!(!miner.is_currently_sealing());
+	}
+
+	#[test]
+	fn should_not_mine_if_no_fetch_work_request() {
+		let spec = Spec::new_test();
+		let miner = Miner::new_for_tests(&spec, None);
+
+		let client = generate_dummy_client(2);
+		miner.update_sealing(&*client);
+
+		assert!(!miner.is_currently_sealing());
+	}
+
+	#[test]
+	fn should_mine_if_fetch_work_request() {
+		struct DummyNotifyWork;
+
+		impl NotifyWork for DummyNotifyWork {
+			fn notify(&self, _pow_hash: H256, _difficulty: U256, _number: u64) { }
+		}
+
+		let spec = Spec::new_test();
+		let miner = Miner::new_for_tests(&spec, None);
+		miner.add_work_listener(Box::new(DummyNotifyWork));
+
+		let client = generate_dummy_client(2);
+		miner.update_sealing(&*client);
+
+		assert!(miner.is_currently_sealing());
 	}
 }
