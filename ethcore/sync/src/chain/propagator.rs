@@ -33,6 +33,7 @@ use super::{
 	MAX_PEERS_PROPAGATION,
 	MAX_TRANSACTION_PACKET_SIZE,
 	MAX_TRANSACTIONS_TO_PROPAGATE,
+	MAX_TRANSACTIONS_TO_QUERY,
 	MIN_PEERS_PROPAGATION,
 	CONSENSUS_DATA_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
@@ -114,7 +115,7 @@ impl SyncPropagator {
 			return 0;
 		}
 
-		let transactions = io.chain().ready_transactions();
+		let transactions = io.chain().ready_transactions(MAX_TRANSACTIONS_TO_QUERY);
 		if transactions.is_empty() {
 			return 0;
 		}
