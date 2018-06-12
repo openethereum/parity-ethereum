@@ -40,6 +40,9 @@ impl snapshot::DatabaseRestore for NoopDBRestore {
 
 #[test]
 fn restored_is_equivalent() {
+	use ::ethcore_logger::init_log;
+	init_log();
+
 	const NUM_BLOCKS: u32 = 400;
 	const TX_PER: usize = 5;
 

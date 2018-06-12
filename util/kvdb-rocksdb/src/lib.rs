@@ -50,7 +50,7 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 use std::fs::File;
 #[cfg(target_os = "linux")]
-use std::path::PathBuf;
+use std::path::Path;
 
 const DB_DEFAULT_MEMORY_BUDGET_MB: usize = 128;
 
@@ -78,6 +78,7 @@ impl Default for CompactionProfile {
 }
 
 /// Given output of df command return Linux rotational flag file path.
+#[cfg(target_os = "linux")]
 pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
 	use std::str;
 	str::from_utf8(df_out.as_slice())
