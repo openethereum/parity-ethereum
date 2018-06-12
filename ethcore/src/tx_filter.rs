@@ -16,7 +16,7 @@
 
 //! Smart contract based transaction filter.
 
-use ethereum_types::{H256, Address};
+use ethereum_types::{H256, U256, Address};
 use lru_cache::LruCache;
 
 use client::{BlockInfo, CallContract, BlockId};
@@ -25,6 +25,7 @@ use spec::CommonParams;
 use transaction::{Action, SignedTransaction};
 use hash::KECCAK_EMPTY;
 
+use_contract!(transact_acl_deprecated, "TransactAclDeprecated", "res/contracts/tx_acl_deprecated.json");
 use_contract!(transact_acl, "TransactAcl", "res/contracts/tx_acl.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
@@ -40,9 +41,11 @@ mod tx_permissions {
 
 /// Connection filter that uses a contract to manage permissions.
 pub struct TransactionFilter {
+	contract_deprecated: transact_acl_deprecated::TransactAclDeprecated,
 	contract: transact_acl::TransactAcl,
 	contract_address: Address,
 	permission_cache: Mutex<LruCache<(H256, Address), u32>>,
+	contract_version_cache: Mutex<LruCache<(H256), Option<U256>>>
 }
 
 impl TransactionFilter {
@@ -50,46 +53,86 @@ impl TransactionFilter {
 	pub fn from_params(params: &CommonParams) -> Option<TransactionFilter> {
 		params.transaction_permission_contract.map(|address|
 			TransactionFilter {
+				contract_deprecated: transact_acl_deprecated::TransactAclDeprecated::default(),
 				contract: transact_acl::TransactAcl::default(),
 				contract_address: address,
 				permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
+				contract_version_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 			}
 		)
 	}
 
 	/// Check if transaction is allowed at given block.
 	pub fn transaction_allowed<C: BlockInfo + CallContract>(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &C) -> bool {
-		let mut cache = self.permission_cache.lock();
+		let mut permission_cache = self.permission_cache.lock();
+		let mut contract_version_cache = self.contract_version_cache.lock();
 
-		let tx_type = match transaction.action {
-			Action::Create => tx_permissions::CREATE,
+		let (tx_type, to) = match transaction.action {
+			Action::Create => (tx_permissions::CREATE, Address::new()),
 			Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
-				tx_permissions::CALL
-			} else {
-				tx_permissions::BASIC
-			}
+					(tx_permissions::CALL, address)
+				} else {
+					(tx_permissions::BASIC, address)
+				}
 		};
 
 		let sender = transaction.sender();
+		let value = transaction.value;
 		let key = (*parent_hash, sender);
 
-		if let Some(permissions) = cache.get_mut(&key) {
+		if let Some(permissions) = permission_cache.get_mut(&key) {
 			return *permissions & tx_type != 0;
 		}
 
 		let contract_address = self.contract_address;
-		let permissions = self.contract.functions()
-			.allowed_tx_types()
-			.call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
-			.map(|p| p.low_u32())
-			.unwrap_or_else(|e| {
-				debug!("Error callling tx permissions contract: {:?}", e);
-				tx_permissions::NONE
-			});
+		let contract_version = contract_version_cache.get_mut(parent_hash).and_then(|v| *v).or_else(||  {
+			self.contract.functions()
+				.contract_version()
+				.call(&|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+				.ok()
+		});
+		contract_version_cache.insert(*parent_hash, contract_version);
 
-		cache.insert((*parent_hash, sender), permissions);
+		// Check permissions in smart contract based on its version
+		let (permissions, filter_only_sender) = match contract_version {
+			Some(version) => {
+				let version_u64 = version.low_u64();
+				trace!(target: "tx_filter", "Version of tx permission contract: {}", version);
+				match version_u64 {
+					2 => self.contract.functions()
+						.allowed_tx_types()
+						.call(sender, to, value, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+						.map(|(p, f)| (p.low_u32(), f))
+						.unwrap_or_else(|e| {
+							error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
+							(tx_permissions::NONE, true)
+						}),
+					_ => {
+						error!(target: "tx_filter", "Unknown version of tx permissions contract is used");
+						(tx_permissions::NONE, true)
+					}
+				}
+			},
+			None => {
+				trace!(target: "tx_filter", "Fallback to the deprecated version of tx permission contract");
+				(self.contract_deprecated.functions()
+					 .allowed_tx_types()
+					 .call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+					 .map(|p| p.low_u32())
+					 .unwrap_or_else(|e| {
+						 error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
+						 tx_permissions::NONE
+					 }), true)
+			}
+		};
 
-		trace!("Permissions required: {}, got: {}", tx_type, permissions);
+		if filter_only_sender {
+			permission_cache.insert((*parent_hash, sender), permissions);
+		}
+		trace!(target: "tx_filter",
+			"Given transaction data: sender: {:?} to: {:?} value: {}. Permissions required: {:X}, got: {:X}",
+			   sender, to, value, tx_type, permissions
+		);
 		permissions & tx_type != 0
 	}
 }
@@ -100,61 +143,91 @@ mod test {
 	use spec::Spec;
 	use client::{BlockChainClient, Client, ClientConfig, BlockId};
 	use miner::Miner;
-	use ethereum_types::Address;
+	use ethereum_types::{U256, Address};
 	use io::IoChannel;
 	use ethkey::{Secret, KeyPair};
 	use super::TransactionFilter;
 	use transaction::{Transaction, Action};
 	use tempdir::TempDir;
 
-	/// Contract code: https://gist.github.com/arkpar/38a87cb50165b7e683585eec71acb05a
+	/// Contract code: https://gist.github.com/VladLupashevskyi/84f18eabb1e4afadf572cf92af3e7e7f
 	#[test]
 	fn transaction_filter() {
-		let spec_data = r#"
-		{
-			"name": "TestNodeFilterContract",
-			"engine": {
-				"authorityRound": {
-					"params": {
-						"stepDuration": 1,
-						"startStep": 2,
-						"validators": {
-							"contract": "0x0000000000000000000000000000000000000000"
-						}
-					}
-				}
-			},
-			"params": {
-				"accountStartNonce": "0x0",
-				"maximumExtraDataSize": "0x20",
-				"minGasLimit": "0x1388",
-				"networkID" : "0x69",
-				"gasLimitBoundDivisor": "0x0400",
-				"transactionPermissionContract": "0x0000000000000000000000000000000000000005"
-			},
-			"genesis": {
-				"seal": {
-					"generic": "0xc180"
-				},
-				"difficulty": "0x20000",
-				"author": "0x0000000000000000000000000000000000000000",
-				"timestamp": "0x00",
-				"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-				"extraData": "0x",
-				"gasLimit": "0x222222"
-			},
-			"accounts": {
-				"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
-				"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
-				"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-				"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
-				"0000000000000000000000000000000000000005": {
-					"balance": "1",
-					"constructor": "6060604052341561000f57600080fd5b5b6101868061001f6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063e17512211461003e575b600080fd5b341561004957600080fd5b610075600480803573ffffffffffffffffffffffffffffffffffffffff16906020019091905050610097565b604051808263ffffffff1663ffffffff16815260200191505060405180910390f35b6000737e5f4552091a69125d5dfcb7b8c2659029395bdf8273ffffffffffffffffffffffffffffffffffffffff1614156100d75763ffffffff9050610155565b732b5ad5c4795c026514f8317c7a215e218dccd6cf8273ffffffffffffffffffffffffffffffffffffffff1614156101155760026001179050610155565b736813eb9362372eef6200f3b1dbc3f819671cba698273ffffffffffffffffffffffffffffffffffffffff1614156101505760019050610155565b600090505b9190505600a165627a7a72305820f1f21cb978925a8a92c6e30c8c81adf598adff6d1ef941cf5ed6c0ec7ad1ae3d0029"
-				}
-			}
-		}
-		"#;
+		let spec_data = include_str!("../res/tx_permission_tests/contract_ver_2_genesis.json");
+
+		let tempdir = TempDir::new("").unwrap();
+		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
+		let client_db = Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
+
+		let client = Client::new(
+			ClientConfig::default(),
+			&spec,
+			client_db,
+			Arc::new(Miner::new_for_tests(&spec, None)),
+			IoChannel::disconnected(),
+		).unwrap();
+		let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000001")).unwrap();
+		let key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000002")).unwrap();
+		let key3 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000003")).unwrap();
+		let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000004")).unwrap();
+		let key5 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000005")).unwrap();
+		let key6 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000006")).unwrap();
+		let key7 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000007")).unwrap();
+
+		let filter = TransactionFilter::from_params(spec.params()).unwrap();
+		let mut basic_tx = Transaction::default();
+		basic_tx.action = Action::Call(Address::from("d41c057fd1c78805aac12b0a94a405c0461a6fbb"));
+		let create_tx = Transaction::default();
+		let mut call_tx = Transaction::default();
+		call_tx.action = Action::Call(Address::from("0000000000000000000000000000000000000005"));
+
+		let mut basic_tx_with_ether_and_to_key7 = Transaction::default();
+		basic_tx_with_ether_and_to_key7.action = Action::Call(Address::from("d41c057fd1c78805aac12b0a94a405c0461a6fbb"));
+		basic_tx_with_ether_and_to_key7.value = U256::from(123123);
+		let mut call_tx_with_ether = Transaction::default();
+		call_tx_with_ether.action = Action::Call(Address::from("0000000000000000000000000000000000000005"));
+		call_tx_with_ether.value = U256::from(123123);
+
+		let mut basic_tx_to_key6 = Transaction::default();
+		basic_tx_to_key6.action = Action::Call(Address::from("e57bfe9f44b819898f47bf37e5af72a0783e1141"));
+		let mut basic_tx_with_ether_and_to_key6 = Transaction::default();
+		basic_tx_with_ether_and_to_key6.action = Action::Call(Address::from("e57bfe9f44b819898f47bf37e5af72a0783e1141"));
+		basic_tx_with_ether_and_to_key6.value = U256::from(123123);
+
+		let genesis = client.block_hash(BlockId::Latest).unwrap();
+
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key1.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &create_tx.clone().sign(key1.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key1.secret(), None), &*client));
+
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key2.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key2.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key2.secret(), None), &*client));
+
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key3.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key3.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key3.secret(), None), &*client));
+
+		assert!(!filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key4.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key4.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key4.secret(), None), &*client));
+
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key1.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &create_tx.clone().sign(key1.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key1.secret(), None), &*client));
+
+		assert!(!filter.transaction_allowed(&genesis, &basic_tx_with_ether_and_to_key7.clone().sign(key5.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &call_tx_with_ether.clone().sign(key5.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key6.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx_with_ether_and_to_key7.clone().sign(key6.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx_to_key6.clone().sign(key7.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &basic_tx_with_ether_and_to_key6.clone().sign(key7.secret(), None), &*client));
+	}
+
+	/// Contract code: https://gist.github.com/arkpar/38a87cb50165b7e683585eec71acb05a
+	#[test]
+	fn transaction_filter_deprecated() {
+		let spec_data = include_str!("../res/tx_permission_tests/deprecated_contract_genesis.json");
 
 		let tempdir = TempDir::new("").unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
