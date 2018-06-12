@@ -330,7 +330,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		// Write closing metadata for Casper.
 		if number >= self.ethash_params.hybrid_casper_transition {
-			let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+			let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or_else(Default::default);
 			self.casper.update_metadata(&mut metadata, &mut |address, data| {
 				self.machine().execute_as_system(
 					block,

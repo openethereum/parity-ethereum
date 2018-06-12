@@ -315,8 +315,8 @@ impl HybridCasper {
 
 	/// Casper-specific fork choice.
 	pub fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
-		let new_metadata: HybridCasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
-		let current_metadata: HybridCasperMetadata = current.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let new_metadata: HybridCasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or_else(Default::default);
+		let current_metadata: HybridCasperMetadata = current.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or_else(Default::default);
 
 		// Casper fails back to total difficulty fork choice if highest_justified_epoch is zero. So we don't need to
 		// check transition block here.
@@ -332,7 +332,7 @@ impl HybridCasper {
 
 	/// Casper-specific ancestry actions.
 	pub fn ancestry_actions(&self, block: &ExecutedBlock) -> Vec<AncestryAction> {
-		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or_else(Default::default);
 
 		if metadata.highest_finalized_hash != Default::default() {
 			// Call finalize on an already finalized block won't do anything. So we just do that for now to avoid a
@@ -346,7 +346,7 @@ impl HybridCasper {
 
 	/// Prepare the env info required for vote transactions.
 	pub fn prepare_vote_transaction_env_info(&self, _t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
-		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or_else(Default::default);
 		env_info.gas_used = metadata.vote_gas_used;
 	}
 
@@ -361,9 +361,9 @@ impl HybridCasper {
 			_ => panic!("Casper requires EIP658 to be enabled."),
 		}
 
-		let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or_else(Default::default);
 		metadata.vote_gas_used = receipt.gas_used;
-		receipt.gas_used = block.receipts().last().map(|r| r.gas_used).unwrap_or(U256::zero());
+		receipt.gas_used = block.receipts().last().map(|r| r.gas_used).unwrap_or_else(U256::zero);
 		block.set_metadata(Some(rlp::encode(&metadata).to_vec()));
 
 		Ok(())
