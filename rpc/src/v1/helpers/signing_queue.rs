@@ -75,15 +75,13 @@ pub trait SigningQueue: Send + Sync {
 	/// `ConfirmationReceiver` is a `Future` awaiting for resolution of the given request.
 	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<(U256, ConfirmationReceiver), QueueAddError>;
 
-	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
 	fn request_rejected(&self, sender: ConfirmationSender) -> Option<ConfirmationRequest>;
 
-	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was confirmed and given hash was assigned.
 	fn request_confirmed(&self, sender: ConfirmationSender, result: ConfirmationResult) -> Option<ConfirmationRequest>;
 
-	/// Put a taken request back to the queue.
+	/// Put a request taken from `SigningQueue::take` back to the queue.
 	fn request_untouched(&self, sender: ConfirmationSender);
 
 	/// Returns and removes a request if it is contained in the queue.
@@ -128,14 +126,14 @@ impl ConfirmationsQueue {
 	/// Notifies consumer that the communcation is over.
 	/// No more events will be sent after this function is invoked.
 	pub fn finish(&self) {
-		self.notify(QueueEvent::Finish);
+		self.notify_message(QueueEvent::Finish);
 		self.on_event.write().clear();
 	}
 
 	/// Notifies `ConfirmationReceiver` holder about the result given a request.
-	pub fn request_notify(&self, sender: ConfirmationSender, result: Option<ConfirmationResult>) -> Option<ConfirmationRequest> {
+	fn notify_result(&self, sender: ConfirmationSender, result: Option<ConfirmationResult>) -> Option<ConfirmationRequest> {
 		// notify receiver about the event
-		self.notify(result.clone().map_or_else(
+		self.notify_message(result.clone().map_or_else(
 			|| QueueEvent::RequestRejected(sender.request.id),
 			|_| QueueEvent::RequestConfirmed(sender.request.id)
 		));
@@ -148,7 +146,7 @@ impl ConfirmationsQueue {
 	}
 
 	/// Notifies receiver about the event happening in this queue.
-	fn notify(&self, message: QueueEvent) {
+	fn notify_message(&self, message: QueueEvent) {
 		for listener in &*self.on_event.read() {
 			listener(message.clone())
 		}
@@ -192,7 +190,7 @@ impl SigningQueue for ConfirmationsQueue {
 			(id, receiver)
 		};
 		// Notify listeners
-		self.notify(QueueEvent::NewRequest(id));
+		self.notify_message(QueueEvent::NewRequest(id));
 		Ok(res)
 	}
 
@@ -202,12 +200,12 @@ impl SigningQueue for ConfirmationsQueue {
 
 	fn request_rejected(&self, sender: ConfirmationSender) -> Option<ConfirmationRequest> {
 		debug!(target: "own_tx", "Signer: Request rejected ({:?}).", sender.request.id);
-		self.request_notify(sender, None)
+		self.notify_result(sender, None)
 	}
 
 	fn request_confirmed(&self, sender: ConfirmationSender, result: ConfirmationResult) -> Option<ConfirmationRequest> {
 		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", sender.request.id);
-		self.request_notify(sender, Some(result))
+		self.notify_result(sender, Some(result))
 	}
 
 	fn request_untouched(&self, sender: ConfirmationSender) {
