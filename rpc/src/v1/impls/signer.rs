@@ -86,11 +86,11 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		let dispatcher = self.dispatcher.clone();
 		let signer = self.signer.clone();
 
-		Box::new(signer.peek(&id).map(|confirmation| {
-			let mut payload = confirmation.payload.clone();
+		Box::new(signer.take(&id).map(|sender| {
+			let mut payload = sender.request.payload.clone();
 			// Modify payload
 			if let ConfirmationPayload::SendTransaction(ref mut request) = payload {
-				if let Some(sender) = modification.sender.clone() {
+				if let Some(sender) = modification.sender {
 					request.from = sender.into();
 					// Altering sender should always reset the nonce.
 					request.nonce = None;
@@ -109,7 +109,9 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 			Either::A(fut.into_future().then(move |result| {
 				// Execute
 				if let Ok(ref response) = result {
-					signer.request_confirmed(id, Ok((*response).clone()));
+					signer.request_confirmed(sender, Ok((*response).clone()));
+				} else {
+					signer.request_untouched(sender);
 				}
 
 				result
@@ -188,8 +190,9 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse> {
 		let id = id.into();
 
-		self.signer.peek(&id).map(|confirmation| {
-			let result = match confirmation.payload {
+		self.signer.take(&id).map(|sender| {
+			let payload = sender.request.payload.clone();
+			let result = match payload {
 				ConfirmationPayload::SendTransaction(request) => {
 					Self::verify_transaction(bytes, request, |pending_transaction| {
 						self.dispatcher.dispatch_transaction(pending_transaction)
@@ -218,14 +221,16 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 				},
 			};
 			if let Ok(ref response) = result {
-				self.signer.request_confirmed(id, Ok(response.clone()));
+				self.signer.request_confirmed(sender, Ok(response.clone()));
+			} else {
+				self.signer.request_untouched(sender);
 			}
 			result
 		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool> {
-		let res = self.signer.request_rejected(id.into());
+		let res = self.signer.take(&id.into()).map(|sender| self.signer.request_rejected(sender));
 		Ok(res.is_some())
 	}
 
