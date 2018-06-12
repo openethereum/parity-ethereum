@@ -236,16 +236,15 @@ mod getinterfaces {
 				let sa: *const sockaddr_in6 = sa as *const sockaddr_in6;
 				let sa = & unsafe { *sa };
 				let (addr, port) = (sa.sin6_addr.s6_addr, sa.sin6_port);
-				let addr: [u16; 8] = unsafe { mem::transmute(addr) };
 				(IpAddr::V6(Ipv6Addr::new(
-					addr[0],
-					addr[1],
-					addr[2],
-					addr[3],
-					addr[4],
-					addr[5],
-					addr[6],
-					addr[7])),
+					((addr[1] as u16) << 8) | (addr[0] as u16),
+					((addr[3] as u16) << 8) | (addr[2] as u16),
+					((addr[5] as u16) << 8) | (addr[4] as u16),
+					((addr[7] as u16) << 8) | (addr[6] as u16),
+					((addr[9] as u16) << 8) | (addr[8] as u16),
+					((addr[11] as u16) << 8) | (addr[10] as u16),
+					((addr[13] as u16) << 8) | (addr[12] as u16),
+					((addr[15] as u16) << 8) | (addr[14] as u16))),
 					port)
 			},
 			_ => return None,
