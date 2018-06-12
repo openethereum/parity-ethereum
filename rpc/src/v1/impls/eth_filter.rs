@@ -85,7 +85,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
-		self.miner.ready_transactions(&*self.client)
+		self.miner.ready_transactions(&*self.client, usize::max_value(), miner::PendingOrdering::Priority)
 			.into_iter()
 			.map(|tx| tx.signed().hash())
 			.collect()

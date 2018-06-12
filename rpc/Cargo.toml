@@ -36,7 +36,7 @@ jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 
 ethash = { path = "../ethash" }
-ethcore = { path = "../ethcore" }
+ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-bytes = { path = "../util/bytes" }
 ethcore-crypto = { path = "../ethcore/crypto" }
 ethcore-devtools = { path = "../devtools" }
@@ -65,6 +65,7 @@ stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
+ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }

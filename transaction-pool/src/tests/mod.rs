@@ -251,6 +251,66 @@ fn should_construct_pending() {
 }
 
 #[test]
+fn should_return_unordered_iterator() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::default();
+
+	let tx0 = txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	let tx1 = txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap();
+	let tx2 = txq.import(b.tx().nonce(2).new()).unwrap();
+	let tx3 = txq.import(b.tx().nonce(3).gas_price(4).new()).unwrap();
+	//gap
+	txq.import(b.tx().nonce(5).new()).unwrap();
+
+	let tx5 = txq.import(b.tx().sender(1).nonce(0).new()).unwrap();
+	let tx6 = txq.import(b.tx().sender(1).nonce(1).new()).unwrap();
+	let tx7 = txq.import(b.tx().sender(1).nonce(2).new()).unwrap();
+	let tx8 = txq.import(b.tx().sender(1).nonce(3).gas_price(4).new()).unwrap();
+	// gap
+	txq.import(b.tx().sender(1).nonce(5).new()).unwrap();
+
+	let tx9 = txq.import(b.tx().sender(2).nonce(0).new()).unwrap();
+	assert_eq!(txq.light_status().transaction_count, 11);
+	assert_eq!(txq.status(NonceReady::default()), Status {
+		stalled: 0,
+		pending: 9,
+		future: 2,
+	});
+	assert_eq!(txq.status(NonceReady::new(1)), Status {
+		stalled: 3,
+		pending: 6,
+		future: 2,
+	});
+
+	// when
+	let all: Vec<_> = txq.unordered_pending(NonceReady::default()).collect();
+
+	let chain1 = vec![tx0, tx1, tx2, tx3];
+	let chain2 = vec![tx5, tx6, tx7, tx8];
+	let chain3 = vec![tx9];
+
+	assert_eq!(all.len(), chain1.len() + chain2.len() + chain3.len());
+
+	let mut options = vec![
+		vec![chain1.clone(), chain2.clone(), chain3.clone()],
+		vec![chain2.clone(), chain1.clone(), chain3.clone()],
+		vec![chain2.clone(), chain3.clone(), chain1.clone()],
+		vec![chain3.clone(), chain2.clone(), chain1.clone()],
+		vec![chain3.clone(), chain1.clone(), chain2.clone()],
+		vec![chain1.clone(), chain3.clone(), chain2.clone()],
+	].into_iter().map(|mut v| {
+		let mut first = v.pop().unwrap();
+		for mut x in v {
+			first.append(&mut x);
+		}
+		first
+	});
+
+	assert!(options.any(|opt| all == opt));
+}
+
+#[test]
 fn should_update_scoring_correctly() {
 	// given
 	let b = TransactionBuilder::default();

@@ -48,7 +48,7 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use error::ImportResult;
 use vm::Schedule;
-use miner::{Miner, MinerService};
+use miner::{self, Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
 use types::pruning_info::PruningInfo;
@@ -806,8 +806,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.traces.read().clone()
 	}
 
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.miner.ready_transactions(self)
+	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+		self.miner.ready_transactions(self, max_len, miner::PendingOrdering::Priority)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }
