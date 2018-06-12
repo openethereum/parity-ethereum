@@ -18,6 +18,7 @@
 extern crate log;
 
 extern crate elastic_array;
+extern crate fs_swap;
 extern crate interleaved_ordered;
 extern crate num_cpus;
 extern crate parking_lot;
@@ -41,6 +42,7 @@ use rocksdb::{
 use interleaved_ordered::{interleave_ordered, InterleaveOrdered};
 
 use elastic_array::ElasticArray32;
+use fs_swap::{swap, swap_nonatomic};
 use kvdb::{KeyValueDB, DBTransaction, DBValue, DBOp, Result};
 
 #[cfg(target_os = "linux")]
@@ -592,10 +594,14 @@ impl Database {
 	pub fn restore(&self, new_db: &str) -> Result<()> {
 		self.close();
 
-		// rename is guaranteed to be atomic on unix
-		// on windows is guaranteed to be atomic if it is the same volume
-		// if it is not, then os crates a backup for us
-		fs::rename(new_db, &self.path)?;
+		// swap is guaranteed to be atomic
+		if let Err(err) = swap(new_db, &self.path) {
+			warn!("DB atomic swap failed: {}", err);
+			if let Err(err) = swap_nonatomic(new_db, &self.path) {
+				warn!("DB nonatomic atomic swap failed: {}", err);
+				return Err(err.into());
+			}
+		}
 
 		// reopen the database and steal handles into self
 		let db = Self::open(&self.config, &self.path)?;
