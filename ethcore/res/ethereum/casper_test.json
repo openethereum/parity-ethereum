@@ -54,7 +54,10 @@
 		"extraData": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa",
 		"gasLimit": "0x5f5e100"
 	},
-	"nodes": [],
+	"nodes": [
+		"enode://c32ec5909c84ca346dda05435809889fed101dadadcae5e255e09658bcb1e4d1ed304c90929e34a3b51d9cf5869ff486c887f600dbd8f0305f52637280a7a55a@139.162.71.88:30303",
+		"enode://b541cb9808a932ac2b7e3ea9fb584dc0cac391527788773fccceaae7a2d86bd250f725bf5899a452ef25b2ff69084d830c2f905fce619eaf372ccd63f3056d98@139.162.71.88:31303"
+	],
 	"accounts": {
 		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
 		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
@@ -64,6 +67,6 @@
 		"0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "pricing": { "linear": { "base": 500, "word": 0 } } } },
 		"0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "pricing": { "linear": { "base": 40000, "word": 0 } } } },
 		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
-		"00402845b96a30cfb8d49449d4b0159bcecd1d89": { "balance": "0x52B7D2DCC80CD2E4000000" }
+		"bfb20f94b5640d144592ab9a64c3b515add1b90e": { "balance": "0x52B7D2DCC80CD2E4000000" }
 	}
 }
