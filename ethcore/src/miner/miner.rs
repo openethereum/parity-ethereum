@@ -691,6 +691,8 @@ impl Miner {
 
 	/// Prepare pending block, check whether sealing is needed, and then update sealing.
 	fn prepare_and_update_sealing<C: miner::BlockChainClient>(&self, chain: &C) {
+		use miner::MinerService;
+
 		// Make sure to do it after transaction is imported and lock is dropped.
 		// We need to create pending block and enable sealing.
 		if self.engine.seals_internally().unwrap_or(false) || !self.prepare_pending_block(chain) {
