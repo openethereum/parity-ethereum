@@ -75,16 +75,17 @@ pub trait SigningQueue: Send + Sync {
 	/// `ConfirmationReceiver` is a `Future` awaiting for resolution of the given request.
 	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<(U256, ConfirmationReceiver), QueueAddError>;
 
-	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
-	fn request_rejected(&self, id: U256) -> Option<ConfirmationRequest>;
+	fn request_rejected(&self, sender: ConfirmationSender) -> Option<ConfirmationRequest>;
 
-	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was confirmed and given hash was assigned.
-	fn request_confirmed(&self, id: U256, result: ConfirmationResult) -> Option<ConfirmationRequest>;
+	fn request_confirmed(&self, sender: ConfirmationSender, result: ConfirmationResult) -> Option<ConfirmationRequest>;
 
-	/// Returns a request if it is contained in the queue.
-	fn peek(&self, id: &U256) -> Option<ConfirmationRequest>;
+	/// Put a request taken from `SigningQueue::take` back to the queue.
+	fn request_untouched(&self, sender: ConfirmationSender);
+
+	/// Returns and removes a request if it is contained in the queue.
+	fn take(&self, id: &U256) -> Option<ConfirmationSender>;
 
 	/// Return copy of all the requests in the queue.
 	fn requests(&self) -> Vec<ConfirmationRequest>;
@@ -96,9 +97,12 @@ pub trait SigningQueue: Send + Sync {
 	fn is_empty(&self) -> bool;
 }
 
-struct ConfirmationSender {
+/// Confirmation request information with result notifier.
+pub struct ConfirmationSender {
+	/// Confirmation request information.
+	pub request: ConfirmationRequest,
+
 	sender: oneshot::Sender<ConfirmationResult>,
-	request: ConfirmationRequest,
 }
 
 /// Receiving end of the Confirmation channel; can be used as a `Future` to await for `ConfirmationRequest`
@@ -122,36 +126,29 @@ impl ConfirmationsQueue {
 	/// Notifies consumer that the communcation is over.
 	/// No more events will be sent after this function is invoked.
 	pub fn finish(&self) {
-		self.notify(QueueEvent::Finish);
+		self.notify_message(QueueEvent::Finish);
 		self.on_event.write().clear();
 	}
 
-	/// Notifies receiver about the event happening in this queue.
-	fn notify(&self, message: QueueEvent) {
-		for listener in &*self.on_event.read() {
-			listener(message.clone())
-		}
+	/// Notifies `ConfirmationReceiver` holder about the result given a request.
+	fn notify_result(&self, sender: ConfirmationSender, result: Option<ConfirmationResult>) -> Option<ConfirmationRequest> {
+		// notify receiver about the event
+		self.notify_message(result.clone().map_or_else(
+			|| QueueEvent::RequestRejected(sender.request.id),
+			|_| QueueEvent::RequestConfirmed(sender.request.id)
+		));
+
+		// notify confirmation receiver about resolution
+		let result = result.ok_or(errors::request_rejected());
+		sender.sender.send(result);
+
+		Some(sender.request)
 	}
 
-	/// Removes requests from this queue and notifies `ConfirmationReceiver` holder about the result.
-	/// Notifies also a receiver about that event.
-	fn remove(&self, id: U256, result: Option<ConfirmationResult>) -> Option<ConfirmationRequest> {
-		let sender = self.queue.write().remove(&id);
-
-		if let Some(sender) = sender {
-			// notify receiver about the event
-			self.notify(result.clone().map_or_else(
-				|| QueueEvent::RequestRejected(id),
-				|_| QueueEvent::RequestConfirmed(id)
-			));
-
-			// notify confirmation receiver about resolution
-			let result = result.ok_or(errors::request_rejected());
-			sender.sender.send(result);
-
-			Some(sender.request)
-		} else {
-			None
+	/// Notifies receiver about the event happening in this queue.
+	fn notify_message(&self, message: QueueEvent) {
+		for listener in &*self.on_event.read() {
+			listener(message.clone())
 		}
 	}
 }
@@ -193,22 +190,26 @@ impl SigningQueue for ConfirmationsQueue {
 			(id, receiver)
 		};
 		// Notify listeners
-		self.notify(QueueEvent::NewRequest(id));
+		self.notify_message(QueueEvent::NewRequest(id));
 		Ok(res)
 	}
 
-	fn peek(&self, id: &U256) -> Option<ConfirmationRequest> {
-		self.queue.read().get(id).map(|sender| sender.request.clone())
+	fn take(&self, id: &U256) -> Option<ConfirmationSender> {
+		self.queue.write().remove(id)
 	}
 
-	fn request_rejected(&self, id: U256) -> Option<ConfirmationRequest> {
-		debug!(target: "own_tx", "Signer: Request rejected ({:?}).", id);
-		self.remove(id, None)
+	fn request_rejected(&self, sender: ConfirmationSender) -> Option<ConfirmationRequest> {
+		debug!(target: "own_tx", "Signer: Request rejected ({:?}).", sender.request.id);
+		self.notify_result(sender, None)
 	}
 
-	fn request_confirmed(&self, id: U256, result: ConfirmationResult) -> Option<ConfirmationRequest> {
-		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", id);
-		self.remove(id, Some(result))
+	fn request_confirmed(&self, sender: ConfirmationSender, result: ConfirmationResult) -> Option<ConfirmationRequest> {
+		debug!(target: "own_tx", "Signer: Request confirmed ({:?}).", sender.request.id);
+		self.notify_result(sender, Some(result))
+	}
+
+	fn request_untouched(&self, sender: ConfirmationSender) {
+		self.queue.write().insert(sender.request.id, sender);
 	}
 
 	fn requests(&self) -> Vec<ConfirmationRequest> {
@@ -260,7 +261,8 @@ mod test {
 
 		// when
 		let (id, future) = queue.add_request(request, Default::default()).unwrap();
-		queue.request_confirmed(id, Ok(ConfirmationResponse::SendTransaction(1.into())));
+		let sender = queue.take(&id).unwrap();
+		queue.request_confirmed(sender, Ok(ConfirmationResponse::SendTransaction(1.into())));
 
 		// then
 		let confirmation = future.wait().unwrap();

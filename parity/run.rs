@@ -533,7 +533,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let engine_signer = cmd.miner_extras.engine_signer;
 	if engine_signer != Default::default() {
 		// Check if engine signer exists
-		if !account_provider.has_account(engine_signer).unwrap_or(false) {
+		if !account_provider.has_account(engine_signer) {
 			return Err(format!("Consensus signer account not found for the current chain. {}", build_create_account_hint(&cmd.spec, &cmd.dirs.keys)));
 		}
 
@@ -1028,7 +1028,7 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists
-		if !account_provider.has_account(a).unwrap_or(false) {
+		if !account_provider.has_account(a) {
 			return Err(format!("Account {} not found for the current chain. {}", a, build_create_account_hint(spec, &dirs.keys)));
 		}
 
@@ -1053,7 +1053,7 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 fn insert_dev_account(account_provider: &AccountProvider) {
 	let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
 	let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
-	if let Ok(false) = account_provider.has_account(dev_account.address()) {
+	if !account_provider.has_account(dev_account.address()) {
 		match account_provider.insert_account(secret, "") {
 			Err(e) => warn!("Unable to add development account: {}", e),
 			Ok(address) => {
