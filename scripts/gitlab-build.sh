@@ -123,20 +123,6 @@ make_deb () {
   dpkg-deb -b deb "parity_"$VER"_"$IDENT"_"$ARC".deb"
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".deb" > "parity_"$VER"_"$IDENT"_"$ARC".deb.sha256"
 }
-make_rpm () {
-  rm -rf /install
-  mkdir -p /install/usr/bin
-  cp target/$PLATFORM/release/parity /install/usr/bin
-  cp target/$PLATFORM/release/parity-evm /install/usr/bin/parity-evm
-  cp target/$PLATFORM/release/ethstore /install/usr/bin/ethstore
-  cp target/$PLATFORM/release/ethkey /install/usr/bin/ethkey
-  cp target/$PLATFORM/release/whisper /install/usr/bin/whisper
-
-  rm -rf "parity-"$VER"-1."$ARC".rpm" || true
-  fpm -s dir -t rpm -n parity -v $VER --epoch 1 --license GPLv3 -d openssl --provides parity --url https://parity.io --vendor "Parity Technologies" -a x86_64 -m "<devops@parity.io>" --description "Ethereum network client by Parity Technologies" -C /install/
-  cp "parity-"$VER"-1."$ARC".rpm" "parity_"$VER"_"$IDENT"_"$ARC".rpm"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".rpm" > "parity_"$VER"_"$IDENT"_"$ARC".rpm.sha256"
-}
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
 }
@@ -206,11 +192,9 @@ case $BUILD_PLATFORM in
     ;;
   x86_64-unknown-centos-gnu)
     STRIP_BIN="strip"
-    EXT="rpm"
     build
     strip_binaries
     calculate_checksums
-    make_rpm
     make_archive
     push_binaries
     ;;
