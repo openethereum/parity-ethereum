@@ -329,7 +329,7 @@ impl<'a, H, C> TrieDBMut<'a, H, C>
 			root_handle: root_handle,
 			death_row: HashSet::new(),
 			hash_count: 0,
-			marker: PhantomData, // TODO: prolly not needed
+			marker: PhantomData,
 		}
 	}
 
@@ -348,7 +348,7 @@ impl<'a, H, C> TrieDBMut<'a, H, C>
 			root_handle: root_handle,
 			death_row: HashSet::new(),
 			hash_count: 0,
-			marker: PhantomData, // TODO: prolly not needed
+			marker: PhantomData,
 		})
 	}
 	/// Get the backing database.

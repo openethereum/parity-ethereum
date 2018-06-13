@@ -232,7 +232,6 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> where H::Out: Deco
 	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<(), H::Out> {
 		loop {
 			let (data, mid) = {
-//				let node = Node::decoded(&node_data).expect("rlp read from db; qed");
 				let node = C::decode(&node_data).expect("rlp read from db; qed");
 				match node {
 					Node::Leaf(slice, _) => {
