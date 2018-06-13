@@ -156,14 +156,14 @@ mod test {
 	fn transaction_filter() {
 		let spec_data = include_str!("../res/tx_permission_tests/contract_ver_2_genesis.json");
 
+		let db = test_helpers::new_db();
 		let tempdir = TempDir::new("").unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
-		let client_db = Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
-			client_db,
+			db,
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
 		).unwrap();
@@ -233,7 +233,6 @@ mod test {
 		let db = test_helpers::new_db();
 		let tempdir = TempDir::new("").unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
-		//let client_db = Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 
 		let client = Client::new(
 			ClientConfig::default(),
