@@ -73,7 +73,7 @@ pub enum TrieError<T> {
 	/// Trie item not found in the database,
 	IncompleteDatabase(T),
 	/// Corrupt Trie item
-	// TODO: what we'd really like to do here is include the `rlp::DecoderError` in the `TrieError`
+	// REVIEW: what we'd really like to do here is include the `rlp::DecoderError` in the `TrieError`
 	// but if we add a `Box<Error>` here we run into issues in the `ethcore` crate:
 	//  "the trait bound `std::error::Error + 'static: std::marker::Send` is not satisfied"
 	// Investigate if using `Box<Error + Send>` would help here (it does compile).

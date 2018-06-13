@@ -53,13 +53,6 @@ impl<H: Hasher> From<StorageHandle> for NodeHandle<H> {
 	}
 }
 
-// TODO: is this used anywhere?
-//impl From<H256> for NodeHandle {
-//	fn from(hash: H256) -> Self {
-//		NodeHandle::Hash(hash)
-//	}
-//}
-
 fn empty_children<H: Hasher>() -> Box<[Option<NodeHandle<H>>; 16]> {
 	Box::new([
 		None, None, None, None, None, None, None, None,
@@ -139,7 +132,6 @@ impl<H: Hasher> Node<H> where H::Out: Decodable {
 		where
 			F: FnMut(NodeHandle<H>, &mut RlpStream), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
 			C: NodeCodec<H>,
-//		where F: FnMut(NodeHandle<H>, &mut <RlpNode as NodeCodec>::StreamEncoding)
 	{
 		match self {
 			Node::Empty => {
@@ -1314,7 +1306,7 @@ mod tests {
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
-		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root); // TODO: `t` was immutable – how could this pass?
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root); // REVIEW: `t` was immutable – how could this pass?
 		for &(ref key, ref value) in &x {
 			t.insert(key, value).unwrap();
 		}
@@ -1342,7 +1334,7 @@ mod tests {
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
-		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root); // TODO: `t` was immutable – how could this pass?
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root); // REVIEW: `t` was immutable – how could this pass?
 		for &(ref key, ref value) in &x {
 			assert!(t.insert(key, value).unwrap().is_none());
 			assert_eq!(t.insert(key, value).unwrap(), Some(DBValue::from_slice(value)));
