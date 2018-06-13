@@ -17,7 +17,6 @@ echo "Build identifier:   " $IDENT
 echo "Cargo target:       " $PLATFORM
 echo "CC&CXX flags:       " $CC ", " $CXX
 echo "Architecture:       " $ARC
-echo "Libssl version:     " $LIBSSL
 echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
@@ -136,8 +135,6 @@ case $BUILD_PLATFORM in
     ;;
   x86_64-unknown-debian-gnu)
     STRIP_BIN="strip"
-    LIBSSL="libssl1.1 (>=1.1.0)"
-    echo "Use libssl1.1 (>=1.1.0) for Debian builds"
     build
     strip_binaries
     calculate_checksums
