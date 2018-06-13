@@ -31,8 +31,8 @@ use hashdb::{Hasher, KeccakHasher};
 #[derive(Debug)]
 pub enum EvmTestError {
 	/// Trie integrity error.
-	// Trie(trie::TrieError<T>),
-	Trie(trie::TrieError<<KeccakHasher as Hasher>::Out>), // TODO: this doesn't look right. 	
+	// Trie(trie::TrieError),
+	Trie(trie::TrieError<<KeccakHasher as Hasher>::Out>), // REVIEW: how do I fix this without making `EvmTestError` generic also?
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.

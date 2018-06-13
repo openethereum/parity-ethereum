@@ -117,11 +117,9 @@ pub enum ExecutionError {
 	TransactionMalformed(String),
 }
 
-impl<T> From<Box<trie::TrieError<T>>> for ExecutionError {
-	// TODO: sort out the error types
-	fn from(_err: Box<trie::TrieError<T>>) -> Self {
-		// ExecutionError::Internal(format!("{:?}", err))
-		ExecutionError::Internal(format!("TODO: sort out the trie error types"))
+impl<T> From<Box<trie::TrieError<T>>> for ExecutionError where T: fmt::Debug {
+	fn from(err: Box<trie::TrieError<T>>) -> Self {
+		ExecutionError::Internal(format!("{:?}", err))
 	}
 }
 

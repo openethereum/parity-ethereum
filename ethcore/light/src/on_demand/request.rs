@@ -627,7 +627,8 @@ pub enum Error {
 	/// Empty response.
 	Empty,
 	/// Trie lookup error (result of bad proof)
-	Trie(TrieError<<KeccakHasher as Hasher>::Out>), // TODO: fix error handling
+	// Trie(TrieError),
+	Trie(TrieError<<KeccakHasher as Hasher>::Out>), // REVIEW: how do I fix this without making `Error` generic also?
 	/// Bad inclusion proof
 	BadProof,
 	/// Header by number instead of hash.
@@ -653,7 +654,7 @@ impl From<::rlp::DecoderError> for Error {
 impl<T> From<Box<TrieError<T>>> for Error {
 	fn from(err: Box<TrieError<T>>) -> Self {
 		// Error::Trie(*err)
-		Error::Trie(TrieError::InvalidStateRoot(<KeccakHasher as Hasher>::Out::new())) // TODO: error handling zomg
+		Error::Trie(TrieError::InvalidStateRoot(<KeccakHasher as Hasher>::Out::new())) // REVIEW: how do I fix this without making `Error` generic also?
 	}
 }
 
