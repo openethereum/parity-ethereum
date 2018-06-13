@@ -595,11 +595,23 @@ impl Database {
 		self.close();
 
 		// swap is guaranteed to be atomic
-		if let Err(err) = swap(new_db, &self.path) {
-			warn!("DB atomic swap failed: {}", err);
-			if let Err(err) = swap_nonatomic(new_db, &self.path) {
-				warn!("DB nonatomic atomic swap failed: {}", err);
-				return Err(err.into());
+		match swap(new_db, &self.path) {
+			Ok(_) => {
+				// ignore errors
+				let _ = fs::remove_dir_all(new_db);
+			},
+			Err(err) => {
+				warn!("DB atomic swap failed: {}", err);
+				match swap_nonatomic(new_db, &self.path) {
+					Ok(_) => {
+						// ignore errors
+						let _ = fs::remove_dir_all(new_db);
+					},
+					Err(err) => {
+						warn!("DB nonatomic atomic swap failed: {}", err);
+						return Err(err.into());
+					}
+				}
 			}
 		}
 
