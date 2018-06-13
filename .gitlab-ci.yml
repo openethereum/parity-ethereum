@@ -23,7 +23,7 @@ linux-amd64:
   script:
     - rustup default stable
     # ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags 6. binary identifier
-    - scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 gcc g++ ubuntu
+    - scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 gcc g++ linux
   tags:
     - rust-stable
   artifacts:
@@ -39,7 +39,7 @@ linux-i686:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 gcc g++ ubuntu
+    - scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 gcc g++ linux
   tags:
     - rust-i686
   artifacts:
@@ -56,7 +56,7 @@ linux-armv7:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh armv7-unknown-linux-gnueabihf armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ ubuntu
+    - scripts/gitlab-build.sh armv7-unknown-linux-gnueabihf armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ linux
   tags:
     - rust-arm
   artifacts:
@@ -73,7 +73,7 @@ linux-armhf:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh arm-unknown-linux-gnueabihf arm-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ ubuntu
+    - scripts/gitlab-build.sh arm-unknown-linux-gnueabihf arm-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ linux
   tags:
     - rust-arm
   artifacts:
@@ -90,7 +90,7 @@ linux-aarch64:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh aarch64-unknown-linux-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++ ubuntu
+    - scripts/gitlab-build.sh aarch64-unknown-linux-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++ linux
   tags:
     - rust-arm
   artifacts:
