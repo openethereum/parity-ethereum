@@ -20,24 +20,21 @@ use std::io;
 use hyper::{self, header, mime, StatusCode};
 
 use handlers::{add_security_headers, Reader};
-use Embeddable;
 
 pub struct StreamingHandler<R> {
 	initial: Vec<u8>,
 	content: R,
 	status: StatusCode,
 	mimetype: mime::Mime,
-	safe_to_embed_on: Embeddable,
 }
 
 impl<R: io::Read> StreamingHandler<R> {
-	pub fn new(content: R, status: StatusCode, mimetype: mime::Mime, safe_to_embed_on: Embeddable) -> Self {
+	pub fn new(content: R, status: StatusCode, mimetype: mime::Mime) -> Self {
 		StreamingHandler {
 			initial: Vec::new(),
 			content,
 			status,
 			mimetype,
-			safe_to_embed_on,
 		}
 	}
 
@@ -51,7 +48,7 @@ impl<R: io::Read> StreamingHandler<R> {
 			.with_status(self.status)
 			.with_header(header::ContentType(self.mimetype))
 			.with_body(body);
-		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on, false);
+		add_security_headers(&mut res.headers_mut(), false);
 
 		(reader, res)
 	}

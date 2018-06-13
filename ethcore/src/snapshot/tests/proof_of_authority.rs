@@ -214,7 +214,7 @@ fn fixed_to_contract_only() {
 		secret!("dog42"),
 	]);
 
-	assert!(provider.has_account(*RICH_ADDR).unwrap());
+	assert!(provider.has_account(*RICH_ADDR));
 
 	let client = make_chain(provider, 3, vec![
 		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
@@ -247,7 +247,7 @@ fn fixed_to_contract_to_contract() {
 		secret!("dog42"),
 	]);
 
-	assert!(provider.has_account(*RICH_ADDR).unwrap());
+	assert!(provider.has_account(*RICH_ADDR));
 
 	let client = make_chain(provider, 3, vec![
 		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),

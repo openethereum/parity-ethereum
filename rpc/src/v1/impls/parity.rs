@@ -30,7 +30,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService};
-use ethcore::mode::Mode;
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
@@ -105,12 +104,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 			eip86_transition,
 		}
 	}
-
-	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
-	}
 }
 
 impl<C, M, U, S> Parity for ParityClient<C, M, U> where
@@ -124,15 +117,14 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>> {
 		let dapp = dapp.unwrap_or_default();
 
-		let store = self.account_provider()?;
-		let dapp_accounts = store
+		let dapp_accounts = self.accounts
 			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| store.dapp_addresses(dapp.into()))
+			.and_then(|_| self.accounts.dapp_addresses(dapp.into()))
 			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
-		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		let other = store.addresses_info();
+		let info = self.accounts.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
+		let other = self.accounts.addresses_info();
 
 		Ok(info
 			.into_iter()
@@ -144,8 +136,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
-		let store = self.account_provider()?;
-		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
+		let info = self.accounts.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
 			.into_iter()
 			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
@@ -154,14 +145,13 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
-		let store = self.account_provider()?;
-		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
+		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
 		let dapp_id = meta.dapp_id();
 
-		Ok(self.account_provider()?
+		Ok(self.accounts
 			.dapp_default_address(dapp_id.into())
 			.map(Into::into)
 			.ok()
@@ -313,15 +303,19 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Trailing<usize>) -> Result<Vec<Transaction>> {
 		let block_number = self.client.chain_info().best_block_number;
-		let ready_transactions = self.miner.ready_transactions(&*self.client);
+		let ready_transactions = self.miner.ready_transactions(
+			&*self.client,
+			limit.unwrap_or_else(usize::max_value),
+			miner::PendingOrdering::Priority,
+		);
 
 		Ok(ready_transactions
 		   .into_iter()
 		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
 		   .collect()
-	  )
+		)
 	}
 
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {
@@ -374,12 +368,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn mode(&self) -> Result<String> {
-		Ok(match self.client.mode() {
-			Mode::Off => "offline",
-			Mode::Dark(..) => "dark",
-			Mode::Passive(..) => "passive",
-			Mode::Active => "active",
-		}.into())
+		Ok(self.client.mode().to_string())
 	}
 
 	fn enode(&self) -> Result<String> {

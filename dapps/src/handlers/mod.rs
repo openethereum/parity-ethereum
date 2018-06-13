@@ -22,6 +22,7 @@ mod fetch;
 mod reader;
 mod redirect;
 mod streaming;
+mod errors;
 
 pub use self::content::ContentHandler;
 pub use self::echo::EchoHandler;
@@ -30,20 +31,16 @@ pub use self::reader::Reader;
 pub use self::redirect::Redirection;
 pub use self::streaming::StreamingHandler;
 
-use std::iter;
-use itertools::Itertools;
 use hyper::header;
-use {apps, address, Embeddable};
+use std::time::Duration;
+
+const FETCH_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Adds security-related headers to the Response.
-pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embeddable, allow_js_eval: bool) {
+pub fn add_security_headers(headers: &mut header::Headers, allow_js_eval: bool) {
 	headers.set_raw("X-XSS-Protection", "1; mode=block");
 	headers.set_raw("X-Content-Type-Options", "nosniff");
-
-	// Embedding header:
-	if let None = embeddable_on {
-		headers.set_raw("X-Frame-Options",  "SAMEORIGIN");
-	}
+	headers.set_raw("X-Frame-Options", "SAMEORIGIN");
 
 	// Content Security Policy headers
 	headers.set_raw("Content-Security-Policy", String::new()
@@ -70,11 +67,7 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 		+ "object-src 'none';"
 		// Allow scripts
 		+ {
-			let script_src = embeddable_on.as_ref()
-				.map(|e| e.extra_script_src.iter()
-					 .map(|&(ref host, port)| address(host, port))
-					 .join(" ")
-				).unwrap_or_default();
+			let script_src = "";
 			let eval = if allow_js_eval { " 'unsafe-eval'" } else { "" };
 
 			&format!(
@@ -93,29 +86,6 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 		// Never allow mixed content
 		+ "block-all-mixed-content;"
 		// Specify if the site can be embedded.
-		+ &match embeddable_on {
-			Some(ref embed) => {
-				let std = address(&embed.host, embed.port);
-				let proxy = format!("{}.{}", apps::HOME_PAGE, embed.dapps_domain);
-				let domain = format!("*.{}:{}", embed.dapps_domain, embed.port);
-
-				let mut ancestors = vec![std, domain, proxy]
-					.into_iter()
-					.chain(embed.extra_embed_on
-						.iter()
-						.map(|&(ref host, port)| address(host, port))
-					);
-
-				let ancestors = if embed.host == "127.0.0.1" {
-					let localhost = address("localhost", embed.port);
-					ancestors.chain(iter::once(localhost)).join(" ")
-				} else {
-					ancestors.join(" ")
-				};
-
-				format!("frame-ancestors {};", ancestors)
-			},
-			None => format!("frame-ancestors 'self';"),
-		}
+		+ "frame-ancestors 'self';"
 	);
 }

@@ -22,9 +22,8 @@ echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
 
-# NOTE for md5 and sha256 we want to display filename as well
+# NOTE for sha256 we want to display filename as well
 # hence we use --* instead of -p *
-MD5_BIN="rhash --md5"
 SHA256_BIN="rhash --sha256"
 
 set_env () {
@@ -44,7 +43,6 @@ set_env_win () {
   set RUST_BACKTRACE=1
   #export RUSTFLAGS=$RUSTFLAGS
   rustup default stable-x86_64-pc-windows-msvc
-  echo "MsBuild.exe windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release" > msbuild.cmd
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
@@ -77,22 +75,16 @@ calculate_checksums () {
   echo "Checksum calculation:"
   rhash --version
 
-  rm -rf *.md5
   rm -rf *.sha256
 
   BIN="target/$PLATFORM/release/parity$S3WIN"
   export SHA3="$($BIN tools hash $BIN)"
 
   echo "Parity file SHA3: $SHA3"
-  $MD5_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.sha256
-  $MD5_BIN target/$PLATFORM/release/parity-evm$S3WIN > parity-evm$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/parity-evm$S3WIN > parity-evm$S3WIN.sha256
-  $MD5_BIN target/$PLATFORM/release/ethstore$S3WIN > ethstore$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/ethstore$S3WIN > ethstore$S3WIN.sha256
-  $MD5_BIN target/$PLATFORM/release/ethkey$S3WIN > ethkey$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/ethkey$S3WIN > ethkey$S3WIN.sha256
-  $MD5_BIN target/$PLATFORM/release/whisper$S3WIN > whisper$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/whisper$S3WIN > whisper$S3WIN.sha256
 }
 make_deb () {
@@ -129,7 +121,6 @@ make_deb () {
   cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
   cp target/$PLATFORM/release/whisper deb/usr/bin/whisper
   dpkg-deb -b deb "parity_"$VER"_"$IDENT"_"$ARC".deb"
-  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC".deb" > "parity_"$VER"_"$IDENT"_"$ARC".deb.md5"
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".deb" > "parity_"$VER"_"$IDENT"_"$ARC".deb.sha256"
 }
 make_rpm () {
@@ -144,40 +135,10 @@ make_rpm () {
   rm -rf "parity-"$VER"-1."$ARC".rpm" || true
   fpm -s dir -t rpm -n parity -v $VER --epoch 1 --license GPLv3 -d openssl --provides parity --url https://parity.io --vendor "Parity Technologies" -a x86_64 -m "<devops@parity.io>" --description "Ethereum network client by Parity Technologies" -C /install/
   cp "parity-"$VER"-1."$ARC".rpm" "parity_"$VER"_"$IDENT"_"$ARC".rpm"
-  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC".rpm" > "parity_"$VER"_"$IDENT"_"$ARC".rpm.md5"
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".rpm" > "parity_"$VER"_"$IDENT"_"$ARC".rpm.sha256"
-}
-make_pkg () {
-  echo "make PKG"
-  cp target/$PLATFORM/release/parity target/release/parity
-  cp target/$PLATFORM/release/parity-evm target/release/parity-evm
-  cp target/$PLATFORM/release/ethstore target/release/ethstore
-  cp target/$PLATFORM/release/ethkey target/release/ethkey
-  cp target/$PLATFORM/release/whisper target/release/whisper
-  cd mac
-  xcodebuild -configuration Release
-  cd ..
-  packagesbuild -v mac/Parity.pkgproj
-  productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/release/Parity\ Ethereum.pkg target/release/Parity\ Ethereum-signed.pkg
-  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$IDENT"_"$ARC".pkg"
-  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.md5"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.sha256"
 }
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
-}
-make_exe () {
-  ./msbuild.cmd
-  ./sign.cmd $keyfile $certpass windows/ptray/x64/release/ptray.exe
-  cd nsis
-  curl -sL --url "https://github.com/paritytech/win-build/raw/master/vc_redist.x64.exe" -o vc_redist.x64.exe
-  echo "makensis.exe installer.nsi" > nsis.cmd
-  ./nsis.cmd
-  cd ..
-  cp nsis/installer.exe "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
-  ./sign.cmd $keyfile $certpass "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
-  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
 }
 push_binaries () {
   echo "Push binaries to AWS S3"
@@ -191,28 +152,20 @@ push_binaries () {
   fi
   aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$BUILD_PLATFORM
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity$S3WIN --body target/$PLATFORM/release/parity$S3WIN
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity$S3WIN.md5 --body parity$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity$S3WIN.sha256 --body parity$S3WIN.sha256
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity-evm$S3WIN --body target/$PLATFORM/release/parity-evm$S3WIN
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity-evm$S3WIN.md5 --body parity-evm$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity-evm$S3WIN.sha256 --body parity-evm$S3WIN.sha256
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethstore$S3WIN --body target/$PLATFORM/release/ethstore$S3WIN
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethstore$S3WIN.md5 --body ethstore$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethstore$S3WIN.sha256 --body ethstore$S3WIN.sha256
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey$S3WIN --body target/$PLATFORM/release/ethkey$S3WIN
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey$S3WIN.md5 --body ethkey$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey$S3WIN.sha256 --body ethkey$S3WIN.sha256
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN --body target/$PLATFORM/release/whisper$S3WIN
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.md5 --body whisper$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.sha256 --body whisper$S3WIN.sha256
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
 }
 make_archive () {
   echo "add artifacts to archive"
   rm -rf parity.zip
-  zip -r parity.zip target/$PLATFORM/release/parity$S3WIN target/$PLATFORM/release/parity-evm$S3WIN target/$PLATFORM/release/ethstore$S3WIN target/$PLATFORM/release/ethkey$S3WIN target/$PLATFORM/release/whisper$S3WIN parity$S3WIN.md5 parity-evm$S3WIN.md5 ethstore$S3WIN.md5 ethkey$S3WIN.md5 whisper$S3WIN.md5 parity$S3WIN.sha256 parity-evm$S3WIN.sha256 ethstore$S3WIN.sha256 ethkey$S3WIN.sha256 whisper$S3WIN.sha256
+  zip -r parity.zip target/$PLATFORM/release/parity$S3WIN target/$PLATFORM/release/parity-evm$S3WIN target/$PLATFORM/release/ethstore$S3WIN target/$PLATFORM/release/ethkey$S3WIN target/$PLATFORM/release/whisper$S3WIN parity$S3WIN.sha256 parity-evm$S3WIN.sha256 ethstore$S3WIN.sha256 ethkey$S3WIN.sha256 whisper$S3WIN.sha256
 }
 
 updater_push_release () {
@@ -308,11 +261,9 @@ case $BUILD_PLATFORM in
   x86_64-apple-darwin)
     STRIP_BIN="strip"
     PLATFORM="x86_64-apple-darwin"
-    EXT="pkg"
     build
     strip_binaries
     calculate_checksums
-    make_pkg
     make_archive
     push_binaries
     updater_push_release
@@ -343,11 +294,10 @@ case $BUILD_PLATFORM in
     snapcraft push "parity_"$VER"_amd64.snap"
     snapcraft status parity
     snapcraft logout
-    $MD5_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
     $SHA256_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.sha256"
     echo "add artifacts to archive"
     rm -rf parity.zip
-    zip -r parity.zip "parity_"$VER"_amd64.snap" "parity_"$VER"_amd64.snap.md5" "parity_"$VER"_amd64.snap.sha256"
+    zip -r parity.zip "parity_"$VER"_amd64.snap" "parity_"$VER"_amd64.snap.sha256"
     ;;
   x86_64-pc-windows-msvc)
     set_env_win
@@ -356,7 +306,6 @@ case $BUILD_PLATFORM in
     build
     sign_exe
     calculate_checksums
-    make_exe
     make_archive
     push_binaries
     updater_push_release

@@ -21,6 +21,7 @@ use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
+use client::Mode;
 use encoded;
 use vm::LastHashes;
 use error::{ImportResult, CallError, BlockImportError};
@@ -48,7 +49,6 @@ use types::trace_filter::Filter as TraceFilter;
 use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
-use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
 /// State information to be used during client query
@@ -321,7 +321,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn last_hashes(&self) -> LastHashes;
 
 	/// List all transactions that are allowed into the next block.
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
+	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {

@@ -39,8 +39,6 @@ pub struct Configuration {
 	pub enabled: bool,
 	pub dapps_path: PathBuf,
 	pub extra_dapps: Vec<PathBuf>,
-	pub extra_embed_on: Vec<(String, u16)>,
-	pub extra_script_src: Vec<(String, u16)>,
 }
 
 impl Default for Configuration {
@@ -50,8 +48,6 @@ impl Default for Configuration {
 			enabled: true,
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
-			extra_embed_on: vec![],
-			extra_script_src: vec![],
 		}
 	}
 }
@@ -163,8 +159,6 @@ pub struct Dependencies {
 	pub fetch: FetchClient,
 	pub pool: CpuPool,
 	pub signer: Arc<SignerService>,
-	pub ui_address: Option<(String, u16)>,
-	pub info_page_only: bool,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Middleware>, String> {
@@ -176,19 +170,6 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 		deps,
 		configuration.dapps_path,
 		configuration.extra_dapps,
-		rpc::DAPPS_DOMAIN,
-		configuration.extra_embed_on,
-		configuration.extra_script_src,
-	).map(Some)
-}
-
-pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, String> {
-	if !enabled {
-		return Ok(None);
-	}
-
-	server::ui_middleware(
-		deps,
 		rpc::DAPPS_DOMAIN,
 	).map(Some)
 }
@@ -215,17 +196,8 @@ mod server {
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
 		_dapps_domain: &str,
-		_extra_embed_on: Vec<(String, u16)>,
-		_extra_script_src: Vec<(String, u16)>,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
-	}
-
-	pub fn ui_middleware(
-		_deps: Dependencies,
-		_dapps_domain: &str,
-	) -> Result<Middleware, String> {
-		Err("Your Parity version has been compiled without UI support.".into())
 	}
 
 	pub fn service(_: &Option<Middleware>) -> Option<Arc<rpc_apis::DappsService>> {
@@ -249,8 +221,6 @@ mod server {
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
-		extra_embed_on: Vec<(String, u16)>,
-		extra_script_src: Vec<(String, u16)>,
 	) -> Result<Middleware, String> {
 		let signer = deps.signer;
 		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
@@ -258,9 +228,6 @@ mod server {
 		Ok(parity_dapps::Middleware::dapps(
 			deps.pool,
 			deps.node_health,
-			deps.ui_address,
-			extra_embed_on,
-			extra_script_src,
 			dapps_path,
 			extra_dapps,
 			dapps_domain,
@@ -268,21 +235,6 @@ mod server {
 			deps.sync_status,
 			web_proxy_tokens,
 			deps.fetch,
-		))
-	}
-
-	pub fn ui_middleware(
-		deps: Dependencies,
-		dapps_domain: &str,
-	) -> Result<Middleware, String> {
-		Ok(parity_dapps::Middleware::ui(
-			deps.pool,
-			deps.node_health,
-			dapps_domain,
-			deps.contract_client,
-			deps.sync_status,
-			deps.fetch,
-			deps.info_page_only,
 		))
 	}
 
