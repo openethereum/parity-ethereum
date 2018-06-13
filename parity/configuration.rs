@@ -549,6 +549,7 @@ impl Configuration {
 
 			tx_queue_penalization: to_queue_penalization(self.args.arg_tx_time_limit)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
+			tx_queue_allow_unknown_local: self.args.arg_tx_queue_allow_unknown_local,
 			refuse_service_transactions: self.args.flag_refuse_service_transactions,
 
 			pool_limits: self.pool_limits()?,

@@ -125,6 +125,8 @@ pub struct MinerOptions {
 	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Simple senders penalization.
 	pub tx_queue_penalization: Penalization,
+	/// Do we want to mark transactions recieved as local if we don't have the sending account?
+	pub tx_queue_allow_unknown_local: bool,
 	/// Do we refuse to accept service transactions even if sender is certified.
 	pub refuse_service_transactions: bool,
 	/// Transaction pool limits.
@@ -148,6 +150,7 @@ impl Default for MinerOptions {
 			infinite_pending_block: false,
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			tx_queue_penalization: Penalization::Disabled,
+			tx_queue_allow_unknown_local: true,
 			refuse_service_transactions: false,
 			pool_limits: pool::Options {
 				max_count: 8_192,
@@ -799,21 +802,34 @@ impl miner::MinerService for Miner {
 
 		trace!(target: "own_tx", "Importing transaction: {:?}", pending);
 
-		let client = self.pool_client(chain);
-		let imported = self.transaction_queue.import(
-			client,
-			vec![pool::verifier::Transaction::Local(pending)]
-		).pop().expect("one result returned per added transaction; one added => one result; qed");
+		// treat the tx as local if the option is enabled, or if we have the account
+		let sender = pending.sender();
+		let treat_as_local = self.options.tx_queue_allow_unknown_local
+			|| self.accounts.as_ref().map(|accts| accts.has_account(sender)).unwrap_or(false);
 
-		// --------------------------------------------------------------------------
-		// | NOTE Code below requires sealing locks.                                |
-		// | Make sure to release the locks before calling that method.             |
-		// --------------------------------------------------------------------------
-		if imported.is_ok() && self.options.reseal_on_own_tx && self.sealing.lock().reseal_allowed() {
-			self.prepare_and_update_sealing(chain);
+		if treat_as_local {
+			let client = self.pool_client(chain);
+			let imported = self.transaction_queue.import(
+				client,
+				vec![pool::verifier::Transaction::Local(pending)]
+			).pop().expect("one result returned per added transaction; one added => one result; qed");
+
+            // --------------------------------------------------------------------------
+            // | NOTE Code below requires sealing locks.                                |
+            // | Make sure to release the locks before calling that method.             |
+            // --------------------------------------------------------------------------
+            if imported.is_ok() && self.options.reseal_on_own_tx && self.sealing.lock().reseal_allowed() {
+                self.prepare_and_update_sealing(chain);
+            }
+
+
+			imported
+		} else {
+			// We want to replicate behaviour for external transactions if we're not going to treat
+			// this as local. This is important with regards to sealing blocks
+			self.import_external_transactions(chain,	vec![pending.transaction.into()])
+				.pop().expect("one result per tx, as below")
 		}
-
-		imported
 	}
 
 	fn local_transactions(&self) -> BTreeMap<H256, pool::local_transactions::Status> {
@@ -1146,37 +1162,44 @@ mod tests {
 		assert!(miner.submit_seal(hash, vec![]).is_ok());
 	}
 
+	fn  default_miner_opts() -> MinerOptions {
+		MinerOptions {
+			force_sealing: false,
+			reseal_on_external_tx: false,
+			reseal_on_own_tx: true,
+			reseal_on_uncle: false,
+			reseal_min_period: Duration::from_secs(5),
+			reseal_max_period: Duration::from_secs(120),
+			pending_set: PendingSet::AlwaysSealing,
+			work_queue_size: 5,
+			enable_resubmission: true,
+			infinite_pending_block: false,
+			tx_queue_penalization: Penalization::Disabled,
+			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
+			tx_queue_allow_unknown_local: true,
+			refuse_service_transactions: false,
+			pool_limits: Default::default(),
+			pool_verification_options: pool::verifier::Options {
+				minimal_gas_price: 0.into(),
+				block_gas_limit: U256::max_value(),
+				tx_gas_limit: U256::max_value(),
+			},
+		}
+	}
+
 	fn miner() -> Miner {
 		Miner::new(
-			MinerOptions {
-				force_sealing: false,
-				reseal_on_external_tx: false,
-				reseal_on_own_tx: true,
-				reseal_on_uncle: false,
-				reseal_min_period: Duration::from_secs(5),
-				reseal_max_period: Duration::from_secs(120),
-				pending_set: PendingSet::AlwaysSealing,
-				work_queue_size: 5,
-				enable_resubmission: true,
-				infinite_pending_block: false,
-				tx_queue_penalization: Penalization::Disabled,
-				tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
-				refuse_service_transactions: false,
-				pool_limits: Default::default(),
-				pool_verification_options: pool::verifier::Options {
-					minimal_gas_price: 0.into(),
-					block_gas_limit: U256::max_value(),
-					tx_gas_limit: U256::max_value(),
-				},
-			},
+			default_miner_opts(),
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
 			None, // accounts provider
 		)
 	}
 
+	const TEST_CHAIN_ID: u64 = 2;
+
 	fn transaction() -> SignedTransaction {
-		transaction_with_chain_id(2)
+		transaction_with_chain_id(TEST_CHAIN_ID)
 	}
 
 	fn transaction_with_chain_id(chain_id: u64) -> SignedTransaction {
@@ -1248,6 +1271,53 @@ mod tests {
 		assert!(miner.prepare_pending_block(&client));
 		// After pending block is created we should see a transaction.
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
+	}
+
+	#[test]
+	fn should_import_own_transaction_selectively() {
+		// given
+		let keypair = Random.generate().unwrap();
+		let client = TestBlockChainClient::default();
+		let account_provider = AccountProvider::transient_provider();
+		account_provider.insert_account(keypair.secret().clone(), "").expect("can add accounts to the provider we just created");
+
+		let miner = Miner::new(
+			MinerOptions {
+				tx_queue_allow_unknown_local: false,
+				..default_miner_opts()
+			},
+			GasPricer::new_fixed(0u64.into()),
+			&Spec::new_test(),
+			Some(Arc::new(account_provider)),
+		);
+		let transaction = transaction();
+		let best_block = 0;
+		// when
+		// This transaction should not be marked as local because our account_provider doesn't have the sender
+		let res = miner.import_own_transaction(&client, PendingTransaction::new(transaction.clone(), None));
+
+		// then
+		// Check the same conditions as `should_import_external_transaction` first. Behaviour should be identical.
+		// That is: it's treated as though we added it through `import_external_transactions`
+		assert_eq!(res.unwrap(), ());
+		assert_eq!(miner.pending_transactions(best_block), None);
+		assert_eq!(miner.pending_receipts(best_block), None);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 0);
+		assert!(miner.prepare_pending_block(&client));
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
+
+		// when - 2nd part: create a local transaction from account_provider.
+		// Borrow the transaction used before & sign with our generated keypair.
+		let local_transaction = transaction.deconstruct().0.as_unsigned().clone().sign(keypair.secret(), Some(TEST_CHAIN_ID));
+		let res2 = miner.import_own_transaction(&client, PendingTransaction::new(local_transaction, None));
+
+		// then - 2nd part: we add on the results from the last pending block.
+		// This is borrowed from `should_make_pending_block_when_importing_own_transaction` and slightly modified.
+		assert_eq!(res2.unwrap(), ());
+		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 2);
+		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 2);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 2);
+		assert!(!miner.prepare_pending_block(&client));
 	}
 
 	#[test]
