@@ -65,6 +65,8 @@ pub struct EthClientOptions {
 	pub send_block_number_in_get_work: bool,
 	/// Gas Price Percentile used as default gas price.
 	pub gas_price_percentile: usize,
+	/// Set the timeout for the internal poll manager
+	pub poll_lifetime: u32
 }
 
 impl EthClientOptions {
@@ -83,6 +85,7 @@ impl Default for EthClientOptions {
 			pending_nonce_from_queue: false,
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
+			poll_lifetime: 60u32,
 			gas_price_percentile: 50,
 		}
 	}

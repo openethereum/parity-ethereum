@@ -90,6 +90,7 @@ pub struct RunCmd {
 	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
 	pub gas_price_percentile: usize,
+	pub poll_lifetime: u32,
 	pub ntp_servers: Vec<String>,
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
@@ -350,6 +351,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		whisper_rpc: whisper_factory,
 		private_tx_service: None, //TODO: add this to client.
 		gas_price_percentile: cmd.gas_price_percentile,
+		poll_lifetime: cmd.poll_lifetime
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -779,6 +781,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		whisper_rpc: whisper_factory,
 		private_tx_service: Some(private_tx_service.clone()),
 		gas_price_percentile: cmd.gas_price_percentile,
+		poll_lifetime: cmd.poll_lifetime,
 	});
 
 	let dependencies = rpc::Dependencies {
