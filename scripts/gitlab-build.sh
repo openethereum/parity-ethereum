@@ -112,11 +112,6 @@ push_binaries () {
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN --body target/$PLATFORM/release/whisper$S3WIN
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.sha256 --body whisper$S3WIN.sha256
 }
-make_archive () {
-  echo "add artifacts to archive"
-  rm -rf parity.zip
-  zip -r parity.zip target/$PLATFORM/release/parity$S3WIN target/$PLATFORM/release/parity-evm$S3WIN target/$PLATFORM/release/ethstore$S3WIN target/$PLATFORM/release/ethkey$S3WIN target/$PLATFORM/release/whisper$S3WIN parity$S3WIN.sha256 parity-evm$S3WIN.sha256 ethstore$S3WIN.sha256 ethkey$S3WIN.sha256 whisper$S3WIN.sha256
-}
 
 updater_push_release () {
   echo "push release"
@@ -136,7 +131,6 @@ case $BUILD_PLATFORM in
     build
     strip_binaries
     calculate_checksums
-    make_archive
     push_binaries
     updater_push_release
     ;;
@@ -147,7 +141,6 @@ case $BUILD_PLATFORM in
     build
     strip_binaries
     calculate_checksums
-    make_archive
     push_binaries
     ;;
   x86_64-unknown-centos-gnu)
@@ -155,7 +148,6 @@ case $BUILD_PLATFORM in
     build
     strip_binaries
     calculate_checksums
-    make_archive
     push_binaries
     ;;
   i686-unknown-linux-gnu)
@@ -164,7 +156,6 @@ case $BUILD_PLATFORM in
     build
     strip_binaries
     calculate_checksums
-    make_archive
     push_binaries
     ;;
   armv7-unknown-linux-gnueabihf)
@@ -173,7 +164,6 @@ case $BUILD_PLATFORM in
     build
     strip_binaries
     calculate_checksums
-    make_archive
     push_binaries
     ;;
   arm-unknown-linux-gnueabihf)
@@ -182,7 +172,6 @@ case $BUILD_PLATFORM in
     build
     strip_binaries
     calculate_checksums
-    make_archive
     push_binaries
     ;;
   aarch64-unknown-linux-gnu)
@@ -191,7 +180,6 @@ case $BUILD_PLATFORM in
     build
     strip_binaries
     calculate_checksums
-    make_archive
     push_binaries
     ;;
   x86_64-apple-darwin)
@@ -200,7 +188,6 @@ case $BUILD_PLATFORM in
     build
     strip_binaries
     calculate_checksums
-    make_archive
     push_binaries
     updater_push_release
     ;;
@@ -242,7 +229,6 @@ case $BUILD_PLATFORM in
     build
     sign_exe
     calculate_checksums
-    make_archive
     push_binaries
     updater_push_release
 esac
