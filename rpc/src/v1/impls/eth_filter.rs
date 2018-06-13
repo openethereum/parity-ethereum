@@ -54,7 +54,7 @@ pub trait Filterable {
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>>;
 
 	/// Get removed logs within route from the given block to the nearest canon block, not including the canon block. Also returns how many logs have been traversed.
-	fn canon_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64);
+	fn removed_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64);
 }
 
 /// Eth filter rpc implementation for a full node.
@@ -104,7 +104,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> { &self.polls }
 
-	fn canon_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64) {
+	fn removed_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64) {
 		let inner = || -> Option<Vec<H256>> {
 			let mut route = Vec::new();
 
@@ -210,12 +210,13 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 					// build appropriate filter
 					let mut filter: EthcoreFilter = filter.clone().into();
-					filter.from_block = BlockId::Number(*block_number);
-					filter.to_block = BlockId::Latest;
 
 					// retrieve reorg logs
-					let (mut reorg, reorg_len) = last_block_hash.map_or_else(|| (Vec::new(), 0), |h| self.canon_logs(h, &filter));
+					let (mut reorg, reorg_len) = last_block_hash.map_or_else(|| (Vec::new(), 0), |h| self.removed_logs(h, &filter));
 					*block_number -= reorg_len as u64;
+
+					filter.from_block = BlockId::Number(*block_number);
+					filter.to_block = BlockId::Latest;
 
 					// retrieve pending logs
 					let pending = if include_pending {

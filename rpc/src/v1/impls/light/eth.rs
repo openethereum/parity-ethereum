@@ -549,7 +549,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		&self.polls
 	}
 
-	fn canon_logs(&self, _block_hash: ::ethereum_types::H256, _filter: &EthcoreFilter) -> (Vec<Log>, u64) {
+	fn removed_logs(&self, _block_hash: ::ethereum_types::H256, _filter: &EthcoreFilter) -> (Vec<Log>, u64) {
 		(Default::default(), 0)
 	}
 }
