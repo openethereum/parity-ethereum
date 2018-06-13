@@ -133,20 +133,6 @@ case $BUILD_PLATFORM in
     push_binaries
     updater_push_release
     ;;
-  x86_64-unknown-debian-gnu)
-    STRIP_BIN="strip"
-    build
-    strip_binaries
-    calculate_checksums
-    push_binaries
-    ;;
-  x86_64-unknown-centos-gnu)
-    STRIP_BIN="strip"
-    build
-    strip_binaries
-    calculate_checksums
-    push_binaries
-    ;;
   i686-unknown-linux-gnu)
     STRIP_BIN="strip"
     set_env

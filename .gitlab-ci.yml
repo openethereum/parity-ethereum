@@ -12,7 +12,7 @@ cache:
   paths:
     - target/
   untracked: true
-linux-ubuntu:
+linux-amd64:
   stage: build
   image: parity/rust:gitlab-ci
   only:
@@ -30,38 +30,6 @@ linux-ubuntu:
     paths:
     - parity.zip
     name: "stable-x86_64-unknown-linux-gnu_parity"
-linux-debian:
-  stage: build
-  image: parity/rust-debian:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh x86_64-unknown-debian-gnu x86_64-unknown-linux-gnu amd64 gcc g++ debian
-  tags:
-    - rust-debian
-  artifacts:
-    paths:
-    - parity.zip
-    name: "stable-x86_64-unknown-debian-gnu_parity"
-linux-centos:
-  stage: build
-  image: parity/rust-centos:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu x86_64 gcc g++ centos
-  tags:
-    - rust-centos
-  artifacts:
-    paths:
-    - parity.zip
-    name: "x86_64-unknown-centos-gnu_parity"
 linux-i686:
   stage: build
   image: parity/rust-i686:gitlab-ci
@@ -96,7 +64,7 @@ linux-armv7:
     - parity.zip
     name: "armv7_unknown_linux_gnueabihf_parity"
   allow_failure: true
-linux-arm:
+linux-armhf:
   stage: build
   image: parity/rust-arm:gitlab-ci
   only:
