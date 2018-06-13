@@ -87,42 +87,6 @@ calculate_checksums () {
   $SHA256_BIN target/$PLATFORM/release/ethkey$S3WIN > ethkey$S3WIN.sha256
   $SHA256_BIN target/$PLATFORM/release/whisper$S3WIN > whisper$S3WIN.sha256
 }
-make_deb () {
-  rm -rf deb
-  echo "create DEBIAN files"
-  mkdir -p deb/usr/bin/
-  mkdir -p deb/DEBIAN
-  echo "create copyright, docs, compat"
-  cp LICENSE deb/DEBIAN/copyright
-  echo "https://github.com/paritytech/parity/wiki" >> deb/DEBIAN/docs
-  echo "8" >> deb/DEBIAN/compat
-  echo "create control file"
-  control=deb/DEBIAN/control
-  echo "Package: parity" >> $control
-  echo "Version: $VER" >> $control
-  echo "Source: parity" >> $control
-  echo "Section: science" >> $control
-  echo "Priority: extra" >> $control
-  echo "Maintainer: Parity Technologies <devops@parity.io>" >> $control
-  echo "Build-Depends: debhelper (>=9)" >> $control
-  echo "Standards-Version: 3.9.5" >> $control
-  echo "Homepage: https://parity.io" >> $control
-  echo "Vcs-Git: git://github.com/paritytech/parity.git" >> $control
-  echo "Vcs-Browser: https://github.com/paritytech/parity" >> $control
-  echo "Architecture: $ARC" >> $control
-  echo "Depends: $LIBSSL" >> $control
-  echo "Description: Ethereum network client by Parity Technologies" >> $control
-  size=`du deb/|awk 'END {print $1}'`
-  echo "Installed-Size: $size" >> $control
-  echo "build .deb package"
-  cp target/$PLATFORM/release/parity deb/usr/bin/parity
-  cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
-  cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
-  cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
-  cp target/$PLATFORM/release/whisper deb/usr/bin/whisper
-  dpkg-deb -b deb "parity_"$VER"_"$IDENT"_"$ARC".deb"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".deb" > "parity_"$VER"_"$IDENT"_"$ARC".deb.sha256"
-}
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
 }
@@ -169,24 +133,20 @@ case $BUILD_PLATFORM in
     #set strip bin
     STRIP_BIN="strip"
     #package extention
-    EXT="deb"
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     updater_push_release
     ;;
   x86_64-unknown-debian-gnu)
     STRIP_BIN="strip"
-    EXT="deb"
     LIBSSL="libssl1.1 (>=1.1.0)"
     echo "Use libssl1.1 (>=1.1.0) for Debian builds"
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
@@ -200,45 +160,37 @@ case $BUILD_PLATFORM in
     ;;
   i686-unknown-linux-gnu)
     STRIP_BIN="strip"
-    EXT="deb"
     set_env
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
   armv7-unknown-linux-gnueabihf)
     STRIP_BIN="arm-linux-gnueabihf-strip"
-    EXT="deb"
     set_env
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
   arm-unknown-linux-gnueabihf)
     STRIP_BIN="arm-linux-gnueabihf-strip"
-    EXT="deb"
     set_env
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
   aarch64-unknown-linux-gnu)
     STRIP_BIN="aarch64-linux-gnu-strip"
-    EXT="deb"
     set_env
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
