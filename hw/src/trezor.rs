@@ -19,23 +19,20 @@
 //! and https://github.com/trezor/trezor-common/blob/master/protob/protocol.md
 //! for protocol details.
 
-use super::{WalletInfo, TransactionInfo, KeyPath, Wallet, Device, USB_DEVICE_CLASS_DEVICE};
+use super::{DeviceDirection, WalletInfo, TransactionInfo, KeyPath, Wallet, Device, USB_DEVICE_CLASS_DEVICE, POLLING_DURATION};
 
 use std::cmp::{min, max};
-use std::fmt;
-use std::sync::{Arc, Weak};
-use std::sync::atomic;
-use std::sync::atomic::AtomicBool;
+use std::sync::{atomic, atomic::AtomicBool, Arc, Weak};
 use std::time::{Duration, Instant};
-use std::thread;
+use std::{fmt, thread};
 
 use ethereum_types::{U256, H256, Address};
 use ethkey::Signature;
 use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
-use protobuf;
 use protobuf::{Message, ProtobufEnum};
+use protobuf;
 
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
@@ -62,6 +59,12 @@ pub enum Error {
 	BadMessageType,
 	/// Trying to read from a closed device at the given path
 	LockedDevice(String),
+	/// Signing messages are not supported by Trezor
+	NoSigningMessage,
+	/// No device arrived
+	NoDeviceArrived,
+	/// No device left
+	NoDeviceLeft,
 }
 
 impl fmt::Display for Error {
@@ -73,6 +76,9 @@ impl fmt::Display for Error {
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
 			Error::BadMessageType => write!(f, "Bad Message Type in RPC call"),
 			Error::LockedDevice(ref s) => write!(f, "Device is locked, needs PIN to perform operations: {}", s),
+			Error::NoSigningMessage=> write!(f, "Signing messages are not supported by Trezor"),
+			Error::NoDeviceArrived => write!(f, "No device arrived"),
+			Error::NoDeviceLeft=> write!(f, "No device left"),
 		}
 	}
 }
@@ -89,8 +95,8 @@ impl From<protobuf::ProtobufError> for Error {
 	}
 }
 
-/// Ledger device manager
-pub struct Manager {
+/// Trezor device manager
+pub (crate) struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: RwLock<Vec<Device>>,
 	locked_devices: RwLock<Vec<String>>,
@@ -127,12 +133,12 @@ impl Manager {
 		thread::Builder::new()
 			.name("hw_wallet_trezor".to_string())
 			.spawn(move || {
-				if let Err(e) = m.update_devices() {
+				if let Err(e) = m.update_devices(DeviceDirection::Arrived) {
 					debug!(target: "hw", "Trezor couldn't connect at startup, error: {}", e);
 				}
 				loop {
 					usb_context.handle_events(Some(Duration::from_millis(500)))
-							   .unwrap_or_else(|e| debug!(target: "hw", "Trezor event handler error: {}", e));
+						.unwrap_or_else(|e| debug!(target: "hw", "Trezor event handler error: {}", e));
 					if exiting.load(atomic::Ordering::Acquire) {
 						break;
 					}
@@ -160,7 +166,7 @@ impl Manager {
 
 			}
 		};
-		self.update_devices()?;
+		self.update_devices(DeviceDirection::Arrived)?;
 		unlocked
 	}
 
@@ -325,52 +331,57 @@ impl <'a>Wallet<'a> for Manager {
 		*self.key_path.write() = key_path;
 	}
 
-	fn update_devices(&self) -> Result<usize, Error> {
+	fn update_devices(&self, device_direction: DeviceDirection) -> Result<usize, Error> {
 		let mut usb = self.usb.lock();
 		usb.refresh_devices();
 		let devices = usb.devices();
-		let mut new_devices = Vec::new();
-		let mut locked_devices = Vec::new();
-		let mut error = None;
-		for usb_device in devices {
-			let is_trezor = usb_device.vendor_id == TREZOR_VID;
-			let is_supported_product = TREZOR_PIDS.contains(&usb_device.product_id);
-			let is_valid = usb_device.usage_page == 0xFF00 || usb_device.interface_number == 0;
+		let num_prev_devices = self.devices.read().len();
 
-			trace!(
-				"Checking device: {:?}, trezor: {:?}, prod: {:?}, valid: {:?}",
-				usb_device,
-				is_trezor,
-				is_supported_product,
-				is_valid,
-			);
-			if !is_trezor || !is_supported_product || !is_valid {
-				continue;
-			}
-			match self.read_device(&usb, &usb_device) {
-				Ok(device) => new_devices.push(device),
-				Err(Error::LockedDevice(path)) => locked_devices.push(path.to_string()),
-				Err(e) => {
-					warn!("Error reading device: {:?}", e);
-					error = Some(e);
+		let detected_devices = devices.iter()
+			.filter(|&d| {
+				let is_trezor = d.vendor_id == TREZOR_VID;
+				let is_supported_product = TREZOR_PIDS.contains(&d.product_id);
+				let is_valid = d.usage_page == 0xFF00 || d.interface_number == 0;
+
+				is_trezor && is_supported_product && is_valid
+			})
+			.fold(Vec::new(), |mut v, d| {
+				match self.read_device(&usb, &d) {
+					Ok(info) => {
+						trace!(target: "hw", "Found device: {:?}", info);
+						v.push(info);
+					}
+					Err(e) => trace!(target: "hw", "Error reading device info: {}", e),
+				};
+				v
+			});
+		
+		let num_curr_devices = detected_devices.len();
+		*self.devices.write() = detected_devices;
+
+		match device_direction {
+			DeviceDirection::Arrived => {
+				if num_curr_devices > num_prev_devices {
+					Ok(num_curr_devices - num_prev_devices)
+				} else {
+					Err(Error::NoDeviceArrived)
 				}
 			}
-		}
-		let count = new_devices.len();
-		trace!("Got devices: {:?}, closed: {:?}", new_devices, locked_devices);
-		*self.devices.write() = new_devices;
-		*self.locked_devices.write() = locked_devices;
-		match error {
-			Some(e) => Err(e),
-			None => Ok(count),
+			DeviceDirection::Left => {
+				if num_prev_devices > num_curr_devices {
+					Ok(num_prev_devices- num_curr_devices)
+				} else {
+					Err(Error::NoDeviceLeft)
+				}
+			}
 		}
 	}
 
 	fn read_device(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
 		let handle = self.open_path(|| usb.open_path(&dev_info.path))?;
-		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
-		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
-		let serial = dev_info.serial_number.clone().unwrap_or("Unknown".to_owned());
+		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or_else(|| "Unknown".to_owned());
+		let name = dev_info.product_string.clone().unwrap_or_else(|| "Unknown".to_owned());
+		let serial = dev_info.serial_number.clone().unwrap_or_else(|| "Unknown".to_owned());
 		match self.get_address(&handle) {
 			Ok(Some(addr)) => {
 				Ok(Device {
@@ -428,10 +439,11 @@ impl <'a>Wallet<'a> for Manager {
 }
 
 // Try to connect to the device using polling in at most the time specified by the `timeout`
-fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
+fn try_connect_polling(trezor: Arc<Manager>, duration: &Duration, dir: DeviceDirection) -> bool {
 	let start_time = Instant::now();
-	while start_time.elapsed() <= duration {
-		if let Ok(_) = trezor.update_devices() {
+	while start_time.elapsed() <= *duration {
+		if let Ok(num_devices) = trezor.update_devices(dir) {
+			trace!(target: "hw", "{} Trezor devices {}", num_devices, dir);
 			return true
 		}
 	}
@@ -458,8 +470,8 @@ impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 arrived");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if try_connect_polling(trezor, Duration::from_millis(500)) != true {
-				debug!(target: "hw", "Ledger connect timeout");
+			if try_connect_polling(trezor, &POLLING_DURATION, DeviceDirection::Arrived) != true {
+				trace!(target: "hw", "No Trezor connected");
 			}
 		}
 	}
@@ -467,8 +479,8 @@ impl libusb::Hotplug for EventHandler {
 	fn device_left(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 left");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if try_connect_polling(trezor, Duration::from_millis(500)) != true {
-				debug!(target: "hw", "Ledger disconnect timeout");
+			if try_connect_polling(trezor, &POLLING_DURATION, DeviceDirection::Left) != true {
+				trace!(target: "hw", "No Trezor disconnected");
 			}
 		}
 	}
@@ -481,11 +493,14 @@ impl libusb::Hotplug for EventHandler {
 fn test_signature() {
 	use ethereum_types::{H160, H256, U256};
 
-	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
-	let manager = Manager::new(hidapi.clone(), Arc::new(AtomicBool::new(false))).unwrap();
+	let manager = Manager::new(
+		Arc::new(Mutex::new(hidapi::HidApi::new().expect("HidApi"))),
+		Arc::new(AtomicBool::new(false))
+	).expect("HardwareWalletManager");
+	
 	let addr: Address = H160::from("some_addr");
 
-	assert_eq!(try_connect_polling(manager.clone(), Duration::from_millis(500)), true);
+	assert_eq!(try_connect_polling(manager.clone(), &POLLING_DURATION, DeviceDirection::Arrived), true);
 
 	let t_info = TransactionInfo {
 		nonce: U256::from(1),

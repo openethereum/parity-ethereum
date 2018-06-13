@@ -25,7 +25,9 @@ extern crate hidapi;
 extern crate libusb;
 extern crate parking_lot;
 extern crate protobuf;
+extern crate semver;
 extern crate trezor_sys;
+
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_hex;
 
@@ -35,13 +37,12 @@ mod trezor;
 use ethkey::{Address, Signature};
 
 use parking_lot::Mutex;
-use std::fmt;
-use std::sync::Arc;
-use std::sync::atomic;
-use std::sync::atomic::AtomicBool;
+use std::{fmt, time::Duration};
+use std::sync::{Arc, atomic, atomic::AtomicBool};
 use ethereum_types::U256;
 
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
+const POLLING_DURATION: Duration = Duration::from_millis(500);
 
 #[derive(Debug)]
 pub struct Device {
@@ -57,13 +58,13 @@ pub trait Wallet<'a> {
 
 	/// Sign transaction data with wallet managing `address`.
 	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error>;
-
+	
 	/// Set key derivation path for a chain.
 	fn set_key_path(&self, key_path: KeyPath);
 
 	/// Re-populate device list
 	/// Note, this assumes all devices are iterated over and updated
-	fn update_devices(&self) -> Result<usize, Self::Error>;
+	fn update_devices(&self, device_direction: DeviceDirection) -> Result<usize, Self::Error>;
 
 	/// Read device info
 	fn read_device(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Self::Error>;
@@ -185,6 +186,22 @@ impl From<libusb::Error> for Error {
 	}
 }
 
+/// Specifies the direction of the `HardwareWallet` i.e, whether it arrived or left
+#[derive(Debug, Copy, Clone)]
+pub enum DeviceDirection {
+    Arrived,
+    Left,
+}
+
+impl fmt::Display for DeviceDirection {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			DeviceDirection::Arrived => write!(f, "arrived"),
+			DeviceDirection::Left => write!(f, "left"),
+		}
+	}
+}
+
 /// Hardware wallet management interface.
 pub struct HardwareWalletManager {
 	exiting: Arc<AtomicBool>,
@@ -236,6 +253,17 @@ impl HardwareWalletManager {
 			Some(info)
 		} else {
 			self.trezor.get_wallet(address)
+		}
+	}
+
+	/// Sign a message with the wallet (only supported by Ledger)
+	pub fn sign_message(&self, address: &Address, msg: &[u8]) -> Result<Signature, Error> {
+		if self.ledger.get_wallet(address).is_some() {
+			Ok(self.ledger.sign_message(address, msg)?)
+		} else if self.trezor.get_wallet(address).is_some() {
+			Err(Error::TrezorDevice(trezor::Error::NoSigningMessage))
+		} else {
+			Err(Error::KeyNotFound)
 		}
 	}
 

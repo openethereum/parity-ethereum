@@ -674,9 +674,16 @@ pub fn execute<D: Dispatcher + 'static>(
 		},
 		ConfirmationPayload::EthSignMessage(address, data) => {
 			if accounts.is_hardware_address(&address) {
-				return Box::new(future::err(errors::unsupported("Signing via hardware wallets is not supported.", None)));
-			}
+				let signature = accounts.sign_message_with_hardware(&address, &data)
+					.map(|s| H520(s.into_electrum()))
+					.map(RpcH520::from)
+					.map(ConfirmationResponse::Signature)
+					// TODO: is this correct? I guess the `token` is the wallet in this context
+					.map(WithToken::No)
+					.map_err(|e| errors::account("Error signing message with hardware_wallet", e));
 
+				return Box::new(future::done(signature));
+			}
 			let hash = eth_data_hash(data);
 			let res = signature(&accounts, address, hash, pass)
 				.map(|result| result
@@ -720,7 +727,7 @@ fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transacti
 
 	let mut stream = rlp::RlpStream::new();
 	t.rlp_append_unsigned_transaction(&mut stream, chain_id);
-	let signature = accounts.sign_with_hardware(address, &t, chain_id, &stream.as_raw())
+	let signature = accounts.sign_transaction_with_hardware(&address, &t, chain_id, &stream.as_raw())
 		.map_err(|e| {
 			debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
 			errors::account("Error signing transaction with hardware wallet", e)
