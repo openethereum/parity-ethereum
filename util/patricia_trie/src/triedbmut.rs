@@ -25,7 +25,7 @@ use super::node::NodeKey;
 use bytes::ToPretty;
 use hashdb::{HashDB, Hasher, DBValue};
 use nibbleslice::NibbleSlice;
-use rlp::{RlpStream, Encodable, Decodable};
+use rlp::{RlpStream, Encodable};
 
 use elastic_array::ElasticArray1024;
 use std::collections::{HashSet, VecDeque};
@@ -78,7 +78,8 @@ enum Node<H: Hasher> {
 	Branch(Box<[Option<NodeHandle<H>>; 16]>, Option<DBValue>)
 }
 
-impl<H: Hasher> Node<H> where H::Out: Decodable {
+// impl<H: Hasher> Node<H> where H::Out: Decodable {
+impl<H: Hasher> Node<H> {
 	// load an inline node into memory or get the hash to do the lookup later.
 	fn inline_or_hash<C>(node: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> NodeHandle<H> 
 	where C: NodeCodec<H>
@@ -297,9 +298,10 @@ impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
 /// }
 /// ```
 pub struct TrieDBMut<'a, H, C>
-	where H: Hasher + 'a,
-	      H::Out: Decodable + Encodable,
-	      C: NodeCodec<H>
+where
+	H: Hasher + 'a,
+	H::Out: Encodable,
+	C: NodeCodec<H>
 {
 	storage: NodeStorage<H>,
 	db: &'a mut HashDB<H>,
@@ -313,9 +315,9 @@ pub struct TrieDBMut<'a, H, C>
 }
 
 impl<'a, H, C> TrieDBMut<'a, H, C>
-	where H: Hasher,
-	      H::Out: Decodable + Encodable,
-	      C: NodeCodec<H>
+where H: Hasher,
+		H::Out: Encodable,
+		C: NodeCodec<H>
 {
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Self {
@@ -859,12 +861,8 @@ impl<'a, H, C> TrieDBMut<'a, H, C>
 
 	/// commit a node, hashing it, committing it to the db,
 	/// and writing it to the rlp stream as necessary.
+	// REVIEW: this is causing the `Encodable` bound all the way upstream, precisely it's the `stream.append()` call requires it
 	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut RlpStream) {
-//	fn commit_node(
-//		&mut self, handle: NodeHandle<H>,
-//		stream: &mut <RlpNode as NodeCodec>::StreamEncoding
-//	)
-//	{
 		match handle {
 			NodeHandle::Hash(h) => stream.append(&h),
 			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
@@ -893,9 +891,9 @@ impl<'a, H, C> TrieDBMut<'a, H, C>
 }
 
 impl<'a, H, C> TrieMut for TrieDBMut<'a, H, C>
-	where H: Hasher,
-	      H::Out: Decodable + Encodable,
-	      C: NodeCodec<H>
+where H: Hasher,
+		H::Out:Encodable,
+		C: NodeCodec<H>
 {
 	type H = H;
 
@@ -965,9 +963,10 @@ impl<'a, H, C> TrieMut for TrieDBMut<'a, H, C>
 }
 
 impl<'a, H, C> Drop for TrieDBMut<'a, H, C>
-	where H: Hasher,
-	      H::Out: Decodable + Encodable,
-	      C: NodeCodec<H>
+where
+	H: Hasher,
+	H::Out: Encodable,
+	C: NodeCodec<H>
 {
 	fn drop(&mut self) {
 		self.commit();

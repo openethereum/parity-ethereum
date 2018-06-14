@@ -19,20 +19,23 @@
 use hashdb::{HashDB, Hasher};
 use super::triedb::TrieDB;
 use super::{Trie, TrieItem, TrieIterator, Query};
-use rlp::{Decodable, Encodable};
 use node_codec::NodeCodec;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
 /// Use it as a `Trie` trait object. You can use `raw()` to get the backing `TrieDB` object.
 pub struct SecTrieDB<'db, H, C>
-	where H: Hasher + 'db, C: NodeCodec<H>
+where 
+	H: Hasher + 'db, 
+	C: NodeCodec<H>
 {
 	raw: TrieDB<'db, H, C>
 }
 
 impl<'db, H, C> SecTrieDB<'db, H, C>
-	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	/// Create a new trie with the backing database `db` and empty `root`
 	///
@@ -55,7 +58,9 @@ impl<'db, H, C> SecTrieDB<'db, H, C>
 }
 
 impl<'db, H, C> Trie for SecTrieDB<'db, H, C>
-	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	type H = H;
 

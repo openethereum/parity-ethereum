@@ -251,7 +251,7 @@ macro_rules! wrapper {
 	}
 }
 
-impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> where H::Out: rlp::Decodable + rlp::Encodable {
+impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> {
 	type H = H;
 	fn root(&self) -> &<Self::H as Hasher>::Out {
 		wrapper!(self, root,)
@@ -277,7 +277,10 @@ impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> where H::Out
 }
 
 impl<'db, H, C> TrieFactory<H, C>
-	where H: Hasher, H::Out: rlp::Decodable + rlp::Encodable, C: NodeCodec<H> + 'db
+where 
+	H: Hasher, 
+	H::Out: rlp::Encodable,
+	C: NodeCodec<H> + 'db
 {
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {

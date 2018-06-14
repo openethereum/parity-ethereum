@@ -53,7 +53,6 @@ pub type KeccakHashDB = HashDB<KeccakHasher>;
 pub type DBValue = ElasticArray128<u8>;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
-// TODO: move `H: Hasher` to be a generic param instead of an associated type
 pub trait HashDB<H: Hasher>: Send + Sync + AsHashDB<H> {
 	/// Get the keys in the database together with number of underlying references.
 	fn keys(&self) -> HashMap<H::Out, i32>;
@@ -86,13 +85,7 @@ pub trait AsHashDB<H: Hasher> {
 	fn as_hashdb_mut(&mut self) -> &mut HashDB<H>;
 }
 
-//impl<H: Hasher, T: HashDB<H>> AsHashDB<H> for T {
-//	fn as_hashdb(&self) -> &HashDB<H> { self }
-//	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { self }
-//}
-
-// TODO: This conflicts with the impl `for T`, see https://stackoverflow.com/questions/48432842/implementing-a-trait-for-reference-and-non-reference-types-causes-conflicting-im
-// I wonder why it didn't conflict before, when `H` was an associated type
+// TODO: This conflicts with an impl `for T`, see https://stackoverflow.com/questions/48432842/implementing-a-trait-for-reference-and-non-reference-types-causes-conflicting-im
 impl<'a, H: Hasher> AsHashDB<H> for &'a mut HashDB<H> {
 	fn as_hashdb(&self) -> &HashDB<H> { &**self }
 	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { &mut **self }

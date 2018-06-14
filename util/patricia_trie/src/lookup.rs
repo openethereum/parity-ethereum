@@ -18,7 +18,6 @@
 
 use hashdb::{HashDB, Hasher};
 use nibbleslice::NibbleSlice;
-use rlp::Decodable;
 use super::node::Node;
 use node_codec::NodeCodec;
 use super::{TrieError, Query};
@@ -38,7 +37,6 @@ pub struct Lookup<'a, H: Hasher + 'a, C: NodeCodec<H>, Q: Query<H>> {
 impl<'a, H, C, Q> Lookup<'a, H, C, Q>
 where
 	H: Hasher + 'a,
-	H::Out: Decodable,
 	C: NodeCodec<H>,
 	Q: Query<H>,
 {

@@ -22,7 +22,6 @@ use node_codec::NodeCodec;
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
 use bytes::Bytes;
-use rlp::{Decodable, Encodable};
 use std::marker::PhantomData;
 
 /// A `Trie` implementation using a generic `HashDB` backing database, a `Hasher`
@@ -57,7 +56,9 @@ use std::marker::PhantomData;
 /// }
 /// ```
 pub struct TrieDB<'db, H, C>
-	where H: Hasher + 'db, C: NodeCodec<H>
+where 
+	H: Hasher + 'db, 
+	C: NodeCodec<H>
 {
 	db: &'db HashDB<H>,
 	root: &'db H::Out,
@@ -67,7 +68,9 @@ pub struct TrieDB<'db, H, C>
 }
 
 impl<'db, H, C> TrieDB<'db, H, C>
-	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Returns an error if `root` does not exist
@@ -105,7 +108,6 @@ impl<'db, H, C> TrieDB<'db, H, C>
 impl<'db, H, C> Trie for TrieDB<'db, H, C>
 where
 	H: Hasher,
-	H::Out: Decodable + Encodable,
 	C: NodeCodec<H>
 {
 	type H = H;
@@ -129,14 +131,18 @@ where
 
 // This is for pretty debug output only
 struct TrieAwareDebugNode<'db, 'a, H, C>
-where H: Hasher + 'db, C: NodeCodec<H> + 'db
+where 
+	H: Hasher + 'db, 
+	C: NodeCodec<H> + 'db
 {
 	trie: &'db TrieDB<'db, H, C>,
 	key: &'a[u8]
 }
 
 impl<'db, 'a, H, C> fmt::Debug for TrieAwareDebugNode<'db, 'a, H, C>
-	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		if let Ok(node) = self.trie.get_raw_or_lookup(self.key) {
@@ -173,7 +179,9 @@ impl<'db, 'a, H, C> fmt::Debug for TrieAwareDebugNode<'db, 'a, H, C>
 }
 
 impl<'db, H, C> fmt::Debug for TrieDB<'db, H, C>
-	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
@@ -221,7 +229,7 @@ pub struct TrieDBIterator<'a, H: Hasher + 'a, C: NodeCodec<H> + 'a> {
 	key_nibbles: Bytes,
 }
 
-impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> where H::Out: Decodable {
+impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 	/// Create a new iterator.
 	pub fn new(db: &'a TrieDB<H, C>) -> super::Result<TrieDBIterator<'a, H, C>, H::Out> {
 		let mut r = TrieDBIterator { db, trail: vec![], key_nibbles: Vec::new() };
@@ -295,7 +303,6 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> where H::Out: Deco
 	/// Descend into a payload.
 	fn descend(&mut self, d: &[u8]) -> super::Result<(), H::Out> {
 		let node_data = &self.db.get_raw_or_lookup(d)?;
-//		let node = Node::decoded(&node_data).expect("rlp read from db; qed");
 		let node = C::decode(&node_data).expect("rlp read from db; qed");
 		Ok(self.descend_into_node(node.into()))
 	}
@@ -326,7 +333,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> where H::Out: Deco
 	}
 }
 
-impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H> for TrieDBIterator<'a, H, C> where H::Out: Decodable {
+impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H> for TrieDBIterator<'a, H, C> {
 	/// Position the iterator on the first element with key >= `key`
 	fn seek(&mut self, key: &[u8]) -> super::Result<(), H::Out> {
 		self.trail.clear();
@@ -336,11 +343,12 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H> for TrieDBIterator<'a, H, C
 	}
 }
 
-impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> where H::Out: Decodable {
+impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
 	type Item = TrieItem<'a, H>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		enum IterStep<O: Decodable> {
+		// enum IterStep<O: Decodable> {
+		enum IterStep<O> {
 			Continue,
 			PopTrail,
 			Descend(super::Result<DBValue, O>),

@@ -16,7 +16,6 @@
 
 use hashdb::{HashDB, Hasher};
 use super::{TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};
-use rlp::{Decodable, Encodable};
 use node_codec::NodeCodec;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
@@ -24,13 +23,17 @@ use node_codec::NodeCodec;
 ///
 /// Use it as a `Trie` or `TrieMut` trait object.
 pub struct FatDB<'db, H, C>
-	where H: Hasher + 'db, C: NodeCodec<H>
+where 
+	H: Hasher + 'db, 
+	C: NodeCodec<H>
 {
 	raw: TrieDB<'db, H, C>,
 }
 
 impl<'db, H, C> FatDB<'db, H, C>
-	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
@@ -44,7 +47,9 @@ impl<'db, H, C> FatDB<'db, H, C>
 }
 
 impl<'db, H, C> Trie for FatDB<'db, H, C>
-	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	type H = H;
 
@@ -67,14 +72,18 @@ impl<'db, H, C> Trie for FatDB<'db, H, C>
 
 /// Itarator over inserted pairs of key values.
 pub struct FatDBIterator<'db, H, C>
-	where H: Hasher + 'db, C: NodeCodec<H> + 'db
+where 
+	H: Hasher + 'db, 
+	C: NodeCodec<H> + 'db
 {
 	trie_iterator: TrieDBIterator<'db, H, C>,
 	trie: &'db TrieDB<'db, H, C>,
 }
 
 impl<'db, H, C> FatDBIterator<'db, H, C>
-	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	/// Creates new iterator.
 	pub fn new(trie: &'db TrieDB<H, C>) -> super::Result<Self, H::Out> {
@@ -86,7 +95,9 @@ impl<'db, H, C> FatDBIterator<'db, H, C>
 }
 
 impl<'db, H, C> TrieIterator<H> for FatDBIterator<'db, H, C>
-	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	fn seek(&mut self, key: &[u8]) -> super::Result<(), H::Out> {
 		let hashed_key = H::hash(key);
@@ -95,7 +106,9 @@ impl<'db, H, C> TrieIterator<H> for FatDBIterator<'db, H, C>
 }
 
 impl<'db, H, C> Iterator for FatDBIterator<'db, H, C>
-	where H: Hasher, H::Out: Decodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
 {
 	type Item = TrieItem<'db, H>;
 

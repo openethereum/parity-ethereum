@@ -17,20 +17,26 @@
 use hashdb::{HashDB, DBValue, Hasher};
 use super::triedbmut::TrieDBMut;
 use super::TrieMut;
-use rlp::{Encodable, Decodable};
+use rlp::Encodable;
 use node_codec::NodeCodec;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
 /// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDBMut` object.
 pub struct SecTrieDBMut<'db, H, C>
-	where H: Hasher + 'db, H::Out: Decodable + Encodable, C: NodeCodec<H>
+where 
+	H: Hasher + 'db, 
+	H::Out: Encodable, 
+	C: NodeCodec<H>
 {
 	raw: TrieDBMut<'db, H, C>
 }
 
 impl<'db, H, C> SecTrieDBMut<'db, H, C>
-	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	H::Out: Encodable, 
+	C: NodeCodec<H>
 {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
@@ -54,7 +60,10 @@ impl<'db, H, C> SecTrieDBMut<'db, H, C>
 }
 
 impl<'db, H, C> TrieMut for SecTrieDBMut<'db, H, C>
-	where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
+where 
+	H: Hasher, 
+	H::Out: Encodable, 
+	C: NodeCodec<H>
 {
 	type H = H;
 	fn root(&mut self) -> &<Self::H as Hasher>::Out {
