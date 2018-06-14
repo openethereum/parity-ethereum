@@ -466,7 +466,6 @@ pub mod tests {
 	#[test]
 	fn persistent_key_storage() {
 		let tempdir = TempDir::new("").unwrap();
-
 		let key1 = ServerKeyId::from(1);
 		let value1 = DocumentKeyShare {
 			author: Default::default(),
