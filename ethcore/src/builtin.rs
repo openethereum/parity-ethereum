@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -703,7 +703,6 @@ mod tests {
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
 
-
 		// test for potential exp len overflow
 		{
 			let input = FromHex::from_hex("\
@@ -827,7 +826,6 @@ mod tests {
 			assert_eq!(output, expected);
 		}
 
-
 		// no input, should not fail
 		{
 			let mut empty = [0u8; 0];
@@ -858,7 +856,6 @@ mod tests {
 			assert!(res.is_err(), "There should be built-in error here");
 		}
 	}
-
 
 	#[test]
 	fn bn128_mul() {

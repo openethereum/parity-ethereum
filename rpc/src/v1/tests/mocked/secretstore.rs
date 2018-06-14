@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -40,7 +40,7 @@ impl Dependencies {
 	}
 
 	pub fn client(&self) -> SecretStoreClient {
-		SecretStoreClient::new(&Some(self.accounts.clone()))
+		SecretStoreClient::new(&self.accounts)
 	}
 
 	fn default_client(&self) -> IoHandler<Metadata> {

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 use std::collections::{HashSet, BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
@@ -72,7 +72,6 @@ use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
 use types::filter::Filter;
-use types::mode::Mode as IpcMode;
 use types::ancestry_action::AncestryAction;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
@@ -90,6 +89,8 @@ use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
+// Max number of blocks imported at once.
+const MAX_ANCIENT_BLOCKS_TO_IMPORT: usize = 4;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
 
@@ -210,8 +211,12 @@ pub struct Client {
 	queue_transactions: IoChannelQueue,
 	/// Ancient blocks import queue
 	queue_ancient_blocks: IoChannelQueue,
-	/// Hashes of pending ancient block wainting to be included
-	pending_ancient_blocks: RwLock<HashSet<H256>>,
+	/// Queued ancient blocks, make sure they are imported in order.
+	queued_ancient_blocks: Arc<RwLock<(
+		HashSet<H256>,
+		VecDeque<(Header, Bytes, Bytes)>
+	)>>,
+	ancient_blocks_import_lock: Arc<Mutex<()>>,
 	/// Consensus messages import queue
 	queue_consensus_message: IoChannelQueue,
 
@@ -425,7 +430,6 @@ impl Importer {
 		Ok(locked_block)
 	}
 
-
 	/// Import a block with transaction receipts.
 	///
 	/// The block is guaranteed to be the next best blocks in the
@@ -435,7 +439,6 @@ impl Importer {
 		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
 
-		trace!(target: "client", "Trying to import old block #{}", header.number());
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
@@ -764,7 +767,8 @@ impl Client {
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
-			pending_ancient_blocks: RwLock::new(HashSet::new()),
+			queued_ancient_blocks: Default::default(),
+			ancient_blocks_import_lock: Default::default(),
 			queue_consensus_message: IoChannelQueue::new(usize::max_value()),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
@@ -917,7 +921,6 @@ impl Client {
 		*cached_hashes = VecDeque::from(last_hashes.clone());
 		Arc::new(last_hashes)
 	}
-
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
@@ -1566,20 +1569,19 @@ impl BlockChainClient for Client {
 			})))
 	}
 
-
-	fn mode(&self) -> IpcMode {
+	fn mode(&self) -> Mode {
 		let r = self.mode.lock().clone().into();
 		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
 		r
 	}
 
 	fn disable(&self) {
-		self.set_mode(IpcMode::Off);
+		self.set_mode(Mode::Off);
 		self.enabled.store(false, AtomicOrdering::Relaxed);
 		self.clear_queue();
 	}
 
-	fn set_mode(&self, new_mode: IpcMode) {
+	fn set_mode(&self, new_mode: Mode) {
 		trace!(target: "mode", "Client::set_mode({:?})", new_mode);
 		if !self.enabled.load(AtomicOrdering::Relaxed) {
 			return;
@@ -1594,8 +1596,8 @@ impl BlockChainClient for Client {
 			}
 		}
 		match new_mode {
-			IpcMode::Active => self.wake_up(),
-			IpcMode::Off => self.sleep(),
+			Mode::Active => self.wake_up(),
+			Mode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
 		}
 	}
@@ -1958,8 +1960,8 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.importer.miner.ready_transactions(self)
+	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+		self.importer.miner.ready_transactions(self, max_len, ::miner::PendingOrdering::Priority)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> {
@@ -2015,8 +2017,9 @@ impl BlockChainClient for Client {
 
 impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
+		trace_time!("queue_transactions");
 		let len = transactions.len();
-		self.queue_transactions.queue(&mut self.io_channel.lock(), move |client| {
+		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |client| {
 			trace_time!("import_queued_transactions");
 
 			let txs: Vec<UnverifiedTransaction> = transactions
@@ -2035,6 +2038,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		trace_time!("queue_ancient_block");
 		let header: Header = ::rlp::Rlp::new(&block_bytes).val_at(0)?;
 		let hash = header.hash();
 
@@ -2043,31 +2047,52 @@ impl IoClient for Client {
 			if self.chain.read().is_known(&hash) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-
-			let parent_hash = *header.parent_hash();
-			let parent_pending = self.pending_ancient_blocks.read().contains(&parent_hash);
-			let status = self.block_status(BlockId::Hash(parent_hash));
-			if !parent_pending && (status == BlockStatus::Unknown || status == BlockStatus::Pending) {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
+			let parent_hash = header.parent_hash();
+			// NOTE To prevent race condition with import, make sure to check queued blocks first
+			// (and attempt to acquire lock)
+			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(parent_hash);
+			if !is_parent_pending {
+				let status = self.block_status(BlockId::Hash(*parent_hash));
+				if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*parent_hash)));
+				}
 			}
 		}
 
-		self.pending_ancient_blocks.write().insert(hash);
+		// we queue blocks here and trigger an IO message.
+		{
+			let mut queued = self.queued_ancient_blocks.write();
+			queued.0.insert(hash);
+			queued.1.push_back((header, block_bytes, receipts_bytes));
+		}
 
-		trace!(target: "client", "Queuing old block #{}", header.number());
-		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), move |client| {
-			let result = client.importer.import_old_block(
-				&header,
-				&block_bytes,
-				&receipts_bytes,
-				&**client.db.read(),
-				&*client.chain.read()
-			);
-
-			client.pending_ancient_blocks.write().remove(&hash);
-			result.map(|_| ()).unwrap_or_else(|e| {
-				error!(target: "client", "Error importing ancient block: {}", e);
-			});
+		let queued = self.queued_ancient_blocks.clone();
+		let lock = self.ancient_blocks_import_lock.clone();
+		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
+			trace_time!("import_ancient_block");
+			// Make sure to hold the lock here to prevent importing out of order.
+			// We use separate lock, cause we don't want to block queueing.
+			let _lock = lock.lock();
+			for _i in 0..MAX_ANCIENT_BLOCKS_TO_IMPORT {
+				let first = queued.write().1.pop_front();
+				if let Some((header, block_bytes, receipts_bytes)) = first {
+					let hash = header.hash();
+					let result = client.importer.import_old_block(
+						&header,
+						&block_bytes,
+						&receipts_bytes,
+						&**client.db.read(),
+						&*client.chain.read(),
+					);
+					if let Err(e) = result {
+						error!(target: "client", "Error importing ancient block: {}", e);
+					}
+					// remove from pending
+					queued.write().0.remove(&hash);
+				} else {
+					break;
+				}
+			}
 		}) {
 			Ok(_) => Ok(hash),
 			Err(e) => bail!(BlockImportErrorKind::Other(format!("{}", e))),
@@ -2075,7 +2100,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), move |client| {
+		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), 1, move |client| {
 			if let Err(e) = client.engine().handle_message(&message) {
 				debug!(target: "poa", "Invalid message received: {}", e);
 			}
@@ -2185,7 +2210,7 @@ impl ImportSealedBlock for Client {
 			route
 		};
 		let route = ChainRoute::from([route].as_ref());
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), true);
+		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), self.engine.seals_internally().is_some());
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
@@ -2284,7 +2309,6 @@ impl ProvingBlockChainClient for Client {
 		)
 	}
 
-
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
 		// pending transitions are never deleted, and do not contain
 		// finality proofs by definition.
@@ -2318,6 +2342,11 @@ fn transaction_receipt(machine: &::machine::EthereumMachine, mut tx: LocalizedTr
 	let transaction_index = tx.transaction_index;
 
 	LocalizedReceipt {
+		from: sender,
+		to: match tx.action {
+				Action::Create => None,
+				Action::Call(ref address) => Some(address.clone().into())
+		},
 		transaction_hash: transaction_hash,
 		transaction_index: transaction_index,
 		block_hash: block_hash,
@@ -2443,6 +2472,11 @@ mod tests {
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {
+			from: tx1.sender().into(),
+			to: match tx1.action {
+				Action::Create => None,
+				Action::Call(ref address) => Some(address.clone().into())
+			},
 			transaction_hash: tx1.hash(),
 			transaction_index: 1,
 			block_hash: block_hash,
@@ -2490,38 +2524,35 @@ impl fmt::Display for QueueError {
 
 /// Queue some items to be processed by IO client.
 struct IoChannelQueue {
-	queue: Arc<Mutex<VecDeque<Box<Fn(&Client) + Send>>>>,
+	currently_queued: Arc<AtomicUsize>,
 	limit: usize,
 }
 
 impl IoChannelQueue {
 	pub fn new(limit: usize) -> Self {
 		IoChannelQueue {
-			queue: Default::default(),
+			currently_queued: Default::default(),
 			limit,
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, fun: F) -> Result<(), QueueError>
-		where F: Fn(&Client) + Send + Sync + 'static
+	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
+		F: Fn(&Client) + Send + Sync + 'static,
 	{
-		{
-			let mut queue = self.queue.lock();
-			let queue_size = queue.len();
-			ensure!(queue_size < self.limit, QueueError::Full(self.limit));
+		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
+		ensure!(queue_size < self.limit, QueueError::Full(self.limit));
 
-			queue.push_back(Box::new(fun));
-		}
-
-		let queue = self.queue.clone();
+		let currently_queued = self.currently_queued.clone();
 		let result = channel.send(ClientIoMessage::execute(move |client| {
-			while let Some(fun) = queue.lock().pop_front() {
-				fun(client);
-			}
+			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
+			fun(client);
 		}));
 
 		match result {
-			Ok(_) => Ok(()),
+			Ok(_) => {
+				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
+				Ok(())
+			},
 			Err(e) => Err(QueueError::Channel(e)),
 		}
 	}

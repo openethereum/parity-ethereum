@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -58,7 +58,6 @@ fn miner_service() -> Arc<TestMinerService> {
 fn signer_tester() -> SignerTester {
 	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
-	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
@@ -66,7 +65,7 @@ fn signer_tester() -> SignerTester {
 
 	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
+	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 
 	SignerTester {
 		signer: signer,
@@ -75,7 +74,6 @@ fn signer_tester() -> SignerTester {
 		miner: miner,
 	}
 }
-
 
 #[test]
 fn should_return_list_of_items_to_confirm() {
@@ -106,7 +104,6 @@ fn should_return_list_of_items_to_confirm() {
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 }
-
 
 #[test]
 fn should_reject_transaction_from_queue_without_dispatching() {

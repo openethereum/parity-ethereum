@@ -1,3 +1,71 @@
+## Parity [v1.11.3](https://github.com/paritytech/parity/releases/tag/v1.11.3) (2018-06-06)
+
+Parity 1.11.3 is a security-relevant release. Please upgrade your nodes as soon as possible to [v1.10.6](https://github.com/paritytech/parity/releases/tag/v1.10.6) or [v1.11.3](https://github.com/paritytech/parity/releases/tag/v1.11.3).
+
+The full list of included changes:
+
+- Parity-version: bump beta to 1.11.3 ([#8806](https://github.com/paritytech/parity/pull/8806))
+  - Parity-version: bump beta to 1.11.3
+  - Disallow unsigned transactions in case EIP-86 is disabled ([#8802](https://github.com/paritytech/parity/pull/8802))
+  - Fix ancient blocks queue deadlock ([#8751](https://github.com/paritytech/parity/pull/8751))
+- Update shell32-sys to fix windows build ([#8792](https://github.com/paritytech/parity/pull/8792))
+- Backports ([#8785](https://github.com/paritytech/parity/pull/8785))
+  - Fix light sync with initial validator-set contract ([#8528](https://github.com/paritytech/parity/pull/8528))
+    - Fix #8468
+    - Use U256::max_value() instead
+    - Also change initial transaction gas
+  - Resumable warp-sync / Seed downloaded snapshots ([#8544](https://github.com/paritytech/parity/pull/8544))
+    - Start dividing sync chain : first supplier method
+    - WIP - updated chain sync supplier
+    - Finish refactoring the Chain Sync Supplier
+    - Create Chain Sync Requester
+    - Add Propagator for Chain Sync
+    - Add the Chain Sync Handler
+    - Move tests from mod -> handler
+    - Move tests to propagator
+    - Refactor SyncRequester arguments
+    - Refactoring peer fork header handler
+    - Fix wrong highest block number in snapshot sync
+    - Small refactor...
+    - Resume warp-sync downloaded chunks
+    - Refactoring the previous chunks import
+    - Address PR grumbles
+    - Fix not seeding current snapshot
+    - Update SnapshotService readiness check
+    - Early abort importing previous chunks
+    - Update Gitlab CI config
+    - SyncState back to Waiting when Manifest peers disconnect
+    - Revert GitLab CI changes
+    - Refactor resuming snapshots
+    - Revert "Refactor resuming snapshots"
+    - Update informant log
+    - Refactor resuming snapshots
+    - Update informant message : show chunks done
+  - Don't open Browser post-install on Mac ([#8641](https://github.com/paritytech/parity/pull/8641))
+  - Fix not downloading old blocks ([#8642](https://github.com/paritytech/parity/pull/8642))
+  - Fix PoW blockchains sealing notifications in chain_new_blocks ([#8656](https://github.com/paritytech/parity/pull/8656))
+  - Shutdown the Snapshot Service early ([#8658](https://github.com/paritytech/parity/pull/8658))
+    - Shutdown the Snapshot Service when shutting down the runner
+    - Rename `service` to `client_service`
+    - Fix tests
+  - Fix cli signer ([#8682](https://github.com/paritytech/parity/pull/8682))
+    - Update ethereum-types so `{:#x}` applies 0x prefix
+  - Set the request index to that of the current request ([#8683](https://github.com/paritytech/parity/pull/8683))
+    - Set the request index to that of the current request
+  - Network-devp2p: handle UselessPeer disconnect ([#8686](https://github.com/paritytech/parity/pull/8686))
+  - Fix local transactions policy. ([#8691](https://github.com/paritytech/parity/pull/8691))
+  - CI: Fixes for Android Pipeline ([#8745](https://github.com/paritytech/parity/pull/8745))
+    - Ci: Remove check for shared libraries in gitlab script
+    - Ci: allow android arm build to fail
+  - Custom Error Messages on ENFILE and EMFILE IO Errors ([#8744](https://github.com/paritytech/parity/pull/8744))
+    - Custom Error Messages on ENFILE and EMFILE IO Errors
+    - Use assert-matches for more readable tests
+    - Fix Wording and consistency
+  - Ethcore-sync: fix connection to peers behind chain fork block ([#8710](https://github.com/paritytech/parity/pull/8710))
+- Parity-version: bump beta to 1.11.2 ([#8750](https://github.com/paritytech/parity/pull/8750))
+  - Parity-version: bump beta to 1.11.2
+  - Parity-version: unset critical flag
+
 ## Parity [v1.11.1](https://github.com/paritytech/parity/releases/tag/v1.11.1) (2018-05-15)
 
 This is the Parity 1.11.1-beta release! Hurray!
@@ -156,47 +224,47 @@ The full list of included changes:
 
 - Backports ([#8558](https://github.com/paritytech/parity/pull/8558))
   - Fetching logs by hash in blockchain database ([#8463](https://github.com/paritytech/parity/pull/8463))
-	  - Fetch logs by hash in blockchain database
-	  - Fix tests
-	  - Add unit test for branch block logs fetching
-	  - Add docs that blocks must already be sorted
-	  - Handle branch block cases properly
-	  - typo: empty -> is_empty
-	  - Remove return_empty_if_none by using a closure
-	  - Use BTreeSet to avoid sorting again
-	  - Move is_canon to BlockChain
-	  - typo: pass value by reference
-	  - Use loop and wrap inside blocks to simplify the code
-	  - typo: missed a comment
+    - Fetch logs by hash in blockchain database
+    - Fix tests
+    - Add unit test for branch block logs fetching
+    - Add docs that blocks must already be sorted
+    - Handle branch block cases properly
+    - typo: empty -> is_empty
+    - Remove return_empty_if_none by using a closure
+    - Use BTreeSet to avoid sorting again
+    - Move is_canon to BlockChain
+    - typo: pass value by reference
+    - Use loop and wrap inside blocks to simplify the code
+    - typo: missed a comment
   - Pass on storage keys tracing to handle the case when it is not modified ([#8491](https://github.com/paritytech/parity/pull/8491))
-	  - Pass on storage keys even if it is not modified
-	  - typo: account and storage query
-	  - Fix tests
-	  - Use state query directly because of suicided accounts
-	  - Fix a RefCell borrow issue
-	  - Add tests for unmodified storage trace
-	  - Address grumbles
-	  - typo: remove unwanted empty line
-	  - ensure_cached compiles with the original signature
+    - Pass on storage keys even if it is not modified
+    - typo: account and storage query
+    - Fix tests
+    - Use state query directly because of suicided accounts
+    - Fix a RefCell borrow issue
+    - Add tests for unmodified storage trace
+    - Address grumbles
+    - typo: remove unwanted empty line
+    - ensure_cached compiles with the original signature
   - Update wasmi and pwasm-utils ([#8493](https://github.com/paritytech/parity/pull/8493))
-	  - Update wasmi to 0.2
-	  - Update pwasm-utils to 0.1.5
+    - Update wasmi to 0.2
+    - Update pwasm-utils to 0.1.5
   - Show imported messages for light client ([#8517](https://github.com/paritytech/parity/pull/8517))
   - Enable WebAssembly and Byzantium for Ellaism ([#8520](https://github.com/paritytech/parity/pull/8520))
-	  - Enable WebAssembly and Byzantium for Ellaism
-	  - Fix indentation
-	  - Remove empty lines
+    - Enable WebAssembly and Byzantium for Ellaism
+    - Fix indentation
+    - Remove empty lines
   - Don't panic in import_block if invalid rlp ([#8522](https://github.com/paritytech/parity/pull/8522))
-	  - Don't panic in import_block if invalid rlp
-	  - Remove redundant type annotation
-	  - Replace RLP header view usage with safe decoding
+    - Don't panic in import_block if invalid rlp
+    - Remove redundant type annotation
+    - Replace RLP header view usage with safe decoding
   - Node table sorting according to last contact data ([#8541](https://github.com/paritytech/parity/pull/8541))
-	  - network-devp2p: sort nodes in node table using last contact data
-	  - network-devp2p: rename node contact types in node table json output
-	  - network-devp2p: fix node table tests
-	  - network-devp2p: note node failure when failed to establish connection
-	  - network-devp2p: handle UselessPeer error
-	  - network-devp2p: note failure when marking node as useless
+    - network-devp2p: sort nodes in node table using last contact data
+    - network-devp2p: rename node contact types in node table json output
+    - network-devp2p: fix node table tests
+    - network-devp2p: note node failure when failed to establish connection
+    - network-devp2p: handle UselessPeer error
+    - network-devp2p: note failure when marking node as useless
 - Betalize 1.11 :) ([#8475](https://github.com/paritytech/parity/pull/8475))
   - Betalize 1.11 :)
   - Update Gitlab scripts

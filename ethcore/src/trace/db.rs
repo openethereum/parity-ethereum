@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -589,7 +589,6 @@ mod tests {
 
 		assert!(tracedb.traces(&block_0).is_some(), "Traces should be available even if block is non-canon.");
 	}
-
 
 	#[test]
 	fn test_import() {

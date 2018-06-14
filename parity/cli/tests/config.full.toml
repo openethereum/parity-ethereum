@@ -91,12 +91,13 @@ pass = "test_pass"
 [secretstore]
 disable = false
 disable_http = false
-disable_acl_check = false
+acl_contract = "registry"
 service_contract = "none"
 service_contract_srv_gen = "none"
 service_contract_srv_retr = "none"
 service_contract_doc_store = "none"
 service_contract_doc_sretr = "none"
+server_set_contract = "registry"
 nodes = []
 http_interface = "local"
 http_port = 8082

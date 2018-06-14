@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::collections::{HashMap, BTreeSet};
+use std::slice;
+use std::collections::{hash_map, HashMap, BTreeSet};
 
 use error;
 use listener::{Listener, NoopListener};
@@ -94,7 +95,6 @@ impl<T: VerifiedTransaction, S: Scoring<T>> Pool<T, S> {
 		Self::new(NoopListener, scoring, options)
 	}
 }
-
 
 const INITIAL_NUMBER_OF_SENDERS: usize = 16;
 
@@ -417,7 +417,16 @@ impl<T, S, L> Pool<T, S, L> where
 		PendingIterator {
 			ready,
 			best_transactions,
-			pool: self
+			pool: self,
+		}
+	}
+
+	/// Returns unprioritized list of ready transactions.
+	pub fn unordered_pending<R: Ready<T>>(&self, ready: R) -> UnorderedIterator<T, R, S> {
+		UnorderedIterator {
+			ready,
+			senders: self.transactions.iter(),
+			transactions: None,
 		}
 	}
 
@@ -482,6 +491,50 @@ impl<T, S, L> Pool<T, S, L> where
 		&mut self.listener
 	}
 }
+
+/// An iterator over all pending (ready) transactions in unoredered fashion.
+///
+/// NOTE: Current implementation will iterate over all transactions from particular sender
+/// ordered by nonce, but that might change in the future.
+///
+/// NOTE: the transactions are not removed from the queue.
+/// You might remove them later by calling `cull`.
+pub struct UnorderedIterator<'a, T, R, S> where
+	T: VerifiedTransaction + 'a,
+	S: Scoring<T> + 'a,
+{
+	ready: R,
+	senders: hash_map::Iter<'a, T::Sender, Transactions<T, S>>,
+	transactions: Option<slice::Iter<'a, Transaction<T>>>,
+}
+
+impl<'a, T, R, S> Iterator for UnorderedIterator<'a, T, R, S> where
+	T: VerifiedTransaction,
+	R: Ready<T>,
+	S: Scoring<T>,
+{
+	type Item = Arc<T>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		loop {
+			if let Some(transactions) = self.transactions.as_mut() {
+				if let Some(tx) = transactions.next() {
+					match self.ready.is_ready(&tx) {
+						Readiness::Ready => {
+							return Some(tx.transaction.clone());
+						},
+						state => trace!("[{:?}] Ignoring {:?} transaction.", tx.hash(), state),
+					}
+				}
+			}
+
+			// otherwise fallback and try next sender
+			let next_sender = self.senders.next()?;
+			self.transactions = Some(next_sender.1.iter());
+		}
+	}
+}
+
 
 /// An iterator over all pending (ready) transactions.
 /// NOTE: the transactions are not removed from the queue.

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 #[macro_use]
 pub mod errors;
 
-pub mod accounts;
 pub mod block_import;
 pub mod dapps;
 pub mod dispatch;
@@ -45,7 +44,7 @@ pub use self::requests::{
 	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
 };
 pub use self::signing_queue::{
-	ConfirmationsQueue, ConfirmationReceiver, ConfirmationResult,
+	ConfirmationsQueue, ConfirmationReceiver, ConfirmationResult, ConfirmationSender,
 	SigningQueue, QueueEvent, DefaultAccount,
 	QUEUE_LIMIT as SIGNING_QUEUE_LIMIT,
 };
