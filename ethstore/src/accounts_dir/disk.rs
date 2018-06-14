@@ -54,6 +54,24 @@ fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs:
 		.open(file_path)
 }
 
+#[cfg(unix)]
+fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	use libc;
+	use std::os::unix::fs::PermissionsExt;
+
+	let file = fs::File::create(file_path)?;
+	let mut permissions = file.metadata()?.permissions();
+	permissions.set_mode(libc::S_IWUSR | libc::S_IRUSR);
+	file.set_permissions(permissions)?;
+
+	Ok(file)
+}
+
+#[cfg(not(unix))]
+fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	fs::File::create(file_path)
+}
+
 /// Root keys directory implementation
 pub type RootDiskDirectory = DiskDirectory<DiskKeyFileManager>;
 
@@ -176,7 +194,11 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 		{
 			// save the file
-			let mut file = create_new_file_with_permissions_to_owner(&keyfile_path)?;
+			let mut file = if dedup {
+				create_new_file_with_permissions_to_owner(&keyfile_path)?
+			} else {
+				replace_file_with_permissions_to_owner(&keyfile_path)?
+			};
 
 			// write key content
 			self.key_manager.write(original_account, &mut file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
