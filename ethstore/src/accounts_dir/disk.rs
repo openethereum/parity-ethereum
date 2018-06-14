@@ -42,7 +42,7 @@ fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs:
 	fs::OpenOptions::new()
 		.write(true)
 		.create_new(true)
-		.mode(libc::S_IWUSR | libc::S_IRUSR)
+		.mode((libc::S_IWUSR | libc::S_IRUSR) as u32)
 		.open(file_path)
 }
 
@@ -61,7 +61,7 @@ fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::Fi
 
 	let file = fs::File::create(file_path)?;
 	let mut permissions = file.metadata()?.permissions();
-	permissions.set_mode(libc::S_IWUSR | libc::S_IRUSR);
+	permissions.set_mode((libc::S_IWUSR | libc::S_IRUSR) as u32);
 	file.set_permissions(permissions)?;
 
 	Ok(file)
