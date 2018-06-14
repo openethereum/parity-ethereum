@@ -30,6 +30,7 @@ use self::kvdb_rocksdb::{Database, DatabaseConfig};
 
 use cache::CacheConfig;
 
+mod blooms;
 mod migration;
 mod helpers;
 
@@ -99,7 +100,7 @@ pub fn open_db(client_path: &str, cache_config: &CacheConfig, compaction: &Datab
 	open_database(client_path, &db_config)
 }
 
-fn open_database(client_path: &str, config: &DatabaseConfig) -> Result<Arc<BlockChainDB>, Error> {
+pub fn open_database(client_path: &str, config: &DatabaseConfig) -> Result<Arc<BlockChainDB>, Error> {
 	let path = Path::new(client_path);
 
 	let blooms_path = path.join("blooms");
