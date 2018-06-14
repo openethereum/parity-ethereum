@@ -42,6 +42,8 @@ impl Default for RlpStream {
 }
 
 pub trait Stream {
+	fn new() -> Self;
+	fn new_list(len: usize) -> Self;
 	fn append_empty_data(&mut self) -> &mut Self;
 	fn drain(self) -> ElasticArray1024<u8>;
 	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable;
@@ -49,6 +51,18 @@ pub trait Stream {
 }
 
 impl Stream for RlpStream {
+	fn new() -> Self {
+		RlpStream {
+			unfinished_lists: ElasticArray16::new(),
+			buffer: ElasticArray1024::new(),
+			finished_list: false,
+		}
+	}
+	fn new_list(len: usize) -> Self {
+		let mut stream = RlpStream::new();
+		stream.begin_list(len);
+		stream
+	}
 	fn append_empty_data(&mut self) -> &mut Self {
 		// self push raw item
 		self.buffer.push(0x80);
@@ -90,20 +104,20 @@ impl Stream for RlpStream {
 
 impl RlpStream {
 	/// Initializes instance of empty `Stream`.
-	pub fn new() -> Self {
-		RlpStream {
-			unfinished_lists: ElasticArray16::new(),
-			buffer: ElasticArray1024::new(),
-			finished_list: false,
-		}
-	}
+	// pub fn new() -> Self {
+	// 	RlpStream {
+	// 		unfinished_lists: ElasticArray16::new(),
+	// 		buffer: ElasticArray1024::new(),
+	// 		finished_list: false,
+	// 	}
+	// }
 
 	/// Initializes the `Stream` as a list.
-	pub fn new_list(len: usize) -> Self {
-		let mut stream = RlpStream::new();
-		stream.begin_list(len);
-		stream
-	}
+	// pub fn new_list(len: usize) -> Self {
+	// 	let mut stream = RlpStream::new();
+	// 	stream.begin_list(len);
+	// 	stream
+	// }
 
 	/// Appends value to the end of stream, chainable.
 	///

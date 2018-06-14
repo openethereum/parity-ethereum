@@ -13,9 +13,7 @@ pub trait NodeCodec<H: Hasher>: Sized {
 	fn decode(data: &[u8]) -> Result<Node, Self::E>;
 	fn try_decode_hash(data: &[u8]) -> Option<H::Out>;
 
-	fn new_encoded<'a>(data: &'a [u8]) -> Rlp<'a>;
-	fn encoded_stream() -> Self::S;
-	fn encoded_list(size: usize) -> Self::S;
+	fn is_empty_node(data: &[u8]) -> bool;
 }
 
 #[derive(Default, Clone)]
@@ -93,15 +91,8 @@ where H::Out: Encodable + Decodable
 		}
 	}
 
-	fn new_encoded<'a>(data: &'a [u8]) -> Rlp<'a> {
-		Rlp::new(data)
-	}
-
-	fn encoded_stream() -> RlpStream {
-		RlpStream::new()
-	}
-
-	fn encoded_list(size: usize) -> RlpStream{
-		RlpStream::new_list(size)
+	fn is_empty_node(data: &[u8]) -> bool {
+		// REVIEW: Could also be `Rlp::new(data).is_empty()` – better?
+		data.len() != 0 && (data[0] == 0xC0 || data[0] == 0x80)
 	}
 }

@@ -33,7 +33,7 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::Index;
 
-use rlp::Stream; // TODO: move to own crate?
+use rlp::Stream; // TODO: this should move to own crate, not really rlp-related
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -93,7 +93,7 @@ impl<H: Hasher> Node<H> {
 			})
 	}
 
-	// decode a node from rlp without getting its children.
+	// decode a node from encoded bytes without getting its children.
 	fn from_encoded<C>(data: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> Self
 	where C: NodeCodec<H>
 	{
@@ -108,8 +108,7 @@ impl<H: Hasher> Node<H> {
 			RlpNode::Branch(ref encoded_children, val) => {
 				let mut child = |i:usize| {
 					let raw = encoded_children[i];
-					let encoded_child = C::new_encoded(raw);
-					if !encoded_child.is_empty() {
+					if !C::is_empty_node(raw) {
 						Some(Self::inline_or_hash::<C>(raw, db, storage))
 					} else {
 						None
@@ -128,9 +127,9 @@ impl<H: Hasher> Node<H> {
 		}
 	}
 
-	// encode a node to RLP
+	// 
 	// TODO: parallelize
-	fn into_rlp<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
+	fn into_encoded<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
 	where
 		// F: FnMut(NodeHandle<H>, &mut RlpStream), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
 		F: FnMut(NodeHandle<H>, &mut <C as NodeCodec<H>>::S), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
@@ -138,24 +137,24 @@ impl<H: Hasher> Node<H> {
 	{
 		match self {
 			Node::Empty => {
-				let mut stream = C::encoded_stream();
+				let mut stream = <C as NodeCodec<_>>::S::new();
 				stream.append_empty_data();
 				stream.drain()
 			}
 			Node::Leaf(partial, value) => {
-				let mut stream = C::encoded_list(2);
+				let mut stream = <C as NodeCodec<_>>::S::new_list(2);
 				stream.append(&&*partial);
 				stream.append(&&*value);
 				stream.drain()
 			}
 			Node::Extension(partial, child) => {
-				let mut stream = C::encoded_list(2);
+				let mut stream = <C as NodeCodec<_>>::S::new_list(2);
 				stream.append(&&*partial);
 				child_cb(child, &mut stream);
 				stream.drain()
 			}
 			Node::Branch(mut children, value) => {
-				let mut stream = C::encoded_list(17);
+				let mut stream = <C as NodeCodec<_>>::S::new_list(17);
 				for child in children.iter_mut().map(Option::take) {
 					if let Some(handle) = child {
 						child_cb(handle, &mut stream);
@@ -846,11 +845,11 @@ where H: Hasher,
 
 		match self.storage.destroy(handle) {
 			Stored::New(node) => {
-				let root_rlp = node.into_rlp::<_, C>(|child, stream| self.commit_node(child, stream));
-				*self.root = self.db.insert(&root_rlp[..]);
+				let encoded_root = node.into_encoded::<_, C>(|child, stream| self.commit_node(child, stream));
+				*self.root = self.db.insert(&encoded_root[..]);
 				self.hash_count += 1;
 
-				trace!(target: "trie", "root node rlp: {:?}", (&root_rlp[..]).pretty());
+				trace!(target: "trie", "encoded root node: {:?}", (&encoded_root[..]).pretty());
 				self.root_handle = NodeHandle::Hash(*self.root);
 			}
 			Stored::Cached(node, hash) => {
@@ -862,7 +861,7 @@ where H: Hasher,
 	}
 
 	/// commit a node, hashing it, committing it to the db,
-	/// and writing it to the rlp stream as necessary.
+	/// and writing it to the encoded stream as necessary.
 	// REVIEW: this is causing the `Encodable` bound all the way upstream, precisely it's the `stream.append()` call requires it
 	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut <C as NodeCodec<H>>::S) {
 		match handle {
@@ -870,13 +869,13 @@ where H: Hasher,
 			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
 				Stored::Cached(_, h) => stream.append(&h),
 				Stored::New(node) => {
-					let node_rlp = node.into_rlp::<_, C>(|child, stream| self.commit_node(child, stream));
-					if node_rlp.len() >= 32 {
-						let hash = self.db.insert(&node_rlp[..]);
+					let encoded_node = node.into_encoded::<_, C>(|child, stream| self.commit_node(child, stream));
+					if encoded_node.len() >= 32 {
+						let hash = self.db.insert(&encoded_node[..]);
 						self.hash_count += 1;
 						stream.append(&hash)
 					} else {
-						stream.append_raw(&node_rlp, 1)
+						stream.append_raw(&encoded_node, 1)
 					}
 				}
 			}
