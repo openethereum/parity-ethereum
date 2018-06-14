@@ -1047,7 +1047,8 @@ impl Client {
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at_beginning(&self, id: BlockId) -> Option<State<StateDB>> {
 		match self.block_number(id) {
-			None | Some(0) => None,
+			None => None,
+			Some(0) => self.state_at(id),
 			Some(n) => self.state_at(BlockId::Number(n - 1)),
 		}
 	}
