@@ -10,6 +10,7 @@ use std::borrow::Borrow;
 use byteorder::{ByteOrder, BigEndian};
 use elastic_array::{ElasticArray16, ElasticArray1024};
 use traits::Encodable;
+use trie_node_codec::Stream;
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {
@@ -41,14 +42,14 @@ impl Default for RlpStream {
 	}
 }
 
-pub trait Stream {
-	fn new() -> Self;
-	fn new_list(len: usize) -> Self;
-	fn append_empty_data(&mut self) -> &mut Self;
-	fn drain(self) -> ElasticArray1024<u8>;
-	fn append_bytes<'a>(&'a mut self, bytes: &[u8]) -> &'a mut Self;
-	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self;
-}
+// pub trait Stream {
+// 	fn new() -> Self;
+// 	fn new_list(len: usize) -> Self;
+// 	fn append_empty_data(&mut self) -> &mut Self;
+// 	fn drain(self) -> ElasticArray1024<u8>;
+// 	fn append_bytes<'a>(&'a mut self, bytes: &[u8]) -> &'a mut Self;
+// 	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self;
+// }
 
 impl Stream for RlpStream {
 	fn new() -> Self {
@@ -121,7 +122,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
+	/// extern crate trie_node_codec;
 	/// use rlp::*;
+	/// use trie_node_codec::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -159,7 +162,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
+	/// extern crate trie_node_codec;
 	/// use rlp::*;
+	/// use trie_node_codec::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -208,7 +213,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
+	/// extern crate trie_node_codec;
 	/// use rlp::*;
+	/// use trie_node_codec::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -273,8 +280,10 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
+	/// extern crate trie_node_codec;
 	/// use rlp::*;
-	///
+	/// use trie_node_codec::Stream;
+	/// 
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(3);
 	/// 	stream.append(&"cat");
@@ -295,7 +304,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
+	/// extern crate trie_node_codec;
 	/// use rlp::*;
+	/// use trie_node_codec::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);

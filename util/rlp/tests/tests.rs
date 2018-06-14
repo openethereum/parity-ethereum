@@ -8,10 +8,12 @@
 
 extern crate ethereum_types as bigint;
 extern crate rlp;
+extern crate trie_node_codec;
 
 use std::{fmt, cmp};
 use bigint::{U256, H160};
-use rlp::{Encodable, Decodable, Rlp, Stream, RlpStream, DecoderError};
+use rlp::{Encodable, Decodable, Rlp, RlpStream, DecoderError};
+use trie_node_codec::Stream;
 
 #[test]
 fn rlp_at() {

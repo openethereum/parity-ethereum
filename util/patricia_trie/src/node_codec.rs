@@ -4,7 +4,7 @@ use rlp::{Prototype, Rlp, RlpStream, DecoderError, Decodable, Encodable};
 use hashdb::Hasher;
 use node::Node;
 use std::marker::PhantomData;
-use rlp::Stream;
+use trie_node_codec::Stream;
 
 pub trait NodeCodec<H: Hasher>: Sized {
 	type E: ::std::error::Error;

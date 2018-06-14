@@ -2419,6 +2419,7 @@ dependencies = [
  "memorydb 0.2.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
+ "trie-node-codec 0.1.0",
  "trie-standardmap 0.1.0",
  "triehash 0.1.0",
 ]
@@ -2752,6 +2753,7 @@ dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trie-node-codec 0.1.0",
 ]
 
 [[package]]
@@ -3472,6 +3474,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "trie-node-codec"
+version = "0.1.0"
+dependencies = [
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bytes 0.1.0",
+ "hashdb 0.2.0",
+]
+
+[[package]]
 name = "trie-standardmap"
 version = "0.1.0"
 dependencies = [
@@ -3489,6 +3500,7 @@ dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2",
  "rlp 0.2.1",
+ "trie-node-codec 0.1.0",
  "trie-standardmap 0.1.0",
 ]
 

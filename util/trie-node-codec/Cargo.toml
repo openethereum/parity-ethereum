@@ -1,0 +1,9 @@
+[package]
+name = "trie-node-codec"
+version = "0.1.0"
+authors = ["David Palm <dvdplm@gmail.com>"]
+
+[dependencies]
+hashdb = { version = "0.2", path = "../hashdb" }
+ethcore-bytes = { version = "0.1.0", path = "../bytes" }
+elastic-array = "0.10"

@@ -36,6 +36,7 @@ extern crate byteorder;
 extern crate ethereum_types as bigint;
 extern crate elastic_array;
 extern crate rustc_hex;
+extern crate trie_node_codec;
 
 mod traits;
 mod error;
@@ -43,13 +44,14 @@ mod rlpin;
 mod stream;
 mod impls;
 
-use std::borrow::Borrow;
 use elastic_array::ElasticArray1024;
+use std::borrow::Borrow;
+use trie_node_codec::Stream;
 
 pub use error::DecoderError;
 pub use traits::{Decodable, Encodable};
 pub use rlpin::{Rlp, RlpIterator, PayloadInfo, Prototype};
-pub use stream::{RlpStream, Stream};
+pub use stream::RlpStream;
 
 /// The RLP encoded empty data (used to mean "null value").
 pub const NULL_RLP: [u8; 1] = [0x80; 1];

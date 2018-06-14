@@ -31,8 +31,7 @@ use std::collections::{HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Index;
-
-use rlp::Stream; // TODO: this should move to own crate, not really rlp-related
+use trie_node_codec::Stream;
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -130,8 +129,7 @@ impl<H: Hasher> Node<H> {
 	// TODO: parallelize
 	fn into_encoded<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
 	where
-		// F: FnMut(NodeHandle<H>, &mut RlpStream), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
-		F: FnMut(NodeHandle<H>, &mut <C as NodeCodec<H>>::S), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
+		F: FnMut(NodeHandle<H>, &mut <C as NodeCodec<H>>::S),
 		C: NodeCodec<H>,
 	{
 		match self {

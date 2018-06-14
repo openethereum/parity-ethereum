@@ -15,15 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trie interface and implementation.
-extern crate rand;
-extern crate ethereum_types;
-extern crate keccak_hash as keccak;
-extern crate rlp;
-extern crate hashdb;
-extern crate ethcore_bytes as bytes;
 extern crate elastic_array;
-extern crate memorydb;
+extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
+extern crate ethereum_types;
+extern crate hashdb;
+extern crate keccak_hash as keccak;
+extern crate memorydb;
+extern crate rand;
+extern crate rlp;
+extern crate trie_node_codec;
 
 #[cfg(test)]
 extern crate trie_standardmap as standardmap;
