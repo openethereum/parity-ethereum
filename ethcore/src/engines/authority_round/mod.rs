@@ -715,7 +715,7 @@ const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
 impl IoHandler<()> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<()>) {
-		let remaining = self.step.inner.duration_remaining().as_millis();
+		let remaining = AsMillis::as_millis(&self.step.inner.duration_remaining());
 		io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(remaining))
 			.unwrap_or_else(|e| warn!(target: "engine", "Failed to start consensus step timer: {}.", e))
 	}
@@ -725,7 +725,7 @@ impl IoHandler<()> for TransitionHandler {
 			// NOTE we might be lagging by couple of steps in case the timeout
 			// has not been called fast enough.
 			// Make sure to advance up to the actual step.
-			while self.step.inner.duration_remaining().as_millis() == 0 {
+			while AsMillis::as_millis(&self.step.inner.duration_remaining()) == 0 {
 				self.step.inner.increment();
 				self.step.can_propose.store(true, AtomicOrdering::SeqCst);
 				if let Some(ref weak) = *self.client.read() {
@@ -735,7 +735,7 @@ impl IoHandler<()> for TransitionHandler {
 				}
 			}
 
-			let next_run_at = self.step.inner.duration_remaining().as_millis() >> 2;
+			let next_run_at = AsMillis::as_millis(&self.step.inner.duration_remaining()) >> 2;
 			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(next_run_at))
 				.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 		}
