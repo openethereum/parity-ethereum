@@ -11,7 +11,7 @@ extern crate rlp;
 
 use std::{fmt, cmp};
 use bigint::{U256, H160};
-use rlp::{Encodable, Decodable, Rlp, RlpStream, DecoderError};
+use rlp::{Encodable, Decodable, Rlp, Stream, RlpStream, DecoderError};
 
 #[test]
 fn rlp_at() {

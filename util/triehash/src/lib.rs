@@ -29,6 +29,7 @@ use elastic_array::{ElasticArray4, ElasticArray8};
 use ethereum_types::H256;
 use hash::keccak;
 use rlp::RlpStream;
+use rlp::Stream; // TODO: move to own crate?
 
 fn shared_prefix_len<T: Eq>(first: &[T], second: &[T]) -> usize {
 	let len = cmp::min(first.len(), second.len());

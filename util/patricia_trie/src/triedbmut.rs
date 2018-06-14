@@ -25,13 +25,15 @@ use super::node::NodeKey;
 use bytes::ToPretty;
 use hashdb::{HashDB, Hasher, DBValue};
 use nibbleslice::NibbleSlice;
-use rlp::{RlpStream, Encodable};
+use rlp::Encodable;
 
 use elastic_array::ElasticArray1024;
 use std::collections::{HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Index;
+
+use rlp::Stream; // TODO: move to own crate?
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -78,7 +80,6 @@ enum Node<H: Hasher> {
 	Branch(Box<[Option<NodeHandle<H>>; 16]>, Option<DBValue>)
 }
 
-// impl<H: Hasher> Node<H> where H::Out: Decodable {
 impl<H: Hasher> Node<H> {
 	// load an inline node into memory or get the hash to do the lookup later.
 	fn inline_or_hash<C>(node: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> NodeHandle<H> 
@@ -130,9 +131,10 @@ impl<H: Hasher> Node<H> {
 	// encode a node to RLP
 	// TODO: parallelize
 	fn into_rlp<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
-		where
-			F: FnMut(NodeHandle<H>, &mut RlpStream), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
-			C: NodeCodec<H>,
+	where
+		// F: FnMut(NodeHandle<H>, &mut RlpStream), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
+		F: FnMut(NodeHandle<H>, &mut <C as NodeCodec<H>>::S), // REVIEW: how can I use the NodeCodec associated type instead? Causes lifetime issues in `commit_node()`
+		C: NodeCodec<H>,
 	{
 		match self {
 			Node::Empty => {
@@ -862,7 +864,7 @@ where H: Hasher,
 	/// commit a node, hashing it, committing it to the db,
 	/// and writing it to the rlp stream as necessary.
 	// REVIEW: this is causing the `Encodable` bound all the way upstream, precisely it's the `stream.append()` call requires it
-	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut RlpStream) {
+	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut <C as NodeCodec<H>>::S) {
 		match handle {
 			NodeHandle::Hash(h) => stream.append(&h),
 			NodeHandle::InMemory(h) => match self.storage.destroy(h) {

@@ -1,21 +1,21 @@
-use bytes::*;
+use bytes::Bytes;
 use nibbleslice::NibbleSlice;
 use rlp::{Prototype, Rlp, RlpStream, DecoderError, Decodable, Encodable};
 use hashdb::Hasher;
 use node::Node;
 use std::marker::PhantomData;
+use rlp::Stream;
 
 pub trait NodeCodec<H: Hasher>: Sized {
 	type E: ::std::error::Error;
+	type S: Stream;
 	fn encode(&Node) -> Bytes;
 	fn decode(data: &[u8]) -> Result<Node, Self::E>;
 	fn try_decode_hash(data: &[u8]) -> Option<H::Out>;
 
-	// TODO: We don't want these here, but where do they go? Helper trait?
 	fn new_encoded<'a>(data: &'a [u8]) -> Rlp<'a>;
-	fn encoded_stream() -> RlpStream;
-	fn encoded_list(size: usize) -> RlpStream;
-
+	fn encoded_stream() -> Self::S;
+	fn encoded_list(size: usize) -> Self::S;
 }
 
 #[derive(Default, Clone)]
@@ -25,6 +25,7 @@ impl<H: Hasher> NodeCodec<H> for RlpNodeCodec<H>
 where H::Out: Encodable + Decodable
 {
 	type E = DecoderError;
+	type S = RlpStream;
 	fn encode(node: &Node) -> Bytes {
 		match *node {
 			Node::Leaf(ref slice, ref value) => {
@@ -103,5 +104,4 @@ where H::Out: Encodable + Decodable
 	fn encoded_list(size: usize) -> RlpStream{
 		RlpStream::new_list(size)
 	}
-
 }
