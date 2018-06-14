@@ -20,8 +20,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV
 use std::io;
 use igd::{PortMappingProtocol, search_gateway_from_timeout};
 use std::time::Duration;
-use node_table::{NodeEndpoint};
-use ipnetwork::{IpNetwork};
+use node_table::NodeEndpoint;
+use ipnetwork::IpNetwork;
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {
