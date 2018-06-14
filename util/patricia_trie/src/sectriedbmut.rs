@@ -17,7 +17,6 @@
 use hashdb::{HashDB, DBValue, Hasher};
 use super::triedbmut::TrieDBMut;
 use super::TrieMut;
-use rlp::Encodable;
 use node_codec::NodeCodec;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
@@ -26,7 +25,6 @@ use node_codec::NodeCodec;
 pub struct SecTrieDBMut<'db, H, C>
 where 
 	H: Hasher + 'db, 
-	H::Out: Encodable, 
 	C: NodeCodec<H>
 {
 	raw: TrieDBMut<'db, H, C>
@@ -35,7 +33,6 @@ where
 impl<'db, H, C> SecTrieDBMut<'db, H, C>
 where 
 	H: Hasher, 
-	H::Out: Encodable, 
 	C: NodeCodec<H>
 {
 	/// Create a new trie with the backing database `db` and empty `root`
@@ -62,7 +59,6 @@ where
 impl<'db, H, C> TrieMut for SecTrieDBMut<'db, H, C>
 where 
 	H: Hasher, 
-	H::Out: Encodable, 
 	C: NodeCodec<H>
 {
 	type H = H;

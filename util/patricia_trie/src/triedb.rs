@@ -303,7 +303,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 	/// Descend into a payload.
 	fn descend(&mut self, d: &[u8]) -> super::Result<(), H::Out> {
 		let node_data = &self.db.get_raw_or_lookup(d)?;
-		let node = C::decode(&node_data).expect("rlp read from db; qed");
+		let node = C::decode(&node_data).expect("encoded node read from db; qed");
 		Ok(self.descend_into_node(node.into()))
 	}
 

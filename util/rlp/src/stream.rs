@@ -46,7 +46,7 @@ pub trait Stream {
 	fn new_list(len: usize) -> Self;
 	fn append_empty_data(&mut self) -> &mut Self;
 	fn drain(self) -> ElasticArray1024<u8>;
-	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable;
+	fn append_bytes<'a>(&'a mut self, bytes: &[u8]) -> &'a mut Self;
 	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self;
 }
 
@@ -81,12 +81,10 @@ impl Stream for RlpStream {
 		}
 	}
 
-	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable {
+	fn append_bytes<'a>(&'a mut self, bytes: &[u8]) -> &'a mut Self {
 		self.finished_list = false;
-		value.rlp_append(self);
-		if !self.finished_list {
-			self.note_appended(1);
-		}
+		self.encoder().encode_value(bytes);
+		if !self.finished_list { self.note_appended(1) }
 		self
 	}
 
@@ -132,14 +130,14 @@ impl RlpStream {
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	// pub fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable {
-	// 	self.finished_list = false;
-	// 	value.rlp_append(self);
-	// 	if !self.finished_list {
-	// 		self.note_appended(1);
-	// 	}
-	// 	self
-	// }
+	pub fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable {
+		self.finished_list = false;
+		value.rlp_append(self);
+		if !self.finished_list {
+			self.note_appended(1);
+		}
+		self
+	}
 
 	/// Appends list of values to the end of stream, chainable.
 	pub fn append_list<'a, E, K>(&'a mut self, values: &[K]) -> &'a mut Self where E: Encodable, K: Borrow<E> {

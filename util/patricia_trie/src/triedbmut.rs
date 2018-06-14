@@ -25,7 +25,6 @@ use super::node::NodeKey;
 use bytes::ToPretty;
 use hashdb::{HashDB, Hasher, DBValue};
 use nibbleslice::NibbleSlice;
-use rlp::Encodable;
 
 use elastic_array::ElasticArray1024;
 use std::collections::{HashSet, VecDeque};
@@ -143,13 +142,13 @@ impl<H: Hasher> Node<H> {
 			}
 			Node::Leaf(partial, value) => {
 				let mut stream = <C as NodeCodec<_>>::S::new_list(2);
-				stream.append(&&*partial);
-				stream.append(&&*value);
+				stream.append_bytes(&&*partial);
+				stream.append_bytes(&&*value);
 				stream.drain()
 			}
 			Node::Extension(partial, child) => {
 				let mut stream = <C as NodeCodec<_>>::S::new_list(2);
-				stream.append(&&*partial);
+				stream.append_bytes(&&*partial);
 				child_cb(child, &mut stream);
 				stream.drain()
 			}
@@ -163,7 +162,7 @@ impl<H: Hasher> Node<H> {
 					}
 				}
 				if let Some(value) = value {
-					stream.append(&&*value);
+					stream.append_bytes(&&*value);
 				} else {
 					stream.append_empty_data();
 				}
@@ -301,7 +300,6 @@ impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
 pub struct TrieDBMut<'a, H, C>
 where
 	H: Hasher + 'a,
-	H::Out: Encodable,
 	C: NodeCodec<H>
 {
 	storage: NodeStorage<H>,
@@ -317,7 +315,6 @@ where
 
 impl<'a, H, C> TrieDBMut<'a, H, C>
 where H: Hasher,
-		H::Out: Encodable,
 		C: NodeCodec<H>
 {
 	/// Create a new trie with backing database `db` and empty `root`.
@@ -865,15 +862,19 @@ where H: Hasher,
 	// REVIEW: this is causing the `Encodable` bound all the way upstream, precisely it's the `stream.append()` call requires it
 	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut <C as NodeCodec<H>>::S) {
 		match handle {
-			NodeHandle::Hash(h) => stream.append(&h),
+			NodeHandle::Hash(h) => {
+				stream.append_bytes(&h.as_ref())
+			},
 			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
-				Stored::Cached(_, h) => stream.append(&h),
+				Stored::Cached(_, h) => {
+					stream.append_bytes(&h.as_ref())
+				},
 				Stored::New(node) => {
 					let encoded_node = node.into_encoded::<_, C>(|child, stream| self.commit_node(child, stream));
 					if encoded_node.len() >= 32 {
 						let hash = self.db.insert(&encoded_node[..]);
 						self.hash_count += 1;
-						stream.append(&hash)
+						stream.append_bytes(&hash.as_ref())
 					} else {
 						stream.append_raw(&encoded_node, 1)
 					}
@@ -893,7 +894,6 @@ where H: Hasher,
 
 impl<'a, H, C> TrieMut for TrieDBMut<'a, H, C>
 where H: Hasher,
-		H::Out:Encodable,
 		C: NodeCodec<H>
 {
 	type H = H;
@@ -966,7 +966,6 @@ where H: Hasher,
 impl<'a, H, C> Drop for TrieDBMut<'a, H, C>
 where
 	H: Hasher,
-	H::Out: Encodable,
 	C: NodeCodec<H>
 {
 	fn drop(&mut self) {
