@@ -256,6 +256,7 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 				&ChainRouteType::Retracted =>
 					Ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
 						log.log_type = "removed".into();
+						log.removed = true;
 						log
 					}).collect()),
 			}

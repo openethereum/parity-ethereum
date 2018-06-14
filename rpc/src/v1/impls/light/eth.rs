@@ -529,8 +529,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 
-	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
-		self.client.block_hash(id).map(Into::into)
+	fn block_hash(&self, id: BlockId) -> Option<::ethereum_types::H256> {
+		self.client.block_hash(id)
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<::ethereum_types::H256> {
@@ -547,6 +547,10 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
 		&self.polls
+	}
+
+	fn removed_logs(&self, _block_hash: ::ethereum_types::H256, _filter: &EthcoreFilter) -> (Vec<Log>, u64) {
+		(Default::default(), 0)
 	}
 }
 
