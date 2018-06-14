@@ -61,6 +61,11 @@ pub fn new_expanse<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/expanse.json"))
 }
 
+/// Create a new Tobalaba chain spec.
+pub fn new_tobalaba<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/tobalaba.json"))
+}
+
 /// Create a new Musicoin mainnet chain spec.
 pub fn new_musicoin<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/musicoin.json"))
