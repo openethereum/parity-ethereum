@@ -16,27 +16,20 @@
 
 //! Tests for the snapshot service.
 
+use std::fs;
 use std::sync::Arc;
 
 use tempdir::TempDir;
 use client::{Client, BlockInfo};
 use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
-use snapshot::{self, ManifestData, SnapshotService};
+use snapshot::{ManifestData, SnapshotService, RestorationStatus};
 use spec::Spec;
 use test_helpers::generate_dummy_client_with_spec_and_data;
 use test_helpers_internal::restoration_db_handler;
 
 use io::IoChannel;
 use kvdb_rocksdb::{Database, DatabaseConfig};
-
-struct NoopDBRestore;
-
-impl snapshot::DatabaseRestore for NoopDBRestore {
-	fn restore_db(&self, _new_db: &str) -> Result<(), ::error::Error> {
-		Ok(())
-	}
-}
 
 #[test]
 fn restored_is_equivalent() {
@@ -90,7 +83,7 @@ fn restored_is_equivalent() {
 		service.feed_block_chunk(hash, &chunk);
 	}
 
-	assert_eq!(service.status(), ::snapshot::RestorationStatus::Inactive);
+	assert_eq!(service.status(), RestorationStatus::Inactive);
 
 	for x in 0..NUM_BLOCKS {
 		let block1 = client.block(BlockId::Number(x as u64)).unwrap();
@@ -144,4 +137,82 @@ fn guards_delete_folders() {
 	drop(service);
 	assert!(!path.join("db").exists());
 	assert!(path.join("temp").exists());
+}
+
+#[test]
+fn recover_aborted_recovery() {
+	const NUM_BLOCKS: u32 = 400;
+	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
+	let client = generate_dummy_client_with_spec_and_data(Spec::new_null, NUM_BLOCKS, 5, &gas_prices);
+
+	let spec = Spec::new_null();
+	let tempdir = TempDir::new("").unwrap();
+	let client_db = tempdir.path().join("client_db");
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Database::open(&db_config, client_db.to_str().unwrap()).unwrap();
+	let client2 = Client::new(
+		Default::default(),
+		&spec,
+		Arc::new(client_db),
+		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
+		IoChannel::disconnected(),
+	).unwrap();
+	let service_params = ServiceParams {
+		engine: spec.engine.clone(),
+		genesis_block: spec.genesis_block(),
+		restoration_db_handler: restoration_db_handler(db_config),
+		pruning: ::journaldb::Algorithm::Archive,
+		channel: IoChannel::disconnected(),
+		snapshot_root: tempdir.path().to_owned(),
+		client: client2.clone(),
+	};
+
+	let service = Service::new(service_params).unwrap();
+	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
+
+	let manifest = service.manifest().unwrap();
+	service.init_restore(manifest.clone(), true).unwrap();
+
+	// Restore only the block chunks
+	for hash in &manifest.state_hashes {
+		let chunk = service.chunk(*hash).unwrap();
+		service.feed_state_chunk(*hash, &chunk);
+	}
+
+	match service.status() {
+		RestorationStatus::Ongoing { block_chunks_done, state_chunks_done, .. } => {
+			assert_eq!(state_chunks_done, manifest.state_hashes.len() as u32);
+			assert_eq!(block_chunks_done, 0);
+		},
+		_ => panic!("Snapshot restoration must be ongoing"),
+	}
+
+	// Abort the restore...
+	service.abort_restore();
+
+	// And try again!
+	service.init_restore(manifest.clone(), true).unwrap();
+
+	match service.status() {
+		RestorationStatus::Ongoing { block_chunks_done, state_chunks_done, .. } => {
+			assert_eq!(state_chunks_done, manifest.state_hashes.len() as u32);
+			assert_eq!(block_chunks_done, 0);
+		},
+		_ => panic!("Snapshot restoration must be ongoing"),
+	}
+
+	// Remove the snapshot directory, and restart the restoration
+	// It shouldn't have restored any previous blocks
+	fs::remove_dir_all(tempdir.path()).unwrap();
+
+	// And try again!
+	service.init_restore(manifest.clone(), true).unwrap();
+
+	match service.status() {
+		RestorationStatus::Ongoing { block_chunks_done, state_chunks_done, .. } => {
+			assert_eq!(block_chunks_done, 0);
+			assert_eq!(state_chunks_done, 0);
+		},
+		_ => panic!("Snapshot restoration must be ongoing"),
+	}
 }

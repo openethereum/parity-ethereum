@@ -900,20 +900,11 @@ mod tests {
 	use io::{IoService};
 	use spec::Spec;
 	use journaldb::Algorithm;
-	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 	use tempdir::TempDir;
 	use test_helpers::generate_dummy_client_with_spec_and_data;
 	use test_helpers_internal::restoration_db_handler;
-
-
-	struct NoopDBRestore;
-	impl DatabaseRestore for NoopDBRestore {
-		fn restore_db(&self, _new_db: &str) -> Result<(), Error> {
-			Ok(())
-		}
-	}
 
 	#[test]
 	fn sends_async_messages() {
