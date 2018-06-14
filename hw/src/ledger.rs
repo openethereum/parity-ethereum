@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ledger hardware wallet module. Supports Ledger Blue and Nano S.
-/// See <https://github.com/LedgerHQ/blue-app-eth/blob/master/doc/ethapp.asc> for protocol details.
+//! See <https://github.com/LedgerHQ/blue-app-eth/blob/master/doc/ethapp.asc> for protocol details.
 
 use std::cmp::min;
 use std::str::FromStr;
@@ -364,7 +364,7 @@ impl Manager {
 }
 
 // Try to connect to the device using polling in at most the time specified by the `timeout`
-fn try_connect_polling(ledger: &Arc<Manager>, timeout: &Duration, device_direction: DeviceDirection) -> bool {
+fn try_connect_polling(ledger: &Manager, timeout: &Duration, device_direction: DeviceDirection) -> bool {
 	let start_time = Instant::now();
 	while start_time.elapsed() <= *timeout {
 		if let Ok(num_devices) = ledger.update_devices(device_direction) {

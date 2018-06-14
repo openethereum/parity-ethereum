@@ -433,7 +433,7 @@ impl <'a>Wallet<'a> for Manager {
 }
 
 // Try to connect to the device using polling in at most the time specified by the `timeout`
-fn try_connect_polling(trezor: &Arc<Manager>, duration: &Duration, dir: DeviceDirection) -> bool {
+fn try_connect_polling(trezor: &Manager, duration: &Duration, dir: DeviceDirection) -> bool {
 	let start_time = Instant::now();
 	while start_time.elapsed() <= *duration {
 		if let Ok(num_devices) = trezor.update_devices(dir) {
