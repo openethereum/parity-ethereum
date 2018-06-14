@@ -429,6 +429,8 @@ pub struct InitializeConsensusSessionWithServersSet {
 pub struct InitializeConsensusSessionOfShareAdd {
 	/// Key version.
 	pub version: SerializableH256,
+	/// Nodes that have reported version ownership.
+	pub version_holders: BTreeSet<MessageNodeId>,
 	/// threshold+1 nodes from old_nodes_set selected for shares redistribution.
 	pub consensus_group: BTreeSet<MessageNodeId>,
 	/// Old nodes set: all non-isolated owners of selected key share version.
@@ -876,6 +878,8 @@ pub struct InitializeShareChangeSession {
 	pub key_id: MessageSessionId,
 	/// Key vesion to use in ShareAdd session.
 	pub version: SerializableH256,
+	/// Nodes that have confirmed version ownership.
+	pub version_holders: BTreeSet<MessageNodeId>,
 	/// Master node.
 	pub master_node_id: MessageNodeId,
 	/// Consensus group to use in ShareAdd session.
@@ -1039,6 +1043,16 @@ pub struct KeyVersionsError {
 	pub session_nonce: u64,
 	/// Error message.
 	pub error: Error,
+	/// Continue action from failed node (if any). This field is oly filled
+	/// when error has occured when trying to compute result on master node.
+	pub continue_with: Option<FailedKeyVersionContinueAction>,
+}
+
+/// Key version continue action from failed node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum FailedKeyVersionContinueAction {
+	/// Decryption session: origin + requester.
+	Decrypt(Option<SerializableAddress>, SerializableAddress),
 }
 
 impl Message {
@@ -1059,6 +1073,7 @@ impl Message {
 				_ => false
 			},
 			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(_)) => true,
+			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(ref msg)) if msg.continue_with.is_some() => true,
 			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref msg)) => match msg.message {
 				ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => true,
 				_ => false
