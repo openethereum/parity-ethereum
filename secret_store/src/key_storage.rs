@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -347,7 +347,6 @@ impl DocumentKeyShareVersion {
 			secret_share: secret_share,
 		}
 	}
-
 
 	/// Calculate hash of given version data.
 	pub fn data_hash<'a, I>(id_numbers: I) -> H256 where I: Iterator<Item=(&'a [u8], &'a [u8])> {

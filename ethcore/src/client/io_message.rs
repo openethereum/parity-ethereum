@@ -54,4 +54,3 @@ impl fmt::Debug for Callback {
 		write!(fmt, "<callback>")
 	}
 }
-

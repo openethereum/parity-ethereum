@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@ use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Result;
 use v1::helpers::errors;
-use v1::helpers::accounts::unwrap_provider;
 use v1::helpers::secretstore::{generate_document_key, encrypt_document,
 	decrypt_document, decrypt_document_with_shadow, ordered_servers_keccak};
 use v1::traits::SecretStore;
@@ -33,27 +32,20 @@ use v1::types::{H160, H256, H512, Bytes, EncryptedDocumentKey};
 
 /// Parity implementation.
 pub struct SecretStoreClient {
-	accounts: Option<Arc<AccountProvider>>,
+	accounts: Arc<AccountProvider>,
 }
 
 impl SecretStoreClient {
 	/// Creates new SecretStoreClient
-	pub fn new(store: &Option<Arc<AccountProvider>>) -> Self {
+	pub fn new(store: &Arc<AccountProvider>) -> Self {
 		SecretStoreClient {
 			accounts: store.clone(),
 		}
 	}
 
-	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		unwrap_provider(&self.accounts)
-	}
-
 	/// Decrypt public key using account' private key
 	fn decrypt_key(&self, address: H160, password: String, key: Bytes) -> Result<Vec<u8>> {
-		let store = self.account_provider()?;
-		store.decrypt(address.into(), Some(password), &DEFAULT_MAC, &key.0)
+		self.accounts.decrypt(address.into(), Some(password), &DEFAULT_MAC, &key.0)
 			.map_err(|e| errors::account("Could not decrypt key.", e))
 	}
 
@@ -66,8 +58,7 @@ impl SecretStoreClient {
 
 impl SecretStore for SecretStoreClient {
 	fn generate_document_key(&self, address: H160, password: String, server_key_public: H512) -> Result<EncryptedDocumentKey> {
-		let store = self.account_provider()?;
-		let account_public = store.account_public(address.into(), &password)
+		let account_public = self.accounts.account_public(address.into(), &password)
 			.map_err(|e| errors::account("Could not read account public.", e))?;
 		generate_document_key(account_public, server_key_public.into())
 	}
@@ -97,8 +88,7 @@ impl SecretStore for SecretStoreClient {
 	}
 
 	fn sign_raw_hash(&self, address: H160, password: String, raw_hash: H256) -> Result<Bytes> {
-		let store = self.account_provider()?;
-		store
+		self.accounts
 			.sign(address.into(), Some(password), raw_hash.into())
 			.map(|s| Bytes::new((*s).to_vec()))
 			.map_err(|e| errors::account("Could not sign raw hash.", e))

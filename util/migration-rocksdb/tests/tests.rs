@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -118,7 +118,6 @@ impl Migration for AddsColumn {
 		for (key, value) in source.iter(col).into_iter().flat_map(|inner| inner) {
 			batch.insert(key.into_vec(), value.into_vec(), dest)?;
 		}
-
 
 		if col == Some(1) {
 			batch.insert(vec![1, 2, 3], vec![4, 5, 6], dest)?;

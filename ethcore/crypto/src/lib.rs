@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -74,4 +74,3 @@ pub fn derive_mac(derived_left_bits: &[u8], cipher_text: &[u8]) -> Vec<u8> {
 pub fn is_equal(a: &[u8], b: &[u8]) -> bool {
 	ring::constant_time::verify_slices_are_equal(a, b).is_ok()
 }
-

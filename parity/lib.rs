@@ -17,6 +17,7 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
+#![cfg_attr(feature = "memory_profiling", feature(alloc_system, global_allocator, allocator_api))]
 
 extern crate ansi_term;
 extern crate docopt;
@@ -76,7 +77,7 @@ extern crate registrar;
 #[macro_use]
 extern crate log as rlog;
 
-#[cfg(feature="secretstore")]
+#[cfg(feature = "secretstore")]
 extern crate ethcore_secretstore;
 
 #[cfg(feature = "dapps")]
@@ -90,6 +91,9 @@ extern crate pretty_assertions;
 
 #[cfg(test)]
 extern crate tempdir;
+
+#[cfg(feature = "memory_profiling")]
+extern crate alloc_system;
 
 mod account;
 mod blockchain;
@@ -118,18 +122,22 @@ mod user_defaults;
 mod whisper;
 mod db;
 
-use std::net::{TcpListener};
 use std::io::BufReader;
 use std::fs::File;
-use ansi_term::Style;
 use hash::keccak_buffer;
 use cli::Args;
 use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
-use ethcore_logger::{Config as LogConfig, setup_log};
+use ethcore_logger::setup_log;
+#[cfg(feature = "memory_profiling")]
+use alloc_system::System;
 
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
+
+#[cfg(feature = "memory_profiling")]
+#[global_allocator]
+static A: System = System;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
@@ -140,6 +148,36 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
 	}
 }
+
+#[cfg(feature = "deadlock_detection")]
+fn run_deadlock_detection_thread() {
+	use std::thread;
+	use std::time::Duration;
+	use parking_lot::deadlock;
+	use ansi_term::Style;
+
+	info!("Starting deadlock detection thread.");
+	// Create a background thread which checks for deadlocks every 10s
+	thread::spawn(move || {
+		loop {
+			thread::sleep(Duration::from_secs(10));
+			let deadlocks = deadlock::check_deadlock();
+			if deadlocks.is_empty() {
+				continue;
+			}
+
+			warn!("{} {} detected", deadlocks.len(), Style::new().bold().paint("deadlock(s)"));
+			for (i, threads) in deadlocks.iter().enumerate() {
+				warn!("{} #{}", Style::new().bold().paint("Deadlock"), i);
+				for t in threads {
+					warn!("Thread Id {:#?}", t.thread_id());
+					warn!("{:#?}", t.backtrace());
+				}
+			}
+		}
+	});
+}
+
 
 /// Action that Parity performed when running `start`.
 pub enum ExecutionAction {
@@ -161,26 +199,11 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 	// 		they want
 	let logger = setup_log(&command.logger).expect("Logger is initialized only once; qed");
 
+	#[cfg(feature = "deadlock_detection")]
+	run_deadlock_detection_thread();
+
 	match command.cmd {
 		Cmd::Run(run_cmd) => {
-			if run_cmd.ui_conf.enabled && !run_cmd.ui_conf.info_page_only {
-				warn!("{}", Style::new().bold().paint("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
-				warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
-			}
-
-			if run_cmd.ui && run_cmd.dapps_conf.enabled {
-				// Check if Parity is already running
-				let addr = format!("{}:{}", run_cmd.ui_conf.interface, run_cmd.ui_conf.port);
-				if !TcpListener::bind(&addr as &str).is_ok() {
-					return open_ui(&run_cmd.ws_conf, &run_cmd.ui_conf, &run_cmd.logger_config).map(|_| ExecutionAction::Instant(None));
-				}
-			}
-
-			// start ui
-			if run_cmd.ui {
-				open_ui(&run_cmd.ws_conf, &run_cmd.ui_conf, &run_cmd.logger_config)?;
-			}
-
 			if let Some(ref dapp) = run_cmd.dapp {
 				open_dapp(&run_cmd.dapps_conf, &run_cmd.http_conf, dapp)?;
 			}
@@ -193,7 +216,7 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| ExecutionAction::Instant(None)),
-		Cmd::SignerToken(ws_conf, ui_conf, logger_config) => signer::execute(ws_conf, ui_conf, logger_config).map(|s| ExecutionAction::Instant(Some(s))),
+		Cmd::SignerToken(ws_conf, logger_config) => signer::execute(ws_conf, logger_config).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
@@ -223,19 +246,6 @@ pub fn start<Cr, Rr>(conf: Configuration, on_client_rq: Cr, on_updater_rq: Rr) -
 	}
 
 	execute(conf.into_command()?, on_client_rq, on_updater_rq)
-}
-
-fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<(), String> {
-	if !ui_conf.enabled {
-		return Err("Cannot use UI command with UI turned off.".into())
-	}
-
-	let token = signer::generate_token_and_url(ws_conf, ui_conf, logger_config)?;
-	// Open a browser
-	url::open(&token.url).map_err(|e| format!("{}", e))?;
-	// Print a message
-	println!("{}", token.message);
-	Ok(())
 }
 
 fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfiguration, dapp: &str) -> Result<(), String> {

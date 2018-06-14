@@ -26,10 +26,6 @@ usage! {
 		// Arguments must start with arg_
 		// Flags must start with flag_
 
-		CMD cmd_ui {
-			"Manage ui",
-		}
-
 		CMD cmd_dapp
 		{
 			"Manage dapps",
@@ -240,10 +236,6 @@ usage! {
 	{
 		// Global flags and arguments
 		["Operating Options"]
-			FLAG flag_public_node: (bool) = false, or |c: &Config| c.parity.as_ref()?.public_node.clone(),
-			"--public-node",
-			"Start Parity as a public web server. Account storage and transaction signing will be delegated to the UI.",
-
 			FLAG flag_no_download: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_download.clone(),
 			"--no-download",
 			"Normally new releases will be downloaded ready for updating. This disables it. Not recommended.",
@@ -380,34 +372,9 @@ usage! {
 			"Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
 
 		["UI options"]
-			FLAG flag_force_ui: (bool) = false, or |c: &Config| c.ui.as_ref()?.force.clone(),
-			"--force-ui",
-			"Enable Trusted UI WebSocket endpoint, even when --unlock is in use.",
-
-			FLAG flag_no_ui: (bool) = false, or |c: &Config| c.ui.as_ref()?.disable.clone(),
-			"--no-ui",
-			"Disable Trusted UI WebSocket endpoint.",
-
-			// NOTE [todr] For security reasons don't put this to config files
-			FLAG flag_ui_no_validation: (bool) = false, or |_| None,
-			"--ui-no-validation",
-			"Disable Origin and Host headers validation for Trusted UI. WARNING: INSECURE. Used only for development.",
-
-			ARG arg_ui_interface: (String) = "local", or |c: &Config| c.ui.as_ref()?.interface.clone(),
-			"--ui-interface=[IP]",
-			"Specify the hostname portion of the Trusted UI server, IP should be an interface's IP address, or local.",
-
-			ARG arg_ui_hosts: (String) = "none", or |c: &Config| c.ui.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
-			"--ui-hosts=[HOSTS]",
-			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\",.",
-
 			ARG arg_ui_path: (String) = "$BASE/signer", or |c: &Config| c.ui.as_ref()?.path.clone(),
 			"--ui-path=[PATH]",
 			"Specify directory where Trusted UIs tokens should be stored.",
-
-			ARG arg_ui_port: (u16) = 8180u16, or |c: &Config| c.ui.as_ref()?.port.clone(),
-			"--ui-port=[PORT]",
-			"Specify the port of Trusted UI server.",
 
 		["Networking options"]
 			FLAG flag_no_warp: (bool) = false, or |c: &Config| c.network.as_ref()?.warp.clone().map(|w| !w),
@@ -437,6 +404,10 @@ usage! {
 			ARG arg_port: (u16) = 30303u16, or |c: &Config| c.network.as_ref()?.port.clone(),
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
+
+			ARG arg_interface: (String)  = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
+			"--interface=[IP]",
+			"Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want parity to listen to.",
 
 			ARG arg_min_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
 			"--min-peers=[NUM]",
@@ -948,6 +919,34 @@ usage! {
 			"--rpc",
 			"Does nothing; JSON-RPC is on by default now.",
 
+			FLAG flag_public_node: (bool) = false, or |_| None,
+			"--public-node",
+			"Does nothing; Public node is removed from Parity.",
+
+			FLAG flag_force_ui: (bool) = false, or |_| None,
+			"--force-ui",
+			"Does nothing; UI is now a separate project.",
+
+			FLAG flag_no_ui: (bool) = false, or |_| None,
+			"--no-ui",
+			"Does nothing; UI is now a separate project.",
+
+			FLAG flag_ui_no_validation: (bool) = false, or |_| None,
+			"--ui-no-validation",
+			"Does nothing; UI is now a separate project.",
+
+			ARG arg_ui_interface: (String) = "local", or |_| None,
+			"--ui-interface=[IP]",
+			"Does nothing; UI is now a separate project.",
+
+			ARG arg_ui_hosts: (String) = "none", or |_| None,
+			"--ui-hosts=[HOSTS]",
+			"Does nothing; UI is now a separate project.",
+
+			ARG arg_ui_port: (u16) = 8180u16, or |_| None,
+			"--ui-port=[PORT]",
+			"Does nothing; UI is now a separate project.",
+
 			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
 			"--dapps-port=[PORT]",
 			"Dapps server is merged with RPC server. Use --jsonrpc-port.",
@@ -1070,7 +1069,6 @@ struct Operating {
 	auto_update_delay: Option<u16>,
 	auto_update_check_frequency: Option<u16>,
 	release_track: Option<String>,
-	public_node: Option<bool>,
 	no_download: Option<bool>,
 	no_consensus: Option<bool>,
 	chain: Option<String>,
@@ -1081,6 +1079,9 @@ struct Operating {
 	light: Option<bool>,
 	no_persistent_txqueue: Option<bool>,
 	no_hardcoded_sync: Option<bool>,
+
+	#[serde(rename="public_node")]
+	_legacy_public_node: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1109,12 +1110,18 @@ struct PrivateTransactions {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Ui {
-	force: Option<bool>,
-	disable: Option<bool>,
-	port: Option<u16>,
-	interface: Option<String>,
-	hosts: Option<Vec<String>>,
 	path: Option<String>,
+
+	#[serde(rename="force")]
+	_legacy_force: Option<bool>,
+	#[serde(rename="disable")]
+	_legacy_disable: Option<bool>,
+	#[serde(rename="port")]
+	_legacy_port: Option<u16>,
+	#[serde(rename="interface")]
+	_legacy_interface: Option<String>,
+	#[serde(rename="hosts")]
+	_legacy_hosts: Option<Vec<String>>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1123,6 +1130,7 @@ struct Network {
 	warp: Option<bool>,
 	warp_barrier: Option<u64>,
 	port: Option<u16>,
+	interface: Option<String>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
 	snapshot_peers: Option<u16>,
@@ -1402,15 +1410,13 @@ mod tests {
 		let args = Args::parse(&["parity", "--secretstore-nodes", "abc@127.0.0.1:3333,cde@10.10.10.10:4444"]).unwrap();
 		assert_eq!(args.arg_secretstore_nodes, "abc@127.0.0.1:3333,cde@10.10.10.10:4444");
 
-		let args = Args::parse(&["parity", "--password", "~/.safe/1", "--password", "~/.safe/2", "--ui-port", "8123", "ui"]).unwrap();
+		let args = Args::parse(&["parity", "--password", "~/.safe/1", "--password", "~/.safe/2", "--ui-port", "8123"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
 		assert_eq!(args.arg_ui_port, 8123);
-		assert_eq!(args.cmd_ui, true);
 
-		let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2", "--ui-port", "8123", "ui"]).unwrap();
+		let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2", "--ui-port", "8123"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
 		assert_eq!(args.arg_ui_port, 8123);
-		assert_eq!(args.cmd_ui, true);
 	}
 
 	#[test]
@@ -1474,7 +1480,6 @@ mod tests {
 		// then
 		assert_eq!(args, Args {
 			// Commands
-			cmd_ui: false,
 			cmd_dapp: false,
 			cmd_daemon: false,
 			cmd_account: false,
@@ -1564,7 +1569,7 @@ mod tests {
 			flag_force_ui: false,
 			flag_no_ui: false,
 			arg_ui_port: 8180u16,
-			arg_ui_interface: "127.0.0.1".into(),
+			arg_ui_interface: "local".into(),
 			arg_ui_hosts: "none".into(),
 			arg_ui_path: "$HOME/.parity/signer".into(),
 			flag_ui_no_validation: false,
@@ -1572,6 +1577,7 @@ mod tests {
 			// -- Networking Options
 			flag_no_warp: false,
 			arg_port: 30303u16,
+			arg_interface: "all".into(),
 			arg_min_peers: Some(25u16),
 			arg_max_peers: Some(50u16),
 			arg_max_pending_peers: 64u16,
@@ -1797,7 +1803,6 @@ mod tests {
 				auto_update_delay: None,
 				auto_update_check_frequency: None,
 				release_track: None,
-				public_node: None,
 				no_download: None,
 				no_consensus: None,
 				chain: Some("./chain.json".into()),
@@ -1808,6 +1813,7 @@ mod tests {
 				light: None,
 				no_hardcoded_sync: None,
 				no_persistent_txqueue: None,
+				_legacy_public_node: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
@@ -1818,17 +1824,18 @@ mod tests {
 				fast_unlock: None,
 			}),
 			ui: Some(Ui {
-				force: None,
-				disable: Some(true),
-				port: None,
-				interface: None,
-				hosts: None,
 				path: None,
+				_legacy_force: None,
+				_legacy_disable: Some(true),
+				_legacy_port: None,
+				_legacy_interface: None,
+				_legacy_hosts: None,
 			}),
 			network: Some(Network {
 				warp: Some(false),
 				warp_barrier: None,
 				port: None,
+				interface: None,
 				min_peers: Some(10),
 				max_peers: Some(20),
 				max_pending_peers: Some(30),

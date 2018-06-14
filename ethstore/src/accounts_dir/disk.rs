@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -152,7 +152,6 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 			.collect()
 		)
 	}
-
 
 	/// insert account with given filename. if the filename is a duplicate of any stored account and dedup is set to
 	/// true, a random suffix is appended to the filename.

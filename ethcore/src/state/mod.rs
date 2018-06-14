@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -50,7 +50,6 @@ use bytes::Bytes;
 use trie;
 use trie::{Trie, TrieError, TrieDB};
 use trie::recorder::Recorder;
-
 
 mod account;
 mod substate;

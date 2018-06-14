@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@ use test_helpers::{
 use types::filter::Filter;
 use ethereum_types::{U256, Address};
 use kvdb_rocksdb::{Database, DatabaseConfig};
-use miner::Miner;
+use miner::{Miner, PendingOrdering};
 use spec::Spec;
 use views::BlockView;
 use ethkey::KeyPair;
@@ -130,7 +130,6 @@ fn fails_to_import_block_with_invalid_rlp() {
 	}
 }
 
-
 #[test]
 fn query_none_block() {
 	let tempdir = TempDir::new("").unwrap();
@@ -220,7 +219,6 @@ fn can_collect_garbage() {
 	client.tick(true);
 	assert!(client.blockchain_cache_info().blocks < 100 * 1024);
 }
-
 
 #[test]
 fn can_generate_gas_price_median() {
@@ -345,12 +343,12 @@ fn does_not_propagate_delayed_transactions() {
 
 	client.miner().import_own_transaction(&*client, tx0).unwrap();
 	client.miner().import_own_transaction(&*client, tx1).unwrap();
-	assert_eq!(0, client.ready_transactions().len());
-	assert_eq!(0, client.miner().ready_transactions(&*client).len());
+	assert_eq!(0, client.ready_transactions(10).len());
+	assert_eq!(0, client.miner().ready_transactions(&*client, 10, PendingOrdering::Priority).len());
 	push_blocks_to_client(&client, 53, 2, 2);
 	client.flush_queue();
-	assert_eq!(2, client.ready_transactions().len());
-	assert_eq!(2, client.miner().ready_transactions(&*client).len());
+	assert_eq!(2, client.ready_transactions(10).len());
+	assert_eq!(2, client.miner().ready_transactions(&*client, 10, PendingOrdering::Priority).len());
 }
 
 #[test]

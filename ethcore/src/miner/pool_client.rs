@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -124,7 +124,7 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 		pool::client::AccountDetails {
 			nonce: self.cached_nonces.account_nonce(address),
 			balance: self.chain.latest_balance(address),
-			is_local: self.accounts.map_or(false, |accounts| accounts.has_account(*address).unwrap_or(false)),
+			is_local: self.accounts.map_or(false, |accounts| accounts.has_account(*address)),
 		}
 	}
 

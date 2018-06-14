@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -113,7 +113,7 @@ mod server {
 	}
 }
 
-#[cfg(feature="secretstore")]
+#[cfg(feature = "secretstore")]
 mod server {
 	use std::sync::Arc;
 	use ethcore_secretstore;
@@ -146,7 +146,7 @@ mod server {
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
 				Some(NodeSecretKey::KeyStore(account)) => {
 					// Check if account exists
-					if !deps.account_provider.has_account(account.clone()).unwrap_or(false) {
+					if !deps.account_provider.has_account(account.clone()) {
 						return Err(format!("Account {} passed as secret store node key is not found", account));
 					}
 
