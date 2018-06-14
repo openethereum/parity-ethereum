@@ -33,22 +33,25 @@ const IGNORED_FILES: &'static [&'static str] = &[
 	"vault.json",
 ];
 
-#[cfg(not(windows))]
-fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
-	use std::ffi;
-	use libc;
 
-	let cstr = ffi::CString::new(&*file_path.to_string_lossy())
-		.map_err(|_| -1)?;
-	match unsafe { libc::chmod(cstr.as_ptr(), libc::S_IWUSR | libc::S_IRUSR) } {
-		0 => Ok(()),
-		x => Err(x),
-	}
+#[cfg(unix)]
+fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	use libc;
+	use std::os::unix::fs::OpenOptionsExt;
+
+	fs::OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.mode(libc::S_IWUSR | libc::S_IRUSR)
+		.open(file_path)
 }
 
-#[cfg(windows)]
-fn restrict_permissions_to_owner(_file_path: &Path) -> Result<(), i32> {
-	Ok(())
+#[cfg(not(unix))]
+fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	fs::OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.open(file_path)
 }
 
 /// Root keys directory implementation
@@ -173,17 +176,12 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 		{
 			// save the file
-			let mut file = fs::File::create(&keyfile_path)?;
+			let mut file = create_new_file_with_permissions_to_owner(&keyfile_path)?;
 
 			// write key content
 			self.key_manager.write(original_account, &mut file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
 			file.flush()?;
-
-			if let Err(_) = restrict_permissions_to_owner(keyfile_path.as_path()) {
-				return Err(Error::Io(io::Error::last_os_error()));
-			}
-
 			file.sync_all()?;
 		}
 
