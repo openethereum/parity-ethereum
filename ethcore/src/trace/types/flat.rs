@@ -137,6 +137,7 @@ impl Into<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
+	use stream_encoder::Stream;
 	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 	use trace::trace::{Action, Res, CallResult, Call, Suicide, Reward};
 	use evm::CallType;
