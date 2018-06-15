@@ -18,9 +18,6 @@
 
 mod stores;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))] 
-mod no_hw;
-
 use ethstore::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
@@ -37,17 +34,8 @@ use std::time::{Instant, Duration};
 
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
+pub use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
 pub use super::transaction::{Action, Transaction};
-
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))] 
-mod hw {
-	pub use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))] 
-mod hw { 
-    pub use account_provider::no_hw::{HardwareError, HardwareWalletManager};
-}
 
 /// Type of unlock.
 #[derive(Clone, PartialEq)]
@@ -76,7 +64,7 @@ pub enum SignError {
 	/// Account does not exist.
 	NotFound,
 	/// Low-level hardware device error.
-	Hardware(hw::HardwareError),
+	Hardware(HardwareError),
 	/// Low-level error from store
 	SStore(SSError),
 }
@@ -92,8 +80,8 @@ impl fmt::Display for SignError {
 	}
 }
 
-impl From<hw::HardwareError> for SignError {
-	fn from(e: hw::HardwareError) -> Self {
+impl From<HardwareError> for SignError {
+	fn from(e: HardwareError) -> Self {
 		SignError::Hardware(e)
 	}
 }
@@ -143,7 +131,7 @@ pub struct AccountProvider {
 	/// Accounts unlocked with rolling tokens
 	transient_sstore: EthMultiStore,
 	/// Accounts in hardware wallets.
-	hardware_store: Option<hw::HardwareWalletManager>,
+	hardware_store: Option<HardwareWalletManager>,
 	/// When unlocking account permanently we additionally keep a raw secret in memory
 	/// to increase the performance of transaction signing.
 	unlock_keep_secret: bool,
@@ -179,16 +167,13 @@ impl AccountProvider {
 	pub fn new(sstore: Box<SecretStore>, settings: AccountProviderSettings) -> Self {
 		let mut hardware_store = None;
 		
-		#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
-		{
-			if settings.enable_hardware_wallets {
-				match hw::HardwareWalletManager::new() {
-					Ok(manager) => {
-						manager.set_key_path(if settings.hardware_wallet_classic_key { hw::KeyPath::EthereumClassic } else { hw::KeyPath::Ethereum });
-						hardware_store = Some(manager)
-					},
-					Err(e) => debug!("Error initializing hardware wallets: {}", e),
-				}
+		if settings.enable_hardware_wallets {
+			match HardwareWalletManager::new() {
+				Ok(manager) => {
+					manager.set_key_path(if settings.hardware_wallet_classic_key { KeyPath::EthereumClassic } else { KeyPath::Ethereum });
+					hardware_store = Some(manager)
+				},
+				Err(e) => debug!("Error initializing hardware wallets: {}", e),
 			}
 		}
 
@@ -850,7 +835,7 @@ impl AccountProvider {
 			chain_id: chain_id,
 		};
 		match self.hardware_store.as_ref().map(|s| s.sign_transaction(&address, &t_info, rlp_encoded_transaction)) {
-			None | Some(Err(hw::HardwareError::KeyNotFound)) => Err(SignError::NotFound),
+			None | Some(Err(HardwareError::KeyNotFound)) => Err(SignError::NotFound),
 			Some(Err(e)) => Err(From::from(e)),
 			Some(Ok(s)) => Ok(s),
 		}

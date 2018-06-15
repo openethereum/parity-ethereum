@@ -51,8 +51,6 @@ use v1::types::{
 	SignRequest as RpcSignRequest,
 	DecryptRequest as RpcDecryptRequest,
 };
-
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 use rlp;
 
 pub use self::nonce::Reservations;
@@ -436,11 +434,8 @@ fn sign_transaction(
 		data: filled.data,
 	};
 
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
-	{
-		if accounts.is_hardware_address(&filled.from) {
-			return hardware_signature(accounts, filled.from, t, chain_id).map(WithToken::No)
-		}
+	if accounts.is_hardware_address(&filled.from) {
+		return hardware_signature(accounts, filled.from, t, chain_id).map(WithToken::No)
 	}
 
 	let hash = t.hash(chain_id);
@@ -726,7 +721,6 @@ fn signature(accounts: &AccountProvider, address: Address, hash: H256, password:
 }
 
 // obtain a hardware signature from the given account.
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transaction, chain_id: Option<u64>)
 	-> Result<SignedTransaction>
 {
