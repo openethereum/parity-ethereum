@@ -59,7 +59,7 @@ pub use self::fatdbmut::FatDBMut;
 pub use self::recorder::Recorder;
 use node_codec::NodeCodec;
 
-// REVIEW: is this overdoing it?
+// TODO: Move to façade crate and rename to just `RlpNodeCodec`
 pub type KeccakRlpNodeCodec = node_codec::RlpNodeCodec<hashdb::KeccakHasher>;
 pub type KeccakTrieResult<T> = Result<T, <KeccakHasher as Hasher>::Out>;
 
@@ -121,8 +121,7 @@ pub trait Query<H: Hasher> {
 	fn decode(self, data: &[u8]) -> Self::Item;
 
 	/// Record that a node has been passed through.
-	#[allow(unused_variables)]
-	fn record(&mut self, hash: &H::Out, data: &[u8], depth: u32) {}
+	fn record(&mut self, _hash: &H::Out, _data: &[u8], _depth: u32) {}
 }
 
 impl<'a, H: Hasher> Query<H> for &'a mut Recorder<H> {
@@ -153,6 +152,13 @@ pub trait Trie {
 	fn root(&self) -> &<Self::H as Hasher>::Out;
 
 	/// Is the trie empty?
+	// TODO: The `Hasher` should not carry RLP-specifics; the null node should live in `NodeCodec`. Not sure what the best way to deal with this is.
+	// 	rpheimer: specifically, this should draw from the node codec, because non-rlp-encoded tries will have 
+	// 	non-rlp-encoded null nodes. so the hash will be different. this is an architectural issue:
+	// 	`trait NodeCodec<H: Hasher>` should have the `const HASH_NULL_NODE: H::Out`. This will 
+	// 	make `impl<H: Hasher> NodeCodec<H> for MyGenericCodec<H>` impossible without better const 
+	// 	function evaluation, so we should limit ourselves only to 
+	// 	`impl NodeCodec<SomeConcreteHash> for MyGenericCodec<SomeConcreteHash>` or similar
 	fn is_empty(&self) -> bool { *self.root() == Self::H::HASHED_NULL_RLP }
 
 	/// Does the trie contain a given key?
