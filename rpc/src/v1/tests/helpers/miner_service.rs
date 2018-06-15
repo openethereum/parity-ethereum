@@ -169,6 +169,21 @@ impl MinerService for TestMinerService {
 		Ok(())
 	}
 
+	/// Imports transactions to queue - treats as local based on config and tx source
+	fn import_claimed_local_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction)
+		-> Result<(), transaction::Error> {
+
+		// keep the pending nonces up to date
+		let sender = pending.transaction.sender();
+		let nonce = self.next_nonce(chain, &sender);
+		self.next_nonces.write().insert(sender, nonce);
+
+		// lets assume that all txs are valid
+		self.imported_transactions.lock().push(pending.transaction);
+
+		Ok(())
+	}
+
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks<C>(&self, _chain: &C, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256], _is_internal: bool) {
 		unimplemented!();
