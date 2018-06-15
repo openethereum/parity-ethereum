@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::snapshot::{ManifestData, RestorationStatus, SnapshotService};
+use ethcore::snapshot::{Bitfield, ManifestData, RestorationStatus, SnapshotService};
 
 use bytes::Bytes;
 use ethereum_types::H256;
@@ -41,7 +41,8 @@ impl TestSnapshotService {
 }
 
 impl SnapshotService for TestSnapshotService {
-	fn manifest(&self) -> Option<ManifestData> { None }
+	fn manifest(&self, _supports_partial: bool) -> Option<ManifestData> { None }
+	fn bitfield(&self, _manifest_hash: H256) -> Option<Bitfield> { None }
 	fn supported_versions(&self) -> Option<(u64, u64)> { None }
 	fn completed_chunks(&self) -> Option<Vec<H256>> { Some(vec![]) }
 	fn chunk(&self, _hash: H256) -> Option<Bytes> { None }

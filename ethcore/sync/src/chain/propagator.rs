@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use ethereum_types::H256;
-use ethcore::client::BlockChainInfo;
+use ethereum_types::{H256, U256};
+use ethcore::client::{BlockChainClient, BlockChainInfo, BlockId};
 use ethcore::header::BlockNumber;
 use network::{PeerId, PacketId};
 use rand::Rng;
@@ -64,17 +64,80 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 pub struct SyncPropagator;
 
 impl SyncPropagator {
+	/// creates rlp from block bytes and total difficulty
+	fn create_block_rlp(bytes: &Bytes, total_difficulty: U256) -> Bytes {
+		let mut rlp_stream = RlpStream::new_list(2);
+		rlp_stream.append_raw(bytes, 1);
+		rlp_stream.append(&total_difficulty);
+		rlp_stream.out()
+	}
+
+	/// creates latest block rlp for the given client
+	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
+		SyncPropagator::create_block_rlp(
+			&chain.block(BlockId::Hash(chain.chain_info().best_block_hash))
+				.expect("Best block always exists").into_inner(),
+			chain.chain_info().total_difficulty
+		)
+	}
+
+	/// creates given hash block rlp for the given client
+	fn create_new_block_rlp(chain: &BlockChainClient, hash: &H256) -> Bytes {
+		SyncPropagator::create_block_rlp(
+			&chain.block(BlockId::Hash(hash.clone())).expect("Block has just been sealed; qed").into_inner(),
+			chain.block_total_difficulty(BlockId::Hash(hash.clone())).expect("Block has just been sealed; qed.")
+		)
+	}
+
+	/// creates rlp to send for the tree defined by 'from' and 'to' hashes
+	pub fn create_new_hashes_rlp(chain: &BlockChainClient, from: &H256, to: &H256) -> Option<Bytes> {
+		match chain.tree_route(from, to) {
+			Some(route) => {
+				let uncles = chain.find_uncles(from).unwrap_or_else(Vec::new);
+				match route.blocks.len() {
+					0 => None,
+					_ => {
+						let mut blocks = route.blocks;
+						blocks.extend(uncles);
+						let mut rlp_stream = RlpStream::new_list(blocks.len());
+						for block_hash in  blocks {
+							let mut hash_rlp = RlpStream::new_list(2);
+							let number = chain.block_header(BlockId::Hash(block_hash.clone()))
+								.expect("chain.tree_route and chain.find_uncles only return hahses of blocks that are in the blockchain. qed.").number();
+							hash_rlp.append(&block_hash);
+							hash_rlp.append(&number);
+							rlp_stream.append_raw(hash_rlp.as_raw(), 1);
+						}
+						Some(rlp_stream.out())
+					}
+				}
+			},
+			None => None
+		}
+	}
+
+	fn select_random_peers(peers: &[PeerId]) -> Vec<PeerId> {
+		// take sqrt(x) peers
+		let mut peers = peers.to_vec();
+		let mut count = (peers.len() as f64).powf(0.5).round() as usize;
+		count = cmp::min(count, MAX_PEERS_PROPAGATION);
+		count = cmp::max(count, MIN_PEERS_PROPAGATION);
+		random::new().shuffle(&mut peers);
+		peers.truncate(count);
+		peers
+	}
+
 	/// propagates latest block to a set of peers
 	pub fn propagate_blocks(sync: &mut ChainSync, chain_info: &BlockChainInfo, io: &mut SyncIo, blocks: &[H256], peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewBlocks to {:?}", peers);
 		let mut sent = 0;
 		for peer_id in peers {
 			if blocks.is_empty() {
-				let rlp =  ChainSync::create_latest_block_rlp(io.chain());
+				let rlp =  SyncPropagator::create_latest_block_rlp(io.chain());
 				SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp);
 			} else {
 				for h in blocks {
-					let rlp =  ChainSync::create_new_block_rlp(io.chain(), h);
+					let rlp =  SyncPropagator::create_new_block_rlp(io.chain(), h);
 					SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp);
 				}
 			}
@@ -92,7 +155,7 @@ impl SyncPropagator {
 		let mut sent = 0;
 		let last_parent = *io.chain().best_block_header().parent_hash();
 		for peer_id in peers {
-			sent += match ChainSync::create_new_hashes_rlp(io.chain(), &last_parent, &chain_info.best_block_hash) {
+			sent += match SyncPropagator::create_new_hashes_rlp(io.chain(), &last_parent, &chain_info.best_block_hash) {
 				Some(rlp) => {
 					{
 						if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
@@ -250,7 +313,7 @@ impl SyncPropagator {
 			let mut peers = sync.get_lagging_peers(&chain_info);
 			if sealed.is_empty() {
 				let hashes = SyncPropagator::propagate_new_hashes(sync, &chain_info, io, &peers);
-				peers = ChainSync::select_random_peers(&peers);
+				peers = SyncPropagator::select_random_peers(&peers);
 				let blocks = SyncPropagator::propagate_blocks(sync, &chain_info, io, sealed, &peers);
 				if blocks != 0 || hashes != 0 {
 					trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
@@ -269,7 +332,7 @@ impl SyncPropagator {
 		let peers = sync.get_consensus_peers();
 		trace!(target: "sync", "Sending proposed blocks to {:?}", peers);
 		for block in proposed {
-			let rlp = ChainSync::create_block_rlp(
+			let rlp = SyncPropagator::create_block_rlp(
 				block,
 				io.chain().chain_info().total_difficulty
 			);
@@ -281,7 +344,7 @@ impl SyncPropagator {
 
 	/// Broadcast consensus message to peers.
 	pub fn propagate_consensus_packet(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_consensus_peers());
+		let lucky_peers = SyncPropagator::select_random_peers(&sync.get_consensus_peers());
 		trace!(target: "sync", "Sending consensus packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
 			SyncPropagator::send_packet(io, peer_id, CONSENSUS_DATA_PACKET, packet.clone());
@@ -290,7 +353,7 @@ impl SyncPropagator {
 
 	/// Broadcast private transaction message to peers.
 	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers());
+		let lucky_peers = SyncPropagator::select_random_peers(&sync.get_private_transaction_peers());
 		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
 			SyncPropagator::send_packet(io, peer_id, PRIVATE_TRANSACTION_PACKET, packet.clone());
@@ -299,7 +362,7 @@ impl SyncPropagator {
 
 	/// Broadcast signed private transaction message to peers.
 	pub fn propagate_signed_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers());
+		let lucky_peers = SyncPropagator::select_random_peers(&sync.get_private_transaction_peers());
 		trace!(target: "sync", "Sending signed private transaction packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
 			SyncPropagator::send_packet(io, peer_id, SIGNED_PRIVATE_TRANSACTION_PACKET, packet.clone());
@@ -422,10 +485,12 @@ mod tests {
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::new(),
 				asking_hash: None,
+				ask_bitfield_time: Instant::now(),
 				ask_time: Instant::now(),
 				last_sent_transactions: HashSet::new(),
 				expired: false,
 				confirmation: ForkConfirmation::Confirmed,
+				snapshot_chunks: None,
 				snapshot_number: None,
 				snapshot_hash: None,
 				asking_snapshot_data: None,

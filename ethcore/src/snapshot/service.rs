@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
+use super::{Error as SnapshotError, Bitfield, ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
@@ -69,6 +69,31 @@ pub trait DatabaseRestore: Send + Sync {
 	fn restore_db(&self, new_db: &str) -> Result<(), Error>;
 }
 
+/// I/O for Snapshot Restoration: a writer and a reader
+struct RestorationIo {
+	reader: LooseReader,
+	writer: LooseWriter,
+}
+
+impl RestorationIo {
+	/// Create a new Restoration I/O that will read and write from the given path
+	fn new(restoration_path: PathBuf, manifest: &ManifestData) -> Result<RestorationIo, Error> {
+		// Create the writer first, and write the Manifest file!
+		// Otherwise the reader will fail to read
+		// if the directory doesn't exist yet!
+		let writer = LooseWriter::new(restoration_path.clone())?;
+		writer.write_manifest(manifest.clone())?;
+		let reader = LooseReader::new(restoration_path.clone())?;
+
+		let io = RestorationIo {
+			reader,
+			writer,
+		};
+
+		Ok(io)
+	}
+}
+
 /// State restoration manager.
 struct Restoration {
 	manifest: ManifestData,
@@ -76,7 +101,7 @@ struct Restoration {
 	block_chunks_left: HashSet<H256>,
 	state: StateRebuilder,
 	secondary: Box<Rebuilder>,
-	writer: Option<LooseWriter>,
+	io: Option<RestorationIo>,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
@@ -87,7 +112,7 @@ struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
 	db: Arc<KeyValueDB>, // database
-	writer: Option<LooseWriter>, // writer for recovered snapshot.
+	io: Option<RestorationIo>, // IO (writer and reader) for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
 	engine: &'a EthEngine,
@@ -117,7 +142,7 @@ impl Restoration {
 			block_chunks_left: block_chunks,
 			state: StateRebuilder::new(raw_db.clone(), params.pruning),
 			secondary: secondary,
-			writer: params.writer,
+			io: params.io,
 			snappy_buffer: Vec::new(),
 			final_state_root: root,
 			guard: params.guard,
@@ -125,44 +150,38 @@ impl Restoration {
 		})
 	}
 
-	// feeds a state chunk, aborts early if `flag` becomes false.
-	fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
-		if self.state_chunks_left.contains(&hash) {
+	// Fee a chunk, aborts early if `flag` becomes false
+	fn feed_chunk(&mut self, hash: H256, chunk: &[u8], engine: &EthEngine, flag: &AtomicBool) -> Result<(), Error> {
+		let is_secondary = self.block_chunks_left.contains(&hash);
+		let is_state = self.state_chunks_left.contains(&hash);
+
+		if is_secondary || is_state {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+				return Err(SnapshotError::ChunkTooLarge.into());
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
-			self.state.feed(&self.snappy_buffer[..len], flag)?;
-
-			if let Some(ref mut writer) = self.writer.as_mut() {
-				writer.write_state_chunk(hash, chunk)?;
+			if is_state {
+				self.state.feed(&self.snappy_buffer[..len], flag)?;
+			} else {
+				self.secondary.feed(&self.snappy_buffer[..len], engine, flag)?;
 			}
 
-			self.state_chunks_left.remove(&hash);
-		}
-
-		Ok(())
-	}
-
-	// feeds a block chunk
-	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &EthEngine, flag: &AtomicBool) -> Result<(), Error> {
-		if self.block_chunks_left.contains(&hash) {
-			let expected_len = snappy::decompressed_len(chunk)?;
-			if expected_len > MAX_CHUNK_SIZE {
-				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
-			}
-			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
-
-			self.secondary.feed(&self.snappy_buffer[..len], engine, flag)?;
-			if let Some(ref mut writer) = self.writer.as_mut() {
-				 writer.write_block_chunk(hash, chunk)?;
+			if let Some(ref mut io) = self.io.as_mut() {
+				if is_state {
+					io.writer.write_state_chunk(hash, chunk)?;
+				} else {
+					io.writer.write_block_chunk(hash, chunk)?;
+				}
 			}
 
-			self.block_chunks_left.remove(&hash);
+			if is_state {
+				self.state_chunks_left.remove(&hash);
+			} else {
+				self.block_chunks_left.remove(&hash);
+			}
 		}
 
 		Ok(())
@@ -187,8 +206,8 @@ impl Restoration {
 		// connect out-of-order chunks and verify chain integrity.
 		self.secondary.finalize(engine)?;
 
-		if let Some(writer) = self.writer {
-			writer.finish(self.manifest)?;
+		if let Some(io) = self.io {
+			io.writer.finish(self.manifest)?;
 		}
 
 		self.guard.disarm();
@@ -198,6 +217,14 @@ impl Restoration {
 	// is everything done?
 	fn is_done(&self) -> bool {
 		self.block_chunks_left.is_empty() && self.state_chunks_left.is_empty()
+	}
+
+	fn read_chunk(&self, hash: H256) -> Option<Bytes> {
+		if let Some(ref io) = self.io {
+			io.reader.chunk(hash).ok()
+		} else {
+			None
+		}
 	}
 }
 
@@ -414,6 +441,7 @@ impl Service {
 	/// Initialize the restoration synchronously.
 	/// The recover flag indicates whether to recover the restored snapshot.
 	pub fn init_restore(&self, manifest: ManifestData, recover: bool) -> Result<(), Error> {
+		trace!(target: "snapshot", "Initializing snapshot restoration with Manifest at {}", manifest.block_number);
 		let mut res = self.restoration.lock();
 
 		let rest_dir = self.restoration_dir();
@@ -456,8 +484,8 @@ impl Service {
 		fs::create_dir_all(&rest_dir)?;
 
 		// make new restoration.
-		let writer = match recover {
-			true => Some(LooseWriter::new(recovery_temp)?),
+		let restoration_io = match recover {
+			true => Some(RestorationIo::new(recovery_temp, &manifest)?),
 			false => None
 		};
 
@@ -465,7 +493,7 @@ impl Service {
 			manifest: manifest.clone(),
 			pruning: self.pruning,
 			db: self.restoration_db_handler.open(&rest_db)?,
-			writer: writer,
+			io: restoration_io,
 			genesis: &self.genesis_block,
 			guard: Guard::new(rest_db),
 			engine: &*self.engine,
@@ -553,7 +581,7 @@ impl Service {
 	fn finalize_restoration(&self, rest: &mut Option<Restoration>) -> Result<(), Error> {
 		trace!(target: "snapshot", "finalizing restoration");
 
-		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
+		let recover = rest.as_ref().map_or(false, |rest| rest.io.is_some());
 
 		// destroy the restoration before replacing databases and snapshot.
 		rest.take()
@@ -607,10 +635,8 @@ impl Service {
 							None => return Ok(()),
 						};
 
-						(match is_state {
-							true => rest.feed_state(hash, chunk, &self.restoring_snapshot),
-							false => rest.feed_blocks(hash, chunk, &*self.engine, &self.restoring_snapshot),
-						}.map(|_| rest.is_done()), rest.db.clone())
+						(rest.feed_chunk(hash, chunk, &*self.engine, &self.restoring_snapshot)
+							.map(|_| rest.is_done()), rest.db.clone())
 					};
 
 					let res = match res {
@@ -643,10 +669,17 @@ impl Service {
 		match self.feed_chunk(hash, chunk, true) {
 			Ok(()) => (),
 			Err(e) => {
-				warn!("Encountered error during state restoration: {}", e);
+				match e.kind() {
+					::error::ErrorKind::Snapshot(SnapshotError::RestorationAborted) => {
+						debug!(target: "snapshot", "Restoration aborted.");
+					},
+					_ => {
+						warn!("Encountered error during state restoration: {}", e);
+						let _ = fs::remove_dir_all(self.restoration_dir());
+					},
+				}
 				*self.restoration.lock() = None;
 				*self.status.lock() = RestorationStatus::Failed;
-				let _ = fs::remove_dir_all(self.restoration_dir());
 			}
 		}
 	}
@@ -656,18 +689,65 @@ impl Service {
 		match self.feed_chunk(hash, chunk, false) {
 			Ok(()) => (),
 			Err(e) => {
-				warn!("Encountered error during block restoration: {}", e);
+				match e.kind() {
+					::error::ErrorKind::Snapshot(SnapshotError::RestorationAborted) => {
+						debug!(target: "snapshot", "Restoration aborted.");
+					},
+					_ => {
+						warn!("Encountered error during block restoration: {}", e);
+						let _ = fs::remove_dir_all(self.restoration_dir());
+					},
+				}
 				*self.restoration.lock() = None;
 				*self.status.lock() = RestorationStatus::Failed;
 				let _ = fs::remove_dir_all(self.restoration_dir());
 			}
 		}
 	}
+
+	/// Get the completed Snapshot Manifest (if any), read from FS
+	fn completed_manifest(&self) -> Option<ManifestData> {
+		self.reader.read().as_ref().map(|r| r.manifest().clone())
+	}
+
+	/// Get the currently partially restored Snapshot Manifest (if any)
+	fn partial_manifest(&self) -> Option<ManifestData> {
+		let restoration = self.restoration.lock();
+
+		match *restoration {
+			Some(ref restoration) => {
+				trace!(target: "snapshot", "Returning partial Manifest ; {:?}", restoration.manifest.block_number);
+				Some(restoration.manifest.clone())
+			},
+			None => None,
+		}
+	}
 }
 
 impl SnapshotService for Service {
-	fn manifest(&self) -> Option<ManifestData> {
-		self.reader.read().as_ref().map(|r| r.manifest().clone())
+	fn manifest(&self, support_partial: bool) -> Option<ManifestData> {
+		if support_partial {
+			match self.partial_manifest() {
+				Some(manifest) => return Some(manifest),
+				_ => (),
+			}
+		}
+
+		self.completed_manifest()
+	}
+
+	fn bitfield(&self, manifest_hash: H256) -> Option<Bitfield> {
+		if let Some(manifest) = self.completed_manifest() {
+			if manifest.clone().hash() != manifest_hash {
+				return None;
+			}
+
+			let mut bitfield = Bitfield::new(&manifest);
+			bitfield.mark_all();
+			Some(bitfield)
+		} else {
+			None
+		}
 	}
 
 	fn supported_versions(&self) -> Option<(u64, u64)> {
@@ -676,7 +756,20 @@ impl SnapshotService for Service {
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
-		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
+		let complete_chunk = self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok());
+
+		if complete_chunk.is_some() {
+			return complete_chunk;
+		}
+
+		let restoration = self.restoration.lock();
+
+		match *restoration {
+			Some(ref restoration) => {
+				restoration.read_chunk(hash)
+			},
+			None => None
+		}
 	}
 
 	fn completed_chunks(&self) -> Option<Vec<H256>> {
@@ -795,7 +888,7 @@ mod tests {
 
 		let service = Service::new(snapshot_params).unwrap();
 
-		assert!(service.manifest().is_none());
+		assert!(service.manifest(false).is_none());
 		assert!(service.chunk(Default::default()).is_none());
 		assert_eq!(service.status(), RestorationStatus::Inactive);
 
@@ -839,7 +932,7 @@ mod tests {
 			},
 			pruning: Algorithm::Archive,
 			db: restoration_db_handler(db_config).open(&tempdir.path().to_owned()).unwrap(),
-			writer: None,
+			io: None,
 			genesis: &gb,
 			guard: Guard::benign(),
 			engine: &*spec.engine.clone(),
@@ -849,12 +942,12 @@ mod tests {
 		let definitely_bad_chunk = [1, 2, 3, 4, 5];
 
 		for hash in state_hashes {
-			assert!(restoration.feed_state(hash, &definitely_bad_chunk, &flag).is_err());
+			assert!(restoration.feed_chunk(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
 			assert!(!restoration.is_done());
 		}
 
 		for hash in block_hashes {
-			assert!(restoration.feed_blocks(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
+			assert!(restoration.feed_chunk(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
 			assert!(!restoration.is_done());
 		}
 	}

@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::snapshot::{ManifestData, SnapshotService};
+use ethcore::snapshot::{Bitfield, ManifestData, SnapshotService};
+use chain::PeerInfo;
 use ethereum_types::H256;
 use hash::keccak;
 use rand::{thread_rng, Rng};
@@ -29,10 +30,10 @@ pub enum ChunkType {
 }
 
 pub struct Snapshot {
+	bitfield: Option<Bitfield>,
 	pending_state_chunks: Vec<H256>,
 	pending_block_chunks: Vec<H256>,
 	downloading_chunks: HashSet<H256>,
-	completed_chunks: HashSet<H256>,
 	snapshot_hash: Option<H256>,
 	bad_hashes: HashSet<H256>,
 	initialized: bool,
@@ -42,10 +43,10 @@ impl Snapshot {
 	/// Create a new instance.
 	pub fn new() -> Snapshot {
 		Snapshot {
+			bitfield: None,
 			pending_state_chunks: Vec::new(),
 			pending_block_chunks: Vec::new(),
 			downloading_chunks: HashSet::new(),
-			completed_chunks: HashSet::new(),
 			snapshot_hash: None,
 			bad_hashes: HashSet::new(),
 			initialized: false,
@@ -59,13 +60,16 @@ impl Snapshot {
 		}
 
 		if let Some(completed_chunks) = snapshot_service.completed_chunks() {
-			self.completed_chunks = HashSet::from_iter(completed_chunks);
+			let completed_chunks = HashSet::from_iter(completed_chunks);
+			if let Some(ref mut bitfield) = self.bitfield {
+				bitfield.mark_some(&completed_chunks);
+			}
 		}
 
 		trace!(
 			target: "snapshot",
 			"Snapshot is now initialized with {} completed chunks.",
-			self.completed_chunks.len(),
+			self.done_chunks(),
 		);
 
 		self.initialized = true;
@@ -73,10 +77,10 @@ impl Snapshot {
 
 	/// Clear everything.
 	pub fn clear(&mut self) {
+		self.bitfield = None;
 		self.pending_state_chunks.clear();
 		self.pending_block_chunks.clear();
 		self.downloading_chunks.clear();
-		self.completed_chunks.clear();
 		self.snapshot_hash = None;
 		self.initialized = false;
 	}
@@ -89,6 +93,7 @@ impl Snapshot {
 	/// Reset collection for a manifest RLP
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
+		self.bitfield = Some(Bitfield::new(manifest));
 		self.pending_state_chunks = manifest.state_hashes.clone();
 		self.pending_block_chunks = manifest.block_hashes.clone();
 		self.snapshot_hash = Some(hash.clone());
@@ -97,17 +102,13 @@ impl Snapshot {
 	/// Validate chunk and mark it as downloaded
 	pub fn validate_chunk(&mut self, chunk: &[u8]) -> Result<ChunkType, ()> {
 		let hash = keccak(chunk);
-		if self.completed_chunks.contains(&hash) {
-			trace!(target: "sync", "Ignored proccessed chunk: {:x}", hash);
-			return Err(());
-		}
 		self.downloading_chunks.remove(&hash);
 		if self.pending_block_chunks.iter().any(|h| h == &hash) {
-			self.completed_chunks.insert(hash.clone());
+			self.bitfield.as_mut().map(|bitfield| bitfield.mark_one(&hash));
 			return Ok(ChunkType::Block(hash));
 		}
 		if self.pending_state_chunks.iter().any(|h| h == &hash) {
-			self.completed_chunks.insert(hash.clone());
+			self.bitfield.as_mut().map(|bitfield| bitfield.mark_one(&hash));
 			return Ok(ChunkType::State(hash));
 		}
 		trace!(target: "sync", "Ignored unknown chunk: {:x}", hash);
@@ -115,29 +116,34 @@ impl Snapshot {
 	}
 
 	/// Find a random chunk to download
-	pub fn needed_chunk(&mut self) -> Option<H256> {
-		// Find all random chunks: first blocks, then state
-		let needed_chunks = {
-			let chunk_filter = |h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h);
+	/// TODO: request block chunks first, then state chunks
+	pub fn needed_chunk(&mut self, peer: &PeerInfo) -> Option<H256> {
+		// Get the available chunks from the peer
+		let avail_chunks = peer.available_chunks();
 
-			let needed_block_chunks = self.pending_block_chunks.iter()
-				.filter(|&h| chunk_filter(h))
-				.map(|h| *h)
-				.collect::<Vec<H256>>();
+		if let Some(ref avail_chunks) = avail_chunks {
+			trace!(target: "warp", "Found {} available chunks from peer", avail_chunks.len());
+		} else {
+			trace!(target: "warp", "Peer has no bitfield ; assuming all chunks available");
+		}
 
-			// If no block chunks to download, get the state chunks
-			if needed_block_chunks.len() == 0 {
-				self.pending_state_chunks.iter()
-					.filter(|&h| chunk_filter(h))
-					.map(|h| *h)
-					.collect::<Vec<H256>>()
-			} else {
-				needed_block_chunks
+		// Find needed chunks, available from the peer,
+		// that we don't download yet
+		let chunks: Vec<H256> = if let Some(ref bitfield) = self.bitfield {
+			let needed_chunks = bitfield.needed_chunks();
+			let iter = needed_chunks
+				.iter()
+				.filter(|&h| !self.downloading_chunks.contains(h));
+
+			if let Some(avail_chunks) = avail_chunks {
+				iter.filter(|&h| avail_chunks.contains(h)).map(|h| *h).collect()
+			} else  {
+				iter.map(|h| *h).collect()
 			}
-		};
+		} else { vec![] };
 
 		// Get a random chunk
-		let chunk = thread_rng().choose(&needed_chunks);
+		let chunk = thread_rng().choose(&chunks);
 
 		if let Some(hash) = chunk {
 			self.downloading_chunks.insert(hash.clone());
@@ -168,11 +174,15 @@ impl Snapshot {
 	}
 
 	pub fn done_chunks(&self) -> usize {
-		self.completed_chunks.len()
+		self.bitfield.as_ref().map_or(0, |bitfield| bitfield.num_available())
 	}
 
 	pub fn is_complete(&self) -> bool {
-		self.total_chunks() == self.completed_chunks.len()
+		self.total_chunks() == self.done_chunks()
+	}
+
+	pub fn bitfield(&self) -> Option<Bitfield> {
+		self.bitfield.clone()
 	}
 }
 
@@ -186,9 +196,9 @@ mod test {
 	fn is_empty(snapshot: &Snapshot) -> bool {
 		snapshot.pending_block_chunks.is_empty() &&
 		snapshot.pending_state_chunks.is_empty() &&
-		snapshot.completed_chunks.is_empty() &&
 		snapshot.downloading_chunks.is_empty() &&
-		snapshot.snapshot_hash.is_none()
+		snapshot.snapshot_hash.is_none() &&
+		snapshot.done_chunks() == 0
 	}
 
 	fn test_manifest() -> (ManifestData, H256, Vec<Bytes>, Vec<Bytes>) {
@@ -225,8 +235,9 @@ mod test {
 		assert_eq!(snapshot.done_chunks(), 0);
 		assert!(snapshot.validate_chunk(&H256::random().to_vec()).is_err());
 
-		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk().unwrap()).collect();
-		assert!(snapshot.needed_chunk().is_none());
+		let peer_info = PeerInfo::default();
+		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk(&peer_info).unwrap()).collect();
+		assert!(snapshot.needed_chunk(&peer_info).is_none());
 
 		let requested_all_block_chunks = manifest.block_hashes.iter()
 			.all(|h| requested.iter().any(|rh| rh == h));
@@ -239,11 +250,11 @@ mod test {
 		assert_eq!(snapshot.downloading_chunks.len(), 40);
 
 		assert_eq!(snapshot.validate_chunk(&state_chunks[4]), Ok(ChunkType::State(manifest.state_hashes[4].clone())));
-		assert_eq!(snapshot.completed_chunks.len(), 1);
+		assert_eq!(snapshot.done_chunks(), 1);
 		assert_eq!(snapshot.downloading_chunks.len(), 39);
 
 		assert_eq!(snapshot.validate_chunk(&block_chunks[10]), Ok(ChunkType::Block(manifest.block_hashes[10].clone())));
-		assert_eq!(snapshot.completed_chunks.len(), 2);
+		assert_eq!(snapshot.done_chunks(), 2);
 		assert_eq!(snapshot.downloading_chunks.len(), 38);
 
 		for (i, data) in state_chunks.iter().enumerate() {

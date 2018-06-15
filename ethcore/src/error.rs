@@ -241,7 +241,7 @@ error_chain! {
 		Util(UtilError, util_error::ErrorKind) #[doc = "Error concerning a utility"];
 		Import(ImportError, ImportErrorKind) #[doc = "Error concerning block import." ];
 	}
-		
+
 	foreign_links {
 		Io(IoError) #[doc = "Io create error"];
 		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
@@ -271,14 +271,14 @@ error_chain! {
 		AccountProvider(err: AccountsError) {
 			description("Accounts Provider error")
 			display("Accounts Provider error {}", err)
-		} 
+		}
 
 		#[doc = "PoW hash is invalid or out of date."]
 		PowHashInvalid {
 			description("PoW hash is invalid or out of date.")
 			display("PoW hash is invalid or out of date.")
 		}
-	
+
 		#[doc = "The value of the nonce or mishash is invalid."]
 		PowInvalid {
 			description("The value of the nonce or mishash is invalid.")
@@ -311,10 +311,10 @@ impl From<ClientError> for Error {
 	}
 }
 
-impl From<AccountsError> for Error { 
-	fn from(err: AccountsError) -> Error { 
+impl From<AccountsError> for Error {
+	fn from(err: AccountsError) -> Error {
 		ErrorKind::AccountProvider(err).into()
-	} 
+	}
 }
 
 impl From<::rlp::DecoderError> for Error {

@@ -79,26 +79,29 @@ impl PackedWriter {
 			cur_len: 0,
 		})
 	}
+
+	/// Write a chunk to the file and return the new chunk information
+	fn write_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<ChunkInfo> {
+		self.file.write_all(chunk)?;
+
+		let len = chunk.len() as u64;
+		let chunk_info = ChunkInfo(hash, len, self.cur_len);
+
+		self.cur_len += len;
+		Ok(chunk_info)
+	}
 }
 
 impl SnapshotWriter for PackedWriter {
 	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		self.file.write_all(chunk)?;
-
-		let len = chunk.len() as u64;
-		self.state_hashes.push(ChunkInfo(hash, len, self.cur_len));
-
-		self.cur_len += len;
+		let chunk_info = self.write_chunk(hash, chunk)?;
+		self.state_hashes.push(chunk_info);
 		Ok(())
 	}
 
 	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		self.file.write_all(chunk)?;
-
-		let len = chunk.len() as u64;
-		self.block_hashes.push(ChunkInfo(hash, len, self.cur_len));
-
-		self.cur_len += len;
+		let chunk_info = self.write_chunk(hash, chunk)?;
+		self.block_hashes.push(chunk_info);
 		Ok(())
 	}
 
@@ -161,6 +164,18 @@ impl LooseWriter {
 		file.write_all(chunk)?;
 		Ok(())
 	}
+
+	/// Write the given Manifest file
+	pub fn write_manifest(&self, manifest: ManifestData) -> io::Result<()> {
+		let rlp = manifest.into_rlp();
+		let mut path = self.dir.clone();
+		path.push("MANIFEST");
+
+		let mut file = File::create(path)?;
+		file.write_all(&rlp[..])?;
+
+		Ok(())
+	}
 }
 
 impl SnapshotWriter for LooseWriter {
@@ -173,14 +188,7 @@ impl SnapshotWriter for LooseWriter {
 	}
 
 	fn finish(self, manifest: ManifestData) -> io::Result<()> {
-		let rlp = manifest.into_rlp();
-		let mut path = self.dir.clone();
-		path.push("MANIFEST");
-
-		let mut file = File::create(path)?;
-		file.write_all(&rlp[..])?;
-
-		Ok(())
+		self.write_manifest(manifest)
 	}
 }
 

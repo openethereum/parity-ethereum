@@ -20,10 +20,11 @@ use bytes::Bytes;
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
 use ethcore::error::*;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::snapshot::{ManifestData, RestorationStatus};
+use ethcore::snapshot::{Bitfield, ManifestData, RestorationStatus};
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
+use parking_lot::RwLock;
 use rlp::Rlp;
 use snapshot::ChunkType;
 use std::cmp;
@@ -45,32 +46,39 @@ use super::{
 	MAX_NEW_BLOCK_AGE,
 	MAX_NEW_HASHES,
 	PAR_PROTOCOL_VERSION_1,
-	PAR_PROTOCOL_VERSION_3,
+	PAR_PROTOCOL_VERSION_4,
+
 	BLOCK_BODIES_PACKET,
 	BLOCK_HEADERS_PACKET,
+	CONSENSUS_DATA_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
 	NEW_BLOCK_PACKET,
 	PRIVATE_TRANSACTION_PACKET,
 	RECEIPTS_PACKET,
 	SIGNED_PRIVATE_TRANSACTION_PACKET,
+	SNAPSHOT_BITFIELD_PACKET,
 	SNAPSHOT_DATA_PACKET,
 	SNAPSHOT_MANIFEST_PACKET,
 	STATUS_PACKET,
 	TRANSACTIONS_PACKET,
+
+	BITFIELD_REFRESH_DURATION,
 };
 
 /// The Chain Sync Handler: handles responses from peers
 pub struct SyncHandler;
 
 impl SyncHandler {
-	/// Handle incoming packet from peer
-	pub fn on_packet(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+	/// Handles incoming packet, returns whether the packet has been handled or not
+	pub fn on_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) -> bool {
+		let sync = &mut *sync.write();
 		if packet_id != STATUS_PACKET && !sync.peers.contains_key(&peer) {
 			debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
-			return;
+			return true;
 		}
 		let rlp = Rlp::new(data);
 		let result = match packet_id {
+			CONSENSUS_DATA_PACKET => SyncHandler::on_consensus_packet(io, peer, &rlp),
 			STATUS_PACKET => SyncHandler::on_peer_status(sync, io, peer, &rlp),
 			TRANSACTIONS_PACKET => SyncHandler::on_peer_transactions(sync, io, peer, &rlp),
 			BLOCK_HEADERS_PACKET => SyncHandler::on_peer_block_headers(sync, io, peer, &rlp),
@@ -78,18 +86,20 @@ impl SyncHandler {
 			RECEIPTS_PACKET => SyncHandler::on_peer_block_receipts(sync, io, peer, &rlp),
 			NEW_BLOCK_PACKET => SyncHandler::on_peer_new_block(sync, io, peer, &rlp),
 			NEW_BLOCK_HASHES_PACKET => SyncHandler::on_peer_new_hashes(sync, io, peer, &rlp),
+			SNAPSHOT_BITFIELD_PACKET => SyncHandler::on_snapshot_bitfield(sync, io, peer, &rlp),
 			SNAPSHOT_MANIFEST_PACKET => SyncHandler::on_snapshot_manifest(sync, io, peer, &rlp),
 			SNAPSHOT_DATA_PACKET => SyncHandler::on_snapshot_data(sync, io, peer, &rlp),
 			PRIVATE_TRANSACTION_PACKET => SyncHandler::on_private_transaction(sync, io, peer, &rlp),
 			SIGNED_PRIVATE_TRANSACTION_PACKET => SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp),
 			_ => {
 				debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
-				Ok(())
+				return false;
 			}
 		};
 		result.unwrap_or_else(|e| {
 			debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e);
-		})
+		});
+		return true;
 	}
 
 	/// Called when peer sends us new consensus packet
@@ -113,12 +123,12 @@ impl SyncHandler {
 				// Check if we are asking other peers for
 				// the snapshot manifest as well.
 				// If not, return to initial state
-				let still_asking_manifest = sync.peers.iter()
+				let none_asking_manifest = sync.peers.iter()
 					.filter(|&(id, p)| sync.active_peers.contains(id) && p.asking == PeerAsking::SnapshotManifest)
 					.next().is_none();
 
-				if still_asking_manifest {
-					sync.state = ChainSync::get_init_state(sync.warp_sync, io.chain());
+				if none_asking_manifest {
+					sync.state = ChainSync::init_state(sync.warp_sync, io.chain());
 				}
 			}
 			sync.continue_sync(io);
@@ -156,7 +166,6 @@ impl SyncHandler {
 		if header.number() > sync.highest_block.unwrap_or(0) {
 			sync.highest_block = Some(header.number());
 		}
-		let mut unknown = false;
 		{
 			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 				peer.latest_hash = header.hash();
@@ -182,23 +191,20 @@ impl SyncHandler {
 				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
 			},
 			Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(p)), _)) => {
-				unknown = true;
 				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
+				if sync.state != SyncState::Idle {
+					trace!(target: "sync", "NewBlock ignored while seeking");
+				} else {
+					trace!(target: "sync", "New unknown block {:?}", h);
+					//TODO: handle too many unknown blocks
+					sync.sync_peer(io, peer_id, true);
+				}
 			},
 			Err(e) => {
 				debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
 				io.disable_peer(peer_id);
 			}
 		};
-		if unknown {
-			if sync.state != SyncState::Idle {
-				trace!(target: "sync", "NewBlock ignored while seeking");
-			} else {
-				trace!(target: "sync", "New unknown block {:?}", h);
-				//TODO: handle too many unknown blocks
-				sync.sync_peer(io, peer_id, true);
-			}
-		}
 		sync.continue_sync(io);
 		Ok(())
 	}
@@ -325,7 +331,7 @@ impl SyncHandler {
 				Ok(()) => (),
 			}
 
-			sync.collect_blocks(io, block_set);
+			SyncHandler::collect_blocks(sync, io, block_set);
 			sync.sync_peer(io, peer_id, false);
 		}
 		sync.continue_sync(io);
@@ -436,7 +442,7 @@ impl SyncHandler {
 			Ok(DownloadAction::None) => {},
 		}
 
-		sync.collect_blocks(io, block_set);
+		SyncHandler::collect_blocks(sync, io, block_set);
 		// give a task to the same peer first if received valuable headers.
 		sync.sync_peer(io, peer_id, false);
 		// give tasks to other peers
@@ -491,9 +497,51 @@ impl SyncHandler {
 				Ok(()) => (),
 			}
 
-			sync.collect_blocks(io, block_set);
+			SyncHandler::collect_blocks(sync, io, block_set);
 			sync.sync_peer(io, peer_id, false);
 		}
+		sync.continue_sync(io);
+		Ok(())
+	}
+
+	/// Called when snapshot bitfield is downloaded from a peer.
+	fn on_snapshot_bitfield(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
+		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
+			trace!(target: "sync", "Ignoring snapshot bitifield from unconfirmed peer {}", peer_id);
+			return Ok(());
+		}
+		if !sync.reset_peer_asking(peer_id, PeerAsking::SnapshotBitfield) || sync.state != SyncState::SnapshotData {
+			trace!(target: "sync", "{}: Ignored unexpected/expired snapshot bitfield", peer_id);
+			sync.continue_sync(io);
+			return Ok(());
+		}
+
+		{
+			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
+			// Find the corresponding manifest and check that it matches the peer's
+			// manifest
+			if let Some(manifest) = io.snapshot_service().manifest(true) {
+				let correct_manifest = peer.snapshot_hash.map_or(false, |h| h == manifest.clone().hash());
+				if correct_manifest {
+					let bitfield_rlp = r.at(0)?;
+					match Bitfield::read_rlp(&manifest, bitfield_rlp.as_raw()) {
+						Err(e) => {
+							trace!(target: "sync", "{}: Ignored bad bitfield: {:?}", peer_id, e);
+							io.disable_peer(peer_id);
+							return Ok(());
+						},
+						Ok(available_chunks) => {
+							peer.snapshot_chunks = Some(available_chunks);
+							peer.ask_bitfield_time = Instant::now();
+						},
+					}
+				}
+			}
+		}
+
+		// give a task to the same peer first.
+		sync.sync_peer(io, peer_id, false);
+		// give tasks to other peers
 		sync.continue_sync(io);
 		Ok(())
 	}
@@ -537,8 +585,6 @@ impl SyncHandler {
 
 		// give a task to the same peer first.
 		sync.sync_peer(io, peer_id, false);
-		// give tasks to other peers
-		sync.continue_sync(io);
 		Ok(())
 	}
 
@@ -602,9 +648,10 @@ impl SyncHandler {
 		if sync.snapshot.is_complete() {
 			// wait for snapshot restoration process to complete
 			sync.state = SyncState::SnapshotWaiting;
+		} else {
+			// give a task to the same peer first.
+			sync.sync_peer(io, peer_id, false);
 		}
-		// give a task to the same peer first.
-		sync.sync_peer(io, peer_id, false);
 		// give tasks to other peers
 		sync.continue_sync(io);
 		Ok(())
@@ -625,10 +672,12 @@ impl SyncHandler {
 			asking_blocks: Vec::new(),
 			asking_hash: None,
 			ask_time: Instant::now(),
+			ask_bitfield_time: Instant::now() - BITFIELD_REFRESH_DURATION,
 			last_sent_transactions: HashSet::new(),
 			expired: false,
 			confirmation: if sync.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
 			asking_snapshot_data: None,
+			snapshot_chunks: None,
 			snapshot_hash: if warp_protocol { Some(r.val_at(5)?) } else { None },
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,
@@ -658,7 +707,7 @@ impl SyncHandler {
 		}
 
 		if false
-			|| (warp_protocol && (peer.protocol_version < PAR_PROTOCOL_VERSION_1.0 || peer.protocol_version > PAR_PROTOCOL_VERSION_3.0))
+			|| (warp_protocol && (peer.protocol_version < PAR_PROTOCOL_VERSION_1.0 || peer.protocol_version > PAR_PROTOCOL_VERSION_4.0))
 			|| (!warp_protocol && (peer.protocol_version < ETH_PROTOCOL_VERSION_62.0 || peer.protocol_version > ETH_PROTOCOL_VERSION_63.0))
 		{
 			io.disable_peer(peer_id);
@@ -741,6 +790,25 @@ impl SyncHandler {
 			trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
 		}
 		Ok(())
+	}
+
+	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
+	fn collect_blocks(sync: &mut ChainSync, io: &mut SyncIo, block_set: BlockSet) {
+		match block_set {
+			BlockSet::NewBlocks => {
+				if sync.new_blocks.collect_blocks(io, sync.state == SyncState::NewBlocks) == Err(DownloaderImportError::Invalid) {
+					sync.restart(io);
+				}
+			},
+			BlockSet::OldBlocks => {
+				if sync.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
+					sync.restart(io);
+				} else if sync.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
+					trace!(target: "sync", "Background block download is complete");
+					sync.old_blocks = None;
+				}
+			}
+		}
 	}
 }
 

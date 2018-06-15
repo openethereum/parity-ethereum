@@ -56,6 +56,7 @@ pub use self::consensus::*;
 pub use self::service::{Service, DatabaseRestore};
 pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
+pub use types::snapshot_bitfield::Bitfield;
 pub use types::snapshot_manifest::ManifestData;
 pub use types::restoration_status::RestorationStatus;
 pub use types::basic_account::BasicAccount;

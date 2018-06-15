@@ -32,6 +32,7 @@ use super::{
 	GET_BLOCK_BODIES_PACKET,
 	GET_BLOCK_HEADERS_PACKET,
 	GET_RECEIPTS_PACKET,
+	GET_SNAPSHOT_BITFIELD_PACKET,
 	GET_SNAPSHOT_DATA_PACKET,
 	GET_SNAPSHOT_MANIFEST_PACKET,
 };
@@ -82,12 +83,31 @@ impl SyncRequester {
 	/// Find some headers or blocks to download for a peer.
 	pub fn request_snapshot_data(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
 		// find chunk data to download
-		if let Some(hash) = sync.snapshot.needed_chunk() {
-			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-				peer.asking_snapshot_data = Some(hash.clone());
-			}
+		let hash = {
+			let peer = sync.peers.get(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
+			sync.snapshot.needed_chunk(&peer)
+		};
+
+		if let Some(hash) = hash {
 			SyncRequester::request_snapshot_chunk(sync, io, peer_id, &hash);
+		} else {
+			// Request the bitfield if no more chunks available and is expired
+			if sync.peers.get(&peer_id).map_or(false, |p| p.should_renew_bitfield()) {
+				SyncRequester::request_snapshot_bitfield(sync, io, peer_id);
+			}
 		}
+
+	}
+
+	/// Request snapshot bitfield from a peer.
+	pub fn request_snapshot_bitfield(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+		let snapshot_hash: H256 = sync.peers.get(&peer_id)
+			.and_then(|peer| peer.snapshot_hash)
+			.unwrap_or_default();
+		trace!(target: "sync", "{} <- GetSnapshotBitfield ({:x})", peer_id, snapshot_hash);
+		let mut rlp = RlpStream::new_list(1);
+		rlp.append(&snapshot_hash);
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotBitfield, GET_SNAPSHOT_BITFIELD_PACKET, rlp.out());
 	}
 
 	/// Request snapshot manifest from a peer.
@@ -130,6 +150,8 @@ impl SyncRequester {
 		let mut rlp = RlpStream::new_list(1);
 		rlp.append(chunk);
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotData, GET_SNAPSHOT_DATA_PACKET, rlp.out());
+		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
+		peer.asking_snapshot_data = Some(chunk.clone());
 	}
 
 	/// Generic request sender
