@@ -30,6 +30,7 @@ use tiny_keccak::Keccak;
 pub trait Hasher: Sync + Send {
 	type Out: AsRef<[u8]> + Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync /* REVIEW: how do I get around this? --> */ + HeapSizeOf;
 	const HASHED_NULL_RLP: Self::Out;
+	const LENGTH: usize;
 	fn hash(x: &[u8]) -> Self::Out;
 }
 
@@ -39,7 +40,7 @@ pub struct KeccakHasher;
 impl Hasher for KeccakHasher {
 	type Out = H256;
 	const HASHED_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
-
+	const LENGTH: usize = 32;
 	fn hash(x: &[u8]) -> Self::Out {
 		let mut out = [0;32];
 		Keccak::keccak256(x, &mut out);

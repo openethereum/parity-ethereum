@@ -113,8 +113,8 @@ where H::Out: Decodable
 	}
 	fn try_decode_hash(data: &[u8]) -> Option<H::Out> {
 		let r = Rlp::new(data);
-		if r.is_data() && r.size() == 32 { // REVIEW: this makes an assumption on the length of the `Hasher` output type – should it be `std::mem::size_of(H::Out)`?
-			Some(r.as_val().expect("Hash is the correct size of 32 bytes; qed"))
+		if r.is_data() && r.size() == H::LENGTH { 
+			Some(r.as_val().expect("Hash is the correct size; qed"))
 		} else {
 			None
 		}
