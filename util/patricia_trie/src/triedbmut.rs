@@ -857,7 +857,6 @@ where H: Hasher,
 
 	/// commit a node, hashing it, committing it to the db,
 	/// and writing it to the encoded stream as necessary.
-	// REVIEW: this is causing the `Encodable` bound all the way upstream, precisely it's the `stream.append()` call requires it
 	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut <C as NodeCodec<H>>::S) {
 		match handle {
 			NodeHandle::Hash(h) => {
