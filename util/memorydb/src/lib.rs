@@ -336,20 +336,4 @@ mod tests {
 		assert_eq!(overlay.get(&insert_key).unwrap(), &(DBValue::from_slice(b"arf"), 2));
 		assert_eq!(overlay.get(&negative_remove_key).unwrap(), &(DBValue::from_slice(b"negative"), -2));
 	}
-
-//	#[test]
-//	fn other_hashers() {
-//		struct DummyHasher;
-//		impl Hasher for DummyHasher {
-//			type Out = ethereum_types::H160;
-//			const HASHED_NULL_RLP: ethereum_types::H160= ethereum_types::H160([0; 20]);
-//			fn hash(_x: &[u8]) -> Self::Out { ethereum_types::H160(*b"01010202010102020101") }
-//		}
-//		impl HeapSizeOf for DummyHasher { fn heap_size_of_children(&self) -> usize { 0 } }
-//
-//		let mut db = MemoryDB::<DummyHasher>::new();
-//		// TODO: Fails. Trying to use a type that isn't H256 fails because of the tight coupling between memorydb and plain_hasher (specifically the assert on key length == 32)
-//		 let key = db.insert(b"32103210321032103210321032103210");
-//		 assert_eq!(key, ethereum_types::H264(*b"010102020101020201010202010102025"));
-//	}
 }

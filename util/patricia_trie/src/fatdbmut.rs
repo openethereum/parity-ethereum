@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//use ethereum_types::H256;
-//use keccak::keccak;
 use hashdb::{HashDB, DBValue, Hasher};
 use super::{TrieDBMut, TrieMut};
 use node_codec::NodeCodec;

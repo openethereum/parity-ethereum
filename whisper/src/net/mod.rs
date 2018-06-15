@@ -27,6 +27,7 @@ use network::{self, NetworkContext, NodeId, PeerId, ProtocolId, TimerToken};
 use ordered_float::OrderedFloat;
 use parking_lot::{Mutex, RwLock};
 use rlp::{DecoderError, RlpStream, Rlp};
+use stream_encoder::Stream;
 
 use message::{Message, Error as MessageError};
 
