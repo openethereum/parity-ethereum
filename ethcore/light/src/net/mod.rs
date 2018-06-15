@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 use transaction::UnverifiedTransaction;
 
 use io::TimerToken;
-use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
+use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
 use kvdb::DBValue;
@@ -72,6 +72,9 @@ const PROPAGATE_TIMEOUT_INTERVAL: Duration = Duration::from_secs(5);
 const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
 const RECALCULATE_COSTS_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
+/// Max number of transactions in a single packet.
+const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
+
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
 
@@ -85,7 +88,6 @@ pub const PROTOCOL_VERSIONS: &'static [(u8, u8)] = &[
 
 /// Max protocol version.
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
-
 
 // packet ID definitions.
 mod packet {
@@ -648,7 +650,7 @@ impl LightProtocol {
 	fn propagate_transactions(&self, io: &IoContext) {
 		if self.capabilities.read().tx_relay { return }
 
-		let ready_transactions = self.provider.ready_transactions();
+		let ready_transactions = self.provider.ready_transactions(MAX_TRANSACTIONS_TO_PROPAGATE);
 		if ready_transactions.is_empty() { return }
 
 		trace!(target: "pip", "propagate transactions: {} ready", ready_transactions.len());
@@ -1082,7 +1084,7 @@ fn punish(peer: PeerId, io: &IoContext, e: Error) {
 }
 
 impl NetworkProtocolHandler for LightProtocol {
-	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
+	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
 		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL)

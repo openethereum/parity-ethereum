@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -203,7 +203,7 @@ impl<C> ChainNotificationHandler<C> {
 	}
 
 	/// Notify all subscribers about new transaction hashes.
-	pub fn new_transactions(&self, hashes: &[H256]) {
+	pub fn notify_new_transactions(&self, hashes: &[H256]) {
 		for subscriber in self.transactions_subscribers.read().values() {
 			for hash in hashes {
 				Self::notify(&self.remote, subscriber, pubsub::Result::TransactionHash((*hash).into()));
@@ -284,6 +284,7 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 				&ChainRouteType::Retracted =>
 					Ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
 						log.log_type = "removed".into();
+						log.removed = true;
 						log
 					}).collect()),
 			}

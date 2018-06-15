@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -348,7 +348,6 @@ impl DocumentKeyShareVersion {
 		}
 	}
 
-
 	/// Calculate hash of given version data.
 	pub fn data_hash<'a, I>(id_numbers: I) -> H256 where I: Iterator<Item=(&'a [u8], &'a [u8])> {
 		let mut nodes_keccak = Keccak::new_keccak256();
@@ -467,7 +466,6 @@ pub mod tests {
 	#[test]
 	fn persistent_key_storage() {
 		let tempdir = TempDir::new("").unwrap();
-
 		let key1 = ServerKeyId::from(1);
 		let value1 = DocumentKeyShare {
 			author: Default::default(),

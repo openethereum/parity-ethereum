@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -742,6 +742,10 @@ impl SnapshotService for Service {
 		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::FeedBlockChunk(hash, chunk)) {
 			trace!("Error sending snapshot service message: {:?}", e);
 		}
+	}
+
+	fn shutdown(&self) {
+		self.abort_restore();
 	}
 }
 

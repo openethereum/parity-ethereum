@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@ pub trait Filterable {
 	fn best_block_number(&self) -> u64;
 
 	/// Get a block hash by block id.
-	fn block_hash(&self, id: BlockId) -> Option<RpcH256>;
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// Get a block body by block id.
 	fn block_body(&self, id: BlockId) -> BoxFuture<Option<encoded::Body>>;
@@ -59,6 +59,9 @@ pub trait Filterable {
 
 	/// Get a reference to the poll manager.
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>>;
+
+	/// Get removed logs within route from the given block to the nearest canon block, not including the canon block. Also returns how many logs have been traversed.
+	fn removed_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64);
 
 	/// Replay the transactions from the specified block
 	fn replay_block_transactions(&self, block: BlockId) -> Result<result::Result<Box<Iterator<Item = Executed>>, CallError>>;
@@ -90,8 +93,8 @@ M: MinerService,
 		self.client.chain_info().best_block_number
 	}
 
-	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
-		self.client.block_hash(id).map(Into::into)
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		self.client.block_hash(id)
 	}
 
 	fn block_body(&self, id: BlockId) -> BoxFuture<Option<encoded::Body>> {
@@ -99,7 +102,7 @@ M: MinerService,
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
-		self.miner.ready_transactions(&*self.client)
+		self.miner.ready_transactions(&*self.client, usize::max_value(), miner::PendingOrdering::Priority)
 			.into_iter()
 			.map(|tx| tx.signed().hash())
 			.collect()
@@ -115,6 +118,40 @@ M: MinerService,
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> { &self.polls }
 
+	fn removed_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64) {
+		let inner = || -> Option<Vec<H256>> {
+			let mut route = Vec::new();
+
+			let mut current_block_hash = block_hash;
+			let mut current_block_header = self.client.block_header(BlockId::Hash(current_block_hash))?;
+
+			while current_block_hash != self.client.block_hash(BlockId::Number(current_block_header.number()))? {
+				route.push(current_block_hash);
+
+				current_block_hash = current_block_header.parent_hash();
+				current_block_header = self.client.block_header(BlockId::Hash(current_block_hash))?;
+			}
+
+			Some(route)
+		};
+
+		let route = inner().unwrap_or_default();
+		let route_len = route.len() as u64;
+		(route.into_iter().flat_map(|block_hash| {
+			let mut filter = filter.clone();
+			filter.from_block = BlockId::Hash(block_hash);
+			filter.to_block = filter.from_block;
+
+			self.client.logs(filter).into_iter().map(|log| {
+				let mut log: Log = log.into();
+				log.log_type = "removed".into();
+				log.removed = true;
+
+				log
+			})
+		}).collect(), route_len)
+	}
+
 	fn replay_block_transactions(&self, block: BlockId) -> Result<result::Result<Box<Iterator<Item = Executed>>, CallError>> {
 		Ok(self.client.replay_block_transactions(block, CallAnalytics { transaction_tracing: false, vm_tracing: false, state_diffing: false}))
 	}
@@ -124,7 +161,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	fn new_filter(&self, filter: Filter) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
 		let block_number = self.best_block_number();
-		let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
+		let id = polls.create_poll(PollFilter::Logs(block_number, None, Default::default(), filter));
 		Ok(id.into())
 	}
 
@@ -158,7 +195,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					let current_number = self.best_block_number() + 1;
 					let hashes = (*block_number..current_number).into_iter()
 						.map(BlockId::Number)
-						.filter_map(|id| self.block_hash(id))
+						.filter_map(|id| self.block_hash(id).map(Into::into))
 						.collect::<Vec<RpcH256>>();
 
 					*block_number = current_number;
@@ -188,7 +225,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					// return new hashes
 					Either::A(future::ok(FilterChanges::Hashes(new_hashes)))
 				},
-				PollFilter::Logs(ref mut block_number, ref mut previous_logs, ref filter) => {
+				PollFilter::Logs(ref mut block_number, ref mut last_block_hash, ref mut previous_logs, ref filter) => {
 					// retrive the current block number
 					let current_number = self.best_block_number();
 
@@ -197,6 +234,11 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 					// build appropriate filter
 					let mut filter: EthcoreFilter = filter.clone().into();
+
+					// retrieve reorg logs
+					let (mut reorg, reorg_len) = last_block_hash.map_or_else(|| (Vec::new(), 0), |h| self.removed_logs(h, &filter));
+					*block_number -= reorg_len as u64;
+
 					filter.from_block = BlockId::Number(*block_number);
 					filter.to_block = BlockId::Latest;
 
@@ -222,12 +264,17 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					// we want to get logs
 					*block_number = current_number + 1;
 
+					// save the current block hash, which we used to get back to the
+					// canon chain in case of reorg.
+					*last_block_hash = self.block_hash(BlockId::Number(current_number));
+
 					// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 					let limit = filter.limit;
 					Either::B(Either::A(self.logs(filter)
-										.map(move |mut logs| { logs.extend(pending); logs }) // append fetched pending logs
-										.map(move |logs| limit_logs(logs, limit)) // limit the logs
-										.map(FilterChanges::Logs)))
+						.map(move |logs| { reorg.extend(logs); reorg }) // append reorg logs in the front
+						.map(move |mut logs| { logs.extend(pending); logs }) // append fetched pending logs
+						.map(move |logs| limit_logs(logs, limit)) // limit the logs
+						.map(FilterChanges::Logs)))
 				},
 				PollFilter::ReturnData(ref mut block_number) => {
 					// +1, cause we want to return hashes including current block hash.
@@ -302,7 +349,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 			let mut polls = self.polls().lock();
 
 			match polls.poll(&index.value()) {
-				Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => filter.clone(),
+				Some(&PollFilter::Logs(ref _block_number, ref _last_block_hash, ref _previous_log, ref filter)) => filter.clone(),
 				// just empty array
 				Some(_) => return Box::new(future::ok(Vec::new())),
 				None => return Box::new(future::err(errors::filter_not_found())),

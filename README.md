@@ -48,7 +48,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
 
-	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev` and `pkg-config` packages to be installed.
+	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev`, `pkg-config`, `file` and `make` packages to be installed.
 
 - OSX:
 	```bash
@@ -138,13 +138,13 @@ first.
 ## Simple one-line installer for Mac and Ubuntu
 
 ```bash
-bash <(curl https://get.parity.io -Lk)
+bash <(curl https://get.parity.io -L)
 ```
 
 The one-line installer always defaults to the latest beta release. To install a stable release, run:
 
 ```bash
-bash <(curl https://get.parity.io -Lk) -r stable
+bash <(curl https://get.parity.io -L) -r stable
 ```
 
 ## Start Parity

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,10 +17,11 @@
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
+use std::ops::Range;
 use std::time::Duration;
 use bytes::Bytes;
 use devp2p::NetworkService;
-use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, ProtocolId,
+use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
 	ConnectionFilter};
 use ethereum_types::{H256, H512, U256};
@@ -358,6 +359,10 @@ impl SyncProvider for EthSync {
 	}
 }
 
+const PEERS_TIMER: TimerToken = 0;
+const SYNC_TIMER: TimerToken = 1;
+const TX_TIMER: TimerToken = 2;
+
 struct SyncProtocolHandler {
 	/// Shared blockchain client.
 	chain: Arc<BlockChainClient>,
@@ -370,9 +375,11 @@ struct SyncProtocolHandler {
 }
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
-	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
+	fn initialize(&self, io: &NetworkContext) {
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
-			io.register_timer(0, Duration::from_secs(1)).expect("Error registering sync timer");
+			io.register_timer(PEERS_TIMER, Duration::from_millis(700)).expect("Error registering peers timer");
+			io.register_timer(SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
+			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
 		}
 	}
 
@@ -398,12 +405,17 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		}
 	}
 
-	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
+	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
 		trace_time!("sync::timeout");
 		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay);
-		self.sync.write().maintain_peers(&mut io);
-		self.sync.write().maintain_sync(&mut io);
-		self.sync.write().propagate_new_transactions(&mut io);
+		match timer {
+			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
+			SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
+			TX_TIMER => {
+				self.sync.write().propagate_new_transactions(&mut io);
+			},
+			_ => warn!("Unknown timer {} triggered.", timer),
+		}
 	}
 }
 
@@ -452,11 +464,18 @@ impl ChainNotify for EthSync {
 	}
 
 	fn start(&self) {
-		match self.network.start().map_err(Into::into) {
-			Err(ErrorKind::Io(ref e)) if e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
-			Err(err) => warn!("Error starting network: {}", err),
+		match self.network.start() {
+			Err((err, listen_address)) => {
+				match err.into() {
+					ErrorKind::Io(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
+						warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", listen_address.expect("Listen address is not set."))
+					},
+					err => warn!("Error starting network: {}", err),
+				}
+			},
 			_ => {},
 		}
+
 		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
@@ -520,12 +539,13 @@ pub trait ManageNetwork : Send + Sync {
 	fn start_network(&self);
 	/// Stop network
 	fn stop_network(&self);
-	/// Query the current configuration of the network
-	fn network_config(&self) -> NetworkConfiguration;
+	/// Returns the minimum and maximum peers.
+	/// Note that `range.end` is *exclusive*.
+	// TODO: Range should be changed to RangeInclusive once stable (https://github.com/rust-lang/rust/pull/50758)
+	fn num_peers_range(&self) -> Range<u32>;
 	/// Get network context for protocol.
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext));
 }
-
 
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
@@ -561,8 +581,8 @@ impl ManageNetwork for EthSync {
 		self.stop();
 	}
 
-	fn network_config(&self) -> NetworkConfiguration {
-		NetworkConfiguration::from(self.network.config().clone())
+	fn num_peers_range(&self) -> Range<u32> {
+		self.network.num_peers_range()
 	}
 
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
@@ -815,11 +835,15 @@ impl ManageNetwork for LightSync {
 	}
 
 	fn start_network(&self) {
-		match self.network.start().map_err(Into::into) {
-			Err(ErrorKind::Io(ref e)) if e.kind() == io::ErrorKind::AddrInUse => {
-				warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set."))
-			}
-			Err(err) => warn!("Error starting network: {}", err),
+		match self.network.start() {
+			Err((err, listen_address)) => {
+				match err.into() {
+					ErrorKind::Io(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
+						warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", listen_address.expect("Listen address is not set."))
+					},
+					err => warn!("Error starting network: {}", err),
+				}
+			},
 			_ => {},
 		}
 
@@ -836,8 +860,8 @@ impl ManageNetwork for LightSync {
 		self.network.stop();
 	}
 
-	fn network_config(&self) -> NetworkConfiguration {
-		NetworkConfiguration::from(self.network.config().clone())
+	fn num_peers_range(&self) -> Range<u32> {
+		self.network.num_peers_range()
 	}
 
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
@@ -848,12 +872,13 @@ impl ManageNetwork for LightSync {
 impl LightSyncProvider for LightSync {
 	fn peer_numbers(&self) -> PeerNumbers {
 		let (connected, active) = self.proto.peer_count();
-		let config = self.network_config();
+		let peers_range = self.num_peers_range();
+		debug_assert!(peers_range.end > peers_range.start);
 		PeerNumbers {
 			connected: connected,
 			active: active,
-			max: config.max_peers as usize,
-			min: config.min_peers as usize,
+			max: peers_range.end as usize - 1,
+			min: peers_range.start as usize,
 		}
 	}
 

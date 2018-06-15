@@ -14,19 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Mode type
+//! Tree route info type definition
 
-pub use std::time::Duration;
+use ethereum_types::H256;
+use v1::types::Bytes;
 
-/// IPC-capable shadow-type for `client::config::Mode`
-#[derive(Clone, Debug)]
-pub enum Mode {
-	/// Same as `ClientMode::Off`.
-	Off,
-	/// Same as `ClientMode::Dark`; values in seconds.
-	Dark(u64),
-	/// Same as `ClientMode::Passive`; values in seconds.
-	Passive(u64, u64),
-	/// Same as `ClientMode::Active`.
-	Active,
+/// Represents return data of a contract function call
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct ReturnData {
+	#[serde(rename="transactionHash")]
+	pub transaction_hash: H256,
+	#[serde(rename="returnData")]
+	pub return_data: Bytes,
+	pub removed: bool,
 }

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -264,12 +264,13 @@ impl Parity for ParityClient {
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Trailing<usize>) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
+				.take(limit.unwrap_or_else(usize::max_value))
 				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
 				.collect::<Vec<_>>()
 		)
