@@ -44,6 +44,7 @@ use ethkey::{self, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
+use stream_encoder::Stream;
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};

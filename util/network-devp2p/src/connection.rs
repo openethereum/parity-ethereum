@@ -36,6 +36,7 @@ use tiny_keccak::Keccak;
 use bytes::{Buf, BufMut};
 use ethkey::crypto;
 use network::{Error, ErrorKind};
+use stream_encoder::Stream;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECEIVE_PAYLOAD: Duration = Duration::from_secs(30);

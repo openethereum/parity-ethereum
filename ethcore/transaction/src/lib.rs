@@ -24,6 +24,7 @@ extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate rlp;
 extern crate unexpected;
+extern crate stream_encoder;
 
 #[cfg(test)]
 extern crate rustc_hex;

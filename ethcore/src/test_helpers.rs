@@ -37,6 +37,7 @@ use state::*;
 use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
+use stream_encoder::Stream;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {

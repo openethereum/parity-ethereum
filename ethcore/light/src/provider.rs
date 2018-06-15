@@ -386,7 +386,7 @@ impl<L: AsLightClient> AsLightClient for LightProvider<L> {
 
 #[cfg(test)]
 mod tests {
-	use ::ethcore::client::{EachBlockWith, TestBlockChainClient};
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
 	use super::Provider;
 
 	#[test]

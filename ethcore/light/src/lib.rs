@@ -69,6 +69,7 @@ extern crate patricia_trie as trie;
 extern crate plain_hasher;
 extern crate rand;
 extern crate rlp;
+extern crate stream_encoder;
 extern crate parking_lot;
 #[macro_use]
 extern crate rlp_derive;

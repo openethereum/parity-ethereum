@@ -32,6 +32,7 @@ use network::SessionCapabilityInfo;
 use host::*;
 use node_table::NodeId;
 use snappy;
+use stream_encoder::Stream;
 
 // Timeout must be less than (interval - 1).
 const PING_TIMEOUT: Duration = Duration::from_secs(60);

@@ -35,6 +35,7 @@ use kvdb::KeyValueDB;
 use bytes::Bytes;
 use rlp::{RlpStream, Rlp};
 use rand::OsRng;
+use stream_encoder::Stream;
 
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a

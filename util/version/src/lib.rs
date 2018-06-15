@@ -19,10 +19,12 @@
 extern crate target_info;
 extern crate ethcore_bytes as bytes;
 extern crate rlp;
+extern crate stream_encoder;
 
 use target_info::Target;
 use bytes::Bytes;
 use rlp::RlpStream;
+use stream_encoder::Stream;
 
 mod vergen {
 	#![allow(unused)]

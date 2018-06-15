@@ -19,6 +19,7 @@
 use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, DecoderError};
 use bytes::Bytes;
+use stream_encoder::Stream;
 
 /// Manifest data.
 #[derive(Debug, Clone, PartialEq, Eq)]

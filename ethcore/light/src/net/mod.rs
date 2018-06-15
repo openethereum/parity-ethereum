@@ -23,6 +23,7 @@ use transaction::UnverifiedTransaction;
 use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Rlp};
+use stream_encoder::Stream;
 use ethereum_types::{H256, U256};
 use kvdb::DBValue;
 use parking_lot::{Mutex, RwLock};

@@ -17,6 +17,7 @@
 //! Peer status and capabilities.
 
 use rlp::{DecoderError, Encodable, Decodable, RlpStream, Rlp};
+use stream_encoder::Stream;
 use ethereum_types::{H256, U256};
 
 use super::request_credits::FlowParams;

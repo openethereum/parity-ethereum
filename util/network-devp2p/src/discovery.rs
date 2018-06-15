@@ -26,6 +26,7 @@ use node_table::*;
 use network::{Error, ErrorKind};
 use ethkey::{Secret, KeyPair, sign, recover};
 use network::IpFilter;
+use stream_encoder::Stream;
 
 use PROTOCOL_VERSION;
 

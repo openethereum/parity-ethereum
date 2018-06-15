@@ -48,6 +48,7 @@ use engines::epoch::{Transition as EpochTransition, PendingTransition as Pending
 use rayon::prelude::*;
 use ansi_term::Colour;
 use kvdb::{DBTransaction, KeyValueDB};
+use stream_encoder::Stream;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;

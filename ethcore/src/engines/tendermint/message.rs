@@ -26,6 +26,7 @@ use header::Header;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 use ethkey::{recover, public_to_address};
 use super::super::vote_collector::Message;
+use stream_encoder::Stream;
 
 /// Message transmitted between consensus participants.
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]

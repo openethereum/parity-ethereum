@@ -34,6 +34,7 @@ use header::Header;
 use ids::BlockId;
 use log_entry::LogEntry;
 use receipt::Receipt;
+use stream_encoder::Stream;
 
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;

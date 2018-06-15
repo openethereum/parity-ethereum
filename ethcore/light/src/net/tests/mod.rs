@@ -32,6 +32,7 @@ use request;
 use request::*;
 
 use rlp::{Rlp, RlpStream};
+use stream_encoder::Stream;
 use ethereum_types::{H256, U256, Address};
 
 use std::sync::Arc;
@@ -642,6 +643,7 @@ fn proof_of_execution() {
 fn id_guard() {
 	use super::request_set::RequestSet;
 	use super::ReqId;
+	use stream_encoder::Stream;
 
 	let capabilities = capabilities();
 

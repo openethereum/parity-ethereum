@@ -47,6 +47,7 @@ use heapsize::HeapSizeOf;
 use kvdb::{DBTransaction, KeyValueDB};
 use plain_hasher::H256FastMap;
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
+use stream_encoder::Stream;
 
 use cache::Cache;
 use parking_lot::{Mutex, RwLock};

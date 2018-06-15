@@ -30,6 +30,7 @@ use kvdb::DBValue;
 use kvdb_memorydb;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream};
+use stream_encoder::Stream;
 use ethkey::{Generator, Random};
 use ethcore_miner::pool::VerifiedTransaction;
 use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};

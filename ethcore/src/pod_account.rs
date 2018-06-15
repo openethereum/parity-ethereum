@@ -27,6 +27,7 @@ use state::Account;
 use ethjson;
 use types::account_diff::*;
 use rlp::{self, RlpStream};
+use stream_encoder::Stream;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// An account, expressed as Plain-Old-Data (hence the name).

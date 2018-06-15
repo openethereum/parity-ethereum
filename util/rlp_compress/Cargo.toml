@@ -7,3 +7,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 rlp = { path = "../rlp" }
 elastic-array = "0.10"
 lazy_static = "1.0"
+stream-encoder = { path = "../stream-encoder" }

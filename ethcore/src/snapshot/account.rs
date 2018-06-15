@@ -26,6 +26,7 @@ use hashdb::HashDB;
 use bytes::Bytes;
 use trie::{TrieDB, Trie, KeccakRlpNodeCodec};
 use rlp::{RlpStream, Rlp};
+use stream_encoder::Stream;
 
 use std::collections::HashSet;
 

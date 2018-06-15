@@ -10,6 +10,7 @@ extern crate elastic_array;
 #[macro_use]
 extern crate lazy_static;
 extern crate rlp;
+extern crate stream_encoder;
 
 mod common;
 
@@ -18,6 +19,7 @@ use std::collections::HashMap;
 use elastic_array::ElasticArray1024;
 use rlp::{Rlp, RlpStream};
 use common::{SNAPSHOT_SWAPPER, BLOCKS_SWAPPER};
+use stream_encoder::Stream;
 
 pub fn snapshot_swapper() -> &'static Swapper<'static> {
 	&SNAPSHOT_SWAPPER as &Swapper

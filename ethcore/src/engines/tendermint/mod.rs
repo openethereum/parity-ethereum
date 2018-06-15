@@ -50,6 +50,7 @@ use super::vote_collector::VoteCollector;
 use self::message::*;
 use self::params::TendermintParams;
 use machine::{AuxiliaryData, EthereumMachine};
+use stream_encoder::Stream;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Step {

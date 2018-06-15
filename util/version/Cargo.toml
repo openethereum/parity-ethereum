@@ -23,6 +23,7 @@ kovan = { forkBlock = 6600000, critical = false }
 [dependencies]
 ethcore-bytes = { path = "../bytes" }
 rlp = { path = "../rlp" }
+stream-encoder = { path = "../stream-encoder" }
 target_info = "0.1"
 
 [build-dependencies]

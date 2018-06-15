@@ -31,6 +31,7 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 
 use rlp::{RlpStream, Rlp};
+use stream_encoder::Stream;
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
 use hashdb::{HashDB, Hasher, KeccakHasher};

@@ -45,6 +45,7 @@ use spec::seal::Generic as GenericSeal;
 use state::backend::Basic as BasicBackend;
 use state::{Backend, State, Substate};
 use trace::{NoopTracer, NoopVMTracer};
+use stream_encoder::Stream;
 
 pub use ethash::OptimizeFor;
 

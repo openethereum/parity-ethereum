@@ -37,6 +37,7 @@ use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
 use kvdb::KeyValueDB;
 use bytes::Bytes;
+use stream_encoder::Stream;
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:

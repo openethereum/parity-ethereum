@@ -19,6 +19,7 @@
 use rlp::RlpStream;
 use ethereum_types::{H64, H256, H520};
 use ethjson;
+use stream_encoder::Stream;
 
 /// Classic ethereum seal.
 pub struct Ethereum {

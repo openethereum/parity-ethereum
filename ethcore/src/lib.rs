@@ -98,6 +98,7 @@ extern crate kvdb;
 extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
+extern crate stream_encoder;
 
 extern crate ethabi;
 extern crate rustc_hex;
