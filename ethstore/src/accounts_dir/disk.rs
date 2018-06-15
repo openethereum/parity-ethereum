@@ -182,9 +182,22 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 		// check for duplicate filename and append random suffix
 		if dedup && keyfile_path.exists() {
-			let suffix = ::random::random_string(4);
-			filename.push_str(&format!("-{}", suffix));
-			keyfile_path.set_file_name(&filename);
+			const MAX_RETRIES: usize = 500;
+			let mut retries = 0;
+			let mut deduped_filename = filename.clone();
+
+			while keyfile_path.exists() {
+				if retries >= MAX_RETRIES {
+					return Err(Error::Custom(format!("Exceeded maximum retries when deduplicating account filename.")));
+				}
+
+				let suffix = ::random::random_string(4);
+				deduped_filename = format!("{}-{}", filename, suffix);
+				keyfile_path.set_file_name(&deduped_filename);
+				retries += 1;
+			}
+
+			filename = deduped_filename;
 		}
 
 		// update account filename
