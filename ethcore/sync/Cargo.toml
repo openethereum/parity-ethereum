@@ -31,6 +31,7 @@ heapsize = "0.4"
 semver = "0.9"
 smallvec = { version = "0.4", features = ["heapsizeof"] }
 parking_lot = "0.5"
+stream-encoder = { path = "../../util/stream-encoder" }
 trace-time = { path = "../../util/trace-time" }
 ipnetwork = "0.12.6"
 

@@ -104,6 +104,7 @@ use plain_hasher::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
+use stream_encoder::Stream;
 use network::{self, PeerId, PacketId};
 use ethcore::header::{BlockNumber};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};

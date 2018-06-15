@@ -65,6 +65,7 @@ extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate rlp;
+extern crate stream_encoder;
 extern crate stats;
 extern crate keccak_hash as hash;
 extern crate hardware_wallet;

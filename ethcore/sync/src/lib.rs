@@ -41,6 +41,7 @@ extern crate ipnetwork;
 extern crate keccak_hash as hash;
 extern crate triehash;
 extern crate kvdb;
+extern crate stream_encoder;
 
 extern crate ethcore_light as light;
 

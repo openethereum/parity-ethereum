@@ -25,6 +25,7 @@ use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
 use rlp;
+use stream_encoder::Stream;
 use hash::keccak;
 use ethereum_types::{H256, H520, Address, U256};
 use bytes::Bytes;
