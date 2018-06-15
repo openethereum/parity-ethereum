@@ -1,10 +1,10 @@
 use bytes::Bytes;
 use nibbleslice::NibbleSlice;
-use rlp::{Prototype, Rlp, RlpStream, DecoderError, Decodable, Encodable};
+use rlp::{Prototype, Rlp, RlpStream, DecoderError, Decodable};
 use hashdb::Hasher;
 use node::Node;
 use std::marker::PhantomData;
-use trie_node_codec::Stream;
+use stream_encoder::Stream;
 
 pub trait NodeCodec<H: Hasher>: Sized {
 	type E: ::std::error::Error;
@@ -20,7 +20,7 @@ pub trait NodeCodec<H: Hasher>: Sized {
 pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
 
 impl<H: Hasher> NodeCodec<H> for RlpNodeCodec<H>
-where H::Out: Encodable + Decodable
+where H::Out: Decodable
 {
 	type E = DecoderError;
 	type S = RlpStream;

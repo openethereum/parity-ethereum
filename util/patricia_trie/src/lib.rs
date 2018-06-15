@@ -24,7 +24,7 @@ extern crate keccak_hash as keccak;
 extern crate memorydb;
 extern crate rand;
 extern crate rlp;
-extern crate trie_node_codec;
+extern crate stream_encoder;
 
 #[cfg(test)]
 extern crate trie_standardmap as standardmap;

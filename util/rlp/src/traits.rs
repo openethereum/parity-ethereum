@@ -9,7 +9,7 @@
 //! Common RLP traits
 use elastic_array::ElasticArray1024;
 use {DecoderError, Rlp, RlpStream};
-use trie_node_codec::Stream;
+use stream_encoder::Stream;
 
 /// RLP decodable trait
 pub trait Decodable: Sized {

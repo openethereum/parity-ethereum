@@ -10,7 +10,7 @@ use std::borrow::Borrow;
 use byteorder::{ByteOrder, BigEndian};
 use elastic_array::{ElasticArray16, ElasticArray1024};
 use traits::Encodable;
-use trie_node_codec::Stream;
+use stream_encoder::Stream;
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {
@@ -162,9 +162,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate trie_node_codec;
+	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use trie_node_codec::Stream;
+	/// use stream_encoder::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -280,9 +280,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate trie_node_codec;
+	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use trie_node_codec::Stream;
+	/// use stream_encoder::Stream;
 	/// 
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(3);
@@ -304,9 +304,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate trie_node_codec;
+	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use trie_node_codec::Stream;
+	/// use stream_encoder::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);

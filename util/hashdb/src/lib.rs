@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database of byte-slices keyed to their Keccak hash.
+//! Database of byte-slices keyed to their hash.
 extern crate elastic_array;
 extern crate ethereum_types;
 extern crate heapsize;
@@ -33,7 +33,7 @@ pub trait Hasher: Sync + Send {
 	fn hash(x: &[u8]) -> Self::Out;
 }
 
-// REVIEW: Where do the concrete Hasher implementations go? Own crate?
+// TODO: Move concrete impl to own "façade" crate
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct KeccakHasher;
 impl Hasher for KeccakHasher {
@@ -77,6 +77,7 @@ pub trait HashDB<H: Hasher>: Send + Sync + AsHashDB<H> {
 	fn remove(&mut self, key: &H::Out);
 }
 
+//TODO: investigate if we can/should get rid of this trait altogether. There used to be a `impl<T> AsHashDB for T` but that does not work with generics so we currently have concrete impls in `ethcore` for this – perhaps we can just impl the needed methods where needed and get rid of this?
 /// Upcast trait.
 pub trait AsHashDB<H: Hasher> {
 	/// Perform upcast to HashDB for anything that derives from HashDB.

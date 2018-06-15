@@ -31,7 +31,7 @@ use std::collections::{HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Index;
-use trie_node_codec::Stream;
+use stream_encoder::Stream;
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.

@@ -135,7 +135,7 @@ members = [
 	"transaction-pool",
 	"whisper",
 	"whisper/cli",
-	"util/trie-node-codec",
+	"util/stream-encoder",
 ]
 
 [patch.crates-io]

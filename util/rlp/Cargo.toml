@@ -7,7 +7,7 @@ version = "0.2.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-trie-node-codec = { path = "../trie-node-codec"}
+stream-encoder = { path = "../stream-encoder"}
 elastic-array = "0.10"
 ethereum-types = "0.3"
 rustc-hex = "1.0"
