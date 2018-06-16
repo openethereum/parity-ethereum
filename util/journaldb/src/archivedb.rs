@@ -19,15 +19,17 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
-use rlp::{encode, decode};
-use hashdb::*;
-use super::memorydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::H256;
-use error::{BaseDataError, UtilError};
+
 use bytes::Bytes;
+use error::{BaseDataError, UtilError};
+use ethereum_types::H256;
+use hashdb::*;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
+use rlp::{encode, decode};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
+use super::memorydb::*;
+use traits::JournalDB;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.

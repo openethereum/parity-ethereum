@@ -19,18 +19,20 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use heapsize::HeapSizeOf;
-use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
-use hashdb::*;
-use memorydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use kvdb::{KeyValueDB, DBTransaction};
-use super::JournalDB;
-use ethereum_types::H256;
-use plain_hasher::H256FastMap;
-use error::{BaseDataError, UtilError};
+
 use bytes::Bytes;
+use error::{BaseDataError, UtilError};
+use ethereum_types::H256;
+use hashdb::*;
+use heapsize::HeapSizeOf;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
+use memorydb::*;
+use parking_lot::RwLock;
+use plain_hasher::H256FastMap;
+use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
+use super::JournalDB;
 use util::DatabaseKey;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay

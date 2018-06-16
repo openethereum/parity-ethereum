@@ -23,6 +23,7 @@ extern crate log;
 extern crate ethereum_types;
 extern crate ethcore_bytes as bytes;
 extern crate hashdb;
+extern crate keccak_hasher;
 extern crate kvdb;
 extern crate memorydb;
 extern crate parking_lot;
@@ -39,7 +40,8 @@ extern crate kvdb_memorydb;
 
 use std::{fmt, str};
 use std::sync::Arc;
-use hashdb::{AsHashDB, HashDB, KeccakHasher};
+use hashdb::{AsHashDB, HashDB};
+use keccak_hasher::KeccakHasher;
 
 /// Export the journaldb module.
 mod traits;

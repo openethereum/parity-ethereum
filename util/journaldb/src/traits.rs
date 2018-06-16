@@ -16,12 +16,13 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use std::sync::Arc;
-use hashdb::*;
-use kvdb::{self, DBTransaction};
-use ethereum_types::H256;
-use error::UtilError;
 use bytes::Bytes;
+use error::UtilError;
+use ethereum_types::H256;
+use hashdb::*;
+use keccak_hasher::KeccakHasher;
+use kvdb::{self, DBTransaction};
+use std::sync::Arc;
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.

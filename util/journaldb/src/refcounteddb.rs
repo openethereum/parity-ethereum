@@ -18,17 +18,19 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use heapsize::HeapSizeOf;
-use rlp::{encode, decode};
+
+use bytes::Bytes;
+use error::UtilError;
+use ethereum_types::H256;
 use hashdb::*;
-use overlaydb::OverlayDB;
+use heapsize::HeapSizeOf;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
 use memorydb::MemoryDB;
+use overlaydb::OverlayDB;
+use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::H256;
-use error::UtilError;
-use bytes::Bytes;
 use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay

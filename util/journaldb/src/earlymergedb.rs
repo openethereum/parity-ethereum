@@ -19,17 +19,19 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use heapsize::HeapSizeOf;
-use rlp::{encode, decode};
+
+use bytes::Bytes;
+use error::{BaseDataError, UtilError};
+use ethereum_types::H256;
 use hashdb::*;
+use heapsize::HeapSizeOf;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
 use memorydb::*;
+use parking_lot::RwLock;
+use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::H256;
-use error::{BaseDataError, UtilError};
-use bytes::Bytes;
 use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

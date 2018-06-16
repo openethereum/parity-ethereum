@@ -23,6 +23,7 @@ use error::{Result, BaseDataError};
 use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
 use hashdb::*;
+use keccak_hasher::KeccakHasher;
 use memorydb::*;
 use kvdb::{KeyValueDB, DBTransaction};
 

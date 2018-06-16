@@ -10,6 +10,7 @@ ethcore-bytes = { path = "../bytes" }
 ethereum-types = "0.3"
 hashdb = { version = "0.2.0", path = "../hashdb" }
 heapsize = "0.4"
+keccak-hasher = { path = "../keccak-hasher" }
 kvdb = { path = "../kvdb" }
 log = "0.3"
 memorydb = { version="0.2.0", path = "../memorydb" }
