@@ -25,7 +25,8 @@ use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSessi
 use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
 use key_server_cluster::signing_session_ecdsa::SessionImpl as EcdsaSigningSession;
 use key_server_cluster::signing_session_schnorr::SessionImpl as SchnorrSigningSession;
-use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
+use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions,
+	KeyVersions, KeyVersionsError, FailedKeyVersionContinueAction};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 // TODO [Opt]: change sessions so that versions are sent by chunks.
@@ -34,6 +35,8 @@ const VERSIONS_PER_MESSAGE: usize = 32;
 
 /// Key version negotiation transport.
 pub trait SessionTransport {
+	/// Broadcast message to all nodes.
+	fn broadcast(&self, message: KeyVersionNegotiationMessage) -> Result<(), Error>;
 	/// Send message to given node.
 	fn send(&self, node: &NodeId, message: KeyVersionNegotiationMessage) -> Result<(), Error>;
 }
@@ -61,6 +64,13 @@ pub enum ContinueAction {
 	SchnorrSign(Arc<SchnorrSigningSession>, H256),
 	/// ECDSA signing session + message hash.
 	EcdsaSign(Arc<EcdsaSigningSession>, H256),
+}
+
+/// Failed action after key version is negotiated.
+#[derive(Clone, Debug, PartialEq)]
+pub enum FailedContinueAction {
+	/// Decryption origin + requester.
+	Decrypt(Option<Address>, Address),
 }
 
 /// Immutable session data.
@@ -92,9 +102,11 @@ struct SessionData {
 	/// { Version => Nodes }
 	pub versions: Option<BTreeMap<H256, BTreeSet<NodeId>>>,
 	/// Session result.
-	pub result: Option<Result<(H256, NodeId), Error>>,
+	pub result: Option<Result<Option<(H256, NodeId)>, Error>>,
 	/// Continue action.
 	pub continue_with: Option<ContinueAction>,
+	/// Failed continue action (reported in error message by master node).
+	pub failed_continue_with: Option<FailedContinueAction>,
 }
 
 /// SessionImpl creation parameters
@@ -155,6 +167,7 @@ pub struct LargestSupportResultComputer;
 impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new session.
 	pub fn new(params: SessionParams<T>) -> Self {
+		let threshold = params.key_share.as_ref().map(|key_share| key_share.threshold);
 		SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
@@ -168,10 +181,11 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
 				confirmations: None,
-				threshold: None,
+				threshold: threshold,
 				versions: None,
 				result: None,
 				continue_with: None,
+				failed_continue_with: None,
 			})
 		}
 	}
@@ -183,7 +197,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 	/// Return key threshold.
 	pub fn key_threshold(&self) -> Result<usize, Error> {
-		Ok(self.data.lock().threshold.clone().ok_or(Error::InvalidStateForRequest)?)
+		self.data.lock().threshold.clone()
+			.ok_or(Error::InvalidStateForRequest)
 	}
 
 	/// Return result computer reference.
@@ -203,8 +218,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		self.data.lock().continue_with.take()
 	}
 
+	/// Take failed continue action.
+	pub fn take_failed_continue_action(&self) -> Option<FailedContinueAction> {
+		self.data.lock().failed_continue_with.take()
+	}
+
 	/// Wait for session completion.
-	pub fn wait(&self) -> Result<(H256, NodeId), Error> {
+	pub fn wait(&self) -> Result<Option<(H256, NodeId)>, Error> {
 		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 			.expect("wait_session returns Some if called without timeout; qed")
 	}
@@ -270,6 +290,12 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			&KeyVersionNegotiationMessage::KeyVersions(ref message) =>
 				self.on_key_versions(sender, message),
 			&KeyVersionNegotiationMessage::KeyVersionsError(ref message) => {
+				// remember failed continue action
+				if let Some(FailedKeyVersionContinueAction::Decrypt(Some(ref origin), ref requester)) = message.continue_with {
+					self.data.lock().failed_continue_with =
+						Some(FailedContinueAction::Decrypt(Some(origin.clone().into()), requester.clone().into()));
+				}
+
 				self.on_session_error(sender, message.error.clone());
 				Ok(())
 			},
@@ -309,6 +335,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// update state
 		data.state = SessionState::Finished;
+		data.result = Some(Ok(None));
+		self.core.completed.notify_all();
 
 		Ok(())
 	}
@@ -361,8 +389,47 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let confirmations = data.confirmations.as_ref().expect(reason);
 		let versions = data.versions.as_ref().expect(reason);
 		if let Some(result) = core.result_computer.compute_result(data.threshold.clone(), confirmations, versions) {
+			// when the master node processing decryption service request, it starts with a key version negotiation session
+			// if the negotiation fails, only master node knows about it
+			// => if the error is fatal, only the master will know about it and report it to the contract && the request will never be rejected
+			// => let's broadcast fatal error so that every other node know about it, and, if it trusts to master node
+			// will report error to the contract
+			if let (Some(continue_with), Err(error)) = (data.continue_with.as_ref(), result.as_ref()) {
+				let origin = match *continue_with {
+					ContinueAction::Decrypt(_, origin, _, _) => origin.clone(),
+					_ => None,
+				};
+
+				let requester = match *continue_with {
+					ContinueAction::Decrypt(ref session, _, _, _) => session.requester().and_then(|r| r.address(&core.meta.id).ok()),
+					_ => None,
+				};
+
+				if origin.is_some() && requester.is_some() && !error.is_non_fatal() {
+					let requester = requester.expect("checked in above condition; qed");
+					data.failed_continue_with =
+						Some(FailedContinueAction::Decrypt(origin.clone(), requester.clone()));
+
+					let send_result = core.transport.broadcast(KeyVersionNegotiationMessage::KeyVersionsError(KeyVersionsError {
+						session: core.meta.id.clone().into(),
+						sub_session: core.sub_session.clone().into(),
+						session_nonce: core.nonce,
+						error: error.clone(),
+						continue_with: Some(FailedKeyVersionContinueAction::Decrypt(
+							origin.map(Into::into),
+							requester.into(),
+						)),
+					}));
+
+					if let Err(send_error) = send_result {
+						warn!(target: "secretstore_net", "{}: failed to broadcast key version negotiation error {}: {}",
+							core.meta.self_node_id, error, send_error);
+					}
+				}
+			}
+
 			data.state = SessionState::Finished;
-			data.result = Some(result);
+			data.result = Some(result.map(Some));
 			core.completed.notify_all();
 		}
 	}
@@ -390,7 +457,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 			data.confirmations.as_mut().expect("checked a line above; qed").clear();
 			Self::try_complete(&self.core, &mut *data);
 			if data.state != SessionState::Finished {
-				warn!("{}: key version negotiation session failed with timeout", self.core.meta.self_node_id);
+				warn!(target: "secretstore_net", "{}: key version negotiation session failed with timeout", self.core.meta.self_node_id);
 
 				data.result = Some(Err(Error::ConsensusTemporaryUnreachable));
 				self.core.completed.notify_all();
@@ -407,17 +474,22 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 
 		if data.confirmations.is_some() {
 			let is_waiting_for_confirmation = data.confirmations.as_mut().expect("checked a line above; qed").remove(node);
-			if is_waiting_for_confirmation {
-				Self::try_complete(&self.core, &mut *data);
-				if data.state != SessionState::Finished {
-					warn!("{}: key version negotiation session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
+			if !is_waiting_for_confirmation {
+				return;
+			}
 
-					data.state = SessionState::Finished;
-					data.result = Some(Err(error));
-					self.core.completed.notify_all();
-				}
+			Self::try_complete(&self.core, &mut *data);
+			if data.state == SessionState::Finished {
+				return;
 			}
 		}
+
+		warn!(target: "secretstore_net", "{}: key version negotiation session failed because of {} from {}",
+			self.core.meta.self_node_id, error, node);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(error));
+		self.core.completed.notify_all();
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
@@ -429,6 +501,10 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 }
 
 impl SessionTransport for IsolatedSessionTransport {
+	fn broadcast(&self, message: KeyVersionNegotiationMessage) -> Result<(), Error> {
+		self.cluster.broadcast(Message::KeyVersionNegotiation(message))
+	}
+
 	fn send(&self, node: &NodeId, message: KeyVersionNegotiationMessage) -> Result<(), Error> {
 		self.cluster.send(node, Message::KeyVersionNegotiation(message))
 	}
@@ -514,20 +590,28 @@ impl SessionResultComputer for LargestSupportResultComputer {
 mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
-	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
+	use ethkey::public_to_address;
+	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage,
+		DocumentKeyShare, DocumentKeyShareVersion};
 	use key_server_cluster::math;
 	use key_server_cluster::cluster::Cluster;
 	use key_server_cluster::cluster::tests::DummyCluster;
+	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
+	use key_server_cluster::decryption_session::create_default_decryption_session;
 	use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
 	use super::{SessionImpl, SessionTransport, SessionParams, FastestResultComputer, LargestSupportResultComputer,
-		SessionResultComputer, SessionState};
+		SessionResultComputer, SessionState, ContinueAction, FailedContinueAction};
 
 	struct DummyTransport {
 		cluster: Arc<DummyCluster>,
 	}
 
 	impl SessionTransport for DummyTransport {
+		fn broadcast(&self, message: KeyVersionNegotiationMessage) -> Result<(), Error> {
+			self.cluster.broadcast(Message::KeyVersionNegotiation(message))
+		}
+
 		fn send(&self, node: &NodeId, message: KeyVersionNegotiationMessage) -> Result<(), Error> {
 			self.cluster.send(node, Message::KeyVersionNegotiation(message))
 		}
@@ -599,6 +683,27 @@ mod tests {
 
 		pub fn session(&self, idx: usize) -> &SessionImpl<DummyTransport> {
 			&self.nodes.values().nth(idx).unwrap().session
+		}
+
+		pub fn take_message(&mut self) -> Option<(NodeId, NodeId, Message)> {
+			self.nodes.values()
+				.filter_map(|n| n.cluster.take_message().map(|m| (n.session.meta().self_node_id.clone(), m.0, m.1)))
+				.nth(0)
+				.or_else(|| self.queue.pop_front())
+		}
+
+		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
+			match msg.2 {
+				Message::KeyVersionNegotiation(message) =>
+					self.nodes[&msg.1].session.process_message(&msg.0, &message),
+				_ => panic!("unexpected"),
+			}
+		}
+
+		pub fn run(&mut self) {
+			while let Some((from, to, message)) = self.take_message() {
+				self.process_message((from, to, message)).unwrap();
+			}
 		}
 	}
 
@@ -739,6 +844,9 @@ mod tests {
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 		// we can't be sure that node has given key version because previous ShareAdd session could fail
 		assert!(ml.session(0).data.lock().state != SessionState::Finished);
+
+		// check that upon completion, threshold is known
+		assert_eq!(ml.session(0).key_threshold(), Ok(1));
 	}
 
 	#[test]
@@ -756,5 +864,31 @@ mod tests {
 	fn largest_computer_returns_missing_share_if_no_versions_returned() {
 		let computer = LargestSupportResultComputer;
 		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::ServerKeyIsNotFound)));
+	}
+
+	#[test]
+	fn fatal_error_is_not_broadcasted_if_started_without_origin() {
+		let mut ml = MessageLoop::empty(3);
+		ml.session(0).set_continue_action(ContinueAction::Decrypt(create_default_decryption_session(), None, false, false));
+		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
+		ml.run();
+
+		assert!(ml.nodes.values().all(|n| n.session.is_finished() &&
+			n.session.take_failed_continue_action().is_none()));
+	}
+
+	#[test]
+	fn fatal_error_is_broadcasted_if_started_with_origin() {
+		let mut ml = MessageLoop::empty(3);
+		ml.session(0).set_continue_action(ContinueAction::Decrypt(create_default_decryption_session(), Some(1.into()), true, true));
+		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
+		ml.run();
+
+		// on all nodes session is completed
+		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
+
+		// slave nodes have non-empty failed continue action
+		assert!(ml.nodes.values().skip(1).all(|n| n.session.take_failed_continue_action()
+			== Some(FailedContinueAction::Decrypt(Some(1.into()), public_to_address(&2.into())))));
 	}
 }

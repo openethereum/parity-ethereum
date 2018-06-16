@@ -18,7 +18,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use ethabi::RawLog;
 use ethcore::filter::Filter;
-use ethcore::client::{Client, BlockChainClient, BlockId, RegistryInfo, CallContract};
+use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
 use ethkey::{Public, public_to_address};
 use hash::keccak;
 use bytes::Bytes;
@@ -99,8 +99,8 @@ pub struct OnChainServiceContract {
 	self_key_pair: Arc<NodeKeyPair>,
 	/// Contract registry name (if any).
 	name: String,
-	/// Contract address.
-	address: ContractAddress,
+	/// Contract address source.
+	address_source: ContractAddress,
 	/// Contract.
 	contract: service::Service,
 	/// Contract.
@@ -109,8 +109,8 @@ pub struct OnChainServiceContract {
 
 /// On-chain service contract data.
 struct ServiceData {
-	/// Actual contract address.
-	pub contract_address: Address,
+	/// Current contract address.
+	pub contract_address: Option<Address>,
 	/// Last block we have read logs from.
 	pub last_log_block: Option<H256>,
 }
@@ -136,38 +136,26 @@ struct DocumentKeyShadowRetrievalService;
 
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
-	pub fn new(mask: ApiMask, client: TrustedClient, name: String, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
-		let contract_addr = match address {
-			ContractAddress::Registry => client.get().and_then(|c| c.registry_address(name.clone(), BlockId::Latest)
-				.map(|address| {
-					trace!(target: "secretstore", "{}: installing {} service contract from address {}",
-						self_key_pair.public(), name, address);
-					address
-				}))
-				.unwrap_or_default(),
-			ContractAddress::Address(ref address) => {
-				trace!(target: "secretstore", "{}: installing service contract from address {}",
-					self_key_pair.public(), address);
-				address.clone()
-			},
-		};
-
-		OnChainServiceContract {
+	pub fn new(mask: ApiMask, client: TrustedClient, name: String, address_source: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
+		let contract = OnChainServiceContract {
 			mask: mask,
 			client: client,
 			self_key_pair: self_key_pair,
 			name: name,
-			address: address,
+			address_source: address_source,
 			contract: service::Service::default(),
 			data: RwLock::new(ServiceData {
-				contract_address: contract_addr,
+				contract_address: None,
 				last_log_block: None,
 			}),
-		}
+		};
+
+		contract.update_contract_address();
+		contract
 	}
 
 	/// Send transaction to the service contract.
-	fn send_contract_transaction<C, P>(&self, origin: &Address, server_key_id: &ServerKeyId, is_response_required: C, prepare_tx: P) -> Result<(), String>
+	fn send_contract_transaction<C, P>(&self, tx_name: &str, origin: &Address, server_key_id: &ServerKeyId, is_response_required: C, prepare_tx: P) -> Result<(), String>
 		where C: FnOnce(&Client, &Address, &service::Service, &ServerKeyId, &Address) -> bool,
 			P: FnOnce(&Client, &Address, &service::Service) -> Result<Bytes, String> {
 		// only publish if contract address is set && client is online
@@ -192,6 +180,9 @@ impl OnChainServiceContract {
 			origin.clone(),
 			transaction_data
 		).map_err(|e| format!("{}", e))?;
+
+		trace!(target: "secretstore", "{}: transaction {} sent to service contract",
+			self.self_key_pair.public(), tx_name);
 
 		Ok(())
 	}
@@ -228,26 +219,25 @@ impl OnChainServiceContract {
 			.ok()
 			.unwrap_or_else(|| Box::new(::std::iter::empty()))
 	}
+
+	/// Update service contract address.
+	fn update_contract_address(&self) -> bool {
+		let contract_address = self.client.read_contract_address(self.name.clone(), &self.address_source);
+		let mut data = self.data.write();
+		if contract_address != data.contract_address {
+			trace!(target: "secretstore", "{}: installing {} service contract from address {:?}",
+				self.self_key_pair.public(), self.name, contract_address);
+
+			data.contract_address = contract_address;
+		}
+
+		data.contract_address.is_some()
+	}
 }
 
 impl ServiceContract for OnChainServiceContract {
 	fn update(&self) -> bool {
-		if let &ContractAddress::Registry = &self.address {
-			if let Some(client) = self.client.get() {
-				if let Some(block_hash) = get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED) {
-					// update contract address from registry
-					let service_contract_addr = client.registry_address(self.name.clone(), BlockId::Hash(block_hash)).unwrap_or_default();
-					if self.data.read().contract_address != service_contract_addr {
-						trace!(target: "secretstore", "{}: installing {} service contract from address {}",
-							   self.self_key_pair.public(), self.name, service_contract_addr);
-						self.data.write().contract_address = service_contract_addr;
-					}
-				}
-			}
-		}
-
-		self.data.read().contract_address != Default::default()
-			&& self.client.get().is_some()
+		self.update_contract_address() && self.client.get().is_some()
 	}
 
 	fn read_logs(&self) -> Box<Iterator<Item=ServiceTask>> {
@@ -263,7 +253,10 @@ impl ServiceContract for OnChainServiceContract {
 		// prepare range of blocks to read logs from
 		let (address, first_block, last_block) = {
 			let mut data = self.data.write();
-			let address = data.contract_address;
+			let address = match data.contract_address {
+				Some(address) => address,
+				None => return Box::new(::std::iter::empty()), // no contract installed
+			};
 			let confirmed_block = match get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED) {
 				Some(confirmed_block) => confirmed_block,
 				None => return Box::new(::std::iter::empty()), // no block with enough confirmations
@@ -326,31 +319,31 @@ impl ServiceContract for OnChainServiceContract {
 		// we only need requests that are here for more than REQUEST_CONFIRMATIONS_REQUIRED blocks
 		// => we're reading from Latest - (REQUEST_CONFIRMATIONS_REQUIRED + 1) block
 		let data = self.data.read();
-		match data.contract_address == Default::default() {
-			true => Box::new(::std::iter::empty()),
-			false => get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED + 1)
+		match data.contract_address {
+			None => Box::new(::std::iter::empty()),
+			Some(contract_address) => get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED + 1)
 				.map(|b| {
 					let block = BlockId::Hash(b);
 					let iter = match self.mask.server_key_generation_requests {
-						true => Box::new(self.create_pending_requests_iterator(client.clone(), &data.contract_address, &block,
+						true => Box::new(self.create_pending_requests_iterator(client.clone(), &contract_address, &block,
 							&ServerKeyGenerationService::read_pending_requests_count,
 							&ServerKeyGenerationService::read_pending_request)) as Box<Iterator<Item=(bool, ServiceTask)>>,
 						false => Box::new(::std::iter::empty()),
 					};
 					let iter = match self.mask.server_key_retrieval_requests {
-						true => Box::new(iter.chain(self.create_pending_requests_iterator(client.clone(), &data.contract_address, &block,
+						true => Box::new(iter.chain(self.create_pending_requests_iterator(client.clone(), &contract_address, &block,
 							&ServerKeyRetrievalService::read_pending_requests_count,
 							&ServerKeyRetrievalService::read_pending_request))),
 						false => iter,
 					};
 					let iter = match self.mask.document_key_store_requests {
-						true => Box::new(iter.chain(self.create_pending_requests_iterator(client.clone(), &data.contract_address, &block,
+						true => Box::new(iter.chain(self.create_pending_requests_iterator(client.clone(), &contract_address, &block,
 							&DocumentKeyStoreService::read_pending_requests_count,
 							&DocumentKeyStoreService::read_pending_request))),
 						false => iter,
 					};
 					let iter = match self.mask.document_key_shadow_retrieval_requests {
-						true => Box::new(iter.chain(self.create_pending_requests_iterator(client, &data.contract_address, &block,
+						true => Box::new(iter.chain(self.create_pending_requests_iterator(client, &contract_address, &block,
 							&DocumentKeyShadowRetrievalService::read_pending_requests_count,
 							&DocumentKeyShadowRetrievalService::read_pending_request))),
 						false => iter
@@ -363,63 +356,59 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn publish_generated_server_key(&self, origin: &Address, server_key_id: &ServerKeyId, server_key: Public) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyGenerationService::is_response_required, |_, _, service|
-			Ok(ServerKeyGenerationService::prepare_pubish_tx_data(service, server_key_id, &server_key))
-		)
+		self.send_contract_transaction("publish_generated_server_key", origin, server_key_id, ServerKeyGenerationService::is_response_required,
+			|_, _, service| Ok(ServerKeyGenerationService::prepare_pubish_tx_data(service, server_key_id, &server_key)))
 	}
 
 	fn publish_server_key_generation_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyGenerationService::is_response_required, |_, _, service|
-			Ok(ServerKeyGenerationService::prepare_error_tx_data(service, server_key_id))
-		)
+		self.send_contract_transaction("publish_server_key_generation_error", origin, server_key_id, ServerKeyGenerationService::is_response_required,
+			|_, _, service| Ok(ServerKeyGenerationService::prepare_error_tx_data(service, server_key_id)))
 	}
 
 	fn publish_retrieved_server_key(&self, origin: &Address, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
 		let threshold = serialize_threshold(threshold)?;
-		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_response_required, |_, _, service|
-			Ok(ServerKeyRetrievalService::prepare_pubish_tx_data(service, server_key_id, server_key, threshold))
-		)
+		self.send_contract_transaction("publish_retrieved_server_key", origin, server_key_id, ServerKeyRetrievalService::is_response_required,
+			|_, _, service| Ok(ServerKeyRetrievalService::prepare_pubish_tx_data(service, server_key_id, server_key, threshold)))
 	}
 
 	fn publish_server_key_retrieval_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_response_required, |_, _, service|
-			Ok(ServerKeyRetrievalService::prepare_error_tx_data(service, server_key_id))
-		)
+		self.send_contract_transaction("publish_server_key_retrieval_error", origin, server_key_id, ServerKeyRetrievalService::is_response_required,
+			|_, _, service| Ok(ServerKeyRetrievalService::prepare_error_tx_data(service, server_key_id)))
 	}
 
 	fn publish_stored_document_key(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, DocumentKeyStoreService::is_response_required, |_, _, service|
-			Ok(DocumentKeyStoreService::prepare_pubish_tx_data(service, server_key_id))
-		)
+		self.send_contract_transaction("publish_stored_document_key", origin, server_key_id, DocumentKeyStoreService::is_response_required,
+			|_, _, service| Ok(DocumentKeyStoreService::prepare_pubish_tx_data(service, server_key_id)))
 	}
 
 	fn publish_document_key_store_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, DocumentKeyStoreService::is_response_required, |_, _, service|
-			Ok(DocumentKeyStoreService::prepare_error_tx_data(service, server_key_id))
-		)
+		self.send_contract_transaction("publish_document_key_store_error", origin, server_key_id, DocumentKeyStoreService::is_response_required,
+			|_, _, service| Ok(DocumentKeyStoreService::prepare_error_tx_data(service, server_key_id)))
 	}
 
 	fn publish_retrieved_document_key_common(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
 		let threshold = serialize_threshold(threshold)?;
-		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, key_server|
-			DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
-		|_, _, service|
-			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, threshold))
+		self.send_contract_transaction("publish_retrieved_document_key_common", origin, server_key_id,
+			|client, contract_address, contract, server_key_id, key_server|
+				DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
+			|_, _, service|
+				Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, threshold))
 		)
 	}
 
 	fn publish_retrieved_document_key_personal(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, |_, _, _, _, _| true,
+		self.send_contract_transaction("publish_retrieved_document_key_personal", origin, server_key_id, |_, _, _, _, _| true,
 		move |client, address, service|
 			DocumentKeyShadowRetrievalService::prepare_pubish_personal_tx_data(client, address, service, server_key_id, requester, participants, decrypted_secret, shadow)
 		)
 	}
 
 	fn publish_document_key_retrieval_error(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, key_server|
-			DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
-		|_, _, service|
-			Ok(DocumentKeyShadowRetrievalService::prepare_error_tx_data(service, server_key_id, requester))
+		self.send_contract_transaction("publish_document_key_retrieval_error", origin, server_key_id,
+			|client, contract_address, contract, server_key_id, key_server|
+				DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
+			|_, _, service|
+				Ok(DocumentKeyShadowRetrievalService::prepare_error_tx_data(service, server_key_id, requester))
 		)
 	}
 }
@@ -742,16 +731,16 @@ impl DocumentKeyShadowRetrievalService {
 					.map(|not_confirmed| (
 						not_confirmed,
 						match is_common_retrieval_completed {
-							true => ServiceTask::RetrieveShadowDocumentKeyCommon(
+							true => ServiceTask::RetrieveShadowDocumentKeyPersonal(
+								contract_address.clone(),
+								server_key_id,
+								requester,
+							),
+							false => ServiceTask::RetrieveShadowDocumentKeyCommon(
 								contract_address.clone(),
 								server_key_id,
 								public_to_address(&requester),
 							),
-							false => ServiceTask::RetrieveShadowDocumentKeyPersonal(
-								contract_address.clone(),
-								server_key_id,
-								requester,
-							)
 						},
 					))
 					.map_err(|error| format!("{}", error))

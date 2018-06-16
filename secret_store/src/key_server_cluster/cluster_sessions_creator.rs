@@ -353,6 +353,9 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 			sub_session: sid.access_key.into(),
 			session_nonce: nonce,
 			error: err.into(),
+			// we don't care about continue action here. it only matters when we're completing the session with confirmed
+			// fatal error from result computer
+			continue_with: None,
 		}))
 	}
 

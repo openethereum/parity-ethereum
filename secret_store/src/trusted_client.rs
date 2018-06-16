@@ -17,11 +17,12 @@
 use std::sync::{Arc, Weak};
 use bytes::Bytes;
 use ethereum_types::Address;
-use ethcore::client::{Client, BlockChainClient, ChainInfo, Nonce};
+use ethcore::client::{Client, BlockChainClient, ChainInfo, Nonce, BlockId, RegistryInfo};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
 use transaction::{Transaction, SignedTransaction, Action};
-use {Error, NodeKeyPair};
+use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
+use {Error, NodeKeyPair, ContractAddress};
 
 #[derive(Clone)]
 /// 'Trusted' client weak reference.
@@ -84,6 +85,18 @@ impl TrustedClient {
 		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		miner.import_own_transaction(&*client, signed.into())
 			.map_err(|e| Error::Internal(format!("failed to import tx: {}", e)))
-			.map(|_| ())
+	}
+
+	/// Read contract address. If address source is registry, address only returned if current client state is
+	/// trusted. Address from registry is read from registry from block latest block with
+	/// REQUEST_CONFIRMATIONS_REQUIRED confirmations.
+	pub fn read_contract_address(&self, registry_name: String, address: &ContractAddress) -> Option<Address> {
+		match *address {
+			ContractAddress::Address(ref address) => Some(address.clone()),
+			ContractAddress::Registry => self.get().and_then(|client|
+				get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED)
+					.and_then(|block| client.registry_address(registry_name, BlockId::Hash(block)))
+			),
+		}
 	}
 }
