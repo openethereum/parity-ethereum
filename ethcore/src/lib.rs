@@ -108,15 +108,13 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
+extern crate tempdir;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
 extern crate fake_hardware_wallet as hardware_wallet;
-
-#[cfg(test)]
-extern crate tempdir;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -161,8 +159,6 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
-
-// Test helpers made public for usage outside ethcore
 pub mod trace;
 pub mod verification;
 

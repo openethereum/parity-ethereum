@@ -18,19 +18,20 @@
 
 mod stores;
 
+use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
+
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::time::{Instant, Duration};
+
+use ethstore::accounts_dir::MemoryDirectory;
+use ethstore::ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
+use ethjson::misc::AccountMeta;
 use ethstore::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
-use ethjson::misc::AccountMeta;
-use ethstore::accounts_dir::MemoryDirectory;
-use ethstore::ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
-use ethjson::misc::AccountMeta;
 use parking_lot::RwLock;
-use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
-use std::collections::{HashMap, HashSet};
-use std::fmt;
-use std::time::{Instant, Duration};
 
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
@@ -291,8 +292,12 @@ impl AccountProvider {
 
 	/// Returns addresses of hardware accounts.
 	pub fn hardware_accounts(&self) -> Result<Vec<Address>, Error> {
-		let accounts = self.hardware_store.as_ref().map_or_else(|| Vec::new(), |h| h.list_wallets());
-		Ok(accounts.into_iter().map(|a| a.address).collect())
+		if let Some(accounts) = self.hardware_store.as_ref().map(|h| h.list_wallets()) { 
+			if !accounts.is_empty() {
+				return Ok(accounts.into_iter().map(|a| a.address).collect());
+			}
+		}
+		Err(SSError::Custom("No hardware wallet accounts were found".into()))
 	}
 
 	/// Get a list of paths to locked hardware wallets

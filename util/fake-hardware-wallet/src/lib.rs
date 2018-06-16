@@ -33,7 +33,7 @@ pub struct WalletInfo {
 /// `ErrorType` for devices with no `hardware wallet`
 pub enum Error {
 	NoWallet,
-    KeyNotFound,
+	KeyNotFound,
 }
 
 pub struct TransactionInfo {
@@ -65,8 +65,8 @@ pub struct HardwareWalletManager;
 
 impl HardwareWalletManager {
 	pub fn new() -> Result<Self, Error> {
-        Err(Error::NoWallet)
-    }
+		Err(Error::NoWallet)
+	}
 
 	pub fn set_key_path(&self, _key_path: KeyPath) {}
 
@@ -96,6 +96,6 @@ impl HardwareWalletManager {
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { 
-		write!(f, "") 
+		write!(f, "No hardware wallet!!") 
 	}
 }
