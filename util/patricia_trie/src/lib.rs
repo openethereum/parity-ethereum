@@ -21,6 +21,7 @@ extern crate ethcore_logger;
 extern crate ethereum_types;
 extern crate hashdb;
 extern crate keccak_hash as keccak;
+extern crate keccak_hasher;
 extern crate memorydb;
 extern crate rand;
 extern crate rlp;
@@ -33,7 +34,8 @@ extern crate trie_standardmap as standardmap;
 extern crate log;
 
 use std::{fmt, error};
-use hashdb::{HashDB, DBValue, Hasher, KeccakHasher};
+use hashdb::{HashDB, DBValue, Hasher};
+use keccak_hasher::KeccakHasher;
 use std::marker::PhantomData;
 
 pub mod node;
@@ -60,8 +62,10 @@ pub use self::recorder::Recorder;
 use node_codec::NodeCodec;
 
 // TODO: Move to façade crate and rename to just `RlpNodeCodec`
-pub type KeccakRlpNodeCodec = node_codec::RlpNodeCodec<hashdb::KeccakHasher>;
+pub type KeccakRlpNodeCodec = node_codec::RlpNodeCodec<KeccakHasher>;
 pub type KeccakTrieResult<T> = Result<T, <KeccakHasher as Hasher>::Out>;
+#[cfg(test)]
+type RlpCodec = node_codec::RlpNodeCodec<KeccakHasher>;
 
 /// Trie Errors.
 ///

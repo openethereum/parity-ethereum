@@ -111,7 +111,7 @@ fn fatdbmut_to_trie() {
 	use memorydb::MemoryDB;
 	use super::TrieDB;
 	use super::Trie;
-	use hashdb::KeccakHasher;
+	use keccak_hasher::KeccakHasher;
 	use keccak;
 	use node_codec::RlpNodeCodec;
 

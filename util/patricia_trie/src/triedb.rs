@@ -35,11 +35,13 @@ use std::marker::PhantomData;
 /// ```
 /// extern crate patricia_trie as trie;
 /// extern crate hashdb;
+/// extern crate keccak_hasher;
 /// extern crate memorydb;
 /// extern crate ethereum_types;
 ///
 /// use trie::*;
 /// use hashdb::*;
+/// use keccak_hasher::KeccakHasher;
 /// use memorydb::*;
 /// use ethereum_types::H256;
 /// use node_codec::RlpNodeCodec;
@@ -430,13 +432,12 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
 
 #[cfg(test)]
 mod tests {
-	use node_codec::RlpNodeCodec;
-	use hashdb::{Hasher, KeccakHasher, DBValue};
+	use hashdb::{Hasher, DBValue};
+	use keccak_hasher::KeccakHasher;
 	use memorydb::*;
 	use super::{TrieDB, Trie, Lookup, NibbleSlice};
 	use super::super::{TrieMut, triedbmut::*};
-
-	type RlpCodec = RlpNodeCodec<KeccakHasher>;
+	use RlpCodec;
 
 	#[test]
 	fn iterator() {

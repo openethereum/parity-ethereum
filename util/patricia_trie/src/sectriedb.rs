@@ -86,7 +86,7 @@ fn trie_to_sectrie() {
 	use memorydb::MemoryDB;
 	use hashdb::DBValue;
 	use super::{TrieMut, TrieDBMut};
-	use hashdb::KeccakHasher;
+	use keccak_hasher::KeccakHasher;
 	use keccak;
 	use node_codec::RlpNodeCodec;
 

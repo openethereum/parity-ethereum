@@ -21,6 +21,7 @@ extern crate ethcore_bytes;
 extern crate ethereum_types;
 extern crate memorydb;
 extern crate patricia_trie as trie;
+extern crate keccak_hasher;
 extern crate keccak_hash;
 extern crate trie_standardmap;
 extern crate hashdb;
@@ -32,7 +33,8 @@ use memorydb::MemoryDB;
 use test::{Bencher, black_box};
 use trie::{TrieDBMut, TrieDB, TrieMut, Trie};
 use trie_standardmap::{Alphabet, ValueMode, StandardMap};
-use hashdb::{Hasher,KeccakHasher};
+use hashdb::Hasher;
+use keccak_hasher::KeccakHasher;
 use trie::node_codec::RlpNodeCodec;
 
 type RlpCodec = RlpNodeCodec<KeccakHasher>;

@@ -129,7 +129,7 @@ fn fatdb_to_trie() {
 	use hashdb::DBValue;
 	use super::fatdbmut::FatDBMut;
 	use super::TrieMut;
-	use hashdb::KeccakHasher;
+	use keccak_hasher::KeccakHasher;
 	use node_codec::RlpNodeCodec;
 
 	let mut memdb = MemoryDB::<KeccakHasher>::new();

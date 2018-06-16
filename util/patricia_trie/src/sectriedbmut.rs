@@ -93,7 +93,7 @@ fn sectrie_to_trie() {
 	use memorydb::*;
 	use super::triedb::*;
 	use super::Trie;
-	use hashdb::KeccakHasher;
+	use keccak_hasher::KeccakHasher;
 	use keccak;
 	use node_codec::RlpNodeCodec;
 

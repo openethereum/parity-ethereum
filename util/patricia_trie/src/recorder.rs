@@ -84,13 +84,12 @@ impl<H: Hasher> Recorder<H> {
 	}
 }
 
-/*
-
+// TODO: WUT!
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use keccak::keccak;
-	use hashdb::KeccakHasher;
+	use keccak_hasher::KeccakHasher;
 
 	#[test]
 	fn basic_recorder() {
@@ -149,13 +148,14 @@ mod tests {
 	fn trie_record() {
 		use super::super::{TrieDB, TrieDBMut, Trie, TrieMut};
 		use memorydb::MemoryDB;
+		use RlpCodec;
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 
 		let mut root = <KeccakHasher as Hasher>::Out::default();
 
 		{
-			let mut x = TrieDBMut::new(&mut db, &mut root);
+			let mut x = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
 
 			x.insert(b"dog", b"cat").unwrap();
 			x.insert(b"lunch", b"time").unwrap();
@@ -167,7 +167,7 @@ mod tests {
 			x.insert(b"yo ho ho", b"and a bottle of rum").unwrap();
 		}
 
-		let trie = TrieDB::new(&db, &root).unwrap();
+		let trie = TrieDB::<_, RlpCodec>::new(&db, &root).unwrap();
 		let mut recorder = Recorder::<KeccakHasher>::new();
 
 		trie.get_with(b"pirate", &mut recorder).unwrap().unwrap();
@@ -215,5 +215,6 @@ mod tests {
 			]
 		]);
 	}
-}
+/*
 */
+}
