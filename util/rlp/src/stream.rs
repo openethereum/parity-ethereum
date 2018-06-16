@@ -122,9 +122,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate trie_node_codec;
+	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use trie_node_codec::Stream;
+	/// use stream_encoder::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -213,9 +213,9 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate trie_node_codec;
+	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use trie_node_codec::Stream;
+	/// use stream_encoder::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
