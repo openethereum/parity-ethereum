@@ -17,7 +17,8 @@
 //! DB backend wrapper for Account trie
 use ethereum_types::H256;
 use hash::{KECCAK_NULL_RLP, keccak};
-use hashdb::{HashDB, KeccakHasher, AsHashDB};
+use hashdb::{HashDB, AsHashDB};
+use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use rlp::NULL_RLP;
 use std::collections::HashMap;

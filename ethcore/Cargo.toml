@@ -68,6 +68,7 @@ triehash = { path = "../util/triehash" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 stream-encoder = { path = "../util/stream-encoder" }
+keccak-hasher = { path = "../util/keccak-hasher" }
 
 [dev-dependencies]
 tempdir = "0.3"

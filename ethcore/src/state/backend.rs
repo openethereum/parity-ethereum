@@ -28,7 +28,8 @@ use state::Account;
 use parking_lot::Mutex;
 use ethereum_types::{Address, H256};
 use memorydb::KeccakMemoryDB;
-use hashdb::{AsHashDB, HashDB, DBValue, KeccakHasher};
+use hashdb::{AsHashDB, HashDB, DBValue};
+use keccak_hasher::KeccakHasher;
 
 /// State backend. See module docs for more details.
 pub trait Backend: Send {

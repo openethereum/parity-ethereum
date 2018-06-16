@@ -35,7 +35,8 @@ use rand::Rng;
 
 use kvdb::{KeyValueDB, DBValue};
 use ethereum_types::H256;
-use hashdb::{HashDB, KeccakHasher};
+use hashdb::HashDB;
+use keccak_hasher::KeccakHasher;
 use journaldb;
 use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie, KeccakRlpNodeCodec};
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};

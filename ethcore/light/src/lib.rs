@@ -64,6 +64,7 @@ extern crate hashdb;
 extern crate heapsize;
 extern crate futures;
 extern crate itertools;
+extern crate keccak_hasher;
 extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate plain_hasher;

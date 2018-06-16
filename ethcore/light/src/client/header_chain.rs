@@ -42,7 +42,7 @@ use ethcore::engines::epoch::{
 };
 
 use ethereum_types::{H256, H264, U256};
-use hashdb::KeccakHasher;
+use keccak_hasher::KeccakHasher;
 use heapsize::HeapSizeOf;
 use kvdb::{DBTransaction, KeyValueDB};
 use plain_hasher::H256FastMap;

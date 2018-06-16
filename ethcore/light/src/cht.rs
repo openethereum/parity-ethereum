@@ -25,7 +25,8 @@
 
 use ethcore::ids::BlockId;
 use ethereum_types::{H256, U256};
-use hashdb::{HashDB, KeccakHasher};
+use hashdb::HashDB;
+use keccak_hasher::KeccakHasher;
 use memorydb::MemoryDB;
 use bytes::Bytes;
 use trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder, KeccakRlpNodeCodec};

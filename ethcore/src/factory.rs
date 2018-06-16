@@ -19,7 +19,7 @@ use account_db::Factory as AccountFactory;
 use evm::{Factory as EvmFactory, VMType};
 use vm::{Vm, ActionParams, Schedule};
 use wasm::WasmInterpreter;
-use hashdb::KeccakHasher;
+use keccak_hasher::KeccakHasher;
 
 const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 

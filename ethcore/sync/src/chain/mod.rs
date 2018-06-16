@@ -97,7 +97,7 @@ use std::collections::{HashSet, HashMap};
 use std::cmp;
 use std::time::{Duration, Instant};
 use hash::keccak;
-use hashdb::KeccakHasher;
+use keccak_hasher::KeccakHasher;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
 use plain_hasher::H256FastMap;

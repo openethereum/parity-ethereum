@@ -23,7 +23,8 @@ use ids::BlockId;
 use ethereum_types::H256;
 use trie::TrieError;
 use rlp::DecoderError;
-use hashdb::{Hasher, KeccakHasher};
+use hashdb::Hasher;
+use keccak_hasher::KeccakHasher;
 
 /// Snapshot-related errors.
 #[derive(Debug)]

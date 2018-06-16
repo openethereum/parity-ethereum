@@ -43,7 +43,8 @@ use state_db::StateDB;
 use factory::VmFactory;
 
 use ethereum_types::{H256, U256, Address};
-use hashdb::{HashDB, AsHashDB, KeccakHasher};
+use hashdb::{HashDB, AsHashDB};
+use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::Bytes;
 

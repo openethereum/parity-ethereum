@@ -19,7 +19,9 @@ use util_error::UtilError;
 use kvdb;
 use trie::TrieError;
 
-use hashdb::{Hasher, KeccakHasher};
+use hashdb::Hasher;
+use keccak_hasher::KeccakHasher;
+
 /// Client configuration errors.
 #[derive(Debug)]
 pub enum Error {

@@ -25,7 +25,8 @@ use {state, state_db, client, executive, trace, transaction, db, spec, pod_state
 use factory::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
-use hashdb::{Hasher, KeccakHasher};
+use hashdb::Hasher;
+use keccak_hasher::KeccakHasher;
 
 /// EVM test Error.
 #[derive(Debug)]
