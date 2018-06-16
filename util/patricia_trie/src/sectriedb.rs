@@ -18,7 +18,7 @@
 //use keccak::keccak;
 use hashdb::{HashDB, Hasher};
 use super::triedb::TrieDB;
-use super::{Trie, TrieItem, TrieIterator, Query};
+use super::{Result, Trie, TrieItem, TrieIterator, Query};
 use node_codec::NodeCodec;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
@@ -42,7 +42,7 @@ where
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	/// Returns an error if root does not exist.
-	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out> {
 		Ok(SecTrieDB { raw: TrieDB::new(db, root)? })
 	}
 
@@ -66,17 +66,17 @@ where
 
 	fn root(&self) -> &<Self::H as Hasher>::Out { self.raw.root() }
 
-	fn contains(&self, key: &[u8]) -> super::Result<bool, <Self::H as Hasher>::Out> {
+	fn contains(&self, key: &[u8]) -> Result<bool, <Self::H as Hasher>::Out> {
 		self.raw.contains(Self::H::hash(key).as_ref())
 	}
 
-	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>, <Self::H as Hasher>::Out>
+	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, <Self::H as Hasher>::Out>
 		where 'a: 'key
 	{
 		self.raw.get_with(Self::H::hash(key).as_ref(), query)
 	}
 
-	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out> {
 		TrieDB::iter(&self.raw)
 	}
 }
@@ -85,8 +85,7 @@ where
 fn trie_to_sectrie() {
 	use memorydb::MemoryDB;
 	use hashdb::DBValue;
-	use super::triedbmut::TrieDBMut;
-	use super::TrieMut;
+	use super::{TrieMut, TrieDBMut};
 	use hashdb::KeccakHasher;
 	use keccak;
 	use node_codec::RlpNodeCodec;

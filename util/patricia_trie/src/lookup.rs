@@ -18,9 +18,9 @@
 
 use hashdb::{HashDB, Hasher};
 use nibbleslice::NibbleSlice;
-use super::node::Node;
+use node::Node;
 use node_codec::NodeCodec;
-use super::{TrieError, Query};
+use super::{Result, TrieError, Query};
 use std::marker::PhantomData;
 
 /// Trie lookup helper object.
@@ -42,7 +42,7 @@ where
 {
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
-	pub fn look_up(mut self, mut key: NibbleSlice) -> super::Result<Option<Q::Item>, H::Out> {
+	pub fn look_up(mut self, mut key: NibbleSlice) -> Result<Option<Q::Item>, H::Out> {
 		let mut hash = self.hash;
 
 		// this loop iterates through non-inline nodes.

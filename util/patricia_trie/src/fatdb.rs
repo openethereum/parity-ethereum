@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use hashdb::{HashDB, Hasher};
-use super::{TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};
+use super::{Result, TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};
 use node_codec::NodeCodec;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
@@ -38,7 +38,7 @@ where
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out> {
 		Ok(FatDB { raw: TrieDB::new(db, root)? })
 	}
 
@@ -55,17 +55,17 @@ where
 
 	fn root(&self) -> &<Self::H as Hasher>::Out { self.raw.root() }
 
-	fn contains(&self, key: &[u8]) -> super::Result<bool, <Self::H as Hasher>::Out> {
+	fn contains(&self, key: &[u8]) -> Result<bool, <Self::H as Hasher>::Out> {
 		self.raw.contains(Self::H::hash(key).as_ref())
 	}
 
-	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>, <Self::H as Hasher>::Out>
+	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, <Self::H as Hasher>::Out>
 		where 'a: 'key
 	{
 		self.raw.get_with(Self::H::hash(key).as_ref(), query)
 	}
 
-	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out> {
 		FatDBIterator::<Self::H, C>::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
@@ -86,7 +86,7 @@ where
 	C: NodeCodec<H>
 {
 	/// Creates new iterator.
-	pub fn new(trie: &'db TrieDB<H, C>) -> super::Result<Self, H::Out> {
+	pub fn new(trie: &'db TrieDB<H, C>) -> Result<Self, H::Out> {
 		Ok(FatDBIterator {
 			trie_iterator: TrieDBIterator::new(trie)?,
 			trie: trie,
@@ -99,7 +99,7 @@ where
 	H: Hasher, 
 	C: NodeCodec<H>
 {
-	fn seek(&mut self, key: &[u8]) -> super::Result<(), H::Out> {
+	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out> {
 		let hashed_key = H::hash(key);
 		self.trie_iterator.seek(hashed_key.as_ref())
 	}

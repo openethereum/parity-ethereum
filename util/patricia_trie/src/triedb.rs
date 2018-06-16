@@ -20,7 +20,7 @@ use nibbleslice::NibbleSlice;
 use super::node::{Node, OwnedNode};
 use node_codec::NodeCodec;
 use super::lookup::Lookup;
-use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
+use super::{Result, Trie, TrieItem, TrieError, TrieIterator, Query};
 use bytes::Bytes;
 use std::marker::PhantomData;
 
@@ -74,7 +74,7 @@ where
 {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Returns an error if `root` does not exist
-	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out> {
 		if !db.contains(root) {
 			Err(Box::new(TrieError::InvalidStateRoot(*root)))
 		} else {
@@ -86,7 +86,7 @@ where
 	pub fn db(&'db self) -> &'db HashDB<H> { self.db }
 
 	/// Get the data of the root node.
-	fn root_data(&self) -> super::Result<DBValue, H::Out> {
+	fn root_data(&self) -> Result<DBValue, H::Out> {
 		self.db
 			.get(self.root)
 			.ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
@@ -95,7 +95,7 @@ where
 	/// Given some node-describing data `node`, return the actual node RLP.
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
-	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> super::Result<DBValue, H::Out> {
+	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> Result<DBValue, H::Out> {
 		match C::try_decode_hash(node) {
 			Some(key) => {
 				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
@@ -113,7 +113,7 @@ where
 	type H = H;
 	fn root(&self) -> &<Self::H as Hasher>::Out { self.root }
 
-	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>, H::Out>
+	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out>
 		where 'a: 'key
 	{
 		Lookup {
@@ -124,7 +124,7 @@ where
 		}.look_up(NibbleSlice::new(key))
 	}
 
-	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Self::H, Item=TrieItem<Self::H>> + 'a>, H::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item=TrieItem<Self::H>> + 'a>, H::Out> {
 		TrieDBIterator::new(self).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
@@ -231,13 +231,13 @@ pub struct TrieDBIterator<'a, H: Hasher + 'a, C: NodeCodec<H> + 'a> {
 
 impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 	/// Create a new iterator.
-	pub fn new(db: &'a TrieDB<H, C>) -> super::Result<TrieDBIterator<'a, H, C>, H::Out> {
+	pub fn new(db: &'a TrieDB<H, C>) -> Result<TrieDBIterator<'a, H, C>, H::Out> {
 		let mut r = TrieDBIterator { db, trail: vec![], key_nibbles: Vec::new() };
 		db.root_data().and_then(|root| r.descend(&root))?;
 		Ok(r)
 	}
 
-	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<(), H::Out> {
+	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> Result<(), H::Out> {
 		loop {
 			let (data, mid) = {
 				let node = C::decode(&node_data).expect("rlp read from db; qed");
@@ -301,7 +301,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 	}
 
 	/// Descend into a payload.
-	fn descend(&mut self, d: &[u8]) -> super::Result<(), H::Out> {
+	fn descend(&mut self, d: &[u8]) -> Result<(), H::Out> {
 		let node_data = &self.db.get_raw_or_lookup(d)?;
 		let node = C::decode(&node_data).expect("encoded node read from db; qed");
 		Ok(self.descend_into_node(node.into()))
@@ -335,7 +335,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 
 impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H> for TrieDBIterator<'a, H, C> {
 	/// Position the iterator on the first element with key >= `key`
-	fn seek(&mut self, key: &[u8]) -> super::Result<(), H::Out> {
+	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out> {
 		self.trail.clear();
 		self.key_nibbles.clear();
 		let root_rlp = self.db.root_data()?;
@@ -351,7 +351,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
 		enum IterStep<O> {
 			Continue,
 			PopTrail,
-			Descend(super::Result<DBValue, O>),
+			Descend(Result<DBValue, O>),
 		}
 		loop {
 			let iter_step = {

@@ -16,7 +16,7 @@
 
 //! In-memory trie representation.
 
-use super::{TrieError, TrieMut};
+use super::{Result, TrieError, TrieMut};
 use super::lookup::Lookup;
 use super::node::Node as RlpNode;
 use node_codec::NodeCodec;
@@ -333,7 +333,7 @@ where H: Hasher,
 
 	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
-	pub fn from_existing(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> super::Result<Self, H::Out> {
+	pub fn from_existing(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Result<Self, H::Out> {
 		if !db.contains(root) {
 			return Err(Box::new(TrieError::InvalidStateRoot(*root)));
 		}
@@ -360,7 +360,7 @@ where H: Hasher,
 	}
 
 	// cache a node by hash
-	fn cache(&mut self, hash: H::Out) -> super::Result<StorageHandle, H::Out> {
+	fn cache(&mut self, hash: H::Out) -> Result<StorageHandle, H::Out> {
 		let node_encoded = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
 		let node = Node::from_encoded::<C>(
 			&node_encoded,
@@ -372,8 +372,8 @@ where H: Hasher,
 
 	// inspect a node, choosing either to replace, restore, or delete it.
 	// if restored or replaced, returns the new node along with a flag of whether it was changed.
-	fn inspect<F>(&mut self, stored: Stored<H>, inspector: F) -> super::Result<Option<(Stored<H>, bool)>, H::Out>
-	where F: FnOnce(&mut Self, Node<H>) -> super::Result<Action<H>, H::Out> {
+	fn inspect<F>(&mut self, stored: Stored<H>, inspector: F) -> Result<Option<(Stored<H>, bool)>, H::Out>
+	where F: FnOnce(&mut Self, Node<H>) -> Result<Action<H>, H::Out> {
 		Ok(match stored {
 			Stored::New(node) => match inspector(self, node)? {
 				Action::Restore(node) => Some((Stored::New(node), false)),
@@ -395,7 +395,7 @@ where H: Hasher,
 	}
 
 	// walk the trie, attempting to find the key's node.
-	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle<H>) -> super::Result<Option<DBValue>, H::Out>
+	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle<H>) -> Result<Option<DBValue>, H::Out>
 		where 'x: 'key
 	{
 		let mut handle = handle;
@@ -444,7 +444,7 @@ where H: Hasher,
 	}
 
 	/// insert a key, value pair into the trie, creating new nodes if necessary.
-	fn insert_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> super::Result<(StorageHandle, bool), H::Out> {
+	fn insert_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<(StorageHandle, bool), H::Out> {
 		let h = match handle {
 			NodeHandle::InMemory(h) => h,
 			NodeHandle::Hash(h) => self.cache(h)?,
@@ -458,7 +458,7 @@ where H: Hasher,
 	}
 
 	/// the insertion inspector.
-	fn insert_inspector(&mut self, node: Node<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> super::Result<InsertAction<H>, H::Out> {
+	fn insert_inspector(&mut self, node: Node<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<InsertAction<H>, H::Out> {
 		trace!(target: "trie", "augmented (partial: {:?}, value: {:?})", partial, value.pretty());
 
 		Ok(match node {
@@ -619,7 +619,7 @@ where H: Hasher,
 	}
 
 	/// Remove a node from the trie based on key.
-	fn remove_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> super::Result<Option<(StorageHandle, bool)>, H::Out> {
+	fn remove_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Option<(StorageHandle, bool)>, H::Out> {
 		let stored = match handle {
 			NodeHandle::InMemory(h) => self.storage.destroy(h),
 			NodeHandle::Hash(h) => {
@@ -634,7 +634,7 @@ where H: Hasher,
 	}
 
 	/// the removal inspector
-	fn remove_inspector(&mut self, node: Node<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> super::Result<Action<H>, H::Out> {
+	fn remove_inspector(&mut self, node: Node<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Action<H>, H::Out> {
 		Ok(match (node, partial.is_empty()) {
 			(Node::Empty, _) => Action::Delete,
 			(Node::Branch(c, None), true) => Action::Restore(Node::Branch(c, None)),
@@ -720,7 +720,7 @@ where H: Hasher,
 	/// _invalid state_ means:
 	/// - Branch node where there is only a single entry;
 	/// - Extension node followed by anything other than a Branch node.
-	fn fix(&mut self, node: Node<H>) -> super::Result<Node<H>, H::Out> {
+	fn fix(&mut self, node: Node<H>) -> Result<Node<H>, H::Out> {
 		match node {
 			Node::Branch(mut children, value) => {
 				// if only a single value, transmute to leaf/extension and feed through fixed.
@@ -910,13 +910,13 @@ where H: Hasher,
 		}
 	}
 
-	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out>
+	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out>
 		where 'x: 'key
 	{
 		self.lookup(NibbleSlice::new(key), &self.root_handle)
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> {
 		if value.is_empty() { return self.remove(key) }
 
 		let mut old_val = None;
@@ -937,7 +937,7 @@ where H: Hasher,
 		Ok(old_val)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> {
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> {
 		trace!(target: "trie", "remove: key={:?}", key.pretty());
 
 		let root_handle = self.root_handle();

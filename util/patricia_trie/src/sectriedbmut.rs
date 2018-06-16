@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use hashdb::{HashDB, DBValue, Hasher};
-use super::triedbmut::TrieDBMut;
-use super::TrieMut;
+use super::{Result, TrieMut, TrieDBMut};
 use node_codec::NodeCodec;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
@@ -45,7 +44,7 @@ where
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> super::Result<Self, H::Out> {
+	pub fn from_existing(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Self, H::Out> {
 		Ok(SecTrieDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
@@ -70,21 +69,21 @@ where
 		self.raw.is_empty()
 	}
 
-	fn contains(&self, key: &[u8]) -> super::Result<bool, <Self::H as Hasher>::Out> {
+	fn contains(&self, key: &[u8]) -> Result<bool, <Self::H as Hasher>::Out> {
 		self.raw.contains(&Self::H::hash(key).as_ref())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out>
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out>
 		where 'a: 'key
 	{
 		self.raw.get(&Self::H::hash(key).as_ref())
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> {
 		self.raw.insert(&Self::H::hash(key).as_ref(), value)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> {
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> {
 		self.raw.remove(&Self::H::hash(key).as_ref())
 	}
 }
