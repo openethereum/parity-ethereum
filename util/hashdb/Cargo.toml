@@ -8,6 +8,3 @@ license = "GPL-3.0"
 [dependencies]
 elastic-array = "0.10"
 heapsize = "0.4"
-# TODO: Used by the `KeccakHasher` impl which I think should move to own crate?
-ethereum-types = "0.3"
-tiny-keccak = "1.4.2"

@@ -16,16 +16,12 @@
 
 //! Database of byte-slices keyed to their hash.
 extern crate elastic_array;
-extern crate ethereum_types;
 extern crate heapsize;
-extern crate tiny_keccak;
 
 use elastic_array::ElasticArray128;
-use ethereum_types::H256;
 use heapsize::HeapSizeOf;
 use std::collections::HashMap;
 use std::{fmt::Debug, hash::Hash};
-use tiny_keccak::Keccak;
 
 pub trait Hasher: Sync + Send {
 	type Out: AsRef<[u8]> + Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync /* REVIEW: how do I get around this? --> */ + HeapSizeOf;
@@ -33,22 +29,6 @@ pub trait Hasher: Sync + Send {
 	const LENGTH: usize;
 	fn hash(x: &[u8]) -> Self::Out;
 }
-
-// TODO: Move concrete impl to own "façade" crate
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct KeccakHasher;
-impl Hasher for KeccakHasher {
-	type Out = H256;
-	const HASHED_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
-	const LENGTH: usize = 32;
-	fn hash(x: &[u8]) -> Self::Out {
-		let mut out = [0;32];
-		Keccak::keccak256(x, &mut out);
-		out.into()
-	}
-}
-/// Convenience type for crates that need a `HashDB` with Keccak hashes
-pub type KeccakHashDB = HashDB<KeccakHasher>;
 
 /// `HashDB` value type.
 pub type DBValue = ElasticArray128<u8>;
