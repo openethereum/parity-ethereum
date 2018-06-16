@@ -136,6 +136,7 @@ members = [
 	"whisper",
 	"whisper/cli",
 	"util/stream-encoder",
+  "util/keccak-hasher",
 ]
 
 [patch.crates-io]
