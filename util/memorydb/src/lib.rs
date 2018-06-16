@@ -18,12 +18,14 @@
 extern crate elastic_array;
 extern crate hashdb;
 extern crate heapsize;
+extern crate keccak_hasher;
 extern crate plain_hasher;
 extern crate rlp;
 #[cfg(test)] extern crate tiny_keccak;
 #[cfg(test)] extern crate ethereum_types;
 
-use hashdb::{HashDB, Hasher, DBValue, KeccakHasher, AsHashDB};
+use hashdb::{HashDB, Hasher, DBValue, AsHashDB};
+use keccak_hasher::KeccakHasher;
 use heapsize::HeapSizeOf;
 use plain_hasher::H256FastMap;
 use rlp::NULL_RLP;
@@ -41,8 +43,11 @@ use std::mem;
 /// # Example
 /// ```rust
 /// extern crate hashdb;
+/// extern crate keccak_hasher;
 /// extern crate memorydb;
+/// 
 /// use hashdb::*;
+/// use keccak_hasher::KeccakHasher;
 /// use memorydb::*;
 /// fn main() {
 ///   let mut m = MemoryDB::<KeccakHasher>::new();
@@ -96,9 +101,13 @@ impl<H: Hasher> MemoryDB<H> {
 	/// # Examples
 	/// ```rust
 	/// extern crate hashdb;
+	/// extern crate keccak_hasher;
 	/// extern crate memorydb;
+	/// 
 	/// use hashdb::*;
+	/// use keccak_hasher::KeccakHasher;
 	/// use memorydb::*;
+	/// 
 	/// fn main() {
 	///   let mut m = MemoryDB::<KeccakHasher>::new();
 	///   let hello_bytes = "Hello world!".as_bytes();
@@ -283,7 +292,7 @@ mod tests {
 	use super::*;
 	use tiny_keccak::Keccak;
 	use ethereum_types::H256;
-	use hashdb::KeccakHasher;
+	use keccak_hasher::KeccakHasher;
 
 	#[test]
 	fn memorydb_remove_and_purge() {
