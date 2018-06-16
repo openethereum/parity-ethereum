@@ -155,22 +155,14 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction)
+	fn import_own_transaction<C: Nonce + Sync>(&self, _chain: &C, _pending: PendingTransaction)
 		-> Result<(), transaction::Error> {
-
-		// keep the pending nonces up to date
-		let sender = pending.transaction.sender();
-		let nonce = self.next_nonce(chain, &sender);
-		self.next_nonces.write().insert(sender, nonce);
-
-		// lets assume that all txs are valid
-		self.imported_transactions.lock().push(pending.transaction);
-
-		Ok(())
+		// this function is no longer called directly from RPC
+		unimplemented!();
 	}
 
-	/// Imports transactions to queue - treats as local based on config and tx source
-	fn import_claimed_local_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction)
+	/// Imports transactions to queue - treats as local based on trusted flag, config, and tx source
+	fn import_claimed_local_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction, _trusted: bool)
 		-> Result<(), transaction::Error> {
 
 		// keep the pending nonces up to date

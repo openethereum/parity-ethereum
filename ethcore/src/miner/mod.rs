@@ -140,7 +140,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Imports transactions from potentially external sources, with behaviour determined
 	/// by the config flag `tx_queue_allow_unfamiliar_locals`
-	fn import_claimed_local_transaction<C>(&self, chain: &C, transaction: PendingTransaction)
+	fn import_claimed_local_transaction<C>(&self, chain: &C, transaction: PendingTransaction, trusted: bool)
 		-> Result<(), transaction::Error>
 		where C: BlockChainClient;
 

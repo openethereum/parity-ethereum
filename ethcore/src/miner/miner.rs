@@ -797,7 +797,7 @@ impl miner::MinerService for Miner {
 	fn import_own_transaction<C: miner::BlockChainClient>(
 		&self,
 		chain: &C,
-		pending: PendingTransaction,
+		pending: PendingTransaction
 	) -> Result<(), transaction::Error> {
 		// note: you may want to use `import_claimed_local_transaction` instead of this one.
 
@@ -824,10 +824,12 @@ impl miner::MinerService for Miner {
 		&self,
 		chain: &C,
 		pending: PendingTransaction,
+		trusted: bool
 	) -> Result<(), transaction::Error> {
 		// treat the tx as local if the option is enabled, or if we have the account
 		let sender = pending.sender();
-		let treat_as_local = !self.options.tx_queue_no_unfamiliar_locals
+		let treat_as_local = trusted
+			|| !self.options.tx_queue_no_unfamiliar_locals
 			|| self.accounts.as_ref().map(|accts| accts.has_account(sender)).unwrap_or(false);
 
 		if treat_as_local {
@@ -1298,7 +1300,7 @@ mod tests {
 		let best_block = 0;
 		// when
 		// This transaction should not be marked as local because our account_provider doesn't have the sender
-		let res = miner.import_claimed_local_transaction(&client, PendingTransaction::new(transaction.clone(), None));
+		let res = miner.import_claimed_local_transaction(&client, PendingTransaction::new(transaction.clone(), None), false);
 
 		// then
 		// Check the same conditions as `should_import_external_transaction` first. Behaviour should be identical.
@@ -1313,7 +1315,7 @@ mod tests {
 		// when - 2nd part: create a local transaction from account_provider.
 		// Borrow the transaction used before & sign with our generated keypair.
 		let local_transaction = transaction.deconstruct().0.as_unsigned().clone().sign(keypair.secret(), Some(TEST_CHAIN_ID));
-		let res2 = miner.import_claimed_local_transaction(&client, PendingTransaction::new(local_transaction, None));
+		let res2 = miner.import_claimed_local_transaction(&client, PendingTransaction::new(local_transaction, None), false);
 
 		// then - 2nd part: we add on the results from the last pending block.
 		// This is borrowed from `should_make_pending_block_when_importing_own_transaction` and slightly modified.
