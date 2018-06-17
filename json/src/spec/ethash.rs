@@ -122,6 +122,30 @@ pub struct EthashParams {
 	/// EXPIP-2 duration limit
 	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
+
+	/// EOS Classic transition block
+	#[serde(rename="eosclassicTransition")]
+	pub eosclassic_transition: Option<Uint>,
+
+	/// EOS Classic Miner reward
+	#[serde(rename="eosclassicMinerReward")]
+	pub eosclassic_miner_reward: Option<Uint>,
+
+	/// EOS Classic Treasury Address
+	#[serde(rename="eosclassicTreasuryAddress")]
+	pub eosclassic_treasury_address: Option<Address>,
+
+	/// EOS Classic Treasury reward
+	#[serde(rename="eosclassicTreasuryReward")]
+	pub eosclassic_treasury_reward: Option<Uint>,
+
+	/// EOS Classic Stake Address
+	#[serde(rename="eosclassicStakeAddress")]
+	pub eosclassic_stake_address: Option<Address>,
+
+	/// EOS Classic Stake reward
+	#[serde(rename="eosclassicStakeReward")]
+	pub eosclassic_stake_reward: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -232,6 +256,12 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				eosclassic_transition: None,
+				eosclassic_miner_reward: None,
+				eosclassic_treasury_address: None,
+				eosclassic_treasury_reward: None,
+				eosclassic_stake_address: None,
+				eosclassic_stake_reward: None,
 			}
 		});
 	}
@@ -276,6 +306,12 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				eosclassic_transition: None,
+				eosclassic_miner_reward: None,
+				eosclassic_treasury_address: None,
+				eosclassic_treasury_reward: None,
+				eosclassic_stake_address: None,
+				eosclassic_stake_reward: None,
 			}
 		});
 	}
