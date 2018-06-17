@@ -124,28 +124,28 @@ pub struct EthashParams {
 	pub expip2_duration_limit: Option<Uint>,
 
 	/// EOS Classic transition block
-	#[serde(rename="eosclassicTransition")]
-	pub eosclassic_transition: Option<Uint>,
+	#[serde(rename="eoscTransition")]
+	pub eosc_transition: Option<Uint>,
 
 	/// EOS Classic Miner reward
-	#[serde(rename="eosclassicMinerReward")]
-	pub eosclassic_miner_reward: Option<Uint>,
+	#[serde(rename="eoscMinerReward")]
+	pub eosc_miner_reward: Option<Uint>,
 
 	/// EOS Classic Treasury Address
-	#[serde(rename="eosclassicTreasuryAddress")]
-	pub eosclassic_treasury_address: Option<Address>,
+	#[serde(rename="eoscTreasuryAddress")]
+	pub eosc_treasury_address: Option<Address>,
 
 	/// EOS Classic Treasury reward
-	#[serde(rename="eosclassicTreasuryReward")]
-	pub eosclassic_treasury_reward: Option<Uint>,
+	#[serde(rename="eoscTreasuryReward")]
+	pub eosc_treasury_reward: Option<Uint>,
 
 	/// EOS Classic Stake Address
-	#[serde(rename="eosclassicStakeAddress")]
-	pub eosclassic_stake_address: Option<Address>,
+	#[serde(rename="eoscStakeAddress")]
+	pub eosc_stake_address: Option<Address>,
 
 	/// EOS Classic Stake reward
-	#[serde(rename="eosclassicStakeReward")]
-	pub eosclassic_stake_reward: Option<Uint>,
+	#[serde(rename="eoscStakeReward")]
+	pub eosc_stake_reward: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -256,12 +256,12 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
-				eosclassic_transition: None,
-				eosclassic_miner_reward: None,
-				eosclassic_treasury_address: None,
-				eosclassic_treasury_reward: None,
-				eosclassic_stake_address: None,
-				eosclassic_stake_reward: None,
+				eosc_transition: None,
+				eosc_miner_reward: None,
+				eosc_treasury_address: None,
+				eosc_treasury_reward: None,
+				eosc_stake_address: None,
+				eosc_stake_reward: None,
 			}
 		});
 	}
@@ -306,12 +306,12 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
-				eosclassic_transition: None,
-				eosclassic_miner_reward: None,
-				eosclassic_treasury_address: None,
-				eosclassic_treasury_reward: None,
-				eosclassic_stake_address: None,
-				eosclassic_stake_reward: None,
+				eosc_transition: None,
+				eosc_miner_reward: None,
+				eosc_treasury_address: None,
+				eosc_treasury_reward: None,
+				eosc_stake_address: None,
+				eosc_stake_reward: None,
 			}
 		});
 	}
