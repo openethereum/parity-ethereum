@@ -123,10 +123,13 @@ impl<C: miner::BlockChainClient, M: MinerService> FullDispatcher<C, M> {
 	}
 
 	/// Imports transaction to the miner's queue.
-	pub fn dispatch_transaction(client: &C, miner: &M, signed_transaction: PendingTransaction) -> Result<H256> {
+	pub fn dispatch_transaction(client: &C, miner: &M, signed_transaction: PendingTransaction, trusted: bool) -> Result<H256> {
 		let hash = signed_transaction.transaction.hash();
 
-		miner.import_own_transaction(client, signed_transaction)
+		// use `import_claimed_local_transaction` so we can decide (based on config flags) if we want to treat
+		// it as local or not. Nodes with public RPC interfaces will want these transactions to be treated like
+		// external transactions.
+		miner.import_claimed_local_transaction(client, signed_transaction, trusted)
 			.map_err(errors::transaction)
 			.map(|_| hash)
 	}
@@ -180,7 +183,7 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256> {
-		Self::dispatch_transaction(&*self.client, &*self.miner, signed_transaction)
+		Self::dispatch_transaction(&*self.client, &*self.miner, signed_transaction, true)
 	}
 }
 
