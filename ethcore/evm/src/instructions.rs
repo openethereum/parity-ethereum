@@ -18,454 +18,325 @@
 
 pub use self::Instruction::*;
 
-/// Virtual machine bytecode instruction.
-#[repr(u8)]
-#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
-pub enum Instruction {
-	/// halts execution
-	STOP = 0x00,
-	/// addition operation
-	ADD = 0x01,
-	/// mulitplication operation
-	MUL = 0x02,
-	/// subtraction operation
-	SUB = 0x03,
-	/// integer division operation
-	DIV = 0x04,
-	/// signed integer division operation
-	SDIV = 0x05,
-	/// modulo remainder operation
-	MOD = 0x06,
-	/// signed modulo remainder operation
-	SMOD = 0x07,
-	/// unsigned modular addition
-	ADDMOD = 0x08,
-	/// unsigned modular multiplication
-	MULMOD = 0x09,
-	/// exponential operation
-	EXP = 0x0a,
-	/// extend length of signed integer
-	SIGNEXTEND = 0x0b,
+macro_rules! enum_with_from_u8 {
+    (
+        $( #[$enum_attr:meta] )*
+        pub enum $name:ident {
+            $( $( #[$variant_attr:meta] )* $variant:ident = $discriminator:expr ),+,
+        }
+    ) => {
+        $( #[$enum_attr] )*
+        pub enum $name {
+            $( $( #[$variant_attr] )* $variant = $discriminator ),+,
+        }
 
-	/// less-than comparision
-	LT = 0x10,
-	/// greater-than comparision
-	GT = 0x11,
-	/// signed less-than comparision
-	SLT = 0x12,
-	/// signed greater-than comparision
-	SGT = 0x13,
-	/// equality comparision
-	EQ = 0x14,
-	/// simple not operator
-	ISZERO = 0x15,
-	/// bitwise AND operation
-	AND = 0x16,
-	/// bitwise OR operation
-	OR = 0x17,
-	/// bitwise XOR operation
-	XOR = 0x18,
-	/// bitwise NOT opertation
-	NOT = 0x19,
-	/// retrieve single byte from word
-	BYTE = 0x1a,
-	/// shift left operation
-	SHL = 0x1b,
-	/// logical shift right operation
-	SHR = 0x1c,
-	/// arithmetic shift right operation
-	SAR = 0x1d,
+		impl $name {
+			#[doc = "Convert from u8 to the given enum"]
+			pub fn from_u8(value: u8) -> Option<Self> {
+				match value {
+					$( $discriminator => Some($variant) ),+,
+					_ => None,
+				}
+			}
+		}
+    };
+}
 
-	/// compute SHA3-256 hash
-	SHA3 = 0x20,
+enum_with_from_u8! {
+	#[doc = "Virtual machine bytecode instruction."]
+	#[repr(u8)]
+	#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
+	pub enum Instruction {
+		#[doc = "halts execution"]
+		STOP = 0x00,
+		#[doc = "addition operation"]
+		ADD = 0x01,
+		#[doc = "mulitplication operation"]
+		MUL = 0x02,
+		#[doc = "subtraction operation"]
+		SUB = 0x03,
+		#[doc = "integer division operation"]
+		DIV = 0x04,
+		#[doc = "signed integer division operation"]
+		SDIV = 0x05,
+		#[doc = "modulo remainder operation"]
+		MOD = 0x06,
+		#[doc = "signed modulo remainder operation"]
+		SMOD = 0x07,
+		#[doc = "unsigned modular addition"]
+		ADDMOD = 0x08,
+		#[doc = "unsigned modular multiplication"]
+		MULMOD = 0x09,
+		#[doc = "exponential operation"]
+		EXP = 0x0a,
+		#[doc = "extend length of signed integer"]
+		SIGNEXTEND = 0x0b,
 
-	/// get address of currently executing account
-	ADDRESS = 0x30,
-	/// get balance of the given account
-	BALANCE = 0x31,
-	/// get execution origination address
-	ORIGIN = 0x32,
-	/// get caller address
-	CALLER = 0x33,
-	/// get deposited value by the instruction/transaction responsible for this execution
-	CALLVALUE = 0x34,
-	/// get input data of current environment
-	CALLDATALOAD = 0x35,
-	/// get size of input data in current environment
-	CALLDATASIZE = 0x36,
-	/// copy input data in current environment to memory
-	CALLDATACOPY = 0x37,
-	/// get size of code running in current environment
-	CODESIZE = 0x38,
-	/// copy code running in current environment to memory
-	CODECOPY = 0x39,
-	/// get price of gas in current environment
-	GASPRICE = 0x3a,
-	/// get external code size (from another contract)
-	EXTCODESIZE = 0x3b,
-	/// copy external code (from another contract)
-	EXTCODECOPY = 0x3c,
-	/// get the size of the return data buffer for the last call
-	RETURNDATASIZE = 0x3d,
-	/// copy return data buffer to memory
-	RETURNDATACOPY = 0x3e,
+		#[doc = "less-than comparision"]
+		LT = 0x10,
+		#[doc = "greater-than comparision"]
+		GT = 0x11,
+		#[doc = "signed less-than comparision"]
+		SLT = 0x12,
+		#[doc = "signed greater-than comparision"]
+		SGT = 0x13,
+		#[doc = "equality comparision"]
+		EQ = 0x14,
+		#[doc = "simple not operator"]
+		ISZERO = 0x15,
+		#[doc = "bitwise AND operation"]
+		AND = 0x16,
+		#[doc = "bitwise OR operation"]
+		OR = 0x17,
+		#[doc = "bitwise XOR operation"]
+		XOR = 0x18,
+		#[doc = "bitwise NOT opertation"]
+		NOT = 0x19,
+		#[doc = "retrieve single byte from word"]
+		BYTE = 0x1a,
+		#[doc = "shift left operation"]
+		SHL = 0x1b,
+		#[doc = "logical shift right operation"]
+		SHR = 0x1c,
+		#[doc = "arithmetic shift right operation"]
+		SAR = 0x1d,
 
-	/// get hash of most recent complete block
-	BLOCKHASH = 0x40,
-	/// get the block's coinbase address
-	COINBASE = 0x41,
-	/// get the block's timestamp
-	TIMESTAMP = 0x42,
-	/// get the block's number
-	NUMBER = 0x43,
-	/// get the block's difficulty
-	DIFFICULTY = 0x44,
-	/// get the block's gas limit
-	GASLIMIT = 0x45,
+		#[doc = "compute SHA3-256 hash"]
+		SHA3 = 0x20,
 
-	/// remove item from stack
-	POP = 0x50,
-	/// load word from memory
-	MLOAD = 0x51,
-	/// save word to memory
-	MSTORE = 0x52,
-	/// save byte to memory
-	MSTORE8 = 0x53,
-	/// load word from storage
-	SLOAD = 0x54,
-	/// save word to storage
-	SSTORE = 0x55,
-	/// alter the program counter
-	JUMP = 0x56,
-	/// conditionally alter the program counter
-	JUMPI = 0x57,
-	/// get the program counter
-	PC = 0x58,
-	/// get the size of active memory
-	MSIZE = 0x59,
-	/// get the amount of available gas
-	GAS = 0x5a,
-	/// set a potential jump destination
-	JUMPDEST = 0x5b,
+		#[doc = "get address of currently executing account"]
+		ADDRESS = 0x30,
+		#[doc = "get balance of the given account"]
+		BALANCE = 0x31,
+		#[doc = "get execution origination address"]
+		ORIGIN = 0x32,
+		#[doc = "get caller address"]
+		CALLER = 0x33,
+		#[doc = "get deposited value by the instruction/transaction responsible for this execution"]
+		CALLVALUE = 0x34,
+		#[doc = "get input data of current environment"]
+		CALLDATALOAD = 0x35,
+		#[doc = "get size of input data in current environment"]
+		CALLDATASIZE = 0x36,
+		#[doc = "copy input data in current environment to memory"]
+		CALLDATACOPY = 0x37,
+		#[doc = "get size of code running in current environment"]
+		CODESIZE = 0x38,
+		#[doc = "copy code running in current environment to memory"]
+		CODECOPY = 0x39,
+		#[doc = "get price of gas in current environment"]
+		GASPRICE = 0x3a,
+		#[doc = "get external code size (from another contract)"]
+		EXTCODESIZE = 0x3b,
+		#[doc = "copy external code (from another contract)"]
+		EXTCODECOPY = 0x3c,
+		#[doc = "get the size of the return data buffer for the last call"]
+		RETURNDATASIZE = 0x3d,
+		#[doc = "copy return data buffer to memory"]
+		RETURNDATACOPY = 0x3e,
 
-	/// place 1 byte item on stack
-	PUSH1 = 0x60,
-	/// place 2 byte item on stack
-	PUSH2 = 0x61,
-	/// place 3 byte item on stack
-	PUSH3 = 0x62,
-	/// place 4 byte item on stack
-	PUSH4 = 0x63,
-	/// place 5 byte item on stack
-	PUSH5 = 0x64,
-	/// place 6 byte item on stack
-	PUSH6 = 0x65,
-	/// place 7 byte item on stack
-	PUSH7 = 0x66,
-	/// place 8 byte item on stack
-	PUSH8 = 0x67,
-	/// place 9 byte item on stack
-	PUSH9 = 0x68,
-	/// place 10 byte item on stack
-	PUSH10 = 0x69,
-	/// place 11 byte item on stack
-	PUSH11 = 0x6a,
-	/// place 12 byte item on stack
-	PUSH12 = 0x6b,
-	/// place 13 byte item on stack
-	PUSH13 = 0x6c,
-	/// place 14 byte item on stack
-	PUSH14 = 0x6d,
-	/// place 15 byte item on stack
-	PUSH15 = 0x6e,
-	/// place 16 byte item on stack
-	PUSH16 = 0x6f,
-	/// place 17 byte item on stack
-	PUSH17 = 0x70,
-	/// place 18 byte item on stack
-	PUSH18 = 0x71,
-	/// place 19 byte item on stack
-	PUSH19 = 0x72,
-	/// place 20 byte item on stack
-	PUSH20 = 0x73,
-	/// place 21 byte item on stack
-	PUSH21 = 0x74,
-	/// place 22 byte item on stack
-	PUSH22 = 0x75,
-	/// place 23 byte item on stack
-	PUSH23 = 0x76,
-	/// place 24 byte item on stack
-	PUSH24 = 0x77,
-	/// place 25 byte item on stack
-	PUSH25 = 0x78,
-	/// place 26 byte item on stack
-	PUSH26 = 0x79,
-	/// place 27 byte item on stack
-	PUSH27 = 0x7a,
-	/// place 28 byte item on stack
-	PUSH28 = 0x7b,
-	/// place 29 byte item on stack
-	PUSH29 = 0x7c,
-	/// place 30 byte item on stack
-	PUSH30 = 0x7d,
-	/// place 31 byte item on stack
-	PUSH31 = 0x7e,
-	/// place 32 byte item on stack
-	PUSH32 = 0x7f,
+		#[doc = "get hash of most recent complete block"]
+		BLOCKHASH = 0x40,
+		#[doc = "get the block's coinbase address"]
+		COINBASE = 0x41,
+		#[doc = "get the block's timestamp"]
+		TIMESTAMP = 0x42,
+		#[doc = "get the block's number"]
+		NUMBER = 0x43,
+		#[doc = "get the block's difficulty"]
+		DIFFICULTY = 0x44,
+		#[doc = "get the block's gas limit"]
+		GASLIMIT = 0x45,
 
-	/// copies the highest item in the stack to the top of the stack
-	DUP1 = 0x80,
-	/// copies the second highest item in the stack to the top of the stack
-	DUP2 = 0x81,
-	/// copies the third highest item in the stack to the top of the stack
-	DUP3 = 0x82,
-	/// copies the 4th highest item in the stack to the top of the stack
-	DUP4 = 0x83,
-	/// copies the 5th highest item in the stack to the top of the stack
-	DUP5 = 0x84,
-	/// copies the 6th highest item in the stack to the top of the stack
-	DUP6 = 0x85,
-	/// copies the 7th highest item in the stack to the top of the stack
-	DUP7 = 0x86,
-	/// copies the 8th highest item in the stack to the top of the stack
-	DUP8 = 0x87,
-	/// copies the 9th highest item in the stack to the top of the stack
-	DUP9 = 0x88,
-	/// copies the 10th highest item in the stack to the top of the stack
-	DUP10 = 0x89,
-	/// copies the 11th highest item in the stack to the top of the stack
-	DUP11 = 0x8a,
-	/// copies the 12th highest item in the stack to the top of the stack
-	DUP12 = 0x8b,
-	/// copies the 13th highest item in the stack to the top of the stack
-	DUP13 = 0x8c,
-	/// copies the 14th highest item in the stack to the top of the stack
-	DUP14 = 0x8d,
-	/// copies the 15th highest item in the stack to the top of the stack
-	DUP15 = 0x8e,
-	/// copies the 16th highest item in the stack to the top of the stack
-	DUP16 = 0x8f,
+		#[doc = "remove item from stack"]
+		POP = 0x50,
+		#[doc = "load word from memory"]
+		MLOAD = 0x51,
+		#[doc = "save word to memory"]
+		MSTORE = 0x52,
+		#[doc = "save byte to memory"]
+		MSTORE8 = 0x53,
+		#[doc = "load word from storage"]
+		SLOAD = 0x54,
+		#[doc = "save word to storage"]
+		SSTORE = 0x55,
+		#[doc = "alter the program counter"]
+		JUMP = 0x56,
+		#[doc = "conditionally alter the program counter"]
+		JUMPI = 0x57,
+		#[doc = "get the program counter"]
+		PC = 0x58,
+		#[doc = "get the size of active memory"]
+		MSIZE = 0x59,
+		#[doc = "get the amount of available gas"]
+		GAS = 0x5a,
+		#[doc = "set a potential jump destination"]
+		JUMPDEST = 0x5b,
 
-	/// swaps the highest and second highest value on the stack
-	SWAP1 = 0x90,
-	/// swaps the highest and third highest value on the stack
-	SWAP2 = 0x91,
-	/// swaps the highest and 4th highest value on the stack
-	SWAP3 = 0x92,
-	/// swaps the highest and 5th highest value on the stack
-	SWAP4 = 0x93,
-	/// swaps the highest and 6th highest value on the stack
-	SWAP5 = 0x94,
-	/// swaps the highest and 7th highest value on the stack
-	SWAP6 = 0x95,
-	/// swaps the highest and 8th highest value on the stack
-	SWAP7 = 0x96,
-	/// swaps the highest and 9th highest value on the stack
-	SWAP8 = 0x97,
-	/// swaps the highest and 10th highest value on the stack
-	SWAP9 = 0x98,
-	/// swaps the highest and 11th highest value on the stack
-	SWAP10 = 0x99,
-	/// swaps the highest and 12th highest value on the stack
-	SWAP11 = 0x9a,
-	/// swaps the highest and 13th highest value on the stack
-	SWAP12 = 0x9b,
-	/// swaps the highest and 14th highest value on the stack
-	SWAP13 = 0x9c,
-	/// swaps the highest and 15th highest value on the stack
-	SWAP14 = 0x9d,
-	/// swaps the highest and 16th highest value on the stack
-	SWAP15 = 0x9e,
-	/// swaps the highest and 17th highest value on the stack
-	SWAP16 = 0x9f,
+		#[doc = "place 1 byte item on stack"]
+		PUSH1 = 0x60,
+		#[doc = "place 2 byte item on stack"]
+		PUSH2 = 0x61,
+		#[doc = "place 3 byte item on stack"]
+		PUSH3 = 0x62,
+		#[doc = "place 4 byte item on stack"]
+		PUSH4 = 0x63,
+		#[doc = "place 5 byte item on stack"]
+		PUSH5 = 0x64,
+		#[doc = "place 6 byte item on stack"]
+		PUSH6 = 0x65,
+		#[doc = "place 7 byte item on stack"]
+		PUSH7 = 0x66,
+		#[doc = "place 8 byte item on stack"]
+		PUSH8 = 0x67,
+		#[doc = "place 9 byte item on stack"]
+		PUSH9 = 0x68,
+		#[doc = "place 10 byte item on stack"]
+		PUSH10 = 0x69,
+		#[doc = "place 11 byte item on stack"]
+		PUSH11 = 0x6a,
+		#[doc = "place 12 byte item on stack"]
+		PUSH12 = 0x6b,
+		#[doc = "place 13 byte item on stack"]
+		PUSH13 = 0x6c,
+		#[doc = "place 14 byte item on stack"]
+		PUSH14 = 0x6d,
+		#[doc = "place 15 byte item on stack"]
+		PUSH15 = 0x6e,
+		#[doc = "place 16 byte item on stack"]
+		PUSH16 = 0x6f,
+		#[doc = "place 17 byte item on stack"]
+		PUSH17 = 0x70,
+		#[doc = "place 18 byte item on stack"]
+		PUSH18 = 0x71,
+		#[doc = "place 19 byte item on stack"]
+		PUSH19 = 0x72,
+		#[doc = "place 20 byte item on stack"]
+		PUSH20 = 0x73,
+		#[doc = "place 21 byte item on stack"]
+		PUSH21 = 0x74,
+		#[doc = "place 22 byte item on stack"]
+		PUSH22 = 0x75,
+		#[doc = "place 23 byte item on stack"]
+		PUSH23 = 0x76,
+		#[doc = "place 24 byte item on stack"]
+		PUSH24 = 0x77,
+		#[doc = "place 25 byte item on stack"]
+		PUSH25 = 0x78,
+		#[doc = "place 26 byte item on stack"]
+		PUSH26 = 0x79,
+		#[doc = "place 27 byte item on stack"]
+		PUSH27 = 0x7a,
+		#[doc = "place 28 byte item on stack"]
+		PUSH28 = 0x7b,
+		#[doc = "place 29 byte item on stack"]
+		PUSH29 = 0x7c,
+		#[doc = "place 30 byte item on stack"]
+		PUSH30 = 0x7d,
+		#[doc = "place 31 byte item on stack"]
+		PUSH31 = 0x7e,
+		#[doc = "place 32 byte item on stack"]
+		PUSH32 = 0x7f,
 
-	/// Makes a log entry, no topics.
-	LOG0 = 0xa0,
-	/// Makes a log entry, 1 topic.
-	LOG1 = 0xa1,
-	/// Makes a log entry, 2 topics.
-	LOG2 = 0xa2,
-	/// Makes a log entry, 3 topics.
-	LOG3 = 0xa3,
-	/// Makes a log entry, 4 topics.
-	LOG4 = 0xa4,
+		#[doc = "copies the highest item in the stack to the top of the stack"]
+		DUP1 = 0x80,
+		#[doc = "copies the second highest item in the stack to the top of the stack"]
+		DUP2 = 0x81,
+		#[doc = "copies the third highest item in the stack to the top of the stack"]
+		DUP3 = 0x82,
+		#[doc = "copies the 4th highest item in the stack to the top of the stack"]
+		DUP4 = 0x83,
+		#[doc = "copies the 5th highest item in the stack to the top of the stack"]
+		DUP5 = 0x84,
+		#[doc = "copies the 6th highest item in the stack to the top of the stack"]
+		DUP6 = 0x85,
+		#[doc = "copies the 7th highest item in the stack to the top of the stack"]
+		DUP7 = 0x86,
+		#[doc = "copies the 8th highest item in the stack to the top of the stack"]
+		DUP8 = 0x87,
+		#[doc = "copies the 9th highest item in the stack to the top of the stack"]
+		DUP9 = 0x88,
+		#[doc = "copies the 10th highest item in the stack to the top of the stack"]
+		DUP10 = 0x89,
+		#[doc = "copies the 11th highest item in the stack to the top of the stack"]
+		DUP11 = 0x8a,
+		#[doc = "copies the 12th highest item in the stack to the top of the stack"]
+		DUP12 = 0x8b,
+		#[doc = "copies the 13th highest item in the stack to the top of the stack"]
+		DUP13 = 0x8c,
+		#[doc = "copies the 14th highest item in the stack to the top of the stack"]
+		DUP14 = 0x8d,
+		#[doc = "copies the 15th highest item in the stack to the top of the stack"]
+		DUP15 = 0x8e,
+		#[doc = "copies the 16th highest item in the stack to the top of the stack"]
+		DUP16 = 0x8f,
 
-	/// create a new account with associated code
-	CREATE = 0xf0,
-	/// message-call into an account
-	CALL = 0xf1,
-	/// message-call with another account's code only
-	CALLCODE = 0xf2,
-	/// halt execution returning output data
-	RETURN = 0xf3,
-	/// like CALLCODE but keeps caller's value and sender
-	DELEGATECALL = 0xf4,
-	/// create a new account and set creation address to sha3(sender + sha3(init code)) % 2**160
-	CREATE2 = 0xfb,
-	/// stop execution and revert state changes. Return output data.
-	REVERT = 0xfd,
-	/// like CALL but it does not take value, nor modify the state
-	STATICCALL = 0xfa,
-	/// halt execution and register account for later deletion
-	SUICIDE = 0xff,
+		#[doc = "swaps the highest and second highest value on the stack"]
+		SWAP1 = 0x90,
+		#[doc = "swaps the highest and third highest value on the stack"]
+		SWAP2 = 0x91,
+		#[doc = "swaps the highest and 4th highest value on the stack"]
+		SWAP3 = 0x92,
+		#[doc = "swaps the highest and 5th highest value on the stack"]
+		SWAP4 = 0x93,
+		#[doc = "swaps the highest and 6th highest value on the stack"]
+		SWAP5 = 0x94,
+		#[doc = "swaps the highest and 7th highest value on the stack"]
+		SWAP6 = 0x95,
+		#[doc = "swaps the highest and 8th highest value on the stack"]
+		SWAP7 = 0x96,
+		#[doc = "swaps the highest and 9th highest value on the stack"]
+		SWAP8 = 0x97,
+		#[doc = "swaps the highest and 10th highest value on the stack"]
+		SWAP9 = 0x98,
+		#[doc = "swaps the highest and 11th highest value on the stack"]
+		SWAP10 = 0x99,
+		#[doc = "swaps the highest and 12th highest value on the stack"]
+		SWAP11 = 0x9a,
+		#[doc = "swaps the highest and 13th highest value on the stack"]
+		SWAP12 = 0x9b,
+		#[doc = "swaps the highest and 14th highest value on the stack"]
+		SWAP13 = 0x9c,
+		#[doc = "swaps the highest and 15th highest value on the stack"]
+		SWAP14 = 0x9d,
+		#[doc = "swaps the highest and 16th highest value on the stack"]
+		SWAP15 = 0x9e,
+		#[doc = "swaps the highest and 17th highest value on the stack"]
+		SWAP16 = 0x9f,
+
+		#[doc = "Makes a log entry, no topics."]
+		LOG0 = 0xa0,
+		#[doc = "Makes a log entry, 1 topic."]
+		LOG1 = 0xa1,
+		#[doc = "Makes a log entry, 2 topics."]
+		LOG2 = 0xa2,
+		#[doc = "Makes a log entry, 3 topics."]
+		LOG3 = 0xa3,
+		#[doc = "Makes a log entry, 4 topics."]
+		LOG4 = 0xa4,
+
+		#[doc = "create a new account with associated code"]
+		CREATE = 0xf0,
+		#[doc = "message-call into an account"]
+		CALL = 0xf1,
+		#[doc = "message-call with another account's code only"]
+		CALLCODE = 0xf2,
+		#[doc = "halt execution returning output data"]
+		RETURN = 0xf3,
+		#[doc = "like CALLCODE but keeps caller's value and sender"]
+		DELEGATECALL = 0xf4,
+		#[doc = "create a new account and set creation address to sha3(sender + sha3(init code)) % 2**160"]
+		CREATE2 = 0xfb,
+		#[doc = "stop execution and revert state changes. Return output data."]
+		REVERT = 0xfd,
+		#[doc = "like CALL but it does not take value, nor modify the state"]
+		STATICCALL = 0xfa,
+		#[doc = "halt execution and register account for later deletion"]
+		SUICIDE = 0xff,
+	}
 }
 
 impl Instruction {
-	pub fn from_u8(value: u8) -> Option<Instruction> {
-		match value {
-			0x00 => Some(Instruction::STOP),
-			0x01 => Some(Instruction::ADD),
-			0x02 => Some(Instruction::MUL),
-			0x03 => Some(Instruction::SUB),
-			0x04 => Some(Instruction::DIV),
-			0x05 => Some(Instruction::SDIV),
-			0x06 => Some(Instruction::MOD),
-			0x07 => Some(Instruction::SMOD),
-			0x08 => Some(Instruction::ADDMOD),
-			0x09 => Some(Instruction::MULMOD),
-			0x0a => Some(Instruction::EXP),
-			0x0b => Some(Instruction::SIGNEXTEND),
-
-			0x10 => Some(Instruction::LT),
-			0x11 => Some(Instruction::GT),
-			0x12 => Some(Instruction::SLT),
-			0x13 => Some(Instruction::SGT),
-			0x14 => Some(Instruction::EQ),
-			0x15 => Some(Instruction::ISZERO),
-			0x16 => Some(Instruction::AND),
-			0x17 => Some(Instruction::OR),
-			0x18 => Some(Instruction::XOR),
-			0x19 => Some(Instruction::NOT),
-			0x1a => Some(Instruction::BYTE),
-			0x1b => Some(Instruction::SHL),
-			0x1c => Some(Instruction::SHR),
-			0x1d => Some(Instruction::SAR),
-
-			0x20 => Some(Instruction::SHA3),
-
-			0x30 => Some(Instruction::ADDRESS),
-			0x31 => Some(Instruction::BALANCE),
-			0x32 => Some(Instruction::ORIGIN),
-			0x33 => Some(Instruction::CALLER),
-			0x34 => Some(Instruction::CALLVALUE),
-			0x35 => Some(Instruction::CALLDATALOAD),
-			0x36 => Some(Instruction::CALLDATASIZE),
-			0x37 => Some(Instruction::CALLDATACOPY),
-			0x38 => Some(Instruction::CODESIZE),
-			0x39 => Some(Instruction::CODECOPY),
-			0x3a => Some(Instruction::GASPRICE),
-			0x3b => Some(Instruction::EXTCODESIZE),
-			0x3c => Some(Instruction::EXTCODECOPY),
-			0x3d => Some(Instruction::RETURNDATASIZE),
-			0x3e => Some(Instruction::RETURNDATACOPY),
-
-			0x40 => Some(Instruction::BLOCKHASH),
-			0x41 => Some(Instruction::COINBASE),
-			0x42 => Some(Instruction::TIMESTAMP),
-			0x43 => Some(Instruction::NUMBER),
-			0x44 => Some(Instruction::DIFFICULTY),
-			0x45 => Some(Instruction::GASLIMIT),
-
-			0x50 => Some(Instruction::POP),
-			0x51 => Some(Instruction::MLOAD),
-			0x52 => Some(Instruction::MSTORE),
-			0x53 => Some(Instruction::MSTORE8),
-			0x54 => Some(Instruction::SLOAD),
-			0x55 => Some(Instruction::SSTORE),
-			0x56 => Some(Instruction::JUMP),
-			0x57 => Some(Instruction::JUMPI),
-			0x58 => Some(Instruction::PC),
-			0x59 => Some(Instruction::MSIZE),
-			0x5a => Some(Instruction::GAS),
-			0x5b => Some(Instruction::JUMPDEST),
-
-			0x60 => Some(Instruction::PUSH1),
-			0x61 => Some(Instruction::PUSH2),
-			0x62 => Some(Instruction::PUSH3),
-			0x63 => Some(Instruction::PUSH4),
-			0x64 => Some(Instruction::PUSH5),
-			0x65 => Some(Instruction::PUSH6),
-			0x66 => Some(Instruction::PUSH7),
-			0x67 => Some(Instruction::PUSH8),
-			0x68 => Some(Instruction::PUSH9),
-			0x69 => Some(Instruction::PUSH10),
-			0x6a => Some(Instruction::PUSH11),
-			0x6b => Some(Instruction::PUSH12),
-			0x6c => Some(Instruction::PUSH13),
-			0x6d => Some(Instruction::PUSH14),
-			0x6e => Some(Instruction::PUSH15),
-			0x6f => Some(Instruction::PUSH16),
-			0x70 => Some(Instruction::PUSH17),
-			0x71 => Some(Instruction::PUSH18),
-			0x72 => Some(Instruction::PUSH19),
-			0x73 => Some(Instruction::PUSH20),
-			0x74 => Some(Instruction::PUSH21),
-			0x75 => Some(Instruction::PUSH22),
-			0x76 => Some(Instruction::PUSH23),
-			0x77 => Some(Instruction::PUSH24),
-			0x78 => Some(Instruction::PUSH25),
-			0x79 => Some(Instruction::PUSH26),
-			0x7a => Some(Instruction::PUSH27),
-			0x7b => Some(Instruction::PUSH28),
-			0x7c => Some(Instruction::PUSH29),
-			0x7d => Some(Instruction::PUSH30),
-			0x7e => Some(Instruction::PUSH31),
-			0x7f => Some(Instruction::PUSH32),
-
-			0x80 => Some(Instruction::DUP1),
-			0x81 => Some(Instruction::DUP2),
-			0x82 => Some(Instruction::DUP3),
-			0x83 => Some(Instruction::DUP4),
-			0x84 => Some(Instruction::DUP5),
-			0x85 => Some(Instruction::DUP6),
-			0x86 => Some(Instruction::DUP7),
-			0x87 => Some(Instruction::DUP8),
-			0x88 => Some(Instruction::DUP9),
-			0x89 => Some(Instruction::DUP10),
-			0x8a => Some(Instruction::DUP11),
-			0x8b => Some(Instruction::DUP12),
-			0x8c => Some(Instruction::DUP13),
-			0x8d => Some(Instruction::DUP14),
-			0x8e => Some(Instruction::DUP15),
-			0x8f => Some(Instruction::DUP16),
-
-			0x90 => Some(Instruction::SWAP1),
-			0x91 => Some(Instruction::SWAP2),
-			0x92 => Some(Instruction::SWAP3),
-			0x93 => Some(Instruction::SWAP4),
-			0x94 => Some(Instruction::SWAP5),
-			0x95 => Some(Instruction::SWAP6),
-			0x96 => Some(Instruction::SWAP7),
-			0x97 => Some(Instruction::SWAP8),
-			0x98 => Some(Instruction::SWAP9),
-			0x99 => Some(Instruction::SWAP10),
-			0x9a => Some(Instruction::SWAP11),
-			0x9b => Some(Instruction::SWAP12),
-			0x9c => Some(Instruction::SWAP13),
-			0x9d => Some(Instruction::SWAP14),
-			0x9e => Some(Instruction::SWAP15),
-			0x9f => Some(Instruction::SWAP16),
-
-			0xa0 => Some(Instruction::LOG0),
-			0xa1 => Some(Instruction::LOG1),
-			0xa2 => Some(Instruction::LOG2),
-			0xa3 => Some(Instruction::LOG3),
-			0xa4 => Some(Instruction::LOG4),
-
-			0xf0 => Some(Instruction::CREATE),
-			0xf1 => Some(Instruction::CALL),
-			0xf2 => Some(Instruction::CALLCODE),
-			0xf3 => Some(Instruction::RETURN),
-			0xf4 => Some(Instruction::DELEGATECALL),
-			0xfb => Some(Instruction::CREATE2),
-			0xfd => Some(Instruction::REVERT),
-			0xfa => Some(Instruction::STATICCALL),
-			0xff => Some(Instruction::SUICIDE),
-
-			_ => None,
-		}
-	}
-
 	/// Returns true if given instruction is `PUSHN` instruction.
 	pub fn is_push(&self) -> bool {
 		*self >= PUSH1 && *self <= PUSH32
