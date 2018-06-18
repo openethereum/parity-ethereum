@@ -48,7 +48,8 @@ use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::Bytes;
 
-use trie::{Trie, TrieError, TrieDB, KeccakTrieResult as TrieResult, KeccakRlpNodeCodec};
+use trie::{Trie, TrieError, TrieDB};
+use ethtrie::{RlpCodec, KeccakTrieResult as TrieResult};
 use trie::recorder::Recorder;
 
 mod account;
@@ -1051,7 +1052,7 @@ impl<B: Backend> State<B> {
 	/// `account_key` == keccak(address)
 	pub fn prove_account(&self, account_key: H256) -> TrieResult<(Vec<Bytes>, BasicAccount)> {
 		let mut recorder = Recorder::new();
-		let trie = TrieDB::<_, KeccakRlpNodeCodec>::new(self.db.as_hashdb(), &self.root)?;
+		let trie = TrieDB::<_, RlpCodec>::new(self.db.as_hashdb(), &self.root)?;
 		let maybe_account: Option<BasicAccount> = {
 			let panicky_decoder = |bytes: &[u8]| {
 				::rlp::decode(bytes).expect(&format!("prove_account, could not query trie for account key={}", &account_key))
@@ -1077,7 +1078,7 @@ impl<B: Backend> State<B> {
 	pub fn prove_storage(&self, account_key: H256, storage_key: H256) -> TrieResult<(Vec<Bytes>, H256)> {
 		// TODO: probably could look into cache somehow but it's keyed by
 		// address, not keccak(address).
-		let trie = TrieDB::<_, KeccakRlpNodeCodec>::new(self.db.as_hashdb(), &self.root)?;
+		let trie = TrieDB::<_, RlpCodec>::new(self.db.as_hashdb(), &self.root)?;
 		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
 		let acc = match trie.get_with(&account_key, from_rlp)? {
 			Some(acc) => acc,

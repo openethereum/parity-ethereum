@@ -63,7 +63,7 @@ use state_db::StateDB;
 use header::Header;
 use encoded;
 use engines::EthEngine;
-use trie;
+use ethtrie;
 use state::StateInfo;
 use views::BlockView;
 
@@ -582,10 +582,10 @@ impl Call for TestBlockChainClient {
 }
 
 impl StateInfo for () {
-	fn nonce(&self, _address: &Address) -> trie::KeccakTrieResult<U256> { unimplemented!() }
-	fn balance(&self, _address: &Address) -> trie::KeccakTrieResult<U256> { unimplemented!() }
-	fn storage_at(&self, _address: &Address, _key: &H256) -> trie::KeccakTrieResult<H256> { unimplemented!() }
-	fn code(&self, _address: &Address) -> trie::KeccakTrieResult<Option<Arc<Bytes>>> { unimplemented!() }
+	fn nonce(&self, _address: &Address) -> ethtrie::KeccakTrieResult<U256> { unimplemented!() }
+	fn balance(&self, _address: &Address) -> ethtrie::KeccakTrieResult<U256> { unimplemented!() }
+	fn storage_at(&self, _address: &Address, _key: &H256) -> ethtrie::KeccakTrieResult<H256> { unimplemented!() }
+	fn code(&self, _address: &Address) -> ethtrie::KeccakTrieResult<Option<Arc<Bytes>>> { unimplemented!() }
 }
 
 impl StateClient for TestBlockChainClient {

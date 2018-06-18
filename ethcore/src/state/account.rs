@@ -27,7 +27,8 @@ use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::{Bytes, ToPretty};
 use trie;
-use trie::{SecTrieDB, Trie, TrieFactory, TrieError, KeccakRlpNodeCodec};
+use trie::{SecTrieDB, Trie, TrieFactory, TrieError};
+use ethtrie::RlpCodec;
 use pod_account::*;
 use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
@@ -205,7 +206,7 @@ impl Account {
 		if let Some(value) = self.cached_storage_at(key) {
 			return Ok(value);
 		}
-		let db = SecTrieDB::<_, KeccakRlpNodeCodec>::new(db, &self.storage_root)?;
+		let db = SecTrieDB::<_, RlpCodec>::new(db, &self.storage_root)?;
 		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
 		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
@@ -376,7 +377,7 @@ impl Account {
 	}
 
 	/// Commit the `storage_changes` to the backing DB and update `storage_root`.
-	pub fn commit_storage(&mut self, trie_factory: &TrieFactory<KeccakHasher, KeccakRlpNodeCodec>, db: &mut HashDB<KeccakHasher>) -> trie::Result<(), <KeccakHasher as Hasher>::Out> {
+	pub fn commit_storage(&mut self, trie_factory: &TrieFactory<KeccakHasher, RlpCodec>, db: &mut HashDB<KeccakHasher>) -> trie::Result<(), <KeccakHasher as Hasher>::Out> {
 		let mut t = trie_factory.from_existing(db, &mut self.storage_root)?;
 		for (k, v) in self.storage_changes.drain() {
 			// cast key and value to trait type,
@@ -480,7 +481,7 @@ impl Account {
 
 		let mut recorder = Recorder::new();
 
-		let trie = TrieDB::<_, KeccakRlpNodeCodec>::new(db, &self.storage_root)?;
+		let trie = TrieDB::<_, RlpCodec>::new(db, &self.storage_root)?;
 		let item: U256 = {
 			let panicky_decoder = |bytes:&[u8]| ::rlp::decode(bytes).expect("decoding db value failed");
 			let query = (&mut recorder, panicky_decoder);

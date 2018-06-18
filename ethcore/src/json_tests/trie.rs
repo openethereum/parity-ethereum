@@ -15,14 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethjson;
-use trie::{TrieFactory, TrieSpec, KeccakRlpNodeCodec};
+use trie::{TrieFactory, TrieSpec};
+use ethtrie::RlpCodec;
 use ethereum_types::H256;
 use memorydb::KeccakMemoryDB;
 
 
 fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();
-	let factory = TrieFactory::<_, KeccakRlpNodeCodec>::new(trie);
+	let factory = TrieFactory::<_, RlpCodec>::new(trie);
 	let mut result = vec![];
 
 	for (name, test) in tests.into_iter() {

@@ -38,7 +38,8 @@ use ethereum_types::H256;
 use hashdb::HashDB;
 use keccak_hasher::KeccakHasher;
 use journaldb;
-use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie, KeccakRlpNodeCodec};
+use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie};
+use ethtrie::RlpCodec;
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
 
 // the proportion of accounts we will alter each tick.
@@ -64,7 +65,7 @@ impl StateProducer {
 	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
-			let trie = TrieDB::<_, KeccakRlpNodeCodec>::new(&*db, &self.state_root).unwrap();
+			let trie = TrieDB::<_, RlpCodec>::new(&*db, &self.state_root).unwrap();
 			let temp = trie.iter().unwrap() // binding required due to complicated lifetime stuff
 				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
 				.map(Result::unwrap)
@@ -83,7 +84,7 @@ impl StateProducer {
 		}
 
 		// sweep again to alter account trie.
-		let mut trie = TrieDBMut::<_, KeccakRlpNodeCodec>::from_existing(db, &mut self.state_root).unwrap();
+		let mut trie = TrieDBMut::<_, RlpCodec>::from_existing(db, &mut self.state_root).unwrap();
 
 		for (address_hash, account_data) in accounts_to_modify {
 			trie.insert(&address_hash[..], &account_data).unwrap();
@@ -118,9 +119,9 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 	};
 	{
 		let mut trie = if *root == KECCAK_NULL_RLP {
-			SecTrieDBMut::<_, KeccakRlpNodeCodec>::new(&mut db, root)
+			SecTrieDBMut::<_, RlpCodec>::new(&mut db, root)
 		} else {
-			SecTrieDBMut::<_, KeccakRlpNodeCodec>::from_existing(&mut db, root).unwrap()
+			SecTrieDBMut::<_, RlpCodec>::from_existing(&mut db, root).unwrap()
 		};
 
 		for (k, v) in map.make_with(seed) {

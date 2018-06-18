@@ -92,6 +92,7 @@ extern crate keccak_hasher;
 extern crate heapsize;
 extern crate memorydb;
 extern crate patricia_trie as trie;
+extern crate patricia_trie_ethereum as ethtrie;
 extern crate triehash;
 extern crate ansi_term;
 extern crate unexpected;

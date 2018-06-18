@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use trie::{TrieFactory, KeccakRlpNodeCodec};
+use trie::TrieFactory;
+use ethtrie::RlpCodec;
 use account_db::Factory as AccountFactory;
 use evm::{Factory as EvmFactory, VMType};
 use vm::{Vm, ActionParams, Schedule};
@@ -55,7 +56,7 @@ pub struct Factories {
 	/// factory for evm.
 	pub vm: VmFactory,
 	/// factory for tries.
-	pub trie: TrieFactory<KeccakHasher, KeccakRlpNodeCodec>,
+	pub trie: TrieFactory<KeccakHasher, RlpCodec>,
 	/// factory for account databases.
 	pub accountdb: AccountFactory,
 }
