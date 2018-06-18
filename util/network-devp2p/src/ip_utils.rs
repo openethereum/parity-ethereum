@@ -225,27 +225,17 @@ mod getinterfaces {
 				let sa: *const sockaddr_in = sa as *const sockaddr_in;
 				let sa = unsafe { &*sa };
 				let (addr, port) = (sa.sin_addr.s_addr, sa.sin_port);
-				(IpAddr::V4(Ipv4Addr::new(
-					(addr & 0x0000_00FF) as u8,
-					((addr & 0x0000_FF00) >>  8) as u8,
-					((addr & 0x00FF_0000) >> 16) as u8,
-					((addr & 0xFF00_0000) >> 24) as u8)),
-					port)
+				// convert u32 to an `Ipv4 address`, but the u32 must be converted to `host-order`
+				// that's why `from_be` is used!
+				(IpAddr::V4(Ipv4Addr::from(<u32>::from_be(addr))), port)
 			},
 			AF_INET6 => {
 				let sa: *const sockaddr_in6 = sa as *const sockaddr_in6;
 				let sa = & unsafe { *sa };
 				let (addr, port) = (sa.sin6_addr.s6_addr, sa.sin6_port);
-				(IpAddr::V6(Ipv6Addr::new(
-					((addr[1] as u16) << 8) | (addr[0] as u16),
-					((addr[3] as u16) << 8) | (addr[2] as u16),
-					((addr[5] as u16) << 8) | (addr[4] as u16),
-					((addr[7] as u16) << 8) | (addr[6] as u16),
-					((addr[9] as u16) << 8) | (addr[8] as u16),
-					((addr[11] as u16) << 8) | (addr[10] as u16),
-					((addr[13] as u16) << 8) | (addr[12] as u16),
-					((addr[15] as u16) << 8) | (addr[14] as u16))),
-					port)
+				let ip_addr = Ipv6Addr::from(addr);
+				debug_assert!(addr == ip_addr.octets());
+				(IpAddr::V6(ip_addr), port)
 			},
 			_ => return None,
 		};
