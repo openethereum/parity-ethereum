@@ -19,16 +19,16 @@
 pub use self::Instruction::*;
 
 macro_rules! enum_with_from_u8 {
-    (
-        $( #[$enum_attr:meta] )*
-        pub enum $name:ident {
-            $( $( #[$variant_attr:meta] )* $variant:ident = $discriminator:expr ),+,
-        }
-    ) => {
-        $( #[$enum_attr] )*
-        pub enum $name {
-            $( $( #[$variant_attr] )* $variant = $discriminator ),+,
-        }
+	(
+		$( #[$enum_attr:meta] )*
+		pub enum $name:ident {
+			$( $( #[$variant_attr:meta] )* $variant:ident = $discriminator:expr ),+,
+		}
+	) => {
+		$( #[$enum_attr] )*
+		pub enum $name {
+			$( $( #[$variant_attr] )* $variant = $discriminator ),+,
+		}
 
 		impl $name {
 			#[doc = "Convert from u8 to the given enum"]
@@ -39,7 +39,7 @@ macro_rules! enum_with_from_u8 {
 				}
 			}
 		}
-    };
+	};
 }
 
 enum_with_from_u8! {
