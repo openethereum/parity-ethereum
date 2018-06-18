@@ -21,7 +21,7 @@ use ethereum_types::H256;
 use parking_lot::Mutex;
 use memory_cache::MemoryLruCache;
 use bit_set::BitSet;
-use super::super::instructions;
+use super::super::instructions::{self, Instruction};
 
 const DEFAULT_CACHE_SIZE: usize = 4 * 1024 * 1024;
 
@@ -70,12 +70,14 @@ impl SharedCache {
 		let mut position = 0;
 
 		while position < code.len() {
-			let instruction = code[position];
+			let instruction = Instruction::from_u8(code[position]);
 
-			if instruction == instructions::JUMPDEST {
-				jump_dests.insert(position);
-			} else if instructions::is_push(instruction) {
-				position += instructions::get_push_bytes(instruction);
+			if let Some(instruction) = instruction {
+				if instruction == instructions::JUMPDEST {
+					jump_dests.insert(position);
+				} else if instruction.is_push() {
+					position += instruction.push_bytes().expect("push_bytes always return some when is_push is true; qed");
+				}
 			}
 			position += 1;
 		}

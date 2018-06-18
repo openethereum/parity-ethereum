@@ -20,7 +20,7 @@ pub use self::Instruction::*;
 
 /// Virtual machine bytecode instruction.
 #[repr(u8)]
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
 pub enum Instruction {
 	/// halts execution
 	STOP = 0x00,
@@ -313,161 +313,205 @@ pub enum Instruction {
 impl Instruction {
 	pub fn from_u8(value: u8) -> Option<Instruction> {
 		match value {
-			0x00 => Instruction::STOP,
-			0x01 => Instruction::ADD,
-			0x02 => Instruction::MUL,
-			0x03 => Instruction::SUB,
-			0x04 => Instruction::DIV,
-			0x05 => Instruction::SDIV,
-			0x06 => Instruction::MOD,
-			0x07 => Instruction::SMOD,
-			0x08 => Instruction::ADDMOD,
-			0x09 => Instruction::MULMOD,
-			0x0a => Instruction::EXP,
-			0x0b => Instruction::SIGNEXTEND,
+			0x00 => Some(Instruction::STOP),
+			0x01 => Some(Instruction::ADD),
+			0x02 => Some(Instruction::MUL),
+			0x03 => Some(Instruction::SUB),
+			0x04 => Some(Instruction::DIV),
+			0x05 => Some(Instruction::SDIV),
+			0x06 => Some(Instruction::MOD),
+			0x07 => Some(Instruction::SMOD),
+			0x08 => Some(Instruction::ADDMOD),
+			0x09 => Some(Instruction::MULMOD),
+			0x0a => Some(Instruction::EXP),
+			0x0b => Some(Instruction::SIGNEXTEND),
 
-			0x10 => Instruction::LT,
-			0x11 => Instruction::GT,
-			0x12 => Instruction::SLT,
-			0x13 => Instruction::SGT,
-			0x14 => Instruction::EQ,
-			0x15 => Instruction::ISZERO,
-			0x16 => Instruction::AND,
-			0x17 => Instruction::OR,
-			0x18 => Instruction::XOR,
-			0x19 => Instruction::NOT,
-			0x1a => Instruction::BYTE,
-			0x1b => Instruction::SHL,
-			0x1c => Instruction::SHR,
-			0x1d => Instruction::SAR,
+			0x10 => Some(Instruction::LT),
+			0x11 => Some(Instruction::GT),
+			0x12 => Some(Instruction::SLT),
+			0x13 => Some(Instruction::SGT),
+			0x14 => Some(Instruction::EQ),
+			0x15 => Some(Instruction::ISZERO),
+			0x16 => Some(Instruction::AND),
+			0x17 => Some(Instruction::OR),
+			0x18 => Some(Instruction::XOR),
+			0x19 => Some(Instruction::NOT),
+			0x1a => Some(Instruction::BYTE),
+			0x1b => Some(Instruction::SHL),
+			0x1c => Some(Instruction::SHR),
+			0x1d => Some(Instruction::SAR),
 
-			0x20 => Instruction::SHA3,
+			0x20 => Some(Instruction::SHA3),
 
-			0x30 => Instruction::ADDRESS,
-			0x31 => Instruction::BALANCE,
-			0x32 => Instruction::ORIGIN,
-			0x33 => Instruction::CALLER,
-			0x34 => Instruction::CALLVALUE,
-			0x35 => Instruction::CALLDATALOAD,
-			0x36 => Instruction::CALLDATASIZE,
-			0x37 => Instruction::CALLDATACOPY,
-			0x38 => Instruction::CODESIZE,
-			0x39 => Instruction::CODECOPY,
-			0x3a => Instruction::GASPRICE,
-			0x3b => Instruction::EXTCODESIZE,
-			0x3c => Instruction::EXTCODECOPY,
-			0x3d => Instruction::RETURNDATASIZE,
-			0x3e => Instruction::RETURNDATACOPY,
+			0x30 => Some(Instruction::ADDRESS),
+			0x31 => Some(Instruction::BALANCE),
+			0x32 => Some(Instruction::ORIGIN),
+			0x33 => Some(Instruction::CALLER),
+			0x34 => Some(Instruction::CALLVALUE),
+			0x35 => Some(Instruction::CALLDATALOAD),
+			0x36 => Some(Instruction::CALLDATASIZE),
+			0x37 => Some(Instruction::CALLDATACOPY),
+			0x38 => Some(Instruction::CODESIZE),
+			0x39 => Some(Instruction::CODECOPY),
+			0x3a => Some(Instruction::GASPRICE),
+			0x3b => Some(Instruction::EXTCODESIZE),
+			0x3c => Some(Instruction::EXTCODECOPY),
+			0x3d => Some(Instruction::RETURNDATASIZE),
+			0x3e => Some(Instruction::RETURNDATACOPY),
 
-			0x40 => Instruction::BLOCKHASH,
-			0x41 => Instruction::COINBASE,
-			0x42 => Instruction::TIMESTAMP,
-			0x43 => Instruction::NUMBER,
-			0x44 => Instruction::DIFFICULTY,
-			0x45 => Instruction::GASLIMIT,
+			0x40 => Some(Instruction::BLOCKHASH),
+			0x41 => Some(Instruction::COINBASE),
+			0x42 => Some(Instruction::TIMESTAMP),
+			0x43 => Some(Instruction::NUMBER),
+			0x44 => Some(Instruction::DIFFICULTY),
+			0x45 => Some(Instruction::GASLIMIT),
 
-			0x50 => Instruction::POP,
-			0x51 => Instruction::MLOAD,
-			0x52 => Instruction::MSTORE,
-			0x53 => Instruction::MSTORE8,
-			0x54 => Instruction::SLOAD,
-			0x55 => Instruction::SSTORE,
-			0x56 => Instruction::JUMP,
-			0x57 => Instruction::JUMPI,
-			0x58 => Instruction::PC,
-			0x59 => Instruction::MSIZE,
-			0x5a => Instruction::GAS,
-			0x5b => Instruction::JUMPDEST,
+			0x50 => Some(Instruction::POP),
+			0x51 => Some(Instruction::MLOAD),
+			0x52 => Some(Instruction::MSTORE),
+			0x53 => Some(Instruction::MSTORE8),
+			0x54 => Some(Instruction::SLOAD),
+			0x55 => Some(Instruction::SSTORE),
+			0x56 => Some(Instruction::JUMP),
+			0x57 => Some(Instruction::JUMPI),
+			0x58 => Some(Instruction::PC),
+			0x59 => Some(Instruction::MSIZE),
+			0x5a => Some(Instruction::GAS),
+			0x5b => Some(Instruction::JUMPDEST),
 
-			0x60 => Instruction::PUSH1,
-			0x61 => Instruction::PUSH2,
-			0x62 => Instruction::PUSH3,
-			0x63 => Instruction::PUSH4,
-			0x64 => Instruction::PUSH5,
-			0x65 => Instruction::PUSH6,
-			0x66 => Instruction::PUSH7,
-			0x67 => Instruction::PUSH8,
-			0x68 => Instruction::PUSH9,
-			0x69 => Instruction::PUSH10,
-			0x6a => Instruction::PUSH11,
-			0x6b => Instruction::PUSH12,
-			0x6c => Instruction::PUSH13,
-			0x6d => Instruction::PUSH14,
-			0x6e => Instruction::PUSH15,
-			0x6f => Instruction::PUSH16,
-			0x70 => Instruction::PUSH17,
-			0x71 => Instruction::PUSH18,
-			0x72 => Instruction::PUSH19,
-			0x73 => Instruction::PUSH20,
-			0x74 => Instruction::PUSH21,
-			0x75 => Instruction::PUSH22,
-			0x76 => Instruction::PUSH23,
-			0x77 => Instruction::PUSH24,
-			0x78 => Instruction::PUSH25,
-			0x79 => Instruction::PUSH26,
-			0x7a => Instruction::PUSH27,
-			0x7b => Instruction::PUSH28,
-			0x7c => Instruction::PUSH29,
-			0x7d => Instruction::PUSH30,
-			0x7e => Instruction::PUSH31,
-			0x7f => Instruction::PUSH32,
+			0x60 => Some(Instruction::PUSH1),
+			0x61 => Some(Instruction::PUSH2),
+			0x62 => Some(Instruction::PUSH3),
+			0x63 => Some(Instruction::PUSH4),
+			0x64 => Some(Instruction::PUSH5),
+			0x65 => Some(Instruction::PUSH6),
+			0x66 => Some(Instruction::PUSH7),
+			0x67 => Some(Instruction::PUSH8),
+			0x68 => Some(Instruction::PUSH9),
+			0x69 => Some(Instruction::PUSH10),
+			0x6a => Some(Instruction::PUSH11),
+			0x6b => Some(Instruction::PUSH12),
+			0x6c => Some(Instruction::PUSH13),
+			0x6d => Some(Instruction::PUSH14),
+			0x6e => Some(Instruction::PUSH15),
+			0x6f => Some(Instruction::PUSH16),
+			0x70 => Some(Instruction::PUSH17),
+			0x71 => Some(Instruction::PUSH18),
+			0x72 => Some(Instruction::PUSH19),
+			0x73 => Some(Instruction::PUSH20),
+			0x74 => Some(Instruction::PUSH21),
+			0x75 => Some(Instruction::PUSH22),
+			0x76 => Some(Instruction::PUSH23),
+			0x77 => Some(Instruction::PUSH24),
+			0x78 => Some(Instruction::PUSH25),
+			0x79 => Some(Instruction::PUSH26),
+			0x7a => Some(Instruction::PUSH27),
+			0x7b => Some(Instruction::PUSH28),
+			0x7c => Some(Instruction::PUSH29),
+			0x7d => Some(Instruction::PUSH30),
+			0x7e => Some(Instruction::PUSH31),
+			0x7f => Some(Instruction::PUSH32),
 
-			0x80 => Instruction::DUP1,
-			0x81 => Instruction::DUP2,
-			0x82 => Instruction::DUP3,
-			0x83 => Instruction::DUP4,
-			0x84 => Instruction::DUP5,
-			0x85 => Instruction::DUP6,
-			0x86 => Instruction::DUP7,
-			0x87 => Instruction::DUP8,
-			0x88 => Instruction::DUP9,
-			0x89 => Instruction::DUP10,
-			0x8a => Instruction::DUP11,
-			0x8b => Instruction::DUP12,
-			0x8c => Instruction::DUP13,
-			0x8d => Instruction::DUP14,
-			0x8e => Instruction::DUP15,
-			0x8f => Instruction::DUP16,
+			0x80 => Some(Instruction::DUP1),
+			0x81 => Some(Instruction::DUP2),
+			0x82 => Some(Instruction::DUP3),
+			0x83 => Some(Instruction::DUP4),
+			0x84 => Some(Instruction::DUP5),
+			0x85 => Some(Instruction::DUP6),
+			0x86 => Some(Instruction::DUP7),
+			0x87 => Some(Instruction::DUP8),
+			0x88 => Some(Instruction::DUP9),
+			0x89 => Some(Instruction::DUP10),
+			0x8a => Some(Instruction::DUP11),
+			0x8b => Some(Instruction::DUP12),
+			0x8c => Some(Instruction::DUP13),
+			0x8d => Some(Instruction::DUP14),
+			0x8e => Some(Instruction::DUP15),
+			0x8f => Some(Instruction::DUP16),
 
-			0x90 => Instruction::SWAP1,
-			0x91 => Instruction::SWAP2,
-			0x92 => Instruction::SWAP3,
-			0x93 => Instruction::SWAP4,
-			0x94 => Instruction::SWAP5,
-			0x95 => Instruction::SWAP6,
-			0x96 => Instruction::SWAP7,
-			0x97 => Instruction::SWAP8,
-			0x98 => Instruction::SWAP9,
-			0x99 => Instruction::SWAP10,
-			0x9a => Instruction::SWAP11,
-			0x9b => Instruction::SWAP12,
-			0x9c => Instruction::SWAP13,
-			0x9d => Instruction::SWAP14,
-			0x9e => Instruction::SWAP15,
-			0x9f => Instruction::SWAP16,
+			0x90 => Some(Instruction::SWAP1),
+			0x91 => Some(Instruction::SWAP2),
+			0x92 => Some(Instruction::SWAP3),
+			0x93 => Some(Instruction::SWAP4),
+			0x94 => Some(Instruction::SWAP5),
+			0x95 => Some(Instruction::SWAP6),
+			0x96 => Some(Instruction::SWAP7),
+			0x97 => Some(Instruction::SWAP8),
+			0x98 => Some(Instruction::SWAP9),
+			0x99 => Some(Instruction::SWAP10),
+			0x9a => Some(Instruction::SWAP11),
+			0x9b => Some(Instruction::SWAP12),
+			0x9c => Some(Instruction::SWAP13),
+			0x9d => Some(Instruction::SWAP14),
+			0x9e => Some(Instruction::SWAP15),
+			0x9f => Some(Instruction::SWAP16),
 
-			0xa0 => Instruction::LOG0,
-			0xa1 => Instruction::LOG1,
-			0xa2 => Instruction::LOG2,
-			0xa3 => Instruction::LOG3,
-			0xa4 => Instruction::LOG4,
+			0xa0 => Some(Instruction::LOG0),
+			0xa1 => Some(Instruction::LOG1),
+			0xa2 => Some(Instruction::LOG2),
+			0xa3 => Some(Instruction::LOG3),
+			0xa4 => Some(Instruction::LOG4),
 
-			0xf0 => Instruction::CREATE,
-			0xf1 => Instruction::CALL,
-			0xf2 => Instruction::CALLCODE,
-			0xf3 => Instruction::RETURN,
-			0xf4 => Instruction::DELEGATECALL,
-			0xfb => Instruction::CREATE2,
-			0xfd => Instruction::REVERT,
-			0xfa => Instruction::STATICCALL,
-			0xff => Instruction::SUICIDE,
+			0xf0 => Some(Instruction::CREATE),
+			0xf1 => Some(Instruction::CALL),
+			0xf2 => Some(Instruction::CALLCODE),
+			0xf3 => Some(Instruction::RETURN),
+			0xf4 => Some(Instruction::DELEGATECALL),
+			0xfb => Some(Instruction::CREATE2),
+			0xfd => Some(Instruction::REVERT),
+			0xfa => Some(Instruction::STATICCALL),
+			0xff => Some(Instruction::SUICIDE),
+
+			_ => None,
 		}
 	}
-}
 
-/// Returns true if given instruction is `PUSHN` instruction.
-pub fn is_push(i: Instruction) -> bool {
-	i >= PUSH1 && i <= PUSH32
+	/// Returns true if given instruction is `PUSHN` instruction.
+	pub fn is_push(&self) -> bool {
+		*self >= PUSH1 && *self <= PUSH32
+	}
+
+	/// Returns number of bytes to read for `PUSHN` instruction
+	/// PUSH1 -> 1
+	pub fn push_bytes(&self) -> Option<usize> {
+		if self.is_push() {
+			Some(((*self as u8) - (PUSH1 as u8) + 1) as usize)
+		} else {
+			None
+		}
+	}
+
+
+	/// Returns stack position of item to duplicate
+	/// DUP1 -> 0
+	pub fn dup_position(&self) -> Option<usize> {
+		if *self >= DUP1 && *self <= DUP16 {
+			Some(((*self as u8) - (DUP1 as u8)) as usize)
+		} else {
+			None
+		}
+	}
+
+
+	/// Returns stack position of item to SWAP top with
+	/// SWAP1 -> 1
+	pub fn swap_position(&self) -> Option<usize> {
+		if *self >= SWAP1 && *self <= SWAP16 {
+			Some(((*self as u8) - (SWAP1 as u8) + 1) as usize)
+		} else {
+			None
+		}
+	}
+
+	/// Returns number of topics to take from stack
+	/// LOG0 -> 0
+	pub fn log_topics(&self) -> Option<usize> {
+		if *self >= LOG0 && *self <= LOG4 {
+			Some(((*self as u8) - (LOG0 as u8)) as usize)
+		} else {
+			None
+		}
+	}
 }
 
 #[test]
@@ -477,34 +521,11 @@ fn test_is_push() {
 	assert!(!is_push(DUP1));
 }
 
-/// Returns number of bytes to read for `PUSHN` instruction
-/// PUSH1 -> 1
-pub fn get_push_bytes(i: Instruction) -> usize {
-	assert!(is_push(i), "Only for PUSH instructions.");
-	(i - PUSH1 + 1) as usize
-}
-
-/// Returns number of bytes to read for `PUSHN` instruction or 0.
-pub fn push_bytes(i: Instruction) -> usize {
-	if is_push(i) {
-		get_push_bytes(i)
-	} else {
-		0
-	}
-}
-
 #[test]
 fn test_get_push_bytes() {
 	assert_eq!(get_push_bytes(PUSH1), 1);
 	assert_eq!(get_push_bytes(PUSH3), 3);
 	assert_eq!(get_push_bytes(PUSH32), 32);
-}
-
-/// Returns stack position of item to duplicate
-/// DUP1 -> 0
-pub fn get_dup_position(i: Instruction) -> usize {
-	assert!(i >= DUP1 && i <= DUP16);
-	(i - DUP1) as usize
 }
 
 #[test]
@@ -514,25 +535,11 @@ fn test_get_dup_position() {
 	assert_eq!(get_dup_position(DUP10), 9);
 }
 
-/// Returns stack position of item to SWAP top with
-/// SWAP1 -> 1
-pub fn get_swap_position(i: Instruction) -> usize {
-	assert!(i >= SWAP1 && i <= SWAP16);
-	(i - SWAP1 + 1) as usize
-}
-
 #[test]
 fn test_get_swap_position() {
 	assert_eq!(get_swap_position(SWAP1), 1);
 	assert_eq!(get_swap_position(SWAP5), 5);
 	assert_eq!(get_swap_position(SWAP10), 10);
-}
-
-/// Returns number of topics to take from stack
-/// LOG0 -> 0
-pub fn get_log_topics (i: Instruction) -> usize {
-	assert!(i >= LOG0 && i <= LOG4);
-	(i - LOG0) as usize
 }
 
 #[test]
@@ -564,24 +571,26 @@ pub enum GasPriceTier {
 	Invalid
 }
 
-impl Default for GasPriceTier {
-	fn default() -> Self {
-		GasPriceTier::Invalid
+impl GasPriceTier {
+	/// Returns the index in schedule for specific `GasPriceTier`
+	pub fn idx(&self) -> usize {
+		match self {
+			&GasPriceTier::Zero => 0,
+			&GasPriceTier::Base => 1,
+			&GasPriceTier::VeryLow => 2,
+			&GasPriceTier::Low => 3,
+			&GasPriceTier::Mid => 4,
+			&GasPriceTier::High => 5,
+			&GasPriceTier::Ext => 6,
+			&GasPriceTier::Special => 7,
+			&GasPriceTier::Invalid => 8
+		}
 	}
 }
 
-/// Returns the index in schedule for specific `GasPriceTier`
-pub fn get_tier_idx (tier: GasPriceTier) -> usize {
-	match tier {
-		GasPriceTier::Zero => 0,
-		GasPriceTier::Base => 1,
-		GasPriceTier::VeryLow => 2,
-		GasPriceTier::Low => 3,
-		GasPriceTier::Mid => 4,
-		GasPriceTier::High => 5,
-		GasPriceTier::Ext => 6,
-		GasPriceTier::Special => 7,
-		GasPriceTier::Invalid => 8
+impl Default for GasPriceTier {
+	fn default() -> Self {
+		GasPriceTier::Invalid
 	}
 }
 
