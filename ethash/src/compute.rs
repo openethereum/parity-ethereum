@@ -137,7 +137,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 		($n:expr, $value:expr) => {{
 			// We use explicit lifetimes to ensure that val's borrow is invalidated until the
 			// transmuted val dies.
-			unsafe fn make_const_array<'a, T, U>(val: &mut [T]) -> &mut [U; $n] {
+			unsafe fn make_const_array<T, U>(val: &mut [T]) -> &mut [U; $n] {
 				use ::std::mem;
 
 				debug_assert_eq!(val.len() * mem::size_of::<T>(), $n * mem::size_of::<U>());
