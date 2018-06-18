@@ -514,41 +514,6 @@ impl Instruction {
 	}
 }
 
-#[test]
-fn test_is_push() {
-	assert!(is_push(PUSH1));
-	assert!(is_push(PUSH32));
-	assert!(!is_push(DUP1));
-}
-
-#[test]
-fn test_get_push_bytes() {
-	assert_eq!(get_push_bytes(PUSH1), 1);
-	assert_eq!(get_push_bytes(PUSH3), 3);
-	assert_eq!(get_push_bytes(PUSH32), 32);
-}
-
-#[test]
-fn test_get_dup_position() {
-	assert_eq!(get_dup_position(DUP1), 0);
-	assert_eq!(get_dup_position(DUP5), 4);
-	assert_eq!(get_dup_position(DUP10), 9);
-}
-
-#[test]
-fn test_get_swap_position() {
-	assert_eq!(get_swap_position(SWAP1), 1);
-	assert_eq!(get_swap_position(SWAP5), 5);
-	assert_eq!(get_swap_position(SWAP10), 10);
-}
-
-#[test]
-fn test_get_log_topics() {
-	assert_eq!(get_log_topics(LOG0), 0);
-	assert_eq!(get_log_topics(LOG2), 2);
-	assert_eq!(get_log_topics(LOG4), 4);
-}
-
 #[derive(PartialEq, Clone, Copy)]
 pub enum GasPriceTier {
 	/// 0 Zero
@@ -767,3 +732,43 @@ lazy_static! {
 
 /// Maximal number of topics for log instructions
 pub const MAX_NO_OF_TOPICS : usize = 4;
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_is_push() {
+		assert!(PUSH1.is_push());
+		assert!(PUSH32.is_push());
+		assert!(!DUP1.is_push());
+	}
+
+	#[test]
+	fn test_get_push_bytes() {
+		assert_eq!(PUSH1.push_bytes(), Some(1));
+		assert_eq!(PUSH3.push_bytes(), Some(3));
+		assert_eq!(PUSH32.push_bytes(), Some(32));
+	}
+
+	#[test]
+	fn test_get_dup_position() {
+		assert_eq!(DUP1.dup_position(), Some(0));
+		assert_eq!(DUP5.dup_position(), Some(4));
+		assert_eq!(DUP10.dup_position(), Some(9));
+	}
+
+	#[test]
+	fn test_get_swap_position() {
+		assert_eq!(SWAP1.swap_position(), Some(1));
+		assert_eq!(SWAP5.swap_position(), Some(5));
+		assert_eq!(SWAP10.swap_position(), Some(10));
+	}
+
+	#[test]
+	fn test_get_log_topics() {
+		assert_eq!(LOG0.log_topics(), Some(0));
+		assert_eq!(LOG2.log_topics(), Some(2));
+		assert_eq!(LOG4.log_topics(), Some(4));
+	}
+}

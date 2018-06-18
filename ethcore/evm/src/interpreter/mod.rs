@@ -126,17 +126,18 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 		let infos = &*instructions::INSTRUCTIONS;
 
 		while reader.position < code.len() {
-			let instruction = Instruction::from_u8(code[reader.position]);
+			let opcode = code[reader.position];
+			let instruction = Instruction::from_u8(opcode);
 			reader.position += 1;
 
 			// TODO: make compile-time removable if too much of a performance hit.
 			do_trace = do_trace && ext.trace_next_instruction(
-				reader.position - 1, code[reader.position], gasometer.current_gas.as_u256(),
+				reader.position - 1, opcode, gasometer.current_gas.as_u256(),
 			);
 
 			if instruction.is_none() {
 				return Err(vm::Error::BadInstruction {
-					instruction: code[reader.position]
+					instruction: opcode
 				});
 			}
 			let instruction = instruction.expect("None case is checked above; qed");
