@@ -15,11 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trezor hardware wallet module. Supports Trezor v1.
-//! See http://doc.satoshilabs.com/trezor-tech/api-protobuf.html
-//! and https://github.com/trezor/trezor-common/blob/master/protob/protocol.md
+//! See <http://doc.satoshilabs.com/trezor-tech/api-protobuf.html>
+//! and <https://github.com/trezor/trezor-common/blob/master/protob/protocol.md>
 //! for protocol details.
-
-use super::{DeviceDirection, WalletInfo, TransactionInfo, KeyPath, Wallet, Device, USB_DEVICE_CLASS_DEVICE, POLLING_DURATION};
 
 use std::cmp::{min, max};
 use std::sync::{atomic, atomic::AtomicBool, Arc, Weak};
@@ -31,9 +29,8 @@ use ethkey::Signature;
 use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
-use protobuf::{Message, ProtobufEnum};
-use protobuf;
-
+use protobuf::{self, Message, ProtobufEnum};
+use super::{DeviceDirection, WalletInfo, TransactionInfo, KeyPath, Wallet, Device, USB_DEVICE_CLASS_DEVICE, POLLING_DURATION};
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
 /// Trezor v1 vendor ID
@@ -41,8 +38,8 @@ const TREZOR_VID: u16 = 0x534c;
 /// Trezor product IDs
 const TREZOR_PIDS: [u16; 1] = [0x0001];
 
-const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
-const ETC_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003D, 0x80000000, 0, 0]; // m/44'/61'/0'/0/0
+const ETH_DERIVATION_PATH: [u32; 5] = [0x8000_002C, 0x8000_003C, 0x8000_0000, 0, 0]; // m/44'/60'/0'/0/0
+const ETC_DERIVATION_PATH: [u32; 5] = [0x8000_002C, 0x8000_003D, 0x8000_0000, 0, 0]; // m/44'/61'/0'/0/0
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -84,13 +81,13 @@ impl fmt::Display for Error {
 }
 
 impl From<hidapi::HidError> for Error {
-	fn from(err: hidapi::HidError) -> Error {
+	fn from(err: hidapi::HidError) -> Self {
 		Error::Usb(err)
 	}
 }
 
 impl From<protobuf::ProtobufError> for Error {
-	fn from(_: protobuf::ProtobufError) -> Error {
+	fn from(_: protobuf::ProtobufError) -> Self {
 		Error::Protocol(&"Could not read response from Trezor Device")
 	}
 }
@@ -111,8 +108,8 @@ enum HidVersion {
 
 impl Manager {
 	/// Create a new instance.
-	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>, exiting: Arc<AtomicBool>) -> Result<Arc<Manager>, libusb::Error> {
-		let manager = Arc::new(Manager {
+	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>, exiting: Arc<AtomicBool>) -> Result<Arc<Self>, libusb::Error> {
+		let manager = Arc::new(Self {
 			usb: hidapi,
 			devices: RwLock::new(Vec::new()),
 			locked_devices: RwLock::new(Vec::new()),
@@ -171,7 +168,7 @@ impl Manager {
 	}
 
 	fn u256_to_be_vec(&self, val: &U256) -> Vec<u8> {
-		let mut buf = [0u8; 32];
+		let mut buf = [0_u8; 32];
 		val.to_big_endian(&mut buf);
 		buf.iter().skip_while(|x| **x == 0).cloned().collect()
 	}
@@ -226,8 +223,8 @@ impl Manager {
 		let mut data = Vec::new();
 		let hid_version = self.probe_hid_version(device)?;
 		// Magic constants
-		data.push('#' as u8);
-		data.push('#' as u8);
+		data.push(b'#');
+		data.push(b'#');
 		// Convert msg_id to BE and split into bytes
 		data.push(((msg_id >> 8) & 0xFF) as u8);
 		data.push((msg_id & 0xFF) as u8);
@@ -243,8 +240,8 @@ impl Manager {
 		let mut total_written = 0;
 		for chunk in data.chunks(63) {
 			let mut padded_chunk = match hid_version {
-				HidVersion::V1 => vec!['?' as u8],
-				HidVersion::V2 => vec![0, '?' as u8],
+				HidVersion::V1 => vec![b'?'],
+				HidVersion::V2 => vec![0, b'?'],
 			};
 			padded_chunk.extend_from_slice(&chunk);
 			total_written += device.write(&padded_chunk)?;
@@ -253,10 +250,10 @@ impl Manager {
 	}
 
 	fn probe_hid_version(&self, device: &hidapi::HidDevice) -> Result<HidVersion, Error> {
-		let mut buf2 = [0xFFu8; 65];
+		let mut buf2 = [0xFF_u8; 65];
 		buf2[0] = 0;
 		buf2[1] = 63;
-		let mut buf1 = [0xFFu8; 64];
+		let mut buf1 = [0xFF_u8; 64];
 		buf1[0] = 63;
 		if device.write(&buf2)? == 65 {
 			Ok(HidVersion::V2)
@@ -272,7 +269,7 @@ impl Manager {
 		let mut buf = vec![0; 64];
 
 		let first_chunk = device.read_timeout(&mut buf, 300_000)?;
-		if first_chunk < 9 || buf[0] != '?' as u8 || buf[1] != '#' as u8 || buf[2] != '#' as u8 {
+		if first_chunk < 9 || buf[0] != b'?' || buf[1] != b'#' || buf[2] != b'#' {
 			return Err(protocol_err);
 		}
 		let msg_type = MessageType::from_i32(((buf[3] as i32 & 0xFF) << 8) + (buf[4] as i32 & 0xFF)).ok_or(protocol_err)?;
@@ -308,11 +305,8 @@ impl <'a>Wallet<'a> for Manager {
 		message.set_gas_price(self.u256_to_be_vec(&t_info.gas_price));
 		message.set_value(self.u256_to_be_vec(&t_info.value));
 
-		match t_info.to {
-			Some(addr) => {
-				message.set_to(addr.to_vec())
-			}
-			None => (),
+		if let Some(addr) = t_info.to {
+			message.set_to(addr.to_vec())
 		}
 		let first_chunk_length = min(t_info.data.len(), 1024);
 		let chunk = &t_info.data[0..first_chunk_length];
@@ -387,9 +381,9 @@ impl <'a>Wallet<'a> for Manager {
 				Ok(Device {
 					path: dev_info.path.clone(),
 					info: WalletInfo {
-						name: name,
-						manufacturer: manufacturer,
-						serial: serial,
+						name,
+						manufacturer,
+						serial,
 						address: addr,
 					},
 				})
@@ -439,7 +433,7 @@ impl <'a>Wallet<'a> for Manager {
 }
 
 // Try to connect to the device using polling in at most the time specified by the `timeout`
-fn try_connect_polling(trezor: Arc<Manager>, duration: &Duration, dir: DeviceDirection) -> bool {
+fn try_connect_polling(trezor: &Manager, duration: &Duration, dir: DeviceDirection) -> bool {
 	let start_time = Instant::now();
 	while start_time.elapsed() <= *duration {
 		if let Ok(num_devices) = trezor.update_devices(dir) {
@@ -462,7 +456,7 @@ struct EventHandler {
 impl EventHandler {
 	/// Trezor event handler constructor
 	pub fn new(trezor: Weak<Manager>) -> Self {
-		Self { trezor: trezor }
+		Self { trezor }
 	}
 }
 
@@ -470,7 +464,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 arrived");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if try_connect_polling(trezor, &POLLING_DURATION, DeviceDirection::Arrived) != true {
+			if try_connect_polling(&trezor, &POLLING_DURATION, DeviceDirection::Arrived) != true {
 				trace!(target: "hw", "No Trezor connected");
 			}
 		}
@@ -479,7 +473,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_left(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 left");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if try_connect_polling(trezor, &POLLING_DURATION, DeviceDirection::Left) != true {
+			if try_connect_polling(&trezor, &POLLING_DURATION, DeviceDirection::Left) != true {
 				trace!(target: "hw", "No Trezor disconnected");
 			}
 		}
@@ -500,7 +494,7 @@ fn test_signature() {
 	
 	let addr: Address = H160::from("some_addr");
 
-	assert_eq!(try_connect_polling(manager.clone(), &POLLING_DURATION, DeviceDirection::Arrived), true);
+	assert_eq!(try_connect_polling(&manager.clone(), &POLLING_DURATION, DeviceDirection::Arrived), true);
 
 	let t_info = TransactionInfo {
 		nonce: U256::from(1),
