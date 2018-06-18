@@ -732,6 +732,10 @@ usage! {
 			"--gas-price-percentile=[PCT]",
 			"Set PCT percentile gas price value from last 100 blocks as default gas price when sending transactions.",
 
+			ARG arg_poll_lifetime: (u32) = 60u32, or |c: &Config| c.mining.as_ref()?.poll_lifetime.clone(),
+			"--poll-lifetime=[S]",
+			"Set the lifetime of the internal index filter to S seconds.",
+
 			ARG arg_author: (Option<String>) = None, or |c: &Config| c.mining.as_ref()?.author.clone(),
 			"--author=[ADDRESS]",
 			"Specify the block author (aka \"coinbase\") address for sending block rewards from sealed blocks. NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.", // Sealing/Mining Option
@@ -1241,6 +1245,7 @@ struct Mining {
 	relay_set: Option<String>,
 	min_gas_price: Option<u64>,
 	gas_price_percentile: Option<usize>,
+	poll_lifetime: Option<u32>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -1664,6 +1669,7 @@ mod tests {
 			arg_min_gas_price: Some(0u64),
 			arg_usd_per_tx: "0.0001".into(),
 			arg_gas_price_percentile: 50usize,
+			arg_poll_lifetime: 60u32,
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
 			arg_gas_floor_target: "4700000".into(),
@@ -1924,6 +1930,7 @@ mod tests {
 				relay_set: None,
 				min_gas_price: None,
 				gas_price_percentile: None,
+				poll_lifetime: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),

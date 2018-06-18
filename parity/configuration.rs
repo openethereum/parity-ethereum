@@ -356,6 +356,7 @@ impl Configuration {
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
 				gas_price_percentile: self.args.arg_gas_price_percentile,
+				poll_lifetime: self.args.arg_poll_lifetime,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
@@ -1398,6 +1399,7 @@ mod tests {
 			logger_config: Default::default(),
 			miner_options: Default::default(),
 			gas_price_percentile: 50,
+			poll_lifetime: 60,
 			ntp_servers: vec![
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),
