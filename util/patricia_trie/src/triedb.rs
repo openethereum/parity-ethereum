@@ -127,7 +127,7 @@ where
 		}.look_up(NibbleSlice::new(key))
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item=TrieItem<Self::H>> + 'a>, H::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item=TrieItem<<Self::H as Hasher>::Out>> + 'a>, H::Out> {
 		TrieDBIterator::new(self).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
@@ -347,10 +347,9 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H> for TrieDBIterator<'a, H, C
 }
 
 impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
-	type Item = TrieItem<'a, H>;
+	type Item = TrieItem<'a, H::Out>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		// enum IterStep<O: Decodable> {
 		enum IterStep<O> {
 			Continue,
 			PopTrail,
@@ -406,24 +405,8 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
 					let node = C::decode(&d).expect("rlp read from db; qed");
 					self.descend_into_node(node.into())
 				},
-				IterStep::Descend::<H::Out>(Err(_e)) => {
-//					return Some(Err(e)) // <–– REVIEW: This causes a compiler error I can't figure out:
- 					/*
-					error[E0308]: mismatched types
-					   --> util/patricia_trie/src/triedb.rs:404:22
-					    |
-					404 |                     return Some(Err(e))
-					    |                                     ^ expected type parameter, found associated type
-					    |
-					    = note: expected type `std::boxed::Box<TrieError<H>>`
-					               found type `std::boxed::Box<TrieError<<H as hashdb::Hasher>::Out>>`
-					*/
-					/*
-					The only way we end up here is when `self.db.get_raw_or_lookup()` fails. When it does it
-					returns `Box::new(TrieError::IncompleteDatabase(key))`, i.e. a proper `Box<TrieError<H::Out>>`.
-					I'm missing something.
-					*/
-					panic!("FIXME: this causes `expected type parameter, found associated type`")
+				IterStep::Descend::<H::Out>(Err(e)) => {
+					return Some(Err(e))
 				}
 				IterStep::Continue => {},
 			}

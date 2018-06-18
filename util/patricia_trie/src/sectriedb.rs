@@ -74,7 +74,7 @@ where
 		self.raw.get_with(Self::H::hash(key).as_ref(), query)
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<<Self::H as Hasher>::Out>> + 'a>, <Self::H as Hasher>::Out> {
 		TrieDB::iter(&self.raw)
 	}
 }

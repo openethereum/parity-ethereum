@@ -184,7 +184,7 @@ pub trait Trie {
 	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, <Self::H as Hasher>::Out> where 'a: 'key;
 
 	/// Returns a depth-first iterator over the elements of trie.
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out>;
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<<Self::H as Hasher>::Out>> + 'a>, <Self::H as Hasher>::Out>;
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
@@ -286,7 +286,7 @@ impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> {
 		wrapper!(self, get_with, key, query)
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, Item = TrieItem<H>> + 'a>, <Self::H as Hasher>::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, Item = TrieItem<H::Out>> + 'a>, <Self::H as Hasher>::Out> {
 		wrapper!(self, iter,)
 	}
 }

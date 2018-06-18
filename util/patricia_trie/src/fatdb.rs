@@ -65,7 +65,7 @@ where
 		self.raw.get_with(Self::H::hash(key).as_ref(), query)
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<<Self::H as Hasher>::Out>> + 'a>, <Self::H as Hasher>::Out> {
 		FatDBIterator::<Self::H, C>::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
@@ -110,7 +110,7 @@ where
 	H: Hasher, 
 	C: NodeCodec<H>
 {
-	type Item = TrieItem<'db, H>;
+	type Item = TrieItem<'db, H::Out>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		self.trie_iterator.next()
