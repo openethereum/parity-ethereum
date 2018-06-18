@@ -16,7 +16,454 @@
 
 //! VM Instructions list and utility functions
 
-pub type Instruction = u8;
+pub use self::Instruction::*;
+
+/// Virtual machine bytecode instruction.
+#[repr(u8)]
+#[derive(Eq, PartialEq, Debug)]
+pub enum Instruction {
+	/// halts execution
+	STOP = 0x00,
+	/// addition operation
+	ADD = 0x01,
+	/// mulitplication operation
+	MUL = 0x02,
+	/// subtraction operation
+	SUB = 0x03,
+	/// integer division operation
+	DIV = 0x04,
+	/// signed integer division operation
+	SDIV = 0x05,
+	/// modulo remainder operation
+	MOD = 0x06,
+	/// signed modulo remainder operation
+	SMOD = 0x07,
+	/// unsigned modular addition
+	ADDMOD = 0x08,
+	/// unsigned modular multiplication
+	MULMOD = 0x09,
+	/// exponential operation
+	EXP = 0x0a,
+	/// extend length of signed integer
+	SIGNEXTEND = 0x0b,
+
+	/// less-than comparision
+	LT = 0x10,
+	/// greater-than comparision
+	GT = 0x11,
+	/// signed less-than comparision
+	SLT = 0x12,
+	/// signed greater-than comparision
+	SGT = 0x13,
+	/// equality comparision
+	EQ = 0x14,
+	/// simple not operator
+	ISZERO = 0x15,
+	/// bitwise AND operation
+	AND = 0x16,
+	/// bitwise OR operation
+	OR = 0x17,
+	/// bitwise XOR operation
+	XOR = 0x18,
+	/// bitwise NOT opertation
+	NOT = 0x19,
+	/// retrieve single byte from word
+	BYTE = 0x1a,
+	/// shift left operation
+	SHL = 0x1b,
+	/// logical shift right operation
+	SHR = 0x1c,
+	/// arithmetic shift right operation
+	SAR = 0x1d,
+
+	/// compute SHA3-256 hash
+	SHA3 = 0x20,
+
+	/// get address of currently executing account
+	ADDRESS = 0x30,
+	/// get balance of the given account
+	BALANCE = 0x31,
+	/// get execution origination address
+	ORIGIN = 0x32,
+	/// get caller address
+	CALLER = 0x33,
+	/// get deposited value by the instruction/transaction responsible for this execution
+	CALLVALUE = 0x34,
+	/// get input data of current environment
+	CALLDATALOAD = 0x35,
+	/// get size of input data in current environment
+	CALLDATASIZE = 0x36,
+	/// copy input data in current environment to memory
+	CALLDATACOPY = 0x37,
+	/// get size of code running in current environment
+	CODESIZE = 0x38,
+	/// copy code running in current environment to memory
+	CODECOPY = 0x39,
+	/// get price of gas in current environment
+	GASPRICE = 0x3a,
+	/// get external code size (from another contract)
+	EXTCODESIZE = 0x3b,
+	/// copy external code (from another contract)
+	EXTCODECOPY = 0x3c,
+	/// get the size of the return data buffer for the last call
+	RETURNDATASIZE = 0x3d,
+	/// copy return data buffer to memory
+	RETURNDATACOPY = 0x3e,
+
+	/// get hash of most recent complete block
+	BLOCKHASH = 0x40,
+	/// get the block's coinbase address
+	COINBASE = 0x41,
+	/// get the block's timestamp
+	TIMESTAMP = 0x42,
+	/// get the block's number
+	NUMBER = 0x43,
+	/// get the block's difficulty
+	DIFFICULTY = 0x44,
+	/// get the block's gas limit
+	GASLIMIT = 0x45,
+
+	/// remove item from stack
+	POP = 0x50,
+	/// load word from memory
+	MLOAD = 0x51,
+	/// save word to memory
+	MSTORE = 0x52,
+	/// save byte to memory
+	MSTORE8 = 0x53,
+	/// load word from storage
+	SLOAD = 0x54,
+	/// save word to storage
+	SSTORE = 0x55,
+	/// alter the program counter
+	JUMP = 0x56,
+	/// conditionally alter the program counter
+	JUMPI = 0x57,
+	/// get the program counter
+	PC = 0x58,
+	/// get the size of active memory
+	MSIZE = 0x59,
+	/// get the amount of available gas
+	GAS = 0x5a,
+	/// set a potential jump destination
+	JUMPDEST = 0x5b,
+
+	/// place 1 byte item on stack
+	PUSH1 = 0x60,
+	/// place 2 byte item on stack
+	PUSH2 = 0x61,
+	/// place 3 byte item on stack
+	PUSH3 = 0x62,
+	/// place 4 byte item on stack
+	PUSH4 = 0x63,
+	/// place 5 byte item on stack
+	PUSH5 = 0x64,
+	/// place 6 byte item on stack
+	PUSH6 = 0x65,
+	/// place 7 byte item on stack
+	PUSH7 = 0x66,
+	/// place 8 byte item on stack
+	PUSH8 = 0x67,
+	/// place 9 byte item on stack
+	PUSH9 = 0x68,
+	/// place 10 byte item on stack
+	PUSH10 = 0x69,
+	/// place 11 byte item on stack
+	PUSH11 = 0x6a,
+	/// place 12 byte item on stack
+	PUSH12 = 0x6b,
+	/// place 13 byte item on stack
+	PUSH13 = 0x6c,
+	/// place 14 byte item on stack
+	PUSH14 = 0x6d,
+	/// place 15 byte item on stack
+	PUSH15 = 0x6e,
+	/// place 16 byte item on stack
+	PUSH16 = 0x6f,
+	/// place 17 byte item on stack
+	PUSH17 = 0x70,
+	/// place 18 byte item on stack
+	PUSH18 = 0x71,
+	/// place 19 byte item on stack
+	PUSH19 = 0x72,
+	/// place 20 byte item on stack
+	PUSH20 = 0x73,
+	/// place 21 byte item on stack
+	PUSH21 = 0x74,
+	/// place 22 byte item on stack
+	PUSH22 = 0x75,
+	/// place 23 byte item on stack
+	PUSH23 = 0x76,
+	/// place 24 byte item on stack
+	PUSH24 = 0x77,
+	/// place 25 byte item on stack
+	PUSH25 = 0x78,
+	/// place 26 byte item on stack
+	PUSH26 = 0x79,
+	/// place 27 byte item on stack
+	PUSH27 = 0x7a,
+	/// place 28 byte item on stack
+	PUSH28 = 0x7b,
+	/// place 29 byte item on stack
+	PUSH29 = 0x7c,
+	/// place 30 byte item on stack
+	PUSH30 = 0x7d,
+	/// place 31 byte item on stack
+	PUSH31 = 0x7e,
+	/// place 32 byte item on stack
+	PUSH32 = 0x7f,
+
+	/// copies the highest item in the stack to the top of the stack
+	DUP1 = 0x80,
+	/// copies the second highest item in the stack to the top of the stack
+	DUP2 = 0x81,
+	/// copies the third highest item in the stack to the top of the stack
+	DUP3 = 0x82,
+	/// copies the 4th highest item in the stack to the top of the stack
+	DUP4 = 0x83,
+	/// copies the 5th highest item in the stack to the top of the stack
+	DUP5 = 0x84,
+	/// copies the 6th highest item in the stack to the top of the stack
+	DUP6 = 0x85,
+	/// copies the 7th highest item in the stack to the top of the stack
+	DUP7 = 0x86,
+	/// copies the 8th highest item in the stack to the top of the stack
+	DUP8 = 0x87,
+	/// copies the 9th highest item in the stack to the top of the stack
+	DUP9 = 0x88,
+	/// copies the 10th highest item in the stack to the top of the stack
+	DUP10 = 0x89,
+	/// copies the 11th highest item in the stack to the top of the stack
+	DUP11 = 0x8a,
+	/// copies the 12th highest item in the stack to the top of the stack
+	DUP12 = 0x8b,
+	/// copies the 13th highest item in the stack to the top of the stack
+	DUP13 = 0x8c,
+	/// copies the 14th highest item in the stack to the top of the stack
+	DUP14 = 0x8d,
+	/// copies the 15th highest item in the stack to the top of the stack
+	DUP15 = 0x8e,
+	/// copies the 16th highest item in the stack to the top of the stack
+	DUP16 = 0x8f,
+
+	/// swaps the highest and second highest value on the stack
+	SWAP1 = 0x90,
+	/// swaps the highest and third highest value on the stack
+	SWAP2 = 0x91,
+	/// swaps the highest and 4th highest value on the stack
+	SWAP3 = 0x92,
+	/// swaps the highest and 5th highest value on the stack
+	SWAP4 = 0x93,
+	/// swaps the highest and 6th highest value on the stack
+	SWAP5 = 0x94,
+	/// swaps the highest and 7th highest value on the stack
+	SWAP6 = 0x95,
+	/// swaps the highest and 8th highest value on the stack
+	SWAP7 = 0x96,
+	/// swaps the highest and 9th highest value on the stack
+	SWAP8 = 0x97,
+	/// swaps the highest and 10th highest value on the stack
+	SWAP9 = 0x98,
+	/// swaps the highest and 11th highest value on the stack
+	SWAP10 = 0x99,
+	/// swaps the highest and 12th highest value on the stack
+	SWAP11 = 0x9a,
+	/// swaps the highest and 13th highest value on the stack
+	SWAP12 = 0x9b,
+	/// swaps the highest and 14th highest value on the stack
+	SWAP13 = 0x9c,
+	/// swaps the highest and 15th highest value on the stack
+	SWAP14 = 0x9d,
+	/// swaps the highest and 16th highest value on the stack
+	SWAP15 = 0x9e,
+	/// swaps the highest and 17th highest value on the stack
+	SWAP16 = 0x9f,
+
+	/// Makes a log entry, no topics.
+	LOG0 = 0xa0,
+	/// Makes a log entry, 1 topic.
+	LOG1 = 0xa1,
+	/// Makes a log entry, 2 topics.
+	LOG2 = 0xa2,
+	/// Makes a log entry, 3 topics.
+	LOG3 = 0xa3,
+	/// Makes a log entry, 4 topics.
+	LOG4 = 0xa4,
+
+	/// create a new account with associated code
+	CREATE = 0xf0,
+	/// message-call into an account
+	CALL = 0xf1,
+	/// message-call with another account's code only
+	CALLCODE = 0xf2,
+	/// halt execution returning output data
+	RETURN = 0xf3,
+	/// like CALLCODE but keeps caller's value and sender
+	DELEGATECALL = 0xf4,
+	/// create a new account and set creation address to sha3(sender + sha3(init code)) % 2**160
+	CREATE2 = 0xfb,
+	/// stop execution and revert state changes. Return output data.
+	REVERT = 0xfd,
+	/// like CALL but it does not take value, nor modify the state
+	STATICCALL = 0xfa,
+	/// halt execution and register account for later deletion
+	SUICIDE = 0xff,
+}
+
+impl Instruction {
+	pub fn from_u8(value: u8) -> Option<Instruction> {
+		match value {
+			0x00 => Instruction::STOP,
+			0x01 => Instruction::ADD,
+			0x02 => Instruction::MUL,
+			0x03 => Instruction::SUB,
+			0x04 => Instruction::DIV,
+			0x05 => Instruction::SDIV,
+			0x06 => Instruction::MOD,
+			0x07 => Instruction::SMOD,
+			0x08 => Instruction::ADDMOD,
+			0x09 => Instruction::MULMOD,
+			0x0a => Instruction::EXP,
+			0x0b => Instruction::SIGNEXTEND,
+
+			0x10 => Instruction::LT,
+			0x11 => Instruction::GT,
+			0x12 => Instruction::SLT,
+			0x13 => Instruction::SGT,
+			0x14 => Instruction::EQ,
+			0x15 => Instruction::ISZERO,
+			0x16 => Instruction::AND,
+			0x17 => Instruction::OR,
+			0x18 => Instruction::XOR,
+			0x19 => Instruction::NOT,
+			0x1a => Instruction::BYTE,
+			0x1b => Instruction::SHL,
+			0x1c => Instruction::SHR,
+			0x1d => Instruction::SAR,
+
+			0x20 => Instruction::SHA3,
+
+			0x30 => Instruction::ADDRESS,
+			0x31 => Instruction::BALANCE,
+			0x32 => Instruction::ORIGIN,
+			0x33 => Instruction::CALLER,
+			0x34 => Instruction::CALLVALUE,
+			0x35 => Instruction::CALLDATALOAD,
+			0x36 => Instruction::CALLDATASIZE,
+			0x37 => Instruction::CALLDATACOPY,
+			0x38 => Instruction::CODESIZE,
+			0x39 => Instruction::CODECOPY,
+			0x3a => Instruction::GASPRICE,
+			0x3b => Instruction::EXTCODESIZE,
+			0x3c => Instruction::EXTCODECOPY,
+			0x3d => Instruction::RETURNDATASIZE,
+			0x3e => Instruction::RETURNDATACOPY,
+
+			0x40 => Instruction::BLOCKHASH,
+			0x41 => Instruction::COINBASE,
+			0x42 => Instruction::TIMESTAMP,
+			0x43 => Instruction::NUMBER,
+			0x44 => Instruction::DIFFICULTY,
+			0x45 => Instruction::GASLIMIT,
+
+			0x50 => Instruction::POP,
+			0x51 => Instruction::MLOAD,
+			0x52 => Instruction::MSTORE,
+			0x53 => Instruction::MSTORE8,
+			0x54 => Instruction::SLOAD,
+			0x55 => Instruction::SSTORE,
+			0x56 => Instruction::JUMP,
+			0x57 => Instruction::JUMPI,
+			0x58 => Instruction::PC,
+			0x59 => Instruction::MSIZE,
+			0x5a => Instruction::GAS,
+			0x5b => Instruction::JUMPDEST,
+
+			0x60 => Instruction::PUSH1,
+			0x61 => Instruction::PUSH2,
+			0x62 => Instruction::PUSH3,
+			0x63 => Instruction::PUSH4,
+			0x64 => Instruction::PUSH5,
+			0x65 => Instruction::PUSH6,
+			0x66 => Instruction::PUSH7,
+			0x67 => Instruction::PUSH8,
+			0x68 => Instruction::PUSH9,
+			0x69 => Instruction::PUSH10,
+			0x6a => Instruction::PUSH11,
+			0x6b => Instruction::PUSH12,
+			0x6c => Instruction::PUSH13,
+			0x6d => Instruction::PUSH14,
+			0x6e => Instruction::PUSH15,
+			0x6f => Instruction::PUSH16,
+			0x70 => Instruction::PUSH17,
+			0x71 => Instruction::PUSH18,
+			0x72 => Instruction::PUSH19,
+			0x73 => Instruction::PUSH20,
+			0x74 => Instruction::PUSH21,
+			0x75 => Instruction::PUSH22,
+			0x76 => Instruction::PUSH23,
+			0x77 => Instruction::PUSH24,
+			0x78 => Instruction::PUSH25,
+			0x79 => Instruction::PUSH26,
+			0x7a => Instruction::PUSH27,
+			0x7b => Instruction::PUSH28,
+			0x7c => Instruction::PUSH29,
+			0x7d => Instruction::PUSH30,
+			0x7e => Instruction::PUSH31,
+			0x7f => Instruction::PUSH32,
+
+			0x80 => Instruction::DUP1,
+			0x81 => Instruction::DUP2,
+			0x82 => Instruction::DUP3,
+			0x83 => Instruction::DUP4,
+			0x84 => Instruction::DUP5,
+			0x85 => Instruction::DUP6,
+			0x86 => Instruction::DUP7,
+			0x87 => Instruction::DUP8,
+			0x88 => Instruction::DUP9,
+			0x89 => Instruction::DUP10,
+			0x8a => Instruction::DUP11,
+			0x8b => Instruction::DUP12,
+			0x8c => Instruction::DUP13,
+			0x8d => Instruction::DUP14,
+			0x8e => Instruction::DUP15,
+			0x8f => Instruction::DUP16,
+
+			0x90 => Instruction::SWAP1,
+			0x91 => Instruction::SWAP2,
+			0x92 => Instruction::SWAP3,
+			0x93 => Instruction::SWAP4,
+			0x94 => Instruction::SWAP5,
+			0x95 => Instruction::SWAP6,
+			0x96 => Instruction::SWAP7,
+			0x97 => Instruction::SWAP8,
+			0x98 => Instruction::SWAP9,
+			0x99 => Instruction::SWAP10,
+			0x9a => Instruction::SWAP11,
+			0x9b => Instruction::SWAP12,
+			0x9c => Instruction::SWAP13,
+			0x9d => Instruction::SWAP14,
+			0x9e => Instruction::SWAP15,
+			0x9f => Instruction::SWAP16,
+
+			0xa0 => Instruction::LOG0,
+			0xa1 => Instruction::LOG1,
+			0xa2 => Instruction::LOG2,
+			0xa3 => Instruction::LOG3,
+			0xa4 => Instruction::LOG4,
+
+			0xf0 => Instruction::CREATE,
+			0xf1 => Instruction::CALL,
+			0xf2 => Instruction::CALLCODE,
+			0xf3 => Instruction::RETURN,
+			0xf4 => Instruction::DELEGATECALL,
+			0xfb => Instruction::CREATE2,
+			0xfd => Instruction::REVERT,
+			0xfa => Instruction::STATICCALL,
+			0xff => Instruction::SUICIDE,
+		}
+	}
+}
 
 /// Returns true if given instruction is `PUSHN` instruction.
 pub fn is_push(i: Instruction) -> bool {
@@ -309,292 +756,5 @@ lazy_static! {
 	};
 }
 
-/// Virtual machine bytecode instruction.
-/// halts execution
-pub const STOP: Instruction = 0x00;
-/// addition operation
-pub const ADD: Instruction = 0x01;
-/// mulitplication operation
-pub const MUL: Instruction = 0x02;
-/// subtraction operation
-pub const SUB: Instruction = 0x03;
-/// integer division operation
-pub const DIV: Instruction = 0x04;
-/// signed integer division operation
-pub const SDIV: Instruction = 0x05;
-/// modulo remainder operation
-pub const MOD: Instruction = 0x06;
-/// signed modulo remainder operation
-pub const SMOD: Instruction = 0x07;
-/// unsigned modular addition
-pub const ADDMOD: Instruction = 0x08;
-/// unsigned modular multiplication
-pub const MULMOD: Instruction = 0x09;
-/// exponential operation
-pub const EXP: Instruction = 0x0a;
-/// extend length of signed integer
-pub const SIGNEXTEND: Instruction = 0x0b;
-
-/// less-than comparision
-pub const LT: Instruction = 0x10;
-/// greater-than comparision
-pub const GT: Instruction = 0x11;
-/// signed less-than comparision
-pub const SLT: Instruction = 0x12;
-/// signed greater-than comparision
-pub const SGT: Instruction = 0x13;
-/// equality comparision
-pub const EQ: Instruction = 0x14;
-/// simple not operator
-pub const ISZERO: Instruction = 0x15;
-/// bitwise AND operation
-pub const AND: Instruction = 0x16;
-/// bitwise OR operation
-pub const OR: Instruction = 0x17;
-/// bitwise XOR operation
-pub const XOR: Instruction = 0x18;
-/// bitwise NOT opertation
-pub const NOT: Instruction = 0x19;
-/// retrieve single byte from word
-pub const BYTE: Instruction = 0x1a;
-/// shift left operation
-pub const SHL: Instruction = 0x1b;
-/// logical shift right operation
-pub const SHR: Instruction = 0x1c;
-/// arithmetic shift right operation
-pub const SAR: Instruction = 0x1d;
-
-/// compute SHA3-256 hash
-pub const SHA3: Instruction = 0x20;
-
-/// get address of currently executing account
-pub const ADDRESS: Instruction = 0x30;
-/// get balance of the given account
-pub const BALANCE: Instruction = 0x31;
-/// get execution origination address
-pub const ORIGIN: Instruction = 0x32;
-/// get caller address
-pub const CALLER: Instruction = 0x33;
-/// get deposited value by the instruction/transaction responsible for this execution
-pub const CALLVALUE: Instruction = 0x34;
-/// get input data of current environment
-pub const CALLDATALOAD: Instruction = 0x35;
-/// get size of input data in current environment
-pub const CALLDATASIZE: Instruction = 0x36;
-/// copy input data in current environment to memory
-pub const CALLDATACOPY: Instruction = 0x37;
-/// get size of code running in current environment
-pub const CODESIZE: Instruction = 0x38;
-/// copy code running in current environment to memory
-pub const CODECOPY: Instruction = 0x39;
-/// get price of gas in current environment
-pub const GASPRICE: Instruction = 0x3a;
-/// get external code size (from another contract)
-pub const EXTCODESIZE: Instruction = 0x3b;
-/// copy external code (from another contract)
-pub const EXTCODECOPY: Instruction = 0x3c;
-/// get the size of the return data buffer for the last call
-pub const RETURNDATASIZE: Instruction = 0x3d;
-/// copy return data buffer to memory
-pub const RETURNDATACOPY: Instruction = 0x3e;
-
-/// get hash of most recent complete block
-pub const BLOCKHASH: Instruction = 0x40;
-/// get the block's coinbase address
-pub const COINBASE: Instruction = 0x41;
-/// get the block's timestamp
-pub const TIMESTAMP: Instruction = 0x42;
-/// get the block's number
-pub const NUMBER: Instruction = 0x43;
-/// get the block's difficulty
-pub const DIFFICULTY: Instruction = 0x44;
-/// get the block's gas limit
-pub const GASLIMIT: Instruction = 0x45;
-
-/// remove item from stack
-pub const POP: Instruction = 0x50;
-/// load word from memory
-pub const MLOAD: Instruction = 0x51;
-/// save word to memory
-pub const MSTORE: Instruction = 0x52;
-/// save byte to memory
-pub const MSTORE8: Instruction = 0x53;
-/// load word from storage
-pub const SLOAD: Instruction = 0x54;
-/// save word to storage
-pub const SSTORE: Instruction = 0x55;
-/// alter the program counter
-pub const JUMP: Instruction = 0x56;
-/// conditionally alter the program counter
-pub const JUMPI: Instruction = 0x57;
-/// get the program counter
-pub const PC: Instruction = 0x58;
-/// get the size of active memory
-pub const MSIZE: Instruction = 0x59;
-/// get the amount of available gas
-pub const GAS: Instruction = 0x5a;
-/// set a potential jump destination
-pub const JUMPDEST: Instruction = 0x5b;
-
-/// place 1 byte item on stack
-pub const PUSH1: Instruction = 0x60;
-/// place 2 byte item on stack
-pub const PUSH2: Instruction = 0x61;
-/// place 3 byte item on stack
-pub const PUSH3: Instruction = 0x62;
-/// place 4 byte item on stack
-pub const PUSH4: Instruction = 0x63;
-/// place 5 byte item on stack
-pub const PUSH5: Instruction = 0x64;
-/// place 6 byte item on stack
-pub const PUSH6: Instruction = 0x65;
-/// place 7 byte item on stack
-pub const PUSH7: Instruction = 0x66;
-/// place 8 byte item on stack
-pub const PUSH8: Instruction = 0x67;
-/// place 9 byte item on stack
-pub const PUSH9: Instruction = 0x68;
-/// place 10 byte item on stack
-pub const PUSH10: Instruction = 0x69;
-/// place 11 byte item on stack
-pub const PUSH11: Instruction = 0x6a;
-/// place 12 byte item on stack
-pub const PUSH12: Instruction = 0x6b;
-/// place 13 byte item on stack
-pub const PUSH13: Instruction = 0x6c;
-/// place 14 byte item on stack
-pub const PUSH14: Instruction = 0x6d;
-/// place 15 byte item on stack
-pub const PUSH15: Instruction = 0x6e;
-/// place 16 byte item on stack
-pub const PUSH16: Instruction = 0x6f;
-/// place 17 byte item on stack
-pub const PUSH17: Instruction = 0x70;
-/// place 18 byte item on stack
-pub const PUSH18: Instruction = 0x71;
-/// place 19 byte item on stack
-pub const PUSH19: Instruction = 0x72;
-/// place 20 byte item on stack
-pub const PUSH20: Instruction = 0x73;
-/// place 21 byte item on stack
-pub const PUSH21: Instruction = 0x74;
-/// place 22 byte item on stack
-pub const PUSH22: Instruction = 0x75;
-/// place 23 byte item on stack
-pub const PUSH23: Instruction = 0x76;
-/// place 24 byte item on stack
-pub const PUSH24: Instruction = 0x77;
-/// place 25 byte item on stack
-pub const PUSH25: Instruction = 0x78;
-/// place 26 byte item on stack
-pub const PUSH26: Instruction = 0x79;
-/// place 27 byte item on stack
-pub const PUSH27: Instruction = 0x7a;
-/// place 28 byte item on stack
-pub const PUSH28: Instruction = 0x7b;
-/// place 29 byte item on stack
-pub const PUSH29: Instruction = 0x7c;
-/// place 30 byte item on stack
-pub const PUSH30: Instruction = 0x7d;
-/// place 31 byte item on stack
-pub const PUSH31: Instruction = 0x7e;
-/// place 32 byte item on stack
-pub const PUSH32: Instruction = 0x7f;
-
-/// copies the highest item in the stack to the top of the stack
-pub const DUP1: Instruction = 0x80;
-/// copies the second highest item in the stack to the top of the stack
-pub const DUP2: Instruction = 0x81;
-/// copies the third highest item in the stack to the top of the stack
-pub const DUP3: Instruction = 0x82;
-/// copies the 4th highest item in the stack to the top of the stack
-pub const DUP4: Instruction = 0x83;
-/// copies the 5th highest item in the stack to the top of the stack
-pub const DUP5: Instruction = 0x84;
-/// copies the 6th highest item in the stack to the top of the stack
-pub const DUP6: Instruction = 0x85;
-/// copies the 7th highest item in the stack to the top of the stack
-pub const DUP7: Instruction = 0x86;
-/// copies the 8th highest item in the stack to the top of the stack
-pub const DUP8: Instruction = 0x87;
-/// copies the 9th highest item in the stack to the top of the stack
-pub const DUP9: Instruction = 0x88;
-/// copies the 10th highest item in the stack to the top of the stack
-pub const DUP10: Instruction = 0x89;
-/// copies the 11th highest item in the stack to the top of the stack
-pub const DUP11: Instruction = 0x8a;
-/// copies the 12th highest item in the stack to the top of the stack
-pub const DUP12: Instruction = 0x8b;
-/// copies the 13th highest item in the stack to the top of the stack
-pub const DUP13: Instruction = 0x8c;
-/// copies the 14th highest item in the stack to the top of the stack
-pub const DUP14: Instruction = 0x8d;
-/// copies the 15th highest item in the stack to the top of the stack
-pub const DUP15: Instruction = 0x8e;
-/// copies the 16th highest item in the stack to the top of the stack
-pub const DUP16: Instruction = 0x8f;
-
-/// swaps the highest and second highest value on the stack
-pub const SWAP1: Instruction = 0x90;
-/// swaps the highest and third highest value on the stack
-pub const SWAP2: Instruction = 0x91;
-/// swaps the highest and 4th highest value on the stack
-pub const SWAP3: Instruction = 0x92;
-/// swaps the highest and 5th highest value on the stack
-pub const SWAP4: Instruction = 0x93;
-/// swaps the highest and 6th highest value on the stack
-pub const SWAP5: Instruction = 0x94;
-/// swaps the highest and 7th highest value on the stack
-pub const SWAP6: Instruction = 0x95;
-/// swaps the highest and 8th highest value on the stack
-pub const SWAP7: Instruction = 0x96;
-/// swaps the highest and 9th highest value on the stack
-pub const SWAP8: Instruction = 0x97;
-/// swaps the highest and 10th highest value on the stack
-pub const SWAP9: Instruction = 0x98;
-/// swaps the highest and 11th highest value on the stack
-pub const SWAP10: Instruction = 0x99;
-/// swaps the highest and 12th highest value on the stack
-pub const SWAP11: Instruction = 0x9a;
-/// swaps the highest and 13th highest value on the stack
-pub const SWAP12: Instruction = 0x9b;
-/// swaps the highest and 14th highest value on the stack
-pub const SWAP13: Instruction = 0x9c;
-/// swaps the highest and 15th highest value on the stack
-pub const SWAP14: Instruction = 0x9d;
-/// swaps the highest and 16th highest value on the stack
-pub const SWAP15: Instruction = 0x9e;
-/// swaps the highest and 17th highest value on the stack
-pub const SWAP16: Instruction = 0x9f;
-
-/// Makes a log entry; no topics.
-pub const LOG0: Instruction = 0xa0;
-/// Makes a log entry; 1 topic.
-pub const LOG1: Instruction = 0xa1;
-/// Makes a log entry; 2 topics.
-pub const LOG2: Instruction = 0xa2;
-/// Makes a log entry; 3 topics.
-pub const LOG3: Instruction = 0xa3;
-/// Makes a log entry; 4 topics.
-pub const LOG4: Instruction = 0xa4;
 /// Maximal number of topics for log instructions
 pub const MAX_NO_OF_TOPICS : usize = 4;
-
-/// create a new account with associated code
-pub const CREATE: Instruction = 0xf0;
-/// message-call into an account
-pub const CALL: Instruction = 0xf1;
-/// message-call with another account's code only
-pub const CALLCODE: Instruction = 0xf2;
-/// halt execution returning output data
-pub const RETURN: Instruction = 0xf3;
-/// like CALLCODE but keeps caller's value and sender
-pub const DELEGATECALL: Instruction = 0xf4;
-/// create a new account and set creation address to sha3(sender + sha3(init code)) % 2**160
-pub const CREATE2: Instruction = 0xfb;
-/// stop execution and revert state changes. Return output data.
-pub const REVERT: Instruction = 0xfd;
-/// like CALL but it does not take value, nor modify the state
-pub const STATICCALL: Instruction = 0xfa;
-/// halt execution and register account for later deletion
-pub const SUICIDE: Instruction = 0xff;
