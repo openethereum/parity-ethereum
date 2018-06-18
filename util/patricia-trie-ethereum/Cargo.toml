@@ -12,3 +12,4 @@ license = "GPL-3.0"
  rlp = { path = "../rlp" }
  ethcore-bytes = { path = "../bytes" }
  stream-encoder = { path = "../stream-encoder" }
+ ethereum-types = "0.3"

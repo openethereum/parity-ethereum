@@ -22,8 +22,10 @@ extern crate hashdb;
 extern crate keccak_hasher;
 extern crate rlp;
 extern crate stream_encoder;
+extern crate ethereum_types;
 
 use ethcore_bytes::Bytes;
+use ethereum_types::H256;
 use hashdb::Hasher;
 use keccak_hasher::KeccakHasher;
 use rlp::{Decodable, RlpStream, DecoderError, Rlp, Prototype};
@@ -34,6 +36,7 @@ pub use trie::{Lookup, NibbleSlice, node_codec::NodeCodec};
 
 pub type KeccakTrieResult<T> = trie::Result<T, <KeccakHasher as Hasher>::Out>;
 pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
+pub type TrieError = trie::TrieError<H256>;
 
 #[derive(Default, Clone)]
 pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
