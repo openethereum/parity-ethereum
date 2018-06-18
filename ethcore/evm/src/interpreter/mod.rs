@@ -123,7 +123,6 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 		let mut gasometer = Gasometer::<Cost>::new(Cost::from_u256(params.gas)?);
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut reader = CodeReader::new(code);
-		let infos = &*instructions::INSTRUCTIONS;
 
 		while reader.position < code.len() {
 			let opcode = code[reader.position];
@@ -142,7 +141,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			}
 			let instruction = instruction.expect("None case is checked above; qed");
 
-			let info = &infos[instruction as usize];
+			let info = instruction.info();
 			self.verify_instruction(ext, instruction, info, &stack)?;
 
 			// Calculate gas cost
@@ -236,10 +235,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction as u8
 			});
-		}
-
-		if info.tier == instructions::GasPriceTier::Invalid {
-			panic!("A instruction is defined in Instruction enum, but it is not found in InstructionInfo struct; this indicates a logic failure in the code.");
 		}
 
 		if !stack.has(info.args) {
