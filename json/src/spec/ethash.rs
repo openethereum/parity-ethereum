@@ -18,6 +18,7 @@
 
 use uint::{self, Uint};
 use hash::Address;
+use super::HybridCasperParams;
 
 /// Deserializable doppelganger of EthashParams.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -122,6 +123,13 @@ pub struct EthashParams {
 	/// EXPIP-2 duration limit
 	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
+
+	/// EIP1011 transition block
+	#[serde(rename="hybridCasperTransition")]
+	pub hybrid_casper_transition: Option<Uint>,
+	/// EIP1011 parameters
+	#[serde(rename="hybridCasperParams")]
+	pub hybrid_casper_params: Option<HybridCasperParams>,
 }
 
 /// Ethash engine deserialization.
@@ -232,6 +240,8 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				hybrid_casper_transition: None,
+				hybrid_casper_params: None,
 			}
 		});
 	}
@@ -276,6 +286,8 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				hybrid_casper_transition: None,
+				hybrid_casper_params: None,
 			}
 		});
 	}

@@ -347,6 +347,10 @@ impl Parity for ParityClient {
 		Err(errors::light_unimplemented(None))
 	}
 
+	fn send_unsigned_transaction(&self, _: H160, _: Bytes) -> Result<H256> {
+		Err(errors::light_unimplemented(None))
+	}
+
 	fn chain_id(&self) -> Result<Option<U64>> {
 		Ok(self.client.signing_chain_id().map(U64::from))
 	}

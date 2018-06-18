@@ -351,8 +351,17 @@ impl<'x> OpenBlock<'x> {
 			return Err(TransactionError::AlreadyImported.into());
 		}
 
-		let env_info = self.env_info();
-		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
+		let mut env_info = self.env_info();
+		self.engine.prepare_env_info(&t, &self.block, &mut env_info);
+		self.block.state.checkpoint();
+		let mut outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
+
+		if let Err(e) = self.engine.verify_transaction_outcome(&t, &mut self.block, &mut outcome.receipt) {
+			self.block.state.revert_to_checkpoint();
+			return Err(e).into();
+		}
+
+		self.block.state.discard_checkpoint();
 
 		self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
 		self.block.transactions.push(t.into());

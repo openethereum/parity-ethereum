@@ -109,3 +109,5 @@ impl<M: WithBalances + WithRewards> Engine<M> for NullEngine<M>
 		super::total_difficulty_fork_choice(new, current)
 	}
 }
+
+impl ::engines::EthEngine for NullEngine<::machine::EthereumMachine> { }

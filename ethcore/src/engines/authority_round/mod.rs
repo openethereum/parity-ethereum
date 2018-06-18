@@ -1366,6 +1366,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 }
 
+impl ::engines::EthEngine for AuthorityRound { }
+
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;

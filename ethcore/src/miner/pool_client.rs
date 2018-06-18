@@ -135,13 +135,17 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 	fn transaction_type(&self, tx: &SignedTransaction) -> pool::client::TransactionType {
 		match self.service_transaction_checker {
 			None => pool::client::TransactionType::Regular,
-			Some(ref checker) => match checker.check(self.chain, &tx) {
-				Ok(true) => pool::client::TransactionType::Service,
-				Ok(false) => pool::client::TransactionType::Regular,
-				Err(e) => {
-					debug!(target: "txqueue", "Unable to verify service transaction: {:?}", e);
-					pool::client::TransactionType::Regular
-				},
+			Some(ref checker) => if self.engine.is_builtin_service_transaction(tx, &self.best_block_header) {
+				pool::client::TransactionType::Service
+			} else {
+				match checker.check(self.chain, &tx) {
+					Ok(true) => pool::client::TransactionType::Service,
+					Ok(false) => pool::client::TransactionType::Regular,
+					Err(e) => {
+						debug!(target: "txqueue", "Unable to verify service transaction: {:?}", e);
+						pool::client::TransactionType::Regular
+					},
+				}
 			}
 		}
 	}

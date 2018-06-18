@@ -1,0 +1,72 @@
+{
+	"name": "Casper Testnet",
+	"dataDir": "caspertest",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"minimumDifficulty": "0x1ee73",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000",
+				"homesteadTransition": "0x0",
+				"eip649Reward": "0x29A2241AF62C0000",
+				"eip100bTransition": "0x0",
+				"eip649Transition": "0x0",
+				"hybridCasperTransition": "0x32",
+				"hybridCasperParams": {
+					"epochLength": 50,
+					"warmUpPeriod": 50
+				}
+			}
+		}
+	},
+	"params": {
+		"gasLimitBoundDivisor": "0x0400",
+		"accountStartNonce": "0x00",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID" : "0x1ee7",
+		"eip155Transition": "0x0",
+		"eip98Transition": "0x7fffffffffffff",
+		"eip86Transition": "0x7fffffffffffff",
+		"maxCodeSize": 24576,
+		"maxCodeSizeTransition": "0x0",
+		"eip140Transition": "0x0",
+		"eip211Transition": "0x0",
+		"eip214Transition": "0x0",
+		"eip658Transition": "0x0",
+		"eip150Transition": "0x0",
+		"eip160Transition": "0x0",
+		"eip161abcTransition": "0x0",
+		"eip161dTransition": "0x0"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x0000000000000056",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x20000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa",
+		"gasLimit": "0x5f5e100"
+	},
+	"nodes": [
+		"enode://c32ec5909c84ca346dda05435809889fed101dadadcae5e255e09658bcb1e4d1ed304c90929e34a3b51d9cf5869ff486c887f600dbd8f0305f52637280a7a55a@139.162.71.88:30303",
+		"enode://b541cb9808a932ac2b7e3ea9fb584dc0cac391527788773fccceaae7a2d86bd250f725bf5899a452ef25b2ff69084d830c2f905fce619eaf372ccd63f3056d98@139.162.71.88:31303"
+	],
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "pricing": { "modexp": { "divisor": 20 } } } },
+		"0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
+		"bfb20f94b5640d144592ab9a64c3b515add1b90e": { "balance": "0x52B7D2DCC80CD2E4000000" }
+	}
+}

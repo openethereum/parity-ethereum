@@ -454,6 +454,20 @@ dependencies = [
 [[package]]
 name = "ethabi"
 version = "5.1.1"
+source = "git+https://github.com/paritytech/ethabi?branch=casper#6ec7a3eb5e0c12dd24bbba037e1c885e47d7fd33"
+dependencies = [
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethabi"
+version = "5.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -468,7 +482,23 @@ dependencies = [
 [[package]]
 name = "ethabi-contract"
 version = "5.1.0"
+source = "git+https://github.com/paritytech/ethabi?branch=casper#6ec7a3eb5e0c12dd24bbba037e1c885e47d7fd33"
+
+[[package]]
+name = "ethabi-contract"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "ethabi-derive"
+version = "5.1.2"
+source = "git+https://github.com/paritytech/ethabi?branch=casper#6ec7a3eb5e0c12dd24bbba037e1c885e47d7fd33"
+dependencies = [
+ "ethabi 5.1.1 (git+https://github.com/paritytech/ethabi?branch=casper)",
+ "heck 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "ethabi-derive"
@@ -518,9 +548,9 @@ dependencies = [
  "common-types 0.1.0",
  "crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 5.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-contract 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 5.1.1 (git+https://github.com/paritytech/ethabi?branch=casper)",
+ "ethabi-contract 5.1.0 (git+https://github.com/paritytech/ethabi?branch=casper)",
+ "ethabi-derive 5.1.2 (git+https://github.com/paritytech/ethabi?branch=casper)",
  "ethash 1.12.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-bytes 0.1.0",
@@ -2675,7 +2705,7 @@ dependencies = [
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3844,8 +3874,11 @@ dependencies = [
 "checksum env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3ddf21e73e016298f5cb37d6ef8e8da8e39f91f9ec8b0df44b7deb16a9f8cd5b"
 "checksum error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff511d5dc435d703f4971bc399647c9bc38e20cb41452e3b9feb4765419ed3f3"
 "checksum eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)" = "<none>"
+"checksum ethabi 5.1.1 (git+https://github.com/paritytech/ethabi?branch=casper)" = "<none>"
 "checksum ethabi 5.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "05e33a914b94b763f0a92333e4e5c95c095563f06ef7d6b295b3d3c2cf31e21f"
+"checksum ethabi-contract 5.1.0 (git+https://github.com/paritytech/ethabi?branch=casper)" = "<none>"
 "checksum ethabi-contract 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "210c9e21d164c15b6ef64fe601e0e12a3c84a031d5ef558e38463e53edbd22ed"
+"checksum ethabi-derive 5.1.2 (git+https://github.com/paritytech/ethabi?branch=casper)" = "<none>"
 "checksum ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "d2bc7099baa147187aedaecd9fe04a6c0541c82bc43ff317cb6900fe2b983d74"
 "checksum ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1a93a43ce2e9f09071449da36bfa7a1b20b950ee344b6904ff23de493b03b386"
 "checksum ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9c48729b8aea8aedb12cf4cb2e5cef439fdfe2dda4a89e47eeebd15778ef53b6"

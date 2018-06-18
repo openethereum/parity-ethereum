@@ -56,6 +56,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_transactionsLimit")]
 		fn transactions_limit(&self) -> Result<usize>;
 
+		/// Submit a raw unsigned EIP86 transaction locally.
+		#[rpc(name = "parity_sendUnsignedTransaction")]
+		fn send_unsigned_transaction(&self, H160, Bytes) -> Result<H256>;
+
 		/// Returns mining extra data.
 		#[rpc(name = "parity_extraData")]
 		fn extra_data(&self) -> Result<Bytes>;

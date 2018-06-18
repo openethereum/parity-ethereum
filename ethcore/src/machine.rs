@@ -323,7 +323,7 @@ impl EthereumMachine {
 	}
 
 	/// Does basic verification of the transaction.
-	pub fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+	pub fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header, allow_null_signer: bool) -> Result<(), transaction::Error> {
 		let check_low_s = match self.ethash_extensions {
 			Some(ref ext) => header.number() >= ext.homestead_transition,
 			None => true,
@@ -336,7 +336,7 @@ impl EthereumMachine {
 		} else {
 			None
 		};
-		t.verify_basic(check_low_s, chain_id, false)?;
+		t.verify_basic(check_low_s, chain_id, allow_null_signer)?;
 
 		Ok(())
 	}
@@ -500,7 +500,7 @@ mod tests {
 		let mut header = ::header::Header::new();
 		header.set_number(15);
 
-		let res = machine.verify_transaction_basic(&transaction, &header);
+		let res = machine.verify_transaction_basic(&transaction, &header, false);
 		assert_eq!(res, Err(transaction::Error::InvalidSignature("Crypto error (Invalid EC signature)".into())));
 	}
 

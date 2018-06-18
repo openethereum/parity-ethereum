@@ -20,16 +20,22 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use engines::block_reward::{self, RewardKind};
+use engines::hybrid_casper::{HybridCasper, HybridCasperParams, HybridCasperMetadata};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use ethereum_types::{H256, H64, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
 use header::{Header, BlockNumber, ExtendedHeader};
-use engines::{self, Engine};
+use engines::{self, Engine, EthEngine, ForkChoice};
 use ethjson;
-use rlp::Rlp;
+use rlp::{self, Rlp};
+use transaction::{self, UnverifiedTransaction, SignedTransaction};
+use types::receipt::Receipt;
 use machine::EthereumMachine;
+use parity_machine::WithMetadata;
+use types::ancestry_action::AncestryAction;
+use vm::EnvInfo;
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
@@ -124,6 +130,10 @@ pub struct EthashParams {
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: u64,
+	/// Number of first block wehre Casper rules begin.
+	pub hybrid_casper_transition: u64,
+	/// Hybrid casper parameters.
+	pub hybrid_casper_params: HybridCasperParams,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -154,6 +164,8 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip649_reward: p.eip649_reward.map(Into::into),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
+			hybrid_casper_transition: p.hybrid_casper_transition.map_or(u64::max_value(), Into::into),
+			hybrid_casper_params: p.hybrid_casper_params.map_or_else(Default::default, Into::into),
 		}
 	}
 }
@@ -164,6 +176,7 @@ pub struct Ethash {
 	ethash_params: EthashParams,
 	pow: EthashManager,
 	machine: EthereumMachine,
+	casper: Arc<HybridCasper>,
 }
 
 impl Ethash {
@@ -171,10 +184,21 @@ impl Ethash {
 	pub fn new<T: Into<Option<OptimizeFor>>>(
 		cache_dir: &Path,
 		ethash_params: EthashParams,
-		machine: EthereumMachine,
+		mut machine: EthereumMachine,
 		optimize_for: T,
 	) -> Arc<Self> {
+		let casper = Arc::new(HybridCasper::new(ethash_params.hybrid_casper_params.clone()));
+		let casper_c = casper.clone();
+		let hybrid_casper_transition = ethash_params.hybrid_casper_transition;
+
+		machine.set_schedule_creation_rules(Box::new(move |schedule, block_number| {
+			if block_number >= hybrid_casper_transition {
+				casper_c.enable_casper_schedule(schedule);
+			}
+		}));
+
 		Arc::new(Ethash {
+			casper,
 			ethash_params,
 			machine,
 			pow: EthashManager::new(cache_dir.as_ref(), optimize_for.into()),
@@ -220,6 +244,33 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let difficulty = self.calculate_difficulty(header, parent);
 		header.set_difficulty(difficulty);
+	}
+
+	fn on_new_block(&self, block: &mut ExecutedBlock, _epoch_begin: bool, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<(), Error> {
+		if block.header().number() == self.ethash_params.hybrid_casper_transition {
+			self.casper.init_state(block.state_mut())?;
+			self.casper.init_casper_contract(&mut |address, data| {
+				self.machine().execute_as_system(
+					block,
+					address,
+					U256::max_value(),
+					Some(data)
+				).map_err(|e| format!("{}", e))
+			})?;
+		}
+
+		if block.header().number() >= self.ethash_params.hybrid_casper_transition.saturating_add(self.ethash_params.hybrid_casper_params.warm_up_period) {
+			self.casper.on_new_epoch(block.header().number(), &mut |address, data| {
+				self.machine().execute_as_system(
+					block,
+					address,
+					U256::max_value(),
+					Some(data)
+				).map_err(|e| format!("{}", e))
+			})?;
+		}
+
+		Ok(())
 	}
 
 	/// Apply the block reward on finalisation of the block.
@@ -275,6 +326,20 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			};
 
 			rewards.push((*uncle_author, RewardKind::Uncle, result_uncle_reward));
+		}
+
+		// Write closing metadata for Casper.
+		if number >= self.ethash_params.hybrid_casper_transition {
+			let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserializing CasperMetadata RLP always succeeds; qed")).unwrap_or_else(Default::default);
+			self.casper.update_metadata(&mut metadata, &mut |address, data| {
+				self.machine().execute_as_system(
+					block,
+					address,
+					U256::max_value(),
+					Some(data)
+				).map_err(|e| format!("{}", e))
+			})?;
+			block.set_metadata(Some(rlp::encode(&metadata).to_vec()));
 		}
 
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
@@ -357,8 +422,55 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
-		engines::total_difficulty_fork_choice(new, current)
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
+		self.casper.fork_choice(new, current)
+	}
+
+	fn ancestry_actions(&self, block: &ExecutedBlock, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+		self.casper.ancestry_actions(block)
+	}
+}
+
+impl EthEngine for Arc<Ethash> {
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		let signed = self.machine().verify_transaction_unordered(t, header)?;
+
+		if header.number() >= self.ethash_params.hybrid_casper_transition {
+			if signed.is_unsigned() && !self.casper.is_vote_transaction(&signed) {
+				return Err(transaction::Error::NotAllowed);
+			}
+		}
+
+		Ok(signed)
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header, header.number() >= self.ethash_params.hybrid_casper_transition)
+	}
+
+	fn prepare_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
+		if block.header().number() >= self.ethash_params.hybrid_casper_transition {
+			if t.is_unsigned() {
+				self.casper.prepare_vote_transaction_env_info(t, block, env_info);
+			}
+		}
+	}
+
+	fn verify_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), Error> {
+		if block.header().number() >= self.ethash_params.hybrid_casper_transition {
+			if t.is_unsigned() {
+				self.casper.verify_vote_transaction_outcome(t, block, receipt)?;
+			}
+		}
+		Ok(())
+	}
+
+	fn is_builtin_service_transaction(&self, t: &SignedTransaction, header: &Header) -> bool {
+		if header.number() >= self.ethash_params.hybrid_casper_transition {
+			self.casper.is_vote_transaction(t)
+		} else {
+			false
+		}
 	}
 }
 
@@ -524,6 +636,8 @@ mod tests {
 			eip649_reward: None,
 			expip2_transition: u64::max_value(),
 			expip2_duration_limit: 30,
+			hybrid_casper_transition: u64::max_value(),
+			hybrid_casper_params: Default::default(),
 		}
 	}
 

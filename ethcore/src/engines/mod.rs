@@ -26,6 +26,7 @@ mod transition;
 mod validator_set;
 mod vote_collector;
 
+pub mod hybrid_casper;
 pub mod block_reward;
 pub mod epoch;
 
@@ -55,12 +56,26 @@ use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
+use block::ExecutedBlock;
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
+use types::receipt::Receipt;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
-pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561006a5760014303600035610100820755610100810715156100455760003561010061010083050761010001555b6201000081071515610064576000356101006201000083050761020001555b5061013e565b4360003512151561008457600060405260206040f361013d565b61010060003543031315156100a857610100600035075460605260206060f361013c565b6101006000350715156100c55762010000600035430313156100c8565b60005b156100ea576101006101006000350507610100015460805260206080f361013b565b620100006000350715156101095763010000006000354303131561010c565b60005b1561012f57610100620100006000350507610200015460a052602060a0f361013a565b600060c052602060c0f35b5b5b5b5b";
+pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = include!("../../res/code/blockhash.hex");
+
+/// Hybrid Casper CASPER_CODE
+pub const DEFAULT_CASPER_CONTRACT: &'static str = include!("../../res/code/simple_casper.hex");
+
+/// Hybrid Casper PURITY_CHECKER_CODE
+pub const DEFAULT_PURITY_CHECKER_CONTRACT: &'static str = include!("../../res/code/purity_checker.hex");
+
+/// Hybrid Casper MSG_HASHER_CODE
+pub const DEFAULT_MSG_HASHER_CONTRACT: &'static str = include!("../../res/code/msg_hasher.hex");
+
+/// Hybrid Casper RLP_DECODER_CODE
+pub const DEFAULT_RLP_DECODER_CONTRACT: &'static str = include!("../../res/code/rlp_decoder.hex");
 
 /// Fork choice.
 #[derive(Debug, PartialEq, Eq)]
@@ -448,7 +463,15 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// TODO: Add flags for which bits of the transaction to check.
 	/// TODO: consider including State in the params.
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
+		self.machine().verify_transaction_basic(t, header, false)
+	}
+
+	/// Prepare the environment information passed for transaction execution.
+	fn prepare_env_info(&self, _t: &SignedTransaction, _block: &ExecutedBlock, _env_info: &mut EnvInfo) { }
+
+	/// Verify the transaction outcome is acceptable.
+	fn verify_transaction_outcome(&self, _t: &SignedTransaction, _block: &mut ExecutedBlock, _receipt: &mut Receipt) -> Result<(), Error> {
+		Ok(())
 	}
 
 	/// Additional information.
@@ -456,11 +479,13 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 		self.machine().additional_params()
 	}
 
-	/// Performs pre-validation of RLP decoded transaction before other processing
+	/// Performs pre-validation of RLP decoded transaction before other processing.
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		self.machine().decode_transaction(transaction)
 	}
-}
 
-// convenience wrappers for existing functions.
-impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }
+	/// Whether the given transaction is considered a builtin service transaction.
+	fn is_builtin_service_transaction(&self, _t: &SignedTransaction, _header: &Header) -> bool {
+		false
+	}
+}

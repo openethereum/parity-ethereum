@@ -197,6 +197,8 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	}
 }
 
+impl ::engines::EthEngine for BasicAuthority { }
+
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
