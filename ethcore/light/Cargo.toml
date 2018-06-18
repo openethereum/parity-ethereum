@@ -14,6 +14,7 @@ ethcore-transaction = { path = "../transaction" }
 ethereum-types = "0.3"
 memorydb = { path = "../../util/memorydb" }
 patricia-trie = { path = "../../util/patricia_trie" }
+patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
 hashdb = { path = "../../util/hashdb" }

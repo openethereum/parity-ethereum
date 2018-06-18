@@ -29,8 +29,8 @@ use hashdb::HashDB;
 use keccak_hasher::KeccakHasher;
 use memorydb::MemoryDB;
 use bytes::Bytes;
-use trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
-use ethtrie::RlpCodec;
+use trie::{TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
+use ethtrie::{self, RlpCodec};
 use rlp::{RlpStream, Rlp};
 use stream_encoder::Stream;
 
