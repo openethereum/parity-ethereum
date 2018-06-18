@@ -756,7 +756,15 @@ impl Configuration {
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = self.init_reserved_nodes()?;
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
-		ret.client_version = version();
+		ret.client_version = {
+			let mut client_version = version();
+			if !self.args.arg_identity.is_empty() {
+				// Insert name after the "Parity/" at the beginning of version string.
+				let idx = client_version.find('/').unwrap_or(client_version.len());
+				client_version.insert_str(idx, &format!("/{}", self.args.arg_identity));
+			}
+			client_version
+		};
 		Ok(ret)
 	}
 
@@ -1786,6 +1794,19 @@ mod tests {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 99);
 			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_identity_arg() {
+		let args = vec!["parity", "--identity", "Somebody"];
+		let conf = Configuration::parse_cli(&args).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.name, "Somebody");
+				assert!(c.net_conf.client_version.starts_with("Parity/Somebody/"));
+			}
 			_ => panic!("Should be Cmd::Run"),
 		}
 	}
