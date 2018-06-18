@@ -16,7 +16,7 @@
 
 use ethereum_types::{Address, H256};
 use rlp::DecoderError;
-use trie::TrieError;
+use ethtrie::TrieError;
 use ethcore::account_provider::SignError;
 use ethcore::error::{Error as EthcoreError, ExecutionError};
 use transaction::Error as TransactionError;
@@ -26,7 +26,7 @@ error_chain! {
 	foreign_links {
 		Io(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		Decoder(DecoderError) #[doc = "RLP decoding error."];
-		Trie(TrieError<H256>) #[doc = "Error concerning TrieDBs."]; // REVIEW: error_chain requires concrete types, but this probably is not ok. What's a better way?
+		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
 	}
 
 	errors {

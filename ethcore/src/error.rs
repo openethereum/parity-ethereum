@@ -23,7 +23,7 @@ use ethereum_types::{H256, U256, Address, Bloom};
 use util_error::{self, UtilError};
 use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
-use trie::TrieError;
+use ethtrie::TrieError;
 use io::*;
 use header::BlockNumber;
 use client::Error as ClientError;
@@ -245,7 +245,7 @@ error_chain! {
 	foreign_links {
 		Io(IoError) #[doc = "Io create error"];
 		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
-		Trie(TrieError<H256>) #[doc = "Error concerning TrieDBs."]; // REVIEW: error_chain requires concrete types, but this probably is not ok. What's a better way?
+		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
 		Execution(ExecutionError) #[doc = "Error concerning EVM code execution."];
 		Block(BlockError) #[doc = "Error concerning block processing."];
 		Transaction(TransactionError) #[doc = "Error concerning transaction processing."];

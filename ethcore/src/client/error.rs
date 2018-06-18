@@ -17,26 +17,22 @@
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util_error::UtilError;
 use kvdb;
-use trie::TrieError;
-
-use hashdb::Hasher;
-use keccak_hasher::KeccakHasher;
+use ethtrie::TrieError;
 
 /// Client configuration errors.
 #[derive(Debug)]
 pub enum Error {
 	/// TrieDB-related error.
-	Trie(TrieError<<KeccakHasher as Hasher>::Out>), // REVIEW: this doesn't look right – need to make `Error` generic too?
+	Trie(TrieError),
 	/// Database error
 	Database(kvdb::Error),
 	/// Util error
 	Util(UtilError),
 }
 
-impl<T> From<TrieError<T>> for Error {
-	fn from(err: TrieError<T>) -> Self {
-		// Error::Trie(err)
-		Error::Trie(TrieError::InvalidStateRoot(<KeccakHasher as Hasher>::Out::new())) // REVIEW: how do I fix this without making `Error` generic also?
+impl From<TrieError> for Error {
+	fn from(err: TrieError) -> Self {
+		Error::Trie(err)
 	}
 }
 

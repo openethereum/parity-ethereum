@@ -21,10 +21,8 @@ use std::fmt;
 use ids::BlockId;
 
 use ethereum_types::H256;
-use trie::TrieError;
+use ethtrie::TrieError;
 use rlp::DecoderError;
-use hashdb::Hasher;
-use keccak_hasher::KeccakHasher;
 
 /// Snapshot-related errors.
 #[derive(Debug)]
@@ -50,8 +48,7 @@ pub enum Error {
 	/// Restoration aborted.
 	RestorationAborted,
 	/// Trie error.
-	// Trie(TrieError),
-	Trie(TrieError<<KeccakHasher as Hasher>::Out>), // REVIEW: how do I fix this without making snapshot `Error` generic also?
+	Trie(TrieError),
 	/// Decoder error.
 	Decoder(DecoderError),
 	/// Io error.
@@ -104,10 +101,9 @@ impl From<::std::io::Error> for Error {
 	}
 }
 
-impl<T> From<TrieError<T>> for Error {
-	fn from(err: TrieError<T>) -> Self {
-		// Error::Trie(err)
-		Error::Trie(TrieError::InvalidStateRoot(<KeccakHasher as Hasher>::Out::new())) // REVIEW: how do I fix this without making snapshot `Error` generic also?
+impl From<TrieError> for Error {
+	fn from(err: TrieError) -> Self {
+		Error::Trie(err)
 	}
 }
 

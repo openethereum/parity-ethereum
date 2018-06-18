@@ -39,8 +39,8 @@ use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::Bytes;
 use memorydb::MemoryDB;
-use trie::{Trie, TrieDB, TrieError};
-use ethtrie::RlpCodec;
+use trie::{Trie, TrieDB};
+use ethtrie::{TrieError, RlpCodec};
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 
@@ -630,8 +630,7 @@ pub enum Error {
 	/// Empty response.
 	Empty,
 	/// Trie lookup error (result of bad proof)
-	// Trie(TrieError),
-	Trie(TrieError<<KeccakHasher as Hasher>::Out>), // REVIEW: how do I fix this without making `Error` generic also?
+	Trie(TrieError),
 	/// Bad inclusion proof
 	BadProof,
 	/// Header by number instead of hash.
@@ -654,10 +653,9 @@ impl From<::rlp::DecoderError> for Error {
 	}
 }
 
-impl<T> From<Box<TrieError<T>>> for Error {
-	fn from(err: Box<TrieError<T>>) -> Self {
-		// Error::Trie(*err)
-		Error::Trie(TrieError::InvalidStateRoot(<KeccakHasher as Hasher>::Out::new())) // REVIEW: how do I fix this without making `Error` generic also?
+impl From<Box<TrieError>> for Error {
+	fn from(err: Box<TrieError>) -> Self {
+		Error::Trie(*err)
 	}
 }
 
