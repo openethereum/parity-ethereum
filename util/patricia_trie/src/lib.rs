@@ -18,24 +18,32 @@
 extern crate elastic_array;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
-extern crate ethereum_types;
 extern crate hashdb;
-extern crate keccak_hash as keccak;
-extern crate keccak_hasher;
-extern crate memorydb;
 extern crate rand;
-extern crate rlp;
 extern crate stream_encoder;
-
-#[cfg(test)]
-extern crate trie_standardmap as standardmap;
 
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+extern crate ethereum_types;
+#[cfg(test)]
+extern crate trie_standardmap as standardmap;
+#[cfg(test)]
+extern crate patricia_trie_ethereum as ethtrie;
+#[cfg(test)]
+extern crate memorydb;
+#[cfg(test)]
+extern crate rlp;
+#[cfg(test)]
+extern crate keccak_hash as keccak;
+#[cfg(test)]
+extern crate keccak_hasher;
+#[cfg(test)]
+extern crate triehash;
+
 use std::{fmt, error};
 use hashdb::{HashDB, DBValue, Hasher};
-use keccak_hasher::KeccakHasher;
 use std::marker::PhantomData;
 
 pub mod node;
@@ -49,8 +57,8 @@ pub mod recorder;
 mod fatdb;
 mod fatdbmut;
 mod lookup;
-mod nibbleslice;
 mod nibblevec;
+mod nibbleslice;
 
 pub use self::triedb::{TrieDB, TrieDBIterator};
 pub use self::triedbmut::TrieDBMut;
@@ -59,13 +67,9 @@ pub use self::sectriedb::SecTrieDB;
 pub use self::fatdb::{FatDB, FatDBIterator};
 pub use self::fatdbmut::FatDBMut;
 pub use self::recorder::Recorder;
+pub use self::lookup::Lookup;
+pub use self::nibbleslice::NibbleSlice;
 use node_codec::NodeCodec;
-
-// TODO: Move to façade crate and rename to just `RlpNodeCodec`
-pub type KeccakRlpNodeCodec = node_codec::RlpNodeCodec<KeccakHasher>;
-pub type KeccakTrieResult<T> = Result<T, <KeccakHasher as Hasher>::Out>;
-#[cfg(test)]
-type RlpCodec = node_codec::RlpNodeCodec<KeccakHasher>;
 
 /// Trie Errors.
 ///
@@ -290,7 +294,7 @@ impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> {
 impl<'db, H, C> TrieFactory<H, C>
 where 
 	H: Hasher, 
-	H::Out: rlp::Encodable,
+	H::Out:,
 	C: NodeCodec<H> + 'db
 {
 	/// Creates new factory.

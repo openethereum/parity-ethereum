@@ -34,6 +34,7 @@ use std::marker::PhantomData;
 /// # Example
 /// ```
 /// extern crate patricia_trie as trie;
+/// extern crate patricia_trie_ethereum as ethtrie;
 /// extern crate hashdb;
 /// extern crate keccak_hasher;
 /// extern crate memorydb;
@@ -44,7 +45,7 @@ use std::marker::PhantomData;
 /// use keccak_hasher::KeccakHasher;
 /// use memorydb::*;
 /// use ethereum_types::H256;
-/// use node_codec::RlpNodeCodec;
+/// use ethtrie::RlpNodeCodec;
 ///
 /// type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
@@ -435,9 +436,9 @@ mod tests {
 	use hashdb::{Hasher, DBValue};
 	use keccak_hasher::KeccakHasher;
 	use memorydb::*;
-	use super::{TrieDB, Trie, Lookup, NibbleSlice};
-	use super::super::{TrieMut, triedbmut::*};
-	use RlpCodec;
+	use ethtrie::trie::{Trie, TrieMut, TrieDB, Lookup};
+	use ethtrie::trie::triedbmut::*;
+	use ethtrie::RlpCodec;
 
 	#[test]
 	fn iterator() {
@@ -626,6 +627,7 @@ mod tests {
 		use rlp;
 		use ethereum_types::H512;
 		use std::marker::PhantomData;
+		use ethtrie::trie::NibbleSlice;
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
@@ -639,7 +641,7 @@ mod tests {
 
 		// query for an invalid data type to trigger an error
 		let q = rlp::decode::<H512>;
-		let lookup = Lookup::<_, RlpCodec, _>{ db: t.db, query: q, hash: root, marker: PhantomData };
+		let lookup = Lookup::<_, RlpCodec, _>{ db: t.db(), query: q, hash: root, marker: PhantomData };
 		let query_result = lookup.look_up(NibbleSlice::new(b"A"));
 		assert_eq!(query_result.unwrap().unwrap().unwrap_err(), rlp::DecoderError::RlpIsTooShort);
 	}

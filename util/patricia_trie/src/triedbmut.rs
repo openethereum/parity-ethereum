@@ -268,6 +268,7 @@ impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
 /// # Example
 /// ```
 /// extern crate patricia_trie as trie;
+/// extern crate patricia_trie_ethereum as ethtrie;
 /// extern crate hashdb;
 /// extern crate keccak_hash;
 /// extern crate keccak_hasher;
@@ -280,7 +281,7 @@ impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
 /// use keccak_hasher::KeccakHasher;
 /// use memorydb::*;
 /// use ethereum_types::H256;
-/// use node_codec::RlpNodeCodec;
+/// use ethtrie::RlpNodeCodec;
 ///
 /// type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
@@ -974,18 +975,15 @@ where
 
 #[cfg(test)]
 mod tests {
-	extern crate triehash;
-
 	use bytes::ToPretty;
-	use hashdb::*;
+	use hashdb::{DBValue, Hasher, HashDB};
 	use keccak_hasher::KeccakHasher;
-	use memorydb::*;
+	use memorydb::MemoryDB;
 	use rlp::{Decodable, Encodable};
-	use self::triehash::trie_root;
+	use triehash::trie_root;
 	use standardmap::*;
-	use super::*;
-	use super::super::TrieMut;
-	use RlpCodec;
+	use ethtrie::trie::{TrieMut, TrieDBMut};
+	use ethtrie::{NodeCodec, RlpCodec};
 
 	fn populate_trie<'db, H, C>(db: &'db mut HashDB<H>, root: &'db mut H::Out, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db, H, C>
 		where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>

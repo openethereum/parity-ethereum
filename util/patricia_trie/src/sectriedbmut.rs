@@ -88,21 +88,24 @@ where
 	}
 }
 
-#[test]
-fn sectrie_to_trie() {
-	use memorydb::*;
-	use super::triedb::*;
-	use super::Trie;
-	use keccak_hasher::KeccakHasher;
+#[cfg(test)]
+mod test {
+	use memorydb::MemoryDB;
+	use hashdb::{Hasher, DBValue};
 	use keccak;
-	use node_codec::RlpNodeCodec;
+	use keccak_hasher::KeccakHasher;
+	use ethtrie::RlpCodec;
+	use ethtrie::trie::{Trie, TrieMut, TrieDB, SecTrieDBMut};
 
-	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::default();
-	{
-		let mut t = SecTrieDBMut::<_, RlpNodeCodec<_>>::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+	#[test]
+	fn sectrie_to_trie() {
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut root = <KeccakHasher as Hasher>::Out::default();
+		{
+			let mut t = SecTrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		}
+		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		assert_eq!(t.get(&keccak::keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 	}
-	let t = TrieDB::<_, RlpNodeCodec<_>>::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&keccak::keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

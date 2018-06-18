@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//use ethereum_types::H256;
-//use keccak::keccak;
 use hashdb::{HashDB, Hasher};
 use super::triedb::TrieDB;
 use super::{Result, Trie, TrieItem, TrieIterator, Query};
@@ -81,21 +79,24 @@ where
 	}
 }
 
-#[test]
-fn trie_to_sectrie() {
+#[cfg(test)]
+mod test {
 	use memorydb::MemoryDB;
-	use hashdb::DBValue;
-	use super::{TrieMut, TrieDBMut};
-	use keccak_hasher::KeccakHasher;
+	use hashdb::{Hasher, DBValue};
 	use keccak;
-	use node_codec::RlpNodeCodec;
+	use keccak_hasher::KeccakHasher;
+	use ethtrie::RlpCodec;
+	use ethtrie::trie::{Trie, TrieMut, TrieDBMut, SecTrieDB};
 
-	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::default();
-	{
-		let mut t = TrieDBMut::<_, RlpNodeCodec<_>>::new(&mut memdb, &mut root);
-		t.insert(&keccak::keccak(&[0x01u8, 0x23]), &[0x01u8, 0x23]).unwrap();
+	#[test]
+	fn trie_to_sectrie() {
+		let mut db = MemoryDB::<KeccakHasher>::new();
+		let mut root = <KeccakHasher as Hasher>::Out::default();
+		{
+			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
+			t.insert(&keccak::keccak(&[0x01u8, 0x23]), &[0x01u8, 0x23]).unwrap();
+		}
+		let t = SecTrieDB::<_, RlpCodec>::new(&db, &root).unwrap();
+		assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 	}
-	let t = SecTrieDB::<_, RlpNodeCodec<_>>::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

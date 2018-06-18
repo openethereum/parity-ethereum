@@ -123,24 +123,26 @@ where
 	}
 }
 
-#[test]
-fn fatdb_to_trie() {
+#[cfg(test)]
+mod test {
 	use memorydb::MemoryDB;
-	use hashdb::DBValue;
-	use super::fatdbmut::FatDBMut;
-	use super::TrieMut;
+	use hashdb::{Hasher, DBValue};
 	use keccak_hasher::KeccakHasher;
-	use node_codec::RlpNodeCodec;
+	use ethtrie::RlpCodec;
+	use ethtrie::trie::{Trie, TrieMut, FatDB, FatDBMut};
 
-	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::default();
-	{
-		let mut t = FatDBMut::<_, RlpNodeCodec<_>>::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+	#[test]
+	fn fatdb_to_trie() {
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut root = <KeccakHasher as Hasher>::Out::default();
+		{
+			let mut t = FatDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		}
+		let t = FatDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
+		assert_eq!(
+			t.iter().unwrap().map(Result::unwrap).collect::<Vec<_>>(),
+			vec![(vec![0x01u8, 0x23], DBValue::from_slice(&[0x01u8, 0x23] as &[u8]))]);
 	}
-	let t = FatDB::<_, RlpNodeCodec<_>>::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
-	assert_eq!(
-		t.iter().unwrap().map(Result::unwrap).collect::<Vec<_>>(),
-		vec![(vec![0x01u8, 0x23], DBValue::from_slice(&[0x01u8, 0x23] as &[u8]))]);
 }

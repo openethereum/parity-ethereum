@@ -84,7 +84,6 @@ impl<H: Hasher> Recorder<H> {
 	}
 }
 
-// TODO: WUT!
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -146,9 +145,9 @@ mod tests {
 
 	#[test]
 	fn trie_record() {
-		use super::super::{TrieDB, TrieDBMut, Trie, TrieMut};
+		use ethtrie::trie::{TrieDB, TrieDBMut, Trie, TrieMut, Recorder};
 		use memorydb::MemoryDB;
-		use RlpCodec;
+		use ethtrie::RlpCodec;
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 
@@ -215,6 +214,4 @@ mod tests {
 			]
 		]);
 	}
-/*
-*/
 }
