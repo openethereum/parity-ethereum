@@ -1286,7 +1286,7 @@ mod tests {
 		let keypair = Random.generate().unwrap();
 		let client = TestBlockChainClient::default();
 		let account_provider = AccountProvider::transient_provider();
-		account_provider.insert_account(keypair.secret().clone(), "").expect("can add accounts to the provider we just created");
+		account_provider.insert_account(keypair.secret().clone(), &"".into()).expect("can add accounts to the provider we just created");
 
 		let miner = Miner::new(
 			MinerOptions {
