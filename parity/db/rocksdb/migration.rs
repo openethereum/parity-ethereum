@@ -18,7 +18,7 @@ use std::fs;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
-use super::migration_rocksdb::{self, Manager as MigrationManager, Config as MigrationConfig, ChangeColumns};
+use super::migration_rocksdb::{Manager as MigrationManager, Config as MigrationConfig, ChangeColumns};
 use super::kvdb_rocksdb::CompactionProfile;
 use ethcore::client::DatabaseCompactionProfile;
 
@@ -60,8 +60,6 @@ pub enum Error {
 	FutureDBVersion,
 	/// Migration is not possible.
 	MigrationImpossible,
-	/// Internal migration error.
-	Internal(migration_rocksdb::Error),
 	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
@@ -73,7 +71,6 @@ impl Display for Error {
 			Error::UnknownDatabaseVersion => "Current database version cannot be read".into(),
 			Error::FutureDBVersion => "Database was created with newer client version. Upgrade your client or delete DB and resync.".into(),
 			Error::MigrationImpossible => format!("Database migration to version {} is not possible.", CURRENT_VERSION),
-			Error::Internal(ref err) => format!("{}", err),
 			Error::Io(ref err) => format!("Unexpected io error on DB migration: {}.", err),
 		};
 
@@ -84,15 +81,6 @@ impl Display for Error {
 impl From<IoError> for Error {
 	fn from(err: IoError) -> Self {
 		Error::Io(err)
-	}
-}
-
-impl From<migration_rocksdb::Error> for Error {
-	fn from(err: migration_rocksdb::Error) -> Self {
-		match err.into() {
-			migration_rocksdb::ErrorKind::Io(e) => Error::Io(e),
-			err => Error::Internal(err.into()),
-		}
 	}
 }
 

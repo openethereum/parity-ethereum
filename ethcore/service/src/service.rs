@@ -250,7 +250,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use std::{time, thread};
+	use std::{time, thread, io};
 
 	use tempdir::TempDir;
 
@@ -259,7 +259,6 @@ mod tests {
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
 	use ethcore::db::NUM_COLUMNS;
-	use kvdb::Error;
 	use kvdb_rocksdb::{Database, DatabaseConfig, CompactionProfile};
 	use super::*;
 
@@ -288,7 +287,7 @@ mod tests {
 		}
 
 		impl KeyValueDBHandler for RestorationDBHandler {
-			fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
+			fn open(&self, db_path: &Path) -> io::Result<Arc<KeyValueDB>> {
 				Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
 			}
 		}

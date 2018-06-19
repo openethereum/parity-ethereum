@@ -18,8 +18,9 @@ extern crate parking_lot;
 extern crate kvdb;
 
 use std::collections::{BTreeMap, HashMap};
+use std::io;
 use parking_lot::RwLock;
-use kvdb::{DBValue, DBTransaction, KeyValueDB, DBOp, Result};
+use kvdb::{DBValue, DBTransaction, KeyValueDB, DBOp};
 
 /// A key-value database fulfilling the `KeyValueDB` trait, living in memory.
 /// This is generally intended for tests and is not particularly optimized.
@@ -44,10 +45,10 @@ pub fn create(num_cols: u32) -> InMemory {
 }
 
 impl KeyValueDB for InMemory {
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
+	fn get(&self, col: Option<u32>, key: &[u8]) -> io::Result<Option<DBValue>> {
 		let columns = self.columns.read();
 		match columns.get(&col) {
-			None => Err(format!("No such column family: {:?}", col).into()),
+			None => Err(io::Error::new(io::ErrorKind::Other, format!("No such column family: {:?}", col))),
 			Some(map) => Ok(map.get(key).cloned()),
 		}
 	}
@@ -82,7 +83,7 @@ impl KeyValueDB for InMemory {
 		}
 	}
 
-	fn flush(&self) -> Result<()> {
+	fn flush(&self) -> io::Result<()> {
 		Ok(())
 	}
 
@@ -111,7 +112,7 @@ impl KeyValueDB for InMemory {
 		}
 	}
 
-	fn restore(&self, _new_db: &str) -> Result<()> {
-		Err("Attempted to restore in-memory database".into())
+	fn restore(&self, _new_db: &str) -> io::Result<()> {
+		Err(io::Error::new(io::ErrorKind::Other, "Attempted to restore in-memory database"))
 	}
 }

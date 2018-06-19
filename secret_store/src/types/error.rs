@@ -18,7 +18,7 @@ use std::fmt;
 use std::net;
 use std::io::Error as IoError;
 
-use {ethkey, crypto, kvdb};
+use {ethkey, crypto};
 
 /// Secret store error.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -171,12 +171,6 @@ impl From<ethkey::Error> for Error {
 impl From<ethkey::crypto::Error> for Error {
 	fn from(err: ethkey::crypto::Error) -> Self {
 		Error::EthKey(err.to_string())
-	}
-}
-
-impl From<kvdb::Error> for Error {
-	fn from(err: kvdb::Error) -> Self {
-		Error::Database(err.to_string())
 	}
 }
 

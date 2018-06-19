@@ -16,7 +16,6 @@
 
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util_error::UtilError;
-use kvdb;
 use trie::TrieError;
 
 /// Client configuration errors.
@@ -24,8 +23,6 @@ use trie::TrieError;
 pub enum Error {
 	/// TrieDB-related error.
 	Trie(TrieError),
-	/// Database error
-	Database(kvdb::Error),
 	/// Util error
 	Util(UtilError),
 }
@@ -53,7 +50,6 @@ impl Display for Error {
 		match *self {
 			Error::Trie(ref err) => write!(f, "{}", err),
 			Error::Util(ref err) => write!(f, "{}", err),
-			Error::Database(ref s) => write!(f, "Database error: {}", s),
 		}
 	}
 }
