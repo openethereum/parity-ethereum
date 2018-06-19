@@ -51,7 +51,6 @@ RUN apt-get update && \
 cd /build&&git clone https://github.com/slockit/parity && \
         cd parity && \
 	git pull&& \
-	git checkout $BUILD_TAG && \
         cargo build --verbose --release --features final && \
         #ls /build/parity/target/release/parity && \
         strip /build/parity/target/release/parity && \
