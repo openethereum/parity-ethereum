@@ -944,7 +944,8 @@ impl Client {
 		match id {
 			BlockId::Pending => self.state_at(BlockId::Latest),
 			id => match self.block_number(id) {
-				None | Some(0) => None,
+				None => None,
+				Some(0) => self.state_at(id),
 				Some(n) => self.state_at(BlockId::Number(n - 1)),
 			}
 		}
