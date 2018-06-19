@@ -23,7 +23,6 @@ use std::collections::BTreeMap;
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
-use rayon::prelude::*;
 use transaction;
 use txpool::{self, Verifier};
 
@@ -179,8 +178,14 @@ impl TransactionQueue {
 
 		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
 		let results = transactions
-			.into_par_iter()
-			.map(|transaction| verifier.verify_transaction(transaction))
+			.into_iter()
+			.map(|transaction| {
+				if self.pool.read().find(&transaction.hash()).is_some() {
+					bail!(transaction::Error::AlreadyImported)
+				}
+
+				verifier.verify_transaction(transaction)
+			})
 			.map(|result| result.and_then(|verified| {
 				self.pool.write().import(verified)
 					.map(|_imported| ())

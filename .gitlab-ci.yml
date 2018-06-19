@@ -201,6 +201,8 @@ docker-build:
   stage: build
   only:
     - tags
+    - beta
+    - stable
     - triggers
   before_script:
     - docker info

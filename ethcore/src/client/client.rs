@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, HashMap, BTreeMap, BTreeSet, VecDeque};
+use std::collections::{HashSet, BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
-use std::time::{Instant};
+use std::time::{Instant, Duration};
 
 // util
 use hash::keccak;
@@ -33,7 +33,7 @@ use util_error::UtilError;
 // other
 use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, TransactionAddress};
+use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute, TransactionAddress};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -46,8 +46,8 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient,
+	ChainMessageType, ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient,
+	EngineInfo, IoClient,
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -125,7 +125,7 @@ impl<'a> ::std::ops::Sub<&'a ClientReport> for ClientReport {
 		self.blocks_imported -= other.blocks_imported;
 		self.transactions_applied -= other.transactions_applied;
 		self.gas_processed = self.gas_processed - other.gas_processed;
-		self.state_db_mem  = higher_mem - lower_mem;
+		self.state_db_mem = higher_mem - lower_mem;
 
 		self
 	}
@@ -257,32 +257,6 @@ impl Importer {
 		})
 	}
 
-	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
-		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
-			map.into_iter().map(|(k, _v)| k).collect()
-		}
-
-		// In ImportRoute we get all the blocks that have been enacted and retracted by single insert.
-		// Because we are doing multiple inserts some of the blocks that were enacted in import `k`
-		// could be retracted in import `k+1`. This is why to understand if after all inserts
-		// the block is enacted or retracted we iterate over all routes and at the end final state
-		// will be in the hashmap
-		let map = import_results.iter().fold(HashMap::new(), |mut map, route| {
-			for hash in &route.enacted {
-				map.insert(hash.clone(), true);
-			}
-			for hash in &route.retracted {
-				map.insert(hash.clone(), false);
-			}
-			map
-		});
-
-		// Split to enacted retracted (using hashmap value)
-		let (enacted, retracted) = map.into_iter().partition(|&(_k, v)| v);
-		// And convert tuples to keys
-		(map_to_vec(enacted), map_to_vec(retracted))
-	}
-
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, client: &Client) -> usize {
 
@@ -343,27 +317,22 @@ impl Importer {
 				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
 			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
-			let duration_ns = {
-				let elapsed = start.elapsed();
-				elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64
-			};
-			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration_ns, is_empty)
+			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, start.elapsed(), is_empty)
 		};
 
 		{
 			if !imported_blocks.is_empty() && is_empty {
-				let (enacted, retracted) = self.calculate_enacted_retracted(&import_results);
+				let route = ChainRoute::from(import_results.as_ref());
 
 				if is_empty {
-					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, &enacted, &retracted, false);
+					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, route.enacted(), route.retracted(), false);
 				}
 
 				client.notify(|notify| {
 					notify.new_blocks(
 						imported_blocks.clone(),
 						invalid_blocks.clone(),
-						enacted.clone(),
-						retracted.clone(),
+						route.clone(),
 						Vec::new(),
 						proposed_blocks.clone(),
 						duration,
@@ -1030,7 +999,8 @@ impl Client {
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at_beginning(&self, id: BlockId) -> Option<State<StateDB>> {
 		match self.block_number(id) {
-			None | Some(0) => None,
+			None => None,
+			Some(0) => self.state_at(id),
 			Some(n) => self.state_at(BlockId::Number(n - 1)),
 		}
 	}
@@ -1446,7 +1416,7 @@ impl Call for Client {
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, state: &Self::State, header: &Header) -> Result<U256, CallError> {
-		let (mut upper, max_upper, env_info)  = {
+		let (mut upper, max_upper, env_info) = {
 			let init = *header.gas_limit();
 			let max = init * U256::from(10);
 
@@ -2041,15 +2011,16 @@ impl IoClient for Client {
 				let first = queued.write().1.pop_front();
 				if let Some((header, block_bytes, receipts_bytes)) = first {
 					let hash = header.hash();
-					client.importer.import_old_block(
+					let result = client.importer.import_old_block(
 						&header,
 						&block_bytes,
 						&receipts_bytes,
 						&**client.db.read(),
-						&*client.chain.read()
-					).ok().map_or((), |e| {
+						&*client.chain.read(),
+					);
+					if let Err(e) = result {
 						error!(target: "client", "Error importing ancient block: {}", e);
-					});
+					}
 					// remove from pending
 					queued.write().0.remove(&hash);
 				} else {
@@ -2171,20 +2142,16 @@ impl ImportSealedBlock for Client {
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
 		};
-		let (enacted, retracted) = self.importer.calculate_enacted_retracted(&[route]);
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted, self.engine.seals_internally().is_some());
+		let route = ChainRoute::from([route].as_ref());
+		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), true);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
 				vec![],
-				enacted.clone(),
-				retracted.clone(),
+				route.clone(),
 				vec![h.clone()],
 				vec![],
-				{
-					let elapsed = start.elapsed();
-					elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64
-				},
+				start.elapsed(),
 			);
 		});
 		self.db.read().flush().expect("DB flush failed.");
@@ -2194,15 +2161,15 @@ impl ImportSealedBlock for Client {
 
 impl BroadcastProposalBlock for Client {
 	fn broadcast_proposal_block(&self, block: SealedBlock) {
+		const DURATION_ZERO: Duration = Duration::from_millis(0);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![],
 				vec![],
-				vec![],
-				vec![],
+				ChainRoute::default(),
 				vec![],
 				vec![block.rlp_bytes()],
-				0,
+				DURATION_ZERO,
 			);
 		});
 	}

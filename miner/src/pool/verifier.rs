@@ -57,6 +57,7 @@ impl Default for Options {
 }
 
 /// Transaction to verify.
+#[cfg_attr(test, derive(Clone))]
 pub enum Transaction {
 	/// Fresh, never verified transaction.
 	///
@@ -75,7 +76,8 @@ pub enum Transaction {
 }
 
 impl Transaction {
-	fn hash(&self) -> H256 {
+	/// Return transaction hash
+	pub fn hash(&self) -> H256 {
 		match *self {
 			Transaction::Unverified(ref tx) => tx.hash(),
 			Transaction::Retracted(ref tx) => tx.hash(),

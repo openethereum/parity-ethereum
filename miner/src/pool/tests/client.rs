@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::{atomic, Arc};
+
 use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
 use transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
@@ -25,6 +27,7 @@ const MAX_TRANSACTION_SIZE: usize = 15 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct TestClient {
+	verification_invoked: Arc<atomic::AtomicBool>,
 	account_details: AccountDetails,
 	gas_required: U256,
 	is_service_transaction: bool,
@@ -35,6 +38,7 @@ pub struct TestClient {
 impl Default for TestClient {
 	fn default() -> Self {
 		TestClient {
+			verification_invoked: Default::default(),
 			account_details: AccountDetails {
 				nonce: 123.into(),
 				balance: 63_100.into(),
@@ -88,6 +92,10 @@ impl TestClient {
 			insertion_id: 1,
 		}
 	}
+
+	pub fn was_verification_triggered(&self) -> bool {
+		self.verification_invoked.load(atomic::Ordering::SeqCst)
+	}
 }
 
 impl pool::client::Client for TestClient {
@@ -98,6 +106,7 @@ impl pool::client::Client for TestClient {
 	fn verify_transaction(&self, tx: UnverifiedTransaction)
 		-> Result<SignedTransaction, transaction::Error>
 	{
+		self.verification_invoked.store(true, atomic::Ordering::SeqCst);
 		Ok(SignedTransaction::new(tx)?)
 	}
 

@@ -29,7 +29,6 @@ extern crate keccak_hash as hash;
 extern crate linked_hash_map;
 extern crate parking_lot;
 extern crate price_info;
-extern crate rayon;
 extern crate rlp;
 extern crate trace_time;
 extern crate transaction_pool as txpool;
