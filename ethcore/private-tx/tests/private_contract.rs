@@ -55,9 +55,9 @@ fn private_contract() {
 	let key3 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000013")).unwrap();
 	let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000014")).unwrap();
 	let ap = Arc::new(AccountProvider::transient_provider());
-	ap.insert_account(key1.secret().clone(), "").unwrap();
-	ap.insert_account(key3.secret().clone(), "").unwrap();
-	ap.insert_account(key4.secret().clone(), "").unwrap();
+	ap.insert_account(key1.secret().clone(), &"".into()).unwrap();
+	ap.insert_account(key3.secret().clone(), &"".into()).unwrap();
+	ap.insert_account(key4.secret().clone(), &"".into()).unwrap();
 
 	let config = ProviderConfig{
 		validator_accounts: vec![key3.address(), key4.address()],

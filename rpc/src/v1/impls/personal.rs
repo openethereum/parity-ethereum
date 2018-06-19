@@ -77,7 +77,7 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
 			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
-				dispatcher.sign(accounts, filled, SignWith::Password(password))
+				dispatcher.sign(accounts, filled, SignWith::Password(password.into()))
 					.map(|tx| tx.into_value())
 					.map(move |tx| PendingTransaction::new(tx, condition))
 					.map(move |tx| (tx, dispatcher))
@@ -95,7 +95,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn new_account(&self, pass: String) -> Result<RpcH160> {
-		self.accounts.new_account(&pass)
+		self.accounts.new_account(&pass.into())
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
@@ -117,14 +117,14 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		};
 
 		let r = match (self.allow_perm_unlock, duration) {
-			(false, None) => store.unlock_account_temporarily(account, account_pass),
+			(false, None) => store.unlock_account_temporarily(account, account_pass.into()),
 			(false, _) => return Err(errors::unsupported(
 				"Time-unlocking is only supported in --geth compatibility mode.",
 				Some("Restart your client with --geth flag or use personal_sendTransaction instead."),
 			)),
-			(true, Some(0)) => store.unlock_account_permanently(account, account_pass),
-			(true, Some(d)) => store.unlock_account_timed(account, account_pass, Duration::from_secs(d.into())),
-			(true, None) => store.unlock_account_timed(account, account_pass, Duration::from_secs(300)),
+			(true, Some(0)) => store.unlock_account_permanently(account, account_pass.into()),
+			(true, Some(d)) => store.unlock_account_timed(account, account_pass.into(), Duration::from_secs(d.into())),
+			(true, None) => store.unlock_account_timed(account, account_pass.into(), Duration::from_secs(300)),
 		};
 		match r {
 			Ok(_) => Ok(true),
@@ -140,7 +140,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
 				 .and_then(|payload| {
-					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password))
+					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
 				 })
 				 .map(|v| v.into_value())
 				 .then(|res| match res {

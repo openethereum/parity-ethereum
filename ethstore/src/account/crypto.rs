@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str;
-use ethkey::Secret;
+use ethkey::{Password, Secret};
 use {json, Error, crypto};
 use crypto::Keccak256;
 use random::Random;
@@ -73,18 +73,18 @@ impl From<Crypto> for String {
 
 impl Crypto {
 	/// Encrypt account secret
-	pub fn with_secret(secret: &Secret, password: &str, iterations: u32) -> Result<Self, crypto::Error> {
+	pub fn with_secret(secret: &Secret, password: &Password, iterations: u32) -> Result<Self, crypto::Error> {
 		Crypto::with_plain(&*secret, password, iterations)
 	}
 
 	/// Encrypt custom plain data
-	pub fn with_plain(plain: &[u8], password: &str, iterations: u32) -> Result<Self, crypto::Error> {
+	pub fn with_plain(plain: &[u8], password: &Password, iterations: u32) -> Result<Self, crypto::Error> {
 		let salt: [u8; 32] = Random::random();
 		let iv: [u8; 16] = Random::random();
 
 		// two parts of derived key
 		// DK = [ DK[0..15] DK[16..31] ] = [derived_left_bits, derived_right_bits]
-		let (derived_left_bits, derived_right_bits) = crypto::derive_key_iterations(password, &salt, iterations);
+		let (derived_left_bits, derived_right_bits) = crypto::derive_key_iterations(password.as_bytes(), &salt, iterations);
 
 		// preallocated (on-stack in case of `Secret`) buffer to hold cipher
 		// length = length(plain) as we are using CTR-approach
@@ -113,7 +113,7 @@ impl Crypto {
 	}
 
 	/// Try to decrypt and convert result to account secret
-	pub fn secret(&self, password: &str) -> Result<Secret, Error> {
+	pub fn secret(&self, password: &Password) -> Result<Secret, Error> {
 		if self.ciphertext.len() > 32 {
 			return Err(Error::InvalidSecret);
 		}
@@ -123,15 +123,15 @@ impl Crypto {
 	}
 
 	/// Try to decrypt and return result as is
-	pub fn decrypt(&self, password: &str) -> Result<Vec<u8>, Error> {
+	pub fn decrypt(&self, password: &Password) -> Result<Vec<u8>, Error> {
 		let expected_len = self.ciphertext.len();
 		self.do_decrypt(password, expected_len)
 	}
 
-	fn do_decrypt(&self, password: &str, expected_len: usize) -> Result<Vec<u8>, Error> {
+	fn do_decrypt(&self, password: &Password, expected_len: usize) -> Result<Vec<u8>, Error> {
 		let (derived_left_bits, derived_right_bits) = match self.kdf {
-			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password, &params.salt, params.c),
-			Kdf::Scrypt(ref params) => crypto::scrypt::derive_key(password, &params.salt, params.n, params.p, params.r)?,
+			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password.as_bytes(), &params.salt, params.c),
+			Kdf::Scrypt(ref params) => crypto::scrypt::derive_key(password.as_bytes(), &params.salt, params.n, params.p, params.r)?,
 		};
 
 		let mac = crypto::derive_mac(&derived_right_bits, &self.ciphertext).keccak256();
@@ -163,39 +163,43 @@ mod tests {
 	#[test]
 	fn crypto_with_secret_create() {
 		let keypair = Random.generate().unwrap();
-		let crypto = Crypto::with_secret(keypair.secret(), "this is sparta", 10240).unwrap();
-		let secret = crypto.secret("this is sparta").unwrap();
+		let passwd = "this is sparta".into();
+		let crypto = Crypto::with_secret(keypair.secret(), &passwd, 10240).unwrap();
+		let secret = crypto.secret(&passwd).unwrap();
 		assert_eq!(keypair.secret(), &secret);
 	}
 
 	#[test]
 	fn crypto_with_secret_invalid_password() {
 		let keypair = Random.generate().unwrap();
-		let crypto = Crypto::with_secret(keypair.secret(), "this is sparta", 10240).unwrap();
-		assert_matches!(crypto.secret("this is sparta!"), Err(Error::InvalidPassword))
+		let crypto = Crypto::with_secret(keypair.secret(), &"this is sparta".into(), 10240).unwrap();
+		assert_matches!(crypto.secret(&"this is sparta!".into()), Err(Error::InvalidPassword))
 	}
 
 	#[test]
 	fn crypto_with_null_plain_data() {
 		let original_data = b"";
-		let crypto = Crypto::with_plain(&original_data[..], "this is sparta", 10240).unwrap();
-		let decrypted_data = crypto.decrypt("this is sparta").unwrap();
+		let passwd = "this is sparta".into();
+		let crypto = Crypto::with_plain(&original_data[..], &passwd, 10240).unwrap();
+		let decrypted_data = crypto.decrypt(&passwd).unwrap();
 		assert_eq!(original_data[..], *decrypted_data);
 	}
 
 	#[test]
 	fn crypto_with_tiny_plain_data() {
 		let original_data = b"{}";
-		let crypto = Crypto::with_plain(&original_data[..], "this is sparta", 10240).unwrap();
-		let decrypted_data = crypto.decrypt("this is sparta").unwrap();
+		let passwd = "this is sparta".into();
+		let crypto = Crypto::with_plain(&original_data[..], &passwd, 10240).unwrap();
+		let decrypted_data = crypto.decrypt(&passwd).unwrap();
 		assert_eq!(original_data[..], *decrypted_data);
 	}
 
 	#[test]
 	fn crypto_with_huge_plain_data() {
 		let original_data: Vec<_> = (1..65536).map(|i| (i % 256) as u8).collect();
-		let crypto = Crypto::with_plain(&original_data, "this is sparta", 10240).unwrap();
-		let decrypted_data = crypto.decrypt("this is sparta").unwrap();
+		let passwd = "this is sparta".into();
+		let crypto = Crypto::with_plain(&original_data, &passwd, 10240).unwrap();
+		let decrypted_data = crypto.decrypt(&passwd).unwrap();
 		assert_eq!(&original_data, &decrypted_data);
 	}
 }
