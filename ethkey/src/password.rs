@@ -29,18 +29,14 @@ impl Password {
 	}
 }
 
+// Custom drop impl to zero out memory.
 impl Drop for Password {
 	fn drop(&mut self) {
-		let vec = unsafe {
-			self.0.as_mut_vec()
-		};
-		let n = vec.len();
-		let p = vec.as_mut_ptr();
-		for i in 0..n {
-			unsafe {
-				ptr::write_volatile(p.offset(i as isize), 0)
-			}
-		}
+		unsafe {
+            for byte_ref in self.0.as_mut_vec() {
+                ptr::write_volatile(byte_ref, 0)
+            }
+        }
 	}
 }
 
