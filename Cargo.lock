@@ -782,6 +782,7 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.2.0",
+ "patricia-trie-ethereum 0.1.0",
  "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "rlp_derive 0.1.0",
@@ -3688,6 +3689,7 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.2.0",
  "rlp 0.2.1",
+ "stream-encoder 0.1.0",
 ]
 
 [[package]]
