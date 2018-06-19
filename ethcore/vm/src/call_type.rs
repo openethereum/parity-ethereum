@@ -63,6 +63,7 @@ impl Decodable for CallType {
 mod tests {
 	use rlp::*;
 	use super::CallType;
+	use stream_encoder::Stream;
 
 	#[test]
 	fn encode_call_type() {

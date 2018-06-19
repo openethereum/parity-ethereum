@@ -23,6 +23,8 @@ extern crate ethjson;
 extern crate rlp;
 extern crate keccak_hash as hash;
 extern crate patricia_trie as trie;
+#[cfg(test)]
+extern crate stream_encoder;
 
 mod action_params;
 mod call_type;
