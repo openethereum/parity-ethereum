@@ -25,13 +25,13 @@ use stream_encoder::Stream;
 
 /// Trait for trie node encoding/decoding
 pub trait NodeCodec<H: Hasher>: Sized {
-	type E: ::std::error::Error;
+	type E: ::std::error::Error + 'static;
 	type S: Stream;
 
-	/// Encode a Node to bytes (`Vec<u8>`).
+	/// Encode a Node to bytes (aka `Vec<u8>`).
 	fn encode(&Node) -> Bytes;
 
-	/// Decode bytes to a `Node`. Returns `Result` on failure.
+	/// Decode bytes to a `Node`. Returns `Self::E` on failure.
 	fn decode(data: &[u8]) -> Result<Node, Self::E>;
 
 	/// Decode bytes to the `Hasher`s output type. Assumes 32 bytes long hashes! Returns `None` on failure.
