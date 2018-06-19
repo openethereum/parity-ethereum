@@ -634,12 +634,13 @@ impl Importer for Arc<Provider> {
 		let original_tx = self.extract_original_transaction(private_tx.clone(), &contract)?;
 		trace!("Original transaction: {:?}", original_tx);
 		let nonce_cache = Default::default();
-		self.transactions_for_verification.lock().add_transaction(
+		self.transactions_for_verification.add_transaction(
 			original_tx,
 			validation_account.map(|&account| account),
 			private_tx.clone(),
 			self.pool_client(&nonce_cache),
 		)?;
+		let provider = Arc::downgrade(self);
 		if let Err(e) = self.channel.send(ClientIoMessage::execute(move |_| {
 					if let Some(provider) = provider.upgrade() {
 						if let Err(e) = provider.process_verification_queue() {
@@ -657,6 +658,7 @@ impl Importer for Arc<Provider> {
 		trace!("Signature for private transaction received: {:?}", tx);
 		let private_hash = tx.private_transaction_hash();
 		self.imported_signed_transactions.lock().push(tx);
+		let provider = Arc::downgrade(self);
 		if let Err(e) = self.channel.send(ClientIoMessage::execute(move |_| {
 					if let Some(provider) = provider.upgrade() {
 						if let Err(e) = provider.process_signatures() {
@@ -684,7 +686,7 @@ impl ChainNotify for Provider {
 	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
 		if !imported.is_empty() {
 			trace!("New blocks imported, try to prune the queue");
-			if let Err(err) = self.process_queue() {
+			if let Err(err) = self.process_verification_queue() {
 				trace!("Cannot prune private transactions queue. error: {:?}", err);
 			}
 		}

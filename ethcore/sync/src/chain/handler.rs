@@ -724,10 +724,10 @@ impl SyncHandler {
 		}
 
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
-		match self.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
+		match sync.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
 				//don't send the packet back
-				if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 					peer.last_sent_signed_private_transactions.insert(transaction_hash);
 				}
 			},
@@ -747,10 +747,10 @@ impl SyncHandler {
 
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
 
-		match self.private_tx_handler.import_private_transaction(r.as_raw()) {
+		match sync.private_tx_handler.import_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
 				//don't send the packet back
-				if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 					peer.last_sent_private_transactions.insert(transaction_hash);
 				}
 			},

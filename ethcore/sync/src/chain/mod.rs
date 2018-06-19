@@ -1061,7 +1061,7 @@ impl ChainSync {
 
 	fn get_private_transaction_peers(&self, transaction_hash: &H256) -> Vec<PeerId> {
 		self.peers.iter().filter_map(
-			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3
+			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0
 				&& !p.last_sent_private_transactions.contains(transaction_hash) {
 					Some(*id)
 				} else {
@@ -1072,7 +1072,7 @@ impl ChainSync {
 
 	fn get_signed_private_transaction_peers(&self, transaction_hash: &H256) -> Vec<PeerId> {
 		self.peers.iter().filter_map(
-			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3
+			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0
 				&& !p.last_sent_signed_private_transactions.contains(transaction_hash) {
 					Some(*id)
 				} else {
