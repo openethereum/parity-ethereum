@@ -87,7 +87,7 @@ pub use verification::queue::QueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
-const MAX_TX_QUEUE_SIZE: usize = 4096;
+const MAX_TX_QUEUE_SIZE: usize = 8192;
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
 const MAX_ANCIENT_BLOCKS_TO_IMPORT: usize = 4;
