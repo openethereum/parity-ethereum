@@ -67,31 +67,29 @@ impl<'a> Iterator for NibbleSliceIterator<'a> {
 	}
 }
 
-impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
+impl<'a> NibbleSlice<'a> {
 	/// Create a new nibble slice with the given byte-slice.
 	pub fn new(data: &'a [u8]) -> Self { NibbleSlice::new_offset(data, 0) }
 
 	/// Create a new nibble slice with the given byte-slice with a nibble offset.
-	pub fn new_offset(data: &'a [u8], offset: usize) -> Self { NibbleSlice{data: data, offset: offset, data_encode_suffix: &b""[..], offset_encode_suffix: 0} }
+	pub fn new_offset(data: &'a [u8], offset: usize) -> Self {
+		NibbleSlice {
+			data,
+			offset,
+			data_encode_suffix: &b""[..],
+			offset_encode_suffix: 0
+		}
+	}
 
 	/// Create a composed nibble slice; one followed by the other.
-	pub fn new_composed(a: &'a NibbleSlice, b: &'a NibbleSlice) -> Self { NibbleSlice{data: a.data, offset: a.offset, data_encode_suffix: b.data, offset_encode_suffix: b.offset} }
-
-	/*pub fn new_composed_bytes_offset(a: &NibbleSlice, b: &NibbleSlice) -> (Bytes, usize) {
-		let r: Vec<u8>::with_capacity((a.len() + b.len() + 1) / 2);
-		let mut i = (a.len() + b.len()) % 2;
-		while i < a.len() {
-			match i % 2 {
-				0 => ,
-				1 => ,
-			}
-			i += 1;
+	pub fn new_composed(a: &NibbleSlice<'a>, b: &NibbleSlice<'a>) -> Self {
+		NibbleSlice {
+			data: a.data,
+			offset: a.offset,
+			data_encode_suffix: b.data,
+			offset_encode_suffix: b.offset
 		}
-		while i < a.len() + b.len() {
-			i += 1;
-		}
-		(r, a.len() + b.len())
-	}*/
+	}
 
 	/// Get an iterator for the series of nibbles.
 	pub fn iter(&'a self) -> NibbleSliceIterator<'a> {
@@ -132,7 +130,14 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	}
 
 	/// Return object which represents a view on to this slice (further) offset by `i` nibbles.
-	pub fn mid(&'view self, i: usize) -> NibbleSlice<'a> { NibbleSlice{ data: self.data, offset: self.offset + i, data_encode_suffix: &b""[..], offset_encode_suffix: 0 } }
+	pub fn mid(&self, i: usize) -> NibbleSlice<'a> {
+		NibbleSlice {
+			data: self.data,
+			offset: self.offset + i,
+			data_encode_suffix: &b""[..],
+			offset_encode_suffix: 0
+		}
+	}
 
 	/// Do we start with the same nibbles as the whole of `them`?
  	pub fn starts_with(&self, them: &Self) -> bool { self.common_prefix(them) == them.len() }

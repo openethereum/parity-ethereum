@@ -62,6 +62,7 @@ pub struct EthClient<T> {
 	accounts: Arc<AccountProvider>,
 	cache: Arc<Mutex<LightDataCache>>,
 	polls: Mutex<PollManager<PollFilter>>,
+	poll_lifetime: u32,
 	gas_price_percentile: usize,
 }
 
@@ -92,7 +93,8 @@ impl<T> Clone for EthClient<T> {
 			transaction_queue: self.transaction_queue.clone(),
 			accounts: self.accounts.clone(),
 			cache: self.cache.clone(),
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(self.poll_lifetime)),
+			poll_lifetime: self.poll_lifetime,
 			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
@@ -109,6 +111,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		accounts: Arc<AccountProvider>,
 		cache: Arc<Mutex<LightDataCache>>,
 		gas_price_percentile: usize,
+		poll_lifetime: u32
 	) -> Self {
 		EthClient {
 			sync,
@@ -117,7 +120,8 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 			transaction_queue,
 			accounts,
 			cache,
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(poll_lifetime)),
+			poll_lifetime,
 			gas_price_percentile,
 		}
 	}

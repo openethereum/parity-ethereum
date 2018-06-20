@@ -17,7 +17,6 @@ echo "Build identifier:   " $IDENT
 echo "Cargo target:       " $PLATFORM
 echo "CC&CXX flags:       " $CC ", " $CXX
 echo "Architecture:       " $ARC
-echo "Libssl version:     " $LIBSSL
 echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
@@ -87,56 +86,6 @@ calculate_checksums () {
   $SHA256_BIN target/$PLATFORM/release/ethkey$S3WIN > ethkey$S3WIN.sha256
   $SHA256_BIN target/$PLATFORM/release/whisper$S3WIN > whisper$S3WIN.sha256
 }
-make_deb () {
-  rm -rf deb
-  echo "create DEBIAN files"
-  mkdir -p deb/usr/bin/
-  mkdir -p deb/DEBIAN
-  echo "create copyright, docs, compat"
-  cp LICENSE deb/DEBIAN/copyright
-  echo "https://github.com/paritytech/parity/wiki" >> deb/DEBIAN/docs
-  echo "8" >> deb/DEBIAN/compat
-  echo "create control file"
-  control=deb/DEBIAN/control
-  echo "Package: parity" >> $control
-  echo "Version: $VER" >> $control
-  echo "Source: parity" >> $control
-  echo "Section: science" >> $control
-  echo "Priority: extra" >> $control
-  echo "Maintainer: Parity Technologies <devops@parity.io>" >> $control
-  echo "Build-Depends: debhelper (>=9)" >> $control
-  echo "Standards-Version: 3.9.5" >> $control
-  echo "Homepage: https://parity.io" >> $control
-  echo "Vcs-Git: git://github.com/paritytech/parity.git" >> $control
-  echo "Vcs-Browser: https://github.com/paritytech/parity" >> $control
-  echo "Architecture: $ARC" >> $control
-  echo "Depends: $LIBSSL" >> $control
-  echo "Description: Ethereum network client by Parity Technologies" >> $control
-  size=`du deb/|awk 'END {print $1}'`
-  echo "Installed-Size: $size" >> $control
-  echo "build .deb package"
-  cp target/$PLATFORM/release/parity deb/usr/bin/parity
-  cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
-  cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
-  cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
-  cp target/$PLATFORM/release/whisper deb/usr/bin/whisper
-  dpkg-deb -b deb "parity_"$VER"_"$IDENT"_"$ARC".deb"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".deb" > "parity_"$VER"_"$IDENT"_"$ARC".deb.sha256"
-}
-make_rpm () {
-  rm -rf /install
-  mkdir -p /install/usr/bin
-  cp target/$PLATFORM/release/parity /install/usr/bin
-  cp target/$PLATFORM/release/parity-evm /install/usr/bin/parity-evm
-  cp target/$PLATFORM/release/ethstore /install/usr/bin/ethstore
-  cp target/$PLATFORM/release/ethkey /install/usr/bin/ethkey
-  cp target/$PLATFORM/release/whisper /install/usr/bin/whisper
-
-  rm -rf "parity-"$VER"-1."$ARC".rpm" || true
-  fpm -s dir -t rpm -n parity -v $VER --epoch 1 --license GPLv3 -d openssl --provides parity --url https://parity.io --vendor "Parity Technologies" -a x86_64 -m "<devops@parity.io>" --description "Ethereum network client by Parity Technologies" -C /install/
-  cp "parity-"$VER"-1."$ARC".rpm" "parity_"$VER"_"$IDENT"_"$ARC".rpm"
-  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".rpm" > "parity_"$VER"_"$IDENT"_"$ARC".rpm.sha256"
-}
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
 }
@@ -144,7 +93,7 @@ push_binaries () {
   echo "Push binaries to AWS S3"
   aws configure set aws_access_key_id $s3_key
   aws configure set aws_secret_access_key $s3_secret
-  if [[ "$CI_BUILD_REF_NAME" = "master" || "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "nightly" ]];
+  if [[ "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "nightly" ]];
   then
     export S3_BUCKET=builds-parity-published;
   else
@@ -162,6 +111,7 @@ push_binaries () {
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN --body target/$PLATFORM/release/whisper$S3WIN
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.sha256 --body whisper$S3WIN.sha256
 }
+
 make_archive () {
   echo "add artifacts to archive"
   rm -rf parity.zip
@@ -183,78 +133,46 @@ case $BUILD_PLATFORM in
     #set strip bin
     STRIP_BIN="strip"
     #package extention
-    EXT="deb"
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     updater_push_release
     ;;
-  x86_64-unknown-debian-gnu)
-    STRIP_BIN="strip"
-    EXT="deb"
-    LIBSSL="libssl1.1 (>=1.1.0)"
-    echo "Use libssl1.1 (>=1.1.0) for Debian builds"
-    build
-    strip_binaries
-    calculate_checksums
-    make_deb
-    make_archive
-    push_binaries
-    ;;
-  x86_64-unknown-centos-gnu)
-    STRIP_BIN="strip"
-    EXT="rpm"
-    build
-    strip_binaries
-    calculate_checksums
-    make_rpm
-    make_archive
-    push_binaries
-    ;;
   i686-unknown-linux-gnu)
     STRIP_BIN="strip"
-    EXT="deb"
     set_env
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
   armv7-unknown-linux-gnueabihf)
     STRIP_BIN="arm-linux-gnueabihf-strip"
-    EXT="deb"
     set_env
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
   arm-unknown-linux-gnueabihf)
     STRIP_BIN="arm-linux-gnueabihf-strip"
-    EXT="deb"
     set_env
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
   aarch64-unknown-linux-gnu)
     STRIP_BIN="aarch64-linux-gnu-strip"
-    EXT="deb"
     set_env
     build
     strip_binaries
     calculate_checksums
-    make_deb
     make_archive
     push_binaries
     ;;
