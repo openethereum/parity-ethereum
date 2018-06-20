@@ -27,7 +27,7 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let mut result = vec![];
 
 	for (name, test) in tests.into_iter() {
-		let mut memdb = MemoryDB<KeccakHasher>::new();
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = H256::default();
 		let mut t = factory.create(&mut memdb, &mut root);
 
