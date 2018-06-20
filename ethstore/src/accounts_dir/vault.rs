@@ -21,7 +21,7 @@ use {json, SafeAccount, Error};
 use crypto::Keccak256;
 use super::super::account::Crypto;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
-use super::disk::{DiskDirectory, KeyFileManager};
+use super::disk::{self, DiskDirectory, KeyFileManager};
 
 /// Name of vault metadata file
 pub const VAULT_FILE_NAME: &'static str = "vault.json";
@@ -237,14 +237,13 @@ fn create_vault_file<P>(vault_dir_path: P, key: &VaultKey, meta: &str) -> Result
 	let password_hash = key.password.keccak256();
 	let crypto = Crypto::with_plain(&password_hash, &key.password, key.iterations)?;
 
-	let mut vault_file_path: PathBuf = vault_dir_path.as_ref().into();
-	vault_file_path.push(VAULT_FILE_NAME);
-	let mut temp_vault_file_path: PathBuf = vault_dir_path.as_ref().into();
-	temp_vault_file_path.push(VAULT_TEMP_FILE_NAME);
+	let vault_file_path = vault_dir_path.as_ref().join(VAULT_FILE_NAME);
+	let temp_vault_file_name = disk::find_unique_filename_using_random_suffix(vault_dir_path.as_ref(), &VAULT_TEMP_FILE_NAME)?;
+	let temp_vault_file_path = vault_dir_path.as_ref().join(&temp_vault_file_name);
 
 	// this method is used to rewrite existing vault file
 	// => write to temporary file first, then rename temporary file to vault file
-	let mut vault_file = fs::File::create(&temp_vault_file_path)?;
+	let mut vault_file = disk::create_new_file_with_permissions_to_owner(&temp_vault_file_path)?;
 	let vault_file_contents = json::VaultFile {
 		crypto: crypto.into(),
 		meta: Some(meta.to_owned()),
