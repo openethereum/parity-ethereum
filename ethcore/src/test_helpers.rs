@@ -16,13 +16,16 @@
 
 //! Set of different helpers for client tests
 
+use std::path::Path;
+use std::fs;
 use account_provider::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
-use blockchain::{BlockChain, Config as BlockChainConfig, ExtrasInsert};
+use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockChainConfig, ExtrasInsert};
 use bytes::Bytes;
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethkey::KeyPair;
+use error::Error;
 use evm::Factory as EvmFactory;
 use factory::Factories;
 use hash::keccak;
@@ -37,6 +40,10 @@ use state::*;
 use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
+use blooms_db;
+use kvdb::KeyValueDB;
+use kvdb_rocksdb;
+use tempdir::TempDir;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -255,8 +262,89 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	client
 }
 
-fn new_db() -> Arc<::kvdb::KeyValueDB> {
-	Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
+/// Creates new test instance of `BlockChainDB`
+pub fn new_db() -> Arc<BlockChainDB> {
+	struct TestBlockChainDB {
+		_blooms_dir: TempDir,
+		_trace_blooms_dir: TempDir,
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for TestBlockChainDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &blooms_db::Database {
+			&self.blooms
+		}
+
+		fn trace_blooms(&self) -> &blooms_db::Database {
+			&self.trace_blooms
+		}
+	}
+
+	let blooms_dir = TempDir::new("").unwrap();
+	let trace_blooms_dir = TempDir::new("").unwrap();
+
+	let db = TestBlockChainDB {
+		blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
+		trace_blooms: blooms_db::Database::open(trace_blooms_dir.path()).unwrap(),
+		_blooms_dir: blooms_dir,
+		_trace_blooms_dir: trace_blooms_dir,
+		key_value: Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap()))
+	};
+
+	Arc::new(db)
+}
+
+/// Creates new instance of KeyValueDBHandler
+pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<BlockChainDBHandler> {
+	struct RestorationDBHandler {
+		config: kvdb_rocksdb::DatabaseConfig,
+	}
+
+	struct RestorationDB {
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for RestorationDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &blooms_db::Database {
+			&self.blooms
+		}
+
+		fn trace_blooms(&self) -> &blooms_db::Database {
+			&self.trace_blooms
+		}
+	}
+
+	impl BlockChainDBHandler for RestorationDBHandler {
+		fn open(&self, db_path: &Path) -> Result<Arc<BlockChainDB>, Error> {
+			let key_value = Arc::new(kvdb_rocksdb::Database::open(&self.config, &db_path.to_string_lossy())?);
+			let blooms_path = db_path.join("blooms");
+			let trace_blooms_path = db_path.join("trace_blooms");
+			fs::create_dir(&blooms_path)?;
+			fs::create_dir(&trace_blooms_path)?;
+			let blooms = blooms_db::Database::open(blooms_path).unwrap();
+			let trace_blooms = blooms_db::Database::open(trace_blooms_path).unwrap();
+			let db = RestorationDB {
+				blooms,
+				trace_blooms,
+				key_value,
+			};
+			Ok(Arc::new(db))
+		}
+	}
+
+	Box::new(RestorationDBHandler { config })
 }
 
 /// Generates dummy blockchain with corresponding amount of blocks
@@ -264,7 +352,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
-	let mut batch = db.transaction();
+	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], ExtrasInsert {
@@ -274,7 +362,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 		});
 		bc.commit();
 	}
-	db.write(batch).unwrap();
+	db.key_value().write(batch).unwrap();
 	bc
 }
 
@@ -283,7 +371,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
-	let mut batch = db.transaction();
+	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], ExtrasInsert {
@@ -293,7 +381,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 		});
 		bc.commit();
 	}
-	db.write(batch).unwrap();
+	db.key_value().write(batch).unwrap();
 	bc
 }
 
@@ -321,7 +409,7 @@ pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::Sta
 /// Returns temp state db
 pub fn get_temp_state_db() -> StateDB {
 	let db = new_db();
-	let journal_db = ::journaldb::new(db, ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
+	let journal_db = ::journaldb::new(db.key_value().clone(), ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
