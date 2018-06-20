@@ -356,6 +356,7 @@ impl Configuration {
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
 				gas_price_percentile: self.args.arg_gas_price_percentile,
+				poll_lifetime: self.args.arg_poll_lifetime,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
@@ -549,6 +550,7 @@ impl Configuration {
 
 			tx_queue_penalization: to_queue_penalization(self.args.arg_tx_time_limit)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
+			tx_queue_no_unfamiliar_locals: self.args.flag_tx_queue_no_unfamiliar_locals,
 			refuse_service_transactions: self.args.flag_refuse_service_transactions,
 
 			pool_limits: self.pool_limits()?,
@@ -604,8 +606,8 @@ impl Configuration {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
 			http_enabled: self.secretstore_http_enabled(),
-			acl_check_enabled: self.secretstore_acl_check_enabled(),
 			auto_migrate_enabled: self.secretstore_auto_migrate_enabled(),
+			acl_check_contract_address: self.secretstore_acl_check_contract_address()?,
 			service_contract_address: self.secretstore_service_contract_address()?,
 			service_contract_srv_gen_address: self.secretstore_service_contract_srv_gen_address()?,
 			service_contract_srv_retr_address: self.secretstore_service_contract_srv_retr_address()?,
@@ -613,6 +615,7 @@ impl Configuration {
 			service_contract_doc_sretr_address: self.secretstore_service_contract_doc_sretr_address()?,
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
+			key_server_set_contract_address: self.secretstore_key_server_set_contract_address()?,
 			interface: self.secretstore_interface(),
 			port: self.args.arg_ports_shift + self.args.arg_secretstore_port,
 			http_interface: self.secretstore_http_interface(),
@@ -753,7 +756,15 @@ impl Configuration {
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = self.init_reserved_nodes()?;
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
-		ret.client_version = version();
+		ret.client_version = {
+			let mut client_version = version();
+			if !self.args.arg_identity.is_empty() {
+				// Insert name after the "Parity/" at the beginning of version string.
+				let idx = client_version.find('/').unwrap_or(client_version.len());
+				client_version.insert_str(idx, &format!("/{}", self.args.arg_identity));
+			}
+			client_version
+		};
 		Ok(ret)
 	}
 
@@ -1099,12 +1110,12 @@ impl Configuration {
 		!self.args.flag_no_secretstore_http && cfg!(feature = "secretstore")
 	}
 
-	fn secretstore_acl_check_enabled(&self) -> bool {
-		!self.args.flag_no_secretstore_acl_check
-	}
-
 	fn secretstore_auto_migrate_enabled(&self) -> bool {
 		!self.args.flag_no_secretstore_auto_migrate
+	}
+
+	fn secretstore_acl_check_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		into_secretstore_service_contract_address(self.args.arg_secretstore_acl_contract.as_ref())
 	}
 
 	fn secretstore_service_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
@@ -1127,6 +1138,10 @@ impl Configuration {
 		into_secretstore_service_contract_address(self.args.arg_secretstore_doc_sretr_contract.as_ref())
 	}
 
+	fn secretstore_key_server_set_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		into_secretstore_service_contract_address(self.args.arg_secretstore_server_set_contract.as_ref())
+	}
+
 	fn verifier_settings(&self) -> VerifierSettings {
 		let mut settings = VerifierSettings::default();
 		settings.scale_verifiers = self.args.flag_scale_verifiers;
@@ -1145,11 +1160,11 @@ impl Configuration {
 	}
 }
 
-fn into_secretstore_service_contract_address(s: &str) -> Result<Option<SecretStoreContractAddress>, String> {
-	match s {
-		"none" => Ok(None),
-		"registry" => Ok(Some(SecretStoreContractAddress::Registry)),
-		a => Ok(Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?))),
+fn into_secretstore_service_contract_address(s: Option<&String>) -> Result<Option<SecretStoreContractAddress>, String> {
+	match s.map(String::as_str) {
+		None | Some("none") => Ok(None),
+		Some("registry") => Ok(Some(SecretStoreContractAddress::Registry)),
+		Some(a) => Ok(Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?))),
 	}
 }
 
@@ -1393,6 +1408,7 @@ mod tests {
 			logger_config: Default::default(),
 			miner_options: Default::default(),
 			gas_price_percentile: 50,
+			poll_lifetime: 60,
 			ntp_servers: vec![
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),
@@ -1778,6 +1794,19 @@ mod tests {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 99);
 			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_identity_arg() {
+		let args = vec!["parity", "--identity", "Somebody"];
+		let conf = Configuration::parse_cli(&args).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.name, "Somebody");
+				assert!(c.net_conf.client_version.starts_with("Parity/Somebody/"));
+			}
 			_ => panic!("Should be Cmd::Run"),
 		}
 	}

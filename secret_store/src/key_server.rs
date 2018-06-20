@@ -303,6 +303,7 @@ pub mod tests {
 						address: "127.0.0.1".into(),
 						port: start_port + (j as u16),
 					})).collect(),
+				key_server_set_contract_address: None,
 				allow_connecting_to_higher_nodes: false,
 				admin_public: None,
 				auto_migrate_enabled: false,
@@ -312,7 +313,7 @@ pub mod tests {
 			.collect();
 		let key_storages = (0..num_nodes).map(|_| Arc::new(DummyKeyStorage::default())).collect::<Vec<_>>();
 		let key_servers: Vec<_> = configs.into_iter().enumerate().map(|(i, cfg)|
-			KeyServerImpl::new(&cfg, Arc::new(MapKeyServerSet::new(key_servers_set.clone())),
+			KeyServerImpl::new(&cfg, Arc::new(MapKeyServerSet::new(false, key_servers_set.clone())),
 				Arc::new(PlainNodeKeyPair::new(key_pairs[i].clone())),
 				Arc::new(DummyAclStorage::default()),
 				key_storages[i].clone()).unwrap()

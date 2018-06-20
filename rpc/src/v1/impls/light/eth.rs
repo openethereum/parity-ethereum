@@ -62,6 +62,7 @@ pub struct EthClient<T> {
 	accounts: Arc<AccountProvider>,
 	cache: Arc<Mutex<LightDataCache>>,
 	polls: Mutex<PollManager<PollFilter>>,
+	poll_lifetime: u32,
 	gas_price_percentile: usize,
 }
 
@@ -92,7 +93,8 @@ impl<T> Clone for EthClient<T> {
 			transaction_queue: self.transaction_queue.clone(),
 			accounts: self.accounts.clone(),
 			cache: self.cache.clone(),
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(self.poll_lifetime)),
+			poll_lifetime: self.poll_lifetime,
 			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
@@ -109,6 +111,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		accounts: Arc<AccountProvider>,
 		cache: Arc<Mutex<LightDataCache>>,
 		gas_price_percentile: usize,
+		poll_lifetime: u32
 	) -> Self {
 		EthClient {
 			sync,
@@ -117,7 +120,8 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 			transaction_queue,
 			accounts,
 			cache,
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(poll_lifetime)),
+			poll_lifetime,
 			gas_price_percentile,
 		}
 	}
@@ -529,8 +533,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 
-	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
-		self.client.block_hash(id).map(Into::into)
+	fn block_hash(&self, id: BlockId) -> Option<::ethereum_types::H256> {
+		self.client.block_hash(id)
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<::ethereum_types::H256> {
@@ -547,6 +551,10 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
 		&self.polls
+	}
+
+	fn removed_logs(&self, _block_hash: ::ethereum_types::H256, _filter: &EthcoreFilter) -> (Vec<Log>, u64) {
+		(Default::default(), 0)
 	}
 }
 

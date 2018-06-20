@@ -33,22 +33,43 @@ const IGNORED_FILES: &'static [&'static str] = &[
 	"vault.json",
 ];
 
-#[cfg(not(windows))]
-fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
-	use std::ffi;
-	use libc;
 
-	let cstr = ffi::CString::new(&*file_path.to_string_lossy())
-		.map_err(|_| -1)?;
-	match unsafe { libc::chmod(cstr.as_ptr(), libc::S_IWUSR | libc::S_IRUSR) } {
-		0 => Ok(()),
-		x => Err(x),
-	}
+#[cfg(unix)]
+fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	use libc;
+	use std::os::unix::fs::OpenOptionsExt;
+
+	fs::OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.mode((libc::S_IWUSR | libc::S_IRUSR) as u32)
+		.open(file_path)
 }
 
-#[cfg(windows)]
-fn restrict_permissions_to_owner(_file_path: &Path) -> Result<(), i32> {
-	Ok(())
+#[cfg(not(unix))]
+fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	fs::OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.open(file_path)
+}
+
+#[cfg(unix)]
+fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	use libc;
+	use std::os::unix::fs::PermissionsExt;
+
+	let file = fs::File::create(file_path)?;
+	let mut permissions = file.metadata()?.permissions();
+	permissions.set_mode((libc::S_IWUSR | libc::S_IRUSR) as u32);
+	file.set_permissions(permissions)?;
+
+	Ok(file)
+}
+
+#[cfg(not(unix))]
+fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	fs::File::create(file_path)
 }
 
 /// Root keys directory implementation
@@ -161,9 +182,22 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 		// check for duplicate filename and append random suffix
 		if dedup && keyfile_path.exists() {
-			let suffix = ::random::random_string(4);
-			filename.push_str(&format!("-{}", suffix));
-			keyfile_path.set_file_name(&filename);
+			const MAX_RETRIES: usize = 500;
+			let mut retries = 0;
+			let mut deduped_filename = filename.clone();
+
+			while keyfile_path.exists() {
+				if retries >= MAX_RETRIES {
+					return Err(Error::Custom(format!("Exceeded maximum retries when deduplicating account filename.")));
+				}
+
+				let suffix = ::random::random_string(4);
+				deduped_filename = format!("{}-{}", filename, suffix);
+				keyfile_path.set_file_name(&deduped_filename);
+				retries += 1;
+			}
+
+			filename = deduped_filename;
 		}
 
 		// update account filename
@@ -173,17 +207,16 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 		{
 			// save the file
-			let mut file = fs::File::create(&keyfile_path)?;
+			let mut file = if dedup {
+				create_new_file_with_permissions_to_owner(&keyfile_path)?
+			} else {
+				replace_file_with_permissions_to_owner(&keyfile_path)?
+			};
 
 			// write key content
 			self.key_manager.write(original_account, &mut file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
 			file.flush()?;
-
-			if let Err(_) = restrict_permissions_to_owner(keyfile_path.as_path()) {
-				return Err(Error::Io(io::Error::last_os_error()));
-			}
-
 			file.sync_all()?;
 		}
 

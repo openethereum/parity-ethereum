@@ -235,6 +235,7 @@ pub struct FullDependencies {
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub gas_price_percentile: usize,
+	pub poll_lifetime: u32,
 }
 
 impl FullDependencies {
@@ -288,12 +289,13 @@ impl FullDependencies {
 							allow_pending_receipt_query: !self.geth_compatibility,
 							send_block_number_in_get_work: !self.geth_compatibility,
 							gas_price_percentile: self.gas_price_percentile,
+							poll_lifetime: self.poll_lifetime
 						}
 					);
 					handler.extend_with(client.to_delegate());
 
 					if !for_generic_pubsub {
-						let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
+						let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone(), self.poll_lifetime);
 						handler.extend_with(filter_client.to_delegate());
 
 						add_signing_methods!(EthSigning, handler, self, nonces.clone());
@@ -304,7 +306,7 @@ impl FullDependencies {
 						let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
 						let h = client.handler();
 						self.miner.add_transactions_listener(Box::new(move |hashes| if let Some(h) = h.upgrade() {
-							h.new_transactions(hashes);
+							h.notify_new_transactions(hashes);
 						}));
 
 						if let Some(h) = client.handler().upgrade() {
@@ -447,6 +449,7 @@ pub struct LightDependencies<T> {
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub private_tx_service: Option<Arc<PrivateTransactionManager>>,
 	pub gas_price_percentile: usize,
+	pub poll_lifetime: u32,
 }
 
 impl<C: LightChainClient + 'static> LightDependencies<C> {
@@ -504,6 +507,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.secret_store.clone(),
 						self.cache.clone(),
 						self.gas_price_percentile,
+						self.poll_lifetime,
 					);
 					handler.extend_with(Eth::to_delegate(client.clone()));
 
@@ -525,7 +529,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					let h = client.handler();
 					self.transaction_queue.write().add_listener(Box::new(move |transactions| {
 						if let Some(h) = h.upgrade() {
-							h.new_transactions(transactions);
+							h.notify_new_transactions(transactions);
 						}
 					}));
 					handler.extend_with(EthPubSub::to_delegate(client));

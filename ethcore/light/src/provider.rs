@@ -54,6 +54,7 @@ pub trait Provider: Send + Sync {
 	/// results within must adhere to the `skip` and `reverse` parameters.
 	fn block_headers(&self, req: request::CompleteHeadersRequest) -> Option<request::HeadersResponse> {
 		use request::HashOrNumber;
+		const MAX_HEADERS_TO_SEND: u64 = 512;
 
 		if req.max == 0 { return None }
 
@@ -82,10 +83,12 @@ pub trait Provider: Send + Sync {
 			}
 		};
 
-		let headers: Vec<_> = (0u64..req.max as u64)
-			.map(|x: u64| x.saturating_mul(req.skip + 1))
+		let max = ::std::cmp::min(MAX_HEADERS_TO_SEND, req.max);
+
+		let headers: Vec<_> = (0u64..max)
+			.map(|x: u64| x.saturating_mul(req.skip.saturating_add(1)))
 			.take_while(|x| if req.reverse { x < &start_num } else { best_num.saturating_sub(start_num) >= *x })
-			.map(|x| if req.reverse { start_num - x } else { start_num + x })
+			.map(|x| if req.reverse { start_num.saturating_sub(x) } else { start_num.saturating_add(x) })
 			.map(|x| self.block_header(BlockId::Number(x)))
 			.take_while(|x| x.is_some())
 			.flat_map(|x| x)
@@ -125,7 +128,7 @@ pub trait Provider: Send + Sync {
 	fn header_proof(&self, req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse>;
 
 	/// Provide pending transactions.
-	fn ready_transactions(&self) -> Vec<PendingTransaction>;
+	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction>;
 
 	/// Provide a proof-of-execution for the given transaction proof request.
 	/// Returns a vector of all state items necessary to execute the transaction.
@@ -280,8 +283,8 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 			.map(|(_, proof)| ::request::ExecutionResponse { items: proof })
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		BlockChainClient::ready_transactions(self)
+	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
+		BlockChainClient::ready_transactions(self, max_len)
 			.into_iter()
 			.map(|tx| tx.pending().clone())
 			.collect()
@@ -367,9 +370,12 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 		None
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
 		let chain_info = self.chain_info();
-		self.txqueue.read().ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
+		let mut transactions = self.txqueue.read()
+			.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+		transactions.truncate(max_len);
+		transactions
 	}
 }
 

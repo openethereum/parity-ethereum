@@ -25,5 +25,6 @@ path = { path = "../util/path" }
 rand = "0.4"
 
 [dev-dependencies]
+ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
 matches = "0.1"

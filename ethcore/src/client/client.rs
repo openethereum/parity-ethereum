@@ -1047,7 +1047,8 @@ impl Client {
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at_beginning(&self, id: BlockId) -> Option<State<StateDB>> {
 		match self.block_number(id) {
-			None | Some(0) => None,
+			None => None,
+			Some(0) => self.state_at(id),
 			Some(n) => self.state_at(BlockId::Number(n - 1)),
 		}
 	}
@@ -1956,8 +1957,8 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.importer.miner.ready_transactions(self)
+	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+		self.importer.miner.ready_transactions(self, max_len, ::miner::PendingOrdering::Priority)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> {
@@ -2073,15 +2074,16 @@ impl IoClient for Client {
 				let first = queued.write().1.pop_front();
 				if let Some((header, block_bytes, receipts_bytes)) = first {
 					let hash = header.hash();
-					client.importer.import_old_block(
+					let result = client.importer.import_old_block(
 						&header,
 						&block_bytes,
 						&receipts_bytes,
 						&**client.db.read(),
-						&*client.chain.read()
-					).ok().map_or((), |e| {
+						&*client.chain.read(),
+					);
+					if let Err(e) = result {
 						error!(target: "client", "Error importing ancient block: {}", e);
-					});
+					}
 					// remove from pending
 					queued.write().0.remove(&hash);
 				} else {
@@ -2335,6 +2337,11 @@ fn transaction_receipt(machine: &::machine::EthereumMachine, mut tx: LocalizedTr
 	let transaction_index = tx.transaction_index;
 
 	LocalizedReceipt {
+		from: sender,
+		to: match tx.action {
+				Action::Create => None,
+				Action::Call(ref address) => Some(address.clone().into())
+		},
 		transaction_hash: transaction_hash,
 		transaction_index: transaction_index,
 		block_hash: block_hash,
@@ -2460,6 +2467,11 @@ mod tests {
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {
+			from: tx1.sender().into(),
+			to: match tx1.action {
+				Action::Create => None,
+				Action::Call(ref address) => Some(address.clone().into())
+			},
 			transaction_hash: tx1.hash(),
 			transaction_index: 1,
 			block_hash: block_hash,

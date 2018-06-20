@@ -27,7 +27,7 @@ use ethcore::engines::EthEngine;
 use ethcore::error::Error;
 use ethcore::header::{BlockNumber, Header};
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerService, AuthoringParams};
+use ethcore::miner::{self, MinerService, AuthoringParams};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
@@ -155,7 +155,14 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction)
+	fn import_own_transaction<C: Nonce + Sync>(&self, _chain: &C, _pending: PendingTransaction)
+		-> Result<(), transaction::Error> {
+		// this function is no longer called directly from RPC
+		unimplemented!();
+	}
+
+	/// Imports transactions to queue - treats as local based on trusted flag, config, and tx source
+	fn import_claimed_local_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction, _trusted: bool)
 		-> Result<(), transaction::Error> {
 
 		// keep the pending nonces up to date
@@ -208,7 +215,7 @@ impl MinerService for TestMinerService {
 		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
 	}
 
-	fn ready_transactions<C>(&self, _chain: &C) -> Vec<Arc<VerifiedTransaction>> {
+	fn ready_transactions<C>(&self, _chain: &C, _max_len: usize, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
 		self.queued_transactions()
 	}
 
