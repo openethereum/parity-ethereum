@@ -16,7 +16,7 @@
 
 //! Façade crate for `patricia_trie` for Ethereum specific impls
 
-pub extern crate patricia_trie as trie;
+pub extern crate patricia_trie as trie; // `pub` because we need to import this crate for the tests in `patricia_trie` and there were issues: https://gist.github.com/dvdplm/869251ee557a1b4bd53adc7c971979aa
 extern crate ethcore_bytes;
 extern crate hashdb;
 extern crate keccak_hasher;
@@ -28,15 +28,14 @@ use ethcore_bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::Hasher;
 use keccak_hasher::KeccakHasher;
-use rlp::{Decodable, RlpStream, DecoderError, Rlp, Prototype};
+use rlp::{DecoderError, Decodable, RlpStream, Rlp, Prototype};
 use std::marker::PhantomData;
 use stream_encoder::Stream;
-use trie::node::Node; // TODO: re-export from root?
-pub use trie::{Lookup, NibbleSlice, node_codec::NodeCodec};
+use trie::{NibbleSlice, NodeCodec, node::Node};
 
-pub type KeccakTrieResult<T> = trie::Result<T, <KeccakHasher as Hasher>::Out>;
 pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
-pub type TrieError = trie::TrieError<H256>;
+pub type TrieError = trie::TrieError<H256, DecoderError>;
+pub type Result<T> = trie::Result<T, H256, DecoderError>;
 
 #[derive(Default, Clone)]
 pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
@@ -78,7 +77,7 @@ where H::Out: Decodable
 			}
 		}
 	}
-	fn decode(data: &[u8]) -> Result<Node, Self::E> {
+	fn decode(data: &[u8]) -> ::std::result::Result<Node, Self::E> {
 		let r = Rlp::new(data);
 		match r.prototype()? {
 			// either leaf or extension - decode first item with NibbleSlice::???
