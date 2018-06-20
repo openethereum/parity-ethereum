@@ -27,7 +27,7 @@ use std::sync::Arc;
 use state::Account;
 use parking_lot::Mutex;
 use ethereum_types::{Address, H256};
-use memorydb::KeccakMemoryDB;
+use memorydb::MemoryDB;
 use hashdb::{AsHashDB, HashDB, DBValue};
 use keccak_hasher::KeccakHasher;
 
@@ -76,12 +76,12 @@ pub trait Backend: Send {
 // TODO: when account lookup moved into backends, this won't rely as tenuously on intended
 // usage.
 #[derive(Clone, PartialEq)]
-pub struct ProofCheck(KeccakMemoryDB);
+pub struct ProofCheck(MemoryDB<KeccakHasher>);
 
 impl ProofCheck {
 	/// Create a new `ProofCheck` backend from the given state items.
 	pub fn new(proof: &[DBValue]) -> Self {
-		let mut db = KeccakMemoryDB::new();
+		let mut db = MemoryDB::<KeccakHasher>::new();
 		for item in proof { db.insert(item); }
 		ProofCheck(db)
 	}
@@ -136,7 +136,7 @@ impl Backend for ProofCheck {
 /// This doesn't cache anything or rely on the canonical state caches.
 pub struct Proving<H: AsHashDB<KeccakHasher>> {
 	base: H, // state we're proving values from.
-	changed: KeccakMemoryDB, // changed state via insertions.
+	changed: MemoryDB<KeccakHasher>, // changed state via insertions.
 	proof: Mutex<HashSet<DBValue>>,
 }
 
@@ -183,13 +183,9 @@ impl<H: AsHashDB<KeccakHasher> + Send + Sync> HashDB<KeccakHasher> for Proving<H
 }
 
 impl<H: AsHashDB<KeccakHasher> + Send + Sync> Backend for Proving<H> {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher> {
-		self
-	}
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
-		self
-	}
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
 
 	fn add_to_account_cache(&mut self, _: Address, _: Option<Account>, _: bool) { }
 
@@ -214,7 +210,7 @@ impl<H: AsHashDB<KeccakHasher>> Proving<H> {
 	pub fn new(base: H) -> Self {
 		Proving {
 			base: base,
-			changed: KeccakMemoryDB::new(),
+			changed: MemoryDB::<KeccakHasher>::new(),
 			proof: Mutex::new(HashSet::new()),
 		}
 	}

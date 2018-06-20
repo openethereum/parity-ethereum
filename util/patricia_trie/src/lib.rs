@@ -100,7 +100,6 @@ impl<T, E> error::Error for TrieError<T, E> where T: std::fmt::Debug, E: std::er
 		match *self {
 			TrieError::InvalidStateRoot(_) => "Invalid state root",
 			TrieError::IncompleteDatabase(_) => "Incomplete database",
-			// TrieError::DecoderError(_, ref err_string) => err_string,
 			TrieError::DecoderError(_, ref err) => err.description(),
 		}
 	}

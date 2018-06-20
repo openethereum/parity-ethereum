@@ -18,8 +18,8 @@ use ethjson;
 use trie::{TrieFactory, TrieSpec};
 use ethtrie::RlpCodec;
 use ethereum_types::H256;
-use memorydb::KeccakMemoryDB;
-
+use memorydb::MemoryDB;
+use keccak_hasher::KeccakHasher;
 
 fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();
@@ -27,7 +27,7 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let mut result = vec![];
 
 	for (name, test) in tests.into_iter() {
-		let mut memdb = KeccakMemoryDB::new();
+		let mut memdb = MemoryDB<KeccakHasher>::new();
 		let mut root = H256::default();
 		let mut t = factory.create(&mut memdb, &mut root);
 

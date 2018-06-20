@@ -18,14 +18,13 @@
 extern crate elastic_array;
 extern crate hashdb;
 extern crate heapsize;
-extern crate keccak_hasher;
 extern crate plain_hasher;
 extern crate rlp;
+#[cfg(test)] extern crate keccak_hasher;
 #[cfg(test)] extern crate tiny_keccak;
 #[cfg(test)] extern crate ethereum_types;
 
 use hashdb::{HashDB, Hasher, DBValue, AsHashDB};
-use keccak_hasher::KeccakHasher;
 use heapsize::HeapSizeOf;
 use plain_hasher::H256FastMap;
 use rlp::NULL_RLP;
@@ -84,9 +83,6 @@ use std::mem;
 pub struct MemoryDB<H: Hasher> {
 	data: H256FastMap<H, (DBValue, i32)>,
 }
-
-/// Convenience type for crates that need a `MemoryDB` with Keccak hashes
-pub type KeccakMemoryDB = MemoryDB<KeccakHasher>;
 
 impl<H: Hasher> MemoryDB<H> {
 	/// Create a new instance of the memory DB.
