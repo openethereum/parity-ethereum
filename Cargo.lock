@@ -3688,6 +3688,7 @@ dependencies = [
  "keccak-hash 0.1.2",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.2.0",
+ "patricia-trie-ethereum 0.1.0",
  "rlp 0.2.1",
  "stream-encoder 0.1.0",
 ]
