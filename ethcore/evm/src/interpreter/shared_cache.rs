@@ -75,8 +75,8 @@ impl SharedCache {
 			if let Some(instruction) = instruction {
 				if instruction == instructions::JUMPDEST {
 					jump_dests.insert(position);
-				} else if instruction.is_push() {
-					position += instruction.push_bytes().expect("push_bytes always return some when is_push is true; qed");
+				} else if let Some(push_bytes) = instruction.push_bytes() {
+					position += push_bytes;
 				}
 			}
 			position += 1;
