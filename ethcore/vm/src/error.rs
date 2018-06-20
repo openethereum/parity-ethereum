@@ -16,8 +16,8 @@
 
 //! VM errors module
 
-use trie;
 use std::fmt;
+use ethtrie;
 
 /// VM errors.
 #[derive(Debug, Clone, PartialEq)]
@@ -71,9 +71,13 @@ pub enum Error {
 	Reverted,
 }
 
-
-impl<T> From<Box<trie::TrieError<T>>> for Error where T: fmt::Debug {
-	fn from(err: Box<trie::TrieError<T>>) -> Self {
+impl From<Box<ethtrie::TrieError>> for Error {
+	fn from(err: Box<ethtrie::TrieError>) -> Self {
+		Error::Internal(format!("Internal error: {}", err))
+	}
+}
+impl From<ethtrie::TrieError> for Error {
+	fn from(err: ethtrie::TrieError) -> Self {
 		Error::Internal(format!("Internal error: {}", err))
 	}
 }

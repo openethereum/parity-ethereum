@@ -8,6 +8,7 @@ byteorder = "1.0"
 ethcore-bytes = { path = "../../util/bytes" }
 ethereum-types = "0.3"
 patricia-trie = { path = "../../util/patricia_trie" }
+patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 log = "0.3"
 common-types = { path = "../types" }
 ethjson = { path = "../../json" }

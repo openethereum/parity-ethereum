@@ -80,7 +80,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		address: Address,
 		tracer: &'a mut T,
 		vm_tracer: &'a mut V,
-	) -> ethtrie::KeccakTrieResult<Self> {
+	) -> ethtrie::TrieResult<Self> {
 		let static_call = false;
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,

@@ -69,7 +69,7 @@ impl<DB: HashDB<KeccakHasher>> CHT<DB> {
 	/// Generate an inclusion proof for the entry at a specific block.
 	/// Nodes before level `from_level` will be omitted.
 	/// Returns an error on an incomplete trie, and `Ok(None)` on an unprovable request.
-	pub fn prove(&self, num: u64, from_level: u32) -> ethtrie::KeccakTrieResult<Option<Vec<Bytes>>> {
+	pub fn prove(&self, num: u64, from_level: u32) -> ethtrie::Result<Option<Vec<Bytes>>> {
 		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
 
 		let mut recorder = Recorder::with_depth(from_level);

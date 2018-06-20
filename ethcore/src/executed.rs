@@ -18,7 +18,7 @@
 
 use ethereum_types::{U256, U512, Address};
 use bytes::Bytes;
-use trie;
+use ethtrie;
 use vm;
 use trace::{VMTrace, FlatTrace};
 use log_entry::LogEntry;
@@ -117,11 +117,21 @@ pub enum ExecutionError {
 	TransactionMalformed(String),
 }
 
-impl<T> From<Box<trie::TrieError<T>>> for ExecutionError where T: fmt::Debug {
-	fn from(err: Box<trie::TrieError<T>>) -> Self {
+impl From<Box<ethtrie::TrieError>> for ExecutionError {
+	fn from(err: Box<ethtrie::TrieError>) -> Self {
 		ExecutionError::Internal(format!("{:?}", err))
 	}
 }
+impl From<ethtrie::TrieError> for ExecutionError {
+	fn from(err: ethtrie::TrieError) -> Self {
+		ExecutionError::Internal(format!("{:?}", err))
+	}
+}
+// impl<T> From<Box<trie::TrieError<T>>> for ExecutionError where T: fmt::Debug {
+// 	fn from(err: Box<trie::TrieError<T>>) -> Self {
+// 		ExecutionError::Internal(format!("{:?}", err))
+// 	}
+// }
 
 impl fmt::Display for ExecutionError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -48,9 +48,8 @@ use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::Bytes;
 
-use trie::{Trie, TrieError, TrieDB};
-use ethtrie::{RlpCodec, KeccakTrieResult as TrieResult};
-use trie::recorder::Recorder;
+use trie::{Trie, TrieDB, TrieError, Recorder};
+use ethtrie::{RlpCodec, Result as TrieResult};
 
 mod account;
 mod substate;
@@ -380,7 +379,7 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: B, root: H256, account_start_nonce: U256, factories: Factories) -> Result<State<B>, TrieError<H256>> {
+	pub fn from_existing(db: B, root: H256, account_start_nonce: U256, factories: Factories) -> TrieResult<State<B>> {
 		if !db.as_hashdb().contains(&root) {
 			return Err(TrieError::InvalidStateRoot(root));
 		}

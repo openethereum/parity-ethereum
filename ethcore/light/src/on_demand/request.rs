@@ -34,8 +34,7 @@ use rlp::{RlpStream, Rlp};
 use stream_encoder::Stream;
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
-use hashdb::{HashDB, Hasher};
-use keccak_hasher::KeccakHasher;
+use hashdb::HashDB;
 use kvdb::DBValue;
 use bytes::Bytes;
 use memorydb::MemoryDB;
@@ -653,11 +652,16 @@ impl From<::rlp::DecoderError> for Error {
 	}
 }
 
-impl From<Box<TrieError>> for Error {
-	fn from(err: Box<TrieError>) -> Self {
-		Error::Trie(*err)
+impl From<TrieError> for Error {
+	fn from(err: TrieError) -> Self {
+		Error::Trie(err)
 	}
 }
+// impl From<Box<TrieError>> for Error {
+// 	fn from(err: Box<TrieError>) -> Self {
+// 		Error::Trie(*err)
+// 	}
+// }
 
 /// Request for header proof by number
 #[derive(Debug, Clone, PartialEq, Eq)]
