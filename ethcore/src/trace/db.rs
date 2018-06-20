@@ -56,6 +56,7 @@ impl Key<FlatBlockTraces> for H256 {
 pub struct TraceDB<T> where T: DatabaseExtras {
 	/// cache
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
+	/// hashes of cached traces
 	cache_manager: RwLock<CacheManager<H256>>,
 	/// db
 	db: Arc<BlockChainDB>,
@@ -209,8 +210,9 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				})
 				.collect();
 
-			// TODO: replace it with database for trace blooms
-			self.db.trace_blooms().insert_blooms(range_start, enacted_blooms.iter()).expect("TODO: blooms pr");
+			self.db.trace_blooms()
+				.insert_blooms(range_start, enacted_blooms.iter())
+				.expect("Low level database error. Some issue with disk?");
 		}
 
 		// insert new block traces into the cache and the database
@@ -310,7 +312,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace> {
 		let possibilities = filter.bloom_possibilities();
 		let numbers = self.db.trace_blooms()
-			.filter(filter.range.start as u64, filter.range.end as u64, &possibilities).expect("TODO: blooms pr");
+			.filter(filter.range.start as u64, filter.range.end as u64, &possibilities)
+			.expect("Low level database error. Some issue with disk?");
 
 		numbers.into_iter()
 			.flat_map(|n| {

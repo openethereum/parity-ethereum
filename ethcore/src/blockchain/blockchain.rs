@@ -170,7 +170,11 @@ pub trait BlockProvider {
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom<'a, B, I, II>(&self, blooms: II, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>
-	where BloomRef<'a>: From<B>, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B>, Self: Sized;
+	where
+		BloomRef<'a>: From<B>,
+		II: IntoIterator<Item = B, IntoIter = I> + Copy,
+		I: Iterator<Item = B>,
+		Self: Sized;
 
 	/// Returns logs matching given filter.
 	fn logs<F>(&self, blocks: Vec<H256>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
@@ -336,7 +340,10 @@ impl BlockProvider for BlockChain {
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom<'a, B, I, II>(&self, blooms: II, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>
-	where BloomRef<'a>: From<B>, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B> {
+	where
+		BloomRef<'a>: From<B>,
+		II: IntoIterator<Item = B, IntoIter = I> + Copy,
+		I: Iterator<Item = B> {
 		self.db.blooms()
 			.filter(from_block, to_block, blooms)
 			.expect("Low level database error. Some issue with disk?")

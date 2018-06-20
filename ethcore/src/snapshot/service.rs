@@ -621,7 +621,6 @@ impl Service {
 
 							match is_done {
 								true => {
-									// TODO: flush also blooms?
 									db.key_value().flush().map_err(UtilError::from)?;
 									drop(db);
 									return self.finalize_restoration(&mut *restoration);
