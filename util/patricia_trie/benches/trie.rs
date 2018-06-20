@@ -21,6 +21,7 @@ extern crate ethcore_bytes;
 extern crate ethereum_types;
 extern crate memorydb;
 extern crate patricia_trie as trie;
+extern crate patricia_trie_ethereum as ethtrie;
 extern crate keccak_hasher;
 extern crate keccak_hash;
 extern crate trie_standardmap;
@@ -35,9 +36,7 @@ use trie::{TrieDBMut, TrieDB, TrieMut, Trie};
 use trie_standardmap::{Alphabet, ValueMode, StandardMap};
 use hashdb::Hasher;
 use keccak_hasher::KeccakHasher;
-use trie::node_codec::RlpNodeCodec;
-
-type RlpCodec = RlpNodeCodec<KeccakHasher>;
+use ethtrie::RlpCodec;
 
 fn random_word(alphabet: &[u8], min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {
 	assert!(min_count + diff_count <= 32);
