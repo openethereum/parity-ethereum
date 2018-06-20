@@ -426,3 +426,13 @@ fn test_rlp_stream_unbounded_list() {
 	assert!(stream.is_finished());
 }
 
+#[test]
+fn test_rlp_stream_append_bytes() {
+	let mut stream = RlpStream::new();
+	stream.begin_unbounded_list();
+	stream.append_bytes(&[0x0, 0x1, 0x2]);
+	stream.append_bytes(&[0x8D]);
+	stream.complete_unbounded_list();
+	let out = stream.out();
+	assert_eq!(out, vec![0xC6, 0x83, 0x0, 0x1, 0x2, 0x81, 0x8D]);
+}
