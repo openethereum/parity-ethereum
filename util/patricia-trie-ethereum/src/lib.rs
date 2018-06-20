@@ -113,7 +113,6 @@ where H::Out: Decodable
 	}
 
 	fn is_empty_node(data: &[u8]) -> bool {
-		// REVIEW: Could also be `Rlp::new(data).is_empty()` – better?
-		data.len() != 0 && (data[0] == 0xC0 || data[0] == 0x80)
+		Rlp::new(data).is_empty()
 	}
 }

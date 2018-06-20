@@ -1303,7 +1303,7 @@ mod tests {
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
-		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root); // REVIEW: `t` was immutable – how could this pass?
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
 		for &(ref key, ref value) in &x {
 			t.insert(key, value).unwrap();
 		}
@@ -1331,7 +1331,7 @@ mod tests {
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
-		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root); // REVIEW: `t` was immutable – how could this pass?
+		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
 		for &(ref key, ref value) in &x {
 			assert!(t.insert(key, value).unwrap().is_none());
 			assert_eq!(t.insert(key, value).unwrap(), Some(DBValue::from_slice(value)));
