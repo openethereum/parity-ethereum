@@ -1,3 +1,34 @@
+## Parity [v1.10.7](https://github.com/paritytech/parity/releases/tag/v1.10.7) (2018-06-20)
+
+Parity 1.10.7 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8919](https://github.com/paritytech/parity/pull/8919))
+  - Fixed AuthorityRound deadlock on shutdown, closes [#8088](https://github.com/paritytech/parity/issues/8088) ([#8803](https://github.com/paritytech/parity/pull/8803))
+  - CI: Fix docker tags ([#8822](https://github.com/paritytech/parity/pull/8822))
+    - Scripts: enable docker builds for beta and stable
+    - Scripts: docker latest should be beta not master
+    - Scripts: docker latest is master
+  - Fix concurrent access to signer queue ([#8854](https://github.com/paritytech/parity/pull/8854))
+    - Fix concurrent access to signer queue
+    - Put request back to the queue if confirmation failed
+    - Typo: fix docs and rename functions to be more specific
+    - Change trace info "Transaction" -> "Request"
+  - Add new ovh bootnodes and fix port for foundation bootnode 3.2 ([#8886](https://github.com/paritytech/parity/pull/8886))
+    - Add new ovh bootnodes and fix port for foundation bootnode 3.2
+    - Remove old bootnodes.
+    - Remove duplicate 1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082
+  - Block 0 is valid in queries ([#8891](https://github.com/paritytech/parity/pull/8891))
+  - Update jsonrpc libs, fixed ipc leak, closes [#8774](https://github.com/paritytech/parity/issues/8774) ([#8876](https://github.com/paritytech/parity/pull/8876))
+  - Add ETC Cooperative-run load balanced parity node ([#8892](https://github.com/paritytech/parity/pull/8892))
+  - Minor fix in chain supplier and light provider ([#8906](https://github.com/paritytech/parity/pull/8906))
+    - Fix chain supplier increment
+    - Fix light provider block_headers
+- Parity-version: stable release 1.10.7 ([#8855](https://github.com/paritytech/parity/pull/8855))
+  - Cherry-pick network-specific release flag ([#8821](https://github.com/paritytech/parity/pull/8821))
+  - Parity-version: bump stable to 1.10.7
+
 ## Parity [v1.10.6](https://github.com/paritytech/parity/releases/tag/v1.10.6) (2018-06-05)
 
 Parity 1.10.6 is a security-relevant release. Please upgrade your nodes as soon as possible.
