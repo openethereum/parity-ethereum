@@ -1,7 +1,8 @@
 [package]
 name = "blooms-db"
 version = "0.1.0"
-authors = ["debris <marek.kotewicz@gmail.com>"]
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.2"
