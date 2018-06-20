@@ -66,11 +66,11 @@ pub struct EthFilterClient<C, M> {
 
 impl<C, M> EthFilterClient<C, M> {
 	/// Creates new Eth filter client.
-	pub fn new(client: Arc<C>, miner: Arc<M>) -> Self {
+	pub fn new(client: Arc<C>, miner: Arc<M>, poll_lifetime: u32) -> Self {
 		EthFilterClient {
 			client: client,
 			miner: miner,
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(poll_lifetime)),
 		}
 	}
 }
