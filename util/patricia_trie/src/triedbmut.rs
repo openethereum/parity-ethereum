@@ -315,8 +315,9 @@ where
 }
 
 impl<'a, H, C> TrieDBMut<'a, H, C>
-where H: Hasher,
-		C: NodeCodec<H>
+where
+	H: Hasher,
+	C: NodeCodec<H>
 {
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Self {
@@ -336,9 +337,10 @@ where H: Hasher,
 
 	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
-	pub fn from_existing(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Result<Self, H::Out> {
+	pub fn from_existing(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Result<Self, H::Out, C::E> {
 		if !db.contains(root) {
-			return Err(Box::new(TrieError::InvalidStateRoot(*root)));
+			return Err(TrieError::InvalidStateRoot(*root));
+			// return Err(Box::new(TrieError::InvalidStateRoot(*root)));
 		}
 
 		let root_handle = NodeHandle::Hash(*root);
@@ -363,8 +365,9 @@ where H: Hasher,
 	}
 
 	// cache a node by hash
-	fn cache(&mut self, hash: H::Out) -> Result<StorageHandle, H::Out> {
-		let node_encoded = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
+	fn cache(&mut self, hash: H::Out) -> Result<StorageHandle, H::Out, C::E> {
+		let node_encoded = self.db.get(&hash).ok_or_else(|| TrieError::IncompleteDatabase(hash))?;
+		// let node_encoded = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
 		let node = Node::from_encoded::<C>(
 			&node_encoded,
 			&*self.db,
@@ -375,8 +378,8 @@ where H: Hasher,
 
 	// inspect a node, choosing either to replace, restore, or delete it.
 	// if restored or replaced, returns the new node along with a flag of whether it was changed.
-	fn inspect<F>(&mut self, stored: Stored<H>, inspector: F) -> Result<Option<(Stored<H>, bool)>, H::Out>
-	where F: FnOnce(&mut Self, Node<H>) -> Result<Action<H>, H::Out> {
+	fn inspect<F>(&mut self, stored: Stored<H>, inspector: F) -> Result<Option<(Stored<H>, bool)>, H::Out, C::E>
+	where F: FnOnce(&mut Self, Node<H>) -> Result<Action<H>, H::Out, C::E> {
 		Ok(match stored {
 			Stored::New(node) => match inspector(self, node)? {
 				Action::Restore(node) => Some((Stored::New(node), false)),
@@ -398,7 +401,7 @@ where H: Hasher,
 	}
 
 	// walk the trie, attempting to find the key's node.
-	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle<H>) -> Result<Option<DBValue>, H::Out>
+	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle<H>) -> Result<Option<DBValue>, H::Out, C::E>
 		where 'x: 'key
 	{
 		let mut handle = handle;
@@ -447,7 +450,7 @@ where H: Hasher,
 	}
 
 	/// insert a key, value pair into the trie, creating new nodes if necessary.
-	fn insert_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<(StorageHandle, bool), H::Out> {
+	fn insert_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<(StorageHandle, bool), H::Out, C::E> {
 		let h = match handle {
 			NodeHandle::InMemory(h) => h,
 			NodeHandle::Hash(h) => self.cache(h)?,
@@ -461,7 +464,7 @@ where H: Hasher,
 	}
 
 	/// the insertion inspector.
-	fn insert_inspector(&mut self, node: Node<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<InsertAction<H>, H::Out> {
+	fn insert_inspector(&mut self, node: Node<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<InsertAction<H>, H::Out, C::E> {
 		trace!(target: "trie", "augmented (partial: {:?}, value: {:?})", partial, value.pretty());
 
 		Ok(match node {
@@ -622,7 +625,7 @@ where H: Hasher,
 	}
 
 	/// Remove a node from the trie based on key.
-	fn remove_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Option<(StorageHandle, bool)>, H::Out> {
+	fn remove_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Option<(StorageHandle, bool)>, H::Out, C::E> {
 		let stored = match handle {
 			NodeHandle::InMemory(h) => self.storage.destroy(h),
 			NodeHandle::Hash(h) => {
@@ -637,7 +640,7 @@ where H: Hasher,
 	}
 
 	/// the removal inspector
-	fn remove_inspector(&mut self, node: Node<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Action<H>, H::Out> {
+	fn remove_inspector(&mut self, node: Node<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Action<H>, H::Out, C::E> {
 		Ok(match (node, partial.is_empty()) {
 			(Node::Empty, _) => Action::Delete,
 			(Node::Branch(c, None), true) => Action::Restore(Node::Branch(c, None)),
@@ -723,7 +726,7 @@ where H: Hasher,
 	/// _invalid state_ means:
 	/// - Branch node where there is only a single entry;
 	/// - Extension node followed by anything other than a Branch node.
-	fn fix(&mut self, node: Node<H>) -> Result<Node<H>, H::Out> {
+	fn fix(&mut self, node: Node<H>) -> Result<Node<H>, H::Out, C::E> {
 		match node {
 			Node::Branch(mut children, value) => {
 				// if only a single value, transmute to leaf/extension and feed through fixed.
@@ -892,20 +895,19 @@ where H: Hasher,
 	}
 }
 
-impl<'a, H, C> TrieMut for TrieDBMut<'a, H, C>
-where H: Hasher,
-		C: NodeCodec<H>
+impl<'a, H, C> TrieMut<H, C> for TrieDBMut<'a, H, C>
+where 
+	H: Hasher,
+	C: NodeCodec<H>
 {
-	type H = H;
-
-	fn root(&mut self) -> &<Self::H as Hasher>::Out {
+	fn root(&mut self) -> &H::Out {
 		self.commit();
 		self.root
 	}
 
 	fn is_empty(&self) -> bool {
 		match self.root_handle {
-			NodeHandle::Hash(h) => h == Self::H::HASHED_NULL_RLP,
+			NodeHandle::Hash(h) => h == H::HASHED_NULL_RLP,
 			NodeHandle::InMemory(ref h) => match self.storage[h] {
 				Node::Empty => true,
 				_ => false,
@@ -913,13 +915,13 @@ where H: Hasher,
 		}
 	}
 
-	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out>
+	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::E>
 		where 'x: 'key
 	{
 		self.lookup(NibbleSlice::new(key), &self.root_handle)
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, H::Out, C::E> {
 		if value.is_empty() { return self.remove(key) }
 
 		let mut old_val = None;
@@ -940,7 +942,7 @@ where H: Hasher,
 		Ok(old_val)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> {
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, H::Out, C::E> {
 		trace!(target: "trie", "remove: key={:?}", key.pretty());
 
 		let root_handle = self.root_handle();
@@ -954,8 +956,8 @@ where H: Hasher,
 			}
 			None => {
 				trace!(target: "trie", "remove: obliterated trie");
-				self.root_handle = NodeHandle::Hash(Self::H::HASHED_NULL_RLP);
-				*self.root = Self::H::HASHED_NULL_RLP;
+				self.root_handle = NodeHandle::Hash(H::HASHED_NULL_RLP);
+				*self.root = H::HASHED_NULL_RLP;
 			}
 		}
 
@@ -982,8 +984,8 @@ mod tests {
 	use rlp::{Decodable, Encodable};
 	use triehash::trie_root;
 	use standardmap::*;
-	use ethtrie::trie::{TrieMut, TrieDBMut};
-	use ethtrie::{NodeCodec, RlpCodec};
+	use ethtrie::trie::{TrieMut, TrieDBMut, NodeCodec};
+	use ethtrie::RlpCodec;
 
 	fn populate_trie<'db, H, C>(db: &'db mut HashDB<H>, root: &'db mut H::Out, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db, H, C>
 		where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>

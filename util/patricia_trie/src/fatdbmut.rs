@@ -45,7 +45,7 @@ where
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Self, H::Out> {
+	pub fn from_existing(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Self, H::Out, C::E> {
 		Ok(FatDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
@@ -60,41 +60,40 @@ where
 	}
 }
 
-impl<'db, H, C> TrieMut for FatDBMut<'db, H, C>
+impl<'db, H, C> TrieMut<H, C> for FatDBMut<'db, H, C>
 where 
 	H: Hasher, 
 	C: NodeCodec<H>
 {
-	type H = H;
-	fn root(&mut self) -> &<Self::H as Hasher>::Out { self.raw.root() }
+	fn root(&mut self) -> &H::Out { self.raw.root() }
 
 	fn is_empty(&self) -> bool { self.raw.is_empty() }
 
-	fn contains(&self, key: &[u8]) -> Result<bool, <Self::H as Hasher>::Out> {
-		self.raw.contains(Self::H::hash(key).as_ref())
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
+		self.raw.contains(H::hash(key).as_ref())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out>
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::E>
 		where 'a: 'key
 	{
-		self.raw.get(Self::H::hash(key).as_ref())
+		self.raw.get(H::hash(key).as_ref())
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> {
-		let hash = Self::H::hash(key);
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, H::Out, C::E> {
+		let hash = H::hash(key);
 		let out = self.raw.insert(hash.as_ref(), value)?;
 		let db = self.raw.db_mut();
 
 		// don't insert if it doesn't exist.
 		if out.is_none() {
-			let aux_hash = Self::H::hash(hash.as_ref());
+			let aux_hash = H::hash(hash.as_ref());
 			db.emplace(aux_hash, DBValue::from_slice(key));
 		}
 		Ok(out)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> {
-		let hash = Self::H::hash(key);
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, H::Out, C::E> {
+		let hash = H::hash(key);
 		let out = self.raw.remove(hash.as_ref())?;
 
 		// don't remove if it already exists.

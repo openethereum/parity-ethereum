@@ -77,9 +77,10 @@ where
 {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Returns an error if `root` does not exist
-	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out, C::E> {
 		if !db.contains(root) {
-			Err(Box::new(TrieError::InvalidStateRoot(*root)))
+			Err(TrieError::InvalidStateRoot(*root))
+			// Err(Box::new(TrieError::InvalidStateRoot(*root)))
 		} else {
 			Ok(TrieDB {db, root, hash_count: 0, codec_marker: PhantomData})
 		}
@@ -89,34 +90,35 @@ where
 	pub fn db(&'db self) -> &'db HashDB<H> { self.db }
 
 	/// Get the data of the root node.
-	fn root_data(&self) -> Result<DBValue, H::Out> {
+	fn root_data(&self) -> Result<DBValue, H::Out, C::E> {
 		self.db
 			.get(self.root)
-			.ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
+			.ok_or_else(|| TrieError::InvalidStateRoot(*self.root))
+			// .ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
 	}
 
 	/// Given some node-describing data `node`, return the actual node RLP.
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
-	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> Result<DBValue, H::Out> {
+	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> Result<DBValue, H::Out, C::E> {
 		match C::try_decode_hash(node) {
 			Some(key) => {
-				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
+				self.db.get(&key).ok_or_else(|| TrieError::IncompleteDatabase(key))
+				// self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
 			None => Ok(DBValue::from_slice(node))
 		}
 	}
 }
 
-impl<'db, H, C> Trie for TrieDB<'db, H, C>
+impl<'db, H, C> Trie<H, C> for TrieDB<'db, H, C>
 where
 	H: Hasher,
 	C: NodeCodec<H>
 {
-	type H = H;
-	fn root(&self) -> &<Self::H as Hasher>::Out { self.root }
+	fn root(&self) -> &H::Out { self.root }
 
-	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out>
+	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::E>
 		where 'a: 'key
 	{
 		Lookup {
@@ -127,7 +129,7 @@ where
 		}.look_up(NibbleSlice::new(key))
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item=TrieItem<<Self::H as Hasher>::Out>> + 'a>, H::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item=TrieItem<H::Out, C::E>> + 'a>, H::Out, C::E> {
 		TrieDBIterator::new(self).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
@@ -234,13 +236,13 @@ pub struct TrieDBIterator<'a, H: Hasher + 'a, C: NodeCodec<H> + 'a> {
 
 impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 	/// Create a new iterator.
-	pub fn new(db: &'a TrieDB<H, C>) -> Result<TrieDBIterator<'a, H, C>, H::Out> {
+	pub fn new(db: &'a TrieDB<H, C>) -> Result<TrieDBIterator<'a, H, C>, H::Out, C::E> {
 		let mut r = TrieDBIterator { db, trail: vec![], key_nibbles: Vec::new() };
 		db.root_data().and_then(|root| r.descend(&root))?;
 		Ok(r)
 	}
 
-	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> Result<(), H::Out> {
+	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> Result<(), H::Out, C::E> {
 		loop {
 			let (data, mid) = {
 				let node = C::decode(&node_data).expect("rlp read from db; qed");
@@ -304,7 +306,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 	}
 
 	/// Descend into a payload.
-	fn descend(&mut self, d: &[u8]) -> Result<(), H::Out> {
+	fn descend(&mut self, d: &[u8]) -> Result<(), H::Out, C::E> {
 		let node_data = &self.db.get_raw_or_lookup(d)?;
 		let node = C::decode(&node_data).expect("encoded node read from db; qed");
 		Ok(self.descend_into_node(node.into()))
@@ -336,9 +338,9 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 	}
 }
 
-impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H> for TrieDBIterator<'a, H, C> {
+impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H, C> for TrieDBIterator<'a, H, C> {
 	/// Position the iterator on the first element with key >= `key`
-	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out> {
+	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out, C::E> {
 		self.trail.clear();
 		self.key_nibbles.clear();
 		let root_rlp = self.db.root_data()?;
@@ -347,13 +349,13 @@ impl<'a, H: Hasher, C: NodeCodec<H>> TrieIterator<H> for TrieDBIterator<'a, H, C
 }
 
 impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
-	type Item = TrieItem<'a, H::Out>;
+	type Item = TrieItem<'a, H::Out, C::E>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		enum IterStep<O> {
+		enum IterStep<O, E> {
 			Continue,
 			PopTrail,
-			Descend(Result<DBValue, O>),
+			Descend(Result<DBValue, O, E>),
 		}
 		loop {
 			let iter_step = {
@@ -376,7 +378,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
 						return Some(Ok((self.key(), v.clone())));
 					},
 					(Status::At, &OwnedNode::Extension(_, ref d)) => {
-						IterStep::Descend::<H::Out>(self.db.get_raw_or_lookup(&*d))
+						IterStep::Descend::<H::Out, C::E>(self.db.get_raw_or_lookup(&*d))
 					},
 					(Status::At, &OwnedNode::Branch(_, _)) => IterStep::Continue,
 					(Status::AtChild(i), &OwnedNode::Branch(ref children, _)) if children[i].len() > 0 => {
@@ -385,7 +387,7 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
 							i => *self.key_nibbles.last_mut()
 								.expect("pushed as 0; moves sequentially; removed afterwards; qed") = i as u8,
 						}
-						IterStep::Descend::<H::Out>(self.db.get_raw_or_lookup(&*children[i]))
+						IterStep::Descend::<H::Out, C::E>(self.db.get_raw_or_lookup(&*children[i]))
 					},
 					(Status::AtChild(i), &OwnedNode::Branch(_, _)) => {
 						if i == 0 {
@@ -401,11 +403,11 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
 				IterStep::PopTrail => {
 					self.trail.pop();
 				},
-				IterStep::Descend::<H::Out>(Ok(d)) => {
+				IterStep::Descend::<H::Out, C::E>(Ok(d)) => {
 					let node = C::decode(&d).expect("rlp read from db; qed");
 					self.descend_into_node(node.into())
 				},
-				IterStep::Descend::<H::Out>(Err(e)) => {
+				IterStep::Descend::<H::Out, C::E>(Err(e)) => {
 					return Some(Err(e))
 				}
 				IterStep::Continue => {},

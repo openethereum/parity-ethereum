@@ -47,7 +47,6 @@ use hashdb::{HashDB, DBValue, Hasher};
 use std::marker::PhantomData;
 
 pub mod node;
-pub mod node_codec;
 pub mod triedb;
 pub mod triedbmut;
 pub mod sectriedb;
@@ -59,6 +58,7 @@ mod fatdbmut;
 mod lookup;
 mod nibblevec;
 mod nibbleslice;
+mod node_codec;
 
 pub use self::triedb::{TrieDB, TrieDBIterator};
 pub use self::triedbmut::TrieDBMut;
@@ -69,28 +69,23 @@ pub use self::fatdbmut::FatDBMut;
 pub use self::recorder::Recorder;
 pub use self::lookup::Lookup;
 pub use self::nibbleslice::NibbleSlice;
-use node_codec::NodeCodec;
+pub use node_codec::NodeCodec;
 
 /// Trie Errors.
 ///
 /// These borrow the data within them to avoid excessive copying on every
 /// trie operation.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum TrieError<T> {
+pub enum TrieError<T, E> {
 	/// Attempted to create a trie with a state root not in the DB.
 	InvalidStateRoot(T),
 	/// Trie item not found in the database,
 	IncompleteDatabase(T),
 	/// Corrupt Trie item
-	// REVIEW: what we'd really like to do here is include the `rlp::DecoderError` in the `TrieError`
-	// but if we add a `Box<Error>` here we run into issues in the `ethcore` crate:
-	//  "the trait bound `std::error::Error + 'static: std::marker::Send` is not satisfied"
-	// Investigate if using `Box<Error + Send>` would help here (it does compile).
-	// Another potential problem is that the PartialEq, Eq and Clone derives do not work.
-	DecoderError(T, String),
+	DecoderError(T, E),
 }
 
-impl<T> fmt::Display for TrieError<T> where T: std::fmt::Debug {
+impl<T, E> fmt::Display for TrieError<T, E> where T: std::fmt::Debug, E: std::fmt::Debug {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			TrieError::InvalidStateRoot(ref root) => write!(f, "Invalid state root: {:?}", root),
@@ -100,21 +95,23 @@ impl<T> fmt::Display for TrieError<T> where T: std::fmt::Debug {
 	}
 }
 
-impl<T> error::Error for TrieError<T> where T: std::fmt::Debug {
+impl<T, E> error::Error for TrieError<T, E> where T: std::fmt::Debug, E: std::error::Error {
 	fn description(&self) -> &str {
 		match *self {
 			TrieError::InvalidStateRoot(_) => "Invalid state root",
 			TrieError::IncompleteDatabase(_) => "Incomplete database",
-			TrieError::DecoderError(_, ref err_string) => err_string,
+			// TrieError::DecoderError(_, ref err_string) => err_string,
+			TrieError::DecoderError(_, ref err) => err.description(),
 		}
 	}
 }
 
 /// Trie result type. Boxed to avoid copying around extra space for the `Hasher`s `Out`s on successful queries.
-pub type Result<T, U> = ::std::result::Result<T, Box<TrieError<U>>>;
+pub type Result<T, H, E> = ::std::result::Result<T, TrieError<H, E>>;
+
 
 /// Trie-Item type used for iterators over trie data.
-pub type TrieItem<'a, U> = Result<(Vec<u8>, DBValue), U>;
+pub type TrieItem<'a, U, E> = Result<(Vec<u8>, DBValue), U, E>;
 
 /// Description of what kind of query will be made to the trie.
 ///
@@ -154,10 +151,9 @@ impl<'a, F, T, H: Hasher> Query<H> for (&'a mut Recorder<H>, F) where F: FnOnce(
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
-pub trait Trie {
-	type H: Hasher;
+pub trait Trie<H: Hasher, C: NodeCodec<H>> {
 	/// Return the root of the trie.
-	fn root(&self) -> &<Self::H as Hasher>::Out;
+	fn root(&self) -> &H::Out;
 
 	/// Is the trie empty?
 	// TODO: The `Hasher` should not carry RLP-specifics; the null node should live in `NodeCodec`. Not sure what the best way to deal with this is.
@@ -167,56 +163,55 @@ pub trait Trie {
 	// 	make `impl<H: Hasher> NodeCodec<H> for MyGenericCodec<H>` impossible without better const 
 	// 	function evaluation, so we should limit ourselves only to 
 	// 	`impl NodeCodec<SomeConcreteHash> for MyGenericCodec<SomeConcreteHash>` or similar
-	fn is_empty(&self) -> bool { *self.root() == Self::H::HASHED_NULL_RLP }
+	fn is_empty(&self) -> bool { *self.root() == H::HASHED_NULL_RLP }
 
 	/// Does the trie contain a given key?
-	fn contains(&self, key: &[u8]) -> Result<bool, <Self::H as Hasher>::Out> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
 		self.get(key).map(|x|x.is_some() )
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> where 'a: 'key {
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::E> where 'a: 'key {
 		self.get_with(key, DBValue::from_slice)
 	}
 
 	/// Search for the key with the given query parameter. See the docs of the `Query`
 	/// trait for more details.
-	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, <Self::H as Hasher>::Out> where 'a: 'key;
+	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::E> where 'a: 'key;
 
 	/// Returns a depth-first iterator over the elements of trie.
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Self::H, Item = TrieItem<<Self::H as Hasher>::Out>> + 'a>, <Self::H as Hasher>::Out>;
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::E >> + 'a>, H::Out, C::E>;
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
-pub trait TrieMut {
-	type H: Hasher;
+pub trait TrieMut<H: Hasher, C: NodeCodec<H>> {
 	/// Return the root of the trie.
-	fn root(&mut self) -> &<Self::H as Hasher>::Out;
+	fn root(&mut self) -> &H::Out;
 
 	/// Is the trie empty?
 	fn is_empty(&self) -> bool;
 
 	/// Does the trie contain a given key?
-	fn contains(&self, key: &[u8]) -> Result<bool, <Self::H as Hasher>::Out> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
 		self.get(key).map(|x| x.is_some())
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::E> where 'a: 'key;
 
 	/// Insert a `key`/`value` pair into the trie. An empty value is equivalent to removing
 	/// `key` from the trie. Returns the old value associated with this key, if it existed.
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out>;
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, H::Out, C::E>;
 
 	/// Remove a `key` from the trie. Equivalent to making it equal to the empty
 	/// value. Returns the old value associated with this key, if it existed.
-	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, <Self::H as Hasher>::Out>;
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, H::Out, C::E>;
 }
 
 /// A trie iterator that also supports random access (`seek()`).
-pub trait TrieIterator<H: Hasher>: Iterator {
+pub trait TrieIterator<H: Hasher, C: NodeCodec<H>>: Iterator {
 	/// Position the iterator on the first element with key > `key`
-	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out>;
+	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out, <C as NodeCodec<H>>::E>;
 }
 
 /// Trie types
@@ -266,9 +261,8 @@ macro_rules! wrapper {
 	}
 }
 
-impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> {
-	type H = H;
-	fn root(&self) -> &<Self::H as Hasher>::Out {
+impl<'db, H: Hasher, C: NodeCodec<H>> Trie<H, C> for TrieKinds<'db, H, C> {
+	fn root(&self) -> &H::Out {
 		wrapper!(self, root,)
 	}
 
@@ -276,17 +270,17 @@ impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> {
 		wrapper!(self, is_empty,)
 	}
 
-	fn contains(&self, key: &[u8]) -> Result<bool, <Self::H as Hasher>::Out> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
 		wrapper!(self, contains, key)
 	}
 
-	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, <Self::H as Hasher>::Out>
+	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::E>
 		where 'a: 'key
 	{
 		wrapper!(self, get_with, key, query)
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, Item = TrieItem<H::Out>> + 'a>, <Self::H as Hasher>::Out> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::E>> + 'a>, H::Out, C::E> {
 		wrapper!(self, iter,)
 	}
 }
@@ -294,7 +288,6 @@ impl<'db, H: Hasher, C: NodeCodec<H>> Trie for TrieKinds<'db, H, C> {
 impl<'db, H, C> TrieFactory<H, C>
 where 
 	H: Hasher, 
-	H::Out:,
 	C: NodeCodec<H> + 'db
 {
 	/// Creates new factory.
@@ -303,7 +296,7 @@ where
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn readonly(&self, db: &'db HashDB<H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out> {
+	pub fn readonly(&self, db: &'db HashDB<H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out, <C as NodeCodec<H>>::E> {
 		match self.spec {
 			TrieSpec::Generic => Ok(TrieKinds::Generic(TrieDB::new(db, root)?)),
 			TrieSpec::Secure => Ok(TrieKinds::Secure(SecTrieDB::new(db, root)?)),
@@ -312,7 +305,7 @@ where
 	}
 
 	/// Create new mutable instance of Trie.
-	pub fn create(&self, db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Box<TrieMut<H=H> + 'db> {
+	pub fn create(&self, db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Box<TrieMut<H, C> + 'db> {
 		match self.spec {
 			TrieSpec::Generic => Box::new(TrieDBMut::<_, C>::new(db, root)),
 			TrieSpec::Secure => Box::new(SecTrieDBMut::<_, C>::new(db, root)),
@@ -321,7 +314,7 @@ where
 	}
 
 	/// Create new mutable instance of trie and check for errors.
-	pub fn from_existing(&self, db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H=H> + 'db>, H::Out> {
+	pub fn from_existing(&self, db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H,C> + 'db>, H::Out, <C as NodeCodec<H>>::E> {
 		match self.spec {
 			TrieSpec::Generic => Ok(Box::new(TrieDBMut::<_, C>::from_existing(db, root)?)),
 			TrieSpec::Secure => Ok(Box::new(SecTrieDBMut::<_, C>::from_existing(db, root)?)),

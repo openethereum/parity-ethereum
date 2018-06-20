@@ -37,22 +37,26 @@ pub struct Lookup<'a, H: Hasher + 'a, C: NodeCodec<H>, Q: Query<H>> {
 impl<'a, H, C, Q> Lookup<'a, H, C, Q>
 where
 	H: Hasher + 'a,
-	C: NodeCodec<H>,
+	C: NodeCodec<H> + 'a,
 	Q: Query<H>,
 {
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
-	pub fn look_up(mut self, mut key: NibbleSlice) -> Result<Option<Q::Item>, H::Out> {
+	pub fn look_up(mut self, mut key: NibbleSlice) -> Result<Option<Q::Item>, H::Out, C::E> {
 		let mut hash = self.hash;
 
 		// this loop iterates through non-inline nodes.
 		for depth in 0.. {
 			let node_data = match self.db.get(&hash) {
 				Some(value) => value,
-				None => return Err(Box::new(match depth {
+				None => return Err(match depth {
 					0 => TrieError::InvalidStateRoot(hash),
 					_ => TrieError::IncompleteDatabase(hash),
-				})),
+				}),
+				// None => return Err(Box::new(match depth {
+				// 	0 => TrieError::<_, C::E>::InvalidStateRoot(hash),
+				// 	_ => TrieError::<_, C::E>::IncompleteDatabase(hash),
+				// })),
 			};
 
 			self.query.record(&hash, &node_data, depth);
@@ -61,8 +65,14 @@ where
 			// without incrementing the depth.
 			let mut node_data = &node_data[..];
 			loop {
-				// TODO: see comment on `TrieError::DecoderError` for what to do here
-				match C::decode(node_data).map_err(|e| TrieError::DecoderError(hash, format!("{:?}",e)))? {
+				let decoded = match C::decode(node_data) {
+					Ok(node) => node,
+					Err(e) => {
+						return Err(TrieError::DecoderError(hash, e))
+						// return Err(Box::new(TrieError::DecoderError(hash, Box::new(e))))
+					}
+				};
+				match decoded {
 					Node::Leaf(slice, value) => {
 						return Ok(match slice == key {
 							true => Some(self.query.decode(value)),
