@@ -54,6 +54,11 @@ impl Database {
 		Ok(result)
 	}
 
+	/// Reopens database at the same location.
+	pub fn reopen(&self) -> io::Result<()> {
+		self.database.lock().reopen()
+	}
+
 	/// Inserts one or more blooms into database.
 	///
 	/// # Arguments

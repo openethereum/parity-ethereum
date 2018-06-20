@@ -1296,8 +1296,9 @@ impl snapshot::DatabaseRestore for Client {
 		self.importer.miner.clear();
 		let db = self.db.write();
 		db.key_value().restore(new_db)?;
+		db.blooms().reopen()?;
+		db.trace_blooms().reopen()?;
 
-		// TODO: restore blooms properly
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));

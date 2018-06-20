@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{io, fmt};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use ethbloom;
 
@@ -53,6 +53,8 @@ pub struct Database {
 	///
 	/// Every bloom is an ethereum header bloom
 	bot: File,
+	/// Database path
+	path: PathBuf,
 }
 
 impl Database {
@@ -63,9 +65,18 @@ impl Database {
 			top: File::open(path.join("top.bdb"))?,
 			mid: File::open(path.join("mid.bdb"))?,
 			bot: File::open(path.join("bot.bdb"))?,
+			path: path.to_owned(),
 		};
 
 		Ok(database)
+	}
+
+	/// Reopens the database at the same location.
+	pub fn reopen(&mut self) -> io::Result<()> {
+		self.top = File::open(self.path.join("top.bdb"))?;
+		self.mid = File::open(self.path.join("mid.bdb"))?;
+		self.bot = File::open(self.path.join("bot.bdb"))?;
+		Ok(())
 	}
 
 	/// Insert consecutive blooms into database starting with positon from.
