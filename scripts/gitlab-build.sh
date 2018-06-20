@@ -88,6 +88,10 @@ calculate_checksums () {
 }
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity-evm.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/ethstore.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/ethkey.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/whisper.exe"
 }
 push_binaries () {
   echo "Push binaries to AWS S3"
