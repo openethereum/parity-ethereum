@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
-bloomchain = { path = "../util/bloomchain" }
+blooms-db = { path = "../util/blooms-db" }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
@@ -68,10 +68,10 @@ triehash = { path = "../util/triehash" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 tempdir = { version = "0.3", optional = true }
+kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 
 [dev-dependencies]
 trie-standardmap = { path = "../util/trie-standardmap" }
-kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 
 [features]
 # Display EVM debug traces.

@@ -21,11 +21,10 @@ use std::fmt;
 use std::sync::Arc;
 
 use ethcore::client::ClientIoMessage;
-use ethcore::db;
+use ethcore::{db, BlockChainDB};
 use ethcore::error::Error as CoreError;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
-use kvdb::KeyValueDB;
 
 use cache::Cache;
 use parking_lot::Mutex;
@@ -65,11 +64,10 @@ pub struct Service<T> {
 
 impl<T: ChainDataFetcher> Service<T> {
 	/// Start the service: initialize I/O workers and client itself.
-	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<KeyValueDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
-
+	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<BlockChainDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
 		let io_service = IoService::<ClientIoMessage>::start().map_err(Error::Io)?;
 		let client = Arc::new(Client::new(config,
-			db,
+			db.key_value().clone(),
 			db::COL_LIGHT_CHAIN,
 			spec,
 			fetcher,
@@ -122,12 +120,11 @@ mod tests {
 	use client::fetch;
 	use std::time::Duration;
 	use parking_lot::Mutex;
-	use kvdb_memorydb;
-	use ethcore::db::NUM_COLUMNS;
+	use ethcore::test_helpers;
 
 	#[test]
 	fn it_works() {
-		let db = Arc::new(kvdb_memorydb::create(NUM_COLUMNS.unwrap_or(0)));
+		let db = test_helpers::new_db();
 		let spec = Spec::new_test();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 

@@ -18,6 +18,7 @@
 extern crate log;
 
 extern crate elastic_array;
+extern crate fs_swap;
 extern crate interleaved_ordered;
 extern crate num_cpus;
 extern crate parking_lot;
@@ -30,8 +31,8 @@ extern crate kvdb;
 use std::cmp;
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::path::{PathBuf, Path};
-use std::{fs, io, mem, result};
+use std::path::Path;
+use std::{fs, mem, result};
 
 use parking_lot::{Mutex, MutexGuard, RwLock};
 use rocksdb::{
@@ -41,6 +42,7 @@ use rocksdb::{
 use interleaved_ordered::{interleave_ordered, InterleaveOrdered};
 
 use elastic_array::ElasticArray32;
+use fs_swap::{swap, swap_nonatomic};
 use kvdb::{KeyValueDB, DBTransaction, DBValue, DBOp, Result};
 
 #[cfg(target_os = "linux")]
@@ -49,6 +51,8 @@ use regex::Regex;
 use std::process::Command;
 #[cfg(target_os = "linux")]
 use std::fs::File;
+#[cfg(target_os = "linux")]
+use std::path::PathBuf;
 
 const DB_DEFAULT_MEMORY_BUDGET_MB: usize = 128;
 
@@ -590,32 +594,24 @@ impl Database {
 	pub fn restore(&self, new_db: &str) -> Result<()> {
 		self.close();
 
-		let mut backup_db = PathBuf::from(&self.path);
-		backup_db.pop();
-		backup_db.push("backup_db");
-
-		let existed = match fs::rename(&self.path, &backup_db) {
-			Ok(_) => true,
-			Err(e) => if let io::ErrorKind::NotFound = e.kind() {
-				false
-			} else {
-				return Err(e.into());
-			}
-		};
-
-		match fs::rename(&new_db, &self.path) {
+		// swap is guaranteed to be atomic
+		match swap(new_db, &self.path) {
 			Ok(_) => {
-				// clean up the backup.
-				if existed {
-					fs::remove_dir_all(&backup_db)?;
+				// ignore errors
+				let _ = fs::remove_dir_all(new_db);
+			},
+			Err(err) => {
+				warn!("DB atomic swap failed: {}", err);
+				match swap_nonatomic(new_db, &self.path) {
+					Ok(_) => {
+						// ignore errors
+						let _ = fs::remove_dir_all(new_db);
+					},
+					Err(err) => {
+						warn!("DB nonatomic atomic swap failed: {}", err);
+						return Err(err.into());
+					}
 				}
-			}
-			Err(e) => {
-				// restore the backup.
-				if existed {
-					fs::rename(&backup_db, &self.path)?;
-				}
-				return Err(e.into())
 			}
 		}
 
