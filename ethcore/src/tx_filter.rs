@@ -85,6 +85,12 @@ impl TransactionFilter {
 		}
 
 		let contract_address = self.contract_address;
+		if !client.code_hash(&contract_address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
+			trace!(target: "tx_filter", "transaction permission contract does not exist at current block, permitting transaction");
+			return true;
+		} else {
+			trace!(target: "tx_filter", "transaction permission contract exists at current block, checking permissions");
+		}
 		let contract_version = contract_version_cache.get_mut(parent_hash).and_then(|v| *v).or_else(||  {
 			self.contract.functions()
 				.contract_version()
