@@ -26,6 +26,7 @@ use vm::CallType;
 use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestMinerService};
 use v1::{Metadata, Traces, TracesClient};
+use ethereum_types::H256;
 
 struct Tester {
 	client: Arc<TestBlockChainClient>,
@@ -64,6 +65,7 @@ fn io() -> Tester {
 		trace: vec![],
 		vm_trace: None,
 		state_diff: None,
+		hash: H256::default(),
 	}));
 	let miner = Arc::new(TestMinerService::default());
 	let traces = TracesClient::new(&client);
@@ -165,7 +167,7 @@ fn rpc_trace_call() {
 	let tester = io();
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_call","params":[{}, ["stateDiff", "vmTrace", "trace"]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"output":"0x010203","stateDiff":null,"trace":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","vmTrace":null},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -175,7 +177,7 @@ fn rpc_trace_multi_call() {
 	let tester = io();
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_callMany","params":[[[{}, ["stateDiff", "vmTrace", "trace"]]]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null}],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[{"output":"0x010203","stateDiff":null,"trace":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","vmTrace":null}],"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -196,7 +198,7 @@ fn rpc_trace_raw_transaction() {
 	let tester = io();
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_rawTransaction","params":["0xf869018609184e72a0008276c094d46e8dd67c5d32be8058bb8eb970870f07244567849184e72a801ba0617f39c1a107b63302449c476d96a6cb17a5842fc98ff0c5bcf4d5c4d8166b95a009fdb6097c6196b9bbafc3a59f02f38d91baeef23d0c60a8e4f23c7714cea3a9", ["stateDiff", "vmTrace", "trace"]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"output":"0x010203","stateDiff":null,"trace":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","vmTrace":null},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -217,7 +219,7 @@ fn rpc_trace_replay_transaction() {
 	let tester = io();
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_replayTransaction","params":["0x0000000000000000000000000000000000000000000000000000000000000005", ["trace", "stateDiff", "vmTrace"]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"output":"0x010203","stateDiff":null,"trace":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","vmTrace":null},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -238,7 +240,7 @@ fn rpc_trace_replay_block_transactions() {
 	let tester = io();
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_replayBlockTransactions","params":["0x10", ["trace", "stateDiff", "vmTrace"]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null}],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[{"output":"0x010203","stateDiff":null,"trace":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","vmTrace":null}],"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
