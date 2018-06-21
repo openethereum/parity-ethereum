@@ -90,4 +90,4 @@ test-heavy = []
 # Compile benches
 benches = []
 # Compile test helpers
-test-helpers = []
+test-helpers = ["tempdir"]
