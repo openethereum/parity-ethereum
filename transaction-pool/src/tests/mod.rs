@@ -48,6 +48,15 @@ pub type SharedTransaction = Arc<Transaction>;
 
 type TestPool = Pool<Transaction, DummyScoring>;
 
+impl TestPool {
+	pub fn with_limit(max_count: usize) -> Self {
+		Self::with_options(Options {
+			max_count,
+			..Default::default()
+		})
+	}
+}
+
 #[test]
 fn should_clear_queue() {
 	// given
@@ -508,6 +517,23 @@ fn should_return_worst_transaction() {
 
 	// then
 	assert!(txq.worst_transaction().is_some());
+}
+
+#[test]
+fn should_return_min_entry_score_based_on_the_worst_transaction() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::with_limit(2);
+	assert!(txq.worst_transaction().is_none());
+
+	// when
+	txq.import(b.tx().nonce(0).gas_price(110).new()).unwrap();
+	assert_eq!(txq.minimal_entry_score(), None);
+
+	txq.import(b.tx().sender(1).nonce(0).gas_price(100).new()).unwrap();
+
+	// then
+	assert_eq!(txq.minimal_entry_score(), Some(100.into()));
 }
 
 mod listener {

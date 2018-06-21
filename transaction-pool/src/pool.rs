@@ -410,7 +410,7 @@ impl<T, S, L> Pool<T, S, L> where
 			return None
 		}
 
-		self.worst_transactions.iter().next().map(|x| x.score.clone())
+		self.worst_transactions.iter().next_back().map(|x| x.score.clone())
 	}
 
 	/// Returns an iterator of pending (ready) transactions.
