@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -104,9 +104,9 @@ impl Directories {
 		DatabaseDirectories {
 			path: self.db.clone(),
 			legacy_path: self.base.clone(),
-			genesis_hash: genesis_hash,
-			fork_name: fork_name,
-			spec_name: spec_name,
+			genesis_hash,
+			fork_name,
+			spec_name,
 		}
 	}
 

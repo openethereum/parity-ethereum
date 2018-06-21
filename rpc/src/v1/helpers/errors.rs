@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -64,14 +64,6 @@ pub fn light_unimplemented(details: Option<String>) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "This request is unsupported for light clients.".into(),
-		data: details.map(Value::String),
-	}
-}
-
-pub fn public_unsupported(details: Option<String>) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Method disallowed when running parity as a public node.".into(),
 		data: details.map(Value::String),
 	}
 }
@@ -357,6 +349,19 @@ pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 			message: "Unknown error when sending transaction.".into(),
 			data: Some(Value::String(format!("{:?}", error))),
 		}
+	}
+}
+
+pub fn decode<T: Into<EthcoreError>>(error: T) -> Error {
+	let error = error.into();
+	match *error.kind() {
+		ErrorKind::Decoder(ref dec_err) => rlp(dec_err.clone()),
+		_ => Error {
+			code: ErrorCode::InternalError,
+			message: "decoding error".into(),
+			data: None,
+		}
+
 	}
 }
 

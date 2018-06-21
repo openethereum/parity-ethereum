@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -51,6 +51,21 @@ pub struct Params {
 	#[serde(rename="forkCanonHash")]
 	pub fork_hash: Option<H256>,
 
+	/// See main EthashParams docs.
+	#[serde(rename="eip150Transition")]
+	pub eip150_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="eip160Transition")]
+	pub eip160_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="eip161abcTransition")]
+	pub eip161abc_transition: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="eip161dTransition")]
+	pub eip161d_transition: Option<Uint>,
+
 	/// See `CommonParams` docs.
 	#[serde(rename="eip98Transition")]
 	pub eip98_transition: Option<Uint>,
@@ -84,6 +99,9 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip211Transition")]
 	pub eip211_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip145Transition")]
+	pub eip145_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	#[serde(rename="eip214Transition")]
 	pub eip214_transition: Option<Uint>,

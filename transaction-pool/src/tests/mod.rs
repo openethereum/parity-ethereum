@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -32,15 +32,16 @@ pub struct Transaction {
 	pub gas_price: U256,
 	pub gas: U256,
 	pub sender: Address,
-	pub insertion_id: u64,
 	pub mem_usage: usize,
 }
 
 impl VerifiedTransaction for Transaction {
+	type Hash = H256;
+	type Sender = Address;
+
 	fn hash(&self) -> &H256 { &self.hash }
 	fn mem_usage(&self) -> usize { self.mem_usage }
 	fn sender(&self) -> &Address { &self.sender }
-	fn insertion_id(&self) -> u64 { self.insertion_id }
 }
 
 pub type SharedTransaction = Arc<Transaction>;
@@ -123,7 +124,7 @@ fn should_reject_if_above_count() {
 	// Reject second
 	let tx1 = b.tx().nonce(0).new();
 	let tx2 = b.tx().nonce(1).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:?}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -149,7 +150,7 @@ fn should_reject_if_above_mem_usage() {
 	// Reject second
 	let tx1 = b.tx().nonce(1).mem_usage(1).new();
 	let tx2 = b.tx().nonce(2).mem_usage(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:?}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -175,7 +176,7 @@ fn should_reject_if_above_sender_count() {
 	// Reject second
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:x}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -185,7 +186,7 @@ fn should_reject_if_above_sender_count() {
 	// Replace first
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).gas_price(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:x}", tx2.hash());
 	txq.import(tx1).unwrap();
 	// This results in error because we also compare nonces
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
@@ -247,6 +248,66 @@ fn should_construct_pending() {
 	assert_eq!(pending.next(), Some(tx8));
 	assert_eq!(pending.next(), Some(tx2));
 	assert_eq!(pending.next(), None);
+}
+
+#[test]
+fn should_return_unordered_iterator() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::default();
+
+	let tx0 = txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	let tx1 = txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap();
+	let tx2 = txq.import(b.tx().nonce(2).new()).unwrap();
+	let tx3 = txq.import(b.tx().nonce(3).gas_price(4).new()).unwrap();
+	//gap
+	txq.import(b.tx().nonce(5).new()).unwrap();
+
+	let tx5 = txq.import(b.tx().sender(1).nonce(0).new()).unwrap();
+	let tx6 = txq.import(b.tx().sender(1).nonce(1).new()).unwrap();
+	let tx7 = txq.import(b.tx().sender(1).nonce(2).new()).unwrap();
+	let tx8 = txq.import(b.tx().sender(1).nonce(3).gas_price(4).new()).unwrap();
+	// gap
+	txq.import(b.tx().sender(1).nonce(5).new()).unwrap();
+
+	let tx9 = txq.import(b.tx().sender(2).nonce(0).new()).unwrap();
+	assert_eq!(txq.light_status().transaction_count, 11);
+	assert_eq!(txq.status(NonceReady::default()), Status {
+		stalled: 0,
+		pending: 9,
+		future: 2,
+	});
+	assert_eq!(txq.status(NonceReady::new(1)), Status {
+		stalled: 3,
+		pending: 6,
+		future: 2,
+	});
+
+	// when
+	let all: Vec<_> = txq.unordered_pending(NonceReady::default()).collect();
+
+	let chain1 = vec![tx0, tx1, tx2, tx3];
+	let chain2 = vec![tx5, tx6, tx7, tx8];
+	let chain3 = vec![tx9];
+
+	assert_eq!(all.len(), chain1.len() + chain2.len() + chain3.len());
+
+	let mut options = vec![
+		vec![chain1.clone(), chain2.clone(), chain3.clone()],
+		vec![chain2.clone(), chain1.clone(), chain3.clone()],
+		vec![chain2.clone(), chain3.clone(), chain1.clone()],
+		vec![chain3.clone(), chain2.clone(), chain1.clone()],
+		vec![chain3.clone(), chain1.clone(), chain2.clone()],
+		vec![chain1.clone(), chain3.clone(), chain2.clone()],
+	].into_iter().map(|mut v| {
+		let mut first = v.pop().unwrap();
+		for mut x in v {
+			first.append(&mut x);
+		}
+		first
+	});
+
+	assert!(options.any(|opt| all == opt));
 }
 
 #[test]
@@ -577,4 +638,3 @@ mod listener {
 		assert_eq!(*results.borrow(), &["added", "added", "mined", "mined"]);
 	}
 }
-

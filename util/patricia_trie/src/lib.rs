@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -67,6 +67,8 @@ pub enum TrieError {
 	InvalidStateRoot(H256),
 	/// Trie item not found in the database,
 	IncompleteDatabase(H256),
+	/// Corrupt Trie item
+	DecoderError(rlp::DecoderError),
 }
 
 impl fmt::Display for TrieError {
@@ -75,6 +77,7 @@ impl fmt::Display for TrieError {
 			TrieError::InvalidStateRoot(ref root) => write!(f, "Invalid state root: {}", root),
 			TrieError::IncompleteDatabase(ref missing) =>
 				write!(f, "Database missing expected key: {}", missing),
+			TrieError::DecoderError(ref err) =>  write!(f, "Decoding failed with {}", err),
 		}
 	}
 }
@@ -84,8 +87,13 @@ impl error::Error for TrieError {
 		match *self {
 			TrieError::InvalidStateRoot(_) => "Invalid state root",
 			TrieError::IncompleteDatabase(_) => "Incomplete database",
+			TrieError::DecoderError(ref e) => e.description(),
 		}
 	}
+}
+
+impl From<rlp::DecoderError> for Box<TrieError> {
+	fn from(e: rlp::DecoderError) -> Self { Box::new(TrieError::DecoderError(e)) }
 }
 
 /// Trie result type. Boxed to avoid copying around extra space for `H256`s on successful queries.

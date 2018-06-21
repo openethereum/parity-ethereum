@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@
 
 #![warn(missing_docs)]
 
-extern crate crypto as rcrypto;
 extern crate dir;
 extern crate itertools;
 extern crate libc;
@@ -28,7 +27,6 @@ extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 extern crate smallvec;
-extern crate subtle;
 extern crate time;
 extern crate tiny_keccak;
 extern crate tempdir;

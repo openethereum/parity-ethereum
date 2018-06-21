@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,18 +22,18 @@ use std::time::Duration;
 
 use ansi_term::Colour;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
-use kvdb::{KeyValueDB, KeyValueDBHandler};
 use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
+use ethcore::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use ethcore::snapshot::{RestorationStatus};
+use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 
-use ethcore_private_tx;
+use ethcore_private_tx::{self, Importer};
 use Error;
 
 pub struct PrivateTxService {
@@ -69,7 +69,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
-	database: Arc<KeyValueDB>,
+	database: Arc<BlockChainDB>,
 	_stop_guard: StopGuard,
 }
 
@@ -78,9 +78,9 @@ impl ClientService {
 	pub fn start(
 		config: ClientConfig,
 		spec: &Spec,
-		client_db: Arc<KeyValueDB>,
+		blockchain_db: Arc<BlockChainDB>,
 		snapshot_path: &Path,
-		restoration_db_handler: Box<KeyValueDBHandler>,
+		restoration_db_handler: Box<BlockChainDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
 		account_provider: Arc<AccountProvider>,
@@ -93,7 +93,7 @@ impl ClientService {
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, client_db.clone(), miner.clone(), io_service.channel())?;
+		let client = Client::new(config, &spec, blockchain_db.clone(), miner.clone(), io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -112,14 +112,13 @@ impl ClientService {
 				account_provider,
 				encryptor,
 				private_tx_conf,
-				io_service.channel())?,
-		);
+				io_service.channel(),
+		));
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
 			snapshot: snapshot.clone(),
-			private_tx: private_tx.clone(),
 		});
 		io_service.register_handler(client_io)?;
 
@@ -132,7 +131,7 @@ impl ClientService {
 			client: client,
 			snapshot: snapshot,
 			private_tx,
-			database: client_db,
+			database: blockchain_db,
 			_stop_guard: stop_guard,
 		})
 	}
@@ -168,14 +167,18 @@ impl ClientService {
 	}
 
 	/// Get a handle to the database.
-	pub fn db(&self) -> Arc<KeyValueDB> { self.database.clone() }
+	pub fn db(&self) -> Arc<BlockChainDB> { self.database.clone() }
+
+	/// Shutdown the Client Service
+	pub fn shutdown(&self) {
+		self.snapshot.shutdown();
+	}
 }
 
 /// IO interface for the Client handler
 struct ClientIoHandler {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
-	private_tx: Arc<PrivateTxService>,
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
@@ -191,6 +194,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	}
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		trace_time!("service::read");
 		match timer {
 			CLIENT_TICK_TIMER => {
 				use ethcore::snapshot::SnapshotService;
@@ -203,20 +207,24 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	}
 
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+		trace_time!("service::message");
 		use std::thread;
 
 		match *net_message {
-			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
-			ClientIoMessage::NewTransactions(ref transactions, peer_id) => {
-				self.client.import_queued_transactions(transactions, peer_id);
+			ClientIoMessage::BlockVerified => {
+				self.client.import_verified_blocks();
 			}
 			ClientIoMessage::BeginRestoration(ref manifest) => {
 				if let Err(e) = self.snapshot.init_restore(manifest.clone(), true) {
 					warn!("Failed to initialize snapshot restoration: {}", e);
 				}
 			}
-			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
-			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
+			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => {
+				self.snapshot.feed_state_chunk(*hash, chunk)
+			}
+			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => {
+				self.snapshot.feed_block_chunk(*hash, chunk)
+			}
 			ClientIoMessage::TakeSnapshot(num) => {
 				let client = self.client.clone();
 				let snapshot = self.snapshot.clone();
@@ -231,12 +239,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
-			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
-				trace!(target: "poa", "Invalid message received: {}", e);
-			},
-			ClientIoMessage::NewPrivateTransaction => if let Err(e) = self.private_tx.provider.on_private_transaction_queued() {
-				warn!("Failed to handle private transaction {:?}", e);
-			},
+			ClientIoMessage::Execute(ref exec) => {
+				(*exec.0)(&self.client);
+			}
 			_ => {} // ignore other messages
 		}
 	}
@@ -254,8 +259,8 @@ mod tests {
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
 	use ethcore::db::NUM_COLUMNS;
-	use kvdb::Error;
-	use kvdb_rocksdb::{Database, DatabaseConfig, CompactionProfile};
+	use ethcore::test_helpers;
+	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;
 
 	use ethcore_private_tx;
@@ -273,24 +278,9 @@ mod tests {
 		client_db_config.compaction = CompactionProfile::auto(&client_path);
 		client_db_config.wal = client_config.db_wal;
 
-		let client_db = Arc::new(Database::open(
-			&client_db_config,
-			&client_path.to_str().expect("DB path could not be converted to string.")
-		).unwrap());
-
-		struct RestorationDBHandler {
-			config: DatabaseConfig,
-		}
-
-		impl KeyValueDBHandler for RestorationDBHandler {
-			fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
-				Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
-			}
-		}
-
-		let restoration_db_handler = Box::new(RestorationDBHandler {
-			config: client_db_config,
-		});
+		let client_db_handler = test_helpers::restoration_db_handler(client_db_config.clone());
+		let client_db = client_db_handler.open(&client_path).unwrap();
+		let restoration_db_handler = test_helpers::restoration_db_handler(client_db_config);
 
 		let spec = Spec::new_test();
 		let service = ClientService::start(

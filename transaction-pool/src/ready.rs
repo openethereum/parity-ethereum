@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,8 +17,8 @@
 /// Transaction readiness.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Readiness {
-	/// The transaction is stalled (and should/will be removed from the pool).
-	Stalled,
+	/// The transaction is stale (and should/will be removed from the pool).
+	Stale,
 	/// The transaction is ready to be included in pending set.
 	Ready,
 	/// The transaction is not yet ready.

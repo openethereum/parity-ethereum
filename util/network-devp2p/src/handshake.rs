@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,8 +25,9 @@ use connection::{Connection};
 use node_table::NodeId;
 use io::{IoContext, StreamToken};
 use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
-use crypto::{ecdh, ecies};
-use network::{Error, ErrorKind, HostInfo};
+use ethkey::crypto::{ecdh, ecies};
+use network::{Error, ErrorKind};
+use host::HostInfo;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -83,12 +84,12 @@ impl Handshake {
 	/// Create a new handshake object
 	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
 		Ok(Handshake {
-			id: if let Some(id) = id { id.clone()} else { NodeId::new() },
+			id: if let Some(id) = id { *id } else { NodeId::new() },
 			connection: Connection::new(token, socket),
 			originated: false,
 			state: HandshakeState::New,
 			ecdhe: Random.generate()?,
-			nonce: nonce.clone(),
+			nonce: *nonce,
 			remote_ephemeral: Public::new(),
 			remote_nonce: H256::new(),
 			remote_version: PROTOCOL_VERSION,
@@ -165,7 +166,7 @@ impl Handshake {
 		self.remote_version = remote_version;
 		let shared = *ecdh::agree(host_secret, &self.id)?;
 		let signature = H520::from_slice(sig);
-		self.remote_ephemeral = recover(&signature.into(), &(&shared ^ &self.remote_nonce))?;
+		self.remote_ephemeral = recover(&signature.into(), &(shared ^ self.remote_nonce))?;
 		Ok(())
 	}
 
@@ -188,7 +189,7 @@ impl Handshake {
 			}
 			Err(_) => {
 				// Try to interpret as EIP-8 packet
-				let total = (((data[0] as u16) << 8 | (data[1] as u16)) as usize) + 2;
+				let total = ((u16::from(data[0]) << 8 | (u16::from(data[1]))) as usize) + 2;
 				if total < V4_AUTH_PACKET_SIZE {
 					debug!(target: "network", "Wrong EIP8 auth packet size");
 					return Err(ErrorKind::BadProtocol.into());
@@ -231,7 +232,7 @@ impl Handshake {
 			}
 			Err(_) => {
 				// Try to interpret as EIP-8 packet
-				let total = (((data[0] as u16) << 8 | (data[1] as u16)) as usize) + 2;
+				let total = (((u16::from(data[0])) << 8 | (u16::from(data[1]))) as usize) + 2;
 				if total < V4_ACK_PACKET_SIZE {
 					debug!(target: "network", "Wrong EIP8 ack packet size");
 					return Err(ErrorKind::BadProtocol.into());
@@ -514,4 +515,3 @@ mod test {
 		check_ack(&h, 57);
 	}
 }
-

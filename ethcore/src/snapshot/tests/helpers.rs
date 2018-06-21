@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,7 +24,7 @@ use hash::{KECCAK_NULL_RLP};
 
 use account_db::AccountDBMut;
 use basic_account::BasicAccount;
-use blockchain::BlockChain;
+use blockchain::{BlockChain, BlockChainDB};
 use client::{Client, ChainInfo};
 use engines::EthEngine;
 use snapshot::{StateRebuilder};
@@ -33,7 +33,7 @@ use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 use tempdir::TempDir;
 use rand::Rng;
 
-use kvdb::{KeyValueDB, DBValue};
+use kvdb::DBValue;
 use ethereum_types::H256;
 use hashdb::HashDB;
 use journaldb;
@@ -75,7 +75,7 @@ impl StateProducer {
 
 		// sweep once to alter storage tries.
 		for &mut (ref mut address_hash, ref mut account_data) in &mut accounts_to_modify {
-			let mut account: BasicAccount = ::rlp::decode(&*account_data);
+			let mut account: BasicAccount = ::rlp::decode(&*account_data).expect("error decoding basic account");
 			let acct_db = AccountDBMut::from_hash(db, *address_hash);
 			fill_storage(acct_db, &mut account.storage_root, &mut self.storage_seed);
 			*account_data = DBValue::from_vec(::rlp::encode(&account).into_vec());
@@ -158,7 +158,7 @@ pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
 /// Restore a snapshot into a given database. This will read chunks from the given reader
 /// write into the given database.
 pub fn restore(
-	db: Arc<KeyValueDB>,
+	db: Arc<BlockChainDB>,
 	engine: &EthEngine,
 	reader: &SnapshotReader,
 	genesis: &[u8],
@@ -170,7 +170,7 @@ pub fn restore(
 	let components = engine.snapshot_components().unwrap();
 	let manifest = reader.manifest();
 
-	let mut state = StateRebuilder::new(db.clone(), journaldb::Algorithm::Archive);
+	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
 	let mut secondary = {
 		let chain = BlockChain::new(Default::default(), genesis, db.clone());
 		components.rebuilder(chain, db, manifest).unwrap()

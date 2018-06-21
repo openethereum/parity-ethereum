@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -78,6 +78,14 @@ pub struct CommonParams {
 	pub min_gas_limit: U256,
 	/// Fork block to check.
 	pub fork_block: Option<(BlockNumber, H256)>,
+	/// EIP150 transition block number.
+	pub eip150_transition: BlockNumber,
+	/// Number of first block where EIP-160 rules begin.
+	pub eip160_transition: u64,
+	/// Number of first block where EIP-161.abc begin.
+	pub eip161abc_transition: u64,
+	/// Number of first block where EIP-161.d begins.
+	pub eip161d_transition: u64,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
 	/// Number of first block where EIP-658 rules begin.
@@ -105,6 +113,8 @@ pub struct CommonParams {
 	pub eip211_transition: BlockNumber,
 	/// Number of first block where EIP-214 rules begin.
 	pub eip214_transition: BlockNumber,
+	/// Number of first block where EIP-145 rules begin.
+	pub eip145_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -132,9 +142,20 @@ pub struct CommonParams {
 impl CommonParams {
 	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
 	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
-		let mut schedule = ::vm::Schedule::new_post_eip150(self.max_code_size(block_number) as _, true, true, true);
-		self.update_schedule(block_number, &mut schedule);
-		schedule
+		if block_number < self.eip150_transition {
+			::vm::Schedule::new_homestead()
+		} else {
+			let max_code_size = self.max_code_size(block_number);
+			let mut schedule = ::vm::Schedule::new_post_eip150(
+				max_code_size as _,
+				block_number >= self.eip160_transition,
+				block_number >= self.eip161abc_transition,
+				block_number >= self.eip161d_transition
+			);
+
+			self.update_schedule(block_number, &mut schedule);
+			schedule
+		}
 	}
 
 	/// Returns max code size at given block.
@@ -152,6 +173,7 @@ impl CommonParams {
 		schedule.have_revert = block_number >= self.eip140_transition;
 		schedule.have_static_call = block_number >= self.eip214_transition;
 		schedule.have_return_data = block_number >= self.eip211_transition;
+		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
 		}
@@ -194,20 +216,24 @@ impl From<ethjson::spec::Params> for CommonParams {
 			} else {
 				None
 			},
+			eip150_transition: p.eip150_transition.map_or(0, Into::into),
+			eip160_transition: p.eip160_transition.map_or(0, Into::into),
+			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
+			eip161d_transition: p.eip161d_transition.map_or(0, Into::into),
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),
-			eip86_transition: p.eip86_transition.map_or(
-				BlockNumber::max_value(),
+			eip86_transition: p.eip86_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip140_transition: p.eip140_transition.map_or(
-				BlockNumber::max_value(),
+			eip140_transition: p.eip140_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip210_transition: p.eip210_transition.map_or(
-				BlockNumber::max_value(),
+			eip210_transition: p.eip210_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
 			eip210_contract_address: p.eip210_contract_address.map_or(0xf0.into(), Into::into),
@@ -220,20 +246,24 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
-			eip211_transition: p.eip211_transition.map_or(
-				BlockNumber::max_value(),
+			eip211_transition: p.eip211_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip214_transition: p.eip214_transition.map_or(
-				BlockNumber::max_value(),
+			eip145_transition: p.eip145_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip658_transition: p.eip658_transition.map_or(
-				BlockNumber::max_value(),
+			eip214_transition: p.eip214_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			dust_protection_transition: p.dust_protection_transition.map_or(
-				BlockNumber::max_value(),
+			eip658_transition: p.eip658_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			dust_protection_transition: p.dust_protection_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
@@ -245,8 +275,8 @@ impl From<ethjson::spec::Params> for CommonParams {
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
 			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
-			wasm_activation_transition: p.wasm_activation_transition.map_or(
-				BlockNumber::max_value(),
+			wasm_activation_transition: p.wasm_activation_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into
 			),
 		}
@@ -289,7 +319,6 @@ impl<'a, T: AsRef<Path>> From<&'a T> for SpecParams<'a> {
 		Self::from_path(path.as_ref())
 	}
 }
-
 
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
@@ -486,6 +515,7 @@ macro_rules! load_bundled {
 	};
 }
 
+#[cfg(any(test, feature = "test-helpers"))]
 macro_rules! load_machine_bundled {
 	($e:expr) => {
 		Spec::load_machine(
@@ -776,7 +806,7 @@ impl Spec {
 				author: *genesis.author(),
 				timestamp: genesis.timestamp(),
 				difficulty: *genesis.difficulty(),
-				gas_limit: *genesis.gas_limit(),
+				gas_limit: U256::max_value(),
 				last_hashes: Arc::new(Vec::new()),
 				gas_used: 0.into(),
 			};
@@ -785,7 +815,7 @@ impl Spec {
 			let tx = Transaction {
 				nonce: self.engine.account_start_nonce(0),
 				action: Action::Call(a),
-				gas: U256::from(50_000_000), // TODO: share with client.
+				gas: U256::max_value(),
 				gas_price: U256::default(),
 				value: U256::default(),
 				data: d,
@@ -809,39 +839,44 @@ impl Spec {
 		self.engine.genesis_epoch_data(&genesis, &call)
 	}
 
-	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a
-	/// NullEngine consensus.
-	pub fn new_test() -> Spec {
-		load_bundled!("null_morden")
-	}
-
-	/// Create the EthereumMachine corresponding to Spec::new_test.
-	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
-
-
-	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
-	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
-
-	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
-	/// secret is keccak('').
-	pub fn new_null() -> Spec {
-		load_bundled!("null")
-	}
-
-	/// Create a new Spec which constructs a contract at address 5 with storage at 0 equal to 1.
-	pub fn new_test_constructor() -> Spec {
-		load_bundled!("constructor")
-	}
-
 	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring
 	/// work).
 	pub fn new_instant() -> Spec {
 		load_bundled!("instant_seal")
 	}
 
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a
+	/// NullEngine consensus.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test() -> Spec {
+		load_bundled!("null_morden")
+	}
+
+	/// Create the EthereumMachine corresponding to Spec::new_test.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
+
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
+
+	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
+	/// secret is keccak('').
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_null() -> Spec {
+		load_bundled!("null")
+	}
+
+	/// Create a new Spec which constructs a contract at address 5 with storage at 0 equal to 1.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test_constructor() -> Spec {
+		load_bundled!("constructor")
+	}
+
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
 	/// requiring work).
 	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round() -> Self {
 		load_bundled!("authority_round")
 	}
@@ -849,6 +884,7 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
 	/// requiring work) with empty step messages enabled.
 	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round_empty_steps() -> Self {
 		load_bundled!("authority_round_empty_steps")
 	}
@@ -856,6 +892,7 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus (with empty steps) using a block reward
 	/// contract. The contract source code can be found at:
 	/// https://github.com/parity-contracts/block-reward/blob/daf7d44383b6cdb11cb6b953b018648e2b027cfb/contracts/ExampleBlockReward.sol
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round_block_reward_contract() -> Self {
 		load_bundled!("authority_round_block_reward_contract")
 	}
@@ -863,6 +900,7 @@ impl Spec {
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_tendermint() -> Self {
 		load_bundled!("tendermint")
 	}
@@ -875,6 +913,7 @@ impl Spec {
 	/// "0xbfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1" and added
 	/// back in using
 	/// "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_safe_contract() -> Self {
 		load_bundled!("validator_safe_contract")
 	}
@@ -882,6 +921,7 @@ impl Spec {
 	/// The same as the `safeContract`, but allows reporting and uses AuthorityRound.
 	/// Account is marked with `reportBenign` it can be checked as disliked with "0xd8f2e0bf".
 	/// Validator can be removed with `reportMalicious`.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_contract() -> Self {
 		load_bundled!("validator_contract")
 	}
@@ -890,13 +930,9 @@ impl Spec {
 	/// height.
 	/// Account with secrets keccak("0") is the validator for block 1 and with keccak("1")
 	/// onwards.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_multi() -> Self {
 		load_bundled!("validator_multi")
-	}
-
-	/// Create a new spec for a PoW chain
-	pub fn new_pow_test_spec() -> Self {
-		load_bundled!("ethereum/olympic")
 	}
 }
 

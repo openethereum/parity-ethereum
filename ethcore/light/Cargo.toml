@@ -38,6 +38,7 @@ memory-cache = { path = "../../util/memory_cache" }
 error-chain = { version = "0.11", default-features = false }
 
 [dev-dependencies]
+ethcore = { path = "..", features = ["test-helpers"] }
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
 tempdir = "0.3"
 

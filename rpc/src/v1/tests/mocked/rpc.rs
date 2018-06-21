@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 use std::collections::BTreeMap;
 use jsonrpc_core::IoHandler;
 use v1::{Rpc, RpcClient};
-
 
 fn rpc_client() -> RpcClient {
 	let mut modules = BTreeMap::new();

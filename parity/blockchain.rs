@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -37,7 +37,6 @@ use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
-use fdlimit;
 use ethcore_private_tx;
 use db;
 
@@ -178,8 +177,6 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	// load user defaults
 	let user_defaults = UserDefaults::load(&user_defaults_path)?;
 
-	fdlimit::raise_fd_limit();
-
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
@@ -211,7 +208,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
 						 &cmd.compaction,
-						 cmd.wal)?;
+						 cmd.wal).map_err(|e| format!("Failed to open database: {:?}", e))?;
 
 	// TODO: could epoch signals be avilable at the end of the file?
 	let fetch = ::light::client::fetch::unavailable();
@@ -327,8 +324,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	// load user defaults
 	let mut user_defaults = UserDefaults::load(&user_defaults_path)?;
 
-	fdlimit::raise_fd_limit();
-
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
@@ -367,8 +362,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 
-	let client_db = db::open_client_db(&client_path, &client_config)?;
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
+	let client_db = restoration_db_handler.open(&client_path)
+		.map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	// build client
 	let service = ClientService::start(
@@ -518,8 +514,6 @@ fn start_client(
 	// load user defaults
 	let user_defaults = UserDefaults::load(&user_defaults_path)?;
 
-	fdlimit::raise_fd_limit();
-
 	// select pruning algorithm
 	let algorithm = pruning.to_algorithm(&user_defaults);
 
@@ -559,8 +553,9 @@ fn start_client(
 		true,
 	);
 
-	let client_db = db::open_client_db(&client_path, &client_config)?;
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
+	let client_db = restoration_db_handler.open(&client_path)
+		.map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	let service = ClientService::start(
 		client_config,

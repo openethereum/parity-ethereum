@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,11 +23,13 @@ use std::collections::BTreeMap;
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
-use rayon::prelude::*;
 use transaction;
 use txpool::{self, Verifier};
 
-use pool::{self, scoring, verifier, client, ready, listener, PrioritizationStrategy};
+use pool::{
+	self, scoring, verifier, client, ready, listener,
+	PrioritizationStrategy, PendingOrdering, PendingSettings,
+};
 use pool::local_transactions::LocalTransactionsList;
 
 type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
@@ -75,6 +77,7 @@ struct CachedPending {
 	nonce_cap: Option<U256>,
 	has_local_pending: bool,
 	pending: Option<Vec<Arc<pool::VerifiedTransaction>>>,
+	max_len: usize,
 }
 
 impl CachedPending {
@@ -86,6 +89,7 @@ impl CachedPending {
 			has_local_pending: false,
 			pending: None,
 			nonce_cap: None,
+			max_len: 0,
 		}
 	}
 
@@ -100,6 +104,7 @@ impl CachedPending {
 		block_number: u64,
 		current_timestamp: u64,
 		nonce_cap: Option<&U256>,
+		max_len: usize,
 	) -> Option<Vec<Arc<pool::VerifiedTransaction>>> {
 		// First check if we have anything in cache.
 		let pending = self.pending.as_ref()?;
@@ -124,7 +129,12 @@ impl CachedPending {
 			return None;
 		}
 
-		Some(pending.clone())
+		// It's fine to just take a smaller subset, but not other way around.
+		if max_len > self.max_len {
+			return None;
+		}
+
+		Some(pending.iter().take(max_len).cloned().collect())
 	}
 }
 
@@ -174,13 +184,19 @@ impl TransactionQueue {
 		transactions: Vec<verifier::Transaction>,
 	) -> Vec<Result<(), transaction::Error>> {
 		// Run verification
-		let _timer = ::trace_time::PerfTimer::new("queue::verifyAndImport");
+		trace_time!("pool::verify_and_import");
 		let options = self.options.read().clone();
 
 		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
 		let results = transactions
-			.into_par_iter()
-			.map(|transaction| verifier.verify_transaction(transaction))
+			.into_iter()
+			.map(|transaction| {
+				if self.pool.read().find(&transaction.hash()).is_some() {
+					bail!(transaction::Error::AlreadyImported)
+				}
+
+				verifier.verify_transaction(transaction)
+			})
 			.map(|result| result.and_then(|verified| {
 				self.pool.write().import(verified)
 					.map(|_imported| ())
@@ -198,13 +214,13 @@ impl TransactionQueue {
 		results
 	}
 
-	/// Returns all transactions in the queue ordered by priority.
+	/// Returns all transactions in the queue without explicit ordering.
 	pub fn all_transactions(&self) -> Vec<Arc<pool::VerifiedTransaction>> {
 		let ready = |_tx: &pool::VerifiedTransaction| txpool::Readiness::Ready;
-		self.pool.read().pending(ready).collect()
+		self.pool.read().unordered_pending(ready).collect()
 	}
 
-	/// Returns current pneding transactions.
+	/// Returns current pending transactions ordered by priority.
 	///
 	/// NOTE: This may return a cached version of pending transaction set.
 	/// Re-computing the pending set is possible with `#collect_pending` method,
@@ -212,24 +228,31 @@ impl TransactionQueue {
 	pub fn pending<C>(
 		&self,
 		client: C,
-		block_number: u64,
-		current_timestamp: u64,
-		nonce_cap: Option<U256>,
+		settings: PendingSettings,
 	) -> Vec<Arc<pool::VerifiedTransaction>> where
 		C: client::NonceClient,
 	{
-
-		if let Some(pending) = self.cached_pending.read().pending(block_number, current_timestamp, nonce_cap.as_ref()) {
+		let PendingSettings { block_number, current_timestamp, nonce_cap, max_len, ordering } = settings;
+		if let Some(pending) = self.cached_pending.read().pending(block_number, current_timestamp, nonce_cap.as_ref(), max_len) {
 			return pending;
 		}
 
 		// Double check after acquiring write lock
 		let mut cached_pending = self.cached_pending.write();
-		if let Some(pending) = cached_pending.pending(block_number, current_timestamp, nonce_cap.as_ref()) {
+		if let Some(pending) = cached_pending.pending(block_number, current_timestamp, nonce_cap.as_ref(), max_len) {
 			return pending;
 		}
 
-		let pending: Vec<_> = self.collect_pending(client, block_number, current_timestamp, nonce_cap, |i| i.collect());
+		// In case we don't have a cached set, but we don't care about order
+		// just return the unordered set.
+		if let PendingOrdering::Unordered = ordering {
+			let ready = Self::ready(client, block_number, current_timestamp, nonce_cap);
+			return self.pool.read().unordered_pending(ready).take(max_len).collect();
+		}
+
+		let pending: Vec<_> = self.collect_pending(client, block_number, current_timestamp, nonce_cap, |i| {
+			i.take(max_len).collect()
+		});
 
 		*cached_pending = CachedPending {
 			block_number,
@@ -237,6 +260,7 @@ impl TransactionQueue {
 			nonce_cap,
 			has_local_pending: self.has_local_pending_transactions(),
 			pending: Some(pending.clone()),
+			max_len,
 		};
 
 		pending
@@ -262,14 +286,26 @@ impl TransactionQueue {
 			Listener,
 		>) -> T,
 	{
+		debug!(target: "txqueue", "Re-computing pending set for block: {}", block_number);
+		trace_time!("pool::collect_pending");
+		let ready = Self::ready(client, block_number, current_timestamp, nonce_cap);
+		collect(self.pool.read().pending(ready))
+	}
+
+	fn ready<C>(
+		client: C,
+		block_number: u64,
+		current_timestamp: u64,
+		nonce_cap: Option<U256>,
+	) -> (ready::Condition, ready::State<C>) where
+		C: client::NonceClient,
+	{
 		let pending_readiness = ready::Condition::new(block_number, current_timestamp);
 		// don't mark any transactions as stale at this point.
 		let stale_id = None;
 		let state_readiness = ready::State::new(client, stale_id, nonce_cap);
 
-		let ready = (pending_readiness, state_readiness);
-
-		collect(self.pool.read().pending(ready))
+		(pending_readiness, state_readiness)
 	}
 
 	/// Culls all stalled transactions from the pool.
@@ -282,11 +318,11 @@ impl TransactionQueue {
 		// We want to clear stale transactions from the queue as well.
 		// (Transactions that are occuping the queue for a long time without being included)
 		let stale_id = {
-			let current_id = self.insertion_id.load(atomic::Ordering::Relaxed) as u64;
+			let current_id = self.insertion_id.load(atomic::Ordering::Relaxed);
 			// wait at least for half of the queue to be replaced
 			let gap = self.pool.read().options().max_count / 2;
 			// but never less than 100 transactions
-			let gap = cmp::max(100, gap) as u64;
+			let gap = cmp::max(100, gap);
 
 			current_id.checked_sub(gap)
 		};
@@ -410,8 +446,13 @@ impl TransactionQueue {
 		let mut pool = self.pool.write();
 		(pool.listener_mut().1).0.add(f);
 	}
-}
 
+	/// Check if pending set is cached.
+	#[cfg(test)]
+	pub fn is_pending_cached(&self) -> bool {
+		self.cached_pending.read().pending.is_some()
+	}
+}
 
 fn convert_error(err: txpool::Error) -> transaction::Error {
 	use self::txpool::ErrorKind;
@@ -436,7 +477,7 @@ mod tests {
 	fn should_get_pending_transactions() {
 		let queue = TransactionQueue::new(txpool::Options::default(), verifier::Options::default(), PrioritizationStrategy::GasPriceOnly);
 
-		let pending: Vec<_> = queue.pending(TestClient::default(), 0, 0, None);
+		let pending: Vec<_> = queue.pending(TestClient::default(), PendingSettings::all_prioritized(0, 0));
 
 		for tx in pending {
 			assert!(tx.signed().nonce > 0.into());

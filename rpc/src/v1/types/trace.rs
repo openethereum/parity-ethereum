@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -308,6 +308,12 @@ pub enum RewardType {
 	/// Uncle
 	#[serde(rename="uncle")]
 	Uncle,
+	/// EmptyStep (AuthorityRound)
+	#[serde(rename="emptyStep")]
+	EmptyStep,
+	/// External (attributed as part of an external protocol)
+	#[serde(rename="external")]
+	External,
 }
 
 impl From<trace::RewardType> for RewardType {
@@ -315,10 +321,11 @@ impl From<trace::RewardType> for RewardType {
 		match c {
 			trace::RewardType::Block => RewardType::Block,
 			trace::RewardType::Uncle => RewardType::Uncle,
+			trace::RewardType::EmptyStep => RewardType::EmptyStep,
+			trace::RewardType::External => RewardType::External,
 		}
 	}
 }
-
 
 /// Reward action
 #[derive(Debug, Serialize)]

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -32,6 +32,19 @@ enum Seal {
 	With,
 	/// The seal/signature is not included.
 	Without,
+}
+
+/// Extended block header, wrapping `Header` with finalized and total difficulty information.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtendedHeader {
+	/// The actual header.
+	pub header: Header,
+	/// Whether the block underlying this header is considered finalized.
+	pub is_finalized: bool,
+	/// The parent block difficulty.
+	pub parent_total_difficulty: U256,
+	/// The block metadata information.
+	pub metadata: Option<Vec<u8>>,
 }
 
 /// A block header.
@@ -325,7 +338,6 @@ fn change_field<T>(hash: &mut Option<H256>, field: &mut T, value: T) where T: Pa
 	}
 }
 
-
 impl Decodable for Header {
 	fn decode(r: &Rlp) -> Result<Self, DecoderError> {
 		let mut blockheader = Header {
@@ -368,19 +380,46 @@ impl HeapSizeOf for Header {
 
 impl ::parity_machine::Header for Header {
 	fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
-
 	fn hash(&self) -> H256 { Header::hash(self) }
-
 	fn seal(&self) -> &[Vec<u8>] { Header::seal(self) }
-
 	fn author(&self) -> &Address { Header::author(self) }
-
 	fn number(&self) -> BlockNumber { Header::number(self) }
 }
 
 impl ::parity_machine::ScoredHeader for Header {
+	type Value = U256;
+
 	fn score(&self) -> &U256 { self.difficulty() }
 	fn set_score(&mut self, score: U256) { self.set_difficulty(score) }
+}
+
+impl ::parity_machine::Header for ExtendedHeader {
+	fn bare_hash(&self) -> H256 { self.header.bare_hash() }
+	fn hash(&self) -> H256 { self.header.hash() }
+	fn seal(&self) -> &[Vec<u8>] { self.header.seal() }
+	fn author(&self) -> &Address { self.header.author() }
+	fn number(&self) -> BlockNumber { self.header.number() }
+}
+
+impl ::parity_machine::ScoredHeader for ExtendedHeader {
+	type Value = U256;
+
+	fn score(&self) -> &U256 { self.header.difficulty() }
+	fn set_score(&mut self, score: U256) { self.header.set_difficulty(score) }
+}
+
+impl ::parity_machine::TotalScoredHeader for ExtendedHeader {
+	type Value = U256;
+
+	fn total_score(&self) -> U256 { self.parent_total_difficulty + *self.header.difficulty() }
+}
+
+impl ::parity_machine::FinalizableHeader for ExtendedHeader {
+	fn is_finalized(&self) -> bool { self.is_finalized }
+}
+
+impl ::parity_machine::WithMetadataHeader for ExtendedHeader {
+	fn metadata(&self) -> Option<&[u8]> { self.metadata.as_ref().map(|v| v.as_ref()) }
 }
 
 #[cfg(test)]
@@ -398,7 +437,7 @@ mod tests {
 		let nonce = "88ab4e252a7e8c2a23".from_hex().unwrap();
 		let nonce_decoded = "ab4e252a7e8c2a23".from_hex().unwrap();
 
-		let header: Header = rlp::decode(&header_rlp);
+		let header: Header = rlp::decode(&header_rlp).expect("error decoding header");
 		let seal_fields = header.seal.clone();
 		assert_eq!(seal_fields.len(), 2);
 		assert_eq!(seal_fields[0], mix_hash);
@@ -415,7 +454,7 @@ mod tests {
 		// that's rlp of block header created with ethash engine.
 		let header_rlp = "f901f9a0d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a05fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25a088d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158a007c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302008003832fefba82524d84568e932a80a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd88ab4e252a7e8c2a23".from_hex().unwrap();
 
-		let header: Header = rlp::decode(&header_rlp);
+		let header: Header = rlp::decode(&header_rlp).expect("error decoding header");
 		let encoded_header = rlp::encode(&header).into_vec();
 
 		assert_eq!(header_rlp, encoded_header);

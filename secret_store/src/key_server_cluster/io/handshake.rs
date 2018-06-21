@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -37,7 +37,7 @@ use std::sync::Arc;
 use std::collections::BTreeSet;
 use futures::{Future, Poll, Async};
 use tokio_io::{AsyncRead, AsyncWrite};
-use crypto::ecdh::agree;
+use ethkey::crypto::ecdh::agree;
 use ethkey::{Random, Generator, KeyPair, Public, Signature, verify_public, sign, recover};
 use ethereum_types::H256;
 use key_server_cluster::{NodeId, Error, NodeKeyPair};

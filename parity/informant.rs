@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@ use std::time::{Instant, Duration};
 use atty;
 use ethcore::client::{
 	BlockId, BlockChainClient, ChainInfo, BlockInfo, BlockChainInfo,
-	BlockQueueInfo, ChainNotify, ClientReport, Client, ClientIoMessage
+	BlockQueueInfo, ChainNotify, ChainRoute, ClientReport, Client, ClientIoMessage
 };
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
@@ -145,7 +145,8 @@ impl InformantData for FullNodeInformantData {
 		let (importing, sync_info) = match (self.sync.as_ref(), self.net.as_ref()) {
 			(Some(sync), Some(net)) => {
 				let status = sync.status();
-				let net_config = net.network_config();
+				let num_peers_range = net.num_peers_range();
+				debug_assert!(num_peers_range.end > num_peers_range.start);
 
 				cache_sizes.insert("sync", status.mem_used);
 
@@ -154,7 +155,7 @@ impl InformantData for FullNodeInformantData {
 					last_imported_block_number: status.last_imported_block_number.unwrap_or(chain_info.best_block_number),
 					last_imported_old_block_number: status.last_imported_old_block_number,
 					num_peers: status.num_peers,
-					max_peers: status.current_max_peers(net_config.min_peers, net_config.max_peers),
+					max_peers: status.current_max_peers(num_peers_range.start, num_peers_range.end - 1),
 					snapshot_sync: status.is_snapshot_syncing(),
 				}))
 			}
@@ -278,15 +279,12 @@ impl<T: InformantData> Informant<T> {
 		} = full_report;
 
 		let rpc_stats = self.rpc_stats.as_ref();
-
-		let (snapshot_sync, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, 0, 0), |s|
+		let snapshot_sync = sync_info.as_ref().map_or(false, |s| s.snapshot_sync) && self.snapshot.as_ref().map_or(false, |s|
 			match s.status() {
-				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
-					(true, state_chunks_done + block_chunks_done, state_chunks + block_chunks),
-				_ => (false, 0, 0),
+				RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing { .. } => true,
+				_ => false,
 			}
 		);
-		let snapshot_sync = snapshot_sync && sync_info.as_ref().map_or(false, |s| s.snapshot_sync);
 		if !importing && !snapshot_sync && elapsed < Duration::from_secs(30) {
 			return;
 		}
@@ -306,19 +304,31 @@ impl<T: InformantData> Informant<T> {
 						paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 						if self.target.executes_transactions() {
 							format!("{} blk/s {} tx/s {} Mgas/s",
-								paint(Yellow.bold(), format!("{:4}", (client_report.blocks_imported * 1000) as u64 / elapsed.as_milliseconds())),
-								paint(Yellow.bold(), format!("{:4}", (client_report.transactions_applied * 1000) as u64 / elapsed.as_milliseconds())),
-								paint(Yellow.bold(), format!("{:3}", (client_report.gas_processed / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
+								paint(Yellow.bold(), format!("{:7.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
+								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_milliseconds() as f64)),
+								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
 							)
 						} else {
 							format!("{} hdr/s",
-								paint(Yellow.bold(), format!("{:4}", (client_report.blocks_imported * 1000) as u64 / elapsed.as_milliseconds()))
+								paint(Yellow.bold(), format!("{:6.1}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64))
 							)
 						},
 						paint(Green.bold(), format!("{:5}", queue_info.unverified_queue_size)),
 						paint(Green.bold(), format!("{:5}", queue_info.verified_queue_size))
 					),
-					true => format!("Syncing snapshot {}/{}", snapshot_current, snapshot_total),
+					true => {
+						self.snapshot.as_ref().map_or(String::new(), |s|
+							match s.status() {
+								RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } => {
+									format!("Syncing snapshot {}/{}", state_chunks_done + block_chunks_done, state_chunks + block_chunks)
+								},
+								RestorationStatus::Initializing { chunks_done } => {
+									format!("Snapshot initializing ({} chunks restored)", chunks_done)
+								},
+								_ => String::new(),
+							}
+						)
+					},
 				},
 				false => String::new(),
 			},
@@ -341,8 +351,8 @@ impl<T: InformantData> Informant<T> {
 				Some(ref rpc_stats) => format!(
 					"RPC: {} conn, {} req/s, {} µs",
 					paint(Blue.bold(), format!("{:2}", rpc_stats.sessions())),
-					paint(Blue.bold(), format!("{:2}", rpc_stats.requests_rate())),
-					paint(Blue.bold(), format!("{:3}", rpc_stats.approximated_roundtrip())),
+					paint(Blue.bold(), format!("{:4}", rpc_stats.requests_rate())),
+					paint(Blue.bold(), format!("{:4}", rpc_stats.approximated_roundtrip())),
 				),
 				_ => String::new(),
 			},
@@ -351,7 +361,7 @@ impl<T: InformantData> Informant<T> {
 }
 
 impl ChainNotify for Informant<FullNodeInformantData> {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: Duration) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: Duration) {
 		let mut last_import = self.last_import.lock();
 		let client = &self.target.client;
 

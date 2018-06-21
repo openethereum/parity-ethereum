@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -226,7 +226,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + 'static> Whisper for WhisperClien
 
 	fn add_private_key(&self, private: types::Private) -> Result<types::Identity, Error> {
 		let key_pair = Key::from_secret(private.into_inner().into())
-			.map_err(|_| whisper_error("Invalid private key"))?;
+			.ok_or_else(|| whisper_error("Invalid private key"))?;
 
 		Ok(HexEncode(self.store.write().insert(key_pair)))
 	}
@@ -317,7 +317,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + 'static> Whisper for WhisperClien
 				sign_with: sign_with.as_ref(),
 			}).map_err(whisper_error)?;
 
-			encryption.encrypt(&payload)
+			encryption.encrypt(&payload).ok_or(whisper_error("encryption error"))?
 		};
 
 		// mining the packet is the heaviest item of work by far.

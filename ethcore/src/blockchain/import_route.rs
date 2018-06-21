@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ use ethereum_types::H256;
 use blockchain::block_info::{BlockInfo, BlockLocation};
 
 /// Import route for newly inserted block.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ImportRoute {
 	/// Blocks that were invalidated by new block.
 	pub retracted: Vec<H256>,

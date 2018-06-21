@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -194,7 +194,6 @@ impl BlockCollection {
 		needed_bodies
 	}
 
-
 	/// Returns a set of block hashes that require a receipt download. The returned set is marked as being downloaded.
 	pub fn needed_receipts(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
 		if self.head.is_none() || !self.need_receipts {
@@ -266,7 +265,7 @@ impl BlockCollection {
 		}
 	}
 
-	/// Get a valid chain of blocks ordered in descending order and ready for importing into blockchain.
+	/// Get a valid chain of blocks ordered in ascending order and ready for importing into blockchain.
 	pub fn drain(&mut self) -> Vec<BlockAndReceipts> {
 		if self.blocks.is_empty() || self.head.is_none() {
 			return Vec::new();
@@ -616,4 +615,3 @@ mod test {
 		assert_eq!(bc.drain().len(), 2);
 	}
 }
-

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -318,7 +318,7 @@ impl<T: ChainDataFetcher> Client<T> {
 
 			let epoch_proof =  self.engine.is_epoch_end(
 				&verified_header,
-				&|h| self.chain.block_header(BlockId::Hash(h)).map(|hdr| hdr.decode()),
+				&|h| self.chain.block_header(BlockId::Hash(h)).and_then(|hdr| hdr.decode().ok()),
 				&|h| self.chain.pending_transition(h),
 			);
 
@@ -426,7 +426,15 @@ impl<T: ChainDataFetcher> Client<T> {
 		};
 
 		// Verify Block Family
-		let verify_family_result = self.engine.verify_block_family(&verified_header, &parent_header.decode());
+
+		let verify_family_result = {
+			parent_header.decode()
+				.map_err(|dec_err| dec_err.into())
+				.and_then(|decoded| {
+					self.engine.verify_block_family(&verified_header, &decoded)
+				})
+
+		};
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}",
 				verified_header.number(), verified_header.hash(), e);
@@ -454,7 +462,6 @@ impl<T: ChainDataFetcher> Client<T> {
 		let mut receipts: Option<Vec<_>> = None;
 
 		loop {
-
 
 			let is_signal = {
 				let auxiliary = AuxiliaryData {

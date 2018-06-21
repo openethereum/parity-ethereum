@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,9 +19,11 @@ use network::{NetworkContext, PeerId, ProtocolId, NetworkIoMessage};
 use host::Host;
 use io::*;
 use parking_lot::RwLock;
+use std::net::SocketAddr;
+use std::ops::Range;
 use std::sync::Arc;
 use ansi_term::Colour;
-use connection_filter::ConnectionFilter;
+use network::ConnectionFilter;
 
 struct HostHandler {
 	public_url: RwLock<Option<String>>
@@ -32,7 +34,7 @@ impl IoHandler<NetworkIoMessage> for HostHandler {
 		if let NetworkIoMessage::NetworkStarted(ref public_url) = *message {
 			let mut url = self.public_url.write();
 			if url.as_ref().map_or(true, |uref| uref != public_url) {
-				info!(target: "network", "Public node URL: {}", Colour::White.bold().paint(public_url.as_ref()));
+				info!(target: "network", "Public node URL: {}", Colour::White.bold().paint(AsRef::<str>::as_ref(public_url)));
 			}
 			*url = Some(public_url.to_owned());
 		}
@@ -67,12 +69,17 @@ impl NetworkService {
 	}
 
 	/// Regiter a new protocol handler with the event loop.
-	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, packet_count: u8, versions: &[u8]) -> Result<(), Error> {
+	pub fn register_protocol(
+		&self,
+		handler: Arc<NetworkProtocolHandler + Send + Sync>,
+		protocol: ProtocolId,
+		// version id + packet count
+		versions: &[(u8, u8)]
+	) -> Result<(), Error> {
 		self.io_service.send_message(NetworkIoMessage::AddHandler {
-			handler: handler,
-			protocol: protocol,
+			handler,
+			protocol,
 			versions: versions.to_vec(),
-			packet_count: packet_count,
 		})?;
 		Ok(())
 	}
@@ -87,9 +94,13 @@ impl NetworkService {
 		&self.io_service
 	}
 
-	/// Returns network configuration.
-	pub fn config(&self) -> &NetworkConfiguration {
-		&self.config
+	/// Returns the number of peers allowed.
+	///
+	/// Keep in mind that `range.end` is *exclusive*.
+	pub fn num_peers_range(&self) -> Range<u32> {
+		let start = self.config.min_peers;
+		let end = self.config.max_peers + 1;
+		start .. end
 	}
 
 	/// Returns external url if available.
@@ -104,31 +115,36 @@ impl NetworkService {
 		host.as_ref().map(|h| h.local_url())
 	}
 
-	/// Start network IO
-	pub fn start(&self) -> Result<(), Error> {
+	/// Start network IO.
+	///
+	/// In case of error, also returns the listening address for better error reporting.
+	pub fn start(&self) -> Result<(), (Error, Option<SocketAddr>)> {
 		let mut host = self.host.write();
+		let listen_addr = self.config.listen_address.clone();
 		if host.is_none() {
-			let h = Arc::new(Host::new(self.config.clone(), self.filter.clone())?);
-			self.io_service.register_handler(h.clone())?;
+			let h = Arc::new(Host::new(self.config.clone(), self.filter.clone())
+				.map_err(|err| (err.into(), listen_addr))?);
+			self.io_service.register_handler(h.clone())
+				.map_err(|err| (err.into(), listen_addr))?;
 			*host = Some(h);
 		}
 
 		if self.host_handler.public_url.read().is_none() {
-			self.io_service.register_handler(self.host_handler.clone())?;
+			self.io_service.register_handler(self.host_handler.clone())
+				.map_err(|err| (err.into(), listen_addr))?;
 		}
 
 		Ok(())
 	}
 
-	/// Stop network IO
-	pub fn stop(&self) -> Result<(), Error> {
+	/// Stop network IO.
+	pub fn stop(&self) {
 		let mut host = self.host.write();
 		if let Some(ref host) = *host {
 			let io = IoContext::new(self.io_service.channel(), 0); //TODO: take token id from host
-			host.stop(&io)?;
+			host.stop(&io);
 		}
 		*host = None;
-		Ok(())
 	}
 
 	/// Get a list of all connected peers by id.
@@ -161,7 +177,7 @@ impl NetworkService {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			let io_ctxt = IoContext::new(self.io_service.channel(), 0);
-			host.set_non_reserved_mode(mode, &io_ctxt);
+			host.set_non_reserved_mode(&mode, &io_ctxt);
 		}
 	}
 

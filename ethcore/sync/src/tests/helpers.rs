@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,12 +23,13 @@ use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
-	ClientConfig, ChainNotify, ChainMessageType, ClientIoMessage};
+	ClientConfig, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage};
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
+use ethcore::test_helpers;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
@@ -134,11 +135,11 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
-		ETH_PROTOCOL_VERSION_63
+		ETH_PROTOCOL_VERSION_63.0
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
-		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_3 } else { self.eth_protocol_version(peer_id) }
+		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_3.0 } else { self.eth_protocol_version(peer_id) }
 	}
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
@@ -384,7 +385,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,
-			Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
+			test_helpers::new_db(),
 			miner.clone(),
 			channel.clone()
 		).unwrap();
@@ -520,11 +521,9 @@ impl TestIoHandler {
 impl IoHandler<ClientIoMessage> for TestIoHandler {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
-			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
-				panic!("Invalid message received: {}", e);
-			},
-			ClientIoMessage::NewPrivateTransaction => {
+			ClientIoMessage::Execute(ref exec) => {
 				*self.private_tx_queued.lock() += 1;
+				(*exec.0)(&self.client);
 			},
 			_ => {} // ignore other messages
 		}
@@ -535,12 +534,13 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 	fn new_blocks(&self,
 		imported: Vec<H256>,
 		invalid: Vec<H256>,
-		enacted: Vec<H256>,
-		retracted: Vec<H256>,
+		route: ChainRoute,
 		sealed: Vec<H256>,
 		proposed: Vec<Bytes>,
 		_duration: Duration)
 	{
+		let (enacted, retracted) = route.into_enacted_retracted();
+
 		self.new_blocks_queue.write().push_back(NewBlockMessage {
 			imported,
 			invalid,

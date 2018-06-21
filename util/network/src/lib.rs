@@ -1,4 +1,4 @@
-// Copyright 2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,12 +23,18 @@ extern crate ethkey;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate snappy;
+extern crate libc;
+
+#[cfg(test)] #[macro_use]
+extern crate assert_matches;
 
 #[macro_use]
 extern crate error_chain;
 
+mod connection_filter;
 mod error;
 
+pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
 pub use error::{Error, ErrorKind, DisconnectReason};
 
@@ -39,9 +45,8 @@ use std::str::{self, FromStr};
 use std::sync::Arc;
 use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
-use io::IoChannel;
 use ethkey::Secret;
-use ethereum_types::{H256, H512};
+use ethereum_types::H512;
 use rlp::{Decodable, DecoderError, Rlp};
 
 /// Protocol handler level packet id
@@ -64,10 +69,8 @@ pub enum NetworkIoMessage {
 		handler: Arc<NetworkProtocolHandler + Sync>,
 		/// Protocol Id.
 		protocol: ProtocolId,
-		/// Supported protocol versions.
-		versions: Vec<u8>,
-		/// Number of packet IDs reserved by the protocol.
-		packet_count: u8,
+		/// Supported protocol versions and number of packet IDs reserved by the protocol (packet count).
+		versions: Vec<(u8, u8)>,
 	},
 	/// Register a new protocol timer
 	AddTimer {
@@ -259,9 +262,6 @@ pub trait NetworkContext {
 	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 
-	/// Get an IoChannel.
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage>;
-
 	/// Disconnect a peer and prevent it from connecting again.
 	fn disable_peer(&self, peer: PeerId);
 
@@ -300,10 +300,6 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 		(**self).respond(packet_id, data)
 	}
 
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
-		(**self).io_channel()
-	}
-
 	fn disable_peer(&self, peer: PeerId) {
 		(**self).disable_peer(peer)
 	}
@@ -337,23 +333,12 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 	}
 }
 
-pub trait HostInfo {
-	/// Returns public key
-	fn id(&self) -> &NodeId;
-	/// Returns secret key
-	fn secret(&self) -> &Secret;
-	/// Increments and returns connection nonce.
-	fn next_nonce(&mut self) -> H256;
-    /// Returns the client version.
-	fn client_version(&self) -> &str;
-}
-
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.
 /// `Message` is the type for message data.
 pub trait NetworkProtocolHandler: Sync + Send {
 	/// Initialize the handler
-	fn initialize(&self, _io: &NetworkContext, _host_info: &HostInfo) {}
+	fn initialize(&self, _io: &NetworkContext) {}
 	/// Called when new network packet received.
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]);
 	/// Called when new peer is connected. Only called when peer supports the same protocol.

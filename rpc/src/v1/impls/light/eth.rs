@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -62,6 +62,7 @@ pub struct EthClient<T> {
 	accounts: Arc<AccountProvider>,
 	cache: Arc<Mutex<LightDataCache>>,
 	polls: Mutex<PollManager<PollFilter>>,
+	poll_lifetime: u32,
 	gas_price_percentile: usize,
 }
 
@@ -92,7 +93,8 @@ impl<T> Clone for EthClient<T> {
 			transaction_queue: self.transaction_queue.clone(),
 			accounts: self.accounts.clone(),
 			cache: self.cache.clone(),
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(self.poll_lifetime)),
+			poll_lifetime: self.poll_lifetime,
 			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
@@ -109,6 +111,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		accounts: Arc<AccountProvider>,
 		cache: Arc<Mutex<LightDataCache>>,
 		gas_price_percentile: usize,
+		poll_lifetime: u32
 	) -> Self {
 		EthClient {
 			sync,
@@ -117,7 +120,8 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 			transaction_queue,
 			accounts,
 			cache,
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(poll_lifetime)),
+			poll_lifetime,
 			gas_price_percentile,
 		}
 	}
@@ -371,7 +375,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
-		let best_header = self.client.best_block_header().decode();
+		let best_header = self.client.best_block_header().decode().map_err(errors::decode)?;
 
 		Rlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::rlp)
@@ -529,8 +533,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 
-	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
-		self.client.block_hash(id).map(Into::into)
+	fn block_hash(&self, id: BlockId) -> Option<::ethereum_types::H256> {
+		self.client.block_hash(id)
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<::ethereum_types::H256> {
@@ -538,7 +542,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
-		self.fetcher().logs(filter)
+		Box::new(self.fetcher().logs(filter)) as BoxFuture<_>
 	}
 
 	fn pending_logs(&self, _block_number: u64, _filter: &EthcoreFilter) -> Vec<Log> {
@@ -547,6 +551,10 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
 		&self.polls
+	}
+
+	fn removed_logs(&self, _block_hash: ::ethereum_types::H256, _filter: &EthcoreFilter) -> (Vec<Log>, u64) {
+		(Default::default(), 0)
 	}
 }
 

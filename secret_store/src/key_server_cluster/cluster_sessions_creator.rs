@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -353,6 +353,9 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 			sub_session: sid.access_key.into(),
 			session_nonce: nonce,
 			error: err.into(),
+			// we don't care about continue action here. it only matters when we're completing the session with confirmed
+			// fatal error from result computer
+			continue_with: None,
 		}))
 	}
 

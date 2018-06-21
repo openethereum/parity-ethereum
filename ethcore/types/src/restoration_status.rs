@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,6 +21,11 @@
 pub enum RestorationStatus {
 	///	No restoration.
 	Inactive,
+	/// Restoration is initalizing
+	Initializing {
+		/// Number of chunks done/imported
+		chunks_done: u32,
+	},
 	/// Ongoing restoration.
 	Ongoing {
 		/// Total number of state chunks.
@@ -35,4 +40,3 @@ pub enum RestorationStatus {
 	/// Failed restoration.
 	Failed,
 }
-

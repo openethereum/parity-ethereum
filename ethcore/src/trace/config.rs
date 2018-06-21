@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Traces config.
-use bloomchain::Config as BloomConfig;
 
 /// Traces config.
 #[derive(Debug, PartialEq, Clone)]
@@ -23,8 +22,6 @@ pub struct Config {
 	/// Indicates if tracing should be enabled or not.
 	/// If it's None, it will be automatically configured.
 	pub enabled: bool,
-	/// Traces blooms configuration.
-	pub blooms: BloomConfig,
 	/// Preferef cache-size.
 	pub pref_cache_size: usize,
 	/// Max cache-size.
@@ -35,10 +32,6 @@ impl Default for Config {
 	fn default() -> Self {
 		Config {
 			enabled: false,
-			blooms: BloomConfig {
-				levels: 3,
-				elements_per_index: 16,
-			},
 			pref_cache_size: 15 * 1024 * 1024,
 			max_cache_size: 20 * 1024 * 1024,
 		}

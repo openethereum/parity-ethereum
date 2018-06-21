@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,8 @@
 
 extern crate ethabi;
 extern crate ethcore;
-extern crate ethcore_network_devp2p as network;
+extern crate ethcore_network as network;
+extern crate ethcore_network_devp2p as devp2p;
 extern crate ethereum_types;
 extern crate lru_cache;
 extern crate parking_lot;
@@ -43,7 +44,8 @@ use parking_lot::Mutex;
 
 use ethcore::client::{BlockChainClient, BlockId};
 use ethereum_types::{H256, Address};
-use network::{NodeId, ConnectionFilter, ConnectionDirection};
+use network::{ConnectionFilter, ConnectionDirection};
+use devp2p::NodeId;
 
 use_contract!(peer_set, "PeerSet", "res/peer_set.json");
 
@@ -88,7 +90,6 @@ impl ConnectionFilter for NodeFilter {
 			return *res;
 		}
 
-
 		let address = self.contract_address;
 		let own_low = H256::from_slice(&own_id[0..32]);
 		let own_high = H256::from_slice(&own_id[32..64]);
@@ -114,6 +115,7 @@ mod test {
 	use ethcore::spec::Spec;
 	use ethcore::client::{BlockChainClient, Client, ClientConfig};
 	use ethcore::miner::Miner;
+	use ethcore::test_helpers;
 	use network::{ConnectionDirection, ConnectionFilter, NodeId};
 	use io::IoChannel;
 	use super::NodeFilter;
@@ -126,7 +128,7 @@ mod test {
 		let data = include_bytes!("../res/node_filter.json");
 		let tempdir = TempDir::new("").unwrap();
 		let spec = Spec::load(&tempdir.path(), &data[..]).unwrap();
-		let client_db = Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0)));
+		let client_db = test_helpers::new_db();
 
 		let client = Client::new(
 			ClientConfig::default(),

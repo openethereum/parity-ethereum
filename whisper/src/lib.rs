@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,7 +28,6 @@ extern crate ordered_float;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
-extern crate ring;
 extern crate serde;
 extern crate slab;
 extern crate smallvec;

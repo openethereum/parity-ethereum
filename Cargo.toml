@@ -7,6 +7,7 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+blooms-db = { path = "util/blooms-db" }
 log = "0.3"
 env_logger = "0.4"
 rustc-hex = "1.0"
@@ -40,7 +41,6 @@ ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
-ethcore-stratum = { path = "ethcore/stratum" }
 ethcore-sync = { path = "ethcore/sync" }
 ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.3"
@@ -89,16 +89,7 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = { git = "https://github.com/paritytech/daemonize" }
 
 [features]
-default = ["ui-precompiled"]
-ui = [
-	"ui-enabled",
-	"parity-dapps/ui",
-]
-ui-precompiled = [
-	"ui-enabled",
-	"parity-dapps/ui-precompiled",
-]
-ui-enabled = ["dapps"]
+default = ["dapps"]
 dapps = ["parity-dapps"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
@@ -107,6 +98,17 @@ evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
 secretstore = ["ethcore-secretstore"]
 final = ["parity-version/final"]
+deadlock_detection = ["parking_lot/deadlock_detection"]
+# to create a memory profile (requires nightly rust), use e.g.
+# `heaptrack /path/to/parity <parity params>`,
+# to visualize a memory profile, use `heaptrack_gui`
+# or
+# `valgrind --tool=massif /path/to/parity <parity params>`
+# and `massif-visualizer` for visualization
+memory_profiling = []
+
+[lib]
+path = "parity/lib.rs"
 
 [[bin]]
 path = "parity/main.rs"
@@ -130,6 +132,7 @@ members = [
 	"ethstore/cli",
 	"evmbin",
 	"miner",
+	"parity-clib",
 	"transaction-pool",
 	"whisper",
 	"whisper/cli",

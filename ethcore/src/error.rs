@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -190,6 +190,7 @@ error_chain! {
 
 	foreign_links {
 		Block(BlockError) #[doc = "Block error"];
+		Decoder(::rlp::DecoderError) #[doc = "Rlp decoding error"];
 	}
 
 	errors {
@@ -206,6 +207,7 @@ impl From<Error> for BlockImportError {
 		match e {
 			Error(ErrorKind::Block(block_error), _) => BlockImportErrorKind::Block(block_error).into(),
 			Error(ErrorKind::Import(import_error), _) => BlockImportErrorKind::Import(import_error.into()).into(),
+			Error(ErrorKind::Util(util_error::ErrorKind::Decoder(decoder_err)), _) => BlockImportErrorKind::Decoder(decoder_err).into(),
 			_ => BlockImportErrorKind::Other(format!("other block import error: {:?}", e)).into(),
 		}
 	}
@@ -288,9 +290,14 @@ error_chain! {
 			description("Unknown engine name")
 			display("Unknown engine name ({})", name)
 		}
+
+		#[doc = "RLP decoding errors"]
+		Decoder(err: ::rlp::DecoderError) {
+			description("decoding value failed")
+			display("decoding value failed with error: {}", err)
+		}
 	}
 }
-
 
 /// Result of import block operation.
 pub type ImportResult = EthcoreResult<H256>;
@@ -308,11 +315,11 @@ impl From<AccountsError> for Error {
 	fn from(err: AccountsError) -> Error { 
 		ErrorKind::AccountProvider(err).into()
 	} 
-} 
+}
 
 impl From<::rlp::DecoderError> for Error {
 	fn from(err: ::rlp::DecoderError) -> Error {
-		UtilError::from(err).into()
+		ErrorKind::Decoder(err).into()
 	}
 }
 

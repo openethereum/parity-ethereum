@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,7 +23,6 @@ extern crate futures;
 
 extern crate ansi_term;
 extern crate cid;
-extern crate crypto as rust_crypto;
 extern crate futures_cpupool;
 extern crate itertools;
 extern crate multihash;

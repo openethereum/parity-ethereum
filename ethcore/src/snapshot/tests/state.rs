@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -114,7 +114,7 @@ fn get_code_from_prev_chunk() {
 	// first one will have code inlined,
 	// second will just have its hash.
 	let thin_rlp = acc_stream.out();
-	let acc: BasicAccount = ::rlp::decode(&thin_rlp);
+	let acc: BasicAccount = ::rlp::decode(&thin_rlp).expect("error decoding basic account");
 
 	let mut make_chunk = |acc, hash| {
 		let mut db = MemoryDB::new();

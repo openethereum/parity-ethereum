@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -49,6 +49,9 @@ pub enum Origin {
 		/// Session id
 		session: H256
 	},
+	/// From the C API
+	#[serde(rename="c-api")]
+	CApi,
 	/// Unknown
 	#[serde(rename="unknown")]
 	Unknown,
@@ -68,6 +71,7 @@ impl fmt::Display for Origin {
 			Origin::Ipc(ref session) => write!(f, "IPC (session: {})", session),
 			Origin::Ws { ref session, ref dapp } => write!(f, "{} via WebSocket (session: {})", dapp, session),
 			Origin::Signer { ref session, ref dapp } => write!(f, "{} via UI (session: {})", dapp, session),
+			Origin::CApi => write!(f, "C API"),
 			Origin::Unknown => write!(f, "unknown origin"),
 		}
 	}

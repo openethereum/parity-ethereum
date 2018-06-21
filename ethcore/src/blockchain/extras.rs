@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,11 +18,11 @@
 
 use std::ops;
 use std::io::Write;
-use blooms::{GroupPosition, BloomGroup};
 use db::Key;
 use engines::epoch::{Transition as EpochTransition};
 use header::BlockNumber;
 use receipt::Receipt;
+use rlp;
 
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, H264, U256};
@@ -37,8 +37,6 @@ pub enum ExtrasIndex {
 	BlockHash = 1,
 	/// Transaction address index
 	TransactionAddress = 2,
-	/// Block blooms index
-	BlocksBlooms = 3,
 	/// Block receipts index
 	BlockReceipts = 4,
 	/// Epoch transition data index.
@@ -83,31 +81,6 @@ impl Key<BlockDetails> for H256 {
 
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::BlockDetails)
-	}
-}
-
-pub struct LogGroupKey([u8; 6]);
-
-impl ops::Deref for LogGroupKey {
-	type Target = [u8];
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
-	}
-}
-
-impl Key<BloomGroup> for GroupPosition {
-	type Target = LogGroupKey;
-
-	fn key(&self) -> Self::Target {
-		let mut result = [0u8; 6];
-		result[0] = ExtrasIndex::BlocksBlooms as u8;
-		result[1] = self.level;
-		result[2] = (self.index >> 24) as u8;
-		result[3] = (self.index >> 16) as u8;
-		result[4] = (self.index >> 8) as u8;
-		result[5] = self.index as u8;
-		LogGroupKey(result)
 	}
 }
 
@@ -167,7 +140,7 @@ impl Key<EpochTransitions> for u64 {
 }
 
 /// Familial details concerning a block
-#[derive(Debug, Clone, RlpEncodable, RlpDecodable)]
+#[derive(Debug, Clone)]
 pub struct BlockDetails {
 	/// Block number
 	pub number: BlockNumber,
@@ -177,6 +150,57 @@ pub struct BlockDetails {
 	pub parent: H256,
 	/// List of children block hashes
 	pub children: Vec<H256>,
+	/// Whether the block is considered finalized
+	pub is_finalized: bool,
+	/// Additional block metadata
+	pub metadata: Option<Vec<u8>>,
+}
+
+impl rlp::Encodable for BlockDetails {
+	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
+		let use_short_version = self.metadata.is_none() && !self.is_finalized;
+
+		match use_short_version {
+			true => { stream.begin_list(4); },
+			false => { stream.begin_list(6); },
+		}
+
+		stream.append(&self.number);
+		stream.append(&self.total_difficulty);
+		stream.append(&self.parent);
+		stream.append_list(&self.children);
+		if !use_short_version {
+			stream.append(&self.is_finalized);
+			stream.append(&self.metadata);
+		}
+	}
+}
+
+impl rlp::Decodable for BlockDetails {
+	fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
+		let use_short_version = match rlp.item_count()? {
+			4 => true,
+			6 => false,
+			_ => return Err(rlp::DecoderError::RlpIncorrectListLen),
+		};
+
+		Ok(BlockDetails {
+			number: rlp.val_at(0)?,
+			total_difficulty: rlp.val_at(1)?,
+			parent: rlp.val_at(2)?,
+			children: rlp.list_at(3)?,
+			is_finalized: if use_short_version {
+				false
+			} else {
+				rlp.val_at(4)?
+			},
+			metadata: if use_short_version {
+				None
+			} else {
+				rlp.val_at(5)?
+			},
+		})
+	}
 }
 
 impl HeapSizeOf for BlockDetails {

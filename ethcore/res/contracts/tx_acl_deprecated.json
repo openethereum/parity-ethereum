@@ -1,0 +1,1 @@
+[{"constant":true,"inputs":[{"name":"sender","type":"address"}],"name":"allowedTxTypes","outputs":[{"name":"","type":"uint32"}],"payable":false,"stateMutability":"nonpayable","type":"function"}]

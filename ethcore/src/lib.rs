@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="benches", feature(test))]
+#![cfg_attr(feature = "benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -58,14 +58,14 @@
 // error_chain foreign_links.
 #![recursion_limit="128"]
 
-extern crate bloomchain;
+extern crate blooms_db;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
 extern crate common_types as types;
-extern crate crypto;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
+extern crate ethcore_crypto;
 extern crate ethcore_io as io;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
@@ -78,6 +78,9 @@ extern crate ethkey;
 extern crate hardware_wallet;
 extern crate hashdb;
 extern crate itertools;
+extern crate kvdb;
+extern crate kvdb_memorydb;
+extern crate kvdb_rocksdb;
 extern crate lru_cache;
 extern crate num_cpus;
 extern crate num;
@@ -94,8 +97,6 @@ extern crate patricia_trie as trie;
 extern crate triehash;
 extern crate ansi_term;
 extern crate unexpected;
-extern crate kvdb;
-extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
 
@@ -108,7 +109,6 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
-#[cfg(test)]
 extern crate tempdir;
 
 #[macro_use]
@@ -136,9 +136,6 @@ pub extern crate ethstore;
 #[macro_use]
 pub mod views;
 
-#[cfg(test)]
-extern crate kvdb_rocksdb;
-
 pub mod account_provider;
 pub mod block;
 pub mod client;
@@ -157,13 +154,10 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
-// Test helpers made public for usage outside ethcore
-pub mod test_helpers;
 pub mod trace;
 pub mod verification;
 
 mod cache_manager;
-mod blooms;
 mod pod_account;
 mod account_db;
 mod builtin;
@@ -175,11 +169,12 @@ mod tx_filter;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
-#[cfg(feature="json-tests")]
+#[cfg(feature = "json-tests")]
 mod json_tests;
-#[cfg(test)]
-mod test_helpers_internal;
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod test_helpers;
 
 pub use types::*;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
+pub use blockchain::{BlockChainDB, BlockChainDBHandler};

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -409,6 +409,10 @@ impl UnverifiedTransaction {
 		if check_low_s && !(allow_empty_signature && self.is_unsigned()) {
 			self.check_low_s()?;
 		}
+		// Disallow unsigned transactions in case EIP-86 is disabled.
+		if !allow_empty_signature && self.is_unsigned() {
+			return Err(ethkey::Error::InvalidSignature.into());
+		}
 		// EIP-86: Transactions of this form MUST have gasprice = 0, nonce = 0, value = 0, and do NOT increment the nonce of account 0.
 		if allow_empty_signature && self.is_unsigned() && !(self.gas_price.is_zero() && self.value.is_zero() && self.nonce.is_zero()) {
 			return Err(ethkey::Error::InvalidSignature.into())
@@ -576,7 +580,8 @@ mod tests {
 
 	#[test]
 	fn sender_test() {
-		let t: UnverifiedTransaction = rlp::decode(&::rustc_hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+		let bytes = ::rustc_hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap();
+		let t: UnverifiedTransaction = rlp::decode(&bytes).expect("decoding UnverifiedTransaction failed");
 		assert_eq!(t.data, b"");
 		assert_eq!(t.gas, U256::from(0x5208u64));
 		assert_eq!(t.gas_price, U256::from(0x01u64));
@@ -645,7 +650,7 @@ mod tests {
 		use rustc_hex::FromHex;
 
 		let test_vector = |tx_data: &str, address: &'static str| {
-			let signed = rlp::decode(&FromHex::from_hex(tx_data).unwrap());
+			let signed = rlp::decode(&FromHex::from_hex(tx_data).unwrap()).expect("decoding tx data failed");
 			let signed = SignedTransaction::new(signed).unwrap();
 			assert_eq!(signed.sender(), address.into());
 			println!("chainid: {:?}", signed.chain_id());

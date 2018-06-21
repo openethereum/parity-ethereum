@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -496,7 +496,7 @@ impl BlockDownloader {
 			}
 
 			let result = if let Some(receipts) = receipts {
-				io.chain().import_block_with_receipts(block, receipts)
+				io.chain().queue_ancient_block(block, receipts)
 			} else {
 				io.chain().import_block(block)
 			};

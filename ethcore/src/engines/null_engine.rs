@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,10 @@
 
 use ethereum_types::U256;
 use engines::Engine;
+use engines::block_reward::{self, RewardKind};
 use header::BlockNumber;
-use parity_machine::{Header, LiveBlock, WithBalances};
+use machine::WithRewards;
+use parity_machine::{Header, LiveBlock, WithBalances, TotalScoredHeader};
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -56,7 +58,10 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: WithBalances> Engine<M> for NullEngine<M> {
+impl<M: WithBalances + WithRewards> Engine<M> for NullEngine<M>
+  where M::ExtendedHeader: TotalScoredHeader,
+        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
+{
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
@@ -74,26 +79,20 @@ impl<M: WithBalances> Engine<M> for NullEngine<M> {
 
 		let n_uncles = LiveBlock::uncles(&*block).len();
 
+		let mut rewards = Vec::new();
+
 		// Bestow block reward
 		let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
-		let mut uncle_rewards = Vec::with_capacity(n_uncles);
-
-		self.machine.add_balance(block, &author, &result_block_reward)?;
+		rewards.push((author, RewardKind::Author, result_block_reward));
 
 		// bestow uncle rewards.
 		for u in LiveBlock::uncles(&*block) {
 			let uncle_author = u.author();
 			let result_uncle_reward = (reward * U256::from(8 + u.number() - number)).shr(3);
-
-			uncle_rewards.push((*uncle_author, result_uncle_reward));
+			rewards.push((*uncle_author, RewardKind::Uncle, result_uncle_reward));
 		}
 
-		for &(ref a, ref reward) in &uncle_rewards {
-			self.machine.add_balance(block, a, reward)?;
-		}
-
-		// note and trace.
-		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
+		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
@@ -104,5 +103,9 @@ impl<M: WithBalances> Engine<M> for NullEngine<M> {
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
+	}
+
+	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
+		super::total_difficulty_fork_choice(new, current)
 	}
 }

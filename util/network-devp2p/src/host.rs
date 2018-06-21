@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@ use hash::keccak;
 use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
+use mio::udp::*;
 use ethereum_types::H256;
 use rlp::{RlpStream, Encodable};
 
@@ -39,13 +40,12 @@ use PROTOCOL_VERSION;
 use node_table::*;
 use network::{NetworkConfiguration, NetworkIoMessage, ProtocolId, PeerId, PacketId};
 use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
-use network::HostInfo as HostInfoTrait;
 use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
-use discovery::{Discovery, TableUpdates, NodeEntry};
+use discovery::{Discovery, TableUpdates, NodeEntry, MAX_DATAGRAM_SIZE};
 use ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
-use connection_filter::{ConnectionFilter, ConnectionDirection};
+use network::{ConnectionFilter, ConnectionDirection};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -79,7 +79,9 @@ const NODE_TABLE_TIMEOUT: Duration = Duration::from_secs(300);
 #[derive(Debug, PartialEq, Eq)]
 /// Protocol info
 pub struct CapabilityInfo {
+	/// Protocol ID
 	pub protocol: ProtocolId,
+	/// Protocol version
 	pub version: u8,
 	/// Total number of packet IDs this protocol support.
 	pub packet_count: u8,
@@ -105,17 +107,20 @@ pub struct NetworkContext<'s> {
 
 impl<'s> NetworkContext<'s> {
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(io: &'s IoContext<NetworkIoMessage>,
+	fn new(
+		io: &'s IoContext<NetworkIoMessage>,
 		protocol: ProtocolId,
-		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>,
-		reserved_peers: &'s HashSet<NodeId>) -> NetworkContext<'s> {
+		session: Option<SharedSession>,
+		sessions: Arc<RwLock<Slab<SharedSession>>>,
+		reserved_peers: &'s HashSet<NodeId>,
+	) -> NetworkContext<'s> {
 		let id = session.as_ref().map(|s| s.lock().token());
 		NetworkContext {
-			io: io,
-			protocol: protocol,
+			io,
+			protocol,
 			session_id: id,
-			session: session,
-			sessions: sessions,
+			session,
+			sessions,
 			_reserved_peers: reserved_peers,
 		}
 	}
@@ -146,10 +151,6 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		assert!(self.session.is_some(), "Respond called without network context");
 		self.session_id.map_or_else(|| Err(ErrorKind::Expired.into()), |id| self.send(id, packet_id, data))
-	}
-
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
-		self.io.channel()
 	}
 
 	fn disable_peer(&self, peer: PeerId) {
@@ -209,22 +210,22 @@ pub struct HostInfo {
 	pub public_endpoint: Option<NodeEndpoint>,
 }
 
-impl HostInfoTrait for HostInfo {
-	fn id(&self) -> &NodeId {
-		self.keys.public()
-	}
-
-	fn secret(&self) -> &Secret {
-		self.keys.secret()
-	}
-
+impl HostInfo {
 	fn next_nonce(&mut self) -> H256 {
 		self.nonce = keccak(&self.nonce);
 		self.nonce
 	}
 
-	fn client_version(&self) -> &str {
+	pub(crate) fn client_version(&self) -> &str {
 		&self.config.client_version
+	}
+
+	pub(crate) fn secret(&self) -> &Secret {
+		self.keys.secret()
+	}
+
+	pub(crate) fn id(&self) -> &NodeId {
+		self.keys.public()
 	}
 }
 
@@ -239,6 +240,7 @@ struct ProtocolTimer {
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
 pub struct Host {
 	pub info: RwLock<HostInfo>,
+	udp_socket: Mutex<Option<UdpSocket>>,
 	tcp_listener: Mutex<TcpListener>,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	discovery: Mutex<Option<Discovery>>,
@@ -277,7 +279,7 @@ impl Host {
 		let tcp_listener = TcpListener::bind(&listen_address)?;
 		listen_address = SocketAddr::new(listen_address.ip(), tcp_listener.local_addr()?.port());
 		debug!(target: "network", "Listening at {:?}", listen_address);
-		let udp_port = config.udp_port.unwrap_or(listen_address.port());
+		let udp_port = config.udp_port.unwrap_or_else(|| listen_address.port());
 		let local_endpoint = NodeEndpoint { address: listen_address, udp_port: udp_port };
 
 		let boot_nodes = config.boot_nodes.clone();
@@ -295,6 +297,7 @@ impl Host {
 				local_endpoint: local_endpoint,
 			}),
 			discovery: Mutex::new(None),
+			udp_socket: Mutex::new(None),
 			tcp_listener: Mutex::new(tcp_listener),
 			sessions: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_SESSION, MAX_SESSIONS))),
 			nodes: RwLock::new(NodeTable::new(path)),
@@ -322,7 +325,7 @@ impl Host {
 		match Node::from_str(id) {
 			Err(e) => { debug!(target: "network", "Could not add node {}: {:?}", id, e); },
 			Ok(n) => {
-				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
+				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id };
 
 				self.nodes.write().add_node(n);
 				if let Some(ref mut discovery) = *self.discovery.lock() {
@@ -335,9 +338,9 @@ impl Host {
 	pub fn add_reserved_node(&self, id: &str) -> Result<(), Error> {
 		let n = Node::from_str(id)?;
 
-		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
-		self.reserved_nodes.write().insert(n.id.clone());
-		self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id };
+		self.reserved_nodes.write().insert(n.id);
+		self.nodes.write().add_node(Node::new(entry.id, entry.endpoint.clone()));
 
 		if let Some(ref mut discovery) = *self.discovery.lock() {
 			discovery.add_node(entry);
@@ -346,10 +349,10 @@ impl Host {
 		Ok(())
 	}
 
-	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
+	pub fn set_non_reserved_mode(&self, mode: &NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
 		let mut info = self.info.write();
 
-		if info.config.non_reserved_mode != mode {
+		if &info.config.non_reserved_mode != mode {
 			info.config.non_reserved_mode = mode.clone();
 			drop(info);
 			if let NonReservedPeerMode::Deny = mode {
@@ -385,15 +388,15 @@ impl Host {
 
 	pub fn external_url(&self) -> Option<String> {
 		let info = self.info.read();
-		info.public_endpoint.as_ref().map(|e| format!("{}", Node::new(info.id().clone(), e.clone())))
+		info.public_endpoint.as_ref().map(|e| format!("{}", Node::new(*info.id(), e.clone())))
 	}
 
 	pub fn local_url(&self) -> String {
 		let info = self.info.read();
-		format!("{}", Node::new(info.id().clone(), info.local_endpoint.clone()))
+		format!("{}", Node::new(*info.id(), info.local_endpoint.clone()))
 	}
 
-	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
 		for e in self.sessions.read().iter() {
@@ -405,8 +408,7 @@ impl Host {
 			trace!(target: "network", "Disconnecting on shutdown: {}", p);
 			self.kill_connection(p, io, true);
 		}
-		io.unregister_handler()?;
-		Ok(())
+		io.unregister_handler();
 	}
 
 	/// Get all connected peers.
@@ -459,13 +461,16 @@ impl Host {
 		let discovery = {
 			let info = self.info.read();
 			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
-				let mut udp_addr = local_endpoint.address.clone();
-				udp_addr.set_port(local_endpoint.udp_port);
-				Some(Discovery::new(&info.keys, udp_addr, public_endpoint, DISCOVERY, allow_ips))
+				Some(Discovery::new(&info.keys, public_endpoint, allow_ips))
 			} else { None }
 		};
 
 		if let Some(mut discovery) = discovery {
+			let mut udp_addr = local_endpoint.address;
+			udp_addr.set_port(local_endpoint.udp_port);
+			let socket = UdpSocket::bind(&udp_addr).expect("Error binding UDP socket");
+			*self.udp_socket.lock() = Some(socket);
+
 			discovery.init_node_list(self.nodes.read().entries());
 			discovery.add_node_list(self.nodes.read().entries());
 			*self.discovery.lock() = Some(discovery);
@@ -552,7 +557,7 @@ impl Host {
 		// iterate over all nodes, reserved ones coming first.
 		// if we are pinned to only reserved nodes, ignore all others.
 		let nodes = reserved_nodes.iter().cloned().chain(if !pin {
-			self.nodes.read().nodes(allow_ips)
+			self.nodes.read().nodes(&allow_ips)
 		} else {
 			Vec::new()
 		});
@@ -585,10 +590,8 @@ impl Host {
 			let address = {
 				let mut nodes = self.nodes.write();
 				if let Some(node) = nodes.get_mut(id) {
-					node.attempts += 1;
 					node.endpoint.address
-				}
-				else {
+				} else {
 					debug!(target: "network", "Connection to expired node aborted");
 					return;
 				}
@@ -600,6 +603,7 @@ impl Host {
 				},
 				Err(e) => {
 					debug!(target: "network", "{}: Can't connect to address {:?}: {:?}", id, address, e);
+					self.nodes.write().note_failure(&id);
 					return;
 				}
 			}
@@ -685,12 +689,17 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
-								if let Some(id) = s.id() {
-									if !self.reserved_nodes.read().contains(id) {
-										self.nodes.write().mark_as_useless(id);
+							match *e.kind() {
+								ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) | ErrorKind::Disconnect(DisconnectReason::UselessPeer) => {
+									if let Some(id) = s.id() {
+										if !self.reserved_nodes.read().contains(id) {
+											let mut nodes = self.nodes.write();
+											nodes.note_failure(&id);
+											nodes.mark_as_useless(id);
+										}
 									}
-								}
+								},
+								_ => {},
 							}
 							kill = true;
 							break;
@@ -746,7 +755,7 @@ impl Host {
 									let entry = NodeEntry { id: id, endpoint: endpoint };
 									let mut nodes = self.nodes.write();
 									if !nodes.contains(&entry.id) {
-										nodes.add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+										nodes.add_node(Node::new(entry.id, entry.endpoint.clone()));
 										let mut discovery = self.discovery.lock();
 										if let Some(ref mut discovery) = *discovery {
 											discovery.add_node(entry);
@@ -754,6 +763,10 @@ impl Host {
 									}
 								}
 							}
+
+							// Note connection success
+							self.nodes.write().note_success(&id);
+
 							for (p, _) in self.handlers.read().iter() {
 								if s.have_capability(*p) {
 									ready_data.push(*p);
@@ -809,6 +822,67 @@ impl Host {
 					h.read(&NetworkContext::new(io, p, Some(session.clone()), self.sessions.clone(), &reserved), &token, packet_id, &data);
 				}
 			}
+		}
+	}
+
+	fn discovery_readable(&self, io: &IoContext<NetworkIoMessage>) {
+		let node_changes = match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
+			(Some(udp_socket), Some(discovery)) => {
+				let mut buf = [0u8; MAX_DATAGRAM_SIZE];
+				let writable = discovery.any_sends_queued();
+				let res = match udp_socket.recv_from(&mut buf) {
+					Ok(Some((len, address))) => discovery.on_packet(&buf[0..len], address).unwrap_or_else(|e| {
+						debug!(target: "network", "Error processing UDP packet: {:?}", e);
+						None
+					}),
+					Ok(_) => None,
+					Err(e) => {
+						debug!(target: "network", "Error reading UPD socket: {:?}", e);
+						None
+					}
+				};
+				let new_writable = discovery.any_sends_queued();
+				if writable != new_writable {
+					io.update_registration(DISCOVERY)
+						.unwrap_or_else(|e| {
+							debug!(target: "network" ,"Error updating discovery registration: {:?}", e)
+						});
+				}
+				res
+			},
+			_ => None,
+		};
+		if let Some(node_changes) = node_changes {
+			self.update_nodes(io, node_changes);
+		}
+	}
+
+	fn discovery_writable(&self, io: &IoContext<NetworkIoMessage>) {
+		match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
+			(Some(udp_socket), Some(discovery)) => {
+				while let Some(data) = discovery.dequeue_send() {
+					match udp_socket.send_to(&data.payload, &data.address) {
+						Ok(Some(size)) if size == data.payload.len() => {
+						},
+						Ok(Some(_)) => {
+							warn!(target: "network", "UDP sent incomplete datagram");
+						},
+						Ok(None) => {
+							discovery.requeue_send(data);
+							return;
+						}
+						Err(e) => {
+							debug!(target: "network", "UDP send error: {:?}, address: {:?}", e, &data.address);
+							return;
+						}
+					}
+				}
+				io.update_registration(DISCOVERY)
+					.unwrap_or_else(|e| {
+						debug!(target: "network", "Error updating discovery registration: {:?}", e)
+					});
+			},
+			_ => (),
 		}
 	}
 
@@ -913,12 +987,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 		}
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
-			DISCOVERY => {
-				let node_changes = { self.discovery.lock().as_mut().map_or(None, |d| d.readable(io)) };
-				if let Some(node_changes) = node_changes {
-					self.update_nodes(io, node_changes);
-				}
-			},
+			DISCOVERY => self.discovery_readable(io),
 			TCP_ACCEPT => self.accept(io),
 			_ => panic!("Received unknown readable token"),
 		}
@@ -930,9 +999,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 		}
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
-			DISCOVERY => {
-				self.discovery.lock().as_mut().map(|d| d.writable(io));
-			}
+			DISCOVERY => self.discovery_writable(io),
 			_ => panic!("Received unknown writable token"),
 		}
 	}
@@ -982,18 +1049,20 @@ impl IoHandler<NetworkIoMessage> for Host {
 				ref handler,
 				ref protocol,
 				ref versions,
-				ref packet_count,
 			} => {
 				let h = handler.clone();
 				let reserved = self.reserved_nodes.read();
 				h.initialize(
 					&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved),
-					&*self.info.read(),
 				);
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
-				for v in versions {
-					info.capabilities.push(CapabilityInfo { protocol: *protocol, version: *v, packet_count: *packet_count });
+				for &(version, packet_count) in versions {
+					info.capabilities.push(CapabilityInfo {
+						protocol: *protocol,
+						version,
+						packet_count,
+					});
 				}
 			},
 			NetworkIoMessage::AddTimer {
@@ -1024,7 +1093,9 @@ impl IoHandler<NetworkIoMessage> for Host {
 				if let Some(session) = session {
 					session.lock().disconnect(io, DisconnectReason::DisconnectRequested);
 					if let Some(id) = session.lock().id() {
-						self.nodes.write().mark_as_useless(id)
+						let mut nodes = self.nodes.write();
+						nodes.note_failure(&id);
+						nodes.mark_as_useless(id);
 					}
 				}
 				trace!(target: "network", "Disabling peer {}", peer);
@@ -1044,7 +1115,13 @@ impl IoHandler<NetworkIoMessage> for Host {
 					session.lock().register_socket(reg, event_loop).expect("Error registering socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.register_socket(event_loop).ok()).expect("Error registering discovery socket"),
+			DISCOVERY => match self.udp_socket.lock().as_ref() {
+				Some(udp_socket) => {
+					event_loop.register(udp_socket, reg, Ready::all(), PollOpt::edge())
+						.expect("Error registering UDP socket");
+				},
+				_ => panic!("Error registering discovery socket"),
+			}
 			TCP_ACCEPT => event_loop.register(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
 		}
@@ -1075,7 +1152,18 @@ impl IoHandler<NetworkIoMessage> for Host {
 					connection.lock().update_socket(reg, event_loop).expect("Error updating socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.update_registration(event_loop).ok()).expect("Error reregistering discovery socket"),
+			DISCOVERY => match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_ref()) {
+				(Some(udp_socket), Some(discovery)) => {
+					let registration = if discovery.any_sends_queued() {
+						Ready::readable() | Ready::writable()
+					} else {
+						Ready::readable()
+					};
+					event_loop.reregister(udp_socket, reg, registration, PollOpt::edge())
+						.expect("Error reregistering UDP socket");
+				},
+				_ => panic!("Error reregistering discovery socket"),
+			}
 			TCP_ACCEPT => event_loop.reregister(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			_ => warn!("Unexpected stream update")
 		}
@@ -1142,7 +1230,6 @@ fn key_save_load() {
 	let r = load_key(tempdir.path());
 	assert_eq!(key, r.unwrap());
 }
-
 
 #[test]
 fn host_client_url() {

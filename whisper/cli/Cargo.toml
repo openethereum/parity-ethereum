@@ -1,7 +1,9 @@
 [package]
 name = "whisper-cli"
+description = "Whisper command line interface"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+license = "GPL-3.0"
 
 [dependencies]
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
@@ -18,5 +20,5 @@ jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branc
 log = "0.3"
 
 [[bin]]
-name = "whisper-cli"
+name = "whisper"
 path = "src/main.rs"

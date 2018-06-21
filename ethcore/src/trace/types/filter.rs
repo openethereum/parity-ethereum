@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 //! Trace filters type definitions
 
 use std::ops::Range;
-use bloomchain::{Filter as BloomFilter, Number};
 use ethereum_types::{Address, Bloom, BloomInput};
 use trace::flat::FlatTrace;
 use super::trace::{Action, Res};
@@ -88,19 +87,9 @@ pub struct Filter {
 	pub to_address: AddressesFilter,
 }
 
-impl BloomFilter for Filter {
-	fn bloom_possibilities(&self) -> Vec<Bloom> {
-		self.bloom_possibilities()
-	}
-
-	fn range(&self) -> Range<Number> {
-		self.range.clone()
-	}
-}
-
 impl Filter {
 	/// Returns combinations of each address.
-	fn bloom_possibilities(&self) -> Vec<Bloom> {
+	pub fn bloom_possibilities(&self) -> Vec<Bloom> {
 		self.to_address.with_blooms(self.from_address.blooms())
 	}
 

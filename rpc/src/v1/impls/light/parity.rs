@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,8 +20,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use version::version_data;
 
-use crypto::{ecies, DEFAULT_MAC};
-use ethkey::{Brain, Generator};
+use crypto::DEFAULT_MAC;
+use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
@@ -264,12 +264,13 @@ impl Parity for ParityClient {
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Trailing<usize>) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
+				.take(limit.unwrap_or_else(usize::max_value))
 				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
 				.collect::<Vec<_>>()
 		)
@@ -395,9 +396,9 @@ impl Parity for ParityClient {
 
 		let engine = self.light_dispatch.client.engine().clone();
 		let from_encoded = move |encoded: encoded::Header| {
-			let header = encoded.decode();
+			let header = encoded.decode().map_err(errors::decode)?;
 			let extra_info = engine.extra_info(&header);
-			RichHeader {
+			Ok(RichHeader {
 				inner: Header {
 					hash: Some(header.hash().into()),
 					size: Some(encoded.rlp().as_raw().len().into()),
@@ -418,9 +419,8 @@ impl Parity for ParityClient {
 					extra_data: Bytes::new(header.extra_data().clone()),
 				},
 				extra_info: extra_info,
-			}
+			})
 		};
-
 		// Note: Here we treat `Pending` as `Latest`.
 		//       Since light clients don't produce pending blocks
 		//       (they don't have state) we can safely fallback to `Latest`.
@@ -430,7 +430,7 @@ impl Parity for ParityClient {
 			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
 		};
 
-		Box::new(self.fetcher().header(id).map(from_encoded))
+		Box::new(self.fetcher().header(id).and_then(from_encoded))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {

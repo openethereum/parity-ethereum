@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,7 +29,6 @@ pub struct BlockView<'a> {
 	rlp: ViewRlp<'a>
 }
 
-
 impl<'a> BlockView<'a> {
 	/// Creates new view onto block from rlp.
 	/// Use the `view!` macro to create this view in order to capture debugging info.
@@ -39,9 +38,9 @@ impl<'a> BlockView<'a> {
 	/// ```
 	/// #[macro_use]
 	/// extern crate ethcore;
-	/// 
+	///
 	/// use ethcore::views::{BlockView};
-	/// 
+	///
 	/// fn main() {
 	/// let bytes : &[u8] = &[];
 	/// let block_view = view!(BlockView, bytes);

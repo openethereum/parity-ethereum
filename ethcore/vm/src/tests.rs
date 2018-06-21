@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -85,6 +85,13 @@ impl FakeExt {
 	pub fn new_byzantium() -> Self {
 		let mut ext = FakeExt::default();
 		ext.schedule = Schedule::new_byzantium();
+		ext
+	}
+
+	/// New fake externalities with constantinople schedule rules
+	pub fn new_constantinople() -> Self {
+		let mut ext = FakeExt::default();
+		ext.schedule = Schedule::new_constantinople();
 		ext
 	}
 

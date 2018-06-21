@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -81,8 +81,6 @@ impl Dependencies {
 	}
 
 	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestParityClient {
-		let opt_accounts = Some(self.accounts.clone());
-
 		ParityClient::new(
 			self.client.clone(),
 			self.miner.clone(),
@@ -90,7 +88,7 @@ impl Dependencies {
 			self.updater.clone(),
 			self.network.clone(),
 			self.health.clone(),
-			opt_accounts.clone(),
+			self.accounts.clone(),
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
@@ -149,7 +147,6 @@ fn rpc_parity_accounts_info() {
 fn rpc_parity_default_account() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
-
 
 	// Check empty
 	let address = Address::default();

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,25 +20,28 @@ mod ancient_import;
 mod client;
 mod config;
 mod error;
+#[cfg(any(test, feature = "test-helpers"))]
 mod evm_test_client;
 mod io_message;
+#[cfg(any(test, feature = "test-helpers"))]
 mod test_client;
 mod trace;
 
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
+#[cfg(any(test, feature = "test-helpers"))]
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
 pub use self::io_message::ClientIoMessage;
+#[cfg(any(test, feature = "test-helpers"))]
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use self::chain_notify::{ChainNotify, ChainMessageType};
+pub use self::chain_notify::{ChainNotify, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, CallContract, TransactionInfo, RegistryInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
 };
-//pub use self::private_notify::PrivateNotify;
 pub use state::StateInfo;
-pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient};
+pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;

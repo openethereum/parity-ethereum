@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -54,6 +54,8 @@ extern crate macros;
 extern crate log;
 #[macro_use]
 extern crate heapsize;
+#[macro_use]
+extern crate trace_time;
 
 mod chain;
 mod blocks;
@@ -72,6 +74,6 @@ mod api;
 
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
-pub use devp2p::{validate_node_url, ConnectionFilter, ConnectionDirection};
-pub use network::{NonReservedPeerMode, Error, ErrorKind};
+pub use devp2p::validate_node_url;
+pub use network::{NonReservedPeerMode, Error, ErrorKind, ConnectionFilter, ConnectionDirection};
 pub use private_tx::{PrivateTxHandler, NoopPrivateTxHandler, SimplePrivateTxHandler};

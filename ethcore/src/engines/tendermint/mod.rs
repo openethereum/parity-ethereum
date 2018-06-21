@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -35,12 +35,13 @@ use unexpected::{OutOfBounds, Mismatch};
 use client::EngineClient;
 use bytes::Bytes;
 use error::{Error, BlockError};
-use header::{Header, BlockNumber};
+use header::{Header, BlockNumber, ExtendedHeader};
 use rlp::Rlp;
 use ethkey::{self, Message, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
+use engines::block_reward::{self, RewardKind};
 use io::IoService;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList};
@@ -142,8 +143,10 @@ impl <F> super::EpochVerifier<EthereumMachine> for EpochVerifier<F>
 	}
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
-		let header: Header = ::rlp::decode(proof);
-		self.verify_light(&header).ok().map(|_| vec![header.hash()])
+		match ::rlp::decode(proof) {
+			Ok(header) => self.verify_light(&header).ok().map(|_| vec![header.hash()]),
+			Err(_) => None // REVIEW: log perhaps? Not sure what the policy is.
+		}
 	}
 }
 
@@ -356,7 +359,6 @@ impl Tendermint {
 			&& lock_change_view < self.view.load(AtomicOrdering::SeqCst)
 	}
 
-
 	fn has_enough_any_votes(&self) -> bool {
 		let step_votes = self.votes.count_round_votes(&VoteStep::new(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst), *self.step.read()));
 		self.check_above_threshold(step_votes).is_ok()
@@ -527,7 +529,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		Ok(())
 	}
 
-	fn on_new_block(&self, block: &mut ExecutedBlock, epoch_begin: bool) -> Result<(), Error> {
+	fn on_new_block(&self, block: &mut ExecutedBlock, epoch_begin: bool, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<(), Error> {
 		if !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
@@ -550,10 +552,13 @@ impl Engine<EthereumMachine> for Tendermint {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
-		use parity_machine::WithBalances;
 		let author = *block.header().author();
-		self.machine.add_balance(block, &author, &self.block_reward)?;
-		self.machine.note_rewards(block, &[(author, self.block_reward)], &[])
+
+		block_reward::apply_block_rewards(
+			&[(author, RewardKind::Author, self.block_reward)],
+			block,
+			&self.machine,
+		)
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
@@ -759,6 +764,10 @@ impl Engine<EthereumMachine> for Tendermint {
 		*self.client.write() = Some(client.clone());
 		self.validators.register_client(client);
 	}
+
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
+		super::total_difficulty_fork_choice(new, current)
+	}
 }
 
 #[cfg(test)]
@@ -794,7 +803,7 @@ mod tests {
 		let db = spec.ensure_db_good(db, &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b = b.close();
 		if let Seal::Proposal(seal) = spec.engine.generate_seal(b.block(), &genesis_header) {
 			(b, seal)

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -119,14 +119,13 @@ pub mod blocks {
 
 	impl Unverified {
 		/// Create an `Unverified` from raw bytes.
-		pub fn new(bytes: Bytes) -> Self {
-			use views::BlockView;
+		pub fn from_rlp(bytes: Bytes) -> Result<Self, ::rlp::DecoderError> {
 
-			let header = view!(BlockView, &bytes).header();
-			Unverified {
+			let header = ::rlp::Rlp::new(&bytes).val_at(0)?; 
+			Ok(Unverified {
 				header: header,
 				bytes: bytes,
-			}
+			})
 		}
 	}
 

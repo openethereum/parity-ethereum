@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -173,8 +173,8 @@ impl Provider for TestProvider {
 		})
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		self.0.client.ready_transactions()
+	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
+		self.0.client.ready_transactions(max_len)
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -813,6 +813,28 @@ impl JobTransport for DecryptionJobTransport {
 }
 
 #[cfg(test)]
+pub fn create_default_decryption_session() -> Arc<SessionImpl> {
+	use acl_storage::DummyAclStorage;
+	use key_server_cluster::cluster::tests::DummyCluster;
+
+	Arc::new(SessionImpl::new(SessionParams {
+		meta: SessionMeta {
+			id: Default::default(),
+			self_node_id: Default::default(),
+			master_node_id: Default::default(),
+			threshold: 0,
+			configured_nodes_count: 0,
+			connected_nodes_count: 0,
+		},
+		access_key: Secret::zero(),
+		key_share: Default::default(),
+		acl_storage: Arc::new(DummyAclStorage::default()),
+		cluster: Arc::new(DummyCluster::new(Default::default())),
+		nonce: 0,
+	}, Some(Requester::Public(2.into()))).unwrap())
+}
+
+#[cfg(test)]
 mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeMap, VecDeque};
@@ -1279,7 +1301,7 @@ mod tests {
 		assert!(decrypted_secret.decrypt_shadows.is_some());
 		// check that KS client is able to restore original secret
 		use crypto::DEFAULT_MAC;
-		use crypto::ecies::decrypt;
+		use ethkey::crypto::ecies::decrypt;
 		let decrypt_shadows: Vec<_> = decrypted_secret.decrypt_shadows.unwrap().into_iter()
 			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
@@ -1423,7 +1445,7 @@ mod tests {
 
 		// 4 nodes must be able to recover original secret
 		use crypto::DEFAULT_MAC;
-		use crypto::ecies::decrypt;
+		use ethkey::crypto::ecies::decrypt;
 		let result = sessions[0].decrypted_secret().unwrap().unwrap();
 		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.decrypted_secret() == Some(Ok(result.clone()))).count());
 		let decrypt_shadows: Vec<_> = result.decrypt_shadows.unwrap().into_iter()

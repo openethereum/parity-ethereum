@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use blockchain::{BlockChain, BlockProvider};
+use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 use snapshot::block::AbridgedBlock;
@@ -78,10 +78,10 @@ impl SnapshotComponents for PowSnapshot {
 	fn rebuilder(
 		&self,
 		chain: BlockChain,
-		db: Arc<KeyValueDB>,
+		db: Arc<BlockChainDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error> {
-		PowRebuilder::new(chain, db, manifest, self.max_restore_blocks).map(|r| Box::new(r) as Box<_>)
+		PowRebuilder::new(chain, db.key_value().clone(), manifest, self.max_restore_blocks).map(|r| Box::new(r) as Box<_>)
 	}
 
 	fn min_supported_version(&self) -> u64 { ::snapshot::MIN_SUPPORTED_STATE_CHUNK_VERSION }
@@ -229,7 +229,7 @@ impl Rebuilder for PowRebuilder {
 		let item_count = rlp.item_count()?;
 		let num_blocks = (item_count - 3) as u64;
 
-		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
+		trace!(target: "snapshot", "restoring block chunk with {} blocks.", num_blocks);
 
 		if self.fed_blocks + num_blocks > self.snapshot_blocks {
 			return Err(Error::TooManyBlocks(self.snapshot_blocks, self.fed_blocks + num_blocks).into())

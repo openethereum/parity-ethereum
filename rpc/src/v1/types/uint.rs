@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -55,7 +55,7 @@ macro_rules! impl_uint {
 
 		impl fmt::LowerHex for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				write!(f, "{:#x}", self.0)
+				fmt::LowerHex::fmt(&self.0, f)
 			}
 		}
 
@@ -102,19 +102,19 @@ impl_uint!(U64, u64, 1);
 
 impl serde::Serialize for U128 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-		serializer.serialize_str(&format!("0x{:x}", self.0))
+		serializer.serialize_str(&format!("{:#x}", self))
 	}
 }
 
 impl serde::Serialize for U256 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-		serializer.serialize_str(&format!("0x{:x}", self.0))
+		serializer.serialize_str(&format!("{:#x}", self))
 	}
 }
 
 impl serde::Serialize for U64 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-		serializer.serialize_str(&format!("0x{:x}", self.0))
+		serializer.serialize_str(&format!("{:#x}", self))
 	}
 }
 

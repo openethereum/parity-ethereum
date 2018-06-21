@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,11 +17,9 @@
 use std::io;
 use std::time::{Duration, SystemTime};
 use hyper::{self, header, StatusCode};
-use hyper::mime::{self, Mime};
+use hyper::mime::{Mime};
 
-use apps;
 use handlers::{Reader, ContentHandler, add_security_headers};
-use {Embeddable};
 
 /// Represents a file that can be sent to client.
 /// Implementation should keep track of bytes already sent internally.
@@ -55,8 +53,6 @@ impl Default for PageCache {
 pub struct PageHandler<T: DappFile> {
 	/// File currently being served
 	pub file: Option<T>,
-	/// Flag indicating if the file can be safely embeded (put in iframe).
-	pub safe_to_embed_on: Embeddable,
 	/// Cache settings for this page.
 	pub cache: PageCache,
 	/// Allow JS unsafe-eval.
@@ -71,7 +67,6 @@ impl<T: DappFile> PageHandler<T> {
 				"File not found",
 				"Requested file has not been found.",
 				None,
-				self.safe_to_embed_on,
 			).into()),
 			Some(file) => file,
 		};
@@ -95,21 +90,10 @@ impl<T: DappFile> PageHandler<T> {
 
 			headers.set(header::ContentType(file.content_type().to_owned()));
 
-			add_security_headers(&mut headers, self.safe_to_embed_on, self.allow_js_eval);
+			add_security_headers(&mut headers, self.allow_js_eval);
 		}
 
-		let initial_content = if file.content_type().to_owned() == mime::TEXT_HTML {
-			let content = &format!(
-				r#"<script src="/{}/inject.js"></script>"#,
-				apps::UTILS_PATH,
-			);
-
-			content.as_bytes().to_vec()
-		} else {
-			Vec::new()
-		};
-
-		let (reader, body) = Reader::pair(file.into_reader(), initial_content);
+		let (reader, body) = Reader::pair(file.into_reader(), Vec::new());
 		res.set_body(body);
 		(Some(reader), res)
 	}

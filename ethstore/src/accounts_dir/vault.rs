@@ -1,4 +1,4 @@
-// Copyright 2015, 2016, 2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -235,7 +235,7 @@ fn check_vault_name(name: &str) -> bool {
 /// Vault can be empty, but still must be pluggable => we store vault password in separate file
 fn create_vault_file<P>(vault_dir_path: P, key: &VaultKey, meta: &str) -> Result<(), Error> where P: AsRef<Path> {
 	let password_hash = key.password.keccak256();
-	let crypto = Crypto::with_plain(&password_hash, &key.password, key.iterations);
+	let crypto = Crypto::with_plain(&password_hash, &key.password, key.iterations)?;
 
 	let mut vault_file_path: PathBuf = vault_dir_path.as_ref().into();
 	vault_file_path.push(VAULT_FILE_NAME);

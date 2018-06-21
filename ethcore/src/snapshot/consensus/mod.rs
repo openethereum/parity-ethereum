@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,12 +20,11 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use blockchain::BlockChain;
+use blockchain::{BlockChain, BlockChainDB};
 use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 
 use ethereum_types::H256;
-use kvdb::KeyValueDB;
 
 mod authority;
 mod work;
@@ -63,7 +62,7 @@ pub trait SnapshotComponents: Send {
 	fn rebuilder(
 		&self,
 		chain: BlockChain,
-		db: Arc<KeyValueDB>,
+		db: Arc<BlockChainDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error>;
 
@@ -73,7 +72,6 @@ pub trait SnapshotComponents: Send {
 	/// Current version number
 	fn current_version(&self) -> u64;
 }
-
 
 /// Restore from secondary snapshot chunks.
 pub trait Rebuilder: Send {

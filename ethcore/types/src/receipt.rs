@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 //! Receipt
 
-use ethereum_types::{H256, U256, Address, Bloom};
+use ethereum_types::{H160, H256, U256, Address, Bloom};
 use heapsize::HeapSizeOf;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 
@@ -157,6 +157,10 @@ pub struct LocalizedReceipt {
 	pub log_bloom: Bloom,
 	/// Transaction outcome.
 	pub outcome: TransactionOutcome,
+	/// Receiver address
+	pub to: Option<H160>,
+	/// Sender
+	pub from: H160
 }
 
 #[cfg(test)]
@@ -193,7 +197,7 @@ mod tests {
 		);
 		let encoded = ::rlp::encode(&r);
 		assert_eq!(&encoded[..], &expected[..]);
-		let decoded: Receipt = ::rlp::decode(&encoded);
+		let decoded: Receipt = ::rlp::decode(&encoded).expect("decoding receipt failed");
 		assert_eq!(decoded, r);
 	}
 
@@ -211,7 +215,7 @@ mod tests {
 		);
 		let encoded = ::rlp::encode(&r);
 		assert_eq!(&encoded[..], &expected[..]);
-		let decoded: Receipt = ::rlp::decode(&encoded);
+		let decoded: Receipt = ::rlp::decode(&encoded).expect("decoding receipt failed");
 		assert_eq!(decoded, r);
 	}
 }

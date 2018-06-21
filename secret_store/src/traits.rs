@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -94,7 +94,7 @@ pub trait MessageSigner: ServerKeyGenerator {
 /// Administrative sessions server.
 pub trait AdminSessionsServer {
 	/// Change servers set so that nodes in new_servers_set became owners of shares for all keys.
-	/// And old nodes (i.e. cluste nodes except new_servers_set) have clear databases.
+	/// And old nodes (i.e. cluster nodes except new_servers_set) have clear databases.
 	/// WARNING: newly generated keys will be distributed among all cluster nodes. So this session
 	/// must be followed with cluster nodes change (either via contract, or config files).
 	fn change_servers_set(&self, old_set_signature: RequestSignature, new_set_signature: RequestSignature, new_servers_set: BTreeSet<NodeId>) -> Result<(), Error>;

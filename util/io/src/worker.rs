@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,27 +18,20 @@ use std::sync::Arc;
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use crossbeam::sync::chase_lev;
-use service::{HandlerId, IoChannel, IoContext};
+use service_mio::{HandlerId, IoChannel, IoContext};
 use IoHandler;
-use std::cell::Cell;
+use LOCAL_STACK_SIZE;
 
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 
 const STACK_SIZE: usize = 16*1024*1024;
-
-thread_local! {
-	/// Stack size
-	/// Should be modified if it is changed in Rust since it is no way
-	/// to know or get it
-	pub static LOCAL_STACK_SIZE: Cell<usize> = Cell::new(::std::env::var("RUST_MIN_STACK").ok().and_then(|s| s.parse().ok()).unwrap_or(2 * 1024 * 1024));
-}
 
 pub enum WorkType<Message> {
 	Readable,
 	Writable,
 	Hup,
 	Timeout,
-	Message(Message)
+	Message(Arc<Message>)
 }
 
 pub struct Work<Message> {
@@ -65,7 +58,7 @@ impl Worker {
 						wait: Arc<SCondvar>,
 						wait_mutex: Arc<SMutex<()>>,
 					   ) -> Worker
-					where Message: Send + Sync + Clone + 'static {
+					where Message: Send + Sync + 'static {
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
 			thread: None,
@@ -86,7 +79,7 @@ impl Worker {
 						channel: IoChannel<Message>, wait: Arc<SCondvar>,
 						wait_mutex: Arc<SMutex<()>>,
 						deleting: Arc<AtomicBool>)
-						where Message: Send + Sync + Clone + 'static {
+						where Message: Send + Sync + 'static {
 		loop {
 			{
 				let lock = wait_mutex.lock().expect("Poisoned work_loop mutex");
@@ -105,7 +98,7 @@ impl Worker {
 		}
 	}
 
-	fn do_work<Message>(work: Work<Message>, channel: IoChannel<Message>) where Message: Send + Sync + Clone + 'static {
+	fn do_work<Message>(work: Work<Message>, channel: IoChannel<Message>) where Message: Send + Sync + 'static {
 		match work.work_type {
 			WorkType::Readable => {
 				work.handler.stream_readable(&IoContext::new(channel, work.handler_id), work.token);
@@ -120,7 +113,7 @@ impl Worker {
 				work.handler.timeout(&IoContext::new(channel, work.handler_id), work.token);
 			}
 			WorkType::Message(message) => {
-				work.handler.message(&IoContext::new(channel, work.handler_id), &message);
+				work.handler.message(&IoContext::new(channel, work.handler_id), &*message);
 			}
 		}
 	}

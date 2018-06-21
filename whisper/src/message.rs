@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -446,7 +446,7 @@ mod tests {
 		};
 
 		let encoded = ::rlp::encode(&envelope);
-		let decoded = ::rlp::decode(&encoded);
+		let decoded = ::rlp::decode(&encoded).expect("failure decoding Envelope");
 
 		assert_eq!(envelope, decoded)
 	}
@@ -462,7 +462,7 @@ mod tests {
 		};
 
 		let encoded = ::rlp::encode(&envelope);
-		let decoded = ::rlp::decode(&encoded);
+		let decoded = ::rlp::decode(&encoded).expect("failure decoding Envelope");
 
 		assert_eq!(envelope, decoded)
 	}

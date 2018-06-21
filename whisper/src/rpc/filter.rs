@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -402,7 +402,7 @@ mod tests {
 			sign_with: Some(signing_pair.secret().unwrap())
 		}).unwrap();
 
-		let encrypted = encryption_instance.encrypt(&payload);
+		let encrypted = encryption_instance.encrypt(&payload).unwrap();
 
 		let message = Message::create(CreateParams {
 			ttl: 100,
