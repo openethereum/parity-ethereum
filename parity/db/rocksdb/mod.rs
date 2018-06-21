@@ -105,8 +105,8 @@ pub fn open_database(client_path: &str, config: &DatabaseConfig) -> Result<Arc<B
 
 	let blooms_path = path.join("blooms");
 	let trace_blooms_path = path.join("trace_blooms");
-	fs::create_dir(&blooms_path)?;
-	fs::create_dir(&trace_blooms_path)?;
+	fs::create_dir_all(&blooms_path)?;
+	fs::create_dir_all(&trace_blooms_path)?;
 
 	let db = AppDB {
 		key_value: Arc::new(Database::open(&config, client_path)?),
