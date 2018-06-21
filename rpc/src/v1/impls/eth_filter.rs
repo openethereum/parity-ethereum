@@ -41,8 +41,8 @@ pub trait Filterable {
 	/// Get a block hash by block id.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
-	/// pending transaction hashes at the given block.
-	fn pending_transactions_hashes(&self) -> Vec<H256>;
+	/// pending transaction hashes at the given block (unordered).
+	fn pending_transactions_hashes(&self) -> HashSet<H256>;
 
 	/// Get logs that match the given filter.
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>>;
@@ -87,8 +87,8 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 		self.client.block_hash(id)
 	}
 
-	fn pending_transactions_hashes(&self) -> Vec<H256> {
-		self.miner.ready_transactions(&*self.client, usize::max_value(), miner::PendingOrdering::Priority)
+	fn pending_transactions_hashes(&self) -> HashSet<H256> {
+		self.miner.ready_transactions(&*self.client, usize::max_value(), miner::PendingOrdering::Unordered)
 			.into_iter()
 			.map(|tx| tx.signed().hash())
 			.collect()
@@ -182,17 +182,12 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					// get hashes of pending transactions
 					let current_hashes = self.pending_transactions_hashes();
 
-					let new_hashes =
-					{
-						let previous_hashes_set = previous_hashes.iter().collect::<HashSet<_>>();
-
-						//	find all new hashes
-						current_hashes
-							.iter()
-							.filter(|hash| !previous_hashes_set.contains(hash))
+					let new_hashes = {
+						// find all new hashes
+						current_hashes.difference(previous_hashes)
 							.cloned()
 							.map(Into::into)
-							.collect::<Vec<RpcH256>>()
+							.collect()
 					};
 
 					// save all hashes of pending transactions
