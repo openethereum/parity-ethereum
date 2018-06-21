@@ -36,14 +36,16 @@ use rlp::RlpStream;
 use hash::keccak;
 use machine::EthereumMachine as Machine;
 
+use super::HookType;
+
 /// Run executive jsontests on a given folder.
-pub fn run_test_path(p: &Path, skip: &[&'static str]) {
-	::json_tests::test_common::run_test_path(p, skip, do_json_test)
+pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
+	::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
 }
 
 /// Run executive jsontests on a given file.
-pub fn run_test_file(p: &Path) {
-	::json_tests::test_common::run_test_file(p, do_json_test)
+pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
+	::json_tests::test_common::run_test_file(p, do_json_test, h)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -204,19 +206,21 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 	}
 }
 
-fn do_json_test(json_data: &[u8]) -> Vec<String> {
+fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
 	let vms = VMType::all();
 	vms
 		.iter()
-		.flat_map(|vm| do_json_test_for(vm, json_data))
+		.flat_map(|vm| do_json_test_for(vm, json_data, h))
 		.collect()
 }
 
-fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
+fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::vm::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
 	for (name, vm) in tests.into_iter() {
+		start_stop_hook(&format!("{}-{}", name, vm_type), HookType::OnStart);
+
 		println!("name: {:?}", name);
 		let mut fail = false;
 
@@ -316,6 +320,8 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				fail_unless(Some(callcreates) == calls, "callcreates does not match");
 			}
 		};
+
+		start_stop_hook(&format!("{}-{}", name, vm_type), HookType::OnStop);
 	}
 
 	for f in &failed {

@@ -23,22 +23,26 @@ use ethjson;
 use transaction::SignedTransaction;
 use vm::EnvInfo;
 
+use super::HookType;
+
 /// Run state jsontests on a given folder.
-pub fn run_test_path(p: &Path, skip: &[&'static str]) {
-	::json_tests::test_common::run_test_path(p, skip, json_chain_test)
+pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
+	::json_tests::test_common::run_test_path(p, skip, json_chain_test, h)
 }
 
 /// Run state jsontests on a given file.
-pub fn run_test_file(p: &Path) {
-	::json_tests::test_common::run_test_file(p, json_chain_test)
+pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
+	::json_tests::test_common::run_test_file(p, json_chain_test, h)
 }
 
-pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
+pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	::ethcore_logger::init_log();
 	let tests = ethjson::state::test::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
 	for (name, test) in tests.into_iter() {
+		start_stop_hook(&name, HookType::OnStart);
+
 		{
 			let multitransaction = test.transaction;
 			let env: EnvInfo = test.env.into();
@@ -92,6 +96,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 			}
 		}
 
+		start_stop_hook(&name, HookType::OnStop);
 	}
 
 	if !failed.is_empty() {
@@ -103,9 +108,10 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 #[cfg(test)]
 mod state_tests {
 	use super::json_chain_test;
+	use json_tests::HookType;
 
-	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_chain_test(json_data)
+	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_chain_test(json_data, h)
 	}
 
 	declare_test!{GeneralStateTest_stAttackTest, "GeneralStateTests/stAttackTest/"}

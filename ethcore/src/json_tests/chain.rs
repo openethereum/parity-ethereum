@@ -23,22 +23,26 @@ use ethjson;
 use miner::Miner;
 use io::IoChannel;
 
+use super::HookType;
+
 /// Run chain jsontests on a given folder.
-pub fn run_test_path(p: &Path, skip: &[&'static str]) {
-	::json_tests::test_common::run_test_path(p, skip, json_chain_test)
+pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
+	::json_tests::test_common::run_test_path(p, skip, json_chain_test, h)
 }
 
 /// Run chain jsontests on a given file.
-pub fn run_test_file(p: &Path) {
-	::json_tests::test_common::run_test_file(p, json_chain_test)
+pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
+	::json_tests::test_common::run_test_file(p, json_chain_test, h)
 }
 
-pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
+pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	::ethcore_logger::init_log();
 	let tests = ethjson::blockchain::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
 	for (name, blockchain) in tests.into_iter() {
+		start_stop_hook(&name, HookType::OnStart);
+
 		let mut fail = false;
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
@@ -92,6 +96,8 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 		if !fail {
 			flushln!("ok");
 		}
+
+		start_stop_hook(&name, HookType::OnStop);
 	}
 
 	println!("!!! {:?} tests from failed.", failed.len());
@@ -101,9 +107,10 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 #[cfg(test)]
 mod block_tests {
 	use super::json_chain_test;
+	use json_tests::HookType;
 
-	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_chain_test(json_data)
+	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_chain_test(json_data, h)
 	}
 
 	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}

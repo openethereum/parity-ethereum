@@ -21,7 +21,20 @@ use std::path::Path;
 use std::ffi::OsString;
 pub use ethereum_types::{H256, U256, Address};
 
-pub fn run_test_path(p: &Path, skip: &[&'static str], runner: fn (json_data: &[u8]) -> Vec<String>) {
+/// Indicate the type of the hook passed to test functions.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum HookType {
+	/// Hook passed on starting of a test.
+	OnStart,
+	/// Hook passed on a test is finished.
+	OnStop
+}
+
+pub fn run_test_path<H: FnMut(&str, HookType)>(
+	p: &Path, skip: &[&'static str],
+	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
+	start_stop_hook: &mut H
+) {
 	let path = Path::new(p);
 	let s: HashSet<OsString> = skip.iter().map(|s| {
 		let mut os: OsString = s.into();
@@ -36,20 +49,24 @@ pub fn run_test_path(p: &Path, skip: &[&'static str], runner: fn (json_data: &[u
 			} else {
 				Some(e.path())
 			}}) {
-			run_test_path(&p, skip, runner)
+			run_test_path(&p, skip, runner, start_stop_hook)
 		}
 	} else {
 		let mut path = p.to_path_buf();
 		path.set_extension("json");
-		run_test_file(&path, runner)
+		run_test_file(&path, runner, start_stop_hook)
 	}
 }
 
-pub fn run_test_file(path: &Path, runner: fn (json_data: &[u8]) -> Vec<String>) {
+pub fn run_test_file<H: FnMut(&str, HookType)>(
+	path: &Path,
+	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
+	start_stop_hook: &mut H
+) {
 	let mut data = Vec::new();
 	let mut file = File::open(&path).expect("Error opening test file");
 	file.read_to_end(&mut data).expect("Error reading test file");
-	let results = runner(&data);
+	let results = runner(&data, start_stop_hook);
 	let empty: [String; 0] = [];
 	assert_eq!(results, empty);
 }
@@ -57,7 +74,7 @@ pub fn run_test_file(path: &Path, runner: fn (json_data: &[u8]) -> Vec<String>) 
 #[cfg(test)]
 macro_rules! test {
 	($name: expr, $skip: expr) => {
-		::json_tests::test_common::run_test_path(::std::path::Path::new(concat!("res/ethereum/tests/", $name)), &$skip, do_json_test);
+		::json_tests::test_common::run_test_path(::std::path::Path::new(concat!("res/ethereum/tests/", $name)), &$skip, do_json_test, &mut |_, _| ());
 	}
 }
 

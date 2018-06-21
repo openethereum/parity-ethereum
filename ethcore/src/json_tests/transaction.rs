@@ -22,22 +22,24 @@ use rlp::Rlp;
 use transaction::{Action, UnverifiedTransaction, SignedTransaction};
 
 /// Run transaction jsontests on a given folder.
-pub fn run_test_path(p: &Path, skip: &[&'static str]) {
-	::json_tests::test_common::run_test_path(p, skip, do_json_test)
+pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
+	::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
 }
 
 /// Run transaction jsontests on a given file.
-pub fn run_test_file(p: &Path) {
-	::json_tests::test_common::run_test_file(p, do_json_test)
+pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
+	::json_tests::test_common::run_test_file(p, do_json_test, h)
 }
 
-fn do_json_test(json_data: &[u8]) -> Vec<String> {
+fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 	let frontier_schedule = evm::Schedule::new_frontier();
 	let homestead_schedule = evm::Schedule::new_homestead();
 	let byzantium_schedule = evm::Schedule::new_byzantium();
 	for (name, test) in tests.into_iter() {
+		start_stop_hook(&name, HookType::OnStart);
+
 		let mut fail_unless = |cond: bool, title: &str| if !cond { failed.push(name.clone()); println!("Transaction failed: {:?}: {:?}", name, title); };
 
 		let number: Option<u64> = test.block_number.map(Into::into);
@@ -80,6 +82,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 				Action::Create => fail_unless(None == to, "create mismatch"),
 			}
 		}
+
+		start_stop_hook(&name, HookType::OnStop);
 	}
 
 	for f in &failed {
