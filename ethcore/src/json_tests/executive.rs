@@ -221,7 +221,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 	for (name, vm) in tests.into_iter() {
 		start_stop_hook(&format!("{}-{}", name, vm_type), HookType::OnStart);
 
-		println!("name: {:?}", name);
+		info!(target: "jsontests", "name: {:?}", name);
 		let mut fail = false;
 
 		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail {
@@ -325,7 +325,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 	}
 
 	for f in &failed {
-		println!("FAILED: {:?}", f);
+		error!("FAILED: {:?}", f);
 	}
 
 	failed

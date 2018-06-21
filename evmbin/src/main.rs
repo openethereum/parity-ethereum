@@ -46,7 +46,7 @@ use docopt::Docopt;
 use rustc_hex::FromHex;
 use ethereum_types::{U256, Address};
 use bytes::Bytes;
-use ethcore::spec;
+use ethcore::{spec, json_tests};
 use vm::{ActionParams, CallType};
 
 mod info;
@@ -61,6 +61,7 @@ EVM implementation for Parity.
 Usage:
     parity-evm state-test <file> [--json --std-json --only NAME --chain CHAIN]
     parity-evm stats [options]
+    parity-evm stats-jsontests-vm <file> [--folder]
     parity-evm [options]
     parity-evm [-h | --help]
 
@@ -76,6 +77,9 @@ State test options:
     --only NAME        Runs only a single test matching the name.
     --chain CHAIN      Run only tests from specific chain.
 
+Stats jsontests VM options:
+    --folder           Run jsontest for a folder instead of a single file.
+
 General options:
     --json             Display verbose results in JSON.
 	--std-json         Display results in standardized JSON format.
@@ -90,12 +94,48 @@ fn main() {
 
 	if args.cmd_state_test {
 		run_state_test(args)
+	} else if args.cmd_stats_jsontests_vm {
+		run_stats_jsontests_vm(args)
 	} else if args.flag_json {
 		run_call(args, display::json::Informant::default())
 	} else if args.flag_std_json {
 		run_call(args, display::std_json::Informant::default())
 	} else {
 		run_call(args, display::simple::Informant::default())
+	}
+}
+
+fn run_stats_jsontests_vm(args: Args) {
+	use json_tests::HookType;
+	use std::collections::HashMap;
+	use std::time::{Instant, Duration};
+
+	let file = args.arg_file.expect("FILE is required");
+
+	let mut times: HashMap<String, (Instant, Option<Duration>)> = HashMap::new();
+
+	{
+		let mut record_time = |name: &str, typ: HookType| {
+			match typ {
+				HookType::OnStart => {
+					times.insert(name.to_string(), (Instant::now(), None));
+				},
+				HookType::OnStop => {
+					times.entry(name.to_string()).and_modify(|v| {
+						v.1 = Some(v.0.elapsed());
+					});
+				},
+			}
+		};
+		if args.flag_folder {
+			json_tests::run_executive_test_path(&file, &[], &mut record_time);
+		} else {
+			json_tests::run_executive_test_file(&file, &mut record_time);
+		}
+	}
+
+	for (name, v) in times {
+		println!("{}\t{}", name, display::as_micros(&v.1.expect("All hooks are called with OnStop; qed")));
 	}
 }
 
@@ -179,6 +219,7 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 struct Args {
 	cmd_stats: bool,
 	cmd_state_test: bool,
+	cmd_stats_jsontests_vm: bool,
 	arg_file: Option<PathBuf>,
 	flag_only: Option<String>,
 	flag_from: Option<String>,
@@ -190,6 +231,7 @@ struct Args {
 	flag_chain: Option<String>,
 	flag_json: bool,
 	flag_std_json: bool,
+	flag_folder: bool,
 }
 
 impl Args {
