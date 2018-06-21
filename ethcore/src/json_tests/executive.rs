@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::Path;
 use std::sync::Arc;
 use super::test_common::*;
 use state::{Backend as StateBackend, State, Substate};
@@ -34,6 +35,16 @@ use trie;
 use rlp::RlpStream;
 use hash::keccak;
 use machine::EthereumMachine as Machine;
+
+/// Run executive jsontests on a given folder.
+pub fn run_test_path(p: &Path, skip: &[&'static str]) {
+	::json_tests::test_common::run_test_path(p, skip, do_json_test)
+}
+
+/// Run executive jsontests on a given file.
+pub fn run_test_file(p: &Path) {
+	::json_tests::test_common::run_test_file(p, do_json_test)
+}
 
 #[derive(Debug, PartialEq, Clone)]
 struct CallCreate {

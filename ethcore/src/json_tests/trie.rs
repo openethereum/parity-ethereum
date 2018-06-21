@@ -19,6 +19,11 @@ use trie::{TrieFactory, TrieSpec};
 use ethereum_types::H256;
 use memorydb::MemoryDB;
 
+pub use self::generic::run_test_path as run_generic_test_path;
+pub use self::generic::run_test_file as run_generic_test_file;
+pub use self::secure::run_test_path as run_secure_test_path;
+pub use self::secure::run_test_file as run_secure_test_file;
+
 fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();
 	let factory = TrieFactory::new(trie);
@@ -49,7 +54,18 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 }
 
 mod generic {
+	use std::path::Path;
 	use trie::TrieSpec;
+
+	/// Run generic trie jsontests on a given folder.
+	pub fn run_test_path(p: &Path, skip: &[&'static str]) {
+		::json_tests::test_common::run_test_path(p, skip, do_json_test)
+	}
+
+	/// Run generic trie jsontests on a given file.
+	pub fn run_test_file(p: &Path) {
+		::json_tests::test_common::run_test_file(p, do_json_test)
+	}
 
 	fn do_json_test(json: &[u8]) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Generic)
@@ -60,7 +76,18 @@ mod generic {
 }
 
 mod secure {
+	use std::path::Path;
 	use trie::TrieSpec;
+
+	/// Run secure trie jsontests on a given folder.
+	pub fn run_test_path(p: &Path, skip: &[&'static str]) {
+		::json_tests::test_common::run_test_path(p, skip, do_json_test)
+	}
+
+	/// Run secure trie jsontests on a given file.
+	pub fn run_test_file(p: &Path) {
+		::json_tests::test_common::run_test_file(p, do_json_test)
+	}
 
 	fn do_json_test(json: &[u8]) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Secure)

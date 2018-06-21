@@ -14,11 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::Path;
 use super::test_common::*;
 use evm;
 use ethjson;
 use rlp::Rlp;
 use transaction::{Action, UnverifiedTransaction, SignedTransaction};
+
+/// Run transaction jsontests on a given folder.
+pub fn run_test_path(p: &Path, skip: &[&'static str]) {
+	::json_tests::test_common::run_test_path(p, skip, do_json_test)
+}
+
+/// Run transaction jsontests on a given file.
+pub fn run_test_file(p: &Path) {
+	::json_tests::test_common::run_test_file(p, do_json_test)
+}
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();

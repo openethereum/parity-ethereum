@@ -54,6 +54,7 @@ pub fn run_test_file(path: &Path, runner: fn (json_data: &[u8]) -> Vec<String>) 
 	assert_eq!(results, empty);
 }
 
+#[cfg(test)]
 macro_rules! test {
 	($name: expr, $skip: expr) => {
 		::json_tests::test_common::run_test_path(::std::path::Path::new(concat!("res/ethereum/tests/", $name)), &$skip, do_json_test);
@@ -63,6 +64,7 @@ macro_rules! test {
 #[macro_export]
 macro_rules! declare_test {
 	(skip => $arr: expr, $id: ident, $name: expr) => {
+		#[cfg(test)]
 		#[test]
 		#[allow(non_snake_case)]
 		fn $id() {
@@ -70,6 +72,7 @@ macro_rules! declare_test {
 		}
 	};
 	(ignore => $id: ident, $name: expr) => {
+		#[cfg(test)]
 		#[ignore]
 		#[test]
 		#[allow(non_snake_case)]
@@ -78,6 +81,7 @@ macro_rules! declare_test {
 		}
 	};
 	(heavy => $id: ident, $name: expr) => {
+		#[cfg(test)]
 		#[cfg(feature = "test-heavy")]
 		#[test]
 		#[allow(non_snake_case)]
@@ -86,6 +90,7 @@ macro_rules! declare_test {
 		}
 	};
 	($id: ident, $name: expr) => {
+		#[cfg(test)]
 		#[test]
 		#[allow(non_snake_case)]
 		fn $id() {

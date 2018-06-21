@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::Path;
 use std::sync::Arc;
 use client::{EvmTestClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use block::Block;
@@ -21,6 +22,16 @@ use spec::Genesis;
 use ethjson;
 use miner::Miner;
 use io::IoChannel;
+
+/// Run chain jsontests on a given folder.
+pub fn run_test_path(p: &Path, skip: &[&'static str]) {
+	::json_tests::test_common::run_test_path(p, skip, json_chain_test)
+}
+
+/// Run chain jsontests on a given file.
+pub fn run_test_file(p: &Path) {
+	::json_tests::test_common::run_test_file(p, json_chain_test)
+}
 
 pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 	::ethcore_logger::init_log();
@@ -41,7 +52,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 
 			let spec = {
 				let mut spec = match EvmTestClient::spec_from_json(&blockchain.network) {
-					Some(spec) => (*spec).clone(),
+					Some(spec) => spec,
 					None => {
 						println!("   - {} | {:?} Ignoring tests because of missing spec", name, blockchain.network);
 						continue;
@@ -87,6 +98,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
+#[cfg(test)]
 mod block_tests {
 	use super::json_chain_test;
 

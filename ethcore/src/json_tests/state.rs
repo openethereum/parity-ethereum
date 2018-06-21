@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::Path;
 use super::test_common::*;
 use pod_state::PodState;
 use trace;
@@ -21,6 +22,16 @@ use client::{EvmTestClient, EvmTestError, TransactResult};
 use ethjson;
 use transaction::SignedTransaction;
 use vm::EnvInfo;
+
+/// Run state jsontests on a given folder.
+pub fn run_test_path(p: &Path, skip: &[&'static str]) {
+	::json_tests::test_common::run_test_path(p, skip, json_chain_test)
+}
+
+/// Run state jsontests on a given file.
+pub fn run_test_file(p: &Path) {
+	::json_tests::test_common::run_test_file(p, json_chain_test)
+}
 
 pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 	::ethcore_logger::init_log();
@@ -50,7 +61,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 					let transaction: SignedTransaction = multitransaction.select(&state.indexes).into();
 
 					let result = || -> Result<_, EvmTestError> {
-						Ok(EvmTestClient::from_pod_state(spec, pre.clone())?
+						Ok(EvmTestClient::from_pod_state(&spec, pre.clone())?
 							.transact(&env, transaction, trace::NoopTracer, trace::NoopVMTracer))
 					};
 					match result() {
@@ -89,6 +100,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
+#[cfg(test)]
 mod state_tests {
 	use super::json_chain_test;
 
