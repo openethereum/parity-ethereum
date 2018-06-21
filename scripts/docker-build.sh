@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 cd docker/hub
 DOCKER_BUILD_TAG=$1
 echo "Docker build tag: " $DOCKER_BUILD_TAG

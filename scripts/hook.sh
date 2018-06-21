@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 FILE=./.git/hooks/pre-push
 
 echo "#!/bin/sh\n" > $FILE
