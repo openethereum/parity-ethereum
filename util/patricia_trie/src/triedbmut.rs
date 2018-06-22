@@ -321,8 +321,8 @@ where
 {
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Self {
-		*root = H::HASHED_NULL_RLP;
-		let root_handle = NodeHandle::Hash(H::HASHED_NULL_RLP);
+		*root = C::HASHED_NULL_NODE;
+		let root_handle = NodeHandle::Hash(C::HASHED_NULL_NODE);
 
 		TrieDBMut {
 			storage: NodeStorage::empty(),
@@ -907,7 +907,7 @@ where
 
 	fn is_empty(&self) -> bool {
 		match self.root_handle {
-			NodeHandle::Hash(h) => h == H::HASHED_NULL_RLP,
+			NodeHandle::Hash(h) => h == C::HASHED_NULL_NODE,
 			NodeHandle::InMemory(ref h) => match self.storage[h] {
 				Node::Empty => true,
 				_ => false,
@@ -956,8 +956,8 @@ where
 			}
 			None => {
 				trace!(target: "trie", "remove: obliterated trie");
-				self.root_handle = NodeHandle::Hash(H::HASHED_NULL_RLP);
-				*self.root = H::HASHED_NULL_RLP;
+				self.root_handle = NodeHandle::Hash(C::HASHED_NULL_NODE);
+				*self.root = C::HASHED_NULL_NODE;
 			}
 		}
 
@@ -1042,7 +1042,7 @@ mod tests {
 			assert_eq!(*memtrie.root(), real);
 			unpopulate_trie(&mut memtrie, &x);
 			memtrie.commit();
-			if *memtrie.root() != KeccakHasher::HASHED_NULL_RLP {
+			if *memtrie.root() != RlpCodec::HASHED_NULL_NODE {
 				println!("- TRIE MISMATCH");
 				println!("");
 				println!("{:?} vs {:?}", memtrie.root(), real);
@@ -1050,7 +1050,7 @@ mod tests {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
 			}
-			assert_eq!(*memtrie.root(), KeccakHasher::HASHED_NULL_RLP);
+			assert_eq!(*memtrie.root(), RlpCodec::HASHED_NULL_NODE);
 		}
 	}
 
@@ -1059,7 +1059,7 @@ mod tests {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
 		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
-		assert_eq!(*t.root(), KeccakHasher::HASHED_NULL_RLP);
+		assert_eq!(*t.root(), RlpCodec::HASHED_NULL_NODE);
 	}
 
 	#[test]
@@ -1315,7 +1315,7 @@ mod tests {
 		}
 
 		assert!(t.is_empty());
-		assert_eq!(*t.root(), KeccakHasher::HASHED_NULL_RLP);
+		assert_eq!(*t.root(), RlpCodec::HASHED_NULL_NODE);
 	}
 
 	#[test]

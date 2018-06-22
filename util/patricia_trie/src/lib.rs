@@ -162,7 +162,7 @@ pub trait Trie<H: Hasher, C: NodeCodec<H>> {
 	// 	make `impl<H: Hasher> NodeCodec<H> for MyGenericCodec<H>` impossible without better const 
 	// 	function evaluation, so we should limit ourselves only to 
 	// 	`impl NodeCodec<SomeConcreteHash> for MyGenericCodec<SomeConcreteHash>` or similar
-	fn is_empty(&self) -> bool { *self.root() == H::HASHED_NULL_RLP }
+	fn is_empty(&self) -> bool { *self.root() == C::HASHED_NULL_NODE }
 
 	/// Does the trie contain a given key?
 	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {

@@ -25,9 +25,15 @@ use stream_encoder::Stream;
 
 /// Trait for trie node encoding/decoding
 pub trait NodeCodec<H: Hasher>: Sized {
+	/// Encoding error type
 	type E: ::std::error::Error;
+
+	/// Encoded stream type
 	type S: Stream;
 
+	/// Null node type
+	const HASHED_NULL_NODE: H::Out;
+	
 	/// Encode a Node to bytes (aka `Vec<u8>`).
 	fn encode(&Node) -> Bytes;
 

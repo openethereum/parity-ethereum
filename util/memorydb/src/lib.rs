@@ -82,13 +82,15 @@ use std::mem;
 #[derive(Default, Clone, PartialEq)]
 pub struct MemoryDB<H: Hasher> {
 	data: H256FastMap<H, (DBValue, i32)>,
+	hashed_null_node: H::Out,
 }
 
 impl<H: Hasher> MemoryDB<H> {
 	/// Create a new instance of the memory DB.
 	pub fn new() -> MemoryDB<H> {
 		MemoryDB {
-			data: H256FastMap::<H,_>::default()
+			data: H256FastMap::<H,_>::default(),
+			hashed_null_node: H::hash(&NULL_RLP)
 		}
 	}
 
@@ -133,7 +135,7 @@ impl<H: Hasher> MemoryDB<H> {
 	/// Even when Some is returned, the data is only guaranteed to be useful
 	/// when the refs > 0.
 	pub fn raw(&self, key: &<H as Hasher>::Out) -> Option<(DBValue, i32)> {
-		if key == &H::HASHED_NULL_RLP {
+		if key == &self.hashed_null_node {
 			return Some((DBValue::from_slice(&NULL_RLP), 1));
 		}
 		self.data.get(key).cloned()
@@ -147,7 +149,7 @@ impl<H: Hasher> MemoryDB<H> {
 	/// Remove an element and delete it from storage if reference count reaches zero.
 	/// If the value was purged, return the old value.
 	pub fn remove_and_purge(&mut self, key: &<H as Hasher>::Out) -> Option<DBValue> {
-		if key == &H::HASHED_NULL_RLP {
+		if key == &self.hashed_null_node {
 			return None;
 		}
 		match self.data.entry(key.clone()) {
@@ -188,8 +190,7 @@ impl<H: Hasher> HashDB<H> for MemoryDB<H> {
 
 	// REVIEW: this method is what made it necessary to add a type param to H256FastMap, which I'd rather have avoided.
 	//         The problem is that the keys returned are `H256` and type inference fails on the `collect()` call.
-	//         I could not make it work without parameterizing H256FastMap too. It all sort of adds up as I could
-	//         avoid adding PhantomData to MemoryDB, but still quite annoying. What's a better way?
+	//         I could not make it work without parameterizing H256FastMap too.
 	fn keys(&self) -> HashMap<H::Out, i32> {
 		self.data.iter()
 			.filter_map(|(k, v)| if v.1 != 0 {
@@ -201,7 +202,7 @@ impl<H: Hasher> HashDB<H> for MemoryDB<H> {
 	}
 
 	fn get(&self, key: &H::Out) -> Option<DBValue> {
-		if key == &H::HASHED_NULL_RLP {
+		if key == &self.hashed_null_node {
 			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 
@@ -212,7 +213,7 @@ impl<H: Hasher> HashDB<H> for MemoryDB<H> {
 	}
 
 	fn contains(&self, key: &H::Out) -> bool {
-		if key == &H::HASHED_NULL_RLP {
+		if key == &self.hashed_null_node {
 			return true;
 		}
 
@@ -224,7 +225,7 @@ impl<H: Hasher> HashDB<H> for MemoryDB<H> {
 
 	fn insert(&mut self, value: &[u8]) -> H::Out {
 		if value == &NULL_RLP {
-			return H::HASHED_NULL_RLP.clone();
+			return self.hashed_null_node.clone();
 		}
 		let key = H::hash(value);
 		match self.data.entry(key) {
@@ -262,7 +263,7 @@ impl<H: Hasher> HashDB<H> for MemoryDB<H> {
 	}
 
 	fn remove(&mut self, key: &H::Out) {
-		if key == &H::HASHED_NULL_RLP {
+		if key == &self.hashed_null_node {
 			return;
 		}
 

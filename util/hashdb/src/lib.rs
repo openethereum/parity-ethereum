@@ -25,7 +25,6 @@ use std::{fmt::Debug, hash::Hash};
 
 pub trait Hasher: Sync + Send {
 	type Out: AsRef<[u8]> + Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync /* REVIEW: how do I get around this? --> */ + HeapSizeOf;
-	const HASHED_NULL_RLP: Self::Out;
 	const LENGTH: usize;
 	fn hash(x: &[u8]) -> Self::Out;
 }
