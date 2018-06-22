@@ -50,6 +50,7 @@ use miner::pool_client::{PoolClient, CachedNonceClient};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use state::State;
+use ethkey::Password;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -736,12 +737,12 @@ impl miner::MinerService for Miner {
 		self.params.write().extra_data = extra_data;
 	}
 
-	fn set_author(&self, address: Address, password: Option<String>) -> Result<(), AccountError> {
+	fn set_author(&self, address: Address, password: Option<Password>) -> Result<(), AccountError> {
 		self.params.write().author = address;
 
 		if self.engine.seals_internally().is_some() && password.is_some() {
 			if let Some(ref ap) = self.accounts {
-				let password = password.unwrap_or_default();
+				let password = password.unwrap_or_else(|| Password::from(String::new()));
 				// Sign test message
 				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
 				// Enable sealing
@@ -1285,7 +1286,7 @@ mod tests {
 		let keypair = Random.generate().unwrap();
 		let client = TestBlockChainClient::default();
 		let account_provider = AccountProvider::transient_provider();
-		account_provider.insert_account(keypair.secret().clone(), "").expect("can add accounts to the provider we just created");
+		account_provider.insert_account(keypair.secret().clone(), &"".into()).expect("can add accounts to the provider we just created");
 
 		let miner = Miner::new(
 			MinerOptions {
@@ -1366,7 +1367,7 @@ mod tests {
 	fn should_fail_setting_engine_signer_without_account_provider() {
 		let spec = Spec::new_instant;
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account(keccak("1").into(), "").unwrap();
+		let addr = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
 		assert!(match client.miner().set_author(addr, Some("".into())) { Err(AccountError::NotFound) => true, _ => false });
 	}

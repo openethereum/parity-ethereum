@@ -137,11 +137,11 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 		($n:expr, $value:expr) => {{
 			// We use explicit lifetimes to ensure that val's borrow is invalidated until the
 			// transmuted val dies.
-			unsafe fn make_const_array<'a, T, U>(val: &'a mut [T]) -> &'a mut [U; $n] {
+			unsafe fn make_const_array<T, U>(val: &mut [T]) -> &mut [U; $n] {
 				use ::std::mem;
 
 				debug_assert_eq!(val.len() * mem::size_of::<T>(), $n * mem::size_of::<U>());
-				mem::transmute(val.as_mut_ptr())
+ 				&mut *(val.as_mut_ptr() as *mut [U; $n])
 			}
 
 			make_const_array($value)
@@ -177,7 +177,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 
 			ptr::copy_nonoverlapping(header_hash.as_ptr(), out.as_mut_ptr(), header_hash.len());
 			ptr::copy_nonoverlapping(
-				mem::transmute(&nonce),
+				&nonce as *const u64 as *const u8,
 				out[header_hash.len()..].as_mut_ptr(),
 				mem::size_of::<u64>(),
 			);
@@ -266,18 +266,20 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 
 	let mix_hash = buf.compress_bytes;
 
-	let value: H256 = unsafe {
+	let value: H256 = {
 		// We can interpret the buffer as an array of `u8`s, since it's `repr(C)`.
-		let read_ptr: *const u8 = mem::transmute(&buf);
+		let read_ptr: *const u8 = &buf as *const MixBuf as *const u8;
 		// We overwrite the second half since `keccak_256` has an internal buffer and so allows
 		// overlapping arrays as input.
-		let write_ptr: *mut u8 = mem::transmute(&mut buf.compress_bytes);
-		keccak_256::unchecked(
-			write_ptr,
-			buf.compress_bytes.len(),
-			read_ptr,
-			buf.half_mix.bytes.len() + buf.compress_bytes.len(),
-		);
+		let write_ptr: *mut u8 = &mut buf.compress_bytes as *mut [u8; 32] as *mut u8;
+		unsafe { 
+			keccak_256::unchecked(
+				write_ptr,
+				buf.compress_bytes.len(),
+				read_ptr,
+				buf.half_mix.bytes.len() + buf.compress_bytes.len(),
+			);
+		}
 		buf.compress_bytes
 	};
 

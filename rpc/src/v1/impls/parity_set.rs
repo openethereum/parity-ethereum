@@ -119,7 +119,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
-		self.miner.set_author(address.into(), Some(password)).map_err(Into::into).map_err(errors::password)?;
+		self.miner.set_author(address.into(), Some(password.into())).map_err(Into::into).map_err(errors::password)?;
 		Ok(true)
 	}
 

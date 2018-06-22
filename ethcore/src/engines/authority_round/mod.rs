@@ -40,7 +40,7 @@ use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 use self::finality::RollingFinality;
 
-use ethkey::{self, Signature};
+use ethkey::{self, Password, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
@@ -1346,7 +1346,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		self.validators.register_client(client);
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
 		self.signer.write().set(ap, address, password);
 	}
 
@@ -1415,8 +1415,8 @@ mod tests {
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
-		let addr2 = tap.insert_account(keccak("2").into(), "2").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+		let addr2 = tap.insert_account(keccak("2").into(), &"2".into()).unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -1447,8 +1447,8 @@ mod tests {
 	#[test]
 	fn checks_difficulty_in_generate_seal() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
-		let addr2 = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+		let addr2 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -1481,7 +1481,7 @@ mod tests {
 	#[test]
 	fn proposer_switching() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
@@ -1506,7 +1506,7 @@ mod tests {
 	#[test]
 	fn rejects_future_block() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
@@ -1531,7 +1531,7 @@ mod tests {
 	#[test]
 	fn rejects_step_backwards() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&4usize).into_vec()]);
@@ -1590,7 +1590,7 @@ mod tests {
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
 
-		aura.set_signer(Arc::new(AccountProvider::transient_provider()), Default::default(), Default::default());
+		aura.set_signer(Arc::new(AccountProvider::transient_provider()), Default::default(), "".into());
 
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);
@@ -1681,8 +1681,8 @@ mod tests {
 		let spec = Spec::new_test_round_empty_steps();
 		let tap = Arc::new(AccountProvider::transient_provider());
 
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
-		let addr2 = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+		let addr2 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let accounts = vec![addr1, addr2];
 
@@ -1952,7 +1952,7 @@ mod tests {
 		let spec = Spec::new_test_round_block_reward_contract();
 		let tap = Arc::new(AccountProvider::transient_provider());
 
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
 
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();

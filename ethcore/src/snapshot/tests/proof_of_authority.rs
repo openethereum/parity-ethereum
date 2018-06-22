@@ -71,7 +71,7 @@ fn make_accounts(secrets: &[Secret]) -> (Arc<AccountProvider>, Vec<Address>) {
 
 	let addrs = secrets.iter()
 		.cloned()
-		.map(|s| provider.insert_account(s, PASS).unwrap())
+		.map(|s| provider.insert_account(s, &PASS.into()).unwrap())
 		.collect();
 
 	(Arc::new(provider), addrs)

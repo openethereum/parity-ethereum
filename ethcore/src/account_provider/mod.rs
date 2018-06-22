@@ -29,7 +29,7 @@ use ethstore::{
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
 use ethstore::accounts_dir::MemoryDirectory;
-use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
+use ethstore::ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
 use ethjson::misc::AccountMeta;
 use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
 use super::transaction::{Action, Transaction};
@@ -52,7 +52,7 @@ enum Unlock {
 #[derive(Clone)]
 struct AccountData {
 	unlock: Unlock,
-	password: String,
+	password: Password,
 }
 
 /// Signing error
@@ -112,7 +112,7 @@ fn transient_sstore() -> EthMultiStore {
 	EthMultiStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")
 }
 
-type AccountToken = String;
+type AccountToken = Password;
 
 /// Account management.
 /// Responsible for unlocking accounts.
@@ -217,12 +217,12 @@ impl AccountProvider {
 	}
 
 	/// Creates new random account.
-	pub fn new_account(&self, password: &str) -> Result<Address, Error> {
+	pub fn new_account(&self, password: &Password) -> Result<Address, Error> {
 		self.new_account_and_public(password).map(|d| d.0)
 	}
 
 	/// Creates new random account and returns address and public key
-	pub fn new_account_and_public(&self, password: &str) -> Result<(Address, Public), Error> {
+	pub fn new_account_and_public(&self, password: &Password) -> Result<(Address, Public), Error> {
 		let acc = Random.generate().expect("secp context has generation capabilities; qed");
 		let public = acc.public().clone();
 		let secret = acc.secret().clone();
@@ -232,7 +232,7 @@ impl AccountProvider {
 
 	/// Inserts new account into underlying store.
 	/// Does not unlock account!
-	pub fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
+	pub fn insert_account(&self, secret: Secret, password: &Password) -> Result<Address, Error> {
 		let account = self.sstore.insert_account(SecretVaultRef::Root, secret, password)?;
 		if self.blacklisted_accounts.contains(&account.address) {
 			self.sstore.remove_account(&account, password)?;
@@ -244,7 +244,7 @@ impl AccountProvider {
 	/// Generates new derived account based on the existing one
 	/// If password is not provided, account must be unlocked
 	/// New account will be created with the same password (if save: true)
-	pub fn derive_account(&self, address: &Address, password: Option<String>, derivation: Derivation, save: bool)
+	pub fn derive_account(&self, address: &Address, password: Option<Password>, derivation: Derivation, save: bool)
 		-> Result<Address, SignError>
 	{
 		let account = self.sstore.account_ref(&address)?;
@@ -256,13 +256,13 @@ impl AccountProvider {
 	}
 
 	/// Import a new presale wallet.
-	pub fn import_presale(&self, presale_json: &[u8], password: &str) -> Result<Address, Error> {
+	pub fn import_presale(&self, presale_json: &[u8], password: &Password) -> Result<Address, Error> {
 		let account = self.sstore.import_presale(SecretVaultRef::Root, presale_json, password)?;
 		Ok(Address::from(account.address).into())
 	}
 
 	/// Import a new wallet.
-	pub fn import_wallet(&self, json: &[u8], password: &str, gen_id: bool) -> Result<Address, Error> {
+	pub fn import_wallet(&self, json: &[u8], password: &Password, gen_id: bool) -> Result<Address, Error> {
 		let account = self.sstore.import_wallet(SecretVaultRef::Root, json, password, gen_id)?;
 		if self.blacklisted_accounts.contains(&account.address) {
 			self.sstore.remove_account(&account, password)?;
@@ -543,7 +543,7 @@ impl AccountProvider {
 	}
 
 	/// Returns account public key.
-	pub fn account_public(&self, address: Address, password: &str) -> Result<Public, Error> {
+	pub fn account_public(&self, address: Address, password: &Password) -> Result<Public, Error> {
 		self.sstore.public(&self.sstore.account_ref(&address)?, password)
 	}
 
@@ -560,29 +560,29 @@ impl AccountProvider {
 	}
 
 	/// Returns `true` if the password for `account` is `password`. `false` if not.
-	pub fn test_password(&self, address: &Address, password: &str) -> Result<bool, Error> {
+	pub fn test_password(&self, address: &Address, password: &Password) -> Result<bool, Error> {
 		self.sstore.test_password(&self.sstore.account_ref(&address)?, password)
 			.map_err(Into::into)
 	}
 
 	/// Permanently removes an account.
-	pub fn kill_account(&self, address: &Address, password: &str) -> Result<(), Error> {
+	pub fn kill_account(&self, address: &Address, password: &Password) -> Result<(), Error> {
 		self.sstore.remove_account(&self.sstore.account_ref(&address)?, &password)?;
 		Ok(())
 	}
 
 	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
-	pub fn change_password(&self, address: &Address, password: String, new_password: String) -> Result<(), Error> {
+	pub fn change_password(&self, address: &Address, password: Password, new_password: Password) -> Result<(), Error> {
 		self.sstore.change_password(&self.sstore.account_ref(address)?, &password, &new_password)
 	}
 
 	/// Exports an account for given address.
-	pub fn export_account(&self, address: &Address, password: String) -> Result<KeyFile, Error> {
+	pub fn export_account(&self, address: &Address, password: Password) -> Result<KeyFile, Error> {
 		self.sstore.export_account(&self.sstore.account_ref(address)?, &password)
 	}
 
 	/// Helper method used for unlocking accounts.
-	fn unlock_account(&self, address: Address, password: String, unlock: Unlock) -> Result<(), Error> {
+	fn unlock_account(&self, address: Address, password: Password, unlock: Unlock) -> Result<(), Error> {
 		let account = self.sstore.account_ref(&address)?;
 
 		// check if account is already unlocked permanently, if it is, do nothing
@@ -612,7 +612,7 @@ impl AccountProvider {
 		Ok(())
 	}
 
-	fn password(&self, account: &StoreAccountRef) -> Result<String, SignError> {
+	fn password(&self, account: &StoreAccountRef) -> Result<Password, SignError> {
 		let mut unlocked = self.unlocked.write();
 		let data = unlocked.get(account).ok_or(SignError::NotUnlocked)?.clone();
 		if let Unlock::OneTime = data.unlock {
@@ -624,21 +624,21 @@ impl AccountProvider {
 				return Err(SignError::NotUnlocked);
 			}
 		}
-		Ok(data.password.clone())
+		Ok(data.password)
 	}
 
 	/// Unlocks account permanently.
-	pub fn unlock_account_permanently(&self, account: Address, password: String) -> Result<(), Error> {
+	pub fn unlock_account_permanently(&self, account: Address, password: Password) -> Result<(), Error> {
 		self.unlock_account(account, password, Unlock::Perm)
 	}
 
 	/// Unlocks account temporarily (for one signing).
-	pub fn unlock_account_temporarily(&self, account: Address, password: String) -> Result<(), Error> {
+	pub fn unlock_account_temporarily(&self, account: Address, password: Password) -> Result<(), Error> {
 		self.unlock_account(account, password, Unlock::OneTime)
 	}
 
 	/// Unlocks account temporarily with a timeout.
-	pub fn unlock_account_timed(&self, account: Address, password: String, duration: Duration) -> Result<(), Error> {
+	pub fn unlock_account_timed(&self, account: Address, password: Password, duration: Duration) -> Result<(), Error> {
 		self.unlock_account(account, password, Unlock::Timed(Instant::now() + duration))
 	}
 
@@ -660,7 +660,7 @@ impl AccountProvider {
 	}
 
 	/// Signs the message. If password is not provided the account must be unlocked.
-	pub fn sign(&self, address: Address, password: Option<String>, message: Message) -> Result<Signature, SignError> {
+	pub fn sign(&self, address: Address, password: Option<Password>, message: Message) -> Result<Signature, SignError> {
 		let account = self.sstore.account_ref(&address)?;
 		match self.unlocked_secrets.read().get(&account) {
 			Some(secret) => {
@@ -674,7 +674,7 @@ impl AccountProvider {
 	}
 
 	/// Signs message using the derived secret. If password is not provided the account must be unlocked.
-	pub fn sign_derived(&self, address: &Address, password: Option<String>, derivation: Derivation, message: Message)
+	pub fn sign_derived(&self, address: &Address, password: Option<Password>, derivation: Derivation, message: Message)
 		-> Result<Signature, SignError>
 	{
 		let account = self.sstore.account_ref(address)?;
@@ -687,7 +687,7 @@ impl AccountProvider {
 		let account = self.sstore.account_ref(&address)?;
 		let is_std_password = self.sstore.test_password(&account, &token)?;
 
-		let new_token = random_string(16);
+		let new_token = Password::from(random_string(16));
 		let signature = if is_std_password {
 			// Insert to transient store
 			self.sstore.copy_account(&self.transient_sstore, SecretVaultRef::Root, &account, &token, &new_token)?;
@@ -710,7 +710,7 @@ impl AccountProvider {
 		let account = self.sstore.account_ref(&address)?;
 		let is_std_password = self.sstore.test_password(&account, &token)?;
 
-		let new_token = random_string(16);
+		let new_token = Password::from(random_string(16));
 		let message = if is_std_password {
 			// Insert to transient store
 			self.sstore.copy_account(&self.transient_sstore, SecretVaultRef::Root, &account, &token, &new_token)?;
@@ -727,14 +727,14 @@ impl AccountProvider {
 	}
 
 	/// Decrypts a message. If password is not provided the account must be unlocked.
-	pub fn decrypt(&self, address: Address, password: Option<String>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, SignError> {
+	pub fn decrypt(&self, address: Address, password: Option<Password>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, SignError> {
 		let account = self.sstore.account_ref(&address)?;
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.decrypt(&account, &password, shared_mac, message)?)
 	}
 
 	/// Agree on shared key.
-	pub fn agree(&self, address: Address, password: Option<String>, other_public: &Public) -> Result<Secret, SignError> {
+	pub fn agree(&self, address: Address, password: Option<Password>, other_public: &Public) -> Result<Secret, SignError> {
 		let account = self.sstore.account_ref(&address)?;
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.agree(&account, &password, other_public)?)
@@ -753,13 +753,13 @@ impl AccountProvider {
 	}
 
 	/// Create new vault.
-	pub fn create_vault(&self, name: &str, password: &str) -> Result<(), Error> {
+	pub fn create_vault(&self, name: &str, password: &Password) -> Result<(), Error> {
 		self.sstore.create_vault(name, password)
 			.map_err(Into::into)
 	}
 
 	/// Open existing vault.
-	pub fn open_vault(&self, name: &str, password: &str) -> Result<(), Error> {
+	pub fn open_vault(&self, name: &str, password: &Password) -> Result<(), Error> {
 		self.sstore.open_vault(name, password)
 			.map_err(Into::into)
 	}
@@ -783,7 +783,7 @@ impl AccountProvider {
 	}
 
 	/// Change vault password.
-	pub fn change_vault_password(&self, name: &str, new_password: &str) -> Result<(), Error> {
+	pub fn change_vault_password(&self, name: &str, new_password: &Password) -> Result<(), Error> {
 		self.sstore.change_vault_password(name, new_password)
 			.map_err(Into::into)
 	}
@@ -852,7 +852,7 @@ mod tests {
 	fn unlock_account_temp() {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
-		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+		assert!(ap.insert_account(kp.secret().clone(), &"test".into()).is_ok());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
@@ -863,7 +863,7 @@ mod tests {
 	fn derived_account_nosave() {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
-		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.insert_account(kp.secret().clone(), &"base".into()).is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
 
 		let derived_addr = ap.derive_account(
@@ -881,7 +881,7 @@ mod tests {
 	fn derived_account_save() {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
-		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.insert_account(kp.secret().clone(), &"base".into()).is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
 
 		let derived_addr = ap.derive_account(
@@ -902,7 +902,7 @@ mod tests {
 	fn derived_account_sign() {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
-		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.insert_account(kp.secret().clone(), &"base".into()).is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
 
 		let derived_addr = ap.derive_account(
@@ -932,7 +932,7 @@ mod tests {
 	fn unlock_account_perm() {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
-		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+		assert!(ap.insert_account(kp.secret().clone(), &"test".into()).is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_permanently(kp.address(), "test".into()).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
@@ -946,7 +946,7 @@ mod tests {
 	fn unlock_account_timer() {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
-		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+		assert!(ap.insert_account(kp.secret().clone(), &"test".into()).is_ok());
 		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), Duration::from_secs(60)).is_err());
 		assert!(ap.unlock_account_timed(kp.address(), "test".into(), Duration::from_secs(60)).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
@@ -959,7 +959,7 @@ mod tests {
 		// given
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
-		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+		assert!(ap.insert_account(kp.secret().clone(), &"test".into()).is_ok());
 
 		// when
 		let (_signature, token) = ap.sign_with_token(kp.address(), "test".into(), Default::default()).unwrap();
@@ -1027,7 +1027,7 @@ mod tests {
 		// default_account should be always available
 		assert_eq!(ap.new_dapps_default_address().unwrap(), 0.into());
 
-		let address = ap.new_account("test").unwrap();
+		let address = ap.new_account(&"test".into()).unwrap();
 		ap.set_address_name(1.into(), "1".into());
 
 		// Default account set to first account by default
@@ -1064,7 +1064,7 @@ mod tests {
 	fn should_not_return_blacklisted_account() {
 		// given
 		let mut ap = AccountProvider::transient_provider();
-		let acc = ap.new_account("test").unwrap();
+		let acc = ap.new_account(&"test".into()).unwrap();
 		ap.blacklisted_accounts = vec![acc];
 
 		// then

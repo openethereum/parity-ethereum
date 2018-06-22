@@ -63,6 +63,7 @@ use rpc_apis;
 use secretstore;
 use signer;
 use db;
+use ethkey::Password;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -1002,7 +1003,7 @@ fn print_running_environment(spec_name: &String, dirs: &Directories, db_dirs: &D
 	info!("Path to dapps {}", Colour::White.bold().paint(dapps_conf.dapps_path.to_string_lossy().into_owned()));
 }
 
-fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
+fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[Password]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
 	use ethcore::ethstore::accounts_dir::RootDiskDirectory;
 
@@ -1058,7 +1059,7 @@ fn insert_dev_account(account_provider: &AccountProvider) {
 	let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
 	let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
 	if !account_provider.has_account(dev_account.address()) {
-		match account_provider.insert_account(secret, "") {
+		match account_provider.insert_account(secret, &Password::from(String::new())) {
 			Err(e) => warn!("Unable to add development account: {}", e),
 			Ok(address) => {
 				let _ = account_provider.set_account_name(address.clone(), "Development Account".into());
