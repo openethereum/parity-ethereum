@@ -26,11 +26,11 @@ use ethcore::ethereum;
 use ethcore::ids::BlockId;
 use ethcore::miner::Miner;
 use ethcore::spec::{Genesis, Spec};
+use ethcore::test_helpers;
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;
 use ethjson::state::test::ForkSpec;
 use io::IoChannel;
-use kvdb_memorydb;
 use miner::external::ExternalMiner;
 use parking_lot::Mutex;
 
@@ -108,7 +108,7 @@ impl EthTester {
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
-			Arc::new(kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
+			test_helpers::new_db(),
 			miner_service.clone(),
 			IoChannel::disconnected(),
 		).unwrap();

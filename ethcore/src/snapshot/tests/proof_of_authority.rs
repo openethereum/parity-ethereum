@@ -30,7 +30,7 @@ use transaction::{Transaction, Action, SignedTransaction};
 use tempdir::TempDir;
 
 use ethereum_types::Address;
-use kvdb_memorydb;
+use test_helpers;
 
 use_contract!(test_validator_set, "ValidatorSet", "res/contracts/test_validator_set.json");
 
@@ -226,12 +226,12 @@ fn fixed_to_contract_only() {
 	assert_eq!(client.chain_info().best_block_number, 11);
 	let (reader, _tempdir) = snapshot_helpers::snap(&*client);
 
-	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0));
+	let new_db = test_helpers::new_db();
 	let spec = spec_fixed_to_contract();
 
 	// ensure fresh engine's step matches.
 	for _ in 0..11 { spec.engine.step() }
-	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
+	snapshot_helpers::restore(new_db, &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
 }
 
 #[test]
@@ -258,9 +258,9 @@ fn fixed_to_contract_to_contract() {
 
 	assert_eq!(client.chain_info().best_block_number, 16);
 	let (reader, _tempdir) = snapshot_helpers::snap(&*client);
-	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0));
+	let new_db = test_helpers::new_db();
 	let spec = spec_fixed_to_contract();
 
 	for _ in 0..16 { spec.engine.step() }
-	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
+	snapshot_helpers::restore(new_db, &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
 }

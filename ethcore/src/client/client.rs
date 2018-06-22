@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, BTreeMap, BTreeSet, VecDeque};
+use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::fmt;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -33,7 +33,7 @@ use util_error::UtilError;
 // other
 use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
+use blockchain::{BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -191,7 +191,7 @@ pub struct Client {
 	pruning: journaldb::Algorithm,
 
 	/// Client uses this to store blocks, traces, etc.
-	db: RwLock<Arc<KeyValueDB>>,
+	db: RwLock<Arc<BlockChainDB>>,
 
 	state_db: RwLock<StateDB>,
 
@@ -342,7 +342,8 @@ impl Importer {
 			}
 		}
 
-		client.db.read().flush().expect("DB flush failed.");
+		let db = client.db.read();
+		db.key_value().flush().expect("DB flush failed.");
 		imported
 	}
 
@@ -555,7 +556,7 @@ impl Importer {
 		let is_canon = route.enacted.last().map_or(false, |h| h == hash);
 		state.sync_cache(&route.enacted, &route.retracted, is_canon);
 		// Final commit to the DB
-		client.db.read().write_buffered(batch);
+		client.db.read().key_value().write_buffered(batch);
 		chain.commit();
 
 		self.check_epoch_end(&header, &chain, client);
@@ -683,7 +684,7 @@ impl Importer {
 			// always write the batch directly since epoch transition proofs are
 			// fetched from a DB iterator and DB iterators are only available on
 			// flushed data.
-			client.db.read().write(batch).expect("DB flush failed");
+			client.db.read().key_value().write(batch).expect("DB flush failed");
 		}
 	}
 }
@@ -694,7 +695,7 @@ impl Client {
 	pub fn new(
 		config: ClientConfig,
 		spec: &Spec,
-		db: Arc<KeyValueDB>,
+		db: Arc<BlockChainDB>,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
 	) -> Result<Arc<Client>, ::error::Error> {
@@ -710,14 +711,14 @@ impl Client {
 			accountdb: Default::default(),
 		};
 
-		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
+		let journal_db = journaldb::new(db.key_value().clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
 		if state_db.journal_db().is_empty() {
 			// Sets the correct state root.
 			state_db = spec.ensure_db_good(state_db, &factories)?;
 			let mut batch = DBTransaction::new();
 			state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash())?;
-			db.write(batch).map_err(ClientError::Database)?;
+			db.key_value().write(batch).map_err(ClientError::Database)?;
 		}
 
 		let gb = spec.genesis_block();
@@ -760,7 +761,7 @@ impl Client {
 			engine: engine,
 			pruning: config.pruning.clone(),
 			config: config,
-			db: RwLock::new(db),
+			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
 			io_channel: Mutex::new(message_channel),
@@ -815,12 +816,12 @@ impl Client {
 					proof: proof,
 				});
 
-				client.db.read().write_buffered(batch);
+				client.db.read().key_value().write_buffered(batch);
 			}
 		}
 
 		// ensure buffered changes are flushed.
-		client.db.read().flush().map_err(ClientError::Database)?;
+		client.db.read().key_value().flush().map_err(ClientError::Database)?;
 		Ok(client)
 	}
 
@@ -964,7 +965,7 @@ impl Client {
 						Some(ancient_hash) => {
 							let mut batch = DBTransaction::new();
 							state_db.mark_canonical(&mut batch, era, &ancient_hash)?;
-							self.db.read().write_buffered(batch);
+							self.db.read().key_value().write_buffered(batch);
 							state_db.journal_db().flush();
 						}
 						None =>
@@ -1294,10 +1295,12 @@ impl snapshot::DatabaseRestore for Client {
 		let mut tracedb = self.tracedb.write();
 		self.importer.miner.clear();
 		let db = self.db.write();
-		db.restore(new_db)?;
+		db.key_value().restore(new_db)?;
+		db.blooms().reopen()?;
+		db.trace_blooms().reopen()?;
 
 		let cache_size = state_db.cache_size();
-		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE), cache_size);
+		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
@@ -1839,17 +1842,10 @@ impl BlockChainClient for Client {
 				let from = self.block_number_ref(&filter.from_block)?;
 				let to = self.block_number_ref(&filter.to_block)?;
 
-				filter.bloom_possibilities().iter()
-					.map(|bloom| {
-						chain.blocks_with_bloom(bloom, from, to)
-					})
-					.flat_map(|m| m)
-					// remove duplicate elements
-					.collect::<BTreeSet<u64>>()
+				chain.blocks_with_bloom(&filter.bloom_possibilities(), from, to)
 					.into_iter()
 					.filter_map(|n| chain.block_hash(n))
 					.collect::<Vec<H256>>()
-
 			} else {
 				// Otherwise, we use a slower version that finds a link between from_block and to_block.
 				let from_hash = Self::block_hash(&chain, filter.from_block)?;
@@ -2078,7 +2074,7 @@ impl IoClient for Client {
 						&header,
 						&block_bytes,
 						&receipts_bytes,
-						&**client.db.read(),
+						&**client.db.read().key_value(),
 						&*client.chain.read(),
 					);
 					if let Err(e) = result {
@@ -2218,7 +2214,7 @@ impl ImportSealedBlock for Client {
 				start.elapsed(),
 			);
 		});
-		self.db.read().flush().expect("DB flush failed.");
+		self.db.read().key_value().flush().expect("DB flush failed.");
 		Ok(h)
 	}
 }

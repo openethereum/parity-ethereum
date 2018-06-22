@@ -24,7 +24,7 @@ use hash::{KECCAK_NULL_RLP};
 
 use account_db::AccountDBMut;
 use basic_account::BasicAccount;
-use blockchain::BlockChain;
+use blockchain::{BlockChain, BlockChainDB};
 use client::{Client, ChainInfo};
 use engines::EthEngine;
 use snapshot::{StateRebuilder};
@@ -33,7 +33,7 @@ use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 use tempdir::TempDir;
 use rand::Rng;
 
-use kvdb::{KeyValueDB, DBValue};
+use kvdb::DBValue;
 use ethereum_types::H256;
 use hashdb::HashDB;
 use journaldb;
@@ -158,7 +158,7 @@ pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
 /// Restore a snapshot into a given database. This will read chunks from the given reader
 /// write into the given database.
 pub fn restore(
-	db: Arc<KeyValueDB>,
+	db: Arc<BlockChainDB>,
 	engine: &EthEngine,
 	reader: &SnapshotReader,
 	genesis: &[u8],
@@ -170,7 +170,7 @@ pub fn restore(
 	let components = engine.snapshot_components().unwrap();
 	let manifest = reader.manifest();
 
-	let mut state = StateRebuilder::new(db.clone(), journaldb::Algorithm::Archive);
+	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
 	let mut secondary = {
 		let chain = BlockChain::new(Default::default(), genesis, db.clone());
 		components.rebuilder(chain, db, manifest).unwrap()

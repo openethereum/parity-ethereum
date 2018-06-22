@@ -352,7 +352,7 @@ mod tests {
 
 	use std::collections::{BTreeMap, HashMap};
 	use std::time::{SystemTime, UNIX_EPOCH};
-	use ethereum_types::{H256, Bloom, U256};
+	use ethereum_types::{H256, BloomRef, U256};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
 	use encoded;
 	use hash::keccak;
@@ -474,7 +474,8 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn blocks_with_bloom(&self, _bloom: &Bloom, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
+		fn blocks_with_bloom<'a, B, I, II>(&self, _blooms: II, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber>
+		where BloomRef<'a>: From<B>, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B>, Self: Sized {
 			unimplemented!()
 		}
 

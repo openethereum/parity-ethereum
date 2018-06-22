@@ -88,6 +88,10 @@ calculate_checksums () {
 }
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity-evm.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/ethstore.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/ethkey.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/whisper.exe"
 }
 push_binaries () {
   echo "Push binaries to AWS S3"
@@ -194,7 +198,7 @@ case $BUILD_PLATFORM in
     snapcraft clean
     echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
     sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
-    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.11* ]];
+    if [[ "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.10* || "$VER" == *1.11* ]];
       then
         sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
     fi
