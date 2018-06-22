@@ -157,6 +157,9 @@ make_pkg () {
 }
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity-evm.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/ethstore.exe"
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/ethkey.exe"
 }
 make_exe () {
   ./msbuild.cmd
@@ -198,6 +201,7 @@ push_binaries () {
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
 }
+
 make_archive () {
   echo "add artifacts to archive"
   rm -rf parity.zip
@@ -314,7 +318,7 @@ case $BUILD_PLATFORM in
     snapcraft clean
     echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
     sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
-    if [[ "$CI_BUILD_REF_NAME" = "stable" || "$VER" == *1.10* ]];
+    if [[ "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.10* || "$VER" == *1.11* ]];
       then
         sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
     fi

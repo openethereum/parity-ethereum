@@ -184,6 +184,7 @@ docker-build:
   stage: build
   only:
     - tags
+    - master
     - beta
     - stable
     - triggers
