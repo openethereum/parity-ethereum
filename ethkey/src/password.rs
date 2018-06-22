@@ -14,10 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ptr;
+use std::{fmt, ptr};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Password(String);
+
+impl fmt::Debug for Password {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Password(******)")
+    }
+}
 
 impl Password {
 	pub fn as_bytes(&self) -> &[u8] {
