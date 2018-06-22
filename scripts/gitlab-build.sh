@@ -62,8 +62,6 @@ build () {
   cargo build --target $PLATFORM --release -p ethstore-cli
   echo "Build ethkey-cli:"
   cargo build --target $PLATFORM --release -p ethkey-cli
-  echo "Build whisper-cli:"
-  cargo build --target $PLATFORM --release -p whisper-cli
 }
 strip_binaries () {
   echo "Strip binaries:"
@@ -71,7 +69,6 @@ strip_binaries () {
   $STRIP_BIN -v target/$PLATFORM/release/parity-evm
   $STRIP_BIN -v target/$PLATFORM/release/ethstore
   $STRIP_BIN -v target/$PLATFORM/release/ethkey
-  $STRIP_BIN -v target/$PLATFORM/release/whisper;
 }
 calculate_checksums () {
   echo "Checksum calculation:"
@@ -92,7 +89,6 @@ calculate_checksums () {
   $SHA256_BIN target/$PLATFORM/release/ethstore$S3WIN > ethstore$S3WIN.sha256
   $MD5_BIN target/$PLATFORM/release/ethkey$S3WIN > ethkey$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/ethkey$S3WIN > ethkey$S3WIN.sha256
-  $SHA256_BIN target/$PLATFORM/release/whisper$S3WIN > whisper$S3WIN.sha256
 }
 make_deb () {
   rm -rf deb
@@ -164,7 +160,6 @@ sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity-evm.exe"
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/ethstore.exe"
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/ethkey.exe"
-  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/whisper.exe"
 }
 make_exe () {
   ./msbuild.cmd
