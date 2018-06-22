@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::{fmt::Debug, hash::Hash};
 
 pub trait Hasher: Sync + Send {
-	type Out: AsRef<[u8]> + Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync /* REVIEW: how do I get around this? --> */ + HeapSizeOf;
+	type Out: AsRef<[u8]> + HeapSizeOf + Debug + PartialEq + Eq + Hash + Send + Sync + Clone + Copy;
 	const LENGTH: usize;
 	fn hash(x: &[u8]) -> Self::Out;
 }

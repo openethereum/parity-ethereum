@@ -28,7 +28,7 @@ use ethcore_bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::Hasher;
 use keccak_hasher::KeccakHasher;
-use rlp::{DecoderError, Decodable, RlpStream, Rlp, Prototype};
+use rlp::{DecoderError, RlpStream, Rlp, Prototype};
 use std::marker::PhantomData;
 use stream_encoder::Stream;
 use trie::{NibbleSlice, NodeCodec, node::Node};
