@@ -390,7 +390,7 @@ impl<T, S, L> Pool<T, S, L> where
 
 	/// Returns worst transaction in the queue (if any).
 	pub fn worst_transaction(&self) -> Option<Arc<T>> {
-		self.worst_transactions.iter().next().map(|x| x.transaction.transaction.clone())
+		self.worst_transactions.iter().next_back().map(|x| x.transaction.transaction.clone())
 	}
 
 	/// Returns the score of the worst transaction if the pool is almost full.

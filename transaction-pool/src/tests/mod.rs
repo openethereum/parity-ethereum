@@ -514,9 +514,10 @@ fn should_return_worst_transaction() {
 
 	// when
 	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	txq.import(b.tx().sender(1).nonce(0).gas_price(4).new()).unwrap();
 
 	// then
-	assert!(txq.worst_transaction().is_some());
+	assert_eq!(txq.worst_transaction().unwrap().gas_price, 4.into());
 }
 
 #[test]
