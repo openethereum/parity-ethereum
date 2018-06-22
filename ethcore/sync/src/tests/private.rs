@@ -42,8 +42,8 @@ fn send_private_transaction() {
 	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
 	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
 	let ap = Arc::new(AccountProvider::transient_provider());
-	ap.insert_account(s0.secret().clone(), "").unwrap();
-	ap.insert_account(s1.secret().clone(), "").unwrap();
+	ap.insert_account(s0.secret().clone(), &"".into()).unwrap();
+	ap.insert_account(s1.secret().clone(), &"".into()).unwrap();
 
 	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), seal_spec, Some(ap.clone()));
 	let client0 = net.peer(0).chain.clone();
@@ -52,7 +52,7 @@ fn send_private_transaction() {
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 
 	net.peer(0).miner.set_author(s0.address(), Some("".into())).unwrap();
-	net.peer(1).miner.set_author(s1.address(), Some("".to_owned())).unwrap();
+	net.peer(1).miner.set_author(s1.address(), Some("".into())).unwrap();
 	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
 	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));

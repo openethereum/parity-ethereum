@@ -163,7 +163,7 @@ mod tests {
 	#[test]
 	fn reports_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let v1 = tap.insert_account(keccak("1").into(), "").unwrap();
+		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
 		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();

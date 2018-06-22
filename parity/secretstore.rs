@@ -95,7 +95,7 @@ pub struct Dependencies<'a> {
 	/// Account provider.
 	pub account_provider: Arc<AccountProvider>,
 	/// Passed accounts passwords.
-	pub accounts_passwords: &'a [String],
+	pub accounts_passwords: &'a [Password],
 }
 
 #[cfg(not(feature = "secretstore"))]
@@ -209,6 +209,7 @@ mod server {
 }
 
 pub use self::server::KeyServer;
+use ethkey::Password;
 
 impl Default for Configuration {
 	fn default() -> Self {

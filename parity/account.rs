@@ -85,7 +85,7 @@ fn secret_store(dir: Box<RootDiskDirectory>, iterations: Option<u32>) -> Result<
 }
 
 fn new(n: NewAccount) -> Result<String, String> {
-	let password: String = match n.password_file {
+	let password = match n.password_file {
 		Some(file) => password_from_file(file)?,
 		None => password_prompt()?,
 	};

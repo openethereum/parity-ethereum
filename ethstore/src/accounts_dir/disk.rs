@@ -357,11 +357,11 @@ mod test {
 		let mut dir = env::temp_dir();
 		dir.push("ethstore_should_create_new_account");
 		let keypair = Random.generate().unwrap();
-		let password = "hello world";
+		let password = "hello world".into();
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
 		// when
-		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		let res = directory.insert(account.unwrap());
 
 		// then
@@ -378,11 +378,11 @@ mod test {
 		let mut dir = env::temp_dir();
 		dir.push("ethstore_should_handle_duplicate_filenames");
 		let keypair = Random.generate().unwrap();
-		let password = "hello world";
+		let password = "hello world".into();
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
 		// when
-		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned()).unwrap();
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned()).unwrap();
 		let filename = "test".to_string();
 		let dedup = true;
 
@@ -411,14 +411,14 @@ mod test {
 		dir.push("should_create_new_vault");
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 		let vault_name = "vault";
-		let password = "password";
+		let password = "password".into();
 
 		// then
 		assert!(directory.as_vault_provider().is_some());
 
 		// and when
 		let before_root_items_count = fs::read_dir(&dir).unwrap().count();
-		let vault = directory.as_vault_provider().unwrap().create(vault_name, VaultKey::new(password, 1024));
+		let vault = directory.as_vault_provider().unwrap().create(vault_name, VaultKey::new(&password, 1024));
 
 		// then
 		assert!(vault.is_ok());
@@ -426,7 +426,7 @@ mod test {
 		assert!(after_root_items_count > before_root_items_count);
 
 		// and when
-		let vault = directory.as_vault_provider().unwrap().open(vault_name, VaultKey::new(password, 1024));
+		let vault = directory.as_vault_provider().unwrap().open(vault_name, VaultKey::new(&password, 1024));
 
 		// then
 		assert!(vault.is_ok());
@@ -443,8 +443,8 @@ mod test {
 		let temp_path = TempDir::new("").unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 		let vault_provider = directory.as_vault_provider().unwrap();
-		vault_provider.create("vault1", VaultKey::new("password1", 1)).unwrap();
-		vault_provider.create("vault2", VaultKey::new("password2", 1)).unwrap();
+		vault_provider.create("vault1", VaultKey::new(&"password1".into(), 1)).unwrap();
+		vault_provider.create("vault2", VaultKey::new(&"password2".into(), 1)).unwrap();
 
 		// then
 		let vaults = vault_provider.list_vaults().unwrap();
@@ -465,8 +465,8 @@ mod test {
 		);
 
 		let keypair = Random.generate().unwrap();
-		let password = "test pass";
-		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		let password = "test pass".into();
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		directory.insert(account.unwrap()).expect("Account should be inserted ok");
 
 		let new_hash = directory.files_hash().expect("New files hash should be calculated ok");

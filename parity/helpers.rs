@@ -30,6 +30,7 @@ use upgrade::{upgrade, upgrade_data_paths};
 use sync::{validate_node_url, self};
 use db::migrate;
 use path;
+use ethkey::Password;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -277,7 +278,7 @@ pub fn execute_upgrades(
 }
 
 /// Prompts user asking for password.
-pub fn password_prompt() -> Result<String, String> {
+pub fn password_prompt() -> Result<Password, String> {
 	use rpassword::read_password;
 	const STDIN_ERROR: &'static str = "Unable to ask for password on non-interactive terminal.";
 
@@ -285,12 +286,12 @@ pub fn password_prompt() -> Result<String, String> {
 	print!("Type password: ");
 	flush_stdout();
 
-	let password = read_password().map_err(|_| STDIN_ERROR.to_owned())?;
+	let password = read_password().map_err(|_| STDIN_ERROR.to_owned())?.into();
 
 	print!("Repeat password: ");
 	flush_stdout();
 
-	let password_repeat = read_password().map_err(|_| STDIN_ERROR.to_owned())?;
+	let password_repeat = read_password().map_err(|_| STDIN_ERROR.to_owned())?.into();
 
 	if password != password_repeat {
 		return Err("Passwords do not match!".into());
@@ -300,24 +301,24 @@ pub fn password_prompt() -> Result<String, String> {
 }
 
 /// Read a password from password file.
-pub fn password_from_file(path: String) -> Result<String, String> {
+pub fn password_from_file(path: String) -> Result<Password, String> {
 	let passwords = passwords_from_files(&[path])?;
 	// use only first password from the file
-	passwords.get(0).map(String::to_owned)
+	passwords.get(0).map(Password::clone)
 		.ok_or_else(|| "Password file seems to be empty.".to_owned())
 }
 
 /// Reads passwords from files. Treats each line as a separate password.
-pub fn passwords_from_files(files: &[String]) -> Result<Vec<String>, String> {
+pub fn passwords_from_files(files: &[String]) -> Result<Vec<Password>, String> {
 	let passwords = files.iter().map(|filename| {
 		let file = File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename))?;
 		let reader = BufReader::new(&file);
 		let lines = reader.lines()
 			.filter_map(|l| l.ok())
-			.map(|pwd| pwd.trim().to_owned())
-			.collect::<Vec<String>>();
+			.map(|pwd| pwd.trim().to_owned().into())
+			.collect::<Vec<Password>>();
 		Ok(lines)
-	}).collect::<Result<Vec<Vec<String>>, String>>();
+	}).collect::<Result<Vec<Vec<Password>>, String>>();
 	Ok(passwords?.into_iter().flat_map(|x| x).collect())
 }
 
@@ -330,6 +331,7 @@ mod tests {
 	use ethereum_types::U256;
 	use ethcore::client::{Mode, BlockId};
 	use ethcore::miner::PendingSet;
+	use ethkey::Password;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};
 
 	#[test]
@@ -435,7 +437,7 @@ ignored
 but the first password is trimmed
 
 "#).unwrap();
-		assert_eq!(&password_from_file(path.to_str().unwrap().into()).unwrap(), "password with trailing whitespace");
+		assert_eq!(password_from_file(path.to_str().unwrap().into()).unwrap(), Password::from("password with trailing whitespace"));
 	}
 
 	#[test]

@@ -31,7 +31,7 @@ use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 
-use ethkey::Signature;
+use ethkey::{Password, Signature};
 use sync::LightSync;
 use ethcore::ids::BlockId;
 use ethcore::client::BlockChainClient;
@@ -560,15 +560,15 @@ impl Future for ProspectiveSigner {
 }
 
 /// Single-use account token.
-pub type AccountToken = String;
+pub type AccountToken = Password;
 
 /// Values used to unlock accounts for signing.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum SignWith {
 	/// Nothing -- implies the account is already unlocked.
 	Nothing,
 	/// Unlock with password.
-	Password(String),
+	Password(Password),
 	/// Unlock with single-use token.
 	Token(AccountToken),
 }
@@ -584,8 +584,7 @@ impl SignWith {
 }
 
 /// A value, potentially accompanied by a signing token.
-#[derive(Debug)]
-pub enum WithToken<T: Debug> {
+pub enum WithToken<T> {
 	/// No token.
 	No(T),
 	/// With token.

@@ -46,6 +46,7 @@ use header::{BlockNumber, Header};
 use receipt::{RichReceipt, Receipt};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use state::StateInfo;
+use ethkey::Password;
 
 /// Provides methods to verify incoming external transactions
 pub trait TransactionVerifierClient: Send + Sync
@@ -124,7 +125,7 @@ pub trait MinerService : Send + Sync {
 	/// Set info necessary to sign consensus messages and block authoring.
 	///
 	/// On PoW password is optional.
-	fn set_author(&self, address: Address, password: Option<String>) -> Result<(), ::account_provider::SignError>;
+	fn set_author(&self, address: Address, password: Option<Password>) -> Result<(), ::account_provider::SignError>;
 
 	// Transaction Pool
 

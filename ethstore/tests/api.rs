@@ -46,9 +46,9 @@ fn secret_store_create_account() {
 	let dir = TransientDir::create().unwrap();
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	assert_eq!(store.accounts().unwrap().len(), 0);
-	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), "").is_ok());
+	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), &"".into()).is_ok());
 	assert_eq!(store.accounts().unwrap().len(), 1);
-	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), "").is_ok());
+	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), &"".into()).is_ok());
 	assert_eq!(store.accounts().unwrap().len(), 2);
 }
 
@@ -56,36 +56,36 @@ fn secret_store_create_account() {
 fn secret_store_sign() {
 	let dir = TransientDir::create().unwrap();
 	let store = EthStore::open(Box::new(dir)).unwrap();
-	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), "").is_ok());
+	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), &"".into()).is_ok());
 	let accounts = store.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
-	assert!(store.sign(&accounts[0], "", &Default::default()).is_ok());
-	assert!(store.sign(&accounts[0], "1", &Default::default()).is_err());
+	assert!(store.sign(&accounts[0], &"".into(), &Default::default()).is_ok());
+	assert!(store.sign(&accounts[0], &"1".into(), &Default::default()).is_err());
 }
 
 #[test]
 fn secret_store_change_password() {
 	let dir = TransientDir::create().unwrap();
 	let store = EthStore::open(Box::new(dir)).unwrap();
-	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), "").is_ok());
+	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), &"".into()).is_ok());
 	let accounts = store.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
-	assert!(store.sign(&accounts[0], "", &Default::default()).is_ok());
-	assert!(store.change_password(&accounts[0], "", "1").is_ok());
-	assert!(store.sign(&accounts[0], "", &Default::default()).is_err());
-	assert!(store.sign(&accounts[0], "1", &Default::default()).is_ok());
+	assert!(store.sign(&accounts[0], &"".into(), &Default::default()).is_ok());
+	assert!(store.change_password(&accounts[0], &"".into(), &"1".into()).is_ok());
+	assert!(store.sign(&accounts[0], &"".into(), &Default::default()).is_err());
+	assert!(store.sign(&accounts[0], &"1".into(), &Default::default()).is_ok());
 }
 
 #[test]
 fn secret_store_remove_account() {
 	let dir = TransientDir::create().unwrap();
 	let store = EthStore::open(Box::new(dir)).unwrap();
-	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), "").is_ok());
+	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), &"".into()).is_ok());
 	let accounts = store.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
-	assert!(store.remove_account(&accounts[0], "").is_ok());
+	assert!(store.remove_account(&accounts[0], &"".into()).is_ok());
 	assert_eq!(store.accounts().unwrap().len(), 0);
-	assert!(store.remove_account(&accounts[0], "").is_err());
+	assert!(store.remove_account(&accounts[0], &"".into()).is_err());
 }
 
 fn test_path() -> &'static str {
@@ -146,8 +146,8 @@ fn test_decrypting_files_with_short_ciphertext() {
 
 	let message = Default::default();
 
-	let s1 = store.sign(&accounts[0], "foo", &message).unwrap();
-	let s2 = store.sign(&accounts[1], "foo", &message).unwrap();
+	let s1 = store.sign(&accounts[0], &"foo".into(), &message).unwrap();
+	let s2 = store.sign(&accounts[1], &"foo".into(), &message).unwrap();
 	assert!(verify_address(&accounts[0].address, &s1, &message).unwrap());
 	assert!(verify_address(&kp1.address(), &s1, &message).unwrap());
 	assert!(verify_address(&kp2.address(), &s2, &message).unwrap());

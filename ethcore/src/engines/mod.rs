@@ -51,7 +51,7 @@ use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{self, UnverifiedTransaction, SignedTransaction};
 
-use ethkey::Signature;
+use ethkey::{Password, Signature};
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
@@ -322,7 +322,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn is_proposal(&self, _verified_header: &M::Header) -> bool { false }
 
 	/// Register an account which signs consensus messages.
-	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: String) {}
+	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: Password) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }

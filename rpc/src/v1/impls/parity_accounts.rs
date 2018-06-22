@@ -27,6 +27,7 @@ use jsonrpc_core::Result;
 use v1::helpers::errors;
 use v1::traits::ParityAccounts;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo};
+use ethkey::Password;
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
@@ -74,21 +75,21 @@ impl ParityAccounts for ParityAccountsClient {
 		Ok(accounts)
 	}
 
-	fn new_account_from_phrase(&self, phrase: String, pass: String) -> Result<RpcH160> {
+	fn new_account_from_phrase(&self, phrase: String, pass: Password) -> Result<RpcH160> {
 		let brain = Brain::new(phrase).generate().unwrap();
 		self.accounts.insert_account(brain.secret().clone(), &pass)
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
-	fn new_account_from_wallet(&self, json: String, pass: String) -> Result<RpcH160> {
+	fn new_account_from_wallet(&self, json: String, pass: Password) -> Result<RpcH160> {
 		self.accounts.import_presale(json.as_bytes(), &pass)
 			.or_else(|_| self.accounts.import_wallet(json.as_bytes(), &pass, true))
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
-	fn new_account_from_secret(&self, secret: RpcH256, pass: String) -> Result<RpcH160> {
+	fn new_account_from_secret(&self, secret: RpcH256, pass: Password) -> Result<RpcH160> {
 		let secret = Secret::from_unsafe_slice(&secret.0)
 			.map_err(|e| errors::account("Could not create account.", e))?;
 		self.accounts.insert_account(secret, &pass)
@@ -96,7 +97,7 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
-	fn test_password(&self, account: RpcH160, password: String) -> Result<bool> {
+	fn test_password(&self, account: RpcH160, password: Password) -> Result<bool> {
 		let account: Address = account.into();
 
 		self.accounts
@@ -104,7 +105,7 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not fetch account info.", e))
 	}
 
-	fn change_password(&self, account: RpcH160, password: String, new_password: String) -> Result<bool> {
+	fn change_password(&self, account: RpcH160, password: Password, new_password: Password) -> Result<bool> {
 		let account: Address = account.into();
 		self.accounts
 			.change_password(&account, password, new_password)
@@ -112,7 +113,7 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not fetch account info.", e))
 	}
 
-	fn kill_account(&self, account: RpcH160, password: String) -> Result<bool> {
+	fn kill_account(&self, account: RpcH160, password: Password) -> Result<bool> {
 		let account: Address = account.into();
 		self.accounts
 			.kill_account(&account, &password)
@@ -209,14 +210,14 @@ impl ParityAccounts for ParityAccountsClient {
 		Ok(into_vec(self.accounts.list_geth_accounts(false)))
 	}
 
-	fn create_vault(&self, name: String, password: String) -> Result<bool> {
+	fn create_vault(&self, name: String, password: Password) -> Result<bool> {
 		self.accounts
 			.create_vault(&name, &password)
 			.map_err(|e| errors::account("Could not create vault.", e))
 			.map(|_| true)
 	}
 
-	fn open_vault(&self, name: String, password: String) -> Result<bool> {
+	fn open_vault(&self, name: String, password: Password) -> Result<bool> {
 		self.accounts
 			.open_vault(&name, &password)
 			.map_err(|e| errors::account("Could not open vault.", e))
@@ -242,7 +243,7 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not list vaults.", e))
 	}
 
-	fn change_vault_password(&self, name: String, new_password: String) -> Result<bool> {
+	fn change_vault_password(&self, name: String, new_password: Password) -> Result<bool> {
 		self.accounts
 			.change_vault_password(&name, &new_password)
 			.map_err(|e| errors::account("Could not change vault password.", e))
@@ -269,7 +270,7 @@ impl ParityAccounts for ParityAccountsClient {
 			.map(|_| true)
 	}
 
-	fn derive_key_index(&self, addr: RpcH160, password: String, derivation: DeriveHierarchical, save_as_account: bool) -> Result<RpcH160> {
+	fn derive_key_index(&self, addr: RpcH160, password: Password, derivation: DeriveHierarchical, save_as_account: bool) -> Result<RpcH160> {
 		let addr: Address = addr.into();
 		self.accounts
 			.derive_account(
@@ -282,7 +283,7 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not derive account.", e))
 	}
 
-	fn derive_key_hash(&self, addr: RpcH160, password: String, derivation: DeriveHash, save_as_account: bool) -> Result<RpcH160> {
+	fn derive_key_hash(&self, addr: RpcH160, password: Password, derivation: DeriveHash, save_as_account: bool) -> Result<RpcH160> {
 		let addr: Address = addr.into();
 		self.accounts
 			.derive_account(
@@ -295,7 +296,7 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not derive account.", e))
 	}
 
-	fn export_account(&self, addr: RpcH160, password: String) -> Result<KeyFile> {
+	fn export_account(&self, addr: RpcH160, password: Password) -> Result<KeyFile> {
 		let addr = addr.into();
 		self.accounts
 			.export_account(
@@ -306,7 +307,7 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not export account.", e))
 	}
 
-	fn sign_message(&self, addr: RpcH160, password: String, message: RpcH256) -> Result<RpcH520> {
+	fn sign_message(&self, addr: RpcH160, password: Password, message: RpcH256) -> Result<RpcH520> {
 		self.accounts
 			.sign(
 				addr.into(),

@@ -35,6 +35,7 @@ use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use txpool;
+use ethkey::Password;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -49,7 +50,7 @@ pub struct TestMinerService {
 	/// Next nonces.
 	pub next_nonces: RwLock<HashMap<Address, U256>>,
 	/// Password held by Engine.
-	pub password: RwLock<String>,
+	pub password: RwLock<Password>,
 
 	authoring_params: RwLock<AuthoringParams>,
 }
@@ -62,7 +63,7 @@ impl Default for TestMinerService {
 			local_transactions: Mutex::new(BTreeMap::new()),
 			pending_receipts: Mutex::new(BTreeMap::new()),
 			next_nonces: RwLock::new(HashMap::new()),
-			password: RwLock::new(String::new()),
+			password: RwLock::new("".into()),
 			authoring_params: RwLock::new(AuthoringParams {
 				author: Address::zero(),
 				gas_range_target: (12345.into(), 54321.into()),
@@ -119,7 +120,7 @@ impl MinerService for TestMinerService {
 		self.authoring_params.read().clone()
 	}
 
-	fn set_author(&self, author: Address, password: Option<String>) -> Result<(), AccountError> {
+	fn set_author(&self, author: Address, password: Option<Password>) -> Result<(), AccountError> {
 		self.authoring_params.write().author = author;
 		if let Some(password) = password {
 			*self.password.write() = password;
