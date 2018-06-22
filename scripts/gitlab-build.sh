@@ -68,7 +68,7 @@ strip_binaries () {
   $STRIP_BIN -v target/$PLATFORM/release/parity
   $STRIP_BIN -v target/$PLATFORM/release/parity-evm
   $STRIP_BIN -v target/$PLATFORM/release/ethstore
-  $STRIP_BIN -v target/$PLATFORM/release/ethkey
+  $STRIP_BIN -v target/$PLATFORM/release/ethkey;
 }
 calculate_checksums () {
   echo "Checksum calculation:"
