@@ -155,13 +155,6 @@ pub trait Trie<H: Hasher, C: NodeCodec<H>> {
 	fn root(&self) -> &H::Out;
 
 	/// Is the trie empty?
-	// TODO: The `Hasher` should not carry RLP-specifics; the null node should live in `NodeCodec`. Not sure what the best way to deal with this is.
-	// 	rpheimer: specifically, this should draw from the node codec, because non-rlp-encoded tries will have 
-	// 	non-rlp-encoded null nodes. so the hash will be different. this is an architectural issue:
-	// 	`trait NodeCodec<H: Hasher>` should have the `const HASH_NULL_NODE: H::Out`. This will 
-	// 	make `impl<H: Hasher> NodeCodec<H> for MyGenericCodec<H>` impossible without better const 
-	// 	function evaluation, so we should limit ourselves only to 
-	// 	`impl NodeCodec<SomeConcreteHash> for MyGenericCodec<SomeConcreteHash>` or similar
 	fn is_empty(&self) -> bool { *self.root() == C::HASHED_NULL_NODE }
 
 	/// Does the trie contain a given key?
