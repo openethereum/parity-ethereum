@@ -331,8 +331,8 @@ pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<Block
 			let key_value = Arc::new(kvdb_rocksdb::Database::open(&self.config, &db_path.to_string_lossy())?);
 			let blooms_path = db_path.join("blooms");
 			let trace_blooms_path = db_path.join("trace_blooms");
-			fs::create_dir(&blooms_path)?;
-			fs::create_dir(&trace_blooms_path)?;
+			fs::create_dir_all(&blooms_path)?;
+			fs::create_dir_all(&trace_blooms_path)?;
 			let blooms = blooms_db::Database::open(blooms_path).unwrap();
 			let trace_blooms = blooms_db::Database::open(trace_blooms_path).unwrap();
 			let db = RestorationDB {
