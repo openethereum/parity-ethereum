@@ -36,7 +36,3 @@ impl Hasher for KeccakHasher {
 		out.into()
 	}
 }
-
-// Move concrete impl to own "façade" crate?
-// /// Convenience type for crates that need a `HashDB` with Keccak hashes
-// pub type KeccakHashDB = HashDB<KeccakHasher>;
