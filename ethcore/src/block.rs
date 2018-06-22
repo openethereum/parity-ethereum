@@ -385,7 +385,7 @@ impl<'x> OpenBlock<'x> {
 			let took = start.elapsed();
 			let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
 			if took > time::Duration::from_millis(slow_tx) {
-				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, block.header().number(), hash);
+				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, self.block.header().number(), hash);
 			}
 			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
 		}

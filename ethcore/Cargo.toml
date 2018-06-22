@@ -75,7 +75,7 @@ trie-standardmap = { path = "../util/trie-standardmap" }
 
 [features]
 # Display EVM debug traces.
-evm-debug = ["slow-blocks"]
+evm-debug = ["evm/evm-debug"]
 # Display EVM debug traces when running tests.
 evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 # Measure time of transaction execution.
