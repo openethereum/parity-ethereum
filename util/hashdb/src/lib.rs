@@ -57,7 +57,6 @@ pub trait HashDB<H: Hasher>: Send + Sync + AsHashDB<H> {
 	fn remove(&mut self, key: &H::Out);
 }
 
-//TODO: investigate if we can/should get rid of this trait altogether. There used to be a `impl<T> AsHashDB for T` but that does not work with generics so we currently have concrete impls in `ethcore` for this – perhaps we can just impl the needed methods where needed and get rid of this?
 /// Upcast trait.
 pub trait AsHashDB<H: Hasher> {
 	/// Perform upcast to HashDB for anything that derives from HashDB.
@@ -66,7 +65,8 @@ pub trait AsHashDB<H: Hasher> {
 	fn as_hashdb_mut(&mut self) -> &mut HashDB<H>;
 }
 
-// TODO: This conflicts with an impl `for T`, see https://stackoverflow.com/questions/48432842/implementing-a-trait-for-reference-and-non-reference-types-causes-conflicting-im
+// NOTE: There used to be a `impl<T> AsHashDB for T` but that does not work with generics. See https://stackoverflow.com/questions/48432842/implementing-a-trait-for-reference-and-non-reference-types-causes-conflicting-im
+// This means we need concrete impls of AsHashDB in several places, which somewhat defeats the point of the trait.
 impl<'a, H: Hasher> AsHashDB<H> for &'a mut HashDB<H> {
 	fn as_hashdb(&self) -> &HashDB<H> { &**self }
 	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { &mut **self }
