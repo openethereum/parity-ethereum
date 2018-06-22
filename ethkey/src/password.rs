@@ -33,10 +33,10 @@ impl Password {
 impl Drop for Password {
 	fn drop(&mut self) {
 		unsafe {
-            for byte_ref in self.0.as_mut_vec() {
-                ptr::write_volatile(byte_ref, 0)
-            }
-        }
+			for byte_ref in self.0.as_mut_vec() {
+				ptr::write_volatile(byte_ref, 0)
+			}
+		}
 	}
 }
 

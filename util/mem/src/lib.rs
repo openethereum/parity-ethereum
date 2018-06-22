@@ -33,7 +33,7 @@ impl<T: AsMut<[u8]>> Drop for Memzero<T> {
 	fn drop(&mut self) {
 		unsafe {
 			for byte_ref in self.mem.as_mut() {
-                ptr::write_volatile(byte_ref, 0)
+				ptr::write_volatile(byte_ref, 0)
 			}
 		}
 	}
