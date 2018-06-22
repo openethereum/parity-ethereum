@@ -339,8 +339,7 @@ where
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Result<Self, H::Out, C::E> {
 		if !db.contains(root) {
-			return Err(TrieError::InvalidStateRoot(*root));
-			// return Err(Box::new(TrieError::InvalidStateRoot(*root)));
+			return Err(Box::new(TrieError::InvalidStateRoot(*root)));
 		}
 
 		let root_handle = NodeHandle::Hash(*root);

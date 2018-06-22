@@ -79,8 +79,7 @@ where
 	/// Returns an error if `root` does not exist
 	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out, C::E> {
 		if !db.contains(root) {
-			Err(TrieError::InvalidStateRoot(*root))
-			// Err(Box::new(TrieError::InvalidStateRoot(*root)))
+			Err(Box::new(TrieError::InvalidStateRoot(*root)))
 		} else {
 			Ok(TrieDB {db, root, hash_count: 0, codec_marker: PhantomData})
 		}
@@ -93,8 +92,7 @@ where
 	fn root_data(&self) -> Result<DBValue, H::Out, C::E> {
 		self.db
 			.get(self.root)
-			.ok_or_else(|| TrieError::InvalidStateRoot(*self.root))
-			// .ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
+			.ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
 	}
 
 	/// Given some node-describing data `node`, return the actual node RLP.
@@ -103,8 +101,7 @@ where
 	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> Result<DBValue, H::Out, C::E> {
 		match C::try_decode_hash(node) {
 			Some(key) => {
-				self.db.get(&key).ok_or_else(|| TrieError::IncompleteDatabase(key))
-				// self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
+				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
 			None => Ok(DBValue::from_slice(node))
 		}

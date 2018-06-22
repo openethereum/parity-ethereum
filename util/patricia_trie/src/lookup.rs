@@ -49,14 +49,10 @@ where
 		for depth in 0.. {
 			let node_data = match self.db.get(&hash) {
 				Some(value) => value,
-				None => return Err(match depth {
+				None => return Err(Box::new(match depth {
 					0 => TrieError::InvalidStateRoot(hash),
 					_ => TrieError::IncompleteDatabase(hash),
-				}),
-				// None => return Err(Box::new(match depth {
-				// 	0 => TrieError::<_, C::E>::InvalidStateRoot(hash),
-				// 	_ => TrieError::<_, C::E>::IncompleteDatabase(hash),
-				// })),
+				})),
 			};
 
 			self.query.record(&hash, &node_data, depth);
@@ -68,8 +64,7 @@ where
 				let decoded = match C::decode(node_data) {
 					Ok(node) => node,
 					Err(e) => {
-						return Err(TrieError::DecoderError(hash, e))
-						// return Err(Box::new(TrieError::DecoderError(hash, Box::new(e))))
+						return Err(Box::new(TrieError::DecoderError(hash, e)))
 					}
 				};
 				match decoded {

@@ -31,7 +31,7 @@ use ethtrie;
 #[derive(Debug)]
 pub enum EvmTestError {
 	/// Trie integrity error.
-	Trie(ethtrie::TrieError),
+	Trie(Box<ethtrie::TrieError>),
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.

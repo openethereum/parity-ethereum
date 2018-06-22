@@ -105,8 +105,8 @@ impl<T, E> error::Error for TrieError<T, E> where T: std::fmt::Debug, E: std::er
 	}
 }
 
-/// Trie result type. Boxed to avoid copying around extra space for the `Hasher`s `Out`s on successful queries.
-pub type Result<T, H, E> = ::std::result::Result<T, TrieError<H, E>>;
+/// Trie result type. Boxed to avoid copying around extra space for the `Hasher`s `Out` on successful queries.
+pub type Result<T, H, E> = ::std::result::Result<T, Box<TrieError<H, E>>>;
 
 
 /// Trie-Item type used for iterators over trie data.

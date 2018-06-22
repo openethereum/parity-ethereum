@@ -652,16 +652,11 @@ impl From<::rlp::DecoderError> for Error {
 	}
 }
 
-impl From<TrieError> for Error {
-	fn from(err: TrieError) -> Self {
-		Error::Trie(err)
+impl From<Box<TrieError>> for Error {
+	fn from(err: Box<TrieError>) -> Self {
+		Error::Trie(*err)
 	}
 }
-// impl From<Box<TrieError>> for Error {
-// 	fn from(err: Box<TrieError>) -> Self {
-// 		Error::Trie(*err)
-// 	}
-// }
 
 /// Request for header proof by number
 #[derive(Debug, Clone, PartialEq, Eq)]
