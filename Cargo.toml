@@ -137,8 +137,8 @@ members = [
 	"whisper",
 	"whisper/cli",
 	"util/stream-encoder",
-  "util/keccak-hasher",
-  "util/patricia-trie-ethereum",
+	"util/keccak-hasher",
+	"util/patricia-trie-ethereum",
 ]
 
 [patch.crates-io]
