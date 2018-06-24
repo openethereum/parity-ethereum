@@ -443,7 +443,7 @@ macro_rules! usage {
 				// Arguments and flags
 				let args_wrapper = Wrapper::new(term_width).initial_indent(TAB_TAB).subsequent_indent(TAB_TAB);
 				$(
-					if $group_name != "Legacy options" {
+					if $group_name != "Legacy Options" {
 						help.push_str($group_name); help.push_str(":\n");
 						$(
 							help.push_str(&format!("{}{}\n{}\n",
