@@ -801,7 +801,7 @@ usage! {
 		["Footprint options"]
 			FLAG flag_fast_and_loose: (bool) = false, or |c: &Config| c.footprint.as_ref()?.fast_and_loose.clone(),
 			"--fast-and-loose",
-			"Disables DB WAL, which gives a significant speed up but means an unclean exit is unrecoverable.",
+			"Disables DB WAL, which gives a significant speed up but means an unclean exit is unrecoverable. Not recommended.",
 
 			FLAG flag_scale_verifiers: (bool) = false, or |c: &Config| c.footprint.as_ref()?.scale_verifiers.clone(),
 			"--scale-verifiers",
