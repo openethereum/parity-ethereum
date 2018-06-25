@@ -40,8 +40,6 @@ extern crate kvdb_memorydb;
 
 use std::{fmt, str};
 use std::sync::Arc;
-use hashdb::{AsHashDB, HashDB};
-use keccak_hasher::KeccakHasher;
 
 /// Export the journaldb module.
 mod traits;
@@ -50,37 +48,12 @@ mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
 mod util;
+mod as_hash_db_impls;
 
 pub mod overlaydb;
 
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
-
-use archivedb::ArchiveDB;
-impl AsHashDB<KeccakHasher> for ArchiveDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
-}
-use earlymergedb::EarlyMergeDB;
-impl AsHashDB<KeccakHasher> for EarlyMergeDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
-}
-use overlayrecentdb::OverlayRecentDB;
-impl AsHashDB<KeccakHasher> for OverlayRecentDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
-}
-use refcounteddb::RefCountedDB;
-impl AsHashDB<KeccakHasher> for RefCountedDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
-}
-use overlaydb::OverlayDB;
-impl AsHashDB<KeccakHasher> for OverlayDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
-}
 
 /// Journal database operating strategy.
 #[derive(Debug, PartialEq, Clone, Copy)]
