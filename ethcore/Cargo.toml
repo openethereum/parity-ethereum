@@ -70,10 +70,11 @@ unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 stream-encoder = { path = "../util/stream-encoder" }
 keccak-hasher = { path = "../util/keccak-hasher" }
-tempdir = "0.3"
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
+tempdir = {version="0.3", optional = true}
 
 [dev-dependencies]
+tempdir = "0.3"
 trie-standardmap = { path = "../util/trie-standardmap" }
 
 [features]
