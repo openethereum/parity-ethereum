@@ -61,9 +61,15 @@ EVM implementation for Parity.
 Usage:
     parity-evm state-test <file> [--json --std-json --only NAME --chain CHAIN]
     parity-evm stats [options]
-    parity-evm stats-jsontests-vm <file> [--folder]
+    parity-evm stats-jsontests-vm <file>
     parity-evm [options]
     parity-evm [-h | --help]
+
+Commands:
+    state-test         Run a state test from a json file.
+    stats              Execute EVM runtime code and return the statistics.
+    stats-jsontests-vm Execute standard jsontests format VMTests and return
+                       timing statistcis in tsv format.
 
 Transaction options:
     --code CODE        Contract code as hex (without 0x).
@@ -76,9 +82,6 @@ Transaction options:
 State test options:
     --only NAME        Runs only a single test matching the name.
     --chain CHAIN      Run only tests from specific chain.
-
-Stats jsontests VM options:
-    --folder           Run jsontest for a folder instead of a single file.
 
 General options:
     --json             Display verbose results in JSON.
@@ -110,7 +113,7 @@ fn run_stats_jsontests_vm(args: Args) {
 	use std::collections::HashMap;
 	use std::time::{Instant, Duration};
 
-	let file = args.arg_file.expect("FILE is required");
+	let file = args.arg_file.expect("FILE (or PATH) is required");
 
 	let mut times: HashMap<String, (Instant, Option<Duration>)> = HashMap::new();
 
@@ -127,7 +130,7 @@ fn run_stats_jsontests_vm(args: Args) {
 				},
 			}
 		};
-		if args.flag_folder {
+		if file.is_file() {
 			json_tests::run_executive_test_path(&file, &[], &mut record_time);
 		} else {
 			json_tests::run_executive_test_file(&file, &mut record_time);
@@ -231,7 +234,6 @@ struct Args {
 	flag_chain: Option<String>,
 	flag_json: bool,
 	flag_std_json: bool,
-	flag_folder: bool,
 }
 
 impl Args {
