@@ -109,6 +109,7 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
+#[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
 
 #[macro_use]
@@ -168,9 +169,8 @@ mod tx_filter;
 
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
 #[cfg(feature = "json-tests")]
-mod json_tests;
+pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 
