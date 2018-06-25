@@ -83,20 +83,20 @@ impl PendingSettings {
 }
 
 /// Transaction priority.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd,  Clone, Copy)]
 pub(crate) enum Priority {
-	/// Local transactions (high priority)
-	///
-	/// Transactions either from a local account or
-	/// submitted over local RPC connection via `eth_sendRawTransaction`
-	Local,
+	/// Regular transactions received over the network. (no priority boost)
+	Regular,
 	/// Transactions from retracted blocks (medium priority)
 	///
 	/// When block becomes non-canonical we re-import the transactions it contains
 	/// to the queue and boost their priority.
 	Retracted,
-	/// Regular transactions received over the network. (no priority boost)
-	Regular,
+	/// Local transactions (high priority)
+	///
+	/// Transactions either from a local account or
+	/// submitted over local RPC connection via `eth_sendRawTransaction`
+	Local,
 }
 
 impl Priority {

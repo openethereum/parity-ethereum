@@ -108,18 +108,9 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 				cmp::Ordering::Equal => self.choose(old, new) == txpool::scoring::Choice::ReplaceOld,
 			}
 		} else {
-			// Always kick out non-local transactions in favour of local ones.
-			if new.priority().is_local() && !old.priority().is_local() {
-				return true;
-			}
-			// And never kick out local transactions in favour of external ones.
-			if !new.priority().is_local() && old.priority.is_local() {
-				return false;
-			}
-
-			let old_gp = old.transaction.gas_price;
-			let new_gp = new.transaction.gas_price;
-			old_gp < new_gp
+			let old_score = (old.priority(), old.transaction.gas_price);
+			let new_score = (new.priority(), new.transaction.gas_price);
+			new_score > old_score
 		}
 	}
 }
