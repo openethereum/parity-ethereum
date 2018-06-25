@@ -1691,6 +1691,7 @@ dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.2.0",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "keccak-hash 0.1.2",
  "keccak-hasher 0.1.0",
  "plain_hasher 0.2.0",
  "rlp 0.2.1",
