@@ -127,11 +127,6 @@ impl From<ethtrie::TrieError> for ExecutionError {
 		ExecutionError::Internal(format!("{:?}", err))
 	}
 }
-// impl<T> From<Box<trie::TrieError<T>>> for ExecutionError where T: fmt::Debug {
-// 	fn from(err: Box<trie::TrieError<T>>) -> Self {
-// 		ExecutionError::Internal(format!("{:?}", err))
-// 	}
-// }
 
 impl fmt::Display for ExecutionError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

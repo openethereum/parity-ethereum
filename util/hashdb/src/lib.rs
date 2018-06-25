@@ -23,9 +23,16 @@ use heapsize::HeapSizeOf;
 use std::collections::HashMap;
 use std::{fmt::Debug, hash::Hash};
 
+/// Trait describing an object that can hash a slice of bytes. Used to abstract 
+/// other types over the hashing algorithm. Defines a single `hash` method and an
+/// `Out` associated type with the necessary bounds.
 pub trait Hasher: Sync + Send {
+	/// The output type of the `Hasher`
 	type Out: AsRef<[u8]> + HeapSizeOf + Debug + PartialEq + Eq + Hash + Send + Sync + Clone + Copy;
+	/// The length in bytes of the `Hasher` output
 	const LENGTH: usize;
+
+	/// Compute the hash of the provided slice of bytes returning the `Out` type of the `Hasher`
 	fn hash(x: &[u8]) -> Self::Out;
 }
 
