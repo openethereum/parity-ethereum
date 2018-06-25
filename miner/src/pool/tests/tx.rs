@@ -23,9 +23,9 @@ use pool::{verifier, VerifiedTransaction};
 
 #[derive(Clone)]
 pub struct Tx {
-	nonce: u64,
-	gas: u64,
-	gas_price: u64,
+	pub nonce: u64,
+	pub gas: u64,
+	pub gas_price: u64,
 }
 
 impl Default for Tx {
