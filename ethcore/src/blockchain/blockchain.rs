@@ -1450,18 +1450,24 @@ impl BlockChain {
 
 	/// Returns general blockchain information
 	pub fn chain_info(&self) -> BlockChainInfo {
+		// Make sure to call internal methods first to avoid
+		// recursive locking of `best_block`.
+		let first_block_hash = self.first_block();
+		let first_block_number = self.first_block_number().into();
+		let genesis_hash = self.genesis_hash();
+
 		// ensure data consistencly by locking everything first
 		let best_block = self.best_block.read();
 		let best_ancient_block = self.best_ancient_block.read();
 		BlockChainInfo {
 			total_difficulty: best_block.total_difficulty,
 			pending_total_difficulty: best_block.total_difficulty,
-			genesis_hash: self.genesis_hash(),
+			genesis_hash,
 			best_block_hash: best_block.header.hash(),
 			best_block_number: best_block.header.number(),
 			best_block_timestamp: best_block.header.timestamp(),
-			first_block_hash: self.first_block(),
-			first_block_number: From::from(self.first_block_number()),
+			first_block_hash,
+			first_block_number,
 			ancient_block_hash: best_ancient_block.as_ref().map(|b| b.hash),
 			ancient_block_number: best_ancient_block.as_ref().map(|b| b.number),
 		}
