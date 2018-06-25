@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Installing KCOV under ubuntu
 # https://users.rust-lang.org/t/tutorial-how-to-collect-test-coverages-for-rust-project/650#
 ### Install deps

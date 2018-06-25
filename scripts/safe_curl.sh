@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -eu
 
@@ -17,4 +17,3 @@ else
 	echo 'Unable to push info to updater service.';
 	exit 2
 fi
-
