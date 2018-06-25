@@ -33,10 +33,14 @@ use std::marker::PhantomData;
 use stream_encoder::Stream;
 use trie::{NibbleSlice, NodeCodec, node::Node};
 
+/// Convenience type alias to instantiate a Keccak-flavoured `RlpNodeCodec`
 pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
+/// Convenience type alias for Keccak/Rlp flavoured trie errors
 pub type TrieError = trie::TrieError<H256, DecoderError>;
+/// Convenience type alias for Keccak/Rlp flavoured trie results
 pub type Result<T> = trie::Result<T, H256, DecoderError>;
 
+/// Concrete implementation of a `NodeCodec` with Rlp encoding, generic over the `Hasher`
 #[derive(Default, Clone)]
 pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
 
