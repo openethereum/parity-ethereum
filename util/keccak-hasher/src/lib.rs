@@ -23,6 +23,7 @@ use hashdb::Hasher;
 use ethereum_types::H256;
 use tiny_keccak::Keccak;
 
+/// Concrete `Hasher` impl for the Keccak-256 hash
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct KeccakHasher;
 impl Hasher for KeccakHasher {

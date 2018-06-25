@@ -125,7 +125,6 @@ impl<H: Hasher> Node<H> {
 		}
 	}
 
-	// 
 	// TODO: parallelize
 	fn into_encoded<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
 	where
