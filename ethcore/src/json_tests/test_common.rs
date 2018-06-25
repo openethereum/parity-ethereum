@@ -21,12 +21,12 @@ use std::path::Path;
 use std::ffi::OsString;
 pub use ethereum_types::{H256, U256, Address};
 
-/// Indicate the type of the hook passed to test functions.
+/// Indicate when to run the hook passed to test functions.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum HookType {
-	/// Hook passed on starting of a test.
+	/// Hook to code to run on test start.
 	OnStart,
-	/// Hook passed on a test is finished.
+	/// Hook to code to run on test end.
 	OnStop
 }
 
