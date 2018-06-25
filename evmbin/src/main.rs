@@ -115,16 +115,16 @@ fn run_stats_jsontests_vm(args: Args) {
 
 	let file = args.arg_file.expect("FILE (or PATH) is required");
 
-	let mut times: HashMap<String, (Instant, Option<Duration>)> = HashMap::new();
+	let mut timings: HashMap<String, (Instant, Option<Duration>)> = HashMap::new();
 
 	{
 		let mut record_time = |name: &str, typ: HookType| {
 			match typ {
 				HookType::OnStart => {
-					times.insert(name.to_string(), (Instant::now(), None));
+					timings.insert(name.to_string(), (Instant::now(), None));
 				},
 				HookType::OnStop => {
-					times.entry(name.to_string()).and_modify(|v| {
+					timings.entry(name.to_string()).and_modify(|v| {
 						v.1 = Some(v.0.elapsed());
 					});
 				},
@@ -137,7 +137,7 @@ fn run_stats_jsontests_vm(args: Args) {
 		}
 	}
 
-	for (name, v) in times {
+	for (name, v) in timings {
 		println!("{}\t{}", name, display::as_micros(&v.1.expect("All hooks are called with OnStop; qed")));
 	}
 }
