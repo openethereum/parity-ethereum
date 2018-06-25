@@ -163,7 +163,7 @@ fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> R
 }
 
 /// Migrates database at given position with given migration rules.
-fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationManager) -> Result<(), Error> {
+fn migrate_database(version: u32, db_path: &Path, mut migrations: MigrationManager) -> Result<(), Error> {
 	// check if migration is needed
 	if !migrations.is_needed(version) {
 		return Ok(())
@@ -216,10 +216,12 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 		return Ok(())
 	}
 
+	let db_path = consolidated_database_path(path);
+
 	// Further migrations
-	if version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {
+	if version < CURRENT_VERSION && exists(&db_path) {
 		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
-		migrate_database(version, consolidated_database_path(path), consolidated_database_migrations(&compaction_profile)?)?;
+		migrate_database(version, &db_path, consolidated_database_migrations(&compaction_profile)?)?;
 
 		if version < BLOOMS_DB_VERSION {
 			println!("Migrating blooms to blooms-db...");
@@ -231,7 +233,7 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 				wal: true,
 			};
 
-			migrate_blooms(path, &db_config).map_err(Error::BloomsDB)?;
+			migrate_blooms(&db_path, &db_config).map_err(Error::BloomsDB)?;
 		}
 
 		println!("Migration finished");
