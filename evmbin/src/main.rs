@@ -130,7 +130,7 @@ fn run_stats_jsontests_vm(args: Args) {
 				},
 			}
 		};
-		if file.is_file() {
+		if !file.is_file() {
 			json_tests::run_executive_test_path(&file, &[], &mut record_time);
 		} else {
 			json_tests::run_executive_test_file(&file, &mut record_time);
