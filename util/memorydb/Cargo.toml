@@ -16,3 +16,4 @@ rlp = { version = "0.2.1", path = "../rlp" }
 tiny-keccak = "1.4.2"
 ethereum-types = "0.3"
 keccak-hasher = { path = "../keccak-hasher" }
+keccak-hash = { path = "../hash" }
