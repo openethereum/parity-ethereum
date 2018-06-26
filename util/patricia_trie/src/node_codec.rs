@@ -22,6 +22,9 @@ use bytes::Bytes;
 use hashdb::Hasher;
 use node::Node;
 use stream_encoder::Stream;
+use super::triedbmut::{ChildReference, NodeHandle}; // TODO: tidy this up
+
+use elastic_array::{ElasticArray1024, ElasticArray128};
 
 /// Trait for trie node encoding/decoding
 pub trait NodeCodec<H: Hasher>: Sized {
@@ -45,4 +48,15 @@ pub trait NodeCodec<H: Hasher>: Sized {
 
 	// Check if the provided bytes correspond to the codecs "empty" node.
 	fn is_empty_node(data: &[u8]) -> bool;
+
+	
+	fn empty_node() -> ElasticArray1024<u8>;
+	fn leaf_node(partial: &[u8], value: &[u8]) -> ElasticArray1024<u8>;
+
+    fn ext_node<F>(partial: &[u8], child: NodeHandle<H>, cb: F) -> ElasticArray1024<u8> 
+	where F: FnMut(NodeHandle<H>) -> ChildReference<H::Out>;
+
+	fn branch_node<I>(children: I, value: Option<ElasticArray128<u8>>) -> ElasticArray1024<u8>
+	where 
+		I: IntoIterator<Item=Option<ChildReference<H::Out>>>;
 }

@@ -16,6 +16,7 @@
 
 //! `NodeCodec` implementation for Rlp
 
+use elastic_array::{ElasticArray1024, ElasticArray128};
 use ethcore_bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::Hasher;
@@ -24,6 +25,7 @@ use rlp::{DecoderError, RlpStream, Rlp, Prototype};
 use std::marker::PhantomData;
 use stream_encoder::Stream;
 use trie::{NibbleSlice, NodeCodec, node::Node};
+use trie::triedbmut::{ChildReference, NodeHandle};
 
 /// Concrete implementation of a `NodeCodec` with Rlp encoding, generic over the `Hasher`
 #[derive(Default, Clone)]
@@ -98,14 +100,61 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 	}
 	fn try_decode_hash(data: &[u8]) -> Option<<KeccakHasher as Hasher>::Out> {
 		let r = Rlp::new(data);
-		if r.is_data() && r.size() == KeccakHasher::LENGTH { 
+		if r.is_data() && r.size() == KeccakHasher::LENGTH {
 			Some(r.as_val().expect("Hash is the correct size; qed"))
 		} else {
 			None
 		}
 	}
-
 	fn is_empty_node(data: &[u8]) -> bool {
 		Rlp::new(data).is_empty()
 	}
+    fn empty_node() -> ElasticArray1024<u8> {
+        let mut stream = RlpStream::new();
+        stream.append_empty_data();
+        stream.drain()
+    }
+
+    fn leaf_node(partial: &[u8], value: &[u8]) -> ElasticArray1024<u8> {
+        let mut stream = RlpStream::new_list(2);
+        stream.append_bytes(partial);
+        stream.append_bytes(value);
+        stream.drain()
+    }
+
+    fn ext_node<F>(partial: &[u8], child: NodeHandle<KeccakHasher>, mut cb: F) -> ElasticArray1024<u8> 
+    where F: FnMut(NodeHandle<KeccakHasher>) -> ChildReference<<KeccakHasher as Hasher>::Out>,
+    {
+        let mut stream = RlpStream::new_list(2);
+        stream.append_bytes(partial);
+        match cb(child) {
+            ChildReference::Hash(h) => stream.append_bytes(&h.as_ref()),
+            ChildReference::Inline(inline_data, len) => stream.append_bytes( &AsRef::<[u8]>::as_ref(&inline_data)[..len] ),
+        };
+        stream.drain()
+    }
+
+	fn branch_node<I>(children: I, value: Option<ElasticArray128<u8>>) -> ElasticArray1024<u8>
+	where 
+        I: IntoIterator<Item=Option<ChildReference<<KeccakHasher as Hasher>::Out>>>
+    {
+        let mut stream = RlpStream::new_list(17);
+        for child_ref in children {
+            match child_ref {
+                Some(c) => match c {
+                    ChildReference::Hash(h) => stream.append_bytes(&h.as_ref()),
+                    ChildReference::Inline(inline_data, len) => stream.append_bytes( &AsRef::<[u8]>::as_ref(&inline_data)[..len] ),
+                },
+                None => stream.append_empty_data()
+            };
+        }
+
+        if let Some(value) = value {
+            stream.append_bytes(&value);
+        } else {
+            stream.append_empty_data();
+        }
+        stream.drain()
+    }
+
 }

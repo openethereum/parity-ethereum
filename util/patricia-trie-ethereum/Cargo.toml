@@ -13,3 +13,4 @@ license = "GPL-3.0"
  ethcore-bytes = { path = "../bytes" }
  stream-encoder = { path = "../stream-encoder" }
  ethereum-types = "0.3"
+elastic-array = "0.10"
