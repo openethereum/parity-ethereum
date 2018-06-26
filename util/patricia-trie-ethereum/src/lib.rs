@@ -24,6 +24,10 @@ extern crate hashdb;
 extern crate keccak_hasher;
 extern crate rlp;
 extern crate stream_encoder;
+#[cfg(test)]
+extern crate env_logger; // TODO: remove
+#[macro_use]
+extern crate log; // TODO: remove
 
 mod rlp_node_codec;
 

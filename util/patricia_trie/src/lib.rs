@@ -41,8 +41,6 @@ extern crate keccak_hash as keccak;
 extern crate keccak_hasher;
 #[cfg(test)]
 extern crate triehash;
-#[cfg(test)]
-extern crate env_logger;
 
 #[cfg(test)]
 extern crate env_logger; // TODO: remove

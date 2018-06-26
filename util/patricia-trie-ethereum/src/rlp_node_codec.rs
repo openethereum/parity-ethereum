@@ -16,7 +16,7 @@
 
 //! `NodeCodec` implementation for Rlp
 
-use elastic_array::{ElasticArray1024, ElasticArray128};
+use elastic_array::{ElasticArray1024, ElasticArray128, ElasticArray36};
 use ethcore_bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::Hasher;
@@ -119,19 +119,30 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
         let mut stream = RlpStream::new_list(2);
         stream.append_bytes(partial);
         stream.append_bytes(value);
-        stream.drain()
+        let out = stream.drain();
+        trace!(target: "ethtrie", "leaf_node, partial={:?}, \n  out={:X?}", partial, out);
+        out
     }
 
-    fn ext_node<F>(partial: &[u8], child: NodeHandle<KeccakHasher>, mut cb: F) -> ElasticArray1024<u8> 
+    // fn ext_node<F>(partial: &[u8], child: NodeHandle<KeccakHasher>, mut cb: F) -> ElasticArray1024<u8> 
+    fn ext_node<F>(partial: ElasticArray36<u8>, child: NodeHandle<KeccakHasher>, mut cb: F) -> ElasticArray1024<u8> 
     where F: FnMut(NodeHandle<KeccakHasher>) -> ChildReference<<KeccakHasher as Hasher>::Out>,
     {
         let mut stream = RlpStream::new_list(2);
-        stream.append_bytes(partial);
+        stream.append_bytes(&&*partial);
         match cb(child) {
             ChildReference::Hash(h) => stream.append_bytes(&h.as_ref()),
-            ChildReference::Inline(inline_data, len) => stream.append_bytes( &AsRef::<[u8]>::as_ref(&inline_data)[..len] ),
+            ChildReference::Inline(inline_data, len) => {
+                let bytes = &AsRef::<[u8]>::as_ref(&inline_data)[..len];
+                trace!(target: "ethtrie", "ext_node, unpacked bytes={:X?}", bytes);
+                // stream.append_bytes( bytes )
+                stream.append_raw(bytes, 1)
+                // stream.append_bytes( &AsRef::<[u8]>::as_ref(&inline_data)[..len] )
+                },
         };
-        stream.drain()
+        let out = stream.drain();
+        trace!(target: "ethtrie", "ext_node, partial={:?}, \n  out={:X?}", partial, out);
+        out
     }
 
 	fn branch_node<I>(children: I, value: Option<ElasticArray128<u8>>) -> ElasticArray1024<u8>
@@ -143,18 +154,26 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
             match child_ref {
                 Some(c) => match c {
                     ChildReference::Hash(h) => stream.append_bytes(&h.as_ref()),
-                    ChildReference::Inline(inline_data, len) => stream.append_bytes( &AsRef::<[u8]>::as_ref(&inline_data)[..len] ),
+                    ChildReference::Inline(inline_data, len) => {
+                        let bytes = &AsRef::<[u8]>::as_ref(&inline_data)[..len];
+                        trace!(target: "ethtrie", "branch_node, unpacked bytes={:X?}", bytes);
+                        // stream.append_bytes( bytes )
+                        stream.append_raw(bytes, 1)
+                        // stream.append_bytes( &AsRef::<[u8]>::as_ref(&inline_data)[..len] )
+                    },
                 },
                 None => stream.append_empty_data()
             };
         }
-
+        let v = value.clone(); // TODO: remove
         if let Some(value) = value {
             stream.append_bytes(&value);
         } else {
             stream.append_empty_data();
         }
-        stream.drain()
+        let out = stream.drain();
+        trace!(target: "ethtrie", "branch_node, value={:?}, \n  out={:X?}", &v, out);
+        out
     }
 
 }
