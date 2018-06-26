@@ -85,6 +85,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService};
 use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
+use ethkey::Password;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
@@ -102,7 +103,7 @@ pub struct ProviderConfig {
 	/// Account used for signing public transactions created from private transactions
 	pub signer_account: Option<Address>,
 	/// Passwords used to unlock accounts
-	pub passwords: Vec<String>,
+	pub passwords: Vec<Password>,
 }
 
 #[derive(Debug)]
@@ -121,7 +122,7 @@ pub struct Provider {
 	encryptor: Box<Encryptor>,
 	validator_accounts: HashSet<Address>,
 	signer_account: Option<Address>,
-	passwords: Vec<String>,
+	passwords: Vec<Password>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: Mutex<SigningStore>,
 	// TODO [ToDr] Move the Mutex/RwLock inside `VerificationStore` after refactored to `drain`.
@@ -670,7 +671,7 @@ impl Importer for Arc<Provider> {
 }
 
 /// Try to unlock account using stored password, return found password if any
-fn find_account_password(passwords: &Vec<String>, account_provider: &AccountProvider, account: &Address) -> Option<String> {
+fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountProvider, account: &Address) -> Option<Password> {
 	for password in passwords {
 		if let Ok(true) = account_provider.test_password(account, password) {
 			return Some(password.clone());

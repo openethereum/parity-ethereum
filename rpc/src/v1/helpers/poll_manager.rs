@@ -18,9 +18,6 @@
 
 use transient_hashmap::{TransientHashMap, Timer, StandardTimer};
 
-/// Lifetime of poll (in seconds).
-const POLL_LIFETIME: u32 = 60;
-
 pub type PollId = usize;
 
 /// Indexes all poll requests.
@@ -32,17 +29,17 @@ pub struct PollManager<F, T = StandardTimer> where T: Timer {
 }
 
 impl<F> PollManager<F, StandardTimer> {
-	/// Creates new instance of indexer.
-	pub fn new() -> Self {
-		PollManager::new_with_timer(Default::default())
+	/// Creates new instance of indexer
+	pub fn new(lifetime: u32) -> Self {
+		PollManager::new_with_timer(Default::default(), lifetime)
 	}
 }
 
 impl<F, T> PollManager<F, T> where T: Timer {
 
-	pub fn new_with_timer(timer: T) -> Self {
+	pub fn new_with_timer(timer: T, lifetime: u32) -> Self {
 		PollManager {
-			polls: TransientHashMap::new_with_timer(POLL_LIFETIME, timer),
+			polls: TransientHashMap::new_with_timer(lifetime, timer),
 			next_available_id: 0,
 		}
 	}
@@ -102,7 +99,7 @@ mod tests {
 			time: &time,
 		};
 
-		let mut indexer = PollManager::new_with_timer(timer);
+		let mut indexer = PollManager::new_with_timer(timer,60);
 		assert_eq!(indexer.create_poll(20), 0);
 		assert_eq!(indexer.create_poll(20), 1);
 

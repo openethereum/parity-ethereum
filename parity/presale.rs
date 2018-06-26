@@ -30,7 +30,7 @@ pub struct ImportWallet {
 }
 
 pub fn execute(cmd: ImportWallet) -> Result<String, String> {
-	let password: String = match cmd.password_file {
+	let password = match cmd.password_file {
 		Some(file) => password_from_file(file)?,
 		None => password_prompt()?,
 	};

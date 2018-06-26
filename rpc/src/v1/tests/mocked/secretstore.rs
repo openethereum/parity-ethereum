@@ -57,7 +57,7 @@ fn rpc_secretstore_encrypt_and_decrypt() {
 
 	// insert new account
 	let secret = "c1f1cfe279a5c350d13795bce162941967340c8a228e6ba175489afc564a5bef".parse().unwrap();
-	deps.accounts.insert_account(secret, "password").unwrap();
+	deps.accounts.insert_account(secret, &"password".into()).unwrap();
 
 	// execute encryption request
 	let encryption_request = r#"{"jsonrpc": "2.0", "method": "secretstore_encrypt", "params":[
@@ -87,7 +87,7 @@ fn rpc_secretstore_shadow_decrypt() {
 
 	// insert new account
 	let secret = "82758356bf46b42710d3946a8efa612b7bf5e125e4d49f28facf1139db4a46f4".parse().unwrap();
-	deps.accounts.insert_account(secret, "password").unwrap();
+	deps.accounts.insert_account(secret, &"password".into()).unwrap();
 
 	// execute decryption request
 	let decryption_request = r#"{"jsonrpc": "2.0", "method": "secretstore_shadowDecrypt", "params":[
@@ -131,7 +131,7 @@ fn rpc_secretstore_sign_raw_hash() {
 	// insert new account
 	let secret = "82758356bf46b42710d3946a8efa612b7bf5e125e4d49f28facf1139db4a46f4".parse().unwrap();
 	let key_pair = KeyPair::from_secret(secret).unwrap();
-	deps.accounts.insert_account(key_pair.secret().clone(), "password").unwrap();
+	deps.accounts.insert_account(key_pair.secret().clone(), &"password".into()).unwrap();
 
 	// execute signing request
 	let signing_request = r#"{"jsonrpc": "2.0", "method": "secretstore_signRawHash", "params":[
@@ -154,7 +154,7 @@ fn rpc_secretstore_generate_document_key() {
 	// insert new account
 	let secret = "82758356bf46b42710d3946a8efa612b7bf5e125e4d49f28facf1139db4a46f4".parse().unwrap();
 	let key_pair = KeyPair::from_secret(secret).unwrap();
-	deps.accounts.insert_account(key_pair.secret().clone(), "password").unwrap();
+	deps.accounts.insert_account(key_pair.secret().clone(), &"password".into()).unwrap();
 
 	// execute generation request
 	let generation_request = r#"{"jsonrpc": "2.0", "method": "secretstore_generateDocumentKey", "params":[

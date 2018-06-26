@@ -64,7 +64,7 @@ fn setup_with_vaults_support(temp_path: &str) -> ParityAccountsTester {
 #[test]
 fn should_be_able_to_get_account_info() {
 	let tester = setup();
-	tester.accounts.new_account("").unwrap();
+	tester.accounts.new_account(&"".into()).unwrap();
 	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
@@ -82,7 +82,7 @@ fn should_be_able_to_get_account_info() {
 #[test]
 fn should_be_able_to_set_name() {
 	let tester = setup();
-	tester.accounts.new_account("").unwrap();
+	tester.accounts.new_account(&"".into()).unwrap();
 	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
@@ -103,7 +103,7 @@ fn should_be_able_to_set_name() {
 #[test]
 fn should_be_able_to_set_meta() {
 	let tester = setup();
-	tester.accounts.new_account("").unwrap();
+	tester.accounts.new_account(&"".into()).unwrap();
 	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
@@ -224,7 +224,7 @@ fn rpc_parity_recent_dapps() {
 #[test]
 fn should_be_able_to_kill_account() {
 	let tester = setup();
-	tester.accounts.new_account("password").unwrap();
+	tester.accounts.new_account(&"password".into()).unwrap();
 	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
@@ -282,7 +282,7 @@ fn rpc_parity_new_vault() {
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 	assert!(tester.accounts.close_vault("vault1").is_ok());
-	assert!(tester.accounts.open_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.open_vault("vault1", &"password1".into()).is_ok());
 }
 
 #[test]
@@ -290,7 +290,7 @@ fn rpc_parity_open_vault() {
 	let tempdir = TempDir::new("").unwrap();
 	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
-	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.create_vault("vault1", &"password1".into()).is_ok());
 	assert!(tester.accounts.close_vault("vault1").is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_openVault", "params":["vault1", "password1"], "id": 1}"#;
@@ -304,7 +304,7 @@ fn rpc_parity_close_vault() {
 	let tempdir = TempDir::new("").unwrap();
 	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
-	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.create_vault("vault1", &"password1".into()).is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_closeVault", "params":["vault1"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -317,7 +317,7 @@ fn rpc_parity_change_vault_password() {
 	let tempdir = TempDir::new("").unwrap();
 	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
-	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.create_vault("vault1", &"password1".into()).is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_changeVaultPassword", "params":["vault1", "password2"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -330,8 +330,8 @@ fn rpc_parity_change_vault() {
 	let tempdir = TempDir::new("").unwrap();
 	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
-	let (address, _) = tester.accounts.new_account_and_public("root_password").unwrap();
-	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	let (address, _) = tester.accounts.new_account_and_public(&"root_password".into()).unwrap();
+	assert!(tester.accounts.create_vault("vault1", &"password1".into()).is_ok());
 
 	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_changeVault", "params":["0x{:x}", "vault1"], "id": 1}}"#, address);
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -344,9 +344,9 @@ fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
 	let tempdir = TempDir::new("").unwrap();
 	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
-	let (address1, _) = tester.accounts.new_account_and_public("root_password1").unwrap();
+	let (address1, _) = tester.accounts.new_account_and_public(&"root_password1".into()).unwrap();
 	let uuid1 = tester.accounts.account_meta(address1.clone()).unwrap().uuid.unwrap();
-	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.create_vault("vault1", &"password1".into()).is_ok());
 	assert!(tester.accounts.change_vault(address1, "vault1").is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params":[], "id": 1}"#;
@@ -368,8 +368,8 @@ fn rpc_parity_list_vaults() {
 	let tempdir = TempDir::new("").unwrap();
 	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
-	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
-	assert!(tester.accounts.create_vault("vault2", "password2").is_ok());
+	assert!(tester.accounts.create_vault("vault1", &"password1".into()).is_ok());
+	assert!(tester.accounts.create_vault("vault2", &"password2".into()).is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_listVaults", "params":[], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":["vault1","vault2"],"id":1}"#;
@@ -385,9 +385,9 @@ fn rpc_parity_list_opened_vaults() {
 	let tempdir = TempDir::new("").unwrap();
 	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
-	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
-	assert!(tester.accounts.create_vault("vault2", "password2").is_ok());
-	assert!(tester.accounts.create_vault("vault3", "password3").is_ok());
+	assert!(tester.accounts.create_vault("vault1", &"password1".into()).is_ok());
+	assert!(tester.accounts.create_vault("vault2", &"password2".into()).is_ok());
+	assert!(tester.accounts.create_vault("vault3", &"password3".into()).is_ok());
 	assert!(tester.accounts.close_vault("vault2").is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_listOpenedVaults", "params":[], "id": 1}"#;
@@ -404,7 +404,7 @@ fn rpc_parity_get_set_vault_meta() {
 	let tempdir = TempDir::new("").unwrap();
 	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
-	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.create_vault("vault1", &"password1".into()).is_ok());
 
 	// when no meta set
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_getVaultMeta", "params":["vault1"], "id": 1}"#;
@@ -441,7 +441,7 @@ fn derive_key_hash() {
 	let hash = tester.accounts
 		.insert_account(
 			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
-			"password1")
+			&"password1".into())
 		.expect("account should be inserted ok");
 
 	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
@@ -461,7 +461,7 @@ fn derive_key_index() {
 	let hash = tester.accounts
 		.insert_account(
 			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
-			"password1")
+			&"password1".into())
 		.expect("account should be inserted ok");
 
 	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
@@ -478,7 +478,7 @@ fn should_export_account() {
 	// given
 	let tester = setup();
 	let wallet = r#"{"id":"6a186c80-7797-cff2-bc2e-7c1d6a6cc76e","version":3,"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"a1c6ff99070f8032ca1c4e8add006373"},"ciphertext":"df27e3db64aa18d984b6439443f73660643c2d119a6f0fa2fa9a6456fc802d75","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"ddc325335cda5567a1719313e73b4842511f3e4a837c9658eeb78e51ebe8c815"},"mac":"3dc888ae79cbb226ff9c455669f6cf2d79be72120f2298f6cb0d444fddc0aa3d"},"address":"0042e5d2a662eeaca8a7e828c174f98f35d8925b","name":"parity-export-test","meta":"{\"passwordHint\":\"parity-export-test\",\"timestamp\":1490017814987}"}"#;
-	tester.accounts.import_wallet(wallet.as_bytes(), "parity-export-test", false).unwrap();
+	tester.accounts.import_wallet(wallet.as_bytes(), &"parity-export-test".into(), false).unwrap();
 	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 
@@ -525,7 +525,7 @@ fn should_sign_message() {
 	let hash = tester.accounts
 		.insert_account(
 			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
-			"password1")
+			&"password1".into())
 		.expect("account should be inserted ok");
 
 	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());

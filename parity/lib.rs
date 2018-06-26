@@ -43,6 +43,7 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate toml;
 
+extern crate blooms_db;
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_io as io;

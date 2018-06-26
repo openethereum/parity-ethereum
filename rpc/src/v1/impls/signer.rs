@@ -169,7 +169,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 		-> BoxFuture<ConfirmationResponse>
 	{
 		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
-			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Password(pass))
+			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Password(pass.into()))
 		}).map(|v| v.into_value()))
 	}
 
@@ -177,7 +177,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 		-> BoxFuture<ConfirmationResponseWithToken>
 	{
 		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
-			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Token(token))
+			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Token(token.into()))
 		}).and_then(|v| match v {
 			WithToken::No(_) => Err(errors::internal("Unexpected response without token.", "")),
 			WithToken::Yes(response, token) => Ok(ConfirmationResponseWithToken {

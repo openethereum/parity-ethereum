@@ -18,14 +18,14 @@
 
 use std::sync::Arc;
 use ethereum_types::{H256, Address};
-use ethkey::Signature;
+use ethkey::{Password, Signature};
 use account_provider::{self, AccountProvider};
 
 /// Everything that an Engine needs to sign messages.
 pub struct EngineSigner {
 	account_provider: Arc<AccountProvider>,
 	address: Option<Address>,
-	password: Option<String>,
+	password: Option<Password>,
 }
 
 impl Default for EngineSigner {
@@ -40,7 +40,7 @@ impl Default for EngineSigner {
 
 impl EngineSigner {
 	/// Set up the signer to sign with given address and password.
-	pub fn set(&mut self, ap: Arc<AccountProvider>, address: Address, password: String) {
+	pub fn set(&mut self, ap: Arc<AccountProvider>, address: Address, password: Password) {
 		self.account_provider = ap;
 		self.address = Some(address);
 		self.password = Some(password);

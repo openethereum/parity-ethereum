@@ -178,7 +178,7 @@ fn should_not_remove_sign_if_password_is_invalid() {
 fn should_confirm_transaction_and_dispatch() {
 	//// given
 	let tester = signer_tester();
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
@@ -247,7 +247,7 @@ fn should_alter_the_sender_and_nonce() {
 		data: vec![]
 	};
 
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let signature = tester.accounts.sign(address, Some("test".into()), t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 
@@ -274,7 +274,7 @@ fn should_alter_the_sender_and_nonce() {
 fn should_confirm_transaction_with_token() {
 	// given
 	let tester = signer_tester();
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
@@ -305,7 +305,7 @@ fn should_confirm_transaction_with_token() {
 	let request = r#"{
 		"jsonrpc":"2.0",
 		"method":"signer_confirmRequestWithToken",
-		"params":["0x1", {"gasPrice":"0x1000"}, ""#.to_owned() + &token + r#""],
+		"params":["0x1", {"gasPrice":"0x1000"}, ""#.to_owned() + token.as_str() + r#""],
 		"id":1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"result":""#.to_owned() +
@@ -323,7 +323,7 @@ fn should_confirm_transaction_with_token() {
 fn should_confirm_transaction_with_rlp() {
 	// given
 	let tester = signer_tester();
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
@@ -370,7 +370,7 @@ fn should_confirm_transaction_with_rlp() {
 fn should_return_error_when_sender_does_not_match() {
 	// given
 	let tester = signer_tester();
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::default(),
@@ -417,7 +417,7 @@ fn should_return_error_when_sender_does_not_match() {
 fn should_confirm_sign_transaction_with_rlp() {
 	// given
 	let tester = signer_tester();
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SignTransaction(FilledTransactionRequest {
 		from: address,
@@ -482,7 +482,7 @@ fn should_confirm_sign_transaction_with_rlp() {
 fn should_confirm_data_sign_with_signature() {
 	// given
 	let tester = signer_tester();
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(
 		address,
 		vec![1, 2, 3, 4].into(),
@@ -512,7 +512,7 @@ fn should_confirm_data_sign_with_signature() {
 fn should_confirm_decrypt_with_phrase() {
 	// given
 	let tester = signer_tester();
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::Decrypt(
 		address,
 		vec![1, 2, 3, 4].into(),
