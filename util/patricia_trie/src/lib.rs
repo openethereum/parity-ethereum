@@ -44,6 +44,9 @@ extern crate triehash;
 #[cfg(test)]
 extern crate env_logger;
 
+#[cfg(test)]
+extern crate env_logger; // TODO: remove
+
 use std::{fmt, error};
 use hashdb::{HashDB, DBValue, Hasher};
 use std::marker::PhantomData;

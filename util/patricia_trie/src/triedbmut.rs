@@ -157,39 +157,30 @@ impl<H: Hasher> Node<H> {
 		F: FnMut(NodeHandle<H>, &mut <C as NodeCodec<H>>::S),
 		C: NodeCodec<H>,
 	{
+		trace!(target: "trie", "into_encoded");
 		match self {
 			Node::Empty => {
-				C::empty_node()
-				// // C::empty_buf() // sort of ElasticArray1024::new().push(0x80)
-				// let mut stream = <C as NodeCodec<_>>::S::new();
-				// stream.append_empty_data();
-				// stream.drain()
+				trace!(target: "trie", "into_encoded, Node::Empty");
+				let mut stream = <C as NodeCodec<_>>::S::new();
+				stream.append_empty_data();
+				stream.drain()
 			}
 			Node::Leaf(partial, value) => {
-				C::leaf_node(&partial, &value)
-				// // let buf = C::padded_buf(); // sort of let buf = ElasticArray1024::new().push(0);
-				// // C::begin_list_of_length(2); // sort of  unfinished_lists.push(ListInfo{position: buf.len(), 0, Some(2)});
-				// // C::encode_value(buf, &&*partial);
-				// // C::encode_value(buf, &&*value);
-				// // buf
-				// let mut stream = <C as NodeCodec<_>>::S::new_list(2);
-				// stream.append_bytes(&&*partial);
-				// stream.append_bytes(&&*value);
-				// stream.drain()
+				trace!(target: "trie", "into_encoded, Node::Leaf, partial={:?}, value={:?}", partial, value);
+				let mut stream = <C as NodeCodec<_>>::S::new_list(2);
+				stream.append_bytes(&&*partial);
+				stream.append_bytes(&&*value);
+				stream.drain()
 			}
 			Node::Extension(partial, child) => {
-				// let buf = C::padded_buf();
-				// C::begin_list_of_length(2);
-				// C::encode_value(buf, &&*partial);
-				// child_cb(child, &mut buf);
-				// buf
-				// C::ext_node(partial, child, child_cb);
+				trace!(target: "trie", "into_encoded, Node::Extension, partial={:?}", partial);
 				let mut stream = <C as NodeCodec<_>>::S::new_list(2);
 				stream.append_bytes(&&*partial);
 				child_cb(child, &mut stream);
 				stream.drain()
 			}
 			Node::Branch(mut children, value) => {
+				trace!(target: "trie", "into_encoded, Node::Branch, value={:?}", value);
 				let mut stream = <C as NodeCodec<_>>::S::new_list(17);
 				for child in children.iter_mut().map(Option::take) {
 					if let Some(handle) = child {
@@ -326,9 +317,9 @@ impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
 /// use keccak_hasher::KeccakHasher;
 /// use memorydb::*;
 /// use ethereum_types::H256;
-/// use ethtrie::EncodedNodeCodec;
+/// use ethtrie::RlpNodeCodec;
 ///
-/// type RlpCodec = EncodedNodeCodec<KeccakHasher>;
+/// type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::<KeccakHasher>::new();
@@ -971,7 +962,6 @@ where
 	C: NodeCodec<H>
 {
 	fn root(&mut self) -> &H::Out {
-		trace!(target: "trie", "root, TrieMut, calling commit()");
 		self.commit();
 		self.root
 	}
@@ -1371,15 +1361,13 @@ mod tests {
 				min_key: 5,
 				journal_key: 0,
 				value_mode: ValueMode::Index,
-				count: 2,
+				count: 2, // TODO: set back to 4
 		}.make_with(&mut seed);
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
 		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
 		for &(ref key, ref value) in &x {
-			println!("[insert_empty] inserting key {:?} value {:?}", key, value);
-			trace!(target: "trie", "test, insert_empty: key={:?}, value={:?}", key.pretty(), value.pretty());
 			t.insert(key, value).unwrap();
 		}
 
