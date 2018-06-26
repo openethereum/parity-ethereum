@@ -57,5 +57,7 @@ cd parity-clib-example && \
 # Running tests
 echo "________Running Parity Full Test Suite________"
 git submodule update --init --recursive
-rm -rf "$HOME/.cargo/registry/src"
+rm -rf "$HOME/.cargo/registry"
+rm -rf "$HOME/.cargo/git"
+cargo clean
 cargo test -j 8 $OPTIONS --features "$FEATURES" --all $1
