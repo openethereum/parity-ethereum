@@ -36,7 +36,6 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
-hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
 itertools = "0.5"
 lazy_static = "1.0"
@@ -69,6 +68,12 @@ unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 tempdir = { version = "0.3", optional = true }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
+
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
+hardware-wallet = { path = "../hw" }
+
+[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
+fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
 trie-standardmap = { path = "../util/trie-standardmap" }

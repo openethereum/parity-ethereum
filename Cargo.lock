@@ -545,6 +545,7 @@ dependencies = [
  "ethkey 0.3.0",
  "ethstore 0.2.0",
  "evm 0.1.0",
+ "fake-hardware-wallet 0.0.1",
  "fetch 0.1.0",
  "hardware-wallet 1.12.0",
  "hashdb 0.1.1",
@@ -1070,6 +1071,14 @@ dependencies = [
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.11.24 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "fake-hardware-wallet"
+version = "0.0.1"
+dependencies = [
+ "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethkey 0.3.0",
 ]
 
 [[package]]
@@ -2238,6 +2247,7 @@ dependencies = [
  "ethkey 0.3.0",
  "ethstore 0.2.0",
  "fake-fetch 0.0.1",
+ "fake-hardware-wallet 0.0.1",
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
