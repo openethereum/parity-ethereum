@@ -147,7 +147,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			// Calculate gas cost
 			let requirements = gasometer.requirements(ext, instruction, info, &stack, self.mem.size())?;
 			if do_trace {
-				ext.trace_prepare_execute(reader.position - 1, instruction as u8, requirements.gas_cost.as_u256());
+				ext.trace_prepare_execute(reader.position - 1, opcode, requirements.gas_cost.as_u256());
 			}
 
 			gasometer.verify_gas(&requirements.gas_cost)?;

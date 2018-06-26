@@ -180,7 +180,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				Request::GasMemCopy(schedule.extcodecopy_base_gas.into(), mem_needed(stack.peek(1), stack.peek(3))?, Gas::from_u256(*stack.peek(3))?)
 			},
 			instructions::LOG0 | instructions::LOG1 | instructions::LOG2 | instructions::LOG3 | instructions::LOG4 => {
-				let no_of_topics = instruction.log_topics().expect("log_topcis always return some for LOG* instructions; qed");
+				let no_of_topics = instruction.log_topics().expect("log_topics always return some for LOG* instructions; qed");
 				let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
 
 				let data_gas = overflowing!(Gas::from_u256(*stack.peek(1))?.overflow_mul(Gas::from(schedule.log_data_gas)));
