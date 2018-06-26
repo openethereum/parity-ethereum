@@ -1129,9 +1129,9 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
 					// Do not report this signer.
 					if skipped_primary != me {
-						self.validators.report_benign(&skipped_primary, set_number, header.number());
 						// Stop reporting once validators start repeating.
 						if !reported.insert(skipped_primary) { break; }
+						self.validators.report_benign(&skipped_primary, set_number, header.number());
  					}
  				}
 			}
