@@ -22,7 +22,6 @@ use ethereum_types::Address;
 use ethkey::{Brain, Generator, Secret};
 use ethstore::KeyFile;
 use ethcore::account_provider::AccountProvider;
-
 use jsonrpc_core::Result;
 use v1::helpers::errors;
 use v1::traits::ParityAccounts;

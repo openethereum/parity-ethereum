@@ -20,21 +20,23 @@ mod stores;
 
 use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 
-use std::fmt;
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::time::{Instant, Duration};
-use parking_lot::RwLock;
+
+use ethstore::accounts_dir::MemoryDirectory;
+use ethstore::ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
+use ethjson::misc::AccountMeta;
 use ethstore::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
-use ethstore::accounts_dir::MemoryDirectory;
-use ethstore::ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
-use ethjson::misc::AccountMeta;
-use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
-use super::transaction::{Action, Transaction};
+use parking_lot::RwLock;
+
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
+pub use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
+pub use super::transaction::{Action, Transaction};
 
 /// Type of unlock.
 #[derive(Clone, PartialEq)]
@@ -165,6 +167,7 @@ impl AccountProvider {
 	/// Creates new account provider.
 	pub fn new(sstore: Box<SecretStore>, settings: AccountProviderSettings) -> Self {
 		let mut hardware_store = None;
+		
 		if settings.enable_hardware_wallets {
 			match HardwareWalletManager::new() {
 				Ok(manager) => {
@@ -289,8 +292,12 @@ impl AccountProvider {
 
 	/// Returns addresses of hardware accounts.
 	pub fn hardware_accounts(&self) -> Result<Vec<Address>, Error> {
-		let accounts = self.hardware_store.as_ref().map_or(Vec::new(), |h| h.list_wallets());
-		Ok(accounts.into_iter().map(|a| a.address).collect())
+		if let Some(accounts) = self.hardware_store.as_ref().map(|h| h.list_wallets()) { 
+			if !accounts.is_empty() {
+				return Ok(accounts.into_iter().map(|a| a.address).collect());
+			}
+		}
+		Err(SSError::Custom("No hardware wallet accounts were found".into()))
 	}
 
 	/// Get a list of paths to locked hardware wallets
@@ -301,7 +308,7 @@ impl AccountProvider {
 			Some(Ok(s)) => Ok(s),
 		}
 	}
-
+	
 	/// Provide a pin to a locked hardware wallet on USB path to unlock it
 	pub fn hardware_pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, SignError> {
 		match self.hardware_store.as_ref().map(|h| h.pin_matrix_ack(path, pin)) {

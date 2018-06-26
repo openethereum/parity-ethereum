@@ -335,7 +335,13 @@ impl<T: InformantData> Informant<T> {
 			match sync_info.as_ref() {
 				Some(ref sync_info) => format!("{}{}/{} peers",
 					match importing {
-						true => format!("{}   ", paint(Green.bold(), format!("{:>8}", format!("#{}", sync_info.last_imported_block_number)))),
+						true => format!("{}",
+							if self.target.executes_transactions() {
+								paint(Green.bold(), format!("{:>8}   ", format!("#{}", sync_info.last_imported_block_number)))
+							} else {
+								String::new()
+							}
+						),
 						false => match sync_info.last_imported_old_block_number {
 							Some(number) => format!("{}   ", paint(Yellow.bold(), format!("{:>8}", format!("#{}", number)))),
 							None => String::new(),
