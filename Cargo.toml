@@ -115,12 +115,9 @@ path = "parity/main.rs"
 name = "parity"
 
 [profile.dev]
-panic = "abort"
 
 [profile.release]
 debug = false
-lto = false
-panic = "abort"
 
 [workspace]
 members = [
