@@ -2108,7 +2108,7 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 2.0.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "node-health 0.1.0",
- "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-dapps-glue 1.9.1",
  "parity-hash-fetch 1.12.0",
  "parity-reactor 0.1.0",
  "parity-version 1.12.0",
@@ -2133,20 +2133,6 @@ dependencies = [
  "quasi 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi_codegen 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi_macros 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex_syntax 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "parity-dapps-glue"
-version = "1.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "aster 0.41.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "mime_guess 2.0.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "quasi 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "quasi_codegen 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex_syntax 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3971,7 +3957,6 @@ dependencies = [
 "checksum ordered-float 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "58d25b6c0e47b20d05226d288ff434940296e7e2f8b877975da32f862152241f"
 "checksum ordermap 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "a86ed3f5f244b372d6b1a00b72ef7f8876d0bc6a78a4c9985c53614041512063"
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
-"checksum parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)" = "261c025c67ba416e9fe63aa9b3236520ce3c74cfbe43590c9cdcec4ccc8180e4"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
 "checksum parity-wasm 0.27.5 (registry+https://github.com/rust-lang/crates.io-index)" = "a93ad771f67ce8a6af64c6444a99c07b15f4674203657496fc31244ffb1de2c3"
 "checksum parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d0dec124478845b142f68b446cbee953d14d4b41f1bc0425024417720dce693"
