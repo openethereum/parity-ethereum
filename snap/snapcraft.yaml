@@ -29,6 +29,7 @@ parts:
       cp -v gui/icon.png $SNAPCRAFT_PART_INSTALL/usr/share/pixmaps/
   parity:
     source: .
+    plugin: rust
   # rust-channel: stable  # @TODO enable after https://bugs.launchpad.net/snapcraft/+bug/1778530
     rust-revision: 1.26.2 # @TODO remove after https://bugs.launchpad.net/snapcraft/+bug/1778530
     build-attributes: [no-system-libraries]
