@@ -393,23 +393,10 @@ impl<T, S, L> Pool<T, S, L> where
 		self.worst_transactions.iter().next_back().map(|x| x.transaction.transaction.clone())
 	}
 
-	/// Returns the score of the worst transaction if the pool is almost full.
-	///
-	/// This method can be used to determine what is the minimal required score
-	/// for the replacement transaction. If `None` is returned it means that
-	/// there is still plenty of room in the pool. Otherwise we return
-	/// `Some` with the score of the worst transaction.
-	pub fn minimal_entry_score(&self) -> Option<S::Score> {
-		let is_full = {
-			self.by_hash.len() >= self.options.max_count
+	/// Returns true if the pool is at it's capacity.
+	pub fn is_full(&self) -> bool {
+		self.by_hash.len() >= self.options.max_count
 			|| self.mem_usage >= self.options.max_mem_usage
-		};
-
-		if !is_full {
-			return None
-		}
-
-		self.worst_transactions.iter().next_back().map(|x| x.score.clone())
 	}
 
 	/// Returns an iterator of pending (ready) transactions.
@@ -503,6 +490,11 @@ impl<T, S, L> Pool<T, S, L> where
 	/// Borrows listener instance.
 	pub fn listener(&self) -> &L {
 		&self.listener
+	}
+
+	/// Borrows scoring instance.
+	pub fn scoring(&self) -> &S {
+		&self.scoring
 	}
 
 	/// Borrows listener mutably.

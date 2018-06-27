@@ -521,20 +521,20 @@ fn should_return_worst_transaction() {
 }
 
 #[test]
-fn should_return_min_entry_score_based_on_the_worst_transaction() {
+fn should_return_is_full() {
 	// given
 	let b = TransactionBuilder::default();
 	let mut txq = TestPool::with_limit(2);
-	assert!(txq.worst_transaction().is_none());
+	assert!(!txq.is_full());
 
 	// when
 	txq.import(b.tx().nonce(0).gas_price(110).new()).unwrap();
-	assert_eq!(txq.minimal_entry_score(), None);
+	assert!(!txq.is_full());
 
 	txq.import(b.tx().sender(1).nonce(0).gas_price(100).new()).unwrap();
 
 	// then
-	assert_eq!(txq.minimal_entry_score(), Some(100.into()));
+	assert!(txq.is_full());
 }
 
 mod listener {

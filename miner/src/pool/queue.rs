@@ -187,8 +187,20 @@ impl TransactionQueue {
 		trace_time!("pool::verify_and_import");
 		let options = self.options.read().clone();
 
-		let min_effective_gas_price = self.pool.read().minimal_entry_score().map(scoring::bump_gas_price);
-		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone(), min_effective_gas_price);
+		let transaction_to_replace = {
+			let pool = self.pool.read();
+			if pool.is_full() {
+				pool.worst_transaction().map(|worst| (pool.scoring().clone(), worst))
+			} else {
+				None
+			}
+		};
+		let verifier = verifier::Verifier::new(
+			client,
+			options,
+			self.insertion_id.clone(),
+			transaction_to_replace,
+		);
 		let results = transactions
 			.into_iter()
 			.map(|transaction| {

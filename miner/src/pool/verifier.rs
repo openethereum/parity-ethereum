@@ -85,19 +85,20 @@ impl Transaction {
 		}
 	}
 
+	/// Return transaction gas price
+	pub fn gas_price(&self) -> &U256 {
+		match *self {
+			Transaction::Unverified(ref tx) => &tx.gas_price,
+			Transaction::Retracted(ref tx) => &tx.gas_price,
+			Transaction::Local(ref tx) => &tx.gas_price,
+		}
+	}
+
 	fn gas(&self) -> &U256 {
 		match *self {
 			Transaction::Unverified(ref tx) => &tx.gas,
 			Transaction::Retracted(ref tx) => &tx.gas,
 			Transaction::Local(ref tx) => &tx.gas,
-		}
-	}
-
-	fn gas_price(&self) -> &U256 {
-		match *self {
-			Transaction::Unverified(ref tx) => &tx.gas_price,
-			Transaction::Retracted(ref tx) => &tx.gas_price,
-			Transaction::Local(ref tx) => &tx.gas_price,
 		}
 	}
 
@@ -128,31 +129,31 @@ impl Transaction {
 ///
 /// Verification can be run in parallel for all incoming transactions.
 #[derive(Debug)]
-pub struct Verifier<C> {
+pub struct Verifier<C, S, V> {
 	client: C,
 	options: Options,
-	min_effective_gas_price: Option<U256>,
 	id: Arc<AtomicUsize>,
+	transaction_to_replace: Option<(S, Arc<V>)>,
 }
 
-impl<C> Verifier<C> {
+impl<C, S, V> Verifier<C, S, V> {
 	/// Creates new transaction verfier with specified options.
 	pub fn new(
 		client: C,
 		options: Options,
 		id: Arc<AtomicUsize>,
-		min_effective_gas_price: Option<U256>,
+		transaction_to_replace: Option<(S, Arc<V>)>,
 	) -> Self {
 		Verifier {
 			client,
 			options,
-			min_effective_gas_price,
 			id,
+			transaction_to_replace,
 		}
 	}
 }
 
-impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
+impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::NonceAndGasPrice, VerifiedTransaction> {
 	type Error = transaction::Error;
 	type VerifiedTransaction = VerifiedTransaction;
 
@@ -218,17 +219,17 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 				});
 			}
 
-			if let Some(ref gp) = self.min_effective_gas_price {
-				if tx.gas_price() < gp  {
+			if let Some((ref scoring, ref vtx)) = self.transaction_to_replace {
+				if scoring.should_reject_early(vtx, &tx) {
 					trace!(
 						target: "txqueue",
-						"[{:?}] Rejected tx below minimal effective gas price threshold: {} < {}",
+						"[{:?}] Rejected tx early, cause it doesn't have any chance to get to the pool: (gas price: {} < {})",
 						hash,
 						tx.gas_price(),
-						gp,
+						vtx.transaction.gas_price,
 					);
 					bail!(transaction::Error::InsufficientGasPrice {
-						minimal: *gp,
+						minimal: vtx.transaction.gas_price,
 						got: *tx.gas_price(),
 					});
 				}
