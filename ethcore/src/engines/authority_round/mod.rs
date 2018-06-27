@@ -29,7 +29,7 @@ use client::EngineClient;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
-use error::{Error, BlockError};
+use error::{Error, ErrorKind, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
@@ -575,7 +575,6 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 
 	if is_invalid_proposer {
 		trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
-		validators.report_benign(header.author(), header.number(), header.number());
 		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 	} else {
 		Ok(())
@@ -1165,9 +1164,16 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// verify signature against fixed list, but reports should go to the
 		// contract itself.
 		let res = verify_external(header, validators, self.empty_steps_transition);
-		if res.is_ok() {
-			let header_step = header_step(header, self.empty_steps_transition)?;
-			self.clear_empty_steps(header_step.into());
+		match res {
+			Err(Error(ErrorKind::Engine(EngineError::NotProposer(_)), _)) => {
+				self.validators.report_benign(header.author(), header.number(), header.number());
+			},
+			Ok(_) => {
+				// we can drop all accumulated empty step messages that are older than this header's step
+				let header_step = header_step(header, self.empty_steps_transition)?;
+				self.clear_empty_steps(header_step.into());
+			},
+			_ => {},
 		}
 		res
 	}
