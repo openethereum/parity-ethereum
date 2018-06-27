@@ -31,16 +31,15 @@ use std::collections::{HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Index;
-use stream_encoder::Stream;
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
 #[derive(Debug)]
-pub struct StorageHandle(usize); // TODO: must be pub?
+struct StorageHandle(usize);
 
 // Handles to nodes in the trie.
 #[derive(Debug)]
-pub enum NodeHandle<H: Hasher> { // TODO: must be pub?
+enum NodeHandle<H: Hasher> { 
 	/// Loaded into memory.
 	InMemory(StorageHandle),
 	/// Either a hash or an inline node
@@ -125,27 +124,19 @@ impl<H: Hasher> Node<H> {
 		}
 	}
 
-	#[allow(dead_code)]
-	fn into_encoded2<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8> 
+	fn into_encoded<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8> 
 	where
 		C: NodeCodec<H>,
 		F: FnMut(NodeHandle<H>) -> ChildReference<H::Out>
 	{
-		trace!(target: "trie", "into_encoded2");
 		match self {
-			Node::Empty => {
-				trace!(target: "trie", "into_encoded2, Node::Empty");
-				C::empty_node()
-			},
-			Node::Leaf(partial, value) => {
-				trace!(target: "trie", "into_encoded2, Node::Leaf, partial={:?}, value={:?}", partial, value);
-				C::leaf_node(&partial, &value)},
-			Node::Extension(partial, child) => {
-				trace!(target: "trie", "into_encoded2, Node::Extension, partial={:?}", partial);
-				C::ext_node(partial, child, child_cb)},
+			Node::Empty => C::empty_node(),
+			Node::Leaf(partial, value) => C::leaf_node(&partial, &value),
+			Node::Extension(partial, child) => C::ext_node(&partial, child_cb(child)),
+			// Node::Extension(partial, child) => C::ext_node(&partial, child, child_cb),
 			Node::Branch(mut children, value) => {
-				trace!(target: "trie", "into_encoded2, Node::Branch, value={:?}", value);
 				C::branch_node(
+					// map the `NodeHandle`s from the Branch to `ChildReferences`
 					children.iter_mut()
 						.map(Option::take)
 						.map(|maybe_child| 
@@ -157,62 +148,6 @@ impl<H: Hasher> Node<H> {
 		}
 	}
 
-	// TODO: parallelize
-	#[allow(dead_code)]
-	fn into_encoded<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
-	where
-		F: FnMut(NodeHandle<H>, &mut <C as NodeCodec<H>>::S),
-		C: NodeCodec<H>,
-	{
-		trace!(target: "trie", "");
-		match self {
-			Node::Empty => {
-				trace!(target: "trie", ", Node::Empty");
-				let mut stream = <C as NodeCodec<_>>::S::new();
-				stream.append_empty_data();
-				stream.drain()
-			}
-			Node::Leaf(partial, value) => {
-				// trace!(target: "trie", ", Node::Leaf, partial={:?}, value={:?}", partial, value);
-				let mut stream = <C as NodeCodec<_>>::S::new_list(2);
-				stream.append_bytes(&&*partial);
-				stream.append_bytes(&&*value);
-				let out = stream.drain();
-				trace!(target: "trie", "leaf_node, partial={:?}, \n  out={:X?}", partial, out);
-				out
-			}
-			Node::Extension(partial, child) => {
-				// trace!(target: "trie", ", Node::Extension, partial={:?}", partial);
-				let mut stream = <C as NodeCodec<_>>::S::new_list(2);
-				stream.append_bytes(&&*partial);
-				child_cb(child, &mut stream);
-				let out = stream.drain();
-				trace!(target: "trie", "ext_node, partial={:?}, \n  out={:X?}", partial, out);
-				out
-			}
-			Node::Branch(mut children, value) => {
-				// trace!(target: "trie", ", Node::Branch, value={:?}", value);
-				let mut stream = <C as NodeCodec<_>>::S::new_list(17);
-				for child in children.iter_mut().map(Option::take) {
-					if let Some(handle) = child {
-						child_cb(handle, &mut stream);
-					} else {
-						stream.append_empty_data();
-					}
-				}
-				let v = value.clone(); // TODO: remove
-				if let Some(value) = value {
-					stream.append_bytes(&&*value);
-				} else {
-					stream.append_empty_data();
-				}
-
-				let out = stream.drain();
-				trace!(target: "trie", "branch_node, value={:?}, \n  out={:X?}", &v, out);
-				out
-			}
-		}
-	}
 }
 
 // post-inspect action.
@@ -257,10 +192,10 @@ enum Stored<H: Hasher> {
 	Cached(Node<H>, H::Out),
 }
 
-// TODO: must be pub?
+/// Used to build a collection of child nodes from a collection of `NodeHandle`s
 pub enum ChildReference<HO> { // `HO` is e.g. `H256`, i.e. the output of a `Hasher`
-	Inline(HO, usize), // usize is the length of the node data we store in the `H::Out`
 	Hash(HO),
+	Inline(HO, usize), // usize is the length of the node data we store in the `H::Out`
 }
 
 /// Compact and cache-friendly storage for Trie nodes.
@@ -367,7 +302,7 @@ where
 impl<'a, H, C> TrieDBMut<'a, H, C>
 where
 	H: Hasher,
-	C: NodeCodec<H>
+	C: NodeCodec<H>,
 {
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB<H>, root: &'a mut H::Out) -> Self {
@@ -895,8 +830,7 @@ where
 
 		match self.storage.destroy(handle) {
 			Stored::New(node) => {
-				// let encoded_root = node.into_encoded::<_, C>(|child, stream| self.commit_node(child, stream));
-				let encoded_root = node.into_encoded2::<_, C>(|child| self.commit_child(child) );
+				let encoded_root = node.into_encoded::<_, C>(|child| self.commit_child(child) );
 				*self.root = self.db.insert(&encoded_root[..]);
 				self.hash_count += 1;
 
@@ -911,68 +845,34 @@ where
 		}
 	}
 
+	/// Commit a node by hashing it and writing it to the db. Returns a
+	/// `ChildReference` which in most cases carries a normal hash but for the
+	/// case where we can fit the actual data in the `Hasher`s output type, we
+	/// store the data inline. This function is used as the callback to the
+	/// `into_encoded` method of `Node`.
 	fn commit_child(&mut self, handle: NodeHandle<H>) -> ChildReference<H::Out> {
 		match handle {
-			NodeHandle::Hash(hash) => {
-				trace!(target: "trie", "commit_child, NodeHandle::Hash, h={:X?}", hash.pretty());
-				ChildReference::Hash(hash)},
+			NodeHandle::Hash(hash) => ChildReference::Hash(hash),
 			NodeHandle::InMemory(storage_handle) => {
 				match self.storage.destroy(storage_handle) {
-					Stored::Cached(_, hash) => {
-						trace!(target: "trie", "commit_child, NodeHandle::InMemory, Cached, h={:X?}", hash.pretty());
-						ChildReference::Hash(hash)},
+					Stored::Cached(_, hash) => ChildReference::Hash(hash),
 					Stored::New(node) => {
-						trace!(target: "trie", "commit_child, NodeHandle::InMemory, New");
-						let encoded = node.into_encoded2::<_, C>(|node_handle| self.commit_child(node_handle) );
-						trace!(target: "trie", "commit_child, NodeHandle::InMemory, New – back after recursive call to into_encoded2");
-						if encoded.len() >= 32 {
+						let encoded = node.into_encoded::<_, C>(|node_handle| self.commit_child(node_handle) );
+						if encoded.len() >= 32 { // TODO: this should use the `Hasher::LENGTH` const
 							let hash = self.db.insert(&encoded[..]);
 							self.hash_count +=1;
-							trace!(target: "trie", "commit_child, NodeHandle::InMemory, New, long node, hash={:X?}", &hash.pretty());
 							ChildReference::Hash(hash)
 						} else {
 							// it's a small value, so we cram it into a `H::Out` and tag with length
 							let mut h = H::Out::default();
 							let len = encoded.len();
 							h.as_mut()[..len].copy_from_slice(&encoded[..len]);
-							trace!(target: "trie", "commit_child, NodeHandle::InMemory, New, short node, len={}, encoded_node={:X?}", len, h.pretty());
 							ChildReference::Inline(h, len)
 						}
 					}
 				}
 			}
 		}
-	}
-
-	/// commit a node, hashing it, committing it to the db,
-	/// and writing it to the encoded stream as necessary.
-	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut <C as NodeCodec<H>>::S) {
-		match handle {
-			NodeHandle::Hash(h) => {
-				trace!(target: "trie", "commit_node, NodeHandle::Hash, h={:X?}", &h.pretty());
-				stream.append_bytes(&h.as_ref())
-			},
-			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
-				Stored::Cached(_, h) => {
-					trace!(target: "trie", "commit_node, NodeHandle::InMemory, Cached, h={:X?}", &h.pretty());
-					stream.append_bytes(&h.as_ref())
-				},
-				Stored::New(node) => {
-					trace!(target: "trie", "commit_node, NodeHandle::InMemory, New");
-					let encoded_node = node.into_encoded::<_, C>(|child, stream| self.commit_node(child, stream));
-					trace!(target: "trie", "commit_node, NodeHandle::InMemory, New – back after recursive call to into_encoded");
-					if encoded_node.len() >= 32 {
-						let hash = self.db.insert(&encoded_node[..]);
-						self.hash_count += 1;
-						trace!(target: "trie", "commit_node, NodeHandle::InMemory, New, long node, hash={:X?}", &hash.pretty());
-						stream.append_bytes(&hash.as_ref())
-					} else {
-						trace!(target: "trie", "commit_node, NodeHandle::InMemory, New, short node, encoded_node={:X?}", &encoded_node.pretty());
-						stream.append_raw(&encoded_node, 1)
-					}
-				}
-			}
-		};
 	}
 
 	// a hack to get the root node's handle
@@ -1075,7 +975,6 @@ mod tests {
 	use standardmap::*;
 	use ethtrie::trie::{TrieMut, TrieDBMut, NodeCodec};
 	use ethtrie::RlpCodec;
-	use env_logger;
 
 	fn populate_trie<'db, H, C>(db: &'db mut HashDB<H>, root: &'db mut H::Out, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db, H, C>
 		where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
@@ -1382,7 +1281,6 @@ mod tests {
 
 	#[test]
 	fn insert_empty() {
-		let _ = env_logger::init();
 		let mut seed = <KeccakHasher as Hasher>::Out::new();
 		let x = StandardMap {
 				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),

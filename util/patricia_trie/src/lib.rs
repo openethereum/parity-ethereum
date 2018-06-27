@@ -64,7 +64,7 @@ mod nibbleslice;
 mod node_codec;
 
 pub use self::triedb::{TrieDB, TrieDBIterator};
-pub use self::triedbmut::TrieDBMut;
+pub use self::triedbmut::{TrieDBMut, ChildReference};
 pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
 pub use self::fatdb::{FatDB, FatDBIterator};
