@@ -17,12 +17,10 @@
 //! Trie query recorder.
 
 use bytes::Bytes;
-use hashdb::Hasher;
-use std::marker::PhantomData;
 
 /// A record of a visited node.
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Record<H: Hasher> {
+pub struct Record<HO> {
 	/// The depth of this node.
 	pub depth: u32,
 
@@ -30,25 +28,23 @@ pub struct Record<H: Hasher> {
 	pub data: Bytes,
 
 	/// The hash of the data.
-	pub hash: H::Out,
-	marker: PhantomData<H>,
+	pub hash: HO,
 }
 
 /// Records trie nodes as they pass it.
 #[derive(Debug)]
-pub struct Recorder<H: Hasher> {
-	nodes: Vec<Record<H>>,
+pub struct Recorder<HO> {
+	nodes: Vec<Record<HO>>,
 	min_depth: u32,
-	marker: PhantomData<H>,
 }
 
-impl<H: Hasher> Default for Recorder<H> {
+impl<HO: Copy> Default for Recorder<HO> {
 	fn default() -> Self {
 		Recorder::new()
 	}
 }
 
-impl<H: Hasher> Recorder<H> {
+impl<HO: Copy> Recorder<HO> {
 	/// Create a new `Recorder` which records all given nodes.
 	#[inline]
 	pub fn new() -> Self {
@@ -60,26 +56,22 @@ impl<H: Hasher> Recorder<H> {
 		Recorder {
 			nodes: Vec::new(),
 			min_depth: depth,
-			marker: PhantomData
 		}
 	}
 
 	/// Record a visited node, given its hash, data, and depth.
-	pub fn record(&mut self, hash: &<H as Hasher>::Out, data: &[u8], depth: u32) {
-		debug_assert_eq!(H::hash(data), *hash);
-
+	pub fn record(&mut self, hash: &HO, data: &[u8], depth: u32) {
 		if depth >= self.min_depth {
 			self.nodes.push(Record {
 				depth: depth,
 				data: data.into(),
 				hash: *hash,
-				marker: PhantomData
 			})
 		}
 	}
 
 	/// Drain all visited records.
-	pub fn drain(&mut self) -> Vec<Record<H>> {
+	pub fn drain(&mut self) -> Vec<Record<HO>> {
 		::std::mem::replace(&mut self.nodes, Vec::new())
 	}
 }
@@ -89,10 +81,11 @@ mod tests {
 	use super::*;
 	use keccak::keccak;
 	use keccak_hasher::KeccakHasher;
+	use ethereum_types::H256;
 
 	#[test]
 	fn basic_recorder() {
-		let mut basic = Recorder::<KeccakHasher>::new();
+		let mut basic = Recorder::<H256>::new();
 
 		let node1 = vec![1, 2, 3, 4];
 		let node2 = vec![4, 5, 6, 7, 8, 9, 10];
@@ -105,14 +98,12 @@ mod tests {
 			data: node1,
 			hash: hash1,
 			depth: 0,
-			marker: PhantomData,
 		};
 
 		let record2 = Record {
 			data: node2,
 			hash: hash2,
 			depth: 456,
-			marker: PhantomData,
 		};
 
 
@@ -121,7 +112,7 @@ mod tests {
 
 	#[test]
 	fn basic_recorder_min_depth() {
-		let mut basic = Recorder::<KeccakHasher>::with_depth(400);
+		let mut basic = Recorder::<H256>::with_depth(400);
 
 		let node1 = vec![1, 2, 3, 4];
 		let node2 = vec![4, 5, 6, 7, 8, 9, 10];
@@ -139,7 +130,6 @@ mod tests {
 			data: node2,
 			hash: hash2,
 			depth: 456,
-			marker: PhantomData,
 		});
 	}
 
@@ -151,7 +141,7 @@ mod tests {
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::default();
 
 		{
 			let mut x = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
@@ -167,7 +157,7 @@ mod tests {
 		}
 
 		let trie = TrieDB::<_, RlpCodec>::new(&db, &root).unwrap();
-		let mut recorder = Recorder::<KeccakHasher>::new();
+		let mut recorder = Recorder::<H256>::new();
 
 		trie.get_with(b"pirate", &mut recorder).unwrap().unwrap();
 

@@ -127,7 +127,7 @@ pub trait Query<H: Hasher> {
 	fn record(&mut self, _hash: &H::Out, _data: &[u8], _depth: u32) {}
 }
 
-impl<'a, H: Hasher> Query<H> for &'a mut Recorder<H> {
+impl<'a, H: Hasher> Query<H> for &'a mut Recorder<H::Out> {
 	type Item = DBValue;
 	fn decode(self, value: &[u8]) -> DBValue { DBValue::from_slice(value) }
 	fn record(&mut self, hash: &H::Out, data: &[u8], depth: u32) {
@@ -140,7 +140,7 @@ impl<F, T, H: Hasher> Query<H> for F where F: for<'a> FnOnce(&'a [u8]) -> T {
 	fn decode(self, value: &[u8]) -> T { (self)(value) }
 }
 
-impl<'a, F, T, H: Hasher> Query<H> for (&'a mut Recorder<H>, F) where F: FnOnce(&[u8]) -> T {
+impl<'a, F, T, H: Hasher> Query<H> for (&'a mut Recorder<H::Out>, F) where F: FnOnce(&[u8]) -> T {
 	type Item = T;
 	fn decode(self, value: &[u8]) -> T { (self.1)(value) }
 	fn record(&mut self, hash: &H::Out, data: &[u8], depth: u32) {
