@@ -90,13 +90,6 @@ impl RlpStream {
 		}
 	}
 
-	/// Append bytes to the end of stream as a single item, chainable.
-	pub fn append_bytes<'a>(&'a mut self, bytes: &[u8]) -> &'a mut Self {
-		self.encoder().encode_value(bytes);
-		self.note_appended(1);
-		self
-	}
-
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
 	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self {
 		// push raw items

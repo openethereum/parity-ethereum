@@ -114,27 +114,22 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 
     fn leaf_node(partial: &[u8], value: &[u8]) -> ElasticArray1024<u8> {
         let mut stream = RlpStream::new_list(2);
-        stream.append_bytes(partial);
-        stream.append_bytes(value);
-        let out = stream.drain();
-        trace!(target: "ethtrie", "leaf_node, partial={:?}, out={:X?}", partial, out);
-        out
+        stream.append(&partial);
+        stream.append(&value);
+		stream.drain()
     }
 
 	fn ext_node(partial: &[u8], child_ref: ChildReference<<KeccakHasher as Hasher>::Out>) -> ElasticArray1024<u8> {
         let mut stream = RlpStream::new_list(2);
-        stream.append_bytes(partial);
+        stream.append(&partial);
         match child_ref {
-            ChildReference::Hash(h) => stream.append_bytes(&h.as_ref()),
+            ChildReference::Hash(h) => stream.append(&h),
             ChildReference::Inline(inline_data, len) => {
                 let bytes = &AsRef::<[u8]>::as_ref(&inline_data)[..len];
-                trace!(target: "ethtrie", "ext_node, unpacked bytes={:X?}", bytes);
                 stream.append_raw(bytes, 1)
-                },
+            },
         };
-        let out = stream.drain();
-        trace!(target: "ethtrie", "ext_node, partial={:?}, out={:X?}", partial, out);
-        out
+        stream.drain()
 	}
 
 	fn branch_node<I>(children: I, value: Option<ElasticArray128<u8>>) -> ElasticArray1024<u8>
@@ -144,10 +139,9 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
         for child_ref in children {
             match child_ref {
                 Some(c) => match c {
-                    ChildReference::Hash(h) => stream.append_bytes(&h.as_ref()),
+                    ChildReference::Hash(h) => stream.append(&h),
                     ChildReference::Inline(inline_data, len) => {
                         let bytes = &AsRef::<[u8]>::as_ref(&inline_data)[..len];
-                        trace!(target: "ethtrie", "branch_node, unpacked bytes={:X?}", bytes);
                         stream.append_raw(bytes, 1)
                     },
                 },
@@ -155,12 +149,10 @@ impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
             };
         }
         if let Some(value) = value {
-            stream.append_bytes(&value);
+            stream.append(&&*value);
         } else {
             stream.append_empty_data();
         }
-        let out = stream.drain();
-        trace!(target: "ethtrie", "branch_node, out={:X?}", out);
-        out
+        stream.drain()
     }
 }
