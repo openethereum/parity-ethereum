@@ -16,7 +16,6 @@
 
 //! Client tests of tracing
 
-use tempdir::TempDir;
 use ethkey::KeyPair;
 use hash::keccak;
 use block::*;
@@ -26,7 +25,6 @@ use spec::*;
 use client::*;
 use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use std::sync::Arc;
 use header::Header;
 use miner::Miner;
@@ -34,22 +32,21 @@ use transaction::{Action, Transaction};
 use views::BlockView;
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
+use test_helpers;
 
 #[test]
 fn can_trace_block_and_uncle_reward() {
-	let tempdir = TempDir::new("").unwrap();
+	let db = test_helpers::new_db();
 	let spec = Spec::new_test_with_reward();
 	let engine = &*spec.engine;
 
 	// Create client
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let mut client_config = ClientConfig::default();
 	client_config.tracing.enabled = true;
-	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 	let client = Client::new(
 		client_config,
 		&spec,
-		client_db,
+		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();

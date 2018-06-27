@@ -18,6 +18,7 @@
 
 use std::collections::BTreeSet;
 use jsonrpc_core::Result;
+use ethkey::Password;
 
 use v1::types::{H160, H256, H512, Bytes, EncryptedDocumentKey};
 
@@ -27,22 +28,22 @@ build_rpc_trait! {
 		/// Generate document key to store in secret store.
 		/// Arguments: `account`, `password`, `server_key_public`.
 		#[rpc(name = "secretstore_generateDocumentKey")]
-		fn generate_document_key(&self, H160, String, H512) -> Result<EncryptedDocumentKey>;
+		fn generate_document_key(&self, H160, Password, H512) -> Result<EncryptedDocumentKey>;
 
 		/// Encrypt data with key, received from secret store.
 		/// Arguments: `account`, `password`, `key`, `data`.
 		#[rpc(name = "secretstore_encrypt")]
-		fn encrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes>;
+		fn encrypt(&self, H160, Password, Bytes, Bytes) -> Result<Bytes>;
 
 		/// Decrypt data with key, received from secret store.
 		/// Arguments: `account`, `password`, `key`, `data`.
 		#[rpc(name = "secretstore_decrypt")]
-		fn decrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes>;
+		fn decrypt(&self, H160, Password, Bytes, Bytes) -> Result<Bytes>;
 
 		/// Decrypt data with shadow key, received from secret store.
 		/// Arguments: `account`, `password`, `decrypted_secret`, `common_point`, `decrypt_shadows`, `data`.
 		#[rpc(name = "secretstore_shadowDecrypt")]
-		fn shadow_decrypt(&self, H160, String, H512, H512, Vec<Bytes>, Bytes) -> Result<Bytes>;
+		fn shadow_decrypt(&self, H160, Password, H512, H512, Vec<Bytes>, Bytes) -> Result<Bytes>;
 
 		/// Calculates the hash (keccak256) of servers set for using in ServersSetChange session.
 		/// Returned hash must be signed later by using `secretstore_signRawHash` method.
@@ -54,6 +55,6 @@ build_rpc_trait! {
 		/// Passed hash is treated as an input to the `sign` function (no prefixes added, no hash function is applied).
 		/// Arguments: `account`, `password`, `raw_hash`.
 		#[rpc(name = "secretstore_signRawHash")]
-		fn sign_raw_hash(&self, H160, String, H256) -> Result<Bytes>;
+		fn sign_raw_hash(&self, H160, Password, H256) -> Result<Bytes>;
 	}
 }

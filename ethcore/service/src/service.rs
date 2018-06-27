@@ -22,10 +22,10 @@ use std::time::Duration;
 
 use ansi_term::Colour;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
-use kvdb::{KeyValueDB, KeyValueDBHandler};
 use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
+use ethcore::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -69,7 +69,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
-	database: Arc<KeyValueDB>,
+	database: Arc<BlockChainDB>,
 	_stop_guard: StopGuard,
 }
 
@@ -78,9 +78,9 @@ impl ClientService {
 	pub fn start(
 		config: ClientConfig,
 		spec: &Spec,
-		client_db: Arc<KeyValueDB>,
+		blockchain_db: Arc<BlockChainDB>,
 		snapshot_path: &Path,
-		restoration_db_handler: Box<KeyValueDBHandler>,
+		restoration_db_handler: Box<BlockChainDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
 		account_provider: Arc<AccountProvider>,
@@ -93,7 +93,7 @@ impl ClientService {
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, client_db.clone(), miner.clone(), io_service.channel())?;
+		let client = Client::new(config, &spec, blockchain_db.clone(), miner.clone(), io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -131,7 +131,7 @@ impl ClientService {
 			client: client,
 			snapshot: snapshot,
 			private_tx,
-			database: client_db,
+			database: blockchain_db,
 			_stop_guard: stop_guard,
 		})
 	}
@@ -167,7 +167,7 @@ impl ClientService {
 	}
 
 	/// Get a handle to the database.
-	pub fn db(&self) -> Arc<KeyValueDB> { self.database.clone() }
+	pub fn db(&self) -> Arc<BlockChainDB> { self.database.clone() }
 
 	/// Shutdown the Client Service
 	pub fn shutdown(&self) {
@@ -259,8 +259,8 @@ mod tests {
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
 	use ethcore::db::NUM_COLUMNS;
-	use kvdb::Error;
-	use kvdb_rocksdb::{Database, DatabaseConfig, CompactionProfile};
+	use ethcore::test_helpers;
+	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;
 
 	use ethcore_private_tx;
@@ -278,24 +278,9 @@ mod tests {
 		client_db_config.compaction = CompactionProfile::auto(&client_path);
 		client_db_config.wal = client_config.db_wal;
 
-		let client_db = Arc::new(Database::open(
-			&client_db_config,
-			&client_path.to_str().expect("DB path could not be converted to string.")
-		).unwrap());
-
-		struct RestorationDBHandler {
-			config: DatabaseConfig,
-		}
-
-		impl KeyValueDBHandler for RestorationDBHandler {
-			fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
-				Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
-			}
-		}
-
-		let restoration_db_handler = Box::new(RestorationDBHandler {
-			config: client_db_config,
-		});
+		let client_db_handler = test_helpers::restoration_db_handler(client_db_config.clone());
+		let client_db = client_db_handler.open(&client_path).unwrap();
+		let restoration_db_handler = test_helpers::restoration_db_handler(client_db_config);
 
 		let spec = Spec::new_test();
 		let service = ClientService::start(

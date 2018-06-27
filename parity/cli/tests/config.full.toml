@@ -134,6 +134,7 @@ tx_queue_ban_count = 1
 tx_queue_ban_time = 180 #s
 tx_gas_limit = "6283184"
 tx_time_limit = 100 #ms
+tx_queue_no_unfamiliar_locals = false
 extra_data = "Parity"
 remove_solved = false
 notify_work = ["http://localhost:3001"]

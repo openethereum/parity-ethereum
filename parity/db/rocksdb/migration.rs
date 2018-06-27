@@ -19,10 +19,12 @@ use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
 use super::migration_rocksdb::{self, Manager as MigrationManager, Config as MigrationConfig, ChangeColumns};
-use super::kvdb_rocksdb::CompactionProfile;
+use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
 use ethcore::client::DatabaseCompactionProfile;
+use ethcore::{self, db};
 
 use super::helpers;
+use super::blooms::migrate_blooms;
 
 /// The migration from v10 to v11.
 /// Adds a column for node info.
@@ -43,9 +45,9 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 12;
-/// First version of the consolidated database.
-const CONSOLIDATION_VERSION: u32 = 9;
+const CURRENT_VERSION: u32 = 13;
+/// A version of database at which blooms-db was introduced
+const BLOOMS_DB_VERSION: u32 = 13;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -62,6 +64,8 @@ pub enum Error {
 	MigrationImpossible,
 	/// Internal migration error.
 	Internal(migration_rocksdb::Error),
+	/// Blooms-db migration error.
+	BloomsDB(ethcore::error::Error),
 	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
@@ -74,6 +78,7 @@ impl Display for Error {
 			Error::FutureDBVersion => "Database was created with newer client version. Upgrade your client or delete DB and resync.".into(),
 			Error::MigrationImpossible => format!("Database migration to version {} is not possible.", CURRENT_VERSION),
 			Error::Internal(ref err) => format!("{}", err),
+			Error::BloomsDB(ref err) => format!("blooms-db migration error: {}", err),
 			Error::Io(ref err) => format!("Unexpected io error on DB migration: {}.", err),
 		};
 
@@ -212,9 +217,23 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 	}
 
 	// Further migrations
-	if version >= CONSOLIDATION_VERSION && version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {
-		println!("Migrating database from version {} to {}", ::std::cmp::max(CONSOLIDATION_VERSION, version), CURRENT_VERSION);
+	if version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {
+		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
 		migrate_database(version, consolidated_database_path(path), consolidated_database_migrations(&compaction_profile)?)?;
+
+		if version < BLOOMS_DB_VERSION {
+			println!("Migrating blooms to blooms-db...");
+			let db_config = DatabaseConfig {
+				max_open_files: 64,
+				memory_budget: None,
+				compaction: compaction_profile,
+				columns: db::NUM_COLUMNS,
+				wal: true,
+			};
+
+			migrate_blooms(path, &db_config).map_err(Error::BloomsDB)?;
+		}
+
 		println!("Migration finished");
 	}
 

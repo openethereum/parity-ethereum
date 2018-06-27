@@ -74,7 +74,7 @@ fn setup() -> PersonalTester {
 #[test]
 fn accounts() {
 	let tester = setup();
-	let address = tester.accounts.new_account("").unwrap();
+	let address = tester.accounts.new_account(&"".into()).unwrap();
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_listAccounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:x}", address) + r#""],"id":1}"#;
 
@@ -99,7 +99,7 @@ fn new_account() {
 fn invalid_password_test(method: &str)
 {
 	let tester = setup();
-	let address = tester.accounts.new_account("password123").unwrap();
+	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -122,7 +122,7 @@ fn invalid_password_test(method: &str)
 #[test]
 fn sign() {
 	let tester = setup();
-	let address = tester.accounts.new_account("password123").unwrap();
+	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 	let data = vec![5u8];
 
 	let request = r#"{
@@ -148,7 +148,7 @@ fn sign() {
 #[test]
 fn sign_with_invalid_password() {
 	let tester = setup();
-	let address = tester.accounts.new_account("password123").unwrap();
+	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -188,7 +188,7 @@ fn sign_and_send_transaction() {
 
 fn sign_and_send_test(method: &str) {
 	let tester = setup();
-	let address = tester.accounts.new_account("password123").unwrap();
+	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -241,7 +241,7 @@ fn sign_and_send_test(method: &str) {
 #[test]
 fn ec_recover() {
 	let tester = setup();
-	let address = tester.accounts.new_account("password123").unwrap();
+	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 	let data = vec![5u8];
 
 	let hash = eth_data_hash(data.clone());
@@ -287,7 +287,7 @@ fn ec_recover_invalid_signature() {
 #[test]
 fn should_unlock_not_account_temporarily_if_allow_perm_is_disabled() {
 	let tester = setup();
-	let address = tester.accounts.new_account("password123").unwrap();
+	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -308,7 +308,7 @@ fn should_unlock_not_account_temporarily_if_allow_perm_is_disabled() {
 #[test]
 fn should_unlock_account_permanently() {
 	let tester = setup();
-	let address = tester.accounts.new_account("password123").unwrap();
+	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 
 	let request = r#"{
 		"jsonrpc": "2.0",

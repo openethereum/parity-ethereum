@@ -16,7 +16,6 @@
 
 //! PoW block chunker and rebuilder tests.
 
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
 use error::{Error, ErrorKind};
@@ -28,8 +27,8 @@ use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use parking_lot::Mutex;
 use snappy;
-use kvdb::{KeyValueDB, DBTransaction};
-use kvdb_memorydb;
+use kvdb::DBTransaction;
+use test_helpers;
 
 const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
 
@@ -43,7 +42,7 @@ fn chunk_and_restore(amount: u64) {
 	let tempdir = TempDir::new("").unwrap();
 	let snapshot_path = tempdir.path().join("SNAP");
 
-	let old_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
+	let old_db = test_helpers::new_db();
 	let bc = BlockChain::new(Default::default(), &genesis.encoded(), old_db.clone());
 
 	// build the blockchain.
@@ -57,7 +56,7 @@ fn chunk_and_restore(amount: u64) {
 		bc.commit();
 	}
 
-	old_db.write(batch).unwrap();
+	old_db.key_value().write(batch).unwrap();
 
 	let best_hash = bc.best_block_hash();
 
@@ -83,7 +82,7 @@ fn chunk_and_restore(amount: u64) {
 	writer.into_inner().finish(manifest.clone()).unwrap();
 
 	// restore it.
-	let new_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
+	let new_db = test_helpers::new_db();
 	let new_chain = BlockChain::new(Default::default(), &genesis.encoded(), new_db.clone());
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(new_chain, new_db.clone(), &manifest).unwrap();
 
@@ -129,7 +128,7 @@ fn checks_flag() {
 	let genesis = BlockBuilder::genesis();
 	let chunk = stream.out();
 
-	let db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
+	let db = test_helpers::new_db();
 	let engine = ::spec::Spec::new_test().engine;
 	let chain = BlockChain::new(Default::default(), &genesis.last().encoded(), db.clone());
 

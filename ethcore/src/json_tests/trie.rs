@@ -19,12 +19,21 @@ use trie::{TrieFactory, TrieSpec};
 use ethereum_types::H256;
 use memorydb::MemoryDB;
 
-fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
+use super::HookType;
+
+pub use self::generic::run_test_path as run_generic_test_path;
+pub use self::generic::run_test_file as run_generic_test_file;
+pub use self::secure::run_test_path as run_secure_test_path;
+pub use self::secure::run_test_file as run_secure_test_file;
+
+fn test_trie<H: FnMut(&str, HookType)>(json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();
 	let factory = TrieFactory::new(trie);
 	let mut result = vec![];
 
 	for (name, test) in tests.into_iter() {
+		start_stop_hook(&name, HookType::OnStart);
+
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::default();
 		let mut t = factory.create(&mut memdb, &mut root);
@@ -39,6 +48,8 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 		if *t.root() != test.root.into() {
 			result.push(format!("Trie test '{:?}' failed.", name));
 		}
+
+		start_stop_hook(&name, HookType::OnStop);
 	}
 
 	for i in &result {
@@ -49,10 +60,23 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 }
 
 mod generic {
+	use std::path::Path;
 	use trie::TrieSpec;
 
-	fn do_json_test(json: &[u8]) -> Vec<String> {
-		super::test_trie(json, TrieSpec::Generic)
+	use super::HookType;
+
+	/// Run generic trie jsontests on a given folder.
+	pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
+		::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
+	}
+
+	/// Run generic trie jsontests on a given file.
+	pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
+		::json_tests::test_common::run_test_file(p, do_json_test, h)
+	}
+
+	fn do_json_test<H: FnMut(&str, HookType)>(json: &[u8], h: &mut H) -> Vec<String> {
+		super::test_trie(json, TrieSpec::Generic, h)
 	}
 
 	declare_test!{TrieTests_trietest, "TrieTests/trietest"}
@@ -60,10 +84,23 @@ mod generic {
 }
 
 mod secure {
+	use std::path::Path;
 	use trie::TrieSpec;
 
-	fn do_json_test(json: &[u8]) -> Vec<String> {
-		super::test_trie(json, TrieSpec::Secure)
+	use super::HookType;
+
+	/// Run secure trie jsontests on a given folder.
+	pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
+		::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
+	}
+
+	/// Run secure trie jsontests on a given file.
+	pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
+		::json_tests::test_common::run_test_file(p, do_json_test, h)
+	}
+
+	fn do_json_test<H: FnMut(&str, HookType)>(json: &[u8], h: &mut H) -> Vec<String> {
+		super::test_trie(json, TrieSpec::Secure, h)
 	}
 
 	declare_test!{TrieTests_hex_encoded_secure, "TrieTests/hex_encoded_securetrie_test"}

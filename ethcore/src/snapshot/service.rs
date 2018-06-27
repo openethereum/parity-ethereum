@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
-use blockchain::BlockChain;
+use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client::{BlockInfo, BlockChainClient, Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
 use error::Error;
@@ -40,7 +40,7 @@ use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use util_error::UtilError;
 use bytes::Bytes;
 use journaldb::Algorithm;
-use kvdb::{DBTransaction, KeyValueDB, KeyValueDBHandler};
+use kvdb::DBTransaction;
 use snappy;
 
 /// Helper for removing directories in case of error.
@@ -80,13 +80,13 @@ struct Restoration {
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
-	db: Arc<KeyValueDB>,
+	db: Arc<BlockChainDB>,
 }
 
 struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
-	db: Arc<KeyValueDB>, // database
+	db: Arc<BlockChainDB>, // database
 	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
@@ -115,7 +115,7 @@ impl Restoration {
 			manifest: manifest,
 			state_chunks_left: state_chunks,
 			block_chunks_left: block_chunks,
-			state: StateRebuilder::new(raw_db.clone(), params.pruning),
+			state: StateRebuilder::new(raw_db.key_value().clone(), params.pruning),
 			secondary: secondary,
 			writer: params.writer,
 			snappy_buffer: Vec::new(),
@@ -216,7 +216,7 @@ pub struct ServiceParams {
 	/// State pruning algorithm.
 	pub pruning: Algorithm,
 	/// Handler for opening a restoration DB.
-	pub restoration_db_handler: Box<KeyValueDBHandler>,
+	pub restoration_db_handler: Box<BlockChainDBHandler>,
 	/// Async IO channel for sending messages.
 	pub channel: Channel,
 	/// The directory to put snapshots in.
@@ -230,7 +230,7 @@ pub struct ServiceParams {
 /// This controls taking snapshots and restoring from them.
 pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
-	restoration_db_handler: Box<KeyValueDBHandler>,
+	restoration_db_handler: Box<BlockChainDBHandler>,
 	snapshot_root: PathBuf,
 	io_channel: Mutex<Channel>,
 	pruning: Algorithm,
@@ -347,7 +347,7 @@ impl Service {
 	}
 
 	// Migrate the blocks in the current DB into the new chain
-	fn migrate_blocks(&self) -> Result<usize, ::snapshot::error::Error> {
+	fn migrate_blocks(&self) -> Result<usize, Error> {
 		// Count the number of migrated blocks
 		let mut count = 0;
 		let rest_db = self.restoration_db();
@@ -442,9 +442,9 @@ impl Service {
 
 			// Writting changes to DB and logging every now and then
 			if block_number % 1_000 == 0 {
-				next_db.write_buffered(batch);
+				next_db.key_value().write_buffered(batch);
 				next_chain.commit();
-				next_db.flush().expect("DB flush failed.");
+				next_db.key_value().flush().expect("DB flush failed.");
 				batch = DBTransaction::new();
 			}
 
@@ -462,15 +462,15 @@ impl Service {
 		}
 
 		// Final commit to the DB
-		next_db.write_buffered(batch);
+		next_db.key_value().write_buffered(batch);
 		next_chain.commit();
-		next_db.flush().expect("DB flush failed.");
+		next_db.key_value().flush().expect("DB flush failed.");
 
 		// Update best ancient block in the Next Chain
 		next_chain.update_best_ancient_block(&last_block_hash);
 
 		if !success {
-			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain);
+			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain.into());
 		}
 
 		Ok(count)
@@ -766,7 +766,7 @@ impl Service {
 
 							match is_done {
 								true => {
-									db.flush().map_err(UtilError::from)?;
+									db.key_value().flush().map_err(UtilError::from)?;
 									drop(db);
 									return self.finalize_restoration(&mut *restoration);
 								},
@@ -779,7 +779,7 @@ impl Service {
 				}
 			}
 		};
-		result.and_then(|_| db.flush().map_err(|e| UtilError::from(e).into()))
+		result.and_then(|_| db.key_value().flush().map_err(|e| UtilError::from(e).into()))
 	}
 
 	/// Feed a state chunk to be processed synchronously.
@@ -908,8 +908,8 @@ mod tests {
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 	use tempdir::TempDir;
-	use test_helpers::generate_dummy_client_with_spec_and_data;
-	use test_helpers_internal::restoration_db_handler;
+	// use test_helpers_internal::restoration_db_handler;
+	use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 	#[test]
 	fn sends_async_messages() {

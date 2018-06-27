@@ -27,15 +27,17 @@ use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{chunk_state, chunk_secondary, ManifestData, Progress, SnapshotService, RestorationStatus};
 use spec::Spec;
-use test_helpers::{generate_dummy_client_with_spec_and_data};
-use test_helpers_internal::restoration_db_handler;
+use test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
-use io::IoChannel;
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use parking_lot::Mutex;
+use io::IoChannel;
+use kvdb_rocksdb::DatabaseConfig;
 
 #[test]
 fn restored_is_equivalent() {
+	use ::ethcore_logger::init_log;
+	init_log();
+
 	const NUM_BLOCKS: u32 = 400;
 	const TX_PER: usize = 5;
 
@@ -47,13 +49,14 @@ fn restored_is_equivalent() {
 	let path = tempdir.path().join("snapshot");
 
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Database::open(&db_config, client_db.to_str().unwrap()).unwrap();
+	let restoration = restoration_db_handler(db_config);
+	let blockchain_db = restoration.open(&client_db).unwrap();
 
 	let spec = Spec::new_null();
 	let client2 = Client::new(
 		Default::default(),
 		&spec,
-		Arc::new(client_db),
+		blockchain_db,
 		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
@@ -61,7 +64,7 @@ fn restored_is_equivalent() {
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
-		restoration_db_handler: restoration_db_handler(db_config),
+		restoration_db_handler: restoration,
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: path,
@@ -154,7 +157,6 @@ fn keep_ancient_blocks() {
 	// Temporary folders
 	let tempdir = TempDir::new("").unwrap();
 	let snapshot_path = tempdir.path().join("SNAP");
-	let client_db_path = tempdir.path().join("client_db");
 
 	// Generate blocks
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
@@ -162,7 +164,6 @@ fn keep_ancient_blocks() {
 	let spec = spec_f();
 	let client = generate_dummy_client_with_spec_and_data(spec_f, NUM_BLOCKS as u32, 5, &gas_prices);
 
-	// let db = Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 	let bc = client.chain();
 
 	// Create the Snapshot
@@ -198,11 +199,11 @@ fn keep_ancient_blocks() {
 
 	// Initialize the Client
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Database::open(&db_config, client_db_path.to_str().unwrap()).unwrap();
+	let client_db = new_temp_db(&tempdir.path());
 	let client2 = Client::new(
 		ClientConfig::default(),
 		&spec,
-		Arc::new(client_db),
+		client_db,
 		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
@@ -268,13 +269,12 @@ fn recover_aborted_recovery() {
 
 	let spec = Spec::new_null();
 	let tempdir = TempDir::new("").unwrap();
-	let client_db = tempdir.path().join("client_db");
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Database::open(&db_config, client_db.to_str().unwrap()).unwrap();
+	let client_db = new_db();
 	let client2 = Client::new(
 		Default::default(),
 		&spec,
-		Arc::new(client_db),
+		client_db,
 		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();

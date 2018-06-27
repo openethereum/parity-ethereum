@@ -133,7 +133,7 @@ impl SyncSupplier {
 		let max_count = cmp::min(MAX_HEADERS_TO_SEND, max_headers);
 		let mut count = 0;
 		let mut data = Bytes::new();
-		let inc = (skip + 1) as BlockNumber;
+		let inc = skip.saturating_add(1) as BlockNumber;
 		let overlay = io.chain_overlay().read();
 
 		// We are checking the `overlay` as well since it's where the ForkBlock
@@ -155,9 +155,9 @@ impl SyncSupplier {
 				if number <= inc || number == 0 {
 					break;
 				}
-				number -= inc;
+				number = number.saturating_sub(inc);
 			} else {
-				number += inc;
+				number = number.saturating_add(inc);
 			}
 		}
 		let mut rlp = RlpStream::new_list(count as usize);
