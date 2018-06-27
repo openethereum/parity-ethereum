@@ -119,6 +119,9 @@ name = "parity"
 [profile.release]
 debug = false
 
+[profile.bench]
+debug = true
+
 [workspace]
 members = [
 	"chainspec",

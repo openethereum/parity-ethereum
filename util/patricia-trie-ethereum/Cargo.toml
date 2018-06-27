@@ -13,7 +13,3 @@ rlp = { path = "../rlp" }
 ethcore-bytes = { path = "../bytes" }
 ethereum-types = "0.3"
 elastic-array = "0.10"
-log = "0.3" # TODO: remove
-
-[dev-dependencies]
-env_logger = "*"  # TODO: remove
