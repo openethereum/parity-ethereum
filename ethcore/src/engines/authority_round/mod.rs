@@ -719,6 +719,23 @@ impl AuthorityRound {
 			}
 		}
 	}
+
+	fn report_skipped(&self, header: &Header, current_step: usize, parent_step: usize, validators: &ValidatorSet, set_number: u64) {
+		if let (true, Some(me)) = (current_step > parent_step + 1, self.signer.read().address()) {
+			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
+				   header.author(), current_step, parent_step);
+			let mut reported = HashSet::new();
+			for step in parent_step + 1..current_step {
+				let skipped_primary = step_proposer(validators, header.parent_hash(), step);
+				// Do not report this signer.
+				if skipped_primary != me {
+					// Stop reporting once validators start repeating.
+					if !reported.insert(skipped_primary) { break; }
+					self.validators.report_benign(&skipped_primary, set_number, header.number());
+ 				}
+ 			}
+		}
+	}
 }
 
 fn unix_now() -> Duration {
@@ -945,8 +962,14 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
 				if self.step.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
-
+					// we can drop all accumulated empty step messages that are
+					// older than the parent step since we're including them in
+					// the seal
 					self.clear_empty_steps(parent_step);
+
+					// report any skipped primaries between the parent block and
+					// the block we're sealing
+					self.report_skipped(header, step, u64::from(parent_step) as usize, validators, set_number);
 
 					let mut fields = vec![
 						encode(&step).into_vec(),
@@ -1127,21 +1150,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			}
 
 		} else {
-			// Report skipped primaries.
-			if let (true, Some(me)) = (step > parent_step + 1, self.signer.read().address()) {
-				debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
-					   header.author(), step, parent_step);
-				let mut reported = HashSet::new();
-				for s in parent_step + 1..step {
-					let skipped_primary = step_proposer(&validators, &parent.hash(), s);
-					// Do not report this signer.
-					if skipped_primary != me {
-						// Stop reporting once validators start repeating.
-						if !reported.insert(skipped_primary) { break; }
-						self.validators.report_benign(&skipped_primary, set_number, header.number());
- 					}
- 				}
-			}
+			self.report_skipped(header, step, parent_step, validators, set_number);
 		}
 
 		Ok(())
