@@ -916,17 +916,17 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		}
 
 		let active_set;
-		let validators = if self.immediate_transitions {
-			&*self.validators
+		let (validators, set_number) = if self.immediate_transitions {
+			(&*self.validators, header.number())
 		} else {
 			match self.epoch_set(header) {
 				Err(err) => {
 					warn!(target: "engine", "Unable to generate seal: {}", err);
 					return Seal::None;
 				},
-				Ok((set, _)) => {
+				Ok((set, set_number)) => {
 					active_set = set;
-					&active_set
+					(&active_set as &_, set_number)
 				},
 			}
 		};
@@ -1095,7 +1095,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
 			Err(BlockError::InvalidSeal) => {
-				let (_, set_number) = self.epoch_set(header)?;
+				let set_number = if self.immediate_transitions {
+					header.number()
+				} else {
+					self.epoch_set(header)?.1
+				};
+
 				self.validators.report_benign(header.author(), set_number, header.number());
 				Err(BlockError::InvalidSeal.into())
 			}
@@ -1109,7 +1114,14 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let step = header_step(header, self.empty_steps_transition)?;
 		let parent_step = header_step(parent, self.empty_steps_transition)?;
 
-		let (validators, set_number) = self.epoch_set(header)?;
+		let active_set;
+		let (validators, set_number) = if self.immediate_transitions {
+			(&*self.validators, header.number())
+		} else {
+			let (set, set_number) = self.epoch_set(header)?;
+			active_set = set;
+			(&active_set as &_, set_number)
+		};
 
 		// Ensure header is from the step after parent.
 		if step == parent_step
@@ -1136,7 +1148,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 							format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
 					}
 
-					if !empty_step.verify(&validators).unwrap_or(false) {
+					if !empty_step.verify(validators).unwrap_or(false) {
 						Err(EngineError::InsufficientProof(
 							format!("invalid empty step proof: {:?}", empty_step)))?;
 					}
