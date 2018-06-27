@@ -22,7 +22,7 @@ memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 ethcore-crypto = { path = "crypto" }
-error-chain = { version = "0.11", default-features = false }
+error-chain = { version = "0.12", default-features = false }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
@@ -37,7 +37,6 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
-hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
 itertools = "0.5"
 lazy_static = "1.0"
@@ -71,6 +70,12 @@ journaldb = { path = "../util/journaldb" }
 keccak-hasher = { path = "../util/keccak-hasher" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 tempdir = {version="0.3", optional = true}
+
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
+hardware-wallet = { path = "../hw" }
+
+[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
+fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
 tempdir = "0.3"
