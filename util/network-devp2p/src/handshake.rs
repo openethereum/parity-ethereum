@@ -28,7 +28,7 @@ use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
 use ethkey::crypto::{ecdh, ecies};
 use network::{Error, ErrorKind};
 use host::HostInfo;
-use stream_encoder::Stream;
+
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {

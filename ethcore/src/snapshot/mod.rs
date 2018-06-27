@@ -43,7 +43,7 @@ use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use ethtrie::RlpCodec;
 use rlp::{RlpStream, Rlp};
 use bloom_journal::Bloom;
-use stream_encoder::Stream;
+
 
 use self::io::SnapshotWriter;
 

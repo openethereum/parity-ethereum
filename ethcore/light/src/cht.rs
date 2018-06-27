@@ -32,7 +32,7 @@ use bytes::Bytes;
 use trie::{TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
 use ethtrie::{self, RlpCodec};
 use rlp::{RlpStream, Rlp};
-use stream_encoder::Stream;
+
 
 // encode a key.
 macro_rules! key {

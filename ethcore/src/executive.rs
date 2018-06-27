@@ -33,7 +33,7 @@ use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
-use stream_encoder::Stream;
+
 
 #[cfg(debug_assertions)]
 /// Roughly estimate what stack size each level of evm depth will use. (Debug build)

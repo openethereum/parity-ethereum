@@ -62,7 +62,6 @@ parity-version = { path = "../util/version" }
 patricia-trie = { path = "../util/patricia_trie" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
-stream-encoder = { path = "../util/stream-encoder" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]

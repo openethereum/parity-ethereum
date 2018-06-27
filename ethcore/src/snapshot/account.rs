@@ -27,7 +27,7 @@ use bytes::Bytes;
 use trie::{TrieDB, Trie};
 use ethtrie::RlpCodec;
 use rlp::{RlpStream, Rlp};
-use stream_encoder::Stream;
+
 
 use std::collections::HashSet;
 

@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use bytes::Bytes;
 use ethereum_types::H256;
 use rlp::{RlpStream, Rlp};
-use stream_encoder::Stream;
+
 
 use super::ManifestData;
 

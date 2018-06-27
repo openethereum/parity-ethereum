@@ -25,7 +25,7 @@ use rlp::{DecoderError, RlpStream, Rlp};
 use ethereum_types::H256;
 use bytes::Bytes;
 use triehash::ordered_trie_root;
-use stream_encoder::Stream;
+
 
 const HEADER_FIELDS: usize = 8;
 const BLOCK_FIELDS: usize = 2;

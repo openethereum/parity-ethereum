@@ -36,7 +36,6 @@ extern crate byteorder;
 extern crate ethereum_types as bigint;
 extern crate elastic_array;
 extern crate rustc_hex;
-extern crate stream_encoder;
 
 mod traits;
 mod error;
@@ -46,7 +45,6 @@ mod impls;
 
 use elastic_array::ElasticArray1024;
 use std::borrow::Borrow;
-use stream_encoder::Stream;
 
 pub use error::DecoderError;
 pub use traits::{Decodable, Encodable};

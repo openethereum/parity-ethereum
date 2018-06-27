@@ -32,7 +32,7 @@ use pod_account::*;
 use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
 use basic_account::BasicAccount;
-use stream_encoder::Stream;
+
 
 use std::cell::{RefCell, Cell};
 

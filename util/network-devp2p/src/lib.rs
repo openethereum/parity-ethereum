@@ -85,7 +85,6 @@ extern crate keccak_hash as hash;
 extern crate serde;
 extern crate serde_json;
 extern crate snappy;
-extern crate stream_encoder;
 
 #[macro_use]
 extern crate error_chain;

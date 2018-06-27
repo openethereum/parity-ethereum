@@ -47,7 +47,7 @@ use engines::epoch::{Transition as EpochTransition, PendingTransition as Pending
 use rayon::prelude::*;
 use ansi_term::Colour;
 use kvdb::{DBTransaction, KeyValueDB};
-use stream_encoder::Stream;
+
 use error::Error;
 use std::path::Path;
 

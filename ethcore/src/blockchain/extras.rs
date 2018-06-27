@@ -252,7 +252,7 @@ pub struct EpochTransitions {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
-	use stream_encoder::Stream;
+	
 	use super::BlockReceipts;
 
 	#[test]

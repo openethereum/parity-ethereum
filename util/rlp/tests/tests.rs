@@ -8,12 +8,10 @@
 
 extern crate ethereum_types as bigint;
 extern crate rlp;
-extern crate stream_encoder;
 
 use std::{fmt, cmp};
 use bigint::{U256, H160};
 use rlp::{Encodable, Decodable, Rlp, RlpStream, DecoderError};
-use stream_encoder::Stream;
 
 #[test]
 fn rlp_at() {

@@ -23,7 +23,7 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use triehash::ordered_trie_root;
 
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
-use stream_encoder::Stream;
+
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};

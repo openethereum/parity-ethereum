@@ -24,7 +24,6 @@ serde_json = "1.0"
 slab = "0.3"
 smallvec = "0.4"
 tiny-keccak = "1.4"
-stream-encoder = { path = "../util/stream-encoder" }
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }

@@ -22,7 +22,6 @@ extern crate elastic_array;
 extern crate ethereum_types;
 extern crate keccak_hash as hash;
 extern crate rlp;
-extern crate stream_encoder;
 
 use std::collections::BTreeMap;
 use std::cmp;
@@ -30,7 +29,6 @@ use elastic_array::{ElasticArray4, ElasticArray8};
 use ethereum_types::H256;
 use hash::keccak;
 use rlp::RlpStream;
-use stream_encoder::Stream;
 
 fn shared_prefix_len<T: Eq>(first: &[T], second: &[T]) -> usize {
 	let len = cmp::min(first.len(), second.len());

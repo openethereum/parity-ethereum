@@ -365,7 +365,7 @@ mod tests {
 	use transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
 	use rlp;
-	use stream_encoder::Stream;
+	
 	use triehash::ordered_trie_root;
 
 	fn check_ok(result: Result<(), Error>) {
@@ -547,7 +547,7 @@ mod tests {
 	#[test]
 	fn test_verify_block() {
 		use rlp::RlpStream;
-		use stream_encoder::Stream;
+		
 
 		// Test against morden
 		let mut good = Header::new();

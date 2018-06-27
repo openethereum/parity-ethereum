@@ -22,7 +22,7 @@ use network::{self, PeerId};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use std::cmp;
-use stream_encoder::Stream;
+
 use sync_io::SyncIo;
 
 use super::{
