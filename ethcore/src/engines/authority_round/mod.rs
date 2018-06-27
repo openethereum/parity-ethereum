@@ -656,6 +656,26 @@ impl AuthorityRound {
 		Ok(engine)
 	}
 
+	// fetch correct validator set for epoch at header, taking into account
+	// finality of previous transitions.
+	fn epoch_set(&self, header: &Header) -> Result<SimpleList, Error> {
+		let mut epoch_manager = self.epoch_manager.lock();
+		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => client,
+			None => {
+				debug!(target: "engine", "Unable to verify sig: missing client ref.");
+				return Err(EngineError::RequiresClient.into())
+			}
+		};
+
+		if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, header) {
+			debug!(target: "engine", "Unable to zoom to epoch.");
+			return Err(EngineError::RequiresClient.into())
+		}
+
+		Ok(epoch_manager.validators().clone())
+	}
+
 	fn empty_steps(&self, from_step: U256, to_step: U256, parent_hash: H256) -> Vec<EmptyStep> {
 		self.empty_steps.lock().iter().filter(|e| {
 			U256::from(e.step) > from_step &&
@@ -879,29 +899,20 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			return Seal::None;
 		}
 
-		// fetch correct validator set for current epoch, taking into account
-		// finality of previous transitions.
 		let active_set;
-
 		let validators = if self.immediate_transitions {
 			&*self.validators
 		} else {
-			let mut epoch_manager = self.epoch_manager.lock();
-			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-				Some(client) => client,
-				None => {
-					warn!(target: "engine", "Unable to generate seal: missing client ref.");
+			match self.epoch_set(header) {
+				Err(err) => {
+					warn!(target: "engine", "Unable to generate seal: {}", err);
 					return Seal::None;
-				}
-			};
-
-			if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, header) {
-				debug!(target: "engine", "Unable to zoom to epoch.");
-				return Seal::None;
+				},
+				Ok(set) => {
+					active_set = set;
+					&active_set
+				},
 			}
-
-			active_set = epoch_manager.validators().clone();
-			&active_set as &_
 		};
 
 		if is_step_proposer(validators, header.parent_hash(), step, header.author()) {
@@ -1142,29 +1153,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	// Check the validators.
 	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		// fetch correct validator set for current epoch, taking into account
-		// finality of previous transitions.
 		let active_set;
 		let validators = if self.immediate_transitions {
 			&*self.validators
 		} else {
-			// get correct validator set for epoch.
-			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-				Some(client) => client,
-				None => {
-					debug!(target: "engine", "Unable to verify sig: missing client ref.");
-					return Err(EngineError::RequiresClient.into())
-				}
-			};
-
-			let mut epoch_manager = self.epoch_manager.lock();
-			if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, header) {
-				debug!(target: "engine", "Unable to zoom to epoch.");
-				return Err(EngineError::RequiresClient.into())
-			}
-
-			active_set = epoch_manager.validators().clone();
-			&active_set as &_
+			let set = self.epoch_set(header)?;
+			active_set = set;
+			&active_set
 		};
 
 		// verify signature against fixed list, but reports should go to the
