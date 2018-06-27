@@ -234,7 +234,7 @@ pub struct TrieDBIterator<'a, H: Hasher + 'a, C: NodeCodec<H> + 'a> {
 impl<'a, H: Hasher, C: NodeCodec<H>> TrieDBIterator<'a, H, C> {
 	/// Create a new iterator.
 	pub fn new(db: &'a TrieDB<H, C>) -> Result<TrieDBIterator<'a, H, C>, H::Out, C::E> {
-		let mut r = TrieDBIterator { db, trail: vec![], key_nibbles: Vec::new() };
+		let mut r = TrieDBIterator { db, trail: Vec::with_capacity(8), key_nibbles: Vec::with_capacity(64) };
 		db.root_data().and_then(|root| r.descend(&root))?;
 		Ok(r)
 	}
