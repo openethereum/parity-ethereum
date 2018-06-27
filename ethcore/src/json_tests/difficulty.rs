@@ -19,12 +19,16 @@ use header::Header;
 use ethereum_types::U256;
 use spec::Spec;
 
-pub fn json_difficulty_test(json_data: &[u8], spec: Spec) -> Vec<String> {
+use super::HookType;
+
+pub fn json_difficulty_test<H: FnMut(&str, HookType)>(json_data: &[u8], spec: Spec, start_stop_hook: &mut H) -> Vec<String> {
 	::ethcore_logger::init_log();
 	let tests = ethjson::test::DifficultyTest::load(json_data).unwrap();
 	let engine = &spec.engine;
 
 	for (name, test) in tests.into_iter() {
+		start_stop_hook(&name, HookType::OnStart);
+
 		flush!("   - {}...", name);
 		println!("   - {}...", name);
 
@@ -42,15 +46,18 @@ pub fn json_difficulty_test(json_data: &[u8], spec: Spec) -> Vec<String> {
 		let expected_difficulty: U256 = test.current_difficulty.into();
 		assert_eq!(header.difficulty(), &expected_difficulty);
 		flushln!("ok");
+
+		start_stop_hook(&name, HookType::OnStop);
 	}
 	vec![]
 }
 
 mod difficulty_test_byzantium {
 	use super::json_difficulty_test;
+	use json_tests::HookType;
 
-	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_difficulty_test(json_data, ::ethereum::new_byzantium_test())
+	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_difficulty_test(json_data, ::ethereum::new_byzantium_test(), h)
 	}
 
 	declare_test!{DifficultyTests_difficultyByzantium, "BasicTests/difficultyByzantium.json"}
@@ -59,10 +66,11 @@ mod difficulty_test_byzantium {
 mod difficulty_test_foundation {
 	use super::json_difficulty_test;
 	use tempdir::TempDir;
+	use json_tests::HookType;
 
-	fn do_json_test(json_data: &[u8]) -> Vec<String> {
+	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
 		let tempdir = TempDir::new("").unwrap();
-		json_difficulty_test(json_data, ::ethereum::new_foundation(&tempdir.path()))
+		json_difficulty_test(json_data, ::ethereum::new_foundation(&tempdir.path()), h)
 	}
 
 	declare_test!{DifficultyTests_difficultyMainNetwork, "BasicTests/difficultyMainNetwork.json"}

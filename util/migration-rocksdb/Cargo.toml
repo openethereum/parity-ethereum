@@ -8,7 +8,7 @@ log = "0.3"
 macros = { path = "../macros" }
 kvdb = { path = "../kvdb" }
 kvdb-rocksdb = { path = "../kvdb-rocksdb" }
-error-chain = { version = "0.11", default-features = false }
+error-chain = { version = "0.12", default-features = false }
 
 [dev-dependencies]
 tempdir = "0.3"

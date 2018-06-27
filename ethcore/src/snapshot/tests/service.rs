@@ -24,11 +24,10 @@ use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{self, ManifestData, SnapshotService};
 use spec::Spec;
-use test_helpers::generate_dummy_client_with_spec_and_data;
-use test_helpers_internal::restoration_db_handler;
+use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 use io::IoChannel;
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb_rocksdb::DatabaseConfig;
 
 struct NoopDBRestore;
 
@@ -40,6 +39,9 @@ impl snapshot::DatabaseRestore for NoopDBRestore {
 
 #[test]
 fn restored_is_equivalent() {
+	use ::ethcore_logger::init_log;
+	init_log();
+
 	const NUM_BLOCKS: u32 = 400;
 	const TX_PER: usize = 5;
 
@@ -52,13 +54,14 @@ fn restored_is_equivalent() {
 	let path = tempdir.path().join("snapshot");
 
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Database::open(&db_config, client_db.to_str().unwrap()).unwrap();
+	let restoration = restoration_db_handler(db_config);
+	let blockchain_db = restoration.open(&client_db).unwrap();
 
 	let spec = Spec::new_null();
 	let client2 = Client::new(
 		Default::default(),
 		&spec,
-		Arc::new(client_db),
+		blockchain_db,
 		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
@@ -66,7 +69,7 @@ fn restored_is_equivalent() {
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
-		restoration_db_handler: restoration_db_handler(db_config),
+		restoration_db_handler: restoration,
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: path,

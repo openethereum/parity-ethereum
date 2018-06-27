@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 # generate documentation only for partiy and ethcore libraries
 
 cargo doc --no-deps --verbose --all --exclude parity-ipfs-api &&

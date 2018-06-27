@@ -63,6 +63,7 @@ use rpc_apis;
 use secretstore;
 use signer;
 use db;
+use ethkey::Password;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -220,7 +221,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let db = db::open_db(&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
 						 &cmd.compaction,
-						 cmd.wal)?;
+						 cmd.wal).map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
@@ -583,8 +584,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 
-	let client_db = db::open_client_db(&client_path, &client_config)?;
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
+	let client_db = restoration_db_handler.open(&client_path)
+		.map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	// create client service.
 	let service = ClientService::start(
@@ -625,7 +627,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			}
 		};
 
-		let store = ::local_store::create(db, ::ethcore::db::COL_NODE_INFO, node_info);
+		let store = ::local_store::create(db.key_value().clone(), ::ethcore::db::COL_NODE_INFO, node_info);
 
 		if cmd.no_persistent_txqueue {
 			info!("Running without a persistent transaction queue.");
@@ -1001,7 +1003,7 @@ fn print_running_environment(spec_name: &String, dirs: &Directories, db_dirs: &D
 	info!("Path to dapps {}", Colour::White.bold().paint(dapps_conf.dapps_path.to_string_lossy().into_owned()));
 }
 
-fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
+fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[Password]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
 	use ethcore::ethstore::accounts_dir::RootDiskDirectory;
 
@@ -1057,7 +1059,7 @@ fn insert_dev_account(account_provider: &AccountProvider) {
 	let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
 	let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
 	if !account_provider.has_account(dev_account.address()) {
-		match account_provider.insert_account(secret, "") {
+		match account_provider.insert_account(secret, &Password::from(String::new())) {
 			Err(e) => warn!("Unable to add development account: {}", e),
 			Ok(address) => {
 				let _ = account_provider.set_account_name(address.clone(), "Development Account".into());

@@ -5,7 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
-error-chain = { version = "0.11", default-features = false }
+error-chain = { version = "0.12", default-features = false }
 ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }

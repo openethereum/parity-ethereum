@@ -7,6 +7,7 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+blooms-db = { path = "util/blooms-db" }
 log = "0.3"
 env_logger = "0.4"
 rustc-hex = "1.0"
@@ -114,12 +115,9 @@ path = "parity/main.rs"
 name = "parity"
 
 [profile.dev]
-panic = "abort"
 
 [profile.release]
 debug = false
-lto = false
-panic = "abort"
 
 [workspace]
 members = [

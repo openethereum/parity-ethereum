@@ -64,15 +64,6 @@ impl fmt::Display for EvmTestError {
 use ethereum;
 use ethjson::state::test::ForkSpec;
 
-lazy_static! {
-	pub static ref FRONTIER: spec::Spec = ethereum::new_frontier_test();
-	pub static ref HOMESTEAD: spec::Spec = ethereum::new_homestead_test();
-	pub static ref EIP150: spec::Spec = ethereum::new_eip150_test();
-	pub static ref EIP161: spec::Spec = ethereum::new_eip161_test();
-	pub static ref BYZANTIUM: spec::Spec = ethereum::new_byzantium_test();
-	pub static ref BYZANTIUM_TRANSITION: spec::Spec = ethereum::new_transition_test();
-}
-
 /// Simplified, single-block EVM test client.
 pub struct EvmTestClient<'a> {
 	state: state::State<state_db::StateDB>,
@@ -90,14 +81,14 @@ impl<'a> fmt::Debug for EvmTestClient<'a> {
 
 impl<'a> EvmTestClient<'a> {
 	/// Converts a json spec definition into spec.
-	pub fn spec_from_json(spec: &ForkSpec) -> Option<&'static spec::Spec> {
+	pub fn spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
 		match *spec {
-			ForkSpec::Frontier => Some(&*FRONTIER),
-			ForkSpec::Homestead => Some(&*HOMESTEAD),
-			ForkSpec::EIP150 => Some(&*EIP150),
-			ForkSpec::EIP158 => Some(&*EIP161),
-			ForkSpec::Byzantium => Some(&*BYZANTIUM),
-			ForkSpec::EIP158ToByzantiumAt5 => Some(&BYZANTIUM_TRANSITION),
+			ForkSpec::Frontier => Some(ethereum::new_frontier_test()),
+			ForkSpec::Homestead => Some(ethereum::new_homestead_test()),
+			ForkSpec::EIP150 => Some(ethereum::new_eip150_test()),
+			ForkSpec::EIP158 => Some(ethereum::new_eip161_test()),
+			ForkSpec::Byzantium => Some(ethereum::new_byzantium_test()),
+			ForkSpec::EIP158ToByzantiumAt5 => Some(ethereum::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 			_ => None,
 		}

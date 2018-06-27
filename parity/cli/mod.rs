@@ -304,7 +304,7 @@ usage! {
 			"--db-path=[PATH]",
 			"Specify the database directory path",
 
-		["Convenience options"]
+		["Convenience Options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
 			"--unsafe-expose",
 			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ui,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
@@ -317,14 +317,14 @@ usage! {
 			"--ports-shift=[SHIFT]",
 			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (RPC, WebSockets, UI, IPFS, SecretStore).",
 
-		["Account options"]
+		["Account Options"]
 			FLAG flag_no_hardware_wallets: (bool) = false, or |c: &Config| c.account.as_ref()?.disable_hardware.clone(),
 			"--no-hardware-wallets",
 			"Disables hardware wallet support.",
 
 			FLAG flag_fast_unlock: (bool) = false, or |c: &Config| c.account.as_ref()?.fast_unlock.clone(),
 			"--fast-unlock",
-			"Use drasticly faster unlocking mode. This setting causes raw secrets to be stored unprotected in memory, so use with care.",
+			"Use drastically faster unlocking mode. This setting causes raw secrets to be stored unprotected in memory, so use with care.",
 
 			ARG arg_keys_iterations: (u32) = 10240u32, or |c: &Config| c.account.as_ref()?.keys_iterations.clone(),
 			"--keys-iterations=[NUM]",
@@ -342,7 +342,7 @@ usage! {
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
 
-		["Private transactions options"]
+		["Private Transactions Options"]
 			FLAG flag_private_enabled: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.enabled,
 			"--private-tx-enabled",
 			"Enable private transactions.",
@@ -371,12 +371,12 @@ usage! {
 			"--private-passwords=[FILE]...",
 			"Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
 
-		["UI options"]
+		["UI Options"]
 			ARG arg_ui_path: (String) = "$BASE/signer", or |c: &Config| c.ui.as_ref()?.path.clone(),
 			"--ui-path=[PATH]",
 			"Specify directory where Trusted UIs tokens should be stored.",
 
-		["Networking options"]
+		["Networking Options"]
 			FLAG flag_no_warp: (bool) = false, or |c: &Config| c.network.as_ref()?.warp.clone().map(|w| !w),
 			"--no-warp",
 			"Disable syncing from the snapshot over the network.",
@@ -449,7 +449,7 @@ usage! {
 			"--reserved-peers=[FILE]",
 			"Provide a file containing enodes, one per line. These nodes will always have a reserved slot on top of the normal maximum peers.",
 
-		["API and console options – RPC"]
+		["API and Console Options – RPC"]
 			FLAG flag_no_jsonrpc: (bool) = false, or |c: &Config| c.rpc.as_ref()?.disable.clone(),
 			"--no-jsonrpc",
 			"Disable the JSON-RPC API server.",
@@ -482,7 +482,7 @@ usage! {
 			"--jsonrpc-server-threads=[NUM]",
 			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
 
-		["API and console options – WebSockets"]
+		["API and Console Options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| c.websockets.as_ref()?.disable.clone(),
 			"--no-ws",
 			"Disable the WebSockets server.",
@@ -511,7 +511,7 @@ usage! {
 			"--ws-max-connections=[CONN]",
 			"Maximal number of allowed concurrent WS connections.",
 
-		["API and console options – IPC"]
+		["API and Console Options – IPC"]
 			FLAG flag_no_ipc: (bool) = false, or |c: &Config| c.ipc.as_ref()?.disable.clone(),
 			"--no-ipc",
 			"Disable JSON-RPC over IPC service.",
@@ -524,7 +524,7 @@ usage! {
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
-		["API and console options – Dapps"]
+		["API and Console Options – Dapps"]
 			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?.disable.clone(),
 			"--no-dapps",
 			"Disable the Dapps server (e.g. status page).",
@@ -533,7 +533,7 @@ usage! {
 			"--dapps-path=[PATH]",
 			"Specify directory where dapps should be installed.",
 
-		["API and console options – IPFS"]
+		["API and Console Options – IPFS"]
 			FLAG flag_ipfs_api: (bool) = false, or |c: &Config| c.ipfs.as_ref()?.enable.clone(),
 			"--ipfs-api",
 			"Enable IPFS-compatible HTTP API.",
@@ -554,7 +554,7 @@ usage! {
 			"--ipfs-api-cors=[URL]",
 			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
 
-		["Secret store options"]
+		["Secret Store Options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
 			"--no-secretstore",
 			"Disable Secret Store functionality.",
@@ -627,7 +627,7 @@ usage! {
 			"--secretstore-admin=[PUBLIC]",
 			"Hex-encoded public key of secret store administrator.",
 
-		["Sealing/Mining options"]
+		["Sealing/Mining Options"]
 			FLAG flag_force_sealing: (bool) = false, or |c: &Config| c.mining.as_ref()?.force_sealing.clone(),
 			"--force-sealing",
 			"Force the node to author new blocks as if it were always sealing/mining.",
@@ -642,7 +642,7 @@ usage! {
 
 			FLAG flag_tx_queue_no_unfamiliar_locals: (bool) = false, or |c: &Config| c.mining.as_ref()?.tx_queue_no_unfamiliar_locals.clone(),
 			"--tx-queue-no-unfamiliar-locals",
-			"Transactions recieved via local means (RPC, WS, etc) will be treated as external if the sending account is unknown.",
+			"Transactions received via local means (RPC, WS, etc) will be treated as external if the sending account is unknown.",
 
 			FLAG flag_refuse_service_transactions: (bool) = false, or |c: &Config| c.mining.as_ref()?.refuse_service_transactions.clone(),
 			"--refuse-service-transactions",
@@ -773,7 +773,7 @@ usage! {
 			"--can-restart",
 			"Executable will auto-restart if exiting with 69",
 
-		["Miscellaneous options"]
+		["Miscellaneous Options"]
 			FLAG flag_no_color: (bool) = false, or |c: &Config| c.misc.as_ref()?.color.map(|c| !c).clone(),
 			"--no-color",
 			"Don't use terminal color codes in output.",
@@ -798,7 +798,7 @@ usage! {
 			"--log-file=[FILENAME]",
 			"Specify a filename into which logging should be appended.",
 
-		["Footprint options"]
+		["Footprint Options"]
 			FLAG flag_fast_and_loose: (bool) = false, or |c: &Config| c.footprint.as_ref()?.fast_and_loose.clone(),
 			"--fast-and-loose",
 			"Disables DB WAL, which gives a significant speed up but means an unclean exit is unrecoverable.",
@@ -829,7 +829,7 @@ usage! {
 
 			ARG arg_cache_size_blocks: (u32) = 8u32, or |c: &Config| c.footprint.as_ref()?.cache_size_blocks.clone(),
 			"--cache-size-blocks=[MB]",
-			"Specify the prefered size of the blockchain cache in megabytes.",
+			"Specify the preferred size of the blockchain cache in megabytes.",
 
 			ARG arg_cache_size_queue: (u32) = 40u32, or |c: &Config| c.footprint.as_ref()?.cache_size_queue.clone(),
 			"--cache-size-queue=[MB]",
@@ -855,17 +855,17 @@ usage! {
 			"--num-verifiers=[INT]",
 			"Amount of verifier threads to use or to begin with, if verifier auto-scaling is enabled.",
 
-		["Import/export options"]
+		["Import/export Options"]
 			FLAG flag_no_seal_check: (bool) = false, or |_| None,
 			"--no-seal-check",
 			"Skip block seal check.",
 
-		["Snapshot options"]
+		["Snapshot Options"]
 			FLAG flag_no_periodic_snapshot: (bool) = false, or |c: &Config| c.snapshots.as_ref()?.disable_periodic.clone(),
 			"--no-periodic-snapshot",
 			"Disable automated snapshots which usually occur once every 10000 blocks.",
 
-		["Whisper options"]
+		["Whisper Options"]
 			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
 			"--whisper",
 			"Enable the Whisper network.",
@@ -874,7 +874,7 @@ usage! {
 			"--whisper-pool-size=[MB]",
 			"Target size of the whisper message pool in megabytes.",
 
-		["Legacy options"]
+		["Legacy Options"]
 			FLAG flag_warp: (bool) = false, or |_| None,
 			"--warp",
 			"Does nothing; warp sync is enabled by default. Use --no-warp to disable.",
