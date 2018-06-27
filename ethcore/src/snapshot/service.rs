@@ -390,6 +390,11 @@ impl Service {
 			_ => return Ok(count),
 		};
 
+		// Check that the intersection is non-null
+		if start_block_number >= end_block_number {
+			return Ok(count);
+		}
+
 		// Try to include every block that will need to be downloaded from the current chain
 		// Break when no more blocks are available from it.
 		trace!(target: "snapshot", "Trying to import ancient blocks from {} to {}",

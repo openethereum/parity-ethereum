@@ -517,6 +517,7 @@ dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
  "crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 5.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",

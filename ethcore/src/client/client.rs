@@ -61,7 +61,7 @@ use io::{IoChannel, IoError};
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
 use ethcore_miner::pool::VerifiedTransaction;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use snapshot::{self, io as snapshot_io, CustomClient as SnapshotCustomClient};
@@ -992,6 +992,16 @@ impl Client {
 	#[cfg(test)]
 	pub fn miner(&self) -> Arc<Miner> {
 		self.importer.miner.clone()
+	}
+
+	#[cfg(test)]
+	pub fn state_db(&self) -> RwLockReadGuard<StateDB> {
+		self.state_db.read()
+	}
+
+	#[cfg(test)]
+	pub fn chain(&self) -> Arc<BlockChain> {
+		self.chain.read().clone()
 	}
 
 	/// Replace io channel. Useful for testing.

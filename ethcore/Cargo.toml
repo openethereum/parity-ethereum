@@ -72,6 +72,7 @@ journaldb = { path = "../util/journaldb" }
 tempdir = "0.3"
 trie-standardmap = { path = "../util/trie-standardmap" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
+env_logger = "0.4"
 
 [features]
 # Display EVM debug traces.

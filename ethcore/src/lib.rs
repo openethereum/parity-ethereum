@@ -131,6 +131,9 @@ extern crate trace_time;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
+#[cfg(test)]
+extern crate env_logger;
+
 pub extern crate ethstore;
 
 #[macro_use]
