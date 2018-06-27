@@ -80,10 +80,6 @@ pub enum Algorithm {
 	RefCounted,
 }
 
-impl Default for Algorithm {
-	fn default() -> Algorithm { Algorithm::OverlayRecent }
-}
-
 impl str::FromStr for Algorithm {
 	type Err = String;
 

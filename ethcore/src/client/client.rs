@@ -1,5 +1,3 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -87,7 +85,6 @@ pub use verification::queue::QueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
-const MAX_TX_QUEUE_SIZE: usize = 8192;
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
 const MAX_ANCIENT_BLOCKS_TO_IMPORT: usize = 4;
@@ -760,13 +757,12 @@ impl Client {
 			tracedb: tracedb,
 			engine: engine,
 			pruning: config.pruning.clone(),
-			config: config,
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
-			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
+			queue_transactions: IoChannelQueue::new(config.transaction_verification_queue_size),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
 			queued_ancient_blocks: Default::default(),
 			ancient_blocks_import_lock: Default::default(),
@@ -779,6 +775,7 @@ impl Client {
 			registrar_address,
 			exit_handler: Mutex::new(None),
 			importer,
+			config,
 		});
 
 		// prune old states.
