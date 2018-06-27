@@ -38,7 +38,7 @@ where
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out, C::E> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out, C::Error> {
 		Ok(FatDB { raw: TrieDB::new(db, root)? })
 	}
 
@@ -53,17 +53,17 @@ where
 {
 	fn root(&self) -> &H::Out { self.raw.root() }
 
-	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::Error> {
 		self.raw.contains(H::hash(key).as_ref())
 	}
 
-	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::E>
+	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::Error>
 		where 'a: 'key
 	{
 		self.raw.get_with(H::hash(key).as_ref(), query)
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::E>> + 'a>, <H as Hasher>::Out, C::E> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::Error>> + 'a>, <H as Hasher>::Out, C::Error> {
 		FatDBIterator::<H, C>::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
@@ -84,7 +84,7 @@ where
 	C: NodeCodec<H>
 {
 	/// Creates new iterator.
-	pub fn new(trie: &'db TrieDB<H, C>) -> Result<Self, H::Out, C::E> {
+	pub fn new(trie: &'db TrieDB<H, C>) -> Result<Self, H::Out, C::Error> {
 		Ok(FatDBIterator {
 			trie_iterator: TrieDBIterator::new(trie)?,
 			trie: trie,
@@ -97,7 +97,7 @@ where
 	H: Hasher, 
 	C: NodeCodec<H>
 {
-	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out, C::E> {
+	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out, C::Error> {
 		let hashed_key = H::hash(key);
 		self.trie_iterator.seek(hashed_key.as_ref())
 	}
@@ -108,7 +108,7 @@ where
 	H: Hasher, 
 	C: NodeCodec<H>
 {
-	type Item = TrieItem<'db, H::Out, C::E>;
+	type Item = TrieItem<'db, H::Out, C::Error>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		self.trie_iterator.next()

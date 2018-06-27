@@ -157,21 +157,21 @@ pub trait Trie<H: Hasher, C: NodeCodec<H>> {
 	fn is_empty(&self) -> bool { *self.root() == C::HASHED_NULL_NODE }
 
 	/// Does the trie contain a given key?
-	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::Error> {
 		self.get(key).map(|x|x.is_some() )
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::E> where 'a: 'key {
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::Error> where 'a: 'key {
 		self.get_with(key, DBValue::from_slice)
 	}
 
 	/// Search for the key with the given query parameter. See the docs of the `Query`
 	/// trait for more details.
-	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::E> where 'a: 'key;
+	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::Error> where 'a: 'key;
 
 	/// Returns a depth-first iterator over the elements of trie.
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::E >> + 'a>, H::Out, C::E>;
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::Error >> + 'a>, H::Out, C::Error>;
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
@@ -183,26 +183,26 @@ pub trait TrieMut<H: Hasher, C: NodeCodec<H>> {
 	fn is_empty(&self) -> bool;
 
 	/// Does the trie contain a given key?
-	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::Error> {
 		self.get(key).map(|x| x.is_some())
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::E> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::Error> where 'a: 'key;
 
 	/// Insert a `key`/`value` pair into the trie. An empty value is equivalent to removing
 	/// `key` from the trie. Returns the old value associated with this key, if it existed.
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, H::Out, C::E>;
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, H::Out, C::Error>;
 
 	/// Remove a `key` from the trie. Equivalent to making it equal to the empty
 	/// value. Returns the old value associated with this key, if it existed.
-	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, H::Out, C::E>;
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, H::Out, C::Error>;
 }
 
 /// A trie iterator that also supports random access (`seek()`).
 pub trait TrieIterator<H: Hasher, C: NodeCodec<H>>: Iterator {
 	/// Position the iterator on the first element with key > `key`
-	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out, <C as NodeCodec<H>>::E>;
+	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out, <C as NodeCodec<H>>::Error>;
 }
 
 /// Trie types
@@ -261,17 +261,17 @@ impl<'db, H: Hasher, C: NodeCodec<H>> Trie<H, C> for TrieKinds<'db, H, C> {
 		wrapper!(self, is_empty,)
 	}
 
-	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::Error> {
 		wrapper!(self, contains, key)
 	}
 
-	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::E>
+	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::Error>
 		where 'a: 'key
 	{
 		wrapper!(self, get_with, key, query)
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::E>> + 'a>, H::Out, C::E> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::Error>> + 'a>, H::Out, C::Error> {
 		wrapper!(self, iter,)
 	}
 }
@@ -287,7 +287,7 @@ where
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn readonly(&self, db: &'db HashDB<H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out, <C as NodeCodec<H>>::E> {
+	pub fn readonly(&self, db: &'db HashDB<H>, root: &'db H::Out) -> Result<TrieKinds<'db, H, C>, H::Out, <C as NodeCodec<H>>::Error> {
 		match self.spec {
 			TrieSpec::Generic => Ok(TrieKinds::Generic(TrieDB::new(db, root)?)),
 			TrieSpec::Secure => Ok(TrieKinds::Secure(SecTrieDB::new(db, root)?)),
@@ -305,7 +305,7 @@ where
 	}
 
 	/// Create new mutable instance of trie and check for errors.
-	pub fn from_existing(&self, db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H,C> + 'db>, H::Out, <C as NodeCodec<H>>::E> {
+	pub fn from_existing(&self, db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Box<TrieMut<H,C> + 'db>, H::Out, <C as NodeCodec<H>>::Error> {
 		match self.spec {
 			TrieSpec::Generic => Ok(Box::new(TrieDBMut::<_, C>::from_existing(db, root)?)),
 			TrieSpec::Secure => Ok(Box::new(SecTrieDBMut::<_, C>::from_existing(db, root)?)),

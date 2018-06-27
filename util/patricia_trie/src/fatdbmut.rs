@@ -45,7 +45,7 @@ where
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Self, H::Out, C::E> {
+	pub fn from_existing(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Self, H::Out, C::Error> {
 		Ok(FatDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
@@ -69,17 +69,17 @@ where
 
 	fn is_empty(&self) -> bool { self.raw.is_empty() }
 
-	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::Error> {
 		self.raw.contains(H::hash(key).as_ref())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::E>
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::Error>
 		where 'a: 'key
 	{
 		self.raw.get(H::hash(key).as_ref())
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, H::Out, C::E> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, H::Out, C::Error> {
 		let hash = H::hash(key);
 		let out = self.raw.insert(hash.as_ref(), value)?;
 		let db = self.raw.db_mut();
@@ -92,7 +92,7 @@ where
 		Ok(out)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, H::Out, C::E> {
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, H::Out, C::Error> {
 		let hash = H::hash(key);
 		let out = self.raw.remove(hash.as_ref())?;
 

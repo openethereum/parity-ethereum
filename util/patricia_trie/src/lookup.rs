@@ -42,7 +42,7 @@ where
 {
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
-	pub fn look_up(mut self, mut key: NibbleSlice) -> Result<Option<Q::Item>, H::Out, C::E> {
+	pub fn look_up(mut self, mut key: NibbleSlice) -> Result<Option<Q::Item>, H::Out, C::Error> {
 		let mut hash = self.hash;
 
 		// this loop iterates through non-inline nodes.

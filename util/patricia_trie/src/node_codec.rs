@@ -27,7 +27,7 @@ use elastic_array::{ElasticArray1024, ElasticArray128};
 /// Trait for trie node encoding/decoding
 pub trait NodeCodec<H: Hasher>: Sized {
 	/// Encoding error type
-	type E: ::std::error::Error;
+	type Error: ::std::error::Error;
 
 	/// Null node type
 	const HASHED_NULL_NODE: H::Out;
@@ -36,7 +36,7 @@ pub trait NodeCodec<H: Hasher>: Sized {
 	fn encode(&Node) -> Bytes;
 
 	/// Decode bytes to a `Node`. Returns `Self::E` on failure.
-	fn decode(data: &[u8]) -> Result<Node, Self::E>;
+	fn decode(data: &[u8]) -> Result<Node, Self::Error>;
 
 	/// Decode bytes to the `Hasher`s output type.  Returns `None` on failure.
 	fn try_decode_hash(data: &[u8]) -> Option<H::Out>;

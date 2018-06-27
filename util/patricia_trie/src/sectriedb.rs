@@ -40,7 +40,7 @@ where
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	/// Returns an error if root does not exist.
-	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out, C::E> {
+	pub fn new(db: &'db HashDB<H>, root: &'db H::Out) -> Result<Self, H::Out, C::Error> {
 		Ok(SecTrieDB { raw: TrieDB::new(db, root)? })
 	}
 
@@ -62,17 +62,17 @@ where
 {
 	fn root(&self) -> &H::Out { self.raw.root() }
 
-	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::E> {
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::Error> {
 		self.raw.contains(H::hash(key).as_ref())
 	}
 
-	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::E>
+	fn get_with<'a, 'key, Q: Query<H>>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>, H::Out, C::Error>
 		where 'a: 'key
 	{
 		self.raw.get_with(H::hash(key).as_ref(), query)
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::E>> + 'a>, H::Out, C::E> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<H, C, Item = TrieItem<H::Out, C::Error>> + 'a>, H::Out, C::Error> {
 		TrieDB::iter(&self.raw)
 	}
 }
