@@ -30,6 +30,8 @@ parts:
   parity:
     source: .
     plugin: rust
+  # rust-channel: stable  # @TODO enable after https://bugs.launchpad.net/snapcraft/+bug/1778530
+    rust-revision: 1.26.2 # @TODO remove after https://bugs.launchpad.net/snapcraft/+bug/1778530
     build-attributes: [no-system-libraries]
     build-packages: [g++, libudev-dev, libssl-dev, make, pkg-config]
     stage-packages: [libc6, libssl1.0.0, libudev1, libstdc++6]

@@ -64,6 +64,12 @@ rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
+hardware-wallet = { path = "../hw" }
+
+[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
+fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
+
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-network = { path = "../util/network" }

@@ -118,7 +118,7 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 	type Output = ();
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
-		let info = ::evm::INSTRUCTIONS[instruction as usize];
+		let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
 		self.instruction = instruction;
 		let storage = self.storage();
 		let stack = self.stack();
@@ -128,7 +128,7 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
 			pc = pc,
 			op = instruction,
-			name = info.name,
+			name = info.map(|i| i.name).unwrap_or(""),
 			gas = current_gas,
 			stack = stack,
 			storage = storage,
@@ -142,10 +142,11 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 	}
 
 	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
-		let info = ::evm::INSTRUCTIONS[self.instruction as usize];
+		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
 
 		let len = self.stack.len();
-		self.stack.truncate(if len > info.args { len - info.args } else { 0 });
+		let info_args = info.map(|i| i.args).unwrap_or(0);
+		self.stack.truncate(if len > info_args { len - info_args } else { 0 });
 		self.stack.extend_from_slice(stack_push);
 
 		if let Some((pos, val)) = store_diff {

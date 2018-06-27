@@ -121,13 +121,13 @@ impl trace::VMTracer for Informant {
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
-		let info = ::evm::INSTRUCTIONS[self.instruction as usize];
+		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
 
 		let trace = format!(
 			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"gasCost\":\"0x{gas_cost:x}\",\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
 			pc = self.pc,
 			op = self.instruction,
-			name = info.name,
+			name = info.map(|i| i.name).unwrap_or(""),
 			gas = gas_used.saturating_add(self.gas_cost),
 			gas_cost = self.gas_cost,
 			memory = self.memory(),
@@ -141,7 +141,8 @@ impl trace::VMTracer for Informant {
 		self.gas_used = gas_used;
 
 		let len = self.stack.len();
-		self.stack.truncate(if len > info.args { len - info.args } else { 0 });
+		let info_args = info.map(|i| i.args).unwrap_or(0);
+		self.stack.truncate(if len > info_args { len - info_args } else { 0 });
 		self.stack.extend_from_slice(stack_push);
 
 		// TODO [ToDr] Align memory?
