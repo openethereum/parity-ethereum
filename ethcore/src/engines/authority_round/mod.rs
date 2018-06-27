@@ -657,7 +657,7 @@ impl AuthorityRound {
 
 	// fetch correct validator set for epoch at header, taking into account
 	// finality of previous transitions.
-	fn epoch_set(&self, header: &Header) -> Result<SimpleList, Error> {
+	fn epoch_set(&self, header: &Header) -> Result<(SimpleList, BlockNumber), Error> {
 		let mut epoch_manager = self.epoch_manager.lock();
 		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
 			Some(client) => client,
@@ -672,7 +672,7 @@ impl AuthorityRound {
 			return Err(EngineError::RequiresClient.into())
 		}
 
-		Ok(epoch_manager.validators().clone())
+		Ok((epoch_manager.validators().clone(), epoch_manager.epoch_transition_number))
 	}
 
 	fn empty_steps(&self, from_step: U256, to_step: U256, parent_hash: H256) -> Vec<EmptyStep> {
@@ -907,7 +907,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					warn!(target: "engine", "Unable to generate seal: {}", err);
 					return Seal::None;
 				},
-				Ok(set) => {
+				Ok((set, _)) => {
 					active_set = set;
 					&active_set
 				},
@@ -1070,12 +1070,9 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			)));
 		}
 
-		// TODO [ToDr] Should this go from epoch manager?
-		// If yes then probably benign reporting needs to be moved further in the verification.
-		let set_number = header.number();
-
 		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
 			Err(BlockError::InvalidSeal) => {
+				let (_, set_number) = self.epoch_set(header)?;
 				self.validators.report_benign(header.author(), set_number, header.number());
 				Err(BlockError::InvalidSeal.into())
 			}
@@ -1088,8 +1085,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		let step = header_step(header, self.empty_steps_transition)?;
 		let parent_step = header_step(parent, self.empty_steps_transition)?;
-		// TODO [ToDr] Should this go from epoch manager?
-		let set_number = header.number();
+
+		let (_, set_number) = self.epoch_set(header)?;
 
 		// Ensure header is from the step after parent.
 		if step == parent_step
@@ -1153,12 +1150,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	// Check the validators.
 	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
 		let active_set;
-		let validators = if self.immediate_transitions {
-			&*self.validators
+		let (validators, set_number) = if self.immediate_transitions {
+			(&*self.validators, header.number())
 		} else {
-			let set = self.epoch_set(header)?;
+			let (set, set_number) = self.epoch_set(header)?;
 			active_set = set;
-			&active_set
+			(&active_set as &_, set_number)
 		};
 
 		// verify signature against fixed list, but reports should go to the
@@ -1166,7 +1163,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let res = verify_external(header, validators, self.empty_steps_transition);
 		match res {
 			Err(Error(ErrorKind::Engine(EngineError::NotProposer(_)), _)) => {
-				self.validators.report_benign(header.author(), header.number(), header.number());
+				self.validators.report_benign(header.author(), set_number, header.number());
 			},
 			Ok(_) => {
 				// we can drop all accumulated empty step messages that are older than this header's step
