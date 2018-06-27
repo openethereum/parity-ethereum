@@ -1086,7 +1086,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let step = header_step(header, self.empty_steps_transition)?;
 		let parent_step = header_step(parent, self.empty_steps_transition)?;
 
-		let (_, set_number) = self.epoch_set(header)?;
+		let (validators, set_number) = self.epoch_set(header)?;
 
 		// Ensure header is from the step after parent.
 		if step == parent_step
@@ -1113,7 +1113,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 							format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
 					}
 
-					if !empty_step.verify(&*self.validators).unwrap_or(false) {
+					if !empty_step.verify(&validators).unwrap_or(false) {
 						Err(EngineError::InsufficientProof(
 							format!("invalid empty step proof: {:?}", empty_step)))?;
 					}
@@ -1133,7 +1133,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					   header.author(), step, parent_step);
 				let mut reported = HashSet::new();
 				for s in parent_step + 1..step {
-					let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
+					let skipped_primary = step_proposer(&validators, &parent.hash(), s);
 					// Do not report this signer.
 					if skipped_primary != me {
 						// Stop reporting once validators start repeating.
