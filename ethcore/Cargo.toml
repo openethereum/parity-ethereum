@@ -77,6 +77,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
 trie-standardmap = { path = "../util/trie-standardmap" }
+tempdir = "0.3"
 
 [features]
 # Display EVM debug traces.
