@@ -138,12 +138,20 @@ impl CachedPending {
 	}
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct RecentlyRejected {
 	inner: RwLock<HashMap<H256, transaction::Error>>,
+	limit: usize,
 }
 
 impl RecentlyRejected {
+	fn new(limit: usize) -> Self {
+		RecentlyRejected {
+			limit,
+			inner: Default::default(),
+		}
+	}
+
 	fn clear(&self) {
 		self.inner.write().clear();
 	}
@@ -152,28 +160,27 @@ impl RecentlyRejected {
 		self.inner.read().get(hash).cloned()
 	}
 
-	fn insert<T>(&self, hash: H256, result: &Result<T, transaction::Error>) {
-		let err = match result {
-			Ok(_) => return,
-			Err(e) => e.clone(),
-		};
-
+	fn insert(&self, hash: H256, err: &transaction::Error) {
 		if self.inner.read().contains_key(&hash) {
 			return;
 		}
 
 		let mut inner = self.inner.write();
-		inner.insert(hash, err);
+		inner.insert(hash, err.clone());
 
 		// clean up
-		if inner.len() > 4096 {
-			let to_remove: Vec<_> = inner.keys().take(2048).cloned().collect();
+		if inner.len() > self.limit {
+			// randomly remove half of the entries
+			let to_remove: Vec<_> = inner.keys().take(self.limit / 2).cloned().collect();
 			for key in to_remove {
 				inner.remove(&key);
 			}
 		}
 	}
 }
+
+/// Minimal size of rejection cache, by default it's equal to queue size.
+const MIN_REJECTED_CACHE_SIZE: usize = 2048;
 
 /// Ethereum Transaction Queue
 ///
@@ -197,12 +204,13 @@ impl TransactionQueue {
 		verification_options: verifier::Options,
 		strategy: PrioritizationStrategy,
 	) -> Self {
+		let max_count = limits.max_count;
 		TransactionQueue {
 			insertion_id: Default::default(),
 			pool: RwLock::new(txpool::Pool::new(Default::default(), scoring::NonceAndGasPrice(strategy), limits)),
 			options: RwLock::new(verification_options),
 			cached_pending: RwLock::new(CachedPending::none()),
-			recently_rejected: RecentlyRejected::default(),
+			recently_rejected: RecentlyRejected::new(cmp::max(MIN_REJECTED_CACHE_SIZE, max_count)),
 		}
 	}
 
@@ -235,27 +243,29 @@ impl TransactionQueue {
 			.into_iter()
 			.map(|transaction| {
 				let hash = transaction.hash();
-				if let Some(err) = self.recently_rejected.get(&hash) {
-					warn!(target: "txpool", "[{:?}] Rejecting recently rejected: {:?}", hash, err);
-					return (Err(err), hash);
-				}
 
 				if self.pool.read().find(&hash).is_some() {
-					return (Err(transaction::Error::AlreadyImported), hash)
+					return Err(transaction::Error::AlreadyImported);
 				}
 
-				(verifier.verify_transaction(transaction), hash)
-			})
-			.map(|(result, hash)| (result.and_then(|verified| {
-				self.pool.write().import(verified)
-					.map(|_imported| ())
-					.map_err(convert_error)
-			}), hash))
-			.map(|(result, hash)| {
-				if result.is_err() {
-					self.recently_rejected.insert(hash, &result);
+				if let Some(err) = self.recently_rejected.get(&hash) {
+					warn!(target: "txpool", "[{:?}] Rejecting recently rejected: {:?}", hash, err);
+					return Err(err);
 				}
-				result
+
+				let imported = verifier
+					.verify_transaction(transaction)
+					.and_then(|verified| {
+						self.pool.write().import(verified).map_err(convert_error)
+					});
+
+				match imported {
+					Ok(_) => Ok(()),
+					Err(err) => {
+						self.recently_rejected.insert(hash, &err);
+						Err(err)
+					},
+				}
 			})
 			.collect::<Vec<_>>();
 
