@@ -783,6 +783,7 @@ dependencies = [
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.1.0",
  "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
