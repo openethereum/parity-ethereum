@@ -39,7 +39,7 @@ struct StorageHandle(usize);
 
 // Handles to nodes in the trie.
 #[derive(Debug)]
-enum NodeHandle<H: Hasher> { 
+enum NodeHandle<H: Hasher> {
 	/// Loaded into memory.
 	InMemory(StorageHandle),
 	/// Either a hash or an inline node
@@ -858,7 +858,7 @@ where
 					Stored::Cached(_, hash) => ChildReference::Hash(hash),
 					Stored::New(node) => {
 						let encoded = node.into_encoded::<_, C>(|node_handle| self.commit_child(node_handle) );
-						if encoded.len() >= 32 { // TODO: this should use the `Hasher::LENGTH` const
+						if encoded.len() >= H::LENGTH {
 							let hash = self.db.insert(&encoded[..]);
 							self.hash_count +=1;
 							ChildReference::Hash(hash)

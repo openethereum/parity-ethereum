@@ -15,13 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Generic trait for trie node encoding/decoding. Takes a `hashdb::Hasher` 
-//! to parametrize the hashes used in the codec; takes a `stream_encoder::Stream` 
-//! implementation to do streaming encoding.
+//! to parametrize the hashes used in the codec.
 
 use bytes::Bytes;
 use hashdb::Hasher;
 use node::Node;
-use stream_encoder::Stream;
 use ChildReference;
 
 use elastic_array::{ElasticArray1024, ElasticArray128};
@@ -30,9 +28,6 @@ use elastic_array::{ElasticArray1024, ElasticArray128};
 pub trait NodeCodec<H: Hasher>: Sized {
 	/// Encoding error type
 	type E: ::std::error::Error;
-
-	/// Encoded stream type
-	type S: Stream;
 
 	/// Null node type
 	const HASHED_NULL_NODE: H::Out;
