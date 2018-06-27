@@ -400,10 +400,9 @@ impl<T, S, L> Pool<T, S, L> where
 	/// there is still plenty of room in the pool. Otherwise we return
 	/// `Some` with the score of the worst transaction.
 	pub fn minimal_entry_score(&self) -> Option<S::Score> {
-		let threshold = |x: usize| x * 9 / 10;
 		let is_full = {
-			self.by_hash.len() > threshold(self.options.max_count)
-			|| self.mem_usage > threshold(self.options.max_mem_usage)
+			self.by_hash.len() >= self.options.max_count
+			|| self.mem_usage >= self.options.max_mem_usage
 		};
 
 		if !is_full {
