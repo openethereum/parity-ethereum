@@ -257,7 +257,6 @@ dependencies = [
  "rlp 0.2.1",
  "rlp_derive 0.1.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "stream-encoder 0.1.0",
 ]
 
 [[package]]
@@ -570,7 +569,6 @@ dependencies = [
  "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
  "stats 0.1.0",
  "stop-guard 0.1.0",
- "stream-encoder 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.0",
  "trie-standardmap 0.1.0",
@@ -657,7 +655,6 @@ dependencies = [
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
- "stream-encoder 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash 0.1.0",
  "vm 0.1.0",
@@ -755,7 +752,6 @@ dependencies = [
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
- "stream-encoder 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -901,7 +897,6 @@ dependencies = [
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "stream-encoder 0.1.0",
  "trace-time 0.1.0",
  "triehash 0.1.0",
 ]
@@ -918,7 +913,6 @@ dependencies = [
  "keccak-hash 0.1.2",
  "rlp 0.2.1",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "stream-encoder 0.1.0",
  "unexpected 0.1.0",
 ]
 
@@ -2287,7 +2281,6 @@ dependencies = [
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
- "stream-encoder 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2362,7 +2355,6 @@ dependencies = [
  "ethcore-bytes 0.1.0",
  "rlp 0.2.1",
  "rustc_version 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "stream-encoder 0.1.0",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "vergen 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2403,7 +2395,6 @@ dependencies = [
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "stream-encoder 0.1.0",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2450,7 +2441,6 @@ name = "patricia-trie"
 version = "0.2.0"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bytes 0.1.0",
  "ethcore-logger 1.12.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2462,7 +2452,6 @@ dependencies = [
  "patricia-trie-ethereum 0.1.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
- "stream-encoder 0.1.0",
  "trie-standardmap 0.1.0",
  "triehash 0.1.0",
 ]
@@ -2471,13 +2460,15 @@ dependencies = [
 name = "patricia-trie-ethereum"
 version = "0.1.0"
 dependencies = [
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bytes 0.1.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.2.0",
  "keccak-hasher 0.1.0",
+ "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.2.0",
  "rlp 0.2.1",
- "stream-encoder 0.1.0",
 ]
 
 [[package]]
@@ -2809,7 +2800,6 @@ dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "stream-encoder 0.1.0",
 ]
 
 [[package]]
@@ -2819,7 +2809,6 @@ dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
- "stream-encoder 0.1.0",
 ]
 
 [[package]]
@@ -3112,13 +3101,6 @@ dependencies = [
 [[package]]
 name = "stop-guard"
 version = "0.1.0"
-
-[[package]]
-name = "stream-encoder"
-version = "0.1.0"
-dependencies = [
- "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "strsim"
@@ -3555,7 +3537,6 @@ dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2",
  "rlp 0.2.1",
- "stream-encoder 0.1.0",
  "trie-standardmap 0.1.0",
 ]
 
@@ -3707,7 +3688,6 @@ dependencies = [
  "patricia-trie 0.2.0",
  "patricia-trie-ethereum 0.1.0",
  "rlp 0.2.1",
- "stream-encoder 0.1.0",
 ]
 
 [[package]]

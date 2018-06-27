@@ -12,7 +12,6 @@ rand = "0.4"
 ethcore-bytes = { version = "0.1.0", path = "../bytes" }
 hashdb = { version = "0.2", path = "../hashdb" }
 ethcore-logger = { version = "1.9.0", path = "../../logger" }
-stream-encoder = { path = "../stream-encoder" }
 
 [dev-dependencies]
 triehash = { version = "0.1.0", path = "../triehash" }
@@ -23,4 +22,3 @@ keccak-hasher = { path = "../keccak-hasher" }
 rlp = { version = "0.2.1", path = "../rlp" }
 trie-standardmap = { path = "../trie-standardmap" }
 patricia-trie-ethereum = { path = "../patricia-trie-ethereum" }
-env_logger = "*" # TODO: remove

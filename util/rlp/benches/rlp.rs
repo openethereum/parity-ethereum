@@ -16,12 +16,10 @@
 
 extern crate ethereum_types;
 extern crate rlp;
-extern crate stream_encoder;
 extern crate test;
 
 use ethereum_types::U256;
 use rlp::{RlpStream, Rlp};
-use stream_encoder::Stream;
 use test::Bencher;
 
 #[bench]

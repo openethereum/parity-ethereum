@@ -33,7 +33,7 @@ use trace::{VMTracer, NoopVMTracer};
 use bytes::{Bytes, BytesRef};
 use ethtrie;
 use rlp::RlpStream;
-use stream_encoder::Stream;
+
 use hash::keccak;
 use machine::EthereumMachine as Machine;
 

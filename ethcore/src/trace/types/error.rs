@@ -138,7 +138,7 @@ impl Decodable for Error {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
-	use stream_encoder::Stream;
+	
 	use super::Error;
 
 	#[test]

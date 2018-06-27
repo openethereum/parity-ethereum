@@ -20,7 +20,6 @@ extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
 extern crate hashdb;
 extern crate rand;
-extern crate stream_encoder;
 
 #[macro_use]
 extern crate log;
@@ -64,7 +63,7 @@ mod nibbleslice;
 mod node_codec;
 
 pub use self::triedb::{TrieDB, TrieDBIterator};
-pub use self::triedbmut::TrieDBMut;
+pub use self::triedbmut::{TrieDBMut, ChildReference};
 pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
 pub use self::fatdb::{FatDB, FatDBIterator};

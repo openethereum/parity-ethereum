@@ -21,7 +21,7 @@ use std::time::{self, SystemTime, Duration, Instant};
 
 use ethereum_types::{H256, H512};
 use rlp::{self, DecoderError, RlpStream, Rlp};
-use stream_encoder::Stream;
+
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
 

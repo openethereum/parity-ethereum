@@ -22,7 +22,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
-use stream_encoder::Stream;
+
 
 pub use types::BlockNumber;
 

@@ -10,7 +10,6 @@ use std::borrow::Borrow;
 use byteorder::{ByteOrder, BigEndian};
 use elastic_array::{ElasticArray16, ElasticArray1024};
 use traits::Encodable;
-use stream_encoder::Stream;
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {
@@ -42,9 +41,9 @@ impl Default for RlpStream {
 	}
 }
 
-impl Stream for RlpStream {
+impl RlpStream {
 	/// Initializes instance of empty `Stream`.
-	fn new() -> Self {
+	pub fn new() -> Self {
 		RlpStream {
 			unfinished_lists: ElasticArray16::new(),
 			buffer: ElasticArray1024::new(),
@@ -53,7 +52,7 @@ impl Stream for RlpStream {
 	}
 
 	/// Initializes the `Stream` as a list.
-	fn new_list(len: usize) -> Self {
+	pub fn new_list(len: usize) -> Self {
 		let mut stream = RlpStream::new();
 		stream.begin_list(len);
 		stream
@@ -63,9 +62,7 @@ impl Stream for RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use stream_encoder::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -74,7 +71,7 @@ impl Stream for RlpStream {
 	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
 	/// }
 	/// ```
-	fn append_empty_data(&mut self) -> &mut Self {
+	pub fn append_empty_data(&mut self) -> &mut Self {
 		// self push raw item
 		self.buffer.push(0x80);
 
@@ -86,7 +83,7 @@ impl Stream for RlpStream {
 	}
 
 	/// Drain the object and return the underlying ElasticArray. Panics if it is not finished.
-	fn drain(self) -> ElasticArray1024<u8> {
+	pub fn drain(self) -> ElasticArray1024<u8> {
 		match self.is_finished() {
 			true => self.buffer,
 			false => panic!()
@@ -94,14 +91,14 @@ impl Stream for RlpStream {
 	}
 
 	/// Append bytes to the end of stream as a single item, chainable.
-	fn append_bytes<'a>(&'a mut self, bytes: &[u8]) -> &'a mut Self {
+	pub fn append_bytes<'a>(&'a mut self, bytes: &[u8]) -> &'a mut Self {
 		self.encoder().encode_value(bytes);
 		self.note_appended(1);
 		self
 	}
 
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
-	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self {
+	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self {
 		// push raw items
 		self.buffer.append_slice(bytes);
 
@@ -110,17 +107,13 @@ impl Stream for RlpStream {
 
 		// return chainable self
 		self
-	}	
-}
+	}
 
-impl RlpStream {
 	/// Appends value to the end of stream, chainable.
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use stream_encoder::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -158,9 +151,7 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use stream_encoder::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -238,9 +229,7 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use stream_encoder::Stream;
 	/// 
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(3);
@@ -262,9 +251,7 @@ impl RlpStream {
 	///
 	/// ```rust
 	/// extern crate rlp;
-	/// extern crate stream_encoder;
 	/// use rlp::*;
-	/// use stream_encoder::Stream;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);

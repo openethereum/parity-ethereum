@@ -40,7 +40,7 @@ use state::*;
 use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
-use stream_encoder::Stream;
+
 use blooms_db;
 use kvdb::KeyValueDB;
 use kvdb_rocksdb;

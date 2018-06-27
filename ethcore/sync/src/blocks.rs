@@ -23,7 +23,7 @@ use ethereum_types::H256;
 use triehash::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
-use stream_encoder::Stream;
+
 use network;
 use ethcore::encoded::Block;
 use ethcore::views::{HeaderView, BodyView};
