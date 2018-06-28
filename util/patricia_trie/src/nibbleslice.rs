@@ -156,7 +156,7 @@ impl<'a> NibbleSlice<'a> {
 	}
 
 	/// Encode while nibble slice in prefixed hex notation, noting whether it `is_leaf`.
-	#[inline(always)]
+	#[inline]
 	pub fn encoded(&self, is_leaf: bool) -> ElasticArray36<u8> {
 		let l = self.len();
 		let mut r = ElasticArray36::new();
