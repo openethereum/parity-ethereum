@@ -113,7 +113,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 		current_mem_size: usize,
 	) -> vm::Result<InstructionRequirements<Gas>> {
 		let schedule = ext.schedule();
-		let tier = instructions::get_tier_idx(info.tier);
+		let tier = info.tier.idx();
 		let default_gas = Gas::from(schedule.tier_step_gas[tier]);
 
 		let cost = match instruction {
@@ -179,8 +179,8 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			instructions::EXTCODECOPY => {
 				Request::GasMemCopy(schedule.extcodecopy_base_gas.into(), mem_needed(stack.peek(1), stack.peek(3))?, Gas::from_u256(*stack.peek(3))?)
 			},
-			instructions::LOG0...instructions::LOG4 => {
-				let no_of_topics = instructions::get_log_topics(instruction);
+			instructions::LOG0 | instructions::LOG1 | instructions::LOG2 | instructions::LOG3 | instructions::LOG4 => {
+				let no_of_topics = instruction.log_topics().expect("log_topics always return some for LOG* instructions; qed");
 				let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
 
 				let data_gas = overflowing!(Gas::from_u256(*stack.peek(1))?.overflow_mul(Gas::from(schedule.log_data_gas)));

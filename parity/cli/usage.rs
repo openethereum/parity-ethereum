@@ -443,73 +443,71 @@ macro_rules! usage {
 				// Arguments and flags
 				let args_wrapper = Wrapper::new(term_width).initial_indent(TAB_TAB).subsequent_indent(TAB_TAB);
 				$(
-					help.push_str($group_name); help.push_str(":\n");
-
-					$(
-						help.push_str(&format!("{}{}\n{}\n",
-							TAB, $flag_usage,
-							args_wrapper.fill($flag_help)
-						));
-						help.push_str("\n");
-					)*
-
-					$(
-						if_option!(
-							$($arg_type_tt)+,
-							THEN {
-								if_option_vec!(
-									$($arg_type_tt)+,
-									THEN {
-										help.push_str(&format!("{}{}\n{}\n",
-											TAB, $arg_usage,
-											args_wrapper.fill(format!(
-												"{} (default: {:?})",
-												$arg_help,
-												{let x : inner_option_type!($($arg_type_tt)+)> = $arg_default; x}
-											).as_ref())
-										))
-									}
-									ELSE {
-										help.push_str(&format!("{}{}\n{}\n",
-											TAB, $arg_usage,
-											args_wrapper.fill(format!(
-												"{}{}",
-												$arg_help,
-												$arg_default.map(|x: inner_option_type!($($arg_type_tt)+)| format!(" (default: {})",x)).unwrap_or("".to_owned())
-											).as_ref())
-										))
-									}
-								)
-							}
-							ELSE {
-								if_vec!(
-									$($arg_type_tt)+,
-									THEN {
-										help.push_str(&format!("{}{}\n{}\n", TAB, $arg_usage,
-											args_wrapper.fill(format!(
-												"{} (default: {:?})",
-												$arg_help,
-												{let x : $($arg_type_tt)+ = $arg_default; x}
-											).as_ref())
-										))
-									}
-									ELSE {
-										help.push_str(&format!("{}{}\n{}\n", TAB, $arg_usage,
-											args_wrapper.fill(format!(
-												"{} (default: {})",
-												$arg_help,
-												$arg_default
-											).as_ref())
-										))
-									}
-								)
-							}
-						);
-						help.push_str("\n");
-					)*
-
+					if $group_name != "Legacy Options" {
+						help.push_str($group_name); help.push_str(":\n");
+						$(
+							help.push_str(&format!("{}{}\n{}\n",
+								TAB, $flag_usage,
+								args_wrapper.fill($flag_help)
+							));
+							help.push_str("\n");
+						)*
+						$(
+							if_option!(
+								$($arg_type_tt)+,
+								THEN {
+									if_option_vec!(
+										$($arg_type_tt)+,
+										THEN {
+											help.push_str(&format!("{}{}\n{}\n",
+												TAB, $arg_usage,
+												args_wrapper.fill(format!(
+													"{} (default: {:?})",
+													$arg_help,
+													{let x : inner_option_type!($($arg_type_tt)+)> = $arg_default; x}
+												).as_ref())
+											))
+										}
+										ELSE {
+											help.push_str(&format!("{}{}\n{}\n",
+												TAB, $arg_usage,
+												args_wrapper.fill(format!(
+													"{}{}",
+													$arg_help,
+													$arg_default.map(|x: inner_option_type!($($arg_type_tt)+)| format!(" (default: {})",x)).unwrap_or("".to_owned())
+												).as_ref())
+											))
+										}
+									)
+								}
+								ELSE {
+									if_vec!(
+										$($arg_type_tt)+,
+										THEN {
+											help.push_str(&format!("{}{}\n{}\n", TAB, $arg_usage,
+												args_wrapper.fill(format!(
+													"{} (default: {:?})",
+													$arg_help,
+													{let x : $($arg_type_tt)+ = $arg_default; x}
+												).as_ref())
+											))
+										}
+										ELSE {
+											help.push_str(&format!("{}{}\n{}\n", TAB, $arg_usage,
+												args_wrapper.fill(format!(
+													"{} (default: {})",
+													$arg_help,
+													$arg_default
+												).as_ref())
+											))
+										}
+									)
+								}
+							);
+							help.push_str("\n");
+						)*
+					}
 				)*
-
 				help
 			}
 		}

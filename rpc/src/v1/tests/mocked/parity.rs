@@ -122,7 +122,7 @@ fn rpc_parity_accounts_info() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	deps.accounts.new_account("").unwrap();
+	deps.accounts.new_account(&"".into()).unwrap();
 	let accounts = deps.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
@@ -155,7 +155,7 @@ fn rpc_parity_default_account() {
 	assert_eq!(io.handle_request_sync(request), Some(response));
 
 	// With account
-	deps.accounts.new_account("").unwrap();
+	deps.accounts.new_account(&"".into()).unwrap();
 	let accounts = deps.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];

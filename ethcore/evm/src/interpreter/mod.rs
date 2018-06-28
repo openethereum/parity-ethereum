@@ -64,7 +64,6 @@ struct CodeReader<'a> {
 }
 
 impl<'a> CodeReader<'a> {
-
 	/// Create new code reader - starting at position 0.
 	fn new(code: &'a [u8]) -> Self {
 		CodeReader {
@@ -81,7 +80,7 @@ impl<'a> CodeReader<'a> {
 		U256::from(&self.code[pos..max])
 	}
 
-	fn len (&self) -> usize {
+	fn len(&self) -> usize {
 		self.code.len()
 	}
 }
@@ -124,24 +123,31 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 		let mut gasometer = Gasometer::<Cost>::new(Cost::from_u256(params.gas)?);
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut reader = CodeReader::new(code);
-		let infos = &*instructions::INSTRUCTIONS;
 
 		while reader.position < code.len() {
-			let instruction = code[reader.position];
+			let opcode = code[reader.position];
+			let instruction = Instruction::from_u8(opcode);
 			reader.position += 1;
 
 			// TODO: make compile-time removable if too much of a performance hit.
 			do_trace = do_trace && ext.trace_next_instruction(
-				reader.position - 1, instruction, gasometer.current_gas.as_u256(),
+				reader.position - 1, opcode, gasometer.current_gas.as_u256(),
 			);
 
-			let info = &infos[instruction as usize];
+			if instruction.is_none() {
+				return Err(vm::Error::BadInstruction {
+					instruction: opcode
+				});
+			}
+			let instruction = instruction.expect("None case is checked above; qed");
+
+			let info = instruction.info();
 			self.verify_instruction(ext, instruction, info, &stack)?;
 
 			// Calculate gas cost
 			let requirements = gasometer.requirements(ext, instruction, info, &stack, self.mem.size())?;
 			if do_trace {
-				ext.trace_prepare_execute(reader.position - 1, instruction, requirements.gas_cost.as_u256());
+				ext.trace_prepare_execute(reader.position - 1, opcode, requirements.gas_cost.as_u256());
 			}
 
 			gasometer.verify_gas(&requirements.gas_cost)?;
@@ -227,13 +233,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) {
 
 			return Err(vm::Error::BadInstruction {
-				instruction: instruction
-			});
-		}
-
-		if info.tier == instructions::GasPriceTier::Invalid {
-			return Err(vm::Error::BadInstruction {
-				instruction: instruction
+				instruction: instruction as u8
 			});
 		}
 
@@ -396,7 +396,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					},
 					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
 					instructions::STATICCALL => (&params.address, &code_address, true, CallType::StaticCall),
-					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
+					_ => panic!(format!("Unexpected instruction {:?} in CALL branch.", instruction))
 				};
 
 				// clear return data buffer before creating new call frame.
@@ -453,8 +453,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 				ext.suicide(&u256_to_address(&address))?;
 				return Ok(InstructionResult::StopExecution);
 			},
-			instructions::LOG0...instructions::LOG4 => {
-				let no_of_topics = instructions::get_log_topics(instruction);
+			instructions::LOG0 | instructions::LOG1 | instructions::LOG2 | instructions::LOG3 | instructions::LOG4 => {
+				let no_of_topics = instruction.log_topics().expect("log_topics always return some for LOG* instructions; qed");
 
 				let offset = stack.pop_back();
 				let size = stack.pop_back();
@@ -464,8 +464,15 @@ impl<Cost: CostType> Interpreter<Cost> {
 					.collect();
 				ext.log(topics, self.mem.read_slice(offset, size))?;
 			},
-			instructions::PUSH1...instructions::PUSH32 => {
-				let bytes = instructions::get_push_bytes(instruction);
+			instructions::PUSH1 | instructions::PUSH2 | instructions::PUSH3 | instructions::PUSH4 |
+			instructions::PUSH5 | instructions::PUSH6 | instructions::PUSH7 | instructions::PUSH8 |
+			instructions::PUSH9 | instructions::PUSH10 | instructions::PUSH11 | instructions::PUSH12 |
+			instructions::PUSH13 | instructions::PUSH14 | instructions::PUSH15 | instructions::PUSH16 |
+			instructions::PUSH17 | instructions::PUSH18 | instructions::PUSH19 | instructions::PUSH20 |
+			instructions::PUSH21 | instructions::PUSH22 | instructions::PUSH23 | instructions::PUSH24 |
+			instructions::PUSH25 | instructions::PUSH26 | instructions::PUSH27 | instructions::PUSH28 |
+			instructions::PUSH29 | instructions::PUSH30 | instructions::PUSH31 | instructions::PUSH32 => {
+				let bytes = instruction.push_bytes().expect("push_bytes always return some for PUSH* instructions");
 				let val = code.read(bytes);
 				stack.push(val);
 			},
@@ -609,73 +616,22 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::GASLIMIT => {
 				stack.push(ext.env_info().gas_limit.clone());
 			},
-			_ => {
-				self.exec_stack_instruction(instruction, stack)?;
-			}
-		};
-		Ok(InstructionResult::Ok)
-	}
 
-	fn copy_data_to_memory(mem: &mut Vec<u8>, stack: &mut Stack<U256>, source: &[u8]) {
-		let dest_offset = stack.pop_back();
-		let source_offset = stack.pop_back();
-		let size = stack.pop_back();
-		let source_size = U256::from(source.len());
+			// Stack instructions
 
-		let output_end = match source_offset > source_size || size > source_size || source_offset + size > source_size {
-			true => {
-				let zero_slice = if source_offset > source_size {
-					mem.writeable_slice(dest_offset, size)
-				} else {
-					mem.writeable_slice(dest_offset + source_size - source_offset, source_offset + size - source_size)
-				};
-				for i in zero_slice.iter_mut() {
-					*i = 0;
-				}
-				source.len()
-			},
-			false => (size.low_u64() + source_offset.low_u64()) as usize
-		};
-
-		if source_offset < source_size {
-			let output_begin = source_offset.low_u64() as usize;
-			mem.write_slice(dest_offset, &source[output_begin..output_end]);
-		}
-	}
-
-	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &BitSet) -> vm::Result<usize> {
-		let jump = jump_u.low_u64() as usize;
-
-		if valid_jump_destinations.contains(jump) && U256::from(jump) == jump_u {
-			Ok(jump)
-		} else {
-			Err(vm::Error::BadJumpDestination {
-				destination: jump
-			})
-		}
-	}
-
-	fn is_zero(&self, val: &U256) -> bool {
-		val.is_zero()
-	}
-
-	fn bool_to_u256(&self, val: bool) -> U256 {
-		if val {
-			U256::one()
-		} else {
-			U256::zero()
-		}
-	}
-
-	fn exec_stack_instruction(&self, instruction: Instruction, stack: &mut Stack<U256>) -> vm::Result<()> {
-		match instruction {
-			instructions::DUP1...instructions::DUP16 => {
-				let position = instructions::get_dup_position(instruction);
+			instructions::DUP1 | instructions::DUP2 | instructions::DUP3 | instructions::DUP4 |
+			instructions::DUP5 | instructions::DUP6 | instructions::DUP7 | instructions::DUP8 |
+			instructions::DUP9 | instructions::DUP10 | instructions::DUP11 | instructions::DUP12 |
+			instructions::DUP13 | instructions::DUP14 | instructions::DUP15 | instructions::DUP16 => {
+				let position = instruction.dup_position().expect("dup_position always return some for DUP* instructions");
 				let val = stack.peek(position).clone();
 				stack.push(val);
 			},
-			instructions::SWAP1...instructions::SWAP16 => {
-				let position = instructions::get_swap_position(instruction);
+			instructions::SWAP1 | instructions::SWAP2 | instructions::SWAP3 | instructions::SWAP4 |
+			instructions::SWAP5 | instructions::SWAP6 | instructions::SWAP7 | instructions::SWAP8 |
+			instructions::SWAP9 | instructions::SWAP10 | instructions::SWAP11 | instructions::SWAP12 |
+			instructions::SWAP13 | instructions::SWAP14 | instructions::SWAP15 | instructions::SWAP16 => {
+				let position = instruction.swap_position().expect("swap_position always return some for SWAP* instructions");
 				stack.swap_with_top(position)
 			},
 			instructions::POP => {
@@ -923,15 +879,60 @@ impl<Cost: CostType> Interpreter<Cost> {
 				};
 				stack.push(result);
 			},
-			_ => {
-				return Err(vm::Error::BadInstruction {
-					instruction: instruction
-				});
-			}
-		}
-		Ok(())
+		};
+		Ok(InstructionResult::Ok)
 	}
 
+	fn copy_data_to_memory(mem: &mut Vec<u8>, stack: &mut Stack<U256>, source: &[u8]) {
+		let dest_offset = stack.pop_back();
+		let source_offset = stack.pop_back();
+		let size = stack.pop_back();
+		let source_size = U256::from(source.len());
+
+		let output_end = match source_offset > source_size || size > source_size || source_offset + size > source_size {
+			true => {
+				let zero_slice = if source_offset > source_size {
+					mem.writeable_slice(dest_offset, size)
+				} else {
+					mem.writeable_slice(dest_offset + source_size - source_offset, source_offset + size - source_size)
+				};
+				for i in zero_slice.iter_mut() {
+					*i = 0;
+				}
+				source.len()
+			},
+			false => (size.low_u64() + source_offset.low_u64()) as usize
+		};
+
+		if source_offset < source_size {
+			let output_begin = source_offset.low_u64() as usize;
+			mem.write_slice(dest_offset, &source[output_begin..output_end]);
+		}
+	}
+
+	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &BitSet) -> vm::Result<usize> {
+		let jump = jump_u.low_u64() as usize;
+
+		if valid_jump_destinations.contains(jump) && U256::from(jump) == jump_u {
+			Ok(jump)
+		} else {
+			Err(vm::Error::BadJumpDestination {
+				destination: jump
+			})
+		}
+	}
+
+	fn is_zero(&self, val: &U256) -> bool {
+		val.is_zero()
+	}
+
+	fn bool_to_u256(&self, val: bool) -> U256 {
+		if val {
+			U256::one()
+		} else {
+			U256::zero()
+		}
+	}
 }
 
 fn get_and_reset_sign(value: U256) -> (U256, bool) {

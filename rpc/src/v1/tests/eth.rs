@@ -26,11 +26,11 @@ use ethcore::ethereum;
 use ethcore::ids::BlockId;
 use ethcore::miner::Miner;
 use ethcore::spec::{Genesis, Spec};
+use ethcore::test_helpers;
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;
 use ethjson::state::test::ForkSpec;
 use io::IoChannel;
-use kvdb_memorydb;
 use miner::external::ExternalMiner;
 use parking_lot::Mutex;
 
@@ -108,7 +108,7 @@ impl EthTester {
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
-			Arc::new(kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
+			test_helpers::new_db(),
 			miner_service.clone(),
 			IoChannel::disconnected(),
 		).unwrap();
@@ -317,7 +317,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 fn eth_transaction_count() {
 	let secret = "8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2".parse().unwrap();
 	let tester = EthTester::from_spec(Spec::load(&env::temp_dir(), TRANSACTION_COUNT_SPEC).expect("invalid chain spec"));
-	let address = tester.accounts.insert_account(secret, "").unwrap();
+	let address = tester.accounts.insert_account(secret, &"".into()).unwrap();
 	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
 
 	let req_before = r#"{

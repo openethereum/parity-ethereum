@@ -16,7 +16,7 @@ url = "1"
 
 # Miner
 ansi_term = "0.10"
-error-chain = "0.11"
+error-chain = "0.12"
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 futures = "0.1"

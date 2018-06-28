@@ -252,7 +252,7 @@ mod tests {
 	#[test]
 	fn generate_and_verify() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
 		let mi = message_info_rlp(&VoteStep::new(123, 2, Step::Precommit), Some(H256::default()));

@@ -23,6 +23,7 @@ use bytes::ToPretty;
 
 use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition, Origin};
 use v1::helpers;
+use ethkey::Password;
 
 /// Confirmation waiting in a queue
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -149,12 +150,12 @@ impl Serialize for ConfirmationResponse {
 }
 
 /// Confirmation response with additional token for further requests
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Clone, PartialEq, Serialize)]
 pub struct ConfirmationResponseWithToken {
 	/// Actual response
 	pub result: ConfirmationResponse,
 	/// New token
-	pub token: String,
+	pub token: Password,
 }
 
 /// Confirmation payload, i.e. the thing to be confirmed

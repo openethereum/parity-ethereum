@@ -19,7 +19,7 @@
 use std::sync::{Weak, Arc};
 use ethereum_types::{H256, H520, Address};
 use parking_lot::RwLock;
-use ethkey::{self, Signature};
+use ethkey::{self, Password, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use engines::{Engine, Seal, ConstructedVerifier, EngineError};
@@ -180,7 +180,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		self.validators.register_client(client);
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
 		self.signer.write().set(ap, address, password);
 	}
 
@@ -243,7 +243,7 @@ mod tests {
 	#[test]
 	fn can_generate_seal() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(keccak("").into(), "").unwrap();
+		let addr = tap.insert_account(keccak("").into(), &"".into()).unwrap();
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
@@ -261,7 +261,7 @@ mod tests {
 	#[test]
 	fn seals_internally() {
 		let tap = AccountProvider::transient_provider();
-		let authority = tap.insert_account(keccak("").into(), "").unwrap();
+		let authority = tap.insert_account(keccak("").into(), &"".into()).unwrap();
 
 		let engine = new_test_authority().engine;
 		assert!(!engine.seals_internally().unwrap());

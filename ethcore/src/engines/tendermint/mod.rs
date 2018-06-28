@@ -37,7 +37,7 @@ use bytes::Bytes;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber, ExtendedHeader};
 use rlp::Rlp;
-use ethkey::{self, Message, Signature};
+use ethkey::{self, Password, Message, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
@@ -677,7 +677,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		}
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
 		{
 			self.signer.write().set(ap, address, password);
 		}
@@ -831,7 +831,7 @@ mod tests {
 	}
 
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
-		let addr = tap.insert_account(keccak(acc).into(), acc).unwrap();
+		let addr = tap.insert_account(keccak(acc).into(), &acc.into()).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
 		addr
 	}
