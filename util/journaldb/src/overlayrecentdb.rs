@@ -122,7 +122,7 @@ impl<'a> Encodable for DatabaseValueRef<'a> {
 #[derive(PartialEq)]
 struct JournalOverlay {
 	backing_overlay: MemoryDB<KeccakHasher>, // Nodes added in the history period
-	pending_overlay: H256FastMap<KeccakHasher, DBValue>, // Nodes being transfered from backing_overlay to backing db
+	pending_overlay: H256FastMap<DBValue>, // Nodes being transfered from backing_overlay to backing db
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
 	earliest_era: Option<u64>,

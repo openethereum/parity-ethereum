@@ -18,19 +18,21 @@
 extern crate elastic_array;
 extern crate hashdb;
 extern crate heapsize;
-extern crate plain_hasher;
 extern crate rlp;
 #[cfg(test)] extern crate keccak_hasher;
 #[cfg(test)] extern crate tiny_keccak;
 #[cfg(test)] extern crate ethereum_types;
 
-use hashdb::{HashDB, Hasher, DBValue, AsHashDB};
+use hashdb::{HashDB, Hasher as KeyHasher, DBValue, AsHashDB};
 use heapsize::HeapSizeOf;
-use plain_hasher::H256FastMap;
 use rlp::NULL_RLP;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::hash;
 use std::mem;
+
+// Backing `HashMap` parametrized with a `Hasher` for the keys `Hasher::Out` and the `Hasher::StdHasher` as hash map builder.
+type FastMap<H, T> = HashMap<<H as KeyHasher>::Out, T, hash::BuildHasherDefault<<H as KeyHasher>::StdHasher>>;
 
 /// Reference-counted memory-based `HashDB` implementation.
 ///
@@ -80,16 +82,16 @@ use std::mem;
 /// }
 /// ```
 #[derive(Default, Clone, PartialEq)]
-pub struct MemoryDB<H: Hasher> {
-	data: H256FastMap<H, (DBValue, i32)>,
+pub struct MemoryDB<H: KeyHasher> {
+	data: FastMap<H, (DBValue, i32)>,
 	hashed_null_node: H::Out,
 }
 
-impl<H: Hasher> MemoryDB<H> {
+impl<H: KeyHasher> MemoryDB<H> {
 	/// Create a new instance of the memory DB.
 	pub fn new() -> MemoryDB<H> {
 		MemoryDB {
-			data: H256FastMap::<H,_>::default(),
+			data: FastMap::<H,_>::default(),
 			hashed_null_node: H::hash(&NULL_RLP)
 		}
 	}
@@ -125,8 +127,8 @@ impl<H: Hasher> MemoryDB<H> {
 	}
 
 	/// Return the internal map of hashes to data, clearing the current state.
-	pub fn drain(&mut self) -> H256FastMap<H, (DBValue, i32)> {
-		mem::replace(&mut self.data, H256FastMap::<H,_>::default())
+	pub fn drain(&mut self) -> FastMap<H, (DBValue, i32)> {
+		mem::replace(&mut self.data, FastMap::<H,_>::default())
 	}
 
 	/// Grab the raw information associated with a key. Returns None if the key
@@ -134,7 +136,7 @@ impl<H: Hasher> MemoryDB<H> {
 	///
 	/// Even when Some is returned, the data is only guaranteed to be useful
 	/// when the refs > 0.
-	pub fn raw(&self, key: &<H as Hasher>::Out) -> Option<(DBValue, i32)> {
+	pub fn raw(&self, key: &<H as KeyHasher>::Out) -> Option<(DBValue, i32)> {
 		if key == &self.hashed_null_node {
 			return Some((DBValue::from_slice(&NULL_RLP), 1));
 		}
@@ -148,7 +150,7 @@ impl<H: Hasher> MemoryDB<H> {
 
 	/// Remove an element and delete it from storage if reference count reaches zero.
 	/// If the value was purged, return the old value.
-	pub fn remove_and_purge(&mut self, key: &<H as Hasher>::Out) -> Option<DBValue> {
+	pub fn remove_and_purge(&mut self, key: &<H as KeyHasher>::Out) -> Option<DBValue> {
 		if key == &self.hashed_null_node {
 			return None;
 		}
@@ -186,11 +188,8 @@ impl<H: Hasher> MemoryDB<H> {
 	}
 }
 
-impl<H: Hasher> HashDB<H> for MemoryDB<H> {
+impl<H: KeyHasher> HashDB<H> for MemoryDB<H> {
 
-	// REVIEW: this method is what made it necessary to add a type param to H256FastMap, which I'd rather have avoided.
-	//         The problem is that the keys returned are `H256` and type inference fails on the `collect()` call.
-	//         I could not make it work without parameterizing H256FastMap too.
 	fn keys(&self) -> HashMap<H::Out, i32> {
 		self.data.iter()
 			.filter_map(|(k, v)| if v.1 != 0 {
@@ -279,7 +278,7 @@ impl<H: Hasher> HashDB<H> for MemoryDB<H> {
 	}
 }
 
-impl<H: Hasher> AsHashDB<H> for MemoryDB<H> {
+impl<H: KeyHasher> AsHashDB<H> for MemoryDB<H> {
 	fn as_hashdb(&self) -> &HashDB<H> { self }
 	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { self }
 }

@@ -30,7 +30,6 @@ use std::collections::hash_map::Entry;
 use transaction::{self, Condition, PendingTransaction, SignedTransaction};
 use ethereum_types::{H256, U256, Address};
 use plain_hasher::H256FastMap;
-use keccak_hasher::KeccakHasher;
 
 // Knowledge of an account's current nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -139,7 +138,7 @@ type Listener = Box<Fn(&[H256]) + Send + Sync>;
 #[derive(Default)]
 pub struct TransactionQueue {
 	by_account: HashMap<Address, AccountTransactions>,
-	by_hash: H256FastMap<KeccakHasher, PendingTransaction>,
+	by_hash: H256FastMap<PendingTransaction>,
 	listeners: Vec<Listener>,
 }
 

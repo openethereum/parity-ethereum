@@ -491,7 +491,7 @@ impl ChainSync {
 	}
 
 	/// Returns transactions propagation statistics
-	pub fn transactions_stats(&self) -> &H256FastMap<KeccakHasher, TransactionStats> {
+	pub fn transactions_stats(&self) -> &H256FastMap<TransactionStats> {
 		self.transactions_stats.stats()
 	}
 

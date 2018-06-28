@@ -52,7 +52,7 @@ impl<'a> From<&'a Stats> for TransactionStats {
 
 #[derive(Debug, Default)]
 pub struct TransactionsStats {
-	pending_transactions: H256FastMap<KeccakHasher, Stats>,
+	pending_transactions: H256FastMap<Stats>,
 }
 
 impl TransactionsStats {
@@ -70,7 +70,7 @@ impl TransactionsStats {
 		self.pending_transactions.get(hash)
 	}
 
-	pub fn stats(&self) -> &H256FastMap<KeccakHasher, Stats> {
+	pub fn stats(&self) -> &H256FastMap<Stats> {
 		&self.pending_transactions
 	}
 

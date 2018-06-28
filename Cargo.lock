@@ -1532,6 +1532,7 @@ version = "0.1.0"
 dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.2.0",
+ "plain_hasher 0.2.0",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

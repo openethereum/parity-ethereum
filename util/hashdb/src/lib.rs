@@ -29,6 +29,8 @@ use std::{fmt::Debug, hash::Hash};
 pub trait Hasher: Sync + Send {
 	/// The output type of the `Hasher`
 	type Out: AsRef<[u8]> + AsMut<[u8]> + Default + HeapSizeOf + Debug + PartialEq + Eq + Hash + Send + Sync + Clone + Copy;
+	/// What to use to build `HashMap`s with this `Hasher`
+	type StdHasher: Sync + Send + Default + std::hash::Hasher;
 	/// The length in bytes of the `Hasher` output
 	const LENGTH: usize;
 
