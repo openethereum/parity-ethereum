@@ -17,12 +17,13 @@
 //! Trie interface and implementation.
 extern crate elastic_array;
 extern crate ethcore_bytes as bytes;
-extern crate ethcore_logger;
 extern crate hashdb;
 extern crate rand;
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+extern crate env_logger;
 #[cfg(test)]
 extern crate ethereum_types;
 #[cfg(test)]

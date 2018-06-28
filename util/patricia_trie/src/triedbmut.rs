@@ -974,6 +974,7 @@ mod tests {
 	use standardmap::*;
 	use ethtrie::trie::{TrieMut, TrieDBMut, NodeCodec};
 	use ethtrie::RlpCodec;
+	use env_logger;
 
 	fn populate_trie<'db, H, C>(db: &'db mut HashDB<H>, root: &'db mut H::Out, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db, H, C>
 		where H: Hasher, H::Out: Decodable + Encodable, C: NodeCodec<H>
@@ -998,8 +999,7 @@ mod tests {
 
 	#[test]
 	fn playpen() {
-		::ethcore_logger::init_log();
-
+		env_logger::init();
 		let mut seed = <KeccakHasher as Hasher>::Out::new();
 		for test_i in 0..10 {
 			if test_i % 50 == 0 {

@@ -9,16 +9,16 @@ license = "GPL-3.0"
 elastic-array = "0.10"
 log = "0.3"
 rand = "0.4"
-ethcore-bytes = { version = "0.1.0", path = "../bytes" }
 hashdb = { version = "0.2", path = "../hashdb" }
-ethcore-logger = { version = "1.9.0", path = "../../logger" }
+ethcore-bytes = { version = "0.1.0", path = "../bytes" }
 
 [dev-dependencies]
-triehash = { version = "0.1.0", path = "../triehash" }
-memorydb = { version = "0.2", path = "../memorydb" }
+env_logger = "0.5"
 ethereum-types = "0.3"
 keccak-hash = { version = "0.1.0", path = "../hash" }
 keccak-hasher = { path = "../keccak-hasher" }
+memorydb = { version = "0.2", path = "../memorydb" }
+patricia-trie-ethereum = { path = "../patricia-trie-ethereum" }
 rlp = { version = "0.2.1", path = "../rlp" }
 trie-standardmap = { path = "../trie-standardmap" }
-patricia-trie-ethereum = { path = "../patricia-trie-ethereum" }
+triehash = { version = "0.1.0", path = "../triehash" }
