@@ -29,7 +29,7 @@ pub fn set_abort() {
 	set_with(|| process::abort());
 }
 
-/// Set the panic hook with an optional Condvar to be notified
+/// Set the panic hook with a closure to be called afterwards.
 pub fn set_with<F: Fn() + Send + Sync + 'static>(f: F) {
 	panic::set_hook(Box::new(move |info| {
 		panic_hook(info);
