@@ -112,6 +112,18 @@ fn run_parity() -> Option<i32> {
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
+/// Status used to exit or restart the program.
+struct ExitStatus {
+	/// Whetehr the program panicked.
+	pub panicking: bool,
+	/// Whether the program should exit.
+	pub should_exit: bool,
+	/// Whether the program should restart.
+	pub should_restart: bool,
+	/// If a restart happens, whether a new chain spec should be used.
+	pub spec_name_override: Option<String>,
+}
+
 // Run our version of parity.
 // Returns the exit error code.
 fn main_direct(force_can_restart: bool) -> i32 {
@@ -132,14 +144,42 @@ fn main_direct(force_can_restart: bool) -> i32 {
 	// increase max number of open files
 	raise_fd_limit();
 
-	let exit = Arc::new((Mutex::new((false, None)), Condvar::new()));
+	let exit = Arc::new((Mutex::new(ExitStatus {
+		panicking: false,
+		should_exit: false,
+		should_restart: false,
+		spec_name_override: None
+	}), Condvar::new()));
 
 	let exec = if can_restart {
-		let e1 = exit.clone();
-		let e2 = exit.clone();
-		start(conf,
-			move |new_chain: String| { *e1.0.lock() = (true, Some(new_chain)); e1.1.notify_all(); },
-			move || { *e2.0.lock() = (true, None); e2.1.notify_all(); })
+		start(
+			conf,
+			{
+				let e = exit.clone();
+				move |new_chain: String| {
+					*e.0.lock() = ExitStatus {
+						panicking: false,
+						should_exit: true,
+						should_restart: true,
+						spec_name_override: Some(new_chain),
+					};
+					e.1.notify_all();
+				}
+			},
+			{
+				let e = exit.clone();
+				move || {
+					*e.0.lock() = ExitStatus {
+						panicking: false,
+						should_exit: true,
+						should_restart: true,
+						spec_name_override: None,
+					};
+					e.1.notify_all();
+				}
+			}
+		)
+
 	} else {
 		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
 		start(conf, move |_| {}, move || {})
@@ -152,28 +192,49 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			ExecutionAction::Running(client) => {
 				panic_hook::set_with({
 					let e = exit.clone();
-					move || { e.1.notify_all(); }
+					move || {
+						*e.0.lock() = ExitStatus {
+							panicking: true,
+							should_exit: true,
+							should_restart: false,
+							spec_name_override: None,
+						};
+						e.1.notify_all();
+					}
 				});
 
 				CtrlC::set_handler({
 					let e = exit.clone();
-					move || { e.1.notify_all(); }
+					move || {
+						*e.0.lock() = ExitStatus {
+							panicking: false,
+							should_exit: true,
+							should_restart: false,
+							spec_name_override: None,
+						};
+						e.1.notify_all();
+					}
 				});
 
 				// Wait for signal
 				let mut lock = exit.0.lock();
-				let _ = exit.1.wait(&mut lock);
+				if !lock.should_exit {
+					let _ = exit.1.wait(&mut lock);
+				}
 
 				client.shutdown();
 
-				match &*lock {
-					&(true, ref spec_name_override) => {
-						if let &Some(ref spec_name) = spec_name_override {
-							set_spec_name_override(spec_name.clone());
-						}
-						PLEASE_RESTART_EXIT_CODE
-					},
-					_ => 0,
+				if lock.should_restart {
+					if let Some(ref spec_name) = lock.spec_name_override {
+						set_spec_name_override(spec_name.clone());
+					}
+					PLEASE_RESTART_EXIT_CODE
+				} else {
+					if lock.panicking {
+						1
+					} else {
+						0
+					}
 				}
 			},
 		},
