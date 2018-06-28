@@ -21,6 +21,7 @@ extern crate backtrace;
 use std::io::{self, Write};
 use std::panic::{self, PanicInfo};
 use std::thread;
+use std::process;
 use backtrace::Backtrace;
 
 /// Set the panic hook
@@ -66,4 +67,5 @@ fn panic_hook(info: &PanicInfo) {
 	);
 
 	let _ = writeln!(stderr, "{}", ABOUT_PANIC);
+	process::abort();
 }
