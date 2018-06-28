@@ -31,6 +31,7 @@ extern crate parking_lot;
 #[cfg(windows)] extern crate winapi;
 
 use std::{process, env};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::io::{self as stdio, Read, Write};
 use std::fs::{remove_file, metadata, File, create_dir_all};
 use std::path::PathBuf;
@@ -112,9 +113,10 @@ fn run_parity() -> Option<i32> {
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
+#[derive(Debug)]
 /// Status used to exit or restart the program.
 struct ExitStatus {
-	/// Whetehr the program panicked.
+	/// Whether the program panicked.
 	pub panicking: bool,
 	/// Whether the program should exit.
 	pub should_exit: bool,
@@ -151,31 +153,39 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		spec_name_override: None
 	}), Condvar::new()));
 
+	let exiting = Arc::new(AtomicBool::new(false));
+
 	let exec = if can_restart {
 		start(
 			conf,
 			{
 				let e = exit.clone();
+				let exiting = exiting.clone();
 				move |new_chain: String| {
-					*e.0.lock() = ExitStatus {
-						panicking: false,
-						should_exit: true,
-						should_restart: true,
-						spec_name_override: Some(new_chain),
-					};
-					e.1.notify_all();
+					if !exiting.swap(true, Ordering::SeqCst) {
+						*e.0.lock() = ExitStatus {
+							panicking: false,
+							should_exit: true,
+							should_restart: true,
+							spec_name_override: Some(new_chain),
+						};
+						e.1.notify_all();
+					}
 				}
 			},
 			{
 				let e = exit.clone();
+				let exiting = exiting.clone();
 				move || {
-					*e.0.lock() = ExitStatus {
-						panicking: false,
-						should_exit: true,
-						should_restart: true,
-						spec_name_override: None,
-					};
-					e.1.notify_all();
+					if !exiting.swap(true, Ordering::SeqCst) {
+						*e.0.lock() = ExitStatus {
+							panicking: false,
+							should_exit: true,
+							should_restart: true,
+							spec_name_override: None,
+						};
+						e.1.notify_all();
+					}
 				}
 			}
 		)
@@ -192,27 +202,33 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			ExecutionAction::Running(client) => {
 				panic_hook::set_with({
 					let e = exit.clone();
+					let exiting = exiting.clone();
 					move || {
-						*e.0.lock() = ExitStatus {
-							panicking: true,
-							should_exit: true,
-							should_restart: false,
-							spec_name_override: None,
-						};
-						e.1.notify_all();
+						if !exiting.swap(true, Ordering::SeqCst) {
+							*e.0.lock() = ExitStatus {
+								panicking: true,
+								should_exit: true,
+								should_restart: false,
+								spec_name_override: None,
+							};
+							e.1.notify_all();
+						}
 					}
 				});
 
 				CtrlC::set_handler({
 					let e = exit.clone();
+					let exiting = exiting.clone();
 					move || {
-						*e.0.lock() = ExitStatus {
-							panicking: false,
-							should_exit: true,
-							should_restart: false,
-							spec_name_override: None,
-						};
-						e.1.notify_all();
+						if !exiting.swap(true, Ordering::SeqCst) {
+							*e.0.lock() = ExitStatus {
+								panicking: false,
+								should_exit: true,
+								should_restart: false,
+								spec_name_override: None,
+							};
+							e.1.notify_all();
+						}
 					}
 				});
 
