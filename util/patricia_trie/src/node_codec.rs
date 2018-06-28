@@ -17,7 +17,6 @@
 //! Generic trait for trie node encoding/decoding. Takes a `hashdb::Hasher` 
 //! to parametrize the hashes used in the codec.
 
-use bytes::Bytes;
 use hashdb::Hasher;
 use node::Node;
 use ChildReference;
@@ -32,9 +31,6 @@ pub trait NodeCodec<H: Hasher>: Sized {
 	/// Null node type
 	const HASHED_NULL_NODE: H::Out;
 	
-	/// Encode a Node to bytes (aka `Vec<u8>`).
-	fn encode(&Node) -> Bytes;
-
 	/// Decode bytes to a `Node`. Returns `Self::E` on failure.
 	fn decode(data: &[u8]) -> Result<Node, Self::Error>;
 

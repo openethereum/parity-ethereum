@@ -17,7 +17,6 @@
 //! `NodeCodec` implementation for Rlp
 
 use elastic_array::{ElasticArray1024, ElasticArray128};
-use ethcore_bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::Hasher;
 use keccak_hasher::KeccakHasher;
@@ -36,39 +35,6 @@ pub struct RlpNodeCodec<H: Hasher> {mark: PhantomData<H>}
 impl NodeCodec<KeccakHasher> for RlpNodeCodec<KeccakHasher> {
 	type Error = DecoderError;
 	const HASHED_NULL_NODE : H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
-
-	fn encode(node: &Node) -> Bytes {
-		match *node {
-			Node::Leaf(ref slice, ref value) => {
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&&*slice.encoded(true));
-				stream.append(value);
-				stream.out()
-			},
-			Node::Extension(ref slice, ref raw_rlp) => {
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&&*slice.encoded(false));
-				stream.append_raw(raw_rlp, 1);
-				stream.out()
-			},
-			Node::Branch(ref nodes, ref value) => {
-				let mut stream = RlpStream::new_list(17);
-				for i in 0..16 {
-					stream.append_raw(nodes[i], 1);
-				}
-				match *value {
-					Some(ref n) => { stream.append(n); },
-					None => { stream.append_empty_data(); },
-				}
-				stream.out()
-			},
-			Node::Empty => {
-				let mut stream = RlpStream::new();
-				stream.append_empty_data();
-				stream.out()
-			}
-		}
-	}
 	fn decode(data: &[u8]) -> ::std::result::Result<Node, Self::Error> {
 		let r = Rlp::new(data);
 		match r.prototype()? {
