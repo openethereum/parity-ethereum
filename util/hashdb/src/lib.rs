@@ -39,7 +39,7 @@ pub trait Hasher: Sync + Send {
 /// `HashDB` value type.
 pub type DBValue = ElasticArray128<u8>;
 
-/// Trait modelling datastore keyed by a 32-byte Keccak hash.
+/// Trait modelling datastore keyed by a hash defined by the `Hasher`.
 pub trait HashDB<H: Hasher>: Send + Sync + AsHashDB<H> {
 	/// Get the keys in the database together with number of underlying references.
 	fn keys(&self) -> HashMap<H::Out, i32>;
