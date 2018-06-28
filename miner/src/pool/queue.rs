@@ -249,7 +249,7 @@ impl TransactionQueue {
 				}
 
 				if let Some(err) = self.recently_rejected.get(&hash) {
-					trace!(target: "txpool", "[{:?}] Rejecting recently rejected: {:?}", hash, err);
+					trace!(target: "txqueue", "[{:?}] Rejecting recently rejected: {:?}", hash, err);
 					return Err(err);
 				}
 
