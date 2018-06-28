@@ -150,6 +150,11 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			ExecutionAction::Instant(Some(s)) => { println!("{}", s); 0 },
 			ExecutionAction::Instant(None) => 0,
 			ExecutionAction::Running(client) => {
+				panic_hook::set_with({
+					let e = exit.clone();
+					move || { e.1.notify_all(); }
+				});
+
 				CtrlC::set_handler({
 					let e = exit.clone();
 					move || { e.1.notify_all(); }
@@ -195,7 +200,7 @@ macro_rules! trace_main {
 }
 
 fn main() {
-	panic_hook::set();
+	panic_hook::set_abort();
 
 	// assuming the user is not running with `--force-direct`, then:
 	// if argv[0] == "parity" and this executable != ~/.parity-updates/parity, run that instead.
