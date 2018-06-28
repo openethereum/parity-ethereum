@@ -721,6 +721,11 @@ impl AuthorityRound {
 	}
 
 	fn report_skipped(&self, header: &Header, current_step: usize, parent_step: usize, validators: &ValidatorSet, set_number: u64) {
+		// we're building on top of the genesis block so don't report any skipped steps
+		if header.number() == 1 {
+			return;
+		}
+
 		if let (true, Some(me)) = (current_step > parent_step + 1, self.signer.read().address()) {
 			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				   header.author(), current_step, parent_step);
