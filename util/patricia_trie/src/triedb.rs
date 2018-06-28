@@ -45,15 +45,14 @@ use std::marker::PhantomData;
 /// use keccak_hasher::KeccakHasher;
 /// use memorydb::*;
 /// use ethereum_types::H256;
-/// use ethtrie::RlpNodeCodec;
+/// use ethtrie::{TrieDB, TrieDBMut};
 ///
-/// type RlpCodec = RlpNodeCodec<KeccakHasher>;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::<KeccakHasher>::new();
 ///   let mut root = H256::new();
-///   TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
-///   let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
+///   let t = TrieDB::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
 /// }
@@ -418,9 +417,7 @@ mod tests {
 	use hashdb::{Hasher, DBValue};
 	use keccak_hasher::KeccakHasher;
 	use memorydb::*;
-	use ethtrie::trie::{Trie, TrieMut, TrieDB, Lookup};
-	use ethtrie::trie::triedbmut::*;
-	use ethtrie::RlpCodec;
+	use ethtrie::{TrieDB, TrieDBMut, RlpCodec, trie::{Trie, TrieMut, Lookup}};
 
 	#[test]
 	fn iterator() {
@@ -429,13 +426,13 @@ mod tests {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
 		{
-			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			for x in &d {
 				t.insert(x, x).unwrap();
 			}
 		}
 
-		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		let t = TrieDB::new(&memdb, &root).unwrap();
 		assert_eq!(d.iter().map(|i| i.clone().into_vec()).collect::<Vec<_>>(), t.iter().unwrap().map(|x| x.unwrap().0).collect::<Vec<_>>());
 		assert_eq!(d, t.iter().unwrap().map(|x| x.unwrap().1).collect::<Vec<_>>());
 	}
@@ -447,13 +444,13 @@ mod tests {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
 		{
-			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			for x in &d {
 				t.insert(x, x).unwrap();
 			}
 		}
 	
-		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		let t = TrieDB::new(&memdb, &root).unwrap();
 		let mut iter = t.iter().unwrap();
 		assert_eq!(iter.next().unwrap().unwrap(), (b"A".to_vec(), DBValue::from_slice(b"A")));
 		iter.seek(b"!").unwrap();
@@ -486,12 +483,12 @@ mod tests {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
 		{
-			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			t.insert(b"A", b"ABC").unwrap();
 			t.insert(b"B", b"ABCBA").unwrap();
 		}
 
-		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		let t = TrieDB::new(&memdb, &root).unwrap();
 		assert_eq!(t.get_with(b"A", |x: &[u8]| x.len()).unwrap(), Some(3));
 		assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()).unwrap(), Some(5));
 		assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()).unwrap(), None);
@@ -504,13 +501,13 @@ mod tests {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
 		let root = {
-			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			for x in &d {
 				t.insert(x, x).unwrap();
 			}
 			t.root().clone()
 		};
-		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		let t = TrieDB::new(&memdb, &root).unwrap();
 
 		assert_eq!(format!("{:?}", t), "TrieDB { hash_count: 0, root: Node::Extension { slice: 4, item: Node::Branch { nodes: [Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Leaf { slice: , value: [65, 65] }, Node::Leaf { slice: , value: [65, 66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: Some([65]) }, Node::Leaf { slice: , value: [66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None } } }");
 		assert_eq!(format!("{:#?}", t),
@@ -614,12 +611,12 @@ mod tests {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::new();
 		{
-			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			t.insert(b"A", b"ABC").unwrap();
 			t.insert(b"B", b"ABCBA").unwrap();
 		}
 
-		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		let t = TrieDB::new(&memdb, &root).unwrap();
 
 		// query for an invalid data type to trigger an error
 		let q = rlp::decode::<H512>;

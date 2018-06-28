@@ -126,18 +126,18 @@ mod test {
 	use memorydb::MemoryDB;
 	use hashdb::{Hasher, DBValue};
 	use keccak_hasher::KeccakHasher;
-	use ethtrie::RlpCodec;
-	use ethtrie::trie::{Trie, TrieMut, FatDB, FatDBMut};
+	use ethtrie::trie::{Trie, TrieMut};
+	use ethtrie::{FatDB, FatDBMut};
 
 	#[test]
 	fn fatdb_to_trie() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
 		{
-			let mut t = FatDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			let mut t = FatDBMut::new(&mut memdb, &mut root);
 			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		}
-		let t = FatDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		let t = FatDB::new(&memdb, &root).unwrap();
 		assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 		assert_eq!(
 			t.iter().unwrap().map(Result::unwrap).collect::<Vec<_>>(),

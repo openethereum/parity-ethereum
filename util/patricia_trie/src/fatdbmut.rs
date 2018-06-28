@@ -109,8 +109,8 @@ where
 mod test {
 	use hashdb::{Hasher, DBValue};
 	use memorydb::MemoryDB;
-	use ethtrie::trie::{Trie, TrieMut, TrieDB, FatDBMut};
-	use ethtrie::RlpCodec;
+	use ethtrie::trie::{Trie, TrieMut};
+	use ethtrie::{TrieDB, FatDBMut};
 	use keccak_hasher::KeccakHasher;
 	use keccak;
 
@@ -119,10 +119,10 @@ mod test {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
 		{
-			let mut t = FatDBMut::<_, RlpCodec>::new(&mut memdb, &mut root);
+			let mut t = FatDBMut::new(&mut memdb, &mut root);
 			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		}
-		let t = TrieDB::<_, RlpCodec>::new(&memdb, &root).unwrap();
+		let t = TrieDB::new(&memdb, &root).unwrap();
 		assert_eq!(t.get(&keccak::keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 	}
 }

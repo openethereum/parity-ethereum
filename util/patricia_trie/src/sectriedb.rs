@@ -83,18 +83,17 @@ mod test {
 	use hashdb::{Hasher, DBValue};
 	use keccak;
 	use keccak_hasher::KeccakHasher;
-	use ethtrie::RlpCodec;
-	use ethtrie::trie::{Trie, TrieMut, TrieDBMut, SecTrieDB};
+	use ethtrie::{TrieDBMut, SecTrieDB, trie::{Trie, TrieMut}};
 
 	#[test]
 	fn trie_to_sectrie() {
 		let mut db = MemoryDB::<KeccakHasher>::new();
 		let mut root = <KeccakHasher as Hasher>::Out::default();
 		{
-			let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
+			let mut t = TrieDBMut::new(&mut db, &mut root);
 			t.insert(&keccak::keccak(&[0x01u8, 0x23]), &[0x01u8, 0x23]).unwrap();
 		}
-		let t = SecTrieDB::<_, RlpCodec>::new(&db, &root).unwrap();
+		let t = SecTrieDB::new(&db, &root).unwrap();
 		assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 	}
 }

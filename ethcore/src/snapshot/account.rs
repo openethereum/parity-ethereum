@@ -24,8 +24,8 @@ use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 use ethereum_types::{H256, U256};
 use hashdb::HashDB;
 use bytes::Bytes;
-use trie::{TrieDB, Trie};
-use ethtrie::RlpCodec;
+use trie::{Trie, TrieMut};
+use ethtrie::{TrieDB, TrieDBMut};
 use rlp::{RlpStream, Rlp};
 
 
@@ -69,7 +69,7 @@ impl CodeState {
 // account address hash, account properties and the storage. Each item contains at most `max_storage_items`
 // storage records split according to snapshot format definition.
 pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB, used_code: &mut HashSet<H256>, first_chunk_size: usize, max_chunk_size: usize) -> Result<Vec<Bytes>, Error> {
-	let db = TrieDB::<_, RlpCodec>::new(acct_db, &acc.storage_root)?;
+	let db = TrieDB::new(acct_db, &acc.storage_root)?;
 	let mut chunks = Vec::new();
 	let mut db_iter = db.iter()?;
 	let mut target_chunk_size = first_chunk_size;
@@ -153,7 +153,6 @@ pub fn from_fat_rlp(
 	rlp: Rlp,
 	mut storage_root: H256,
 ) -> Result<(BasicAccount, Option<Bytes>), Error> {
-	use trie::{TrieDBMut, TrieMut};
 
 	// check for special case of empty account.
 	if rlp.is_empty() {
@@ -185,7 +184,7 @@ pub fn from_fat_rlp(
 
 	{
 		let mut storage_trie = if storage_root.is_zero() {
-			TrieDBMut::<_, RlpCodec>::new(acct_db, &mut storage_root)
+			TrieDBMut::new(acct_db, &mut storage_root)
 		} else {
 			TrieDBMut::from_existing(acct_db, &mut storage_root)?
 		};

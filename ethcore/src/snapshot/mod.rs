@@ -39,8 +39,8 @@ use bytes::Bytes;
 use parking_lot::Mutex;
 use journaldb::{self, Algorithm, JournalDB};
 use kvdb::KeyValueDB;
-use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
-use ethtrie::RlpCodec;
+use trie::{Trie, TrieMut};
+use ethtrie::{TrieDB, TrieDBMut};
 use rlp::{RlpStream, Rlp};
 use bloom_journal::Bloom;
 
@@ -268,7 +268,7 @@ impl<'a> StateChunker<'a> {
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
 pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
-	let account_trie = TrieDB::<KeccakHasher, RlpCodec>::new(db, &root)?;
+	let account_trie = TrieDB::new(db, &root)?;
 
 	let mut chunker = StateChunker {
 		hashes: Vec::new(),
@@ -365,7 +365,7 @@ impl StateRebuilder {
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != KECCAK_NULL_RLP {
-				TrieDBMut::<_, RlpCodec>::from_existing(self.db.as_hashdb_mut(), &mut self.state_root)?
+				TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root)?
 			} else {
 				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
 			};

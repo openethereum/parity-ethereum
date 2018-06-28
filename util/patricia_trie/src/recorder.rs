@@ -135,16 +135,16 @@ mod tests {
 
 	#[test]
 	fn trie_record() {
-		use ethtrie::trie::{TrieDB, TrieDBMut, Trie, TrieMut, Recorder};
+		use ethtrie::trie::{Trie, TrieMut, Recorder};
 		use memorydb::MemoryDB;
-		use ethtrie::RlpCodec;
+		use ethtrie::{TrieDB, TrieDBMut};
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
 
 		let mut root = H256::default();
 
 		{
-			let mut x = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
+			let mut x = TrieDBMut::new(&mut db, &mut root);
 
 			x.insert(b"dog", b"cat").unwrap();
 			x.insert(b"lunch", b"time").unwrap();
@@ -156,7 +156,7 @@ mod tests {
 			x.insert(b"yo ho ho", b"and a bottle of rum").unwrap();
 		}
 
-		let trie = TrieDB::<_, RlpCodec>::new(&db, &root).unwrap();
+		let trie = TrieDB::new(&db, &root).unwrap();
 		let mut recorder = Recorder::<H256>::new();
 
 		trie.get_with(b"pirate", &mut recorder).unwrap().unwrap();

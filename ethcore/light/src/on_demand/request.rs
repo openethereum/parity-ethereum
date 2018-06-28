@@ -38,8 +38,8 @@ use hashdb::HashDB;
 use kvdb::DBValue;
 use bytes::Bytes;
 use memorydb::MemoryDB;
-use trie::{Trie, TrieDB};
-use ethtrie::{TrieError, RlpCodec};
+use trie::Trie;
+use ethtrie::{TrieError, TrieDB};
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 
@@ -830,7 +830,7 @@ impl Account {
 		let mut db = MemoryDB::new();
 		for node in proof { db.insert(&node[..]); }
 
-		match TrieDB::<_, RlpCodec>::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
+		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
 			Some(val) => {
 				let rlp = Rlp::new(&val);
 				Ok(Some(BasicAccount {
@@ -937,8 +937,9 @@ mod tests {
 	use ethereum_types::{H256, Address};
 	use memorydb::MemoryDB;
 	use parking_lot::Mutex;
-	use trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
-	use trie::recorder::Recorder;
+	use trie::{Trie, TrieMut};
+	use ethtrie::{SecTrieDB, SecTrieDBMut};
+	use trie::Recorder;
 	use hash::keccak;
 
 	use ::ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
@@ -1053,7 +1054,7 @@ mod tests {
 			stream.out()
 		};
 		{
-			let mut trie = SecTrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
+			let mut trie = SecTrieDBMut::new(&mut db, &mut root);
 			for _ in 0..100 {
 				let address = Address::random();
 				trie.insert(&*address, &rand_acc()).unwrap();
@@ -1063,7 +1064,7 @@ mod tests {
 		}
 
 		let proof = {
-			let trie = SecTrieDB::<_, RlpCodec>::new(&db, &root).unwrap();
+			let trie = SecTrieDB::new(&db, &root).unwrap();
 			let mut recorder = Recorder::new();
 
 			trie.get_with(&*addr, &mut recorder).unwrap().unwrap();

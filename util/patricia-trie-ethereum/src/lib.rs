@@ -34,6 +34,28 @@ use rlp::DecoderError;
 
 /// Convenience type alias to instantiate a Keccak-flavoured `RlpNodeCodec`
 pub type RlpCodec = RlpNodeCodec<KeccakHasher>;
+
+/// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieDB`
+pub type TrieDB<'db> = trie::TrieDB<'db, KeccakHasher, RlpCodec>;
+
+/// Convenience type alias to instantiate a Keccak/Rlp-flavoured `SecTrieDB`
+pub type SecTrieDB<'db> = trie::SecTrieDB<'db, KeccakHasher, RlpCodec>;
+
+/// Convenience type alias to instantiate a Keccak/Rlp-flavoured `FatDB`
+pub type FatDB<'db> = trie::FatDB<'db, KeccakHasher, RlpCodec>;
+
+/// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieDBMut`
+pub type TrieDBMut<'db> = trie::TrieDBMut<'db, KeccakHasher, RlpCodec>;
+
+/// Convenience type alias to instantiate a Keccak/Rlp-flavoured `SecTrieDBMut`
+pub type SecTrieDBMut<'db> = trie::SecTrieDBMut<'db, KeccakHasher, RlpCodec>;
+
+/// Convenience type alias to instantiate a Keccak/Rlp-flavoured `FatDBMut`
+pub type FatDBMut<'db> = trie::FatDBMut<'db, KeccakHasher, RlpCodec>;
+
+/// Convenience type alias to instantiate a Keccak/Rlp-flavoured `TrieFactory`
+pub type TrieFactory = trie::TrieFactory<KeccakHasher, RlpCodec>;
+
 /// Convenience type alias for Keccak/Rlp flavoured trie errors
 pub type TrieError = trie::TrieError<H256, DecoderError>;
 /// Convenience type alias for Keccak/Rlp flavoured trie results

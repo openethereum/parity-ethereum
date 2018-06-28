@@ -29,8 +29,8 @@ use hashdb::HashDB;
 use keccak_hasher::KeccakHasher;
 use memorydb::MemoryDB;
 use bytes::Bytes;
-use trie::{TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
-use ethtrie::{self, RlpCodec};
+use trie::{TrieMut, Trie, Recorder};
+use ethtrie::{self, TrieDB, TrieDBMut};
 use rlp::{RlpStream, Rlp};
 
 
@@ -73,7 +73,7 @@ impl<DB: HashDB<KeccakHasher>> CHT<DB> {
 		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
 
 		let mut recorder = Recorder::with_depth(from_level);
-		let t = TrieDB::<_, RlpCodec>::new(&self.db, &self.root)?;
+		let t = TrieDB::new(&self.db, &self.root)?;
 		t.get_with(&key!(num), &mut recorder)?;
 
 		Ok(Some(recorder.drain().into_iter().map(|x| x.data).collect()))
@@ -105,7 +105,7 @@ pub fn build<F>(cht_num: u64, mut fetcher: F) ->  Option<CHT<MemoryDB<KeccakHash
 	let mut root = H256::default();
 
 	{
-		let mut t = TrieDBMut::<_, RlpCodec>::new(&mut db, &mut root);
+		let mut t = TrieDBMut::new(&mut db, &mut root);
 		for blk_num in (0..SIZE).map(|n| last_num - n) {
 			let info = match fetcher(id) {
 				Some(info) => info,
@@ -153,7 +153,7 @@ pub fn check_proof(proof: &[Bytes], num: u64, root: H256) -> Option<(H256, U256)
 	let mut db = MemoryDB::<KeccakHasher>::new();
 
 	for node in proof { db.insert(&node[..]); }
-	let res = match TrieDB::<_, RlpCodec>::new(&db, &root) {
+	let res = match TrieDB::new(&db, &root) {
 		Err(_) => return None,
 		Ok(trie) => trie.get_with(&key!(num), |val: &[u8]| {
 			let rlp = Rlp::new(val);
