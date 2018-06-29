@@ -165,9 +165,4 @@ mod test {
 		assert_eq!(DatabaseCompactionProfile::SSD, "ssd".parse().unwrap());
 		assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
 	}
-
-	#[test]
-	fn test_mode_default() {
-		assert_eq!(Mode::default(), Mode::Active);
-	}
 }
