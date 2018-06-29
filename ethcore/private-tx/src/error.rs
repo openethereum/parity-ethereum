@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::{Address, H256};
+use ethereum_types::Address;
 use rlp::DecoderError;
 use ethtrie::TrieError;
 use ethcore::account_provider::SignError;
