@@ -55,7 +55,7 @@ ethstore = { path = "../ethstore" }
 fetch = { path = "../util/fetch" }
 hardware-wallet = { path = "../hw" }
 keccak-hash = { path = "../util/hash" }
-node-health = { path = "../dapps/node-health" }
+node-health = { path = "../node-health" }
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }

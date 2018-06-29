@@ -46,7 +46,7 @@ ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
-node-health = { path = "dapps/node-health" }
+node-health = { path = "node-health" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
