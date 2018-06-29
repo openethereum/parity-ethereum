@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, HashMap};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -26,7 +26,6 @@ use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
-use lru_cache::LruCache;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
 use transaction::{
@@ -96,8 +95,6 @@ const DEFAULT_MINIMAL_GAS_PRICE: u64 = 20_000_000_000;
 /// This is an optimization that prevents traversing the entire pool
 /// in case we have only a fraction of available block gas limit left.
 const MAX_SKIPPED_TRANSACTIONS: usize = 8;
-
-const MAX_NONCE_CACHE_SIZE: usize = 4096;
 
 /// Configures the behaviour of the miner.
 #[derive(Debug, PartialEq)]
@@ -204,7 +201,7 @@ pub struct Miner {
 	sealing: Mutex<SealingWork>,
 	params: RwLock<AuthoringParams>,
 	listeners: RwLock<Vec<Box<NotifyWork>>>,
-	nonce_cache: RwLock<LruCache<Address, U256>>,
+	nonce_cache: RwLock<HashMap<Address, U256>>,
 	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
@@ -243,7 +240,7 @@ impl Miner {
 			params: RwLock::new(AuthoringParams::default()),
 			listeners: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
-			nonce_cache: RwLock::new(LruCache::new(MAX_NONCE_CACHE_SIZE)),
+			nonce_cache: RwLock::new(HashMap::with_capacity(1024)),
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts,
@@ -1068,14 +1065,12 @@ impl miner::MinerService for Miner {
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
 		//    are in those blocks
 
+		// Clear nonce cache
+		self.nonce_cache.write().clear();
+
 		// First update gas limit in transaction queue and minimal gas price.
 		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
-
-		if retracted.len() != 0 {
-			// Clear nonce cache
-			self.nonce_cache.write().clear();
-		}
 
 		// Then import all transactions...
 		let client = self.pool_client(chain);

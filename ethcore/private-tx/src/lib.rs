@@ -38,7 +38,6 @@ extern crate ethjson;
 extern crate fetch;
 extern crate futures;
 extern crate keccak_hash as hash;
-extern crate lru_cache;
 extern crate parking_lot;
 extern crate patricia_trie as trie;
 extern crate rlp;
@@ -70,7 +69,6 @@ use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
-use lru_cache::LruCache;
 use rlp::*;
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
@@ -96,8 +94,6 @@ use_contract!(private, "PrivateContract", "res/private.json");
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
-
-const MAX_NONCE_CACHE_SIZE: usize = 4096;
 
 /// Configurtion for private transaction provider
 #[derive(Default, PartialEq, Debug, Clone)]
@@ -248,7 +244,7 @@ impl Provider where {
 		Ok(original_transaction)
 	}
 
-	fn pool_client<'a>(&'a self, nonce_cache: &'a RwLock<LruCache<Address, U256>>) -> miner::pool_client::PoolClient<'a, Client> {
+	fn pool_client<'a>(&'a self, nonce_cache: &'a RwLock<HashMap<Address, U256>>) -> miner::pool_client::PoolClient<'a, Client> {
 		let engine = self.client.engine();
 		let refuse_service_transactions = true;
 		miner::pool_client::PoolClient::new(
@@ -267,7 +263,7 @@ impl Provider where {
 	/// can be replaced with a single `drain()` method instead.
 	/// Thanks to this we also don't really need to lock the entire verification for the time of execution.
 	fn process_queue(&self) -> Result<(), Error> {
-		let nonce_cache = RwLock::new(LruCache::new(MAX_NONCE_CACHE_SIZE));
+		let nonce_cache = Default::default();
 		let mut verification_queue = self.transactions_for_verification.lock();
 		let ready_transactions = verification_queue.ready_transactions(self.pool_client(&nonce_cache));
 		for transaction in ready_transactions {
@@ -588,7 +584,7 @@ impl Importer for Arc<Provider> {
 				trace!("Validating transaction: {:?}", original_tx);
 				// Verify with the first account available
 				trace!("The following account will be used for verification: {:?}", validation_account);
-				let nonce_cache = RwLock::new(LruCache::new(MAX_NONCE_CACHE_SIZE));
+				let nonce_cache = Default::default();
 				self.transactions_for_verification.lock().add_transaction(
 					original_tx,
 					contract,

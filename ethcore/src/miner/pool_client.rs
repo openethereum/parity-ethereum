@@ -17,11 +17,11 @@
 //! Blockchain access for transaction pool.
 
 use std::fmt;
+use std::collections::HashMap;
 
-use ethcore_miner::pool::client::NonceClient;
-use ethcore_miner::pool;
 use ethereum_types::{H256, U256, Address};
-use lru_cache::LruCache;
+use ethcore_miner::pool;
+use ethcore_miner::pool::client::NonceClient;
 use transaction::{
 	self,
 	UnverifiedTransaction,
@@ -36,7 +36,10 @@ use header::Header;
 use miner;
 use miner::service_transaction_checker::ServiceTransactionChecker;
 
-type NoncesCache = RwLock<LruCache<Address, U256>>;
+type NoncesCache = RwLock<HashMap<Address, U256>>;
+
+const MAX_NONCE_CACHE_SIZE: usize = 4096;
+const EXPECTED_NONCE_CACHE_SIZE: usize = 2048;
 
 /// Blockchain accesss for transaction pool.
 pub struct PoolClient<'a, C: 'a> {
@@ -191,7 +194,7 @@ impl<'a, C: 'a> NonceClient for CachedNonceClient<'a, C> where
 	C: Nonce + Sync,
 {
   fn account_nonce(&self, address: &Address) -> U256 {
-	  if let Some(nonce) = self.cache.write().get_mut(address) {
+	  if let Some(nonce) = self.cache.read().get(address) {
 		  return *nonce;
 	  }
 
@@ -201,6 +204,17 @@ impl<'a, C: 'a> NonceClient for CachedNonceClient<'a, C> where
 	  let nonce = self.client.latest_nonce(address);
 	  cache.insert(*address, nonce);
 
+	  if cache.len() < MAX_NONCE_CACHE_SIZE {
+		  return nonce
+	  }
+
+	  // Remove excessive amount of entries from the cache
+	  while cache.len() > EXPECTED_NONCE_CACHE_SIZE {
+		  // Just remove random entry
+		  if let Some(key) = cache.keys().next().cloned() {
+			  cache.remove(&key);
+		  }
+	  }
 	  nonce
   }
 }
