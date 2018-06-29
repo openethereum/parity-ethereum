@@ -482,6 +482,10 @@ usage! {
 			"--jsonrpc-server-threads=[NUM]",
 			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
 
+			ARG arg_jsonrpc_max_payload: (Option<usize>) = None, or |c: &Config| c.rpc.as_ref()?.max_payload,
+			"--jsonrpc-max-size=[NUM]",
+			"Specify maximum size for RPC requests in megabytes.",
+
 		["API and Console Options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| c.websockets.as_ref()?.disable.clone(),
 			"--no-ws",
@@ -1165,6 +1169,7 @@ struct Rpc {
 	hosts: Option<Vec<String>>,
 	server_threads: Option<usize>,
 	processing_threads: Option<usize>,
+	max_payload: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
