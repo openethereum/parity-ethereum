@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "1.11.4"
+version = "1.11.5"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -123,7 +123,6 @@ panic = "abort"
 [workspace]
 members = [
 	"chainspec",
-	"dapps/js-glue",
 	"ethcore/wasm/run",
 	"ethcore/types",
 	"ethkey/cli",
