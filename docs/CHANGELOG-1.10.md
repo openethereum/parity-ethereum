@@ -3,6 +3,7 @@
 Parity 1.10.8 is a bug-fix release to improve performance and stability.
 
 The full list of included changes:
+
 - Backports ([#8986](https://github.com/paritytech/parity/pull/8986))
   - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530 ([#8984](https://github.com/paritytech/parity/pull/8984))
     - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530
