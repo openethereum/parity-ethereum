@@ -1,3 +1,83 @@
+## Parity [v1.11.4](https://github.com/paritytech/parity/releases/tag/v1.11.4) (2018-06-20)
+
+Parity 1.11.4 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8916](https://github.com/paritytech/parity/pull/8916))
+  - `Duration_ns: u64 -> duration: Duration` ([#8457](https://github.com/paritytech/parity/pull/8457))
+    - Duration_ns: u64 -> duration: Duration
+    - Format on millis {:.2} -> {}
+  - Keep all enacted blocks notify in order ([#8524](https://github.com/paritytech/parity/pull/8524))
+    - Keep all enacted blocks notify in order
+    - Collect is unnecessary
+    - Update ChainNotify to use ChainRouteType
+    - Fix all ethcore fn defs
+    - Wrap the type within ChainRoute
+    - Fix private-tx and sync api
+    - Fix secret_store API
+    - Fix updater API
+    - Fix rpc api
+    - Fix informant api
+    - Eagerly cache enacted/retracted and remove contain_enacted/retracted
+    - Fix indent
+    - Tests: should use full expr form for struct constructor
+    - Use into_enacted_retracted to further avoid copy
+    - Typo: not a function
+    - Rpc/tests: ChainRoute -> ChainRoute::new
+  - Handle removed logs in filter changes and add geth compatibility field ([#8796](https://github.com/paritytech/parity/pull/8796))
+    - Add removed geth compatibility field in log
+    - Fix mocked tests
+    - Add field block hash in PollFilter
+    - Store last block hash info for log filters
+    - Implement canon route
+    - Use canon logs for fetching reorg logs
+    - Make sure removed flag is set
+    - Address grumbles
+  - Fixed AuthorityRound deadlock on shutdown, closes [#8088](https://github.com/paritytech/parity/issues/8088) ([#8803](https://github.com/paritytech/parity/pull/8803))
+  - Ci: Fix docker tags ([#8822](https://github.com/paritytech/parity/pull/8822))
+    - Scripts: enable docker builds for beta and stable
+    - Scripts: docker latest should be beta not master
+    - Scripts: docker latest is master
+  - Ethcore: fix ancient block error msg handling ([#8832](https://github.com/paritytech/parity/pull/8832))
+  - Disable parallel verification and skip verifiying already imported txs. ([#8834](https://github.com/paritytech/parity/pull/8834))
+    - Reject transactions that are already in pool without verifying them.
+    - Avoid verifying already imported transactions.
+  - Fix concurrent access to signer queue ([#8854](https://github.com/paritytech/parity/pull/8854))
+    - Fix concurrent access to signer queue
+    - Put request back to the queue if confirmation failed
+    - Typo: fix docs and rename functions to be more specific
+    - Change trace info "Transaction" -> "Request"
+  - Don't allocate in expect_valid_rlp unless necessary ([#8867](https://github.com/paritytech/parity/pull/8867))
+    - Don't allocate via format! in case there's no error
+    - Fix test?
+  - Fixed ipc leak, closes [#8774](https://github.com/paritytech/parity/issues/8774) ([#8876](https://github.com/paritytech/parity/pull/8876))
+  - Add new ovh bootnodes and fix port for foundation bootnode 3.2 ([#8886](https://github.com/paritytech/parity/pull/8886))
+    - Add new ovh bootnodes and fix port for foundation bootnode 3.2
+    - Remove old bootnodes.
+    - Remove duplicate 1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082
+  - Block 0 is valid in queries ([#8891](https://github.com/paritytech/parity/pull/8891))
+  - Add ETC Cooperative-run load balanced parity node ([#8892](https://github.com/paritytech/parity/pull/8892))
+  - Minor fix in chain supplier and light provider ([#8906](https://github.com/paritytech/parity/pull/8906))
+    - Fix chain supplier increment
+    - Fix light provider block_headers
+  - Check whether we need resealing in miner and unwrap has_account in account_provider ([#8853](https://github.com/paritytech/parity/pull/8853))
+    - Remove unused Result wrap in has_account
+    - Check whether we need to reseal for external transactions
+    - Fix reference to has_account interface
+    - Typo: missing )
+    - Refactor duplicates to prepare_and_update_sealing
+    - Fix build
+  - Allow disabling local-by-default for transactions with new config entry ([#8882](https://github.com/paritytech/parity/pull/8882))
+    - Add tx_queue_allow_unknown_local config option
+    - Refactor flag name + don't change import_own_tx behaviour
+    - Add fn to TestMinerService
+    - Avoid race condition from trusted sources
+- Parity-version: beta release 1.11.4 ([#8856](https://github.com/paritytech/parity/pull/8856))
+  - Cherry-pick network-specific release flag ([#8821](https://github.com/paritytech/parity/pull/8821))
+  - Parity-version: bump beta to 1.11.4
+  - Parity-version: remove merge leftovers
+
 ## Parity [v1.11.3](https://github.com/paritytech/parity/releases/tag/v1.11.3) (2018-06-06)
 
 Parity 1.11.3 is a security-relevant release. Please upgrade your nodes as soon as possible to [v1.10.6](https://github.com/paritytech/parity/releases/tag/v1.10.6) or [v1.11.3](https://github.com/paritytech/parity/releases/tag/v1.11.3).

@@ -24,14 +24,13 @@ use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
-use rlp;
 use hash::keccak;
 use ethereum_types::{H256, H520, Address, U256};
 use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 
-use ethkey::Signature;
+use ethkey::{Password, Signature};
 use sync::LightSync;
 use ethcore::ids::BlockId;
 use ethcore::client::BlockChainClient;
@@ -52,6 +51,7 @@ use v1::types::{
 	SignRequest as RpcSignRequest,
 	DecryptRequest as RpcDecryptRequest,
 };
+use rlp;
 
 pub use self::nonce::Reservations;
 
@@ -323,7 +323,7 @@ impl LightDispatcher {
 				x.map(move |acc| acc.map_or(account_start_nonce, |acc| acc.nonce))
 					.map_err(|_| errors::no_light_peers())
 			),
-			None =>  Box::new(future::err(errors::network_disabled()))
+			None => Box::new(future::err(errors::network_disabled()))
 		}
 	}
 }
@@ -560,15 +560,15 @@ impl Future for ProspectiveSigner {
 }
 
 /// Single-use account token.
-pub type AccountToken = String;
+pub type AccountToken = Password;
 
 /// Values used to unlock accounts for signing.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum SignWith {
 	/// Nothing -- implies the account is already unlocked.
 	Nothing,
 	/// Unlock with password.
-	Password(String),
+	Password(Password),
 	/// Unlock with single-use token.
 	Token(AccountToken),
 }
@@ -584,8 +584,7 @@ impl SignWith {
 }
 
 /// A value, potentially accompanied by a signing token.
-#[derive(Debug)]
-pub enum WithToken<T: Debug> {
+pub enum WithToken<T> {
 	/// No token.
 	No(T),
 	/// With token.
@@ -700,7 +699,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			if accounts.is_hardware_address(&address) {
 				return Box::new(future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)));
 			}
-
 			let res = decrypt(&accounts, address, data, pass)
 				.map(|result| result
 					.map(RpcBytes)
@@ -738,8 +736,8 @@ fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transacti
 
 	SignedTransaction::new(t.with_signature(signature, chain_id))
 		.map_err(|e| {
-		  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
-		  errors::account("Invalid signature generated", e)
+			debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
+			errors::account("Invalid signature generated", e)
 		})
 }
 

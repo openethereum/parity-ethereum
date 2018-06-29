@@ -20,6 +20,7 @@ use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_a
 use ethcore::account_provider::AccountProvider;
 use ethereum_types::{H256, Address};
 use traits::NodeKeyPair;
+use ethkey::Password;
 
 pub struct PlainNodeKeyPair {
 	key_pair: KeyPair,
@@ -29,7 +30,7 @@ pub struct KeyStoreNodeKeyPair {
 	account_provider: Arc<AccountProvider>,
 	address: Address,
 	public: Public,
-	password: String,
+	password: Password,
 }
 
 impl PlainNodeKeyPair {
@@ -61,7 +62,7 @@ impl NodeKeyPair for PlainNodeKeyPair {
 }
 
 impl KeyStoreNodeKeyPair {
-	pub fn new(account_provider: Arc<AccountProvider>, address: Address, password: String) -> Result<Self, EthKeyError> {
+	pub fn new(account_provider: Arc<AccountProvider>, address: Address, password: Password) -> Result<Self, EthKeyError> {
 		let public = account_provider.account_public(address.clone(), &password).map_err(|e| EthKeyError::Custom(format!("{}", e)))?;
 		Ok(KeyStoreNodeKeyPair {
 			account_provider: account_provider,

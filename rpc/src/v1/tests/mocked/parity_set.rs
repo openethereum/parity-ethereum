@@ -178,7 +178,7 @@ fn rpc_parity_set_engine_signer() {
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 	assert_eq!(miner.authoring_params().author, Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
-	assert_eq!(*miner.password.read(), "password".to_string());
+	assert_eq!(*miner.password.read(), "password".into());
 }
 
 #[test]

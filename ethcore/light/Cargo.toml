@@ -35,7 +35,7 @@ keccak-hash = { path = "../../util/hash" }
 triehash = { path = "../../util/triehash" }
 kvdb = { path = "../../util/kvdb" }
 memory-cache = { path = "../../util/memory_cache" }
-error-chain = { version = "0.11", default-features = false }
+error-chain = { version = "0.12", default-features = false }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }

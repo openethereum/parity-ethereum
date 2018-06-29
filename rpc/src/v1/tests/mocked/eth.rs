@@ -328,7 +328,7 @@ fn rpc_eth_submit_hashrate() {
 fn rpc_eth_sign() {
 	let tester = EthTester::default();
 
-	let account = tester.accounts_provider.insert_account(Secret::from([69u8; 32]), "abcd").unwrap();
+	let account = tester.accounts_provider.insert_account(Secret::from([69u8; 32]), &"abcd".into()).unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
 	let _message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
 
@@ -362,11 +362,11 @@ fn rpc_eth_author() {
 	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(Address::zero())));
 
 	// Account set - return first account
-	let addr = tester.accounts_provider.new_account("123").unwrap();
+	let addr = tester.accounts_provider.new_account(&"123".into()).unwrap();
 	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
 
 	for i in 0..20 {
-		let addr = tester.accounts_provider.new_account(&format!("{}", i)).unwrap();
+		let addr = tester.accounts_provider.new_account(&format!("{}", i).into()).unwrap();
 		tester.miner.set_author(addr.clone(), None).unwrap();
 
 		assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
@@ -394,7 +394,7 @@ fn rpc_eth_gas_price() {
 #[test]
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
-	let address = tester.accounts_provider.new_account("").unwrap();
+	let address = tester.accounts_provider.new_account(&"".into()).unwrap();
 	tester.accounts_provider.set_new_dapps_addresses(None).unwrap();
 	tester.accounts_provider.set_address_name(1.into(), "1".into());
 	tester.accounts_provider.set_address_name(10.into(), "10".into());
@@ -804,7 +804,7 @@ fn rpc_eth_estimate_gas_default_block() {
 #[test]
 fn rpc_eth_send_transaction() {
 	let tester = EthTester::default();
-	let address = tester.accounts_provider.new_account("").unwrap();
+	let address = tester.accounts_provider.new_account(&"".into()).unwrap();
 	tester.accounts_provider.unlock_account_permanently(address, "".into()).unwrap();
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -855,7 +855,7 @@ fn rpc_eth_send_transaction() {
 #[test]
 fn rpc_eth_sign_transaction() {
 	let tester = EthTester::default();
-	let address = tester.accounts_provider.new_account("").unwrap();
+	let address = tester.accounts_provider.new_account(&"".into()).unwrap();
 	tester.accounts_provider.unlock_account_permanently(address, "".into()).unwrap();
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -912,7 +912,7 @@ fn rpc_eth_sign_transaction() {
 #[test]
 fn rpc_eth_send_transaction_with_bad_to() {
 	let tester = EthTester::default();
-	let address = tester.accounts_provider.new_account("").unwrap();
+	let address = tester.accounts_provider.new_account(&"".into()).unwrap();
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_sendTransaction",
@@ -934,7 +934,7 @@ fn rpc_eth_send_transaction_with_bad_to() {
 #[test]
 fn rpc_eth_send_transaction_error() {
 	let tester = EthTester::default();
-	let address = tester.accounts_provider.new_account("").unwrap();
+	let address = tester.accounts_provider.new_account(&"".into()).unwrap();
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_sendTransaction",
@@ -972,7 +972,7 @@ fn rpc_eth_send_raw_transaction_error() {
 #[test]
 fn rpc_eth_send_raw_transaction() {
 	let tester = EthTester::default();
-	let address = tester.accounts_provider.new_account("abcd").unwrap();
+	let address = tester.accounts_provider.new_account(&"abcd".into()).unwrap();
 	tester.accounts_provider.unlock_account_permanently(address, "abcd".into()).unwrap();
 
 	let t = Transaction {

@@ -18,6 +18,7 @@
 use std::collections::BTreeMap;
 
 use jsonrpc_core::Result;
+use ethkey::Password;
 use ethstore::KeyFile;
 use v1::types::{H160, H256, H520, DappId, DeriveHash, DeriveHierarchical, ExtAccountInfo};
 
@@ -31,32 +32,32 @@ build_rpc_trait! {
 		/// Creates new account from the given phrase using standard brainwallet mechanism.
 		/// Second parameter is password for the new account.
 		#[rpc(name = "parity_newAccountFromPhrase")]
-		fn new_account_from_phrase(&self, String, String) -> Result<H160>;
+		fn new_account_from_phrase(&self, String, Password) -> Result<H160>;
 
 		/// Creates new account from the given JSON wallet.
 		/// Second parameter is password for the wallet and the new account.
 		#[rpc(name = "parity_newAccountFromWallet")]
-		fn new_account_from_wallet(&self, String, String) -> Result<H160>;
+		fn new_account_from_wallet(&self, String, Password) -> Result<H160>;
 
 		/// Creates new account from the given raw secret.
 		/// Second parameter is password for the new account.
 		#[rpc(name = "parity_newAccountFromSecret")]
-		fn new_account_from_secret(&self, H256, String) -> Result<H160>;
+		fn new_account_from_secret(&self, H256, Password) -> Result<H160>;
 
 		/// Returns true if given `password` would unlock given `account`.
 		/// Arguments: `account`, `password`.
 		#[rpc(name = "parity_testPassword")]
-		fn test_password(&self, H160, String) -> Result<bool>;
+		fn test_password(&self, H160, Password) -> Result<bool>;
 
 		/// Changes an account's password.
 		/// Arguments: `account`, `password`, `new_password`.
 		#[rpc(name = "parity_changePassword")]
-		fn change_password(&self, H160, String, String) -> Result<bool>;
+		fn change_password(&self, H160, Password, Password) -> Result<bool>;
 
 		/// Permanently deletes an account.
 		/// Arguments: `account`, `password`.
 		#[rpc(name = "parity_killAccount")]
-		fn kill_account(&self, H160, String) -> Result<bool>;
+		fn kill_account(&self, H160, Password) -> Result<bool>;
 
 		/// Permanently deletes an address from the addressbook
 		/// Arguments: `address`
@@ -132,11 +133,11 @@ build_rpc_trait! {
 
 		/// Create new vault.
 		#[rpc(name = "parity_newVault")]
-		fn create_vault(&self, String, String) -> Result<bool>;
+		fn create_vault(&self, String, Password) -> Result<bool>;
 
 		/// Open existing vault.
 		#[rpc(name = "parity_openVault")]
-		fn open_vault(&self, String, String) -> Result<bool>;
+		fn open_vault(&self, String, Password) -> Result<bool>;
 
 		/// Close previously opened vault.
 		#[rpc(name = "parity_closeVault")]
@@ -152,7 +153,7 @@ build_rpc_trait! {
 
 		/// Change vault password.
 		#[rpc(name = "parity_changeVaultPassword")]
-		fn change_vault_password(&self, String, String) -> Result<bool>;
+		fn change_vault_password(&self, String, Password) -> Result<bool>;
 
 		/// Change vault of the given address.
 		#[rpc(name = "parity_changeVault")]
@@ -169,21 +170,21 @@ build_rpc_trait! {
 		/// Derive new address from given account address using specific hash.
 		/// Resulting address can be either saved as a new account (with the same password).
 		#[rpc(name = "parity_deriveAddressHash")]
-		fn derive_key_hash(&self, H160, String, DeriveHash, bool) -> Result<H160>;
+		fn derive_key_hash(&self, H160, Password, DeriveHash, bool) -> Result<H160>;
 
 		/// Derive new address from given account address using
 		/// hierarchical derivation (sequence of 32-bit integer indices).
 		/// Resulting address can be either saved as a new account (with the same password).
 		#[rpc(name = "parity_deriveAddressIndex")]
-		fn derive_key_index(&self, H160, String, DeriveHierarchical, bool) -> Result<H160>;
+		fn derive_key_index(&self, H160, Password, DeriveHierarchical, bool) -> Result<H160>;
 
 		/// Exports an account with given address if provided password matches.
 		#[rpc(name = "parity_exportAccount")]
-		fn export_account(&self, H160, String) -> Result<KeyFile>;
+		fn export_account(&self, H160, Password) -> Result<KeyFile>;
 
 		/// Sign raw hash with the key corresponding to address and password.
 		#[rpc(name = "parity_signMessage")]
-		fn sign_message(&self, H160, String, H256) -> Result<H520>;
+		fn sign_message(&self, H160, Password, H256) -> Result<H520>;
 
 		/// Send a PinMatrixAck to a hardware wallet, unlocking it
 		#[rpc(name = "parity_hardwarePinMatrixAck")]
