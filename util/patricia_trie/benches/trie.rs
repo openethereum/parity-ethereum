@@ -34,7 +34,6 @@ use memorydb::MemoryDB;
 use test::{Bencher, black_box};
 use trie::{TrieMut, Trie};
 use trie_standardmap::{Alphabet, ValueMode, StandardMap};
-use hashdb::Hasher;
 use keccak_hasher::KeccakHasher;
 use ethtrie::{TrieDB, TrieDBMut};
 
@@ -76,7 +75,7 @@ fn trie_insertions_32_mir_1k(b: &mut Bencher) {
 	let d = st.make();
 	b.iter(&mut ||{
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
@@ -94,7 +93,7 @@ fn trie_iter(b: &mut Bencher) {
 	};
 	let d = st.make();
 	let mut memdb = MemoryDB::<KeccakHasher>::new();
-	let mut root = <KeccakHasher as Hasher>::Out::new();
+	let mut root = H256::new();
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
@@ -123,7 +122,7 @@ fn trie_insertions_32_ran_1k(b: &mut Bencher) {
 	let mut r = H256::new();
 	b.iter(&mut ||{
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
@@ -135,7 +134,7 @@ fn trie_insertions_32_ran_1k(b: &mut Bencher) {
 #[bench]
 fn trie_insertions_six_high(b: &mut Bencher) {
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-	let mut seed = <KeccakHasher as Hasher>::Out::new();
+	let mut seed = H256::new();
 	for _ in 0..1000 {
 		let k = random_bytes(6, 0, &mut seed);
 		let v = random_value(&mut seed);
@@ -144,7 +143,7 @@ fn trie_insertions_six_high(b: &mut Bencher) {
 
 	b.iter(||{
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
@@ -164,7 +163,7 @@ fn trie_insertions_six_mid(b: &mut Bencher) {
 	}
 	b.iter(||{
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
@@ -176,7 +175,7 @@ fn trie_insertions_six_mid(b: &mut Bencher) {
 fn trie_insertions_random_mid(b: &mut Bencher) {
 	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-	let mut seed = <KeccakHasher as Hasher>::Out::new();
+	let mut seed = H256::new();
 	for _ in 0..1000 {
 		let k = random_word(alphabet, 1, 5, &mut seed);
 		let v = random_value(&mut seed);
@@ -185,7 +184,7 @@ fn trie_insertions_random_mid(b: &mut Bencher) {
 
 	b.iter(||{
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
@@ -197,7 +196,7 @@ fn trie_insertions_random_mid(b: &mut Bencher) {
 fn trie_insertions_six_low(b: &mut Bencher) {
 	let alphabet = b"abcdef";
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-	let mut seed = <KeccakHasher as Hasher>::Out::new();
+	let mut seed = H256::new();
 	for _ in 0..1000 {
 		let k = random_word(alphabet, 6, 0, &mut seed);
 		let v = random_value(&mut seed);
@@ -206,7 +205,7 @@ fn trie_insertions_six_low(b: &mut Bencher) {
 
 	b.iter(||{
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();

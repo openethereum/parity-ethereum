@@ -1040,7 +1040,7 @@ mod tests {
 	#[test]
 	fn init() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		assert_eq!(*t.root(), RlpCodec::HASHED_NULL_NODE);
 	}
@@ -1048,7 +1048,7 @@ mod tests {
 	#[test]
 	fn insert_on_empty() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
@@ -1059,12 +1059,12 @@ mod tests {
 		let big_value = b"00000000000000000000000000000000";
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
 		t1.insert(&[0x01, 0x23], big_value).unwrap();
 		t1.insert(&[0x01, 0x34], big_value).unwrap();
 		let mut memdb2 = MemoryDB::<KeccakHasher>::new();
-		let mut root2 = <KeccakHasher as Hasher>::Out::default();
+		let mut root2 = H256::new();
 		let mut t2 = TrieDBMut::new(&mut memdb2, &mut root2);
 
 		t2.insert(&[0x01], big_value).unwrap();
@@ -1076,7 +1076,7 @@ mod tests {
 	#[test]
 	fn insert_replace_root() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]).unwrap();
@@ -1086,7 +1086,7 @@ mod tests {
 	#[test]
 	fn insert_make_branch_root() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]).unwrap();
@@ -1099,7 +1099,7 @@ mod tests {
 	#[test]
 	fn insert_into_branch_root() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]).unwrap();
@@ -1114,7 +1114,7 @@ mod tests {
 	#[test]
 	fn insert_value_into_branch_root() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[], &[0x0]).unwrap();
@@ -1127,7 +1127,7 @@ mod tests {
 	#[test]
 	fn insert_split_leaf() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]).unwrap();
@@ -1140,7 +1140,7 @@ mod tests {
 	#[test]
 	fn insert_split_extenstion() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01, 0x23, 0x45], &[0x01]).unwrap();
 		t.insert(&[0x01, 0xf3, 0x45], &[0x02]).unwrap();
@@ -1158,7 +1158,7 @@ mod tests {
 		let big_value1 = b"11111111111111111111111111111111";
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value0).unwrap();
 		t.insert(&[0x11u8, 0x23], big_value1).unwrap();
@@ -1173,7 +1173,7 @@ mod tests {
 		let big_value = b"00000000000000000000000000000000";
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value).unwrap();
 		t.insert(&[0x11u8, 0x23], big_value).unwrap();
@@ -1186,7 +1186,7 @@ mod tests {
 	#[test]
 	fn test_at_empty() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let t = TrieDBMut::new(&mut memdb, &mut root);
 		assert_eq!(t.get(&[0x5]).unwrap(), None);
 	}
@@ -1194,7 +1194,7 @@ mod tests {
 	#[test]
 	fn test_at_one() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		assert_eq!(t.get(&[0x1, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x1u8, 0x23]));
@@ -1205,7 +1205,7 @@ mod tests {
 	#[test]
 	fn test_at_three() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]).unwrap();
@@ -1223,7 +1223,7 @@ mod tests {
 
 	#[test]
 	fn stress() {
-		let mut seed = <KeccakHasher as Hasher>::Out::new();
+		let mut seed = H256::new();
 		for _ in 0..50 {
 			let x = StandardMap {
 				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
@@ -1235,12 +1235,12 @@ mod tests {
 
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::<KeccakHasher>::new();
-			let mut root = <KeccakHasher as Hasher>::Out::default();
+			let mut root = H256::new();
 			let mut memtrie = populate_trie::<_, RlpCodec>(&mut memdb, &mut root, &x);
 			let mut y = x.clone();
 			y.sort_by(|ref a, ref b| a.0.cmp(&b.0));
 			let mut memdb2 = MemoryDB::<KeccakHasher>::new();
-			let mut root2 = <KeccakHasher as Hasher>::Out::default();
+			let mut root2 = H256::new();
 			let mut memtrie_sorted = populate_trie::<_, RlpCodec>(&mut memdb2, &mut root2, &y);
 			if *memtrie.root() != real || *memtrie_sorted.root() != real {
 				println!("TRIE MISMATCH");
@@ -1262,7 +1262,7 @@ mod tests {
 	#[test]
 	fn test_trie_existing() {
 		let mut db = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		{
 			let mut t = TrieDBMut::new(&mut db, &mut root);
 			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
@@ -1275,7 +1275,7 @@ mod tests {
 
 	#[test]
 	fn insert_empty() {
-		let mut seed = <KeccakHasher as Hasher>::Out::new();
+		let mut seed = H256::new();
 		let x = StandardMap {
 				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
 				min_key: 5,
@@ -1285,7 +1285,7 @@ mod tests {
 		}.make_with(&mut seed);
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut db, &mut root);
 		for &(ref key, ref value) in &x {
 			t.insert(key, value).unwrap();
@@ -1303,7 +1303,7 @@ mod tests {
 
 	#[test]
 	fn return_old_values() {
-		let mut seed = <KeccakHasher as Hasher>::Out::new();
+		let mut seed = H256::new();
 		let x = StandardMap {
 				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
 				min_key: 5,
@@ -1313,7 +1313,7 @@ mod tests {
 		}.make_with(&mut seed);
 
 		let mut db = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut db, &mut root);
 		for &(ref key, ref value) in &x {
 			assert!(t.insert(key, value).unwrap().is_none());

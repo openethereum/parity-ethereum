@@ -124,15 +124,16 @@ where
 #[cfg(test)]
 mod test {
 	use memorydb::MemoryDB;
-	use hashdb::{Hasher, DBValue};
+	use hashdb::DBValue;
 	use keccak_hasher::KeccakHasher;
 	use ethtrie::trie::{Trie, TrieMut};
 	use ethtrie::{FatDB, FatDBMut};
+	use ethereum_types::H256;
 
 	#[test]
 	fn fatdb_to_trie() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		{
 			let mut t = FatDBMut::new(&mut memdb, &mut root);
 			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();

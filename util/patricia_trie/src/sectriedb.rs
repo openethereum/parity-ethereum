@@ -80,15 +80,16 @@ where
 #[cfg(test)]
 mod test {
 	use memorydb::MemoryDB;
-	use hashdb::{Hasher, DBValue};
+	use hashdb::DBValue;
 	use keccak;
 	use keccak_hasher::KeccakHasher;
 	use ethtrie::{TrieDBMut, SecTrieDB, trie::{Trie, TrieMut}};
+	use ethereum_types::H256;
 
 	#[test]
 	fn trie_to_sectrie() {
 		let mut db = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::default();
+		let mut root = H256::new();
 		{
 			let mut t = TrieDBMut::new(&mut db, &mut root);
 			t.insert(&keccak::keccak(&[0x01u8, 0x23]), &[0x01u8, 0x23]).unwrap();

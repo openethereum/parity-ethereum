@@ -414,17 +414,18 @@ impl<'a, H: Hasher, C: NodeCodec<H>> Iterator for TrieDBIterator<'a, H, C> {
 
 #[cfg(test)]
 mod tests {
-	use hashdb::{Hasher, DBValue};
+	use hashdb::DBValue;
 	use keccak_hasher::KeccakHasher;
-	use memorydb::*;
+	use memorydb::MemoryDB;
 	use ethtrie::{TrieDB, TrieDBMut, RlpCodec, trie::{Trie, TrieMut, Lookup}};
+	use ethereum_types::H256;
 
 	#[test]
 	fn iterator() {
 		let d = vec![DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B")];
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		{
 			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			for x in &d {
@@ -442,7 +443,7 @@ mod tests {
 		let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
 	
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		{
 			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			for x in &d {
@@ -481,7 +482,7 @@ mod tests {
 	#[test]
 	fn get_len() {
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		{
 			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			t.insert(b"A", b"ABC").unwrap();
@@ -499,7 +500,7 @@ mod tests {
 		let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		let root = {
 			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			for x in &d {
@@ -609,7 +610,7 @@ mod tests {
 		use ethtrie::trie::NibbleSlice;
 
 		let mut memdb = MemoryDB::<KeccakHasher>::new();
-		let mut root = <KeccakHasher as Hasher>::Out::new();
+		let mut root = H256::new();
 		{
 			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			t.insert(b"A", b"ABC").unwrap();
