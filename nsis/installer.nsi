@@ -10,7 +10,7 @@
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 10
-!define VERSIONBUILD 8
+!define VERSIONBUILD 9
 !define ARGS ""
 !define FIRST_START_ARGS "--mode=passive ui"
 
