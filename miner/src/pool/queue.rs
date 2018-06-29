@@ -148,7 +148,7 @@ impl RecentlyRejected {
 	fn new(limit: usize) -> Self {
 		RecentlyRejected {
 			limit,
-			inner: Default::default(),
+			inner: RwLock::new(HashMap::with_capacity(MIN_REJECTED_CACHE_SIZE)),
 		}
 	}
 
