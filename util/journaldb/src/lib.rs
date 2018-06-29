@@ -178,11 +178,6 @@ mod tests {
 	}
 
 	#[test]
-	fn test_journal_algorithm_default() {
-		assert_eq!(Algorithm::default(), Algorithm::OverlayRecent);
-	}
-
-	#[test]
 	fn test_journal_algorithm_all_types() {
 		// compiling should fail if some cases are not covered
 		let mut archive = 0;
