@@ -63,7 +63,6 @@ pub struct ParityClient<C, M, U> {
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<Host>,
 	ws_address: Option<Host>,
 	eip86_transition: u64,
 }
@@ -83,7 +82,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<Host>,
 		ws_address: Option<Host>,
 	) -> Self {
 		let eip86_transition = client.eip86_transition();
@@ -98,7 +96,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 			logger,
 			settings,
 			signer,
-			dapps_address,
 			ws_address,
 			eip86_transition,
 		}
@@ -351,8 +348,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn dapps_url(&self) -> Result<String> {
-		helpers::to_url(&self.dapps_address)
-			.ok_or_else(|| errors::dapps_disabled())
+		Err(errors::dapps_disabled())
 	}
 
 	fn ws_url(&self) -> Result<String> {

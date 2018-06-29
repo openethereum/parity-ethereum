@@ -45,7 +45,6 @@ pub struct Dependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
-	pub dapps_address: Option<Host>,
 	pub ws_address: Option<Host>,
 }
 
@@ -75,7 +74,6 @@ impl Dependencies {
 			}),
 			network: Arc::new(TestManageNetwork),
 			accounts: Arc::new(AccountProvider::transient_provider()),
-			dapps_address: Some("127.0.0.1:18080".into()),
 			ws_address: Some("127.0.0.1:18546".into()),
 		}
 	}
@@ -92,7 +90,6 @@ impl Dependencies {
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
-			self.dapps_address.clone(),
 			self.ws_address.clone(),
 		)
 	}
@@ -431,19 +428,15 @@ fn rpc_parity_ws_address() {
 #[test]
 fn rpc_parity_dapps_address() {
 	// given
-	let mut deps = Dependencies::new();
+	let deps = Dependencies::new();
 	let io1 = deps.default_client();
-	deps.dapps_address = None;
-	let io2 = deps.default_client();
 
 	// when
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsUrl", "params": [], "id": 1}"#;
-	let response1 = r#"{"jsonrpc":"2.0","result":"127.0.0.1:18080","id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
 
 	// then
-	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
-	assert_eq!(io2.handle_request_sync(request), Some(response2.to_owned()));
+	assert_eq!(io1.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]

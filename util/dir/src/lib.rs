@@ -58,8 +58,6 @@ pub struct Directories {
 	pub keys: String,
 	/// Signer dir
 	pub signer: String,
-	/// Dir to store dapps
-	pub dapps: String,
 	/// Secrets dir
 	pub secretstore: String,
 }
@@ -74,7 +72,6 @@ impl Default for Directories {
 			cache: replace_home_and_local(&data_dir, &local_dir, CACHE_PATH),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
-			dapps: replace_home(&data_dir, "$BASE/dapps"),
 			secretstore: replace_home(&data_dir, "$BASE/secretstore"),
 		}
 	}
@@ -82,16 +79,13 @@ impl Default for Directories {
 
 impl Directories {
 	/// Create local directories
-	pub fn create_dirs(&self, dapps_enabled: bool, signer_enabled: bool, secretstore_enabled: bool) -> Result<(), String> {
+	pub fn create_dirs(&self, signer_enabled: bool, secretstore_enabled: bool) -> Result<(), String> {
 		fs::create_dir_all(&self.base).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.db).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.cache).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.keys).map_err(|e| e.to_string())?;
 		if signer_enabled {
 			fs::create_dir_all(&self.signer).map_err(|e| e.to_string())?;
-		}
-		if dapps_enabled {
-			fs::create_dir_all(&self.dapps).map_err(|e| e.to_string())?;
 		}
 		if secretstore_enabled {
 			fs::create_dir_all(&self.secretstore).map_err(|e| e.to_string())?;
@@ -353,7 +347,6 @@ mod tests {
 			),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
-			dapps: replace_home(&data_dir, "$BASE/dapps"),
 			secretstore: replace_home(&data_dir, "$BASE/secretstore"),
 		};
 		assert_eq!(expected, Directories::default());
