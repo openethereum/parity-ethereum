@@ -16,7 +16,7 @@
 
 //! Eth RPC interface for the light client.
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -538,8 +538,8 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id)
 	}
 
-	fn pending_transactions_hashes(&self) -> HashSet<::ethereum_types::H256> {
-		HashSet::new()
+	fn pending_transactions_hashes(&self) -> BTreeSet<::ethereum_types::H256> {
+		BTreeSet::new()
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {

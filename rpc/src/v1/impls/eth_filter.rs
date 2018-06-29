@@ -17,7 +17,7 @@
 //! Eth Filter RPC implementation
 
 use std::sync::Arc;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use ethcore::miner::{self, MinerService};
 use ethcore::filter::Filter as EthcoreFilter;
@@ -42,7 +42,7 @@ pub trait Filterable {
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// pending transaction hashes at the given block (unordered).
-	fn pending_transactions_hashes(&self) -> HashSet<H256>;
+	fn pending_transactions_hashes(&self) -> BTreeSet<H256>;
 
 	/// Get logs that match the given filter.
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>>;
@@ -87,11 +87,8 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 		self.client.block_hash(id)
 	}
 
-	fn pending_transactions_hashes(&self) -> HashSet<H256> {
-		self.miner.ready_transactions(&*self.client, usize::max_value(), miner::PendingOrdering::Unordered)
-			.into_iter()
-			.map(|tx| tx.signed().hash())
-			.collect()
+	fn pending_transactions_hashes(&self) -> BTreeSet<H256> {
+		self.miner.pending_transactions_hashes(&*self.client)
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {

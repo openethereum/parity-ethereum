@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, HashSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -849,6 +849,37 @@ impl miner::MinerService for Miner {
 
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.transaction_queue.all_transactions()
+	}
+
+	fn pending_transactions_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+		C: ChainInfo + Sync,
+	{
+		let chain_info = chain.chain_info();
+
+		let from_queue = || self.transaction_queue.pending_hashes(
+			|sender| self.nonce_cache.read().get(sender).cloned(),
+		);
+
+		let from_pending = || {
+			self.map_existing_pending_block(|sealing| {
+				sealing.transactions()
+					.iter()
+					.map(|signed| signed.hash())
+					.collect()
+			}, chain_info.best_block_number)
+		};
+
+		match self.options.pending_set {
+			PendingSet::AlwaysQueue => {
+				from_queue()
+			},
+			PendingSet::AlwaysSealing => {
+				from_pending().unwrap_or_default()
+			},
+			PendingSet::SealingOrElseQueue => {
+				from_pending().unwrap_or_else(from_queue)
+			},
+		}
 	}
 
 	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: miner::PendingOrdering)

@@ -16,7 +16,7 @@
 
 //! Helper type with all filter state data.
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use ethereum_types::H256;
 use v1::types::{Filter, Log};
 
@@ -28,7 +28,7 @@ pub enum PollFilter {
 	/// Number of last block which client was notified about.
 	Block(BlockNumber),
 	/// Hashes of all transactions which client was notified about.
-	PendingTransaction(HashSet<H256>),
+	PendingTransaction(BTreeSet<H256>),
 	/// Number of From block number, last seen block hash, pending logs and log filter itself.
 	Logs(BlockNumber, Option<H256>, HashSet<Log>, Filter)
 }
