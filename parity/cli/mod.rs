@@ -1618,6 +1618,7 @@ mod tests {
 			arg_jsonrpc_hosts: "none".into(),
 			arg_jsonrpc_server_threads: None,
 			arg_jsonrpc_threads: 4,
+			arg_jsonrpc_max_payload: None,
 
 			// WS
 			flag_no_ws: false,
@@ -1885,6 +1886,7 @@ mod tests {
 				hosts: None,
 				server_threads: None,
 				processing_threads: None,
+				max_payload: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,
