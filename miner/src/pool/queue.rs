@@ -326,6 +326,7 @@ impl TransactionQueue {
 		&self,
 		client: C,
 	) {
+		trace_time!("pool::cull");
 		// We don't care about future transactions, so nonce_cap is not important.
 		let nonce_cap = None;
 		// We want to clear stale transactions from the queue as well.
