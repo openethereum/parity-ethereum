@@ -569,7 +569,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				 nonce : p.1.nonce.into(),
 				 code_hash : p.1.code_hash.into(),
 				 storage_hash : p.1.storage_root.into(),
-				 account_proof: Some(p.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()), 
+				 account_proof: Some(p.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()),
 				 storage_proof: Some(
 					 values.iter().map(|storageIndex| { 
 						 let key2 : H256 = storageIndex.clone().into();
