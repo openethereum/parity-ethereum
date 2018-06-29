@@ -1096,12 +1096,17 @@ impl miner::MinerService for Miner {
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
 		//    are in those blocks
 
-		// Clear nonce cache
-		self.nonce_cache.write().clear();
+		let has_new_best_block = enacted.len() > 0;
+
+		if has_new_best_block {
+			// Clear nonce cache
+			self.nonce_cache.write().clear();
+		}
 
 		// First update gas limit in transaction queue and minimal gas price.
 		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
+
 
 		// Then import all transactions...
 		let client = self.pool_client(chain);
@@ -1122,10 +1127,12 @@ impl miner::MinerService for Miner {
 				});
 		}
 
-		// ...and at the end remove the old ones
-		self.transaction_queue.cull(client);
+		if has_new_best_block {
+			// ...and at the end remove the old ones
+			self.transaction_queue.cull(client);
+		}
 
-		if enacted.len() > 0 || (imported.len() > 0 && self.options.reseal_on_uncle) {
+		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// Reset `next_allowed_reseal` in case a block is imported.
 			// Even if min_period is high, we will always attempt to create
 			// new pending block.
