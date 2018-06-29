@@ -48,9 +48,9 @@ RUN apt-get update && \
 # show backtraces
  RUST_BACKTRACE=1 && \
 # build parity
-cd /build&&git clone https://github.com/slockit/parity -b in3 && \
+cd /build&&git clone https://github.com/paritytech/parity && \
         cd parity && \
-	git pull&& \
+git checkout $BUILD_TAG && \
         cargo build --verbose --release --features final && \
         #ls /build/parity/target/release/parity && \
         strip /build/parity/target/release/parity && \
