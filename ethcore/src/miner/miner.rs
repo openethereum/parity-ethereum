@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
 use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet, HashMap};
 use std::sync::Arc;
@@ -201,7 +202,7 @@ pub struct Miner {
 	sealing: Mutex<SealingWork>,
 	params: RwLock<AuthoringParams>,
 	listeners: RwLock<Vec<Box<NotifyWork>>>,
-	nonce_cache: RwLock<HashMap<Address, U256>>,
+	nonce_cache: (RwLock<HashMap<Address, U256>>, usize),
 	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
@@ -227,6 +228,7 @@ impl Miner {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
+		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -240,7 +242,7 @@ impl Miner {
 			params: RwLock::new(AuthoringParams::default()),
 			listeners: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
-			nonce_cache: RwLock::new(HashMap::with_capacity(1024)),
+			nonce_cache: (RwLock::new(HashMap::with_capacity(nonce_cache_size / 2)), nonce_cache_size),
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts,
@@ -1069,7 +1071,7 @@ impl miner::MinerService for Miner {
 
 		if has_new_best_block {
 			// Clear nonce cache
-			self.nonce_cache.write().clear();
+			self.nonce_cache.0.write().clear();
 		}
 
 		// First update gas limit in transaction queue and minimal gas price.

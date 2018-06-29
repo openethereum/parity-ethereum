@@ -244,7 +244,7 @@ impl Provider where {
 		Ok(original_transaction)
 	}
 
-	fn pool_client<'a>(&'a self, nonce_cache: &'a RwLock<HashMap<Address, U256>>) -> miner::pool_client::PoolClient<'a, Client> {
+	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache) -> miner::pool_client::PoolClient<'a, Client> {
 		let engine = self.client.engine();
 		let refuse_service_transactions = true;
 		miner::pool_client::PoolClient::new(
@@ -263,7 +263,7 @@ impl Provider where {
 	/// can be replaced with a single `drain()` method instead.
 	/// Thanks to this we also don't really need to lock the entire verification for the time of execution.
 	fn process_queue(&self) -> Result<(), Error> {
-		let nonce_cache = Default::default();
+		let nonce_cache = default_nonce_cache();
 		let mut verification_queue = self.transactions_for_verification.lock();
 		let ready_transactions = verification_queue.ready_transactions(self.pool_client(&nonce_cache));
 		for transaction in ready_transactions {
@@ -584,7 +584,7 @@ impl Importer for Arc<Provider> {
 				trace!("Validating transaction: {:?}", original_tx);
 				// Verify with the first account available
 				trace!("The following account will be used for verification: {:?}", validation_account);
-				let nonce_cache = Default::default();
+				let nonce_cache = default_nonce_cache();
 				self.transactions_for_verification.lock().add_transaction(
 					original_tx,
 					contract,
@@ -690,3 +690,9 @@ impl ChainNotify for Provider {
 		}
 	}
 }
+
+fn default_nonce_cache() -> NonceCache {
+	(Default::default(), 1024)
+}
+
+type NonceCache = (RwLock<HashMap<Address, U256>>, usize);

@@ -322,7 +322,7 @@ impl TransactionQueue {
 	}
 
 	/// Culls all stalled transactions from the pool.
-	pub fn cull<C: client::NonceClient>(
+	pub fn cull<C: client::NonceClient + Clone>(
 		&self,
 		client: C,
 	) {
@@ -341,9 +341,17 @@ impl TransactionQueue {
 			current_id.checked_sub(gap)
 		};
 
-		let state_readiness = ready::State::new(client, stale_id, nonce_cap);
-
-		let removed = self.pool.write().cull(None, state_readiness);
+		let mut removed = 0;
+		let senders: Vec<Address> = {
+			let pool = self.pool.read();
+			let senders = pool.senders().cloned().collect();
+			senders
+		};
+		for chunk in senders.chunks(2048) {
+			trace_time!("pool::cull::chunk");
+			let state_readiness = ready::State::new(client.clone(), stale_id, nonce_cap);
+			removed += self.pool.write().cull(Some(chunk), state_readiness);
+		}
 		debug!(target: "txqueue", "Removed {} stalled transactions. {}", removed, self.status());
 	}
 
