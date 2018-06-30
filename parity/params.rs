@@ -24,7 +24,8 @@ use ethereum_types::{U256, Address};
 use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
 use journaldb::Algorithm;
-use miner::gas_pricer::{GasPricer, GasPriceCalibratorOptions};
+use miner::gas_pricer::GasPricer;
+use miner::gas_price_calibrator::{GasPriceCalibratorOptions, GasPriceCalibrator};
 use parity_version::version_data;
 use user_defaults::UserDefaults;
 
@@ -248,12 +249,14 @@ impl GasPricerConfig {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
 			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
 				GasPricer::new_calibrated(
-					GasPriceCalibratorOptions {
-						usd_per_tx: usd_per_tx,
-						recalibration_period: recalibration_period,
-					},
-					fetch,
-					p,
+					GasPriceCalibrator::new(
+						GasPriceCalibratorOptions {
+							usd_per_tx: usd_per_tx,
+							recalibration_period: recalibration_period,
+						},
+						fetch,
+						p,
+					)
 				)
 			}
 		}

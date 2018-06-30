@@ -89,7 +89,7 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = { git = "https://github.com/paritytech/daemonize" }
 
 [features]
-default = ["dapps", "work-notify"]
+default = ["dapps", "work-notify", "price-info", "stratum"]
 dapps = ["parity-dapps"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
@@ -107,6 +107,8 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 # and `massif-visualizer` for visualization
 memory_profiling = []
 work-notify = ["ethcore/work-notify"]
+price-info = ["ethcore/price-info"]
+stratum = ["ethcore/stratum"]
 
 [lib]
 path = "parity/lib.rs"
