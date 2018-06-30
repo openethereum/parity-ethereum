@@ -49,4 +49,5 @@ extern crate env_logger;
 pub mod external;
 pub mod gas_pricer;
 pub mod pool;
+#[cfg(feature = "work-notify")]
 pub mod work_notify;

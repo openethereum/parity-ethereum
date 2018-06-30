@@ -99,3 +99,4 @@ test-heavy = []
 benches = []
 # Compile test helpers
 test-helpers = ["tempdir"]
+work-notify = ["ethcore-miner/work-notify"]
