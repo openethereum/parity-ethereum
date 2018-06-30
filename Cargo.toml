@@ -32,7 +32,7 @@ futures-cpupool = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-ethcore = { path = "ethcore" }
+ethcore = { path = "ethcore", features = ["work-notify", "price-info", "stratum"] }
 ethcore-bytes = { path = "util/bytes" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
@@ -89,7 +89,7 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = { git = "https://github.com/paritytech/daemonize" }
 
 [features]
-default = ["dapps", "work-notify", "price-info", "stratum"]
+default = ["dapps"]
 dapps = ["parity-dapps"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
@@ -106,9 +106,6 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 # `valgrind --tool=massif /path/to/parity <parity params>`
 # and `massif-visualizer` for visualization
 memory_profiling = []
-work-notify = ["ethcore/work-notify"]
-price-info = ["ethcore/price-info"]
-stratum = ["ethcore/stratum"]
 
 [lib]
 path = "parity/lib.rs"
