@@ -53,7 +53,6 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 fetch = { path = "../util/fetch" }
-hardware-wallet = { path = "../hw" }
 keccak-hash = { path = "../util/hash" }
 node-health = { path = "../dapps/node-health" }
 parity-reactor = { path = "../util/reactor" }
