@@ -1565,12 +1565,12 @@ impl BlockChainClient for Client {
 
 		Ok(Box::new(txs.into_iter()
 			.map(move |t| {
-				let tx_hash = t.hash();
+				let transaction_hash = t.hash();
 				let t = SignedTransaction::new(t).expect(PROOF);
 				let machine = engine.machine();
 				let x = Self::do_virtual_call(machine, &env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
 				env_info.gas_used = env_info.gas_used + x.gas_used;
-				(tx_hash, x)
+				(transaction_hash, x)
 			})))
 	}
 
