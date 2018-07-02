@@ -58,17 +58,21 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
-extern crate vm;
 extern crate fetch;
+extern crate keccak_hash as hash;
 extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
+extern crate patricia_trie as trie;
 extern crate rlp;
 extern crate stats;
-extern crate keccak_hash as hash;
+extern crate vm;
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;
-extern crate patricia_trie as trie;
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+extern crate fake_hardware_wallet as hardware_wallet;
 
 #[macro_use]
 extern crate log;
@@ -136,6 +140,7 @@ pub fn start_http<M, S, H, T, R>(
 	extractor: T,
 	middleware: Option<R>,
 	threads: usize,
+	max_payload: usize,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -148,7 +153,8 @@ pub fn start_http<M, S, H, T, R>(
 		.threads(threads)
 		.event_loop_remote(remote)
 		.cors(cors_domains.into())
-		.allowed_hosts(allowed_hosts.into());
+		.allowed_hosts(allowed_hosts.into())
+		.max_request_body_size(max_payload * 1024 * 1024);
 
 	if let Some(dapps) = middleware {
 		builder = builder.request_middleware(dapps)

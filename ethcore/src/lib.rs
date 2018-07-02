@@ -75,7 +75,7 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate hardware_wallet;
+
 extern crate hashdb;
 extern crate itertools;
 extern crate kvdb;
@@ -99,7 +99,6 @@ extern crate ansi_term;
 extern crate unexpected;
 extern crate util_error;
 extern crate snappy;
-
 extern crate ethabi;
 extern crate rustc_hex;
 extern crate stats;
@@ -109,7 +108,14 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
+#[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+extern crate hardware_wallet;
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+extern crate fake_hardware_wallet as hardware_wallet;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -168,9 +174,8 @@ mod tx_filter;
 
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
 #[cfg(feature = "json-tests")]
-mod json_tests;
+pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 

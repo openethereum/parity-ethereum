@@ -13,7 +13,7 @@ lazy_static = "1.0"
 log = "0.3"
 mem = { path = "../util/mem" }
 parity-wordlist = "1.2"
-quick-error = "1.2"
+quick-error = "1.2.2"
 rand = "0.4"
 rustc-hex = "1.0"
 serde = "1.0"

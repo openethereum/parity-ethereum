@@ -305,8 +305,8 @@ impl Parity for ParityClient {
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
 		let stats = self.light_dispatch.sync.transactions_stats();
 		Ok(stats.into_iter()
-		   .map(|(hash, stats)| (hash.into(), stats.into()))
-		   .collect()
+			.map(|(hash, stats)| (hash.into(), stats.into()))
+			.collect()
 		)
 	}
 

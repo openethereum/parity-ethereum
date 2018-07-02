@@ -85,19 +85,20 @@ impl Transaction {
 		}
 	}
 
+	/// Return transaction gas price
+	pub fn gas_price(&self) -> &U256 {
+		match *self {
+			Transaction::Unverified(ref tx) => &tx.gas_price,
+			Transaction::Retracted(ref tx) => &tx.gas_price,
+			Transaction::Local(ref tx) => &tx.gas_price,
+		}
+	}
+
 	fn gas(&self) -> &U256 {
 		match *self {
 			Transaction::Unverified(ref tx) => &tx.gas,
 			Transaction::Retracted(ref tx) => &tx.gas,
 			Transaction::Local(ref tx) => &tx.gas,
-		}
-	}
-
-	fn gas_price(&self) -> &U256 {
-		match *self {
-			Transaction::Unverified(ref tx) => &tx.gas_price,
-			Transaction::Retracted(ref tx) => &tx.gas_price,
-			Transaction::Local(ref tx) => &tx.gas_price,
 		}
 	}
 
@@ -128,24 +129,31 @@ impl Transaction {
 ///
 /// Verification can be run in parallel for all incoming transactions.
 #[derive(Debug)]
-pub struct Verifier<C> {
+pub struct Verifier<C, S, V> {
 	client: C,
 	options: Options,
 	id: Arc<AtomicUsize>,
+	transaction_to_replace: Option<(S, Arc<V>)>,
 }
 
-impl<C> Verifier<C> {
+impl<C, S, V> Verifier<C, S, V> {
 	/// Creates new transaction verfier with specified options.
-	pub fn new(client: C, options: Options, id: Arc<AtomicUsize>) -> Self {
+	pub fn new(
+		client: C,
+		options: Options,
+		id: Arc<AtomicUsize>,
+		transaction_to_replace: Option<(S, Arc<V>)>,
+	) -> Self {
 		Verifier {
 			client,
 			options,
 			id,
+			transaction_to_replace,
 		}
 	}
 }
 
-impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
+impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::NonceAndGasPrice, VerifiedTransaction> {
 	type Error = transaction::Error;
 	type VerifiedTransaction = VerifiedTransaction;
 
@@ -164,7 +172,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		if tx.gas() > &gas_limit {
 			debug!(
 				target: "txqueue",
-				"[{:?}] Dropping transaction above gas limit: {} > min({}, {})",
+				"[{:?}] Rejected transaction above gas limit: {} > min({}, {})",
 				hash,
 				tx.gas(),
 				self.options.block_gas_limit,
@@ -179,7 +187,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		let minimal_gas = self.client.required_gas(tx.transaction());
 		if tx.gas() < &minimal_gas {
 			trace!(target: "txqueue",
-				"[{:?}] Dropping transaction with insufficient gas: {} < {}",
+				"[{:?}] Rejected transaction with insufficient gas: {} < {}",
 				hash,
 				tx.gas(),
 				minimal_gas,
@@ -192,22 +200,40 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		}
 
 		let is_own = tx.is_local();
-		// Quick exit for non-service transactions
-		if tx.gas_price() < &self.options.minimal_gas_price
-			&& !tx.gas_price().is_zero()
-			&& !is_own
-		{
-			trace!(
-				target: "txqueue",
-				"[{:?}] Rejected tx below minimal gas price threshold: {} < {}",
-				hash,
-				tx.gas_price(),
-				self.options.minimal_gas_price,
-			);
-			bail!(transaction::Error::InsufficientGasPrice {
-				minimal: self.options.minimal_gas_price,
-				got: *tx.gas_price(),
-			});
+		// Quick exit for non-service and non-local transactions
+		//
+		// We're checking if the transaction is below configured minimal gas price
+		// or the effective minimal gas price in case the pool is full.
+		if  !tx.gas_price().is_zero() && !is_own {
+			if tx.gas_price() < &self.options.minimal_gas_price {
+				trace!(
+					target: "txqueue",
+					"[{:?}] Rejected tx below minimal gas price threshold: {} < {}",
+					hash,
+					tx.gas_price(),
+					self.options.minimal_gas_price,
+				);
+				bail!(transaction::Error::InsufficientGasPrice {
+					minimal: self.options.minimal_gas_price,
+					got: *tx.gas_price(),
+				});
+			}
+
+			if let Some((ref scoring, ref vtx)) = self.transaction_to_replace {
+				if scoring.should_reject_early(vtx, &tx) {
+					trace!(
+						target: "txqueue",
+						"[{:?}] Rejected tx early, cause it doesn't have any chance to get to the pool: (gas price: {} < {})",
+						hash,
+						tx.gas_price(),
+						vtx.transaction.gas_price,
+					);
+					bail!(transaction::Error::InsufficientGasPrice {
+						minimal: vtx.transaction.gas_price,
+						got: *tx.gas_price(),
+					});
+				}
+			}
 		}
 
 		// Some more heavy checks below.

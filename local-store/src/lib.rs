@@ -56,8 +56,8 @@ const UPDATE_TIMEOUT: Duration = Duration::from_secs(15 * 60); // once every 15 
 /// Errors which can occur while using the local data store.
 #[derive(Debug)]
 pub enum Error {
-	/// Database errors: these manifest as `String`s.
-	Database(kvdb::Error),
+	/// Io and database errors: these manifest as `String`s.
+	Io(::std::io::Error),
 	/// JSON errors.
 	Json(::serde_json::Error),
 }
@@ -65,7 +65,7 @@ pub enum Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Error::Database(ref val) => write!(f, "{}", val),
+			Error::Io(ref val) => write!(f, "{}", val),
 			Error::Json(ref err) => write!(f, "{}", err),
 		}
 	}
@@ -160,7 +160,7 @@ pub struct LocalDataStore<T: NodeInfo> {
 impl<T: NodeInfo> LocalDataStore<T> {
 	/// Attempt to read pending transactions out of the local store.
 	pub fn pending_transactions(&self) -> Result<Vec<PendingTransaction>, Error> {
-		if let Some(val) = self.db.get(self.col, LOCAL_TRANSACTIONS_KEY).map_err(Error::Database)? {
+		if let Some(val) = self.db.get(self.col, LOCAL_TRANSACTIONS_KEY).map_err(Error::Io)? {
 			let local_txs: Vec<_> = ::serde_json::from_slice::<Vec<TransactionEntry>>(&val)
 				.map_err(Error::Json)?
 				.into_iter()
@@ -200,7 +200,7 @@ impl<T: NodeInfo> LocalDataStore<T> {
 		let json_str = format!("{}", local_json);
 
 		batch.put_vec(self.col, LOCAL_TRANSACTIONS_KEY, json_str.into_bytes());
-		self.db.write(batch).map_err(Error::Database)
+		self.db.write(batch).map_err(Error::Io)
 	}
 }
 

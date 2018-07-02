@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #ARGUMENT test for RUST and COVERAGE
 set -e # fail on any error
 set -u # treat unset variables as error

@@ -17,8 +17,9 @@
 //! Blockchain database.
 
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
-use std::mem;
+use std::{mem, io};
 use itertools::Itertools;
 use blooms_db;
 use heapsize::HeapSizeOf;
@@ -47,8 +48,6 @@ use engines::epoch::{Transition as EpochTransition, PendingTransition as Pending
 use rayon::prelude::*;
 use ansi_term::Colour;
 use kvdb::{DBTransaction, KeyValueDB};
-use error::Error;
-use std::path::Path;
 
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {
@@ -66,7 +65,7 @@ pub trait BlockChainDB: Send + Sync {
 /// predefined config.
 pub trait BlockChainDBHandler: Send + Sync {
 	/// Open the predefined key-value database.
-	fn open(&self, path: &Path) -> Result<Arc<BlockChainDB>, Error>;
+	fn open(&self, path: &Path) -> io::Result<Arc<BlockChainDB>>;
 }
 
 /// Interface for querying blocks by hash and by number.
@@ -1450,18 +1449,24 @@ impl BlockChain {
 
 	/// Returns general blockchain information
 	pub fn chain_info(&self) -> BlockChainInfo {
+		// Make sure to call internal methods first to avoid
+		// recursive locking of `best_block`.
+		let first_block_hash = self.first_block();
+		let first_block_number = self.first_block_number().into();
+		let genesis_hash = self.genesis_hash();
+
 		// ensure data consistencly by locking everything first
 		let best_block = self.best_block.read();
 		let best_ancient_block = self.best_ancient_block.read();
 		BlockChainInfo {
 			total_difficulty: best_block.total_difficulty,
 			pending_total_difficulty: best_block.total_difficulty,
-			genesis_hash: self.genesis_hash(),
+			genesis_hash,
 			best_block_hash: best_block.header.hash(),
 			best_block_number: best_block.header.number(),
 			best_block_timestamp: best_block.header.timestamp(),
-			first_block_hash: self.first_block(),
-			first_block_number: From::from(self.first_block_number()),
+			first_block_hash,
+			first_block_number,
 			ancient_block_hash: best_ancient_block.as_ref().map(|b| b.hash),
 			ancient_block_number: best_ancient_block.as_ref().map(|b| b.number),
 		}

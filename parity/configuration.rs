@@ -879,6 +879,10 @@ impl Configuration {
 				_ => 1,
 			},
 			processing_threads: self.args.arg_jsonrpc_threads,
+			max_payload: match self.args.arg_jsonrpc_max_payload {
+				Some(max) if max > 0 => max as usize,
+				_ => 5usize,
+			},
 		};
 
 		Ok(conf)

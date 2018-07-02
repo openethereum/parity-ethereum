@@ -53,7 +53,6 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 fetch = { path = "../util/fetch" }
-hardware-wallet = { path = "../hw" }
 keccak-hash = { path = "../util/hash" }
 node-health = { path = "../dapps/node-health" }
 parity-reactor = { path = "../util/reactor" }
@@ -63,6 +62,12 @@ patricia-trie = { path = "../util/patricia_trie" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
+
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
+hardware-wallet = { path = "../hw" }
+
+[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
+fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
