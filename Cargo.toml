@@ -117,7 +117,7 @@ name = "parity"
 [profile.dev]
 
 [profile.release]
-debug = true
+debug = false
 
 [workspace]
 members = [
