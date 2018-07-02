@@ -718,7 +718,7 @@ impl Client {
 			state_db = spec.ensure_db_good(state_db, &factories)?;
 			let mut batch = DBTransaction::new();
 			state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash())?;
-			db.key_value().write(batch).map_err(ClientError::Database)?;
+			db.key_value().write(batch)?;
 		}
 
 		let gb = spec.genesis_block();
@@ -821,7 +821,7 @@ impl Client {
 		}
 
 		// ensure buffered changes are flushed.
-		client.db.read().key_value().flush().map_err(ClientError::Database)?;
+		client.db.read().key_value().flush()?;
 		Ok(client)
 	}
 

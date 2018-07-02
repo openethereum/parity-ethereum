@@ -17,7 +17,7 @@
 //! Blockchain database.
 
 use std::collections::{HashMap, HashSet};
-use std::mem;
+use std::{mem, io};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -34,7 +34,6 @@ use db::{self, Writable, Readable, CacheUpdatePolicy};
 use encoded;
 use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
 use engines::ForkChoice;
-use error::Error;
 use ethereum_types::{H256, Bloom, BloomRef, U256};
 use header::*;
 use heapsize::HeapSizeOf;
@@ -67,7 +66,7 @@ pub trait BlockChainDB: Send + Sync {
 /// predefined config.
 pub trait BlockChainDBHandler: Send + Sync {
 	/// Open the predefined key-value database.
-	fn open(&self, path: &Path) -> Result<Arc<BlockChainDB>, Error>;
+	fn open(&self, path: &Path) -> io::Result<Arc<BlockChainDB>>;
 }
 
 /// Interface for querying blocks by hash and by number.
