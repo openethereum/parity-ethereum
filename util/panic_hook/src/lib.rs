@@ -25,8 +25,16 @@ use std::process;
 use backtrace::Backtrace;
 
 /// Set the panic hook
-pub fn set() {
-	panic::set_hook(Box::new(panic_hook));
+pub fn set_abort() {
+	set_with(|| process::abort());
+}
+
+/// Set the panic hook with a closure to be called afterwards.
+pub fn set_with<F: Fn() + Send + Sync + 'static>(f: F) {
+	panic::set_hook(Box::new(move |info| {
+		panic_hook(info);
+		f();
+	}));
 }
 
 static ABOUT_PANIC: &str = "
@@ -67,5 +75,4 @@ fn panic_hook(info: &PanicInfo) {
 	);
 
 	let _ = writeln!(stderr, "{}", ABOUT_PANIC);
-	process::abort();
 }

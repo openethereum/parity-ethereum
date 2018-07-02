@@ -184,7 +184,7 @@ impl fmt::Display for Error {
 }
 
 fn main() {
-	panic_hook::set();
+	panic_hook::set_abort();
 
 	match execute(env::args()) {
 		Ok(_) => {

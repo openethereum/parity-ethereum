@@ -390,7 +390,13 @@ impl<T, S, L> Pool<T, S, L> where
 
 	/// Returns worst transaction in the queue (if any).
 	pub fn worst_transaction(&self) -> Option<Arc<T>> {
-		self.worst_transactions.iter().next().map(|x| x.transaction.transaction.clone())
+		self.worst_transactions.iter().next_back().map(|x| x.transaction.transaction.clone())
+	}
+
+	/// Returns true if the pool is at it's capacity.
+	pub fn is_full(&self) -> bool {
+		self.by_hash.len() >= self.options.max_count
+			|| self.mem_usage >= self.options.max_mem_usage
 	}
 
 	/// Returns an iterator of pending (ready) transactions.
@@ -484,6 +490,11 @@ impl<T, S, L> Pool<T, S, L> where
 	/// Borrows listener instance.
 	pub fn listener(&self) -> &L {
 		&self.listener
+	}
+
+	/// Borrows scoring instance.
+	pub fn scoring(&self) -> &S {
+		&self.scoring
 	}
 
 	/// Borrows listener mutably.
