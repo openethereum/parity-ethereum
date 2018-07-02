@@ -672,7 +672,6 @@ pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
-	
 
 	/// Potentially incomplete headers request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1027,7 +1026,6 @@ pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
-	
 	use ethereum_types::H256;
 
 	/// Potentially incomplete block body request.
@@ -1636,7 +1634,6 @@ pub mod epoch_signal {
 mod tests {
 	use super::*;
 	use ethcore::header::Header;
-	
 
 	fn check_roundtrip<T>(val: T)
 		where T: ::rlp::Encodable + ::rlp::Decodable + PartialEq + ::std::fmt::Debug

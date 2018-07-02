@@ -34,7 +34,6 @@ use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
 
-
 #[cfg(debug_assertions)]
 /// Roughly estimate what stack size each level of evm depth will use. (Debug build)
 const STACK_SIZE_PER_DEPTH: usize = 128 * 1024;

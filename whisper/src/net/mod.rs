@@ -28,7 +28,6 @@ use ordered_float::OrderedFloat;
 use parking_lot::{Mutex, RwLock};
 use rlp::{DecoderError, RlpStream, Rlp};
 
-
 use message::{Message, Error as MessageError};
 
 #[cfg(test)]

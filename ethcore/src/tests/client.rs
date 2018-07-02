@@ -36,7 +36,6 @@ use ethkey::KeyPair;
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
 use rlp::{RlpStream, EMPTY_LIST_RLP};
-
 use tempdir::TempDir;
 use test_helpers;
 

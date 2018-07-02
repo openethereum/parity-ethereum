@@ -37,7 +37,6 @@ use bytes::{Buf, BufMut};
 use ethkey::crypto;
 use network::{Error, ErrorKind};
 
-
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECEIVE_PAYLOAD: Duration = Duration::from_secs(30);
 pub const MAX_PAYLOAD_SIZE: usize = (1 << 24) - 1;

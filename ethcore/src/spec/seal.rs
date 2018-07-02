@@ -20,7 +20,6 @@ use rlp::RlpStream;
 use ethereum_types::{H64, H256, H520};
 use ethjson;
 
-
 /// Classic ethereum seal.
 pub struct Ethereum {
 	/// Seal nonce.

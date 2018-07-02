@@ -29,7 +29,6 @@ use bytes::Bytes;
 use ethereum_types::H256;
 use rlp::{RlpStream, Rlp};
 
-
 use super::ManifestData;
 
 const SNAPSHOT_VERSION: u64 = 2;

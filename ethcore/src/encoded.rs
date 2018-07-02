@@ -29,7 +29,6 @@ use hash::keccak;
 use header::{BlockNumber, Header as FullHeader};
 use heapsize::HeapSizeOf;
 use rlp::{self, Rlp, RlpStream};
-
 use transaction::UnverifiedTransaction;
 use views::{self, BlockView, HeaderView, BodyView};
 

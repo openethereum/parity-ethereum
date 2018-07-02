@@ -22,7 +22,6 @@ use ethereum_types::H256;
 use network::{PeerId, PacketId};
 use rlp::RlpStream;
 use std::time::Instant;
-
 use sync_io::SyncIo;
 
 use super::{

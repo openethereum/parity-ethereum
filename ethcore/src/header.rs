@@ -23,7 +23,6 @@ use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
 
-
 pub use types::BlockNumber;
 
 /// Semantic boolean for when a seal/signature is included.

@@ -18,28 +18,25 @@
 
 use std::sync::Arc;
 
+use bytes::Bytes;
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
 use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
-use transaction::SignedTransaction;
-use vm::EnvInfo;
-use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
-
-use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
-
-use rlp::{RlpStream, Rlp};
-
 use ethereum_types::{H256, U256, Address};
-use parking_lot::Mutex;
+use ethtrie::{TrieError, TrieDB};
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 use hashdb::HashDB;
 use kvdb::DBValue;
-use bytes::Bytes;
 use memorydb::MemoryDB;
+use parking_lot::Mutex;
+use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
+use rlp::{RlpStream, Rlp};
+use transaction::SignedTransaction;
 use trie::Trie;
-use ethtrie::{TrieError, TrieDB};
+use vm::EnvInfo;
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 

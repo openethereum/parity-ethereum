@@ -24,7 +24,6 @@ use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
 use std::cmp;
 use std::collections::HashSet;
-
 use transaction::SignedTransaction;
 
 use super::{

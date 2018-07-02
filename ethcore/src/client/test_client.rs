@@ -30,7 +30,6 @@ use kvdb::DBValue;
 use kvdb_memorydb;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream};
-
 use ethkey::{Generator, Random};
 use ethcore_miner::pool::VerifiedTransaction;
 use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
@@ -53,7 +52,6 @@ use miner::{self, Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
 use types::pruning_info::PruningInfo;
-
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use executive::Executed;

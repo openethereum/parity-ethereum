@@ -33,7 +33,6 @@ use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
 use basic_account::BasicAccount;
 
-
 use std::cell::{RefCell, Cell};
 
 const STORAGE_CACHE_ITEMS: usize = 8192;

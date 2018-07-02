@@ -44,7 +44,6 @@ use ethtrie::{TrieDB, TrieDBMut};
 use rlp::{RlpStream, Rlp};
 use bloom_journal::Bloom;
 
-
 use self::io::SnapshotWriter;
 
 use super::state_db::StateDB;

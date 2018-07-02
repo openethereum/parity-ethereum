@@ -36,7 +36,6 @@ use bytes::Bytes;
 use rlp::{RlpStream, Rlp};
 use rand::OsRng;
 
-
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
 /// loose assurance that the chain is valid.

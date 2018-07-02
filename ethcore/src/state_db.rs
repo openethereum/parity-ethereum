@@ -34,7 +34,6 @@ use std::collections::{VecDeque, HashSet};
 use std::sync::Arc;
 use util_error::UtilError;
 
-
 /// Value used to initialize bloom bitmap size.
 ///
 /// Bitmap size is the size in bytes (not bits) that will be allocated in memory.

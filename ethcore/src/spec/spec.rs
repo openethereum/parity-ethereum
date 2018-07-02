@@ -46,7 +46,6 @@ use state::backend::Basic as BasicBackend;
 use state::{Backend, State, Substate};
 use trace::{NoopTracer, NoopVMTracer};
 
-
 pub use ethash::OptimizeFor;
 
 const MAX_TRANSACTION_SIZE: usize = 300 * 1024;

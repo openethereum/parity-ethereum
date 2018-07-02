@@ -95,7 +95,6 @@ fn snap_and_restore() {
 fn get_code_from_prev_chunk() {
 	use std::collections::HashSet;
 	use rlp::RlpStream;
-	
 	use ethereum_types::{H256, U256};
 	use hashdb::HashDB;
 

@@ -29,7 +29,6 @@ use ethkey::crypto::{ecdh, ecies};
 use network::{Error, ErrorKind};
 use host::HostInfo;
 
-
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
 	/// Just created

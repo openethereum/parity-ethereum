@@ -19,21 +19,18 @@
 
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
-use ethcore::ids::BlockId;
 use ethcore::encoded;
-use network::{PeerId, NodeId};
-use transaction::{Action, PendingTransaction};
-
+use ethcore::ids::BlockId;
+use ethereum_types::{H256, U256, Address};
+use net::{LightProtocol, Params, packet, Peer};
 use net::context::IoContext;
 use net::status::{Capabilities, Status};
-use net::{LightProtocol, Params, packet, Peer};
+use network::{PeerId, NodeId};
 use provider::Provider;
 use request;
 use request::*;
-
 use rlp::{Rlp, RlpStream};
-
-use ethereum_types::{H256, U256, Address};
+use transaction::{Action, PendingTransaction};
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -643,7 +640,6 @@ fn proof_of_execution() {
 fn id_guard() {
 	use super::request_set::RequestSet;
 	use super::ReqId;
-	
 
 	let capabilities = capabilities();
 

@@ -33,7 +33,6 @@ use host::*;
 use node_table::NodeId;
 use snappy;
 
-
 // Timeout must be less than (interval - 1).
 const PING_TIMEOUT: Duration = Duration::from_secs(60);
 const PING_INTERVAL: Duration = Duration::from_secs(120);

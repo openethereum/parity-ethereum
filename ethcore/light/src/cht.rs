@@ -33,7 +33,6 @@ use trie::{TrieMut, Trie, Recorder};
 use ethtrie::{self, TrieDB, TrieDBMut};
 use rlp::{RlpStream, Rlp};
 
-
 // encode a key.
 macro_rules! key {
 	($num: expr) => { ::rlp::encode(&$num) }

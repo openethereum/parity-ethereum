@@ -24,7 +24,6 @@ use target_info::Target;
 use bytes::Bytes;
 use rlp::RlpStream;
 
-
 mod vergen {
 	#![allow(unused)]
 	include!(concat!(env!("OUT_DIR"), "/version.rs"));

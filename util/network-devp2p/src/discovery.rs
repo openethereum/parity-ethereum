@@ -27,7 +27,6 @@ use network::{Error, ErrorKind};
 use ethkey::{Secret, KeyPair, sign, recover};
 use network::IpFilter;
 
-
 use PROTOCOL_VERSION;
 
 const ADDRESS_BYTES_SIZE: usize = 32;						// Size of address type in bytes.

@@ -138,7 +138,6 @@ impl Decodable for Error {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
-	
 	use super::Error;
 
 	#[test]

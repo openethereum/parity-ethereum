@@ -34,17 +34,13 @@ use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
 use header::{Header, BlockNumber, ExtendedHeader};
-
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
-
 use self::finality::RollingFinality;
-
 use ethkey::{self, Password, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
-
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};

@@ -51,7 +51,6 @@ use self::message::*;
 use self::params::TendermintParams;
 use machine::{AuxiliaryData, EthereumMachine};
 
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Step {
 	Propose,

@@ -63,7 +63,6 @@ impl Decodable for CallType {
 mod tests {
 	use rlp::*;
 	use super::CallType;
-	
 
 	#[test]
 	fn encode_call_type() {

@@ -19,7 +19,6 @@ use elastic_array::ElasticArray1024;
 use rlp::{Rlp, RlpStream};
 use common::{SNAPSHOT_SWAPPER, BLOCKS_SWAPPER};
 
-
 pub fn snapshot_swapper() -> &'static Swapper<'static> {
 	&SNAPSHOT_SWAPPER as &Swapper
 }

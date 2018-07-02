@@ -20,7 +20,6 @@ extern crate ethereum_types;
 extern crate ethcore_bytes as bytes;
 extern crate ethjson;
 extern crate rlp;
-
 #[macro_use]
 extern crate rlp_derive;
 extern crate keccak_hash as hash;

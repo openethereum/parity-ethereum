@@ -20,7 +20,6 @@ use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, DecoderError};
 use bytes::Bytes;
 
-
 /// Manifest data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManifestData {

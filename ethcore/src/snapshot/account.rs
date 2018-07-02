@@ -18,18 +18,15 @@
 
 use account_db::{AccountDB, AccountDBMut};
 use basic_account::BasicAccount;
-use snapshot::Error;
-use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
-
-use ethereum_types::{H256, U256};
-use hashdb::HashDB;
 use bytes::Bytes;
-use trie::{Trie, TrieMut};
+use ethereum_types::{H256, U256};
 use ethtrie::{TrieDB, TrieDBMut};
+use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
+use hashdb::HashDB;
 use rlp::{RlpStream, Rlp};
-
-
+use snapshot::Error;
 use std::collections::HashSet;
+use trie::{Trie, TrieMut};
 
 // An empty account -- these were replaced with RLP null data for a space optimization in v1.
 const ACC_EMPTY: BasicAccount = BasicAccount {

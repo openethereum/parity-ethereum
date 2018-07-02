@@ -30,7 +30,6 @@ use ethjson;
 use types::account_diff::*;
 use rlp::{self, RlpStream};
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// An account, expressed as Plain-Old-Data (hence the name).
 /// Does not have a DB overlay cache, code hash or anything like that.
