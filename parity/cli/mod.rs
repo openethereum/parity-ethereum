@@ -799,10 +799,6 @@ usage! {
 			"Specify a filename into which logging should be appended.",
 
 		["Footprint options"]
-			FLAG flag_fast_and_loose: (bool) = false, or |c: &Config| c.footprint.as_ref()?.fast_and_loose.clone(),
-			"--fast-and-loose",
-			"Disables DB WAL, which gives a significant speed up but means an unclean exit is unrecoverable. Not recommended.",
-
 			FLAG flag_scale_verifiers: (bool) = false, or |c: &Config| c.footprint.as_ref()?.scale_verifiers.clone(),
 			"--scale-verifiers",
 			"Automatically scale amount of verifier threads based on workload. Not guaranteed to be faster.",
@@ -878,6 +874,10 @@ usage! {
 			FLAG flag_warp: (bool) = false, or |_| None,
 			"--warp",
 			"Does nothing; warp sync is enabled by default. Use --no-warp to disable.",
+
+			FLAG flag_fast_and_loose: (bool) = false, or |_| None,
+			"--fast-and-loose",
+			"Does nothing. DB WAL is always activated.",
 
 			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
 			"--dapps-apis-all",

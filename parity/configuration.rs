@@ -134,7 +134,7 @@ impl Configuration {
 		let tracing = self.args.arg_tracing.parse()?;
 		let fat_db = self.args.arg_fat_db.parse()?;
 		let compaction = self.args.arg_db_compaction.parse()?;
-		let wal = !self.args.flag_fast_and_loose;
+		let wal = true;
 		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let dapps_conf = self.dapps_config();
