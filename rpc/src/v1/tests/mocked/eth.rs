@@ -638,6 +638,7 @@ fn rpc_eth_call_latest() {
 		trace: vec![],
 		vm_trace: None,
 		state_diff: None,
+		hash: H256::default(),
 	}));
 
 	let request = r#"{
@@ -674,6 +675,7 @@ fn rpc_eth_call() {
 		trace: vec![],
 		vm_trace: None,
 		state_diff: None,
+		hash: H256::default(),
 	}));
 
 	let request = r#"{
@@ -710,6 +712,7 @@ fn rpc_eth_call_default_block() {
 		trace: vec![],
 		vm_trace: None,
 		state_diff: None,
+		hash: H256::default(),
 	}));
 
 	let request = r#"{
@@ -745,6 +748,7 @@ fn rpc_eth_estimate_gas() {
 		trace: vec![],
 		vm_trace: None,
 		state_diff: None,
+		hash: H256::default(),
 	}));
 
 	let request = r#"{
@@ -781,6 +785,7 @@ fn rpc_eth_estimate_gas_default_block() {
 		trace: vec![],
 		vm_trace: None,
 		state_diff: None,
+		hash: H256::default(),
 	}));
 
 	let request = r#"{

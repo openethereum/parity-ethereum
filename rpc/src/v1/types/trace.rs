@@ -608,6 +608,8 @@ impl From<FlatTrace> for Trace {
 #[derive(Debug, Serialize)]
 /// A diff of some chunk of memory.
 pub struct TraceResults {
+	#[serde(rename="transactionHash")]
+	pub hash: H256,
 	/// The output of the call/create
 	pub output: Bytes,
 	/// The transaction trace.
@@ -623,6 +625,7 @@ pub struct TraceResults {
 impl From<Executed> for TraceResults {
 	fn from(t: Executed) -> Self {
 		TraceResults {
+			hash: t.hash.into(),
 			output: t.output.into(),
 			trace: t.trace.into_iter().map(Into::into).collect(),
 			vm_trace: t.vm_trace.map(Into::into),
@@ -646,9 +649,10 @@ mod tests {
 			trace: vec![],
 			vm_trace: None,
 			state_diff: None,
+			hash: 5.into(),
 		};
 		let serialized = serde_json::to_string(&r).unwrap();
-		assert_eq!(serialized, r#"{"output":"0x60","trace":[],"vmTrace":null,"stateDiff":null}"#);
+		assert_eq!(serialized, r#"{"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000005","output":"0x60","trace":[],"vmTrace":null,"stateDiff":null}"#);
 	}
 
 	#[test]

@@ -554,6 +554,7 @@ fn rpc_parity_call() {
 		trace: vec![],
 		vm_trace: None,
 		state_diff: None,
+		hash: H256::default(),
 	}));
 	let io = deps.default_client();
 
