@@ -31,18 +31,41 @@ use std::cmp;
 
 use ethereum_types::U256;
 use txpool;
-use super::{PrioritizationStrategy, VerifiedTransaction};
+use super::{verifier, PrioritizationStrategy, VerifiedTransaction};
 
 /// Transaction with the same (sender, nonce) can be replaced only if
 /// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
 const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
+/// Calculate minimal gas price requirement.
+#[inline]
+fn bump_gas_price(old_gp: U256) -> U256 {
+	old_gp.saturating_add(old_gp >> GAS_PRICE_BUMP_SHIFT)
+}
+
 /// Simple, gas-price based scoring for transactions.
 ///
 /// NOTE: Currently penalization does not apply to new transactions that enter the pool.
 /// We might want to store penalization status in some persistent state.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NonceAndGasPrice(pub PrioritizationStrategy);
+
+impl NonceAndGasPrice {
+	/// Decide if the transaction should even be considered into the pool (if the pool is full).
+	///
+	/// Used by Verifier to quickly reject transactions that don't have any chance to get into the pool later on,
+	/// and save time on more expensive checks like sender recovery, etc.
+	///
+	/// NOTE The method is never called for zero-gas-price transactions or local transactions
+	/// (such transactions are always considered to the pool and potentially rejected later on)
+	pub fn should_reject_early(&self, old: &VerifiedTransaction, new: &verifier::Transaction) -> bool {
+		if old.priority().is_local() {
+			return true
+		}
+
+		&old.transaction.gas_price > new.gas_price()
+	}
+}
 
 impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 	type Score = U256;
@@ -60,7 +83,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		let old_gp = old.transaction.gas_price;
 		let new_gp = new.transaction.gas_price;
 
-		let min_required_gp = old_gp + (old_gp >> GAS_PRICE_BUMP_SHIFT);
+		let min_required_gp = bump_gas_price(old_gp);
 
 		match min_required_gp.cmp(&new_gp) {
 			cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,
@@ -102,21 +125,16 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool {
 		if old.sender == new.sender {
 			// prefer earliest transaction
-			if new.transaction.nonce < old.transaction.nonce {
-				return true
+			match new.transaction.nonce.cmp(&old.transaction.nonce) {
+				cmp::Ordering::Less => true,
+				cmp::Ordering::Greater => false,
+				cmp::Ordering::Equal => self.choose(old, new) == txpool::scoring::Choice::ReplaceOld,
 			}
+		} else {
+			let old_score = (old.priority(), old.transaction.gas_price);
+			let new_score = (new.priority(), new.transaction.gas_price);
+			new_score > old_score
 		}
-
-		// Always kick out non-local transactions in favour of local ones.
-		if new.priority().is_local() && !old.priority().is_local() {
-			return true;
-		}
-		// And never kick out local transactions in favour of external ones.
-		if !new.priority().is_local() && old.priority.is_local() {
-			return false;
-		}
-
-		self.choose(old, new) == txpool::scoring::Choice::ReplaceOld
 	}
 }
 
@@ -125,31 +143,117 @@ mod tests {
 	use super::*;
 
 	use std::sync::Arc;
+	use ethkey::{Random, Generator};
 	use pool::tests::tx::{Tx, TxExt};
 	use txpool::Scoring;
 
 	#[test]
-	fn should_replace_non_local_transaction_with_local_one() {
+	fn should_replace_same_sender_by_nonce() {
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
+
+		let tx1 = Tx {
+			nonce: 1,
+			gas_price: 1,
+			..Default::default()
+		};
+		let tx2 = Tx {
+			nonce: 2,
+			gas_price: 100,
+			..Default::default()
+		};
+		let tx3 = Tx {
+			nonce: 2,
+			gas_price: 110,
+			..Default::default()
+		};
+		let tx4 = Tx {
+			nonce: 2,
+			gas_price: 130,
+			..Default::default()
+		};
+
+		let keypair = Random.generate().unwrap();
+		let txs = vec![tx1, tx2, tx3, tx4].into_iter().enumerate().map(|(i, tx)| {
+			let verified = tx.unsigned().sign(keypair.secret(), None).verified();
+			txpool::Transaction {
+				insertion_id: i as u64,
+				transaction: Arc::new(verified),
+			}
+		}).collect::<Vec<_>>();
+
+		assert!(!scoring.should_replace(&txs[0], &txs[1]));
+		assert!(scoring.should_replace(&txs[1], &txs[0]));
+
+		assert!(!scoring.should_replace(&txs[1], &txs[2]));
+		assert!(!scoring.should_replace(&txs[2], &txs[1]));
+
+		assert!(scoring.should_replace(&txs[1], &txs[3]));
+		assert!(!scoring.should_replace(&txs[3], &txs[1]));
+	}
+
+	#[test]
+	fn should_replace_different_sender_by_priority_and_gas_price() {
 		// given
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
-		let tx1 = {
-			let tx = Tx::default().signed().verified();
+		let tx_regular_low_gas = {
+			let tx = Tx {
+				nonce: 1,
+				gas_price: 1,
+				..Default::default()
+			};
+			let verified_tx = tx.signed().verified();
 			txpool::Transaction {
 				insertion_id: 0,
-				transaction: Arc::new(tx),
+				transaction: Arc::new(verified_tx),
 			}
 		};
-		let tx2 = {
-			let mut tx = Tx::default().signed().verified();
-			tx.priority = ::pool::Priority::Local;
+		let tx_regular_high_gas = {
+			let tx = Tx {
+				nonce: 2,
+				gas_price: 10,
+				..Default::default()
+			};
+			let verified_tx = tx.signed().verified();
 			txpool::Transaction {
-				insertion_id: 0,
-				transaction: Arc::new(tx),
+				insertion_id: 1,
+				transaction: Arc::new(verified_tx),
+			}
+		};
+		let tx_local_low_gas = {
+			let tx = Tx {
+				nonce: 2,
+				gas_price: 1,
+				..Default::default()
+			};
+			let mut verified_tx = tx.signed().verified();
+			verified_tx.priority = ::pool::Priority::Local;
+			txpool::Transaction {
+				insertion_id: 2,
+				transaction: Arc::new(verified_tx),
+			}
+		};
+		let tx_local_high_gas = {
+			let tx = Tx {
+				nonce: 1,
+				gas_price: 10,
+				..Default::default()
+			};
+			let mut verified_tx = tx.signed().verified();
+			verified_tx.priority = ::pool::Priority::Local;
+			txpool::Transaction {
+				insertion_id: 3,
+				transaction: Arc::new(verified_tx),
 			}
 		};
 
-		assert!(scoring.should_replace(&tx1, &tx2));
-		assert!(!scoring.should_replace(&tx2, &tx1));
+		assert!(scoring.should_replace(&tx_regular_low_gas, &tx_regular_high_gas));
+		assert!(!scoring.should_replace(&tx_regular_high_gas, &tx_regular_low_gas));
+
+		assert!(scoring.should_replace(&tx_regular_high_gas, &tx_local_low_gas));
+		assert!(!scoring.should_replace(&tx_local_low_gas, &tx_regular_high_gas));
+
+		assert!(scoring.should_replace(&tx_local_low_gas, &tx_local_high_gas));
+		assert!(!scoring.should_replace(&tx_local_high_gas, &tx_regular_low_gas));
 	}
 
 	#[test]
