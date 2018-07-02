@@ -201,13 +201,12 @@ impl<'a, C: 'a> NonceClient for CachedNonceClient<'a, C> where
 	  let mut cache = self.cache.0.write();
 	  let nonce = self.client.latest_nonce(address);
 	  cache.insert(*address, nonce);
-	  warn!("NonceCache: inserting: [{:?}]", address);
 
 	  if cache.len() < self.cache.1 {
 		  return nonce
 	  }
 
-	  warn!("NonceCache: reached limit.");
+	  debug!(target: "txpool", "NonceCache: reached limit.");
 	  trace_time!("nonce_cache:clear");
 
 	  // Remove excessive amount of entries from the cache
