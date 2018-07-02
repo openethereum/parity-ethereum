@@ -16,7 +16,7 @@
 
 use std::fmt::{Display, Formatter, Error as FmtError};
 use util_error::UtilError;
-use trie::TrieError;
+use ethtrie::TrieError;
 
 /// Client configuration errors.
 #[derive(Debug)]

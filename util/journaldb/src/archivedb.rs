@@ -19,15 +19,17 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
-use rlp::{encode, decode};
-use hashdb::*;
-use super::memorydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::H256;
-use error::{BaseDataError, UtilError};
+
 use bytes::Bytes;
+use error::{BaseDataError, UtilError};
+use ethereum_types::H256;
+use hashdb::*;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
+use rlp::{encode, decode};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
+use super::memorydb::*;
+use traits::JournalDB;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -37,7 +39,7 @@ use bytes::Bytes;
 /// immediately. As this is an "archive" database, nothing is ever removed. This means
 /// that the states of any block the node has ever processed will be accessible.
 pub struct ArchiveDB {
-	overlay: MemoryDB,
+	overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	latest_era: Option<u64>,
 	column: Option<u32>,
@@ -62,7 +64,7 @@ impl ArchiveDB {
 	}
 }
 
-impl HashDB for ArchiveDB {
+impl HashDB<KeccakHasher> for ArchiveDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -191,7 +193,7 @@ impl JournalDB for ArchiveDB {
 		&self.backing
 	}
 
-	fn consolidate(&mut self, with: MemoryDB) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
 		self.overlay.consolidate(with);
 	}
 }

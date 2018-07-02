@@ -36,8 +36,10 @@ use rand::Rng;
 use kvdb::DBValue;
 use ethereum_types::H256;
 use hashdb::HashDB;
+use keccak_hasher::KeccakHasher;
 use journaldb;
-use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie};
+use trie::{TrieMut, Trie};
+use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
 
 // the proportion of accounts we will alter each tick.
@@ -60,7 +62,7 @@ impl StateProducer {
 
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
-	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {
+	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
 			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
@@ -129,7 +131,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 }
 
 /// Compare two state dbs.
-pub fn compare_dbs(one: &HashDB, two: &HashDB) {
+pub fn compare_dbs(one: &HashDB<KeccakHasher>, two: &HashDB<KeccakHasher>) {
 	let keys = one.keys();
 
 	for key in keys.keys() {

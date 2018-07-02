@@ -23,6 +23,7 @@ extern crate log;
 extern crate ethereum_types;
 extern crate ethcore_bytes as bytes;
 extern crate hashdb;
+extern crate keccak_hasher;
 extern crate kvdb;
 extern crate memorydb;
 extern crate parking_lot;
@@ -47,6 +48,7 @@ mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
 mod util;
+mod as_hash_db_impls;
 
 pub mod overlaydb;
 
