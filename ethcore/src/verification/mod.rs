@@ -42,12 +42,6 @@ pub enum VerifierType {
 	Noop,
 }
 
-impl Default for VerifierType {
-	fn default() -> Self {
-		VerifierType::Canon
-	}
-}
-
 /// Create a new verifier based on type.
 pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<Verifier<C>> {
 	match v {
