@@ -1079,7 +1079,7 @@ impl miner::MinerService for Miner {
 		self.update_transaction_queue_limits(gas_limit);
 
 
-		// Then import all transactions...
+		// Then import all transactions from retracted blocks.
 		let client = self.pool_client(chain);
 		{
 			retracted
@@ -1098,11 +1098,6 @@ impl miner::MinerService for Miner {
 				});
 		}
 
-		if has_new_best_block {
-			// ...and at the end remove the old ones
-			self.transaction_queue.cull(client);
-		}
-
 		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// Reset `next_allowed_reseal` in case a block is imported.
 			// Even if min_period is high, we will always attempt to create
@@ -1116,6 +1111,15 @@ impl miner::MinerService for Miner {
 				// --------------------------------------------------------------------------
 				self.update_sealing(chain);
 			}
+		}
+
+		if has_new_best_block {
+			// Make sure to cull transactions after we update sealing.
+			// Not culling won't lead to old transactions being added to the block
+			// (thanks to Ready), but culling can take significant amount of time,
+			// so best to leave it after we create some work for miners to prevent increased
+			// uncle rate.
+			self.transaction_queue.cull(client);
 		}
 	}
 
