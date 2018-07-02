@@ -17,8 +17,9 @@
 //! Blockchain database.
 
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
-use std::mem;
+use std::{mem, io};
 use itertools::Itertools;
 use blooms_db;
 use heapsize::HeapSizeOf;
@@ -47,8 +48,6 @@ use engines::epoch::{Transition as EpochTransition, PendingTransition as Pending
 use rayon::prelude::*;
 use ansi_term::Colour;
 use kvdb::{DBTransaction, KeyValueDB};
-use error::Error;
-use std::path::Path;
 
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {
@@ -66,7 +65,7 @@ pub trait BlockChainDB: Send + Sync {
 /// predefined config.
 pub trait BlockChainDBHandler: Send + Sync {
 	/// Open the predefined key-value database.
-	fn open(&self, path: &Path) -> Result<Arc<BlockChainDB>, Error>;
+	fn open(&self, path: &Path) -> io::Result<Arc<BlockChainDB>>;
 }
 
 /// Interface for querying blocks by hash and by number.

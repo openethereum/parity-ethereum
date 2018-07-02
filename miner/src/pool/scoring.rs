@@ -31,18 +31,41 @@ use std::cmp;
 
 use ethereum_types::U256;
 use txpool;
-use super::{PrioritizationStrategy, VerifiedTransaction};
+use super::{verifier, PrioritizationStrategy, VerifiedTransaction};
 
 /// Transaction with the same (sender, nonce) can be replaced only if
 /// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
 const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
+/// Calculate minimal gas price requirement.
+#[inline]
+fn bump_gas_price(old_gp: U256) -> U256 {
+	old_gp.saturating_add(old_gp >> GAS_PRICE_BUMP_SHIFT)
+}
+
 /// Simple, gas-price based scoring for transactions.
 ///
 /// NOTE: Currently penalization does not apply to new transactions that enter the pool.
 /// We might want to store penalization status in some persistent state.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NonceAndGasPrice(pub PrioritizationStrategy);
+
+impl NonceAndGasPrice {
+	/// Decide if the transaction should even be considered into the pool (if the pool is full).
+	///
+	/// Used by Verifier to quickly reject transactions that don't have any chance to get into the pool later on,
+	/// and save time on more expensive checks like sender recovery, etc.
+	///
+	/// NOTE The method is never called for zero-gas-price transactions or local transactions
+	/// (such transactions are always considered to the pool and potentially rejected later on)
+	pub fn should_reject_early(&self, old: &VerifiedTransaction, new: &verifier::Transaction) -> bool {
+		if old.priority().is_local() {
+			return true
+		}
+
+		&old.transaction.gas_price > new.gas_price()
+	}
+}
 
 impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 	type Score = U256;
@@ -60,7 +83,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		let old_gp = old.transaction.gas_price;
 		let new_gp = new.transaction.gas_price;
 
-		let min_required_gp = old_gp + (old_gp >> GAS_PRICE_BUMP_SHIFT);
+		let min_required_gp = bump_gas_price(old_gp);
 
 		match min_required_gp.cmp(&new_gp) {
 			cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,

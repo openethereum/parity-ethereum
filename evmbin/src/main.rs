@@ -91,7 +91,7 @@ General options:
 "#;
 
 fn main() {
-	panic_hook::set();
+	panic_hook::set_abort();
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 

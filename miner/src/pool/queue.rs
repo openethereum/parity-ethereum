@@ -187,7 +187,20 @@ impl TransactionQueue {
 		trace_time!("pool::verify_and_import");
 		let options = self.options.read().clone();
 
-		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
+		let transaction_to_replace = {
+			let pool = self.pool.read();
+			if pool.is_full() {
+				pool.worst_transaction().map(|worst| (pool.scoring().clone(), worst))
+			} else {
+				None
+			}
+		};
+		let verifier = verifier::Verifier::new(
+			client,
+			options,
+			self.insertion_id.clone(),
+			transaction_to_replace,
+		);
 		let results = transactions
 			.into_iter()
 			.map(|transaction| {

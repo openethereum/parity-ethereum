@@ -17,12 +17,11 @@
 extern crate kvdb_rocksdb;
 extern crate migration_rocksdb;
 
-use std::fs;
+use std::{io, fs};
 use std::sync::Arc;
 use std::path::Path;
 use blooms_db;
 use ethcore::{BlockChainDBHandler, BlockChainDB};
-use ethcore::error::Error;
 use ethcore::db::NUM_COLUMNS;
 use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
 use kvdb::KeyValueDB;
@@ -76,7 +75,7 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 	}
 
 	impl BlockChainDBHandler for RestorationDBHandler {
-		fn open(&self, db_path: &Path) -> Result<Arc<BlockChainDB>, Error> {
+		fn open(&self, db_path: &Path) -> io::Result<Arc<BlockChainDB>> {
 			open_database(&db_path.to_string_lossy(), &self.config)
 		}
 	}
@@ -87,7 +86,7 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 }
 
 /// Open a new main DB.
-pub fn open_db(client_path: &str, cache_config: &CacheConfig, compaction: &DatabaseCompactionProfile, wal: bool) -> Result<Arc<BlockChainDB>, Error> {
+pub fn open_db(client_path: &str, cache_config: &CacheConfig, compaction: &DatabaseCompactionProfile, wal: bool) -> io::Result<Arc<BlockChainDB>> {
 	let path = Path::new(client_path);
 
 	let db_config = DatabaseConfig {
@@ -100,7 +99,7 @@ pub fn open_db(client_path: &str, cache_config: &CacheConfig, compaction: &Datab
 	open_database(client_path, &db_config)
 }
 
-pub fn open_database(client_path: &str, config: &DatabaseConfig) -> Result<Arc<BlockChainDB>, Error> {
+pub fn open_database(client_path: &str, config: &DatabaseConfig) -> io::Result<Arc<BlockChainDB>> {
 	let path = Path::new(client_path);
 
 	let blooms_path = path.join("blooms");

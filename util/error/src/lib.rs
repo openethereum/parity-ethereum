@@ -25,7 +25,6 @@ extern crate error_chain;
 extern crate ethereum_types;
 extern crate rlp;
 extern crate rustc_hex;
-extern crate kvdb;
 
 use std::fmt;
 use rustc_hex::FromHexError;
@@ -61,10 +60,6 @@ impl std::error::Error for BaseDataError {
 error_chain! {
 	types {
 		UtilError, ErrorKind, ResultExt, Result;
-	}
-
-	links {
-		Db(kvdb::Error, kvdb::ErrorKind);
 	}
 
 	foreign_links {
