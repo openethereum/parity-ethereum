@@ -140,6 +140,7 @@ pub fn start_http<M, S, H, T, R>(
 	extractor: T,
 	middleware: Option<R>,
 	threads: usize,
+	max_payload: usize,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -152,7 +153,8 @@ pub fn start_http<M, S, H, T, R>(
 		.threads(threads)
 		.event_loop_remote(remote)
 		.cors(cors_domains.into())
-		.allowed_hosts(allowed_hosts.into());
+		.allowed_hosts(allowed_hosts.into())
+		.max_request_body_size(max_payload * 1024 * 1024);
 
 	if let Some(dapps) = middleware {
 		builder = builder.request_middleware(dapps)

@@ -16,8 +16,6 @@
 
 //! Key-Value store abstraction with `RocksDB` backend.
 
-#[macro_use]
-extern crate error_chain;
 extern crate elastic_array;
 extern crate ethcore_bytes as bytes;
 
@@ -32,16 +30,6 @@ pub const PREFIX_LEN: usize = 12;
 
 /// Database value.
 pub type DBValue = ElasticArray128<u8>;
-
-error_chain! {
-	types {
-		Error, ErrorKind, ResultExt, Result;
-	}
-
-	foreign_links {
-		Io(io::Error);
-	}
-}
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 #[derive(Default, Clone, PartialEq)]
@@ -151,7 +139,7 @@ pub trait KeyValueDB: Sync + Send {
 	fn transaction(&self) -> DBTransaction { DBTransaction::new() }
 
 	/// Get a value by key.
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>>;
+	fn get(&self, col: Option<u32>, key: &[u8]) -> io::Result<Option<DBValue>>;
 
 	/// Get a value by partial key. Only works for flushed data.
 	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>>;
@@ -160,13 +148,13 @@ pub trait KeyValueDB: Sync + Send {
 	fn write_buffered(&self, transaction: DBTransaction);
 
 	/// Write a transaction of changes to the backing store.
-	fn write(&self, transaction: DBTransaction) -> Result<()> {
+	fn write(&self, transaction: DBTransaction) -> io::Result<()> {
 		self.write_buffered(transaction);
 		self.flush()
 	}
 
 	/// Flush all buffered data.
-	fn flush(&self) -> Result<()>;
+	fn flush(&self) -> io::Result<()>;
 
 	/// Iterate over flushed data for a given column.
 	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
@@ -176,12 +164,12 @@ pub trait KeyValueDB: Sync + Send {
 		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
 
 	/// Attempt to replace this database with a new one located at the given path.
-	fn restore(&self, new_db: &str) -> Result<()>;
+	fn restore(&self, new_db: &str) -> io::Result<()>;
 }
 
 /// Generic key-value database handler. This trait contains one function `open`. When called, it opens database with a
 /// predefined config.
 pub trait KeyValueDBHandler: Send + Sync {
 	/// Open the predefined key-value database.
-	fn open(&self, path: &Path) -> Result<Arc<KeyValueDB>>;
+	fn open(&self, path: &Path) -> io::Result<Arc<KeyValueDB>>;
 }
