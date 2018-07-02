@@ -71,7 +71,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	builder.filter(Some("ws"), LogLevelFilter::Warn);
 	builder.filter(Some("reqwest"), LogLevelFilter::Warn);
 	builder.filter(Some("hyper"), LogLevelFilter::Warn);
-	builder.filter(Some("rustls"), LogLevelFilter::Warn);
+	builder.filter(Some("rustls"), LogLevelFilter::Error);
 	// Enable info for others.
 	builder.filter(None, LogLevelFilter::Info);
 
