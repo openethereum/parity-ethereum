@@ -346,8 +346,7 @@ where
 
 	// cache a node by hash
 	fn cache(&mut self, hash: H::Out) -> Result<StorageHandle, H::Out, C::Error> {
-		let node_encoded = self.db.get(&hash).ok_or_else(|| TrieError::IncompleteDatabase(hash))?;
-		// let node_encoded = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
+		let node_encoded = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
 		let node = Node::from_encoded::<C>(
 			&node_encoded,
 			&*self.db,
