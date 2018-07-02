@@ -311,13 +311,11 @@ impl StateDB {
 		}
 	}
 
-	// TODO: needed?
 	/// Conversion method to interpret self as `HashDB` reference
 	pub fn as_hashdb(&self) -> &HashDB<KeccakHasher> {
 		self.db.as_hashdb()
 	}
 
-	// TODO: needed?
 	/// Conversion method to interpret self as mutable `HashDB` reference
 	pub fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
 		self.db.as_hashdb_mut()

@@ -474,8 +474,6 @@ impl Account {
 	/// trie.
 	/// `storage_key` is the hash of the desired storage key, meaning
 	/// this will only work correctly under a secure trie.
-	// pub fn prove_storage(&self, db: &HashDB<KeccakHasher>, storage_key: H256) -> Result<(Vec<Bytes>, H256), Box<TrieError<<KeccakHasher as Hasher>::Out>>> {
-	// pub fn prove_storage(&self, db: &HashDB<KeccakHasher>, storage_key: H256) -> Result<(Vec<Bytes>, H256), Box<TrieError>> {
 	pub fn prove_storage(&self, db: &HashDB<KeccakHasher>, storage_key: H256) -> TrieResult<(Vec<Bytes>, H256)> {
 		let mut recorder = Recorder::new();
 
