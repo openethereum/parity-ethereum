@@ -117,13 +117,13 @@ const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 /// Status used to exit or restart the program.
 struct ExitStatus {
 	/// Whether the program panicked.
-	pub panicking: bool,
+	panicking: bool,
 	/// Whether the program should exit.
-	pub should_exit: bool,
+	should_exit: bool,
 	/// Whether the program should restart.
-	pub should_restart: bool,
+	should_restart: bool,
 	/// If a restart happens, whether a new chain spec should be used.
-	pub spec_name_override: Option<String>,
+	spec_name_override: Option<String>,
 }
 
 // Run our version of parity.
