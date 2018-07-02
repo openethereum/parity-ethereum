@@ -145,7 +145,7 @@ impl <F> super::EpochVerifier<EthereumMachine> for EpochVerifier<F>
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
 		match ::rlp::decode(proof) {
 			Ok(header) => self.verify_light(&header).ok().map(|_| vec![header.hash()]),
-			Err(_) => None // REVIEW: log perhaps? Not sure what the policy is.
+			Err(_) => None
 		}
 	}
 }

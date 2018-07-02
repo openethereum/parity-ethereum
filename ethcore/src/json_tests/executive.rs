@@ -31,7 +31,7 @@ use ethjson;
 use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};
 use bytes::{Bytes, BytesRef};
-use trie;
+use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
 use machine::EthereumMachine as Machine;
@@ -93,7 +93,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		address: Address,
 		tracer: &'a mut T,
 		vm_tracer: &'a mut V,
-	) -> trie::Result<Self> {
+	) -> ethtrie::Result<Self> {
 		let static_call = false;
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,

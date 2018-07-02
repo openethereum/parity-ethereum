@@ -1,0 +1,12 @@
+[package]
+name = "keccak-hasher"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "Keccak-256 implementation of the Hasher trait"
+license = "GPL-3.0"
+
+[dependencies]
+ethereum-types = "0.3"
+tiny-keccak = "1.4.2"
+hashdb = { path = "../hashdb" }
+plain_hasher = { path = "../plain_hasher" }

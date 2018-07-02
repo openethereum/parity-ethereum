@@ -58,6 +58,50 @@ impl RlpStream {
 		stream
 	}
 
+	/// Apends null to the end of stream, chainable.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append_empty_data().append_empty_data();
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
+	/// }
+	/// ```
+	pub fn append_empty_data(&mut self) -> &mut Self {
+		// self push raw item
+		self.buffer.push(0x80);
+
+		// try to finish and prepend the length
+		self.note_appended(1);
+
+		// return chainable self
+		self
+	}
+
+	/// Drain the object and return the underlying ElasticArray. Panics if it is not finished.
+	pub fn drain(self) -> ElasticArray1024<u8> {
+		match self.is_finished() {
+			true => self.buffer,
+			false => panic!()
+		}
+	}
+
+	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
+	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self {
+		// push raw items
+		self.buffer.append_slice(bytes);
+
+		// try to finish and prepend the length
+		self.note_appended(item_count);
+
+		// return chainable self
+		self
+	}
+
 	/// Appends value to the end of stream, chainable.
 	///
 	/// ```rust
@@ -145,42 +189,6 @@ impl RlpStream {
 		self
 	}
 
-	/// Apends null to the end of stream, chainable.
-	///
-	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
-	///
-	/// fn main () {
-	/// 	let mut stream = RlpStream::new_list(2);
-	/// 	stream.append_empty_data().append_empty_data();
-	/// 	let out = stream.out();
-	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
-	/// }
-	/// ```
-	pub fn append_empty_data(&mut self) -> &mut RlpStream {
-		// self push raw item
-		self.buffer.push(0x80);
-
-		// try to finish and prepend the length
-		self.note_appended(1);
-
-		// return chainable self
-		self
-	}
-
-	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
-	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
-		// push raw items
-		self.buffer.append_slice(bytes);
-
-		// try to finish and prepend the length
-		self.note_appended(item_count);
-
-		// return chainable self
-		self
-	}
-
 	/// Appends raw (pre-serialised) RLP data. Checks for size oveflow.
 	pub fn append_raw_checked<'a>(&'a mut self, bytes: &[u8], item_count: usize, max_size: usize) -> bool {
 		if self.estimate_size(bytes.len()) > max_size {
@@ -215,7 +223,7 @@ impl RlpStream {
 	/// ```rust
 	/// extern crate rlp;
 	/// use rlp::*;
-	///
+	/// 
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(3);
 	/// 	stream.append(&"cat");
@@ -298,14 +306,6 @@ impl RlpStream {
 
 	pub fn encoder(&mut self) -> BasicEncoder {
 		BasicEncoder::new(self)
-	}
-
-	/// Drain the object and return the underlying ElasticArray.
-	pub fn drain(self) -> ElasticArray1024<u8> {
-		match self.is_finished() {
-			true => self.buffer,
-			false => panic!()
-		}
 	}
 
 	/// Finalize current ubnbound list. Panics if no unbounded list has been opened.

@@ -41,12 +41,14 @@ impl NibbleVec {
 	}
 
 	/// Length of the `NibbleVec`
+	#[inline(always)]
 	pub fn len(&self) -> usize { self.len }
 
 	/// Retrurns true if `NibbleVec` has zero length
 	pub fn is_empty(&self) -> bool { self.len == 0 }
 
 	/// Try to get the nibble at the given offset.
+	#[inline]
 	pub fn at(&self, idx: usize) -> u8 {
 		if idx % 2 == 0 {
 			self.inner[idx / 2] >> 4

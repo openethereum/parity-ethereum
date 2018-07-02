@@ -14,105 +14,116 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::H256;
-use keccak::keccak;
-use hashdb::{HashDB, DBValue};
-use super::{TrieDBMut, TrieMut};
+use hashdb::{HashDB, DBValue, Hasher};
+use super::{Result, TrieDBMut, TrieMut};
+use node_codec::NodeCodec;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
 ///
 /// Use it as a `Trie` or `TrieMut` trait object.
-pub struct FatDBMut<'db> {
-	raw: TrieDBMut<'db>,
+pub struct FatDBMut<'db, H, C>
+where 
+	H: Hasher + 'db, 
+	C: NodeCodec<H>
+{
+	raw: TrieDBMut<'db, H, C>,
 }
 
-impl<'db> FatDBMut<'db> {
+impl<'db, H, C> FatDBMut<'db, H, C>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
+{
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
+	pub fn new(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Self {
 		FatDBMut { raw: TrieDBMut::new(db, root) }
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> super::Result<Self> {
+	pub fn from_existing(db: &'db mut HashDB<H>, root: &'db mut H::Out) -> Result<Self, H::Out, C::Error> {
 		Ok(FatDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB {
+	pub fn db(&self) -> &HashDB<H> {
 		self.raw.db()
 	}
 
 	/// Get the backing database.
-	pub fn db_mut(&mut self) -> &mut HashDB {
+	pub fn db_mut(&mut self) -> &mut HashDB<H> {
 		self.raw.db_mut()
-	}
-
-	fn to_aux_key(key: &[u8]) -> H256 {
-		keccak(key)
 	}
 }
 
-impl<'db> TrieMut for FatDBMut<'db> {
-	fn root(&mut self) -> &H256 {
-		self.raw.root()
+impl<'db, H, C> TrieMut<H, C> for FatDBMut<'db, H, C>
+where 
+	H: Hasher, 
+	C: NodeCodec<H>
+{
+	fn root(&mut self) -> &H::Out { self.raw.root() }
+
+	fn is_empty(&self) -> bool { self.raw.is_empty() }
+
+	fn contains(&self, key: &[u8]) -> Result<bool, H::Out, C::Error> {
+		self.raw.contains(H::hash(key).as_ref())
 	}
 
-	fn is_empty(&self) -> bool {
-		self.raw.is_empty()
-	}
-
-	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&keccak(key))
-	}
-
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<DBValue>>
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>, H::Out, C::Error>
 		where 'a: 'key
 	{
-		self.raw.get(&keccak(key))
+		self.raw.get(H::hash(key).as_ref())
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
-		let hash = keccak(key);
-		let out = self.raw.insert(&hash, value)?;
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>, H::Out, C::Error> {
+		let hash = H::hash(key);
+		let out = self.raw.insert(hash.as_ref(), value)?;
 		let db = self.raw.db_mut();
 
 		// don't insert if it doesn't exist.
 		if out.is_none() {
-			db.emplace(Self::to_aux_key(&hash), DBValue::from_slice(key));
+			let aux_hash = H::hash(hash.as_ref());
+			db.emplace(aux_hash, DBValue::from_slice(key));
 		}
 		Ok(out)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
-		let hash = keccak(key);
-		let out = self.raw.remove(&hash)?;
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>, H::Out, C::Error> {
+		let hash = H::hash(key);
+		let out = self.raw.remove(hash.as_ref())?;
 
 		// don't remove if it already exists.
 		if out.is_some() {
-			self.raw.db_mut().remove(&Self::to_aux_key(&hash));
+			self.raw.db_mut().remove(&hash);
 		}
 
 		Ok(out)
 	}
 }
 
-#[test]
-fn fatdb_to_trie() {
+#[cfg(test)]
+mod test {
+	use hashdb::DBValue;
 	use memorydb::MemoryDB;
-	use super::TrieDB;
-	use super::Trie;
+	use ethtrie::trie::{Trie, TrieMut};
+	use ethtrie::{TrieDB, FatDBMut};
+	use keccak_hasher::KeccakHasher;
+	use keccak;
+	use ethereum_types::H256;
 
-	let mut memdb = MemoryDB::new();
-	let mut root = H256::default();
-	{
-		let mut t = FatDBMut::new(&mut memdb, &mut root);
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+	#[test]
+	fn fatdbmut_to_trie() {
+		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut root = H256::new();
+		{
+			let mut t = FatDBMut::new(&mut memdb, &mut root);
+			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+		}
+		let t = TrieDB::new(&memdb, &root).unwrap();
+		assert_eq!(t.get(&keccak::keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 	}
-	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

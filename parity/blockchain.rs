@@ -357,7 +357,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		algorithm,
 		cmd.pruning_history,
 		cmd.pruning_memory,
-		cmd.check_seal
+		cmd.check_seal,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;

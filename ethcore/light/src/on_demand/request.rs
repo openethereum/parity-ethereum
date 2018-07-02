@@ -18,26 +18,25 @@
 
 use std::sync::Arc;
 
+use bytes::Bytes;
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
 use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
-use transaction::SignedTransaction;
-use vm::EnvInfo;
-use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
-
-use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
-
-use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256, Address};
-use parking_lot::Mutex;
+use ethtrie::{TrieError, TrieDB};
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 use hashdb::HashDB;
 use kvdb::DBValue;
-use bytes::Bytes;
 use memorydb::MemoryDB;
-use trie::{Trie, TrieDB, TrieError};
+use parking_lot::Mutex;
+use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
+use rlp::{RlpStream, Rlp};
+use transaction::SignedTransaction;
+use trie::Trie;
+use vm::EnvInfo;
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 
@@ -935,11 +934,12 @@ mod tests {
 	use ethereum_types::{H256, Address};
 	use memorydb::MemoryDB;
 	use parking_lot::Mutex;
-	use trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
-	use trie::recorder::Recorder;
+	use trie::{Trie, TrieMut};
+	use ethtrie::{SecTrieDB, SecTrieDBMut};
+	use trie::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
+	use ::ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
 	use ethcore::receipt::{Receipt, TransactionOutcome};

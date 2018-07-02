@@ -19,7 +19,7 @@
 use std::{cmp, fmt};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
@@ -138,6 +138,50 @@ impl CachedPending {
 	}
 }
 
+#[derive(Debug)]
+struct RecentlyRejected {
+	inner: RwLock<HashMap<H256, transaction::Error>>,
+	limit: usize,
+}
+
+impl RecentlyRejected {
+	fn new(limit: usize) -> Self {
+		RecentlyRejected {
+			limit,
+			inner: RwLock::new(HashMap::with_capacity(MIN_REJECTED_CACHE_SIZE)),
+		}
+	}
+
+	fn clear(&self) {
+		self.inner.write().clear();
+	}
+
+	fn get(&self, hash: &H256) -> Option<transaction::Error> {
+		self.inner.read().get(hash).cloned()
+	}
+
+	fn insert(&self, hash: H256, err: &transaction::Error) {
+		if self.inner.read().contains_key(&hash) {
+			return;
+		}
+
+		let mut inner = self.inner.write();
+		inner.insert(hash, err.clone());
+
+		// clean up
+		if inner.len() > self.limit {
+			// randomly remove half of the entries
+			let to_remove: Vec<_> = inner.keys().take(self.limit / 2).cloned().collect();
+			for key in to_remove {
+				inner.remove(&key);
+			}
+		}
+	}
+}
+
+/// Minimal size of rejection cache, by default it's equal to queue size.
+const MIN_REJECTED_CACHE_SIZE: usize = 2048;
+
 /// Ethereum Transaction Queue
 ///
 /// Responsible for:
@@ -150,6 +194,7 @@ pub struct TransactionQueue {
 	pool: RwLock<Pool>,
 	options: RwLock<verifier::Options>,
 	cached_pending: RwLock<CachedPending>,
+	recently_rejected: RecentlyRejected,
 }
 
 impl TransactionQueue {
@@ -159,11 +204,13 @@ impl TransactionQueue {
 		verification_options: verifier::Options,
 		strategy: PrioritizationStrategy,
 	) -> Self {
+		let max_count = limits.max_count;
 		TransactionQueue {
 			insertion_id: Default::default(),
 			pool: RwLock::new(txpool::Pool::new(Default::default(), scoring::NonceAndGasPrice(strategy), limits)),
 			options: RwLock::new(verification_options),
 			cached_pending: RwLock::new(CachedPending::none()),
+			recently_rejected: RecentlyRejected::new(cmp::max(MIN_REJECTED_CACHE_SIZE, max_count / 4)),
 		}
 	}
 
@@ -195,26 +242,42 @@ impl TransactionQueue {
 				None
 			}
 		};
+
 		let verifier = verifier::Verifier::new(
 			client,
 			options,
 			self.insertion_id.clone(),
 			transaction_to_replace,
 		);
+
 		let results = transactions
 			.into_iter()
 			.map(|transaction| {
-				if self.pool.read().find(&transaction.hash()).is_some() {
-					bail!(transaction::Error::AlreadyImported)
+				let hash = transaction.hash();
+
+				if self.pool.read().find(&hash).is_some() {
+					return Err(transaction::Error::AlreadyImported);
 				}
 
-				verifier.verify_transaction(transaction)
+				if let Some(err) = self.recently_rejected.get(&hash) {
+					trace!(target: "txqueue", "[{:?}] Rejecting recently rejected: {:?}", hash, err);
+					return Err(err);
+				}
+
+				let imported = verifier
+					.verify_transaction(transaction)
+					.and_then(|verified| {
+						self.pool.write().import(verified).map_err(convert_error)
+					});
+
+				match imported {
+					Ok(_) => Ok(()),
+					Err(err) => {
+						self.recently_rejected.insert(hash, &err);
+						Err(err)
+					},
+				}
 			})
-			.map(|result| result.and_then(|verified| {
-				self.pool.write().import(verified)
-					.map(|_imported| ())
-					.map_err(convert_error)
-			}))
 			.collect::<Vec<_>>();
 
 		// Notify about imported transactions.
@@ -342,6 +405,7 @@ impl TransactionQueue {
 
 		let state_readiness = ready::State::new(client, stale_id, nonce_cap);
 
+		self.recently_rejected.clear();
 		let removed = self.pool.write().cull(None, state_readiness);
 		debug!(target: "txqueue", "Removed {} stalled transactions. {}", removed, self.status());
 	}

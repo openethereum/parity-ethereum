@@ -16,10 +16,12 @@ ethcore-light = { path = "../light" }
 ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
 ethereum-types = "0.3"
-plain_hasher = { path = "../../util/plain_hasher" }
+hashdb = { version = "0.2", path = "../../util/hashdb" }
+plain_hasher = { version = "0.2", path = "../../util/plain_hasher" }
 rlp = { path = "../../util/rlp" }
 rustc-hex = "1.0"
 keccak-hash = { path = "../../util/hash" }
+keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash = { path = "../../util/triehash" }
 kvdb = { path = "../../util/kvdb" }
 macros = { path = "../../util/macros" }

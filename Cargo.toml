@@ -133,6 +133,8 @@ members = [
 	"transaction-pool",
 	"whisper",
 	"whisper/cli",
+	"util/keccak-hasher",
+	"util/patricia-trie-ethereum",
 ]
 
 [patch.crates-io]
