@@ -315,7 +315,7 @@ usage! {
 
 			ARG arg_ports_shift: (u16) = 0u16, or |c: &Config| c.misc.as_ref()?.ports_shift,
 			"--ports-shift=[SHIFT]",
-			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, UI, IPFS, SecretStore).",
+			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, IPFS, SecretStore).",
 
 		["Account Options"]
 			FLAG flag_no_hardware_wallets: (bool) = false, or |c: &Config| c.account.as_ref()?.disable_hardware.clone(),
@@ -646,7 +646,7 @@ usage! {
 
 			FLAG flag_tx_queue_no_unfamiliar_locals: (bool) = false, or |c: &Config| c.mining.as_ref()?.tx_queue_no_unfamiliar_locals.clone(),
 			"--tx-queue-no-unfamiliar-locals",
-			"Transactions received via local means (HTTP JSON-RPC, WS JSON-RPC, etc) will be treated as external if the sending account is unknown.",
+			"Transactions received via local means (HTTP JSON-RPC, WebSockets JSON-RPC, etc) will be treated as external if the sending account is unknown.",
 
 			FLAG flag_refuse_service_transactions: (bool) = false, or |c: &Config| c.mining.as_ref()?.refuse_service_transactions.clone(),
 			"--refuse-service-transactions",
