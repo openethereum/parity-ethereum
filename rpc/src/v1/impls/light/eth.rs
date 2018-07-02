@@ -17,6 +17,7 @@
 //! Eth RPC interface for the light client.
 
 use std::sync::Arc;
+use std::result;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
@@ -30,6 +31,7 @@ use light::on_demand::{request, OnDemand};
 
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::encoded;
+use ethcore::executed::{Executed, CallError};
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::ids::BlockId;
 use sync::LightSync;
@@ -69,8 +71,8 @@ pub struct EthClient<T> {
 impl<T> EthClient<T> {
 	fn num_to_id(num: BlockNumber) -> BlockId {
 		// Note: Here we treat `Pending` as `Latest`.
-		//       Since light clients don't produce pending blocks
-		//       (they don't have state) we can safely fallback to `Latest`.
+		//	 Since light clients don't produce pending blocks
+		//	 (they don't have state) we can safely fallback to `Latest`.
 		match num {
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
@@ -202,9 +204,9 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 					};
 
 					// three possible outcomes:
-					//   - network is down.
-					//   - we get a score, but our hash is non-canonical.
-					//   - we get a score, and our hash is canonical.
+					// - network is down.
+					// - we get a score, but our hash is non-canonical.
+					// - we get a score, and our hash is canonical.
 					let maybe_fut = sync.with_context(move |ctx| on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS));
 					match maybe_fut {
 						Some(fut) => Either::B(fut
@@ -537,6 +539,15 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id)
 	}
 
+	fn block_body(&self, id: BlockId) -> BoxFuture<Option<encoded::Body>> {
+        Box::new(self.fetcher()
+            .block(id)
+            .map(|block| {
+				Some(encoded::Body::new(block.rlp().as_raw().to_owned()))
+            })
+        )
+	}
+
 	fn pending_transactions_hashes(&self) -> Vec<::ethereum_types::H256> {
 		Vec::new()
 	}
@@ -555,6 +566,10 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 
 	fn removed_logs(&self, _block_hash: ::ethereum_types::H256, _filter: &EthcoreFilter) -> (Vec<Log>, u64) {
 		(Default::default(), 0)
+	}
+
+	fn replay_block_transactions(&self, _block: BlockId) -> Result<result::Result<Box<Iterator<Item = Executed>>, CallError>> {
+		Err(errors::light_unimplemented(None))
 	}
 }
 

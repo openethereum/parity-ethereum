@@ -33,6 +33,7 @@ mod log;
 mod node_kind;
 mod provenance;
 mod receipt;
+mod return_data;
 mod rpc_settings;
 mod secretstore;
 mod sync;
@@ -67,6 +68,7 @@ pub use self::log::Log;
 pub use self::node_kind::{NodeKind, Availability, Capability};
 pub use self::provenance::{Origin, DappId};
 pub use self::receipt::Receipt;
+pub use self::return_data::ReturnData;
 pub use self::rpc_settings::RpcSettings;
 pub use self::secretstore::EncryptedDocumentKey;
 pub use self::sync::{

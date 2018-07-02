@@ -18,18 +18,22 @@
 
 use std::sync::Arc;
 use std::collections::HashSet;
+use std::result;
 
 use ethcore::miner::{self, MinerService};
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockId};
+use ethcore::executed::{Executed, CallError};
+use ethcore::call_analytics::CallAnalytics;
+use ethcore::encoded;
 use ethereum_types::H256;
 use parking_lot::Mutex;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
-use jsonrpc_core::futures::future::Either;
+use jsonrpc_core::futures::future::{Either, join_all};
 use v1::traits::EthFilter;
-use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256};
+use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256, ReturnData, Bytes};
 use v1::helpers::{errors, PollFilter, PollManager, limit_logs};
 use v1::impls::eth::pending_logs;
 
@@ -40,6 +44,9 @@ pub trait Filterable {
 
 	/// Get a block hash by block id.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
+
+	/// Get a block body by block id.
+	fn block_body(&self, id: BlockId) -> BoxFuture<Option<encoded::Body>>;
 
 	/// pending transaction hashes at the given block.
 	fn pending_transactions_hashes(&self) -> Vec<H256>;
@@ -55,6 +62,9 @@ pub trait Filterable {
 
 	/// Get removed logs within route from the given block to the nearest canon block, not including the canon block. Also returns how many logs have been traversed.
 	fn removed_logs(&self, block_hash: H256, filter: &EthcoreFilter) -> (Vec<Log>, u64);
+
+	/// Replay the transactions from the specified block
+	fn replay_block_transactions(&self, block: BlockId) -> Result<result::Result<Box<Iterator<Item = Executed>>, CallError>>;
 }
 
 /// Eth filter rpc implementation for a full node.
@@ -76,8 +86,8 @@ impl<C, M> EthFilterClient<C, M> {
 }
 
 impl<C, M> Filterable for EthFilterClient<C, M> where
-	C: miner::BlockChainClient + BlockChainClient,
-	M: MinerService,
+C: miner::BlockChainClient + BlockChainClient,
+M: MinerService,
 {
 	fn best_block_number(&self) -> u64 {
 		self.client.chain_info().best_block_number
@@ -85,6 +95,10 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		self.client.block_hash(id)
+	}
+
+	fn block_body(&self, id: BlockId) -> BoxFuture<Option<encoded::Body>> {
+		Box::new(future::ok(self.client.block_body(id)))
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
@@ -137,6 +151,10 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 			})
 		}).collect(), route_len)
 	}
+
+	fn replay_block_transactions(&self, block: BlockId) -> Result<result::Result<Box<Iterator<Item = Executed>>, CallError>> {
+		Ok(self.client.replay_block_transactions(block, CallAnalytics { transaction_tracing: false, vm_tracing: false, state_diffing: false}))
+	}
 }
 
 impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
@@ -158,6 +176,12 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		let mut polls = self.polls().lock();
 		let pending_transactions = self.pending_transactions_hashes();
 		let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
+		Ok(id.into())
+	}
+
+	fn new_return_data_filter(&self) -> Result<RpcU256> {
+		let mut polls = self.polls().lock();
+		let id = polls.create_poll(PollFilter::ReturnData(self.best_block_number()));
 		Ok(id.into())
 	}
 
@@ -246,11 +270,75 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 					// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 					let limit = filter.limit;
-					Either::B(self.logs(filter)
+					Either::B(Either::A(self.logs(filter)
 						.map(move |logs| { reorg.extend(logs); reorg }) // append reorg logs in the front
 						.map(move |mut logs| { logs.extend(pending); logs }) // append fetched pending logs
 						.map(move |logs| limit_logs(logs, limit)) // limit the logs
-						.map(FilterChanges::Logs))
+						.map(FilterChanges::Logs)))
+				},
+				PollFilter::ReturnData(ref mut block_number) => {
+					// +1, cause we want to return hashes including current block hash.
+					let current_number = self.best_block_number() + 1;
+					let executed: Vec<(BlockId, Box<Vec<Bytes>>)> = (*block_number..current_number)
+						.filter_map(|block| {
+							let block_id = BlockId::Number(block);
+							let replay_result = self.replay_block_transactions(block_id);
+							match replay_result {
+								Ok(Ok(executeds)) => {
+									let output_bytes = Box::new(executeds
+																.map(|executed| executed.output)
+																.map(Bytes::from)
+																.collect()
+															   );
+									Some((block_id, output_bytes))
+								},
+								Ok(Err(e)) => {
+									warn!("Error replaying transactions for block {:?}: {:?}", block_id, e);
+									None
+								},
+								Err(e) => {
+									warn!("Error replaying transactions for block {:?}: {:?}", block_id, e);
+									None
+								},
+							}
+						})
+					.collect();
+					let return_data: Vec<_> = executed
+						.into_iter()
+						.map(|(block_id, output_bytes)| {
+							self.block_body(block_id)
+								.map(|body| {
+									match body {
+										None => vec![],
+										Some(body) => {
+											output_bytes
+												.into_iter()
+												.zip(body.transaction_hashes())
+												.map(|(output_bytes, transaction_hash)| {
+													ReturnData {
+														transaction_hash,
+														return_data: output_bytes,
+														removed: false
+													}
+												})
+											.collect()
+										},
+									}
+								})
+						}).collect();
+
+
+					*block_number = current_number;
+					Either::B(Either::B(join_all(return_data)
+										.map(|return_data: Vec<Vec<ReturnData>>| {
+											let return_data = return_data
+												.into_iter()
+												.flat_map(|rd| rd)
+												.collect::<Vec<ReturnData>>();
+											FilterChanges::ReturnData(return_data)
+										})
+									   )
+							 )
 				}
 			}
 		})
@@ -283,9 +371,9 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		let limit = filter.limit;
 		let logs = self.logs(filter);
 		Box::new(logs
-			.map(move |mut logs| { logs.extend(pending); logs })
-			.map(move |logs| limit_logs(logs, limit))
-		)
+				 .map(move |mut logs| { logs.extend(pending); logs })
+				 .map(move |logs| limit_logs(logs, limit))
+				)
 	}
 
 	fn uninstall_filter(&self, index: Index) -> Result<bool> {

@@ -19,7 +19,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
 use serde_json::{Value, from_value};
-use v1::types::{RichHeader, Filter, Log, H256};
+use v1::types::{RichHeader, Filter, Log, H256, ReturnData};
 
 /// Subscription result.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,6 +30,8 @@ pub enum Result {
 	Log(Log),
 	/// Transaction hash
 	TransactionHash(H256),
+	/// Transaction return data
+	ReturnData(ReturnData),
 }
 
 impl Serialize for Result {
@@ -40,6 +42,7 @@ impl Serialize for Result {
 			Result::Header(ref header) => header.serialize(serializer),
 			Result::Log(ref log) => log.serialize(serializer),
 			Result::TransactionHash(ref hash) => hash.serialize(serializer),
+			Result::ReturnData(ref data) => data.serialize(serializer),
 		}
 	}
 }
@@ -60,6 +63,9 @@ pub enum Kind {
 	/// Node syncing status subscription.
 	#[serde(rename="syncing")]
 	Syncing,
+	/// Node syncing status subscription.
+	#[serde(rename="returnData")]
+	ReturnData,
 }
 
 /// Subscription kind.
@@ -104,6 +110,7 @@ mod tests {
 		assert_eq!(serde_json::from_str::<Kind>(r#""logs""#).unwrap(), Kind::Logs);
 		assert_eq!(serde_json::from_str::<Kind>(r#""newPendingTransactions""#).unwrap(), Kind::NewPendingTransactions);
 		assert_eq!(serde_json::from_str::<Kind>(r#""syncing""#).unwrap(), Kind::Syncing);
+		assert_eq!(serde_json::from_str::<Kind>(r#""returnData""#).unwrap(), Kind::ReturnData);
 	}
 
 	#[test]

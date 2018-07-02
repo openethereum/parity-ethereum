@@ -23,6 +23,7 @@ use vm;
 use trace::{VMTrace, FlatTrace};
 use log_entry::LogEntry;
 use state_diff::StateDiff;
+use heapsize::HeapSizeOf;
 
 use std::{fmt, error};
 
@@ -67,6 +68,14 @@ pub struct Executed<T = FlatTrace, V = VMTrace> {
 	pub vm_trace: Option<V>,
 	/// The state diff, if we traced it.
 	pub state_diff: Option<StateDiff>,
+}
+
+impl HeapSizeOf for Executed {
+	fn heap_size_of_children(&self) -> usize {
+		self.logs.heap_size_of_children()
+			+ self.contracts_created.heap_size_of_children()
+			+ self.trace.heap_size_of_children()
+	}
 }
 
 /// Result of executing the transaction.
@@ -130,12 +139,12 @@ impl fmt::Display for ExecutionError {
 		let msg = match *self {
 			NotEnoughBaseGas { ref required, ref got } =>
 				format!("Not enough base gas. {} is required, but only {} paid", required, got),
-			BlockGasLimitReached { ref gas_limit, ref gas_used, ref gas } =>
-				format!("Block gas limit reached. The limit is {}, {} has \
+				BlockGasLimitReached { ref gas_limit, ref gas_used, ref gas } =>
+					format!("Block gas limit reached. The limit is {}, {} has \
 					already been used, and {} more is required", gas_limit, gas_used, gas),
 			InvalidNonce { ref expected, ref got } =>
 				format!("Invalid transaction nonce: expected {}, found {}", expected, got),
-			NotEnoughCash { ref required, ref got } =>
+				NotEnoughCash { ref required, ref got } =>
 				format!("Cost of transaction exceeds sender balance. {} is required \
 					but the sender only has {}", required, got),
 			MutableCallInStaticContext => "Mutable Call in static context".to_owned(),

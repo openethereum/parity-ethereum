@@ -47,7 +47,7 @@ use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient,
+	IoClient
 };
 use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
@@ -59,6 +59,7 @@ use factory::{Factories, VmFactory};
 use header::{BlockNumber, Header, ExtendedHeader};
 use io::{IoChannel, IoError};
 use log_entry::LocalizedLogEntry;
+use memory_cache::MemoryLruCache;
 use miner::{Miner, MinerService};
 use ethcore_miner::pool::VerifiedTransaction;
 use parking_lot::{Mutex, RwLock};
@@ -237,6 +238,9 @@ pub struct Client {
 	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 
 	importer: Importer,
+
+	/// LRU cache to hold replayed block results that also limits cache memory consumption
+	replay_cache: Mutex<MemoryLruCache<H256, Vec<Executed>>>
 }
 
 impl Importer {
@@ -779,6 +783,7 @@ impl Client {
 			registrar_address,
 			exit_handler: Mutex::new(None),
 			importer,
+			replay_cache: Mutex::new(MemoryLruCache::new(100000))
 		});
 
 		// prune old states.
@@ -1279,7 +1284,7 @@ impl Client {
 				=> Some(self.chain.read().best_block_header()),
 			BlockId::Number(number) if number == self.chain.read().best_block_number()
 				=> Some(self.chain.read().best_block_header()),
-			_   => self.block_header(id).and_then(|h| h.decode().ok())
+			_	=> self.block_header(id).and_then(|h| h.decode().ok())
 		}
 	}
 }
@@ -1554,23 +1559,35 @@ impl BlockChainClient for Client {
 	}
 
 	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
-		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
-		let body = self.block_body(block).ok_or(CallError::StatePruned)?;
-		let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
-		let txs = body.transactions();
-		let engine = self.engine.clone();
+		let block_hash = self.block_hash(block).ok_or(CallError::StatePruned)?;
+		let data_cached = {
+			self.replay_cache.lock().get_mut(&block_hash).is_some()
+		};
+		if data_cached {
+			let mut guard = self.replay_cache.lock();
+			let cached = guard.get_mut(&block_hash).unwrap();
+			Ok(Box::new(cached.clone().into_iter()))
+		} else {
+			let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+			let body = self.block_body(block).ok_or(CallError::StatePruned)?;
+			let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
+			let txs = body.transactions();
+			let engine = self.engine.clone();
 
-		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
-		const EXECUTE_PROOF: &'static str = "Transaction replayed; qed";
+			const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
+			const EXECUTE_PROOF: &'static str = "Transaction replayed; qed";
 
-		Ok(Box::new(txs.into_iter()
-			.map(move |t| {
-				let t = SignedTransaction::new(t).expect(PROOF);
-				let machine = engine.machine();
-				let x = Self::do_virtual_call(machine, &env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
-				env_info.gas_used = env_info.gas_used + x.gas_used;
-				x
-			})))
+			let result: Vec<Executed> = txs.into_iter()
+				.map(move |t| {
+					let t = SignedTransaction::new(t).expect(PROOF);
+					let machine = engine.machine();
+					let x = Self::do_virtual_call(machine, &env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
+					env_info.gas_used = env_info.gas_used + x.gas_used;
+					x
+				}).collect();
+			self.replay_cache.lock().insert(block_hash, result.clone());
+			Ok(Box::new(result.into_iter()))
+		}
 	}
 
 	fn mode(&self) -> Mode {
@@ -2299,7 +2316,7 @@ impl ProvingBlockChainClient for Client {
 			&env_info,
 			self.factories.clone(),
 			false,
-		)
+			)
 	}
 
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
@@ -2364,7 +2381,6 @@ fn transaction_receipt(machine: &::machine::EthereumMachine, mut tx: LocalizedTr
 
 #[cfg(test)]
 mod tests {
-
 	#[test]
 	fn should_not_cache_details_before_commit() {
 		use client::{BlockChainClient, ChainInfo};

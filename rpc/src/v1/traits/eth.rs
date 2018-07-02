@@ -193,6 +193,10 @@ build_rpc_trait! {
 		#[rpc(name = "eth_newPendingTransactionFilter")]
 		fn new_pending_transaction_filter(&self) -> Result<U256>;
 
+		/// Returns id of new return data filter.
+		#[rpc(name = "eth_newReturnDataFilter")]
+		fn new_return_data_filter(&self) -> Result<U256>;
+
 		/// Returns filter changes since last poll.
 		#[rpc(name = "eth_getFilterChanges")]
 		fn filter_changes(&self, Index) -> BoxFuture<FilterChanges>;

@@ -612,7 +612,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
-		Ok(Box::new(self.execution_result.read().clone().unwrap().into_iter()))
+		match self.execution_result.read().clone() {
+			Some(result) => Ok(Box::new(result.into_iter())),
+			None => Err(CallError::TransactionNotFound)
+		}
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
