@@ -894,6 +894,47 @@ fn should_avoid_verifying_transaction_already_in_pool() {
 }
 
 #[test]
+fn should_avoid_reverifying_recently_rejected_transactions() {
+	// given
+	let txq = TransactionQueue::new(
+		txpool::Options {
+			max_count: 1,
+			max_per_sender: 2,
+			max_mem_usage: 50
+		},
+		verifier::Options {
+			minimal_gas_price: 1.into(),
+			block_gas_limit: 1_000_000.into(),
+			tx_gas_limit: 1_000_000.into(),
+		},
+		PrioritizationStrategy::GasPriceOnly,
+	);
+
+	let client = TestClient::new();
+	let tx1 = Tx::gas_price(10_000).signed().unverified();
+
+	let res = txq.import(client.clone(), vec![tx1.clone()]);
+	assert_eq!(res, vec![Err(transaction::Error::InsufficientBalance {
+		balance: 0xf67c.into(),
+		cost: 0xc8458e4.into(),
+	})]);
+	assert_eq!(txq.status().status.transaction_count, 0);
+	assert!(client.was_verification_triggered());
+
+	// when
+	let client = TestClient::new();
+	let res = txq.import(client.clone(), vec![tx1]);
+	assert_eq!(res, vec![Err(transaction::Error::InsufficientBalance {
+		balance: 0xf67c.into(),
+		cost: 0xc8458e4.into(),
+	})]);
+	assert!(!client.was_verification_triggered());
+
+	// then
+	assert_eq!(txq.status().status.transaction_count, 0);
+}
+
+
 fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
 	// given
 	let txq = TransactionQueue::new(

@@ -179,7 +179,7 @@ impl SnapshotCommand {
 			algorithm,
 			self.pruning_history,
 			self.pruning_memory,
-			true
+			true,
 		);
 
 		let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);

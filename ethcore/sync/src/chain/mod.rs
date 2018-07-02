@@ -662,20 +662,29 @@ impl ChainSync {
 				None
 			}
 		).collect();
-		let mut peers: Vec<(PeerId, u8)> = confirmed_peers.iter().filter(|&&(peer_id, _)|
-			self.active_peers.contains(&peer_id)
-		).map(|v| *v).collect();
 
-		random::new().shuffle(&mut peers); //TODO: sort by rating
-		// prefer peers with higher protocol version
-		peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
 		trace!(
 			target: "sync",
 			"Syncing with peers: {} active, {} confirmed, {} total",
 			self.active_peers.len(), confirmed_peers.len(), self.peers.len()
 		);
-		for (peer_id, _) in peers {
-			self.sync_peer(io, peer_id, false);
+
+		if self.state == SyncState::Waiting {
+			trace!(target: "sync", "Waiting for the block queue");
+		} else if self.state == SyncState::SnapshotWaiting {
+			trace!(target: "sync", "Waiting for the snapshot restoration");
+		} else {
+			let mut peers: Vec<(PeerId, u8)> = confirmed_peers.iter().filter(|&&(peer_id, _)|
+				self.active_peers.contains(&peer_id)
+			).map(|v| *v).collect();
+
+			random::new().shuffle(&mut peers); //TODO: sort by rating
+			// prefer peers with higher protocol version
+			peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
+
+			for (peer_id, _) in peers {
+				self.sync_peer(io, peer_id, false);
+			}
 		}
 
 		if
@@ -708,14 +717,6 @@ impl ChainSync {
 			if let Some(peer) = self.peers.get_mut(&peer_id) {
 				if peer.asking != PeerAsking::Nothing || !peer.can_sync() {
 					trace!(target: "sync", "Skipping busy peer {}", peer_id);
-					return;
-				}
-				if self.state == SyncState::Waiting {
-					trace!(target: "sync", "Waiting for the block queue");
-					return;
-				}
-				if self.state == SyncState::SnapshotWaiting {
-					trace!(target: "sync", "Waiting for the snapshot restoration");
 					return;
 				}
 				(peer.latest_hash.clone(), peer.difficulty.clone(), peer.snapshot_number.as_ref().cloned().unwrap_or(0), peer.snapshot_hash.as_ref().cloned())

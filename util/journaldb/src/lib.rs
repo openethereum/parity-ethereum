@@ -82,10 +82,6 @@ pub enum Algorithm {
 	RefCounted,
 }
 
-impl Default for Algorithm {
-	fn default() -> Algorithm { Algorithm::OverlayRecent }
-}
-
 impl str::FromStr for Algorithm {
 	type Err = String;
 
@@ -181,11 +177,6 @@ mod tests {
 		assert!(Algorithm::OverlayRecent.is_stable());
 		assert!(!Algorithm::EarlyMerge.is_stable());
 		assert!(!Algorithm::RefCounted.is_stable());
-	}
-
-	#[test]
-	fn test_journal_algorithm_default() {
-		assert_eq!(Algorithm::default(), Algorithm::OverlayRecent);
 	}
 
 	#[test]
