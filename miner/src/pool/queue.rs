@@ -43,6 +43,14 @@ type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::NonceAndGasPrice, L
 /// since it only affects transaction Condition.
 const TIMESTAMP_CACHE: u64 = 1000;
 
+/// How many senders at once do we attempt to process while culling.
+///
+/// When running with huge transaction pools, culling can take significant amount of time.
+/// To prevent holding `write()` lock on the pool for this long period, we split the work into
+/// chunks and allow other threads to utilize the pool in the meantime.
+/// This parameter controls how many (best) senders at once will be processed.
+const CULL_SENDERS_CHUNK: usize = 1024;
+
 /// Transaction queue status.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Status {
@@ -347,7 +355,7 @@ impl TransactionQueue {
 			let senders = pool.senders().cloned().collect();
 			senders
 		};
-		for chunk in senders.chunks(2048) {
+		for chunk in senders.chunks(CULL_SENDERS_CHUNK) {
 			trace_time!("pool::cull::chunk");
 			let state_readiness = ready::State::new(client.clone(), stale_id, nonce_cap);
 			removed += self.pool.write().cull(Some(chunk), state_readiness);
