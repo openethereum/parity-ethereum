@@ -153,6 +153,8 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		spec_name_override: None
 	}), Condvar::new()));
 
+	// Double panic can happen. So when we lock `ExitStatus` after the main thread is notified, it cannot be locked
+	// again.
 	let exiting = Arc::new(AtomicBool::new(false));
 
 	let exec = if can_restart {
