@@ -81,7 +81,12 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 
 	// then
 	assert_eq!(res, vec![Ok(()), Ok(())]);
-	assert_eq!(res2, vec![Err(transaction::Error::LimitReached), Ok(())]);
+	assert_eq!(res2, vec![
+			   // The error here indicates reaching the limit
+			   // and minimal effective gas price taken into account.
+			   Err(transaction::Error::InsufficientGasPrice { minimal: 2.into(), got: 1.into() }),
+			   Ok(())
+	]);
 	assert_eq!(txq.status().status.transaction_count, 3);
 	// First inserted transacton got dropped because of limit
 	assert_eq!(txq.next_nonce(TestClient::new(), &sender), None);
@@ -920,8 +925,8 @@ fn should_avoid_verifying_transaction_already_in_pool() {
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
-	let client = TestClient::new();
-	let tx1 = Tx::default().signed().unverified();
+	let client = TestClient::new().with_balance(1_000_000_000);
+	let tx1 = Tx::gas_price(2).signed().unverified();
 
 	let res = txq.import(client.clone(), vec![tx1.clone()]);
 	assert_eq!(res, vec![Ok(())]);
@@ -932,6 +937,44 @@ fn should_avoid_verifying_transaction_already_in_pool() {
 	let client = TestClient::new();
 	let res = txq.import(client.clone(), vec![tx1]);
 	assert_eq!(res, vec![Err(transaction::Error::AlreadyImported)]);
+	assert!(!client.was_verification_triggered());
+
+	// then
+	assert_eq!(txq.status().status.transaction_count, 1);
+}
+
+#[test]
+fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
+	// given
+	let txq = TransactionQueue::new(
+		txpool::Options {
+			max_count: 1,
+			max_per_sender: 2,
+			max_mem_usage: 50
+		},
+		verifier::Options {
+			minimal_gas_price: 1.into(),
+			block_gas_limit: 1_000_000.into(),
+			tx_gas_limit: 1_000_000.into(),
+		},
+		PrioritizationStrategy::GasPriceOnly,
+	);
+	let client = TestClient::new().with_balance(1_000_000_000);
+	let tx1 = Tx::gas_price(2).signed().unverified();
+
+	let res = txq.import(client.clone(), vec![tx1]);
+	assert_eq!(res, vec![Ok(())]);
+	assert_eq!(txq.status().status.transaction_count, 1);
+	assert!(client.was_verification_triggered());
+
+	// when
+	let client = TestClient::new();
+	let tx1 = Tx::default().signed().unverified();
+	let res = txq.import(client.clone(), vec![tx1]);
+	assert_eq!(res, vec![Err(transaction::Error::InsufficientGasPrice {
+		minimal: 2.into(),
+		got: 1.into(),
+	})]);
 	assert!(!client.was_verification_triggered());
 
 	// then

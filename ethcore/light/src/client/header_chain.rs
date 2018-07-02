@@ -31,7 +31,7 @@ use std::sync::Arc;
 use cht;
 
 use ethcore::block_status::BlockStatus;
-use ethcore::error::{Error, ErrorKind, BlockImportError, BlockImportErrorKind, BlockError};
+use ethcore::error::{Error, BlockImportError, BlockImportErrorKind, BlockError};
 use ethcore::encoded;
 use ethcore::header::Header;
 use ethcore::ids::BlockId;
@@ -260,7 +260,7 @@ impl HeaderChain {
 			let best_block = {
 				let era = match candidates.get(&curr.best_num) {
 					Some(era) => era,
-					None => bail!(ErrorKind::Database("Database corrupt: highest block referenced but no data.".into())),
+					None => bail!("Database corrupt: highest block referenced but no data."),
 				};
 
 				let best = &era.candidates[0];
@@ -583,7 +583,7 @@ impl HeaderChain {
 					} else {
 						let msg = format!("header of block #{} not found in DB ; database in an \
 											inconsistent state", h_num);
-						bail!(ErrorKind::Database(msg.into()));
+						bail!(msg);
 					};
 
 					let decoded = header.decode().expect("decoding db value failed");
@@ -591,9 +591,8 @@ impl HeaderChain {
 					let entry: Entry = {
 						let bytes = self.db.get(self.col, era_key(h_num).as_bytes())?
 							.ok_or_else(|| {
-								let msg = format!("entry for era #{} not found in DB ; database \
-													in an inconsistent state", h_num);
-								ErrorKind::Database(msg.into())
+								format!("entry for era #{} not found in DB ; database \
+										in an inconsistent state", h_num)
 							})?;
 						::rlp::decode(&bytes).expect("decoding db value failed")
 					};
@@ -601,9 +600,8 @@ impl HeaderChain {
 					let total_difficulty = entry.candidates.iter()
 						.find(|c| c.hash == decoded.hash())
 						.ok_or_else(|| {
-							let msg = "no candidate matching block found in DB ; database in an \
-										inconsistent state";
-							ErrorKind::Database(msg.into())
+							"no candidate matching block found in DB ; database in an \
+										inconsistent state"
 						})?
 						.total_difficulty;
 
