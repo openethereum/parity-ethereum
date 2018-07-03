@@ -13,8 +13,8 @@ heapsize = "0.4"
 keccak-hasher = { path = "../keccak-hasher" }
 kvdb = { path = "../kvdb" }
 log = "0.3"
-memorydb = { version="0.2.0", path = "../memorydb" }
-parking_lot = "0.5"
+memorydb = { version = "0.2.0", path = "../memorydb" }
+parking_lot = "0.6"
 plain_hasher = { path = "../plain_hasher" }
 rlp = { path = "../rlp" }
 util-error = { path = "../error" }

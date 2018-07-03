@@ -25,7 +25,7 @@ heapsize = "0.4"
 keccak-hash = { path = "../util/hash" }
 linked-hash-map = "0.5"
 log = "0.3"
-parking_lot = "0.5"
+parking_lot = "0.6"
 price-info = { path = "../price-info" }
 rlp = { path = "../util/rlp" }
 trace-time = { path = "../util/trace-time" }

@@ -25,7 +25,7 @@ fn gas_rules(wasm_costs: &vm::WasmCosts) -> rules::Set {
 	rules::Set::new(
 		wasm_costs.regular,
 		{
-			let mut vals = ::std::collections::HashMap::with_capacity(8);
+			let mut vals = ::std::collections::BTreeMap::new();
 			vals.insert(rules::InstructionType::Load, rules::Metering::Fixed(wasm_costs.mem as u32));
 			vals.insert(rules::InstructionType::Store, rules::Metering::Fixed(wasm_costs.mem as u32));
 			vals.insert(rules::InstructionType::Div, rules::Metering::Fixed(wasm_costs.div as u32));

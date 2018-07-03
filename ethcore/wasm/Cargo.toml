@@ -7,9 +7,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 byteorder = "1.0"
 ethereum-types = "0.3"
 log = "0.3"
-parity-wasm = "0.27"
+parity-wasm = "0.31"
 libc = "0.2"
-pwasm-utils = "0.1"
+pwasm-utils = "0.2.2"
 vm = { path = "../vm" }
 ethcore-logger = { path = "../../logger" }
-wasmi = { version = "0.2" }
+wasmi = "0.2.1"
