@@ -1250,7 +1250,7 @@ mod tests {
 	fn test_command_wallet_import() {
 		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresalelet(ImportWallet {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
 			path: Directories::default().keys,
 			wallet_path: "my_wallet.json".into(),

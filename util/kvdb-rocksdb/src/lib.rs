@@ -324,7 +324,7 @@ impl Database {
 			cf_options.push(col_config(&config, &block_opts)?);
 		}
 
-		let mut write_opts = WriteOptions::new();
+		let write_opts = WriteOptions::new();
 		let mut read_opts = ReadOptions::new();
 		read_opts.set_verify_checksums(false);
 
