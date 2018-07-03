@@ -22,7 +22,17 @@ use {pool, scoring, Scoring, Ready, Readiness};
 use super::Transaction;
 
 #[derive(Debug, Default)]
-pub struct DummyScoring;
+pub struct DummyScoring {
+	always_insert: bool,
+}
+
+impl DummyScoring {
+	pub fn always_insert() -> Self {
+		DummyScoring {
+			always_insert: true,
+		}
+	}
+}
 
 impl Scoring<Transaction> for DummyScoring {
 	type Score = U256;
@@ -58,8 +68,14 @@ impl Scoring<Transaction> for DummyScoring {
 		}
 	}
 
-	fn should_replace(&self, old: &Transaction, new: &Transaction) -> bool {
-		new.gas_price > old.gas_price
+	fn should_replace(&self, old: &Transaction, new: &Transaction) -> scoring::Choice {
+		if self.always_insert {
+			scoring::Choice::InsertNew
+		} else if new.gas_price > old.gas_price {
+			scoring::Choice::ReplaceOld
+		} else {
+			scoring::Choice::RejectNew
+		}
 	}
 }
 

@@ -99,7 +99,9 @@ pub trait Scoring<T>: fmt::Debug {
 	fn update_scores(&self, txs: &[Transaction<T>], scores: &mut [Self::Score], change: Change<Self::Event>);
 
 	/// Decides if `new` should push out `old` transaction from the pool.
-	fn should_replace(&self, old: &T, new: &T) -> bool;
+	///
+	/// NOTE returning `InsertNew` here can lead to some transactions being accepted above pool limits.
+	fn should_replace(&self, old: &T, new: &T) -> Choice;
 }
 
 /// A score with a reference to the transaction.
