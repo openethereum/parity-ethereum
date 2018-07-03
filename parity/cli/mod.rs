@@ -901,7 +901,7 @@ usage! {
 			"Attempt to import keys from Geth client.",
 
 			// Options that either do nothing, or are replaced by other options.
-			// FlAG Removed in 1.6 or before.
+			// FLAG Removed in 1.6 or before.
 
 			FLAG flag_warp: (bool) = false, or |_| None,
 			"--warp",
