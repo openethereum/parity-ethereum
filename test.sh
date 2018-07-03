@@ -42,9 +42,9 @@ echo "________Validate chainspecs________"
 fi
 
 
-# Running the C example
-echo "________Running the C example________"
-cd parity-clib-example && \
+# Running the C++ example
+echo "________Running the C++ example________"
+cd parity-clib-examples/cpp && \
   mkdir -p build && \
   cd build && \
   cmake .. && \
@@ -52,7 +52,7 @@ cd parity-clib-example && \
   ./parity-example && \
   cd .. && \
   rm -rf build && \
-  cd ..
+  cd ../..
 
 # Running tests
 echo "________Running Parity Full Test Suite________"
