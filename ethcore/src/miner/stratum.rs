@@ -245,21 +245,10 @@ impl Stratum {
 	}
 
 	/// Start STRATUM job dispatcher and register it in the miner
+	#[cfg(feature = "work-notify")]
 	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
 		let stratum = Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
-
-		#[cfg(feature = "work-notify")]
-		{
-			miner.add_work_listener(Box::new(stratum) as Box<NotifyWork>);
-		}
-
-		// NB: hack to avoid unused warning. `stratum` is kept for now since it's unclear if it has
-		// side-effects.
-		#[cfg(not(feature = "work-notify"))]
-		{
-			let _stratum = stratum;
-		}
-
+		miner.add_work_listener(Box::new(stratum) as Box<NotifyWork>);
 		Ok(())
 	}
 }
