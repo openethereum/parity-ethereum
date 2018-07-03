@@ -213,8 +213,8 @@ pub struct Miner {
 }
 
 impl Miner {
-	#[cfg(feature = "work-notify")]
 	/// Push listener that will handle new jobs
+	#[cfg(feature = "work-notify")]
 	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
 		self.listeners.write().push(notifier);
 		self.sealing.lock().enabled = true;

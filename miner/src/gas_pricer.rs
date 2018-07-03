@@ -25,14 +25,14 @@ use gas_price_calibrator::GasPriceCalibrator;
 pub enum GasPricer {
 	/// A fixed gas price in terms of Wei - always the argument given.
 	Fixed(U256),
-	#[cfg(feature = "price-info")]
 	/// Gas price is calibrated according to a fixed amount of USD.
+	#[cfg(feature = "price-info")]
 	Calibrated(GasPriceCalibrator),
 }
 
 impl GasPricer {
-	#[cfg(feature = "price-info")]
 	/// Create a new Calibrated `GasPricer`.
+	#[cfg(feature = "price-info")]
 	pub fn new_calibrated(calibrator: GasPriceCalibrator) -> GasPricer {
 		GasPricer::Calibrated(calibrator)
 	}
