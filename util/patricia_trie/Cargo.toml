@@ -1,22 +1,24 @@
 [package]
 name = "patricia-trie"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-description = "Merkle-Patricia Trie (Ethereum Style)"
+description = "Merkle-Patricia Trie generic over key hasher and node encoding"
 license = "GPL-3.0"
 
 [dependencies]
 elastic-array = "0.10"
 log = "0.3"
 rand = "0.4"
+hashdb = { version = "0.2", path = "../hashdb" }
 ethcore-bytes = { version = "0.1.0", path = "../bytes" }
-ethereum-types = "0.3"
-keccak-hash = { version = "0.1.0", path = "../hash" }
-hashdb = { version = "0.1.1", path = "../hashdb" }
-rlp = { version = "0.2.1", path = "../rlp" }
-triehash = { version = "0.1.0", path = "../triehash" }
-memorydb = { version = "0.1.0", path = "../memorydb" }
-ethcore-logger = { version = "1.9.0", path = "../../logger" }
 
 [dev-dependencies]
+env_logger = "0.5"
+ethereum-types = "0.3"
+keccak-hash = { version = "0.1.0", path = "../hash" }
+keccak-hasher = { path = "../keccak-hasher" }
+memorydb = { version = "0.2", path = "../memorydb" }
+patricia-trie-ethereum = { path = "../patricia-trie-ethereum" }
+rlp = { version = "0.2.1", path = "../rlp" }
 trie-standardmap = { path = "../trie-standardmap" }
+triehash = { version = "0.1.0", path = "../triehash" }

@@ -23,10 +23,11 @@ use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 use ethereum_types::{H256, U256, Address};
 use error::Error;
 use hashdb::HashDB;
+use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use bytes::{Bytes, ToPretty};
-use trie;
-use trie::{SecTrieDB, Trie, TrieFactory, TrieError};
+use trie::{Trie, Recorder};
+use ethtrie::{TrieFactory, TrieDB, SecTrieDB, Result as TrieResult};
 use pod_account::*;
 use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
@@ -199,7 +200,7 @@ impl Account {
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	/// Takes modified storage into account.
-	pub fn storage_at(&self, db: &HashDB, key: &H256) -> trie::Result<H256> {
+	pub fn storage_at(&self, db: &HashDB<KeccakHasher>, key: &H256) -> TrieResult<H256> {
 		if let Some(value) = self.cached_storage_at(key) {
 			return Ok(value);
 		}
@@ -278,7 +279,7 @@ impl Account {
 	}
 
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
-	pub fn cache_code(&mut self, db: &HashDB) -> Option<Arc<Bytes>> {
+	pub fn cache_code(&mut self, db: &HashDB<KeccakHasher>) -> Option<Arc<Bytes>> {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 
@@ -307,7 +308,7 @@ impl Account {
 	}
 
 	/// Provide a database to get `code_size`. Should not be called if it is a contract without code.
-	pub fn cache_code_size(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code_size(&mut self, db: &HashDB<KeccakHasher>) -> bool {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code_size: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.code_size.is_some() ||
@@ -374,7 +375,7 @@ impl Account {
 	}
 
 	/// Commit the `storage_changes` to the backing DB and update `storage_root`.
-	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB) -> trie::Result<()> {
+	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB<KeccakHasher>) -> TrieResult<()> {
 		let mut t = trie_factory.from_existing(db, &mut self.storage_root)?;
 		for (k, v) in self.storage_changes.drain() {
 			// cast key and value to trait type,
@@ -390,7 +391,7 @@ impl Account {
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
-	pub fn commit_code(&mut self, db: &mut HashDB) {
+	pub fn commit_code(&mut self, db: &mut HashDB<KeccakHasher>) {
 		trace!("Commiting code of {:?} - {:?}, {:?}", self, self.code_filth == Filth::Dirty, self.code_cache.is_empty());
 		match (self.code_filth == Filth::Dirty, self.code_cache.is_empty()) {
 			(true, true) => {
@@ -472,10 +473,7 @@ impl Account {
 	/// trie.
 	/// `storage_key` is the hash of the desired storage key, meaning
 	/// this will only work correctly under a secure trie.
-	pub fn prove_storage(&self, db: &HashDB, storage_key: H256) -> Result<(Vec<Bytes>, H256), Box<TrieError>> {
-		use trie::{Trie, TrieDB};
-		use trie::recorder::Recorder;
-
+	pub fn prove_storage(&self, db: &HashDB<KeccakHasher>, storage_key: H256) -> TrieResult<(Vec<Bytes>, H256)> {
 		let mut recorder = Recorder::new();
 
 		let trie = TrieDB::new(db, &self.storage_root)?;

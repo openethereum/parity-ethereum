@@ -537,6 +537,60 @@ fn should_return_is_full() {
 	assert!(txq.is_full());
 }
 
+#[test]
+fn should_import_even_if_limit_is_reached_and_should_replace_returns_insert_new() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::with_scoring(DummyScoring::always_insert(), Options {
+		max_count: 1,
+		..Default::default()
+	});
+	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 1,
+		senders: 1,
+		mem_usage: 0,
+	});
+
+	// when
+	txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap();
+
+	// then
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 2,
+		senders: 1,
+		mem_usage: 0,
+	});
+}
+
+#[test]
+fn should_not_import_even_if_limit_is_reached_and_should_replace_returns_false() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::with_scoring(DummyScoring::default(), Options {
+		max_count: 1,
+		..Default::default()
+	});
+	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 1,
+		senders: 1,
+		mem_usage: 0,
+	});
+
+	// when
+	let err = txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap_err();
+
+	// then
+	assert_eq!(err.kind(),
+	&error::ErrorKind::TooCheapToEnter("0x00000000000000000000000000000000000000000000000000000000000001f5".into(), "0x5".into()));
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 1,
+		senders: 1,
+		mem_usage: 0,
+	});
+}
+
 mod listener {
 	use std::cell::RefCell;
 	use std::rc::Rc;
@@ -577,7 +631,7 @@ mod listener {
 		let b = TransactionBuilder::default();
 		let listener = MyListener::default();
 		let results = listener.0.clone();
-		let mut txq = Pool::new(listener, DummyScoring, Options {
+		let mut txq = Pool::new(listener, DummyScoring::default(), Options {
 			max_per_sender: 1,
 			max_count: 2,
 			..Default::default()
@@ -615,7 +669,7 @@ mod listener {
 		let b = TransactionBuilder::default();
 		let listener = MyListener::default();
 		let results = listener.0.clone();
-		let mut txq = Pool::new(listener, DummyScoring, Options::default());
+		let mut txq = Pool::new(listener, DummyScoring::default(), Options::default());
 
 		// insert
 		let tx1 = txq.import(b.tx().nonce(1).new()).unwrap();
@@ -634,7 +688,7 @@ mod listener {
 		let b = TransactionBuilder::default();
 		let listener = MyListener::default();
 		let results = listener.0.clone();
-		let mut txq = Pool::new(listener, DummyScoring, Options::default());
+		let mut txq = Pool::new(listener, DummyScoring::default(), Options::default());
 
 		// insert
 		txq.import(b.tx().nonce(1).new()).unwrap();
@@ -652,7 +706,7 @@ mod listener {
 		let b = TransactionBuilder::default();
 		let listener = MyListener::default();
 		let results = listener.0.clone();
-		let mut txq = Pool::new(listener, DummyScoring, Options::default());
+		let mut txq = Pool::new(listener, DummyScoring::default(), Options::default());
 
 		// insert
 		txq.import(b.tx().nonce(1).new()).unwrap();

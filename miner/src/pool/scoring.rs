@@ -30,7 +30,7 @@
 use std::cmp;
 
 use ethereum_types::U256;
-use txpool;
+use txpool::{self, scoring};
 use super::{verifier, PrioritizationStrategy, VerifiedTransaction};
 
 /// Transaction with the same (sender, nonce) can be replaced only if
@@ -75,9 +75,9 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		old.transaction.nonce.cmp(&other.transaction.nonce)
 	}
 
-	fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> txpool::scoring::Choice {
+	fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> scoring::Choice {
 		if old.transaction.nonce != new.transaction.nonce {
-			return txpool::scoring::Choice::InsertNew
+			return scoring::Choice::InsertNew
 		}
 
 		let old_gp = old.transaction.gas_price;
@@ -86,13 +86,13 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		let min_required_gp = bump_gas_price(old_gp);
 
 		match min_required_gp.cmp(&new_gp) {
-			cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,
-			_ => txpool::scoring::Choice::ReplaceOld,
+			cmp::Ordering::Greater => scoring::Choice::RejectNew,
+			_ => scoring::Choice::ReplaceOld,
 		}
 	}
 
-	fn update_scores(&self, txs: &[txpool::Transaction<VerifiedTransaction>], scores: &mut [U256], change: txpool::scoring::Change) {
-		use self::txpool::scoring::Change;
+	fn update_scores(&self, txs: &[txpool::Transaction<VerifiedTransaction>], scores: &mut [U256], change: scoring::Change) {
+		use self::scoring::Change;
 
 		match change {
 			Change::Culled(_) => {},
@@ -122,19 +122,26 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		}
 	}
 
-	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool {
+	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> scoring::Choice {
 		if old.sender == new.sender {
 			// prefer earliest transaction
 			match new.transaction.nonce.cmp(&old.transaction.nonce) {
-				cmp::Ordering::Less => true,
-				cmp::Ordering::Greater => false,
-				cmp::Ordering::Equal => self.choose(old, new) == txpool::scoring::Choice::ReplaceOld,
+				cmp::Ordering::Less => scoring::Choice::ReplaceOld,
+				cmp::Ordering::Greater => scoring::Choice::RejectNew,
+				cmp::Ordering::Equal => self.choose(old, new),
 			}
+		} else if old.priority().is_local() && new.priority().is_local() {
+			// accept local transactions over the limit
+			scoring::Choice::InsertNew
 		} else {
 			let old_score = (old.priority(), old.transaction.gas_price);
 			let new_score = (new.priority(), new.transaction.gas_price);
-			new_score > old_score
-		}
+			if new_score > old_score {
+				scoring::Choice::ReplaceOld
+			} else {
+				scoring::Choice::RejectNew
+			}
+	 	}
 	}
 }
 
@@ -146,6 +153,7 @@ mod tests {
 	use ethkey::{Random, Generator};
 	use pool::tests::tx::{Tx, TxExt};
 	use txpool::Scoring;
+	use txpool::scoring::Choice::*;
 
 	#[test]
 	fn should_replace_same_sender_by_nonce() {
@@ -181,14 +189,14 @@ mod tests {
 			}
 		}).collect::<Vec<_>>();
 
-		assert!(!scoring.should_replace(&txs[0], &txs[1]));
-		assert!(scoring.should_replace(&txs[1], &txs[0]));
+		assert_eq!(scoring.should_replace(&txs[0], &txs[1]), RejectNew);
+		assert_eq!(scoring.should_replace(&txs[1], &txs[0]), ReplaceOld);
 
-		assert!(!scoring.should_replace(&txs[1], &txs[2]));
-		assert!(!scoring.should_replace(&txs[2], &txs[1]));
+		assert_eq!(scoring.should_replace(&txs[1], &txs[2]), RejectNew);
+		assert_eq!(scoring.should_replace(&txs[2], &txs[1]), RejectNew);
 
-		assert!(scoring.should_replace(&txs[1], &txs[3]));
-		assert!(!scoring.should_replace(&txs[3], &txs[1]));
+		assert_eq!(scoring.should_replace(&txs[1], &txs[3]), ReplaceOld);
+		assert_eq!(scoring.should_replace(&txs[3], &txs[1]), RejectNew);
 	}
 
 	#[test]
@@ -246,14 +254,14 @@ mod tests {
 			}
 		};
 
-		assert!(scoring.should_replace(&tx_regular_low_gas, &tx_regular_high_gas));
-		assert!(!scoring.should_replace(&tx_regular_high_gas, &tx_regular_low_gas));
+		assert_eq!(scoring.should_replace(&tx_regular_low_gas, &tx_regular_high_gas), ReplaceOld);
+		assert_eq!(scoring.should_replace(&tx_regular_high_gas, &tx_regular_low_gas), RejectNew);
 
-		assert!(scoring.should_replace(&tx_regular_high_gas, &tx_local_low_gas));
-		assert!(!scoring.should_replace(&tx_local_low_gas, &tx_regular_high_gas));
+		assert_eq!(scoring.should_replace(&tx_regular_high_gas, &tx_local_low_gas), ReplaceOld);
+		assert_eq!(scoring.should_replace(&tx_local_low_gas, &tx_regular_high_gas), RejectNew);
 
-		assert!(scoring.should_replace(&tx_local_low_gas, &tx_local_high_gas));
-		assert!(!scoring.should_replace(&tx_local_high_gas, &tx_regular_low_gas));
+		assert_eq!(scoring.should_replace(&tx_local_low_gas, &tx_local_high_gas), InsertNew);
+		assert_eq!(scoring.should_replace(&tx_local_high_gas, &tx_regular_low_gas), RejectNew);
 	}
 
 	#[test]
@@ -277,35 +285,35 @@ mod tests {
 
 		// No update required
 		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::Culled(0));
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::Culled(1));
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::Culled(2));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(0));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(1));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(2));
 		assert_eq!(scores, initial_scores);
 		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::RemovedAt(0));
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::RemovedAt(1));
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::RemovedAt(2));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(0));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(1));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(2));
 		assert_eq!(scores, initial_scores);
 
 		// Compute score at given index
 		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
 		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(1));
 		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::InsertedAt(2));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(2));
 		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
 
 		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::ReplacedAt(0));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(0));
 		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::ReplacedAt(1));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(1));
 		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::ReplacedAt(2));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(2));
 		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
 
 		// Check penalization
-		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::Event(()));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Event(()));
 		assert_eq!(scores, vec![32768.into(), 128.into(), 0.into()]);
 	}
 }

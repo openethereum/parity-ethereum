@@ -1,6 +1,6 @@
 [package]
 name = "journaldb"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 description = "A `HashDB` which can manage a short-term journal potentially containing many forks of mutually exclusive actions"
 license = "GPL3"
@@ -8,11 +8,12 @@ license = "GPL3"
 [dependencies]
 ethcore-bytes = { path = "../bytes" }
 ethereum-types = "0.3"
-hashdb = { path = "../hashdb" }
+hashdb = { version = "0.2.0", path = "../hashdb" }
 heapsize = "0.4"
+keccak-hasher = { path = "../keccak-hasher" }
 kvdb = { path = "../kvdb" }
 log = "0.3"
-memorydb = { path = "../memorydb" }
+memorydb = { version="0.2.0", path = "../memorydb" }
 parking_lot = "0.5"
 plain_hasher = { path = "../plain_hasher" }
 rlp = { path = "../rlp" }

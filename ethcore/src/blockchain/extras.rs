@@ -16,17 +16,17 @@
 
 //! Blockchain DB extras.
 
-use std::ops;
 use std::io::Write;
+use std::ops;
+
 use db::Key;
 use engines::epoch::{Transition as EpochTransition};
+use ethereum_types::{H256, H264, U256};
 use header::BlockNumber;
+use heapsize::HeapSizeOf;
+use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use receipt::Receipt;
 use rlp;
-
-use heapsize::HeapSizeOf;
-use ethereum_types::{H256, H264, U256};
-use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -252,6 +252,7 @@ pub struct EpochTransitions {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
+	
 	use super::BlockReceipts;
 
 	#[test]

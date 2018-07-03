@@ -122,7 +122,7 @@ impl Default for UserDefaults {
 	fn default() -> Self {
 		UserDefaults {
 			is_first_launch: true,
-			pruning: Algorithm::default(),
+			pruning: Algorithm::OverlayRecent,
 			tracing: false,
 			fat_db: false,
 			mode: Mode::Active,

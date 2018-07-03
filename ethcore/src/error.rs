@@ -22,7 +22,7 @@ use ethereum_types::{H256, U256, Address, Bloom};
 use util_error::{self, UtilError};
 use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
-use trie::TrieError;
+use ethtrie::TrieError;
 use io::*;
 use header::BlockNumber;
 use client::Error as ClientError;

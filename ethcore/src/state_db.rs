@@ -16,22 +16,23 @@
 
 //! State database abstraction. For more info, see the doc for `StateDB`
 
-use std::collections::{VecDeque, HashSet};
-use std::sync::Arc;
-use lru_cache::LruCache;
-use memory_cache::MemoryLruCache;
+use bloom_journal::{Bloom, BloomJournal};
+use byteorder::{LittleEndian, ByteOrder};
+use db::COL_ACCOUNT_BLOOM;
+use ethereum_types::{H256, Address};
+use hash::keccak;
+use hashdb::HashDB;
+use keccak_hasher::KeccakHasher;
+use header::BlockNumber;
 use journaldb::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::{H256, Address};
-use hashdb::HashDB;
-use state::{self, Account};
-use header::BlockNumber;
-use hash::keccak;
+use lru_cache::LruCache;
+use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
+use state::{self, Account};
+use std::collections::{VecDeque, HashSet};
+use std::sync::Arc;
 use util_error::UtilError;
-use bloom_journal::{Bloom, BloomJournal};
-use db::COL_ACCOUNT_BLOOM;
-use byteorder::{LittleEndian, ByteOrder};
 
 /// Value used to initialize bloom bitmap size.
 ///
@@ -310,12 +311,12 @@ impl StateDB {
 	}
 
 	/// Conversion method to interpret self as `HashDB` reference
-	pub fn as_hashdb(&self) -> &HashDB {
+	pub fn as_hashdb(&self) -> &HashDB<KeccakHasher> {
 		self.db.as_hashdb()
 	}
 
 	/// Conversion method to interpret self as mutable `HashDB` reference
-	pub fn as_hashdb_mut(&mut self) -> &mut HashDB {
+	pub fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
 		self.db.as_hashdb_mut()
 	}
 
@@ -410,11 +411,9 @@ impl StateDB {
 }
 
 impl state::Backend for StateDB {
-	fn as_hashdb(&self) -> &HashDB {
-		self.db.as_hashdb()
-	}
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self.db.as_hashdb() }
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
 		self.db.as_hashdb_mut()
 	}
 

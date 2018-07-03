@@ -1,3 +1,27 @@
+## Parity [v1.10.8](https://github.com/paritytech/parity/releases/tag/v1.10.8) (2018-06-29)
+
+Parity 1.10.8 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8986](https://github.com/paritytech/parity/pull/8986))
+  - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530 ([#8984](https://github.com/paritytech/parity/pull/8984))
+    - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530
+    - Snap: use plugin rust
+  - Fix deadlock in blockchain. ([#8977](https://github.com/paritytech/parity/pull/8977))
+  - Remove js-glue from workspace
+- Bump stable to 1.10.8 ([#8951](https://github.com/paritytech/parity/pull/8951))
+  - Parity-version: bump stable to 1.10.8
+  - Update ropsten.json ([#8926](https://github.com/paritytech/parity/pull/8926))
+  - Scripts: minor improvements ([#8930](https://github.com/paritytech/parity/pull/8930))
+    - CI: enable 'latest' docker tag on master pipeline
+    - CI: mark both beta and stable as stable snap.
+    - CI: sign all windows binaries
+    - Scripts: remove whisper target not available in stable
+  - Scripts: fix gitlab strip binaries
+  - Scripts: fix docker build tag on latest using master ([#8952](https://github.com/paritytech/parity/pull/8952))
+  - Rpc: cap gas limit of local calls ([#8943](https://github.com/paritytech/parity/pull/8943))
+
 ## Parity [v1.10.7](https://github.com/paritytech/parity/releases/tag/v1.10.7) (2018-06-20)
 
 Parity 1.10.7 is a bug-fix release to improve performance and stability.

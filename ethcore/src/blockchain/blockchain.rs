@@ -17,37 +17,38 @@
 //! Blockchain database.
 
 use std::collections::{HashMap, HashSet};
+use std::{mem, io};
 use std::path::Path;
 use std::sync::Arc;
-use std::{mem, io};
-use itertools::Itertools;
-use blooms_db;
-use heapsize::HeapSizeOf;
-use ethereum_types::{H256, Bloom, BloomRef, U256};
-use parking_lot::{Mutex, RwLock};
-use bytes::Bytes;
-use rlp::RlpStream;
-use rlp_compress::{compress, decompress, blocks_swapper};
-use header::*;
-use transaction::*;
-use views::{BlockView, HeaderView};
-use log_entry::{LogEntry, LocalizedLogEntry};
-use receipt::Receipt;
+
+use ansi_term::Colour;
+use blockchain::{CacheSize, ImportRoute, Config};
 use blockchain::best_block::{BestBlock, BestAncientBlock};
 use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 use blockchain::extras::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
+use blockchain::update::{ExtrasUpdate, ExtrasInsert};
+use blooms_db;
+use bytes::Bytes;
+use cache_manager::CacheManager;
+use db::{self, Writable, Readable, CacheUpdatePolicy};
+use encoded;
+use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
+use engines::ForkChoice;
+use ethereum_types::{H256, Bloom, BloomRef, U256};
+use header::*;
+use heapsize::HeapSizeOf;
+use itertools::Itertools;
+use kvdb::{DBTransaction, KeyValueDB};
+use log_entry::{LogEntry, LocalizedLogEntry};
+use parking_lot::{Mutex, RwLock};
+use rayon::prelude::*;
+use receipt::Receipt;
+use rlp_compress::{compress, decompress, blocks_swapper};
+use rlp::RlpStream;
+use transaction::*;
 use types::blockchain_info::BlockChainInfo;
 use types::tree_route::TreeRoute;
-use blockchain::update::{ExtrasUpdate, ExtrasInsert};
-use blockchain::{CacheSize, ImportRoute, Config};
-use db::{self, Writable, Readable, CacheUpdatePolicy};
-use cache_manager::CacheManager;
-use encoded;
-use engines::ForkChoice;
-use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use rayon::prelude::*;
-use ansi_term::Colour;
-use kvdb::{DBTransaction, KeyValueDB};
+use views::{BlockView, HeaderView};
 
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {

@@ -19,7 +19,6 @@
 use block::Block;
 use header::Header;
 use hash::keccak;
-
 use views::BlockView;
 use rlp::{DecoderError, RlpStream, Rlp};
 use ethereum_types::H256;

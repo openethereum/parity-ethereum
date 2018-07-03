@@ -28,28 +28,21 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use cache::Cache;
 use cht;
-
 use ethcore::block_status::BlockStatus;
-use ethcore::error::{Error, BlockImportError, BlockImportErrorKind, BlockError};
 use ethcore::encoded;
+use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
+use ethcore::error::{Error, BlockImportError, BlockImportErrorKind, BlockError};
 use ethcore::header::Header;
 use ethcore::ids::BlockId;
 use ethcore::spec::{Spec, SpecHardcodedSync};
-use ethcore::engines::epoch::{
-	Transition as EpochTransition,
-	PendingTransition as PendingEpochTransition
-};
-
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
-use heapsize::HeapSizeOf;
 use ethereum_types::{H256, H264, U256};
-use plain_hasher::H256FastMap;
+use heapsize::HeapSizeOf;
 use kvdb::{DBTransaction, KeyValueDB};
-
-use cache::Cache;
 use parking_lot::{Mutex, RwLock};
-
+use plain_hasher::H256FastMap;
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 use smallvec::SmallVec;
 
 /// Store at least this many candidate headers at all times.

@@ -20,6 +20,7 @@ fetch = { path = "../util/fetch" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
+patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 ethcore-crypto = { path = "crypto" }
 error-chain = { version = "0.12", default-features = false }
 ethcore-io = { path = "../util/io" }
@@ -66,8 +67,9 @@ keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
-tempdir = { version = "0.3", optional = true }
+keccak-hasher = { path = "../util/keccak-hasher" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
+tempdir = {version="0.3", optional = true}
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
 hardware-wallet = { path = "../hw" }
@@ -76,8 +78,8 @@ hardware-wallet = { path = "../hw" }
 fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
-trie-standardmap = { path = "../util/trie-standardmap" }
 tempdir = "0.3"
+trie-standardmap = { path = "../util/trie-standardmap" }
 
 [features]
 # Display EVM debug traces.

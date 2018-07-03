@@ -15,23 +15,25 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Reference-counted memory-based `HashDB` implementation.
-extern crate heapsize;
-extern crate ethereum_types;
-extern crate hashdb;
-extern crate keccak_hash as keccak;
-extern crate plain_hasher;
-extern crate rlp;
 extern crate elastic_array;
+extern crate hashdb;
+extern crate heapsize;
+extern crate rlp;
+#[cfg(test)] extern crate keccak_hasher;
+#[cfg(test)] extern crate tiny_keccak;
+#[cfg(test)] extern crate ethereum_types;
 
-use std::mem;
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
+use hashdb::{HashDB, Hasher as KeyHasher, DBValue, AsHashDB};
 use heapsize::HeapSizeOf;
-use ethereum_types::H256;
-use hashdb::{HashDB, DBValue};
-use keccak::{KECCAK_NULL_RLP, keccak};
-use plain_hasher::H256FastMap;
 use rlp::NULL_RLP;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::hash;
+use std::mem;
+
+// Backing `HashMap` parametrized with a `Hasher` for the keys `Hasher::Out` and the `Hasher::StdHasher` as hash map builder.
+type FastMap<H, T> = HashMap<<H as KeyHasher>::Out, T, hash::BuildHasherDefault<<H as KeyHasher>::StdHasher>>;
+
 /// Reference-counted memory-based `HashDB` implementation.
 ///
 /// Use `new()` to create a new database. Insert items with `insert()`, remove items
@@ -42,11 +44,14 @@ use rlp::NULL_RLP;
 /// # Example
 /// ```rust
 /// extern crate hashdb;
+/// extern crate keccak_hasher;
 /// extern crate memorydb;
+/// 
 /// use hashdb::*;
+/// use keccak_hasher::KeccakHasher;
 /// use memorydb::*;
 /// fn main() {
-///   let mut m = MemoryDB::new();
+///   let mut m = MemoryDB::<KeccakHasher>::new();
 ///   let d = "Hello world!".as_bytes();
 ///
 ///   let k = m.insert(d);
@@ -77,15 +82,17 @@ use rlp::NULL_RLP;
 /// }
 /// ```
 #[derive(Default, Clone, PartialEq)]
-pub struct MemoryDB {
-	data: H256FastMap<(DBValue, i32)>,
+pub struct MemoryDB<H: KeyHasher> {
+	data: FastMap<H, (DBValue, i32)>,
+	hashed_null_node: H::Out,
 }
 
-impl MemoryDB {
+impl<H: KeyHasher> MemoryDB<H> {
 	/// Create a new instance of the memory DB.
-	pub fn new() -> MemoryDB {
+	pub fn new() -> MemoryDB<H> {
 		MemoryDB {
-			data: H256FastMap::default(),
+			data: FastMap::<H,_>::default(),
+			hashed_null_node: H::hash(&NULL_RLP)
 		}
 	}
 
@@ -94,11 +101,15 @@ impl MemoryDB {
 	/// # Examples
 	/// ```rust
 	/// extern crate hashdb;
+	/// extern crate keccak_hasher;
 	/// extern crate memorydb;
+	/// 
 	/// use hashdb::*;
+	/// use keccak_hasher::KeccakHasher;
 	/// use memorydb::*;
+	/// 
 	/// fn main() {
-	///   let mut m = MemoryDB::new();
+	///   let mut m = MemoryDB::<KeccakHasher>::new();
 	///   let hello_bytes = "Hello world!".as_bytes();
 	///   let hash = m.insert(hello_bytes);
 	///   assert!(m.contains(&hash));
@@ -116,8 +127,8 @@ impl MemoryDB {
 	}
 
 	/// Return the internal map of hashes to data, clearing the current state.
-	pub fn drain(&mut self) -> H256FastMap<(DBValue, i32)> {
-		mem::replace(&mut self.data, H256FastMap::default())
+	pub fn drain(&mut self) -> FastMap<H, (DBValue, i32)> {
+		mem::replace(&mut self.data, FastMap::<H,_>::default())
 	}
 
 	/// Grab the raw information associated with a key. Returns None if the key
@@ -125,8 +136,8 @@ impl MemoryDB {
 	///
 	/// Even when Some is returned, the data is only guaranteed to be useful
 	/// when the refs > 0.
-	pub fn raw(&self, key: &H256) -> Option<(DBValue, i32)> {
-		if key == &KECCAK_NULL_RLP {
+	pub fn raw(&self, key: &<H as KeyHasher>::Out) -> Option<(DBValue, i32)> {
+		if key == &self.hashed_null_node {
 			return Some((DBValue::from_slice(&NULL_RLP), 1));
 		}
 		self.data.get(key).cloned()
@@ -139,8 +150,8 @@ impl MemoryDB {
 
 	/// Remove an element and delete it from storage if reference count reaches zero.
 	/// If the value was purged, return the old value.
-	pub fn remove_and_purge(&mut self, key: &H256) -> Option<DBValue> {
-		if key == &KECCAK_NULL_RLP {
+	pub fn remove_and_purge(&mut self, key: &<H as KeyHasher>::Out) -> Option<DBValue> {
+		if key == &self.hashed_null_node {
 			return None;
 		}
 		match self.data.entry(key.clone()) {
@@ -177,19 +188,9 @@ impl MemoryDB {
 	}
 }
 
-impl HashDB for MemoryDB {
-	fn get(&self, key: &H256) -> Option<DBValue> {
-		if key == &KECCAK_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
-		}
+impl<H: KeyHasher> HashDB<H> for MemoryDB<H> {
 
-		match self.data.get(key) {
-			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
-			_ => None
-		}
-	}
-
-	fn keys(&self) -> HashMap<H256, i32> {
+	fn keys(&self) -> HashMap<H::Out, i32> {
 		self.data.iter()
 			.filter_map(|(k, v)| if v.1 != 0 {
 				Some((*k, v.1))
@@ -199,8 +200,19 @@ impl HashDB for MemoryDB {
 			.collect()
 	}
 
-	fn contains(&self, key: &H256) -> bool {
-		if key == &KECCAK_NULL_RLP {
+	fn get(&self, key: &H::Out) -> Option<DBValue> {
+		if key == &self.hashed_null_node {
+			return Some(DBValue::from_slice(&NULL_RLP));
+		}
+
+		match self.data.get(key) {
+			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
+			_ => None
+		}
+	}
+
+	fn contains(&self, key: &H::Out) -> bool {
+		if key == &self.hashed_null_node {
 			return true;
 		}
 
@@ -210,15 +222,15 @@ impl HashDB for MemoryDB {
 		}
 	}
 
-	fn insert(&mut self, value: &[u8]) -> H256 {
+	fn insert(&mut self, value: &[u8]) -> H::Out {
 		if value == &NULL_RLP {
-			return KECCAK_NULL_RLP.clone();
+			return self.hashed_null_node.clone();
 		}
-		let key = keccak(value);
+		let key = H::hash(value);
 		match self.data.entry(key) {
 			Entry::Occupied(mut entry) => {
 				let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
-				if *rc >= -0x80000000i32 && *rc <= 0 {
+				if *rc <= 0 {
 					*old_value = DBValue::from_slice(value);
 				}
 				*rc += 1;
@@ -230,7 +242,7 @@ impl HashDB for MemoryDB {
 		key
 	}
 
-	fn emplace(&mut self, key: H256, value: DBValue) {
+	fn emplace(&mut self, key:H::Out, value: DBValue) {
 		if &*value == &NULL_RLP {
 			return;
 		}
@@ -238,7 +250,7 @@ impl HashDB for MemoryDB {
 		match self.data.entry(key) {
 			Entry::Occupied(mut entry) => {
 				let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
-				if *rc >= -0x80000000i32 && *rc <= 0 {
+				if *rc <= 0 {
 					*old_value = value;
 				}
 				*rc += 1;
@@ -249,8 +261,8 @@ impl HashDB for MemoryDB {
 		}
 	}
 
-	fn remove(&mut self, key: &H256) {
-		if key == &KECCAK_NULL_RLP {
+	fn remove(&mut self, key: &H::Out) {
+		if key == &self.hashed_null_node {
 			return;
 		}
 
@@ -266,17 +278,26 @@ impl HashDB for MemoryDB {
 	}
 }
 
+impl<H: KeyHasher> AsHashDB<H> for MemoryDB<H> {
+	fn as_hashdb(&self) -> &HashDB<H> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H> { self }
+}
+
 #[cfg(test)]
 mod tests {
-	use keccak::keccak;
 	use super::*;
+	use tiny_keccak::Keccak;
+	use ethereum_types::H256;
+	use keccak_hasher::KeccakHasher;
 
 	#[test]
 	fn memorydb_remove_and_purge() {
 		let hello_bytes = b"Hello world!";
-		let hello_key = keccak(hello_bytes);
+		let mut hello_key = [0;32];
+		Keccak::keccak256(hello_bytes, &mut hello_key);
+		let hello_key = H256(hello_key);
 
-		let mut m = MemoryDB::new();
+		let mut m = MemoryDB::<KeccakHasher>::new();
 		m.remove(&hello_key);
 		assert_eq!(m.raw(&hello_key).unwrap().1, -1);
 		m.purge();
@@ -286,7 +307,7 @@ mod tests {
 		m.purge();
 		assert_eq!(m.raw(&hello_key), None);
 
-		let mut m = MemoryDB::new();
+		let mut m = MemoryDB::<KeccakHasher>::new();
 		assert!(m.remove_and_purge(&hello_key).is_none());
 		assert_eq!(m.raw(&hello_key).unwrap().1, -1);
 		m.insert(hello_bytes);
@@ -299,8 +320,8 @@ mod tests {
 
 	#[test]
 	fn consolidate() {
-		let mut main = MemoryDB::new();
-		let mut other = MemoryDB::new();
+		let mut main = MemoryDB::<KeccakHasher>::new();
+		let mut other = MemoryDB::<KeccakHasher>::new();
 		let remove_key = other.insert(b"doggo");
 		main.remove(&remove_key);
 

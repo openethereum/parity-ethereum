@@ -26,6 +26,7 @@ keccak-hash = { path = "../../util/hash" }
 log = "0.3"
 parking_lot = "0.5"
 patricia-trie = { path = "../../util/patricia_trie" }
+patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
