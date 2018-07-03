@@ -20,22 +20,20 @@
 
 use transaction::UnverifiedTransaction;
 
-use io::TimerToken;
-use network::{NetworkProtocolHandler, NetworkContext, PeerId};
-use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
+use io::TimerToken;
 use kvdb::DBValue;
+use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use parking_lot::{Mutex, RwLock};
-use std::time::{Duration, Instant};
-
-use std::collections::{HashMap, HashSet};
-use std::fmt;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::ops::{BitOr, BitAnd, Not};
-
 use provider::Provider;
 use request::{Request, NetworkRequests as Requests, Response};
+use rlp::{RlpStream, Rlp};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::ops::{BitOr, BitAnd, Not};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};

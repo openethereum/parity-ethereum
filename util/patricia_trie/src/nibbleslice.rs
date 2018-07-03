@@ -105,9 +105,11 @@ impl<'a> NibbleSlice<'a> {
 	pub fn is_empty(&self) -> bool { self.len() == 0 }
 
 	/// Get the length (in nibbles, naturally) of this slice.
+	#[inline]
 	pub fn len(&self) -> usize { (self.data.len() + self.data_encode_suffix.len()) * 2 - self.offset - self.offset_encode_suffix }
 
 	/// Get the nibble at position `i`.
+	#[inline(always)]
 	pub fn at(&self, i: usize) -> u8 {
 		let l = self.data.len() * 2 - self.offset;
 		if i < l {
@@ -154,6 +156,7 @@ impl<'a> NibbleSlice<'a> {
 	}
 
 	/// Encode while nibble slice in prefixed hex notation, noting whether it `is_leaf`.
+	#[inline]
 	pub fn encoded(&self, is_leaf: bool) -> ElasticArray36<u8> {
 		let l = self.len();
 		let mut r = ElasticArray36::new();

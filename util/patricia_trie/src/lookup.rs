@@ -16,27 +16,33 @@
 
 //! Trie lookup via HashDB.
 
-use hashdb::HashDB;
+use hashdb::{HashDB, Hasher};
 use nibbleslice::NibbleSlice;
-use ethereum_types::H256;
-
-use super::{TrieError, Query};
-use super::node::Node;
+use node::Node;
+use node_codec::NodeCodec;
+use super::{Result, TrieError, Query};
+use std::marker::PhantomData;
 
 /// Trie lookup helper object.
-pub struct Lookup<'a, Q: Query> {
+pub struct Lookup<'a, H: Hasher + 'a, C: NodeCodec<H>, Q: Query<H>> {
 	/// database to query from.
-	pub db: &'a HashDB,
+	pub db: &'a HashDB<H>,
 	/// Query object to record nodes and transform data.
 	pub query: Q,
 	/// Hash to start at
-	pub hash: H256,
+	pub hash: H::Out,
+	pub marker: PhantomData<C>, // TODO: probably not needed when all is said and done? When Query is made generic?
 }
 
-impl<'a, Q: Query> Lookup<'a, Q> {
+impl<'a, H, C, Q> Lookup<'a, H, C, Q>
+where
+	H: Hasher + 'a,
+	C: NodeCodec<H> + 'a,
+	Q: Query<H>,
+{
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
-	pub fn look_up(mut self, mut key: NibbleSlice) -> super::Result<Option<Q::Item>> {
+	pub fn look_up(mut self, mut key: NibbleSlice) -> Result<Option<Q::Item>, H::Out, C::Error> {
 		let mut hash = self.hash;
 
 		// this loop iterates through non-inline nodes.
@@ -55,7 +61,13 @@ impl<'a, Q: Query> Lookup<'a, Q> {
 			// without incrementing the depth.
 			let mut node_data = &node_data[..];
 			loop {
-				match Node::decoded(node_data)? {
+				let decoded = match C::decode(node_data) {
+					Ok(node) => node,
+					Err(e) => {
+						return Err(Box::new(TrieError::DecoderError(hash, e)))
+					}
+				};
+				match decoded {
 					Node::Leaf(slice, value) => {
 						return Ok(match slice == key {
 							true => Some(self.query.decode(value)),
@@ -81,7 +93,7 @@ impl<'a, Q: Query> Lookup<'a, Q> {
 				}
 
 				// check if new node data is inline or hash.
-				if let Some(h) = Node::try_decode_hash(&node_data) {
+				if let Some(h) = C::try_decode_hash(&node_data) {
 					hash = h;
 					break
 				}

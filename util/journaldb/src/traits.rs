@@ -16,16 +16,17 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use std::sync::Arc;
-use hashdb::*;
-use kvdb::{self, DBTransaction};
-use ethereum_types::H256;
-use error::UtilError;
 use bytes::Bytes;
+use error::UtilError;
+use ethereum_types::H256;
+use hashdb::*;
+use keccak_hasher::KeccakHasher;
+use kvdb::{self, DBTransaction};
+use std::sync::Arc;
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
-pub trait JournalDB: HashDB {
+pub trait JournalDB: HashDB<KeccakHasher> {
 	/// Return a copy of ourself, in a box.
 	fn boxed_clone(&self) -> Box<JournalDB>;
 
@@ -76,7 +77,7 @@ pub trait JournalDB: HashDB {
 	fn flush(&self) {}
 
 	/// Consolidate all the insertions and deletions in the given memory overlay.
-	fn consolidate(&mut self, overlay: ::memorydb::MemoryDB);
+	fn consolidate(&mut self, overlay: ::memorydb::MemoryDB<KeccakHasher>);
 
 	/// Commit all changes in a single batch
 	#[cfg(test)]

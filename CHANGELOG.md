@@ -1,3 +1,34 @@
+## Parity [v1.11.5](https://github.com/paritytech/parity/releases/tag/v1.11.5) (2018-06-29)
+
+Parity 1.11.5 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Bump beta to 1.11.5 / Backports ([#8955](https://github.com/paritytech/parity/pull/8955))
+  - Parity-version: bump beta to 1.11.5
+  - Update ropsten.json ([#8926](https://github.com/paritytech/parity/pull/8926))
+  - Update hardcoded headers ([#8925](https://github.com/paritytech/parity/pull/8925))
+    - Update kovan.json
+      - Update Kovan to block 7693549
+    - Update foundation.json
+      - Updated to block 5812225
+    - Update ropsten.json
+      - Update to 3465217
+  - Scripts: minor improvements ([#8930](https://github.com/paritytech/parity/pull/8930))
+    - CI: enable 'latest' docker tag on master pipeline
+    - CI: mark both beta and stable as stable snap.
+    - CI: sign all windows binaries
+  - Scripts: fix docker build tag on latest using master ([#8952](https://github.com/paritytech/parity/pull/8952))
+  - Rpc: cap gas limit of local calls ([#8943](https://github.com/paritytech/parity/pull/8943))
+  - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530 ([#8984](https://github.com/paritytech/parity/pull/8984))
+    - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530
+    - Snap: use plugin rust
+  - Fix deadlock in blockchain. ([#8977](https://github.com/paritytech/parity/pull/8977))
+  - Remove js-glue from workspace
+    - This fixes test error on Rust 1.27 but also prevents js-glue from building itself.
+    - Builtin dapp users can still use js-glue from crates.io.
+  - Fix Android build on beta ([#9003](https://github.com/paritytech/parity/pull/9003))
+
 ## Parity [v1.11.4](https://github.com/paritytech/parity/releases/tag/v1.11.4) (2018-06-20)
 
 Parity 1.11.4 is a bug-fix release to improve performance and stability.

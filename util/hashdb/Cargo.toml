@@ -1,10 +1,10 @@
 [package]
 name = "hashdb"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 description = "trait for hash-keyed databases."
 license = "GPL-3.0"
 
 [dependencies]
 elastic-array = "0.10"
-ethereum-types = "0.3"
+heapsize = "0.4"

@@ -518,6 +518,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// fetch service
 	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
+	let txpool_size = cmd.miner_options.pool_limits.max_count;
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,
@@ -574,6 +575,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
+	client_config.transaction_verification_queue_size = ::std::cmp::max(2048, txpool_size / 4);
 
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;
