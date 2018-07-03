@@ -881,7 +881,7 @@ usage! {
 
 			FLAG flag_fast_and_loose: (bool) = false, or |_| None,
 			"--fast-and-loose",
-			"Does nothing. DB WAL is always activated.",
+			"Does nothing; DB WAL is always activated.",
 
 			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
 			"--dapps-apis-all",

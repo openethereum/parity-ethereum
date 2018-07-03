@@ -167,8 +167,6 @@ pub struct DatabaseConfig {
 	pub compaction: CompactionProfile,
 	/// Set number of columns
 	pub columns: Option<u32>,
-	/// Should we keep WAL enabled?
-	pub wal: bool,
 }
 
 impl DatabaseConfig {
@@ -196,7 +194,6 @@ impl Default for DatabaseConfig {
 			memory_budget: None,
 			compaction: CompactionProfile::default(),
 			columns: None,
-			wal: true,
 		}
 	}
 }
@@ -328,9 +325,6 @@ impl Database {
 		}
 
 		let mut write_opts = WriteOptions::new();
-		if !config.wal {
-			write_opts.disable_wal(true);
-		}
 		let mut read_opts = ReadOptions::new();
 		read_opts.set_verify_checksums(false);
 

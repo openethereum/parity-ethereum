@@ -60,7 +60,6 @@ pub struct SnapshotCommand {
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub file_path: Option<String>,
-	pub wal: bool,
 	pub kind: Kind,
 	pub block_at: BlockId,
 }
@@ -173,7 +172,6 @@ impl SnapshotCommand {
 			tracing,
 			fat_db,
 			self.compaction,
-			self.wal,
 			VMType::default(),
 			"".into(),
 			algorithm,
