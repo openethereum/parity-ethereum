@@ -538,7 +538,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id)
 	}
 
-	fn pending_transactions_hashes(&self) -> BTreeSet<::ethereum_types::H256> {
+	fn pending_transaction_hashes(&self) -> BTreeSet<::ethereum_types::H256> {
 		BTreeSet::new()
 	}
 

@@ -129,6 +129,11 @@ impl txpool::Ready<VerifiedTransaction> for Condition {
 	}
 }
 
+/// Readiness checker that only relies on nonce cache (does actually go to state).
+///
+/// Checks readiness of transactions by comparing the nonce to state nonce. If nonce
+/// isn't found in provided state nonce store, defaults to the tx nonce and updates
+/// the nonce store. Useful for using with a state nonce cache when false positives are allowed.
 pub struct OptionalState<C> {
 	nonces: HashMap<Address, U256>,
 	state: C,

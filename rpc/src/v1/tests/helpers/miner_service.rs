@@ -220,7 +220,7 @@ impl MinerService for TestMinerService {
 		self.queued_transactions()
 	}
 
-	fn pending_transactions_hashes<C>(&self, _chain: &C) -> BTreeSet<H256> {
+	fn pending_transaction_hashes<C>(&self, _chain: &C) -> BTreeSet<H256> {
 		self.queued_transactions().into_iter().map(|tx| tx.signed().hash()).collect()
 	}
 

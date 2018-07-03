@@ -851,7 +851,7 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.all_transactions()
 	}
 
-	fn pending_transactions_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
 		C: ChainInfo + Sync,
 	{
 		let chain_info = chain.chain_info();
@@ -1106,7 +1106,6 @@ impl miner::MinerService for Miner {
 		// First update gas limit in transaction queue and minimal gas price.
 		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
-
 
 		// Then import all transactions...
 		let client = self.pool_client(chain);

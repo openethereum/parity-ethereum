@@ -42,7 +42,7 @@ pub trait Filterable {
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// pending transaction hashes at the given block (unordered).
-	fn pending_transactions_hashes(&self) -> BTreeSet<H256>;
+	fn pending_transaction_hashes(&self) -> BTreeSet<H256>;
 
 	/// Get logs that match the given filter.
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>>;
@@ -87,8 +87,8 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 		self.client.block_hash(id)
 	}
 
-	fn pending_transactions_hashes(&self) -> BTreeSet<H256> {
-		self.miner.pending_transactions_hashes(&*self.client)
+	fn pending_transaction_hashes(&self) -> BTreeSet<H256> {
+		self.miner.pending_transaction_hashes(&*self.client)
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
@@ -153,7 +153,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 	fn new_pending_transaction_filter(&self) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
-		let pending_transactions = self.pending_transactions_hashes();
+		let pending_transactions = self.pending_transaction_hashes();
 		let id = polls.create_poll(SyncPollFilter::new(PollFilter::PendingTransaction(pending_transactions)));
 		Ok(id.into())
 	}
@@ -179,7 +179,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 			},
 			PollFilter::PendingTransaction(ref mut previous_hashes) => {
 				// get hashes of pending transactions
-				let current_hashes = self.pending_transactions_hashes();
+				let current_hashes = self.pending_transaction_hashes();
 
 				let new_hashes = {
 					// find all new hashes

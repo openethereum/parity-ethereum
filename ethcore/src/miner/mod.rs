@@ -164,10 +164,10 @@ pub trait MinerService : Send + Sync {
 	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256
 		where C: Nonce + Sync;
 
-	/// Get a set of all pending transactions hashes.
+	/// Get a set of all pending transaction hashes.
 	///
 	/// Depending on the settings may look in transaction pool or only in pending block.
-	fn pending_transactions_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
 		C: ChainInfo + Sync;
 
 	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper).
