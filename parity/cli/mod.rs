@@ -258,7 +258,7 @@ usage! {
 
 			ARG arg_mode: (String) = "last", or |c: &Config| c.parity.as_ref()?.mode.clone(),
 			"--mode=[MODE]",
-			"Set the operating mode. MODE can be one of: last - Uses the last-used mode, active if none; active - Parity continuously syncs the chain; passive - Parity syncs initially, then sleeps and wakes regularly to resync; dark - Parity syncs only when the RPC is active; offline - Parity doesn't sync.",
+			"Set the operating mode. MODE can be one of: last - Uses the last-used mode, active if none; active - Parity continuously syncs the chain; passive - Parity syncs initially, then sleeps and wakes regularly to resync; dark - Parity syncs only when the JSON-RPC is active; offline - Parity doesn't sync.",
 
 			ARG arg_mode_timeout: (u64) = 300u64, or |c: &Config| c.parity.as_ref()?.mode_timeout.clone(),
 			"--mode-timeout=[SECS]",
@@ -315,7 +315,7 @@ usage! {
 
 			ARG arg_ports_shift: (u16) = 0u16, or |c: &Config| c.misc.as_ref()?.ports_shift,
 			"--ports-shift=[SHIFT]",
-			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (RPC, WebSockets, UI, IPFS, SecretStore).",
+			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, IPFS, SecretStore).",
 
 		["Account Options"]
 			FLAG flag_no_hardware_wallets: (bool) = false, or |c: &Config| c.account.as_ref()?.disable_hardware.clone(),
@@ -449,22 +449,22 @@ usage! {
 			"--reserved-peers=[FILE]",
 			"Provide a file containing enodes, one per line. These nodes will always have a reserved slot on top of the normal maximum peers.",
 
-		["API and Console Options – RPC"]
+		["API and Console Options – HTTP JSON-RPC"]
 			FLAG flag_no_jsonrpc: (bool) = false, or |c: &Config| c.rpc.as_ref()?.disable.clone(),
 			"--no-jsonrpc",
-			"Disable the JSON-RPC API server.",
+			"Disable the HTTP JSON-RPC API server.",
 
 			ARG arg_jsonrpc_port: (u16) = 8545u16, or |c: &Config| c.rpc.as_ref()?.port.clone(),
 			"--jsonrpc-port=[PORT]",
-			"Specify the port portion of the JSONRPC API server.",
+			"Specify the port portion of the HTTP JSON-RPC API server.",
 
 			ARG arg_jsonrpc_interface: (String)  = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
 			"--jsonrpc-interface=[IP]",
-			"Specify the hostname portion of the JSONRPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
+			"Specify the hostname portion of the HTTP JSON-RPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
 			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-apis=[APIS]",
-			"Specify the APIs available through the JSONRPC interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains following apis: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
+			"Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains following apis: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
 			ARG arg_jsonrpc_hosts: (String) = "none", or |c: &Config| c.rpc.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-hosts=[HOSTS]",
@@ -472,11 +472,11 @@ usage! {
 
 			ARG arg_jsonrpc_threads: (usize) = 4usize, or |c: &Config| c.rpc.as_ref()?.processing_threads,
 			"--jsonrpc-threads=[THREADS]",
-			"Turn on additional processing threads in all RPC servers. Setting this to non-zero value allows parallel cpu-heavy queries execution.",
+			"Turn on additional processing threads in all HTTP JSON-RPC servers. Setting this to non-zero value allows parallel cpu-heavy queries execution.",
 
 			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| c.rpc.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-cors=[URL]",
-			"Specify CORS header for JSON-RPC API responses. Special options: \"all\", \"none\".",
+			"Specify CORS header for HTTP JSON-RPC API responses. Special options: \"all\", \"none\".",
 
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = None, or |c: &Config| c.rpc.as_ref()?.server_threads,
 			"--jsonrpc-server-threads=[NUM]",
@@ -484,24 +484,24 @@ usage! {
 
 			ARG arg_jsonrpc_max_payload: (Option<usize>) = None, or |c: &Config| c.rpc.as_ref()?.max_payload,
 			"--jsonrpc-max-payload=[MB]",
-			"Specify maximum size for RPC requests in megabytes.",
+			"Specify maximum size for HTTP JSON-RPC requests in megabytes.",
 
 		["API and Console Options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| c.websockets.as_ref()?.disable.clone(),
 			"--no-ws",
-			"Disable the WebSockets server.",
+			"Disable the WebSockets JSON-RPC server.",
 
 			ARG arg_ws_port: (u16) = 8546u16, or |c: &Config| c.websockets.as_ref()?.port.clone(),
 			"--ws-port=[PORT]",
-			"Specify the port portion of the WebSockets server.",
+			"Specify the port portion of the WebSockets JSON-RPC server.",
 
 			ARG arg_ws_interface: (String)  = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
 			"--ws-interface=[IP]",
-			"Specify the hostname portion of the WebSockets server, IP should be an interface's IP address, or all (all interfaces) or local.",
+			"Specify the hostname portion of the WebSockets JSON-RPC server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
 			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,private,traces,rpc,shh,shh_pubsub", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ws-apis=[APIS]",
-			"Specify the APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains following apis: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
+			"Specify the JSON-RPC APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains following apis: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
 			ARG arg_ws_origins: (String) = "parity://*,chrome-extension://*,moz-extension://*", or |c: &Config| c.websockets.as_ref()?.origins.as_ref().map(|vec| vec.join(",")),
 			"--ws-origins=[URL]",
@@ -513,7 +513,7 @@ usage! {
 
 			ARG arg_ws_max_connections: (usize) = 100usize, or |c: &Config| c.websockets.as_ref()?.max_connections,
 			"--ws-max-connections=[CONN]",
-			"Maximal number of allowed concurrent WS connections.",
+			"Maximal number of allowed concurrent WebSockets JSON-RPC connections.",
 
 		["API and Console Options – IPC"]
 			FLAG flag_no_ipc: (bool) = false, or |c: &Config| c.ipc.as_ref()?.disable.clone(),
@@ -646,7 +646,7 @@ usage! {
 
 			FLAG flag_tx_queue_no_unfamiliar_locals: (bool) = false, or |c: &Config| c.mining.as_ref()?.tx_queue_no_unfamiliar_locals.clone(),
 			"--tx-queue-no-unfamiliar-locals",
-			"Transactions received via local means (RPC, WS, etc) will be treated as external if the sending account is unknown.",
+			"Transactions received via local means (HTTP JSON-RPC, WebSockets JSON-RPC, etc) will be treated as external if the sending account is unknown.",
 
 			FLAG flag_refuse_service_transactions: (bool) = false, or |c: &Config| c.mining.as_ref()?.refuse_service_transactions.clone(),
 			"--refuse-service-transactions",
@@ -885,7 +885,7 @@ usage! {
 
 			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
 			"--dapps-apis-all",
-			"Dapps server is merged with RPC server. Use --jsonrpc-apis.",
+			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-apis.",
 
 			FLAG flag_geth: (bool) = false, or |_| None,
 			"--geth",
@@ -913,7 +913,7 @@ usage! {
 
 			FLAG flag_jsonrpc: (bool) = false, or |_| None,
 			"-j, --jsonrpc",
-			"Does nothing; JSON-RPC is on by default now.",
+			"Does nothing; HTTP JSON-RPC is on by default now.",
 
 			FLAG flag_jsonrpc_off: (bool) = false, or |_| None,
 			"--jsonrpc-off",
@@ -929,7 +929,7 @@ usage! {
 
 			FLAG flag_rpc: (bool) = false, or |_| None,
 			"--rpc",
-			"Does nothing; JSON-RPC is on by default now.",
+			"Does nothing; HTTP JSON-RPC is on by default now.",
 
 			FLAG flag_public_node: (bool) = false, or |_| None,
 			"--public-node",
@@ -961,19 +961,19 @@ usage! {
 
 			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
 			"--dapps-port=[PORT]",
-			"Dapps server is merged with RPC server. Use --jsonrpc-port.",
+			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-port.",
 
 			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.interface.clone(),
 			"--dapps-interface=[IP]",
-			"Dapps server is merged with RPC server. Use --jsonrpc-interface.",
+			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-interface.",
 
 			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
 			"--dapps-hosts=[HOSTS]",
-			"Dapps server is merged with RPC server. Use --jsonrpc-hosts.",
+			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-hosts.",
 
 			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.cors.clone(),
 			"--dapps-cors=[URL]",
-			"Dapps server is merged with RPC server. Use --jsonrpc-cors.",
+			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-cors.",
 
 			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.user.clone(),
 			"--dapps-user=[USERNAME]",
