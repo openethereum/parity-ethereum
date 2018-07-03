@@ -1453,11 +1453,11 @@ mod tests {
 
 		let args = Args::parse(&["parity", "--password", "~/.safe/1", "--password", "~/.safe/2", "--ui-port", "8123"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
-		assert_eq!(args.arg_ui_port, 8123);
+		assert_eq!(args.arg_ui_port, Some(8123));
 
 		let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2", "--ui-port", "8123"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
-		assert_eq!(args.arg_ui_port, 8123);
+		assert_eq!(args.arg_ui_port, Some(8123));
 	}
 
 	#[test]
@@ -1609,9 +1609,9 @@ mod tests {
 
 			flag_force_ui: false,
 			flag_no_ui: false,
-			arg_ui_port: 8180u16,
-			arg_ui_interface: "local".into(),
-			arg_ui_hosts: "none".into(),
+			arg_ui_port: Some(8180u16),
+			arg_ui_interface: Some("local".into()),
+			arg_ui_hosts: Some("none".into()),
 			arg_ui_path: "$HOME/.parity/signer".into(),
 			flag_ui_no_validation: false,
 
@@ -1718,8 +1718,8 @@ mod tests {
 			arg_tx_queue_mem_limit: 4u32,
 			arg_tx_queue_gas: "off".into(),
 			arg_tx_queue_strategy: "gas_factor".into(),
-			arg_tx_queue_ban_count: 1u16,
-			arg_tx_queue_ban_time: 180u16,
+			arg_tx_queue_ban_count: Some(1u16),
+			arg_tx_queue_ban_time: Some(180u16),
 			flag_remove_solved: false,
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
