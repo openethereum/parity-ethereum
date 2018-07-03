@@ -449,6 +449,17 @@ usage! {
 			"--reserved-peers=[FILE]",
 			"Provide a file containing enodes, one per line. These nodes will always have a reserved slot on top of the normal maximum peers.",
 
+			CHECK |args: &Args| {
+				if let (Some(max_peers), Some(min_peers)) = (args.arg_max_peers, args.arg_min_peers) {
+					if min_peers > max_peers {
+						return Err(ArgsError::PeerConfiguration);
+					}
+				}
+
+				Ok(())
+			},
+
+
 		["API and Console Options – HTTP JSON-RPC"]
 			FLAG flag_no_jsonrpc: (bool) = false, or |c: &Config| c.rpc.as_ref()?.disable.clone(),
 			"--no-jsonrpc",
