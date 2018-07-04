@@ -39,20 +39,20 @@ struct StorageHandle(usize);
 
 // Handles to nodes in the trie.
 #[derive(Debug)]
-enum NodeHandle<H: Hasher> {
+enum NodeHandle<H> {
 	/// Loaded into memory.
 	InMemory(StorageHandle),
 	/// Either a hash or an inline node
-	Hash(H::Out),
+	Hash(H),
 }
 
-impl<H: Hasher> From<StorageHandle> for NodeHandle<H> {
+impl<H> From<StorageHandle> for NodeHandle<H> {
 	fn from(handle: StorageHandle) -> Self {
 		NodeHandle::InMemory(handle)
 	}
 }
 
-fn empty_children<H: Hasher>() -> Box<[Option<NodeHandle<H>>; 16]> {
+fn empty_children<H>() -> Box<[Option<NodeHandle<H>>; 16]> {
 	Box::new([
 		None, None, None, None, None, None, None, None,
 		None, None, None, None, None, None, None, None,
@@ -72,14 +72,14 @@ enum Node<H: Hasher> {
 	/// The shared portion is encoded from a `NibbleSlice` meaning it contains
 	/// a flag indicating it is an extension.
 	/// The child node is always a branch.
-	Extension(NodeKey, NodeHandle<H>),
+	Extension(NodeKey, NodeHandle<H::Out>),
 	/// A branch has up to 16 children and an optional value.
-	Branch(Box<[Option<NodeHandle<H>>; 16]>, Option<DBValue>)
+	Branch(Box<[Option<NodeHandle<H::Out>>; 16]>, Option<DBValue>)
 }
 
 impl<H: Hasher> Node<H> {
 	// load an inline node into memory or get the hash to do the lookup later.
-	fn inline_or_hash<C>(node: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> NodeHandle<H> 
+	fn inline_or_hash<C>(node: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> NodeHandle<H::Out>
 	where C: NodeCodec<H>
 	{
 		C::try_decode_hash(&node)
@@ -128,7 +128,7 @@ impl<H: Hasher> Node<H> {
 	fn into_encoded<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
 	where
 		C: NodeCodec<H>,
-		F: FnMut(NodeHandle<H>) -> ChildReference<H::Out>
+		F: FnMut(NodeHandle<H::Out>) -> ChildReference<H::Out>
 	{
 		match self {
 			Node::Empty => C::empty_node(),
@@ -139,7 +139,7 @@ impl<H: Hasher> Node<H> {
 					// map the `NodeHandle`s from the Branch to `ChildReferences`
 					children.iter_mut()
 						.map(Option::take)
-						.map(|maybe_child| 
+						.map(|maybe_child|
 							maybe_child.map(|child| child_cb(child))
 						),
 					value
@@ -287,7 +287,7 @@ where
 	storage: NodeStorage<H>,
 	db: &'a mut HashDB<H>,
 	root: &'a mut H::Out,
-	root_handle: NodeHandle<H>,
+	root_handle: NodeHandle<H::Out>,
 	death_row: HashSet<H::Out>,
 	/// The number of hash operations this trie has performed.
 	/// Note that none are performed until changes are committed.
@@ -380,7 +380,7 @@ where
 	}
 
 	// walk the trie, attempting to find the key's node.
-	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle<H>) -> Result<Option<DBValue>, H::Out, C::Error>
+	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle<H::Out>) -> Result<Option<DBValue>, H::Out, C::Error>
 		where 'x: 'key
 	{
 		let mut handle = handle;
@@ -429,7 +429,7 @@ where
 	}
 
 	/// insert a key-value pair into the trie, creating new nodes if necessary.
-	fn insert_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<(StorageHandle, bool), H::Out, C::Error> {
+	fn insert_at(&mut self, handle: NodeHandle<H::Out>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<(StorageHandle, bool), H::Out, C::Error> {
 		let h = match handle {
 			NodeHandle::InMemory(h) => h,
 			NodeHandle::Hash(h) => self.cache(h)?,
@@ -604,7 +604,7 @@ where
 	}
 
 	/// Remove a node from the trie based on key.
-	fn remove_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Option<(StorageHandle, bool)>, H::Out, C::Error> {
+	fn remove_at(&mut self, handle: NodeHandle<H::Out>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Option<(StorageHandle, bool)>, H::Out, C::Error> {
 		let stored = match handle {
 			NodeHandle::InMemory(h) => self.storage.destroy(h),
 			NodeHandle::Hash(h) => {
@@ -845,7 +845,7 @@ where
 	/// case where we can fit the actual data in the `Hasher`s output type, we
 	/// store the data inline. This function is used as the callback to the
 	/// `into_encoded` method of `Node`.
-	fn commit_child(&mut self, handle: NodeHandle<H>) -> ChildReference<H::Out> {
+	fn commit_child(&mut self, handle: NodeHandle<H::Out>) -> ChildReference<H::Out> {
 		match handle {
 			NodeHandle::Hash(hash) => ChildReference::Hash(hash),
 			NodeHandle::InMemory(storage_handle) => {
@@ -871,7 +871,7 @@ where
 	}
 
 	// a hack to get the root node's handle
-	fn root_handle(&self) -> NodeHandle<H> {
+	fn root_handle(&self) -> NodeHandle<H::Out> {
 		match self.root_handle {
 			NodeHandle::Hash(h) => NodeHandle::Hash(h),
 			NodeHandle::InMemory(StorageHandle(x)) => NodeHandle::InMemory(StorageHandle(x)),
@@ -880,7 +880,7 @@ where
 }
 
 impl<'a, H, C> TrieMut<H, C> for TrieDBMut<'a, H, C>
-where 
+where
 	H: Hasher,
 	C: NodeCodec<H>
 {
