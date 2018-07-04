@@ -31,6 +31,8 @@ use std::collections::{HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Index;
+use heapsize::HeapSizeOf;
+use std::{fmt::Debug, hash::Hash};
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -61,7 +63,7 @@ fn empty_children<H>() -> Box<[Option<NodeHandle<H>>; 16]> {
 
 /// Node types in the Trie.
 #[derive(Debug)]
-enum Node<H: Hasher> {
+enum Node<H> {
 	/// Empty node.
 	Empty,
 	/// A leaf node contains the end of a key and a value.
@@ -72,27 +74,29 @@ enum Node<H: Hasher> {
 	/// The shared portion is encoded from a `NibbleSlice` meaning it contains
 	/// a flag indicating it is an extension.
 	/// The child node is always a branch.
-	Extension(NodeKey, NodeHandle<H::Out>),
+	Extension(NodeKey, NodeHandle<H>),
 	/// A branch has up to 16 children and an optional value.
-	Branch(Box<[Option<NodeHandle<H::Out>>; 16]>, Option<DBValue>)
+	Branch(Box<[Option<NodeHandle<H>>; 16]>, Option<DBValue>)
 }
 
-impl<H: Hasher> Node<H> {
+impl<I> Node<I> where I: AsRef<[u8]> + AsMut<[u8]> + Default + HeapSizeOf + Debug + PartialEq + Eq + Hash + Send + Sync + Clone + Copy {
 	// load an inline node into memory or get the hash to do the lookup later.
-	fn inline_or_hash<C>(node: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> NodeHandle<H::Out>
-	where C: NodeCodec<H>
+	fn inline_or_hash<C, H>(node: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H::Out>) -> NodeHandle<H::Out>
+	where C: NodeCodec<H>,
+		  H: Hasher<Out = I>,
 	{
 		C::try_decode_hash(&node)
 			.map(NodeHandle::Hash)
 			.unwrap_or_else(|| {
-				let child = Node::from_encoded::<C>(node, db, storage);
+				let child = Node::from_encoded::<C, H>(node, db, storage);
 				NodeHandle::InMemory(storage.alloc(Stored::New(child)))
 			})
 	}
 
 	// decode a node from encoded bytes without getting its children.
-	fn from_encoded<C>(data: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H>) -> Self
-	where C: NodeCodec<H>
+	fn from_encoded<C, H>(data: &[u8], db: &HashDB<H>, storage: &mut NodeStorage<H::Out>) -> Self
+	where C: NodeCodec<H>,
+		  H: Hasher<Out = I>,
 	{
 		match C::decode(data).expect("encoded bytes read from db; qed") {
 			EncodedNode::Empty => Node::Empty,
@@ -100,13 +104,13 @@ impl<H: Hasher> Node<H> {
 			EncodedNode::Extension(key, cb) => {
 				Node::Extension(
 					key.encoded(false),
-					Self::inline_or_hash::<C>(cb, db, storage))
+					Self::inline_or_hash::<C, H>(cb, db, storage))
 			}
 			EncodedNode::Branch(ref encoded_children, val) => {
 				let mut child = |i:usize| {
 					let raw = encoded_children[i];
 					if !C::is_empty_node(raw) {
-						Some(Self::inline_or_hash::<C>(raw, db, storage))
+						Some(Self::inline_or_hash::<C, H>(raw, db, storage))
 					} else {
 						None
 					}
@@ -125,10 +129,11 @@ impl<H: Hasher> Node<H> {
 	}
 
 	// TODO: parallelize
-	fn into_encoded<F, C>(self, mut child_cb: F) -> ElasticArray1024<u8>
+	fn into_encoded<F, C, H>(self, mut child_cb: F) -> ElasticArray1024<u8>
 	where
 		C: NodeCodec<H>,
-		F: FnMut(NodeHandle<H::Out>) -> ChildReference<H::Out>
+		F: FnMut(NodeHandle<H::Out>) -> ChildReference<H::Out>,
+		H: Hasher<Out = I>,
 	{
 		match self {
 			Node::Empty => C::empty_node(),
@@ -150,7 +155,7 @@ impl<H: Hasher> Node<H> {
 }
 
 // post-inspect action.
-enum Action<H: Hasher> {
+enum Action<H> {
 	// Replace a node with a new one.
 	Replace(Node<H>),
 	// Restore the original node. This trusts that the node is actually the original.
@@ -160,14 +165,14 @@ enum Action<H: Hasher> {
 }
 
 // post-insert action. Same as action without delete
-enum InsertAction<H: Hasher> {
+enum InsertAction<H> {
 	// Replace a node with a new one.
 	Replace(Node<H>),
 	// Restore the original node.
 	Restore(Node<H>),
 }
 
-impl<H: Hasher> InsertAction<H> {
+impl<H> InsertAction<H> {
 	fn into_action(self) -> Action<H> {
 		match self {
 			InsertAction::Replace(n) => Action::Replace(n),
@@ -184,11 +189,11 @@ impl<H: Hasher> InsertAction<H> {
 }
 
 // What kind of node is stored here.
-enum Stored<H: Hasher> {
+enum Stored<H> {
 	// A new node.
 	New(Node<H>),
 	// A cached node, loaded from the DB.
-	Cached(Node<H>, H::Out),
+	Cached(Node<H>, H),
 }
 
 /// Used to build a collection of child nodes from a collection of `NodeHandle`s
@@ -198,12 +203,12 @@ pub enum ChildReference<HO> { // `HO` is e.g. `H256`, i.e. the output of a `Hash
 }
 
 /// Compact and cache-friendly storage for Trie nodes.
-struct NodeStorage<H: Hasher> {
+struct NodeStorage<H> {
 	nodes: Vec<Stored<H>>,
 	free_indices: VecDeque<usize>,
 }
 
-impl<H: Hasher> NodeStorage<H> {
+impl<H> NodeStorage<H> {
 	/// Create a new storage.
 	fn empty() -> Self {
 		NodeStorage {
@@ -232,7 +237,7 @@ impl<H: Hasher> NodeStorage<H> {
 	}
 }
 
-impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
+impl<'a, H> Index<&'a StorageHandle> for NodeStorage<H> {
 	type Output = Node<H>;
 
 	fn index(&self, handle: &'a StorageHandle) -> &Node<H> {
@@ -284,7 +289,7 @@ where
 	H: Hasher + 'a,
 	C: NodeCodec<H>
 {
-	storage: NodeStorage<H>,
+	storage: NodeStorage<H::Out>,
 	db: &'a mut HashDB<H>,
 	root: &'a mut H::Out,
 	root_handle: NodeHandle<H::Out>,
@@ -347,7 +352,7 @@ where
 	// cache a node by hash
 	fn cache(&mut self, hash: H::Out) -> Result<StorageHandle, H::Out, C::Error> {
 		let node_encoded = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
-		let node = Node::from_encoded::<C>(
+		let node = Node::from_encoded::<C, H>(
 			&node_encoded,
 			&*self.db,
 			&mut self.storage
@@ -357,8 +362,8 @@ where
 
 	// inspect a node, choosing either to replace, restore, or delete it.
 	// if restored or replaced, returns the new node along with a flag of whether it was changed.
-	fn inspect<F>(&mut self, stored: Stored<H>, inspector: F) -> Result<Option<(Stored<H>, bool)>, H::Out, C::Error>
-	where F: FnOnce(&mut Self, Node<H>) -> Result<Action<H>, H::Out, C::Error> {
+	fn inspect<F>(&mut self, stored: Stored<H::Out>, inspector: F) -> Result<Option<(Stored<H::Out>, bool)>, H::Out, C::Error>
+	where F: FnOnce(&mut Self, Node<H::Out>) -> Result<Action<H::Out>, H::Out, C::Error> {
 		Ok(match stored {
 			Stored::New(node) => match inspector(self, node)? {
 				Action::Restore(node) => Some((Stored::New(node), false)),
@@ -443,7 +448,7 @@ where
 	}
 
 	/// the insertion inspector.
-	fn insert_inspector(&mut self, node: Node<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<InsertAction<H>, H::Out, C::Error> {
+	fn insert_inspector(&mut self, node: Node<H::Out>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> Result<InsertAction<H::Out>, H::Out, C::Error> {
 		trace!(target: "trie", "augmented (partial: {:?}, value: {:?})", partial, value.pretty());
 
 		Ok(match node {
@@ -619,7 +624,7 @@ where
 	}
 
 	/// the removal inspector
-	fn remove_inspector(&mut self, node: Node<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Action<H>, H::Out, C::Error> {
+	fn remove_inspector(&mut self, node: Node<H::Out>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> Result<Action<H::Out>, H::Out, C::Error> {
 		Ok(match (node, partial.is_empty()) {
 			(Node::Empty, _) => Action::Delete,
 			(Node::Branch(c, None), true) => Action::Restore(Node::Branch(c, None)),
@@ -705,7 +710,7 @@ where
 	/// _invalid state_ means:
 	/// - Branch node where there is only a single entry;
 	/// - Extension node followed by anything other than a Branch node.
-	fn fix(&mut self, node: Node<H>) -> Result<Node<H>, H::Out, C::Error> {
+	fn fix(&mut self, node: Node<H::Out>) -> Result<Node<H::Out>, H::Out, C::Error> {
 		match node {
 			Node::Branch(mut children, value) => {
 				// if only a single value, transmute to leaf/extension and feed through fixed.
@@ -825,7 +830,7 @@ where
 
 		match self.storage.destroy(handle) {
 			Stored::New(node) => {
-				let encoded_root = node.into_encoded::<_, C>(|child| self.commit_child(child) );
+				let encoded_root = node.into_encoded::<_, C, H>(|child| self.commit_child(child) );
 				*self.root = self.db.insert(&encoded_root[..]);
 				self.hash_count += 1;
 
@@ -852,7 +857,7 @@ where
 				match self.storage.destroy(storage_handle) {
 					Stored::Cached(_, hash) => ChildReference::Hash(hash),
 					Stored::New(node) => {
-						let encoded = node.into_encoded::<_, C>(|node_handle| self.commit_child(node_handle) );
+						let encoded = node.into_encoded::<_, C, H>(|node_handle| self.commit_child(node_handle) );
 						if encoded.len() >= H::LENGTH {
 							let hash = self.db.insert(&encoded[..]);
 							self.hash_count +=1;
