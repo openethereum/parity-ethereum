@@ -81,11 +81,11 @@ pub struct CommonParams {
 	/// EIP150 transition block number.
 	pub eip150_transition: BlockNumber,
 	/// Number of first block where EIP-160 rules begin.
-	pub eip160_transition: u64,
+	pub eip160_transition: BlockNumber,
 	/// Number of first block where EIP-161.abc begin.
-	pub eip161abc_transition: u64,
+	pub eip161abc_transition: BlockNumber,
 	/// Number of first block where EIP-161.d begins.
-	pub eip161d_transition: u64,
+	pub eip161d_transition: BlockNumber,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
 	/// Number of first block where EIP-658 rules begin.
