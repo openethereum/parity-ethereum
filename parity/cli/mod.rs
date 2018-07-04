@@ -1610,9 +1610,9 @@ mod tests {
 			flag_force_ui: false,
 			flag_no_ui: false,
 			arg_ui_port: Some(8180u16),
-			arg_ui_interface: Some("local".into()),
-			arg_ui_hosts: Some("none".into()),
-			arg_ui_path: "$HOME/.parity/signer".into(),
+			arg_ui_interface: None,
+			arg_ui_hosts: None,
+			arg_ui_path: None,
 			flag_ui_no_validation: false,
 
 			// -- Networking Options
