@@ -17,7 +17,7 @@ ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
 ethereum-types = "0.3"
 hashdb = { version = "0.2", path = "../../util/hashdb" }
-plain_hasher = { version = "0.2", path = "../../util/plain_hasher" }
+plain_hasher = { version = "0.1", path = "../../util/plain_hasher" }
 rlp = { path = "../../util/rlp" }
 rustc-hex = "1.0"
 keccak-hash = { path = "../../util/hash" }

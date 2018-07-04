@@ -10,4 +10,4 @@ license = "GPL-3.0"
 ethereum-types = "0.3"
 tiny-keccak = "1.4.2"
 hashdb = { version = "0.2.0", path = "../hashdb" }
-plain_hasher = {  version = "0.2.0", path = "../plain_hasher" }
+plain_hasher = {  version = "0.1.0", path = "../plain_hasher" }
