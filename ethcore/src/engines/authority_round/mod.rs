@@ -1605,7 +1605,6 @@ mod tests {
 		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
-		header.set_number(1);
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
 
@@ -1615,8 +1614,15 @@ mod tests {
 
 		aura.set_signer(Arc::new(AccountProvider::transient_provider()), Default::default(), "".into());
 
+		// Do not report on steps skipped between genesis and first block.
+		header.set_number(1);
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
-		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
+
+		// Report on skipped steps otherwise.
+		header.set_number(2);
+		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 2);
 	}
 
 	#[test]
