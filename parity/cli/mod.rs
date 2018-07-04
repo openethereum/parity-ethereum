@@ -1609,7 +1609,7 @@ mod tests {
 
 			flag_force_ui: false,
 			flag_no_ui: false,
-			arg_ui_port: Some(8180u16),
+			arg_ui_port: None,
 			arg_ui_interface: None,
 			arg_ui_hosts: None,
 			arg_ui_path: "$HOME/.parity/signer".into(),
