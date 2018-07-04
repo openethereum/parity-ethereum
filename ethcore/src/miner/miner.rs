@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, HashSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -851,6 +851,37 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.all_transactions()
 	}
 
+	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+		C: ChainInfo + Sync,
+	{
+		let chain_info = chain.chain_info();
+
+		let from_queue = || self.transaction_queue.pending_hashes(
+			|sender| self.nonce_cache.read().get(sender).cloned(),
+		);
+
+		let from_pending = || {
+			self.map_existing_pending_block(|sealing| {
+				sealing.transactions()
+					.iter()
+					.map(|signed| signed.hash())
+					.collect()
+			}, chain_info.best_block_number)
+		};
+
+		match self.options.pending_set {
+			PendingSet::AlwaysQueue => {
+				from_queue()
+			},
+			PendingSet::AlwaysSealing => {
+				from_pending().unwrap_or_default()
+			},
+			PendingSet::SealingOrElseQueue => {
+				from_pending().unwrap_or_else(from_queue)
+			},
+		}
+	}
+
 	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: miner::PendingOrdering)
 		-> Vec<Arc<VerifiedTransaction>>
 	where
@@ -1065,8 +1096,12 @@ impl miner::MinerService for Miner {
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
 		//    are in those blocks
 
-		// Clear nonce cache
-		self.nonce_cache.write().clear();
+		let has_new_best_block = enacted.len() > 0;
+
+		if has_new_best_block {
+			// Clear nonce cache
+			self.nonce_cache.write().clear();
+		}
 
 		// First update gas limit in transaction queue and minimal gas price.
 		let gas_limit = *chain.best_block_header().gas_limit();
@@ -1091,10 +1126,12 @@ impl miner::MinerService for Miner {
 				});
 		}
 
-		// ...and at the end remove the old ones
-		self.transaction_queue.cull(client);
+		if has_new_best_block {
+			// ...and at the end remove the old ones
+			self.transaction_queue.cull(client);
+		}
 
-		if enacted.len() > 0 || (imported.len() > 0 && self.options.reseal_on_uncle) {
+		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// Reset `next_allowed_reseal` in case a block is imported.
 			// Even if min_period is high, we will always attempt to create
 			// new pending block.

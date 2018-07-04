@@ -29,7 +29,7 @@ pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringPa
 pub use ethcore_miner::pool::PendingOrdering;
 
 use std::sync::Arc;
-use std::collections::BTreeMap;
+use std::collections::{BTreeSet, BTreeMap};
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
@@ -163,6 +163,12 @@ pub trait MinerService : Send + Sync {
 	/// transaction with nonce returned from this function is signed on.
 	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256
 		where C: Nonce + Sync;
+
+	/// Get a set of all pending transaction hashes.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+		C: ChainInfo + Sync;
 
 	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper).
 	///

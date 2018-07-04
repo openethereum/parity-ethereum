@@ -19,7 +19,7 @@
 use std::{cmp, fmt};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
@@ -294,6 +294,19 @@ impl TransactionQueue {
 	pub fn all_transactions(&self) -> Vec<Arc<pool::VerifiedTransaction>> {
 		let ready = |_tx: &pool::VerifiedTransaction| txpool::Readiness::Ready;
 		self.pool.read().unordered_pending(ready).collect()
+	}
+
+	/// Computes unordered set of pending hashes.
+	///
+	/// Since strict nonce-checking is not required, you may get some false positive future transactions as well.
+	pub fn pending_hashes<N>(
+		&self,
+		nonce: N,
+	) -> BTreeSet<H256> where
+		N: Fn(&Address) -> Option<U256>,
+	{
+		let ready = ready::OptionalState::new(nonce);
+		self.pool.read().unordered_pending(ready).map(|tx| tx.hash).collect()
 	}
 
 	/// Returns current pending transactions ordered by priority.
