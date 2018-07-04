@@ -1612,7 +1612,7 @@ mod tests {
 			arg_ui_port: Some(8180u16),
 			arg_ui_interface: None,
 			arg_ui_hosts: None,
-			arg_ui_path: None,
+			arg_ui_path: "$HOME/.parity/signer".into(),
 			flag_ui_no_validation: false,
 
 			// -- Networking Options
