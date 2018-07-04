@@ -2,7 +2,8 @@
 name = "hashdb"
 version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-description = "trait for hash-keyed databases."
+description = "Trait for hash-keyed databases."
+repository = "https://github.com/paritytech/parity/"
 license = "GPL-3.0"
 
 [dependencies]
