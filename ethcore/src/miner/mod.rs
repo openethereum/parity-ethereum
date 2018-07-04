@@ -28,7 +28,7 @@ pub mod stratum;
 pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams};
 
 use std::sync::Arc;
-use std::collections::BTreeMap;
+use std::collections::{BTreeSet, BTreeMap};
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
@@ -164,7 +164,13 @@ pub trait MinerService : Send + Sync {
 	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256
 		where C: Nonce + Sync;
 
-	/// Get a list of all ready transactions.
+	/// Get a set of all pending transaction hashes.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+		C: ChainInfo + Sync;
+
+	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper).
 	///
 	/// Depending on the settings may look in transaction pool or only in pending block.
 	fn ready_transactions<C>(&self, chain: &C) -> Vec<Arc<VerifiedTransaction>>
