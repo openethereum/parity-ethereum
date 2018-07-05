@@ -352,8 +352,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			let mut vm = vm_factory.create(&params, &schedule);
-			return vm.exec(params, &mut ext).finalize(ext);
+			let mut vm = vm_factory.create(params, &schedule);
+			return vm.exec(&mut ext).finalize(ext);
 		}
 
 		// Start in new thread with stack size needed up to max depth
@@ -362,8 +362,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.builder().stack_size(::std::cmp::max(schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
-				let mut vm = vm_factory.create(&params, &schedule);
-				vm.exec(params, &mut ext).finalize(ext)
+				let mut vm = vm_factory.create(params, &schedule);
+				vm.exec(&mut ext).finalize(ext)
 			}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
 		}).join()
 	}
