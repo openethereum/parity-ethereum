@@ -19,6 +19,7 @@
 use std::sync::Arc;
 use vm::Vm;
 use ethereum_types::U256;
+use super::vm::ActionParams;
 use super::interpreter::SharedCache;
 use super::vmtype::VMType;
 
@@ -32,12 +33,12 @@ pub struct Factory {
 impl Factory {
 	/// Create fresh instance of VM
 	/// Might choose implementation depending on supplied gas.
-	pub fn create(&self, gas: &U256) -> Box<Vm> {
+	pub fn create(&self, params: ActionParams) -> Box<Vm> {
 		match self.evm {
-			VMType::Interpreter => if Self::can_fit_in_usize(gas) {
-				Box::new(super::interpreter::Interpreter::<usize>::new(self.evm_cache.clone()))
+			VMType::Interpreter => if Self::can_fit_in_usize(&params.gas) {
+				Box::new(super::interpreter::Interpreter::<usize>::new(params, self.evm_cache.clone()))
 			} else {
-				Box::new(super::interpreter::Interpreter::<U256>::new(self.evm_cache.clone()))
+				Box::new(super::interpreter::Interpreter::<U256>::new(params, self.evm_cache.clone()))
 			}
 		}
 	}
