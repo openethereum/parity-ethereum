@@ -16,7 +16,6 @@ crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
-fetch = { path = "../util/fetch" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
@@ -26,7 +25,7 @@ error-chain = { version = "0.12", default-features = false }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
-ethcore-stratum = { path = "./stratum" }
+ethcore-stratum = { path = "./stratum", optional = true }
 ethcore-transaction = { path = "./transaction" }
 ethereum-types = "0.3"
 memory-cache = { path = "../util/memory_cache" }
@@ -99,3 +98,6 @@ test-heavy = []
 benches = []
 # Compile test helpers
 test-helpers = ["tempdir"]
+work-notify = ["ethcore-miner/work-notify"]
+price-info = ["ethcore-miner/price-info"]
+stratum = ["ethcore-stratum"]

@@ -24,10 +24,12 @@ use client::{Client, ImportSealedBlock};
 use ethereum_types::{H64, H256, clean_0x, U256};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
+#[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
+#[cfg(feature = "work-notify")]
+use ethcore_stratum::PushWorkHandler;
 use ethcore_stratum::{
-	JobDispatcher, PushWorkHandler,
-	Stratum as StratumService, Error as StratumServiceError,
+	JobDispatcher, Stratum as StratumService, Error as StratumServiceError,
 };
 use miner::{Miner, MinerService};
 use parking_lot::Mutex;
@@ -209,6 +211,7 @@ impl From<AddrParseError> for Error {
 	fn from(err: AddrParseError) -> Error { Error::Address(err) }
 }
 
+#[cfg(feature = "work-notify")]
 impl NotifyWork for Stratum {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
 		trace!(target: "stratum", "Notify work");
@@ -242,6 +245,7 @@ impl Stratum {
 	}
 
 	/// Start STRATUM job dispatcher and register it in the miner
+	#[cfg(feature = "work-notify")]
 	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
 		let stratum = Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
 		miner.add_work_listener(Box::new(stratum) as Box<NotifyWork>);

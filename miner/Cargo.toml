@@ -8,11 +8,11 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 # Only work_notify, consider a separate crate
-ethash = { path = "../ethash" }
-fetch = { path = "../util/fetch" }
-hyper = "0.11"
-parity-reactor = { path = "../util/reactor" }
-url = "1"
+ethash = { path = "../ethash", optional = true }
+fetch = { path = "../util/fetch", optional = true }
+hyper = { version = "0.11", optional = true }
+parity-reactor = { path = "../util/reactor", optional = true }
+url = { version = "1", optional = true }
 
 # Miner
 ansi_term = "0.10"
@@ -26,7 +26,7 @@ keccak-hash = { path = "../util/hash" }
 linked-hash-map = "0.5"
 log = "0.3"
 parking_lot = "0.6"
-price-info = { path = "../price-info" }
+price-info = { path = "../price-info", optional = true }
 rlp = { path = "../util/rlp" }
 trace-time = { path = "../util/trace-time" }
 transaction-pool = { path = "../transaction-pool" }
@@ -35,3 +35,6 @@ transaction-pool = { path = "../transaction-pool" }
 env_logger = "0.4"
 ethkey = { path = "../ethkey" }
 rustc-hex = "1.0"
+
+[features]
+work-notify = ["ethash", "fetch", "hyper", "parity-reactor", "url"]

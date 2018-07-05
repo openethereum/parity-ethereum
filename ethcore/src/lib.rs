@@ -70,6 +70,7 @@ extern crate ethcore_io as io;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
 extern crate ethcore_miner;
+#[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
