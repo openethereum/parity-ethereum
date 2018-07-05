@@ -52,6 +52,11 @@ impl NonceCache {
 		}
 	}
 
+	/// Retrieve a cached nonce for given sender.
+	pub fn get(&self, sender: &Address) -> Option<U256> {
+		self.nonces.read().get(sender).cloned()
+	}
+
 	/// Clear all entries from the cache.
 	pub fn clear(&self) {
 		self.nonces.write().clear();
