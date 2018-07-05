@@ -61,11 +61,6 @@ impl NonceCache {
 	pub fn clear(&self) {
 		self.nonces.write().clear();
 	}
-
-	/// Get an entry from the cache
-	pub fn get(&self, sender: &Address) -> Option<U256> {
-		self.nonces.read().get(sender).cloned()
-	}
 }
 
 /// Blockchain accesss for transaction pool.
