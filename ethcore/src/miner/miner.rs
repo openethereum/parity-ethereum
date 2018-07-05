@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -47,7 +48,7 @@ use client::BlockId;
 use executive::contract_address;
 use header::{Header, BlockNumber};
 use miner;
-use miner::pool_client::{PoolClient, CachedNonceClient};
+use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use state::State;
@@ -203,7 +204,7 @@ pub struct Miner {
 	params: RwLock<AuthoringParams>,
 	#[cfg(feature = "work-notify")]
 	listeners: RwLock<Vec<Box<NotifyWork>>>,
-	nonce_cache: RwLock<HashMap<Address, U256>>,
+	nonce_cache: NonceCache,
 	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
@@ -230,6 +231,7 @@ impl Miner {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
+		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -244,7 +246,7 @@ impl Miner {
 			#[cfg(feature = "work-notify")]
 			listeners: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
-			nonce_cache: RwLock::new(HashMap::with_capacity(1024)),
+			nonce_cache: NonceCache::new(nonce_cache_size),
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts,
@@ -883,7 +885,7 @@ impl miner::MinerService for Miner {
 		let chain_info = chain.chain_info();
 
 		let from_queue = || self.transaction_queue.pending_hashes(
-			|sender| self.nonce_cache.read().get(sender).cloned(),
+			|sender| self.nonce_cache.get(sender),
 		);
 
 		let from_pending = || {
@@ -1126,14 +1128,15 @@ impl miner::MinerService for Miner {
 
 		if has_new_best_block {
 			// Clear nonce cache
-			self.nonce_cache.write().clear();
+			self.nonce_cache.clear();
 		}
 
 		// First update gas limit in transaction queue and minimal gas price.
 		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
 
-		// Then import all transactions...
+
+		// Then import all transactions from retracted blocks.
 		let client = self.pool_client(chain);
 		{
 			retracted
@@ -1152,11 +1155,6 @@ impl miner::MinerService for Miner {
 				});
 		}
 
-		if has_new_best_block {
-			// ...and at the end remove the old ones
-			self.transaction_queue.cull(client);
-		}
-
 		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// Reset `next_allowed_reseal` in case a block is imported.
 			// Even if min_period is high, we will always attempt to create
@@ -1170,6 +1168,15 @@ impl miner::MinerService for Miner {
 				// --------------------------------------------------------------------------
 				self.update_sealing(chain);
 			}
+		}
+
+		if has_new_best_block {
+			// Make sure to cull transactions after we update sealing.
+			// Not culling won't lead to old transactions being added to the block
+			// (thanks to Ready), but culling can take significant amount of time,
+			// so best to leave it after we create some work for miners to prevent increased
+			// uncle rate.
+			self.transaction_queue.cull(client);
 		}
 	}
 

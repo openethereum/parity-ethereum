@@ -36,10 +36,32 @@ use header::Header;
 use miner;
 use miner::service_transaction_checker::ServiceTransactionChecker;
 
-type NoncesCache = RwLock<HashMap<Address, U256>>;
+/// Cache for state nonces.
+#[derive(Debug)]
+pub struct NonceCache {
+	nonces: RwLock<HashMap<Address, U256>>,
+	limit: usize
+}
 
-const MAX_NONCE_CACHE_SIZE: usize = 4096;
-const EXPECTED_NONCE_CACHE_SIZE: usize = 2048;
+impl NonceCache {
+	/// Create new cache with a limit of `limit` entries.
+	pub fn new(limit: usize) -> Self {
+		NonceCache {
+			nonces: RwLock::new(HashMap::with_capacity(limit / 2)),
+			limit,
+		}
+	}
+
+	/// Retrieve a cached nonce for given sender.
+	pub fn get(&self, sender: &Address) -> Option<U256> {
+		self.nonces.read().get(sender).cloned()
+	}
+
+	/// Clear all entries from the cache.
+	pub fn clear(&self) {
+		self.nonces.write().clear();
+	}
+}
 
 /// Blockchain accesss for transaction pool.
 pub struct PoolClient<'a, C: 'a> {
@@ -70,7 +92,7 @@ C: BlockInfo + CallContract,
 	/// Creates new client given chain, nonce cache, accounts and service transaction verifier.
 	pub fn new(
 		chain: &'a C,
-		cache: &'a NoncesCache,
+		cache: &'a NonceCache,
 		engine: &'a EthEngine,
 		accounts: Option<&'a AccountProvider>,
 		refuse_service_transactions: bool,
@@ -161,7 +183,7 @@ impl<'a, C: 'a> NonceClient for PoolClient<'a, C> where
 
 pub(crate) struct CachedNonceClient<'a, C: 'a> {
 	client: &'a C,
-	cache: &'a NoncesCache,
+	cache: &'a NonceCache,
 }
 
 impl<'a, C: 'a> Clone for CachedNonceClient<'a, C> {
@@ -176,13 +198,14 @@ impl<'a, C: 'a> Clone for CachedNonceClient<'a, C> {
 impl<'a, C: 'a> fmt::Debug for CachedNonceClient<'a, C> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		fmt.debug_struct("CachedNonceClient")
-			.field("cache", &self.cache.read().len())
+			.field("cache", &self.cache.nonces.read().len())
+			.field("limit", &self.cache.limit)
 			.finish()
 	}
 }
 
 impl<'a, C: 'a> CachedNonceClient<'a, C> {
-	pub fn new(client: &'a C, cache: &'a NoncesCache) -> Self {
+	pub fn new(client: &'a C, cache: &'a NonceCache) -> Self {
 		CachedNonceClient {
 			client,
 			cache,
@@ -194,27 +217,29 @@ impl<'a, C: 'a> NonceClient for CachedNonceClient<'a, C> where
 	C: Nonce + Sync,
 {
   fn account_nonce(&self, address: &Address) -> U256 {
-	  if let Some(nonce) = self.cache.read().get(address) {
+	  if let Some(nonce) = self.cache.nonces.read().get(address) {
 		  return *nonce;
 	  }
 
 	  // We don't check again if cache has been populated.
 	  // It's not THAT expensive to fetch the nonce from state.
-	  let mut cache = self.cache.write();
+	  let mut cache = self.cache.nonces.write();
 	  let nonce = self.client.latest_nonce(address);
 	  cache.insert(*address, nonce);
 
-	  if cache.len() < MAX_NONCE_CACHE_SIZE {
+	  if cache.len() < self.cache.limit {
 		  return nonce
 	  }
 
+	  debug!(target: "txpool", "NonceCache: reached limit.");
+	  trace_time!("nonce_cache:clear");
+
 	  // Remove excessive amount of entries from the cache
-	  while cache.len() > EXPECTED_NONCE_CACHE_SIZE {
-		  // Just remove random entry
-		  if let Some(key) = cache.keys().next().cloned() {
-			  cache.remove(&key);
-		  }
+	  let to_remove: Vec<_> = cache.keys().take(self.cache.limit / 2).cloned().collect();
+	  for x in to_remove {
+		cache.remove(&x);
 	  }
+
 	  nonce
   }
 }
