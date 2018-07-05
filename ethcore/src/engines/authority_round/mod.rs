@@ -1114,8 +1114,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
 			Err(BlockError::InvalidSeal) => {
-				let set_number = self.epoch_set(header)?.1;
-				self.validators.report_benign(header.author(), set_number, header.number());
+				if let Ok((_, set_number)) = self.epoch_set(header) {
+					self.validators.report_benign(header.author(), set_number, header.number());
+				}
+
 				Err(BlockError::InvalidSeal.into())
 			}
 			Err(e) => Err(e.into()),
