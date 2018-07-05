@@ -156,6 +156,7 @@ pub struct Interpreter<Cost: CostType> {
 	params: InterpreterParams,
 	reader: CodeReader,
 	return_data: ReturnData,
+	informant: informant::EvmInformant,
 	_type: PhantomData<Cost>,
 }
 
@@ -163,7 +164,6 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 	fn exec(&mut self, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
 		self.mem.clear();
 
-		let mut informant = informant::EvmInformant::new(ext.depth());
 		let mut do_trace = true;
 
 		let mut valid_jump_destinations = None;
@@ -241,7 +241,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 					self.reader.position = pos;
 				},
 				InstructionResult::StopExecutionNeedsReturn {gas, init_off, init_size, apply} => {
-					informant.done();
+					self.informant.done();
 					let mem = mem::replace(&mut self.mem, Vec::new());
 					return Ok(GasLeft::NeedsReturn {
 						gas_left: gas.as_u256(),
@@ -253,19 +253,20 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 				_ => {},
 			}
 		}
-		informant.done();
+		self.informant.done();
 		Ok(GasLeft::Known(gasometer.current_gas.as_u256()))
 	}
 }
 
 impl<Cost: CostType> Interpreter<Cost> {
 	/// Create a new `Interpreter` instance with shared cache.
-	pub fn new(mut params: ActionParams, cache: Arc<SharedCache>) -> Interpreter<Cost> {
+	pub fn new(mut params: ActionParams, cache: Arc<SharedCache>, ext: &vm::Ext) -> Interpreter<Cost> {
 		let reader = CodeReader::new(params.code.take().expect("VM always called with code; qed"));
 		let params = params.into();
+		let informant = informant::EvmInformant::new(ext.depth());
 
 		Interpreter {
-			cache, params, reader,
+			cache, params, reader, informant,
 			mem: Vec::new(),
 			return_data: ReturnData::empty(),
 			_type: PhantomData,
