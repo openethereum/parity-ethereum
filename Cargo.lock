@@ -668,7 +668,7 @@ dependencies = [
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.2.0",
  "patricia-trie-ethereum 0.1.0",
- "plain_hasher 0.2.0",
+ "plain_hasher 0.1.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "rlp_derive 0.1.0",
@@ -912,7 +912,7 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "plain_hasher 0.2.0",
+ "plain_hasher 0.1.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1416,7 +1416,7 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "memorydb 0.2.0",
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "plain_hasher 0.2.0",
+ "plain_hasher 0.1.0",
  "rlp 0.2.1",
  "util-error 0.1.0",
 ]
@@ -1532,7 +1532,7 @@ version = "0.1.0"
 dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.2.0",
- "plain_hasher 0.2.0",
+ "plain_hasher 0.1.0",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1733,7 +1733,7 @@ dependencies = [
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2",
  "keccak-hasher 0.1.0",
- "plain_hasher 0.2.0",
+ "plain_hasher 0.1.0",
  "rlp 0.2.1",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2550,7 +2550,7 @@ dependencies = [
 
 [[package]]
 name = "plain_hasher"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
