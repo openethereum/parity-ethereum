@@ -31,9 +31,9 @@ pub struct VmFactory {
 }
 
 impl VmFactory {
-	pub fn create(&self, params: ActionParams, ext: &vm::Ext) -> Box<Vm> {
+	pub fn create(&self, params: ActionParams, ext: &vm::Ext) -> vm::Result<Box<Vm>> {
 		if ext.schedule().wasm.is_some() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
-			Box::new(WasmInterpreter::new(params))
+			Ok(Box::new(WasmInterpreter::new(params)))
 		} else {
 			self.evm.create(params, ext)
 		}
