@@ -18,10 +18,10 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::io;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use error::{BaseDataError, UtilError};
 use ethereum_types::H256;
 use hashdb::*;
 use heapsize::HeapSizeOf;
@@ -30,7 +30,7 @@ use kvdb::{KeyValueDB, DBTransaction};
 use memorydb::*;
 use parking_lot::RwLock;
 use rlp::{encode, decode};
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_negatively_reference_hash, error_key_already_exists};
 use super::traits::JournalDB;
 use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
@@ -362,7 +362,7 @@ impl JournalDB for EarlyMergeDB {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.into_vec())
 	}
 
-	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		// record new commit's details.
 		let mut refs = match self.refs.as_ref() {
 			Some(refs) => refs.write(),
@@ -426,7 +426,7 @@ impl JournalDB for EarlyMergeDB {
 		}
 	}
 
-	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> io::Result<u32> {
 		let mut refs = self.refs.as_ref().unwrap().write();
 
 		// apply old commits' details
@@ -488,7 +488,7 @@ impl JournalDB for EarlyMergeDB {
 		Ok(0)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		let mut ops = 0;
 		for (key, (value, rc)) in self.overlay.drain() {
 			if rc != 0 { ops += 1 }
@@ -497,13 +497,13 @@ impl JournalDB for EarlyMergeDB {
 				0 => {}
 				1 => {
 					if self.backing.get(self.column, &key)?.is_some() {
-						return Err(BaseDataError::AlreadyExists(key).into());
+						return Err(error_key_already_exists(&key));
 					}
 					batch.put(self.column, &key, &value)
 				}
 				-1 => {
 					if self.backing.get(self.column, &key)?.is_none() {
-						return Err(BaseDataError::NegativelyReferencedHash(key).into());
+						return Err(error_negatively_reference_hash(&key));
 					}
 					batch.delete(self.column, &key)
 				}

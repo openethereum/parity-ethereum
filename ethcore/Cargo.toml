@@ -52,7 +52,6 @@ rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = { path = "../util/kvdb" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
-util-error = { path = "../util/error" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
 stop-guard = { path = "../util/stop-guard" }
 macros = { path = "../util/macros" }
