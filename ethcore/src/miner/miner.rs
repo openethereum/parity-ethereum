@@ -16,7 +16,7 @@
 
 use std::cmp;
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -885,7 +885,7 @@ impl miner::MinerService for Miner {
 		let chain_info = chain.chain_info();
 
 		let from_queue = || self.transaction_queue.pending_hashes(
-			|sender| self.nonce_cache.read().get(sender).cloned(),
+			|sender| self.nonce_cache.get(sender),
 		);
 
 		let from_pending = || {
