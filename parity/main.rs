@@ -18,7 +18,7 @@
 
 #![warn(missing_docs)]
 
-extern crate parity;
+extern crate parity_ethereum;
 
 extern crate ctrlc;
 extern crate dir;
@@ -39,7 +39,7 @@ use std::sync::Arc;
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
-use parity::{start, ExecutionAction};
+use parity_ethereum::{start, ExecutionAction};
 use parking_lot::{Condvar, Mutex};
 
 fn updates_path(name: &str) -> PathBuf {
@@ -133,7 +133,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 
 	let mut conf = {
 		let args = std::env::args().collect::<Vec<_>>();
-		parity::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
+		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
 	if let Some(spec_override) = take_spec_name_override() {

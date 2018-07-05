@@ -17,7 +17,7 @@
 //! Note that all the structs and functions here are documented in `parity.h`, to avoid
 //! duplicating documentation.
 
-extern crate parity;
+extern crate parity_ethereum;
 
 use std::os::raw::{c_char, c_void, c_int};
 use std::panic;
@@ -56,7 +56,7 @@ pub extern fn parity_config_from_cli(args: *const *const c_char, args_lens: *con
 				args
 			};
 
-			match parity::Configuration::parse_cli(&args) {
+			match parity_ethereum::Configuration::parse_cli(&args) {
 				Ok(mut cfg) => {
 					// Always disable the auto-updater when used as a library.
 					cfg.args.arg_auto_update = "none".to_owned();
@@ -77,7 +77,7 @@ pub extern fn parity_config_from_cli(args: *const *const c_char, args_lens: *con
 pub extern fn parity_config_destroy(cfg: *mut c_void) {
 	unsafe {
 		let _ = panic::catch_unwind(|| {
-			let _cfg = Box::from_raw(cfg as *mut parity::Configuration);
+			let _cfg = Box::from_raw(cfg as *mut parity_ethereum::Configuration);
 		});
 	}
 }
@@ -89,7 +89,7 @@ pub extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_void) -
 			*output = ptr::null_mut();
 			let cfg: &ParityParams = &*cfg;
 
-			let config = Box::from_raw(cfg.configuration as *mut parity::Configuration);
+			let config = Box::from_raw(cfg.configuration as *mut parity_ethereum::Configuration);
 
 			let on_client_restart_cb = {
 				struct Cb(Option<extern "C" fn(*mut c_void, *const c_char, usize)>, *mut c_void);
@@ -106,16 +106,16 @@ pub extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_void) -
 				move |new_chain: String| { cb.call(new_chain); }
 			};
 
-			let action = match parity::start(*config, on_client_restart_cb, || {}) {
+			let action = match parity_ethereum::start(*config, on_client_restart_cb, || {}) {
 				Ok(action) => action,
 				Err(_) => return 1,
 			};
 
 			match action {
-				parity::ExecutionAction::Instant(Some(s)) => { println!("{}", s); 0 },
-				parity::ExecutionAction::Instant(None) => 0,
-				parity::ExecutionAction::Running(client) => {
-					*output = Box::into_raw(Box::<parity::RunningClient>::new(client)) as *mut c_void;
+				parity_ethereum::ExecutionAction::Instant(Some(s)) => { println!("{}", s); 0 },
+				parity_ethereum::ExecutionAction::Instant(None) => 0,
+				parity_ethereum::ExecutionAction::Running(client) => {
+					*output = Box::into_raw(Box::<parity_ethereum::RunningClient>::new(client)) as *mut c_void;
 					0
 				}
 			}
@@ -127,7 +127,7 @@ pub extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_void) -
 pub extern fn parity_destroy(client: *mut c_void) {
 	unsafe {
 		let _ = panic::catch_unwind(|| {
-			let client = Box::from_raw(client as *mut parity::RunningClient);
+			let client = Box::from_raw(client as *mut parity_ethereum::RunningClient);
 			client.shutdown();
 		});
 	}
@@ -137,7 +137,7 @@ pub extern fn parity_destroy(client: *mut c_void) {
 pub extern fn parity_rpc(client: *mut c_void, query: *const char, len: usize, out_str: *mut c_char, out_len: *mut usize) -> c_int {
 	unsafe {
 		panic::catch_unwind(|| {
-			let client: &mut parity::RunningClient = &mut *(client as *mut parity::RunningClient);
+			let client: &mut parity_ethereum::RunningClient = &mut *(client as *mut parity_ethereum::RunningClient);
 
 			let query_str = {
 				let string = slice::from_raw_parts(query as *const u8, len);

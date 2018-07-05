@@ -103,7 +103,7 @@ impl Configuration {
 	/// # Example
 	///
 	/// ```
-	/// let _cfg = parity::Configuration::parse_cli(&["--light", "--chain", "koven"]).unwrap();
+	/// let _cfg = parity_ethereum::Configuration::parse_cli(&["--light", "--chain", "koven"]).unwrap();
 	/// ```
 	pub fn parse_cli<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 		let config = Configuration {
