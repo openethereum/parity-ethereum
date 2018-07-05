@@ -30,7 +30,7 @@ itertools = "0.5"
 bincode = "0.8.0"
 serde = "1.0"
 serde_derive = "1.0"
-parking_lot = "0.5"
+parking_lot = "0.6"
 stats = { path = "../../util/stats" }
 keccak-hash = { path = "../../util/hash" }
 keccak-hasher = { path = "../../util/keccak-hasher" }

@@ -612,11 +612,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
-		let block_number = self.client.chain_info().best_block_number;
-
 		Box::new(future::ok(match num {
 			BlockNumber::Pending =>
-				self.miner.pending_transactions(block_number).map(|x| x.len().into()),
+				Some(self.miner.pending_transaction_hashes(&*self.client).len().into()),
 			_ =>
 				self.client.block(block_number_to_id(num)).map(|block| block.transactions_count().into())
 		}))
