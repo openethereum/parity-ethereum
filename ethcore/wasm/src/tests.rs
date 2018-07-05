@@ -47,8 +47,8 @@ macro_rules! reqrep_test {
 			fake_ext.info = $info;
 			fake_ext.blockhashes = $block_hashes;
 
-			let mut interpreter = wasm_interpreter();
-			interpreter.exec(params, &mut fake_ext)
+			let mut interpreter = wasm_interpreter(params);
+			interpreter.exec(&mut fake_ext)
 				.map(|result| match result {
 					GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
 					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -65,8 +65,8 @@ fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
 	}
 }
 
-fn wasm_interpreter() -> WasmInterpreter {
-	WasmInterpreter
+fn wasm_interpreter(params: ActionParams) -> WasmInterpreter {
+	WasmInterpreter::new(params)
 }
 
 /// Empty contract does almost nothing except producing 1 (one) local node debug log message
@@ -82,8 +82,8 @@ fn empty() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
+		let mut interpreter = wasm_interpreter(params);
+		test_finalize(interpreter.exec(&mut ext)).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(96_926));
@@ -111,8 +111,8 @@ fn logger() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
+		let mut interpreter = wasm_interpreter(params);
+		test_finalize(interpreter.exec(&mut ext)).unwrap()
 	};
 
 	let address_val: H256 = address.into();
@@ -160,8 +160,8 @@ fn identity() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Identity contract should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -195,8 +195,8 @@ fn dispersion() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Dispersion routine should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -223,8 +223,8 @@ fn suicide_not() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Suicidal contract should return payload when had not actualy killed himself"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -256,8 +256,8 @@ fn suicide() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas) => gas,
 			GasLeft::NeedsReturn { .. } => {
@@ -283,8 +283,8 @@ fn create() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas) => gas,
 			GasLeft::NeedsReturn { .. } => {
@@ -328,8 +328,8 @@ fn call_msg() {
 	ext.balances.insert(receiver.clone(), U256::from(10000000000u64));
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas_left) => gas_left,
 			GasLeft::NeedsReturn { .. } => { panic!("Call test should not return payload"); },
@@ -370,8 +370,8 @@ fn call_code() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Call test should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -417,8 +417,8 @@ fn call_static() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Static call test should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -457,8 +457,8 @@ fn realloc() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("Realloc should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -479,8 +479,8 @@ fn alloc() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("alloc test should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -506,8 +506,8 @@ fn storage_read() {
 	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -532,8 +532,8 @@ fn keccak() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("keccak should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -679,8 +679,8 @@ fn storage_metering() {
 	]);
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
+		let mut interpreter = wasm_interpreter(params);
+		test_finalize(interpreter.exec(&mut ext)).unwrap()
 	};
 
 	// 0 -> not 0
@@ -698,8 +698,8 @@ fn storage_metering() {
 	]);
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
+		let mut interpreter = wasm_interpreter(params);
+		test_finalize(interpreter.exec(&mut ext)).unwrap()
 	};
 
 	// not 0 -> not 0
@@ -808,8 +808,8 @@ fn embedded_keccak() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("keccak should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -836,8 +836,8 @@ fn events() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("events should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -876,8 +876,8 @@ fn recursive() {
 
 	let mut ext = FakeExt::new().with_wasm();
 
-	let mut interpreter = wasm_interpreter();
-	let result = interpreter.exec(params, &mut ext);
+	let mut interpreter = wasm_interpreter(params);
+	let result = interpreter.exec(&mut ext);
 
 	// We expect that stack overflow will occur and it should be generated by
 	// deterministic stack metering. Exceeding deterministic stack height limit
