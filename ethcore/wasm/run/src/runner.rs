@@ -31,8 +31,8 @@ fn load_code<P: AsRef<path::Path>>(p: P) -> io::Result<Vec<u8>> {
 	Ok(result)
 }
 
-fn wasm_interpreter() -> WasmInterpreter {
-	WasmInterpreter
+fn wasm_interpreter(params: ActionParams) -> WasmInterpreter {
+	WasmInterpreter::new(params)
 }
 
 #[derive(Debug)]
@@ -131,7 +131,7 @@ pub fn construct(
 	params.params_type = ParamsType::Separate;
 
 	Ok(
-		match wasm_interpreter().exec(params, ext)? {
+		match wasm_interpreter(params).exec(ext)? {
 			GasLeft::Known(_) => Vec::new(),
 			GasLeft::NeedsReturn { data, .. } => data.to_vec(),
 		}
@@ -192,9 +192,9 @@ pub fn run_fixture(fixture: &Fixture) -> Vec<Fail> {
 		}
 	}
 
-	let mut interpreter = wasm_interpreter();
+	let mut interpreter = wasm_interpreter(params);
 
-	let interpreter_return = match interpreter.exec(params, &mut ext) {
+	let interpreter_return = match interpreter.exec(&mut ext) {
 		Ok(ret) => ret,
 		Err(e) => { return Fail::runtime(e); }
 	};
