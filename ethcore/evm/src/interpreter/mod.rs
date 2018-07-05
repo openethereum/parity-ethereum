@@ -237,7 +237,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				);
 
 				if instruction.is_none() {
-					try_or_done!(Err(vm::Error::BadInstruction {
+					return InterpreterResult::Done(Err(vm::Error::BadInstruction {
 						instruction: opcode
 					}));
 				}
@@ -298,20 +298,20 @@ impl<Cost: CostType> Interpreter<Cost> {
 					},
 					InstructionResult::StopExecutionNeedsReturn {gas, init_off, init_size, apply} => {
 						let mem = mem::replace(&mut self.mem, Vec::new());
-						try_or_done!(Ok(GasLeft::NeedsReturn {
+						return InterpreterResult::Done(Ok(GasLeft::NeedsReturn {
 							gas_left: gas.as_u256(),
 							data: mem.into_return_data(init_off, init_size),
 							apply_state: apply
 						}));
 					},
 					InstructionResult::StopExecution => {
-						try_or_done!(Ok(GasLeft::Known(self.gasometer.current_gas.as_u256())));
+						return InterpreterResult::Done(Ok(GasLeft::Known(self.gasometer.current_gas.as_u256())));
 					},
 					_ => {},
 				}
 
 				if self.reader.position >= self.reader.len() {
-					try_or_done!(Ok(GasLeft::Known(self.gasometer.current_gas.as_u256())));
+					return InterpreterResult::Done(Ok(GasLeft::Known(self.gasometer.current_gas.as_u256())));
 				}
 
 				InterpreterResult::Continue
@@ -1061,12 +1061,11 @@ mod tests {
 	use rustc_hex::FromHex;
 	use vmtype::VMType;
 	use factory::Factory;
-	use vm::{Vm, ActionParams, ActionValue};
+	use vm::{self, Vm, ActionParams, ActionValue};
 	use vm::tests::{FakeExt, test_finalize};
-	use ethereum_types::U256;
 
-	fn interpreter(gas: &U256) -> Box<Vm> {
-		Factory::new(VMType::Interpreter, 1).create(gas)
+	fn interpreter(params: ActionParams, ext: &vm::Ext) -> Box<Vm> {
+		Factory::new(VMType::Interpreter, 1).create(params, ext).unwrap()
 	}
 
 	#[test]
@@ -1084,8 +1083,8 @@ mod tests {
 		ext.tracing = true;
 
 		let gas_left = {
-			let mut vm = interpreter(&params.gas);
-			test_finalize(vm.exec(params, &mut ext)).unwrap()
+			let mut vm = interpreter(params, &ext);
+			test_finalize(vm.exec(&mut ext)).unwrap()
 		};
 
 		assert_eq!(ext.calls.len(), 1);
@@ -1106,8 +1105,8 @@ mod tests {
 		ext.tracing = true;
 
 		let err = {
-			let mut vm = interpreter(&params.gas);
-			test_finalize(vm.exec(params, &mut ext)).err().unwrap()
+			let mut vm = interpreter(params, &ext);
+			test_finalize(vm.exec(&mut ext)).err().unwrap()
 		};
 
 		assert_eq!(err, ::vm::Error::OutOfBounds);

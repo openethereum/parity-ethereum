@@ -69,7 +69,12 @@ impl Default for Factory {
 
 #[test]
 fn test_create_vm() {
-	let _vm = Factory::default().create(&U256::zero());
+	use vm::tests::FakeExt;
+	use bytes::Bytes;
+
+	let mut params = ActionParams::default();
+	params.code = Some(Arc::new(Bytes::default()));
+	let _vm = Factory::default().create(params, &FakeExt::new());
 }
 
 /// Create tests by injecting different VM factories
