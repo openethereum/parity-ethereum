@@ -274,11 +274,20 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(&params, &machine.schedule(0u64.into()));
-			let res = evm.exec(params, &mut ex);
-			// a return in finalize will not alter callcreates
-			let callcreates = ex.callcreates.clone();
-			(res.finalize(ex), callcreates)
+			let evm = vm_factory.create(params, &ex);
+			match evm {
+				Ok(mut evm) => {
+					let res = evm.exec(&mut ex);
+					// a return in finalize will not alter callcreates
+					let callcreates = ex.callcreates.clone();
+					(res.finalize(ex), callcreates)
+				},
+				Err(e) => {
+					// a return in finalize will not alter callcreates
+					let callcreates = ex.callcreates.clone();
+					(e.finalize(ex), callcreates)
+				}
+			}
 		};
 
 		let log_hash = {
