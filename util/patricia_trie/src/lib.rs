@@ -18,6 +18,7 @@
 extern crate elastic_array;
 extern crate ethcore_bytes as bytes;
 extern crate hashdb;
+extern crate heapsize;
 extern crate rand;
 #[macro_use]
 extern crate log;
@@ -277,8 +278,8 @@ impl<'db, H: Hasher, C: NodeCodec<H>> Trie<H, C> for TrieKinds<'db, H, C> {
 }
 
 impl<'db, H, C> TrieFactory<H, C>
-where 
-	H: Hasher, 
+where
+	H: Hasher,
 	C: NodeCodec<H> + 'db
 {
 	/// Creates new factory.
