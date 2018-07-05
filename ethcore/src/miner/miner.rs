@@ -16,7 +16,7 @@
 
 use std::cmp;
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -25,6 +25,7 @@ use engines::{EthEngine, Seal};
 use error::{Error, ErrorKind, ExecutionError};
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
+#[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
@@ -201,6 +202,7 @@ pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
 	sealing: Mutex<SealingWork>,
 	params: RwLock<AuthoringParams>,
+	#[cfg(feature = "work-notify")]
 	listeners: RwLock<Vec<Box<NotifyWork>>>,
 	nonce_cache: NonceCache,
 	gas_pricer: Mutex<GasPricer>,
@@ -213,6 +215,7 @@ pub struct Miner {
 
 impl Miner {
 	/// Push listener that will handle new jobs
+	#[cfg(feature = "work-notify")]
 	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
 		self.listeners.write().push(notifier);
 		self.sealing.lock().enabled = true;
@@ -240,6 +243,7 @@ impl Miner {
 				last_request: None,
 			}),
 			params: RwLock::new(AuthoringParams::default()),
+			#[cfg(feature = "work-notify")]
 			listeners: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
 			nonce_cache: NonceCache::new(nonce_cache_size),
@@ -493,7 +497,14 @@ impl Miner {
 	/// 1. --force-sealing CLI parameter is provided
 	/// 2. There are listeners awaiting new work packages (e.g. remote work notifications or stratum).
 	fn forced_sealing(&self) -> bool {
-		self.options.force_sealing || !self.listeners.read().is_empty()
+		let listeners_empty = {
+			#[cfg(feature = "work-notify")]
+			{ self.listeners.read().is_empty() }
+			#[cfg(not(feature = "work-notify"))]
+			{ true }
+		};
+
+		self.options.force_sealing || !listeners_empty
 	}
 
 	/// Check is reseal is allowed and necessary.
@@ -641,9 +652,13 @@ impl Miner {
 				let is_new = original_work_hash.map_or(true, |h| h != block_hash);
 
 				sealing.queue.push(block);
-				// If push notifications are enabled we assume all work items are used.
-				if is_new && !self.listeners.read().is_empty() {
-					sealing.queue.use_last_ref();
+
+				#[cfg(feature = "work-notify")]
+				{
+					// If push notifications are enabled we assume all work items are used.
+					if is_new && !self.listeners.read().is_empty() {
+						sealing.queue.use_last_ref();
+					}
 				}
 
 				(Some((block_hash, *block_header.difficulty(), block_header.number())), is_new)
@@ -657,12 +672,23 @@ impl Miner {
 			);
 			(work, is_new)
 		};
-		if is_new {
-			work.map(|(pow_hash, difficulty, number)| {
-				for notifier in self.listeners.read().iter() {
-					notifier.notify(pow_hash, difficulty, number)
-				}
-			});
+
+		#[cfg(feature = "work-notify")]
+		{
+			if is_new {
+				work.map(|(pow_hash, difficulty, number)| {
+					for notifier in self.listeners.read().iter() {
+						notifier.notify(pow_hash, difficulty, number)
+					}
+				});
+			}
+		}
+
+		// NB: hack to use variables to avoid warning.
+		#[cfg(not(feature = "work-notify"))]
+		{
+			let _work = work;
+			let _is_new = is_new;
 		}
 	}
 
@@ -851,6 +877,37 @@ impl miner::MinerService for Miner {
 
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.transaction_queue.all_transactions()
+	}
+
+	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+		C: ChainInfo + Sync,
+	{
+		let chain_info = chain.chain_info();
+
+		let from_queue = || self.transaction_queue.pending_hashes(
+			|sender| self.nonce_cache.read().get(sender).cloned(),
+		);
+
+		let from_pending = || {
+			self.map_existing_pending_block(|sealing| {
+				sealing.transactions()
+					.iter()
+					.map(|signed| signed.hash())
+					.collect()
+			}, chain_info.best_block_number)
+		};
+
+		match self.options.pending_set {
+			PendingSet::AlwaysQueue => {
+				from_queue()
+			},
+			PendingSet::AlwaysSealing => {
+				from_pending().unwrap_or_default()
+			},
+			PendingSet::SealingOrElseQueue => {
+				from_pending().unwrap_or_else(from_queue)
+			},
+		}
 	}
 
 	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: miner::PendingOrdering)
@@ -1418,6 +1475,7 @@ mod tests {
 		assert!(!miner.is_currently_sealing());
 	}
 
+	#[cfg(feature = "work-notify")]
 	#[test]
 	fn should_mine_if_fetch_work_request() {
 		struct DummyNotifyWork;

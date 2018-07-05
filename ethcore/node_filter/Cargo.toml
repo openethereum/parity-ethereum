@@ -12,7 +12,7 @@ ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethereum-types = "0.3"
 log = "0.3"
-parking_lot = "0.5"
+parking_lot = "0.6"
 ethabi = "5.1"
 ethabi-derive = "5.0"
 ethabi-contract = "5.0"

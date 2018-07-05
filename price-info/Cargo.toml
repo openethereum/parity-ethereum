@@ -15,5 +15,5 @@ serde_json = "1.0"
 
 [dev-dependencies]
 hyper = "0.11"
-parking_lot = "0.5"
+parking_lot = "0.6"
 fake-fetch = { path = "../util/fake-fetch" }
