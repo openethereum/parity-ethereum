@@ -384,7 +384,6 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		trace_time!("sync::read");
 		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer, packet_id, data);
 	}
 
