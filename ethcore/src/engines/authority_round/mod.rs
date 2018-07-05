@@ -1114,6 +1114,15 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
 			Err(BlockError::InvalidSeal) => {
+				// This check runs in Phase 1 where there is no guarantee that the parent block is
+				// already imported, therefore the call to `epoch_set` may fail. In that case we
+				// won't report the misbehavior but this is not a concern because:
+				// - Only authorities can report and it's expected that they'll be up-to-date and
+				//   importing, therefore the parent header will most likely be available
+				// - Even if you are an authority that is syncing the chain, the contract will most
+				//   likely ignore old reports
+				// - This specific check is only relevant if you're importing (since it checks
+				//   against wall clock)
 				if let Ok((_, set_number)) = self.epoch_set(header) {
 					self.validators.report_benign(header.author(), set_number, header.number());
 				}
