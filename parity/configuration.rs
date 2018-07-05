@@ -759,7 +759,7 @@ impl Configuration {
 		ret.client_version = {
 			let mut client_version = version();
 			if !self.args.arg_identity.is_empty() {
-				// Insert name after the "Parity/" at the beginning of version string.
+				// Insert name after the "Parity-Ethereum/" at the beginning of version string.
 				let idx = client_version.find('/').unwrap_or(client_version.len());
 				client_version.insert_str(idx, &format!("/{}", self.args.arg_identity));
 			}
@@ -1809,7 +1809,7 @@ mod tests {
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.name, "Somebody");
-				assert!(c.net_conf.client_version.starts_with("Parity/Somebody/"));
+				assert!(c.net_conf.client_version.starts_with("Parity-Ethereum/Somebody/"));
 			}
 			_ => panic!("Should be Cmd::Run"),
 		}
