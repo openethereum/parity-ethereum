@@ -157,14 +157,13 @@ pub struct Interpreter<Cost: CostType> {
 	reader: CodeReader,
 	return_data: ReturnData,
 	informant: informant::EvmInformant,
+	do_trace: bool,
 	_type: PhantomData<Cost>,
 }
 
 impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 	fn exec(&mut self, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
 		self.mem.clear();
-
-		let mut do_trace = true;
 
 		let mut valid_jump_destinations = None;
 
@@ -177,7 +176,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			self.reader.position += 1;
 
 			// TODO: make compile-time removable if too much of a performance hit.
-			do_trace = do_trace && ext.trace_next_instruction(
+			self.do_trace = self.do_trace && ext.trace_next_instruction(
 				self.reader.position - 1, opcode, gasometer.current_gas.as_u256(),
 			);
 
@@ -193,7 +192,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 
 			// Calculate gas cost
 			let requirements = gasometer.requirements(ext, instruction, info, &stack, self.mem.size())?;
-			if do_trace {
+			if self.do_trace {
 				ext.trace_prepare_execute(self.reader.position - 1, opcode, requirements.gas_cost.as_u256());
 			}
 
@@ -204,7 +203,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 
 			evm_debug!({ informant.before_instruction(reader.position, instruction, info, &gasometer.current_gas, &stack) });
 
-			let (mem_written, store_written) = match do_trace {
+			let (mem_written, store_written) = match self.do_trace {
 				true => (Self::mem_written(instruction, &stack), Self::store_written(instruction, &stack)),
 				false => (None, None),
 			};
@@ -220,7 +219,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 				gasometer.current_gas = gasometer.current_gas + *gas;
 			}
 
-			if do_trace {
+			if self.do_trace {
 				ext.trace_executed(
 					gasometer.current_gas.as_u256(),
 					stack.peek_top(info.ret),
@@ -267,6 +266,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 		Interpreter {
 			cache, params, reader, informant,
+			do_trace: true,
 			mem: Vec::new(),
 			return_data: ReturnData::empty(),
 			_type: PhantomData,
