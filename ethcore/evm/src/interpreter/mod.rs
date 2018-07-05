@@ -227,6 +227,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 		let result = {
 			let mut inner = || {
+				// This case is needed because code length can be zero.
+				if self.reader.position >= self.reader.len() {
+					return InterpreterResult::Done(Ok(GasLeft::Known(self.gasometer.current_gas.as_u256())));
+				}
+
 				let opcode = self.reader.code[self.reader.position];
 				let instruction = Instruction::from_u8(opcode);
 				self.reader.position += 1;
