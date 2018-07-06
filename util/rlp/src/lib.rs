@@ -43,8 +43,8 @@ mod rlpin;
 mod stream;
 mod impls;
 
-use std::borrow::Borrow;
 use elastic_array::ElasticArray1024;
+use std::borrow::Borrow;
 
 pub use error::DecoderError;
 pub use traits::{Decodable, Encodable};

@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, HashSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -24,6 +25,7 @@ use engines::{EthEngine, Seal};
 use error::{Error, ErrorKind, ExecutionError};
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
+#[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
@@ -46,7 +48,7 @@ use client::BlockId;
 use executive::contract_address;
 use header::{Header, BlockNumber};
 use miner;
-use miner::pool_client::{PoolClient, CachedNonceClient};
+use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use state::State;
@@ -200,8 +202,9 @@ pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
 	sealing: Mutex<SealingWork>,
 	params: RwLock<AuthoringParams>,
+	#[cfg(feature = "work-notify")]
 	listeners: RwLock<Vec<Box<NotifyWork>>>,
-	nonce_cache: RwLock<HashMap<Address, U256>>,
+	nonce_cache: NonceCache,
 	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
@@ -212,6 +215,7 @@ pub struct Miner {
 
 impl Miner {
 	/// Push listener that will handle new jobs
+	#[cfg(feature = "work-notify")]
 	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
 		self.listeners.write().push(notifier);
 		self.sealing.lock().enabled = true;
@@ -227,6 +231,7 @@ impl Miner {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
+		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -238,9 +243,10 @@ impl Miner {
 				last_request: None,
 			}),
 			params: RwLock::new(AuthoringParams::default()),
+			#[cfg(feature = "work-notify")]
 			listeners: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
-			nonce_cache: RwLock::new(HashMap::with_capacity(1024)),
+			nonce_cache: NonceCache::new(nonce_cache_size),
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts,
@@ -491,7 +497,14 @@ impl Miner {
 	/// 1. --force-sealing CLI parameter is provided
 	/// 2. There are listeners awaiting new work packages (e.g. remote work notifications or stratum).
 	fn forced_sealing(&self) -> bool {
-		self.options.force_sealing || !self.listeners.read().is_empty()
+		let listeners_empty = {
+			#[cfg(feature = "work-notify")]
+			{ self.listeners.read().is_empty() }
+			#[cfg(not(feature = "work-notify"))]
+			{ true }
+		};
+
+		self.options.force_sealing || !listeners_empty
 	}
 
 	/// Check is reseal is allowed and necessary.
@@ -639,9 +652,13 @@ impl Miner {
 				let is_new = original_work_hash.map_or(true, |h| h != block_hash);
 
 				sealing.queue.push(block);
-				// If push notifications are enabled we assume all work items are used.
-				if is_new && !self.listeners.read().is_empty() {
-					sealing.queue.use_last_ref();
+
+				#[cfg(feature = "work-notify")]
+				{
+					// If push notifications are enabled we assume all work items are used.
+					if is_new && !self.listeners.read().is_empty() {
+						sealing.queue.use_last_ref();
+					}
 				}
 
 				(Some((block_hash, *block_header.difficulty(), block_header.number())), is_new)
@@ -655,12 +672,23 @@ impl Miner {
 			);
 			(work, is_new)
 		};
-		if is_new {
-			work.map(|(pow_hash, difficulty, number)| {
-				for notifier in self.listeners.read().iter() {
-					notifier.notify(pow_hash, difficulty, number)
-				}
-			});
+
+		#[cfg(feature = "work-notify")]
+		{
+			if is_new {
+				work.map(|(pow_hash, difficulty, number)| {
+					for notifier in self.listeners.read().iter() {
+						notifier.notify(pow_hash, difficulty, number)
+					}
+				});
+			}
+		}
+
+		// NB: hack to use variables to avoid warning.
+		#[cfg(not(feature = "work-notify"))]
+		{
+			let _work = work;
+			let _is_new = is_new;
 		}
 	}
 
@@ -849,6 +877,37 @@ impl miner::MinerService for Miner {
 
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.transaction_queue.all_transactions()
+	}
+
+	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+		C: ChainInfo + Sync,
+	{
+		let chain_info = chain.chain_info();
+
+		let from_queue = || self.transaction_queue.pending_hashes(
+			|sender| self.nonce_cache.get(sender),
+		);
+
+		let from_pending = || {
+			self.map_existing_pending_block(|sealing| {
+				sealing.transactions()
+					.iter()
+					.map(|signed| signed.hash())
+					.collect()
+			}, chain_info.best_block_number)
+		};
+
+		match self.options.pending_set {
+			PendingSet::AlwaysQueue => {
+				from_queue()
+			},
+			PendingSet::AlwaysSealing => {
+				from_pending().unwrap_or_default()
+			},
+			PendingSet::SealingOrElseQueue => {
+				from_pending().unwrap_or_else(from_queue)
+			},
+		}
 	}
 
 	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: miner::PendingOrdering)
@@ -1065,14 +1124,19 @@ impl miner::MinerService for Miner {
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
 		//    are in those blocks
 
-		// Clear nonce cache
-		self.nonce_cache.write().clear();
+		let has_new_best_block = enacted.len() > 0;
+
+		if has_new_best_block {
+			// Clear nonce cache
+			self.nonce_cache.clear();
+		}
 
 		// First update gas limit in transaction queue and minimal gas price.
 		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
 
-		// Then import all transactions...
+
+		// Then import all transactions from retracted blocks.
 		let client = self.pool_client(chain);
 		{
 			retracted
@@ -1091,10 +1155,7 @@ impl miner::MinerService for Miner {
 				});
 		}
 
-		// ...and at the end remove the old ones
-		self.transaction_queue.cull(client);
-
-		if enacted.len() > 0 || (imported.len() > 0 && self.options.reseal_on_uncle) {
+		if has_new_best_block || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// Reset `next_allowed_reseal` in case a block is imported.
 			// Even if min_period is high, we will always attempt to create
 			// new pending block.
@@ -1107,6 +1168,15 @@ impl miner::MinerService for Miner {
 				// --------------------------------------------------------------------------
 				self.update_sealing(chain);
 			}
+		}
+
+		if has_new_best_block {
+			// Make sure to cull transactions after we update sealing.
+			// Not culling won't lead to old transactions being added to the block
+			// (thanks to Ready), but culling can take significant amount of time,
+			// so best to leave it after we create some work for miners to prevent increased
+			// uncle rate.
+			self.transaction_queue.cull(client);
 		}
 	}
 
@@ -1405,6 +1475,7 @@ mod tests {
 		assert!(!miner.is_currently_sealing());
 	}
 
+	#[cfg(feature = "work-notify")]
 	#[test]
 	fn should_mine_if_fetch_work_request() {
 		struct DummyNotifyWork;

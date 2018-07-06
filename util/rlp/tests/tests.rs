@@ -423,4 +423,3 @@ fn test_rlp_stream_unbounded_list() {
 	stream.complete_unbounded_list();
 	assert!(stream.is_finished());
 }
-

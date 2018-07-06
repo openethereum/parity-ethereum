@@ -44,6 +44,7 @@ pub struct HttpConfiguration {
 	pub hosts: Option<Vec<String>>,
 	pub server_threads: usize,
 	pub processing_threads: usize,
+	pub max_payload: usize,
 }
 
 impl Default for HttpConfiguration {
@@ -57,6 +58,7 @@ impl Default for HttpConfiguration {
 			hosts: Some(vec![]),
 			server_threads: 1,
 			processing_threads: 4,
+			max_payload: 5,
 		}
 	}
 }
@@ -221,6 +223,7 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		remote,
 		rpc::RpcExtractor,
 		conf.server_threads,
+		conf.max_payload,
 	);
 
 	match start_result {

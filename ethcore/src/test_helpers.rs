@@ -17,7 +17,8 @@
 //! Set of different helpers for client tests
 
 use std::path::Path;
-use std::fs;
+use std::sync::Arc;
+use std::{fs, io};
 use account_provider::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
@@ -25,7 +26,6 @@ use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockC
 use bytes::Bytes;
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethkey::KeyPair;
-use error::Error;
 use evm::Factory as EvmFactory;
 use factory::Factories;
 use hash::keccak;
@@ -37,7 +37,6 @@ use rlp::{self, RlpStream};
 use spec::Spec;
 use state_db::StateDB;
 use state::*;
-use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
 use blooms_db;
@@ -327,7 +326,7 @@ pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<Block
 	}
 
 	impl BlockChainDBHandler for RestorationDBHandler {
-		fn open(&self, db_path: &Path) -> Result<Arc<BlockChainDB>, Error> {
+		fn open(&self, db_path: &Path) -> io::Result<Arc<BlockChainDB>> {
 			let key_value = Arc::new(kvdb_rocksdb::Database::open(&self.config, &db_path.to_string_lossy())?);
 			let blooms_path = db_path.join("blooms");
 			let trace_blooms_path = db_path.join("trace_blooms");

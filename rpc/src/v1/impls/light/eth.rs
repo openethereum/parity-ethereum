@@ -16,6 +16,7 @@
 
 //! Eth RPC interface for the light client.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -41,7 +42,7 @@ use transaction::SignedTransaction;
 
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};
-use v1::helpers::{PollFilter, PollManager};
+use v1::helpers::{SyncPollFilter, PollManager};
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
@@ -61,7 +62,7 @@ pub struct EthClient<T> {
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<AccountProvider>,
 	cache: Arc<Mutex<LightDataCache>>,
-	polls: Mutex<PollManager<PollFilter>>,
+	polls: Mutex<PollManager<SyncPollFilter>>,
 	poll_lifetime: u32,
 	gas_price_percentile: usize,
 }
@@ -537,8 +538,8 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id)
 	}
 
-	fn pending_transactions_hashes(&self) -> Vec<::ethereum_types::H256> {
-		Vec::new()
+	fn pending_transaction_hashes(&self) -> BTreeSet<::ethereum_types::H256> {
+		BTreeSet::new()
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
@@ -549,7 +550,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		Vec::new() // light clients don't mine.
 	}
 
-	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
+	fn polls(&self) -> &Mutex<PollManager<SyncPollFilter>> {
 		&self.polls
 	}
 

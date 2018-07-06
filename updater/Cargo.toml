@@ -18,7 +18,7 @@ ethcore = { path = "../ethcore" }
 ethcore-bytes = { path = "../util/bytes" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.3"
-parking_lot = "0.5"
+parking_lot = "0.6"
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-version = { path = "../util/version" }
 path = { path = "../util/path" }

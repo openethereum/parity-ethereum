@@ -19,17 +19,19 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use heapsize::HeapSizeOf;
-use rlp::{encode, decode};
+
+use bytes::Bytes;
+use error::{BaseDataError, UtilError};
+use ethereum_types::H256;
 use hashdb::*;
+use heapsize::HeapSizeOf;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
 use memorydb::*;
+use parking_lot::RwLock;
+use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::H256;
-use error::{BaseDataError, UtilError};
-use bytes::Bytes;
 use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,7 +107,7 @@ enum RemoveFrom {
 ///
 /// TODO: `store_reclaim_period`
 pub struct EarlyMergeDB {
-	overlay: MemoryDB,
+	overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
 	latest_era: Option<u64>,
@@ -285,7 +287,7 @@ impl EarlyMergeDB {
 	}
 }
 
-impl HashDB for EarlyMergeDB {
+impl HashDB<KeccakHasher> for EarlyMergeDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -512,7 +514,7 @@ impl JournalDB for EarlyMergeDB {
 		Ok(ops)
 	}
 
-	fn consolidate(&mut self, with: MemoryDB) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
 		self.overlay.consolidate(with);
 	}
 }

@@ -29,14 +29,15 @@ use parking_lot::Mutex;
 use ethereum_types::{Address, H256};
 use memorydb::MemoryDB;
 use hashdb::{AsHashDB, HashDB, DBValue};
+use keccak_hasher::KeccakHasher;
 
 /// State backend. See module docs for more details.
 pub trait Backend: Send {
 	/// Treat the backend as a read-only hashdb.
-	fn as_hashdb(&self) -> &HashDB;
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher>;
 
 	/// Treat the backend as a writeable hashdb.
-	fn as_hashdb_mut(&mut self) -> &mut HashDB;
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher>;
 
 	/// Add an account entry to the cache.
 	fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool);
@@ -75,18 +76,18 @@ pub trait Backend: Send {
 // TODO: when account lookup moved into backends, this won't rely as tenuously on intended
 // usage.
 #[derive(Clone, PartialEq)]
-pub struct ProofCheck(MemoryDB);
+pub struct ProofCheck(MemoryDB<KeccakHasher>);
 
 impl ProofCheck {
 	/// Create a new `ProofCheck` backend from the given state items.
 	pub fn new(proof: &[DBValue]) -> Self {
-		let mut db = MemoryDB::new();
+		let mut db = MemoryDB::<KeccakHasher>::new();
 		for item in proof { db.insert(item); }
 		ProofCheck(db)
 	}
 }
 
-impl HashDB for ProofCheck {
+impl HashDB<KeccakHasher> for ProofCheck {
 	fn keys(&self) -> HashMap<H256, i32> { self.0.keys() }
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		self.0.get(key)
@@ -107,9 +108,14 @@ impl HashDB for ProofCheck {
 	fn remove(&mut self, _key: &H256) { }
 }
 
+impl AsHashDB<KeccakHasher> for ProofCheck {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+
 impl Backend for ProofCheck {
-	fn as_hashdb(&self) -> &HashDB { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB { self }
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
 	fn add_to_account_cache(&mut self, _addr: Address, _data: Option<Account>, _modified: bool) {}
 	fn cache_code(&self, _hash: H256, _code: Arc<Vec<u8>>) {}
 	fn get_cached_account(&self, _addr: &Address) -> Option<Option<Account>> { None }
@@ -128,13 +134,18 @@ impl Backend for ProofCheck {
 /// The proof-of-execution can be extracted with `extract_proof`.
 ///
 /// This doesn't cache anything or rely on the canonical state caches.
-pub struct Proving<H: AsHashDB> {
+pub struct Proving<H: AsHashDB<KeccakHasher>> {
 	base: H, // state we're proving values from.
-	changed: MemoryDB, // changed state via insertions.
+	changed: MemoryDB<KeccakHasher>, // changed state via insertions.
 	proof: Mutex<HashSet<DBValue>>,
 }
 
-impl<H: AsHashDB + Send + Sync> HashDB for Proving<H> {
+impl<AH: AsHashDB<KeccakHasher> + Send + Sync> AsHashDB<KeccakHasher> for Proving<AH> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
+}
+
+impl<H: AsHashDB<KeccakHasher> + Send + Sync> HashDB<KeccakHasher> for Proving<H> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut keys = self.base.as_hashdb().keys();
 		keys.extend(self.changed.keys());
@@ -171,14 +182,10 @@ impl<H: AsHashDB + Send + Sync> HashDB for Proving<H> {
 	}
 }
 
-impl<H: AsHashDB + Send + Sync> Backend for Proving<H> {
-	fn as_hashdb(&self) -> &HashDB {
-		self
-	}
+impl<H: AsHashDB<KeccakHasher> + Send + Sync> Backend for Proving<H> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self }
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB {
-		self
-	}
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> { self }
 
 	fn add_to_account_cache(&mut self, _: Address, _: Option<Account>, _: bool) { }
 
@@ -197,13 +204,13 @@ impl<H: AsHashDB + Send + Sync> Backend for Proving<H> {
 	fn is_known_null(&self, _: &Address) -> bool { false }
 }
 
-impl<H: AsHashDB> Proving<H> {
+impl<H: AsHashDB<KeccakHasher>> Proving<H> {
 	/// Create a new `Proving` over a base database.
 	/// This will store all values ever fetched from that base.
 	pub fn new(base: H) -> Self {
 		Proving {
 			base: base,
-			changed: MemoryDB::new(),
+			changed: MemoryDB::<KeccakHasher>::new(),
 			proof: Mutex::new(HashSet::new()),
 		}
 	}
@@ -215,7 +222,7 @@ impl<H: AsHashDB> Proving<H> {
 	}
 }
 
-impl<H: AsHashDB + Clone> Clone for Proving<H> {
+impl<H: AsHashDB<KeccakHasher> + Clone> Clone for Proving<H> {
 	fn clone(&self) -> Self {
 		Proving {
 			base: self.base.clone(),
@@ -229,12 +236,12 @@ impl<H: AsHashDB + Clone> Clone for Proving<H> {
 /// it. Doesn't cache anything.
 pub struct Basic<H>(pub H);
 
-impl<H: AsHashDB + Send + Sync> Backend for Basic<H> {
-	fn as_hashdb(&self) -> &HashDB {
+impl<H: AsHashDB<KeccakHasher> + Send + Sync> Backend for Basic<H> {
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> {
 		self.0.as_hashdb()
 	}
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
 		self.0.as_hashdb_mut()
 	}
 

@@ -28,11 +28,10 @@ extern crate rocksdb;
 extern crate ethereum_types;
 extern crate kvdb;
 
-use std::cmp;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::{cmp, fs, io, mem, result, error};
 use std::path::Path;
-use std::{fs, mem, result};
 
 use parking_lot::{Mutex, MutexGuard, RwLock};
 use rocksdb::{
@@ -43,7 +42,7 @@ use interleaved_ordered::{interleave_ordered, InterleaveOrdered};
 
 use elastic_array::ElasticArray32;
 use fs_swap::{swap, swap_nonatomic};
-use kvdb::{KeyValueDB, DBTransaction, DBValue, DBOp, Result};
+use kvdb::{KeyValueDB, DBTransaction, DBValue, DBOp};
 
 #[cfg(target_os = "linux")]
 use regex::Regex;
@@ -53,6 +52,10 @@ use std::process::Command;
 use std::fs::File;
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
+
+fn other_io_err<E>(e: E) -> io::Error where E: Into<Box<error::Error + Send + Sync>> {
+	io::Error::new(io::ErrorKind::Other, e)
+}
 
 const DB_DEFAULT_MEMORY_BUDGET_MB: usize = 128;
 
@@ -221,22 +224,22 @@ struct DBAndColumns {
 }
 
 // get column family configuration from database config.
-fn col_config(config: &DatabaseConfig, block_opts: &BlockBasedOptions) -> Result<Options> {
+fn col_config(config: &DatabaseConfig, block_opts: &BlockBasedOptions) -> io::Result<Options> {
 	let mut opts = Options::new();
 
-	opts.set_parsed_options("level_compaction_dynamic_level_bytes=true")?;
+	opts.set_parsed_options("level_compaction_dynamic_level_bytes=true").map_err(other_io_err)?;
 
 	opts.set_block_based_table_factory(block_opts);
 
 	opts.set_parsed_options(
 		&format!("block_based_table_factory={{{};{}}}",
 				 "cache_index_and_filter_blocks=true",
-				 "pin_l0_filter_and_index_blocks_in_cache=true"))?;
+				 "pin_l0_filter_and_index_blocks_in_cache=true")).map_err(other_io_err)?;
 
 	opts.optimize_level_style_compaction(config.memory_budget_per_col() as i32);
 	opts.set_target_file_size_base(config.compaction.initial_file_size);
 
-	opts.set_parsed_options("compression_per_level=")?;
+	opts.set_parsed_options("compression_per_level=").map_err(other_io_err)?;
 
 	Ok(opts)
 }
@@ -259,7 +262,7 @@ pub struct Database {
 }
 
 #[inline]
-fn check_for_corruption<T, P: AsRef<Path>>(path: P, res: result::Result<T, String>) -> result::Result<T, String> {
+fn check_for_corruption<T, P: AsRef<Path>>(path: P, res: result::Result<T, String>) -> io::Result<T> {
 	if let Err(ref s) = res {
 		if s.starts_with("Corruption:") {
 			warn!("DB corrupted: {}. Repair will be triggered on next restart", s);
@@ -267,7 +270,7 @@ fn check_for_corruption<T, P: AsRef<Path>>(path: P, res: result::Result<T, Strin
 		}
 	}
 
-	res
+	res.map_err(other_io_err)
 }
 
 fn is_corrupted(s: &str) -> bool {
@@ -278,22 +281,22 @@ impl Database {
 	const CORRUPTION_FILE_NAME: &'static str = "CORRUPTED";
 
 	/// Open database with default settings.
-	pub fn open_default(path: &str) -> Result<Database> {
+	pub fn open_default(path: &str) -> io::Result<Database> {
 		Database::open(&DatabaseConfig::default(), path)
 	}
 
 	/// Open database file. Creates if it does not exist.
-	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database> {
+	pub fn open(config: &DatabaseConfig, path: &str) -> io::Result<Database> {
 		let mut opts = Options::new();
 
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
-			opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit))?;
+			opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit)).map_err(other_io_err)?;
 		}
 		opts.set_use_fsync(false);
 		opts.create_if_missing(true);
 		opts.set_max_open_files(config.max_open_files);
-		opts.set_parsed_options("keep_log_file_num=1")?;
-		opts.set_parsed_options("bytes_per_sync=1048576")?;
+		opts.set_parsed_options("keep_log_file_num=1").map_err(other_io_err)?;
+		opts.set_parsed_options("bytes_per_sync=1048576").map_err(other_io_err)?;
 		opts.set_db_write_buffer_size(config.memory_budget_per_col() / 2);
 		opts.increase_parallelism(cmp::max(1, ::num_cpus::get() as i32 / 2));
 
@@ -310,7 +313,7 @@ impl Database {
 		let db_corrupted = Path::new(path).join(Database::CORRUPTION_FILE_NAME);
 		if db_corrupted.exists() {
 			warn!("DB has been previously marked as corrupted, attempting repair");
-			DB::repair(&opts, path)?;
+			DB::repair(&opts, path).map_err(other_io_err)?;
 			fs::remove_file(db_corrupted)?;
 		}
 
@@ -344,7 +347,11 @@ impl Database {
 						// retry and create CFs
 						match DB::open_cf(&opts, path, &[], &[]) {
 							Ok(mut db) => {
-								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect::<::std::result::Result<_, _>>()?;
+								cfs = cfnames.iter()
+									.enumerate()
+									.map(|(i, n)| db.create_cf(n, &cf_options[i]))
+									.collect::<::std::result::Result<_, _>>()
+									.map_err(other_io_err)?;
 								Ok(db)
 							},
 							err => err,
@@ -359,19 +366,21 @@ impl Database {
 			Ok(db) => db,
 			Err(ref s) if is_corrupted(s) => {
 				warn!("DB corrupted: {}, attempting repair", s);
-				DB::repair(&opts, path)?;
+				DB::repair(&opts, path).map_err(other_io_err)?;
 
 				match cfnames.is_empty() {
-					true => DB::open(&opts, path)?,
+					true => DB::open(&opts, path).map_err(other_io_err)?,
 					false => {
-						let db = DB::open_cf(&opts, path, &cfnames, &cf_options)?;
+						let db = DB::open_cf(&opts, path, &cfnames, &cf_options).map_err(other_io_err)?;
 						cfs = cfnames.iter().map(|n| db.cf_handle(n)
 							.expect("rocksdb opens a cf_handle for each cfname; qed")).collect();
 						db
 					},
 				}
 			},
-			Err(s) => { return Err(s.into()); }
+			Err(s) => {
+				return Err(other_io_err(s))
+			}
 		};
 		let num_cols = cfs.len();
 		Ok(Database {
@@ -415,27 +424,27 @@ impl Database {
 	}
 
 	/// Commit buffered changes to database. Must be called under `flush_lock`
-	fn write_flushing_with_lock(&self, _lock: &mut MutexGuard<bool>) -> Result<()> {
+	fn write_flushing_with_lock(&self, _lock: &mut MutexGuard<bool>) -> io::Result<()> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let batch = WriteBatch::new();
 				mem::swap(&mut *self.overlay.write(), &mut *self.flushing.write());
 				{
 					for (c, column) in self.flushing.read().iter().enumerate() {
-						for (ref key, ref state) in column.iter() {
-							match **state {
+						for (key, state) in column.iter() {
+							match *state {
 								KeyState::Delete => {
 									if c > 0 {
-										batch.delete_cf(cfs[c - 1], &key)?;
+										batch.delete_cf(cfs[c - 1], key).map_err(other_io_err)?;
 									} else {
-										batch.delete(&key)?;
+										batch.delete(key).map_err(other_io_err)?;
 									}
 								},
 								KeyState::Insert(ref value) => {
 									if c > 0 {
-										batch.put_cf(cfs[c - 1], &key, value)?;
+										batch.put_cf(cfs[c - 1], key, value).map_err(other_io_err)?;
 									} else {
-										batch.put(&key, &value)?;
+										batch.put(key, value).map_err(other_io_err)?;
 									}
 								},
 							}
@@ -453,18 +462,18 @@ impl Database {
 				}
 				Ok(())
 			},
-			None => Err("Database is closed".into())
+			None => Err(other_io_err("Database is closed"))
 		}
 	}
 
 	/// Commit buffered changes to database.
-	pub fn flush(&self) -> Result<()> {
+	pub fn flush(&self) -> io::Result<()> {
 		let mut lock = self.flushing_lock.lock();
 		// If RocksDB batch allocation fails the thread gets terminated and the lock is released.
 		// The value inside the lock is used to detect that.
 		if *lock {
 			// This can only happen if another flushing thread is terminated unexpectedly.
-			return Err("Database write failure. Running low on memory perhaps?".into());
+			return Err(other_io_err("Database write failure. Running low on memory perhaps?"))
 		}
 		*lock = true;
 		let result = self.write_flushing_with_lock(&mut lock);
@@ -473,7 +482,7 @@ impl Database {
 	}
 
 	/// Commit transaction to database.
-	pub fn write(&self, tr: DBTransaction) -> Result<()> {
+	pub fn write(&self, tr: DBTransaction) -> io::Result<()> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let batch = WriteBatch::new();
@@ -483,25 +492,25 @@ impl Database {
 					self.overlay.write()[Self::to_overlay_column(op.col())].remove(op.key());
 
 					match op {
-						DBOp::Insert { col, key, value } => {
-							col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(cfs[c as usize], &key, &value))?
+						DBOp::Insert { col, key, value } => match col {
+							None => batch.put(&key, &value).map_err(other_io_err)?,
+							Some(c) => batch.put_cf(cfs[c as usize], &key, &value).map_err(other_io_err)?,
 						},
-						DBOp::Delete { col, key } => {
-							col.map_or_else(|| batch.delete(&key), |c| batch.delete_cf(cfs[c as usize], &key))?
-						},
+						DBOp::Delete { col, key } => match col {
+							None => batch.delete(&key).map_err(other_io_err)?,
+							Some(c) => batch.delete_cf(cfs[c as usize], &key).map_err(other_io_err)?,
+						}
 					}
 				}
 
-				check_for_corruption(
-					&self.path,
-					db.write_opt(batch, &self.write_opts)).map_err(Into::into)
+				check_for_corruption(&self.path, db.write_opt(batch, &self.write_opts))
 			},
-			None => Err("Database is closed".into())
+			None => Err(other_io_err("Database is closed")),
 		}
 	}
 
 	/// Get value by key.
-	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
+	pub fn get(&self, col: Option<u32>, key: &[u8]) -> io::Result<Option<DBValue>> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
@@ -517,7 +526,7 @@ impl Database {
 								col.map_or_else(
 									|| db.get_opt(key, &self.read_opts).map(|r| r.map(|v| DBValue::from_slice(&v))),
 									|c| db.get_cf_opt(cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| DBValue::from_slice(&v))))
-									.map_err(Into::into)
+									.map_err(other_io_err)
 							},
 						}
 					},
@@ -591,7 +600,7 @@ impl Database {
 	}
 
 	/// Restore the database from a copy at given path.
-	pub fn restore(&self, new_db: &str) -> Result<()> {
+	pub fn restore(&self, new_db: &str) -> io::Result<()> {
 		self.close();
 
 		// swap is guaranteed to be atomic
@@ -632,13 +641,13 @@ impl Database {
 	}
 
 	/// Drop a column family.
-	pub fn drop_column(&self) -> Result<()> {
+	pub fn drop_column(&self) -> io::Result<()> {
 		match *self.db.write() {
 			Some(DBAndColumns { ref mut db, ref mut cfs }) => {
 				if let Some(col) = cfs.pop() {
 					let name = format!("col{}", cfs.len());
 					drop(col);
-					db.drop_cf(&name)?;
+					db.drop_cf(&name).map_err(other_io_err)?;
 				}
 				Ok(())
 			},
@@ -647,12 +656,12 @@ impl Database {
 	}
 
 	/// Add a column family.
-	pub fn add_column(&self) -> Result<()> {
+	pub fn add_column(&self) -> io::Result<()> {
 		match *self.db.write() {
 			Some(DBAndColumns { ref mut db, ref mut cfs }) => {
 				let col = cfs.len() as u32;
 				let name = format!("col{}", col);
-				cfs.push(db.create_cf(&name, &col_config(&self.config, &self.block_opts)?)?);
+				cfs.push(db.create_cf(&name, &col_config(&self.config, &self.block_opts)?).map_err(other_io_err)?);
 				Ok(())
 			},
 			None => Ok(()),
@@ -663,7 +672,7 @@ impl Database {
 // duplicate declaration of methods here to avoid trait import in certain existing cases
 // at time of addition.
 impl KeyValueDB for Database {
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
+	fn get(&self, col: Option<u32>, key: &[u8]) -> io::Result<Option<DBValue>> {
 		Database::get(self, col, key)
 	}
 
@@ -675,11 +684,11 @@ impl KeyValueDB for Database {
 		Database::write_buffered(self, transaction)
 	}
 
-	fn write(&self, transaction: DBTransaction) -> Result<()> {
+	fn write(&self, transaction: DBTransaction) -> io::Result<()> {
 		Database::write(self, transaction)
 	}
 
-	fn flush(&self) -> Result<()> {
+	fn flush(&self) -> io::Result<()> {
 		Database::flush(self)
 	}
 
@@ -695,7 +704,7 @@ impl KeyValueDB for Database {
 		Box::new(unboxed.into_iter().flat_map(|inner| inner))
 	}
 
-	fn restore(&self, new_db: &str) -> Result<()> {
+	fn restore(&self, new_db: &str) -> io::Result<()> {
 		Database::restore(self, new_db)
 	}
 }

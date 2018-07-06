@@ -139,6 +139,7 @@ pub fn start_http<M, S, H, T>(
 	remote: tokio_core::reactor::Remote,
 	extractor: T,
 	threads: usize,
+	max_payload: usize,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -151,6 +152,7 @@ pub fn start_http<M, S, H, T>(
 		.event_loop_remote(remote)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
+		.max_request_body_size(max_payload * 1024 * 1024)
 		.start_http(addr)?)
 }
 
@@ -165,6 +167,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 	extractor: T,
 	middleware: R,
 	threads: usize,
+	max_payload: usize,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -178,6 +181,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 		.event_loop_remote(remote)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
+		.max_request_body_size(max_payload * 1024 * 1024)
 		.request_middleware(middleware)
 		.start_http(addr)?)
 }

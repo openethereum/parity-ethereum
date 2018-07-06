@@ -17,11 +17,12 @@
 #[macro_use]
 extern crate crunchy;
 extern crate ethereum_types;
+extern crate hashdb;
 
 use ethereum_types::H256;
-use std::collections::{HashMap, HashSet};
+// use hashdb::Hasher;
 use std::hash;
-
+use std::collections::{HashMap, HashSet};
 /// Specialized version of `HashMap` with H256 keys and fast hashing function.
 pub type H256FastMap<T> = HashMap<H256, T, hash::BuildHasherDefault<PlainHasher>>;
 /// Specialized version of `HashSet` with H256 keys and fast hashing function.

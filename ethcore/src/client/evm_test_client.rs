@@ -25,18 +25,17 @@ use {state, state_db, client, executive, trace, transaction, db, spec, pod_state
 use factory::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
+use ethtrie;
 
 /// EVM test Error.
 #[derive(Debug)]
 pub enum EvmTestError {
 	/// Trie integrity error.
-	Trie(trie::TrieError),
+	Trie(Box<ethtrie::TrieError>),
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.
 	ClientError(::error::Error),
-	/// Low-level database error.
-	Database(kvdb::Error),
 	/// Post-condition failure,
 	PostCondition(String),
 }
@@ -55,7 +54,6 @@ impl fmt::Display for EvmTestError {
 			Trie(ref err) => write!(fmt, "Trie: {}", err),
 			Evm(ref err) => write!(fmt, "EVM: {}", err),
 			ClientError(ref err) => write!(fmt, "{}", err),
-			Database(ref err) => write!(fmt, "DB: {}", err),
 			PostCondition(ref err) => write!(fmt, "{}", err),
 		}
 	}
@@ -135,7 +133,7 @@ impl<'a> EvmTestClient<'a> {
 		{
 			let mut batch = kvdb::DBTransaction::new();
 			state_db.journal_under(&mut batch, 0, &genesis.hash())?;
-			db.write(batch).map_err(EvmTestError::Database)?;
+			db.write(batch)?;
 		}
 
 		state::State::from_existing(
