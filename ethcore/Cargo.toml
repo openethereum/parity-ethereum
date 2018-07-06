@@ -15,12 +15,12 @@ common-types = { path = "types" }
 crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
-ethcore-bytes = { path = "../util/bytes" }
-hashdb = { path = "../util/hashdb" }
-memorydb = { path = "../util/memorydb" }
-patricia-trie = { path = "../util/patricia_trie" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+hashdb = { git = "https://github.com/paritytech/parity-common" }
+memorydb = { git = "https://github.com/paritytech/parity-common" }
+patricia-trie = { git = "https://github.com/paritytech/parity-common" }
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-ethcore-crypto = { path = "crypto" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 error-chain = { version = "0.12", default-features = false }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
@@ -47,10 +47,10 @@ parity-machine = { path = "../machine" }
 parking_lot = "0.6"
 rayon = "1.0"
 rand = "0.4"
-rlp = { path = "../util/rlp" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
-kvdb = { path = "../util/kvdb" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 util-error = { path = "../util/error" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
@@ -62,12 +62,12 @@ trace-time = { path = "../util/trace-time" }
 using_queue = { path = "../util/using_queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
-keccak-hash = { path = "../util/hash" }
-triehash = { path = "../util/triehash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+triehash = { git = "https://github.com/paritytech/parity-common" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 keccak-hasher = { path = "../util/keccak-hasher" }
-kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
+kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
 tempdir = {version="0.3", optional = true}
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
@@ -78,7 +78,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
 tempdir = "0.3"
-trie-standardmap = { path = "../util/trie-standardmap" }
+trie-standardmap = { git = "https://github.com/paritytech/parity-common" }
 
 [features]
 # Display EVM debug traces.

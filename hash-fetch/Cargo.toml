@@ -15,10 +15,10 @@ mime_guess = "2.0.0-alpha.2"
 rand = "0.4"
 rustc-hex = "1.0"
 fetch = { path = "../util/fetch" }
-ethcore-bytes = { path = "../util/bytes" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethereum-types = "0.3"
 parity-reactor = { path = "../util/reactor" }
-keccak-hash = { path = "../util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 registrar = { path = "../registrar" }
 
 ethabi = "5.1"
