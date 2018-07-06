@@ -152,7 +152,7 @@ impl Default for ClientConfig {
 }
 #[cfg(test)]
 mod test {
-	use super::{DatabaseCompactionProfile};
+	use super::DatabaseCompactionProfile;
 
 	#[test]
 	fn test_default_compaction_profile() {

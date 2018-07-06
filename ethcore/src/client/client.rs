@@ -28,7 +28,6 @@ use itertools::Itertools;
 use journaldb;
 use trie::{TrieSpec, TrieFactory, Trie};
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
-use util_error::UtilError;
 
 // other
 use ethereum_types::{H256, Address, U256};
@@ -442,7 +441,7 @@ impl Importer {
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
-			let mut rng = OsRng::new().map_err(UtilError::from)?;
+			let mut rng = OsRng::new()?;
 			self.ancient_verifier.verify(&mut rng, &header, &chain)?;
 
 			// Commit results

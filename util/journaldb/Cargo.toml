@@ -17,7 +17,6 @@ memorydb = { git = "https://github.com/paritytech/parity-common" }
 parking_lot = "0.6"
 plain_hasher = { git = "https://github.com/paritytech/parity-common" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
-util-error = { path = "../error" }
 
 [dev-dependencies]
 ethcore-logger = { path = "../../logger" }

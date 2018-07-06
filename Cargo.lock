@@ -436,6 +436,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger"
+version = "0.5.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "atty 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "humantime 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "termcolor 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "error-chain"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -583,7 +595,6 @@ dependencies = [
  "triehash 0.1.0 (git+https://github.com/paritytech/parity-common)",
  "unexpected 0.1.0",
  "using_queue 0.1.0",
- "util-error 0.1.0",
  "vm 0.1.0",
  "wasm 0.1.0",
 ]
@@ -1264,6 +1275,14 @@ version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "humantime"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "hyper"
 version = "0.11.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1385,7 +1404,6 @@ dependencies = [
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "plain_hasher 0.1.0 (git+https://github.com/paritytech/parity-common)",
  "rlp 0.2.1 (git+https://github.com/paritytech/parity-common)",
- "util-error 0.1.0",
 ]
 
 [[package]]
@@ -3655,16 +3673,6 @@ version = "0.1.0"
 name = "utf8-ranges"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "util-error"
-version = "0.1.0"
-dependencies = [
- "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.2.1 (git+https://github.com/paritytech/parity-common)",
- "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "vec_map"

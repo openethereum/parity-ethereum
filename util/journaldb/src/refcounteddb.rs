@@ -17,10 +17,10 @@
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
 use std::collections::HashMap;
+use std::io;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use error::UtilError;
 use ethereum_types::H256;
 use hashdb::*;
 use heapsize::HeapSizeOf;
@@ -119,7 +119,7 @@ impl JournalDB for RefCountedDB {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.into_vec())
 	}
 
-	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		// record new commit's details.
 		let mut db_key = DatabaseKey {
 			era: now,
@@ -159,7 +159,7 @@ impl JournalDB for RefCountedDB {
 		Ok(ops as u32)
 	}
 
-	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> io::Result<u32> {
 		// apply old commits' details
 		let mut db_key = DatabaseKey {
 			era: end_era,
@@ -191,7 +191,7 @@ impl JournalDB for RefCountedDB {
 		Ok(r)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		self.inserts.clear();
 		for remove in self.removes.drain(..) {
 			self.forward.remove(&remove);
