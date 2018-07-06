@@ -29,23 +29,19 @@ extern crate parking_lot;
 
 #[cfg(windows)] extern crate winapi;
 
-use std::{process, env};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::io::{self as stdio, Read, Write};
+use std::ffi::OsString;
 use std::fs::{remove_file, metadata, File, create_dir_all};
+use std::io::{self as stdio, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::{process, env};
 
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
 use parity::{start, ExecutionAction};
 use parking_lot::{Condvar, Mutex};
-use std::fs::{remove_file, metadata, File, create_dir_all};
-use std::io::{self as stdio, Read, Write};
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::{process, env, ffi::OsString};
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 const PARITY_EXECUTABLE_NAME: &str = "parity";
@@ -66,9 +62,9 @@ fn update_path(name: &str) -> PathBuf {
 
 fn latest_exe_path() -> Result<PathBuf, Error> {
 	File::open(update_path("latest")).and_then(|mut f| { 
-			let mut exe = String::new(); 
+			let mut exe_path = String::new(); 
 			trace!(target: "updater", "latest binary path: {:?}", f); 
-			f.read_to_string(&mut exe).map(|_| update_path(&exe))
+			f.read_to_string(&mut exe_path).map(|_| update_path(&exe_path))
 	})
 	.or(Err(Error::BinaryNotFound))
 }
@@ -162,7 +158,6 @@ fn run_parity() -> Result<(), Error> {
 	);	
 
 	global_cleanup();
-
 	res
 }
 
@@ -297,7 +292,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 
 				if lock.should_restart {
 					if let Some(ref spec_name) = lock.spec_name_override {
-						set_spec_name_override(spec_name.clone());
+						set_spec_name_override(&spec_name.clone());
 					}
 					PLEASE_RESTART_EXIT_CODE
 				} else {
@@ -402,7 +397,7 @@ fn main() {
 				trace_main!("No latest update. Attempting to direct...");
 				main_direct(true)
 			};
-			trace_main!("Latest exited with {}", exit_code);
+			trace_main!("Latest binary exited with exit code: {}", exit_code);
 			if exit_code != PLEASE_RESTART_EXIT_CODE {
 				trace_main!("Quitting...");
 				process::exit(exit_code);
