@@ -111,7 +111,7 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
-#[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
+#[cfg(any(test, feature = "test-helpers"))]
 extern crate tempdir;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
@@ -155,6 +155,7 @@ pub mod error;
 pub mod ethereum;
 pub mod executed;
 pub mod executive;
+pub mod externalities;
 pub mod header;
 pub mod machine;
 pub mod miner;
@@ -170,15 +171,12 @@ mod cache_manager;
 mod pod_account;
 mod account_db;
 mod builtin;
-mod externalities;
 mod blockchain;
 mod factory;
 mod tx_filter;
 
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "json-tests")]
-pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 

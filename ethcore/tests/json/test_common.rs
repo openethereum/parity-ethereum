@@ -15,11 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashSet;
-use std::io::Read;
-use std::fs::{File, read_dir};
-use std::path::Path;
 use std::ffi::OsString;
-pub use ethereum_types::{H256, U256, Address};
+use std::fs::{File, read_dir};
+use std::io::Read;
+use std::path::Path;
 
 /// Indicate when to run the hook passed to test functions.
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -74,7 +73,7 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(
 #[cfg(test)]
 macro_rules! test {
 	($name: expr, $skip: expr) => {
-		::json_tests::test_common::run_test_path(::std::path::Path::new(concat!("res/ethereum/tests/", $name)), &$skip, do_json_test, &mut |_, _| ());
+		::json::test_common::run_test_path(::std::path::Path::new(concat!("res/ethereum/tests/", $name)), &$skip, do_json_test, &mut |_, _| ());
 	}
 }
 

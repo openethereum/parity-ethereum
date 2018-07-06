@@ -14,19 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethjson;
-use trie::{TrieFactory, TrieSpec};
-use ethtrie::RlpCodec;
 use ethereum_types::H256;
-use memorydb::MemoryDB;
+use ethjson;
+use ethtrie::RlpCodec;
 use keccak_hasher::KeccakHasher;
+use memorydb::MemoryDB;
+use trie::{TrieFactory, TrieSpec};
 
-use super::HookType;
-
-pub use self::generic::run_test_path as run_generic_test_path;
-pub use self::generic::run_test_file as run_generic_test_file;
-pub use self::secure::run_test_path as run_secure_test_path;
-pub use self::secure::run_test_file as run_secure_test_file;
+use super::test_common::HookType;
 
 fn test_trie<H: FnMut(&str, HookType)>(json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();
@@ -62,20 +57,9 @@ fn test_trie<H: FnMut(&str, HookType)>(json: &[u8], trie: TrieSpec, start_stop_h
 }
 
 mod generic {
-	use std::path::Path;
 	use trie::TrieSpec;
 
 	use super::HookType;
-
-	/// Run generic trie jsontests on a given folder.
-	pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-		::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
-	}
-
-	/// Run generic trie jsontests on a given file.
-	pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-		::json_tests::test_common::run_test_file(p, do_json_test, h)
-	}
 
 	fn do_json_test<H: FnMut(&str, HookType)>(json: &[u8], h: &mut H) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Generic, h)
@@ -86,20 +70,9 @@ mod generic {
 }
 
 mod secure {
-	use std::path::Path;
 	use trie::TrieSpec;
 
 	use super::HookType;
-
-	/// Run secure trie jsontests on a given folder.
-	pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-		::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
-	}
-
-	/// Run secure trie jsontests on a given file.
-	pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-		::json_tests::test_common::run_test_file(p, do_json_test, h)
-	}
 
 	fn do_json_test<H: FnMut(&str, HookType)>(json: &[u8], h: &mut H) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Secure, h)

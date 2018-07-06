@@ -14,39 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::path::Path;
 use std::sync::Arc;
-use super::test_common::*;
-use state::{Backend as StateBackend, State, Substate};
-use executive::*;
+use ethereum_types::{Address, U256, H256};
+use ethcore::state::{Backend as StateBackend, State, Substate};
+use ethcore::executive::*;
 use evm::{VMType, Finalize};
 use vm::{
 	self, ActionParams, CallType, Schedule, Ext,
 	ContractCreateResult, EnvInfo, MessageCallResult,
 	CreateContractAddress, ReturnData,
 };
-use externalities::*;
-use test_helpers::get_temp_state;
+use ethcore::externalities::*;
+use ethcore::test_helpers::get_temp_state;
 use ethjson;
-use trace::{Tracer, NoopTracer};
-use trace::{VMTracer, NoopVMTracer};
+use ethcore::trace::{Tracer, NoopTracer, VMTracer, NoopVMTracer};
 use bytes::{Bytes, BytesRef};
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
-use machine::EthereumMachine as Machine;
+use ethcore::machine::EthereumMachine as Machine;
+use ethcore;
 
-use super::HookType;
-
-/// Run executive jsontests on a given folder.
-pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-	::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
-}
-
-/// Run executive jsontests on a given file.
-pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-	::json_tests::test_common::run_test_file(p, do_json_test, h)
-}
+use super::test_common::HookType;
 
 #[derive(Debug, PartialEq, Clone)]
 struct CallCreate {
@@ -247,7 +236,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
 		let machine = {
-			let mut machine = ::ethereum::new_frontier_test_machine();
+			let mut machine = ethcore::ethereum::new_frontier_test_machine();
 			machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = 1));
 			machine
 		};
