@@ -30,7 +30,7 @@ tempdir = "0.3"
 matches = "0.1"
 
 [features]
-# use harcoded version 1.3.7 of parity to force an update
-# and to manually test that parity fall-over the local version
-# in case of invalid or depricated command line arguments
+# hardcode version number 1.3.7 of parity to force an update
+# in order to manually test that parity fall-over to the local version
+# in case of invalid or deprecated command line arguments are entered
 test-updater = []
