@@ -23,7 +23,7 @@ use mio::{Token, Ready, PollOpt};
 use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
 use ethereum_types::{H128, H256, H512};
-use ethcore_bytes::*;
+use parity_bytes::*;
 use rlp::{Rlp, RlpStream};
 use std::io::{self, Cursor, Read, Write};
 use io::{IoContext, StreamToken};
@@ -502,7 +502,7 @@ mod tests {
 	use std::sync::atomic::AtomicBool;
 
 	use mio::{Ready};
-	use ethcore_bytes::Bytes;
+	use parity_bytes::Bytes;
 	use io::*;
 	use super::*;
 

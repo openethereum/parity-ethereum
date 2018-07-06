@@ -16,7 +16,7 @@
 
 //! Key-value datastore with a modified Merkle tree.
 
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate keccak_hash;
 extern crate rlp;

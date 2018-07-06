@@ -17,7 +17,7 @@
 #![feature(test)]
 
 extern crate test;
-extern crate ethcore_bytes;
+extern crate parity_bytes;
 extern crate ethereum_types;
 extern crate memorydb;
 extern crate patricia_trie as trie;
@@ -27,7 +27,7 @@ extern crate keccak_hash;
 extern crate trie_standardmap;
 extern crate hashdb;
 
-use ethcore_bytes::Bytes;
+use parity_bytes::Bytes;
 use ethereum_types::H256;
 use keccak_hash::keccak;
 use memorydb::MemoryDB;

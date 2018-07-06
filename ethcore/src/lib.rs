@@ -65,9 +65,9 @@ extern crate crossbeam;
 extern crate common_types as types;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
-extern crate ethcore_crypto;
+extern crate parity_crypto;
 extern crate ethcore_io as io;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_logger;
 extern crate ethcore_miner;
 #[cfg(feature = "stratum")]
