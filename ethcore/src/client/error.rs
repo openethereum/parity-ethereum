@@ -23,7 +23,7 @@ use ethtrie::TrieError;
 pub enum Error {
 	/// TrieDB-related error.
 	Trie(TrieError),
-	/// Util error
+	/// Io error.
 	Io(io::Error),
 }
 
