@@ -23,7 +23,7 @@ use heapsize::HeapSizeOf;
 use std::collections::HashMap;
 use std::{fmt::Debug, hash::Hash};
 
-/// Trait describing an object that can hash a slice of bytes. Used to abstract 
+/// Trait describing an object that can hash a slice of bytes. Used to abstract
 /// other types over the hashing algorithm. Defines a single `hash` method and an
 /// `Out` associated type with the necessary bounds.
 pub trait Hasher: Sync + Send {
