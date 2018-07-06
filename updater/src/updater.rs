@@ -658,7 +658,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 					latest.track.binary.map_or_else(|| "unreleased".into(), |b| format!("{}", b)));
 
 				trace!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}",
-					latest.this_fork.map_or_else(|| "unreleased".into(), |f| format!("#{}", f)),
+					latest.this_fork.map_or_else(|| "unknown".into(), |f| format!("#{}", f)),
 					current_block_number,
 					latest.track.fork,
 					latest.fork);
