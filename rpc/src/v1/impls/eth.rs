@@ -167,7 +167,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			miner: miner.clone(),
 			accounts: accounts.clone(),
 			external_miner: em.clone(),
-			seed_compute: Mutex::new(SeedHashCompute::new()),
+			seed_compute: Mutex::new(SeedHashCompute::default()),
 			options: options,
 			eip86_transition: client.eip86_transition(),
 		}
