@@ -19,7 +19,6 @@
 use std::{fmt, error};
 use std::time::SystemTime;
 use ethereum_types::{H256, U256, Address, Bloom};
-use util_error::{self, UtilError};
 use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
 use ethtrie::TrieError;
@@ -206,7 +205,6 @@ impl From<Error> for BlockImportError {
 		match e {
 			Error(ErrorKind::Block(block_error), _) => BlockImportErrorKind::Block(block_error).into(),
 			Error(ErrorKind::Import(import_error), _) => BlockImportErrorKind::Import(import_error.into()).into(),
-			Error(ErrorKind::Util(util_error::ErrorKind::Decoder(decoder_err)), _) => BlockImportErrorKind::Decoder(decoder_err).into(),
 			_ => BlockImportErrorKind::Other(format!("other block import error: {:?}", e)).into(),
 		}
 	}
@@ -236,7 +234,6 @@ error_chain! {
 	}
 
 	links {
-		Util(UtilError, util_error::ErrorKind) #[doc = "Error concerning a utility"];
 		Import(ImportError, ImportErrorKind) #[doc = "Error concerning block import." ];
 	}
 
@@ -326,7 +323,6 @@ impl From<BlockImportError> for Error {
 		match err {
 			BlockImportError(BlockImportErrorKind::Block(e), _) => ErrorKind::Block(e).into(),
 			BlockImportError(BlockImportErrorKind::Import(e), _) => ErrorKind::Import(e).into(),
-			BlockImportError(BlockImportErrorKind::Other(s), _) => UtilError::from(s).into(),
 			_ => ErrorKind::Msg(format!("other block import error: {:?}", err)).into(),
 		}
 	}

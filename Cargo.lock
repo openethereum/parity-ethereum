@@ -595,7 +595,6 @@ dependencies = [
  "triehash 0.1.0",
  "unexpected 0.1.0",
  "using_queue 0.1.0",
- "util-error 0.1.0",
  "vm 0.1.0",
  "wasm 0.1.0",
 ]
@@ -1419,7 +1418,6 @@ dependencies = [
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "plain_hasher 0.2.0",
  "rlp 0.2.1",
- "util-error 0.1.0",
 ]
 
 [[package]]
@@ -3711,16 +3709,6 @@ version = "0.1.0"
 name = "utf8-ranges"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "util-error"
-version = "0.1.0"
-dependencies = [
- "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.2.1",
- "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "vec_map"
