@@ -7,8 +7,8 @@ license = "GPL-3.0"
 
 [dependencies]
 elastic-array = "0.10"
-ethcore-bytes = { version = "0.1.0", path = "../bytes" }
-hashdb = { version = "0.2", path = "../hashdb" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+hashdb = { git = "https://github.com/paritytech/parity-common" }
 heapsize = "0.4"
 log = "0.3"
 rand = "0.4"
@@ -16,10 +16,10 @@ rand = "0.4"
 [dev-dependencies]
 env_logger = "0.5"
 ethereum-types = "0.3"
-keccak-hash = { version = "0.1.0", path = "../hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 keccak-hasher = { path = "../keccak-hasher" }
-memorydb = { version = "0.2", path = "../memorydb" }
+memorydb = { git = "https://github.com/paritytech/parity-common" }
 patricia-trie-ethereum = { path = "../patricia-trie-ethereum" }
-rlp = { version = "0.2.1", path = "../rlp" }
-trie-standardmap = { path = "../trie-standardmap" }
-triehash = { version = "0.1.0", path = "../triehash" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
+trie-standardmap = { git = "https://github.com/paritytech/parity-common" }
+triehash = { git = "https://github.com/paritytech/parity-common" }

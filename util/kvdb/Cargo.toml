@@ -5,4 +5,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 elastic-array = "0.10"
-ethcore-bytes = { path = "../bytes" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }

@@ -10,4 +10,4 @@ homepage = "https://github.com/paritytech/plain_hasher"
 [dependencies]
 crunchy = "0.1.6"
 ethereum-types = "0.3"
-hashdb = { version = "0.2.0", path = "../hashdb" }
+hashdb = { git = "https://github.com/paritytech/parity-common" }
