@@ -377,20 +377,20 @@ impl Updater {
 				operations_contract::Operations::default(),
 				client.clone()),
 			exit_handler: Mutex::new(None),
-			// this: VersionInfo::this(),
-			// TODO: Remove hardcoded dummy version for this
-			this: VersionInfo {
-				track: ReleaseTrack::Stable,
-				version: Version::new(1, 3, 7),
-				hash: 0.into(),
+			this: if cfg!(feature = "test-updater") {
+				VersionInfo {
+					track: ReleaseTrack::Stable,
+					version: Version::new(1, 3, 7),
+					hash: 0.into(),
+				}
+			} else {
+				VersionInfo::this()
 			},
 			time_provider: StdTimeProvider,
 			rng: ThreadRngGenRange,
 			state: Mutex::new(Default::default()),
 		});
 		*r.weak_self.lock() = Arc::downgrade(&r);
-
-		info!("this is hardcoded to an old version this must be fixed before merging {}:{}", file!(), line!());
 
 		r.poll();
 		r
@@ -610,16 +610,19 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		trace!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
 
 		// We rely on a secure state. Bail if we're unsure about it.
-		if self.client.upgrade().map_or(true, |c| !c.chain_info().security_level().is_full()) {
-			info!("The `security_level` check is DISABLED!!!!! It is just diabled to test the updater-verification and should be removed later, {}:{}", file!(), line!());
-			// return;
+		if !cfg!(feature = "test-updater") {
+			if self.client.upgrade().map_or(true, |c| !c.chain_info().security_level().is_full()) {
+			    return;
+			}
 		}
 
 		// Only check for updates every n blocks
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-		if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
-			info!("The `updater_policy frequency` check is DISABLED!!!!!. This check is just diabled to test the updater and should be removed later, {}:{}", file!(), line!());
-			// return;
+		
+		if !cfg!(feature = "test-updater") {
+			if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
+				return;
+			}
 		}
 
 		let mut state = self.state.lock();
