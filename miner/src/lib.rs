@@ -30,11 +30,12 @@ extern crate linked_hash_map;
 extern crate parking_lot;
 extern crate price_info;
 extern crate rlp;
-extern crate trace_time;
 extern crate transaction_pool as txpool;
 
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
+extern crate trace_time;
 #[macro_use]
 extern crate log;
 
