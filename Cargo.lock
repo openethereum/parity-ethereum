@@ -1875,7 +1875,7 @@ dependencies = [
 
 [[package]]
 name = "parity"
-version = "1.10.8"
+version = "1.10.9"
 dependencies = [
  "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1923,7 +1923,7 @@ dependencies = [
  "parity-rpc 1.9.0",
  "parity-rpc-client 1.4.0",
  "parity-updater 1.9.0",
- "parity-version 1.10.8",
+ "parity-version 1.10.9",
  "parity-whisper 0.1.0",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
@@ -1972,7 +1972,7 @@ dependencies = [
  "parity-reactor 0.1.0",
  "parity-ui 1.9.0",
  "parity-ui-deprecation 1.10.0",
- "parity-version 1.10.8",
+ "parity-version 1.10.9",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2109,7 +2109,7 @@ dependencies = [
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-reactor 0.1.0",
  "parity-updater 1.9.0",
- "parity-version 1.10.8",
+ "parity-version 1.10.9",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2226,7 +2226,7 @@ dependencies = [
  "ethsync 1.9.0",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.9.0",
- "parity-version 1.10.8",
+ "parity-version 1.10.9",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
  "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2235,7 +2235,7 @@ dependencies = [
 
 [[package]]
 name = "parity-version"
-version = "1.10.8"
+version = "1.10.9"
 dependencies = [
  "ethcore-bytes 0.1.0",
  "rlp 0.2.1",
