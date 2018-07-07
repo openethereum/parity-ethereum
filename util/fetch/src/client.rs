@@ -17,7 +17,6 @@
 use futures::future::{self, Loop};
 use futures::sync::{mpsc, oneshot};
 use futures::{self, Future, Async, Sink, Stream};
-use futures_timer::FutureExt;
 use hyper::header::{UserAgent, Location, ContentLength, ContentType};
 use hyper::mime::Mime;
 use hyper::{self, Method, StatusCode};
@@ -31,6 +30,7 @@ use std::thread;
 use std::time::Duration;
 use std::{io, fmt};
 use tokio_core::reactor;
+use tokio_timer::{self, Timer};
 use url::{self, Url};
 use bytes::Bytes;
 
@@ -142,6 +142,7 @@ type ChanItem = Option<(Request, Abort, TxResponse)>;
 pub struct Client {
 	core: mpsc::Sender<ChanItem>,
 	refs: Arc<AtomicUsize>,
+	timer: Timer,
 }
 
 // When cloning a client we increment the internal reference counter.
@@ -151,6 +152,7 @@ impl Clone for Client {
 		Client {
 			core: self.core.clone(),
 			refs: self.refs.clone(),
+			timer: self.timer.clone(),
 		}
 	}
 }
@@ -193,6 +195,7 @@ impl Client {
 		Ok(Client {
 			core: tx_proto,
 			refs: Arc::new(AtomicUsize::new(1)),
+			timer: Timer::default(),
 		})
 	}
 
@@ -286,17 +289,9 @@ impl Fetch for Client {
 				Error::BackgroundThreadDead
 			})
 			.and_then(|_| rx_res.map_err(|oneshot::Canceled| Error::BackgroundThreadDead))
-			.and_then(future::result)
-			.timeout(maxdur)
-			.map_err(|err| {
-				if let Error::Io(ref e) = err {
-					if let io::ErrorKind::TimedOut = e.kind() {
-						return Error::Timeout
-					}
-				}
-				err.into()
-			});
-		Box::new(future)
+			.and_then(future::result);
+
+		Box::new(self.timer.timeout(future, maxdur))
 	}
 
 	/// Get content from some URL.
@@ -575,6 +570,8 @@ pub enum Error {
 	Aborted,
 	/// Too many redirects have been encountered.
 	TooManyRedirects,
+	/// tokio-timer gave us an error.
+	Timer(tokio_timer::TimerError),
 	/// The maximum duration was reached.
 	Timeout,
 	/// The response body is too large.
@@ -592,6 +589,7 @@ impl fmt::Display for Error {
 			Error::Io(ref e) => write!(fmt, "{}", e),
 			Error::BackgroundThreadDead => write!(fmt, "background thread gond"),
 			Error::TooManyRedirects => write!(fmt, "too many redirects"),
+			Error::Timer(ref e) => write!(fmt, "{}", e),
 			Error::Timeout => write!(fmt, "request timed out"),
 			Error::SizeLimit => write!(fmt, "size limit reached"),
 		}
@@ -616,14 +614,23 @@ impl From<url::ParseError> for Error {
 	}
 }
 
+impl<F> From<tokio_timer::TimeoutError<F>> for Error {
+	fn from(e: tokio_timer::TimeoutError<F>) -> Self {
+		match e {
+			tokio_timer::TimeoutError::Timer(_, e) => Error::Timer(e),
+			tokio_timer::TimeoutError::TimedOut(_) => Error::Timeout,
+		}
+	}
+}
+
 #[cfg(test)]
 mod test {
 	use super::*;
 	use futures::future;
 	use futures::sync::mpsc;
-	use futures_timer::Delay;
 	use hyper::StatusCode;
 	use hyper::server::{Http, Request, Response, Service};
+	use tokio_timer::Timer;
 	use std;
 	use std::io::Read;
 	use std::net::SocketAddr;
@@ -720,7 +727,7 @@ mod test {
 		}
 	}
 
-	struct TestServer;
+	struct TestServer(Timer);
 
 	impl Service for TestServer {
 		type Request = Request;
@@ -750,7 +757,10 @@ mod test {
 				}
 				"/delay" => {
 					let d = Duration::from_secs(req.uri().query().unwrap_or("0").parse().unwrap());
-					Box::new(Delay::new(d).from_err().map(|_| Response::new()))
+					Box::new(self.0.sleep(d)
+							 .map_err(|_| return io::Error::new(io::ErrorKind::Other, "timer error"))
+							 .from_err()
+							 .map(|_| Response::new()))
 				}
 				_ => Box::new(future::ok(Response::new().with_status(StatusCode::NotFound)))
 			}
@@ -764,7 +774,7 @@ mod test {
 			let rx_end_fut = rx_end.into_future().map(|_| ()).map_err(|_| ());
 			thread::spawn(move || {
 				let addr = ADDRESS.parse().unwrap();
-				let server = Http::new().bind(&addr, || Ok(TestServer)).unwrap();
+				let server = Http::new().bind(&addr, || Ok(TestServer(Timer::default()))).unwrap();
 				tx_start.send(server.local_addr().unwrap()).unwrap_or(());
 				server.run_until(rx_end_fut).unwrap();
 			});
