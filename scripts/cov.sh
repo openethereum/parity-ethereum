@@ -19,9 +19,9 @@ mkdir -p $KCOV_TARGET
 echo "Cover RUST"
 for FILE in `find target/debug/deps ! -name "*.*"`
 do
-  timeout --signal=SIGKILL 5m kcov --include-path=$(pwd) $KCOV_FLAGS $KCOV_TARGET $FILE
+  timeout --signal=SIGKILL 5m kcov --include-path=$(pwd) --exclude-path=$(pwd)/target $KCOV_FLAGS $KCOV_TARGET $FILE
 done
-timeout --signal=SIGKILL 5m kcov --include-path=$(pwd) $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
+timeout --signal=SIGKILL 5m kcov --include-path=$(pwd) --exclude-path=$(pwd)/target $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
 echo "Cover JS"
 cd js
 npm install&&npm run test:coverage
