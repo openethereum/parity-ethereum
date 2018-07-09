@@ -40,7 +40,7 @@ extern crate rlp;
 extern crate ipnetwork;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
-extern crate triehash;
+extern crate triehash_ethereum;
 extern crate kvdb;
 
 extern crate ethcore_light as light;

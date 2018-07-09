@@ -22,7 +22,7 @@ rlp = { git = "https://github.com/paritytech/parity-common" }
 rustc-hex = "1.0"
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 keccak-hasher = { path = "../../util/keccak-hasher" }
-triehash = { git = "https://github.com/paritytech/parity-common" }
+triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 kvdb = { git = "https://github.com/paritytech/parity-common" }
 macros = { path = "../../util/macros" }
 log = "0.3"
