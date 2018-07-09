@@ -71,12 +71,6 @@ pub enum Mode {
 	Off,
 }
 
-impl Default for Mode {
-	fn default() -> Self {
-		Mode::Active
-	}
-}
-
 impl Display for Mode {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		match *self {
@@ -112,7 +106,7 @@ impl From<IpcMode> for Mode {
 
 
 /// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ClientConfig {
 	/// Block queue configuration.
 	pub queue: QueueConfig,
@@ -150,11 +144,39 @@ pub struct ClientConfig {
 	pub history_mem: usize,
 	/// Check seal valididity on block import
 	pub check_seal: bool,
+	/// Maximal number of transactions queued for verification in a separate thread.
+	pub transaction_verification_queue_size: usize,
 }
 
+impl Default for ClientConfig {
+	fn default() -> Self {
+		let mb = 1024 * 1024;
+		ClientConfig {
+			queue: Default::default(),
+			blockchain: Default::default(),
+			tracing: Default::default(),
+			vm_type: Default::default(),
+			fat_db: false,
+			pruning: journaldb::Algorithm::OverlayRecent,
+			name: "default".into(),
+			db_cache_size: None,
+			db_compaction: Default::default(),
+			db_wal: true,
+			mode: Mode::Active,
+			spec_name: "".into(),
+			verifier_type: VerifierType::Canon,
+			state_cache_size: 1 * mb,
+			jump_table_size: 1 * mb,
+			history: 64,
+			history_mem: 32 * mb,
+			check_seal: true,
+			transaction_verification_queue_size: 8192,
+		}
+	}
+}
 #[cfg(test)]
 mod test {
-	use super::{DatabaseCompactionProfile, Mode};
+	use super::{DatabaseCompactionProfile};
 
 	#[test]
 	fn test_default_compaction_profile() {
@@ -166,10 +188,5 @@ mod test {
 		assert_eq!(DatabaseCompactionProfile::Auto, "auto".parse().unwrap());
 		assert_eq!(DatabaseCompactionProfile::SSD, "ssd".parse().unwrap());
 		assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
-	}
-
-	#[test]
-	fn test_mode_default() {
-		assert_eq!(Mode::default(), Mode::Active);
 	}
 }

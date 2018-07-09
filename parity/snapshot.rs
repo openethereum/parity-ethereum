@@ -182,7 +182,7 @@ impl SnapshotCommand {
 			algorithm,
 			self.pruning_history,
 			self.pruning_memory,
-			true
+			true,
 		);
 
 		let client_db = db::open_client_db(&client_path, &client_config)?;

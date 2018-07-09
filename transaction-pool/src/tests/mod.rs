@@ -32,20 +32,30 @@ pub struct Transaction {
 	pub gas_price: U256,
 	pub gas: U256,
 	pub sender: Address,
-	pub insertion_id: u64,
 	pub mem_usage: usize,
 }
 
 impl VerifiedTransaction for Transaction {
+	type Hash = H256;
+	type Sender = Address;
+
 	fn hash(&self) -> &H256 { &self.hash }
 	fn mem_usage(&self) -> usize { self.mem_usage }
 	fn sender(&self) -> &Address { &self.sender }
-	fn insertion_id(&self) -> u64 { self.insertion_id }
 }
 
 pub type SharedTransaction = Arc<Transaction>;
 
 type TestPool = Pool<Transaction, DummyScoring>;
+
+impl TestPool {
+	pub fn with_limit(max_count: usize) -> Self {
+		Self::with_options(Options {
+			max_count,
+			..Default::default()
+		})
+	}
+}
 
 #[test]
 fn should_clear_queue() {
@@ -123,7 +133,7 @@ fn should_reject_if_above_count() {
 	// Reject second
 	let tx1 = b.tx().nonce(0).new();
 	let tx2 = b.tx().nonce(1).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:?}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -149,7 +159,7 @@ fn should_reject_if_above_mem_usage() {
 	// Reject second
 	let tx1 = b.tx().nonce(1).mem_usage(1).new();
 	let tx2 = b.tx().nonce(2).mem_usage(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:?}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -175,7 +185,7 @@ fn should_reject_if_above_sender_count() {
 	// Reject second
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:x}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -185,7 +195,7 @@ fn should_reject_if_above_sender_count() {
 	// Replace first
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).gas_price(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:x}", tx2.hash());
 	txq.import(tx1).unwrap();
 	// This results in error because we also compare nonces
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
@@ -444,9 +454,81 @@ fn should_return_worst_transaction() {
 
 	// when
 	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	txq.import(b.tx().sender(1).nonce(0).gas_price(4).new()).unwrap();
 
 	// then
-	assert!(txq.worst_transaction().is_some());
+	assert_eq!(txq.worst_transaction().unwrap().gas_price, 4.into());
+}
+
+#[test]
+fn should_return_is_full() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::with_limit(2);
+	assert!(!txq.is_full());
+
+	// when
+	txq.import(b.tx().nonce(0).gas_price(110).new()).unwrap();
+	assert!(!txq.is_full());
+
+	txq.import(b.tx().sender(1).nonce(0).gas_price(100).new()).unwrap();
+
+	// then
+	assert!(txq.is_full());
+}
+
+#[test]
+fn should_import_even_if_limit_is_reached_and_should_replace_returns_insert_new() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::with_scoring(DummyScoring::always_insert(), Options {
+		max_count: 1,
+		..Default::default()
+	});
+	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 1,
+		senders: 1,
+		mem_usage: 0,
+	});
+
+	// when
+	txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap();
+
+	// then
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 2,
+		senders: 1,
+		mem_usage: 0,
+	});
+}
+
+#[test]
+fn should_not_import_even_if_limit_is_reached_and_should_replace_returns_false() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::with_scoring(DummyScoring::default(), Options {
+		max_count: 1,
+		..Default::default()
+	});
+	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 1,
+		senders: 1,
+		mem_usage: 0,
+	});
+
+	// when
+	let err = txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap_err();
+
+	// then
+	assert_eq!(err.kind(),
+	&error::ErrorKind::TooCheapToEnter("0x00000000000000000000000000000000000000000000000000000000000001f5".into(), "0x5".into()));
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 1,
+		senders: 1,
+		mem_usage: 0,
+	});
 }
 
 mod listener {
@@ -489,7 +571,7 @@ mod listener {
 		let b = TransactionBuilder::default();
 		let listener = MyListener::default();
 		let results = listener.0.clone();
-		let mut txq = Pool::new(listener, DummyScoring, Options {
+		let mut txq = Pool::new(listener, DummyScoring::default(), Options {
 			max_per_sender: 1,
 			max_count: 2,
 			..Default::default()
@@ -527,7 +609,7 @@ mod listener {
 		let b = TransactionBuilder::default();
 		let listener = MyListener::default();
 		let results = listener.0.clone();
-		let mut txq = Pool::new(listener, DummyScoring, Options::default());
+		let mut txq = Pool::new(listener, DummyScoring::default(), Options::default());
 
 		// insert
 		let tx1 = txq.import(b.tx().nonce(1).new()).unwrap();
@@ -546,7 +628,7 @@ mod listener {
 		let b = TransactionBuilder::default();
 		let listener = MyListener::default();
 		let results = listener.0.clone();
-		let mut txq = Pool::new(listener, DummyScoring, Options::default());
+		let mut txq = Pool::new(listener, DummyScoring::default(), Options::default());
 
 		// insert
 		txq.import(b.tx().nonce(1).new()).unwrap();
@@ -564,7 +646,7 @@ mod listener {
 		let b = TransactionBuilder::default();
 		let listener = MyListener::default();
 		let results = listener.0.clone();
-		let mut txq = Pool::new(listener, DummyScoring, Options::default());
+		let mut txq = Pool::new(listener, DummyScoring::default(), Options::default());
 
 		// insert
 		txq.import(b.tx().nonce(1).new()).unwrap();

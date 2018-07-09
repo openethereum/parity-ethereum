@@ -17,33 +17,61 @@
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeSet};
 
-use ethereum_types::{H160, H256};
-
 use error;
 use listener::{Listener, NoopListener};
 use options::Options;
 use ready::{Ready, Readiness};
-use scoring::{Scoring, ScoreWithRef};
+use scoring::{self, Scoring, ScoreWithRef};
 use status::{LightStatus, Status};
 use transactions::{AddResult, Transactions};
 
 use {VerifiedTransaction};
 
-type Sender = H160;
+/// Internal representation of transaction.
+///
+/// Includes unique insertion id that can be used for scoring explictly,
+/// but internally is used to resolve conflicts in case of equal scoring
+/// (newer transactionsa are preferred).
+#[derive(Debug)]
+pub struct Transaction<T> {
+	/// Sequential id of the transaction
+	pub insertion_id: u64,
+	/// Shared transaction
+	pub transaction: Arc<T>,
+}
+
+impl<T> Clone for Transaction<T> {
+	fn clone(&self) -> Self {
+		Transaction {
+			insertion_id: self.insertion_id,
+			transaction: self.transaction.clone(),
+		}
+	}
+}
+
+impl<T> ::std::ops::Deref for Transaction<T> {
+	type Target = Arc<T>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.transaction
+	}
+}
 
 /// A transaction pool.
 #[derive(Debug)]
-pub struct Pool<T, S: Scoring<T>, L = NoopListener> {
+pub struct Pool<T: VerifiedTransaction, S: Scoring<T>, L = NoopListener> {
 	listener: L,
 	scoring: S,
 	options: Options,
 	mem_usage: usize,
 
-	transactions: HashMap<Sender, Transactions<T, S>>,
-	by_hash: HashMap<H256, Arc<T>>,
+	transactions: HashMap<T::Sender, Transactions<T, S>>,
+	by_hash: HashMap<T::Hash, Transaction<T>>,
 
 	best_transactions: BTreeSet<ScoreWithRef<T, S::Score>>,
 	worst_transactions: BTreeSet<ScoreWithRef<T, S::Score>>,
+
+	insertion_id: u64,
 }
 
 impl<T: VerifiedTransaction, S: Scoring<T> + Default> Default for Pool<T, S> {
@@ -89,6 +117,7 @@ impl<T, S, L> Pool<T, S, L> where
 			by_hash,
 			best_transactions: Default::default(),
 			worst_transactions: Default::default(),
+			insertion_id: 0,
 		}
 
 	}
@@ -104,41 +133,52 @@ impl<T, S, L> Pool<T, S, L> where
 	/// If any limit is reached the transaction with the lowest `Score` is evicted to make room.
 	///
 	/// The `Listener` will be informed on any drops or rejections.
-	pub fn import(&mut self, mut transaction: T) -> error::Result<Arc<T>> {
+	pub fn import(&mut self, transaction: T) -> error::Result<Arc<T>> {
 		let mem_usage = transaction.mem_usage();
 
-		ensure!(!self.by_hash.contains_key(transaction.hash()), error::ErrorKind::AlreadyImported(*transaction.hash()));
+		ensure!(!self.by_hash.contains_key(transaction.hash()), error::ErrorKind::AlreadyImported(format!("{:?}", transaction.hash())));
+
+		self.insertion_id += 1;
+		let transaction = Transaction {
+			insertion_id: self.insertion_id,
+			transaction: Arc::new(transaction),
+		};
 
 		// TODO [ToDr] Most likely move this after the transaction is inserted.
 		// Avoid using should_replace, but rather use scoring for that.
 		{
 			let remove_worst = |s: &mut Self, transaction| {
-				match s.remove_worst(&transaction) {
+				match s.remove_worst(transaction) {
 					Err(err) => {
-						s.listener.rejected(&Arc::new(transaction), err.kind());
+						s.listener.rejected(transaction, err.kind());
 						Err(err)
 					},
-					Ok(removed) => {
-						s.listener.dropped(&removed, Some(&transaction));
+					Ok(None) => Ok(false),
+					Ok(Some(removed)) => {
+						s.listener.dropped(&removed, Some(transaction));
 						s.finalize_remove(removed.hash());
-						Ok(transaction)
+						Ok(true)
 					},
 				}
 			};
 
 			while self.by_hash.len() + 1 > self.options.max_count {
 				trace!("Count limit reached: {} > {}", self.by_hash.len() + 1, self.options.max_count);
-				transaction = remove_worst(self, transaction)?;
+				if !remove_worst(self, &transaction)? {
+					break;
+				}
 			}
 
 			while self.mem_usage + mem_usage > self.options.max_mem_usage {
 				trace!("Mem limit reached: {} > {}", self.mem_usage + mem_usage, self.options.max_mem_usage);
-				transaction = remove_worst(self, transaction)?;
+				if !remove_worst(self, &transaction)? {
+					break;
+				}
 			}
 		}
 
 		let (result, prev_state, current_state) = {
-			let transactions = self.transactions.entry(*transaction.sender()).or_insert_with(Transactions::default);
+			let transactions = self.transactions.entry(transaction.sender().clone()).or_insert_with(Transactions::default);
 			// get worst and best transactions for comparison
 			let prev = transactions.worst_and_best();
 			let result = transactions.add(transaction, &self.scoring, self.options.max_per_sender);
@@ -153,31 +193,31 @@ impl<T, S, L> Pool<T, S, L> where
 			AddResult::Ok(tx) => {
 				self.listener.added(&tx, None);
 				self.finalize_insert(&tx, None);
-				Ok(tx)
+				Ok(tx.transaction)
 			},
 			AddResult::PushedOut { new, old } |
 			AddResult::Replaced { new, old } => {
 				self.listener.added(&new, Some(&old));
 				self.finalize_insert(&new, Some(&old));
-				Ok(new)
+				Ok(new.transaction)
 			},
 			AddResult::TooCheap { new, old } => {
-				let error = error::ErrorKind::TooCheapToReplace(*old.hash(), *new.hash());
-				self.listener.rejected(&Arc::new(new), &error);
+				let error = error::ErrorKind::TooCheapToReplace(format!("{:x}", old.hash()), format!("{:x}", new.hash()));
+				self.listener.rejected(&new, &error);
 				bail!(error)
 			},
 			AddResult::TooCheapToEnter(new, score) => {
-				let error = error::ErrorKind::TooCheapToEnter(*new.hash(), format!("{:?}", score));
-				self.listener.rejected(&Arc::new(new), &error);
+				let error = error::ErrorKind::TooCheapToEnter(format!("{:x}", new.hash()), format!("{:?}", score));
+				self.listener.rejected(&new, &error);
 				bail!(error)
 			}
 		}
 	}
 
 	/// Updates state of the pool statistics if the transaction was added to a set.
-	fn finalize_insert(&mut self, new: &Arc<T>, old: Option<&Arc<T>>) {
+	fn finalize_insert(&mut self, new: &Transaction<T>, old: Option<&Transaction<T>>) {
 		self.mem_usage += new.mem_usage();
-		self.by_hash.insert(*new.hash(), new.clone());
+		self.by_hash.insert(new.hash().clone(), new.clone());
 
 		if let Some(old) = old {
 			self.finalize_remove(old.hash());
@@ -185,23 +225,23 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Updates the pool statistics if transaction was removed.
-	fn finalize_remove(&mut self, hash: &H256) -> Option<Arc<T>> {
+	fn finalize_remove(&mut self, hash: &T::Hash) -> Option<Arc<T>> {
 		self.by_hash.remove(hash).map(|old| {
-			self.mem_usage -= old.mem_usage();
-			old
+			self.mem_usage -= old.transaction.mem_usage();
+			old.transaction
 		})
 	}
 
 	/// Updates best and worst transactions from a sender.
 	fn update_senders_worst_and_best(
 		&mut self,
-		previous: Option<((S::Score, Arc<T>), (S::Score, Arc<T>))>,
-		current: Option<((S::Score, Arc<T>), (S::Score, Arc<T>))>,
+		previous: Option<((S::Score, Transaction<T>), (S::Score, Transaction<T>))>,
+		current: Option<((S::Score, Transaction<T>), (S::Score, Transaction<T>))>,
 	) {
 		let worst_collection = &mut self.worst_transactions;
 		let best_collection = &mut self.best_transactions;
 
-		let is_same = |a: &(S::Score, Arc<T>), b: &(S::Score, Arc<T>)| {
+		let is_same = |a: &(S::Score, Transaction<T>), b: &(S::Score, Transaction<T>)| {
 			a.0 == b.0 && a.1.hash() == b.1.hash()
 		};
 
@@ -238,32 +278,42 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Attempts to remove the worst transaction from the pool if it's worse than the given one.
-	fn remove_worst(&mut self, transaction: &T) -> error::Result<Arc<T>> {
+	///
+	/// Returns `None` in case we couldn't decide if the transaction should replace the worst transaction or not.
+	/// In such case we will accept the transaction even though it is going to exceed the limit.
+	fn remove_worst(&mut self, transaction: &Transaction<T>) -> error::Result<Option<Transaction<T>>> {
 		let to_remove = match self.worst_transactions.iter().next_back() {
 			// No elements to remove? and the pool is still full?
 			None => {
 				warn!("The pool is full but there are no transactions to remove.");
-				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash(), "unknown".into()).into());
+				return Err(error::ErrorKind::TooCheapToEnter(format!("{:?}", transaction.hash()), "unknown".into()).into());
 			},
-			Some(old) => if self.scoring.should_replace(&old.transaction, transaction) {
+			Some(old) => match self.scoring.should_replace(&old.transaction, transaction) {
+				// We can't decide which of them should be removed, so accept both.
+				scoring::Choice::InsertNew => None,
 				// New transaction is better than the worst one so we can replace it.
-				old.clone()
-			} else {
+				scoring::Choice::ReplaceOld => Some(old.clone()),
 				// otherwise fail
-				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash(), format!("{:?}", old.score)).into())
+				scoring::Choice::RejectNew => {
+					return Err(error::ErrorKind::TooCheapToEnter(format!("{:?}", transaction.hash()), format!("{:?}", old.score)).into())
+				},
 			},
 		};
 
-		// Remove from transaction set
-		self.remove_from_set(to_remove.transaction.sender(), |set, scoring| {
-			set.remove(&to_remove.transaction, scoring)
-		});
+		if let Some(to_remove) = to_remove {
+			// Remove from transaction set
+			self.remove_from_set(to_remove.transaction.sender(), |set, scoring| {
+				set.remove(&to_remove.transaction, scoring)
+			});
 
-		Ok(to_remove.transaction)
+			Ok(Some(to_remove.transaction))
+		} else {
+			Ok(None)
+		}
 	}
 
 	/// Removes transaction from sender's transaction `HashMap`.
-	fn remove_from_set<R, F: FnOnce(&mut Transactions<T, S>, &S) -> R>(&mut self, sender: &Sender, f: F) -> Option<R> {
+	fn remove_from_set<R, F: FnOnce(&mut Transactions<T, S>, &S) -> R>(&mut self, sender: &T::Sender, f: F) -> Option<R> {
 		let (prev, next, result) = if let Some(set) = self.transactions.get_mut(sender) {
 			let prev = set.worst_and_best();
 			let result = f(set, &self.scoring);
@@ -286,14 +336,14 @@ impl<T, S, L> Pool<T, S, L> where
 		self.worst_transactions.clear();
 
 		for (_hash, tx) in self.by_hash.drain() {
-			self.listener.dropped(&tx, None)
+			self.listener.dropped(&tx.transaction, None)
 		}
 	}
 
 	/// Removes single transaction from the pool.
 	/// Depending on the `is_invalid` flag the listener
 	/// will either get a `cancelled` or `invalid` notification.
-	pub fn remove(&mut self, hash: &H256, is_invalid: bool) -> Option<Arc<T>> {
+	pub fn remove(&mut self, hash: &T::Hash, is_invalid: bool) -> Option<Arc<T>> {
 		if let Some(tx) = self.finalize_remove(hash) {
 			self.remove_from_set(tx.sender(), |set, scoring| {
 				set.remove(&tx, scoring)
@@ -310,7 +360,7 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Removes all stalled transactions from given sender.
-	fn remove_stalled<R: Ready<T>>(&mut self, sender: &Sender, ready: &mut R) -> usize {
+	fn remove_stalled<R: Ready<T>>(&mut self, sender: &T::Sender, ready: &mut R) -> usize {
 		let removed_from_set = self.remove_from_set(sender, |transactions, scoring| {
 			transactions.cull(ready, scoring)
 		});
@@ -329,7 +379,7 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Removes all stalled transactions from given sender list (or from all senders).
-	pub fn cull<R: Ready<T>>(&mut self, senders: Option<&[Sender]>, mut ready: R) -> usize {
+	pub fn cull<R: Ready<T>>(&mut self, senders: Option<&[T::Sender]>, mut ready: R) -> usize {
 		let mut removed = 0;
 		match senders {
 			Some(senders) => {
@@ -349,13 +399,24 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Returns a transaction if it's part of the pool or `None` otherwise.
-	pub fn find(&self, hash: &H256) -> Option<Arc<T>> {
-		self.by_hash.get(hash).cloned()
+	pub fn find(&self, hash: &T::Hash) -> Option<Arc<T>> {
+		self.by_hash.get(hash).map(|t| t.transaction.clone())
 	}
 
 	/// Returns worst transaction in the queue (if any).
 	pub fn worst_transaction(&self) -> Option<Arc<T>> {
-		self.worst_transactions.iter().next().map(|x| x.transaction.clone())
+		self.worst_transactions.iter().next_back().map(|x| x.transaction.transaction.clone())
+	}
+
+	/// Returns true if the pool is at it's capacity.
+	pub fn is_full(&self) -> bool {
+		self.by_hash.len() >= self.options.max_count
+			|| self.mem_usage >= self.options.max_mem_usage
+	}
+
+	/// Returns senders ordered by priority of their transactions.
+	pub fn senders(&self) -> impl Iterator<Item=&T::Sender> {
+		self.best_transactions.iter().map(|tx| tx.transaction.sender())
 	}
 
 	/// Returns an iterator of pending (ready) transactions.
@@ -368,7 +429,7 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Returns pending (ready) transactions from given sender.
-	pub fn pending_from_sender<R: Ready<T>>(&self, ready: R, sender: &Sender) -> PendingIterator<T, R, S, L> {
+	pub fn pending_from_sender<R: Ready<T>>(&self, ready: R, sender: &T::Sender) -> PendingIterator<T, R, S, L> {
 		let best_transactions = self.transactions.get(sender)
 			.and_then(|transactions| transactions.worst_and_best())
 			.map(|(_, best)| ScoreWithRef::new(best.0, best.1))
@@ -387,7 +448,7 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Update score of transactions of a particular sender.
-	pub fn update_scores(&mut self, sender: &Sender, event: S::Event) {
+	pub fn update_scores(&mut self, sender: &T::Sender, event: S::Event) {
 		let res = if let Some(set) = self.transactions.get_mut(sender) {
 			let prev = set.worst_and_best();
 			set.update_scores(&self.scoring, event);
@@ -410,7 +471,7 @@ impl<T, S, L> Pool<T, S, L> where
 			let len = transactions.len();
 			for (idx, tx) in transactions.iter().enumerate() {
 				match ready.is_ready(tx) {
-					Readiness::Stalled => status.stalled += 1,
+					Readiness::Stale => status.stalled += 1,
 					Readiness::Ready => status.pending += 1,
 					Readiness::Future => {
 						status.future += len - idx;
@@ -440,6 +501,11 @@ impl<T, S, L> Pool<T, S, L> where
 	/// Borrows listener instance.
 	pub fn listener(&self) -> &L {
 		&self.listener
+	}
+
+	/// Borrows scoring instance.
+	pub fn scoring(&self) -> &S {
+		&self.scoring
 	}
 
 	/// Borrows listener mutably.
@@ -485,7 +551,7 @@ impl<'a, T, R, S, L> Iterator for PendingIterator<'a, T, R, S, L> where
 						self.best_transactions.insert(ScoreWithRef::new(score, tx));
 					}
 
-					return Some(best.transaction)
+					return Some(best.transaction.transaction)
 				},
 				state => trace!("[{:?}] Ignoring {:?} transaction.", best.transaction.hash(), state),
 			}

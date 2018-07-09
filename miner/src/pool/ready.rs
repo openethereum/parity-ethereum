@@ -54,14 +54,14 @@ pub struct State<C> {
 	nonces: HashMap<Address, U256>,
 	state: C,
 	max_nonce: Option<U256>,
-	stale_id: Option<u64>,
+	stale_id: Option<usize>,
 }
 
 impl<C> State<C> {
 	/// Create new State checker, given client interface.
 	pub fn new(
 		state: C,
-		stale_id: Option<u64>,
+		stale_id: Option<usize>,
 		max_nonce: Option<U256>,
 	) -> Self {
 		State {
@@ -91,10 +91,10 @@ impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 		match tx.transaction.nonce.cmp(nonce) {
 			// Before marking as future check for stale ids
 			cmp::Ordering::Greater => match self.stale_id {
-				Some(id) if tx.insertion_id() < id => txpool::Readiness::Stalled,
+				Some(id) if tx.insertion_id() < id => txpool::Readiness::Stale,
 				_ => txpool::Readiness::Future,
 			},
-			cmp::Ordering::Less => txpool::Readiness::Stalled,
+			cmp::Ordering::Less => txpool::Readiness::Stale,
 			cmp::Ordering::Equal => {
 				*nonce = *nonce + 1.into();
 				txpool::Readiness::Ready
@@ -126,6 +126,43 @@ impl txpool::Ready<VerifiedTransaction> for Condition {
 			Some(transaction::Condition::Number(block)) if block > self.block_number => txpool::Readiness::Future,
 			Some(transaction::Condition::Timestamp(time)) if time > self.now => txpool::Readiness::Future,
 			_ => txpool::Readiness::Ready,
+		}
+	}
+}
+
+/// Readiness checker that only relies on nonce cache (does actually go to state).
+///
+/// Checks readiness of transactions by comparing the nonce to state nonce. If nonce
+/// isn't found in provided state nonce store, defaults to the tx nonce and updates
+/// the nonce store. Useful for using with a state nonce cache when false positives are allowed.
+pub struct OptionalState<C> {
+	nonces: HashMap<Address, U256>,
+	state: C,
+}
+
+impl<C> OptionalState<C> {
+	pub fn new(state: C) -> Self {
+		OptionalState {
+			nonces: Default::default(),
+			state,
+		}
+	}
+}
+
+impl<C: Fn(&Address) -> Option<U256>> txpool::Ready<VerifiedTransaction> for OptionalState<C> {
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> txpool::Readiness {
+		let sender = tx.sender();
+		let state = &self.state;
+		let nonce = self.nonces.entry(*sender).or_insert_with(|| {
+			state(sender).unwrap_or_else(|| tx.transaction.nonce)
+		});
+		match tx.transaction.nonce.cmp(nonce) {
+			cmp::Ordering::Greater => txpool::Readiness::Future,
+			cmp::Ordering::Less => txpool::Readiness::Stale,
+			cmp::Ordering::Equal => {
+				*nonce = *nonce + 1.into();
+				txpool::Readiness::Ready
+			},
 		}
 	}
 }
@@ -178,7 +215,7 @@ mod tests {
 		let res = State::new(TestClient::new().with_nonce(125), None, None).is_ready(&tx);
 
 		// then
-		assert_eq!(res, txpool::Readiness::Stalled);
+		assert_eq!(res, txpool::Readiness::Stale);
 	}
 
 	#[test]
@@ -190,7 +227,7 @@ mod tests {
 		let res = State::new(TestClient::new(), Some(1), None).is_ready(&tx);
 
 		// then
-		assert_eq!(res, txpool::Readiness::Stalled);
+		assert_eq!(res, txpool::Readiness::Stale);
 	}
 
 	#[test]

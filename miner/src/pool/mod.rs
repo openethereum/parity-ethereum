@@ -46,20 +46,20 @@ pub enum PrioritizationStrategy {
 }
 
 /// Transaction priority.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd,  Clone, Copy)]
 pub(crate) enum Priority {
-	/// Local transactions (high priority)
-	///
-	/// Transactions either from a local account or
-	/// submitted over local RPC connection via `eth_sendRawTransaction`
-	Local,
+	/// Regular transactions received over the network. (no priority boost)
+	Regular,
 	/// Transactions from retracted blocks (medium priority)
 	///
 	/// When block becomes non-canonical we re-import the transactions it contains
 	/// to the queue and boost their priority.
 	Retracted,
-	/// Regular transactions received over the network. (no priority boost)
-	Regular,
+	/// Local transactions (high priority)
+	///
+	/// Transactions either from a local account or
+	/// submitted over local RPC connection via `eth_sendRawTransaction`
+	Local,
 }
 
 impl Priority {
@@ -105,6 +105,11 @@ impl VerifiedTransaction {
 		self.priority
 	}
 
+	/// Gets transaction insertion id.
+	pub(crate) fn insertion_id(&self) -> usize {
+		self.insertion_id
+	}
+
 	/// Gets wrapped `SignedTransaction`
 	pub fn signed(&self) -> &transaction::SignedTransaction {
 		&self.transaction
@@ -114,9 +119,13 @@ impl VerifiedTransaction {
 	pub fn pending(&self) -> &transaction::PendingTransaction {
 		&self.transaction
 	}
+
 }
 
 impl txpool::VerifiedTransaction for VerifiedTransaction {
+	type Hash = H256;
+	type Sender = Address;
+
 	fn hash(&self) -> &H256 {
 		&self.hash
 	}
@@ -127,9 +136,5 @@ impl txpool::VerifiedTransaction for VerifiedTransaction {
 
 	fn sender(&self) -> &Address {
 		&self.sender
-	}
-
-	fn insertion_id(&self) -> u64 {
-		self.insertion_id as u64
 	}
 }
