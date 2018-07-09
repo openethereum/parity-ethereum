@@ -587,9 +587,13 @@ pub mod tests {
 		let publics: Vec<_> = (0..n).map(|i| public_values_generation(t, &derived_point, &polynoms1[i], &polynoms2[i]).unwrap()).collect();
 
 		// keys verification
-		(0..n).map(|i| (0..n).map(|j| if i != j {
-			assert!(keys_verification(t, &derived_point, &id_numbers[i], &secrets1[j][i], &secrets2[j][i], &publics[j]).unwrap());
-		}).collect::<Vec<_>>()).collect::<Vec<_>>();
+		(0..n).for_each(|i| {
+			(0..n)
+				.filter(|&j| i != j)
+				.for_each(|j| {
+					assert!(keys_verification(t, &derived_point, &id_numbers[i], &secrets1[j][i], &secrets2[j][i], &publics[j]).unwrap());
+				})
+		});
 
 		// data, generated during keys generation
 		let public_shares: Vec<_> = (0..n).map(|i| compute_public_share(&polynoms1[i][0]).unwrap()).collect();
