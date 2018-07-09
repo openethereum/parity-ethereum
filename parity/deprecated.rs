@@ -138,19 +138,19 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 	// Removed in 1.7.
 
 	if args.arg_dapps_port.is_some() {
-		result.push(Deprecated::Replaced("--dapps-port", "--jsonrpc-port"));
+		result.push(Deprecated::Removed("--dapps-port"));
 	}
 
 	if args.arg_dapps_interface.is_some() {
-		result.push(Deprecated::Replaced("--dapps-interface", "--jsonrpc-interface"));
+		result.push(Deprecated::Removed("--dapps-interface"));
 	}
 
 	if args.arg_dapps_hosts.is_some() {
-		result.push(Deprecated::Replaced("--dapps-hosts", "--jsonrpc-hosts"));
+		result.push(Deprecated::Removed("--dapps-hosts"));
 	}
 
 	if args.arg_dapps_cors.is_some() {
-		result.push(Deprecated::Replaced("--dapps-cors", "--jsonrpc-cors"));
+		result.push(Deprecated::Removed("--dapps-cors"));
 	}
 
 	if args.arg_dapps_user.is_some() {

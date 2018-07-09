@@ -921,7 +921,7 @@ usage! {
 
 			FLAG flag_webapp: (bool) = false, or |_| None,
 			"-w, --webapp",
-			"Does nothing; dapps server is removed.",
+			"Does nothing; dapps server has been removed.",
 
 			FLAG flag_dapps_off: (bool) = false, or |_| None,
 			"--dapps-off",
@@ -1029,19 +1029,19 @@ usage! {
 
 			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
 			"--dapps-port=[PORT]",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-port.",
+			"Does nothing; dapps server has been removed.",
 
 			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.interface.clone(),
 			"--dapps-interface=[IP]",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-interface.",
+			"Does nothing; dapps server has been removed.",
 
 			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
 			"--dapps-hosts=[HOSTS]",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-hosts.",
+			"Does nothing; dapps server has been removed.",
 
 			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.cors.clone(),
 			"--dapps-cors=[URL]",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-cors.",
+			"Does nothing; dapps server has been removed.",
 
 			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.user.clone(),
 			"--dapps-user=[USERNAME]",
