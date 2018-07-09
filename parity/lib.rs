@@ -17,7 +17,6 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature = "memory_profiling", feature(alloc_system, global_allocator, allocator_api))]
 
 extern crate ansi_term;
 extern crate docopt;
@@ -93,9 +92,6 @@ extern crate pretty_assertions;
 #[cfg(test)]
 extern crate tempdir;
 
-#[cfg(feature = "memory_profiling")]
-extern crate alloc_system;
-
 mod account;
 mod blockchain;
 mod cache;
@@ -131,7 +127,7 @@ use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
 use ethcore_logger::setup_log;
 #[cfg(feature = "memory_profiling")]
-use alloc_system::System;
+use std::alloc::System;
 
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
