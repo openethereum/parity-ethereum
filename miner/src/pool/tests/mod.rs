@@ -984,7 +984,7 @@ fn should_avoid_reverifying_recently_rejected_transactions() {
 	assert_eq!(txq.status().status.transaction_count, 0);
 }
 
-
+#[test]
 fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
 	// given
 	let txq = TransactionQueue::new(
