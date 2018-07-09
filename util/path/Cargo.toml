@@ -1,6 +1,8 @@
 [package]
 name = "path"
-version = "0.1.0"
-authors = ["debris <marek.kotewicz@gmail.com>"]
+version = "0.1.1"
+authors = ["Parity Technologies <admin@parity.io>"]
+license = "GPL3"
 
 [dependencies]
+dirs = "1.0.2"
