@@ -24,7 +24,7 @@ use bytes::Bytes;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// Diff type for specifying a change (or not).
-pub enum Diff<T> where T: Eq {
+pub enum Diff<T> {
 	/// Both sides are the same.
 	Same,
 	/// Left (pre, source) side doesn't include value, right side (post, destination) does.
@@ -35,9 +35,15 @@ pub enum Diff<T> where T: Eq {
 	Died(T),
 }
 
-impl<T> Diff<T> where T: Eq {
+impl<T> Diff<T> {
 	/// Construct new object with given `pre` and `post`.
-	pub fn new(pre: T, post: T) -> Self { if pre == post { Diff::Same } else { Diff::Changed(pre, post) } }
+	pub fn new(pre: T, post: T) -> Self where T: Eq {
+		if pre == post {
+			Diff::Same
+		} else {
+			Diff::Changed(pre, post)
+		}
+	}
 
 	/// Get the before value, if there is one.
 	pub fn pre(&self) -> Option<&T> { match *self { Diff::Died(ref x) | Diff::Changed(ref x, _) => Some(x), _ => None } }
