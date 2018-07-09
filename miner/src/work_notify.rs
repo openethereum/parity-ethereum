@@ -62,7 +62,7 @@ impl WorkPoster {
 			client: fetch,
 			remote: remote,
 			urls: urls,
-			seed_compute: Mutex::new(SeedHashCompute::new()),
+			seed_compute: Mutex::new(SeedHashCompute::default()),
 		}
 	}
 }
