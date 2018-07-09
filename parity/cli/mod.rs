@@ -449,6 +449,17 @@ usage! {
 			"--reserved-peers=[FILE]",
 			"Provide a file containing enodes, one per line. These nodes will always have a reserved slot on top of the normal maximum peers.",
 
+			CHECK |args: &Args| {
+				if let (Some(max_peers), Some(min_peers)) = (args.arg_max_peers, args.arg_min_peers) {
+					if min_peers > max_peers {
+						return Err(ArgsError::PeerConfiguration);
+					}
+				}
+
+				Ok(())
+			},
+
+
 		["API and Console Options – HTTP JSON-RPC"]
 			FLAG flag_no_jsonrpc: (bool) = false, or |c: &Config| c.rpc.as_ref()?.disable.clone(),
 			"--no-jsonrpc",
@@ -879,25 +890,42 @@ usage! {
 			"Target size of the whisper message pool in megabytes.",
 
 		["Legacy Options"]
-			FLAG flag_warp: (bool) = false, or |_| None,
-			"--warp",
-			"Does nothing; warp sync is enabled by default. Use --no-warp to disable.",
-
-			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
-			"--dapps-apis-all",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-apis.",
+		    // Options that are hidden from config, but are still unique for its functionality.
 
 			FLAG flag_geth: (bool) = false, or |_| None,
 			"--geth",
 			"Run in Geth-compatibility mode. Sets the IPC path to be the same as Geth's. Overrides the --ipc-path and --ipcpath options. Alters RPCs to reflect Geth bugs. Includes the personal_ RPC by default.",
 
-			FLAG flag_testnet: (bool) = false, or |_| None,
-			"--testnet",
-			"Testnet mode. Equivalent to --chain testnet. Overrides the --keys-path option.",
-
 			FLAG flag_import_geth_keys: (bool) = false, or |_| None,
 			"--import-geth-keys",
 			"Attempt to import keys from Geth client.",
+
+			// Options that either do nothing, or are replaced by other options.
+			// FLAG Removed in 1.6 or before.
+
+			FLAG flag_warp: (bool) = false, or |_| None,
+			"--warp",
+			"Does nothing; warp sync is enabled by default. Use --no-warp to disable.",
+
+			FLAG flag_jsonrpc: (bool) = false, or |_| None,
+			"-j, --jsonrpc",
+			"Does nothing; HTTP JSON-RPC is on by default now.",
+
+			FLAG flag_rpc: (bool) = false, or |_| None,
+			"--rpc",
+			"Does nothing; HTTP JSON-RPC is on by default now.",
+
+			FLAG flag_jsonrpc_off: (bool) = false, or |_| None,
+			"--jsonrpc-off",
+			"Equivalent to --no-jsonrpc.",
+
+			FLAG flag_webapp: (bool) = false, or |_| None,
+			"-w, --webapp",
+			"Does nothing; dapps server has been removed.",
+
+			FLAG flag_dapps_off: (bool) = false, or |_| None,
+			"--dapps-off",
+			"Equivalent to --no-dapps.",
 
 			FLAG flag_ipcdisable: (bool) = false, or |_| None,
 			"--ipcdisable",
@@ -907,29 +935,21 @@ usage! {
 			"--ipc-off",
 			"Equivalent to --no-ipc.",
 
+			FLAG flag_testnet: (bool) = false, or |_| None,
+			"--testnet",
+			"Testnet mode. Equivalent to --chain testnet. Overrides the --keys-path option.",
+
 			FLAG flag_nodiscover: (bool) = false, or |_| None,
 			"--nodiscover",
 			"Equivalent to --no-discovery.",
 
-			FLAG flag_jsonrpc: (bool) = false, or |_| None,
-			"-j, --jsonrpc",
-			"Does nothing; HTTP JSON-RPC is on by default now.",
+			// FLAG Removed in 1.7.
 
-			FLAG flag_jsonrpc_off: (bool) = false, or |_| None,
-			"--jsonrpc-off",
-			"Equivalent to --no-jsonrpc.",
+			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
+			"--dapps-apis-all",
+			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-apis.",
 
-			FLAG flag_webapp: (bool) = false, or |_| None,
-			"-w, --webapp",
-			"Does nothing; dapps server is on by default now.",
-
-			FLAG flag_dapps_off: (bool) = false, or |_| None,
-			"--dapps-off",
-			"Equivalent to --no-dapps.",
-
-			FLAG flag_rpc: (bool) = false, or |_| None,
-			"--rpc",
-			"Does nothing; HTTP JSON-RPC is on by default now.",
+			// FLAG Removed in 1.11.
 
 			FLAG flag_public_node: (bool) = false, or |_| None,
 			"--public-node",
@@ -947,41 +967,15 @@ usage! {
 			"--ui-no-validation",
 			"Does nothing; UI is now a separate project.",
 
-			ARG arg_ui_interface: (String) = "local", or |_| None,
-			"--ui-interface=[IP]",
-			"Does nothing; UI is now a separate project.",
+			// ARG Removed in 1.6 or before.
 
-			ARG arg_ui_hosts: (String) = "none", or |_| None,
-			"--ui-hosts=[HOSTS]",
-			"Does nothing; UI is now a separate project.",
+			ARG arg_etherbase: (Option<String>) = None, or |_| None,
+			"--etherbase=[ADDRESS]",
+			"Equivalent to --author ADDRESS.",
 
-			ARG arg_ui_port: (u16) = 8180u16, or |_| None,
-			"--ui-port=[PORT]",
-			"Does nothing; UI is now a separate project.",
-
-			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
-			"--dapps-port=[PORT]",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-port.",
-
-			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.interface.clone(),
-			"--dapps-interface=[IP]",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-interface.",
-
-			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
-			"--dapps-hosts=[HOSTS]",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-hosts.",
-
-			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.cors.clone(),
-			"--dapps-cors=[URL]",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-cors.",
-
-			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.user.clone(),
-			"--dapps-user=[USERNAME]",
-			"Dapps server authentication has been removed.",
-
-			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.pass.clone(),
-			"--dapps-pass=[PASSWORD]",
-			"Dapps server authentication has been removed.",
+			ARG arg_extradata: (Option<String>) = None, or |_| None,
+			"--extradata=[STRING]",
+			"Equivalent to --extra-data STRING.",
 
 			ARG arg_datadir: (Option<String>) = None, or |_| None,
 			"--datadir=[PATH]",
@@ -1027,23 +1021,55 @@ usage! {
 			"--gasprice=[WEI]",
 			"Equivalent to --min-gas-price WEI.",
 
-			ARG arg_etherbase: (Option<String>) = None, or |_| None,
-			"--etherbase=[ADDRESS]",
-			"Equivalent to --author ADDRESS.",
-
-			ARG arg_extradata: (Option<String>) = None, or |_| None,
-			"--extradata=[STRING]",
-			"Equivalent to --extra-data STRING.",
-
 			ARG arg_cache: (Option<u32>) = None, or |_| None,
 			"--cache=[MB]",
 			"Equivalent to --cache-size MB.",
 
-			ARG arg_tx_queue_ban_count: (u16) = 1u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_count.clone(),
+			// ARG Removed in 1.7.
+
+			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
+			"--dapps-port=[PORT]",
+			"Does nothing; dapps server has been removed.",
+
+			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.interface.clone(),
+			"--dapps-interface=[IP]",
+			"Does nothing; dapps server has been removed.",
+
+			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
+			"--dapps-hosts=[HOSTS]",
+			"Does nothing; dapps server has been removed.",
+
+			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.cors.clone(),
+			"--dapps-cors=[URL]",
+			"Does nothing; dapps server has been removed.",
+
+			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.user.clone(),
+			"--dapps-user=[USERNAME]",
+			"Dapps server authentication has been removed.",
+
+			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.pass.clone(),
+			"--dapps-pass=[PASSWORD]",
+			"Dapps server authentication has been removed.",
+
+			// ARG removed in 1.11.
+
+			ARG arg_ui_interface: (Option<String>) = None, or |_| None,
+			"--ui-interface=[IP]",
+			"Does nothing; UI is now a separate project.",
+
+			ARG arg_ui_hosts: (Option<String>) = None, or |_| None,
+			"--ui-hosts=[HOSTS]",
+			"Does nothing; UI is now a separate project.",
+
+			ARG arg_ui_port: (Option<u16>) = None, or |_| None,
+			"--ui-port=[PORT]",
+			"Does nothing; UI is now a separate project.",
+
+			ARG arg_tx_queue_ban_count: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_count.clone(),
 			"--tx-queue-ban-count=[C]",
 			"Not supported.",
 
-			ARG arg_tx_queue_ban_time: (u16) = 180u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
+			ARG arg_tx_queue_ban_time: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
 			"--tx-queue-ban-time=[SEC]",
 			"Not supported.",
 	}
@@ -1427,11 +1453,11 @@ mod tests {
 
 		let args = Args::parse(&["parity", "--password", "~/.safe/1", "--password", "~/.safe/2", "--ui-port", "8123"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
-		assert_eq!(args.arg_ui_port, 8123);
+		assert_eq!(args.arg_ui_port, Some(8123));
 
 		let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2", "--ui-port", "8123"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
-		assert_eq!(args.arg_ui_port, 8123);
+		assert_eq!(args.arg_ui_port, Some(8123));
 	}
 
 	#[test]
@@ -1583,9 +1609,9 @@ mod tests {
 
 			flag_force_ui: false,
 			flag_no_ui: false,
-			arg_ui_port: 8180u16,
-			arg_ui_interface: "local".into(),
-			arg_ui_hosts: "none".into(),
+			arg_ui_port: None,
+			arg_ui_interface: None,
+			arg_ui_hosts: None,
 			arg_ui_path: "$HOME/.parity/signer".into(),
 			flag_ui_no_validation: false,
 
@@ -1692,8 +1718,8 @@ mod tests {
 			arg_tx_queue_mem_limit: 4u32,
 			arg_tx_queue_gas: "off".into(),
 			arg_tx_queue_strategy: "gas_factor".into(),
-			arg_tx_queue_ban_count: 1u16,
-			arg_tx_queue_ban_time: 180u16,
+			arg_tx_queue_ban_count: Some(1u16),
+			arg_tx_queue_ban_time: Some(180u16),
 			flag_remove_solved: false,
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
