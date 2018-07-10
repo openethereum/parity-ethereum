@@ -133,7 +133,7 @@ members = [
 	"transaction-pool",
 	"whisper",
 	"whisper/cli",
-  "util/triehash-ethereum",
+	"util/triehash-ethereum",
 	"util/keccak-hasher",
 	"util/patricia-trie-ethereum",
 ]
