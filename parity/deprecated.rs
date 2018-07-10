@@ -206,7 +206,7 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 	// Removed in 2.0.
 
 	if args.flag_fast_and_loose {
-		result.push(Deprecated::DoesNothing("--fast-and-loose"));
+		result.push(Deprecated::Removed("--fast-and-loose"));
 	}
 
 	result
@@ -243,6 +243,7 @@ mod tests {
 			args
 		}), vec![
 			Deprecated::DoesNothing("--warp"),
+			Deprecated::Removed("--fast-and-loose"),
 			Deprecated::DoesNothing("--jsonrpc"),
 			Deprecated::DoesNothing("--rpc"),
 			Deprecated::Replaced("--jsonrpc-off", "--no-jsonrpc"),
