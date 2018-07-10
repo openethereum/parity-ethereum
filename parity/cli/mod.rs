@@ -1933,14 +1933,14 @@ mod tests {
 				apis: Some(vec!["rpc".into(), "eth".into()]),
 			}),
 			dapps: Some(Dapps {
-				disable: None,
-				port: Some(8080),
-				path: None,
-				interface: None,
-				hosts: None,
-				cors: None,
-				user: Some("username".into()),
-				pass: Some("password".into())
+				_legacy_disable: None,
+				_legacy_port: Some(8080),
+				_legacy_path: None,
+				_legacy_interface: None,
+				_legacy_hosts: None,
+				_legacy_cors: None,
+				_legacy_user: Some("username".into()),
+				_legacy_pass: Some("password".into())
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
