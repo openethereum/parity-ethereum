@@ -133,7 +133,6 @@ impl Configuration {
 		let tracing = self.args.arg_tracing.parse()?;
 		let fat_db = self.args.arg_fat_db.parse()?;
 		let compaction = self.args.arg_db_compaction.parse()?;
-		let wal = !self.args.flag_fast_and_loose;
 		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let ipfs_conf = self.ipfs_config();
@@ -234,7 +233,6 @@ impl Configuration {
 				pruning_history: pruning_history,
 				pruning_memory: self.args.arg_pruning_memory,
 				compaction: compaction,
-				wal: wal,
 				tracing: tracing,
 				fat_db: fat_db,
 				vm_type: vm_type,
@@ -256,7 +254,6 @@ impl Configuration {
 					pruning_history: pruning_history,
 					pruning_memory: self.args.arg_pruning_memory,
 					compaction: compaction,
-					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
 					from_block: to_block_id(&self.args.arg_export_blocks_from)?,
@@ -275,7 +272,6 @@ impl Configuration {
 					pruning_history: pruning_history,
 					pruning_memory: self.args.arg_pruning_memory,
 					compaction: compaction,
-					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
 					at: to_block_id(&self.args.arg_export_state_at)?,
@@ -300,7 +296,6 @@ impl Configuration {
 				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_snapshot_file.clone(),
-				wal: wal,
 				kind: snapshot::Kind::Take,
 				block_at: to_block_id(&self.args.arg_snapshot_at)?,
 			};
@@ -317,7 +312,6 @@ impl Configuration {
 				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_restore_file.clone(),
-				wal: wal,
 				kind: snapshot::Kind::Restore,
 				block_at: to_block_id("latest")?, // unimportant.
 			};
@@ -329,7 +323,6 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				compaction: compaction,
-				wal: wal,
 			};
 			Cmd::ExportHardcodedSync(export_hs_cmd)
 		} else {
@@ -370,7 +363,6 @@ impl Configuration {
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
-				wal: wal,
 				vm_type: vm_type,
 				warp_sync: warp_sync,
 				warp_barrier: self.args.arg_warp_barrier,
@@ -1243,7 +1235,6 @@ mod tests {
 			pruning_history: 64,
 			pruning_memory: 32,
 			compaction: Default::default(),
-			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
@@ -1268,7 +1259,6 @@ mod tests {
 			pruning_memory: 32,
 			format: Default::default(),
 			compaction: Default::default(),
-			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			from_block: BlockId::Number(1),
@@ -1291,7 +1281,6 @@ mod tests {
 			pruning_memory: 32,
 			format: Default::default(),
 			compaction: Default::default(),
-			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			at: BlockId::Latest,
@@ -1316,7 +1305,6 @@ mod tests {
 			pruning_memory: 32,
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
-			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			from_block: BlockId::Number(1),
@@ -1403,7 +1391,6 @@ mod tests {
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
-			wal: true,
 			vm_type: Default::default(),
 			geth_compatibility: false,
 			net_settings: Default::default(),

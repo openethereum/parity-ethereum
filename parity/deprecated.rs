@@ -205,6 +205,10 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 
 	// Removed in 2.0.
 
+	if args.flag_fast_and_loose {
+		result.push(Deprecated::Removed("--fast-and-loose"));
+	}
+
 	if args.cmd_dapp {
 		result.push(Deprecated::Removed("parity dapp"));
 	}
@@ -251,6 +255,7 @@ mod tests {
 			args.arg_dapps_user = Some(Default::default());
 			args.arg_dapps_pass = Some(Default::default());
 			args.flag_dapps_apis_all = true;
+			args.flag_fast_and_loose = true;
 			args
 		}), vec![
 			Deprecated::DoesNothing("--warp"),
@@ -270,6 +275,7 @@ mod tests {
 			Deprecated::Removed("--dapps-user"),
 			Deprecated::Removed("--dapps-pass"),
 			Deprecated::Replaced("--dapps-apis-all", "--jsonrpc-apis"),
+			Deprecated::Removed("--fast-and-loose"),
 		]);
 	}
 }

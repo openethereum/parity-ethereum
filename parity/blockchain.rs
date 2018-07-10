@@ -90,7 +90,6 @@ pub struct ImportBlockchain {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub vm_type: VMType,
@@ -111,7 +110,6 @@ pub struct ExportBlockchain {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub from_block: BlockId,
@@ -130,7 +128,6 @@ pub struct ExportState {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub at: BlockId,
@@ -207,8 +204,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	// initialize database.
 	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
-						 &cmd.compaction,
-						 cmd.wal).map_err(|e| format!("Failed to open database: {:?}", e))?;
+						 &cmd.compaction).map_err(|e| format!("Failed to open database: {:?}", e))?;
 
 	// TODO: could epoch signals be avilable at the end of the file?
 	let fetch = ::light::client::fetch::unavailable();
@@ -351,7 +347,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		tracing,
 		fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.vm_type,
 		"".into(),
 		algorithm,
@@ -494,7 +489,6 @@ fn start_client(
 	tracing: Switch,
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
-	wal: bool,
 	cache_config: CacheConfig,
 	require_fat_db: bool,
 ) -> Result<ClientService, String> {
@@ -544,7 +538,6 @@ fn start_client(
 		tracing,
 		fat_db,
 		compaction,
-		wal,
 		VMType::default(),
 		"".into(),
 		algorithm,
@@ -586,7 +579,6 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		cmd.tracing,
 		cmd.fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.cache_config,
 		false,
 	)?;
@@ -631,7 +623,6 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		cmd.tracing,
 		cmd.fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.cache_config,
 		true
 	)?;
