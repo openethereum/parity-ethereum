@@ -18,7 +18,7 @@
 //! interface.
 
 extern crate byteorder;
-extern crate ethcore_crypto as crypto;
+extern crate parity_crypto as crypto;
 extern crate ethcore_network as network;
 extern crate ethereum_types;
 extern crate ethkey;

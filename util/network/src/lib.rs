@@ -16,7 +16,7 @@
 
 #![recursion_limit="128"]
 
-extern crate ethcore_crypto as crypto;
+extern crate parity_crypto as crypto;
 extern crate ethcore_io as io;
 extern crate ethereum_types;
 extern crate ethkey;

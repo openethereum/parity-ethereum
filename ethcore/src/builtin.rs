@@ -18,7 +18,7 @@ use std::cmp::{max, min};
 use std::io::{self, Read};
 
 use byteorder::{ByteOrder, BigEndian};
-use ethcore_crypto::digest;
+use parity_crypto::digest;
 use num::{BigUint, Zero, One};
 
 use hash::keccak;

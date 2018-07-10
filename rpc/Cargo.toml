@@ -37,8 +37,8 @@ jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
-ethcore-bytes = { path = "../util/bytes" }
-ethcore-crypto = { path = "../ethcore/crypto" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
@@ -53,13 +53,13 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 fetch = { path = "../util/fetch" }
-keccak-hash = { path = "../util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 node-health = { path = "../dapps/node-health" }
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-patricia-trie = { path = "../util/patricia_trie" }
-rlp = { path = "../util/rlp" }
+patricia-trie = { git = "https://github.com/paritytech/parity-common" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
@@ -73,7 +73,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
-kvdb-memorydb = { path = "../util/kvdb-memorydb" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = { path = "../transaction-pool" }

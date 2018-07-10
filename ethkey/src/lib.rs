@@ -18,7 +18,7 @@
 
 extern crate byteorder;
 extern crate edit_distance;
-extern crate ethcore_crypto;
+extern crate parity_crypto;
 extern crate ethereum_types;
 extern crate mem;
 extern crate parity_wordlist;

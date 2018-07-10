@@ -23,7 +23,7 @@
 
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_transaction as transaction;
 #[macro_use]
@@ -40,7 +40,7 @@ extern crate rlp;
 extern crate ipnetwork;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
-extern crate triehash;
+extern crate triehash_ethereum;
 extern crate kvdb;
 
 extern crate ethcore_light as light;

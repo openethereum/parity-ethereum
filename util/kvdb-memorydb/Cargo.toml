@@ -1,8 +1,0 @@
-[package]
-name = "kvdb-memorydb"
-version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-
-[dependencies]
-parking_lot = "0.6"
-kvdb = { path = "../kvdb" }
