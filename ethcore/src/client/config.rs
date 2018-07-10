@@ -135,7 +135,6 @@ impl Default for ClientConfig {
 			name: "default".into(),
 			db_cache_size: None,
 			db_compaction: Default::default(),
-			db_wal: true,
 			mode: Mode::Active,
 			spec_name: "".into(),
 			verifier_type: VerifierType::Canon,
