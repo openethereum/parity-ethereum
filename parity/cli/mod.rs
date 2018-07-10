@@ -814,10 +814,6 @@ usage! {
 			"Specify a filename into which logging should be appended.",
 
 		["Footprint Options"]
-			FLAG flag_fast_and_loose: (bool) = false, or |c: &Config| c.footprint.as_ref()?.fast_and_loose.clone(),
-			"--fast-and-loose",
-			"Disables DB WAL, which gives a significant speed up but means an unclean exit is unrecoverable.",
-
 			FLAG flag_scale_verifiers: (bool) = false, or |c: &Config| c.footprint.as_ref()?.scale_verifiers.clone(),
 			"--scale-verifiers",
 			"Automatically scale amount of verifier threads based on workload. Not guaranteed to be faster.",
@@ -966,6 +962,12 @@ usage! {
 			FLAG flag_ui_no_validation: (bool) = false, or |_| None,
 			"--ui-no-validation",
 			"Does nothing; UI is now a separate project.",
+
+			// FLAG Removed in 2.0.
+
+			FLAG flag_fast_and_loose: (bool) = false, or |_| None,
+			"--fast-and-loose",
+			"Does nothing; DB WAL is always activated.",
 
 			// ARG Removed in 1.6 or before.
 

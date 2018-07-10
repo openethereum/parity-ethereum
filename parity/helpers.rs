@@ -210,7 +210,6 @@ pub fn to_client_config(
 		tracing: bool,
 		fat_db: bool,
 		compaction: DatabaseCompactionProfile,
-		wal: bool,
 		vm_type: VMType,
 		name: String,
 		pruning: Algorithm,
@@ -246,7 +245,6 @@ pub fn to_client_config(
 	client_config.pruning = pruning;
 	client_config.history = pruning_history;
 	client_config.db_compaction = compaction;
-	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
 	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };

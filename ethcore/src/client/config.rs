@@ -102,8 +102,6 @@ pub struct ClientConfig {
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
-	/// Should db have WAL enabled?
-	pub db_wal: bool,
 	/// Operating mode
 	pub mode: Mode,
 	/// The chain spec name
@@ -137,7 +135,6 @@ impl Default for ClientConfig {
 			name: "default".into(),
 			db_cache_size: None,
 			db_compaction: Default::default(),
-			db_wal: true,
 			mode: Mode::Active,
 			spec_name: "".into(),
 			verifier_type: VerifierType::Canon,
