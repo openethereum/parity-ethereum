@@ -8,9 +8,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore = { path = "../ethcore" }
 ethcore-io = { path = "../util/io" }
 ethcore-transaction = { path = "../ethcore/transaction" }
-kvdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
 log = "0.3"
-rlp = { git = "https://github.com/paritytech/parity-common" }
+rlp = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
