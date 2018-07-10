@@ -223,7 +223,6 @@ mod tests {
 		assert_eq!(find_deprecated(&{
 			let mut args = Args::default();
 			args.flag_warp = true;
-			args.flag_fast_and_loose = true;
 			args.flag_jsonrpc = true;
 			args.flag_rpc = true;
 			args.flag_jsonrpc_off = true;
@@ -240,10 +239,10 @@ mod tests {
 			args.arg_dapps_user = Some(Default::default());
 			args.arg_dapps_pass = Some(Default::default());
 			args.flag_dapps_apis_all = true;
+			args.flag_fast_and_loose = Some(Default::default());
 			args
 		}), vec![
 			Deprecated::DoesNothing("--warp"),
-			Deprecated::Removed("--fast-and-loose"),
 			Deprecated::DoesNothing("--jsonrpc"),
 			Deprecated::DoesNothing("--rpc"),
 			Deprecated::Replaced("--jsonrpc-off", "--no-jsonrpc"),
@@ -260,6 +259,7 @@ mod tests {
 			Deprecated::Removed("--dapps-user"),
 			Deprecated::Removed("--dapps-pass"),
 			Deprecated::Replaced("--dapps-apis-all", "--jsonrpc-apis"),
+			Deprecated::Removed("--fast-and-loose"),
 		]);
 	}
 }
