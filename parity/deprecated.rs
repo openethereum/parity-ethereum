@@ -203,6 +203,12 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Removed("--tx-queue-ban-time"));
 	}
 
+	// Removed in 2.0.
+
+	if args.flag_fast_and_loose {
+		result.push(Deprecated::DoesNothing("--fast-and-loose"));
+	}
+
 	result
 }
 
@@ -217,6 +223,7 @@ mod tests {
 		assert_eq!(find_deprecated(&{
 			let mut args = Args::default();
 			args.flag_warp = true;
+			args.flag_fast_and_loose = true;
 			args.flag_jsonrpc = true;
 			args.flag_rpc = true;
 			args.flag_jsonrpc_off = true;
