@@ -12,7 +12,7 @@ path = "./src/main.rs"
 docopt = "0.8"
 ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
 ethjson = { path = "../json" }
-ethcore-bytes = { path = "../util/bytes" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 evm = { path = "../ethcore/evm" }

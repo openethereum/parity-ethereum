@@ -45,8 +45,8 @@ extern crate jsonrpc_pubsub;
 extern crate ethash;
 #[cfg_attr(test, macro_use)]
 extern crate ethcore;
-extern crate ethcore_bytes as bytes;
-extern crate ethcore_crypto as crypto;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto as crypto;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;

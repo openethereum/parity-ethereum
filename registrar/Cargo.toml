@@ -10,4 +10,4 @@ futures = "0.1"
 ethabi = "5.1.0"
 ethabi-derive = "5.0.5"
 ethabi-contract = "5.0.3"
-keccak-hash = { path = "../util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }

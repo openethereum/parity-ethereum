@@ -11,8 +11,8 @@ ethabi = "5.1"
 ethabi-contract = "5.0"
 ethabi-derive = "5.0"
 ethcore = { path = ".." }
-ethcore-bytes = { path = "../../util/bytes" }
-ethcore-crypto = { path = "../crypto" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 ethcore-io = { path = "../../util/io" }
 ethcore-logger = { path = "../../logger" }
 ethcore-miner = { path = "../../miner" }
@@ -22,13 +22,13 @@ ethjson = { path = "../../json" }
 ethkey = { path = "../../ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
-keccak-hash = { path = "../../util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 log = "0.3"
 parking_lot = "0.6"
-patricia-trie = { path = "../../util/patricia_trie" }
+patricia-trie = { git = "https://github.com/paritytech/parity-common" }
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
-rlp = { path = "../../util/rlp" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 rlp_derive = { path = "../../util/rlp_derive" }
 rustc-hex = "1.0"
 serde = "1.0"

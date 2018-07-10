@@ -2380,7 +2380,7 @@ mod tests {
 		let (new_hash, new_block) = get_good_dummy_block_hash();
 
 		let go = {
-			// Separate thread uncommited transaction
+			// Separate thread uncommitted transaction
 			let go = Arc::new(AtomicBool::new(false));
 			let go_thread = go.clone();
 			let another_client = client.clone();
