@@ -6,19 +6,19 @@ description = "A `HashDB` which can manage a short-term journal potentially cont
 license = "GPL3"
 
 [dependencies]
-ethcore-bytes = { path = "../bytes" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethereum-types = "0.3"
-hashdb = { version = "0.2.0", path = "../hashdb" }
+hashdb = { git = "https://github.com/paritytech/parity-common" }
 heapsize = "0.4"
 keccak-hasher = { path = "../keccak-hasher" }
-kvdb = { path = "../kvdb" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
 log = "0.3"
-memorydb = { version = "0.2.0", path = "../memorydb" }
+memorydb = { git = "https://github.com/paritytech/parity-common" }
 parking_lot = "0.6"
-plain_hasher = { path = "../plain_hasher" }
-rlp = { path = "../rlp" }
+plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 
 [dev-dependencies]
 ethcore-logger = { path = "../../logger" }
-keccak-hash = { path = "../hash" }
-kvdb-memorydb = { path = "../kvdb-memorydb" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }

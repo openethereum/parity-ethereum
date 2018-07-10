@@ -20,7 +20,7 @@ use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
-use triehash::ordered_trie_root;
+use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;

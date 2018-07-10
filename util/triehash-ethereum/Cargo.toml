@@ -1,0 +1,11 @@
+[package]
+name = "triehash-ethereum"
+version = "0.2.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "Trie-root helpers, ethereum style"
+license = "GPL-3.0"
+
+[dependencies]
+triehash = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.3"
+keccak-hasher = { path = "../keccak-hasher" }

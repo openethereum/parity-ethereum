@@ -17,7 +17,7 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
 extern crate elastic_array;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 
 use std::io;
 use std::path::Path;

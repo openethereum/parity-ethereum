@@ -7,9 +7,9 @@ license = "GPL-3.0"
 
 [dependencies]
 elastic-array = "0.10"
-rlp = { version = "0.2.1", path = "../rlp" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 ethereum-types = "0.3"
-keccak-hash = { version = "0.1", path = "../hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 
 [dev-dependencies]
-trie-standardmap = { path = "../trie-standardmap" }
+trie-standardmap = { git = "https://github.com/paritytech/parity-common" }

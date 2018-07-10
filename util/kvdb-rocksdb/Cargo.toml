@@ -8,7 +8,7 @@ elastic-array = "0.10"
 ethereum-types = "0.3"
 fs-swap = "0.2.1"
 interleaved-ordered = "0.1.0"
-kvdb = { path = "../kvdb" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
 log = "0.3"
 num_cpus = "1.0"
 parking_lot = "0.6"

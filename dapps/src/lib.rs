@@ -32,7 +32,7 @@ extern crate zip;
 
 extern crate jsonrpc_http_server;
 
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate fetch;
 extern crate node_health;

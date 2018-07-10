@@ -21,7 +21,7 @@ extern crate heapsize;
 extern crate log;
 
 extern crate ethereum_types;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate hashdb;
 extern crate keccak_hasher;
 extern crate kvdb;
