@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -141,7 +141,7 @@ build_rpc_trait! {
 
 		/// Returns all pending transactions from transaction queue.
 		#[rpc(name = "parity_pendingTransactions")]
-		fn pending_transactions(&self) -> Result<Vec<Transaction>>;
+		fn pending_transactions(&self, Trailing<usize>) -> Result<Vec<Transaction>>;
 
 		/// Returns all transactions from transaction queue.
 		///

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 extern crate byteorder;
 extern crate edit_distance;
-extern crate ethcore_crypto;
+extern crate parity_crypto;
 extern crate ethereum_types;
 extern crate mem;
 extern crate parity_wordlist;
@@ -27,18 +27,22 @@ extern crate quick_error;
 extern crate rand;
 extern crate rustc_hex;
 extern crate secp256k1;
+extern crate serde;
 extern crate tiny_keccak;
 
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde_derive;
 
 mod brain;
 mod brain_prefix;
 mod error;
 mod keypair;
 mod keccak;
+mod password;
 mod prefix;
 mod random;
 mod signature;
@@ -55,6 +59,7 @@ pub use self::brain_prefix::BrainPrefix;
 pub use self::error::Error;
 pub use self::keypair::{KeyPair, public_to_address};
 pub use self::math::public_is_valid;
+pub use self::password::Password;
 pub use self::prefix::Prefix;
 pub use self::random::Random;
 pub use self::signature::{sign, verify_public, verify_address, recover, Signature};

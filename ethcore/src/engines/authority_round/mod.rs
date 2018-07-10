@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,12 +16,13 @@
 
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
 
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
+use std::iter::FromIterator;
+use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, SystemTime, Duration};
-use std::collections::{BTreeMap, HashSet};
-use std::iter::FromIterator;
 
 use account_provider::AccountProvider;
 use block::*;
@@ -29,18 +30,15 @@ use client::EngineClient;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
-use error::{Error, BlockError};
+use error::{Error, ErrorKind, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
 use header::{Header, BlockNumber, ExtendedHeader};
-
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
-
 use self::finality::RollingFinality;
-
-use ethkey::{self, Signature};
+use ethkey::{self, Password, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
@@ -382,12 +380,16 @@ impl Decodable for SealedEmptyStep {
 	}
 }
 
+struct PermissionedStep {
+	inner: Step,
+	can_propose: AtomicBool,
+}
+
 /// Engine using `AuthorityRound` proof-of-authority BFT consensus.
 pub struct AuthorityRound {
 	transition_service: IoService<()>,
-	step: Arc<Step>,
-	can_propose: AtomicBool,
-	client: RwLock<Option<Weak<EngineClient>>>,
+	step: Arc<PermissionedStep>,
+	client: Arc<RwLock<Option<Weak<EngineClient>>>>,
 	signer: RwLock<EngineSigner>,
 	validators: Box<ValidatorSet>,
 	validate_score_transition: u64,
@@ -407,7 +409,7 @@ pub struct AuthorityRound {
 
 // header-chain validator.
 struct EpochVerifier {
-	step: Arc<Step>,
+	step: Arc<PermissionedStep>,
 	subchain_validators: SimpleList,
 	empty_steps_transition: u64,
 }
@@ -415,7 +417,7 @@ struct EpochVerifier {
 impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// Validate the timestamp
-		verify_timestamp(&*self.step, header_step(header, self.empty_steps_transition)?)?;
+		verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?)?;
 		// always check the seal since it's fast.
 		// nothing heavier to do.
 		verify_external(header, &self.subchain_validators, self.empty_steps_transition)
@@ -571,7 +573,6 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 
 	if is_invalid_proposer {
 		trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
-		validators.report_benign(header.author(), header.number(), header.number());
 		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 	} else {
 		Ok(())
@@ -603,6 +604,23 @@ impl AsMillis for Duration {
 	}
 }
 
+// A type for storing owned or borrowed data that has a common type.
+// Useful for returning either a borrow or owned data from a function.
+enum CowLike<'a, A: 'a + ?Sized, B> {
+	Borrowed(&'a A),
+	Owned(B),
+}
+
+impl<'a, A: ?Sized, B> Deref for CowLike<'a, A, B> where B: AsRef<A> {
+	type Target = A;
+	fn deref(&self) -> &A {
+		match self {
+			CowLike::Borrowed(b) => b,
+			CowLike::Owned(o) => o.as_ref(),
+		}
+	}
+}
+
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
 	pub fn new(our_params: AuthorityRoundParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
@@ -615,13 +633,15 @@ impl AuthorityRound {
 		let engine = Arc::new(
 			AuthorityRound {
 				transition_service: IoService::<()>::start()?,
-				step: Arc::new(Step {
-					inner: AtomicUsize::new(initial_step),
-					calibrate: our_params.start_step.is_none(),
-					duration: our_params.step_duration,
+				step: Arc::new(PermissionedStep {
+					inner: Step {
+						inner: AtomicUsize::new(initial_step),
+						calibrate: our_params.start_step.is_none(),
+						duration: our_params.step_duration,
+					},
+					can_propose: AtomicBool::new(true),
 				}),
-				can_propose: AtomicBool::new(true),
-				client: RwLock::new(None),
+				client: Arc::new(RwLock::new(None)),
 				signer: Default::default(),
 				validators: our_params.validators,
 				validate_score_transition: our_params.validate_score_transition,
@@ -641,10 +661,37 @@ impl AuthorityRound {
 
 		// Do not initialize timeouts for tests.
 		if should_timeout {
-			let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
+			let handler = TransitionHandler {
+				step: engine.step.clone(),
+				client: engine.client.clone(),
+			};
 			engine.transition_service.register_handler(Arc::new(handler))?;
 		}
 		Ok(engine)
+	}
+
+	// fetch correct validator set for epoch at header, taking into account
+	// finality of previous transitions.
+	fn epoch_set<'a>(&'a self, header: &Header) -> Result<(CowLike<ValidatorSet, SimpleList>, BlockNumber), Error> {
+		Ok(if self.immediate_transitions {
+			(CowLike::Borrowed(&*self.validators), header.number())
+		} else {
+			let mut epoch_manager = self.epoch_manager.lock();
+			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+				Some(client) => client,
+				None => {
+					debug!(target: "engine", "Unable to verify sig: missing client ref.");
+					return Err(EngineError::RequiresClient.into())
+				}
+			};
+
+			if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, header) {
+				debug!(target: "engine", "Unable to zoom to epoch.");
+				return Err(EngineError::RequiresClient.into())
+			}
+
+			(CowLike::Owned(epoch_manager.validators().clone()), epoch_manager.epoch_transition_number)
+		})
 	}
 
 	fn empty_steps(&self, from_step: U256, to_step: U256, parent_hash: H256) -> Vec<EmptyStep> {
@@ -654,7 +701,6 @@ impl AuthorityRound {
 				e.parent_hash == parent_hash
 		}).cloned().collect()
 	}
-
 
 	fn clear_empty_steps(&self, step: U256) {
 		// clear old `empty_steps` messages
@@ -667,7 +713,7 @@ impl AuthorityRound {
 	}
 
 	fn generate_empty_step(&self, parent_hash: &H256) {
-		let step = self.step.load();
+		let step = self.step.inner.load();
 		let empty_step_rlp = empty_step_rlp(step, parent_hash);
 
 		if let Ok(signature) = self.sign(keccak(&empty_step_rlp)).map(Into::into) {
@@ -692,6 +738,28 @@ impl AuthorityRound {
 			}
 		}
 	}
+
+	fn report_skipped(&self, header: &Header, current_step: usize, parent_step: usize, validators: &ValidatorSet, set_number: u64) {
+		// we're building on top of the genesis block so don't report any skipped steps
+		if header.number() == 1 {
+			return;
+		}
+
+		if let (true, Some(me)) = (current_step > parent_step + 1, self.signer.read().address()) {
+			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
+				   header.author(), current_step, parent_step);
+			let mut reported = HashSet::new();
+			for step in parent_step + 1..current_step {
+				let skipped_primary = step_proposer(validators, header.parent_hash(), step);
+				// Do not report this signer.
+				if skipped_primary != me {
+					// Stop reporting once validators start repeating.
+					if !reported.insert(skipped_primary) { break; }
+					self.validators.report_benign(&skipped_primary, set_number, header.number());
+ 				}
+ 			}
+		}
+	}
 }
 
 fn unix_now() -> Duration {
@@ -699,34 +767,37 @@ fn unix_now() -> Duration {
 }
 
 struct TransitionHandler {
-	engine: Weak<AuthorityRound>,
+	step: Arc<PermissionedStep>,
+	client: Arc<RwLock<Option<Weak<EngineClient>>>>,
 }
 
 const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
 impl IoHandler<()> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<()>) {
-		if let Some(engine) = self.engine.upgrade() {
-			let remaining = engine.step.duration_remaining().as_millis();
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(remaining))
-				.unwrap_or_else(|e| warn!(target: "engine", "Failed to start consensus step timer: {}.", e))
-		}
+		let remaining = AsMillis::as_millis(&self.step.inner.duration_remaining());
+		io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(remaining))
+			.unwrap_or_else(|e| warn!(target: "engine", "Failed to start consensus step timer: {}.", e))
 	}
 
 	fn timeout(&self, io: &IoContext<()>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
-			if let Some(engine) = self.engine.upgrade() {
-				// NOTE we might be lagging by couple of steps in case the timeout
-				// has not been called fast enough.
-				// Make sure to advance up to the actual step.
-				while engine.step.duration_remaining().as_millis() == 0 {
-					engine.step();
+			// NOTE we might be lagging by couple of steps in case the timeout
+			// has not been called fast enough.
+			// Make sure to advance up to the actual step.
+			while AsMillis::as_millis(&self.step.inner.duration_remaining()) == 0 {
+				self.step.inner.increment();
+				self.step.can_propose.store(true, AtomicOrdering::SeqCst);
+				if let Some(ref weak) = *self.client.read() {
+					if let Some(c) = weak.upgrade() {
+						c.update_sealing();
+					}
 				}
-
-				let next_run_at = engine.step.duration_remaining().as_millis() >> 2;
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(next_run_at))
-					.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 			}
+
+			let next_run_at = AsMillis::as_millis(&self.step.inner.duration_remaining()) >> 2;
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(next_run_at))
+				.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 		}
 	}
 }
@@ -743,8 +814,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	fn step(&self) {
-		self.step.increment();
-		self.can_propose.store(true, AtomicOrdering::SeqCst);
+		self.step.inner.increment();
+		self.step.can_propose.store(true, AtomicOrdering::SeqCst);
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
 				c.update_sealing();
@@ -791,7 +862,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let parent_step = header_step(parent, self.empty_steps_transition).expect("Header has been verified; qed");
-		let current_step = self.step.load();
+		let current_step = self.step.inner.load();
 
 		let current_empty_steps_len = if header.number() >= self.empty_steps_transition {
 			self.empty_steps(parent_step.into(), current_step.into(), parent.hash()).len()
@@ -817,7 +888,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let empty_step: EmptyStep = rlp.as_val().map_err(fmt_err)?;;
 
 		if empty_step.verify(&*self.validators).unwrap_or(false) {
-			if self.step.check_future(empty_step.step).is_ok() {
+			if self.step.inner.check_future(empty_step.step).is_ok() {
 				trace!(target: "engine", "handle_message: received empty step message {:?}", empty_step);
 				self.handle_empty_step_message(empty_step);
 			} else {
@@ -837,7 +908,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
-		if !self.can_propose.load(AtomicOrdering::SeqCst) {
+		if !self.step.can_propose.load(AtomicOrdering::SeqCst) {
 			trace!(target: "engine", "Aborting seal generation. Can't propose.");
 			return Seal::None;
 		}
@@ -846,7 +917,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let parent_step: U256 = header_step(parent, self.empty_steps_transition)
 			.expect("Header has been verified; qed").into();
 
-		let step = self.step.load();
+		let step = self.step.inner.load();
 
 		// filter messages from old and future steps and different parents
 		let empty_steps = if header.number() >= self.empty_steps_transition {
@@ -868,32 +939,15 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			return Seal::None;
 		}
 
-		// fetch correct validator set for current epoch, taking into account
-		// finality of previous transitions.
-		let active_set;
-
-		let validators = if self.immediate_transitions {
-			&*self.validators
-		} else {
-			let mut epoch_manager = self.epoch_manager.lock();
-			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-				Some(client) => client,
-				None => {
-					warn!(target: "engine", "Unable to generate seal: missing client ref.");
-					return Seal::None;
-				}
-			};
-
-			if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, header) {
-				debug!(target: "engine", "Unable to zoom to epoch.");
+		let (validators, set_number) = match self.epoch_set(header) {
+			Err(err) => {
+				warn!(target: "engine", "Unable to generate seal: {}", err);
 				return Seal::None;
-			}
-
-			active_set = epoch_manager.validators().clone();
-			&active_set as &_
+			},
+			Ok(ok) => ok,
 		};
 
-		if is_step_proposer(validators, header.parent_hash(), step, header.author()) {
+		if is_step_proposer(&*validators, header.parent_hash(), step, header.author()) {
 			// this is guarded against by `can_propose` unless the block was signed
 			// on the same step (implies same key) and on a different node.
 			if parent_step == step.into() {
@@ -923,9 +977,15 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
-				if self.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
-
+				if self.step.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
+					// we can drop all accumulated empty step messages that are
+					// older than the parent step since we're including them in
+					// the seal
 					self.clear_empty_steps(parent_step);
+
+					// report any skipped primaries between the parent block and
+					// the block we're sealing
+					self.report_skipped(header, step, u64::from(parent_step) as usize, &*validators, set_number);
 
 					let mut fields = vec![
 						encode(&step).into_vec(),
@@ -1000,7 +1060,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					.decode()?;
 
 				let parent_step = header_step(&parent, self.empty_steps_transition)?;
-				let current_step = self.step.load();
+				let current_step = self.step.inner.load();
 				self.empty_steps(parent_step.into(), current_step.into(), parent.hash())
 			} else {
 				// we're verifying a block, extract empty steps from the seal
@@ -1049,13 +1109,21 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			)));
 		}
 
-		// TODO [ToDr] Should this go from epoch manager?
-		// If yes then probably benign reporting needs to be moved further in the verification.
-		let set_number = header.number();
-
-		match verify_timestamp(&*self.step, header_step(header, self.empty_steps_transition)?) {
+		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
 			Err(BlockError::InvalidSeal) => {
-				self.validators.report_benign(header.author(), set_number, header.number());
+				// This check runs in Phase 1 where there is no guarantee that the parent block is
+				// already imported, therefore the call to `epoch_set` may fail. In that case we
+				// won't report the misbehavior but this is not a concern because:
+				// - Only authorities can report and it's expected that they'll be up-to-date and
+				//   importing, therefore the parent header will most likely be available
+				// - Even if you are an authority that is syncing the chain, the contract will most
+				//   likely ignore old reports
+				// - This specific check is only relevant if you're importing (since it checks
+				//   against wall clock)
+				if let Ok((_, set_number)) = self.epoch_set(header) {
+					self.validators.report_benign(header.author(), set_number, header.number());
+				}
+
 				Err(BlockError::InvalidSeal.into())
 			}
 			Err(e) => Err(e.into()),
@@ -1067,8 +1135,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		let step = header_step(header, self.empty_steps_transition)?;
 		let parent_step = header_step(parent, self.empty_steps_transition)?;
-		// TODO [ToDr] Should this go from epoch manager?
-		let set_number = header.number();
+
+		let (validators, set_number) = self.epoch_set(header)?;
 
 		// Ensure header is from the step after parent.
 		if step == parent_step
@@ -1095,7 +1163,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 							format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
 					}
 
-					if !empty_step.verify(&*self.validators).unwrap_or(false) {
+					if !empty_step.verify(&*validators).unwrap_or(false) {
 						Err(EngineError::InsufficientProof(
 							format!("invalid empty step proof: {:?}", empty_step)))?;
 					}
@@ -1109,21 +1177,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			}
 
 		} else {
-			// Report skipped primaries.
-			if let (true, Some(me)) = (step > parent_step + 1, self.signer.read().address()) {
-				debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
-					   header.author(), step, parent_step);
-				let mut reported = HashSet::new();
-				for s in parent_step + 1..step {
-					let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
-					// Do not report this signer.
-					if skipped_primary != me {
-						self.validators.report_benign(&skipped_primary, set_number, header.number());
-						// Stop reporting once validators start repeating.
-						if !reported.insert(skipped_primary) { break; }
- 					}
- 				}
-			}
+			self.report_skipped(header, step, parent_step, &*validators, set_number);
 		}
 
 		Ok(())
@@ -1131,37 +1185,21 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	// Check the validators.
 	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
-		// fetch correct validator set for current epoch, taking into account
-		// finality of previous transitions.
-		let active_set;
-		let validators = if self.immediate_transitions {
-			&*self.validators
-		} else {
-			// get correct validator set for epoch.
-			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-				Some(client) => client,
-				None => {
-					debug!(target: "engine", "Unable to verify sig: missing client ref.");
-					return Err(EngineError::RequiresClient.into())
-				}
-			};
-
-			let mut epoch_manager = self.epoch_manager.lock();
-			if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, header) {
-				debug!(target: "engine", "Unable to zoom to epoch.");
-				return Err(EngineError::RequiresClient.into())
-			}
-
-			active_set = epoch_manager.validators().clone();
-			&active_set as &_
-		};
+		let (validators, set_number) = self.epoch_set(header)?;
 
 		// verify signature against fixed list, but reports should go to the
 		// contract itself.
-		let res = verify_external(header, validators, self.empty_steps_transition);
-		if res.is_ok() {
-			let header_step = header_step(header, self.empty_steps_transition)?;
-			self.clear_empty_steps(header_step.into());
+		let res = verify_external(header, &*validators, self.empty_steps_transition);
+		match res {
+			Err(Error(ErrorKind::Engine(EngineError::NotProposer(_)), _)) => {
+				self.validators.report_benign(header.author(), set_number, header.number());
+			},
+			Ok(_) => {
+				// we can drop all accumulated empty step messages that are older than this header's step
+				let header_step = header_step(header, self.empty_steps_transition)?;
+				self.clear_empty_steps(header_step.into());
+			},
+			_ => {},
 		}
 		res
 	}
@@ -1295,7 +1333,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 						// This way, upon encountering an epoch change, the proposer from the
 						// new set will be forced to wait until the next step to avoid sealing a
 						// block that breaks the invariant that the parent's step < the block's step.
-						self.can_propose.store(false, AtomicOrdering::SeqCst);
+						self.step.can_propose.store(false, AtomicOrdering::SeqCst);
 						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 					}
 				}
@@ -1334,7 +1372,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		self.validators.register_client(client);
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
 		self.signer.write().set(ap, address, password);
 	}
 
@@ -1403,8 +1441,8 @@ mod tests {
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
-		let addr2 = tap.insert_account(keccak("2").into(), "2").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+		let addr2 = tap.insert_account(keccak("2").into(), &"2".into()).unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -1435,8 +1473,8 @@ mod tests {
 	#[test]
 	fn checks_difficulty_in_generate_seal() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
-		let addr2 = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+		let addr2 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -1469,7 +1507,7 @@ mod tests {
 	#[test]
 	fn proposer_switching() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
@@ -1494,7 +1532,7 @@ mod tests {
 	#[test]
 	fn rejects_future_block() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
@@ -1519,7 +1557,7 @@ mod tests {
 	#[test]
 	fn rejects_step_backwards() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&4usize).into_vec()]);
@@ -1570,7 +1608,6 @@ mod tests {
 		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
-		header.set_number(1);
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
 
@@ -1578,10 +1615,17 @@ mod tests {
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
 
-		aura.set_signer(Arc::new(AccountProvider::transient_provider()), Default::default(), Default::default());
+		aura.set_signer(Arc::new(AccountProvider::transient_provider()), Default::default(), "".into());
 
+		// Do not report on steps skipped between genesis and first block.
+		header.set_number(1);
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
-		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
+
+		// Report on skipped steps otherwise.
+		header.set_number(2);
+		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 2);
 	}
 
 	#[test]
@@ -1669,8 +1713,8 @@ mod tests {
 		let spec = Spec::new_test_round_empty_steps();
 		let tap = Arc::new(AccountProvider::transient_provider());
 
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
-		let addr2 = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
+		let addr2 = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let accounts = vec![addr1, addr2];
 
@@ -1940,7 +1984,7 @@ mod tests {
 		let spec = Spec::new_test_round_block_reward_contract();
 		let tap = Arc::new(AccountProvider::transient_provider());
 
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), &"1".into()).unwrap();
 
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();

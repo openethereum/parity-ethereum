@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -63,9 +63,7 @@ impl OriginInfo {
 }
 
 /// Implementation of evm Externalities.
-pub struct Externalities<'a, T: 'a, V: 'a, B: 'a>
-	where T: Tracer, V:  VMTracer, B: StateBackend
-{
+pub struct Externalities<'a, T: 'a, V: 'a, B: 'a> {
 	state: &'a mut State<B>,
 	env_info: &'a EnvInfo,
 	machine: &'a Machine,

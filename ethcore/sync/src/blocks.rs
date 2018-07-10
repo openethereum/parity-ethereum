@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
-use triehash::ordered_trie_root;
+use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;
@@ -193,7 +193,6 @@ impl BlockCollection {
 		}
 		needed_bodies
 	}
-
 
 	/// Returns a set of block hashes that require a receipt download. The returned set is marked as being downloaded.
 	pub fn needed_receipts(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
@@ -616,4 +615,3 @@ mod test {
 		assert_eq!(bc.drain().len(), 2);
 	}
 }
-

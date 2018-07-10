@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,9 +23,9 @@ use pool::{verifier, VerifiedTransaction};
 
 #[derive(Clone)]
 pub struct Tx {
-	nonce: u64,
-	gas: u64,
-	gas_price: u64,
+	pub nonce: u64,
+	pub gas: u64,
+	pub gas_price: u64,
 }
 
 impl Default for Tx {
@@ -63,7 +63,6 @@ impl Tx {
 		let tx2 = self.clone().unsigned().sign(keypair.secret(), None);
 		self.nonce += 1;
 		let tx3 = self.unsigned().sign(keypair.secret(), None);
-
 
 		(tx1, tx2, tx3)
 	}

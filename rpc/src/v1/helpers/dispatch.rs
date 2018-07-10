@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,14 +24,13 @@ use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
-use rlp;
 use hash::keccak;
 use ethereum_types::{H256, H520, Address, U256};
 use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 
-use ethkey::Signature;
+use ethkey::{Password, Signature};
 use sync::LightSync;
 use ethcore::ids::BlockId;
 use ethcore::client::BlockChainClient;
@@ -52,6 +51,7 @@ use v1::types::{
 	SignRequest as RpcSignRequest,
 	DecryptRequest as RpcDecryptRequest,
 };
+use rlp;
 
 pub use self::nonce::Reservations;
 
@@ -123,10 +123,13 @@ impl<C: miner::BlockChainClient, M: MinerService> FullDispatcher<C, M> {
 	}
 
 	/// Imports transaction to the miner's queue.
-	pub fn dispatch_transaction(client: &C, miner: &M, signed_transaction: PendingTransaction) -> Result<H256> {
+	pub fn dispatch_transaction(client: &C, miner: &M, signed_transaction: PendingTransaction, trusted: bool) -> Result<H256> {
 		let hash = signed_transaction.transaction.hash();
 
-		miner.import_own_transaction(client, signed_transaction)
+		// use `import_claimed_local_transaction` so we can decide (based on config flags) if we want to treat
+		// it as local or not. Nodes with public RPC interfaces will want these transactions to be treated like
+		// external transactions.
+		miner.import_claimed_local_transaction(client, signed_transaction, trusted)
 			.map_err(errors::transaction)
 			.map(|_| hash)
 	}
@@ -180,7 +183,7 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256> {
-		Self::dispatch_transaction(&*self.client, &*self.miner, signed_transaction)
+		Self::dispatch_transaction(&*self.client, &*self.miner, signed_transaction, true)
 	}
 }
 
@@ -237,7 +240,7 @@ pub fn fetch_gas_price_corpus(
 
 /// Returns a eth_sign-compatible hash of data to sign.
 /// The data is prepended with special message to prevent
-/// chosen-plaintext attacks.
+/// malicious DApps from using the function to sign forged transactions.
 pub fn eth_data_hash(mut data: Bytes) -> H256 {
 	let mut message_data =
 		format!("\x19Ethereum Signed Message:\n{}", data.len())
@@ -320,7 +323,7 @@ impl LightDispatcher {
 				x.map(move |acc| acc.map_or(account_start_nonce, |acc| acc.nonce))
 					.map_err(|_| errors::no_light_peers())
 			),
-			None =>  Box::new(future::err(errors::network_disabled()))
+			None => Box::new(future::err(errors::network_disabled()))
 		}
 	}
 }
@@ -557,15 +560,15 @@ impl Future for ProspectiveSigner {
 }
 
 /// Single-use account token.
-pub type AccountToken = String;
+pub type AccountToken = Password;
 
 /// Values used to unlock accounts for signing.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum SignWith {
 	/// Nothing -- implies the account is already unlocked.
 	Nothing,
 	/// Unlock with password.
-	Password(String),
+	Password(Password),
 	/// Unlock with single-use token.
 	Token(AccountToken),
 }
@@ -581,8 +584,7 @@ impl SignWith {
 }
 
 /// A value, potentially accompanied by a signing token.
-#[derive(Debug)]
-pub enum WithToken<T: Debug> {
+pub enum WithToken<T> {
 	/// No token.
 	No(T),
 	/// With token.
@@ -674,9 +676,16 @@ pub fn execute<D: Dispatcher + 'static>(
 		},
 		ConfirmationPayload::EthSignMessage(address, data) => {
 			if accounts.is_hardware_address(&address) {
-				return Box::new(future::err(errors::unsupported("Signing via hardware wallets is not supported.", None)));
-			}
+				let signature = accounts.sign_message_with_hardware(&address, &data)
+					.map(|s| H520(s.into_electrum()))
+					.map(RpcH520::from)
+					.map(ConfirmationResponse::Signature)
+					// TODO: is this correct? I guess the `token` is the wallet in this context
+					.map(WithToken::No)
+					.map_err(|e| errors::account("Error signing message with hardware_wallet", e));
 
+				return Box::new(future::done(signature));
+			}
 			let hash = eth_data_hash(data);
 			let res = signature(&accounts, address, hash, pass)
 				.map(|result| result
@@ -690,7 +699,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			if accounts.is_hardware_address(&address) {
 				return Box::new(future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)));
 			}
-
 			let res = decrypt(&accounts, address, data, pass)
 				.map(|result| result
 					.map(RpcBytes)
@@ -720,7 +728,7 @@ fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transacti
 
 	let mut stream = rlp::RlpStream::new();
 	t.rlp_append_unsigned_transaction(&mut stream, chain_id);
-	let signature = accounts.sign_with_hardware(address, &t, chain_id, &stream.as_raw())
+	let signature = accounts.sign_transaction_with_hardware(&address, &t, chain_id, &stream.as_raw())
 		.map_err(|e| {
 			debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
 			errors::account("Error signing transaction with hardware wallet", e)
@@ -728,8 +736,8 @@ fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transacti
 
 	SignedTransaction::new(t.with_signature(signature, chain_id))
 		.map_err(|e| {
-		  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
-		  errors::account("Invalid signature generated", e)
+			debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
+			errors::account("Invalid signature generated", e)
 		})
 }
 

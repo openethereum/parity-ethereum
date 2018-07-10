@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -39,7 +39,7 @@ mod inner {
 	use std::collections::HashMap;
 	use std::time::{Instant, Duration};
 
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 
 	use interpreter::stack::Stack;
 	use instructions::{Instruction, InstructionInfo, INSTRUCTIONS};

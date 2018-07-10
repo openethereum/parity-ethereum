@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -352,7 +352,7 @@ mod tests {
 
 	use std::collections::{BTreeMap, HashMap};
 	use std::time::{SystemTime, UNIX_EPOCH};
-	use ethereum_types::{H256, Bloom, U256};
+	use ethereum_types::{H256, BloomRef, U256};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
 	use encoded;
 	use hash::keccak;
@@ -474,7 +474,8 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn blocks_with_bloom(&self, _bloom: &Bloom, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
+		fn blocks_with_bloom<'a, B, I, II>(&self, _blooms: II, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber>
+		where BloomRef<'a>: From<B>, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B>, Self: Sized {
 			unimplemented!()
 		}
 
@@ -576,7 +577,17 @@ mod tests {
 			nonce: U256::from(2)
 		}.sign(keypair.secret(), None);
 
+		let tr3 = Transaction {
+			action: Action::Call(0x0.into()),
+			value: U256::from(0),
+			data: Bytes::new(),
+			gas: U256::from(30_000),
+			gas_price: U256::from(0),
+			nonce: U256::zero(),
+		}.null_sign(0);
+
 		let good_transactions = [ tr1.clone(), tr2.clone() ];
+		let eip86_transactions = [ tr3.clone() ];
 
 		let diff_inc = U256::from(0x40);
 
@@ -612,6 +623,7 @@ mod tests {
 		uncles_rlp.append_list(&good_uncles);
 		let good_uncles_hash = keccak(uncles_rlp.as_raw());
 		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t)));
+		let eip86_transactions_root = ordered_trie_root(eip86_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t)));
 
 		let mut parent = good.clone();
 		parent.set_number(9);
@@ -631,6 +643,14 @@ mod tests {
 		bc.insert(create_test_block(&parent8));
 
 		check_ok(basic_test(&create_test_block(&good), engine));
+
+		let mut bad_header = good.clone();
+		bad_header.set_transactions_root(eip86_transactions_root.clone());
+		bad_header.set_uncles_hash(good_uncles_hash.clone());
+		match basic_test(&create_test_block_with_data(&bad_header, &eip86_transactions, &good_uncles), engine) {
+			Err(Error(ErrorKind::Transaction(ref e), _)) if e == &::ethkey::Error::InvalidSignature.into() => (),
+			e => panic!("Block verification failed.\nExpected: Transaction Error (Invalid Signature)\nGot: {:?}", e),
+		}
 
 		let mut header = good.clone();
 		header.set_transactions_root(good_transactions_root.clone());

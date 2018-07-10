@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -55,16 +55,12 @@ impl<D: Dispatcher> PersonalClient<D> {
 			allow_perm_unlock,
 		}
 	}
-
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
-	}
 }
 
 impl<D: Dispatcher + 'static> PersonalClient<D> {
 	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
 		let dispatcher = self.dispatcher.clone();
-		let accounts = try_bf!(self.account_provider());
+		let accounts = self.accounts.clone();
 
 		let default = match request.from.as_ref() {
 			Some(account) => Ok(account.clone().into()),
@@ -81,7 +77,7 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
 			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
-				dispatcher.sign(accounts, filled, SignWith::Password(password))
+				dispatcher.sign(accounts, filled, SignWith::Password(password.into()))
 					.map(|tx| tx.into_value())
 					.map(move |tx| PendingTransaction::new(tx, condition))
 					.map(move |tx| (tx, dispatcher))
@@ -94,22 +90,19 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	type Metadata = Metadata;
 
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
-		let store = self.account_provider()?;
-		let accounts = store.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
+		let accounts = self.accounts.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
 		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
 	fn new_account(&self, pass: String) -> Result<RpcH160> {
-		let store = self.account_provider()?;
-
-		store.new_account(&pass)
+		self.accounts.new_account(&pass.into())
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
 	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<RpcU128>) -> Result<bool> {
 		let account: Address = account.into();
-		let store = self.account_provider()?;
+		let store = self.accounts.clone();
 		let duration = match duration {
 			None => None,
 			Some(duration) => {
@@ -124,14 +117,14 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		};
 
 		let r = match (self.allow_perm_unlock, duration) {
-			(false, None) => store.unlock_account_temporarily(account, account_pass),
+			(false, None) => store.unlock_account_temporarily(account, account_pass.into()),
 			(false, _) => return Err(errors::unsupported(
 				"Time-unlocking is only supported in --geth compatibility mode.",
 				Some("Restart your client with --geth flag or use personal_sendTransaction instead."),
 			)),
-			(true, Some(0)) => store.unlock_account_permanently(account, account_pass),
-			(true, Some(d)) => store.unlock_account_timed(account, account_pass, Duration::from_secs(d.into())),
-			(true, None) => store.unlock_account_timed(account, account_pass, Duration::from_secs(300)),
+			(true, Some(0)) => store.unlock_account_permanently(account, account_pass.into()),
+			(true, Some(d)) => store.unlock_account_timed(account, account_pass.into(), Duration::from_secs(d.into())),
+			(true, None) => store.unlock_account_timed(account, account_pass.into(), Duration::from_secs(300)),
 		};
 		match r {
 			Ok(_) => Ok(true),
@@ -141,13 +134,13 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 	fn sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
 		let dispatcher = self.dispatcher.clone();
-		let accounts = try_bf!(self.account_provider());
+		let accounts = self.accounts.clone();
 
 		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), data).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
 				 .and_then(|payload| {
-					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password))
+					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
 				 })
 				 .map(|v| v.into_value())
 				 .then(|res| match res {

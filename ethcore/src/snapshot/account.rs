@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,16 +18,15 @@
 
 use account_db::{AccountDB, AccountDBMut};
 use basic_account::BasicAccount;
-use snapshot::Error;
-use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
-
-use ethereum_types::{H256, U256};
-use hashdb::HashDB;
 use bytes::Bytes;
-use trie::{TrieDB, Trie};
+use ethereum_types::{H256, U256};
+use ethtrie::{TrieDB, TrieDBMut};
+use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
+use hashdb::HashDB;
 use rlp::{RlpStream, Rlp};
-
+use snapshot::Error;
 use std::collections::HashSet;
+use trie::{Trie, TrieMut};
 
 // An empty account -- these were replaced with RLP null data for a space optimization in v1.
 const ACC_EMPTY: BasicAccount = BasicAccount {
@@ -151,7 +150,6 @@ pub fn from_fat_rlp(
 	rlp: Rlp,
 	mut storage_root: H256,
 ) -> Result<(BasicAccount, Option<Bytes>), Error> {
-	use trie::{TrieDBMut, TrieMut};
 
 	// check for special case of empty account.
 	if rlp.is_empty() {

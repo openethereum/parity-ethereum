@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -179,11 +179,12 @@ impl SnapshotCommand {
 			algorithm,
 			self.pruning_history,
 			self.pruning_memory,
-			true
+			true,
 		);
 
-		let client_db = db::open_client_db(&client_path, &client_config)?;
 		let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
+		let client_db = restoration_db_handler.open(&client_path)
+			.map_err(|e| format!("Failed to open database {:?}", e))?;
 
 		let service = ClientService::start(
 			client_config,

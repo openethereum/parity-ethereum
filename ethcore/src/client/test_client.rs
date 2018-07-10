@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,7 +36,7 @@ use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Ac
 use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
-	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient
@@ -48,12 +48,10 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use error::ImportResult;
 use vm::Schedule;
-use miner::{Miner, MinerService};
+use miner::{self, Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
-use types::mode::Mode;
 use types::pruning_info::PruningInfo;
-
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use executive::Executed;
@@ -63,7 +61,7 @@ use state_db::StateDB;
 use header::Header;
 use encoded;
 use engines::EthEngine;
-use trie;
+use ethtrie;
 use state::StateInfo;
 use views::BlockView;
 
@@ -582,10 +580,10 @@ impl Call for TestBlockChainClient {
 }
 
 impl StateInfo for () {
-	fn nonce(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
-	fn balance(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
-	fn storage_at(&self, _address: &Address, _key: &H256) -> trie::Result<H256> { unimplemented!() }
-	fn code(&self, _address: &Address) -> trie::Result<Option<Arc<Bytes>>> { unimplemented!() }
+	fn nonce(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
+	fn balance(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
+	fn storage_at(&self, _address: &Address, _key: &H256) -> ethtrie::Result<H256> { unimplemented!() }
+	fn code(&self, _address: &Address) -> ethtrie::Result<Option<Arc<Bytes>>> { unimplemented!() }
 }
 
 impl StateClient for TestBlockChainClient {
@@ -704,7 +702,6 @@ impl BlockChainClient for TestBlockChainClient {
 			.map(|header| self.spec.engine.extra_info(&header))
 	}
 
-
 	fn block_status(&self, id: BlockId) -> BlockStatus {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
@@ -808,8 +805,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.traces.read().clone()
 	}
 
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.miner.ready_transactions(self)
+	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+		self.miner.ready_transactions(self, max_len, miner::PendingOrdering::Priority)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }

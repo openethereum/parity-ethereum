@@ -184,17 +184,18 @@ impl fmt::Display for Error {
 }
 
 fn main() {
-	panic_hook::set();
+	panic_hook::set_abort();
 
 	match execute(env::args()) {
 		Ok(_) => {
 			println!("whisper-cli terminated");
 			process::exit(1);
-		}
+		},
+		Err(Error::Docopt(ref e)) => e.exit(),
 		Err(err) => {
 			println!("{}", err);
 			process::exit(1);
-		},
+		}
 	}
 }
 

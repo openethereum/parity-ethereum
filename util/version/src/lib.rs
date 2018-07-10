@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 //! Parity version specific information.
 
 extern crate target_info;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate rlp;
 
 use target_info::Target;

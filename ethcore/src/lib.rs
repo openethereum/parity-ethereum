@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="benches", feature(test))]
+#![cfg_attr(feature = "benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -58,26 +58,30 @@
 // error_chain foreign_links.
 #![recursion_limit="128"]
 
-extern crate bloomchain;
+extern crate blooms_db;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
 extern crate common_types as types;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
-extern crate ethcore_crypto;
+extern crate parity_crypto;
 extern crate ethcore_io as io;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_logger;
 extern crate ethcore_miner;
+#[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate hardware_wallet;
+
 extern crate hashdb;
 extern crate itertools;
+extern crate kvdb;
+extern crate kvdb_memorydb;
+extern crate kvdb_rocksdb;
 extern crate lru_cache;
 extern crate num_cpus;
 extern crate num;
@@ -88,17 +92,15 @@ extern crate rayon;
 extern crate rlp;
 extern crate rlp_compress;
 extern crate keccak_hash as hash;
+extern crate keccak_hasher;
 extern crate heapsize;
 extern crate memorydb;
 extern crate patricia_trie as trie;
-extern crate triehash;
+extern crate patricia_trie_ethereum as ethtrie;
+extern crate triehash_ethereum as triehash;
 extern crate ansi_term;
 extern crate unexpected;
-extern crate kvdb;
-extern crate kvdb_memorydb;
-extern crate util_error;
 extern crate snappy;
-
 extern crate ethabi;
 extern crate rustc_hex;
 extern crate stats;
@@ -108,8 +110,14 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
-#[cfg(test)]
+#[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+extern crate hardware_wallet;
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+extern crate fake_hardware_wallet as hardware_wallet;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -136,9 +144,6 @@ pub extern crate ethstore;
 #[macro_use]
 pub mod views;
 
-#[cfg(test)]
-extern crate kvdb_rocksdb;
-
 pub mod account_provider;
 pub mod block;
 pub mod client;
@@ -157,13 +162,10 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
-// Test helpers made public for usage outside ethcore
-pub mod test_helpers;
 pub mod trace;
 pub mod verification;
 
 mod cache_manager;
-mod blooms;
 mod pod_account;
 mod account_db;
 mod builtin;
@@ -174,12 +176,12 @@ mod tx_filter;
 
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-#[cfg(feature="json-tests")]
-mod json_tests;
-#[cfg(test)]
-mod test_helpers_internal;
+#[cfg(feature = "json-tests")]
+pub mod json_tests;
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod test_helpers;
 
 pub use types::*;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
+pub use blockchain::{BlockChainDB, BlockChainDBHandler};

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,6 @@
 use block::Block;
 use header::Header;
 use hash::keccak;
-
 use views::BlockView;
 use rlp::{DecoderError, RlpStream, Rlp};
 use ethereum_types::H256;

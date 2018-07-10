@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 
 use types::{CapState, ReleaseInfo, OperationsInfo, VersionInfo};
 
+/// Parity updater service trait
 pub trait Service: Send + Sync {
 	/// Is the currently running client capable of supporting the current chain?
 	/// We default to true if there's no clear information.
@@ -35,4 +36,3 @@ pub trait Service: Send + Sync {
 	/// Information gathered concerning the release.
 	fn info(&self) -> Option<OperationsInfo>;
 }
-

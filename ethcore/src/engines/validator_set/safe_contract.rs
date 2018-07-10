@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,27 +16,23 @@
 
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
-use std::sync::{Weak, Arc};
-use hash::keccak;
-
-use ethereum_types::{H256, U256, Address, Bloom};
-use parking_lot::RwLock;
-
 use bytes::Bytes;
-use memory_cache::MemoryLruCache;
-use unexpected::Mismatch;
-use rlp::{Rlp, RlpStream};
-use kvdb::DBValue;
-
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
+use ethereum_types::{H256, U256, Address, Bloom};
+use hash::keccak;
 use header::Header;
 use ids::BlockId;
+use kvdb::DBValue;
 use log_entry::LogEntry;
+use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
+use memory_cache::MemoryLruCache;
+use parking_lot::RwLock;
 use receipt::Receipt;
-
+use rlp::{Rlp, RlpStream};
+use std::sync::{Weak, Arc};
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
+use unexpected::Mismatch;
 
 use_contract!(validator_set, "ValidatorSet", "res/contracts/validator_set.json");
 
@@ -477,8 +473,8 @@ mod tests {
 	fn knows_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0: Secret = keccak("1").into();
-		let v0 = tap.insert_account(s0.clone(), "").unwrap();
-		let v1 = tap.insert_account(keccak("0").into(), "").unwrap();
+		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
+		let v1 = tap.insert_account(keccak("0").into(), &"".into()).unwrap();
 		let chain_id = Spec::new_validator_safe_contract().chain_id();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client) as _);

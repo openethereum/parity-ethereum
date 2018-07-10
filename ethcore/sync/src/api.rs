@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -359,6 +359,10 @@ impl SyncProvider for EthSync {
 	}
 }
 
+const PEERS_TIMER: TimerToken = 0;
+const SYNC_TIMER: TimerToken = 1;
+const TX_TIMER: TimerToken = 2;
+
 struct SyncProtocolHandler {
 	/// Shared blockchain client.
 	chain: Arc<BlockChainClient>,
@@ -373,12 +377,13 @@ struct SyncProtocolHandler {
 impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn initialize(&self, io: &NetworkContext) {
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
-			io.register_timer(0, Duration::from_secs(1)).expect("Error registering sync timer");
+			io.register_timer(PEERS_TIMER, Duration::from_millis(700)).expect("Error registering peers timer");
+			io.register_timer(SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
+			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
 		}
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		trace_time!("sync::read");
 		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer, packet_id, data);
 	}
 
@@ -399,12 +404,17 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		}
 	}
 
-	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
+	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
 		trace_time!("sync::timeout");
 		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay);
-		self.sync.write().maintain_peers(&mut io);
-		self.sync.write().maintain_sync(&mut io);
-		self.sync.write().propagate_new_transactions(&mut io);
+		match timer {
+			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
+			SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
+			TX_TIMER => {
+				self.sync.write().propagate_new_transactions(&mut io);
+			},
+			_ => warn!("Unknown timer {} triggered.", timer),
+		}
 	}
 }
 
@@ -535,7 +545,6 @@ pub trait ManageNetwork : Send + Sync {
 	/// Get network context for protocol.
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext));
 }
-
 
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {

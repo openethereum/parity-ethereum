@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,12 +18,10 @@
 
 use std::{fmt, error};
 use std::time::SystemTime;
-use kvdb;
 use ethereum_types::{H256, U256, Address, Bloom};
-use util_error::{self, UtilError};
 use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
-use trie::TrieError;
+use ethtrie::TrieError;
 use io::*;
 use header::BlockNumber;
 use client::Error as ClientError;
@@ -207,7 +205,6 @@ impl From<Error> for BlockImportError {
 		match e {
 			Error(ErrorKind::Block(block_error), _) => BlockImportErrorKind::Block(block_error).into(),
 			Error(ErrorKind::Import(import_error), _) => BlockImportErrorKind::Import(import_error.into()).into(),
-			Error(ErrorKind::Util(util_error::ErrorKind::Decoder(decoder_err)), _) => BlockImportErrorKind::Decoder(decoder_err).into(),
 			_ => BlockImportErrorKind::Other(format!("other block import error: {:?}", e)).into(),
 		}
 	}
@@ -237,11 +234,9 @@ error_chain! {
 	}
 
 	links {
-		Database(kvdb::Error, kvdb::ErrorKind) #[doc = "Database error."];
-		Util(UtilError, util_error::ErrorKind) #[doc = "Error concerning a utility"];
 		Import(ImportError, ImportErrorKind) #[doc = "Error concerning block import." ];
 	}
-		
+
 	foreign_links {
 		Io(IoError) #[doc = "Io create error"];
 		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
@@ -271,14 +266,14 @@ error_chain! {
 		AccountProvider(err: AccountsError) {
 			description("Accounts Provider error")
 			display("Accounts Provider error {}", err)
-		} 
+		}
 
 		#[doc = "PoW hash is invalid or out of date."]
 		PowHashInvalid {
 			description("PoW hash is invalid or out of date.")
 			display("PoW hash is invalid or out of date.")
 		}
-	
+
 		#[doc = "The value of the nonce or mishash is invalid."]
 		PowInvalid {
 			description("The value of the nonce or mishash is invalid.")
@@ -299,7 +294,6 @@ error_chain! {
 	}
 }
 
-
 /// Result of import block operation.
 pub type ImportResult = EthcoreResult<H256>;
 
@@ -312,10 +306,10 @@ impl From<ClientError> for Error {
 	}
 }
 
-impl From<AccountsError> for Error { 
-	fn from(err: AccountsError) -> Error { 
+impl From<AccountsError> for Error {
+	fn from(err: AccountsError) -> Error {
 		ErrorKind::AccountProvider(err).into()
-	} 
+	}
 }
 
 impl From<::rlp::DecoderError> for Error {
@@ -329,7 +323,6 @@ impl From<BlockImportError> for Error {
 		match err {
 			BlockImportError(BlockImportErrorKind::Block(e), _) => ErrorKind::Block(e).into(),
 			BlockImportError(BlockImportErrorKind::Import(e), _) => ErrorKind::Import(e).into(),
-			BlockImportError(BlockImportErrorKind::Other(s), _) => UtilError::from(s).into(),
 			_ => ErrorKind::Msg(format!("other block import error: {:?}", err)).into(),
 		}
 	}

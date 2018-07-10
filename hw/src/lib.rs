@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
 
 //! Hardware wallet management.
 
-#[warn(missing_docs)]
-#[warn(warnings)]
+#![warn(missing_docs)]
+#![warn(warnings)]
 
 extern crate ethereum_types;
 extern crate ethkey;
@@ -25,30 +25,33 @@ extern crate hidapi;
 extern crate libusb;
 extern crate parking_lot;
 extern crate protobuf;
+extern crate semver;
 extern crate trezor_sys;
+
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_hex;
 
 mod ledger;
 mod trezor;
 
-use ethkey::{Address, Signature};
+use std::sync::{Arc, atomic, atomic::AtomicBool};
+use std::{fmt, time::Duration};
 
-use parking_lot::Mutex;
-use std::fmt;
-use std::sync::Arc;
-use std::sync::atomic;
-use std::sync::atomic::AtomicBool;
 use ethereum_types::U256;
+use ethkey::{Address, Signature};
+use parking_lot::Mutex;
 
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
+const POLLING_DURATION: Duration = Duration::from_millis(500);
 
+/// `HardwareWallet` device
 #[derive(Debug)]
 pub struct Device {
 	path: String,
 	info: WalletInfo,
 }
 
+/// `Wallet` trait
 pub trait Wallet<'a> {
 	/// Error
 	type Error;
@@ -57,13 +60,13 @@ pub trait Wallet<'a> {
 
 	/// Sign transaction data with wallet managing `address`.
 	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error>;
-
+	
 	/// Set key derivation path for a chain.
 	fn set_key_path(&self, key_path: KeyPath);
 
 	/// Re-populate device list
 	/// Note, this assumes all devices are iterated over and updated
-	fn update_devices(&self) -> Result<usize, Self::Error>;
+	fn update_devices(&self, device_direction: DeviceDirection) -> Result<usize, Self::Error>;
 
 	/// Read device info
 	fn read_device(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Self::Error>;
@@ -92,7 +95,6 @@ pub trait Wallet<'a> {
 		where F: Fn() -> Result<R, &'static str>;
 }
 
-
 /// Hardware wallet error.
 #[derive(Debug)]
 pub enum Error {
@@ -109,7 +111,7 @@ pub enum Error {
 }
 
 /// This is the transaction info we need to supply to Trezor message. It's more
-/// or less a duplicate of ethcore::transaction::Transaction, but we can't
+/// or less a duplicate of `ethcore::transaction::Transaction`, but we can't
 /// import ethcore here as that would be a circular dependency.
 pub struct TransactionInfo {
 	/// Nonce
@@ -163,7 +165,7 @@ impl fmt::Display for Error {
 }
 
 impl From<ledger::Error> for Error {
-	fn from(err: ledger::Error) -> Error {
+	fn from(err: ledger::Error) -> Self {
 		match err {
 			ledger::Error::KeyNotFound => Error::KeyNotFound,
 			_ => Error::LedgerDevice(err),
@@ -172,7 +174,7 @@ impl From<ledger::Error> for Error {
 }
 
 impl From<trezor::Error> for Error {
-	fn from(err: trezor::Error) -> Error {
+	fn from(err: trezor::Error) -> Self {
 		match err {
 			trezor::Error::KeyNotFound => Error::KeyNotFound,
 			_ => Error::TrezorDevice(err),
@@ -181,8 +183,26 @@ impl From<trezor::Error> for Error {
 }
 
 impl From<libusb::Error> for Error {
-	fn from(err: libusb::Error) -> Error {
+	fn from(err: libusb::Error) -> Self {
 		Error::Usb(err)
+	}
+}
+
+/// Specifies the direction of the `HardwareWallet` i.e, whether it arrived or left
+#[derive(Debug, Copy, Clone)]
+pub enum DeviceDirection {
+	/// Device arrived
+	Arrived,
+	/// Device left
+	Left,
+}
+
+impl fmt::Display for DeviceDirection {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			DeviceDirection::Arrived => write!(f, "arrived"),
+			DeviceDirection::Left => write!(f, "left"),
+		}
 	}
 }
 
@@ -195,16 +215,16 @@ pub struct HardwareWalletManager {
 
 impl HardwareWalletManager {
 	/// Hardware wallet constructor
-	pub fn new() -> Result<HardwareWalletManager, Error> {
+	pub fn new() -> Result<Self, Error> {
 		let exiting = Arc::new(AtomicBool::new(false));
 		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|e| Error::Hid(e.to_string().clone()))?));
 		let ledger = ledger::Manager::new(hidapi.clone(), exiting.clone())?;
 		let trezor = trezor::Manager::new(hidapi.clone(), exiting.clone())?;
 
-		Ok(HardwareWalletManager {
-			exiting: exiting,
-			ledger: ledger,
-			trezor: trezor,
+		Ok(Self {
+			exiting,
+			ledger,
+			trezor,
 		})
 	}
 
@@ -237,6 +257,17 @@ impl HardwareWalletManager {
 			Some(info)
 		} else {
 			self.trezor.get_wallet(address)
+		}
+	}
+
+	/// Sign a message with the wallet (only supported by Ledger)
+	pub fn sign_message(&self, address: &Address, msg: &[u8]) -> Result<Signature, Error> {
+		if self.ledger.get_wallet(address).is_some() {
+			Ok(self.ledger.sign_message(address, msg)?)
+		} else if self.trezor.get_wallet(address).is_some() {
+			Err(Error::TrezorDevice(trezor::Error::NoSigningMessage))
+		} else {
+			Err(Error::KeyNotFound)
 		}
 	}
 

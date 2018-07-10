@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -65,6 +65,8 @@ pub struct EthClientOptions {
 	pub send_block_number_in_get_work: bool,
 	/// Gas Price Percentile used as default gas price.
 	pub gas_price_percentile: usize,
+	/// Set the timeout for the internal poll manager
+	pub poll_lifetime: u32
 }
 
 impl EthClientOptions {
@@ -83,6 +85,7 @@ impl Default for EthClientOptions {
 			pending_nonce_from_queue: false,
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
+			poll_lifetime: 60u32,
 			gas_price_percentile: 50,
 		}
 	}
@@ -164,16 +167,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			miner: miner.clone(),
 			accounts: accounts.clone(),
 			external_miner: em.clone(),
-			seed_compute: Mutex::new(SeedHashCompute::new()),
+			seed_compute: Mutex::new(SeedHashCompute::default()),
 			options: options,
 			eip86_transition: client.eip86_transition(),
 		}
-	}
-
-	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
 	}
 
 	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
@@ -404,10 +401,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	}
 
 	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>> {
-		let store = self.account_provider()?;
-		store
+		self.accounts
 			.note_dapp_used(dapp.clone())
-			.and_then(|_| store.dapp_addresses(dapp))
+			.and_then(|_| self.accounts.dapp_addresses(dapp))
 			.map_err(|e| errors::account("Could not fetch accounts.", e))
 	}
 
@@ -494,7 +490,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				(true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done)),
 			_ => (false, None, None),
 		};
-
 
 		if warping || is_major_importing(Some(status.state), client.queue_info()) {
 			let chain_info = client.chain_info();
@@ -617,11 +612,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
-		let block_number = self.client.chain_info().best_block_number;
-
 		Box::new(future::ok(match num {
 			BlockNumber::Pending =>
-				self.miner.pending_transactions(block_number).map(|x| x.len().into()),
+				Some(self.miner.pending_transaction_hashes(&*self.client).len().into()),
 			_ =>
 				self.client.block(block_number_to_id(num)).map(|block| block.transactions_count().into())
 		}))
@@ -833,6 +826,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 					&*self.client,
 					&*self.miner,
 					signed_transaction.into(),
+					false
 				)
 			})
 			.map(Into::into)

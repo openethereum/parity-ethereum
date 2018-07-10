@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -61,8 +61,8 @@
 #![allow(deprecated)]
 
 extern crate ethcore_io as io;
-extern crate ethcore_bytes;
-extern crate ethcore_crypto as crypto;
+extern crate parity_bytes;
+extern crate parity_crypto as crypto;
 extern crate ethereum_types;
 extern crate parking_lot;
 extern crate mio;

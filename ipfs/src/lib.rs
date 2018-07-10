@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ extern crate unicase;
 
 extern crate rlp;
 extern crate ethcore;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate jsonrpc_core as core;
 extern crate jsonrpc_http_server as http;

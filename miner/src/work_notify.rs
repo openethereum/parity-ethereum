@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -62,7 +62,7 @@ impl WorkPoster {
 			client: fetch,
 			remote: remote,
 			urls: urls,
-			seed_compute: Mutex::new(SeedHashCompute::new()),
+			seed_compute: Mutex::new(SeedHashCompute::default()),
 		}
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,14 +20,13 @@ extern crate test;
 extern crate ethcore_util as util;
 extern crate rand;
 extern crate bn;
-extern crate ethcore_crypto;
+extern crate parity_crypto;
 extern crate ethkey;
 extern crate rustc_hex;
 extern crate ethcore_bigint;
 
 use self::test::{Bencher};
 use rand::{StdRng};
-
 
 #[bench]
 fn bn_128_pairing(b: &mut Bencher) {
@@ -61,7 +60,7 @@ fn bn_128_mul(b: &mut Bencher) {
 
 #[bench]
 fn sha256(b: &mut Bencher) {
-	use ethcore_crypto::digest::sha256;
+	use parity_crypto::digest::sha256;
 
 	let mut input: [u8; 256] = [0; 256];
 	let mut out = [0; 32];
@@ -92,4 +91,3 @@ fn ecrecover(b: &mut Bencher) {
 		let _ = ec_recover(&s, &hash);
 	});
 }
-

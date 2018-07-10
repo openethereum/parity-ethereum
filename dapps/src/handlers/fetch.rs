@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,20 +19,17 @@
 use std::{fmt, mem};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Instant, Duration};
+use std::time::Instant;
 use fetch::{self, Fetch};
 use futures::sync::oneshot;
 use futures::{self, Future};
 use futures_cpupool::CpuPool;
-use hyper::{self, StatusCode};
+use hyper;
 use parking_lot::Mutex;
 
 use endpoint::{self, EndpointPath};
-use handlers::{ContentHandler, StreamingHandler};
+use handlers::{ContentHandler, StreamingHandler, FETCH_TIMEOUT, errors};
 use page::local;
-use {Embeddable};
-
-const FETCH_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub enum ValidatorResponse {
 	Local(local::Dapp),
@@ -102,7 +99,6 @@ impl FetchControl {
 	}
 }
 
-
 enum WaitState {
 	Waiting(oneshot::Receiver<WaitResult>),
 	Done(endpoint::Response),
@@ -135,8 +131,7 @@ impl Future for WaitingHandler {
 							return Ok(futures::Async::Ready(handler.into()));
 						},
 						WaitResult::NonAwaitable => {
-							let errors = Errors { embeddable_on: None };
-							return Ok(futures::Async::Ready(errors.streaming().into()));
+							return Ok(futures::Async::Ready(errors::streaming().into()));
 						},
 						WaitResult::Done(endpoint) => {
 							WaitState::Done(endpoint.to_response(&self.path).into())
@@ -150,63 +145,6 @@ impl Future for WaitingHandler {
 
 			self.state = new_state;
 		}
-	}
-}
-
-#[derive(Debug, Clone)]
-struct Errors {
-	embeddable_on: Embeddable,
-}
-
-impl Errors {
-	fn streaming(&self) -> ContentHandler {
-		ContentHandler::error(
-			StatusCode::BadGateway,
-			"Streaming Error",
-			"This content is being streamed in other place.",
-			None,
-			self.embeddable_on.clone(),
-		)
-	}
-
-	fn download_error<E: fmt::Debug>(&self, e: E) -> ContentHandler {
-		ContentHandler::error(
-			StatusCode::BadGateway,
-			"Download Error",
-			"There was an error when fetching the content.",
-			Some(&format!("{:?}", e)),
-			self.embeddable_on.clone(),
-		)
-	}
-
-	fn invalid_content<E: fmt::Debug>(&self, e: E) -> ContentHandler {
-		ContentHandler::error(
-			StatusCode::BadGateway,
-			"Invalid Dapp",
-			"Downloaded bundle does not contain a valid content.",
-			Some(&format!("{:?}", e)),
-			self.embeddable_on.clone(),
-		)
-	}
-
-	fn timeout_error(&self) -> ContentHandler {
-		ContentHandler::error(
-			StatusCode::GatewayTimeout,
-			"Download Timeout",
-			&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT.as_secs()),
-			None,
-			self.embeddable_on.clone(),
-		)
-	}
-
-	fn method_not_allowed(&self) -> ContentHandler {
-		ContentHandler::error(
-			StatusCode::MethodNotAllowed,
-			"Method Not Allowed",
-			"Only <code>GET</code> requests are allowed.",
-			None,
-			self.embeddable_on.clone(),
-		)
 	}
 }
 
@@ -238,7 +176,6 @@ impl fmt::Debug for FetchState {
 pub struct ContentFetcherHandler {
 	fetch_control: FetchControl,
 	status: FetchState,
-	errors: Errors,
 }
 
 impl ContentFetcherHandler {
@@ -251,12 +188,10 @@ impl ContentFetcherHandler {
 		url: &str,
 		path: EndpointPath,
 		installer: H,
-		embeddable_on: Embeddable,
 		fetch: F,
 		pool: CpuPool,
 	) -> Self {
 		let fetch_control = FetchControl::default();
-		let errors = Errors { embeddable_on };
 
 		// Validation of method
 		let status = match *method {
@@ -269,18 +204,16 @@ impl ContentFetcherHandler {
 						url,
 						fetch_control.abort.clone(),
 						path,
-						errors.clone(),
 						installer,
 				))
 			},
 			// or return error
-			_ => FetchState::Error(errors.method_not_allowed()),
+			_ => FetchState::Error(errors::method_not_allowed()),
 		};
 
 		ContentFetcherHandler {
 			fetch_control,
 			status,
-			errors,
 		}
 	}
 
@@ -290,7 +223,6 @@ impl ContentFetcherHandler {
 		url: &str,
 		abort: Arc<AtomicBool>,
 		path: EndpointPath,
-		errors: Errors,
 		installer: H,
 	) -> Box<Future<Item=FetchState, Error=()> + Send> {
 		// Start fetching the content
@@ -312,12 +244,12 @@ impl ContentFetcherHandler {
 					},
 					Err(e) => {
 						trace!(target: "dapps", "Error while validating content: {:?}", e);
-						FetchState::Error(errors.invalid_content(e))
+						FetchState::Error(errors::invalid_content(e))
 					},
 				},
 				Err(e) => {
 					warn!(target: "dapps", "Unable to fetch content: {:?}", e);
-					FetchState::Error(errors.download_error(e))
+					FetchState::Error(errors::download_error(e))
 				},
 			})
 		});
@@ -348,7 +280,7 @@ impl Future for ContentFetcherHandler {
 				// Request may time out
 				FetchState::InProgress(_) if self.fetch_control.is_deadline_reached() => {
 					trace!(target: "dapps", "Fetching dapp failed because of timeout.");
-					FetchState::Error(self.errors.timeout_error())
+					FetchState::Error(errors::timeout_error())
 				},
 				FetchState::InProgress(ref mut receiver) => {
 					// Check if there is a response

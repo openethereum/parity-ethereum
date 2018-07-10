@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -149,6 +149,10 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
 const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
+// Maximal number of transactions queried from miner to propagate.
+// This set is used to diff with transactions known by the peer and
+// we will send a difference of length up to `MAX_TRANSACTIONS_TO_PROPAGATE`.
+const MAX_TRANSACTIONS_TO_QUERY: usize = 4096;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
@@ -658,20 +662,29 @@ impl ChainSync {
 				None
 			}
 		).collect();
-		let mut peers: Vec<(PeerId, u8)> = confirmed_peers.iter().filter(|&&(peer_id, _)|
-			self.active_peers.contains(&peer_id)
-		).map(|v| *v).collect();
 
-		random::new().shuffle(&mut peers); //TODO: sort by rating
-		// prefer peers with higher protocol version
-		peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
 		trace!(
 			target: "sync",
 			"Syncing with peers: {} active, {} confirmed, {} total",
 			self.active_peers.len(), confirmed_peers.len(), self.peers.len()
 		);
-		for (peer_id, _) in peers {
-			self.sync_peer(io, peer_id, false);
+
+		if self.state == SyncState::Waiting {
+			trace!(target: "sync", "Waiting for the block queue");
+		} else if self.state == SyncState::SnapshotWaiting {
+			trace!(target: "sync", "Waiting for the snapshot restoration");
+		} else {
+			let mut peers: Vec<(PeerId, u8)> = confirmed_peers.iter().filter(|&&(peer_id, _)|
+				self.active_peers.contains(&peer_id)
+			).map(|v| *v).collect();
+
+			random::new().shuffle(&mut peers); //TODO: sort by rating
+			// prefer peers with higher protocol version
+			peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
+
+			for (peer_id, _) in peers {
+				self.sync_peer(io, peer_id, false);
+			}
 		}
 
 		if
@@ -704,14 +717,6 @@ impl ChainSync {
 			if let Some(peer) = self.peers.get_mut(&peer_id) {
 				if peer.asking != PeerAsking::Nothing || !peer.can_sync() {
 					trace!(target: "sync", "Skipping busy peer {}", peer_id);
-					return;
-				}
-				if self.state == SyncState::Waiting {
-					trace!(target: "sync", "Waiting for the block queue");
-					return;
-				}
-				if self.state == SyncState::SnapshotWaiting {
-					trace!(target: "sync", "Waiting for the snapshot restoration");
 					return;
 				}
 				(peer.latest_hash.clone(), peer.difficulty.clone(), peer.snapshot_number.as_ref().cloned().unwrap_or(0), peer.snapshot_hash.as_ref().cloned())
@@ -1143,7 +1148,7 @@ pub mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
-	use ethcore::miner::MinerService;
+	use ethcore::miner::{MinerService, PendingOrdering};
 	use private_tx::NoopPrivateTxHandler;
 
 	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
@@ -1348,7 +1353,6 @@ pub mod tests {
 			client.set_nonce(sender, U256::from(0));
 		}
 
-
 		// when
 		{
 			let queue = RwLock::new(VecDeque::new());
@@ -1356,7 +1360,7 @@ pub mod tests {
 			let mut io = TestIo::new(&mut client, &ss, &queue, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
-			assert_eq!(io.chain.miner.ready_transactions(io.chain).len(), 1);
+			assert_eq!(io.chain.miner.ready_transactions(io.chain, 10, PendingOrdering::Priority).len(), 1);
 		}
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
@@ -1372,7 +1376,7 @@ pub mod tests {
 		}
 
 		// then
-		assert_eq!(client.miner.ready_transactions(&client).len(), 1);
+		assert_eq!(client.miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 	}
 
 	#[test]

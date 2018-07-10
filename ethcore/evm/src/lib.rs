@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@ mod instructions;
 
 #[cfg(test)]
 mod tests;
-#[cfg(all(feature="benches", test))]
+#[cfg(all(feature = "benches", test))]
 mod benches;
 
 pub use vm::{
@@ -52,6 +52,6 @@ pub use vm::{
     GasLeft, ReturnData
 };
 pub use self::evm::{Finalize, FinalizationResult, CostType};
-pub use self::instructions::{InstructionInfo, INSTRUCTIONS, push_bytes};
+pub use self::instructions::{InstructionInfo, Instruction};
 pub use self::vmtype::VMType;
 pub use self::factory::Factory;

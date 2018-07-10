@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -163,7 +163,7 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 }
 
 /// Transaction executor.
-pub struct Executive<'a, B: 'a + StateBackend> {
+pub struct Executive<'a, B: 'a> {
 	state: &'a mut State<B>,
 	info: &'a EnvInfo,
 	machine: &'a Machine,

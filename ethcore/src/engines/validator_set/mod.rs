@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -53,7 +53,7 @@ pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
 }
 
 /// A validator set.
-pub trait ValidatorSet: Send + Sync {
+pub trait ValidatorSet: Send + Sync + 'static {
 	/// Get the default "Call" helper, for use in general operation.
 	// TODO [keorn]: this is a hack intended to migrate off of
 	// a strict dependency on state always being available.

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,28 +17,27 @@
 //! Blockchain block.
 
 use std::cmp;
-use std::sync::Arc;
 use std::collections::HashSet;
-use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use triehash::ordered_trie_root;
+use std::sync::Arc;
 
-use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
-use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
-use unexpected::{Mismatch, OutOfBounds};
-
-use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
 use error::{Error, BlockError};
+use ethereum_types::{H256, U256, Address, Bloom};
 use factory::Factories;
+use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use header::{Header, ExtendedHeader};
 use receipt::{Receipt, TransactionOutcome};
-use state::State;
+use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
 use state_db::StateDB;
+use state::State;
 use trace::Tracing;
 use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
+use triehash::ordered_trie_root;
+use unexpected::{Mismatch, OutOfBounds};
 use verification::PreverifiedBlock;
 use views::BlockView;
+use vm::{EnvInfo, LastHashes};
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -385,7 +384,7 @@ impl<'x> OpenBlock<'x> {
 			let took = start.elapsed();
 			let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
 			if took > time::Duration::from_millis(slow_tx) {
-				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, block.header().number(), hash);
+				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, self.block.header().number(), hash);
 			}
 			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
 		}

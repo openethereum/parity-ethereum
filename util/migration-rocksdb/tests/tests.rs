@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,11 +25,12 @@ extern crate kvdb_rocksdb;
 extern crate migration_rocksdb as migration;
 
 use std::collections::BTreeMap;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tempdir::TempDir;
 use kvdb_rocksdb::Database;
-use migration::{Batch, Config, Error, SimpleMigration, Migration, Manager, ChangeColumns};
+use migration::{Batch, Config, SimpleMigration, Migration, Manager, ChangeColumns};
 
 #[inline]
 fn db_path(path: &Path) -> PathBuf {
@@ -112,13 +113,12 @@ impl Migration for AddsColumn {
 
 	fn version(&self) -> u32 { 1 }
 
-	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> io::Result<()> {
 		let mut batch = Batch::new(config, col);
 
 		for (key, value) in source.iter(col).into_iter().flat_map(|inner| inner) {
 			batch.insert(key.into_vec(), value.into_vec(), dest)?;
 		}
-
 
 		if col == Some(1) {
 			batch.insert(vec![1, 2, 3], vec![4, 5, 6], dest)?;

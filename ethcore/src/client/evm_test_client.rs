@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,18 +25,17 @@ use {state, state_db, client, executive, trace, transaction, db, spec, pod_state
 use factory::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
+use ethtrie;
 
 /// EVM test Error.
 #[derive(Debug)]
 pub enum EvmTestError {
 	/// Trie integrity error.
-	Trie(trie::TrieError),
+	Trie(Box<ethtrie::TrieError>),
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.
 	ClientError(::error::Error),
-	/// Low-level database error.
-	Database(kvdb::Error),
 	/// Post-condition failure,
 	PostCondition(String),
 }
@@ -55,7 +54,6 @@ impl fmt::Display for EvmTestError {
 			Trie(ref err) => write!(fmt, "Trie: {}", err),
 			Evm(ref err) => write!(fmt, "EVM: {}", err),
 			ClientError(ref err) => write!(fmt, "{}", err),
-			Database(ref err) => write!(fmt, "DB: {}", err),
 			PostCondition(ref err) => write!(fmt, "{}", err),
 		}
 	}
@@ -63,15 +61,6 @@ impl fmt::Display for EvmTestError {
 
 use ethereum;
 use ethjson::state::test::ForkSpec;
-
-lazy_static! {
-	pub static ref FRONTIER: spec::Spec = ethereum::new_frontier_test();
-	pub static ref HOMESTEAD: spec::Spec = ethereum::new_homestead_test();
-	pub static ref EIP150: spec::Spec = ethereum::new_eip150_test();
-	pub static ref EIP161: spec::Spec = ethereum::new_eip161_test();
-	pub static ref BYZANTIUM: spec::Spec = ethereum::new_byzantium_test();
-	pub static ref BYZANTIUM_TRANSITION: spec::Spec = ethereum::new_transition_test();
-}
 
 /// Simplified, single-block EVM test client.
 pub struct EvmTestClient<'a> {
@@ -90,14 +79,14 @@ impl<'a> fmt::Debug for EvmTestClient<'a> {
 
 impl<'a> EvmTestClient<'a> {
 	/// Converts a json spec definition into spec.
-	pub fn spec_from_json(spec: &ForkSpec) -> Option<&'static spec::Spec> {
+	pub fn spec_from_json(spec: &ForkSpec) -> Option<spec::Spec> {
 		match *spec {
-			ForkSpec::Frontier => Some(&*FRONTIER),
-			ForkSpec::Homestead => Some(&*HOMESTEAD),
-			ForkSpec::EIP150 => Some(&*EIP150),
-			ForkSpec::EIP158 => Some(&*EIP161),
-			ForkSpec::Byzantium => Some(&*BYZANTIUM),
-			ForkSpec::EIP158ToByzantiumAt5 => Some(&BYZANTIUM_TRANSITION),
+			ForkSpec::Frontier => Some(ethereum::new_frontier_test()),
+			ForkSpec::Homestead => Some(ethereum::new_homestead_test()),
+			ForkSpec::EIP150 => Some(ethereum::new_eip150_test()),
+			ForkSpec::EIP158 => Some(ethereum::new_eip161_test()),
+			ForkSpec::Byzantium => Some(ethereum::new_byzantium_test()),
+			ForkSpec::EIP158ToByzantiumAt5 => Some(ethereum::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 			_ => None,
 		}
@@ -144,7 +133,7 @@ impl<'a> EvmTestClient<'a> {
 		{
 			let mut batch = kvdb::DBTransaction::new();
 			state_db.journal_under(&mut batch, 0, &genesis.hash())?;
-			db.write(batch).map_err(EvmTestError::Database)?;
+			db.write(batch)?;
 		}
 
 		state::State::from_existing(

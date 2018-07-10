@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use transaction::{Transaction, SignedTransaction, Action};
-use ethereum_types::U256;
 
 use jsonrpc_core::Error;
 use v1::helpers::CallRequest;
@@ -29,7 +28,7 @@ pub fn sign_call(request: CallRequest, gas_cap: bool) -> Result<SignedTransactio
 		}
 		Some(gas) => gas,
 		None if gas_cap => max_gas,
-		None => U256::from(2) << 50,
+		None => max_gas * 10,
 	};
 	let from = request.from.unwrap_or(0.into());
 

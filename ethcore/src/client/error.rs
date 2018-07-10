@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,19 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{Display, Formatter, Error as FmtError};
-use util_error::UtilError;
-use kvdb;
-use trie::TrieError;
+use std::io;
+use ethtrie::TrieError;
 
 /// Client configuration errors.
 #[derive(Debug)]
 pub enum Error {
 	/// TrieDB-related error.
 	Trie(TrieError),
-	/// Database error
-	Database(kvdb::Error),
-	/// Util error
-	Util(UtilError),
+	/// Io error.
+	Io(io::Error),
 }
 
 impl From<TrieError> for Error {
@@ -36,9 +33,9 @@ impl From<TrieError> for Error {
 	}
 }
 
-impl From<UtilError> for Error {
-	fn from(err: UtilError) -> Self {
-		Error::Util(err)
+impl From<io::Error> for Error {
+	fn from(err: io::Error) -> Self {
+		Error::Io(err)
 	}
 }
 
@@ -52,8 +49,7 @@ impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		match *self {
 			Error::Trie(ref err) => write!(f, "{}", err),
-			Error::Util(ref err) => write!(f, "{}", err),
-			Error::Database(ref s) => write!(f, "Database error: {}", s),
+			Error::Io(ref err) => write!(f, "{}", err),
 		}
 	}
 }

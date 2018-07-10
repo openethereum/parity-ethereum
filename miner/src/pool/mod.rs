@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 //! Transaction Pool
 
-use ethereum_types::{H256, Address};
+use ethereum_types::{U256, H256, Address};
 use heapsize::HeapSizeOf;
 use transaction;
 use txpool;
@@ -45,21 +45,58 @@ pub enum PrioritizationStrategy {
 	GasPriceOnly,
 }
 
-/// Transaction priority.
+/// Transaction ordering when requesting pending set.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PendingOrdering {
+	/// Get pending transactions ordered by their priority (potentially expensive)
+	Priority,
+	/// Get pending transactions without any care of particular ordering (cheaper).
+	Unordered,
+}
+
+/// Pending set query settings
+#[derive(Debug, Clone)]
+pub struct PendingSettings {
+	/// Current block number (affects readiness of some transactions).
+	pub block_number: u64,
+	/// Current timestamp (affects readiness of some transactions).
+	pub current_timestamp: u64,
+	/// Nonce cap (for dust protection; EIP-168)
+	pub nonce_cap: Option<U256>,
+	/// Maximal number of transactions in pending the set.
+	pub max_len: usize,
+	/// Ordering of transactions.
+	pub ordering: PendingOrdering,
+}
+
+impl PendingSettings {
+	/// Get all transactions (no cap or len limit) prioritized.
+	pub fn all_prioritized(block_number: u64, current_timestamp: u64) -> Self {
+		PendingSettings {
+			block_number,
+			current_timestamp,
+			nonce_cap: None,
+			max_len: usize::max_value(),
+			ordering: PendingOrdering::Priority,
+		}
+	}
+}
+
+/// Transaction priority.
+#[derive(Debug, PartialEq, Eq, PartialOrd,  Clone, Copy)]
 pub(crate) enum Priority {
-	/// Local transactions (high priority)
-	///
-	/// Transactions either from a local account or
-	/// submitted over local RPC connection via `eth_sendRawTransaction`
-	Local,
+	/// Regular transactions received over the network. (no priority boost)
+	Regular,
 	/// Transactions from retracted blocks (medium priority)
 	///
 	/// When block becomes non-canonical we re-import the transactions it contains
 	/// to the queue and boost their priority.
 	Retracted,
-	/// Regular transactions received over the network. (no priority boost)
-	Regular,
+	/// Local transactions (high priority)
+	///
+	/// Transactions either from a local account or
+	/// submitted over local RPC connection via `eth_sendRawTransaction`
+	Local,
 }
 
 impl Priority {

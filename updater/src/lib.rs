@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,9 +16,11 @@
 
 //! Updater for Parity executables
 
+#![warn(missing_docs)]
+
 extern crate ethabi;
 extern crate ethcore;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate keccak_hash as hash;

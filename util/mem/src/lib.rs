@@ -1,4 +1,4 @@
-// Copyright 2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -31,11 +31,9 @@ impl<T: AsMut<[u8]>> From<T> for Memzero<T> {
 
 impl<T: AsMut<[u8]>> Drop for Memzero<T> {
 	fn drop(&mut self) {
-		let n = self.mem.as_mut().len();
-		let p = self.mem.as_mut().as_mut_ptr();
-		for i in 0..n {
-			unsafe {
-				ptr::write_volatile(p.offset(i as isize), 0)
+		unsafe {
+			for byte_ref in self.mem.as_mut() {
+				ptr::write_volatile(byte_ref, 0)
 			}
 		}
 	}
@@ -54,4 +52,3 @@ impl<T: AsMut<[u8]>> DerefMut for Memzero<T> {
 		&mut self.mem
 	}
 }
-

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -79,7 +79,7 @@ pub fn open(url: &str) -> Result<(), Error> {
 	Ok(())
 }
 
-#[cfg(target_os="android")]
+#[cfg(any(target_os="android", target_os="ios"))]
 pub fn open(_url: &str) -> Result<(), Error> {
 	// TODO: While it is generally always bad to leave a function implemented, there is not much
 	//		 more we can do here. This function will eventually be removed when we compile Parity

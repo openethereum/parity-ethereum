@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -91,7 +91,7 @@ impl NodeCacheBuilder {
 
 	pub fn new<T: Into<Option<OptimizeFor>>>(optimize_for: T) -> Self {
 		NodeCacheBuilder {
-			seedhash: Arc::new(Mutex::new(SeedHashCompute::new())),
+			seedhash: Arc::new(Mutex::new(SeedHashCompute::default())),
 			optimize_for: optimize_for.into().unwrap_or_default(),
 		}
 	}

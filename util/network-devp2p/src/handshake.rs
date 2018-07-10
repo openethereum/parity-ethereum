@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@ use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
 use ethereum_types::{H256, H520};
-use ethcore_bytes::Bytes;
+use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
 use connection::{Connection};
 use node_table::NodeId;
@@ -515,4 +515,3 @@ mod test {
 		check_ack(&h, 57);
 	}
 }
-

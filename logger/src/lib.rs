@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -71,7 +71,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	builder.filter(Some("ws"), LogLevelFilter::Warn);
 	builder.filter(Some("reqwest"), LogLevelFilter::Warn);
 	builder.filter(Some("hyper"), LogLevelFilter::Warn);
-	builder.filter(Some("rustls"), LogLevelFilter::Warn);
+	builder.filter(Some("rustls"), LogLevelFilter::Error);
 	// Enable info for others.
 	builder.filter(None, LogLevelFilter::Info);
 

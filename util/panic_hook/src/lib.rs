@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -8,7 +8,7 @@
 
 // Parity is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
@@ -21,11 +21,20 @@ extern crate backtrace;
 use std::io::{self, Write};
 use std::panic::{self, PanicInfo};
 use std::thread;
+use std::process;
 use backtrace::Backtrace;
 
 /// Set the panic hook
-pub fn set() {
-	panic::set_hook(Box::new(panic_hook));
+pub fn set_abort() {
+	set_with(|| process::abort());
+}
+
+/// Set the panic hook with a closure to be called afterwards.
+pub fn set_with<F: Fn() + Send + Sync + 'static>(f: F) {
+	panic::set_hook(Box::new(move |info| {
+		panic_hook(info);
+		f();
+	}));
 }
 
 static ABOUT_PANIC: &str = "

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,4 +25,3 @@ pub use self::crypto::Crypto;
 pub use self::kdf::{Kdf, Pbkdf2, Scrypt, Prf};
 pub use self::safe_account::SafeAccount;
 pub use self::version::Version;
-

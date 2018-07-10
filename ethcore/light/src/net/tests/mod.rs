@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,20 +19,18 @@
 
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
-use ethcore::ids::BlockId;
 use ethcore::encoded;
-use network::{PeerId, NodeId};
-use transaction::{Action, PendingTransaction};
-
+use ethcore::ids::BlockId;
+use ethereum_types::{H256, U256, Address};
+use net::{LightProtocol, Params, packet, Peer};
 use net::context::IoContext;
 use net::status::{Capabilities, Status};
-use net::{LightProtocol, Params, packet, Peer};
+use network::{PeerId, NodeId};
 use provider::Provider;
 use request;
 use request::*;
-
 use rlp::{Rlp, RlpStream};
-use ethereum_types::{H256, U256, Address};
+use transaction::{Action, PendingTransaction};
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -173,8 +171,8 @@ impl Provider for TestProvider {
 		})
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		self.0.client.ready_transactions()
+	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
+		self.0.client.ready_transactions(max_len)
 	}
 }
 

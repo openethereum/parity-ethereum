@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,8 +23,6 @@ pub struct CacheSize {
 	pub block_details: usize,
 	/// Transaction addresses cache size.
 	pub transaction_addresses: usize,
-	/// Blooms cache size.
-	pub blocks_blooms: usize,
 	/// Block receipts size.
 	pub block_receipts: usize,
 }
@@ -32,6 +30,6 @@ pub struct CacheSize {
 impl CacheSize {
 	/// Total amount used by the cache.
 	pub fn total(&self) -> usize {
-		self.blocks + self.block_details + self.transaction_addresses + self.blocks_blooms + self.block_receipts
+		self.blocks + self.block_details + self.transaction_addresses + self.block_receipts
 	}
 }

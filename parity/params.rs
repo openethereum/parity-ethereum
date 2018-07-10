@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,7 +24,8 @@ use ethereum_types::{U256, Address};
 use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
 use journaldb::Algorithm;
-use miner::gas_pricer::{GasPricer, GasPriceCalibratorOptions};
+use miner::gas_pricer::GasPricer;
+use miner::gas_price_calibrator::{GasPriceCalibratorOptions, GasPriceCalibrator};
 use parity_version::version_data;
 use user_defaults::UserDefaults;
 
@@ -33,6 +34,7 @@ pub enum SpecType {
 	Foundation,
 	Morden,
 	Ropsten,
+	Tobalaba,
 	Kovan,
 	Olympic,
 	Classic,
@@ -61,6 +63,7 @@ impl str::FromStr for SpecType {
 			"morden" | "classic-testnet" => SpecType::Morden,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
+			"tobalaba" => SpecType::Tobalaba,
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
 			"musicoin" => SpecType::Musicoin,
@@ -88,6 +91,7 @@ impl fmt::Display for SpecType {
 			SpecType::Easthub => "easthub",
 			SpecType::Social => "social",
 			SpecType::Kovan => "kovan",
+			SpecType::Tobalaba => "tobalaba",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
 		})
@@ -108,6 +112,7 @@ impl SpecType {
 			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
 			SpecType::Easthub => Ok(ethereum::new_easthub(params)),
 			SpecType::Social => Ok(ethereum::new_social(params)),
+			SpecType::Tobalaba => Ok(ethereum::new_tobalaba(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
@@ -244,12 +249,14 @@ impl GasPricerConfig {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
 			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
 				GasPricer::new_calibrated(
-					GasPriceCalibratorOptions {
-						usd_per_tx: usd_per_tx,
-						recalibration_period: recalibration_period,
-					},
-					fetch,
-					p,
+					GasPriceCalibrator::new(
+						GasPriceCalibratorOptions {
+							usd_per_tx: usd_per_tx,
+							recalibration_period: recalibration_period,
+						},
+						fetch,
+						p,
+					)
 				)
 			}
 		}

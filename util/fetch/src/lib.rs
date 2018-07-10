@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,12 +23,12 @@ extern crate log;
 
 #[macro_use]
 extern crate futures;
-extern crate futures_timer;
 
 extern crate hyper;
 extern crate hyper_rustls;
 
 extern crate tokio_core;
+extern crate tokio_timer;
 extern crate url;
 extern crate bytes;
 

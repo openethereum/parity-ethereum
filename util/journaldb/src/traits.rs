@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,16 +16,18 @@
 
 //! Disk-backed `HashDB` implementation.
 
+use std::io;
 use std::sync::Arc;
-use hashdb::*;
-use kvdb::{self, DBTransaction};
-use ethereum_types::H256;
-use error::UtilError;
+
 use bytes::Bytes;
+use ethereum_types::H256;
+use hashdb::*;
+use keccak_hasher::KeccakHasher;
+use kvdb::{self, DBTransaction};
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
-pub trait JournalDB: HashDB {
+pub trait JournalDB: HashDB<KeccakHasher> {
 	/// Return a copy of ourself, in a box.
 	fn boxed_clone(&self) -> Box<JournalDB>;
 
@@ -48,10 +50,10 @@ pub trait JournalDB: HashDB {
 
 	/// Journal recent database operations as being associated with a given era and id.
 	// TODO: give the overlay to this function so journaldbs don't manage the overlays themeselves.
-	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError>;
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32>;
 
 	/// Mark a given block as canonical, indicating that competing blocks' states may be pruned out.
-	fn mark_canonical(&mut self, batch: &mut DBTransaction, era: u64, id: &H256) -> Result<u32, UtilError>;
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, era: u64, id: &H256) -> io::Result<u32>;
 
 	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
 	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
@@ -60,7 +62,7 @@ pub trait JournalDB: HashDB {
 	/// by any previous `commit` operations. Essentially, this means that `inject` can be used
 	/// either to restore a state to a fresh database, or to insert data which may only be journalled
 	/// from this point onwards.
-	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError>;
+	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32>;
 
 	/// State data query
 	fn state(&self, _id: &H256) -> Option<Bytes>;
@@ -76,11 +78,11 @@ pub trait JournalDB: HashDB {
 	fn flush(&self) {}
 
 	/// Consolidate all the insertions and deletions in the given memory overlay.
-	fn consolidate(&mut self, overlay: ::memorydb::MemoryDB);
+	fn consolidate(&mut self, overlay: ::memorydb::MemoryDB<KeccakHasher>);
 
 	/// Commit all changes in a single batch
 	#[cfg(test)]
-	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> io::Result<u32> {
 		let mut batch = self.backing().transaction();
 		let mut ops = self.journal_under(&mut batch, now, id)?;
 
@@ -95,7 +97,7 @@ pub trait JournalDB: HashDB {
 
 	/// Inject all changes in a single batch.
 	#[cfg(test)]
-	fn inject_batch(&mut self) -> Result<u32, UtilError> {
+	fn inject_batch(&mut self) -> io::Result<u32> {
 		let mut batch = self.backing().transaction();
 		let res = self.inject(&mut batch)?;
 		self.backing().write(batch).map(|_| res).map_err(Into::into)

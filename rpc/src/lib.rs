@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -45,8 +45,8 @@ extern crate jsonrpc_pubsub;
 extern crate ethash;
 #[cfg_attr(test, macro_use)]
 extern crate ethcore;
-extern crate ethcore_bytes as bytes;
-extern crate ethcore_crypto as crypto;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto as crypto;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
@@ -58,17 +58,21 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
-extern crate vm;
 extern crate fetch;
+extern crate keccak_hash as hash;
 extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
+extern crate patricia_trie as trie;
 extern crate rlp;
 extern crate stats;
-extern crate keccak_hash as hash;
+extern crate vm;
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;
-extern crate patricia_trie as trie;
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+extern crate fake_hardware_wallet as hardware_wallet;
 
 #[macro_use]
 extern crate log;
@@ -136,6 +140,7 @@ pub fn start_http<M, S, H, T, R>(
 	extractor: T,
 	middleware: Option<R>,
 	threads: usize,
+	max_payload: usize,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -148,7 +153,8 @@ pub fn start_http<M, S, H, T, R>(
 		.threads(threads)
 		.event_loop_remote(remote)
 		.cors(cors_domains.into())
-		.allowed_hosts(allowed_hosts.into());
+		.allowed_hosts(allowed_hosts.into())
+		.max_request_body_size(max_payload * 1024 * 1024);
 
 	if let Some(dapps) = middleware {
 		builder = builder.request_middleware(dapps)
