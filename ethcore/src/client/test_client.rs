@@ -373,7 +373,7 @@ impl ReopenBlock for TestBlockChainClient {
 }
 
 impl PrepareOpenBlock for TestBlockChainClient {
-	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> Result<OpenBlock, Error> {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
 		let db = self.spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
@@ -391,7 +391,7 @@ impl PrepareOpenBlock for TestBlockChainClient {
 			extra_data,
 			false,
 			&mut Vec::new().into_iter(),
-		).expect("Opening block for tests will not fail.");
+		)?;
 		// TODO [todr] Override timestamp for predictability
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
 		open_block

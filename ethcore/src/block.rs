@@ -738,7 +738,7 @@ mod tests {
 			b.push_uncle(u.clone())?;
 		}
 
-		Ok(b.close_and_lock())
+		b.close_and_lock()
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
