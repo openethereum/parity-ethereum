@@ -55,14 +55,14 @@ impl VersionInfo {
 		let t = track.into();
 		VersionInfo {
 			version: Version {
-				major: (semver >> 16) as u64,
-				minor: ((semver >> 8) & 0xff) as u64,
-				patch: (semver & 0xff) as u64,
+				major: u64::from(semver >> 16),
+				minor: u64::from((semver >> 8) & 0xff),
+				patch: u64::from(semver & 0xff),
 				build: vec![],
 				pre: vec![],
 			},
 			track: t,
-			hash: hash,
+			hash,
 		}
 	}
 }
