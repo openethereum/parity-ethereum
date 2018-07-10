@@ -20,7 +20,7 @@
 
 extern crate ethabi;
 extern crate ethcore;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate keccak_hash as hash;

@@ -22,12 +22,12 @@ ethereum-types = "0.3"
 futures = "0.1"
 futures-cpupool = "0.1"
 heapsize = "0.4"
-keccak-hash = { path = "../util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 linked-hash-map = "0.5"
 log = "0.3"
 parking_lot = "0.6"
 price-info = { path = "../price-info", optional = true }
-rlp = { path = "../util/rlp" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 trace-time = { path = "../util/trace-time" }
 transaction-pool = { path = "../transaction-pool" }
 

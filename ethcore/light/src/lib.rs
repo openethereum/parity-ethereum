@@ -56,7 +56,7 @@ extern crate log;
 extern crate bincode;
 extern crate ethcore_io as io;
 extern crate ethcore_network as network;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethcore;
@@ -79,7 +79,7 @@ extern crate smallvec;
 extern crate stats;
 extern crate vm;
 extern crate keccak_hash as hash;
-extern crate triehash;
+extern crate triehash_ethereum as triehash;
 extern crate kvdb;
 extern crate memory_cache;
 #[macro_use]

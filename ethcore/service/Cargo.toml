@@ -10,7 +10,7 @@ ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }
-kvdb = { path = "../../util/kvdb" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
 log = "0.3"
 stop-guard = { path = "../../util/stop-guard" }
 trace-time = { path = "../../util/trace-time" }
@@ -18,4 +18,4 @@ trace-time = { path = "../../util/trace-time" }
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
+kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }

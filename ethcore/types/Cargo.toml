@@ -5,12 +5,12 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-rlp = { path = "../../util/rlp" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 rlp_derive = { path = "../../util/rlp_derive" }
-ethcore-bytes = { path = "../../util/bytes" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethereum-types = "0.3"
 ethjson = { path = "../../json" }
-keccak-hash = { path = "../../util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 heapsize = "0.4"
 
 [dev-dependencies]

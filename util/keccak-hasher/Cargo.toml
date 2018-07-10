@@ -8,5 +8,5 @@ license = "GPL-3.0"
 [dependencies]
 ethereum-types = "0.3"
 tiny-keccak = "1.4.2"
-hashdb = { path = "../hashdb" }
-plain_hasher = { path = "../plain_hasher" }
+hashdb = { git = "https://github.com/paritytech/parity-common" }
+plain_hasher = { git = "https://github.com/paritytech/parity-common" }

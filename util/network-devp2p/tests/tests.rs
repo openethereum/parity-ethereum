@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate parking_lot;
-extern crate ethcore_bytes;
+extern crate parity_bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_logger;
 extern crate ethcore_network;
@@ -27,7 +27,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::*;
 use parking_lot::Mutex;
-use ethcore_bytes::Bytes;
+use parity_bytes::Bytes;
 use ethcore_network::*;
 use ethcore_network_devp2p::NetworkService;
 use ethkey::{Random, Generator};
