@@ -1548,10 +1548,10 @@ impl BlockChainClient for Client {
 		let block = BlockId::Hash(address.block_hash);
 
 		const PROOF: &'static str = "The transaction address contains a valid index within block; qed";
-		Ok(self.replay_block_transactions(block, analytics)?.nth(address.index).expect(PROOF))
+		Ok(self.replay_block_transactions(block, analytics)?.nth(address.index).expect(PROOF).1)
 	}
 
-	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(block).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
@@ -1563,11 +1563,12 @@ impl BlockChainClient for Client {
 
 		Ok(Box::new(txs.into_iter()
 			.map(move |t| {
+				let transaction_hash = t.hash();
 				let t = SignedTransaction::new(t).expect(PROOF);
 				let machine = engine.machine();
 				let x = Self::do_virtual_call(machine, &env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
 				env_info.gas_used = env_info.gas_used + x.gas_used;
-				x
+				(transaction_hash, x)
 			})))
 	}
 
