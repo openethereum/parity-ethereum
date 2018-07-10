@@ -49,11 +49,11 @@ usage! {
 			"Manage accounts",
 
 			CMD cmd_account_new {
-				"Create a new account (and its associated key) for the given --chain (default: foundation)",
+				"Create a new account (and its associated key) for the given --chain (default: mainnet)",
 			}
 
 			CMD cmd_account_list {
-				"List existing accounts of the given --chain (default: foundation)",
+				"List existing accounts of the given --chain (default: mainnet)",
 			}
 
 			CMD cmd_account_import
@@ -72,7 +72,7 @@ usage! {
 
 			CMD cmd_wallet_import
 			{
-				"Import wallet into the given --chain (default: foundation)",
+				"Import wallet into the given --chain (default: mainnet)",
 
 				ARG arg_wallet_import_path: (Option<String>) = None,
 				"<PATH>",
@@ -82,7 +82,7 @@ usage! {
 
 		CMD cmd_import
 		{
-			"Import blockchain from a file to the given --chain database (default: foundation)",
+			"Import blockchain data from a file to the given --chain database (default: mainnet)",
 
 			ARG arg_import_format: (Option<String>) = None,
 			"--format=[FORMAT]",
@@ -99,7 +99,7 @@ usage! {
 
 			CMD cmd_export_blocks
 			{
-				"Export blocks into the given --chain database (default: foundation). This command requires the chain to be synced with --fat-db on.",
+				"Export the blockchain blocks from the given --chain database (default: mainnet) into a file. This command requires the chain to be synced with --fat-db on.",
 
 				ARG arg_export_blocks_format: (Option<String>) = None,
 				"--format=[FORMAT]",
@@ -120,7 +120,7 @@ usage! {
 
 			CMD cmd_export_state
 			{
-				"Export state from a given --chain (default: foundation) to a file. This command requires the chain to be synced with --fat-db on.",
+				"Export the blockchain state from the given --chain (default: mainnet) into a file. This command requires the chain to be synced with --fat-db on.",
 
 				FLAG flag_export_state_no_storage: (bool) = false,
 				"--no-storage",
@@ -157,11 +157,11 @@ usage! {
 			"Manage signer",
 
 			CMD cmd_signer_new_token {
-				"Generate new token for the given --chain (default: foundation)",
+				"Generate a new signer-authentication token for the given --chain (default: mainnet)",
 			}
 
 			CMD cmd_signer_list {
-				"List the tokens from given --chain (default: foundation)",
+				"List the signer-authentication tokens from given --chain (default: mainnet)",
 			}
 
 			CMD cmd_signer_sign
@@ -185,7 +185,7 @@ usage! {
 
 		CMD cmd_snapshot
 		{
-			"Make a snapshot of the database of the given --chain (default: foundation)",
+			"Make a snapshot of the database of the given --chain (default: mainnet)",
 
 			ARG arg_snapshot_at: (String) = "latest",
 			"--at=[BLOCK]",
@@ -198,7 +198,7 @@ usage! {
 
 		CMD cmd_restore
 		{
-			"Restore database of the given --chain (default: foundation) from snapshot",
+			"Restore the database of the given --chain (default: mainnet) from a snapshot file",
 
 			ARG arg_restore_file: (Option<String>) = None,
 			"[FILE]",
@@ -211,7 +211,7 @@ usage! {
 
 			CMD cmd_tools_hash
 			{
-				"Hash a file using Keccak-256 algorithm",
+				"Hash a file using the Keccak-256 algorithm",
 
 				ARG arg_tools_hash_file: (Option<String>) = None,
 				"<FILE>",
@@ -224,13 +224,13 @@ usage! {
 			"Manage the database representing the state of the blockchain on this system",
 
 			CMD cmd_db_kill {
-				"Clean the database of the given --chain (default: foundation)",
+				"Clean the database of the given --chain (default: mainnet)",
 			}
 		}
 
 		CMD cmd_export_hardcoded_sync
 		{
-			"Print the hashed light clients headers of the given --chain (default: foundation) in a JSON format. To be used as hardcoded headers in a genesis file.",
+			"Print the hashed light clients headers of the given --chain (default: mainnet) in a JSON format. To be used as hardcoded headers in a genesis file.",
 		}
 	}
 	{
