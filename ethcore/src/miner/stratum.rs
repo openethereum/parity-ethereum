@@ -158,7 +158,7 @@ impl StratumJobDispatcher {
 	/// New stratum job dispatcher given the miner and client
 	fn new(miner: Weak<Miner>, client: Weak<Client>) -> StratumJobDispatcher {
 		StratumJobDispatcher {
-			seed_compute: Mutex::new(SeedHashCompute::new()),
+			seed_compute: Mutex::new(SeedHashCompute::default()),
 			client: client,
 			miner: miner,
 		}

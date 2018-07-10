@@ -24,32 +24,32 @@ use ethereum_types::H256;
 use keccak_hasher::KeccakHasher;
 
 /// Generates a trie root hash for a vector of key-value tuples
-pub fn trie_root<I, A, B>(input: I) -> H256
+pub fn trie_root<I, K, V>(input: I) -> H256
 where
-    I: IntoIterator<Item = (A, B)>,
-    A: AsRef<[u8]> + Ord,
-    B: AsRef<[u8]>,
+    I: IntoIterator<Item = (K, V)>,
+    K: AsRef<[u8]> + Ord,
+    V: AsRef<[u8]>,
 {
     triehash::trie_root::<KeccakHasher, _, _, _>(input)
 }
 
 /// Generates a key-hashed (secure) trie root hash for a vector of key-value tuples.
-pub fn sec_trie_root<I, A, B>(input: I) -> H256
+pub fn sec_trie_root<I, K, V>(input: I) -> H256
 where
-    I: IntoIterator<Item = (A, B)>,
-    A: AsRef<[u8]>,
-    B: AsRef<[u8]>,
+    I: IntoIterator<Item = (K, V)>,
+    K: AsRef<[u8]>,
+    V: AsRef<[u8]>,
 {
     triehash::sec_trie_root::<KeccakHasher, _, _, _>(input)
 }
 
 /// Generates a trie root hash for a vector of values
-pub fn ordered_trie_root<I, A>(input: I) -> H256
+pub fn ordered_trie_root<I, V>(input: I) -> H256
 where
-    I: IntoIterator<Item = A>,
-    A: AsRef<[u8]>,
+    I: IntoIterator<Item = V>,
+    V: AsRef<[u8]>,
 {
-    triehash::ordered_trie_root::<KeccakHasher, I, A>(input)
+    triehash::ordered_trie_root::<KeccakHasher, I, V>(input)
 }
 
 #[cfg(test)]
