@@ -41,7 +41,7 @@ error-chain = { version = "0.12", default-features = false }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
 tempdir = "0.3"
 
 [features]

@@ -21,4 +21,4 @@ rlp = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
 [dev-dependencies]
 ethcore-logger = { path = "../../logger" }
 keccak-hash = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
-kvdb-memorydb = { path = "../kvdb-memorydb" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }

@@ -51,7 +51,7 @@ rlp = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
 rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
-kvdb-memorydb = { path = "../util/kvdb-memorydb" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
 stop-guard = { path = "../util/stop-guard" }
 macros = { path = "../util/macros" }
