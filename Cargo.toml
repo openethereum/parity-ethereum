@@ -33,7 +33,7 @@ fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 ethcore = { path = "ethcore", features = ["work-notify", "price-info", "stratum"] }
-ethcore-bytes = { path = "util/bytes" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
@@ -47,7 +47,7 @@ ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 node-health = { path = "dapps/node-health" }
-rlp = { path = "util/rlp" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
@@ -58,13 +58,13 @@ parity-rpc-client = { path = "rpc_client" }
 parity-updater = { path = "updater" }
 parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
-path = { path = "util/path" }
+path = { git = "https://github.com/paritytech/parity-common" }
 dir = { path = "util/dir" }
 panic_hook = { path = "util/panic_hook" }
-keccak-hash = { path = "util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 migration-rocksdb = { path = "util/migration-rocksdb" }
-kvdb = { path = "util/kvdb" }
-kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
 journaldb = { path = "util/journaldb" }
 mem = { path = "util/mem" }
 
@@ -137,6 +137,7 @@ members = [
 	"transaction-pool",
 	"whisper",
 	"whisper/cli",
+	"util/triehash-ethereum",
 	"util/keccak-hasher",
 	"util/patricia-trie-ethereum",
 ]

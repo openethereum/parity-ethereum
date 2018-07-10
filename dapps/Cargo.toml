@@ -27,14 +27,14 @@ itertools = "0.5"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 
-ethcore-bytes = { path = "../util/bytes" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethereum-types = "0.3"
 fetch = { path = "../util/fetch" }
 node-health = { path = "./node-health" }
 parity-dapps-glue = { path = "./js-glue" }
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
-keccak-hash = { path = "../util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 parity-version = { path = "../util/version" }
 registrar = { path = "../registrar" }
 

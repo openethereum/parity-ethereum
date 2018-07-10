@@ -17,7 +17,7 @@
 //! Parity version specific information.
 
 extern crate target_info;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate rlp;
 
 use target_info::Target;

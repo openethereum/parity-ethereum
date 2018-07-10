@@ -26,7 +26,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate docopt;
 extern crate ethcore_transaction as transaction;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate vm;
 extern crate evm;

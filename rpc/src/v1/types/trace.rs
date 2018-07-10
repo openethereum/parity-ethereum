@@ -22,6 +22,7 @@ use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
 use ethcore::client::Executed;
+use ethereum_types::H256 as EthH256;
 use vm;
 use v1::types::{Bytes, H160, H256, U256};
 
@@ -627,6 +628,36 @@ impl From<Executed> for TraceResults {
 			trace: t.trace.into_iter().map(Into::into).collect(),
 			vm_trace: t.vm_trace.map(Into::into),
 			state_diff: t.state_diff.map(Into::into),
+		}
+	}
+}
+
+#[derive(Debug, Serialize)]
+/// A diff of some chunk of memory.
+pub struct TraceResultsWithTransactionHash {
+	/// The output of the call/create
+	pub output: Bytes,
+	/// The transaction trace.
+	pub trace: Vec<Trace>,
+	/// The transaction trace.
+	#[serde(rename="vmTrace")]
+	pub vm_trace: Option<VMTrace>,
+	/// The transaction trace.
+	#[serde(rename="stateDiff")]
+	pub state_diff: Option<StateDiff>,
+	/// The transaction Hash.
+	#[serde(rename="transactionHash")]
+	pub transaction_hash: H256,
+}
+
+impl From<(EthH256, Executed)> for TraceResultsWithTransactionHash {
+	fn from(t: (EthH256, Executed)) -> Self {
+		TraceResultsWithTransactionHash {
+			output: t.1.output.into(),
+			trace: t.1.trace.into_iter().map(Into::into).collect(),
+			vm_trace: t.1.vm_trace.map(Into::into),
+			state_diff: t.1.state_diff.map(Into::into),
+			transaction_hash: t.0.into(),
 		}
 	}
 }

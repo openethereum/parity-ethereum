@@ -17,7 +17,7 @@
 //! Virtual machines support library
 
 extern crate ethereum_types;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate common_types as types;
 extern crate ethjson;
 extern crate rlp;
