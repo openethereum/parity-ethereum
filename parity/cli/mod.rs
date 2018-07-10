@@ -962,7 +962,7 @@ usage! {
 
 			// FLAG Removed in 2.0.
 
-			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?.disable.clone(),
+			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?._legacy_disable.clone(),
 			"--no-dapps",
 			"Disable the Dapps server (e.g. status page).",
 
@@ -1026,27 +1026,27 @@ usage! {
 
 			// ARG Removed in 1.7.
 
-			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
+			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_port.clone(),
 			"--dapps-port=[PORT]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.interface.clone(),
+			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_interface.clone(),
 			"--dapps-interface=[IP]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
+			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_hosts.as_ref().map(|vec| vec.join(",")),
 			"--dapps-hosts=[HOSTS]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.cors.clone(),
+			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_cors.clone(),
 			"--dapps-cors=[URL]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.user.clone(),
+			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_user.clone(),
 			"--dapps-user=[USERNAME]",
 			"Dapps server authentication has been removed.",
 
-			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.pass.clone(),
+			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_pass.clone(),
 			"--dapps-pass=[PASSWORD]",
 			"Dapps server authentication has been removed.",
 
@@ -1074,7 +1074,7 @@ usage! {
 
 			// ARG removed in 2.0.
 
-			ARG arg_dapps_path: (String) = "$BASE/dapps", or |c: &Config| c.dapps.as_ref()?.path.clone(),
+			ARG arg_dapps_path: (String) = "$BASE/dapps", or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
 			"--dapps-path=[PATH]",
 			"Specify directory where dapps should be installed.",
 	}
@@ -1226,14 +1226,22 @@ struct Ipc {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Dapps {
-	disable: Option<bool>,
-	port: Option<u16>,
-	interface: Option<String>,
-	hosts: Option<Vec<String>>,
-	cors: Option<String>,
-	path: Option<String>,
-	user: Option<String>,
-	pass: Option<String>,
+	#[serde(rename="disable")]
+	_legacy_disable: Option<bool>,
+	#[serde(rename="port")]
+	_legacy_port: Option<u16>,
+	#[serde(rename="interface")]
+	_legacy_interface: Option<String>,
+	#[serde(rename="hosts")]
+	_legacy_hosts: Option<Vec<String>>,
+	#[serde(rename="cors")]
+	_legacy_cors: Option<String>,
+	#[serde(rename="path")]
+	_legacy_path: Option<String>,
+	#[serde(rename="user")]
+	_legacy_user: Option<String>,
+	#[serde(rename="pass")]
+	_legacy_pass: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
