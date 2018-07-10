@@ -39,7 +39,7 @@ Parity's current beta-release is 1.11. You can download it at https://github.com
 
 ## Build dependencies
 
-**Parity requires Rust version 1.26.0 to build**
+**Parity requires Rust version 1.27.0 to build**
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
@@ -48,7 +48,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
 
-	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev`, `pkg-config`, `file` and `make` packages to be installed.
+	Parity also requires `gcc`, `g++`, `libudev-dev`, `pkg-config`, `file`, `make`, and `cmake` packages to be installed.
 
 - OSX:
 	```bash
@@ -102,7 +102,7 @@ $ git clone https://github.com/paritytech/parity
 $ cd parity
 
 # build in release mode
-$ cargo build --release
+$ cargo build --release --features final
 ```
 
 This will produce an executable in the `./target/release` subdirectory.
