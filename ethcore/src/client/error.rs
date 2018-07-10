@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{Display, Formatter, Error as FmtError};
-use util_error::UtilError;
+use std::io;
 use ethtrie::TrieError;
 
 /// Client configuration errors.
@@ -23,8 +23,8 @@ use ethtrie::TrieError;
 pub enum Error {
 	/// TrieDB-related error.
 	Trie(TrieError),
-	/// Util error
-	Util(UtilError),
+	/// Io error.
+	Io(io::Error),
 }
 
 impl From<TrieError> for Error {
@@ -33,9 +33,9 @@ impl From<TrieError> for Error {
 	}
 }
 
-impl From<UtilError> for Error {
-	fn from(err: UtilError) -> Self {
-		Error::Util(err)
+impl From<io::Error> for Error {
+	fn from(err: io::Error) -> Self {
+		Error::Io(err)
 	}
 }
 
@@ -49,7 +49,7 @@ impl Display for Error {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		match *self {
 			Error::Trie(ref err) => write!(f, "{}", err),
-			Error::Util(ref err) => write!(f, "{}", err),
+			Error::Io(ref err) => write!(f, "{}", err),
 		}
 	}
 }

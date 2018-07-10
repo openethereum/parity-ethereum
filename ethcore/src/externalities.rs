@@ -63,9 +63,7 @@ impl OriginInfo {
 }
 
 /// Implementation of evm Externalities.
-pub struct Externalities<'a, T: 'a, V: 'a, B: 'a>
-	where T: Tracer, V:  VMTracer, B: StateBackend
-{
+pub struct Externalities<'a, T: 'a, V: 'a, B: 'a> {
 	state: &'a mut State<B>,
 	env_info: &'a EnvInfo,
 	machine: &'a Machine,

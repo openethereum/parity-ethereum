@@ -37,7 +37,6 @@ use io::IoChannel;
 
 use ethereum_types::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use util_error::UtilError;
 use bytes::Bytes;
 use journaldb::Algorithm;
 use snappy;
@@ -621,7 +620,7 @@ impl Service {
 
 							match is_done {
 								true => {
-									db.key_value().flush().map_err(UtilError::from)?;
+									db.key_value().flush()?;
 									drop(db);
 									return self.finalize_restoration(&mut *restoration);
 								},
@@ -634,7 +633,10 @@ impl Service {
 				}
 			}
 		};
-		result.and_then(|_| db.key_value().flush().map_err(|e| UtilError::from(e).into()))
+
+		result?;
+		db.key_value().flush()?;
+		Ok(())
 	}
 
 	/// Feed a state chunk to be processed synchronously.

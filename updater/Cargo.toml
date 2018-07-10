@@ -28,3 +28,9 @@ rand = "0.4"
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
 matches = "0.1"
+
+[features]
+# hardcode version number 1.3.7 of parity to force an update
+# in order to manually test that parity fall-over to the local version
+# in case of invalid or deprecated command line arguments are entered
+test-updater = []

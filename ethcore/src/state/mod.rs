@@ -305,7 +305,7 @@ pub fn prove_transaction<H: AsHashDB<KeccakHasher> + Send + Sync>(
 /// checkpoint can be discarded with `discard_checkpoint`. All of the orignal
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
-pub struct State<B: Backend> {
+pub struct State<B> {
 	db: B,
 	root: H256,
 	cache: RefCell<HashMap<Address, AccountEntry>>,

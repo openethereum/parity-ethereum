@@ -1,3 +1,29 @@
+## Parity [v1.10.9](https://github.com/paritytech/parity/releases/tag/v1.10.9) (2018-07-07)
+
+Parity 1.10.9 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Stable: 1.10.9 backports ([#9016](https://github.com/paritytech/parity/pull/9016))
+  - Parity-version: bump stable to 1.10.9
+  - Scripts: remove md5 checksums ([#8884](https://github.com/paritytech/parity/pull/8884))
+  - Add support for --chain tobalaba ([#8870](https://github.com/paritytech/parity/pull/8870))
+    - Add support for --chain tobalaba
+  - Only return error log for rustls ([#9025](https://github.com/paritytech/parity/pull/9025))
+  - Fixes for misbehavior reporting in AuthorityRound ([#8998](https://github.com/paritytech/parity/pull/8998))
+    - Aura: only report after checking for repeated skipped primaries
+    - Aura: refactor duplicate code for getting epoch validator set
+    - Aura: verify_external: report on validator set contract instance
+    - Aura: use correct validator set epoch number when reporting
+    - Aura: use epoch set when verifying blocks
+    - Aura: report skipped primaries when generating seal
+    - Aura: handle immediate transitions
+    - Aura: don't report skipped steps from genesis to first block
+    - Aura: fix reporting test
+    - Aura: refactor duplicate code to handle immediate_transitions
+    - Aura: let reporting fail on verify_block_basic
+    - Aura: add comment about possible failure of reporting
+
 ## Parity [v1.10.8](https://github.com/paritytech/parity/releases/tag/v1.10.8) (2018-06-29)
 
 Parity 1.10.8 is a bug-fix release to improve performance and stability.

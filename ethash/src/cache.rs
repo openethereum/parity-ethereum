@@ -91,7 +91,7 @@ impl NodeCacheBuilder {
 
 	pub fn new<T: Into<Option<OptimizeFor>>>(optimize_for: T) -> Self {
 		NodeCacheBuilder {
-			seedhash: Arc::new(Mutex::new(SeedHashCompute::new())),
+			seedhash: Arc::new(Mutex::new(SeedHashCompute::default())),
 			optimize_for: optimize_for.into().unwrap_or_default(),
 		}
 	}

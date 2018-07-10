@@ -16,6 +16,8 @@
 
 //! Updater for Parity executables
 
+#![warn(missing_docs)]
+
 extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
