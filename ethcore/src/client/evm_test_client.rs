@@ -25,12 +25,13 @@ use {state, state_db, client, executive, trace, transaction, db, spec, pod_state
 use factory::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
+use ethtrie;
 
 /// EVM test Error.
 #[derive(Debug)]
 pub enum EvmTestError {
 	/// Trie integrity error.
-	Trie(trie::TrieError),
+	Trie(Box<ethtrie::TrieError>),
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.

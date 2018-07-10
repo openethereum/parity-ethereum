@@ -18,11 +18,12 @@
 
 //! Dir utilities for platform-specific operations
 extern crate app_dirs;
+extern crate dirs;
 extern crate ethereum_types;
 extern crate journaldb;
 
 pub mod helpers;
-use std::{env, fs};
+use std::fs;
 use std::path::{PathBuf, Path};
 use ethereum_types::{H64, H256};
 use journaldb::Algorithm;
@@ -31,19 +32,21 @@ use app_dirs::{AppInfo, get_app_root, AppDataType};
 // re-export platform-specific functions
 use platform::*;
 
+pub use dirs::home_dir;
+
 /// Platform-specific chains path - Windows only
-#[cfg(target_os = "windows")] pub const CHAINS_PATH: &'static str = "$LOCAL/chains";
+#[cfg(target_os = "windows")] pub const CHAINS_PATH: &str = "$LOCAL/chains";
 /// Platform-specific chains path
-#[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &'static str = "$BASE/chains";
+#[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &str = "$BASE/chains";
 
 /// Platform-specific cache path - Windows only
-#[cfg(target_os = "windows")] pub const CACHE_PATH: &'static str = "$LOCAL/cache";
+#[cfg(target_os = "windows")] pub const CACHE_PATH: &str = "$LOCAL/cache";
 /// Platform-specific cache path
-#[cfg(not(target_os = "windows"))] pub const CACHE_PATH: &'static str = "$BASE/cache";
+#[cfg(not(target_os = "windows"))] pub const CACHE_PATH: &str = "$BASE/cache";
 
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
-const LEGACY_CLIENT_DB_VER_STR: &'static str = "5.3";
+const LEGACY_CLIENT_DB_VER_STR: &str = "5.3";
 
 #[derive(Debug, PartialEq)]
 /// Parity local data directories
@@ -239,7 +242,7 @@ pub fn default_hypervisor_path() -> PathBuf {
 
 /// Get home directory.
 fn home() -> PathBuf {
-	env::home_dir().expect("Failed to get home dir")
+	dirs::home_dir().expect("Failed to get home dir")
 }
 
 /// Geth path
@@ -312,9 +315,9 @@ mod platform {
 #[cfg(not(any(target_os = "macos", windows)))]
 mod platform {
 	use std::path::PathBuf;
-	pub const AUTHOR: &'static str = "parity";
-	pub const PRODUCT: &'static str = "io.parity.ethereum";
-	pub const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+	pub const AUTHOR: &str = "parity";
+	pub const PRODUCT: &str = "io.parity.ethereum";
+	pub const PRODUCT_HYPERVISOR: &str = "io.parity.ethereum-updates";
 
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();

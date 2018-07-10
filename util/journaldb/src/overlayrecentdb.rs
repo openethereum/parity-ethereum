@@ -18,19 +18,20 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::io;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use heapsize::HeapSizeOf;
-use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
-use hashdb::*;
-use memorydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use kvdb::{KeyValueDB, DBTransaction};
-use super::JournalDB;
-use ethereum_types::H256;
-use plain_hasher::H256FastMap;
-use error::{BaseDataError, UtilError};
+
 use bytes::Bytes;
+use ethereum_types::H256;
+use hashdb::*;
+use heapsize::HeapSizeOf;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
+use memorydb::*;
+use parking_lot::RwLock;
+use plain_hasher::H256FastMap;
+use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, JournalDB, error_negatively_reference_hash};
 use util::DatabaseKey;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
@@ -65,7 +66,7 @@ use util::DatabaseKey;
 /// 7. Delete ancient record from memory and disk.
 
 pub struct OverlayRecentDB {
-	transaction_overlay: MemoryDB,
+	transaction_overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
@@ -119,7 +120,7 @@ impl<'a> Encodable for DatabaseValueRef<'a> {
 
 #[derive(PartialEq)]
 struct JournalOverlay {
-	backing_overlay: MemoryDB, // Nodes added in the history period
+	backing_overlay: MemoryDB<KeccakHasher>, // Nodes added in the history period
 	pending_overlay: H256FastMap<DBValue>, // Nodes being transfered from backing_overlay to backing db
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
@@ -282,7 +283,7 @@ impl JournalDB for OverlayRecentDB {
 		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.into_vec()))
 	}
 
-	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		trace!(target: "journaldb", "entry: #{} ({})", now, id);
 
 		let mut journal_overlay = self.journal_overlay.write();
@@ -338,7 +339,7 @@ impl JournalDB for OverlayRecentDB {
 		Ok(ops as u32)
 	}
 
-	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> io::Result<u32> {
 		trace!(target: "journaldb", "canonical: #{} ({})", end_era, canon_id);
 
 		let mut journal_overlay = self.journal_overlay.write();
@@ -410,7 +411,7 @@ impl JournalDB for OverlayRecentDB {
 		self.journal_overlay.write().pending_overlay.clear();
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		let mut ops = 0;
 		for (key, (value, rc)) in self.transaction_overlay.drain() {
 			if rc != 0 { ops += 1 }
@@ -422,7 +423,7 @@ impl JournalDB for OverlayRecentDB {
 				}
 				-1 => {
 					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_none() {
-						return Err(BaseDataError::NegativelyReferencedHash(key).into());
+						return Err(error_negatively_reference_hash(&key));
 					}
 					batch.delete(self.column, &key)
 				}
@@ -433,12 +434,12 @@ impl JournalDB for OverlayRecentDB {
 		Ok(ops)
 	}
 
-	fn consolidate(&mut self, with: MemoryDB) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
 		self.transaction_overlay.consolidate(with);
 	}
 }
 
-impl HashDB for OverlayRecentDB {
+impl HashDB<KeccakHasher> for OverlayRecentDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))

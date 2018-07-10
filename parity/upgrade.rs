@@ -17,13 +17,12 @@
 //! Parity upgrade logic
 
 use semver::{Version, SemVerError};
-use std::collections::*;
+use std::collections::HashMap;
 use std::fs::{self, File, create_dir_all};
-use std::env;
 use std::io;
 use std::io::{Read, Write};
 use std::path::{PathBuf, Path};
-use dir::{DatabaseDirectories, default_data_path};
+use dir::{DatabaseDirectories, default_data_path, home_dir};
 use dir::helpers::replace_home;
 use journaldb::Algorithm;
 
@@ -106,7 +105,7 @@ fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Err
 	where F: Fn(&Version) -> Result<usize, Error>
 {
 	let mut path = db_path.map_or({
-		let mut path = env::home_dir().expect("Applications should have a home dir");
+		let mut path = home_dir().expect("Applications should have a home dir");
 		path.push(".parity");
 		path
 	}, PathBuf::from);

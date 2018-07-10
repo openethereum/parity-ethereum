@@ -1,0 +1,15 @@
+[package]
+name = "patricia-trie-ethereum"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "Merkle-Patricia Trie (Ethereum Style)"
+license = "GPL-3.0"
+
+[dependencies]
+patricia-trie = { path = "../patricia_trie" }
+keccak-hasher = { path = "../keccak-hasher" }
+hashdb = { path = "../hashdb" }
+rlp = { path = "../rlp" }
+ethcore-bytes = { path = "../bytes" }
+ethereum-types = "0.3"
+elastic-array = "0.10"

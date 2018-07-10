@@ -17,7 +17,7 @@
 //! Test implementation of miner service.
 
 use std::sync::Arc;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
 use ethcore::account_provider::SignError as AccountError;
@@ -218,6 +218,10 @@ impl MinerService for TestMinerService {
 
 	fn ready_transactions<C>(&self, _chain: &C, _max_len: usize, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
 		self.queued_transactions()
+	}
+
+	fn pending_transaction_hashes<C>(&self, _chain: &C) -> BTreeSet<H256> {
+		self.queued_transactions().into_iter().map(|tx| tx.signed().hash()).collect()
 	}
 
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {

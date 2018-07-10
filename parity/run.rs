@@ -31,6 +31,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use sync::{self, SyncConfig};
+#[cfg(feature = "work-notify")]
 use miner::work_notify::WorkPoster;
 use futures_cpupool::CpuPool;
 use hash_fetch::{self, fetch};
@@ -516,6 +517,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// fetch service
 	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
+	let txpool_size = cmd.miner_options.pool_limits.max_count;
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,
@@ -526,11 +528,16 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	miner.set_author(cmd.miner_extras.author, None).expect("Fails only if password is Some; password is None; qed");
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
-	if !cmd.miner_extras.work_notify.is_empty() {
-		miner.add_work_listener(Box::new(
-			WorkPoster::new(&cmd.miner_extras.work_notify, fetch.clone(), event_loop.remote())
-		));
+
+	#[cfg(feature = "work-notify")]
+	{
+		if !cmd.miner_extras.work_notify.is_empty() {
+			miner.add_work_listener(Box::new(
+				WorkPoster::new(&cmd.miner_extras.work_notify, fetch.clone(), event_loop.remote())
+			));
+		}
 	}
+
 	let engine_signer = cmd.miner_extras.engine_signer;
 	if engine_signer != Default::default() {
 		// Check if engine signer exists
@@ -571,6 +578,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
+	client_config.transaction_verification_queue_size = ::std::cmp::max(2048, txpool_size / 4);
 
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;

@@ -28,7 +28,6 @@ use itertools::Itertools;
 use journaldb;
 use trie::{TrieSpec, TrieFactory, Trie};
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
-use util_error::UtilError;
 
 // other
 use ethereum_types::{H256, Address, U256};
@@ -87,7 +86,6 @@ pub use verification::queue::QueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
-const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
 const MAX_ANCIENT_BLOCKS_TO_IMPORT: usize = 4;
@@ -443,7 +441,7 @@ impl Importer {
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
-			let mut rng = OsRng::new().map_err(UtilError::from)?;
+			let mut rng = OsRng::new()?;
 			self.ancient_verifier.verify(&mut rng, &header, &chain)?;
 
 			// Commit results
@@ -760,13 +758,12 @@ impl Client {
 			tracedb: tracedb,
 			engine: engine,
 			pruning: config.pruning.clone(),
-			config: config,
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
-			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
+			queue_transactions: IoChannelQueue::new(config.transaction_verification_queue_size),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
 			queued_ancient_blocks: Default::default(),
 			ancient_blocks_import_lock: Default::default(),
@@ -779,6 +776,7 @@ impl Client {
 			registrar_address,
 			exit_handler: Mutex::new(None),
 			importer,
+			config,
 		});
 
 		// prune old states.
@@ -1713,7 +1711,7 @@ impl BlockChainClient for Client {
 
 	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: u64) -> Option<Vec<H256>> {
 		if !self.factories.trie.is_fat() {
-			trace!(target: "fatdb", "list_stroage: Not a fat DB");
+			trace!(target: "fatdb", "list_storage: Not a fat DB");
 			return None;
 		}
 

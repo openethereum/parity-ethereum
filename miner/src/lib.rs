@@ -28,6 +28,7 @@ extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate linked_hash_map;
 extern crate parking_lot;
+#[cfg(feature = "price-info")]
 extern crate price_info;
 extern crate rlp;
 extern crate transaction_pool as txpool;
@@ -47,6 +48,9 @@ extern crate ethkey;
 extern crate env_logger;
 
 pub mod external;
+#[cfg(feature = "price-info")]
+pub mod gas_price_calibrator;
 pub mod gas_pricer;
 pub mod pool;
+#[cfg(feature = "work-notify")]
 pub mod work_notify;

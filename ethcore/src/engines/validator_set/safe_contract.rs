@@ -16,27 +16,23 @@
 
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
-use std::sync::{Weak, Arc};
-use hash::keccak;
-
-use ethereum_types::{H256, U256, Address, Bloom};
-use parking_lot::RwLock;
-
 use bytes::Bytes;
-use memory_cache::MemoryLruCache;
-use unexpected::Mismatch;
-use rlp::{Rlp, RlpStream};
-use kvdb::DBValue;
-
 use client::EngineClient;
-use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
+use ethereum_types::{H256, U256, Address, Bloom};
+use hash::keccak;
 use header::Header;
 use ids::BlockId;
+use kvdb::DBValue;
 use log_entry::LogEntry;
+use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
+use memory_cache::MemoryLruCache;
+use parking_lot::RwLock;
 use receipt::Receipt;
-
+use rlp::{Rlp, RlpStream};
+use std::sync::{Weak, Arc};
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
+use unexpected::Mismatch;
 
 use_contract!(validator_set, "ValidatorSet", "res/contracts/validator_set.json");
 

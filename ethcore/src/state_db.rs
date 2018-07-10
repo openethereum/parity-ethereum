@@ -17,21 +17,23 @@
 //! State database abstraction. For more info, see the doc for `StateDB`
 
 use std::collections::{VecDeque, HashSet};
+use std::io;
 use std::sync::Arc;
-use lru_cache::LruCache;
-use memory_cache::MemoryLruCache;
+
+use bloom_journal::{Bloom, BloomJournal};
+use byteorder::{LittleEndian, ByteOrder};
+use db::COL_ACCOUNT_BLOOM;
+use ethereum_types::{H256, Address};
+use hash::keccak;
+use hashdb::HashDB;
+use keccak_hasher::KeccakHasher;
+use header::BlockNumber;
 use journaldb::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::{H256, Address};
-use hashdb::HashDB;
-use state::{self, Account};
-use header::BlockNumber;
-use hash::keccak;
+use lru_cache::LruCache;
+use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
-use util_error::UtilError;
-use bloom_journal::{Bloom, BloomJournal};
-use db::COL_ACCOUNT_BLOOM;
-use byteorder::{LittleEndian, ByteOrder};
+use state::{self, Account};
 
 /// Value used to initialize bloom bitmap size.
 ///
@@ -180,7 +182,7 @@ impl StateDB {
 	}
 
 	/// Commit blooms journal to the database transaction
-	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> Result<(), UtilError> {
+	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> io::Result<()> {
 		assert!(journal.hash_functions <= 255);
 		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
 		let mut key = [0u8; 8];
@@ -195,7 +197,7 @@ impl StateDB {
 	}
 
 	/// Journal all recent operations under the given era and ID.
-	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
+	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		{
  			let mut bloom_lock = self.account_bloom.lock();
  			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
@@ -208,7 +210,7 @@ impl StateDB {
 
 	/// Mark a given candidate from an ancient era as canonical, enacting its removals from the
 	/// backing database and reverting any non-canonical historical commit's insertions.
-	pub fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+	pub fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> io::Result<u32> {
 		self.db.mark_canonical(batch, end_era, canon_id)
 	}
 
@@ -310,12 +312,12 @@ impl StateDB {
 	}
 
 	/// Conversion method to interpret self as `HashDB` reference
-	pub fn as_hashdb(&self) -> &HashDB {
+	pub fn as_hashdb(&self) -> &HashDB<KeccakHasher> {
 		self.db.as_hashdb()
 	}
 
 	/// Conversion method to interpret self as mutable `HashDB` reference
-	pub fn as_hashdb_mut(&mut self) -> &mut HashDB {
+	pub fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
 		self.db.as_hashdb_mut()
 	}
 
@@ -410,11 +412,9 @@ impl StateDB {
 }
 
 impl state::Backend for StateDB {
-	fn as_hashdb(&self) -> &HashDB {
-		self.db.as_hashdb()
-	}
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self.db.as_hashdb() }
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
 		self.db.as_hashdb_mut()
 	}
 
