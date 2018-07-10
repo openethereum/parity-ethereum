@@ -409,20 +409,16 @@ impl<'x> OpenBlock<'x> {
 	}
 
 	/// Turn this into a `ClosedBlock`.
-	pub fn close(self) -> ClosedBlock {
+	pub fn close(self) -> Result<ClosedBlock, Error> {
 		let mut s = self;
 
 		let unclosed_state = s.block.state.clone();
 		let unclosed_metadata = s.block.metadata.clone();
 		let unclosed_finalization_state = s.block.is_finalized;
 
-		if let Err(e) = s.engine.on_close_block(&mut s.block) {
-			warn!("Encountered error on closing the block: {}", e);
-		}
+		s.engine.on_close_block(&mut s.block)?;
+		s.block.state.commit()?;
 
-		if let Err(e) = s.block.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
-		}
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		let uncle_bytes = encode_list(&s.block.uncles).into_vec();
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
@@ -434,26 +430,21 @@ impl<'x> OpenBlock<'x> {
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
-		ClosedBlock {
+		Ok(ClosedBlock {
 			block: s.block,
 			uncle_bytes,
 			unclosed_state,
 			unclosed_metadata,
 			unclosed_finalization_state,
-		}
+		})
 	}
 
 	/// Turn this into a `LockedBlock`.
-	pub fn close_and_lock(self) -> LockedBlock {
+	pub fn close_and_lock(self) -> Result<LockedBlock, Error> {
 		let mut s = self;
 
-		if let Err(e) = s.engine.on_close_block(&mut s.block) {
-			warn!("Encountered error on closing the block: {}", e);
-		}
-
-		if let Err(e) = s.block.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
-		}
+		s.engine.on_close_block(&mut s.block)?;
+		s.block.state.commit()?;
 
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
@@ -473,10 +464,10 @@ impl<'x> OpenBlock<'x> {
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
-		LockedBlock {
+		Ok(LockedBlock {
 			block: s.block,
 			uncle_bytes,
-		}
+		})
 	}
 
 	#[cfg(test)]
@@ -651,7 +642,7 @@ fn enact(
 		b.push_uncle(u)?;
 	}
 
-	Ok(b.close_and_lock())
+	b.close_and_lock()
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header

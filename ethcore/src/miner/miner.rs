@@ -321,7 +321,7 @@ impl Miner {
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
-	fn prepare_block<C>(&self, chain: &C) -> (ClosedBlock, Option<H256>) where
+	fn prepare_block<C>(&self, chain: &C) -> Option<(ClosedBlock, Option<H256>)> where
 		C: BlockChain + CallContract + BlockProducer + Nonce + Sync,
 	{
 		trace_time!("prepare_block");
@@ -480,7 +480,13 @@ impl Miner {
 		let elapsed = block_start.elapsed();
 		debug!(target: "miner", "Pushed {} transactions in {} ms", tx_count, took_ms(&elapsed));
 
-		let block = open_block.close();
+		let block = match open_block.close() {
+			Ok(block) => block,
+			Err(_) => {
+				warn!(target: "miner", "Closing the block failed due to an engine error. Please check your chain specifications and consensus smart contracts.");
+				return None;
+			}
+		};
 
 		{
 			self.transaction_queue.remove(invalid_transactions.iter(), true);
@@ -488,7 +494,7 @@ impl Miner {
 			self.transaction_queue.penalize(senders_to_penalize.iter());
 		}
 
-		(block, original_work_hash)
+		Some((block, original_work_hash))
 	}
 
 	/// Returns `true` if we should create pending block even if some other conditions are not met.
@@ -697,7 +703,7 @@ impl Miner {
 		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		trace!(target: "miner", "prepare_pending_block: entering");
-		let prepare_new = {
+		let mut prepare_new = {
 			let mut sealing = self.sealing.lock();
 			let have_work = sealing.queue.peek_last_ref().is_some();
 			trace!(target: "miner", "prepare_pending_block: have_work={}", have_work);
@@ -714,8 +720,14 @@ impl Miner {
 			// | NOTE Code below requires sealing locks.                                |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
-			let (block, original_work_hash) = self.prepare_block(client);
-			self.prepare_work(block, original_work_hash);
+			match self.prepare_block(client) {
+				Some((block, original_work_hash)) => {
+					self.prepare_work(block, original_work_hash)
+				},
+				None => {
+					prepare_new = false;
+				},
+			}
 		}
 
 		let best_number = client.chain_info().best_block_number;
@@ -1038,7 +1050,10 @@ impl miner::MinerService for Miner {
 		// | Make sure to release the locks before calling that method.             |
 		// --------------------------------------------------------------------------
 		trace!(target: "miner", "update_sealing: preparing a block");
-		let (block, original_work_hash) = self.prepare_block(chain);
+		let (block, original_work_hash) = match self.prepare_block(chain) {
+			Some((block, original_work_hash)) => (block, original_work_hash),
+			None => return,
+		};
 
 		// refuse to seal the first block of the chain if it contains hard forks
 		// which should be on by default.
