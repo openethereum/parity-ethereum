@@ -252,7 +252,6 @@ impl Manager {
 			memory_budget: None,
 			compaction: config.compaction_profile,
 			columns: columns,
-			wal: true,
 		};
 
 		let db_root = database_path(old_path);

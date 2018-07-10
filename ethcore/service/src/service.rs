@@ -276,7 +276,6 @@ mod tests {
 
 		client_db_config.memory_budget = client_config.db_cache_size;
 		client_db_config.compaction = CompactionProfile::auto(&client_path);
-		client_db_config.wal = client_config.db_wal;
 
 		let client_db_handler = test_helpers::restoration_db_handler(client_db_config.clone());
 		let client_db = client_db_handler.open(&client_path).unwrap();
