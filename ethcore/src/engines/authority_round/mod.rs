@@ -1403,7 +1403,7 @@ mod tests {
 	use rlp::encode;
 	use block::*;
 	use test_helpers::{
-		generate_dummy_client_with_spec_and_accounts, get_temp_state_db, generate_dummy_client,
+		generate_dummy_client_with_spec_and_accounts, get_temp_state_db,
 		TestNotify
 	};
 	use account_provider::AccountProvider;
@@ -1745,15 +1745,16 @@ mod tests {
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b1 = b1.close_and_lock().unwrap();
 
-		let client = generate_dummy_client(0);
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
+
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b1 = b1.close_and_lock().unwrap();
 
 		// the block is empty so we don't seal and instead broadcast an empty step message
 		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
@@ -1778,6 +1779,11 @@ mod tests {
 		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
+		let notify = Arc::new(TestNotify::default());
+		client.add_notify(notify.clone());
+		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
@@ -1826,6 +1832,11 @@ mod tests {
 		let db3 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
+		let notify = Arc::new(TestNotify::default());
+		client.add_notify(notify.clone());
+		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
