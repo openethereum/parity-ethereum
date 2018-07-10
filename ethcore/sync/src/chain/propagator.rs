@@ -57,7 +57,7 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 		client_id[PARITY_CLIENT_ID_PREFIX.len()..]
 	} else {
 		return false;
-	}
+	};
 
 	let ver: Vec<u32> = id_sliced.split('.')
 			.take(2)
