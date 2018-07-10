@@ -29,42 +29,79 @@ extern crate parking_lot;
 
 #[cfg(windows)] extern crate winapi;
 
-use std::{process, env};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::io::{self as stdio, Read, Write};
+use std::ffi::OsString;
 use std::fs::{remove_file, metadata, File, create_dir_all};
+use std::io::{self as stdio, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::{process, env};
+
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
 use parity_ethereum::{start, ExecutionAction};
 use parking_lot::{Condvar, Mutex};
 
-fn updates_path(name: &str) -> PathBuf {
-	let mut dest = PathBuf::from(default_hypervisor_path());
+const PLEASE_RESTART_EXIT_CODE: i32 = 69;
+const PARITY_EXECUTABLE_NAME: &str = "parity";
+
+#[derive(Debug)]
+enum Error {
+	BinaryNotFound,
+	ExitCode(i32),
+	Restart,
+	Unknown
+}
+
+fn update_path(name: &str) -> PathBuf {
+	let mut dest = default_hypervisor_path();
 	dest.push(name);
 	dest
 }
 
-fn latest_exe_path() -> Option<PathBuf> {
-	File::open(updates_path("latest")).ok()
-		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
+fn latest_exe_path() -> Result<PathBuf, Error> {
+	File::open(update_path("latest")).and_then(|mut f| {
+			let mut exe_path = String::new();
+			trace!(target: "updater", "latest binary path: {:?}", f);
+			f.read_to_string(&mut exe_path).map(|_| update_path(&exe_path))
+	})
+	.or(Err(Error::BinaryNotFound))
 }
 
-fn set_spec_name_override(spec_name: String) {
+fn latest_binary_is_newer(current_binary: &Option<PathBuf>, latest_binary: &Option<PathBuf>) -> bool {
+	match (
+		current_binary
+			.as_ref()
+			.and_then(|p| metadata(p.as_path()).ok())
+			.and_then(|m| m.modified().ok()),
+		latest_binary
+			.as_ref()
+			.and_then(|p| metadata(p.as_path()).ok())
+			.and_then(|m| m.modified().ok())
+	) {
+			(Some(latest_exe_time), Some(this_exe_time)) if latest_exe_time > this_exe_time => true,
+			_ => false,
+	}
+}
+
+fn set_spec_name_override(spec_name: &str) {
 	if let Err(e) = create_dir_all(default_hypervisor_path())
-		.and_then(|_| File::create(updates_path("spec_name_override"))
+		.and_then(|_| File::create(update_path("spec_name_override"))
 		.and_then(|mut f| f.write_all(spec_name.as_bytes())))
 	{
-		warn!("Couldn't override chain spec: {} at {:?}", e, updates_path("spec_name_override"));
+		warn!("Couldn't override chain spec: {} at {:?}", e, update_path("spec_name_override"));
 	}
 }
 
 fn take_spec_name_override() -> Option<String> {
-	let p = updates_path("spec_name_override");
-	let r = File::open(p.clone()).ok()
-		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
+	let p = update_path("spec_name_override");
+	let r = File::open(p.clone())
+		.ok()
+		.and_then(|mut f| {
+			let mut spec_name = String::new();
+			f.read_to_string(&mut spec_name).ok().map(|_| spec_name)
+		});
 	let _ = remove_file(p);
 	r
 }
@@ -100,7 +137,7 @@ fn run_parity() -> Result<(), Error> {
 	global_init();
 
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
-	
+
 	let res: Result<(), Error> = latest_exe_path()
 		.and_then(|exe| process::Command::new(exe)
 		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
@@ -294,10 +331,10 @@ fn main() {
 
 	// the user has specified to run its originally installed binary (not via `parity-updater`)
 	let force_direct = std::env::args().any(|arg| arg == "--force-direct");
-	
+
 	// absolute path to the current `binary`
 	let exe_path = std::env::current_exe().ok();
-	
+
 	// the binary is named `target/xx/yy`
 	let development = exe_path
 		.as_ref()
@@ -308,31 +345,31 @@ fn main() {
 				.map(|n| n == "target")
 		})
 		.unwrap_or(false);
-	
+
 	// the binary is named `parity`
 	let same_name = exe_path
 		.as_ref()
-		.map_or(false, |p| { 
-			p.file_stem().map_or(false, |n| n == PARITY_EXECUTABLE_NAME) 
+		.map_or(false, |p| {
+			p.file_stem().map_or(false, |n| n == PARITY_EXECUTABLE_NAME)
 		});
 
-	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", 
-				std::env::current_exe().ok().map_or_else(|| "<unknown>".into(), |x| format!("{}", x.display())), 
-				force_direct, 
-				development, 
+	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})",
+				std::env::current_exe().ok().map_or_else(|| "<unknown>".into(), |x| format!("{}", x.display())),
+				force_direct,
+				development,
 				same_name);
 
 	if !force_direct && !development && same_name {
-		// Try to run the latest installed version of `parity`, 
+		// Try to run the latest installed version of `parity`,
 		// Upon failure it falls back to the locally installed version of `parity`
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly.
 		loop {
 			// `Path` to the latest downloaded binary
 			let latest_exe = latest_exe_path().ok();
-			
+
 			// `Latest´ binary exist
 			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
-			
+
 			// Canonicalized path to the current binary is not the same as to latest binary
 			let canonicalized_path_not_same = exe_path
 				.as_ref()
@@ -344,7 +381,7 @@ fn main() {
 			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, canonicalized_path_not_same, update_is_newer);
 
 			let exit_code = if have_update && canonicalized_path_not_same && update_is_newer {
-				trace_main!("Attempting to run latest update ({})...", 
+				trace_main!("Attempting to run latest update ({})...",
 							latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 				match run_parity() {
 					Ok(_) => 0,
@@ -352,7 +389,7 @@ fn main() {
 					Err(Error::Restart) => PLEASE_RESTART_EXIT_CODE,
 					// Fall back to local version
 					Err(e) => {
-						error!(target: "updater", "Updated binary could not be executed error: {:?}. Falling back to local version", e); 
+						error!(target: "updater", "Updated binary could not be executed error: {:?}. Falling back to local version", e);
 						main_direct(true)
 					}
 				}
