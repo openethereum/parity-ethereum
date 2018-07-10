@@ -239,7 +239,7 @@ mod tests {
 			args.arg_dapps_user = Some(Default::default());
 			args.arg_dapps_pass = Some(Default::default());
 			args.flag_dapps_apis_all = true;
-			args.flag_fast_and_loose = Some(Default::default());
+			args.flag_fast_and_loose = true;
 			args
 		}), vec![
 			Deprecated::DoesNothing("--warp"),
