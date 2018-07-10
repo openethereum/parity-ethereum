@@ -51,21 +51,19 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 	const LEGACY_CLIENT_ID_PREFIX: &'static str = "Parity/v";
 	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity-Ethereum/v";
 
-	if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) {
-		let ver: Vec<u32> = client_id[LEGACY_CLIENT_ID_PREFIX.len()..].split('.')
-			.take(2)
-			.filter_map(|s| s.parse().ok())
-			.collect();
-			ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
+	let id_sliced = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) {
+		client_id[LEGACY_CLIENT_ID_PREFIX.len()..]
 	} else if client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
-		let ver: Vec<u32> = client_id[PARITY_CLIENT_ID_PREFIX.len()..].split('.')
-			.take(2)
-			.filter_map(|s| s.parse().ok())
-			.collect();
-			ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
+		client_id[PARITY_CLIENT_ID_PREFIX.len()..]
 	} else {
 		return false;
 	}
+
+	let ver: Vec<u32> = id_sliced.split('.')
+			.take(2)
+			.filter_map(|s| s.parse().ok())
+			.collect();
+	ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
 }
 
 /// The Chain Sync Propagator: propagates data to peers
