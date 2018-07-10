@@ -46,7 +46,7 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use error::ImportResult;
+use error::{Error, ImportResult};
 use vm::Schedule;
 use miner::{self, Miner, MinerService};
 use spec::Spec;
@@ -394,7 +394,7 @@ impl PrepareOpenBlock for TestBlockChainClient {
 		)?;
 		// TODO [todr] Override timestamp for predictability
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
-		open_block
+		Ok(open_block)
 	}
 }
 

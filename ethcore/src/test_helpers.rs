@@ -172,7 +172,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			n += 1;
 		}
 
-		let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+		let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
 		if let Err(e) = client.import_block(b.rlp_bytes()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
@@ -222,13 +222,13 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
-	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new());
+	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
 		b.push_transaction(t.clone(), None).unwrap();
 	}
-	let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+	let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
 	if let Err(e) = client.import_block(b.rlp_bytes()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
