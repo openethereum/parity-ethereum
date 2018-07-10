@@ -15,12 +15,12 @@ common-types = { path = "types" }
 crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
-parity-bytes = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
-hashdb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
-patricia-trie = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+hashdb = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+memorydb = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+patricia-trie = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-parity-crypto = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 error-chain = { version = "0.12", default-features = false }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
@@ -47,11 +47,11 @@ parity-machine = { path = "../machine" }
 parking_lot = "0.6"
 rayon = "1.0"
 rand = "0.4"
-rlp = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+rlp = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
-kvdb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+kvdb = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
 stop-guard = { path = "../util/stop-guard" }
 macros = { path = "../util/macros" }
@@ -61,12 +61,12 @@ trace-time = { path = "../util/trace-time" }
 using_queue = { path = "../util/using_queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
-keccak-hash = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 keccak-hasher = { path = "../util/keccak-hasher" }
-kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 tempdir = {version="0.3", optional = true}
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
@@ -77,7 +77,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
 tempdir = "0.3"
-trie-standardmap = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+trie-standardmap = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 
 [features]
 # Display EVM debug traces.

@@ -5,12 +5,12 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.0"
-parity-bytes = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 ethereum-types = "0.3"
-patricia-trie = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+patricia-trie = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 log = "0.3"
 common-types = { path = "../types" }
 ethjson = { path = "../../json" }
-rlp = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
-keccak-hash = { git = "https://github.com/paritytech/parity-common", rev = "1803c0f" }
+rlp = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
