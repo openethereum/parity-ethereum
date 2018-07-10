@@ -135,6 +135,9 @@ macro_rules! usage {
 				$(
 					ARG $arg:ident : ($($arg_type_tt:tt)+) = $arg_default:expr, or $arg_from_config:expr, $arg_usage:expr, $arg_help:expr,
 				)*
+				$(
+					CHECK $check:expr,
+				)*
 			)*
 		}
 	) => {
@@ -318,13 +321,6 @@ macro_rules! usage {
 			pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 				let raw_args = RawArgs::parse(command)?;
 
-				if let (Some(max_peers), Some(min_peers)) = (raw_args.arg_max_peers, raw_args.arg_min_peers) {
-					// Invalid configuration pattern `mix_peers` > `max_peers`
-					if min_peers > max_peers {
-						return Err(ArgsError::PeerConfiguration);
-					}
-				}
-
 				// Skip loading config file if no_config flag is specified
 				if raw_args.flag_no_config {
 					return Ok(raw_args.into_args(Config::default()));
@@ -332,7 +328,8 @@ macro_rules! usage {
 
 				let config_file = raw_args.arg_config.clone().unwrap_or_else(|| raw_args.clone().into_args(Config::default()).arg_config);
 				let config_file = replace_home(&::dir::default_data_path(), &config_file);
-				match (fs::File::open(&config_file), raw_args.arg_config.clone()) {
+
+				let args = match (fs::File::open(&config_file), raw_args.arg_config.clone()) {
 					// Load config file
 					(Ok(mut file), _) => {
 						println_stderr!("Loading config file from {}", &config_file);
@@ -349,7 +346,15 @@ macro_rules! usage {
 							Err(e) => Err(ArgsError::Config(config_file, e))
 						}
 					},
-				}
+				}?;
+
+				$(
+					$(
+						$check(&args)?;
+					)*
+				)*
+
+				Ok(args)
 			}
 
 			#[cfg(test)]

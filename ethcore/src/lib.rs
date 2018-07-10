@@ -100,7 +100,6 @@ extern crate patricia_trie_ethereum as ethtrie;
 extern crate triehash;
 extern crate ansi_term;
 extern crate unexpected;
-extern crate util_error;
 extern crate snappy;
 extern crate ethabi;
 extern crate rustc_hex;

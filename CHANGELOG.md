@@ -1,3 +1,82 @@
+## Parity [v1.11.6](https://github.com/paritytech/parity/releases/tag/v1.11.6) (2018-07-09)
+
+Parity 1.11.6 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Beta: 1.11.6 backports ([#9015](https://github.com/paritytech/parity/pull/9015))
+  - Parity-version: bump beta to 1.11.6
+  - Scripts: remove md5 checksums ([#8884](https://github.com/paritytech/parity/pull/8884))
+  - Add support for --chain tobalaba
+    - Convert indents to tabs :)
+  - Fixes for misbehavior reporting in AuthorityRound ([#8998](https://github.com/paritytech/parity/pull/8998))
+    - Aura: only report after checking for repeated skipped primaries
+    - Aura: refactor duplicate code for getting epoch validator set
+    - Aura: verify_external: report on validator set contract instance
+    - Aura: use correct validator set epoch number when reporting
+    - Aura: use epoch set when verifying blocks
+    - Aura: report skipped primaries when generating seal
+    - Aura: handle immediate transitions
+    - Aura: don't report skipped steps from genesis to first block
+    - Aura: fix reporting test
+    - Aura: refactor duplicate code to handle immediate_transitions
+    - Aura: let reporting fail on verify_block_basic
+    - Aura: add comment about possible failure of reporting
+  - Only return error log for rustls ([#9025](https://github.com/paritytech/parity/pull/9025))
+  - Transaction Pool improvements ([#8470](https://github.com/paritytech/parity/pull/8470))
+    - Don't use ethereum_types in transaction pool.
+    - Hide internal insertion_id.
+    - Fix tests.
+    - Review grumbles.
+  - Improve should_replace on NonceAndGasPrice ([#8980](https://github.com/paritytech/parity/pull/8980))
+    - Additional tests for NonceAndGasPrice::should_replace.
+    - Fix should_replace in the distinct sender case.
+    - Use natural priority ordering to simplify should_replace.
+  - Minimal effective gas price in the queue ([#8934](https://github.com/paritytech/parity/pull/8934))
+    - Minimal effective gas price.
+    - Fix naming, add test
+    - Fix minimal entry score and add test.
+    - Fix worst_transaction.
+    - Remove effective gas price threshold.
+    - Don't leak gas_price decisions out of Scoring.
+  - Never drop local transactions from different senders. ([#9002](https://github.com/paritytech/parity/pull/9002))
+  - Recently rejected cache for transaction queue ([#9005](https://github.com/paritytech/parity/pull/9005))
+    - Store recently rejected transactions.
+    - Don't cache AlreadyImported rejections.
+    - Make the size of transaction verification queue dependent on pool size.
+    - Add a test for recently rejected.
+    - Fix logging for recently rejected.
+    - Make rejection cache smaller.
+    - Obsolete test removed
+    - Obsolete test removed
+    - Construct cache with_capacity.
+  - Optimize pending transactions filter ([#9026](https://github.com/paritytech/parity/pull/9026))
+    - Rpc: return unordered transactions in pending transactions filter
+    - Ethcore: use LruCache for nonce cache
+      - Only clear the nonce cache when a block is retracted
+    - Revert "ethcore: use LruCache for nonce cache"
+      - This reverts commit b382c19.
+    - Use only cached nonces when computing pending hashes.
+    - Give filters their own locks, so that they don't block one another.
+    - Fix pending transaction count if not sealing.
+    - Clear cache only when block is enacted.
+    - Fix RPC tests.
+    - Address review comments.
+  - A last bunch of txqueue performance optimizations ([#9024](https://github.com/paritytech/parity/pull/9024))
+    - Clear cache only when block is enacted.
+    - Add tracing for cull.
+    - Cull split.
+    - Cull after creating pending block.
+    - Add constant, remove sync::read tracing.
+    - Reset debug.
+    - Remove excessive tracing.
+    - Use struct for NonceCache.
+    - Fix build
+    - Remove warnings.
+    - Fix build again.
+  - Miner: add missing macro use for trace_time
+  - Ci: remove md5 merge leftovers
+
 ## Parity [v1.11.5](https://github.com/paritytech/parity/releases/tag/v1.11.5) (2018-06-29)
 
 Parity 1.11.5 is a bug-fix release to improve performance and stability.
