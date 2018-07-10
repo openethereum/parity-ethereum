@@ -203,6 +203,24 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Removed("--tx-queue-ban-time"));
 	}
 
+	// Removed in 2.0.
+
+	if args.cmd_dapp {
+		result.push(Deprecated::Removed("parity dapp"));
+	}
+
+	if args.arg_dapp_path.is_some() {
+		result.push(Deprecated::Removed("--dapp-path"));
+	}
+
+	if args.flag_no_dapps {
+		result.push(Deprecated::Removed("--no-dapps"));
+	}
+
+	if args.arg_dapps_path != "" {
+		result.push(Deprecated::Removed("--dapps-path"));
+	}
+
 	result
 }
 

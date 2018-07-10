@@ -26,15 +26,6 @@ usage! {
 		// Arguments must start with arg_
 		// Flags must start with flag_
 
-		CMD cmd_dapp
-		{
-			"Manage dapps",
-
-			ARG arg_dapp_path: (Option<String>) = None,
-			"<PATH>",
-			"Path to the dapps",
-		}
-
 		CMD cmd_daemon
 		{
 			"Use Parity as a daemon",
@@ -231,6 +222,17 @@ usage! {
 		CMD cmd_export_hardcoded_sync
 		{
 			"Export the hardcoded sync JSON file from the existing light client database",
+		}
+
+		// CMD removed in 2.0
+
+		CMD cmd_dapp
+		{
+			"Manage dapps",
+
+			ARG arg_dapp_path: (Option<String>) = None,
+			"<PATH>",
+			"Path to the dapps",
 		}
 	}
 	{
@@ -538,15 +540,6 @@ usage! {
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,shh,shh_pubsub", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
-
-		["API and Console Options – Dapps"]
-			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?.disable.clone(),
-			"--no-dapps",
-			"Disable the Dapps server (e.g. status page).",
-
-			ARG arg_dapps_path: (String) = "$BASE/dapps", or |c: &Config| c.dapps.as_ref()?.path.clone(),
-			"--dapps-path=[PATH]",
-			"Specify directory where dapps should be installed.",
 
 		["API and Console Options – IPFS"]
 			FLAG flag_ipfs_api: (bool) = false, or |c: &Config| c.ipfs.as_ref()?.enable.clone(),
@@ -967,6 +960,12 @@ usage! {
 			"--ui-no-validation",
 			"Does nothing; UI is now a separate project.",
 
+			// FLAG Removed in 2.0.
+
+			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?.disable.clone(),
+			"--no-dapps",
+			"Disable the Dapps server (e.g. status page).",
+
 			// ARG Removed in 1.6 or before.
 
 			ARG arg_etherbase: (Option<String>) = None, or |_| None,
@@ -1072,6 +1071,12 @@ usage! {
 			ARG arg_tx_queue_ban_time: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
 			"--tx-queue-ban-time=[SEC]",
 			"Not supported.",
+
+			// ARG removed in 2.0.
+
+			ARG arg_dapps_path: (String) = "$BASE/dapps", or |c: &Config| c.dapps.as_ref()?.path.clone(),
+			"--dapps-path=[PATH]",
+			"Specify directory where dapps should be installed.",
 	}
 }
 
