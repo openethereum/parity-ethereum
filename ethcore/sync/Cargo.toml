@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-parity-bytes = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-io = { path = "../../util/io" }
@@ -16,14 +16,14 @@ ethcore-light = { path = "../light" }
 ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
 ethereum-types = "0.3"
-hashdb = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
-plain_hasher = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
-rlp = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+hashdb = { git = "https://github.com/paritytech/parity-common" }
+plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 rustc-hex = "1.0"
-keccak-hash = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
-kvdb = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
 macros = { path = "../../util/macros" }
 log = "0.3"
 env_logger = "0.4"
@@ -38,6 +38,6 @@ ipnetwork = "0.12.6"
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethkey = { path = "../../ethkey" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "d322bcebd" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore = { path = "..", features = ["test-helpers"] }
