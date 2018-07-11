@@ -34,10 +34,14 @@ use platform::*;
 
 pub use dirs::home_dir;
 
-/// Platform-specific chains path - Windows only
+/// Platform-specific chains path for standard client - Windows only
 #[cfg(target_os = "windows")] pub const CHAINS_PATH: &str = "$LOCAL/chains";
-/// Platform-specific chains path
+/// Platform-specific chains path for light client - Windows only
+#[cfg(target_os = "windows")] pub const CHAINS_PATH_LIGHT: &str = "$LOCAL/chains_light";
+/// Platform-specific chains path for standard client
 #[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &str = "$BASE/chains";
+/// Platform-specific chains path for light client
+#[cfg(not(target_os = "windows"))] pub const CHAINS_PATH_LIGHT: &str = "$BASE/chains_light";
 
 /// Platform-specific cache path - Windows only
 #[cfg(target_os = "windows")] pub const CACHE_PATH: &str = "$LOCAL/cache";
