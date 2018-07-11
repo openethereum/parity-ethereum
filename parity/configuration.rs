@@ -970,10 +970,12 @@ impl Configuration {
 		let data_path = replace_home("", &base_path);
 		let is_using_base_path = self.args.arg_base_path.is_some();
 		// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
-		let base_db_path = if is_using_base_path && self.args.arg_db_path.is_none() && self.args.flag_light {
-			"$BASE/chains_light"
-		} else if is_using_base_path && self.args.arg_db_path.is_none() {
-			"$BASE/chains"
+		let base_db_path = if is_using_base_path && self.args.arg_db_path.is_none() {
+			if self.args.flag_light {
+				"$BASE/chains_light"
+			} else {
+				"$BASE/chains"
+			}
 		} else if self.args.flag_light {
 			self.args.arg_db_path.as_ref().map_or(dir::CHAINS_PATH_LIGHT, |s| &s)
 		} else {
