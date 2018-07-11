@@ -20,7 +20,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 pub use parity_rpc::signer::SignerService;
-pub use parity_rpc::dapps::{DappsService, LocalDapp};
+pub use parity_rpc::dapps::LocalDapp;
 
 use ethcore_service::PrivateTxService;
 use ethcore::account_provider::AccountProvider;
@@ -227,8 +227,6 @@ pub struct FullDependencies {
 	pub updater: Arc<Updater>,
 	pub health: NodeHealth,
 	pub geth_compatibility: bool,
-	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<Host>,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub pool: CpuPool,
@@ -337,7 +335,6 @@ impl FullDependencies {
 						self.logger.clone(),
 						self.settings.clone(),
 						signer,
-						self.dapps_address.clone(),
 						self.ws_address.clone(),
 					).to_delegate());
 
@@ -362,7 +359,6 @@ impl FullDependencies {
 						&self.miner,
 						&self.updater,
 						&self.net_service,
-						self.dapps_service.clone(),
 						self.fetch.clone(),
 						self.pool.clone(),
 					).to_delegate())
@@ -439,8 +435,6 @@ pub struct LightDependencies<T> {
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
-	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<Host>,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub pool: CpuPool,
@@ -553,7 +547,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.settings.clone(),
 						self.health.clone(),
 						signer,
-						self.dapps_address.clone(),
 						self.ws_address.clone(),
 						self.gas_price_percentile,
 					).to_delegate());
@@ -576,7 +569,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				Api::ParitySet => {
 					handler.extend_with(light::ParitySetClient::new(
 						self.sync.clone(),
-						self.dapps_service.clone(),
 						self.fetch.clone(),
 						self.pool.clone(),
 					).to_delegate())

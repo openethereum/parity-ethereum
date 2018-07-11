@@ -46,7 +46,7 @@ ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
-node-health = { path = "dapps/node-health" }
+node-health = { path = "node-health" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
@@ -68,7 +68,6 @@ kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
 journaldb = { path = "util/journaldb" }
 mem = { path = "util/mem" }
 
-parity-dapps = { path = "dapps", optional = true }
 ethcore-secretstore = { path = "secret_store", optional = true }
 
 registrar = { path = "registrar" }
@@ -89,8 +88,6 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = { git = "https://github.com/paritytech/daemonize" }
 
 [features]
-default = ["dapps"]
-dapps = ["parity-dapps"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
@@ -126,7 +123,6 @@ debug = false
 [workspace]
 members = [
 	"chainspec",
-	"dapps/js-glue",
 	"ethcore/wasm/run",
 	"ethcore/types",
 	"ethkey/cli",

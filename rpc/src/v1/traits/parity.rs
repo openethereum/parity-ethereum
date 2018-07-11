@@ -162,6 +162,7 @@ build_rpc_trait! {
 		fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>>;
 
 		/// Returns current Dapps Server interface and port or an error if dapps server is disabled.
+		/// (deprecated, should always return an error now).
 		#[rpc(name = "parity_dappsUrl")]
 		fn dapps_url(&self) -> Result<String>;
 

@@ -87,8 +87,6 @@ extern crate parity_dapps;
 #[macro_use]
 extern crate pretty_assertions;
 
-#[cfg(windows)] extern crate winapi;
-
 #[cfg(test)]
 extern crate tempdir;
 
@@ -97,7 +95,6 @@ mod blockchain;
 mod cache;
 mod cli;
 mod configuration;
-mod dapps;
 mod export_hardcoded_sync;
 mod ipfs;
 mod deprecated;
@@ -114,7 +111,6 @@ mod secretstore;
 mod signer;
 mod snapshot;
 mod upgrade;
-mod url;
 mod user_defaults;
 mod whisper;
 mod db;
@@ -201,10 +197,6 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 
 	match command.cmd {
 		Cmd::Run(run_cmd) => {
-			if let Some(ref dapp) = run_cmd.dapp {
-				open_dapp(&run_cmd.dapps_conf, &run_cmd.http_conf, dapp)?;
-			}
-
 			let outcome = run::execute(run_cmd, logger, on_client_rq, on_updater_rq)?;
 			Ok(ExecutionAction::Running(outcome))
 		},
@@ -243,14 +235,4 @@ pub fn start<Cr, Rr>(conf: Configuration, on_client_rq: Cr, on_updater_rq: Rr) -
 	}
 
 	execute(conf.into_command()?, on_client_rq, on_updater_rq)
-}
-
-fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfiguration, dapp: &str) -> Result<(), String> {
-	if !dapps_conf.enabled {
-		return Err("Cannot use DAPP command with Dapps turned off.".into())
-	}
-
-	let url = format!("http://{}:{}/{}/", rpc_conf.interface, rpc_conf.port, dapp);
-	url::open(&url).map_err(|e| format!("{}", e))?;
-	Ok(())
 }

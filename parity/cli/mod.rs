@@ -26,15 +26,6 @@ usage! {
 		// Arguments must start with arg_
 		// Flags must start with flag_
 
-		CMD cmd_dapp
-		{
-			"Manage dapps",
-
-			ARG arg_dapp_path: (Option<String>) = None,
-			"<PATH>",
-			"Path to the dapps",
-		}
-
 		CMD cmd_daemon
 		{
 			"Use Parity as a daemon",
@@ -231,6 +222,17 @@ usage! {
 		CMD cmd_export_hardcoded_sync
 		{
 			"Print the hashed light clients headers of the given --chain (default: mainnet) in a JSON format. To be used as hardcoded headers in a genesis file.",
+		}
+
+		// CMD removed in 2.0
+
+		CMD cmd_dapp
+		{
+			"Manage dapps",
+
+			ARG arg_dapp_path: (Option<String>) = None,
+			"<PATH>",
+			"Path to the dapps",
 		}
 	}
 	{
@@ -538,15 +540,6 @@ usage! {
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,shh,shh_pubsub", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
-
-		["API and Console Options – Dapps"]
-			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?.disable.clone(),
-			"--no-dapps",
-			"Disable the Dapps server (e.g. status page).",
-
-			ARG arg_dapps_path: (String) = "$BASE/dapps", or |c: &Config| c.dapps.as_ref()?.path.clone(),
-			"--dapps-path=[PATH]",
-			"Specify directory where dapps should be installed.",
 
 		["API and Console Options – IPFS"]
 			FLAG flag_ipfs_api: (bool) = false, or |c: &Config| c.ipfs.as_ref()?.enable.clone(),
@@ -969,6 +962,10 @@ usage! {
 			"--fast-and-loose",
 			"Does nothing; DB WAL is always activated.",
 
+			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?._legacy_disable.clone(),
+			"--no-dapps",
+			"Disable the Dapps server (e.g. status page).",
+
 			// ARG Removed in 1.6 or before.
 
 			ARG arg_etherbase: (Option<String>) = None, or |_| None,
@@ -1029,27 +1026,27 @@ usage! {
 
 			// ARG Removed in 1.7.
 
-			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
+			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_port.clone(),
 			"--dapps-port=[PORT]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.interface.clone(),
+			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_interface.clone(),
 			"--dapps-interface=[IP]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
+			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_hosts.as_ref().map(|vec| vec.join(",")),
 			"--dapps-hosts=[HOSTS]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.cors.clone(),
+			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_cors.clone(),
 			"--dapps-cors=[URL]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.user.clone(),
+			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_user.clone(),
 			"--dapps-user=[USERNAME]",
 			"Dapps server authentication has been removed.",
 
-			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.pass.clone(),
+			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_pass.clone(),
 			"--dapps-pass=[PASSWORD]",
 			"Dapps server authentication has been removed.",
 
@@ -1074,6 +1071,12 @@ usage! {
 			ARG arg_tx_queue_ban_time: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
 			"--tx-queue-ban-time=[SEC]",
 			"Not supported.",
+
+			// ARG removed in 2.0.
+
+			ARG arg_dapps_path: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
+			"--dapps-path=[PATH]",
+			"Specify directory where dapps should be installed.",
 	}
 }
 
@@ -1223,14 +1226,22 @@ struct Ipc {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Dapps {
-	disable: Option<bool>,
-	port: Option<u16>,
-	interface: Option<String>,
-	hosts: Option<Vec<String>>,
-	cors: Option<String>,
-	path: Option<String>,
-	user: Option<String>,
-	pass: Option<String>,
+	#[serde(rename="disable")]
+	_legacy_disable: Option<bool>,
+	#[serde(rename="port")]
+	_legacy_port: Option<u16>,
+	#[serde(rename="interface")]
+	_legacy_interface: Option<String>,
+	#[serde(rename="hosts")]
+	_legacy_hosts: Option<Vec<String>>,
+	#[serde(rename="cors")]
+	_legacy_cors: Option<String>,
+	#[serde(rename="path")]
+	_legacy_path: Option<String>,
+	#[serde(rename="user")]
+	_legacy_user: Option<String>,
+	#[serde(rename="pass")]
+	_legacy_pass: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1663,7 +1674,7 @@ mod tests {
 			arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
 
 			// DAPPS
-			arg_dapps_path: "$HOME/.parity/dapps".into(),
+			arg_dapps_path: Some("$HOME/.parity/dapps".into()),
 			flag_no_dapps: false,
 
 			// SECRETSTORE
@@ -1922,14 +1933,14 @@ mod tests {
 				apis: Some(vec!["rpc".into(), "eth".into()]),
 			}),
 			dapps: Some(Dapps {
-				disable: None,
-				port: Some(8080),
-				path: None,
-				interface: None,
-				hosts: None,
-				cors: None,
-				user: Some("username".into()),
-				pass: Some("password".into())
+				_legacy_disable: None,
+				_legacy_port: Some(8080),
+				_legacy_path: None,
+				_legacy_interface: None,
+				_legacy_hosts: None,
+				_legacy_cors: None,
+				_legacy_user: Some("username".into()),
+				_legacy_pass: Some("password".into())
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
