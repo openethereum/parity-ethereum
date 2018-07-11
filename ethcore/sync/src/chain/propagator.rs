@@ -48,15 +48,21 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 	// Parity versions starting from this will accept service-transactions
 	const SERVICE_TRANSACTIONS_VERSION: (u32, u32) = (1u32, 6u32);
 	// Parity client string prefix
-	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity/v";
+	const LEGACY_CLIENT_ID_PREFIX: &'static str = "Parity/v";
+	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity-Ethereum/v";
 
-	if !client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
+	let splitted = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) {
+		client_id[LEGACY_CLIENT_ID_PREFIX.len()..].split('.')
+	} else if client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
+		client_id[PARITY_CLIENT_ID_PREFIX.len()..].split('.')
+	} else {
 		return false;
-	}
-	let ver: Vec<u32> = client_id[PARITY_CLIENT_ID_PREFIX.len()..].split('.')
-		.take(2)
-		.filter_map(|s| s.parse().ok())
-		.collect();
+	};
+
+	let ver: Vec<u32> = splitted
+			.take(2)
+			.filter_map(|s| s.parse().ok())
+			.collect();
 	ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
 }
 
@@ -577,13 +583,13 @@ mod tests {
 		io.peers_info.insert(1, "Geth".to_owned());
 		// and peer#2 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 2, block_hash);
-		io.peers_info.insert(2, "Parity/v1.6".to_owned());
+		io.peers_info.insert(2, "Parity-Ethereum/v2.6".to_owned());
 		// and peer#3 is Parity, discarding service transactions
 		insert_dummy_peer(&mut sync, 3, block_hash);
 		io.peers_info.insert(3, "Parity/v1.5".to_owned());
 		// and peer#4 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 4, block_hash);
-		io.peers_info.insert(4, "Parity/v1.7.3-ABCDEFGH".to_owned());
+		io.peers_info.insert(4, "Parity-Ethereum/v2.7.3-ABCDEFGH".to_owned());
 
 		// and new service transaction is propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io);
@@ -607,7 +613,7 @@ mod tests {
 
 		// when peer#1 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 1, block_hash);
-		io.peers_info.insert(1, "Parity/v1.6".to_owned());
+		io.peers_info.insert(1, "Parity-Ethereum/v2.6".to_owned());
 
 		// and service + non-service transactions are propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io);
