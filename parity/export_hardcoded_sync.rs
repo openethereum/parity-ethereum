@@ -68,7 +68,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(false, false, false)?;
+	cmd.dirs.create_dirs(false, false)?;
 
 	// TODO: configurable cache size.
 	let cache = LightDataCache::new(Default::default(), Duration::from_secs(60 * GAS_CORPUS_EXPIRATION_MINUTES));

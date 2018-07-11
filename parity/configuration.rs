@@ -17,7 +17,7 @@
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::collections::BTreeMap;
 use std::cmp;
 use cli::{Args, ArgsError};
@@ -41,7 +41,6 @@ use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
-use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig};
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
@@ -136,7 +135,6 @@ impl Configuration {
 		let compaction = self.args.arg_db_compaction.parse()?;
 		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
-		let dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
@@ -370,13 +368,11 @@ impl Configuration {
 				warp_barrier: self.args.arg_warp_barrier,
 				geth_compatibility: geth_compatibility,
 				net_settings: self.network_settings()?,
-				dapps_conf: dapps_conf,
 				ipfs_conf: ipfs_conf,
 				secretstore_conf: secretstore_conf,
 				private_provider_conf: private_provider_conf,
 				private_encryptor_conf: private_enc_conf,
 				private_tx_enabled,
-				dapp: self.dapp_to_open()?,
 				name: self.args.arg_identity,
 				custom_bootnodes: self.args.arg_bootnodes.is_some(),
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
@@ -582,18 +578,6 @@ impl Configuration {
 		self.args.arg_ntp_servers.split(",").map(str::to_owned).collect()
 	}
 
-	fn dapps_config(&self) -> DappsConfiguration {
-		DappsConfiguration {
-			enabled: self.dapps_enabled(),
-			dapps_path: PathBuf::from(self.directories().dapps),
-			extra_dapps: if self.args.cmd_dapp {
-				self.args.arg_dapp_path.iter().map(|path| PathBuf::from(path)).collect()
-			} else {
-				vec![]
-			},
-		}
-	}
-
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
@@ -625,19 +609,6 @@ impl Configuration {
 			cors: self.ipfs_cors(),
 			hosts: self.ipfs_hosts(),
 		}
-	}
-
-	fn dapp_to_open(&self) -> Result<Option<String>, String> {
-		if !self.args.cmd_dapp {
-			return Ok(None);
-		}
-		let path = self.args.arg_dapp_path.as_ref().map(String::as_str).unwrap_or(".");
-		let path = Path::new(path).canonicalize()
-			.map_err(|e| format!("Invalid path: {}. Error: {:?}", path, e))?;
-		let name = path.file_name()
-			.and_then(|name| name.to_str())
-			.ok_or_else(|| "Root path is not supported.".to_owned())?;
-		Ok(Some(name.into()))
 	}
 
 	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
@@ -881,8 +852,6 @@ impl Configuration {
 	}
 
 	fn ws_config(&self) -> Result<WsConfiguration, String> {
-		let http = self.http_config()?;
-
 		let support_token_api =
 			// enabled when not unlocking
 			self.args.arg_unlock.is_none();
@@ -896,7 +865,6 @@ impl Configuration {
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
 			support_token_api,
-			dapps_address: http.address(),
 			max_connections: self.args.arg_ws_max_connections,
 		};
 
@@ -980,7 +948,6 @@ impl Configuration {
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
 		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
 		let keys_path = replace_home(&data_path, &self.args.arg_keys_path);
-		let dapps_path = replace_home(&data_path, &self.args.arg_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.arg_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.arg_ui_path);
 
@@ -989,7 +956,6 @@ impl Configuration {
 			base: data_path,
 			cache: cache_path,
 			db: db_path,
-			dapps: dapps_path,
 			signer: ui_path,
 			secretstore: secretstore_path,
 		}
@@ -1092,10 +1058,6 @@ impl Configuration {
 
 	fn ws_enabled(&self) -> bool {
 		!self.args.flag_no_ws
-	}
-
-	fn dapps_enabled(&self) -> bool {
-		!self.args.flag_dapps_off && !self.args.flag_no_dapps && self.rpc_enabled() && cfg!(feature = "dapps")
 	}
 
 	fn secretstore_enabled(&self) -> bool {
@@ -1364,7 +1326,6 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true,
 			max_connections: 100,
 		}, LogConfig {
@@ -1433,13 +1394,11 @@ mod tests {
 			vm_type: Default::default(),
 			geth_compatibility: false,
 			net_settings: Default::default(),
-			dapps_conf: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
 			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
-			dapp: None,
 			name: "".into(),
 			custom_bootnodes: false,
 			fat_db: Default::default(),
@@ -1650,20 +1609,6 @@ mod tests {
 	}
 
 	#[test]
-	fn should_parse_dapp_opening() {
-		// given
-		let tempdir = TempDir::new("").unwrap();
-
-		// when
-		let conf0 = parse(&["parity", "dapp", tempdir.path().to_str().unwrap()]);
-
-		// then
-		assert_eq!(conf0.dapp_to_open(), Ok(Some(tempdir.path().file_name().unwrap().to_str().unwrap().into())));
-		let extra_dapps = conf0.dapps_config().extra_dapps;
-		assert_eq!(extra_dapps, vec![tempdir.path().to_owned()]);
-	}
-
-	#[test]
 	fn should_not_bail_on_empty_line_in_reserved_peers() {
 		let tempdir = TempDir::new("").unwrap();
 		let filename = tempdir.path().join("peers");
@@ -1708,7 +1653,6 @@ mod tests {
 				assert_eq!(c.net_conf.min_peers, 50);
 				assert_eq!(c.net_conf.max_peers, 100);
 				assert_eq!(c.ipc_conf.enabled, false);
-				assert_eq!(c.dapps_conf.enabled, false);
 				assert_eq!(c.miner_options.force_sealing, true);
 				assert_eq!(c.miner_options.reseal_on_external_tx, true);
 				assert_eq!(c.miner_options.reseal_on_own_tx, true);
