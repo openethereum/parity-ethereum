@@ -221,7 +221,7 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Removed("--no-dapps"));
 	}
 
-	if args.arg_dapps_path != "" {
+	if args.arg_dapps_path.is_some() {
 		result.push(Deprecated::Removed("--dapps-path"));
 	}
 

@@ -1074,7 +1074,7 @@ usage! {
 
 			// ARG removed in 2.0.
 
-			ARG arg_dapps_path: (String) = "$BASE/dapps", or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
+			ARG arg_dapps_path: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
 			"--dapps-path=[PATH]",
 			"Specify directory where dapps should be installed.",
 	}
@@ -1674,7 +1674,7 @@ mod tests {
 			arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
 
 			// DAPPS
-			arg_dapps_path: "$HOME/.parity/dapps".into(),
+			arg_dapps_path: Some("$HOME/.parity/dapps".into()),
 			flag_no_dapps: false,
 
 			// SECRETSTORE
