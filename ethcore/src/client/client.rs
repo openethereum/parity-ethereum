@@ -65,7 +65,7 @@ use parking_lot::{Mutex, RwLock};
 use parking_lot::RwLockReadGuard;
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
-use snapshot::{self, io as snapshot_io, CustomClient as SnapshotCustomClient};
+use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
 use state_db::StateDB;
 use state::{self, State};
@@ -2324,7 +2324,7 @@ impl ProvingBlockChainClient for Client {
 	}
 }
 
-impl SnapshotCustomClient for Client {}
+impl SnapshotClient for Client {}
 
 impl Drop for Client {
 	fn drop(&mut self) {

@@ -204,7 +204,7 @@ impl Restoration {
 pub type Channel = IoChannel<ClientIoMessage>;
 
 /// Trait alias for the Client Service used
-pub trait CustomClient: BlockChainClient + BlockInfo + DatabaseRestore {}
+pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore {}
 
 /// Snapshot service parameters.
 pub struct ServiceParams {
@@ -222,7 +222,7 @@ pub struct ServiceParams {
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-	pub client: Arc<CustomClient>,
+	pub client: Arc<SnapshotClient>,
 }
 
 /// `SnapshotService` implementation.
@@ -239,7 +239,7 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	client: Arc<CustomClient>,
+	client: Arc<SnapshotClient>,
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
