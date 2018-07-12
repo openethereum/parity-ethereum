@@ -19,7 +19,6 @@ use std::sync::Arc;
 use std::path::PathBuf;
 use std::collections::HashSet;
 
-use dapps;
 use dir::default_data_path;
 use dir::helpers::replace_home;
 use helpers::parity_ipc_path;
@@ -45,12 +44,7 @@ pub struct HttpConfiguration {
 	pub hosts: Option<Vec<String>>,
 	pub server_threads: usize,
 	pub processing_threads: usize,
-}
-
-impl HttpConfiguration {
-	pub fn address(&self) -> Option<rpc::Host> {
-		address(self.enabled, &self.interface, self.port, &self.hosts)
-	}
+	pub max_payload: usize,
 }
 
 impl Default for HttpConfiguration {
@@ -64,6 +58,7 @@ impl Default for HttpConfiguration {
 			hosts: Some(vec![]),
 			server_threads: 1,
 			processing_threads: 4,
+			max_payload: 5,
 		}
 	}
 }
@@ -101,7 +96,6 @@ pub struct WsConfiguration {
 	pub hosts: Option<Vec<String>>,
 	pub signer_path: PathBuf,
 	pub support_token_api: bool,
-	pub dapps_address: Option<rpc::Host>,
 }
 
 impl Default for WsConfiguration {
@@ -117,7 +111,6 @@ impl Default for WsConfiguration {
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 			support_token_api: true,
-			dapps_address: Some("127.0.0.1:8545".into()),
 		}
 	}
 }
@@ -171,7 +164,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	};
 
 	let remote = deps.remote.clone();
-	let allowed_origins = into_domains(with_domain(conf.origins, domain, &conf.dapps_address));
+	let allowed_origins = into_domains(with_domain(conf.origins, domain, &None));
 	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
 
 	let signer_path;
@@ -208,7 +201,6 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	options: &str,
 	conf: HttpConfiguration,
 	deps: &Dependencies<D>,
-	middleware: Option<dapps::Middleware>,
 ) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
@@ -230,8 +222,8 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		handler,
 		remote,
 		rpc::RpcExtractor,
-		middleware,
 		conf.server_threads,
+		conf.max_payload,
 	);
 
 	match start_result {

@@ -52,7 +52,6 @@ use miner::{self, Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
 use types::pruning_info::PruningInfo;
-
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use executive::Executed;
@@ -62,7 +61,7 @@ use state_db::StateDB;
 use header::Header;
 use encoded;
 use engines::EthEngine;
-use trie;
+use ethtrie;
 use state::StateInfo;
 use views::BlockView;
 
@@ -581,10 +580,10 @@ impl Call for TestBlockChainClient {
 }
 
 impl StateInfo for () {
-	fn nonce(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
-	fn balance(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
-	fn storage_at(&self, _address: &Address, _key: &H256) -> trie::Result<H256> { unimplemented!() }
-	fn code(&self, _address: &Address) -> trie::Result<Option<Arc<Bytes>>> { unimplemented!() }
+	fn nonce(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
+	fn balance(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
+	fn storage_at(&self, _address: &Address, _key: &H256) -> ethtrie::Result<H256> { unimplemented!() }
+	fn code(&self, _address: &Address) -> ethtrie::Result<Option<Arc<Bytes>>> { unimplemented!() }
 }
 
 impl StateClient for TestBlockChainClient {
@@ -611,8 +610,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.execution_result.read().clone().unwrap()
 	}
 
-	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
-		Ok(Box::new(self.execution_result.read().clone().unwrap().into_iter()))
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError> {
+		Ok(Box::new(self.traces.read().clone().unwrap().into_iter().map(|t| t.transaction_hash.unwrap_or(H256::new())).zip(self.execution_result.read().clone().unwrap().into_iter())))
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {

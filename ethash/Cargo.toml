@@ -7,9 +7,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-keccak-hash = { path = "../util/hash" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 primal = "0.2.3"
-parking_lot = "0.5"
+parking_lot = "0.6"
 crunchy = "0.1.0"
 memmap = "0.6"
 either = "1.0.0"

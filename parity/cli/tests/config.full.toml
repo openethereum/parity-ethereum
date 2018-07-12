@@ -150,7 +150,6 @@ cache_size_blocks = 8
 cache_size_queue = 50
 cache_size_state = 25
 cache_size = 128 # Overrides above caches with total size
-fast_and_loose = false
 db_compaction = "ssd"
 fat_db = "auto"
 scale_verifiers = true

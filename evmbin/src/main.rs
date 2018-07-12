@@ -26,7 +26,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate docopt;
 extern crate ethcore_transaction as transaction;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate vm;
 extern crate evm;
@@ -91,7 +91,7 @@ General options:
 "#;
 
 fn main() {
-	panic_hook::set();
+	panic_hook::set_abort();
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 

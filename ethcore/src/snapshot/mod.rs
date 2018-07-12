@@ -32,13 +32,15 @@ use ids::BlockId;
 
 use ethereum_types::{H256, U256};
 use hashdb::HashDB;
+use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
 use snappy;
 use bytes::Bytes;
 use parking_lot::Mutex;
 use journaldb::{self, Algorithm, JournalDB};
 use kvdb::KeyValueDB;
-use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
+use trie::{Trie, TrieMut};
+use ethtrie::{TrieDB, TrieDBMut};
 use rlp::{RlpStream, Rlp};
 use bloom_journal::Bloom;
 
@@ -126,7 +128,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	engine: &EthEngine,
 	chain: &BlockChain,
 	block_at: H256,
-	state_db: &HashDB,
+	state_db: &HashDB<KeccakHasher>,
 	writer: W,
 	p: &Progress
 ) -> Result<(), Error> {
@@ -264,7 +266,7 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
 	let account_trie = TrieDB::new(db, &root)?;
 
 	let mut chunker = StateChunker {
@@ -414,7 +416,7 @@ struct RebuiltStatus {
 // rebuild a set of accounts and their storage.
 // returns a status detailing newly-loaded code and accounts missing code.
 fn rebuild_accounts(
-	db: &mut HashDB,
+	db: &mut HashDB<KeccakHasher>,
 	account_fat_rlps: Rlp,
 	out_chunk: &mut [(H256, Bytes)],
 	known_code: &HashMap<H256, H256>,

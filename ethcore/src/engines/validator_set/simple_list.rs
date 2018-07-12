@@ -104,6 +104,12 @@ impl ValidatorSet for SimpleList {
 	}
 }
 
+impl AsRef<ValidatorSet> for SimpleList {
+    fn as_ref(&self) -> &ValidatorSet {
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;

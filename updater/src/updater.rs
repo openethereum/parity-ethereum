@@ -27,15 +27,16 @@ use target_info::Target;
 
 use bytes::Bytes;
 use ethcore::BlockNumber;
-use ethcore::filter::Filter;
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify, ChainRoute};
+use ethcore::filter::Filter;
 use ethereum_types::H256;
-use sync::{SyncProvider};
 use hash_fetch::{self as fetch, HashFetch};
 use path::restrict_permissions_owner;
 use service::Service;
+use sync::{SyncProvider};
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
 use version;
+use semver::Version;
 
 use_contract!(operations_contract, "Operations", "res/operations.json");
 
@@ -155,7 +156,7 @@ pub struct Updater<O = OperationsContractClient, F = fetch::Client, T = StdTimeP
 	state: Mutex<UpdaterState>,
 }
 
-const CLIENT_ID: &'static str = "parity";
+const CLIENT_ID: &str = "parity";
 
 lazy_static! {
 	static ref CLIENT_ID_HASH: H256 = CLIENT_ID.as_bytes().into();
@@ -189,7 +190,7 @@ pub trait OperationsClient: Send + Sync + 'static {
 	fn release_block_number(&self, from: BlockNumber, release: &ReleaseInfo) -> Option<BlockNumber>;
 }
 
-/// OperationsClient that delegates calls to the operations contract.
+/// `OperationsClient` that delegates calls to the operations contract.
 pub struct OperationsContractClient {
 	operations_contract: operations_contract::Operations,
 	client: Weak<BlockChainClient>,
@@ -267,7 +268,7 @@ impl OperationsClient for OperationsContractClient {
 		// get the release info for the latest version in track
 		let in_track = self.release_info(latest_in_track, &do_call)?;
 		let mut in_minor = Some(in_track.clone());
-		const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
+		const PROOF: &str = "in_minor initialized and assigned with Some; loop breaks if None assigned; qed";
 
 		// if the minor version has changed, let's check the minor version on a different track
 		while in_minor.as_ref().expect(PROOF).version.version.minor != this.version.minor {
@@ -308,7 +309,7 @@ impl OperationsClient for OperationsContractClient {
 			from_block: BlockId::Number(from),
 			to_block: BlockId::Latest,
 			address: Some(vec![address]),
-			topics: topics,
+			topics,
 			limit: None,
 		};
 
@@ -333,7 +334,7 @@ pub trait TimeProvider: Send + Sync + 'static {
 	fn now(&self) -> Instant;
 }
 
-/// TimeProvider implementation that delegates calls to std::time.
+/// `TimeProvider` implementation that delegates calls to `std::time`.
 pub struct StdTimeProvider;
 
 impl TimeProvider for StdTimeProvider {
@@ -349,7 +350,7 @@ pub trait GenRange: Send + Sync + 'static {
 	fn gen_range(&self, low: u64, high: u64) -> u64;
 }
 
-/// GenRange implementation that uses a rand::thread_rng for randomness.
+/// `GenRange` implementation that uses a `rand::thread_rng` for randomness.
 pub struct ThreadRngGenRange;
 
 impl GenRange for ThreadRngGenRange {
@@ -359,14 +360,15 @@ impl GenRange for ThreadRngGenRange {
 }
 
 impl Updater {
+	/// `Updater` constructor
 	pub fn new(
-		client: Weak<BlockChainClient>,
-		sync: Weak<SyncProvider>,
+		client: &Weak<BlockChainClient>,
+		sync: &Weak<SyncProvider>,
 		update_policy: UpdatePolicy,
 		fetcher: fetch::Client,
 	) -> Arc<Updater> {
 		let r = Arc::new(Updater {
-			update_policy: update_policy,
+			update_policy,
 			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
 			sync: Some(sync.clone()),
@@ -375,12 +377,21 @@ impl Updater {
 				operations_contract::Operations::default(),
 				client.clone()),
 			exit_handler: Mutex::new(None),
-			this: VersionInfo::this(),
+			this: if cfg!(feature = "test-updater") {
+				VersionInfo {
+					track: ReleaseTrack::Stable,
+					version: Version::new(1, 3, 7),
+					hash: 0.into(),
+				}
+			} else {
+				VersionInfo::this()
+			},
 			time_provider: StdTimeProvider,
 			rng: ThreadRngGenRange,
 			state: Mutex::new(Default::default()),
 		});
 		*r.weak_self.lock() = Arc::downgrade(&r);
+
 		r.poll();
 		r
 	}
@@ -447,7 +458,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 				},
 				// There was an error fetching the update, apply a backoff delay before retrying
 				Err(err) => {
-					let delay = 2usize.pow(retries) as u64;
+					let delay = 2_usize.pow(retries) as u64;
 					// cap maximum backoff to 1 day
 					let delay = cmp::min(delay, 24 * 60 * 60);
 					let backoff = (retries, self.time_provider.now() + Duration::from_secs(delay));
@@ -599,14 +610,19 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		trace!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
 
 		// We rely on a secure state. Bail if we're unsure about it.
-		if self.client.upgrade().map_or(true, |c| !c.chain_info().security_level().is_full()) {
-			return;
+		if !cfg!(feature = "test-updater") {
+			if self.client.upgrade().map_or(true, |c| !c.chain_info().security_level().is_full()) {
+			    return;
+			}
 		}
 
 		// Only check for updates every n blocks
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-		if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
-			return;
+		
+		if !cfg!(feature = "test-updater") {
+			if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
+				return;
+			}
 		}
 
 		let mut state = self.state.lock();
@@ -639,16 +655,16 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 			// There's a new release available
 			if state.latest.as_ref() != Some(&latest) {
 				trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
-					   latest.track.version,
-					   if latest.track.is_critical {""} else {"non-"},
-					   *PLATFORM,
-					   latest.track.binary.map(|b| format!("{}", b)).unwrap_or("unreleased".into()));
+					latest.track.version,
+					if latest.track.is_critical {""} else {"non-"},
+					*PLATFORM,
+					latest.track.binary.map_or_else(|| "unreleased".into(), |b| format!("{}", b)));
 
 				trace!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}",
-					   latest.this_fork.map(|f| format!("#{}", f)).unwrap_or("unknown".into()),
-					   current_block_number,
-					   latest.track.fork,
-					   latest.fork);
+					latest.this_fork.map_or_else(|| "unknown".into(), |f| format!("#{}", f)),
+					current_block_number,
+					latest.track.fork,
+					latest.fork);
 
 				// Update latest release
 				state.latest = Some(latest);

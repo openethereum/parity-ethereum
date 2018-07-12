@@ -21,7 +21,7 @@ use std::fmt;
 use ids::BlockId;
 
 use ethereum_types::H256;
-use trie::TrieError;
+use ethtrie::TrieError;
 use rlp::DecoderError;
 
 /// Snapshot-related errors.

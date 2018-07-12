@@ -18,7 +18,7 @@
 
 use jsonrpc_core::Result;
 use jsonrpc_macros::Trailing;
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256, TraceOptions};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceResultsWithTransactionHash, H256, TraceOptions};
 
 build_rpc_trait! {
 	/// Traces specific rpc interface.
@@ -59,6 +59,6 @@ build_rpc_trait! {
 
 		/// Executes all the transactions at the given block and returns a number of possible traces for each transaction.
 		#[rpc(name = "trace_replayBlockTransactions")]
-		fn replay_block_transactions(&self, BlockNumber, TraceOptions) ->  Result<Vec<TraceResults>>;
+		fn replay_block_transactions(&self, BlockNumber, TraceOptions) ->  Result<Vec<TraceResultsWithTransactionHash>>;
 	}
 }

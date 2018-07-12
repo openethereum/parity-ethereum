@@ -61,8 +61,8 @@
 #![allow(deprecated)]
 
 extern crate ethcore_io as io;
-extern crate ethcore_bytes;
-extern crate ethcore_crypto as crypto;
+extern crate parity_bytes;
+extern crate parity_crypto as crypto;
 extern crate ethereum_types;
 extern crate parking_lot;
 extern crate mio;

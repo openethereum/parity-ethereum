@@ -17,18 +17,20 @@
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
 use std::collections::HashMap;
+use std::io;
 use std::sync::Arc;
-use heapsize::HeapSizeOf;
-use rlp::{encode, decode};
+
+use bytes::Bytes;
+use ethereum_types::H256;
 use hashdb::*;
-use overlaydb::OverlayDB;
+use heapsize::HeapSizeOf;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
 use memorydb::MemoryDB;
+use overlaydb::OverlayDB;
+use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::H256;
-use error::UtilError;
-use bytes::Bytes;
 use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
@@ -78,7 +80,7 @@ impl RefCountedDB {
 	}
 }
 
-impl HashDB for RefCountedDB {
+impl HashDB<KeccakHasher> for RefCountedDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
 	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
 	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
@@ -117,7 +119,7 @@ impl JournalDB for RefCountedDB {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.into_vec())
 	}
 
-	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		// record new commit's details.
 		let mut db_key = DatabaseKey {
 			era: now,
@@ -157,7 +159,7 @@ impl JournalDB for RefCountedDB {
 		Ok(ops as u32)
 	}
 
-	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> io::Result<u32> {
 		// apply old commits' details
 		let mut db_key = DatabaseKey {
 			era: end_era,
@@ -189,7 +191,7 @@ impl JournalDB for RefCountedDB {
 		Ok(r)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		self.inserts.clear();
 		for remove in self.removes.drain(..) {
 			self.forward.remove(&remove);
@@ -197,7 +199,7 @@ impl JournalDB for RefCountedDB {
 		self.forward.commit_to_batch(batch)
 	}
 
-	fn consolidate(&mut self, mut with: MemoryDB) {
+	fn consolidate(&mut self, mut with: MemoryDB<KeccakHasher>) {
 		for (key, (value, rc)) in with.drain() {
 			for _ in 0..rc {
 				self.emplace(key, value.clone());

@@ -32,7 +32,6 @@ pub fn client_db_config(client_path: &Path, client_config: &ClientConfig) -> Dat
 
 	client_db_config.memory_budget = client_config.db_cache_size;
 	client_db_config.compaction = compaction_profile(&client_config.db_compaction, &client_path);
-	client_db_config.wal = client_config.db_wal;
 
 	client_db_config
 }
