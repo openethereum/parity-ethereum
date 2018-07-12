@@ -1,3 +1,14 @@
+## Parity [v1.11.7](https://github.com/paritytech/parity/releases/tag/v1.11.7) (2018-07-16)
+
+Parity 1.11.7 is a bug-fix release to improve performance and stability and marks the 1.11 release track as `stable`.
+
+The full list of included changes:
+
+- Backports to 1.11.7-stable ([#9093](https://github.com/paritytech/parity/pull/9093))
+  - Parity-version: stabelize 1.11
+  - Parity-version: bump stable to 1.11.7
+  - Don't fetch snapshot chunks at random ([#9088](https://github.com/paritytech/parity/pull/9088))
+
 ## Parity [v1.11.6](https://github.com/paritytech/parity/releases/tag/v1.11.6) (2018-07-09)
 
 Parity 1.11.6 is a bug-fix release to improve performance and stability.
