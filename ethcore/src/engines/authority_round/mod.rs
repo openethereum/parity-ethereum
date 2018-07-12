@@ -44,6 +44,7 @@ use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
+use types::ancestry_action::AncestryAction;
 use unexpected::{Mismatch, OutOfBounds};
 
 mod finality;
@@ -1398,6 +1399,72 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
+	}
+
+	fn ancestry_actions(&self, block: &ExecutedBlock, ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+		if self.immediate_transitions { return Vec::new() }
+
+		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => client,
+			None => {
+				warn!(target: "engine", "Unable to apply ancestry actions: missing client ref.");
+				return Vec::new();
+			}
+		};
+
+		let chain_head = block.header();
+
+		let mut epoch_manager = self.epoch_manager.lock();
+		if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, chain_head) {
+			return Vec::new();
+		}
+
+		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
+			// build new finality checker from unfinalized ancestry of chain head, not including chain head itself yet.
+			trace!(target: "finality", "Building finality up to parent of {} ({})",
+				   chain_head.hash(), chain_head.parent_hash());
+
+			let mut parent_empty_steps_signers = match header_empty_steps_signers(&chain_head, self.empty_steps_transition) {
+				Ok(empty_step_signers) => empty_step_signers,
+				Err(_) => {
+					warn!(target: "finality", "Failed to get empty step signatures from block {}", chain_head.hash());
+					return Vec::new();
+				}
+			};
+
+			let ancestry_iter = ancestry.take_while(|e| !e.is_finalized)
+				.map(|extended_header| {
+					let header = extended_header.header;
+					let mut signers = vec![header.author().clone()];
+					signers.extend(parent_empty_steps_signers.drain(..));
+
+					if let Ok(empty_step_signers) = header_empty_steps_signers(&header, self.empty_steps_transition) {
+						let res = (header.hash(), signers);
+						trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
+
+						parent_empty_steps_signers = empty_step_signers;
+
+						Some(res)
+
+					} else {
+						warn!(target: "finality", "Failed to get empty step signatures from block {}", header.hash());
+						None
+					}
+				})
+				.while_some();
+
+			if let Err(_) = epoch_manager.finality_checker.build_ancestry_subchain(ancestry_iter) {
+				debug!(target: "engine", "inconsistent validator set within epoch");
+				return Vec::new();
+			}
+		}
+
+		if let Ok(finalized) = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![chain_head.author().clone()]) {
+			debug!(target: "finality", "Finalizing blocks: {:?}", finalized);
+			return finalized.into_iter().map(AncestryAction::MarkFinalized).collect()
+		}
+
+		Vec::new()
 	}
 }
 
