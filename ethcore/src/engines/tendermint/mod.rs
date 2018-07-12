@@ -635,6 +635,7 @@ impl Engine<EthereumMachine> for Tendermint {
 	fn is_epoch_end(
 		&self,
 		chain_head: &Header,
+		_finalized: &[H256],
 		_chain: &super::Headers<Header>,
 		transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {

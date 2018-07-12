@@ -150,6 +150,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	fn is_epoch_end(
 		&self,
 		chain_head: &Header,
+		_finalized: &[H256],
 		_chain: &super::Headers<Header>,
 		_transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {

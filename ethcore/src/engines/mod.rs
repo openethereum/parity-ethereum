@@ -341,6 +341,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn is_epoch_end(
 		&self,
 		_chain_head: &M::Header,
+		_finalized: &[H256],
 		_chain: &Headers<M::Header>,
 		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {

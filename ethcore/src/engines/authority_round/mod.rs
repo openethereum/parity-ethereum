@@ -1230,6 +1230,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn is_epoch_end(
 		&self,
 		chain_head: &Header,
+		finalized: &[H256],
 		chain: &super::Headers<Header>,
 		transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {
@@ -1252,100 +1253,54 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			}
 		};
 
-		// find most recently finalized blocks, then check transition store for pending transitions.
+		// check transition store for pending transitions against recently finalized blocks
 		let mut epoch_manager = self.epoch_manager.lock();
 		if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, chain_head) {
 			return None;
 		}
 
-		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
-			// build new finality checker from ancestry of chain head,
-			// not including chain head itself yet.
-			trace!(target: "finality", "Building finality up to parent of {} ({})",
-				chain_head.hash(), chain_head.parent_hash());
-
-			let mut hash = chain_head.parent_hash().clone();
-			let mut parent_empty_steps_signers = match header_empty_steps_signers(&chain_head, self.empty_steps_transition) {
-				Ok(empty_step_signers) => empty_step_signers,
-				Err(_) => {
-					warn!(target: "finality", "Failed to get empty step signatures from block {}", chain_head.hash());
-					return None;
-				}
-			};
-
-			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
-
-			// walk the chain within current epoch backwards.
-			// author == ec_recover(sig) known since the blocks are in the DB.
-			// the empty steps messages in a header signal approval of the parent header.
-			let ancestry_iter = itertools::repeat_call(move || {
-				chain(hash).and_then(|header| {
-					if header.number() == 0 { return None }
-
-					let mut signers = vec![header.author().clone()];
-					signers.extend(parent_empty_steps_signers.drain(..));
-
-					if let Ok(empty_step_signers) = header_empty_steps_signers(&header, self.empty_steps_transition) {
-						let res = (hash, signers);
-						trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
-
-						hash = header.parent_hash().clone();
-						parent_empty_steps_signers = empty_step_signers;
-
-						Some(res)
-
-					} else {
-						warn!(target: "finality", "Failed to get empty step signatures from block {}", header.hash());
-						None
-					}
+		for finalized_hash in finalized {
+			if let Some(pending) = transition_store(*finalized_hash) {
+				// walk the chain backwards from current head until finalized_hash
+				// to construct transition proof. author == ec_recover(sig) known
+				// since the blocks are in the DB.
+				let mut hash = *chain_head.parent_hash();
+				let finality_proof = itertools::repeat_call(move || {
+					chain(hash).and_then(|header| {
+						hash = *header.parent_hash();
+						if header.number() == 0 { return None }
+						else { return Some(header) }
+					})
 				})
-			})
-				.while_some()
-				.take_while(|&(h, _)| h != epoch_transition_hash);
+					.while_some()
+					.take_while(|h| h.hash() != *finalized_hash);
 
-			if let Err(_) = epoch_manager.finality_checker.build_ancestry_subchain(ancestry_iter) {
-				debug!(target: "engine", "inconsistent validator set within epoch");
-				return None;
-			}
-		}
+				let finalized_header = chain(*finalized_hash)
+					.expect("header is finalized; finalized headers must exist in the chain; qed");
 
-		{
-			if let Ok(finalized) = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![chain_head.author().clone()]) {
-				let mut finalized = finalized.into_iter();
-				while let Some(finalized_hash) = finalized.next() {
-					if let Some(pending) = transition_store(finalized_hash) {
-						let finality_proof = ::std::iter::once(finalized_hash)
-							.chain(finalized)
-							.chain(epoch_manager.finality_checker.unfinalized_hashes())
-							.map(|h| if h == chain_head.hash() {
-								// chain closure only stores ancestry, but the chain head is also
-								// unfinalized.
-								chain_head.clone()
-							} else {
-								chain(h).expect("these headers fetched before when constructing finality checker; qed")
-							})
-							.collect::<Vec<Header>>();
+				let signal_number = finalized_header.number();
+				info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
 
-						// this gives us the block number for `hash`, assuming it's ancestry.
-						let signal_number = chain_head.number()
-							- finality_proof.len() as BlockNumber
-							+ 1;
-						let finality_proof = ::rlp::encode_list(&finality_proof);
-						epoch_manager.note_new_epoch();
+				let mut finality_proof: Vec<_> = ::std::iter::once(chain_head.clone())
+					.chain(finality_proof)
+					.chain(::std::iter::once(finalized_header))
+					.collect();
 
-						info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
+				finality_proof.reverse();
 
-						// We turn off can_propose here because upon validator set change there can
-						// be two valid proposers for a single step: one from the old set and
-						// one from the new.
-						//
-						// This way, upon encountering an epoch change, the proposer from the
-						// new set will be forced to wait until the next step to avoid sealing a
-						// block that breaks the invariant that the parent's step < the block's step.
-						self.step.can_propose.store(false, AtomicOrdering::SeqCst);
-						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
-					}
-				}
+				let finality_proof = ::rlp::encode_list(&finality_proof);
+				epoch_manager.note_new_epoch();
+
+
+				// We turn off can_propose here because upon validator set change there can
+				// be two valid proposers for a single step: one from the old set and
+				// one from the new.
+				//
+				// This way, upon encountering an epoch change, the proposer from the
+				// new set will be forced to wait until the next step to avoid sealing a
+				// block that breaks the invariant that the parent's step < the block's step.
+				self.step.can_propose.store(false, AtomicOrdering::SeqCst);
+				return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 			}
 		}
 
@@ -1424,6 +1379,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			trace!(target: "finality", "Building finality up to parent of {} ({})",
 				   chain_head.hash(), chain_head.parent_hash());
 
+			// the empty steps messages in a header signal approval of the
+			// parent header.
 			let mut parent_empty_steps_signers = match header_empty_steps_signers(&chain_head, self.empty_steps_transition) {
 				Ok(empty_step_signers) => empty_step_signers,
 				Err(_) => {
