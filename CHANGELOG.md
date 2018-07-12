@@ -1,6 +1,32 @@
 ## Parity-Ethereum [v2.0.0](https://github.com/paritytech/parity/releases/tag/v2.0.0) (2018-07-16)
 
-This is the Parity-Ethereum 2.0.0-beta release! ~~Hurray!~~ @TODO
+This is the Parity-Ethereum//v2.0.0-beta release, **YOLO!**
+
+Please note, Parity-Ethereum//v2.0.0 comes with some breaking changes that might be interrupting your usual workflows. Please mind them before upgrading:
+
+- The Parity client is now called _Parity-Ethereum_ to distinguish it from other software we provide, such as [_Parity-Bitcoin_](https://github.com/paritytech/parity-bitcoin/) and [_Parity-Polkadot_](https://github.com/paritytech/polkadot) ([#9052](https://github.com/paritytech/parity/pull/9052)).
+- The public node and the user interface (a.k.a. _"Parity Wallet"_) are completely removed from the Parity-Ethereum//v2.0.0 client ([#8758](https://github.com/paritytech/parity/pull/8758), #8783, #8641).
+- Windows and MacOS versions are not available as installer anymore and the system trays were removed ([#8778](https://github.com/paritytech/parity/pull/8778)).
+- Linux versions are not available as packages anymore ([#8887](https://github.com/paritytech/parity/pull/8887)). MD5-checksums are completely replaced by SHA256-checksums ([#8884](https://github.com/paritytech/parity/pull/8884)).
+- The DApps subsystem was completely removed from the client ([#9017](https://github.com/paritytech/parity/pull/9017)).
+- Deprecated, removed, or replaced CLI-options are hidden from client `--help` to further discourage their usage ([#8967](https://github.com/paritytech/parity/pull/8967)).
+
+Additional noteworthy changes to the client:
+
+- Tracing of precompiled contracts when the transfer value is not zero ([#8486](https://github.com/paritytech/parity/pull/8486))
+- _Parity-Ethereum_ as a library now provides APIs for running full and light nodes and a C interface ([#8412](https://github.com/paritytech/parity/pull/8412)). Shared crates are now available in [_Parity-Common_](https://github.com/paritytech/parity-common) ([#9083](https://github.com/paritytech/parity/pull/9083)).
+- The Morden database and keys are now moved to a `./Morden` subdirectory instead of `./test` which is by default used by Ropsten ([#8621](https://github.com/paritytech/parity/pull/8621)).
+- Adding support for having an on-chain contract calculating the block rewards ([#8419](https://github.com/paritytech/parity/pull/8419)).
+- Enforcing warp-only synchronization with `--warp-barrier [blocknumber]` flag ([#8228](https://github.com/paritytech/parity/pull/8228)).
+- Adding a fork-choice and meta-data framework suitable for implementing Casper ([#8401](https://github.com/paritytech/parity/pull/8401)).
+- Returning an error if RLP-size of a transaction exceeds a 300kB limit ([#8473](https://github.com/paritytech/parity/pull/8473)).
+- Warp-sync is now resumable by keeping the downloaded chunks between client restarts. Also, it seeds downloaded snapshots for other nodes ([#8544](https://github.com/paritytech/parity/pull/8544)).
+- The developer chain `--chain dev` now contains Byzantium features, this breaks existing developer chains ([#8717](https://github.com/paritytech/parity/pull/8717)).
+- The EIP150, EIP160 and EIP161 forks are now to be specified in common params section of a chain-spec file instead of the Ethash params to enable these features on non-proof-of-work chains ([#8614](https://github.com/paritytech/parity/pull/8614)). Please update your chain specs.
+- Allowing to disable local-by-default for transactions with new configurations ([#8882](https://github.com/paritytech/parity/pull/8882)).
+- Never drop local transactions from different senders ([#9002](https://github.com/paritytech/parity/pull/9002)).
+- Optimize pending transactions filter and fix ethstats reporting of pending transactions ([#9026](https://github.com/paritytech/parity/pull/9026)).
+- Add separate database directory for light client allowing to run full and light nodes at the same time ([#9064](https://github.com/paritytech/parity/pull/9064)).
 
 The full list of included changes:
 
