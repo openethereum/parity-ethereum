@@ -5,7 +5,7 @@ WORKDIR /build
 # install tools and dependencies
 RUN apk add --no-cache gcc musl-dev pkgconfig g++ make curl \
 						eudev-dev rust cargo git file binutils \
-						libusb-dev linux-headers perl
+						libusb-dev linux-headers perl cmake
 
 # show backtraces
 ENV RUST_BACKTRACE 1
