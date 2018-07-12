@@ -32,7 +32,7 @@ futures-cpupool = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-ethcore = { path = "ethcore", features = ["work-notify", "price-info", "stratum"] }
+ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
