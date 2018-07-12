@@ -27,11 +27,11 @@ Official website: https://parity.io | Be sure to check out [our wiki](https://wi
 
 Parity-Ethereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity-Ethereum using the sophisticated and cutting-edge Rust programming language. Parity-Ethereum is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
-By default, Parity-Ethereum will run a JSONRPC server on `127.0.0.1:8545` and a Web-Sockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
+By default, Parity-Ethereum will run a JSON-RPC HTTP server on `127.0.0.1:8545` and a Web-Sockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
 
-If you run into problems while using Parity-Ethereum, feel free to file an issue in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.MD](SECURITY.md).
+If you run into problems while using Parity-Ethereum, feel free to file an issue in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
-Parity-Ethereum's current beta-release is 2.0. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
+Parity-Ethereum's current beta-release is 2.0. You can download it at [the releases page](https://github.com/paritytech/parity/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
 ----
 
