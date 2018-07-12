@@ -53,8 +53,6 @@ pub enum Error {
 	Decoder(DecoderError),
 	/// Io error.
 	Io(::std::io::Error),
-	/// KVFB error,
-	Kvdb(::kvdb::Error),
 	/// Snapshot version is not supported.
 	VersionNotSupported(u64),
 	/// Max chunk size is to small to fit basic account data.
@@ -87,7 +85,6 @@ impl fmt::Display for Error {
 			Error::UnrecognizedCodeState(state) => write!(f, "Unrecognized code encoding ({})", state),
 			Error::RestorationAborted => write!(f, "Snapshot restoration aborted."),
 			Error::Io(ref err) => err.fmt(f),
-			Error::Kvdb(ref err) => err.fmt(f),
 			Error::Decoder(ref err) => err.fmt(f),
 			Error::Trie(ref err) => err.fmt(f),
 			Error::VersionNotSupported(ref ver) => write!(f, "Snapshot version {} is not supprted.", ver),
@@ -104,12 +101,6 @@ impl fmt::Display for Error {
 impl From<::std::io::Error> for Error {
 	fn from(err: ::std::io::Error) -> Self {
 		Error::Io(err)
-	}
-}
-
-impl From<::kvdb::Error> for Error {
-	fn from(err: ::kvdb::Error) -> Self {
-		Error::Kvdb(err)
 	}
 }
 

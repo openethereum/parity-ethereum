@@ -299,6 +299,7 @@ pub fn new_db() -> Arc<BlockChainDB> {
 	Arc::new(db)
 }
 
+/// Creates a new temporary `BlockChainDB` on FS
 pub fn new_temp_db(tempdir: &Path) -> Arc<BlockChainDB> {
 	let blooms_dir = TempDir::new("").unwrap();
 	let trace_blooms_dir = TempDir::new("").unwrap();
