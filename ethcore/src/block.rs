@@ -16,13 +16,13 @@
 
 //! Base data structure of this module is `Block`.
 //!
-//! Blocks can be produced by a local node or they may be received from network.
+//! Blocks can be produced by a local node or they may be received from the network.
 //!
 //! To create a block locally, we start with an `OpenBlock`. This block is mutable
-//! and can be appended with transactions and uncles.
+//! and can be appended to with transactions and uncles.
 //!
-//! When ready, `OpenBlock` can be closed and turned into `ClosedBlock`. `ClosedBlock` can
-//! be reopend again by miner under certain circumstances. On block close, state commit is
+//! When ready, `OpenBlock` can be closed and turned into a `ClosedBlock`. A `ClosedBlock` can
+//! be reopend again by a miner under certain circumstances. On block close, state commit is
 //! performed.
 //!
 //! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
@@ -198,7 +198,7 @@ pub trait IsBlock {
 	fn uncles(&self) -> &[Header] { &self.block().uncles }
 }
 
-/// Trait for a object that owns an `ExecutedBlock`
+/// Trait for an object that owns an `ExecutedBlock`
 pub trait Drain {
 	/// Returns `ExecutedBlock`
 	fn drain(self) -> ExecutedBlock;
@@ -616,7 +616,6 @@ impl SealedBlock {
 }
 
 impl Drain for SealedBlock {
-	/// Drop this object and return the underlieing database.
 	fn drain(self) -> ExecutedBlock {
 		self.block
 	}

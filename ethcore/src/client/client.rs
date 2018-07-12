@@ -475,13 +475,11 @@ impl Importer {
 		let receipts = block.receipts;
 		let traces = block.traces.drain();
 		let best_hash = chain.best_block_hash();
-		let metadata = block.metadata;
-		let is_finalized = block.is_finalized;
 
 		let new = ExtendedHeader {
 			header: header.clone(),
-			is_finalized: is_finalized,
-			metadata: metadata,
+			is_finalized: block.is_finalized,
+			metadata: block.metadata,
 			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
 		};
 
@@ -536,7 +534,7 @@ impl Importer {
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
-			is_finalized: is_finalized,
+			is_finalized: block.is_finalized,
 			metadata: new.metadata,
 		});
 
