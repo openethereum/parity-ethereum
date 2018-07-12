@@ -22,6 +22,7 @@ use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::cmp;
 
 use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
@@ -363,6 +364,8 @@ impl Service {
 			None => return Ok(count),
 		};
 		let mut end_block_number = match next_chain_info.first_block_number {
+			// Don't underflow
+			Some(0) => 0,
 			Some(bn) => bn - 1,
 			None => return Ok(count),
 		};
@@ -381,9 +384,7 @@ impl Service {
 			// The current chain was synced until best_bn
 			(None, best_bn) => {
 				// Take the minimum block between `best_bn` and `end_block_number`
-				if best_bn < end_block_number {
-					end_block_number = best_bn;
-				}
+				end_block_number = cmp::min(end_block_number, best_bn);
 			},
 			// If the ancient block number is bellow the new one, which should not happen
 			_ => return Ok(count),
@@ -434,7 +435,7 @@ impl Service {
 					let block_receipts = block_receipts.receipts;
 
 					next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_total_difficulty), false, true);
-					count+=1;
+					count += 1;
 				},
 				_ => break,
 			}
@@ -465,13 +466,12 @@ impl Service {
 		next_chain.commit();
 		next_db.key_value().flush().expect("DB flush failed.");
 
-		// Update best ancient block in the Next Chain
-		next_chain.update_best_ancient_block(&last_block_hash);
-
 		if !success {
 			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain.into());
 		}
 
+		// Update best ancient block in the Next Chain
+		next_chain.update_best_ancient_block(&last_block_hash);
 		Ok(count)
 	}
 
@@ -617,19 +617,16 @@ impl Service {
 
 		// It could be that the restoration failed or completed in the meanwhile
 		let mut restoration_status = self.status.lock();
-		let update_status = match *restoration_status {
-			RestorationStatus::Initializing { .. } => true,
-			_ => false,
-		};
-
-		if update_status {
-			*restoration_status = RestorationStatus::Ongoing {
-				state_chunks: state_chunks as u32,
-				block_chunks: block_chunks as u32,
-				state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
-				block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
-			};
+		if let RestorationStatus::Initializing { .. } = *restoration_status {
+			return Ok(());
 		}
+
+		*restoration_status = RestorationStatus::Ongoing {
+			state_chunks: state_chunks as u32,
+			block_chunks: block_chunks as u32,
+			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
+			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
+		};
 
 		Ok(())
 	}
@@ -910,7 +907,6 @@ mod tests {
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 	use tempdir::TempDir;
-	// use test_helpers_internal::restoration_db_handler;
 	use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 	#[test]

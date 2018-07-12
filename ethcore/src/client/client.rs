@@ -61,8 +61,6 @@ use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
 use ethcore_miner::pool::VerifiedTransaction;
 use parking_lot::{Mutex, RwLock};
-#[cfg(test)]
-use parking_lot::RwLockReadGuard;
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
@@ -996,7 +994,7 @@ impl Client {
 	}
 
 	#[cfg(test)]
-	pub fn state_db(&self) -> RwLockReadGuard<StateDB> {
+	pub fn state_db(&self) -> ::parking_lot::RwLockReadGuard<StateDB> {
 		self.state_db.read()
 	}
 
