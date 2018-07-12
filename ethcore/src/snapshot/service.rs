@@ -412,26 +412,24 @@ impl Service {
 			None => return Ok(count),
 		};
 
-		let mut success = false;
 		let mut batch = DBTransaction::new();
-		let mut block = self.client.block(BlockId::Hash(last_block_hash));
-
-		while let Some(block_view) = block {
+		let mut parent_hash = last_block_hash;
+		while parent_hash != target_block_hash {
 			// Early return if restoration is aborted
 			if !self.restoring_snapshot.load(Ordering::SeqCst) {
 				return Ok(count);
 			}
 
-			let block_hash = block_view.hash();
-			let block_receipts = self.client.decoded_block_receipts(&block_hash);
-			let block_number = block_view.number();
+			let block = self.client.block(BlockId::Hash(parent_hash)).ok_or(::snapshot::error::Error::UnlinkedAncientBlockChain)?;
+			parent_hash = block.parent_hash();
 
-			let parent_hash = block_view.parent_hash();
+			let block_number = block.number();
+			let block_receipts = self.client.decoded_block_receipts(&block.hash());
 			let parent_total_difficulty = self.client.block_total_difficulty(BlockId::Hash(parent_hash));
 
 			match (block_receipts, parent_total_difficulty) {
 				(Some(block_receipts), Some(parent_total_difficulty)) => {
-					let raw_block = block_view.into_inner();
+					let raw_block = block.into_inner();
 					let block_receipts = block_receipts.receipts;
 
 					next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_total_difficulty), false, true);
@@ -451,14 +449,6 @@ impl Service {
 			if block_number % 10_000 == 0 {
 				trace!(target: "snapshot", "Block restoration at #{}", block_number);
 			}
-
-			// Break when we hit target
-			if parent_hash == target_block_hash {
-				success = true;
-				break;
-			}
-
-			block = self.client.block(BlockId::Hash(parent_hash));
 		}
 
 		// Final commit to the DB
@@ -466,7 +456,8 @@ impl Service {
 		next_chain.commit();
 		next_db.key_value().flush().expect("DB flush failed.");
 
-		if !success {
+		// We couldn't reach the targeted hash
+		if parent_hash != target_block_hash {
 			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain.into());
 		}
 
