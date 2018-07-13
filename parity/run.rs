@@ -504,7 +504,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		cmd.miner_options,
 		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), cpu_pool.clone()),
 		&spec,
-		Some(account_provider.clone())
+		Some(account_provider.clone()),
+
 	));
 	miner.set_author(cmd.miner_extras.author, None).expect("Fails only if password is Some; password is None; qed");
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
