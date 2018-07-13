@@ -356,7 +356,10 @@ impl Miner {
 						params.extra_data,
 					) {
 						Ok(block) => block,
-						Err(_) => return None,
+						Err(err) => {
+							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in chain specificiations or on-chain consensus smart contracts.", err);
+							return None;
+						}
 					}
 				}
 			};
