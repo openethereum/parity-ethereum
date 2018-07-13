@@ -291,7 +291,7 @@ mod tests {
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}},"origin":{"signer":{"dapp":"http://parity.io","session":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}},"origin":{"signer":{"session":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -318,7 +318,7 @@ mod tests {
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}},"origin":{"dapp":"http://parity.io"}}"#;
+		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}},"origin":"unknown"}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());

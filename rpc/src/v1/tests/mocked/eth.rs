@@ -401,17 +401,6 @@ fn rpc_eth_accounts() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:x}", address) + r#""],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-
-	// even with some account it should return empty list (no dapp detected)
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
-	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-
-	// when we add visible address it should return that.
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
-	let meta = Metadata::default();
-	assert_eq!((*tester.io).handle_request_sync(request, meta), Some(response.to_owned()));
 }
 
 #[test]

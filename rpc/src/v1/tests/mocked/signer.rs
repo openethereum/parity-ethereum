@@ -96,7 +96,7 @@ fn should_return_list_of_items_to_confirm() {
 	let request = r#"{"jsonrpc":"2.0","method":"signer_requestsToConfirm","params":[],"id":1}"#;
 	let response = concat!(
 		r#"{"jsonrpc":"2.0","result":["#,
-		r#"{"id":"0x1","origin":{"dapp":"http://parity.io"},"payload":{"sendTransaction":{"condition":null,"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x1"}}},"#,
+		r#"{"id":"0x1","origin":"unknown","payload":{"sendTransaction":{"condition":null,"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x1"}}},"#,
 		r#"{"id":"0x2","origin":"unknown","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}}}"#,
 		r#"],"id":1}"#
 	);
