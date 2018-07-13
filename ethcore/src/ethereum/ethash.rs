@@ -289,9 +289,16 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
 	}
 
+	#[cfg(not(feature = "miner-debug"))]
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_basic(header)
 			.and_then(|_| self.verify_block_unordered(header))
+	}
+
+	#[cfg(feature = "miner-debug")]
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
+		warn!("Skipping seal verification, running in miner testing mode.");
+		Ok(())
 	}
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {

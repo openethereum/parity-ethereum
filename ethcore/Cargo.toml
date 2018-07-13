@@ -74,6 +74,10 @@ trie-standardmap = { path = "../util/trie-standardmap" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 
 [features]
+# Disables seal verification for mined blocks.
+# This allows you to submit any seal via RPC to test and benchmark
+# how fast pending block get's created while running on the mainnet.
+miner-debug = []
 # Display EVM debug traces.
 evm-debug = ["slow-blocks"]
 # Display EVM debug traces when running tests.
