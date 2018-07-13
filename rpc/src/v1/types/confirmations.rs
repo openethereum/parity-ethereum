@@ -285,7 +285,6 @@ mod tests {
 				condition: None,
 			}),
 			origin: Origin::Signer {
-				dapp: "http://parity.io".into(),
 				session: 5.into(),
 			}
 		};
@@ -314,7 +313,7 @@ mod tests {
 				nonce: Some(1.into()),
 				condition: None,
 			}),
-			origin: Origin::Dapps("http://parity.io".into()),
+			origin: Origin::Unknown,
 		};
 
 		// when

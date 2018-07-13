@@ -45,7 +45,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, DappId, ChainStatus,
+	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, RichHeader,
 	block_number_to_id
 };
@@ -110,12 +110,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 {
 	type Metadata = Metadata;
 
-	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>> {
-		let dapp = dapp.unwrap_or_default();
-
-		let dapp_accounts = self.accounts
-			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| self.accounts.dapp_addresses(dapp.into()))
+	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
+		let dapp_accounts = self.accounts.accounts()
 			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
@@ -144,11 +140,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 
-	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
-		let dapp_id = meta.dapp_id();
-
-		Ok(self.accounts
-			.dapp_default_address(dapp_id.into())
+	fn default_account(&self, _meta: Self::Metadata) -> Result<H160> {
+		Ok(self.accounts.default_account()
 			.map(Into::into)
 			.ok()
 			.unwrap_or_default())

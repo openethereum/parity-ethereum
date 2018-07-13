@@ -27,7 +27,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, DappId, ChainStatus,
+	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, RichHeader,
 };
 
@@ -38,7 +38,7 @@ build_rpc_trait! {
 
 		/// Returns accounts information.
 		#[rpc(name = "parity_accountsInfo")]
-		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>>;
+		fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>>;
 
 		/// Returns hardware accounts information.
 		#[rpc(name = "parity_hardwareAccountsInfo")]

@@ -89,7 +89,7 @@ fn should_return_list_of_items_to_confirm() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	}), Origin::Dapps("http://parity.io".into())).unwrap();
+	}), Origin::Unknown).unwrap();
 	let _sign_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(1.into(), vec![5].into()), Origin::Unknown).unwrap();
 
 	// when

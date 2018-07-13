@@ -272,6 +272,11 @@ impl AccountProvider {
 		)
 	}
 
+	/// Returns the address of default account.
+	pub fn default_account(&self) -> Result<Address, Error> {
+		Ok(self.accounts()?.first().cloned().unwrap_or_default())
+	}
+
 	/// Returns addresses of hardware accounts.
 	pub fn hardware_accounts(&self) -> Result<Vec<Address>, Error> {
 		if let Some(accounts) = self.hardware_store.as_ref().map(|h| h.list_wallets()) {

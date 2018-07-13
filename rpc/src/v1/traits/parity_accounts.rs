@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use jsonrpc_core::Result;
 use ethkey::Password;
 use ethstore::KeyFile;
-use v1::types::{H160, H256, H520, DappId, DeriveHash, DeriveHierarchical, ExtAccountInfo};
+use v1::types::{H160, H256, H520, DeriveHash, DeriveHierarchical, ExtAccountInfo};
 
 build_rpc_trait! {
 	/// Personal Parity rpc interface.
@@ -71,57 +71,6 @@ build_rpc_trait! {
 		/// Set an account's metadata string.
 		#[rpc(name = "parity_setAccountMeta")]
 		fn set_account_meta(&self, H160, String) -> Result<bool>;
-
-		/// Sets addresses exposed for particular dapp.
-		/// Setting a non-empty list will also override default account.
-		/// Setting `None` will resets visible account to what's visible for new dapps
-		/// (does not affect default account though)
-		#[rpc(name = "parity_setDappAddresses")]
-		fn set_dapp_addresses(&self, DappId, Option<Vec<H160>>) -> Result<bool>;
-
-		/// Gets accounts exposed for particular dapp.
-		#[rpc(name = "parity_getDappAddresses")]
-		fn dapp_addresses(&self, DappId) -> Result<Vec<H160>>;
-
-		/// Changes dapp default address.
-		/// Does not affect other accounts exposed for this dapp, but
-		/// default account will always be retured as the first one.
-		#[rpc(name = "parity_setDappDefaultAddress")]
-		fn set_dapp_default_address(&self, DappId, H160) -> Result<bool>;
-
-		/// Returns current dapp default address.
-		/// If not set explicite for the dapp will return global default.
-		#[rpc(name = "parity_getDappDefaultAddress")]
-		fn dapp_default_address(&self, DappId) -> Result<H160>;
-
-		/// Sets accounts exposed for new dapps.
-		/// Setting a non-empty list will also override default account.
-		/// Setting `None` exposes all internal-managed accounts.
-		/// (does not affect default account though)
-		#[rpc(name = "parity_setNewDappsAddresses")]
-		fn set_new_dapps_addresses(&self, Option<Vec<H160>>) -> Result<bool>;
-
-		/// Gets accounts exposed for new dapps.
-		/// `None` means that all accounts are exposes.
-		#[rpc(name = "parity_getNewDappsAddresses")]
-		fn new_dapps_addresses(&self) -> Result<Option<Vec<H160>>>;
-
-		/// Changes default address for new dapps (global default address)
-		/// Does not affect other accounts exposed for new dapps, but
-		/// default account will always be retured as the first one.
-		#[rpc(name = "parity_setNewDappsDefaultAddress")]
-		fn set_new_dapps_default_address(&self, H160) -> Result<bool>;
-
-		/// Returns current default address for new dapps (global default address)
-		/// In case it's not set explicite will return first available account.
-		/// If no accounts are available will return `0x0`
-		#[rpc(name = "parity_getNewDappsDefaultAddress")]
-		fn new_dapps_default_address(&self) -> Result<H160>;
-
-		/// Returns identified dapps that recently used RPC
-		/// Includes last usage timestamp.
-		#[rpc(name = "parity_listRecentDapps")]
-		fn recent_dapps(&self) -> Result<BTreeMap<DappId, u64>>;
 
 		/// Imports a number of Geth accounts, with the list provided as the argument.
 		#[rpc(name = "parity_importGethAccounts")]
