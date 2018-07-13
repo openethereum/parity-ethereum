@@ -88,6 +88,7 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = { git = "https://github.com/paritytech/daemonize" }
 
 [features]
+miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]

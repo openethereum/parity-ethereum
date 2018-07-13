@@ -87,6 +87,10 @@ work-notify = ["ethcore-miner/work-notify"]
 price-info = ["ethcore-miner/price-info"]
 stratum = ["ethcore-stratum"]
 
+# Disables seal verification for mined blocks.
+# This allows you to submit any seal via RPC to test and benchmark
+# how fast pending block get's created while running on the mainnet.
+miner-debug = []
 # Display EVM debug traces.
 evm-debug = ["evm/evm-debug"]
 # Display EVM debug traces when running tests.
