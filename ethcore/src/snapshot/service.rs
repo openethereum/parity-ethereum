@@ -424,7 +424,7 @@ impl Service {
 			parent_hash = block.parent_hash();
 
 			let block_number = block.number();
-			let block_receipts = self.client.decoded_block_receipts(&block.hash());
+			let block_receipts = self.client.block_receipts(&block.hash());
 			let parent_total_difficulty = self.client.block_total_difficulty(BlockId::Hash(parent_hash));
 
 			match (block_receipts, parent_total_difficulty) {

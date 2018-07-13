@@ -284,11 +284,11 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get latest state node
 	fn state_data(&self, hash: &H256) -> Option<Bytes>;
 
-	/// Get raw block receipts data by block header hash.
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
+	/// Get RLP encoded block receipts data by block header hash.
+	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
-	/// Get decoded block receipts data by block header hash.
-	fn decoded_block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
+	/// Get block receipts data by block header hash.
+	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;

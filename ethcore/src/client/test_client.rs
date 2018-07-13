@@ -757,8 +757,8 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		if let Some(receipt) = self.decoded_block_receipts(hash) {
+	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes> {
+		if let Some(receipt) = self.block_receipts(hash) {
 			let mut rlp = RlpStream::new();
 			rlp.append(&receipt);
 			return Some(rlp.out());
@@ -766,7 +766,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn decoded_block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
+	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
