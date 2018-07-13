@@ -19,13 +19,14 @@ use ethereum_types::{H256, Bloom};
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
 use blockchain::extras::{BlockDetails, BlockReceipts, TransactionAddress};
+use encoded::Block;
 
 /// Block extras update info.
-pub struct ExtrasUpdate<'a> {
+pub struct ExtrasUpdate {
 	/// Block info.
 	pub info: BlockInfo,
 	/// Current block uncompressed rlp bytes
-	pub block: &'a [u8],
+	pub block: Block,
 	/// Modified block hashes.
 	pub block_hashes: HashMap<BlockNumber, H256>,
 	/// Modified block details.
