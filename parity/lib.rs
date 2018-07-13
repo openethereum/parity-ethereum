@@ -80,9 +80,6 @@ extern crate log as rlog;
 #[cfg(feature = "secretstore")]
 extern crate ethcore_secretstore;
 
-#[cfg(feature = "dapps")]
-extern crate parity_dapps;
-
 #[cfg(test)]
 #[macro_use]
 extern crate pretty_assertions;

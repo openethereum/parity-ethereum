@@ -48,7 +48,5 @@ macro_rules! impl_serialization {
 }
 
 mod account_meta;
-mod dapps_settings;
 
-pub use self::dapps_settings::{DappsSettings, DappsHistory, NewDappsPolicy};
 pub use self::account_meta::AccountMeta;
