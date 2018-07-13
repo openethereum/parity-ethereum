@@ -218,6 +218,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cc 1.0.17 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "common-types"
 version = "0.1.0"
 dependencies = [
@@ -2900,7 +2908,7 @@ dependencies = [
 [[package]]
 name = "snappy"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/rust-snappy#40ac9a0d9fd613e7f38df800a11a589b7296da73"
+source = "git+https://github.com/paritytech/rust-snappy#798408ffef8f86dd51481673aca10f5348d7491b"
 dependencies = [
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
@@ -2909,9 +2917,9 @@ dependencies = [
 [[package]]
 name = "snappy-sys"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/rust-snappy#40ac9a0d9fd613e7f38df800a11a589b7296da73"
+source = "git+https://github.com/paritytech/rust-snappy#798408ffef8f86dd51481673aca10f5348d7491b"
 dependencies = [
- "cc 1.0.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cmake 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -3641,6 +3649,7 @@ dependencies = [
 "checksum chrono 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1cce36c92cb605414e9b824f866f5babe0a0368e39ea07393b9b63cf3844c0e6"
 "checksum cid 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d85ee025368e69063c420cbb2ed9f852cb03a5e69b73be021e65726ce03585b6"
 "checksum clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8f4a2b3bb7ef3c672d7c13d15613211d5a6976b6892c598b0fcb5d40765f19c2"
+"checksum cmake 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)" = "95470235c31c726d72bf2e1f421adc1e65b9d561bf5529612cbe1a72da1467b3"
 "checksum conv 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "78ff10625fd0ac447827aa30ea8b861fead473bb60aeb73af6c1c58caf0d1299"
 "checksum crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "24ce9782d4d5c53674646a6a4c1863a21a8fc0cb649b3c94dfc16e45071dea19"
 "checksum crossbeam-deque 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f739f8c5363aca78cfb059edf753d8f0d36908c348f3d8d1503f03d8b75d9cf3"
