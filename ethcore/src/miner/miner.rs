@@ -1388,9 +1388,9 @@ mod tests {
 		assert_eq!(res.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block), None);
 		assert_eq!(miner.pending_receipts(best_block), None);
-		assert_eq!(miner.ready_transactions(&client).len(), 0);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 0);
 		assert!(miner.prepare_pending_block(&client));
-		assert_eq!(miner.ready_transactions(&client).len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 
 		// when - 2nd part: create a local transaction from account_provider.
 		// Borrow the transaction used before & sign with our generated keypair.
@@ -1402,7 +1402,7 @@ mod tests {
 		assert_eq!(res2.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 2);
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 2);
-		assert_eq!(miner.ready_transactions(&client).len(), 2);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 2);
 		assert!(!miner.prepare_pending_block(&client));
 	}
 
