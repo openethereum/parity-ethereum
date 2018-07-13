@@ -489,8 +489,8 @@ impl Miner {
 
 		let block = match open_block.close() {
 			Ok(block) => block,
-			Err(_) => {
-				warn!(target: "miner", "Closing the block failed due to an engine error. Please check your chain specifications and consensus smart contracts.");
+			Err(err) => {
+				warn!(target: "miner", "Closing the block failed with error {:?}. This is likely an error in chain specificiations or on-chain consensus smart contracts.", err);
 				return None;
 			}
 		};
