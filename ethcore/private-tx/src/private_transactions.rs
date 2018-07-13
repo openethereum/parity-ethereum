@@ -213,14 +213,16 @@ impl VerificationStore {
 		let options = self.verification_options.clone();
 		// Use pool's verifying pipeline for original transaction's verification
 		let verifier = pool::verifier::Verifier::new(client, options, Default::default());
-		let _verified_tx = verifier.verify_transaction(pool::verifier::Transaction::Unverified(transaction.clone()))?;
-		let signed_tx = SignedTransaction::new(transaction)?;
+		let verified_tx = verifier.verify_transaction(pool::verifier::Transaction::Unverified(transaction.clone()))?;
+		let signed_tx: SignedTransaction = verified_tx.signed().clone();
+		let signed_hash = signed_tx.hash();
+		let signed_sender = signed_tx.sender();
 		let verified = VerifiedPrivateTransaction {
 			private_transaction,
 			validator_account,
-			transaction: signed_tx.clone(),
-			transaction_hash: signed_tx.hash(),
-			transaction_sender: signed_tx.sender(),
+			transaction: signed_tx,
+			transaction_hash: signed_hash,
+			transaction_sender: signed_sender,
 		};
 		let mut pool = self.verification_pool.write();
 		pool.import(verified)?;
