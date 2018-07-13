@@ -705,7 +705,8 @@ impl Miner {
 		}
 	}
 
-	/// Returns true if we had to prepare new pending block.
+	/// Returns true if we had to prepare new pending block and the preparation succeeded. If the preparation failed or
+	/// if we didn't have to prepare a new block, then return false.
 	fn prepare_pending_block<C>(&self, client: &C) -> bool where
 		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
