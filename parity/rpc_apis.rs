@@ -306,7 +306,7 @@ impl FullDependencies {
 						let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
 						let h = client.handler();
 						self.miner.add_transactions_listener(Box::new(move |hashes| if let Some(h) = h.upgrade() {
-							h.new_transactions(hashes);
+							h.notify_new_transactions(hashes);
 						}));
 
 						if let Some(h) = client.handler().upgrade() {
@@ -527,7 +527,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					let h = client.handler();
 					self.transaction_queue.write().add_listener(Box::new(move |transactions| {
 						if let Some(h) = h.upgrade() {
-							h.new_transactions(transactions);
+							h.notify_new_transactions(transactions);
 						}
 					}));
 					handler.extend_with(EthPubSub::to_delegate(client));
