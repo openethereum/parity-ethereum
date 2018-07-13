@@ -31,7 +31,7 @@ use txpool;
 use txpool::{VerifiedTransaction, Verifier};
 use error::{Error, ErrorKind};
 
-type Pool = txpool::Pool<VerifiedPrivateTransaction, PrivateScorying>;
+type Pool = txpool::Pool<VerifiedPrivateTransaction, PrivateScoring>;
 
 /// Maximum length for private transactions queues.
 const MAX_QUEUE_LEN: usize = 8312;
@@ -72,9 +72,9 @@ impl txpool::VerifiedTransaction for VerifiedPrivateTransaction {
 }
 
 #[derive(Debug)]
-pub struct PrivateScorying;
+pub struct PrivateScoring;
 
-impl txpool::Scoring<VerifiedPrivateTransaction> for PrivateScorying {
+impl txpool::Scoring<VerifiedPrivateTransaction> for PrivateScoring {
 	type Score = U256;
 	type Event = ();
 
@@ -182,7 +182,7 @@ impl Default for VerificationStore {
 			verification_pool: RwLock::new(
 				txpool::Pool::new(
 					txpool::NoopListener,
-					PrivateScorying,
+					PrivateScoring,
 					pool::Options {
 						max_count: MAX_QUEUE_LEN,
 						max_per_sender: MAX_QUEUE_LEN / 10,
@@ -231,22 +231,12 @@ impl VerificationStore {
 	/// Returns only one transaction per sender because several cannot be verified in a row without verification from other peers
 	pub fn drain<C: pool::client::NonceClient>(&self, client: C) -> Vec<Arc<VerifiedPrivateTransaction>> {
 		let ready = PrivateReadyState::new(client);
-		let mut hashes: Vec<H256> = Vec::new();
-		let res: Vec<Arc<VerifiedPrivateTransaction>> = self.verification_pool.read().pending(ready).collect();
-		res
-			.iter()
-			.for_each(|tx| {
-				hashes.push(tx.hash().clone());
-			}
-		);
+		let transactions: Vec<_> = self.verification_pool.read().pending(ready).collect();
 		let mut pool = self.verification_pool.write();
-		hashes
-			.iter()
-			.for_each(|hash| {
-				pool.remove(&hash, true);
-			}
-		);
-		res
+		for tx in &transactions {
+			pool.remove(tx.hash(), true);
+		}
+		transactions
 	}
 }
 

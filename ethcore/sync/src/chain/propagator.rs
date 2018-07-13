@@ -38,8 +38,6 @@ use super::{
 	CONSENSUS_DATA_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
 	NEW_BLOCK_PACKET,
-	PRIVATE_TRANSACTION_PACKET,
-	SIGNED_PRIVATE_TRANSACTION_PACKET,
 	TRANSACTIONS_PACKET,
 };
 
@@ -289,26 +287,14 @@ impl SyncPropagator {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet: Bytes) {
+	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
 		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
 			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 				peer.last_sent_private_transactions.insert(transaction_hash);
 			}
-			SyncPropagator::send_packet(io, peer_id, PRIVATE_TRANSACTION_PACKET, packet.clone());
-		}
-	}
-
-	/// Broadcast signed private transaction message to peers.
-	pub fn propagate_signed_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_signed_private_transaction_peers(&transaction_hash));
-		trace!(target: "sync", "Sending signed private transaction packet to {:?}", lucky_peers);
-		for peer_id in lucky_peers {
-			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-				peer.last_sent_signed_private_transactions.insert(transaction_hash);
-			}
-			SyncPropagator::send_packet(io, peer_id, SIGNED_PRIVATE_TRANSACTION_PACKET, packet.clone());
+			SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
 		}
 	}
 
@@ -431,7 +417,6 @@ mod tests {
 				ask_time: Instant::now(),
 				last_sent_transactions: HashSet::new(),
 				last_sent_private_transactions: HashSet::new(),
-				last_sent_signed_private_transactions: HashSet::new(),
 				expired: false,
 				confirmation: ForkConfirmation::Confirmed,
 				snapshot_number: None,

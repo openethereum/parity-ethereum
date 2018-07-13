@@ -28,12 +28,28 @@ pub struct PrivateTransaction {
 	pub encrypted: Bytes,
 	/// Address of the contract
 	pub contract: Address,
+	/// Hash
+	hash: H256,
 }
 
 impl PrivateTransaction {
-	/// Compute hash on private transaction
+	/// Constructor
+	pub fn new(encrypted: Bytes, contract: Address) -> Self {
+		PrivateTransaction {
+			encrypted,
+			contract,
+			hash: 0.into(),
+		}.compute_hash()
+	}
+
+	fn compute_hash(mut self) -> PrivateTransaction {
+		self.hash = keccak(&*self.rlp_bytes());
+		self
+	}
+
+	/// Hash of the private transaction
 	pub fn hash(&self) -> H256 {
-		keccak(&*self.rlp_bytes())
+		self.hash
 	}
 }
 
@@ -49,6 +65,8 @@ pub struct SignedPrivateTransaction {
 	r: U256,
 	/// The S field of the signature
 	s: U256,
+	/// Hash
+	hash: H256,
 }
 
 impl SignedPrivateTransaction {
@@ -59,7 +77,13 @@ impl SignedPrivateTransaction {
 			r: sig.r().into(),
 			s: sig.s().into(),
 			v: add_chain_replay_protection(sig.v() as u64, chain_id),
-		}
+			hash: 0.into(),
+		}.compute_hash()
+	}
+
+	fn compute_hash(mut self) -> SignedPrivateTransaction {
+		self.hash = keccak(&*self.rlp_bytes());
+		self
 	}
 
 	pub fn standard_v(&self) -> u8 { check_replay_protection(self.v) }
@@ -76,6 +100,6 @@ impl SignedPrivateTransaction {
 
 	/// Own hash
 	pub fn hash(&self) -> H256 {
-		keccak(&*self.rlp_bytes())
+		self.hash
 	}
 }

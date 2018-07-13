@@ -28,6 +28,7 @@ error_chain! {
 		Io(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		Decoder(DecoderError) #[doc = "RLP decoding error."];
 		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
+		Txpool(TxPoolError) #[doc = "Tx pool error."];
 	}
 
 	errors {
@@ -168,12 +169,6 @@ error_chain! {
 			description("General ethcore error."),
 			display("General ethcore error {}", err),
 		}
-
-		#[doc = "Tx pool error."]
-		Txpool(err: TxPoolError) {
-			description("Tx pool error."),
-			display("Tx pool error {}", err),
-		}
 	}
 }
 
@@ -204,12 +199,6 @@ impl From<TransactionError> for Error {
 impl From<EthcoreError> for Error {
 	fn from(err: EthcoreError) -> Self {
 		ErrorKind::Ethcore(err).into()
-	}
-}
-
-impl From<TxPoolError> for Error {
-	fn from(err: TxPoolError) -> Self {
-		ErrorKind::Txpool(err).into()
 	}
 }
 
