@@ -584,15 +584,13 @@ impl Service {
 		// It could be that the restoration failed or completed in the meanwhile
 		let mut restoration_status = self.status.lock();
 		if let RestorationStatus::Initializing { .. } = *restoration_status {
-			return Ok(());
+			*restoration_status = RestorationStatus::Ongoing {
+				state_chunks: state_chunks as u32,
+				block_chunks: block_chunks as u32,
+				state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
+				block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
+			};
 		}
-
-		*restoration_status = RestorationStatus::Ongoing {
-			state_chunks: state_chunks as u32,
-			block_chunks: block_chunks as u32,
-			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
-			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
-		};
 
 		Ok(())
 	}
