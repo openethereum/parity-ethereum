@@ -97,7 +97,7 @@ const DEFAULT_MINIMAL_GAS_PRICE: u64 = 20_000_000_000;
 /// before stopping attempts to push more transactions to the block.
 /// This is an optimization that prevents traversing the entire pool
 /// in case we have only a fraction of available block gas limit left.
-const MAX_SKIPPED_TRANSACTIONS: usize = 8;
+const MAX_SKIPPED_TRANSACTIONS: usize = 128;
 
 /// Configures the behaviour of the miner.
 #[derive(Debug, PartialEq)]
@@ -397,7 +397,7 @@ impl Miner {
 		let max_transactions = if min_tx_gas.is_zero() {
 			usize::max_value()
 		} else {
-			(*open_block.block().header().gas_limit() / min_tx_gas).as_u64() as usize
+			MAX_SKIPPED_TRANSACTIONS.saturating_add((*open_block.block().header().gas_limit() / min_tx_gas).as_u64() as usize)
 		};
 
 		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
