@@ -258,11 +258,15 @@ fn keep_ancient_blocks() {
 	assert!(client2.block(BlockId::Number(100)).is_none());
 
 	// Check that the first 50 blocks have been migrated
-	assert!(client2.block(BlockId::Number(49)).is_some());
+	for block_number in 1..49 {
+		assert!(client2.block(BlockId::Number(block_number)).is_some());
+	}
 }
 
 #[test]
 fn recover_aborted_recovery() {
+	::env_logger::init().ok();
+
 	const NUM_BLOCKS: u32 = 400;
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
 	let client = generate_dummy_client_with_spec_and_data(Spec::new_null, NUM_BLOCKS, 5, &gas_prices);
@@ -305,7 +309,7 @@ fn recover_aborted_recovery() {
 			assert_eq!(state_chunks_done, manifest.state_hashes.len() as u32);
 			assert_eq!(block_chunks_done, 0);
 		},
-		_ => panic!("Snapshot restoration must be ongoing"),
+		e => panic!("Snapshot restoration must be ongoing ; {:?}", e),
 	}
 
 	// Abort the restore...
@@ -319,7 +323,7 @@ fn recover_aborted_recovery() {
 			assert_eq!(state_chunks_done, manifest.state_hashes.len() as u32);
 			assert_eq!(block_chunks_done, 0);
 		},
-		_ => panic!("Snapshot restoration must be ongoing"),
+		e => panic!("Snapshot restoration must be ongoing ; {:?}", e),
 	}
 
 	// Remove the snapshot directory, and restart the restoration

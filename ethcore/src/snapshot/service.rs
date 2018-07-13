@@ -366,11 +366,11 @@ impl Service {
 		// [0 ... min(new.first_block, best_ancient_block or best_block)]
 		let find_range = || -> Option<(H256, H256)> {
 			let next_available_from = next_chain_info.first_block_number?;
-			let curr_available_to = cur_chain_info.ancient_block_number.unwrap_or(cur_chain_info.best_block_number);
+			let cur_available_to = cur_chain_info.ancient_block_number.unwrap_or(cur_chain_info.best_block_number);
 
-			let target_block_num = cmp::min(next_available_from - 1, curr_available_to);
+			let target_block_num = cmp::min(next_available_from - 1, cur_available_to);
 
-			if next_available_from >= target_block_num {
+			if target_block_num == 0 {
 				return None;
 			}
 
