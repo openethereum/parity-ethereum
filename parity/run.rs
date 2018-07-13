@@ -93,7 +93,6 @@ pub struct RunCmd {
 	pub miner_options: MinerOptions,
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
-	pub ntp_servers: Vec<String>,
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
 	pub ipc_conf: rpc::IpcConfiguration,
