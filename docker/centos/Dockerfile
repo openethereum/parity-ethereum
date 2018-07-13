@@ -3,7 +3,7 @@ WORKDIR /build
 
 # install tools and dependencies
 RUN yum -y update&& \
-    yum install -y git make gcc-c++ gcc file binutils
+    yum install -y git make gcc-c++ gcc file binutils cmake
 
 # install rustup
 RUN curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&\
