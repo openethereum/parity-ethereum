@@ -200,7 +200,7 @@ pub struct Client {
 
 	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
 	liveness: AtomicBool,
-	io_channel: Mutex<IoChannel<ClientIoMessage>>,
+	io_channel: RwLock<IoChannel<ClientIoMessage>>,
 
 	/// List of actors to be notified on certain chain events
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
@@ -761,7 +761,7 @@ impl Client {
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
-			io_channel: Mutex::new(message_channel),
+			io_channel: RwLock::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: IoChannelQueue::new(config.transaction_verification_queue_size),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
@@ -995,7 +995,7 @@ impl Client {
 
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
-		*self.io_channel.lock() = io_channel;
+		*self.io_channel.write() = io_channel;
 	}
 
 	/// Get a copy of the best block's state.
@@ -2011,7 +2011,7 @@ impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		trace_time!("queue_transactions");
 		let len = transactions.len();
-		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |client| {
+		self.queue_transactions.queue(&self.io_channel.read(), len, move |client| {
 			trace_time!("import_queued_transactions");
 
 			let txs: Vec<UnverifiedTransaction> = transactions
@@ -2060,7 +2060,7 @@ impl IoClient for Client {
 
 		let queued = self.queued_ancient_blocks.clone();
 		let lock = self.ancient_blocks_import_lock.clone();
-		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
+		match self.queue_ancient_blocks.queue(&self.io_channel.read(), 1, move |client| {
 			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
 			// We use separate lock, cause we don't want to block queueing.
@@ -2092,7 +2092,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), 1, move |client| {
+		match self.queue_consensus_message.queue(&self.io_channel.read(), 1, move |client| {
 			if let Err(e) = client.engine().handle_message(&message) {
 				debug!(target: "poa", "Invalid message received: {}", e);
 			}
@@ -2202,7 +2202,14 @@ impl ImportSealedBlock for Client {
 			route
 		};
 		let route = ChainRoute::from([route].as_ref());
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), self.engine.seals_internally().is_some());
+		self.importer.miner.chain_new_blocks(
+			self,
+			&[h.clone()],
+			&[],
+			route.enacted(),
+			route.retracted(),
+			self.engine.seals_internally().is_some(),
+		);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
@@ -2526,7 +2533,7 @@ impl IoChannelQueue {
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
+	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);

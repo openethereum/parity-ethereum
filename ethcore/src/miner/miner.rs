@@ -28,6 +28,7 @@ use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStat
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
+use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
 use transaction::{
@@ -44,7 +45,7 @@ use block::{ClosedBlock, IsBlock, Block, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce
 };
-use client::BlockId;
+use client::{BlockId, ClientIoMessage};
 use executive::contract_address;
 use header::{Header, BlockNumber};
 use miner;
@@ -211,6 +212,7 @@ pub struct Miner {
 	transaction_queue: Arc<TransactionQueue>,
 	engine: Arc<EthEngine>,
 	accounts: Option<Arc<AccountProvider>>,
+	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
 }
 
 impl Miner {
@@ -227,7 +229,12 @@ impl Miner {
 	}
 
 	/// Creates new instance of miner Arc.
-	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Self {
+	pub fn new(
+		options: MinerOptions,
+		gas_pricer: GasPricer,
+		spec: &Spec,
+		accounts: Option<Arc<AccountProvider>>,
+	) -> Self {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
@@ -251,6 +258,7 @@ impl Miner {
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts,
 			engine: spec.engine.clone(),
+			io_channel: RwLock::new(None),
 		}
 	}
 
@@ -268,6 +276,11 @@ impl Miner {
 			reseal_min_period: Duration::from_secs(0),
 			..Default::default()
 		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts)
+	}
+
+	/// Sets `IoChannel`
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+		*self.io_channel.write() = Some(io_channel);
 	}
 
 	/// Clear all pending block states
@@ -1176,7 +1189,32 @@ impl miner::MinerService for Miner {
 			// (thanks to Ready), but culling can take significant amount of time,
 			// so best to leave it after we create some work for miners to prevent increased
 			// uncle rate.
-			self.transaction_queue.cull(client);
+			// If the io_channel is available attempt to offload culling to a separate task
+			// to avoid blocking chain_new_blocks
+			if let Some(ref channel) = *self.io_channel.read() {
+				let queue = self.transaction_queue.clone();
+				let nonce_cache = self.nonce_cache.clone();
+				let engine = self.engine.clone();
+				let accounts = self.accounts.clone();
+				let refuse_service_transactions = self.options.refuse_service_transactions;
+
+				let cull = move |chain: &::client::Client| {
+					let client = PoolClient::new(
+						chain,
+						&nonce_cache,
+						&*engine,
+						accounts.as_ref().map(|x| &**x),
+						refuse_service_transactions,
+					);
+					queue.cull(client);
+				};
+
+				if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
+					warn!(target: "miner", "Error queueing cull: {:?}", e);
+				}
+			} else {
+				self.transaction_queue.cull(client);
+			}
 		}
 	}
 
