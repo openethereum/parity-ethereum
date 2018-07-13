@@ -80,6 +80,13 @@ tempdir = "0.3"
 trie-standardmap = { git = "https://github.com/paritytech/parity-common" }
 
 [features]
+parity = ["work-notify", "price-info", "stratum"]
+# Large optional features that are enabled by default for Parity,
+# but might be omitted for other dependent crates.
+work-notify = ["ethcore-miner/work-notify"]
+price-info = ["ethcore-miner/price-info"]
+stratum = ["ethcore-stratum"]
+
 # Display EVM debug traces.
 evm-debug = ["evm/evm-debug"]
 # Display EVM debug traces when running tests.
@@ -97,6 +104,3 @@ test-heavy = []
 benches = []
 # Compile test helpers
 test-helpers = ["tempdir"]
-work-notify = ["ethcore-miner/work-notify"]
-price-info = ["ethcore-miner/price-info"]
-stratum = ["ethcore-stratum"]
