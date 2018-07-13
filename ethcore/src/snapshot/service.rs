@@ -358,63 +358,38 @@ impl Service {
 		let next_chain = BlockChain::new(Default::default(), &[], next_db.clone());
 		let next_chain_info = next_chain.chain_info();
 
-		// Get the *inclusive* first and last blocks to iterate through
-		let start_block_number = match next_chain_info.ancient_block_number {
-			Some(bn) => bn + 1,
-			None => return Ok(count),
-		};
-		let mut end_block_number = match next_chain_info.first_block_number {
-			// Don't underflow
-			Some(0) => 0,
-			Some(bn) => bn - 1,
-			None => return Ok(count),
-		};
+		// The old database looks like this:
+		// [genesis, best_ancient_block] ... [first_block, best_block]
+		// If we are fully synced neither `best_ancient_block` nor `first_block` is set, and we can assume that the whole range from [genesis, best_block] is imported.
+		// The new database only contains the tip of the chain ([forst_block, best_block]),
+		// so the useful set of blocks is defined as:
+		// [0 ... min(new.first_block, best_ancient_block or best_block)]
+		let find_range = || -> Option<(H256, H256)> {
+			let next_available_from = next_chain_info.first_block_number?;
+			let curr_available_to = cur_chain_info.ancient_block_number.unwrap_or(cur_chain_info.best_block_number);
 
-		// Check that the intersection is non-null
-		if start_block_number >= end_block_number {
-			return Ok(count);
-		}
+			let target_block_num = cmp::min(next_available_from - 1, curr_available_to);
 
-		// Find the best block we can sync to
-		match (cur_chain_info.ancient_block_number, cur_chain_info.best_block_number) {
-			// The current chain already has some available and useful ancient blocks
-			(Some(ancient_bn), _) if ancient_bn > start_block_number => {
-				end_block_number = ancient_bn;
-			},
-			// The current chain was synced until best_bn
-			(None, best_bn) => {
-				// Take the minimum block between `best_bn` and `end_block_number`
-				end_block_number = cmp::min(end_block_number, best_bn);
-			},
-			// If the ancient block number is bellow the new one, which should not happen
-			_ => return Ok(count),
+			if next_available_from >= target_block_num {
+				return None;
+			}
+
+			trace!(target: "snapshot", "Trying to import ancient blocks until {}", target_block_num);
+
+			let target_hash = self.client.block_hash(BlockId::Number(0))?;
+			let start_hash = self.client.block_hash(BlockId::Number(target_block_num))?;
+
+			Some((start_hash, target_hash))
 		};
 
-		// Check that the intersection is non-null
-		if start_block_number >= end_block_number {
-			return Ok(count);
-		}
-
-		// Try to include every block that will need to be downloaded from the current chain
-		// Break when no more blocks are available from it.
-		trace!(target: "snapshot", "Trying to import ancient blocks from {} to {}",
-			start_block_number, end_block_number,
-		);
-
-		// As we are going backwards, the target hash is the one of the first block's parent
-		let target_block_hash = match self.client.block_hash(BlockId::Number(start_block_number - 1)) {
-			Some(hash) => hash,
-			None => return Ok(count),
-		};
-
-		let last_block_hash = match self.client.block_hash(BlockId::Number(end_block_number)) {
-			Some(h) => h,
-			None => return Ok(count),
+		let (start_hash, target_hash) = match find_range() {
+			Some((start_hash, target_hash)) => (start_hash, target_hash),
+			None => return Ok(0),
 		};
 
 		let mut batch = DBTransaction::new();
-		let mut parent_hash = last_block_hash;
-		while parent_hash != target_block_hash {
+		let mut parent_hash = start_hash;
+		while parent_hash != target_hash {
 			// Early return if restoration is aborted
 			if !self.restoring_snapshot.load(Ordering::SeqCst) {
 				return Ok(count);
@@ -457,12 +432,12 @@ impl Service {
 		next_db.key_value().flush().expect("DB flush failed.");
 
 		// We couldn't reach the targeted hash
-		if parent_hash != target_block_hash {
+		if parent_hash != target_hash {
 			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain.into());
 		}
 
 		// Update best ancient block in the Next Chain
-		next_chain.update_best_ancient_block(&last_block_hash);
+		next_chain.update_best_ancient_block(&start_hash);
 		Ok(count)
 	}
 
