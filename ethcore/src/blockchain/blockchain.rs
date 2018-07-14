@@ -756,9 +756,6 @@ impl BlockChain {
 		let block_difficulty = block.header_view().difficulty();
 		let hash = block.header_view().hash();
 
-		let block_vec = block.clone().into_inner();
-		let bytes = &block_vec as &[u8];
-
 		if self.is_known(&hash) {
 			return false;
 		}
@@ -784,11 +781,11 @@ impl BlockChain {
 			};
 
 			self.prepare_update(batch, ExtrasUpdate {
-				block_hashes: self.prepare_block_hashes_update(block.raw(), &info),
-				block_details: self.prepare_block_details_update(block.raw(), &info, false, None),
+				block_hashes: self.prepare_block_hashes_update(&info),
+				block_details: self.prepare_block_details_update(block_parent_hash, &info, false, None),
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
-				blocks_blooms: self.prepare_block_blooms_update(block.raw(), &info),
-				transactions_addresses: self.prepare_transaction_addresses_update(block.raw(), &info),
+				blocks_blooms: self.prepare_block_blooms_update(block.header_view().log_bloom(), &info),
+				transactions_addresses: self.prepare_transaction_addresses_update(block.view().transaction_hashes(), &info),
 				info: info,
 				block,
 			}, is_best);
@@ -835,11 +832,11 @@ impl BlockChain {
 			update.insert(hash, block_details);
 
 			self.prepare_update(batch, ExtrasUpdate {
-				block_hashes: self.prepare_block_hashes_update(bytes, &info),
+				block_hashes: self.prepare_block_hashes_update(&info),
 				block_details: update,
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
-				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
-				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
+				blocks_blooms: self.prepare_block_blooms_update(block.header_view().log_bloom(), &info),
+				transactions_addresses: self.prepare_transaction_addresses_update(block.view().transaction_hashes(), &info),
 				info: info,
 				block,
 			}, is_best);
@@ -994,11 +991,11 @@ impl BlockChain {
 		}
 
 		self.prepare_update(batch, ExtrasUpdate {
-			block_hashes: self.prepare_block_hashes_update(block.raw(), &info),
-			block_details: self.prepare_block_details_update(block.raw(), &info, extras.is_finalized, extras.metadata),
+			block_hashes: self.prepare_block_hashes_update(&info),
+			block_details: self.prepare_block_details_update(parent_hash, &info, extras.is_finalized, extras.metadata),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
-			blocks_blooms: self.prepare_block_blooms_update(block.raw(), &info),
-			transactions_addresses: self.prepare_transaction_addresses_update(block.raw(), &info),
+			blocks_blooms: self.prepare_block_blooms_update(block.header_view().log_bloom(), &info),
+			transactions_addresses: self.prepare_transaction_addresses_update(block.view().transaction_hashes(), &info),
 			info: info.clone(),
 			block,
 		}, true);
@@ -1204,16 +1201,13 @@ impl BlockChain {
 	}
 
 	/// This function returns modified block hashes.
-	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<BlockNumber, H256> {
+	fn prepare_block_hashes_update(&self, info: &BlockInfo) -> HashMap<BlockNumber, H256> {
 		let mut block_hashes = HashMap::new();
-		let block = view!(BlockView, block_bytes);
-		let header = block.header_view();
-		let number = header.number();
 
 		match info.location {
 			BlockLocation::Branch => (),
 			BlockLocation::CanonChain => {
-				block_hashes.insert(number, info.hash);
+				block_hashes.insert(info.number, info.hash);
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let ancestor_number = self.block_number(&data.ancestor).expect("Block number of ancestor is always in DB");
@@ -1223,7 +1217,7 @@ impl BlockChain {
 					block_hashes.insert(start_number + index as BlockNumber, hash);
 				}
 
-				block_hashes.insert(number, info.hash);
+				block_hashes.insert(info.number, info.hash);
 			}
 		}
 
@@ -1232,18 +1226,14 @@ impl BlockChain {
 
 	/// This function returns modified block details.
 	/// Uses the given parent details or attempts to load them from the database.
-	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo, is_finalized: bool, metadata: Option<Vec<u8>>) -> HashMap<H256, BlockDetails> {
-		let block = view!(BlockView, block_bytes);
-		let header = block.header_view();
-		let parent_hash = header.parent_hash();
-
+	fn prepare_block_details_update(&self, parent_hash: H256, info: &BlockInfo, is_finalized: bool, metadata: Option<Vec<u8>>) -> HashMap<H256, BlockDetails> {
 		// update parent
 		let mut parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		parent_details.children.push(info.hash);
 
 		// create current block details.
 		let details = BlockDetails {
-			number: header.number(),
+			number: info.number,
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash,
 			children: vec![],
@@ -1266,10 +1256,7 @@ impl BlockChain {
 	}
 
 	/// This function returns modified transaction addresses.
-	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, Option<TransactionAddress>> {
-		let block = view!(BlockView, block_bytes);
-		let transaction_hashes = block.transaction_hashes();
-
+	fn prepare_transaction_addresses_update(&self, transaction_hashes: Vec<H256>, info: &BlockInfo) -> HashMap<H256, Option<TransactionAddress>> {
 		match info.location {
 			BlockLocation::CanonChain => {
 				transaction_hashes.into_iter()
@@ -1334,14 +1321,10 @@ impl BlockChain {
 	/// Later, BloomIndexer is used to map bloom location on filter layer (BloomIndex)
 	/// to bloom location in database (BlocksBloomLocation).
 	///
-	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> Option<(u64, Vec<Bloom>)> {
-		let block = view!(BlockView, block_bytes);
-		let header = block.header_view();
-
+	fn prepare_block_blooms_update(&self, log_bloom: Bloom, info: &BlockInfo) -> Option<(u64, Vec<Bloom>)> {
 		match info.location {
 			BlockLocation::Branch => None,
 			BlockLocation::CanonChain => {
-				let log_bloom = header.log_bloom();
 				if log_bloom.is_zero() {
 					None
 				} else {
@@ -1357,7 +1340,7 @@ impl BlockChain {
 					.map(|h| h.log_bloom())
 					.collect();
 
-				blooms.push(header.log_bloom());
+				blooms.push(log_bloom);
 				Some((start_number, blooms))
 			}
 		}
