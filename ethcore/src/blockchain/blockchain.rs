@@ -1077,7 +1077,6 @@ impl BlockChain {
 			let mut best_block = self.pending_best_block.write();
 			if is_best && update.info.location != BlockLocation::Branch {
 				batch.put(db::COL_EXTRA, b"best", &update.info.hash);
-				//let block = encoded::Block::new(update.block.to_vec());
 				*best_block = Some(BestBlock {
 					total_difficulty: update.info.total_difficulty,
 					header: update.block.decode_header(),
