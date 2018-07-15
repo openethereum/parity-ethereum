@@ -264,7 +264,6 @@ pub struct OpenBlock<'x> {
 #[derive(Clone)]
 pub struct ClosedBlock {
 	block: ExecutedBlock,
-	uncle_bytes: Bytes,
 	unclosed_state: State<StateDB>,
 	unclosed_finalization_state: bool,
 	unclosed_metadata: Option<Vec<u8>>,
@@ -276,7 +275,6 @@ pub struct ClosedBlock {
 #[derive(Clone)]
 pub struct LockedBlock {
 	block: ExecutedBlock,
-	uncle_bytes: Bytes,
 }
 
 /// A block that has a valid seal.
@@ -284,7 +282,6 @@ pub struct LockedBlock {
 /// The block's header has valid seal arguments. The block cannot be reversed into a `ClosedBlock` or `OpenBlock`.
 pub struct SealedBlock {
 	block: ExecutedBlock,
-	uncle_bytes: Bytes,
 }
 
 impl<'x> OpenBlock<'x> {
@@ -443,7 +440,7 @@ impl<'x> OpenBlock<'x> {
 			warn!("Encountered error on state commit: {}", e);
 		}
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
-		let uncle_bytes = encode_list(&s.block.uncles).into_vec();
+		let uncle_bytes = encode_list(&s.block.uncles);
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
 		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
@@ -455,7 +452,6 @@ impl<'x> OpenBlock<'x> {
 
 		ClosedBlock {
 			block: s.block,
-			uncle_bytes,
 			unclosed_state,
 			unclosed_metadata,
 			unclosed_finalization_state,
@@ -477,8 +473,8 @@ impl<'x> OpenBlock<'x> {
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		}
-		let uncle_bytes = encode_list(&s.block.uncles).into_vec();
 		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &KECCAK_EMPTY_LIST_RLP {
+			let uncle_bytes = encode_list(&s.block.uncles);
 			s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		}
 		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &KECCAK_NULL_RLP {
@@ -494,7 +490,6 @@ impl<'x> OpenBlock<'x> {
 
 		LockedBlock {
 			block: s.block,
-			uncle_bytes,
 		}
 	}
 
@@ -523,7 +518,6 @@ impl ClosedBlock {
 	pub fn lock(self) -> LockedBlock {
 		LockedBlock {
 			block: self.block,
-			uncle_bytes: self.uncle_bytes,
 		}
 	}
 
@@ -542,7 +536,6 @@ impl ClosedBlock {
 }
 
 impl LockedBlock {
-
 	/// Removes outcomes from receipts and updates the receipt root.
 	///
 	/// This is done after the block is enacted for historical reasons.
@@ -575,7 +568,9 @@ impl LockedBlock {
 		}
 		s.block.header.set_seal(seal);
 		s.block.header.compute_hash();
-		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
+		Ok(SealedBlock {
+			block: s.block
+		})
 	}
 
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
@@ -593,7 +588,9 @@ impl LockedBlock {
 		// TODO: passing state context to avoid engines owning it?
 		match engine.verify_local_seal(&s.block.header) {
 			Err(e) => Err((e, s)),
-			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
+			_ => Ok(SealedBlock {
+				block: s.block
+			}),
 		}
 	}
 }
@@ -610,7 +607,7 @@ impl SealedBlock {
 		let mut block_rlp = RlpStream::new_list(3);
 		block_rlp.append(&self.block.header);
 		block_rlp.append_list(&self.block.transactions);
-		block_rlp.append_raw(&self.uncle_bytes, 1);
+		block_rlp.append_list(&self.block.uncles);
 		block_rlp.out()
 	}
 }
