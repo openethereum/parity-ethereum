@@ -95,14 +95,6 @@ pub trait Transactions: LiveBlock {
 	fn transactions(&self) -> &[Self::Transaction];
 }
 
-/// Trait for blocks which have finalized information.
-pub trait Finalizable: LiveBlock {
-	/// Get whether the block is finalized.
-	fn is_finalized(&self) -> bool;
-	/// Mark the block as finalized.
-	fn mark_finalized(&mut self);
-}
-
 /// A state machine with block metadata.
 pub trait WithMetadata: LiveBlock {
 	/// Get the current live block metadata.

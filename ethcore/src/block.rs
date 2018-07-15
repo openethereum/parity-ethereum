@@ -116,8 +116,6 @@ pub struct ExecutedBlock {
 	pub traces: Tracing,
 	/// Hashes of last 256 blocks.
 	pub last_hashes: Arc<LastHashes>,
-	/// Finalization flag.
-	pub is_finalized: bool,
 	/// Block metadata.
 	pub metadata: Option<Vec<u8>>,
 }
@@ -138,7 +136,6 @@ impl ExecutedBlock {
 				Tracing::Disabled
 			},
 			last_hashes: last_hashes,
-			is_finalized: false,
 			metadata: None,
 		}
 	}
@@ -228,16 +225,6 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 	}
 }
 
-impl ::parity_machine::Finalizable for ExecutedBlock {
-	fn is_finalized(&self) -> bool {
-		self.is_finalized
-	}
-
-	fn mark_finalized(&mut self) {
-		self.is_finalized = true;
-	}
-}
-
 impl ::parity_machine::WithMetadata for ExecutedBlock {
 	fn metadata(&self) -> Option<&[u8]> {
 		self.metadata.as_ref().map(|v| v.as_ref())
@@ -265,7 +252,6 @@ pub struct OpenBlock<'x> {
 pub struct ClosedBlock {
 	block: ExecutedBlock,
 	unclosed_state: State<StateDB>,
-	unclosed_finalization_state: bool,
 	unclosed_metadata: Option<Vec<u8>>,
 }
 
@@ -430,7 +416,6 @@ impl<'x> OpenBlock<'x> {
 
 		let unclosed_state = s.block.state.clone();
 		let unclosed_metadata = s.block.metadata.clone();
-		let unclosed_finalization_state = s.block.is_finalized;
 
 		if let Err(e) = s.engine.on_close_block(&mut s.block) {
 			warn!("Encountered error on closing the block: {}", e);
@@ -454,7 +439,6 @@ impl<'x> OpenBlock<'x> {
 			block: s.block,
 			unclosed_state,
 			unclosed_metadata,
-			unclosed_finalization_state,
 		}
 	}
 
@@ -527,7 +511,6 @@ impl ClosedBlock {
 		let mut block = self.block;
 		block.state = self.unclosed_state;
 		block.metadata = self.unclosed_metadata;
-		block.is_finalized = self.unclosed_finalization_state;
 		OpenBlock {
 			block: block,
 			engine: engine,

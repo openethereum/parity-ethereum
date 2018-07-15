@@ -461,6 +461,7 @@ impl Importer {
 		let number = header.number();
 		let parent = header.parent_hash();
 		let chain = client.chain.read();
+		let is_finalized = false;
 
 		// Commit results
 		let block = block.drain();
@@ -476,7 +477,7 @@ impl Importer {
 
 		let new = ExtendedHeader {
 			header: header.clone(),
-			is_finalized: block.is_finalized,
+			is_finalized,
 			metadata: block.metadata,
 			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
 		};
@@ -532,7 +533,7 @@ impl Importer {
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
-			is_finalized: block.is_finalized,
+			is_finalized,
 			metadata: new.metadata,
 		});
 
