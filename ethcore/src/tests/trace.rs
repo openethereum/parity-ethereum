@@ -97,7 +97,7 @@ fn can_trace_block_and_uncle_reward() {
 
 	last_header = view!(BlockView, &root_block.rlp_bytes()).header();
 	let root_header = last_header.clone();
-	db = root_block.drain();
+	db = root_block.drain().state.drop().1;
 
 	last_hashes.push(last_header.hash());
 
@@ -125,7 +125,7 @@ fn can_trace_block_and_uncle_reward() {
 	}
 
 	last_header = view!(BlockView,&parent_block.rlp_bytes()).header();
-	db = parent_block.drain();
+	db = parent_block.drain().state.drop().1;
 
 	last_hashes.push(last_header.hash());
 

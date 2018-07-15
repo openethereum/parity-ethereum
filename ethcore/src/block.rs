@@ -14,7 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain block.
+//! Base data structure of this module is `Block`.
+//!
+//! Blocks can be produced by a local node or they may be received from the network.
+//!
+//! To create a block locally, we start with an `OpenBlock`. This block is mutable
+//! and can be appended to with transactions and uncles.
+//!
+//! When ready, `OpenBlock` can be closed and turned into a `ClosedBlock`. A `ClosedBlock` can
+//! be reopend again by a miner under certain circumstances. On block close, state commit is
+//! performed.
+//!
+//! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
+//! using an engine.
+//!
+//! `ExecutedBlock` is an underlaying data structure used by all structs above to store block
+//! related info.
 
 use std::cmp;
 use std::collections::HashSet;
@@ -85,16 +100,26 @@ impl Decodable for Block {
 /// An internal type for a block's common elements.
 #[derive(Clone)]
 pub struct ExecutedBlock {
-	header: Header,
-	transactions: Vec<SignedTransaction>,
-	uncles: Vec<Header>,
-	receipts: Vec<Receipt>,
-	transactions_set: HashSet<H256>,
-	state: State<StateDB>,
-	traces: Tracing,
-	last_hashes: Arc<LastHashes>,
-	is_finalized: bool,
-	metadata: Option<Vec<u8>>,
+	/// Executed block header.
+	pub header: Header,
+	/// Executed transactions.
+	pub transactions: Vec<SignedTransaction>,
+	/// Uncles.
+	pub uncles: Vec<Header>,
+	/// Transaction receipts.
+	pub receipts: Vec<Receipt>,
+	/// Hashes of already executed transactions.
+	pub transactions_set: HashSet<H256>,
+	/// Underlaying state.
+	pub state: State<StateDB>,
+	/// Transaction traces.
+	pub traces: Tracing,
+	/// Hashes of last 256 blocks.
+	pub last_hashes: Arc<LastHashes>,
+	/// Finalization flag.
+	pub is_finalized: bool,
+	/// Block metadata.
+	pub metadata: Option<Vec<u8>>,
 }
 
 impl ExecutedBlock {
@@ -169,20 +194,14 @@ pub trait IsBlock {
 	/// Get all information on receipts in this block.
 	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
 
-	/// Get all information concerning transaction tracing in this block.
-	fn traces(&self) -> &Tracing { &self.block().traces }
-
 	/// Get all uncles in this block.
 	fn uncles(&self) -> &[Header] { &self.block().uncles }
-
-	/// Get tracing enabled flag for this block.
-	fn tracing_enabled(&self) -> bool { self.block().traces.is_enabled() }
 }
 
-/// Trait for a object that has a state database.
+/// Trait for an object that owns an `ExecutedBlock`
 pub trait Drain {
-	/// Drop this object and return the underlying database.
-	fn drain(self) -> StateDB;
+	/// Returns `ExecutedBlock`
+	fn drain(self) -> ExecutedBlock;
 }
 
 impl IsBlock for ExecutedBlock {
@@ -488,11 +507,11 @@ impl<'x> IsBlock for OpenBlock<'x> {
 	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
-impl<'x> IsBlock for ClosedBlock {
+impl IsBlock for ClosedBlock {
 	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
-impl<'x> IsBlock for LockedBlock {
+impl IsBlock for LockedBlock {
 	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
@@ -580,9 +599,8 @@ impl LockedBlock {
 }
 
 impl Drain for LockedBlock {
-	/// Drop this object and return the underlieing database.
-	fn drain(self) -> StateDB {
-		self.block.state.drop().1
+	fn drain(self) -> ExecutedBlock {
+		self.block
 	}
 }
 
@@ -598,9 +616,8 @@ impl SealedBlock {
 }
 
 impl Drain for SealedBlock {
-	/// Drop this object and return the underlieing database.
-	fn drain(self) -> StateDB {
-		self.block.state.drop().1
+	fn drain(self) -> ExecutedBlock {
+		self.block
 	}
 }
 
@@ -788,14 +805,14 @@ mod tests {
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap()
 			.close_and_lock().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
-		let orig_db = b.drain();
+		let orig_db = b.drain().state.drop().1;
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 
-		let db = e.drain();
+		let db = e.drain().state.drop().1;
 		assert_eq!(orig_db.journal_db().keys(), db.journal_db().keys());
 		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
 	}
@@ -819,7 +836,7 @@ mod tests {
 		let b = open_block.close_and_lock().seal(engine, vec![]).unwrap();
 
 		let orig_bytes = b.rlp_bytes();
-		let orig_db = b.drain();
+		let orig_db = b.drain().state.drop().1;
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
@@ -829,7 +846,7 @@ mod tests {
 		let uncles = view!(BlockView, &bytes).uncles();
 		assert_eq!(uncles[1].extra_data(), b"uncle2");
 
-		let db = e.drain();
+		let db = e.drain().state.drop().1;
 		assert_eq!(orig_db.journal_db().keys(), db.journal_db().keys());
 		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
 	}

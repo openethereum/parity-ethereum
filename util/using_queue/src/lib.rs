@@ -19,7 +19,7 @@
 /// Special queue-like datastructure that includes the notion of
 /// usage to avoid items that were queued but never used from making it into
 /// the queue.
-pub struct UsingQueue<T> where T: Clone {
+pub struct UsingQueue<T> {
 	/// Not yet being sealed by a miner, but if one asks for work, we'd prefer they do this.
 	pending: Option<T>,
 	/// Currently being sealed by miners.
@@ -36,7 +36,7 @@ pub enum GetAction {
 	Clone,
 }
 
-impl<T> UsingQueue<T> where T: Clone {
+impl<T> UsingQueue<T> {
 	/// Create a new struct with a maximum size of `max_size`.
 	pub fn new(max_size: usize) -> UsingQueue<T> {
 		UsingQueue {
@@ -88,12 +88,12 @@ impl<T> UsingQueue<T> where T: Clone {
 
 	/// Returns `Some` item which is the first that `f` returns `true` with a reference to it
 	/// as a parameter or `None` if no such item exists in the queue.
-	fn clone_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+	fn clone_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool, T: Clone {
 		self.in_use.iter().find(|r| predicate(r)).cloned()
 	}
 
 	/// Fork-function for `take_used_if` and `clone_used_if`.
-	pub fn get_used_if<P>(&mut self, action: GetAction, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+	pub fn get_used_if<P>(&mut self, action: GetAction, predicate: P) -> Option<T> where P: Fn(&T) -> bool, T: Clone {
 		match action {
 			GetAction::Take => self.take_used_if(predicate),
 			GetAction::Clone => self.clone_used_if(predicate),
@@ -104,7 +104,7 @@ impl<T> UsingQueue<T> where T: Clone {
 	/// a parameter, otherwise `None`.
 	/// Will not destroy a block if a reference to it has previously been returned by `use_last_ref`,
 	/// but rather clone it.
-	pub fn pop_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+	pub fn pop_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool, T: Clone {
 		// a bit clumsy - TODO: think about a nicer way of expressing this.
 		if let Some(x) = self.pending.take() {
 			if predicate(&x) {

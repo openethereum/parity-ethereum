@@ -76,7 +76,6 @@ use verification;
 use verification::{PreverifiedBlock, Verifier};
 use verification::queue::BlockQueue;
 use views::BlockView;
-use parity_machine::{Finalizable, WithMetadata};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -290,7 +289,7 @@ impl Importer {
 					continue;
 				}
 
-				if let Ok(closed_block) = self.check_and_close_block(block, client) {
+				if let Ok(closed_block) = self.check_and_lock_block(block, client) {
 					if self.engine.is_proposal(&header) {
 						self.block_queue.mark_as_good(&[hash]);
 						proposed_blocks.push(bytes);
@@ -345,7 +344,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_close_block(&self, block: PreverifiedBlock, client: &Client) -> Result<LockedBlock, ()> {
+	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> Result<LockedBlock, ()> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -459,32 +458,28 @@ impl Importer {
 	// it is for reconstructing the state transition.
 	//
 	// The header passed is from the original block data and is sealed.
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: &[u8], client: &Client) -> ImportRoute where B: IsBlock + Drain {
+	fn commit_block<B>(&self, block: B, header: &Header, block_data: &[u8], client: &Client) -> ImportRoute where B: Drain {
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
 		let chain = client.chain.read();
 
 		// Commit results
-		let receipts = block.receipts().to_owned();
-		let traces = block.traces().clone().drain();
-
+		let block = block.drain();
 		assert_eq!(header.hash(), view!(BlockView, block_data).header_view().hash());
-
-		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		let mut batch = DBTransaction::new();
 
-		let ancestry_actions = self.engine.ancestry_actions(block.block(), &mut chain.ancestry_with_metadata_iter(*parent));
+		let ancestry_actions = self.engine.ancestry_actions(&block, &mut chain.ancestry_with_metadata_iter(*parent));
 
+		let receipts = block.receipts;
+		let traces = block.traces.drain();
 		let best_hash = chain.best_block_hash();
-		let metadata = block.block().metadata().map(Into::into);
-		let is_finalized = block.block().is_finalized();
 
 		let new = ExtendedHeader {
 			header: header.clone(),
-			is_finalized: is_finalized,
-			metadata: metadata,
+			is_finalized: block.is_finalized,
+			metadata: block.metadata,
 			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
 		};
 
@@ -516,7 +511,7 @@ impl Importer {
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		let mut state = block.drain();
+		let mut state = block.state.drop().1;
 
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
@@ -539,7 +534,7 @@ impl Importer {
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
-			is_finalized: is_finalized,
+			is_finalized: block.is_finalized,
 			metadata: new.metadata,
 		});
 
