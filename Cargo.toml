@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity-ethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "2.0.0"
+version = "2.1.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -32,7 +32,7 @@ futures-cpupool = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-ethcore = { path = "ethcore", features = ["work-notify", "price-info", "stratum"] }
+ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
@@ -88,6 +88,7 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = { git = "https://github.com/paritytech/daemonize" }
 
 [features]
+miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]

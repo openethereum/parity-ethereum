@@ -6,7 +6,7 @@ RUN apt-get -y update && \
         apt-get install -y --force-yes --no-install-recommends \
         curl git make g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
         libc6-dev-armhf-cross wget file ca-certificates \
-        binutils-arm-linux-gnueabihf \
+        binutils-arm-linux-gnueabihf cmake \
         && \
     apt-get clean
 
