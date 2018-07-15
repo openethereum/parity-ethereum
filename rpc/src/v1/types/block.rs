@@ -244,7 +244,8 @@ mod tests {
 			seal_fields: vec![Bytes::default(), Bytes::default()],
 			uncles: vec![],
 			transactions: BlockTransactions::Hashes(vec![].into()),
-			size: Some(69.into()),
+			receipts: Some(vec![]),
+			size: Some(69.into()),		
 		};
 		let serialized_block = serde_json::to_string(&block).unwrap();
 		let rich_block = RichBlock {
@@ -282,6 +283,7 @@ mod tests {
 			seal_fields: vec![Bytes::default(), Bytes::default()],
 			uncles: vec![],
 			transactions: BlockTransactions::Hashes(vec![].into()),
+			receipts: Some(vec![]),
 			size: None,
 		};
 		let serialized_block = serde_json::to_string(&block).unwrap();
