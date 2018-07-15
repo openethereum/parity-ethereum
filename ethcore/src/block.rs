@@ -225,16 +225,6 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 	}
 }
 
-impl ::parity_machine::WithMetadata for ExecutedBlock {
-	fn metadata(&self) -> Option<&[u8]> {
-		self.metadata.as_ref().map(|v| v.as_ref())
-	}
-
-	fn set_metadata(&mut self, value: Option<Vec<u8>>) {
-		self.metadata = value;
-	}
-}
-
 /// Block that is ready for transactions to be added.
 ///
 /// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and
