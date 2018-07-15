@@ -21,7 +21,7 @@ use ethcore::encoded::Header as EthHeader;
 
 use serde::{Serialize, Serializer};
 use serde::ser::Error;
-use v1::types::{Bytes, Transaction, H160, H256, H2048, U256};
+use v1::types::{Bytes, Transaction, Receipt, H160, H256, H2048, U256};
 
 /// Block Transactions
 #[derive(Debug)]
@@ -85,6 +85,8 @@ pub struct Block {
 	pub uncles: Vec<H256>,
 	/// Transactions
 	pub transactions: BlockTransactions,
+	/// Transactions Receipts
+	pub receipts: Option<Vec<Receipt>>,
 	/// Size in bytes
 	pub size: Option<U256>,
 }
