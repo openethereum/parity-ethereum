@@ -24,7 +24,7 @@ use blockchain::TreeRoute;
 use client::Mode;
 use encoded;
 use vm::LastHashes;
-use error::{ImportResult, CallError, BlockImportError};
+use error::{Error, ImportResult, CallError, BlockImportError};
 use evm::Schedule;
 use executive::Executed;
 use filter::Filter;
@@ -395,7 +395,7 @@ pub trait PrepareOpenBlock {
 		author: Address,
 		gas_range_target: (U256, U256),
 		extra_data: Bytes
-	) -> OpenBlock;
+	) -> Result<OpenBlock, Error>;
 }
 
 /// Provides methods used for sealing new state

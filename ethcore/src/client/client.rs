@@ -2131,7 +2131,7 @@ impl ReopenBlock for Client {
 }
 
 impl PrepareOpenBlock for Client {
-	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> Result<OpenBlock, EthcoreError> {
 		let engine = &*self.engine;
 		let chain = self.chain.read();
 		let best_header = chain.best_block_header();
@@ -2150,7 +2150,7 @@ impl PrepareOpenBlock for Client {
 			extra_data,
 			is_epoch_begin,
 			&mut chain.ancestry_with_metadata_iter(best_header.hash()),
-		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
+		)?;
 
 		// Add uncles
 		chain
@@ -2166,7 +2166,7 @@ impl PrepareOpenBlock for Client {
 												qed");
 			});
 
-		open_block
+		Ok(open_block)
 	}
 }
 
