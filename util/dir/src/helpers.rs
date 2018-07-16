@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Directory helper functions
+use std::env;
 
 /// Replaces `$HOME` str with home directory path.
 pub fn replace_home(base: &str, arg: &str) -> String {
 	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
-	let r = arg.replace("$HOME", ::dirs::home_dir().unwrap().to_str().unwrap());
+	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
 	let r = r.replace("$BASE", base);
 	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
 }
