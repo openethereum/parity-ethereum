@@ -89,6 +89,8 @@ impl<'a> Visitor<'a> for UserDefaultsVisitor {
 		let tracing = tracing.as_bool().ok_or_else(|| Error::custom("invalid tracing value"))?;
 		let fat_db: Value = map.remove("fat_db").unwrap_or_else(|| Value::Bool(false));
 		let fat_db = fat_db.as_bool().ok_or_else(|| Error::custom("invalid fat_db value"))?;
+		let is_first_launch: Value = map.remove("is_first_launch").unwrap_or_else(|| Value::Bool(false));
+		let is_first_launch = is_first_launch.as_bool().ok_or_else(|| Error::custom("invalid is_first_launch value"))?;
 
 		let mode: Value = map.remove("mode").unwrap_or_else(|| Value::String("active".to_owned()));
 		let mode = match mode.as_str().ok_or_else(|| Error::custom("invalid mode value"))? {
@@ -107,11 +109,11 @@ impl<'a> Visitor<'a> for UserDefaultsVisitor {
 		};
 
 		let user_defaults = UserDefaults {
-			is_first_launch: false,
-			pruning: pruning,
-			tracing: tracing,
-			fat_db: fat_db,
-			mode: mode,
+			is_first_launch,
+			pruning,
+			tracing,
+			fat_db,
+			mode,
 		};
 
 		Ok(user_defaults)
