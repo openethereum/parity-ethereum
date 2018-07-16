@@ -82,6 +82,17 @@ pub enum Penalization {
 	},
 }
 
+/// Pending block preparation status.
+#[derive(Debug, PartialEq)]
+pub enum BlockPreparationStatus {
+	/// We had to prepare new pending block and the preparation succeeded.
+	Succeeded,
+	/// We had to prepare new pending block but the preparation failed.
+	Failed,
+	/// We didn't have to prepare a new block.
+	NotPrepared,
+}
+
 /// Initial minimal gas price.
 ///
 /// Gas price should be later overwritten externally
@@ -334,7 +345,7 @@ impl Miner {
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
-	fn prepare_block<C>(&self, chain: &C) -> (ClosedBlock, Option<H256>) where
+	fn prepare_block<C>(&self, chain: &C) -> Option<(ClosedBlock, Option<H256>)> where
 		C: BlockChain + CallContract + BlockProducer + Nonce + Sync,
 	{
 		trace_time!("prepare_block");
@@ -362,11 +373,18 @@ impl Miner {
 					// block not found - create it.
 					trace!(target: "miner", "prepare_block: No existing work - making new block");
 					let params = self.params.read().clone();
-					chain.prepare_open_block(
+
+					match chain.prepare_open_block(
 						params.author,
 						params.gas_range_target,
 						params.extra_data,
-					)
+					) {
+						Ok(block) => block,
+						Err(err) => {
+							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in chain specificiations or on-chain consensus smart contracts.", err);
+							return None;
+						}
+					}
 				}
 			};
 
@@ -493,7 +511,13 @@ impl Miner {
 		let elapsed = block_start.elapsed();
 		debug!(target: "miner", "Pushed {} transactions in {} ms", tx_count, took_ms(&elapsed));
 
-		let block = open_block.close();
+		let block = match open_block.close() {
+			Ok(block) => block,
+			Err(err) => {
+				warn!(target: "miner", "Closing the block failed with error {:?}. This is likely an error in chain specificiations or on-chain consensus smart contracts.", err);
+				return None;
+			}
+		};
 
 		{
 			self.transaction_queue.remove(invalid_transactions.iter(), true);
@@ -501,7 +525,7 @@ impl Miner {
 			self.transaction_queue.penalize(senders_to_penalize.iter());
 		}
 
-		(block, original_work_hash)
+		Some((block, original_work_hash))
 	}
 
 	/// Returns `true` if we should create pending block even if some other conditions are not met.
@@ -705,8 +729,8 @@ impl Miner {
 		}
 	}
 
-	/// Returns true if we had to prepare new pending block.
-	fn prepare_pending_block<C>(&self, client: &C) -> bool where
+	/// Prepare a pending block. Returns the preparation status.
+	fn prepare_pending_block<C>(&self, client: &C) -> BlockPreparationStatus where
 		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		trace!(target: "miner", "prepare_pending_block: entering");
@@ -722,14 +746,21 @@ impl Miner {
 			}
 		};
 
-		if prepare_new {
+		let preparation_status = if prepare_new {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires sealing locks.                                |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
-			let (block, original_work_hash) = self.prepare_block(client);
-			self.prepare_work(block, original_work_hash);
-		}
+			match self.prepare_block(client) {
+				Some((block, original_work_hash)) => {
+					self.prepare_work(block, original_work_hash);
+					BlockPreparationStatus::Succeeded
+				},
+				None => BlockPreparationStatus::Failed,
+			}
+		} else {
+			BlockPreparationStatus::NotPrepared
+		};
 
 		let best_number = client.chain_info().best_block_number;
 		let mut sealing = self.sealing.lock();
@@ -742,8 +773,7 @@ impl Miner {
 			sealing.last_request = Some(best_number);
 		}
 
-		// Return if we restarted
-		prepare_new
+		preparation_status
 	}
 
 	/// Prepare pending block, check whether sealing is needed, and then update sealing.
@@ -752,7 +782,7 @@ impl Miner {
 
 		// Make sure to do it after transaction is imported and lock is dropped.
 		// We need to create pending block and enable sealing.
-		if self.engine.seals_internally().unwrap_or(false) || !self.prepare_pending_block(chain) {
+		if self.engine.seals_internally().unwrap_or(false) || self.prepare_pending_block(chain) == BlockPreparationStatus::NotPrepared {
 			// If new block has not been prepared (means we already had one)
 			// or Engine might be able to seal internally,
 			// we need to update sealing.
@@ -1051,7 +1081,10 @@ impl miner::MinerService for Miner {
 		// | Make sure to release the locks before calling that method.             |
 		// --------------------------------------------------------------------------
 		trace!(target: "miner", "update_sealing: preparing a block");
-		let (block, original_work_hash) = self.prepare_block(chain);
+		let (block, original_work_hash) = match self.prepare_block(chain) {
+			Some((block, original_work_hash)) => (block, original_work_hash),
+			None => return,
+		};
 
 		// refuse to seal the first block of the chain if it contains hard forks
 		// which should be on by default.
@@ -1345,7 +1378,7 @@ mod tests {
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 1);
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
-		assert!(!miner.prepare_pending_block(&client));
+		assert_eq!(miner.prepare_pending_block(&client), BlockPreparationStatus::NotPrepared);
 	}
 
 	#[test]
@@ -1383,7 +1416,7 @@ mod tests {
 		// By default we use PendingSet::AlwaysSealing, so no transactions yet.
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
-		assert!(miner.prepare_pending_block(&client));
+		assert_eq!(miner.prepare_pending_block(&client), BlockPreparationStatus::Succeeded);
 		// After pending block is created we should see a transaction.
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 	}
@@ -1418,7 +1451,7 @@ mod tests {
 		assert_eq!(miner.pending_transactions(best_block), None);
 		assert_eq!(miner.pending_receipts(best_block), None);
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 0);
-		assert!(miner.prepare_pending_block(&client));
+		assert_eq!(miner.prepare_pending_block(&client), BlockPreparationStatus::Succeeded);
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 
 		// when - 2nd part: create a local transaction from account_provider.
@@ -1432,7 +1465,7 @@ mod tests {
 		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 2);
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 2);
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 2);
-		assert!(!miner.prepare_pending_block(&client));
+		assert_eq!(miner.prepare_pending_block(&client), BlockPreparationStatus::NotPrepared);
 	}
 
 	#[test]
@@ -1443,7 +1476,7 @@ mod tests {
 		assert!(!miner.requires_reseal(1u8.into()));
 
 		miner.import_external_transactions(&client, vec![transaction().into()]).pop().unwrap().unwrap();
-		assert!(miner.prepare_pending_block(&client));
+		assert_eq!(miner.prepare_pending_block(&client), BlockPreparationStatus::Succeeded);
 		// Unless asked to prepare work.
 		assert!(miner.requires_reseal(1u8.into()));
 	}

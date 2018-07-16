@@ -29,7 +29,7 @@ use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::Future;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction, LocalDapp};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<F> {
@@ -135,14 +135,6 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 				.map(Into::into)
 		});
 		Box::new(self.pool.spawn(future))
-	}
-
-	fn dapps_refresh(&self) -> Result<bool> {
-		Err(errors::dapps_disabled())
-	}
-
-	fn dapps_list(&self) -> Result<Vec<LocalDapp>> {
-		Err(errors::dapps_disabled())
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>> {

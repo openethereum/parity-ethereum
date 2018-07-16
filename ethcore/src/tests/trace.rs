@@ -89,7 +89,7 @@ fn can_trace_block_and_uncle_reward() {
 	rolling_timestamp += 10;
 	root_block.set_timestamp(rolling_timestamp);
 
-	let root_block = root_block.close_and_lock().seal(engine, vec![]).unwrap();
+	let root_block = root_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 	if let Err(e) = client.import_block(root_block.rlp_bytes()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
@@ -118,7 +118,7 @@ fn can_trace_block_and_uncle_reward() {
 	rolling_timestamp += 10;
 	parent_block.set_timestamp(rolling_timestamp);
 
-	let parent_block = parent_block.close_and_lock().seal(engine, vec![]).unwrap();
+	let parent_block = parent_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 	if let Err(e) = client.import_block(parent_block.rlp_bytes()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
@@ -168,7 +168,7 @@ fn can_trace_block_and_uncle_reward() {
 	uncle.set_timestamp(rolling_timestamp);
 	block.push_uncle(uncle).unwrap();
 
-	let block = block.close_and_lock().seal(engine, vec![]).unwrap();
+	let block = block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 	let res = client.import_block(block.rlp_bytes());
 	if res.is_err() {

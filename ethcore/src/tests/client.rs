@@ -268,7 +268,7 @@ fn can_mine() {
 	let dummy_blocks = get_good_dummy_block_seq(2);
 	let client = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
 
-	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
+	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap().close().unwrap();
 
 	assert_eq!(*b.block().header().parent_hash(), view!(BlockView, &dummy_blocks[0]).header_view().hash());
 }
@@ -291,10 +291,10 @@ fn change_history_size() {
 		).unwrap();
 
 		for _ in 0..20 {
-			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
+			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 			b.block_mut().state_mut().add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
 			b.block_mut().state_mut().commit().unwrap();
-			let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
+			let b = b.close_and_lock().unwrap().seal(&*test_spec.engine, vec![]).unwrap();
 			client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
 		}
 	}
@@ -350,10 +350,10 @@ fn transaction_proof() {
 	let address = Address::random();
 	let test_spec = Spec::new_test();
 	for _ in 0..20 {
-		let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
+		let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		b.block_mut().state_mut().add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
 		b.block_mut().state_mut().commit().unwrap();
-		let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
+		let b = b.close_and_lock().unwrap().seal(&*test_spec.engine, vec![]).unwrap();
 		client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
 	}
 
