@@ -61,8 +61,7 @@ fn bn_128_mul(b: &mut Bencher) {
 fn sha256(b: &mut Bencher) {
 	use parity_crypto::digest::sha256;
 
-	let mut input: [u8; 256] = [0; 256];
-	let mut out = [0; 32];
+	let input = [0_u8; 256];
 
 	b.iter(|| {
 		sha256(&input);
