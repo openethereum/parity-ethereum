@@ -426,20 +426,6 @@ fn rpc_parity_ws_address() {
 }
 
 #[test]
-fn rpc_parity_dapps_address() {
-	// given
-	let deps = Dependencies::new();
-	let io1 = deps.default_client();
-
-	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsUrl", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
-
-	// then
-	assert_eq!(io1.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
 fn rpc_parity_next_nonce() {
 	let deps = Dependencies::new();
 	let address = Address::default();
