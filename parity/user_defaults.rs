@@ -18,6 +18,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
+use serde::{Deserialize, Deserializer};
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
 use journaldb::Algorithm;
@@ -66,6 +67,7 @@ pub struct UserDefaults {
 	pub pruning: Algorithm,
 	pub tracing: bool,
 	pub fat_db: bool,
+	#[serde(deserialize_with = "mode_deserialize")]
 	mode: Mode,
 }
 
@@ -94,6 +96,16 @@ mod algorithm_serde {
 		let pruning = String::deserialize(deserializer)?;
 		pruning.parse().map_err(|_| Error::custom("invalid pruning method"))
 	}
+}
+
+pub fn mode_deserialize<'de, D>(deserializer: D) -> Result<Mode, D::Error>
+where D: Deserializer<'de> {
+	// this was added for migration purposes. since the format of the `mode`
+	// field in `UserDefaults` changed the deserialization of the whole struct
+	// would fail. this way we keep the existing values for the other fields and
+	// only provide a default for the `mode` field in case it fails to
+	// deserialize.
+	Ok(Mode::deserialize(deserializer).unwrap_or(Mode::Active))
 }
 
 impl Default for UserDefaults {
