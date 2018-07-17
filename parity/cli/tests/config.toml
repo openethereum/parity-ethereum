@@ -57,7 +57,6 @@ reseal_min_period = 4000
 reseal_max_period = 60000
 price_update_period = "hourly"
 tx_queue_size = 8192
-tx_queue_gas = "off"
 
 [footprint]
 tracing = "on"

@@ -128,7 +128,6 @@ price_update_period = "hourly"
 gas_floor_target = "4700000"
 gas_cap = "6283184"
 tx_queue_size = 8192
-tx_queue_gas = "off"
 tx_queue_strategy = "gas_factor"
 tx_queue_ban_count = 1
 tx_queue_ban_time = 180 #s
