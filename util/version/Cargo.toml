@@ -3,14 +3,14 @@
 [package]
 name = "parity-version"
 # NOTE: this value is used for Parity version string (via env CARGO_PKG_VERSION)
-version = "1.11.6"
+version = "1.11.7"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [package.metadata]
 # This versions track. Should be changed to `stable` or `beta` when on respective branches.
 # Used by auto-updater and for Parity version string.
-track = "beta"
+track = "stable"
 
 # Network specific settings, used ONLY by auto-updater.
 # Latest supported fork blocks.

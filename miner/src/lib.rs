@@ -35,9 +35,9 @@ extern crate transaction_pool as txpool;
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
-extern crate trace_time;
-#[macro_use]
 extern crate log;
+#[macro_use]
+extern crate trace_time;
 
 #[cfg(test)]
 extern crate rustc_hex;

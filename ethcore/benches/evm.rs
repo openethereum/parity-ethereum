@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,18 +16,16 @@
 
 #![feature(test)]
 
-extern crate test;
-extern crate ethcore_util as util;
-extern crate rand;
 extern crate bn;
-extern crate crypto;
+extern crate ethereum_types;
 extern crate ethkey;
+extern crate parity_crypto;
+extern crate rand;
 extern crate rustc_hex;
-extern crate ethcore_bigint;
+extern crate test;
 
-use self::test::{Bencher};
-use rand::{StdRng};
-
+use self::test::Bencher;
+use rand::StdRng;
 
 #[bench]
 fn bn_128_pairing(b: &mut Bencher) {
@@ -61,16 +59,12 @@ fn bn_128_mul(b: &mut Bencher) {
 
 #[bench]
 fn sha256(b: &mut Bencher) {
-	use crypto::sha2::Sha256;
-	use crypto::digest::Digest;
+	use parity_crypto::digest::sha256;
 
-	let mut input: [u8; 256] = [0; 256];
-	let mut out = [0; 32];
+	let input = [0_u8; 256];
 
 	b.iter(|| {
-		let mut sha = Sha256::new();
-		sha.input(&input);
-		sha.result(&mut input[0..32]);
+		sha256(&input);
 	});
 }
 
@@ -78,7 +72,7 @@ fn sha256(b: &mut Bencher) {
 fn ecrecover(b: &mut Bencher) {
 	use rustc_hex::FromHex;
 	use ethkey::{Signature, recover as ec_recover};
-	use ethcore_bigint::hash::H256;
+	use ethereum_types::H256;
 	let input = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 	let hash = H256::from_slice(&input[0..32]);
 	let v = H256::from_slice(&input[32..64]);
@@ -95,4 +89,3 @@ fn ecrecover(b: &mut Bencher) {
 		let _ = ec_recover(&s, &hash);
 	});
 }
-

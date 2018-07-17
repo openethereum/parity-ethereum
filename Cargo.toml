@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "1.11.6"
+version = "1.11.7"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -100,6 +100,7 @@ ui-precompiled = [
 ]
 ui-enabled = ["dapps"]
 dapps = ["parity-dapps"]
+miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]

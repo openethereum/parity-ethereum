@@ -27,6 +27,7 @@ use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
+use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
 use transaction::{
@@ -43,7 +44,7 @@ use block::{ClosedBlock, IsBlock, Block, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce
 };
-use client::BlockId;
+use client::{BlockId, ClientIoMessage};
 use executive::contract_address;
 use header::{Header, BlockNumber};
 use miner;
@@ -94,7 +95,7 @@ const DEFAULT_MINIMAL_GAS_PRICE: u64 = 20_000_000_000;
 /// before stopping attempts to push more transactions to the block.
 /// This is an optimization that prevents traversing the entire pool
 /// in case we have only a fraction of available block gas limit left.
-const MAX_SKIPPED_TRANSACTIONS: usize = 8;
+const MAX_SKIPPED_TRANSACTIONS: usize = 128;
 
 /// Configures the behaviour of the miner.
 #[derive(Debug, PartialEq)]
@@ -209,6 +210,7 @@ pub struct Miner {
 	transaction_queue: Arc<TransactionQueue>,
 	engine: Arc<EthEngine>,
 	accounts: Option<Arc<AccountProvider>>,
+	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
 }
 
 impl Miner {
@@ -224,7 +226,12 @@ impl Miner {
 	}
 
 	/// Creates new instance of miner Arc.
-	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Self {
+	pub fn new(
+		options: MinerOptions,
+		gas_pricer: GasPricer,
+		spec: &Spec,
+		accounts: Option<Arc<AccountProvider>>,
+	) -> Self {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
@@ -247,6 +254,7 @@ impl Miner {
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts,
 			engine: spec.engine.clone(),
+			io_channel: RwLock::new(None),
 		}
 	}
 
@@ -264,6 +272,11 @@ impl Miner {
 			reseal_min_period: Duration::from_secs(0),
 			..Default::default()
 		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts)
+	}
+
+	/// Sets `IoChannel`
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+		*self.io_channel.write() = Some(io_channel);
 	}
 
 	/// Clear all pending block states
@@ -368,18 +381,28 @@ impl Miner {
 
 		let client = self.pool_client(chain);
 		let engine_params = self.engine.params();
-		let min_tx_gas = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
+		let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
 		let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= engine_params.dust_protection_transition {
 			Some((engine_params.nonce_cap_increment * (chain_info.best_block_number + 1)).into())
 		} else {
 			None
 		};
+		// we will never need more transactions than limit divided by min gas
+		let max_transactions = if min_tx_gas.is_zero() {
+			usize::max_value()
+		} else {
+			MAX_SKIPPED_TRANSACTIONS.saturating_add((*open_block.block().header().gas_limit() / min_tx_gas).as_u64() as usize)
+		};
 
 		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
 			client.clone(),
-			chain_info.best_block_number,
-			chain_info.best_block_timestamp,
-			nonce_cap,
+			pool::PendingSettings {
+				block_number: chain_info.best_block_number,
+				current_timestamp: chain_info.best_block_timestamp,
+				nonce_cap,
+				max_len: max_transactions,
+				ordering: miner::PendingOrdering::Priority,
+			}
 		);
 
 		let took_ms = |elapsed: &Duration| {
@@ -871,7 +894,7 @@ impl miner::MinerService for Miner {
 		}
 	}
 
-	fn ready_transactions<C>(&self, chain: &C)
+	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: miner::PendingOrdering)
 		-> Vec<Arc<VerifiedTransaction>>
 	where
 		C: ChainInfo + Nonce + Sync,
@@ -879,14 +902,20 @@ impl miner::MinerService for Miner {
 		let chain_info = chain.chain_info();
 
 		let from_queue = || {
+			// We propagate transactions over the nonce cap.
+			// The mechanism is only to limit number of transactions in pending block
+			// those transactions are valid and will just be ready to be included in next block.
+			let nonce_cap = None;
+
 			self.transaction_queue.pending(
 				CachedNonceClient::new(chain, &self.nonce_cache),
-				chain_info.best_block_number,
-				chain_info.best_block_timestamp,
-				// We propagate transactions over the nonce cap.
-				// The mechanism is only to limit number of transactions in pending block
-				// those transactions are valid and will just be ready to be included in next block.
-				None,
+				pool::PendingSettings {
+					block_number: chain_info.best_block_number,
+					current_timestamp: chain_info.best_block_timestamp,
+					nonce_cap,
+					max_len,
+					ordering,
+				},
 			)
 		};
 
@@ -896,6 +925,7 @@ impl miner::MinerService for Miner {
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
+					.take(max_len)
 					.collect()
 			}, chain_info.best_block_number)
 		};
@@ -1130,7 +1160,32 @@ impl miner::MinerService for Miner {
 			// (thanks to Ready), but culling can take significant amount of time,
 			// so best to leave it after we create some work for miners to prevent increased
 			// uncle rate.
-			self.transaction_queue.cull(client);
+			// If the io_channel is available attempt to offload culling to a separate task
+			// to avoid blocking chain_new_blocks
+			if let Some(ref channel) = *self.io_channel.read() {
+				let queue = self.transaction_queue.clone();
+				let nonce_cache = self.nonce_cache.clone();
+				let engine = self.engine.clone();
+				let accounts = self.accounts.clone();
+				let refuse_service_transactions = self.options.refuse_service_transactions;
+
+				let cull = move |chain: &::client::Client| {
+					let client = PoolClient::new(
+						chain,
+						&nonce_cache,
+						&*engine,
+						accounts.as_ref().map(|x| &**x),
+						refuse_service_transactions,
+					);
+					queue.cull(client);
+				};
+
+				if let Err(e) = channel.send(ClientIoMessage::execute(cull)) {
+					warn!(target: "miner", "Error queueing cull: {:?}", e);
+				}
+			} else {
+				self.transaction_queue.cull(client);
+			}
 		}
 	}
 
@@ -1160,7 +1215,7 @@ mod tests {
 	use rustc_hex::FromHex;
 
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
-	use miner::MinerService;
+	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 	use transaction::{Transaction};
 
@@ -1259,7 +1314,7 @@ mod tests {
 		assert_eq!(res.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 1);
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 1);
-		assert_eq!(miner.ready_transactions(&client).len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
 		assert!(!miner.prepare_pending_block(&client));
 	}
@@ -1278,7 +1333,7 @@ mod tests {
 		assert_eq!(res.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block), None);
 		assert_eq!(miner.pending_receipts(best_block), None);
-		assert_eq!(miner.ready_transactions(&client).len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 	}
 
 	#[test]
@@ -1297,11 +1352,11 @@ mod tests {
 		assert_eq!(miner.pending_transactions(best_block), None);
 		assert_eq!(miner.pending_receipts(best_block), None);
 		// By default we use PendingSet::AlwaysSealing, so no transactions yet.
-		assert_eq!(miner.ready_transactions(&client).len(), 0);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
 		assert!(miner.prepare_pending_block(&client));
 		// After pending block is created we should see a transaction.
-		assert_eq!(miner.ready_transactions(&client).len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 	}
 
 	#[test]
@@ -1333,9 +1388,9 @@ mod tests {
 		assert_eq!(res.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block), None);
 		assert_eq!(miner.pending_receipts(best_block), None);
-		assert_eq!(miner.ready_transactions(&client).len(), 0);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 0);
 		assert!(miner.prepare_pending_block(&client));
-		assert_eq!(miner.ready_transactions(&client).len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 
 		// when - 2nd part: create a local transaction from account_provider.
 		// Borrow the transaction used before & sign with our generated keypair.
@@ -1347,7 +1402,7 @@ mod tests {
 		assert_eq!(res2.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 2);
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 2);
-		assert_eq!(miner.ready_transactions(&client).len(), 2);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 2);
 		assert!(!miner.prepare_pending_block(&client));
 	}
 

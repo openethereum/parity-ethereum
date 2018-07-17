@@ -1219,7 +1219,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "hidapi"
 version = "0.3.1"
-source = "git+https://github.com/paritytech/hidapi-rs#70ec4bd1b755ec5dd32ad2be0c8345864147c8bc"
+source = "git+https://github.com/paritytech/hidapi-rs#d4d323767d6f27cf5a3d73fbae0b0f2134d579bf"
 dependencies = [
  "cc 1.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1963,7 +1963,7 @@ dependencies = [
 
 [[package]]
 name = "parity"
-version = "1.11.6"
+version = "1.11.7"
 dependencies = [
  "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "atty 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2014,7 +2014,7 @@ dependencies = [
  "parity-rpc 1.11.0",
  "parity-rpc-client 1.4.0",
  "parity-updater 1.11.0",
- "parity-version 1.11.6",
+ "parity-version 1.11.7",
  "parity-whisper 0.1.0",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
@@ -2062,7 +2062,7 @@ dependencies = [
  "parity-reactor 0.1.0",
  "parity-ui 1.11.0",
  "parity-ui-deprecation 1.10.0",
- "parity-version 1.11.6",
+ "parity-version 1.11.7",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "registrar 0.0.1",
@@ -2204,7 +2204,7 @@ dependencies = [
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-reactor 0.1.0",
  "parity-updater 1.11.0",
- "parity-version 1.11.6",
+ "parity-version 1.11.7",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.1.0",
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2325,7 +2325,7 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.11.0",
- "parity-version 1.11.6",
+ "parity-version 1.11.7",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2336,7 +2336,7 @@ dependencies = [
 
 [[package]]
 name = "parity-version"
-version = "1.11.6"
+version = "1.11.7"
 dependencies = [
  "ethcore-bytes 0.1.0",
  "rlp 0.2.1",
