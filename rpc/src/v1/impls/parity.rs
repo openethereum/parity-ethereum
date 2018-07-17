@@ -139,11 +139,11 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.collect()
 		)
 	}
-	 
+
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
 		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
-	
+
 	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
 		let dapp_id = meta.dapp_id();
 
@@ -345,10 +345,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
 			.collect()
 		)
-	}
-
-	fn dapps_url(&self) -> Result<String> {
-		Err(errors::dapps_disabled())
 	}
 
 	fn ws_url(&self) -> Result<String> {

@@ -211,14 +211,6 @@ pub fn signer_disabled() -> Error {
 	}
 }
 
-pub fn dapps_disabled() -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Dapps Server is disabled. This API is not available.".into(),
-		data: None,
-	}
-}
-
 pub fn ws_disabled() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),

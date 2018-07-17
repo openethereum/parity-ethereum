@@ -477,17 +477,18 @@ impl BlockDownloader {
 		for block_and_receipts in blocks {
 			let block = block_and_receipts.block;
 			let receipts = block_and_receipts.receipts;
+
+			// Perform basic block verification
+			if !Block::is_good(&block) {
+				debug!(target: "sync", "Bad block rlp: {:?}", block);
+				bad = true;
+				break;
+			}
+
 			let (h, number, parent) = {
 				let header = view!(BlockView, &block).header_view();
 				(header.hash(), header.number(), header.parent_hash())
 			};
-
-			// Perform basic block verification
-			if !Block::is_good(&block) {
-				debug!(target: "sync", "Bad block rlp {:?} : {:?}", h, block);
-				bad = true;
-				break;
-			}
 
 			if self.target_hash.as_ref().map_or(false, |t| t == &h) {
 				self.state = State::Complete;

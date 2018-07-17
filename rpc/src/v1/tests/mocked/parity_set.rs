@@ -238,18 +238,3 @@ fn rpc_parity_remove_transaction() {
 	miner.pending_transactions.lock().insert(hash, signed);
 	assert_eq!(io.handle_request_sync(&request), Some(response.to_owned()));
 }
-
-#[test]
-fn rpc_parity_set_dapps_list() {
-	let miner = miner_service();
-	let client = client_service();
-	let network = network_service();
-	let updater = updater_service();
-	let mut io = IoHandler::new();
-	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsList", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}

@@ -33,7 +33,7 @@ use rand::{self, Rng};
 /// Node public key
 pub type NodeId = H512;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// Node address info
 pub struct NodeEndpoint {
 	/// IP(V4 or V6) address

@@ -94,6 +94,7 @@ impl ClientService {
 
 		let pruning = config.pruning;
 		let client = Client::new(config, &spec, blockchain_db.clone(), miner.clone(), io_service.channel())?;
+		miner.set_io_channel(io_service.channel());
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
