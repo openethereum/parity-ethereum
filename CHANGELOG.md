@@ -1,6 +1,6 @@
 ## Parity-Ethereum [v2.0.0](https://github.com/paritytech/parity/releases/tag/v2.0.0) "Ethereum" (2018-07-18)
 
-This is the Parity-Ethereum//v2.0.0-beta release, **YOLO!**
+This is the Parity-Ethereum//v2.0.0-beta release, code-named "Ethereum", **YOLO!**
 
 Please note, Parity-Ethereum//v2.0.0 comes with some breaking changes that might be interrupting your usual workflows. Please mind them before upgrading:
 
@@ -28,6 +28,11 @@ Additional noteworthy changes to the client:
 - Never drop local transactions from different senders ([#9002](https://github.com/paritytech/parity/pull/9002)).
 - Optimize pending transactions filter and fix ethstats reporting of pending transactions ([#9026](https://github.com/paritytech/parity/pull/9026)).
 - Add separate database directory for light client allowing to run full and light nodes at the same time ([#9064](https://github.com/paritytech/parity/pull/9064)).
+
+If you are upgrading directly from versions 1.10.9 or earlier, please note important changes to our transaction-queue implementation, namely:
+
+- The pool now limits transactions per-sender (see `--tx-queue-per-sender`), local transactions also have to obey that limit. Consider increasing the limit via CLI-flag when running benchmarks or sending a lot of transactions at once.
+- In case the pool is full, transactions received over the network, but originating from accounts that you have private keys for might not get accepted to the pool any more with higher priority. Consider running with larger pool size or submitting the transactions directly on the node via `eth_sendRawTransaction`.
 
 The full list of included changes:
 

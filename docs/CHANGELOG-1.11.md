@@ -2,6 +2,11 @@
 
 Parity 1.11.7 "Prosperity" is a bug-fix release to improve performance and stability that marks the 1.11 release track as `stable`. Among other fixes, this release significantly addresses peering and synchronization issues. If you experienced such issues before, upgrading is highly recommended. If you rely on old versions of Parity, check out the `old-stable-1.10` branch, cherry-pick fixes, and compile your binaries independently. There will be no official support for any versions prior to 1.11.7, however (EOL).
 
+If you are upgrading directly from versions 1.10.9 or earlier, please note important changes to our transaction-queue implementation, namely:
+
+- The pool now limits transactions per-sender (see `--tx-queue-per-sender`), local transactions also have to obey that limit. Consider increasing the limit via CLI-flag when running benchmarks or sending a lot of transactions at once.
+- In case the pool is full, transactions received over the network, but originating from accounts that you have private keys for might not get accepted to the pool any more with higher priority. Consider running with larger pool size or submitting the transactions directly on the node via `eth_sendRawTransaction`.
+
 The full list of included changes:
 
 - Backports to 1.11.7-stable ([#9093](https://github.com/paritytech/parity/pull/9093))
