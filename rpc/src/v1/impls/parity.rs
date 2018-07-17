@@ -34,7 +34,7 @@ use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use updater::{Service as UpdateService};
 use jsonrpc_core::{BoxFuture, Result};
-use jsonrpc_core::futures::{future};
+use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::metadata::Metadata;
