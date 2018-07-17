@@ -114,15 +114,17 @@ impl txpool::Scoring<VerifiedPrivateTransaction> for PrivateScoring {
 		}
 	}
 
-	fn should_replace(&self, old: &VerifiedPrivateTransaction, new: &VerifiedPrivateTransaction) -> bool {
+	fn should_replace(&self, old: &VerifiedPrivateTransaction, new: &VerifiedPrivateTransaction) -> txpool::scoring::Choice {
 		if old.sender() == new.sender() {
 			// prefer earliest transaction
-			if new.transaction.nonce < old.transaction.nonce {
-				return true
-			}
+			return match new.transaction.nonce.cmp(&old.transaction.nonce) {
+				cmp::Ordering::Less => txpool::scoring::Choice::ReplaceOld,
+				cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,
+				cmp::Ordering::Equal => self.choose(old, new),
+			};
 		}
 
-		self.choose(old, new) == txpool::scoring::Choice::ReplaceOld
+		self.choose(old, new)
 	}
 }
 
@@ -212,7 +214,7 @@ impl VerificationStore {
 
 		let options = self.verification_options.clone();
 		// Use pool's verifying pipeline for original transaction's verification
-		let verifier = pool::verifier::Verifier::new(client, options, Default::default());
+		let verifier = pool::verifier::Verifier::new(client, options, Default::default(), None);
 		let verified_tx = verifier.verify_transaction(pool::verifier::Transaction::Unverified(transaction.clone()))?;
 		let signed_tx: SignedTransaction = verified_tx.signed().clone();
 		let signed_hash = signed_tx.hash();
