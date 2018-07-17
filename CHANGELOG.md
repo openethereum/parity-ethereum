@@ -1,4 +1,4 @@
-## Parity-Ethereum [v2.0.0](https://github.com/paritytech/parity/releases/tag/v2.0.0) (2018-07-18)
+## Parity-Ethereum [v2.0.0](https://github.com/paritytech/parity/releases/tag/v2.0.0) "Ethereum" (2018-07-18)
 
 This is the Parity-Ethereum//v2.0.0-beta release, **YOLO!**
 
@@ -33,7 +33,42 @@ The full list of included changes:
 - Backports to 2.0.0-beta ([#9094](https://github.com/paritytech/parity/pull/9094))
   - Parity-version: betalize 2.0
   - Multiple improvements to discovery ping handling ([#8771](https://github.com/paritytech/parity/pull/8771))
+    - Discovery: Only add nodes to routing table after receiving pong.
+    - Discovery: Refactor packet creation into its own function.
+    - Discovery: Additional testing for new add_node behavior.
+    - Discovery: Track expiration of pings to non-yet-in-bucket nodes.
+    - Discovery: Verify echo hash on pong packets.
+    - Discovery: Track timeouts on FIND_NODE requests.
+    - Discovery: Retry failed pings with exponential backoff.
+    - !fixup Use slice instead of Vec for request_backoff.
   - Add separate database directory for light client ([#9064](https://github.com/paritytech/parity/pull/9064))
+    - Add separate default DB path for light client ([#8927](https://github.com/paritytech/parity/pull/8927))
+    - Improve readability
+  - Revert "Replace `std::env::home_dir` with `dirs::home_dir` ([#9077](https://github.com/paritytech/parity/pull/9077))" ([#9097](https://github.com/paritytech/parity/pull/9097))
+    - Revert "Replace `std::env::home_dir` with `dirs::home_dir` ([#9077](https://github.com/paritytech/parity/pull/9077))"
+      - This reverts commit 7e77932.
+    - Restore some of the changes
+    - Update parity-common
+  - Offload cull to IoWorker. ([#9099](https://github.com/paritytech/parity/pull/9099))
+  - Fix work-notify. ([#9104](https://github.com/paritytech/parity/pull/9104))
+  - Update hidapi, fixes #7542 ([#9108](https://github.com/paritytech/parity/pull/9108))
+  - Docker: add cmake dependency ([#9111](https://github.com/paritytech/parity/pull/9111))
+  - Update light client hardcoded headers ([#9098](https://github.com/paritytech/parity/pull/9098))
+    - Insert Kovan hardcoded headers until 7690241
+    - Insert Kovan hardcoded headers until block 7690241
+    - Insert Ropsten hardcoded headers until 3612673
+    - Insert Mainnet hardcoded headers until block 5941249
+  - Make sure to produce full blocks. ([#9115](https://github.com/paritytech/parity/pull/9115))
+  - Insert ETC (classic) hardcoded headers until block 6170625 ([#9121](https://github.com/paritytech/parity/pull/9121))
+  - Fix verification in ethcore-sync collect_blocks ([#9135](https://github.com/paritytech/parity/pull/9135))
+  - Completely remove all dapps struct from rpc ([#9107](https://github.com/paritytech/parity/pull/9107))
+    - Completely remove all dapps struct from rpc
+    - Remove unused pub use
+  - `evm bench` fix broken dependencies ([#9134](https://github.com/paritytech/parity/pull/9134))
+    - `evm bench` use valid dependencies
+    - Benchmarks of the `evm` used stale versions of a couple a crates that this commit fixes!
+    - Fix warnings
+  - Update snapcraft.yaml ([#9132](https://github.com/paritytech/parity/pull/9132))
 - Parity Ethereum 2.0.0 ([#9052](https://github.com/paritytech/parity/pull/9052))
 - Don't fetch snapshot chunks at random ([#9088](https://github.com/paritytech/parity/pull/9088))
 - Remove the dapps system ([#9017](https://github.com/paritytech/parity/pull/9017))
