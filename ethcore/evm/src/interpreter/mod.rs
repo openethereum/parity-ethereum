@@ -319,6 +319,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let address_scheme = match instruction {
 					instructions::CREATE => CreateContractAddress::FromSenderAndNonce,
 					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(stack.pop_back().into()),
+					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
 				};
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
