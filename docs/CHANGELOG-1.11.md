@@ -1,13 +1,45 @@
-## Parity [v1.11.7](https://github.com/paritytech/parity/releases/tag/v1.11.7) (2018-07-16)
+## Parity [v1.11.7](https://github.com/paritytech/parity/releases/tag/v1.11.7) "Prosperity" (2018-07-17)
 
-Parity 1.11.7 is a bug-fix release to improve performance and stability and marks the 1.11 release track as `stable`.
+Parity 1.11.7 "Prosperity" is a bug-fix release to improve performance and stability that marks the 1.11 release track as `stable`. Among other fixes, this release significantly addresses peering and synchronization issues. If you experienced such issues before, upgrading is highly recommended. If you rely on old versions of Parity, check out the `old-stable-1.10` branch, cherry-pick fixes, and compile your binaries independently. There will be no official support for any versions prior to 1.11.7, however (EOL).
 
 The full list of included changes:
 
 - Backports to 1.11.7-stable ([#9093](https://github.com/paritytech/parity/pull/9093))
-  - Parity-version: stabelize 1.11
+  - Parity-version: stabilize 1.11
   - Parity-version: bump stable to 1.11.7
   - Don't fetch snapshot chunks at random ([#9088](https://github.com/paritytech/parity/pull/9088))
+  - Offload cull to IoWorker. ([#9099](https://github.com/paritytech/parity/pull/9099))
+  - Limit the number of transactions in pending set ([#8777](https://github.com/paritytech/parity/pull/8777))
+    - Unordered iterator.
+    - Use unordered and limited set if full not required.
+    - Split timeout work into smaller timers.
+    - Avoid collecting all pending transactions when mining
+    - Remove println.
+    - Use priority ordering in eth-filter.
+    - Fix ethcore-miner tests and tx propagation.
+    - Review grumbles addressed.
+    - Add test for unordered not populating the cache.
+    - Fix ethcore tests.
+    - Fix light tests.
+    - Fix ethcore-sync tests.
+    - Fix RPC tests.
+  - Make sure to produce full blocks. ([#9115](https://github.com/paritytech/parity/pull/9115))
+  - Update hidapi, fixes #7542 ([#9108](https://github.com/paritytech/parity/pull/9108))
+  - Docker: add cmake dependency ([#9111](https://github.com/paritytech/parity/pull/9111))
+  - Fix miner tests.
+  - Revert "Make sure to produce full blocks."
+    - This reverts commit b12d592.
+  - Update light client hardcoded headers ([#9098](https://github.com/paritytech/parity/pull/9098))
+    - Insert Kovan hardcoded headers until 7690241
+    - Insert Kovan hardcoded headers until block 7690241
+    - Insert Ropsten hardcoded headers until 3612673
+    - Insert Mainnet hardcoded headers until block 5941249
+  - Make sure to produce full blocks. ([#9115](https://github.com/paritytech/parity/pull/9115))
+  - Insert ETC (classic) hardcoded headers until block 6170625 ([#9121](https://github.com/paritytech/parity/pull/9121))
+  - Fix verification in ethcore-sync collect_blocks ([#9135](https://github.com/paritytech/parity/pull/9135))
+  - `evm bench` fix broken dependencies ([#9134](https://github.com/paritytech/parity/pull/9134))
+    - `evm bench` use valid dependencies
+    - Fix warnings
 
 ## Parity [v1.11.6](https://github.com/paritytech/parity/releases/tag/v1.11.6) (2018-07-09)
 

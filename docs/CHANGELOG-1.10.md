@@ -1,4 +1,4 @@
-Note: Parity 1.10 reached End-of-Life on 2018-07-16 (EOL).
+Note: Parity 1.10 reached End-of-Life on 2018-07-18 (EOL).
 
 ## Parity [v1.10.9](https://github.com/paritytech/parity/releases/tag/v1.10.9) (2018-07-07)
 
