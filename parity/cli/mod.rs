@@ -800,7 +800,7 @@ usage! {
 
 			ARG arg_logging: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?.logging.clone(),
 			"-l, --logging=[LOGGING]",
-			"Specify the general logging level (error, warn, info, debug or trace). It can also be set for a specific module, example: '-l sync=debug, rpc=trace'",
+			"Specify the general logging level (error, warn, info, debug or trace). It can also be set for a specific module, example: '-l sync=debug,rpc=trace'",
 
 			ARG arg_log_file: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?.log_file.clone(),
 			"--log-file=[FILENAME]",
