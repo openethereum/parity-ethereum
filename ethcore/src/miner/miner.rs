@@ -165,6 +165,7 @@ impl Default for MinerOptions {
 				minimal_gas_price: DEFAULT_MINIMAL_GAS_PRICE.into(),
 				block_gas_limit: U256::max_value(),
 				tx_gas_limit: U256::max_value(),
+				tx_queue_no_early_reject: false,
 			},
 		}
 	}
@@ -272,6 +273,7 @@ impl Miner {
 				minimal_gas_price,
 				block_gas_limit: U256::max_value(),
 				tx_gas_limit: U256::max_value(),
+				tx_queue_no_early_reject: false,
 			},
 			reseal_min_period: Duration::from_secs(0),
 			..Default::default()
@@ -1297,12 +1299,14 @@ mod tests {
 				tx_queue_penalization: Penalization::Disabled,
 				tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 				tx_queue_no_unfamiliar_locals: false,
+				tx_queue_no_early_reject: false,
 				refuse_service_transactions: false,
 				pool_limits: Default::default(),
 				pool_verification_options: pool::verifier::Options {
 					minimal_gas_price: 0.into(),
 					block_gas_limit: U256::max_value(),
 					tx_gas_limit: U256::max_value(),
+					tx_queue_no_early_reject: false,
 				},
 			},
 			GasPricer::new_fixed(0u64.into()),

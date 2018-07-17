@@ -43,6 +43,8 @@ pub struct Options {
 	pub block_gas_limit: U256,
 	/// Maximal gas limit for a single transaction.
 	pub tx_gas_limit: U256,
+	/// Skip check checks
+	pub tx_queue_no_early_reject: bool,
 }
 
 #[cfg(test)]
@@ -52,6 +54,7 @@ impl Default for Options {
 			minimal_gas_price: 0.into(),
 			block_gas_limit: U256::max_value(),
 			tx_gas_limit: U256::max_value(),
+			tx_queue_no_early_reject: false,
 		}
 	}
 }
@@ -204,7 +207,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C, ::pool::scoring::N
 		//
 		// We're checking if the transaction is below configured minimal gas price
 		// or the effective minimal gas price in case the pool is full.
-		if  !tx.gas_price().is_zero() && !is_own {
+		if !tx.gas_price().is_zero() && !is_own {
 			if tx.gas_price() < &self.options.minimal_gas_price {
 				trace!(
 					target: "txqueue",
