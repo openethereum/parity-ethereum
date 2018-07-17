@@ -43,8 +43,8 @@ pub struct Options {
 	pub block_gas_limit: U256,
 	/// Maximal gas limit for a single transaction.
 	pub tx_gas_limit: U256,
-	/// Skip check checks
-	pub tx_queue_no_early_reject: bool,
+	/// Skip checks for early rejection, to make sure that local transactions are always imported.
+	pub no_early_reject: bool,
 }
 
 #[cfg(test)]
@@ -54,7 +54,7 @@ impl Default for Options {
 			minimal_gas_price: 0.into(),
 			block_gas_limit: U256::max_value(),
 			tx_gas_limit: U256::max_value(),
-			tx_queue_no_early_reject: false,
+			no_early_reject: false,
 		}
 	}
 }

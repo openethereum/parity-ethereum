@@ -1731,6 +1731,7 @@ mod tests {
 			arg_gas_cap: "6283184".into(),
 			arg_extra_data: Some("Parity".into()),
 			flag_tx_queue_no_unfamiliar_locals: false,
+			flag_tx_queue_no_early_reject: false,
 			arg_tx_queue_size: 8192usize,
 			arg_tx_queue_per_sender: None,
 			arg_tx_queue_mem_limit: 4u32,

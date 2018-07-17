@@ -243,7 +243,7 @@ impl TransactionQueue {
 		let options = self.options.read().clone();
 
 		let transaction_to_replace = {
-			if options.tx_queue_no_early_reject {
+			if options.no_early_reject {
 				None
 			} else {
 				let pool = self.pool.read();

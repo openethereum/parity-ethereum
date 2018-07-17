@@ -67,7 +67,7 @@ impl Default for VerificationStore {
 					minimal_gas_price: 0.into(),
 					block_gas_limit: 8_000_000.into(),
 					tx_gas_limit: U256::max_value(),
-					tx_queue_no_early_reject: false
+					no_early_reject: false
 				},
 				pool::PrioritizationStrategy::GasPriceOnly,
 			)

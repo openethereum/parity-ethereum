@@ -37,6 +37,7 @@ fn new_queue() -> TransactionQueue {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	)
@@ -54,6 +55,7 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -105,6 +107,7 @@ fn should_never_drop_local_transactions_from_different_senders() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -479,6 +482,7 @@ fn should_prefer_current_transactions_when_hitting_the_limit() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -891,6 +895,7 @@ fn should_include_local_transaction_to_a_full_pool() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -922,6 +927,7 @@ fn should_avoid_verifying_transaction_already_in_pool() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -956,6 +962,7 @@ fn should_avoid_reverifying_recently_rejected_transactions() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -997,6 +1004,7 @@ fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
