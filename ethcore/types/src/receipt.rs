@@ -16,7 +16,7 @@
 
 //! Receipt
 
-use ethereum_types::{H160, H256, U256, Address, Bloom, BloomInput};
+use ethereum_types::{H160, H256, U256, Address, Bloom};
 use heapsize::HeapSizeOf;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 
@@ -53,7 +53,7 @@ impl Receipt {
 		Self {
 			gas_used,
 			log_bloom: logs.iter().fold(Bloom::default(), |mut b, l| {
-				b.accrue(BloomInput::Raw(&l.bloom()));
+				b.accrue_bloom(&l.bloom());
 				b
 			}),
 			logs,
