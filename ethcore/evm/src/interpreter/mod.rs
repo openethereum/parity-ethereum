@@ -241,12 +241,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 					self.reader.position - 1, opcode, self.gasometer.current_gas.as_u256(),
 				);
 
-				if instruction.is_none() {
-					return InterpreterResult::Done(Err(vm::Error::BadInstruction {
+				let instruction = match instruction {
+					Some(i) => i,
+					None => return InterpreterResult::Done(Err(vm::Error::BadInstruction {
 						instruction: opcode
-					}));
-				}
-				let instruction = instruction.expect("None case is checked above; qed");
+					})),
+				};
 
 				let info = instruction.info();
 				try_or_done!(self.verify_instruction(ext, instruction, info));
