@@ -77,6 +77,7 @@ impl Scoring<Transaction> for DummyScoring {
 			scoring::Choice::RejectNew
 		}
 	}
+
 	fn should_ignore_sender_limit(&self, _new: &Transaction) -> bool {
 		self.always_insert
 	}
