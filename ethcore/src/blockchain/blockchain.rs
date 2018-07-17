@@ -536,7 +536,9 @@ impl BlockChain {
 		};
 
 		// load best block
-		let best_block_hash = match bc.db.key_value().get(db::COL_EXTRA, b"best").expect("Low level database error. Some issue with disk?") {
+		let best_block_hash = match bc.db.key_value().get(db::COL_EXTRA, b"best")
+			.expect("Low level database error. Some issue with disk?")
+		{
 			Some(best) => {
 				H256::from_slice(&best)
 			}
@@ -571,8 +573,11 @@ impl BlockChain {
 
 		{
 			// Fetch best block details
-			let best_block_total_difficulty = bc.block_details(&best_block_hash).expect("Best block is from a known block hash; a known block hash always comes with a known block detail; qed").total_difficulty;
-			let best_block_rlp = bc.block(&best_block_hash).expect("Best block is from a known block hash; qed");
+			let best_block_total_difficulty = bc.block_details(&best_block_hash)
+				.expect("Best block is from a known block hash; a known block hash always comes with a known block detail; qed")
+				.total_difficulty;
+			let best_block_rlp = bc.block(&best_block_hash)
+				.expect("Best block is from a known block hash; qed");
 
 			// and write them
 			let mut best_block = bc.best_block.write();
@@ -586,8 +591,12 @@ impl BlockChain {
 		{
 			let best_block_number = bc.best_block.read().header.number();
 			// Fetch first and best ancient block details
-			let raw_first = bc.db.key_value().get(db::COL_EXTRA, b"first").expect("Low level database error. Some issue with disk?").map(|v| v.into_vec());
-			let mut best_ancient = bc.db.key_value().get(db::COL_EXTRA, b"ancient").expect("Low level database error. Some issue with disk?").map(|h| H256::from_slice(&h));
+			let raw_first = bc.db.key_value().get(db::COL_EXTRA, b"first")
+				.expect("Low level database error. Some issue with disk?")
+				.map(|v| v.into_vec());
+			let mut best_ancient = bc.db.key_value().get(db::COL_EXTRA, b"ancient")
+				.expect("Low level database error. Some issue with disk?")
+				.map(|h| H256::from_slice(&h));
 			let best_ancient_number;
 			if best_ancient.is_none() && best_block_number > 1 && bc.block_hash(1).is_none() {
 				best_ancient = Some(bc.genesis_hash());
@@ -1350,11 +1359,13 @@ impl BlockChain {
 				}
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
-				let ancestor_number = self.block_number(&data.ancestor).expect("Inserted block's ancestor number always exists; qed");
+				let ancestor_number = self.block_number(&data.ancestor)
+					.expect("Inserted block's ancestor number always exists; qed");
 				let start_number = ancestor_number + 1;
 
 				let mut blooms: Vec<Bloom> = data.enacted.iter()
-					.map(|hash| self.block_header_data(hash).expect("Inserted block's header data always exists; qed"))
+					.map(|hash| self.block_header_data(hash)
+						 .expect("Inserted block's header data always exists; qed"))
 					.map(|h| h.log_bloom())
 					.collect();
 
