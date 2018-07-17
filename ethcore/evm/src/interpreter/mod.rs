@@ -103,6 +103,8 @@ enum InstructionResult<Gas> {
 	StopExecution,
 }
 
+enum Never {}
+
 /// ActionParams without code, so that it can be feed into CodeReader.
 #[derive(Debug)]
 struct InterpreterParams {
@@ -237,7 +239,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 	/// Inner helper function for step.
 	#[inline(always)]
-	fn step_inner(&mut self, ext: &mut vm::Ext) -> Result<(), InterpreterResult> {
+	fn step_inner(&mut self, ext: &mut vm::Ext) -> Result<Never, InterpreterResult> {
 		let opcode = self.reader.code[self.reader.position];
 		let instruction = Instruction::from_u8(opcode);
 		self.reader.position += 1;
