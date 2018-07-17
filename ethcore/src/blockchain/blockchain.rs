@@ -270,7 +270,7 @@ impl BlockProvider for BlockChain {
 
 		// Read from DB and populate cache
 		let b = self.db.key_value().get(db::COL_HEADERS, hash)
-			.expect("Low level database error. Some issue with disk?")?;
+			.expect("Low level database error when fetching block header data. Some issue with disk?")?;
 
 		let header = encoded::Header::new(decompress(&b, blocks_swapper()).into_vec());
 		let mut write = self.block_headers.write();
@@ -300,7 +300,7 @@ impl BlockProvider for BlockChain {
 
 		// Read from DB and populate cache
 		let b = self.db.key_value().get(db::COL_BODIES, hash)
-			.expect("Low level database error. Some issue with disk?")?;
+			.expect("Low level database error when fetching block body data. Some issue with disk?")?;
 
 		let body = encoded::Body::new(decompress(&b, blocks_swapper()).into_vec());
 		let mut write = self.block_bodies.write();
@@ -346,7 +346,7 @@ impl BlockProvider for BlockChain {
 		I: Iterator<Item = B> {
 		self.db.blooms()
 			.filter(from_block, to_block, blooms)
-			.expect("Low level database error. Some issue with disk?")
+			.expect("Low level database error when searching blooms. Some issue with disk?")
 	}
 
 	/// Returns logs matching given filter. The order of logs returned will be the same as the order of the blocks
@@ -537,7 +537,7 @@ impl BlockChain {
 
 		// load best block
 		let best_block_hash = match bc.db.key_value().get(db::COL_EXTRA, b"best")
-			.expect("Low level database error. Some issue with disk?")
+			.expect("Low-level database error when fetching 'best' block. Some issue with disk?")
 		{
 			Some(best) => {
 				H256::from_slice(&best)
@@ -566,7 +566,7 @@ impl BlockChain {
 				batch.write(db::COL_EXTRA, &header.number(), &hash);
 
 				batch.put(db::COL_EXTRA, b"best", &hash);
-				bc.db.key_value().write(batch).expect("Low level database error. Some issue with disk?");
+				bc.db.key_value().write(batch).expect("Low level database error when fetching 'best' block. Some issue with disk?");
 				hash
 			}
 		};
@@ -592,10 +592,10 @@ impl BlockChain {
 			let best_block_number = bc.best_block.read().header.number();
 			// Fetch first and best ancient block details
 			let raw_first = bc.db.key_value().get(db::COL_EXTRA, b"first")
-				.expect("Low level database error. Some issue with disk?")
+				.expect("Low level database error when fetching 'first' block. Some issue with disk?")
 				.map(|v| v.into_vec());
 			let mut best_ancient = bc.db.key_value().get(db::COL_EXTRA, b"ancient")
-				.expect("Low level database error. Some issue with disk?")
+				.expect("Low level database error when fetching 'best ancient' block. Some issue with disk?")
 				.map(|h| H256::from_slice(&h));
 			let best_ancient_number;
 			if best_ancient.is_none() && best_block_number > 1 && bc.block_hash(1).is_none() {
@@ -627,7 +627,7 @@ impl BlockChain {
 						trace!("First block calculated: {:?}", hash);
 						let mut batch = db.key_value().transaction();
 						batch.put(db::COL_EXTRA, b"first", &hash);
-						db.key_value().write(batch).expect("Low level database error.");
+						db.key_value().write(batch).expect("Low level database error when writing 'first' block. Some issue with disk?");
 						bc.first_block = Some(hash);
 					}
 				},
@@ -1081,7 +1081,7 @@ impl BlockChain {
 		if let Some((block, blooms)) = update.blocks_blooms {
 			self.db.blooms()
 				.insert_blooms(block, blooms.iter())
-				.expect("Low level database error. Some issue with disk?");
+				.expect("Low level database error when updating blooms. Some issue with disk?");
 		}
 
 		// These cached values must be updated last with all four locks taken to avoid
