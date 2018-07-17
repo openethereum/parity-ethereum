@@ -19,7 +19,7 @@ use std::hash::Hash;
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
 
-pub struct CacheManager<T> where T: Eq + Hash {
+pub struct CacheManager<T> {
 	pref_cache_size: usize,
 	max_cache_size: usize,
 	bytes_per_cache_entry: usize,

@@ -1,24 +1,24 @@
 [package]
 name = "journaldb"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 description = "A `HashDB` which can manage a short-term journal potentially containing many forks of mutually exclusive actions"
 license = "GPL3"
 
 [dependencies]
-ethcore-bytes = { path = "../bytes" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethereum-types = "0.3"
-hashdb = { path = "../hashdb" }
+hashdb = { git = "https://github.com/paritytech/parity-common" }
 heapsize = "0.4"
-kvdb = { path = "../kvdb" }
+keccak-hasher = { path = "../keccak-hasher" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
 log = "0.3"
-memorydb = { path = "../memorydb" }
-parking_lot = "0.5"
-plain_hasher = { path = "../plain_hasher" }
-rlp = { path = "../rlp" }
-util-error = { path = "../error" }
+memorydb = { git = "https://github.com/paritytech/parity-common" }
+parking_lot = "0.6"
+plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 
 [dev-dependencies]
 ethcore-logger = { path = "../../logger" }
-keccak-hash = { path = "../hash" }
-kvdb-memorydb = { path = "../kvdb-memorydb" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }

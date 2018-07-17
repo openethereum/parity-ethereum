@@ -212,7 +212,7 @@ fn should_sign_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
 	let data = vec![5u8];
-	let acc = tester.accounts.insert_account(Secret::from([69u8; 32]), "test").unwrap();
+	let acc = tester.accounts.insert_account(Secret::from([69u8; 32]), &"test".into()).unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
 	// when
@@ -275,7 +275,7 @@ fn should_add_transaction_to_queue() {
 fn should_add_sign_transaction_to_the_queue() {
 	// given
 	let tester = eth_signing();
-	let address = tester.accounts.new_account("test").unwrap();
+	let address = tester.accounts.new_account(&"test".into()).unwrap();
 
 	assert_eq!(tester.signer.requests().len(), 0);
 
@@ -354,7 +354,7 @@ fn should_add_sign_transaction_to_the_queue() {
 fn should_dispatch_transaction_if_account_is_unlock() {
 	// given
 	let tester = eth_signing();
-	let acc = tester.accounts.new_account("test").unwrap();
+	let acc = tester.accounts.new_account(&"test".into()).unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
 	let t = Transaction {
@@ -393,7 +393,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 	let mut tester = eth_signing();
 	let parity = parity::Dependencies::new();
 	tester.io.extend_with(parity.client(None).to_delegate());
-	let (address, public) = tester.accounts.new_account_and_public("test").unwrap();
+	let (address, public) = tester.accounts.new_account_and_public(&"test".into()).unwrap();
 	tester.accounts.unlock_account_permanently(address, "test".into()).unwrap();
 
 	// First encrypt message

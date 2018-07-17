@@ -24,7 +24,7 @@ use hash::{KECCAK_NULL_RLP};
 
 use account_db::AccountDBMut;
 use basic_account::BasicAccount;
-use blockchain::BlockChain;
+use blockchain::{BlockChain, BlockChainDB};
 use client::{Client, ChainInfo};
 use engines::EthEngine;
 use snapshot::{StateRebuilder};
@@ -33,11 +33,13 @@ use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 use tempdir::TempDir;
 use rand::Rng;
 
-use kvdb::{KeyValueDB, DBValue};
+use kvdb::DBValue;
 use ethereum_types::H256;
 use hashdb::HashDB;
+use keccak_hasher::KeccakHasher;
 use journaldb;
-use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie};
+use trie::{TrieMut, Trie};
+use ethtrie::{SecTrieDBMut, TrieDB, TrieDBMut};
 use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
 
 // the proportion of accounts we will alter each tick.
@@ -60,7 +62,7 @@ impl StateProducer {
 
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
-	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {
+	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
 			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
@@ -129,7 +131,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 }
 
 /// Compare two state dbs.
-pub fn compare_dbs(one: &HashDB, two: &HashDB) {
+pub fn compare_dbs(one: &HashDB<KeccakHasher>, two: &HashDB<KeccakHasher>) {
 	let keys = one.keys();
 
 	for key in keys.keys() {
@@ -158,7 +160,7 @@ pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
 /// Restore a snapshot into a given database. This will read chunks from the given reader
 /// write into the given database.
 pub fn restore(
-	db: Arc<KeyValueDB>,
+	db: Arc<BlockChainDB>,
 	engine: &EthEngine,
 	reader: &SnapshotReader,
 	genesis: &[u8],
@@ -170,7 +172,7 @@ pub fn restore(
 	let components = engine.snapshot_components().unwrap();
 	let manifest = reader.manifest();
 
-	let mut state = StateRebuilder::new(db.clone(), journaldb::Algorithm::Archive);
+	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
 	let mut secondary = {
 		let chain = BlockChain::new(Default::default(), genesis, db.clone());
 		components.rebuilder(chain, db, manifest).unwrap()

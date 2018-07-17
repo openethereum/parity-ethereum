@@ -58,7 +58,6 @@ pub struct ParityClient {
 	settings: Arc<NetworkSettings>,
 	health: NodeHealth,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<Host>,
 	ws_address: Option<Host>,
 	eip86_transition: u64,
 	gas_price_percentile: usize,
@@ -74,7 +73,6 @@ impl ParityClient {
 		settings: Arc<NetworkSettings>,
 		health: NodeHealth,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<Host>,
 		ws_address: Option<Host>,
 		gas_price_percentile: usize,
 	) -> Self {
@@ -85,7 +83,6 @@ impl ParityClient {
 			settings,
 			health,
 			signer,
-			dapps_address,
 			ws_address,
 			eip86_transition: client.eip86_transition(),
 			client,
@@ -305,8 +302,8 @@ impl Parity for ParityClient {
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
 		let stats = self.light_dispatch.sync.transactions_stats();
 		Ok(stats.into_iter()
-		   .map(|(hash, stats)| (hash.into(), stats.into()))
-		   .collect()
+			.map(|(hash, stats)| (hash.into(), stats.into()))
+			.collect()
 		)
 	}
 
@@ -327,11 +324,6 @@ impl Parity for ParityClient {
 		// TODO: other types?
 
 		Ok(map)
-	}
-
-	fn dapps_url(&self) -> Result<String> {
-		helpers::to_url(&self.dapps_address)
-			.ok_or_else(|| errors::dapps_disabled())
 	}
 
 	fn ws_url(&self) -> Result<String> {

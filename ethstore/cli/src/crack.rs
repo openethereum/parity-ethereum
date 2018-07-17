@@ -19,10 +19,10 @@ use std::sync::Arc;
 use std::collections::VecDeque;
 use parking_lot::Mutex;
 
-use ethstore::{PresaleWallet, Error};
+use ethstore::{ethkey::Password, PresaleWallet, Error};
 use num_cpus;
 
-pub fn run(passwords: VecDeque<String>, wallet_path: &str) -> Result<(), Error> {
+pub fn run(passwords: VecDeque<Password>, wallet_path: &str) -> Result<(), Error> {
 	let passwords = Arc::new(Mutex::new(passwords));
 
 	let mut handles = Vec::new();
@@ -42,7 +42,7 @@ pub fn run(passwords: VecDeque<String>, wallet_path: &str) -> Result<(), Error> 
 	Ok(())
 }
 
-fn look_for_password(passwords: Arc<Mutex<VecDeque<String>>>, wallet: PresaleWallet) {
+fn look_for_password(passwords: Arc<Mutex<VecDeque<Password>>>, wallet: PresaleWallet) {
 	let mut counter = 0;
 	while !passwords.lock().is_empty() {
 		let package = {
@@ -54,7 +54,7 @@ fn look_for_password(passwords: Arc<Mutex<VecDeque<String>>>, wallet: PresaleWal
 			counter += 1;
 			match wallet.decrypt(&pass) {
 				Ok(_) => {
-					println!("Found password: {}", &pass);
+					println!("Found password: {}", pass.as_str());
 					passwords.lock().clear();
 					return;
 				},

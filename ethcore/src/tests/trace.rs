@@ -16,7 +16,6 @@
 
 //! Client tests of tracing
 
-use tempdir::TempDir;
 use ethkey::KeyPair;
 use hash::keccak;
 use block::*;
@@ -26,7 +25,6 @@ use spec::*;
 use client::*;
 use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use std::sync::Arc;
 use header::Header;
 use miner::Miner;
@@ -34,22 +32,21 @@ use transaction::{Action, Transaction};
 use views::BlockView;
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
+use test_helpers;
 
 #[test]
 fn can_trace_block_and_uncle_reward() {
-	let tempdir = TempDir::new("").unwrap();
+	let db = test_helpers::new_db();
 	let spec = Spec::new_test_with_reward();
 	let engine = &*spec.engine;
 
 	// Create client
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let mut client_config = ClientConfig::default();
 	client_config.tracing.enabled = true;
-	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 	let client = Client::new(
 		client_config,
 		&spec,
-		client_db,
+		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
@@ -92,7 +89,7 @@ fn can_trace_block_and_uncle_reward() {
 	rolling_timestamp += 10;
 	root_block.set_timestamp(rolling_timestamp);
 
-	let root_block = root_block.close_and_lock().seal(engine, vec![]).unwrap();
+	let root_block = root_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 	if let Err(e) = client.import_block(root_block.rlp_bytes()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
@@ -100,7 +97,7 @@ fn can_trace_block_and_uncle_reward() {
 
 	last_header = view!(BlockView, &root_block.rlp_bytes()).header();
 	let root_header = last_header.clone();
-	db = root_block.drain();
+	db = root_block.drain().state.drop().1;
 
 	last_hashes.push(last_header.hash());
 
@@ -121,14 +118,14 @@ fn can_trace_block_and_uncle_reward() {
 	rolling_timestamp += 10;
 	parent_block.set_timestamp(rolling_timestamp);
 
-	let parent_block = parent_block.close_and_lock().seal(engine, vec![]).unwrap();
+	let parent_block = parent_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 	if let Err(e) = client.import_block(parent_block.rlp_bytes()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
 	last_header = view!(BlockView,&parent_block.rlp_bytes()).header();
-	db = parent_block.drain();
+	db = parent_block.drain().state.drop().1;
 
 	last_hashes.push(last_header.hash());
 
@@ -171,7 +168,7 @@ fn can_trace_block_and_uncle_reward() {
 	uncle.set_timestamp(rolling_timestamp);
 	block.push_uncle(uncle).unwrap();
 
-	let block = block.close_and_lock().seal(engine, vec![]).unwrap();
+	let block = block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 	let res = client.import_block(block.rlp_bytes());
 	if res.is_err() {

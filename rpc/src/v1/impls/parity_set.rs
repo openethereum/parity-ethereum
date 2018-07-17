@@ -29,10 +29,9 @@ use updater::{Service as UpdateService};
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::Future;
-use v1::helpers::dapps::DappsService;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction, LocalDapp};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<C, M, U, F = fetch::Client> {
@@ -40,7 +39,6 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	miner: Arc<M>,
 	updater: Arc<U>,
 	net: Arc<ManageNetwork>,
-	dapps: Option<Arc<DappsService>>,
 	fetch: F,
 	pool: CpuPool,
 	eip86_transition: u64,
@@ -55,7 +53,6 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 		miner: &Arc<M>,
 		updater: &Arc<U>,
 		net: &Arc<ManageNetwork>,
-		dapps: Option<Arc<DappsService>>,
 		fetch: F,
 		pool: CpuPool,
 	) -> Self {
@@ -64,7 +61,6 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 			miner: miner.clone(),
 			updater: updater.clone(),
 			net: net.clone(),
-			dapps: dapps,
 			fetch: fetch,
 			pool: pool,
 			eip86_transition: client.eip86_transition(),
@@ -119,7 +115,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
-		self.miner.set_author(address.into(), Some(password)).map_err(Into::into).map_err(errors::password)?;
+		self.miner.set_author(address.into(), Some(password.into())).map_err(Into::into).map_err(errors::password)?;
 		Ok(true)
 	}
 
@@ -184,14 +180,6 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 				.map(Into::into)
 		});
 		Box::new(self.pool.spawn(future))
-	}
-
-	fn dapps_refresh(&self) -> Result<bool> {
-		self.dapps.as_ref().map(|dapps| dapps.refresh_local_dapps()).ok_or_else(errors::dapps_disabled)
-	}
-
-	fn dapps_list(&self) -> Result<Vec<LocalDapp>> {
-		self.dapps.as_ref().map(|dapps| dapps.list_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>> {

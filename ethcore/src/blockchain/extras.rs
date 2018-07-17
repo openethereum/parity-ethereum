@@ -16,18 +16,17 @@
 
 //! Blockchain DB extras.
 
-use std::ops;
 use std::io::Write;
-use blooms::{GroupPosition, BloomGroup};
+use std::ops;
+
 use db::Key;
 use engines::epoch::{Transition as EpochTransition};
+use ethereum_types::{H256, H264, U256};
 use header::BlockNumber;
+use heapsize::HeapSizeOf;
+use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use receipt::Receipt;
 use rlp;
-
-use heapsize::HeapSizeOf;
-use ethereum_types::{H256, H264, U256};
-use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -38,8 +37,6 @@ pub enum ExtrasIndex {
 	BlockHash = 1,
 	/// Transaction address index
 	TransactionAddress = 2,
-	/// Block blooms index
-	BlocksBlooms = 3,
 	/// Block receipts index
 	BlockReceipts = 4,
 	/// Epoch transition data index.
@@ -84,31 +81,6 @@ impl Key<BlockDetails> for H256 {
 
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::BlockDetails)
-	}
-}
-
-pub struct LogGroupKey([u8; 6]);
-
-impl ops::Deref for LogGroupKey {
-	type Target = [u8];
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
-	}
-}
-
-impl Key<BloomGroup> for GroupPosition {
-	type Target = LogGroupKey;
-
-	fn key(&self) -> Self::Target {
-		let mut result = [0u8; 6];
-		result[0] = ExtrasIndex::BlocksBlooms as u8;
-		result[1] = self.level;
-		result[2] = (self.index >> 24) as u8;
-		result[3] = (self.index >> 16) as u8;
-		result[4] = (self.index >> 8) as u8;
-		result[5] = self.index as u8;
-		LogGroupKey(result)
 	}
 }
 
@@ -280,6 +252,7 @@ pub struct EpochTransitions {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
+	
 	use super::BlockReceipts;
 
 	#[test]

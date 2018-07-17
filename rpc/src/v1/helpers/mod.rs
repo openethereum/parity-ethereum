@@ -18,7 +18,6 @@
 pub mod errors;
 
 pub mod block_import;
-pub mod dapps;
 pub mod dispatch;
 pub mod fake_sign;
 pub mod ipfs;
@@ -39,7 +38,7 @@ mod subscription_manager;
 pub use self::dispatch::{Dispatcher, FullDispatcher};
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
-pub use self::poll_filter::{PollFilter, limit_logs};
+pub use self::poll_filter::{PollFilter, SyncPollFilter, limit_logs};
 pub use self::requests::{
 	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
 };

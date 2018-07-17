@@ -10,8 +10,8 @@ name = "parity"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-parity = { path = "../", default-features = false }
+parity-ethereum = { path = "../", default-features = false }
 
 [features]
 default = []
-final = ["parity/final"]
+final = ["parity-ethereum/final"]

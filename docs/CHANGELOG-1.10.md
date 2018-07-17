@@ -1,3 +1,84 @@
+## Parity [v1.10.9](https://github.com/paritytech/parity/releases/tag/v1.10.9) (2018-07-07)
+
+Parity 1.10.9 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Stable: 1.10.9 backports ([#9016](https://github.com/paritytech/parity/pull/9016))
+  - Parity-version: bump stable to 1.10.9
+  - Scripts: remove md5 checksums ([#8884](https://github.com/paritytech/parity/pull/8884))
+  - Add support for --chain tobalaba ([#8870](https://github.com/paritytech/parity/pull/8870))
+    - Add support for --chain tobalaba
+  - Only return error log for rustls ([#9025](https://github.com/paritytech/parity/pull/9025))
+  - Fixes for misbehavior reporting in AuthorityRound ([#8998](https://github.com/paritytech/parity/pull/8998))
+    - Aura: only report after checking for repeated skipped primaries
+    - Aura: refactor duplicate code for getting epoch validator set
+    - Aura: verify_external: report on validator set contract instance
+    - Aura: use correct validator set epoch number when reporting
+    - Aura: use epoch set when verifying blocks
+    - Aura: report skipped primaries when generating seal
+    - Aura: handle immediate transitions
+    - Aura: don't report skipped steps from genesis to first block
+    - Aura: fix reporting test
+    - Aura: refactor duplicate code to handle immediate_transitions
+    - Aura: let reporting fail on verify_block_basic
+    - Aura: add comment about possible failure of reporting
+
+## Parity [v1.10.8](https://github.com/paritytech/parity/releases/tag/v1.10.8) (2018-06-29)
+
+Parity 1.10.8 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8986](https://github.com/paritytech/parity/pull/8986))
+  - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530 ([#8984](https://github.com/paritytech/parity/pull/8984))
+    - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530
+    - Snap: use plugin rust
+  - Fix deadlock in blockchain. ([#8977](https://github.com/paritytech/parity/pull/8977))
+  - Remove js-glue from workspace
+- Bump stable to 1.10.8 ([#8951](https://github.com/paritytech/parity/pull/8951))
+  - Parity-version: bump stable to 1.10.8
+  - Update ropsten.json ([#8926](https://github.com/paritytech/parity/pull/8926))
+  - Scripts: minor improvements ([#8930](https://github.com/paritytech/parity/pull/8930))
+    - CI: enable 'latest' docker tag on master pipeline
+    - CI: mark both beta and stable as stable snap.
+    - CI: sign all windows binaries
+    - Scripts: remove whisper target not available in stable
+  - Scripts: fix gitlab strip binaries
+  - Scripts: fix docker build tag on latest using master ([#8952](https://github.com/paritytech/parity/pull/8952))
+  - Rpc: cap gas limit of local calls ([#8943](https://github.com/paritytech/parity/pull/8943))
+
+## Parity [v1.10.7](https://github.com/paritytech/parity/releases/tag/v1.10.7) (2018-06-20)
+
+Parity 1.10.7 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8919](https://github.com/paritytech/parity/pull/8919))
+  - Fixed AuthorityRound deadlock on shutdown, closes [#8088](https://github.com/paritytech/parity/issues/8088) ([#8803](https://github.com/paritytech/parity/pull/8803))
+  - CI: Fix docker tags ([#8822](https://github.com/paritytech/parity/pull/8822))
+    - Scripts: enable docker builds for beta and stable
+    - Scripts: docker latest should be beta not master
+    - Scripts: docker latest is master
+  - Fix concurrent access to signer queue ([#8854](https://github.com/paritytech/parity/pull/8854))
+    - Fix concurrent access to signer queue
+    - Put request back to the queue if confirmation failed
+    - Typo: fix docs and rename functions to be more specific
+    - Change trace info "Transaction" -> "Request"
+  - Add new ovh bootnodes and fix port for foundation bootnode 3.2 ([#8886](https://github.com/paritytech/parity/pull/8886))
+    - Add new ovh bootnodes and fix port for foundation bootnode 3.2
+    - Remove old bootnodes.
+    - Remove duplicate 1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082
+  - Block 0 is valid in queries ([#8891](https://github.com/paritytech/parity/pull/8891))
+  - Update jsonrpc libs, fixed ipc leak, closes [#8774](https://github.com/paritytech/parity/issues/8774) ([#8876](https://github.com/paritytech/parity/pull/8876))
+  - Add ETC Cooperative-run load balanced parity node ([#8892](https://github.com/paritytech/parity/pull/8892))
+  - Minor fix in chain supplier and light provider ([#8906](https://github.com/paritytech/parity/pull/8906))
+    - Fix chain supplier increment
+    - Fix light provider block_headers
+- Parity-version: stable release 1.10.7 ([#8855](https://github.com/paritytech/parity/pull/8855))
+  - Cherry-pick network-specific release flag ([#8821](https://github.com/paritytech/parity/pull/8821))
+  - Parity-version: bump stable to 1.10.7
+
 ## Parity [v1.10.6](https://github.com/paritytech/parity/releases/tag/v1.10.6) (2018-06-05)
 
 Parity 1.10.6 is a security-relevant release. Please upgrade your nodes as soon as possible.

@@ -26,8 +26,8 @@ mod messages;
 mod error;
 
 extern crate ethcore;
-extern crate ethcore_bytes as bytes;
-extern crate ethcore_crypto as crypto;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto as crypto;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
 extern crate ethcore_transaction as transaction;
@@ -42,6 +42,7 @@ extern crate keccak_hash as hash;
 extern crate parking_lot;
 extern crate patricia_trie as trie;
 extern crate transaction_pool as txpool;
+extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
 extern crate url;
 extern crate rustc_hex;
@@ -84,9 +85,10 @@ use ethcore::client::{
 	Client, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage, BlockId, CallContract
 };
 use ethcore::account_provider::AccountProvider;
-use ethcore::miner::{self, Miner, MinerService};
+use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
+use ethkey::Password;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
@@ -96,6 +98,9 @@ use_contract!(private, "PrivateContract", "res/private.json");
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
 
+/// Size of nonce cache
+const NONCE_CACHE_SIZE: usize = 128;
+
 /// Configurtion for private transaction provider
 #[derive(Default, PartialEq, Debug, Clone)]
 pub struct ProviderConfig {
@@ -104,7 +109,7 @@ pub struct ProviderConfig {
 	/// Account used for signing public transactions created from private transactions
 	pub signer_account: Option<Address>,
 	/// Passwords used to unlock accounts
-	pub passwords: Vec<String>,
+	pub passwords: Vec<Password>,
 }
 
 #[derive(Debug)]
@@ -123,7 +128,7 @@ pub struct Provider {
 	encryptor: Box<Encryptor>,
 	validator_accounts: HashSet<Address>,
 	signer_account: Option<Address>,
-	passwords: Vec<String>,
+	passwords: Vec<Password>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: RwLock<SigningStore>,
 	transactions_for_verification: VerificationStore,
@@ -241,7 +246,7 @@ impl Provider where {
 		Ok(original_transaction)
 	}
 
-	fn pool_client<'a>(&'a self, nonce_cache: &'a RwLock<HashMap<Address, U256>>) -> miner::pool_client::PoolClient<'a, Client> {
+	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache) -> miner::pool_client::PoolClient<'a, Client> {
 		let engine = self.client.engine();
 		let refuse_service_transactions = true;
 		miner::pool_client::PoolClient::new(
@@ -255,7 +260,7 @@ impl Provider where {
 
 	/// Retrieve and verify the first available private transaction for every sender
 	fn process_verification_queue(&self) -> Result<(), Error> {
-		let nonce_cache = Default::default();
+		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
 		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache));
 		for transaction in ready_transactions {
 			let private_hash = transaction.private_transaction.hash();
@@ -642,7 +647,7 @@ impl Importer for Arc<Provider> {
 
 		let original_tx = self.extract_original_transaction(private_tx.clone(), &contract)?;
 		trace!("Original transaction: {:?}", original_tx);
-		let nonce_cache = Default::default();
+		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
 		self.transactions_for_verification.add_transaction(
 			original_tx,
 			validation_account.map(|&account| account),
@@ -681,7 +686,7 @@ impl Importer for Arc<Provider> {
 }
 
 /// Try to unlock account using stored password, return found password if any
-fn find_account_password(passwords: &Vec<String>, account_provider: &AccountProvider, account: &Address) -> Option<String> {
+fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountProvider, account: &Address) -> Option<Password> {
 	for password in passwords {
 		if let Ok(true) = account_provider.test_password(account, password) {
 			return Some(password.clone());

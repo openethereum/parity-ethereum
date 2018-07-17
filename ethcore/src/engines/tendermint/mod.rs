@@ -37,7 +37,7 @@ use bytes::Bytes;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber, ExtendedHeader};
 use rlp::Rlp;
-use ethkey::{self, Message, Signature};
+use ethkey::{self, Password, Message, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
@@ -145,7 +145,7 @@ impl <F> super::EpochVerifier<EthereumMachine> for EpochVerifier<F>
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
 		match ::rlp::decode(proof) {
 			Ok(header) => self.verify_light(&header).ok().map(|_| vec![header.hash()]),
-			Err(_) => None // REVIEW: log perhaps? Not sure what the policy is.
+			Err(_) => None
 		}
 	}
 }
@@ -677,7 +677,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		}
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
 		{
 			self.signer.write().set(ap, address, password);
 		}
@@ -804,7 +804,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b = b.close();
+		let b = b.close().unwrap();
 		if let Seal::Proposal(seal) = spec.engine.generate_seal(b.block(), &genesis_header) {
 			(b, seal)
 		} else {
@@ -831,7 +831,7 @@ mod tests {
 	}
 
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
-		let addr = tap.insert_account(keccak(acc).into(), acc).unwrap();
+		let addr = tap.insert_account(keccak(acc).into(), &acc.into()).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
 		addr
 	}

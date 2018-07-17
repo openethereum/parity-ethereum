@@ -23,13 +23,14 @@ mod miner;
 mod service_transaction_checker;
 
 pub mod pool_client;
+#[cfg(feature = "stratum")]
 pub mod stratum;
 
 pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams};
 pub use ethcore_miner::pool::PendingOrdering;
 
 use std::sync::Arc;
-use std::collections::BTreeMap;
+use std::collections::{BTreeSet, BTreeMap};
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
@@ -46,6 +47,7 @@ use header::{BlockNumber, Header};
 use receipt::{RichReceipt, Receipt};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use state::StateInfo;
+use ethkey::Password;
 
 /// Provides methods to verify incoming external transactions
 pub trait TransactionVerifierClient: Send + Sync
@@ -124,7 +126,7 @@ pub trait MinerService : Send + Sync {
 	/// Set info necessary to sign consensus messages and block authoring.
 	///
 	/// On PoW password is optional.
-	fn set_author(&self, address: Address, password: Option<String>) -> Result<(), ::account_provider::SignError>;
+	fn set_author(&self, address: Address, password: Option<Password>) -> Result<(), ::account_provider::SignError>;
 
 	// Transaction Pool
 
@@ -162,6 +164,12 @@ pub trait MinerService : Send + Sync {
 	/// transaction with nonce returned from this function is signed on.
 	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256
 		where C: Nonce + Sync;
+
+	/// Get a set of all pending transaction hashes.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
+		C: ChainInfo + Sync;
 
 	/// Get a list of all ready transactions either ordered by priority or unordered (cheaper).
 	///

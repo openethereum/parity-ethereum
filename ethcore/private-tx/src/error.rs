@@ -16,7 +16,7 @@
 
 use ethereum_types::Address;
 use rlp::DecoderError;
-use trie::TrieError;
+use ethtrie::TrieError;
 use ethcore::account_provider::SignError;
 use ethcore::error::{Error as EthcoreError, ExecutionError};
 use transaction::Error as TransactionError;

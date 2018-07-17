@@ -75,7 +75,7 @@ impl SyncProvider for TestSyncProvider {
 		vec![
 			PeerInfo {
 				id: Some("node1".to_owned()),
-				client_version: "Parity/1".to_owned(),
+				client_version: "Parity-Ethereum/1".to_owned(),
 				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()],
 				remote_address: "127.0.0.1:7777".to_owned(),
 				local_address: "127.0.0.1:8888".to_owned(),
@@ -88,7 +88,7 @@ impl SyncProvider for TestSyncProvider {
 			},
 			PeerInfo {
 				id: None,
-				client_version: "Parity/2".to_owned(),
+				client_version: "Parity-Ethereum/2".to_owned(),
 				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()],
 				remote_address: "Handshake".to_owned(),
 				local_address: "127.0.0.1:3333".to_owned(),

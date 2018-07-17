@@ -23,12 +23,12 @@ extern crate log;
 
 #[macro_use]
 extern crate futures;
-extern crate futures_timer;
 
 extern crate hyper;
 extern crate hyper_rustls;
 
 extern crate tokio_core;
+extern crate tokio_timer;
 extern crate url;
 extern crate bytes;
 

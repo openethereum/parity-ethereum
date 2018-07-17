@@ -52,6 +52,6 @@ pub use vm::{
     GasLeft, ReturnData
 };
 pub use self::evm::{Finalize, FinalizationResult, CostType};
-pub use self::instructions::{InstructionInfo, INSTRUCTIONS, push_bytes};
+pub use self::instructions::{InstructionInfo, Instruction};
 pub use self::vmtype::VMType;
 pub use self::factory::Factory;

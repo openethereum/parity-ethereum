@@ -53,9 +53,3 @@ pub mod signer {
 	pub use super::helpers::{SigningQueue, SignerService, ConfirmationsQueue};
 	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
 }
-
-/// Dapps integration utilities
-pub mod dapps {
-	pub use super::helpers::dapps::DappsService;
-	pub use super::types::LocalDapp;
-}

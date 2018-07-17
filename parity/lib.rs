@@ -17,7 +17,6 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature = "memory_profiling", feature(alloc_system, global_allocator, allocator_api))]
 
 extern crate ansi_term;
 extern crate docopt;
@@ -43,8 +42,9 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate toml;
 
+extern crate blooms_db;
 extern crate ethcore;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
@@ -87,20 +87,14 @@ extern crate parity_dapps;
 #[macro_use]
 extern crate pretty_assertions;
 
-#[cfg(windows)] extern crate winapi;
-
 #[cfg(test)]
 extern crate tempdir;
-
-#[cfg(feature = "memory_profiling")]
-extern crate alloc_system;
 
 mod account;
 mod blockchain;
 mod cache;
 mod cli;
 mod configuration;
-mod dapps;
 mod export_hardcoded_sync;
 mod ipfs;
 mod deprecated;
@@ -117,7 +111,6 @@ mod secretstore;
 mod signer;
 mod snapshot;
 mod upgrade;
-mod url;
 mod user_defaults;
 mod whisper;
 mod db;
@@ -130,7 +123,7 @@ use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
 use ethcore_logger::setup_log;
 #[cfg(feature = "memory_profiling")]
-use alloc_system::System;
+use std::alloc::System;
 
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
@@ -204,10 +197,6 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 
 	match command.cmd {
 		Cmd::Run(run_cmd) => {
-			if let Some(ref dapp) = run_cmd.dapp {
-				open_dapp(&run_cmd.dapps_conf, &run_cmd.http_conf, dapp)?;
-			}
-
 			let outcome = run::execute(run_cmd, logger, on_client_rq, on_updater_rq)?;
 			Ok(ExecutionAction::Running(outcome))
 		},
@@ -246,14 +235,4 @@ pub fn start<Cr, Rr>(conf: Configuration, on_client_rq: Cr, on_updater_rq: Rr) -
 	}
 
 	execute(conf.into_command()?, on_client_rq, on_updater_rq)
-}
-
-fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfiguration, dapp: &str) -> Result<(), String> {
-	if !dapps_conf.enabled {
-		return Err("Cannot use DAPP command with Dapps turned off.".into())
-	}
-
-	let url = format!("http://{}:{}/{}/", rpc_conf.interface, rpc_conf.port, dapp);
-	url::open(&url).map_err(|e| format!("{}", e))?;
-	Ok(())
 }

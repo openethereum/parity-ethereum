@@ -1,3 +1,193 @@
+## Parity [v1.11.6](https://github.com/paritytech/parity/releases/tag/v1.11.6) (2018-07-09)
+
+Parity 1.11.6 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Beta: 1.11.6 backports ([#9015](https://github.com/paritytech/parity/pull/9015))
+  - Parity-version: bump beta to 1.11.6
+  - Scripts: remove md5 checksums ([#8884](https://github.com/paritytech/parity/pull/8884))
+  - Add support for --chain tobalaba
+    - Convert indents to tabs :)
+  - Fixes for misbehavior reporting in AuthorityRound ([#8998](https://github.com/paritytech/parity/pull/8998))
+    - Aura: only report after checking for repeated skipped primaries
+    - Aura: refactor duplicate code for getting epoch validator set
+    - Aura: verify_external: report on validator set contract instance
+    - Aura: use correct validator set epoch number when reporting
+    - Aura: use epoch set when verifying blocks
+    - Aura: report skipped primaries when generating seal
+    - Aura: handle immediate transitions
+    - Aura: don't report skipped steps from genesis to first block
+    - Aura: fix reporting test
+    - Aura: refactor duplicate code to handle immediate_transitions
+    - Aura: let reporting fail on verify_block_basic
+    - Aura: add comment about possible failure of reporting
+  - Only return error log for rustls ([#9025](https://github.com/paritytech/parity/pull/9025))
+  - Transaction Pool improvements ([#8470](https://github.com/paritytech/parity/pull/8470))
+    - Don't use ethereum_types in transaction pool.
+    - Hide internal insertion_id.
+    - Fix tests.
+    - Review grumbles.
+  - Improve should_replace on NonceAndGasPrice ([#8980](https://github.com/paritytech/parity/pull/8980))
+    - Additional tests for NonceAndGasPrice::should_replace.
+    - Fix should_replace in the distinct sender case.
+    - Use natural priority ordering to simplify should_replace.
+  - Minimal effective gas price in the queue ([#8934](https://github.com/paritytech/parity/pull/8934))
+    - Minimal effective gas price.
+    - Fix naming, add test
+    - Fix minimal entry score and add test.
+    - Fix worst_transaction.
+    - Remove effective gas price threshold.
+    - Don't leak gas_price decisions out of Scoring.
+  - Never drop local transactions from different senders. ([#9002](https://github.com/paritytech/parity/pull/9002))
+  - Recently rejected cache for transaction queue ([#9005](https://github.com/paritytech/parity/pull/9005))
+    - Store recently rejected transactions.
+    - Don't cache AlreadyImported rejections.
+    - Make the size of transaction verification queue dependent on pool size.
+    - Add a test for recently rejected.
+    - Fix logging for recently rejected.
+    - Make rejection cache smaller.
+    - Obsolete test removed
+    - Obsolete test removed
+    - Construct cache with_capacity.
+  - Optimize pending transactions filter ([#9026](https://github.com/paritytech/parity/pull/9026))
+    - Rpc: return unordered transactions in pending transactions filter
+    - Ethcore: use LruCache for nonce cache
+      - Only clear the nonce cache when a block is retracted
+    - Revert "ethcore: use LruCache for nonce cache"
+      - This reverts commit b382c19.
+    - Use only cached nonces when computing pending hashes.
+    - Give filters their own locks, so that they don't block one another.
+    - Fix pending transaction count if not sealing.
+    - Clear cache only when block is enacted.
+    - Fix RPC tests.
+    - Address review comments.
+  - A last bunch of txqueue performance optimizations ([#9024](https://github.com/paritytech/parity/pull/9024))
+    - Clear cache only when block is enacted.
+    - Add tracing for cull.
+    - Cull split.
+    - Cull after creating pending block.
+    - Add constant, remove sync::read tracing.
+    - Reset debug.
+    - Remove excessive tracing.
+    - Use struct for NonceCache.
+    - Fix build
+    - Remove warnings.
+    - Fix build again.
+  - Miner: add missing macro use for trace_time
+  - Ci: remove md5 merge leftovers
+
+## Parity [v1.11.5](https://github.com/paritytech/parity/releases/tag/v1.11.5) (2018-06-29)
+
+Parity 1.11.5 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Bump beta to 1.11.5 / Backports ([#8955](https://github.com/paritytech/parity/pull/8955))
+  - Parity-version: bump beta to 1.11.5
+  - Update ropsten.json ([#8926](https://github.com/paritytech/parity/pull/8926))
+  - Update hardcoded headers ([#8925](https://github.com/paritytech/parity/pull/8925))
+    - Update kovan.json
+      - Update Kovan to block 7693549
+    - Update foundation.json
+      - Updated to block 5812225
+    - Update ropsten.json
+      - Update to 3465217
+  - Scripts: minor improvements ([#8930](https://github.com/paritytech/parity/pull/8930))
+    - CI: enable 'latest' docker tag on master pipeline
+    - CI: mark both beta and stable as stable snap.
+    - CI: sign all windows binaries
+  - Scripts: fix docker build tag on latest using master ([#8952](https://github.com/paritytech/parity/pull/8952))
+  - Rpc: cap gas limit of local calls ([#8943](https://github.com/paritytech/parity/pull/8943))
+  - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530 ([#8984](https://github.com/paritytech/parity/pull/8984))
+    - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530
+    - Snap: use plugin rust
+  - Fix deadlock in blockchain. ([#8977](https://github.com/paritytech/parity/pull/8977))
+  - Remove js-glue from workspace
+    - This fixes test error on Rust 1.27 but also prevents js-glue from building itself.
+    - Builtin dapp users can still use js-glue from crates.io.
+  - Fix Android build on beta ([#9003](https://github.com/paritytech/parity/pull/9003))
+
+## Parity [v1.11.4](https://github.com/paritytech/parity/releases/tag/v1.11.4) (2018-06-20)
+
+Parity 1.11.4 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8916](https://github.com/paritytech/parity/pull/8916))
+  - `Duration_ns: u64 -> duration: Duration` ([#8457](https://github.com/paritytech/parity/pull/8457))
+    - Duration_ns: u64 -> duration: Duration
+    - Format on millis {:.2} -> {}
+  - Keep all enacted blocks notify in order ([#8524](https://github.com/paritytech/parity/pull/8524))
+    - Keep all enacted blocks notify in order
+    - Collect is unnecessary
+    - Update ChainNotify to use ChainRouteType
+    - Fix all ethcore fn defs
+    - Wrap the type within ChainRoute
+    - Fix private-tx and sync api
+    - Fix secret_store API
+    - Fix updater API
+    - Fix rpc api
+    - Fix informant api
+    - Eagerly cache enacted/retracted and remove contain_enacted/retracted
+    - Fix indent
+    - Tests: should use full expr form for struct constructor
+    - Use into_enacted_retracted to further avoid copy
+    - Typo: not a function
+    - Rpc/tests: ChainRoute -> ChainRoute::new
+  - Handle removed logs in filter changes and add geth compatibility field ([#8796](https://github.com/paritytech/parity/pull/8796))
+    - Add removed geth compatibility field in log
+    - Fix mocked tests
+    - Add field block hash in PollFilter
+    - Store last block hash info for log filters
+    - Implement canon route
+    - Use canon logs for fetching reorg logs
+    - Make sure removed flag is set
+    - Address grumbles
+  - Fixed AuthorityRound deadlock on shutdown, closes [#8088](https://github.com/paritytech/parity/issues/8088) ([#8803](https://github.com/paritytech/parity/pull/8803))
+  - Ci: Fix docker tags ([#8822](https://github.com/paritytech/parity/pull/8822))
+    - Scripts: enable docker builds for beta and stable
+    - Scripts: docker latest should be beta not master
+    - Scripts: docker latest is master
+  - Ethcore: fix ancient block error msg handling ([#8832](https://github.com/paritytech/parity/pull/8832))
+  - Disable parallel verification and skip verifiying already imported txs. ([#8834](https://github.com/paritytech/parity/pull/8834))
+    - Reject transactions that are already in pool without verifying them.
+    - Avoid verifying already imported transactions.
+  - Fix concurrent access to signer queue ([#8854](https://github.com/paritytech/parity/pull/8854))
+    - Fix concurrent access to signer queue
+    - Put request back to the queue if confirmation failed
+    - Typo: fix docs and rename functions to be more specific
+    - Change trace info "Transaction" -> "Request"
+  - Don't allocate in expect_valid_rlp unless necessary ([#8867](https://github.com/paritytech/parity/pull/8867))
+    - Don't allocate via format! in case there's no error
+    - Fix test?
+  - Fixed ipc leak, closes [#8774](https://github.com/paritytech/parity/issues/8774) ([#8876](https://github.com/paritytech/parity/pull/8876))
+  - Add new ovh bootnodes and fix port for foundation bootnode 3.2 ([#8886](https://github.com/paritytech/parity/pull/8886))
+    - Add new ovh bootnodes and fix port for foundation bootnode 3.2
+    - Remove old bootnodes.
+    - Remove duplicate 1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082
+  - Block 0 is valid in queries ([#8891](https://github.com/paritytech/parity/pull/8891))
+  - Add ETC Cooperative-run load balanced parity node ([#8892](https://github.com/paritytech/parity/pull/8892))
+  - Minor fix in chain supplier and light provider ([#8906](https://github.com/paritytech/parity/pull/8906))
+    - Fix chain supplier increment
+    - Fix light provider block_headers
+  - Check whether we need resealing in miner and unwrap has_account in account_provider ([#8853](https://github.com/paritytech/parity/pull/8853))
+    - Remove unused Result wrap in has_account
+    - Check whether we need to reseal for external transactions
+    - Fix reference to has_account interface
+    - Typo: missing )
+    - Refactor duplicates to prepare_and_update_sealing
+    - Fix build
+  - Allow disabling local-by-default for transactions with new config entry ([#8882](https://github.com/paritytech/parity/pull/8882))
+    - Add tx_queue_allow_unknown_local config option
+    - Refactor flag name + don't change import_own_tx behaviour
+    - Add fn to TestMinerService
+    - Avoid race condition from trusted sources
+- Parity-version: beta release 1.11.4 ([#8856](https://github.com/paritytech/parity/pull/8856))
+  - Cherry-pick network-specific release flag ([#8821](https://github.com/paritytech/parity/pull/8821))
+  - Parity-version: bump beta to 1.11.4
+  - Parity-version: remove merge leftovers
+
 ## Parity [v1.11.3](https://github.com/paritytech/parity/releases/tag/v1.11.3) (2018-06-06)
 
 Parity 1.11.3 is a security-relevant release. Please upgrade your nodes as soon as possible to [v1.10.6](https://github.com/paritytech/parity/releases/tag/v1.10.6) or [v1.11.3](https://github.com/paritytech/parity/releases/tag/v1.11.3).

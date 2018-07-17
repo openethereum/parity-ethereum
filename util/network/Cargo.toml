@@ -7,13 +7,13 @@ version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-error-chain = { version = "0.11", default-features = false }
-ethcore-crypto = { path = "../../ethcore/crypto" }
+error-chain = { version = "0.12", default-features = false }
+parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 ethcore-io = { path = "../io" }
 ethereum-types = "0.3"
 ethkey = { path = "../../ethkey" }
 ipnetwork = "0.12.6"
-rlp = { path = "../rlp" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 libc = "0.2"
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
 

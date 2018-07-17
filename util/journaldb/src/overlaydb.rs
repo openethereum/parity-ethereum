@@ -16,15 +16,18 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use std::sync::Arc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use error::{Result, BaseDataError};
+use std::io;
+use std::sync::Arc;
+
 use ethereum_types::H256;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
 use hashdb::*;
+use keccak_hasher::KeccakHasher;
 use memorydb::*;
 use kvdb::{KeyValueDB, DBTransaction};
+use super::error_negatively_reference_hash;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
@@ -36,7 +39,7 @@ use kvdb::{KeyValueDB, DBTransaction};
 /// queries have an immediate effect in terms of these functions.
 #[derive(Clone)]
 pub struct OverlayDB {
-	overlay: MemoryDB,
+	overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	column: Option<u32>,
 }
@@ -64,7 +67,7 @@ impl Encodable for Payload {
 }
 
 impl Decodable for Payload {
-	fn decode(rlp: &Rlp) -> ::std::result::Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let payload = Payload {
 			count: rlp.val_at(0)?,
 			value: DBValue::from_slice(rlp.at(1)?.data()?),
@@ -89,14 +92,14 @@ impl OverlayDB {
 
 	/// Commit all operations in a single batch.
 	#[cfg(test)]
-	pub fn commit(&mut self) -> Result<u32> {
+	pub fn commit(&mut self) -> io::Result<u32> {
 		let mut batch = self.backing.transaction();
 		let res = self.commit_to_batch(&mut batch)?;
 		self.backing.write(batch).map(|_| res).map_err(|e| e.into())
 	}
 
 	/// Commit all operations to given batch.
-	pub fn commit_to_batch(&mut self, batch: &mut DBTransaction) -> Result<u32> {
+	pub fn commit_to_batch(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		let mut ret = 0u32;
 		let mut deletes = 0usize;
 		for i in self.overlay.drain() {
@@ -106,14 +109,14 @@ impl OverlayDB {
 					Some(x) => {
 						let total_rc: i32 = x.count as i32 + rc;
 						if total_rc < 0 {
-							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
+							return Err(error_negatively_reference_hash(&key));
 						}
 						let payload = Payload::new(total_rc as u32, x.value);
 						deletes += if self.put_payload_in_batch(batch, &key, &payload) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
-							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
+							return Err(error_negatively_reference_hash(&key));
 						}
 						let payload = Payload::new(rc as u32, value);
 						self.put_payload_in_batch(batch, &key, &payload);
@@ -152,7 +155,7 @@ impl OverlayDB {
 	}
 }
 
-impl HashDB for OverlayDB {
+impl HashDB<KeccakHasher> for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| {

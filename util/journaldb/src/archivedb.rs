@@ -18,16 +18,18 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::io;
 use std::sync::Arc;
-use rlp::{encode, decode};
-use hashdb::*;
-use super::memorydb::*;
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
-use ethereum_types::H256;
-use error::{BaseDataError, UtilError};
+
 use bytes::Bytes;
+use ethereum_types::H256;
+use hashdb::*;
+use keccak_hasher::KeccakHasher;
+use kvdb::{KeyValueDB, DBTransaction};
+use rlp::{encode, decode};
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_key_already_exists, error_negatively_reference_hash};
+use super::memorydb::*;
+use traits::JournalDB;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -37,7 +39,7 @@ use bytes::Bytes;
 /// immediately. As this is an "archive" database, nothing is ever removed. This means
 /// that the states of any block the node has ever processed will be accessible.
 pub struct ArchiveDB {
-	overlay: MemoryDB,
+	overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	latest_era: Option<u64>,
 	column: Option<u32>,
@@ -62,7 +64,7 @@ impl ArchiveDB {
 	}
 }
 
-impl HashDB for ArchiveDB {
+impl HashDB<KeccakHasher> for ArchiveDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -125,7 +127,7 @@ impl JournalDB for ArchiveDB {
 		self.latest_era.is_none()
 	}
 
-	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, _id: &H256) -> Result<u32, UtilError> {
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, _id: &H256) -> io::Result<u32> {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
@@ -148,12 +150,12 @@ impl JournalDB for ArchiveDB {
 		Ok((inserts + deletes) as u32)
 	}
 
-	fn mark_canonical(&mut self, _batch: &mut DBTransaction, _end_era: u64, _canon_id: &H256) -> Result<u32, UtilError> {
+	fn mark_canonical(&mut self, _batch: &mut DBTransaction, _end_era: u64, _canon_id: &H256) -> io::Result<u32> {
 		// keep everything! it's an archive, after all.
 		Ok(0)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
@@ -161,7 +163,7 @@ impl JournalDB for ArchiveDB {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
 				if self.backing.get(self.column, &key)?.is_some() {
-					return Err(BaseDataError::AlreadyExists(key).into());
+					return Err(error_key_already_exists(&key));
 				}
 				batch.put(self.column, &key, &value);
 				inserts += 1;
@@ -169,7 +171,7 @@ impl JournalDB for ArchiveDB {
 			if rc < 0 {
 				assert!(rc == -1);
 				if self.backing.get(self.column, &key)?.is_none() {
-					return Err(BaseDataError::NegativelyReferencedHash(key).into());
+					return Err(error_negatively_reference_hash(&key));
 				}
 				batch.delete(self.column, &key);
 				deletes += 1;
@@ -191,7 +193,7 @@ impl JournalDB for ArchiveDB {
 		&self.backing
 	}
 
-	fn consolidate(&mut self, with: MemoryDB) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
 		self.overlay.consolidate(with);
 	}
 }

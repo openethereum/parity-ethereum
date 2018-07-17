@@ -34,7 +34,6 @@ use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
-
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
@@ -53,7 +52,7 @@ use v1::types::{
 use Host;
 
 /// Parity implementation.
-pub struct ParityClient<C, M, U>  {
+pub struct ParityClient<C, M, U> {
 	client: Arc<C>,
 	miner: Arc<M>,
 	updater: Arc<U>,
@@ -64,7 +63,6 @@ pub struct ParityClient<C, M, U>  {
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<Host>,
 	ws_address: Option<Host>,
 	eip86_transition: u64,
 }
@@ -84,7 +82,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<Host>,
 		ws_address: Option<Host>,
 	) -> Self {
 		let eip86_transition = client.eip86_transition();
@@ -99,7 +96,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 			logger,
 			settings,
 			signer,
-			dapps_address,
 			ws_address,
 			eip86_transition,
 		}
@@ -312,9 +308,9 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		);
 
 		Ok(ready_transactions
-		   .into_iter()
-		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
-		   .collect()
+			.into_iter()
+			.map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
+			.collect()
 		)
 	}
 
@@ -323,9 +319,9 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		let all_transactions = self.miner.queued_transactions();
 
 		Ok(all_transactions
-		   .into_iter()
-		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
-		   .collect()
+			.into_iter()
+			.map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
+			.collect()
 		)
 	}
 
@@ -336,8 +332,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
 		let stats = self.sync.transactions_stats();
 		Ok(stats.into_iter()
-		   .map(|(hash, stats)| (hash.into(), stats.into()))
-		   .collect()
+			.map(|(hash, stats)| (hash.into(), stats.into()))
+			.collect()
 		)
 	}
 
@@ -345,15 +341,10 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		let transactions = self.miner.local_transactions();
 		let block_number = self.client.chain_info().best_block_number;
 		Ok(transactions
-		   .into_iter()
-		   .map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
-		   .collect()
+			.into_iter()
+			.map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
+			.collect()
 		)
-	}
-
-	fn dapps_url(&self) -> Result<String> {
-		helpers::to_url(&self.dapps_address)
-			.ok_or_else(|| errors::dapps_disabled())
 	}
 
 	fn ws_url(&self) -> Result<String> {

@@ -14,31 +14,45 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain block.
+//! Base data structure of this module is `Block`.
+//!
+//! Blocks can be produced by a local node or they may be received from the network.
+//!
+//! To create a block locally, we start with an `OpenBlock`. This block is mutable
+//! and can be appended to with transactions and uncles.
+//!
+//! When ready, `OpenBlock` can be closed and turned into a `ClosedBlock`. A `ClosedBlock` can
+//! be reopend again by a miner under certain circumstances. On block close, state commit is
+//! performed.
+//!
+//! `LockedBlock` is a version of a `ClosedBlock` that cannot be reopened. It can be sealed
+//! using an engine.
+//!
+//! `ExecutedBlock` is an underlaying data structure used by all structs above to store block
+//! related info.
 
 use std::cmp;
-use std::sync::Arc;
 use std::collections::HashSet;
-use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use triehash::ordered_trie_root;
+use std::sync::Arc;
 
-use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
-use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
-use unexpected::{Mismatch, OutOfBounds};
-
-use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
 use error::{Error, BlockError};
+use ethereum_types::{H256, U256, Address, Bloom};
 use factory::Factories;
+use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use header::{Header, ExtendedHeader};
 use receipt::{Receipt, TransactionOutcome};
-use state::State;
+use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
 use state_db::StateDB;
+use state::State;
 use trace::Tracing;
 use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
+use triehash::ordered_trie_root;
+use unexpected::{Mismatch, OutOfBounds};
 use verification::PreverifiedBlock;
 use views::BlockView;
+use vm::{EnvInfo, LastHashes};
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -86,16 +100,26 @@ impl Decodable for Block {
 /// An internal type for a block's common elements.
 #[derive(Clone)]
 pub struct ExecutedBlock {
-	header: Header,
-	transactions: Vec<SignedTransaction>,
-	uncles: Vec<Header>,
-	receipts: Vec<Receipt>,
-	transactions_set: HashSet<H256>,
-	state: State<StateDB>,
-	traces: Tracing,
-	last_hashes: Arc<LastHashes>,
-	is_finalized: bool,
-	metadata: Option<Vec<u8>>,
+	/// Executed block header.
+	pub header: Header,
+	/// Executed transactions.
+	pub transactions: Vec<SignedTransaction>,
+	/// Uncles.
+	pub uncles: Vec<Header>,
+	/// Transaction receipts.
+	pub receipts: Vec<Receipt>,
+	/// Hashes of already executed transactions.
+	pub transactions_set: HashSet<H256>,
+	/// Underlaying state.
+	pub state: State<StateDB>,
+	/// Transaction traces.
+	pub traces: Tracing,
+	/// Hashes of last 256 blocks.
+	pub last_hashes: Arc<LastHashes>,
+	/// Finalization flag.
+	pub is_finalized: bool,
+	/// Block metadata.
+	pub metadata: Option<Vec<u8>>,
 }
 
 impl ExecutedBlock {
@@ -170,20 +194,14 @@ pub trait IsBlock {
 	/// Get all information on receipts in this block.
 	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
 
-	/// Get all information concerning transaction tracing in this block.
-	fn traces(&self) -> &Tracing { &self.block().traces }
-
 	/// Get all uncles in this block.
 	fn uncles(&self) -> &[Header] { &self.block().uncles }
-
-	/// Get tracing enabled flag for this block.
-	fn tracing_enabled(&self) -> bool { self.block().traces.is_enabled() }
 }
 
-/// Trait for a object that has a state database.
+/// Trait for an object that owns an `ExecutedBlock`
 pub trait Drain {
-	/// Drop this object and return the underlying database.
-	fn drain(self) -> StateDB;
+	/// Returns `ExecutedBlock`
+	fn drain(self) -> ExecutedBlock;
 }
 
 impl IsBlock for ExecutedBlock {
@@ -385,7 +403,7 @@ impl<'x> OpenBlock<'x> {
 			let took = start.elapsed();
 			let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
 			if took > time::Duration::from_millis(slow_tx) {
-				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, block.header().number(), hash);
+				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, self.block.header().number(), hash);
 			}
 			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
 		}
@@ -410,20 +428,16 @@ impl<'x> OpenBlock<'x> {
 	}
 
 	/// Turn this into a `ClosedBlock`.
-	pub fn close(self) -> ClosedBlock {
+	pub fn close(self) -> Result<ClosedBlock, Error> {
 		let mut s = self;
 
 		let unclosed_state = s.block.state.clone();
 		let unclosed_metadata = s.block.metadata.clone();
 		let unclosed_finalization_state = s.block.is_finalized;
 
-		if let Err(e) = s.engine.on_close_block(&mut s.block) {
-			warn!("Encountered error on closing the block: {}", e);
-		}
+		s.engine.on_close_block(&mut s.block)?;
+		s.block.state.commit()?;
 
-		if let Err(e) = s.block.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
-		}
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		let uncle_bytes = encode_list(&s.block.uncles).into_vec();
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
@@ -435,26 +449,21 @@ impl<'x> OpenBlock<'x> {
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
-		ClosedBlock {
+		Ok(ClosedBlock {
 			block: s.block,
 			uncle_bytes,
 			unclosed_state,
 			unclosed_metadata,
 			unclosed_finalization_state,
-		}
+		})
 	}
 
 	/// Turn this into a `LockedBlock`.
-	pub fn close_and_lock(self) -> LockedBlock {
+	pub fn close_and_lock(self) -> Result<LockedBlock, Error> {
 		let mut s = self;
 
-		if let Err(e) = s.engine.on_close_block(&mut s.block) {
-			warn!("Encountered error on closing the block: {}", e);
-		}
-
-		if let Err(e) = s.block.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
-		}
+		s.engine.on_close_block(&mut s.block)?;
+		s.block.state.commit()?;
 
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
@@ -474,10 +483,10 @@ impl<'x> OpenBlock<'x> {
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
-		LockedBlock {
+		Ok(LockedBlock {
 			block: s.block,
 			uncle_bytes,
-		}
+		})
 	}
 
 	#[cfg(test)]
@@ -489,11 +498,11 @@ impl<'x> IsBlock for OpenBlock<'x> {
 	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
-impl<'x> IsBlock for ClosedBlock {
+impl IsBlock for ClosedBlock {
 	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
-impl<'x> IsBlock for LockedBlock {
+impl IsBlock for LockedBlock {
 	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
@@ -581,9 +590,8 @@ impl LockedBlock {
 }
 
 impl Drain for LockedBlock {
-	/// Drop this object and return the underlieing database.
-	fn drain(self) -> StateDB {
-		self.block.state.drop().1
+	fn drain(self) -> ExecutedBlock {
+		self.block
 	}
 }
 
@@ -599,9 +607,8 @@ impl SealedBlock {
 }
 
 impl Drain for SealedBlock {
-	/// Drop this object and return the underlieing database.
-	fn drain(self) -> StateDB {
-		self.block.state.drop().1
+	fn drain(self) -> ExecutedBlock {
+		self.block
 	}
 }
 
@@ -652,7 +659,7 @@ fn enact(
 		b.push_uncle(u)?;
 	}
 
-	Ok(b.close_and_lock())
+	b.close_and_lock()
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
@@ -748,7 +755,7 @@ mod tests {
 			b.push_uncle(u.clone())?;
 		}
 
-		Ok(b.close_and_lock())
+		b.close_and_lock()
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
@@ -773,7 +780,7 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b = b.close_and_lock();
+		let b = b.close_and_lock().unwrap();
 		let _ = b.seal(&*spec.engine, vec![]);
 	}
 
@@ -787,16 +794,16 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap()
-			.close_and_lock().seal(engine, vec![]).unwrap();
+			.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
-		let orig_db = b.drain();
+		let orig_db = b.drain().state.drop().1;
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 
-		let db = e.drain();
+		let db = e.drain().state.drop().1;
 		assert_eq!(orig_db.journal_db().keys(), db.journal_db().keys());
 		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
 	}
@@ -817,10 +824,10 @@ mod tests {
 		uncle2_header.set_extra_data(b"uncle2".to_vec());
 		open_block.push_uncle(uncle1_header).unwrap();
 		open_block.push_uncle(uncle2_header).unwrap();
-		let b = open_block.close_and_lock().seal(engine, vec![]).unwrap();
+		let b = open_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 		let orig_bytes = b.rlp_bytes();
-		let orig_db = b.drain();
+		let orig_db = b.drain().state.drop().1;
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
@@ -830,7 +837,7 @@ mod tests {
 		let uncles = view!(BlockView, &bytes).uncles();
 		assert_eq!(uncles[1].extra_data(), b"uncle2");
 
-		let db = e.drain();
+		let db = e.drain().state.drop().1;
 		assert_eq!(orig_db.journal_db().keys(), db.journal_db().keys());
 		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
 	}
