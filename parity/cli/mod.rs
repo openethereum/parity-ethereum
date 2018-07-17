@@ -1074,8 +1074,8 @@ usage! {
 			"--dapps-path=[PATH]",
 			"Specify directory where dapps should be installed.",
 
-			ARG arg_ntp_servers: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?._legacy_ntp_servers.clone().map(|vec| vec.join(",")),
-			"--ntp-servers=[HOSTS]",	
+			ARG arg_ntp_servers: (Option<String>) = None, or |_| None,
+			"--ntp-servers=[HOSTS]",
 			"Does nothing; checking if clock is sync with NTP servers is now done on the UI.",
 	}
 }
@@ -1355,7 +1355,6 @@ struct Misc {
 	color: Option<bool>,
 	ports_shift: Option<u16>,
 	unsafe_expose: Option<bool>,
-	_legacy_ntp_servers: Option<Vec<String>>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -2029,7 +2028,6 @@ mod tests {
 				color: Some(true),
 				ports_shift: Some(0),
 				unsafe_expose: Some(false),
-				_legacy_ntp_servers: None,
 			}),
 			whisper: Some(Whisper {
 				enabled: Some(true),
