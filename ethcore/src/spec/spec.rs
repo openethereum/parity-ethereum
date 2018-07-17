@@ -202,10 +202,6 @@ impl CommonParams {
 			return Some("validateChainIdTransition");
 		}
 
-		if self.dust_protection_transition != 0 {
-			return Some("dustProtectionTransition");
-		}
-
 		None
 	}
 }
