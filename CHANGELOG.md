@@ -5,10 +5,11 @@ This is the Parity-Ethereum//v2.0.0-beta release, **YOLO!**
 Please note, Parity-Ethereum//v2.0.0 comes with some breaking changes that might be interrupting your usual workflows. Please mind them before upgrading:
 
 - The Parity client is now called _Parity-Ethereum_ to distinguish it from other software we provide, such as [_Parity-Bitcoin_](https://github.com/paritytech/parity-bitcoin/) and [_Parity-Polkadot_](https://github.com/paritytech/polkadot) ([#9052](https://github.com/paritytech/parity/pull/9052)).
-- The public node and the user interface (a.k.a. _"Parity Wallet"_) are completely removed from the Parity-Ethereum//v2.0.0 client ([#8758](https://github.com/paritytech/parity/pull/8758), [#8783](https://github.com/paritytech/parity/pull/8783), [#8641](https://github.com/paritytech/parity/pull/8641)).
-- Windows and MacOS versions are not available as installer anymore and the system trays were removed ([#8778](https://github.com/paritytech/parity/pull/8778)).
-- Linux versions are not available as deb-/rpm-packages anymore ([#8887](https://github.com/paritytech/parity/pull/8887)). MD5-checksums are completely replaced by SHA256-checksums ([#8884](https://github.com/paritytech/parity/pull/8884)).
-- The DApps subsystem was completely removed from the client ([#9017](https://github.com/paritytech/parity/pull/9017)).
+- The public node and the user interface (a.k.a. _"Parity Wallet"_) are completely removed from the Parity-Ethereum//v2.0.0 client ([#8758](https://github.com/paritytech/parity/pull/8758), [#8783](https://github.com/paritytech/parity/pull/8783), [#8641](https://github.com/paritytech/parity/pull/8641)). Users interested running a Parity Wallet, check out [the stand-alone UI application](https://github.com/Parity-JS/shell/releases).
+- The DApps subsystem was completely removed from the client ([#9017](https://github.com/paritytech/parity/pull/9017), [#9107](https://github.com/paritytech/parity/pull/9107)). Again, use the standalone wallet if you wish to continue working with them.
+- Windows and MacOS versions are not available as installer anymore and the system trays were removed ([#8778](https://github.com/paritytech/parity/pull/8778)). If you desire to run Parity-Ethereum on Windows or MacOS, you still can get the binaries from our mirrors. Furthermore, MacOS users are encouraged [to use our homebrew tap](https://github.com/paritytech/homebrew-paritytech/).
+- Linux versions are not available as deb-/rpm-packages anymore ([#8887](https://github.com/paritytech/parity/pull/8887)). Communities are encouraged to provide their own packages or maintain their own repositories, such as [Arch Linux does](https://www.archlinux.org/packages/community/x86_64/parity/) for instance.
+- MD5-checksums are completely replaced by SHA256-checksums ([#8884](https://github.com/paritytech/parity/pull/8884)). This is also reflected on our homepage by now.
 - Deprecated, removed, or replaced CLI-options are hidden from client `--help` to further discourage their usage ([#8967](https://github.com/paritytech/parity/pull/8967)).
 
 Additional noteworthy changes to the client:
