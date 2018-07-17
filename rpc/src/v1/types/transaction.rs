@@ -172,9 +172,9 @@ impl RichRawTransaction {
 
 impl Transaction {
 	/// Convert `LocalizedTransaction` into RPC Transaction.
-	pub fn from_localized(mut t: LocalizedTransaction, eip86_transition: u64) -> Transaction {
+	pub fn from_localized(mut t: LocalizedTransaction, _eip86_transition: u64) -> Transaction {
 		let signature = t.signature();
-		let scheme = if t.block_number >= eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce };
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -206,9 +206,9 @@ impl Transaction {
 	}
 
 	/// Convert `SignedTransaction` into RPC Transaction.
-	pub fn from_signed(t: SignedTransaction, block_number: u64, eip86_transition: u64) -> Transaction {
+	pub fn from_signed(t: SignedTransaction, block_number: u64, _eip86_transition: u64) -> Transaction {
 		let signature = t.signature();
-		let scheme = if block_number >= eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce };
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
