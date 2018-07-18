@@ -189,7 +189,7 @@ impl CommonParams {
 	}
 
 	/// Return Some if the current parameters contain a bugfix hard fork not on block 0.
-	pub fn nonzero_bugfix_hard_fork(&self) -> Option<&'static str> {
+	pub fn nonzero_bugfix_hard_fork(&self) -> Option<&str> {
 		if self.eip155_transition != 0 {
 			return Some("eip155Transition");
 		}
