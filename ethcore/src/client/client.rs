@@ -74,6 +74,7 @@ use types::filter::Filter;
 use types::ancestry_action::AncestryAction;
 use verification;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
+use verification::queue::kind::blocks::Unverified;
 use views::BlockView;
 
 // re-export
@@ -1384,22 +1385,17 @@ impl CallContract for Client {
 }
 
 impl ImportBlock for Client {
-	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
+	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
 		use verification::queue::kind::BlockLike;
-		use verification::queue::kind::blocks::Unverified;
 
-		// create unverified block here so the `keccak` calculation can be cached.
-		let unverified = Unverified::from_rlp(bytes)?;
-
-		{
-			if self.chain.read().is_known(&unverified.hash()) {
-				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
-			}
-			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
-			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
-			}
+		if self.chain.read().is_known(&unverified.hash()) {
+			bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
+		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
+		if status == BlockStatus::Unknown || status == BlockStatus::Pending {
+			bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
+		}
+
 		Ok(self.importer.block_queue.import(unverified)?)
 	}
 }

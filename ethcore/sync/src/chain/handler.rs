@@ -19,8 +19,9 @@ use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAc
 use bytes::Bytes;
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
 use ethcore::error::*;
-use ethcore::header::{BlockNumber, Header as BlockHeader};
+use ethcore::header::BlockNumber;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
+use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
@@ -148,45 +149,43 @@ impl SyncHandler {
 				peer.difficulty = Some(difficulty);
 			}
 		}
-		let block_rlp = r.at(0)?;
-		let header_rlp = block_rlp.at(0)?;
-		let h = keccak(&header_rlp.as_raw());
-		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		let header: BlockHeader = header_rlp.as_val()?;
-		if header.number() > sync.highest_block.unwrap_or(0) {
-			sync.highest_block = Some(header.number());
+		let block = Unverified::from_rlp(r.at(0)?.as_raw().to_vec())?;
+		let hash = block.header.hash();
+		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, hash);
+		if block.header.number() > sync.highest_block.unwrap_or(0) {
+			sync.highest_block = Some(block.header.number());
 		}
 		let mut unknown = false;
-		{
-			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-				peer.latest_hash = header.hash();
-			}
+
+		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+			peer.latest_hash = hash;
 		}
+
 		let last_imported_number = sync.new_blocks.last_imported_block_number();
-		if last_imported_number > header.number() && last_imported_number - header.number() > MAX_NEW_BLOCK_AGE {
-			trace!(target: "sync", "Ignored ancient new block {:?}", h);
+		if last_imported_number > block.header.number() && last_imported_number - block.header.number() > MAX_NEW_BLOCK_AGE {
+			trace!(target: "sync", "Ignored ancient new block {:?}", hash);
 			io.disable_peer(peer_id);
 			return Ok(());
 		}
-		match io.chain().import_block(block_rlp.as_raw().to_vec()) {
+		match io.chain().import_block(block) {
 			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
-				trace!(target: "sync", "New block already in chain {:?}", h);
+				trace!(target: "sync", "New block already in chain {:?}", hash);
 			},
 			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
-				trace!(target: "sync", "New block already queued {:?}", h);
+				trace!(target: "sync", "New block already queued {:?}", hash);
 			},
 			Ok(_) => {
 				// abort current download of the same block
 				sync.complete_sync(io);
-				sync.new_blocks.mark_as_known(&header.hash(), header.number());
-				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
+				sync.new_blocks.mark_as_known(&hash, block.header.number());
+				trace!(target: "sync", "New block queued {:?} ({})", hash, block.header.number());
 			},
 			Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(p)), _)) => {
 				unknown = true;
-				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
+				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, hash);
 			},
 			Err(e) => {
-				debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
+				debug!(target: "sync", "Bad new block {:?} : {:?}", hash, e);
 				io.disable_peer(peer_id);
 			}
 		};
@@ -194,7 +193,7 @@ impl SyncHandler {
 			if sync.state != SyncState::Idle {
 				trace!(target: "sync", "NewBlock ignored while seeking");
 			} else {
-				trace!(target: "sync", "New unknown block {:?}", h);
+				trace!(target: "sync", "New unknown block {:?}", hash);
 				//TODO: handle too many unknown blocks
 				sync.sync_peer(io, peer_id, true);
 			}
