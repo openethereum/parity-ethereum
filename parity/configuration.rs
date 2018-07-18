@@ -348,7 +348,6 @@ impl Configuration {
 				miner_options: self.miner_options()?,
 				gas_price_percentile: self.args.arg_gas_price_percentile,
 				poll_lifetime: self.args.arg_poll_lifetime,
-				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
@@ -572,10 +571,6 @@ impl Configuration {
 				None => U256::max_value(),
 			},
 		})
-	}
-
-	fn ntp_servers(&self) -> Vec<String> {
-		self.args.arg_ntp_servers.split(",").map(str::to_owned).collect()
 	}
 
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
@@ -1368,12 +1363,6 @@ mod tests {
 			miner_options: Default::default(),
 			gas_price_percentile: 50,
 			poll_lifetime: 60,
-			ntp_servers: vec![
-				"0.parity.pool.ntp.org:123".into(),
-				"1.parity.pool.ntp.org:123".into(),
-				"2.parity.pool.ntp.org:123".into(),
-				"3.parity.pool.ntp.org:123".into(),
-			],
 			ws_conf: Default::default(),
 			http_conf: Default::default(),
 			ipc_conf: Default::default(),

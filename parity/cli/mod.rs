@@ -790,10 +790,6 @@ usage! {
 			"--no-config",
 			"Don't load a configuration file.",
 
-			ARG arg_ntp_servers: (String) = "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123", or |c: &Config| c.misc.as_ref()?.ntp_servers.clone().map(|vec| vec.join(",")),
-			"--ntp-servers=[HOSTS]",
-			"Comma separated list of NTP servers to provide current time (host:port). Used to verify node health. Parity uses pool.ntp.org NTP servers; consider joining the pool: http://www.pool.ntp.org/join.html",
-
 			ARG arg_logging: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?.logging.clone(),
 			"-l, --logging=[LOGGING]",
 			"Specify the general logging level (error, warn, info, debug or trace). It can also be set for a specific module, example: '-l sync=debug,rpc=trace'",
@@ -1073,6 +1069,10 @@ usage! {
 			ARG arg_dapps_path: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
 			"--dapps-path=[PATH]",
 			"Specify directory where dapps should be installed.",
+
+			ARG arg_ntp_servers: (Option<String>) = None, or |_| None,
+			"--ntp-servers=[HOSTS]",
+			"Does nothing; checking if clock is sync with NTP servers is now done on the UI.",
 	}
 }
 
@@ -1345,7 +1345,6 @@ struct Snapshots {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Misc {
-	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,
@@ -1812,7 +1811,7 @@ mod tests {
 			flag_can_restart: false,
 
 			// -- Miscellaneous Options
-			arg_ntp_servers: "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123".into(),
+			arg_ntp_servers: None,
 			flag_version: false,
 			arg_logging: Some("own_tx=trace".into()),
 			arg_log_file: Some("/var/log/parity.log".into()),
@@ -2017,7 +2016,6 @@ mod tests {
 				disable_periodic: Some(true),
 			}),
 			misc: Some(Misc {
-				ntp_servers: Some(vec!["0.parity.pool.ntp.org:123".into()]),
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),
