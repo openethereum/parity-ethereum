@@ -28,16 +28,17 @@ use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::{Spec, SpecHardcodedSync};
+use ethcore::snapshot::DatabaseRestore;
 use ethcore::encoded;
 use io::IoChannel;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use ethereum_types::{H256, U256};
 use futures::{IntoFuture, Future};
 
 use kvdb::KeyValueDB;
 
 use self::fetch::ChainDataFetcher;
-use self::header_chain::{AncestryIter, HeaderChain, HardcodedSync};
+use self::header_chain::{HeaderChain, HardcodedSync};
 
 use cache::Cache;
 
@@ -47,6 +48,7 @@ mod header_chain;
 mod service;
 
 pub mod fetch;
+pub mod snapshot;
 
 /// Configuration for the light client.
 #[derive(Debug, Clone)]
@@ -100,7 +102,7 @@ pub trait LightChainClient: Send + Sync {
 	fn score(&self, id: BlockId) -> Option<U256>;
 
 	/// Get an iterator over a block and its ancestry.
-	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
+	fn ancestry_iter(&self) -> AncestryIter;
 
 	/// Get the signing chain ID.
 	fn signing_chain_id(&self) -> Option<u64>;
@@ -159,7 +161,9 @@ impl<T: LightChainClient> AsLightClient for T {
 pub struct Client<T> {
 	queue: HeaderQueue,
 	engine: Arc<EthEngine>,
-	chain: HeaderChain,
+	// header chain is thread-safe, but we need
+	// to replace it in a thread-safe way
+	chain: RwLock<HeaderChain>,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	db: Arc<KeyValueDB>,
@@ -184,7 +188,7 @@ impl<T: ChainDataFetcher> Client<T> {
 			engine: spec.engine.clone(),
 			chain: {
 				let hs_cfg = if config.no_hardcoded_sync { HardcodedSync::Deny } else { HardcodedSync::Allow };
-				HeaderChain::new(db.clone(), chain_col, &spec, cache, hs_cfg)?
+				RwLock::new(HeaderChain::new(db.clone(), chain_col, &spec, cache, hs_cfg)?)
 			},
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
@@ -200,7 +204,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	///
 	/// Returns `None` if we are at the genesis block.
 	pub fn read_hardcoded_sync(&self) -> Result<Option<SpecHardcodedSync>, Error> {
-		self.chain.read_hardcoded_sync()
+		self.chain.read().read_hardcoded_sync()
 	}
 
 	/// Adds a new `LightChainNotify` listener.
@@ -216,18 +220,21 @@ impl<T: ChainDataFetcher> Client<T> {
 	/// Inquire about the status of a given header.
 	pub fn status(&self, hash: &H256) -> BlockStatus {
 		match self.queue.status(hash) {
-			queue::Status::Unknown => self.chain.status(hash),
+			queue::Status::Unknown => self.chain.read().status(hash),
 			other => other.into(),
 		}
 	}
 
 	/// Get the chain info.
 	pub fn chain_info(&self) -> BlockChainInfo {
-		let best_hdr = self.chain.best_header();
-		let best_td = self.chain.best_block().total_difficulty;
+		let (best_hdr, best_td, first_block, genesis_hash) = {
 
-		let first_block = self.chain.first_block();
-		let genesis_hash = self.chain.genesis_hash();
+			let chain = self.chain.read();
+			(
+				chain.best_header(), chain.best_block().total_difficulty,
+				chain.first_block(), chain.genesis_hash(),
+			)
+		};
 
 		BlockChainInfo {
 			total_difficulty: best_td,
@@ -250,27 +257,22 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Attempt to get a block hash by block id.
 	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
-		self.chain.block_hash(id)
+		self.chain.read().block_hash(id)
 	}
 
 	/// Get a block header by Id.
 	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		self.chain.block_header(id)
+		self.chain.read().block_header(id)
 	}
 
 	/// Get the best block header.
 	pub fn best_block_header(&self) -> encoded::Header {
-		self.chain.best_header()
+		self.chain.read().best_header()
 	}
 
 	/// Get a block's chain score.
 	pub fn score(&self, id: BlockId) -> Option<U256> {
-		self.chain.score(id)
-	}
-
-	/// Get an iterator over a block and its ancestry.
-	pub fn ancestry_iter(&self, start: BlockId) -> AncestryIter {
-		self.chain.ancestry_iter(start)
+		self.chain.read().score(id)
 	}
 
 	/// Get the signing chain id.
@@ -285,7 +287,7 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Get the `i`th CHT root.
 	pub fn cht_root(&self, i: usize) -> Option<H256> {
-		self.chain.cht_root(i)
+		self.chain.read().cht_root(i)
 	}
 
 	/// Import a set of pre-verified headers from the queue.
@@ -316,14 +318,17 @@ impl<T: ChainDataFetcher> Client<T> {
 					The node may not be able to synchronize further.", e);
 			}
 
-			let epoch_proof =  self.engine.is_epoch_end(
-				&verified_header,
-				&|h| self.chain.block_header(BlockId::Hash(h)).and_then(|hdr| hdr.decode().ok()),
-				&|h| self.chain.pending_transition(h),
-			);
+			let epoch_proof =  {
+				let chain = self.chain.read();
+				self.engine.is_epoch_end(
+					&verified_header,
+					&|h| chain.block_header(BlockId::Hash(h)).and_then(|hdr| hdr.decode().ok()),
+					&|h| chain.pending_transition(h),
+				)
+			};
 
 			let mut tx = self.db.transaction();
-			let pending = match self.chain.insert(&mut tx, verified_header, epoch_proof) {
+			let pending = match self.chain.read().insert(&mut tx, verified_header, epoch_proof) {
 				Ok(pending) => {
 					good.push(hash);
 					self.report.write().blocks_imported += 1;
@@ -337,7 +342,7 @@ impl<T: ChainDataFetcher> Client<T> {
 			};
 
 			self.db.write_buffered(tx);
-			self.chain.apply_pending(pending);
+			self.chain.read().apply_pending(pending);
 		}
 
 		if let Err(e) = self.db.flush() {
@@ -359,7 +364,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	pub fn chain_mem_used(&self) -> usize {
 		use heapsize::HeapSizeOf;
 
-		self.chain.heap_size_of_children()
+		self.chain.read().heap_size_of_children()
 	}
 
 	/// Get a handle to the verification engine.
@@ -416,7 +421,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	// should skip.
 	fn check_header(&self, bad: &mut Vec<H256>, verified_header: &Header) -> bool {
 		let hash = verified_header.hash();
-		let parent_header = match self.chain.block_header(BlockId::Hash(*verified_header.parent_hash())) {
+		let parent_header = match self.chain.read().block_header(BlockId::Hash(*verified_header.parent_hash())) {
 			Some(header) => header,
 			None => {
 				trace!(target: "client", "No parent for block ({}, {})",
@@ -514,11 +519,25 @@ impl<T: ChainDataFetcher> Client<T> {
 		};
 
 		let mut batch = self.db.transaction();
-		self.chain.insert_pending_transition(&mut batch, header.hash(), epoch::PendingTransition {
+		self.chain.read().insert_pending_transition(&mut batch, header.hash(), epoch::PendingTransition {
 			proof: proof,
 		});
 		self.db.write_buffered(batch);
 		Ok(())
+	}
+}
+
+// An ugly borrow-checker workaround to allow iterating over a block and its ancestry.
+// We need this since `self.chain.read()` does not live long enough for
+// `self.chain.read().ancestry_iter(_)` to work. And we probably don't want to expose
+// `RwLockReadGuard` in the public API.
+/// An iterator over a block and its ancestry.
+pub struct AncestryIter<'a>(RwLockReadGuard<'a, HeaderChain>);
+
+impl<'a> AncestryIter<'a> {
+	/// Get an iterator over a block and its ancestry.
+	pub fn iter(&'a self, start: BlockId) -> impl Iterator<Item=encoded::Header> + 'a {
+		self.0.ancestry_iter(start)
 	}
 }
 
@@ -549,8 +568,8 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 		Client::score(self, id)
 	}
 
-	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a> {
-		Box::new(Client::ancestry_iter(self, start))
+	fn ancestry_iter(&self) -> AncestryIter {
+		AncestryIter(self.chain.read())
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> {
@@ -606,7 +625,7 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 	fn broadcast_consensus_message(&self, _message: Vec<u8>) { }
 
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
-		self.chain.epoch_transition_for(parent_hash).map(|(hdr, proof)| EpochTransition {
+		self.chain.read().epoch_transition_for(parent_hash).map(|(hdr, proof)| EpochTransition {
 			block_hash: hdr.hash(),
 			block_number: hdr.number(),
 			proof: proof,
@@ -623,5 +642,20 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		Client::block_header(self, id)
+	}
+}
+
+impl<T: ChainDataFetcher> DatabaseRestore<snapshot::LightClientRestorationParams> for Client<T> {
+	/// Restart the client with a new backend
+	fn restore_db(&self, new_db: &str, params: &snapshot::LightClientRestorationParams) -> Result<(), Error> {
+		trace!(target: "snapshot", "Replacing light client database with {:?}", new_db);
+
+		let _import_lock = self.import_lock.lock();
+		self.db.restore(new_db)?;
+
+		let mut chain = self.chain.write();
+		let cache = params.cache.clone();
+		*chain = HeaderChain::new(self.db.clone(), params.col, &params.spec, cache, params.allow_hs)?;
+		Ok(())
 	}
 }

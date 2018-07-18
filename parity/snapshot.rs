@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use hash::keccak;
 use ethcore::account_provider::AccountProvider;
-use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
+use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS, FullNodeRestorationParams};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
@@ -66,7 +66,11 @@ pub struct SnapshotCommand {
 
 // helper for reading chunks from arbitrary reader and feeding them into the
 // service.
-fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, recover: bool) -> Result<(), String> {
+fn restore_using<R: SnapshotReader>(
+	snapshot: Arc<SnapshotService<FullNodeRestorationParams>>,
+	reader: &R,
+	recover: bool
+) -> Result<(), String> {
 	let manifest = reader.manifest();
 
 	info!("Restoring to block #{} (0x{:?})", manifest.block_number, manifest.block_hash);

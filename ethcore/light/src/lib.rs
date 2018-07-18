@@ -59,6 +59,7 @@ extern crate ethcore_network as network;
 extern crate parity_bytes as bytes;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
+#[macro_use]
 extern crate ethcore;
 extern crate hashdb;
 extern crate heapsize;
@@ -84,8 +85,11 @@ extern crate kvdb;
 extern crate memory_cache;
 #[macro_use]
 extern crate error_chain;
+extern crate snappy;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate tempdir;
+#[cfg(test)]
+extern crate kvdb_rocksdb;

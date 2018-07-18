@@ -37,7 +37,6 @@ use std::time::{Duration, Instant};
 
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
-use self::error::Punishment;
 use self::load_timer::{LoadDistribution, NullStore};
 use self::request_set::RequestSet;
 use self::id_guard::IdGuard;
@@ -54,7 +53,7 @@ mod tests;
 pub mod request_credits;
 
 pub use self::context::{BasicContext, EventContext, IoContext};
-pub use self::error::Error;
+pub use self::error::{Error, Punishment};
 pub use self::load_timer::{SampleStore, FileStore};
 pub use self::status::{Status, Capabilities, Announcement};
 

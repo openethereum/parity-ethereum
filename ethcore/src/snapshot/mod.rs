@@ -55,7 +55,7 @@ use rand::{Rng, OsRng};
 pub use self::error::Error;
 
 pub use self::consensus::*;
-pub use self::service::{Service, DatabaseRestore};
+pub use self::service::{Service, DatabaseRestore, FullNodeRestorationParams};
 pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
 pub use types::snapshot_manifest::ManifestData;
@@ -81,7 +81,7 @@ const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
 // Maximal chunk size (decompressed)
 // Snappy::decompressed_len estimation may sometimes yield results greater
-// than PREFERRED_CHUNK_SIZE so allow some threshold here.
+// than `PREFERRED_CHUNK_SIZE` so allow some threshold here.
 const MAX_CHUNK_SIZE: usize = PREFERRED_CHUNK_SIZE / 4 * 5;
 
 // Minimum supported state chunk version.
@@ -132,7 +132,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	writer: W,
 	p: &Progress
 ) -> Result<(), Error> {
-	let start_header = chain.block_header_data(&block_at)
+	let start_header = BlockProvider::block_header_data(chain, &block_at)
 		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
 	let state_root = start_header.state_root();
 	let number = start_header.number();
@@ -176,7 +176,13 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 /// Secondary chunks are engine-specific, but they intend to corroborate the state data
 /// in the state chunks.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a BlockChain, start_hash: H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
+pub fn chunk_secondary<'a>(
+	mut chunker: Box<SnapshotComponents>,
+	chain: &'a BlockChain,
+	start_hash: H256,
+	writer: &Mutex<SnapshotWriter + 'a>,
+	progress: &'a Progress
+) -> Result<Vec<H256>, Error> {
 	let mut chunk_hashes = Vec::new();
 	let mut snappy_buffer = vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)];
 
@@ -483,13 +489,13 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
-pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, chain: &RestorationTargetChain, always: bool) -> Result<(), ::error::Error> {
 	engine.verify_block_basic(header)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
 		engine.verify_block_unordered(header)?;
 		match chain.block_header_data(header.parent_hash()) {
-			Some(parent) => engine.verify_block_family(header, &parent.decode()?),
+			Some(parent) => engine.verify_block_family(header, &parent),
 			None => Ok(()),
 		}
 	} else {

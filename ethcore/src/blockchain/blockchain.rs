@@ -741,16 +741,8 @@ impl BlockChain {
 		})
 	}
 
-	/// Inserts a verified, known block from the canonical chain.
-	///
-	/// Can be performed out-of-order, but care must be taken that the final chain is in a correct state.
-	/// This is used by snapshot restoration and when downloading missing blocks for the chain gap.
-	/// `is_best` forces the best block to be updated to this block.
-	/// `is_ancient` forces the best block of the first block sequence to be updated to this block.
-	/// `parent_td` is a parent total diffuculty
-	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
-	/// Returns true if the block is disconnected.
-	pub fn insert_unordered_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool, is_ancient: bool) -> bool {
+	// `RestorationTargetChain::insert_unordered_block` implementation
+	pub(crate) fn insert_unordered_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool, is_ancient: bool) -> bool {
 		let block = view!(BlockView, bytes);
 		let header = block.header_view();
 		let hash = header.hash();
@@ -927,11 +919,8 @@ impl BlockChain {
 		self.db.key_value().read(db::COL_EXTRA, &hash)
 	}
 
-	/// Add a child to a given block. Assumes that the block hash is in
-	/// the chain and the child's parent is this block.
-	///
-	/// Used in snapshots to glue the chunks together at the end.
-	pub fn add_child(&self, batch: &mut DBTransaction, block_hash: H256, child_hash: H256) {
+	// `RestorationTargetChain::add_child` implementation
+	pub(crate) fn add_child(&self, batch: &mut DBTransaction, block_hash: H256, child_hash: H256) {
 		let mut parent_details = self.block_details(&block_hash)
 			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
 

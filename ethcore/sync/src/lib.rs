@@ -38,6 +38,7 @@ extern crate parking_lot;
 extern crate smallvec;
 extern crate rlp;
 extern crate ipnetwork;
+extern crate itertools;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate triehash_ethereum;

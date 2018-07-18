@@ -17,13 +17,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use ethcore::client::DatabaseCompactionProfile;
+use ethcore::client::{DatabaseCompactionProfile, Mode, VMType};
 use ethcore::spec::{SpecParams, OptimizeFor};
 use light::client::fetch::Unavailable as UnavailableDataFetcher;
 use light::Cache as LightDataCache;
 
 use params::{SpecType, Pruning};
-use helpers::execute_upgrades;
+use helpers::{execute_upgrades, to_client_config};
 use dir::Directories;
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
@@ -85,13 +85,38 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 
+	// prepare client and snapshot paths.
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
+
+	// initialize snapshot restoration db handler
+	let tracing = false;
+	let fat_db = false;
+	let client_config = to_client_config(
+		&cmd.cache_config,
+		spec.name.to_lowercase(),
+		Mode::Active,
+		tracing,
+		fat_db,
+		cmd.compaction,
+		VMType::Interpreter,
+		/*name: */"".into(),
+		/*pruning_algorithm: */algorithm,
+		/*pruning_history: */0,
+		/*pruning_memory: */0,
+		/*check_seal: */true,
+	);
+	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
+
 	// initialize database.
-	let db = db::open_db(&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
+	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
 						 &cmd.compaction).map_err(|e| format!("Failed to open database {:?}", e))?;
 
-	let service = light_client::Service::start(config, &spec, UnavailableDataFetcher, db, cache)
-		.map_err(|e| format!("Error starting light client: {}", e))?;
+	let service = light_client::Service::start(
+		config, spec, UnavailableDataFetcher, db, cache,
+		restoration_db_handler, &snapshot_path,
+	).map_err(|e| format!("Error starting light client: {}", e))?;
 
 	let hs = service.client().read_hardcoded_sync()
 		.map_err(|e| format!("Error reading hardcoded sync: {}", e))?;

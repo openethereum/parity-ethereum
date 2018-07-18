@@ -22,7 +22,7 @@ use tempdir::TempDir;
 use client::{Client, BlockInfo};
 use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
-use snapshot::{self, ManifestData, SnapshotService};
+use snapshot::{self, ManifestData, SnapshotService, FullNodeRestorationParams as ChainParams};
 use spec::Spec;
 use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
@@ -31,8 +31,8 @@ use kvdb_rocksdb::DatabaseConfig;
 
 struct NoopDBRestore;
 
-impl snapshot::DatabaseRestore for NoopDBRestore {
-	fn restore_db(&self, _new_db: &str) -> Result<(), ::error::Error> {
+impl snapshot::DatabaseRestore<ChainParams> for NoopDBRestore {
+	fn restore_db(&self, _new_db: &str, _: &ChainParams) -> Result<(), ::error::Error> {
 		Ok(())
 	}
 }
@@ -68,9 +68,11 @@ fn restored_is_equivalent() {
 
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
-		genesis_block: spec.genesis_block(),
 		restoration_db_handler: restoration,
-		pruning: ::journaldb::Algorithm::Archive,
+		chain_params: ChainParams {
+			genesis_block: spec.genesis_block(),
+			pruning: ::journaldb::Algorithm::Archive,
+		},
 		channel: IoChannel::disconnected(),
 		snapshot_root: path,
 		db_restore: client2.clone(),
@@ -110,9 +112,11 @@ fn guards_delete_folders() {
 	let tempdir = TempDir::new("").unwrap();
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
-		genesis_block: spec.genesis_block(),
 		restoration_db_handler: restoration_db_handler(DatabaseConfig::with_columns(::db::NUM_COLUMNS)),
-		pruning: ::journaldb::Algorithm::Archive,
+		chain_params: ChainParams {
+			genesis_block: spec.genesis_block(),
+			pruning: ::journaldb::Algorithm::Archive,
+		},
 		channel: IoChannel::disconnected(),
 		snapshot_root: tempdir.path().to_owned(),
 		db_restore: Arc::new(NoopDBRestore),

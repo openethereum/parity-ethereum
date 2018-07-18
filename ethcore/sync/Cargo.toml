@@ -34,6 +34,7 @@ smallvec = { version = "0.4", features = ["heapsizeof"] }
 parking_lot = "0.6"
 trace-time = { path = "../../util/trace-time" }
 ipnetwork = "0.12.6"
+itertools = "0.7.8"
 
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }

@@ -155,11 +155,11 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
 const MAX_TRANSACTIONS_TO_QUERY: usize = 4096;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
-// Min number of blocks to be behind for a snapshot sync
-const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
-const SNAPSHOT_MIN_PEERS: usize = 3;
+/// Min number of blocks to be behind for a snapshot sync
+pub const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
+pub const SNAPSHOT_MIN_PEERS: usize = 3;
 
-const STATUS_PACKET: u8 = 0x00;
+pub const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
 const TRANSACTIONS_PACKET: u8 = 0x02;
 pub const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
@@ -181,7 +181,7 @@ pub const CONSENSUS_DATA_PACKET: u8 = 0x15;
 const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
 const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
 
-const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
+pub const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
 const WAIT_PEERS_TIMEOUT: Duration = Duration::from_secs(5);
 const STATUS_TIMEOUT: Duration = Duration::from_secs(5);
@@ -189,8 +189,8 @@ const HEADERS_TIMEOUT: Duration = Duration::from_secs(15);
 const BODIES_TIMEOUT: Duration = Duration::from_secs(20);
 const RECEIPTS_TIMEOUT: Duration = Duration::from_secs(10);
 const FORK_HEADER_TIMEOUT: Duration = Duration::from_secs(3);
-const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
-const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
+pub const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
+pub const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state

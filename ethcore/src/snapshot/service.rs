@@ -30,7 +30,7 @@ use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client::{Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
 use error::Error;
-use hash::keccak;
+use hash::{keccak, KECCAK_NULL_RLP};
 use ids::BlockId;
 
 use io::IoChannel;
@@ -45,11 +45,13 @@ use snappy;
 struct Guard(bool, PathBuf);
 
 impl Guard {
+	// Create a new path guard
 	fn new(path: PathBuf) -> Self { Guard(true, path) }
 
 	#[cfg(test)]
 	fn benign() -> Self { Guard(false, PathBuf::default()) }
 
+	// Don't remove the directory on drop
 	fn disarm(mut self) { self.0 = false }
 }
 
@@ -62,17 +64,17 @@ impl Drop for Guard {
 }
 
 /// External database restoration handler
-pub trait DatabaseRestore: Send + Sync {
+pub trait DatabaseRestore<T: ChainRestorationParams>: Send + Sync {
 	/// Restart with a new backend. Takes ownership of passed database and moves it to a new location.
-	fn restore_db(&self, new_db: &str) -> Result<(), Error>;
+	fn restore_db(&self, new_db: &str, params: &T) -> Result<(), Error>;
 }
 
 /// State restoration manager.
-struct Restoration {
+pub struct Restoration {
 	manifest: ManifestData,
 	state_chunks_left: HashSet<H256>,
 	block_chunks_left: HashSet<H256>,
-	state: StateRebuilder,
+	state: Option<StateRebuilder>,
 	secondary: Box<Rebuilder>,
 	writer: Option<LooseWriter>,
 	snappy_buffer: Bytes,
@@ -92,6 +94,29 @@ struct RestorationParams<'a> {
 }
 
 impl Restoration {
+	/// Create a new `Restoration` instance for a light client.
+	pub fn new_light(
+		manifest: ManifestData,
+		rest_db: PathBuf,
+		writer: Option<LooseWriter>,
+		db: Arc<BlockChainDB>,
+		rebuilder: Box<Rebuilder>,
+	) -> Self {
+		let block_chunks_left = manifest.block_hashes.iter().cloned().collect();
+		Self {
+			manifest,
+			state_chunks_left: HashSet::new(),
+			block_chunks_left,
+			state: None,
+			secondary: rebuilder,
+			writer,
+			snappy_buffer: Vec::new(),
+			final_state_root: KECCAK_NULL_RLP,
+			guard: Guard::new(rest_db),
+			db,
+		}
+	}
+
 	// make a new restoration using the given parameters.
 	fn new(params: RestorationParams) -> Result<Self, Error> {
 		let manifest = params.manifest;
@@ -102,10 +127,11 @@ impl Restoration {
 		let raw_db = params.db;
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
+		let boxed = Box::new(chain);
 		let components = params.engine.snapshot_components()
 			.ok_or_else(|| ::snapshot::Error::SnapshotsUnsupported)?;
 
-		let secondary = components.rebuilder(chain, raw_db.clone(), &manifest)?;
+		let secondary = components.rebuilder(boxed, raw_db.clone(), &manifest)?;
 
 		let root = manifest.state_root.clone();
 
@@ -113,7 +139,7 @@ impl Restoration {
 			manifest: manifest,
 			state_chunks_left: state_chunks,
 			block_chunks_left: block_chunks,
-			state: StateRebuilder::new(raw_db.key_value().clone(), params.pruning),
+			state: Some(StateRebuilder::new(raw_db.key_value().clone(), params.pruning)),
 			secondary: secondary,
 			writer: params.writer,
 			snappy_buffer: Vec::new(),
@@ -125,15 +151,22 @@ impl Restoration {
 
 	// feeds a state chunk, aborts early if `flag` becomes false.
 	fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
+		if self.state.is_none() {
+			trace!(target: "snapshot", "Feeding a chunk state to a light client");
+			return Ok(());
+		}
 		if self.state_chunks_left.contains(&hash) {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+				bail!(::snapshot::Error::ChunkTooLarge);
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
-			self.state.feed(&self.snappy_buffer[..len], flag)?;
+			self.state
+				.as_mut()
+				.expect("checked above; qed")
+				.feed(&self.snappy_buffer[..len], flag)?;
 
 			if let Some(ref mut writer) = self.writer.as_mut() {
 				writer.write_state_chunk(hash, chunk)?;
@@ -151,7 +184,7 @@ impl Restoration {
 			let expected_len = snappy::decompressed_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
-				return Err(::snapshot::Error::ChunkTooLarge.into());
+				bail!(::snapshot::Error::ChunkTooLarge);
 			}
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
@@ -172,15 +205,17 @@ impl Restoration {
 
 		if !self.is_done() { return Ok(()) }
 
-		// verify final state root.
-		let root = self.state.state_root();
-		if root != self.final_state_root {
-			warn!("Final restored state has wrong state root: expected {:?}, got {:?}", self.final_state_root, root);
-			return Err(TrieError::InvalidStateRoot(root).into());
-		}
+		if let Some(state) = self.state {
+			// verify final state root.
+			let root = state.state_root();
+			if root != self.final_state_root {
+				warn!("Final restored state has wrong state root: expected {:?}, got {:?}", self.final_state_root, root);
+				bail!(TrieError::InvalidStateRoot(root));
+			}
 
-		// check for missing code.
-		self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
+			// check for missing code.
+			state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
+		}
 
 		// connect out-of-order chunks and verify chain integrity.
 		self.secondary.finalize(engine)?;
@@ -203,13 +238,11 @@ impl Restoration {
 pub type Channel = IoChannel<ClientIoMessage>;
 
 /// Snapshot service parameters.
-pub struct ServiceParams {
+pub struct ServiceParams<T: ChainRestorationParams> {
 	/// The consensus engine this is built on.
 	pub engine: Arc<EthEngine>,
-	/// The chain's genesis block.
-	pub genesis_block: Bytes,
-	/// State pruning algorithm.
-	pub pruning: Algorithm,
+	/// Additional chain specific restoration params.
+	pub chain_params: T,
 	/// Handler for opening a restoration DB.
 	pub restoration_db_handler: Box<BlockChainDBHandler>,
 	/// Async IO channel for sending messages.
@@ -218,42 +251,88 @@ pub struct ServiceParams {
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-	pub db_restore: Arc<DatabaseRestore>,
+	pub db_restore: Arc<DatabaseRestore<T>>,
+}
+
+/// Full node specific snapshot restoration parameters.
+pub struct FullNodeRestorationParams {
+	/// The chain's genesis block.
+	pub genesis_block: Bytes,
+	/// State pruning algorithm.
+	pub pruning: Algorithm,
+}
+
+/// Chain-specific snapshot restoration parameters.
+pub trait ChainRestorationParams: Send + Sync {
+	/// Create a new `Restoration` instance.
+	fn restoration(
+		&self,
+		manifest: ManifestData,
+		rest_db: PathBuf,
+		restoration_db_handler: &BlockChainDBHandler,
+		writer: Option<LooseWriter>,
+		engine: &EthEngine,
+	) -> Result<Restoration, Error>;
+
+	/// Whether the client is light.
+	fn is_light(&self) -> bool {
+		false
+	}
+}
+
+impl ChainRestorationParams for FullNodeRestorationParams {
+	fn restoration(
+		&self,
+		manifest: ManifestData,
+		rest_db: PathBuf,
+		restoration_db_handler: &BlockChainDBHandler,
+		writer: Option<LooseWriter>,
+		engine: &EthEngine,
+	) -> Result<Restoration, Error> {
+		let params = RestorationParams {
+			manifest: manifest.clone(),
+			pruning: self.pruning,
+			db: restoration_db_handler.open(&rest_db)?,
+			writer: writer,
+			genesis: &self.genesis_block,
+			guard: Guard::new(rest_db),
+			engine: engine,
+		};
+		Restoration::new(params)
+	}
 }
 
 /// `SnapshotService` implementation.
 /// This controls taking snapshots and restoring from them.
-pub struct Service {
+pub struct Service<T: ChainRestorationParams> {
 	restoration: Mutex<Option<Restoration>>,
 	restoration_db_handler: Box<BlockChainDBHandler>,
 	snapshot_root: PathBuf,
 	io_channel: Mutex<Channel>,
-	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: RwLock<Option<LooseReader>>,
 	engine: Arc<EthEngine>,
-	genesis_block: Bytes,
+	chain_params: T,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	db_restore: Arc<DatabaseRestore>,
+	db_restore: Arc<DatabaseRestore<T>>,
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
 }
 
-impl Service {
+impl<T: ChainRestorationParams> Service<T> {
 	/// Create a new snapshot service from the given parameters.
-	pub fn new(params: ServiceParams) -> Result<Self, Error> {
+	pub fn new(params: ServiceParams<T>) -> Result<Self, Error> {
 		let mut service = Service {
 			restoration: Mutex::new(None),
 			restoration_db_handler: params.restoration_db_handler,
 			snapshot_root: params.snapshot_root,
 			io_channel: Mutex::new(params.channel),
-			pruning: params.pruning,
+			chain_params: params.chain_params,
 			status: Mutex::new(RestorationStatus::Inactive),
 			reader: RwLock::new(None),
 			engine: params.engine,
-			genesis_block: params.genesis_block,
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
 			db_restore: params.db_restore,
@@ -265,21 +344,21 @@ impl Service {
 		// create the root snapshot dir if it doesn't exist.
 		if let Err(e) = fs::create_dir_all(&service.snapshot_root) {
 			if e.kind() != ErrorKind::AlreadyExists {
-				return Err(e.into())
+				bail!(e)
 			}
 		}
 
 		// delete the temporary restoration DB dir if it does exist.
 		if let Err(e) = fs::remove_dir_all(service.restoration_db()) {
 			if e.kind() != ErrorKind::NotFound {
-				return Err(e.into())
+				bail!(e)
 			}
 		}
 
 		// delete the temporary snapshot dir if it does exist.
 		if let Err(e) = fs::remove_dir_all(service.temp_snapshot_dir()) {
 			if e.kind() != ErrorKind::NotFound {
-				return Err(e.into())
+				bail!(e)
 			}
 		}
 
@@ -335,7 +414,7 @@ impl Service {
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let our_db = self.restoration_db();
 
-		self.db_restore.restore_db(&*our_db.to_string_lossy())?;
+		self.db_restore.restore_db(&*our_db.to_string_lossy(), &self.chain_params)?;
 		Ok(())
 	}
 
@@ -386,7 +465,7 @@ impl Service {
 					Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
 				return Ok(())
 			} else {
-				return Err(e);
+				bail!(e);
 			}
 		}
 
@@ -443,7 +522,7 @@ impl Service {
 		if let Err(e) = fs::remove_dir_all(&rest_dir) {
 			match e.kind() {
 				ErrorKind::NotFound => {},
-				_ => return Err(e.into()),
+				_ => bail!(e),
 			}
 		}
 
@@ -459,20 +538,21 @@ impl Service {
 			false => None
 		};
 
-		let params = RestorationParams {
-			manifest: manifest.clone(),
-			pruning: self.pruning,
-			db: self.restoration_db_handler.open(&rest_db)?,
-			writer: writer,
-			genesis: &self.genesis_block,
-			guard: Guard::new(rest_db),
-			engine: &*self.engine,
+		let state_chunks = if self.chain_params.is_light() {
+			0
+		} else {
+			manifest.state_hashes.len()
 		};
-
-		let state_chunks = manifest.state_hashes.len();
 		let block_chunks = manifest.block_hashes.len();
 
-		*res = Some(Restoration::new(params)?);
+		*res = Some(ChainRestorationParams::restoration(
+			&self.chain_params,
+			manifest.clone(),
+			rest_db,
+			&*self.restoration_db_handler,
+			writer,
+			&*self.engine,
+		)?);
 
 		self.restoring_snapshot.store(true, Ordering::SeqCst);
 
@@ -666,7 +746,7 @@ impl Service {
 	}
 }
 
-impl SnapshotService for Service {
+impl<T: ChainRestorationParams> SnapshotService for Service<T> {
 	fn manifest(&self) -> Option<ManifestData> {
 		self.reader.read().as_ref().map(|r| r.manifest().clone())
 	}
@@ -691,7 +771,10 @@ impl SnapshotService for Service {
 					.chain(
 						restoration.manifest.state_hashes
 							.iter()
-							.filter(|h| !restoration.state_chunks_left.contains(h))
+							.filter(|h|
+									!self.chain_params.is_light() &&
+									!restoration.state_chunks_left.contains(h)
+							)
 					)
 					.map(|h| *h)
 					.collect();
@@ -750,7 +833,7 @@ impl SnapshotService for Service {
 	}
 }
 
-impl Drop for Service {
+impl<T: ChainRestorationParams> Drop for Service<T> {
 	fn drop(&mut self) {
 		self.abort_restore();
 	}
@@ -764,14 +847,14 @@ mod tests {
 	use spec::Spec;
 	use journaldb::Algorithm;
 	use error::Error;
-	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
+	use snapshot::{ManifestData, RestorationStatus, SnapshotService, FullNodeRestorationParams as ChainParams};
 	use super::*;
 	use tempdir::TempDir;
 	use test_helpers::restoration_db_handler;
 
 	struct NoopDBRestore;
-	impl DatabaseRestore for NoopDBRestore {
-		fn restore_db(&self, _new_db: &str) -> Result<(), Error> {
+	impl DatabaseRestore<ChainParams> for NoopDBRestore {
+		fn restore_db(&self, _new_db: &str, _: &ChainParams) -> Result<(), Error> {
 			Ok(())
 		}
 	}
@@ -786,9 +869,11 @@ mod tests {
 
 		let snapshot_params = ServiceParams {
 			engine: spec.engine.clone(),
-			genesis_block: spec.genesis_block(),
 			restoration_db_handler: restoration_db_handler(Default::default()),
-			pruning: Algorithm::Archive,
+			chain_params: ChainParams {
+				genesis_block: spec.genesis_block(),
+				pruning: Algorithm::Archive,
+			},
 			channel: service.channel(),
 			snapshot_root: dir,
 			db_restore: Arc::new(NoopDBRestore),

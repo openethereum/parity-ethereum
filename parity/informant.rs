@@ -28,8 +28,7 @@ use ethcore::client::{
 	BlockQueueInfo, ChainNotify, ChainRoute, ClientReport, Client, ClientIoMessage
 };
 use ethcore::header::BlockNumber;
-use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
-use ethcore::snapshot::service::Service as SnapshotService;
+use ethcore::snapshot::{RestorationStatus, SnapshotService};
 use sync::{LightSyncProvider, LightSync, SyncProvider, ManageNetwork};
 use io::{TimerToken, IoContext, IoHandler};
 use light::Cache as LightDataCache;
@@ -201,7 +200,7 @@ impl InformantData for LightNodeInformantData {
 			last_imported_old_block_number: None,
 			num_peers: peer_numbers.connected,
 			max_peers: peer_numbers.max as u32,
-			snapshot_sync: false,
+			snapshot_sync: self.sync.is_snapshot_syncing(),
 		});
 
 		Report {
