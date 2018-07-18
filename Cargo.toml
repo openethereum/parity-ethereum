@@ -46,7 +46,6 @@ ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
-node-health = { path = "node-health" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
