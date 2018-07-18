@@ -138,6 +138,30 @@ pub struct EthashParams {
 	/// EOS Classic Stake reward
 	#[serde(rename="eoscStakeReward")]
 	pub eosc_stake_reward: Option<Uint>,
+
+	/// NewEOSC transition block
+	#[serde(rename="neweoscTransition")]
+	pub neweosc_transition: Option<Uint>,
+
+	/// NewEOSC POW reward
+	#[serde(rename="neweoscPOWReward")]
+	pub neweosc_pow_reward: Option<Uint>,
+
+	/// NewEOSC Fund Address
+	#[serde(rename="neweoscFundAddress")]
+	pub neweosc_fund_address: Option<Address>,
+
+	/// NewEOSC Fund reward
+	#[serde(rename="neweoscFundReward")]
+	pub neweosc_fund_reward: Option<Uint>,
+
+	/// NewEOSC POS Address
+	#[serde(rename="neweoscPOSAddress")]
+	pub neweosc_pos_address: Option<Address>,
+
+	/// NewEOSC POS reward
+	#[serde(rename="neweoscPOSReward")]
+	pub neweosc_pos_reward: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -252,6 +276,12 @@ mod tests {
 				eosc_treasury_reward: None,
 				eosc_stake_address: None,
 				eosc_stake_reward: None,
+				neweosc_transition: None,
+				neweosc_pow_reward: None,
+				neweosc_fund_address: None,
+				neweosc_fund_reward: None,
+				neweosc_pos_address: None,
+				neweosc_pos_reward: None,
 			}
 		});
 	}
@@ -300,6 +330,12 @@ mod tests {
 				eosc_treasury_reward: None,
 				eosc_stake_address: None,
 				eosc_stake_reward: None,
+				neweosc_transition: None,
+				neweosc_pow_reward: None,
+				neweosc_fund_address: None,
+				neweosc_fund_reward: None,
+				neweosc_pos_address: None,
+				neweosc_pos_reward: None,
 			}
 		});
 	}

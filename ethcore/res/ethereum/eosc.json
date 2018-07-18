@@ -13,7 +13,13 @@
 				"eoscTreasuryAddress": "0x258183b0F3F50ff55812d73cc56BF86b8b0C1618",
 				"eoscTreasuryReward": "0x68155a43676e00000",
 				"eoscStakeAddress": "0x9a283bDA5EFe121c39826616A646F4082166ed16",
-				"eoscStakeReward": "0x340aad21b3b700000"
+				"eoscStakeReward": "0x340aad21b3b700000",
+				"neweoscTransition": 150000,
+				"neweoscPOWReward": "0x246ddf97976680000",
+				"neweoscFundAddress": "0x258183b0F3F50ff55812d73cc56BF86b8b0C1618",
+				"neweoscFundReward": "0xa688906bd8b00000",
+				"neweoscPOSAddress": "0x9a283bDA5EFe121c39826616A646F4082166ed16",
+				"neweoscPOSReward": "0x53444835ec580000"
 			}
 		}
 	},

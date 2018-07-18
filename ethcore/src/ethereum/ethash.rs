@@ -132,6 +132,18 @@ pub struct EthashParams {
 	pub eosc_stake_address: Address,
 	/// EOS Classic Stake reward
 	pub eosc_stake_reward: U256,
+	/// NewEOSC transition block
+	pub neweosc_transition: u64,
+	/// NewEOSC POW reward
+	pub neweosc_pow_reward: U256,
+	/// NewEOSC Fund Address
+	pub neweosc_fund_address: Address,
+	/// NewEOSC Fund reward
+	pub neweosc_fund_reward: U256,
+	/// NewEOSC POS Address
+	pub neweosc_pos_address: Address,
+	/// NewEOSC POS reward
+	pub neweosc_pos_reward: U256,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -166,6 +178,12 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eosc_treasury_reward: p.eosc_treasury_reward.map_or_else(Default::default, Into::into),
 			eosc_stake_address: p.eosc_stake_address.map_or_else(Address::new, Into::into),
 			eosc_stake_reward: p.eosc_stake_reward.map_or_else(Default::default, Into::into),
+			neweosc_transition: p.neweosc_transition.map_or(u64::max_value(), Into::into),
+			neweosc_pow_reward: p.neweosc_pow_reward.map_or_else(Default::default, Into::into),
+			neweosc_fund_address: p.neweosc_fund_address.map_or_else(Address::new, Into::into),
+			neweosc_fund_reward: p.neweosc_fund_reward.map_or_else(Default::default, Into::into),
+			neweosc_pos_address: p.neweosc_pos_address.map_or_else(Address::new, Into::into),
+			neweosc_pos_reward: p.neweosc_pos_reward.map_or_else(Default::default, Into::into),
 		}
 	}
 }
@@ -272,7 +290,16 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			rewards.push((author, RewardKind::Author, result_block_reward));
 			rewards.push((ubi_contract, RewardKind::External, ubi_reward));
 			rewards.push((dev_contract, RewardKind::External, dev_reward));
+		} else if number >= self.ethash_params.neweosc_transition {
+			result_block_reward = self.ethash_params.neweosc_pow_reward;
+			let fund_address = self.ethash_params.neweosc_fund_address;
+			let fund_reward = self.ethash_params.neweosc_fund_reward;
+			let pos_address = self.ethash_params.neweosc_pos_address;
+			let pos_reward = self.ethash_params.neweosc_pos_reward;
 
+			rewards.push((author, RewardKind::Author, result_block_reward));
+			rewards.push((fund_address, RewardKind::External, fund_reward));
+			rewards.push((pos_address, RewardKind::External, pos_reward));
 		} else {
 			let treasury_address = self.ethash_params.eosc_treasury_address;
 			let treasury_reward = self.ethash_params.eosc_treasury_reward;
