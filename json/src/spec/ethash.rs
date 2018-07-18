@@ -123,6 +123,10 @@ pub struct EthashParams {
 	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
 
+	/// EOS Classic transition block
+	#[serde(rename="eoscTransition")]
+	pub eosc_transition: Option<Uint>,
+
 	/// EOS Classic Treasury Address
 	#[serde(rename="eoscTreasuryAddress")]
 	pub eosc_treasury_address: Option<Address>,
@@ -272,6 +276,7 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				eosc_transition: None,
 				eosc_treasury_address: None,
 				eosc_treasury_reward: None,
 				eosc_stake_address: None,
@@ -326,6 +331,7 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				eosc_transition: None,
 				eosc_treasury_address: None,
 				eosc_treasury_reward: None,
 				eosc_stake_address: None,

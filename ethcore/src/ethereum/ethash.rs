@@ -124,6 +124,8 @@ pub struct EthashParams {
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: u64,
+	/// EOS Classic transition block
+	pub eosc_transition: u64,
 	/// EOS Classic Treasury Address
 	pub eosc_treasury_address: Address,
 	/// EOS Classic Treasury reward
@@ -174,6 +176,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip649_reward: p.eip649_reward.map(Into::into),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
+			eosc_transition: p.eosc_transition.map_or(u64::max_value(), Into::into),
 			eosc_treasury_address: p.eosc_treasury_address.map_or_else(Address::new, Into::into),
 			eosc_treasury_reward: p.eosc_treasury_reward.map_or_else(Default::default, Into::into),
 			eosc_stake_address: p.eosc_stake_address.map_or_else(Address::new, Into::into),
@@ -301,7 +304,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			rewards.push((author, RewardKind::Author, result_block_reward));
 			rewards.push((fund_address, RewardKind::External, fund_reward));
 			rewards.push((pos_address, RewardKind::External, pos_reward));
-		} else {
+		} else if number >= self.ethash_params.eosc_transition {
 			let treasury_address = self.ethash_params.eosc_treasury_address;
 			let treasury_reward = self.ethash_params.eosc_treasury_reward;
 			let stake_address = self.ethash_params.eosc_stake_address;
@@ -310,6 +313,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			rewards.push((author, RewardKind::Author, result_block_reward));
 			rewards.push((treasury_address, RewardKind::External, treasury_reward));
 			rewards.push((stake_address, RewardKind::External, stake_reward));
+		} else {
+			rewards.push((author, RewardKind::Author, result_block_reward));
 		}
 
 		// Bestow uncle rewards.

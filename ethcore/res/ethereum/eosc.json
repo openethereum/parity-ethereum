@@ -10,6 +10,7 @@
 				"blockReward": "0x16c4abbebea0100000",
 				"homesteadTransition": "0x0",
 				"bombDefuseTransition": "0x64",
+				"eoscTransition": "0x0",
 				"eoscTreasuryAddress": "0x258183b0F3F50ff55812d73cc56BF86b8b0C1618",
 				"eoscTreasuryReward": "0x68155a43676e00000",
 				"eoscStakeAddress": "0x9a283bDA5EFe121c39826616A646F4082166ed16",
