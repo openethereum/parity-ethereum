@@ -116,12 +116,11 @@ fn should_never_drop_local_transactions_from_different_senders() {
 	let r1 = txq.import(TestClient::new(), vec![tx1].local());
 	let r2 = txq.import(TestClient::new(), vec![tx2].local());
 	assert_eq!(r1, vec![Ok(())]);
-	// max-per-sender is reached, that's ok.
-	assert_eq!(r2, vec![Err(transaction::Error::LimitReached)]);
-	assert_eq!(txq.status().status.transaction_count, 1);
+	assert_eq!(r2, vec![Ok(())]);
+	assert_eq!(txq.status().status.transaction_count, 2);
 
 	// then
-	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 1.into()));
+	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 2.into()));
 
 	// when
 	let tx1 = Tx::gas_price(2).signed();
@@ -134,8 +133,8 @@ fn should_never_drop_local_transactions_from_different_senders() {
 	// then
 	assert_eq!(res, vec![Ok(()), Ok(())]);
 	assert_eq!(res2, vec![Ok(()), Ok(())]);
-	assert_eq!(txq.status().status.transaction_count, 5);
-	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 1.into()));
+	assert_eq!(txq.status().status.transaction_count, 6);
+	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 2.into()));
 }
 
 #[test]
