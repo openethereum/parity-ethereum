@@ -31,13 +31,10 @@ use txpool;
 use txpool::{VerifiedTransaction, Verifier};
 use error::{Error, ErrorKind};
 
-type Pool = txpool::Pool<VerifiedPrivateTransaction, PrivateScoring>;
+type Pool = txpool::Pool<VerifiedPrivateTransaction, pool::scoring::NonceAndGasPrice>;
 
 /// Maximum length for private transactions queues.
 const MAX_QUEUE_LEN: usize = 8312;
-/// Transaction with the same (sender, nonce) can be replaced only if
-/// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
-const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
 /// Desriptor for private transaction stored in queue for verification
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,60 +68,19 @@ impl txpool::VerifiedTransaction for VerifiedPrivateTransaction {
 	}
 }
 
-#[derive(Debug)]
-pub struct PrivateScoring;
-
-impl txpool::Scoring<VerifiedPrivateTransaction> for PrivateScoring {
-	type Score = U256;
-	type Event = ();
-
-	fn compare(&self, old: &VerifiedPrivateTransaction, other: &VerifiedPrivateTransaction) -> cmp::Ordering {
-		old.transaction.nonce.cmp(&other.transaction.nonce)
+impl pool::ScoredTransaction for VerifiedPrivateTransaction {
+	fn priority(&self) -> pool::Priority {
+		pool::Priority::Regular
 	}
 
-	fn choose(&self, old: &VerifiedPrivateTransaction, new: &VerifiedPrivateTransaction) -> txpool::scoring::Choice {
-		if old.transaction.nonce != new.transaction.nonce {
-			return txpool::scoring::Choice::InsertNew
-		}
-
-		let old_gp = old.transaction.gas_price;
-		let new_gp = new.transaction.gas_price;
-
-		let min_required_gp = old_gp + (old_gp >> GAS_PRICE_BUMP_SHIFT);
-
-		match min_required_gp.cmp(&new_gp) {
-			cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,
-			_ => txpool::scoring::Choice::ReplaceOld,
-		}
+	/// Gets transaction gas price.
+	fn gas_price(&self) -> U256 {
+		self.transaction.gas_price
 	}
 
-	fn update_scores(&self, txs: &[txpool::Transaction<VerifiedPrivateTransaction>], scores: &mut [U256], change: txpool::scoring::Change) {
-		use self::txpool::scoring::Change;
-
-		match change {
-			Change::Culled(_) => {},
-			Change::RemovedAt(_) => {}
-			Change::InsertedAt(i) | Change::ReplacedAt(i) => {
-				assert!(i < txs.len());
-				assert!(i < scores.len());
-
-				scores[i] = txs[i].transaction.transaction.gas_price;
-			},
-			Change::Event(_) => {}
-		}
-	}
-
-	fn should_replace(&self, old: &VerifiedPrivateTransaction, new: &VerifiedPrivateTransaction) -> txpool::scoring::Choice {
-		if old.sender() == new.sender() {
-			// prefer earliest transaction
-			return match new.transaction.nonce.cmp(&old.transaction.nonce) {
-				cmp::Ordering::Less => txpool::scoring::Choice::ReplaceOld,
-				cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,
-				cmp::Ordering::Equal => self.choose(old, new),
-			};
-		}
-
-		self.choose(old, new)
+	/// Gets transaction nonce.
+	fn nonce(&self) -> U256 {
+		self.transaction.nonce
 	}
 }
 
@@ -184,7 +140,7 @@ impl Default for VerificationStore {
 			verification_pool: RwLock::new(
 				txpool::Pool::new(
 					txpool::NoopListener,
-					PrivateScoring,
+					pool::scoring::NonceAndGasPrice(pool::PrioritizationStrategy::GasPriceOnly),
 					pool::Options {
 						max_count: MAX_QUEUE_LEN,
 						max_per_sender: MAX_QUEUE_LEN / 10,
