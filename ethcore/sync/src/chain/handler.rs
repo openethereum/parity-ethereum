@@ -90,23 +90,20 @@ impl SyncHandler {
 
 		match result {
 			Err(DownloaderImportError::Invalid) => {
-				debug!(target:"sync", "{} -> Malformed packet {}", peer, packet_id);
+				debug!(target:"sync", "{} -> Invalid packet {}", peer, packet_id);
 				io.disable_peer(peer);
 				sync.deactivate_peer(io, peer);
-				sync.continue_sync(io);
 			},
 			Err(DownloaderImportError::Useless) => {
 				sync.deactivate_peer(io, peer);
-				// give tasks to other peers
-				sync.continue_sync(io);
 			},
 			Ok(()) => {
 				// give a task to the same peer first
 				sync.sync_peer(io, peer, false);
-				// give tasks to other peers
-				sync.continue_sync(io);
 			},
 		}
+		// give tasks to other peers
+		sync.continue_sync(io);
 	}
 
 	/// Called when peer sends us new consensus packet
@@ -353,7 +350,6 @@ impl SyncHandler {
 			}
 		}
 
-		sync.sync_peer(io, peer_id, false);
 		return Ok(());
 	}
 
@@ -603,15 +599,8 @@ impl SyncHandler {
 		sync.active_peers.insert(peer_id.clone());
 		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
 
-		match sync.fork_block {
-			Some((fork_block, _)) => {
-				SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
-			},
-			_ => {
-				// when there's no `fork_block` defined we initialize the peer with
-				// `confirmation: ForkConfirmation::Confirmed`.
-				sync.sync_peer(io, peer_id, false);
-			}
+		if let Some((fork_block, _)) = sync.fork_block {
+			SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
 		}
 
 		Ok(())
