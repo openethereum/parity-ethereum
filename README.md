@@ -1,6 +1,6 @@
 ## Parity-Ethereum - a fast, light, and robust EVM and WASM blockchain client
 
-### [» Download the latest release «](https://github.com/paritytech/parity/releases/latest)
+### [» Download the latest release «](https://github.com/paritytech/parity-ethereum/releases/latest)
 
 [![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
 [![codecov](https://codecov.io/gh/paritytech/parity/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity)
@@ -31,7 +31,7 @@ By default, Parity-Ethereum will run a JSON-RPC HTTP server on `127.0.0.1:8545` 
 
 If you run into problems while using Parity-Ethereum, feel free to file an issue in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
-Parity-Ethereum's current beta-release is 2.0. You can download it at [the releases page](https://github.com/paritytech/parity/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
+Parity-Ethereum's current beta-release is 2.0. You can download it at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
 ----
 
@@ -96,7 +96,7 @@ sudo snap install parity --edge
 
 ```bash
 # download Parity-Ethereum code
-$ git clone https://github.com/paritytech/parity
+$ git clone https://github.com/paritytech/parity-ethereum
 $ cd parity
 
 # build in release mode

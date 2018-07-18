@@ -40,7 +40,7 @@ pub fn set_with<F: Fn() + Send + Sync + 'static>(f: F) {
 static ABOUT_PANIC: &str = "
 This is a bug. Please report it at:
 
-    https://github.com/paritytech/parity/issues/new
+    https://github.com/paritytech/parity-ethereum/issues/new
 ";
 
 fn panic_hook(info: &PanicInfo) {
