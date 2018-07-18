@@ -1149,9 +1149,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
 		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
-		if header.number() >= self.empty_steps_transition {
-			let validate_empty_steps = || -> Result<(), Error> {
+		let empty_steps_len = if header.number() >= self.empty_steps_transition {
+			let validate_empty_steps = || -> Result<usize, Error> {
 				let empty_steps = header_empty_steps(header)?;
+				let empty_steps_len = empty_steps.len();
 				for empty_step in empty_steps {
 					if empty_step.step <= parent_step || empty_step.step >= step {
 						Err(EngineError::InsufficientProof(
@@ -1168,16 +1169,27 @@ impl Engine<EthereumMachine> for AuthorityRound {
 							format!("invalid empty step proof: {:?}", empty_step)))?;
 					}
 				}
-				Ok(())
+				Ok(empty_steps_len)
 			};
 
-			if let err @ Err(_) = validate_empty_steps() {
-				self.validators.report_benign(header.author(), set_number, header.number());
-				return err;
+			match validate_empty_steps() {
+				Ok(len) => len,
+				Err(err) => {
+					self.validators.report_benign(header.author(), set_number, header.number());
+					return Err(err);
+				},
 			}
-
 		} else {
 			self.report_skipped(header, step, parent_step, &*validators, set_number);
+
+			0
+		};
+
+		if header.number() >= self.validate_score_transition {
+			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
+			if header.difficulty() != &expected_difficulty {
+				return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })));
+			}
 		}
 
 		Ok(())
