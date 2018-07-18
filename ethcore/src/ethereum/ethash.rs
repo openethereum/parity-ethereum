@@ -266,6 +266,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		// Applies EIP-649 reward.
 		let reward = if number >= self.ethash_params.eip649_transition {
 			self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
+		} else if number >= self.ethash_params.neweosc_transition {
+			self.ethash_params.neweosc_pow_reward
 		} else {
 			self.ethash_params.block_reward
 		};
@@ -291,7 +293,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			rewards.push((ubi_contract, RewardKind::External, ubi_reward));
 			rewards.push((dev_contract, RewardKind::External, dev_reward));
 		} else if number >= self.ethash_params.neweosc_transition {
-			result_block_reward = self.ethash_params.neweosc_pow_reward;
 			let fund_address = self.ethash_params.neweosc_fund_address;
 			let fund_reward = self.ethash_params.neweosc_fund_reward;
 			let pos_address = self.ethash_params.neweosc_pos_address;
