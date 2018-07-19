@@ -32,6 +32,7 @@ use externalities::*;
 use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
+use storage::Storage;
 pub use executed::{Executed, ExecutionResult};
 
 #[cfg(debug_assertions)]
@@ -169,28 +170,31 @@ pub struct Executive<'a, B: 'a> {
 	machine: &'a Machine,
 	depth: usize,
 	static_flag: bool,
+	storage: &'a Storage,
 }
 
 impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	/// Basic constructor.
-	pub fn new(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine) -> Self {
+	pub fn new(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine, storage: &'a Storage) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			machine: machine,
 			depth: 0,
 			static_flag: false,
+			storage: storage,
 		}
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine, parent_depth: usize, static_flag: bool) -> Self {
+	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine, parent_depth: usize, static_flag: bool, storage: &'a Storage) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			machine: machine,
 			depth: parent_depth + 1,
 			static_flag: static_flag,
+			storage: storage,
 		}
 	}
 
@@ -205,7 +209,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		static_call: bool,
 	) -> Externalities<'any, T, V, B> where T: Tracer, V: VMTracer {
 		let is_static = self.static_flag || static_call;
-		Externalities::new(self.state, self.info, self.machine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
+		Externalities::new(self.state, self.info, self.machine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static, self.storage)
 	}
 
 	/// This function should be used to execute transaction.
