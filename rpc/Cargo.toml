@@ -54,7 +54,6 @@ ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 fetch = { path = "../util/fetch" }
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
-node-health = { path = "../node-health" }
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }

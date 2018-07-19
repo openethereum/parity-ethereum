@@ -21,7 +21,6 @@ use std::collections::BTreeMap;
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
 
-use node_health::Health;
 use v1::types::{
 	H160, H256, H512, U256, U64, Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
@@ -219,9 +218,5 @@ build_rpc_trait! {
 		/// Call contract, returning the output data.
 		#[rpc(meta, name = "parity_call")]
 		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>>;
-
-		/// Returns node's health report.
-		#[rpc(name = "parity_nodeHealth")]
-		fn node_health(&self) -> BoxFuture<Health>;
 	}
 }

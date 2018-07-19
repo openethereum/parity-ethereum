@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::any::Any;
-use std::fmt;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use std::thread;
@@ -42,7 +41,6 @@ use journaldb::Algorithm;
 use light::Cache as LightDataCache;
 use miner::external::ExternalMiner;
 use node_filter::NodeFilter;
-use node_health;
 use parity_reactor::EventLoop;
 use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
@@ -95,7 +93,6 @@ pub struct RunCmd {
 	pub miner_options: MinerOptions,
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
-	pub ntp_servers: Vec<String>,
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
 	pub ipc_conf: rpc::IpcConfiguration,
@@ -287,28 +284,6 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 	// the dapps server
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.logger_config));
-	let node_health = {
-		struct LightSyncStatus(Arc<LightSync>);
-		impl fmt::Debug for LightSyncStatus {
-			fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-				write!(fmt, "Light Sync Status")
-			}
-		}
-		impl node_health::SyncStatus for LightSyncStatus {
-			fn is_major_importing(&self) -> bool { self.0.is_major_importing() }
-			fn peers(&self) -> (usize, usize) {
-				let peers = sync::LightSyncProvider::peer_numbers(&*self.0);
-				(peers.connected, peers.max)
-			}
-		}
-
-		let sync_status = Arc::new(LightSyncStatus(light_sync.clone()));
-		node_health::NodeHealth::new(
-			sync_status.clone(),
-			node_health::TimeChecker::new(&cmd.ntp_servers, cpu_pool.clone()),
-			event_loop.remote(),
-		)
-	};
 
 	// start RPCs
 	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
@@ -316,7 +291,6 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		client: client.clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
-		health: node_health,
 		secret_store: account_provider,
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
@@ -718,40 +692,11 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let secret_store = account_provider.clone();
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.logger_config));
 
-	// the dapps server
-	let node_health = {
-		let (sync, client) = (sync_provider.clone(), client.clone());
-
-		struct SyncStatus(Arc<sync::SyncProvider>, Arc<Client>, sync::NetworkConfiguration);
-		impl fmt::Debug for SyncStatus {
-			fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-				write!(fmt, "Dapps Sync Status")
-			}
-		}
-		impl node_health::SyncStatus for SyncStatus {
-			fn is_major_importing(&self) -> bool {
-				is_major_importing(Some(self.0.status().state), self.1.queue_info())
-			}
-			fn peers(&self) -> (usize, usize) {
-				let status = self.0.status();
-				(status.num_peers, status.current_max_peers(self.2.min_peers, self.2.max_peers) as usize)
-			}
-		}
-
-		let sync_status = Arc::new(SyncStatus(sync, client, net_conf));
-		node_health::NodeHealth::new(
-			sync_status.clone(),
-			node_health::TimeChecker::new(&cmd.ntp_servers, cpu_pool.clone()),
-			event_loop.remote(),
-		)
-	};
-
 	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
 		signer_service: signer_service,
 		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
-		health: node_health,
 		net: manage_network.clone(),
 		secret_store: secret_store,
 		miner: miner.clone(),

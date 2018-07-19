@@ -225,6 +225,10 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Removed("--dapps-path"));
 	}
 
+	if args.arg_ntp_servers.is_some() {
+		result.push(Deprecated::Removed("--ntp-servers"));
+	}
+
 	result
 }
 
@@ -256,6 +260,7 @@ mod tests {
 			args.arg_dapps_pass = Some(Default::default());
 			args.flag_dapps_apis_all = true;
 			args.flag_fast_and_loose = true;
+			args.arg_ntp_servers = Some(Default::default());
 			args
 		}), vec![
 			Deprecated::DoesNothing("--warp"),
@@ -276,6 +281,7 @@ mod tests {
 			Deprecated::Removed("--dapps-pass"),
 			Deprecated::Replaced("--dapps-apis-all", "--jsonrpc-apis"),
 			Deprecated::Removed("--fast-and-loose"),
+			Deprecated::Removed("--ntp-servers"),
 		]);
 	}
 }

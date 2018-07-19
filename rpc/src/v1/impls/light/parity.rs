@@ -26,7 +26,6 @@ use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
-use node_health::{NodeHealth, Health};
 use ethcore::ids::BlockId;
 
 use light::client::LightChainClient;
@@ -56,7 +55,6 @@ pub struct ParityClient {
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
-	health: NodeHealth,
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
 	eip86_transition: u64,
@@ -71,7 +69,6 @@ impl ParityClient {
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
-		health: NodeHealth,
 		signer: Option<Arc<SignerService>>,
 		ws_address: Option<Host>,
 		gas_price_percentile: usize,
@@ -81,7 +78,6 @@ impl ParityClient {
 			accounts,
 			logger,
 			settings,
-			health,
 			signer,
 			ws_address,
 			eip86_transition: client.eip86_transition(),
@@ -431,10 +427,5 @@ impl Parity for ParityClient {
 
 	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		Err(errors::light_unimplemented(None))
-	}
-
-	fn node_health(&self) -> BoxFuture<Health> {
-		Box::new(self.health.health()
-			.map_err(|err| errors::internal("Health API failure.", err)))
 	}
 }

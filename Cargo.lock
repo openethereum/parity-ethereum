@@ -240,14 +240,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "conv"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "custom_derive 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "crossbeam"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -335,11 +327,6 @@ dependencies = [
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "custom_derive"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "daemonize"
@@ -1803,37 +1790,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "node-health"
-version = "0.1.0"
-dependencies = [
- "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "ntp 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-reactor 0.1.0",
- "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
- "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "nodrop"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "ntp"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "conv 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "custom_derive 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "num"
@@ -2010,7 +1969,6 @@ dependencies = [
  "mem 0.1.0",
  "migration-rocksdb 0.1.0",
  "node-filter 1.12.0",
- "node-health 0.1.0",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "number_prefix 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic_hook 0.1.0",
@@ -2156,7 +2114,6 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "multihash 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "node-health 0.1.0",
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",
  "parity-crypto 0.1.0 (git+https://github.com/paritytech/parity-common)",
@@ -3650,7 +3607,6 @@ dependencies = [
 "checksum cid 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d85ee025368e69063c420cbb2ed9f852cb03a5e69b73be021e65726ce03585b6"
 "checksum clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8f4a2b3bb7ef3c672d7c13d15613211d5a6976b6892c598b0fcb5d40765f19c2"
 "checksum cmake 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)" = "95470235c31c726d72bf2e1f421adc1e65b9d561bf5529612cbe1a72da1467b3"
-"checksum conv 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "78ff10625fd0ac447827aa30ea8b861fead473bb60aeb73af6c1c58caf0d1299"
 "checksum crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "24ce9782d4d5c53674646a6a4c1863a21a8fc0cb649b3c94dfc16e45071dea19"
 "checksum crossbeam-deque 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f739f8c5363aca78cfb059edf753d8f0d36908c348f3d8d1503f03d8b75d9cf3"
 "checksum crossbeam-deque 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c1bdc73742c36f7f35ebcda81dbb33a7e0d33757d03a06d9ddca762712ec5ea2"
@@ -3661,7 +3617,6 @@ dependencies = [
 "checksum crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "a2f4a431c5c9f662e1200b7c7f02c34e91361150e382089a8f2dec3ba680cbda"
 "checksum ct-logs 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "61cd11fb222fecf889f4531855c614548e92e8bd2eb178e35296885df5ee9a7c"
 "checksum ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)" = "<none>"
-"checksum custom_derive 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "ef8ae57c4978a2acd8b869ce6b9ca1dfe817bff704c220209fdef2c0b75a01b9"
 "checksum daemonize 0.2.3 (git+https://github.com/paritytech/daemonize)" = "<none>"
 "checksum difference 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b3304d19798a8e067e48d8e69b2c37f0b5e9b4e462504ad9e27e9f3fce02bba8"
 "checksum docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d8acd393692c503b168471874953a2531df0e9ab77d0b6bbc582395743300a4a"
@@ -3754,7 +3709,6 @@ dependencies = [
 "checksum nan-preserving-float 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "34d4f00fcc2f4c9efa8cc971db0da9e28290e28e97af47585e48691ef10ff31f"
 "checksum net2 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)" = "3a80f842784ef6c9a958b68b7516bc7e35883c614004dd94959a4dca1b716c09"
 "checksum nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "9a2228dca57108069a5262f2ed8bd2e82496d2e074a06d1ccc7ce1687b6ae0a2"
-"checksum ntp 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "06b0d2de4a2cd60c3ac85c98a1fc23668bc97bef2b10b706bccd88efb229497d"
 "checksum num 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)" = "4703ad64153382334aa8db57c637364c322d3372e097840c72000dabdcf6156e"
 "checksum num-bigint 0.1.43 (registry+https://github.com/rust-lang/crates.io-index)" = "81b483ea42927c463e191802e7334556b48e7875297564c0e9951bd3a0ae53e3"
 "checksum num-integer 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)" = "f8d26da319fb45674985c78f1d1caf99aa4941f785d384a2ae36d0740bc3e2fe"
