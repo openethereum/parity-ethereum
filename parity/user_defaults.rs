@@ -18,22 +18,65 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
 use journaldb::Algorithm;
 use ethcore::client::{Mode as ClientMode};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone)]
+pub struct Seconds(Duration);
+
+impl Seconds {
+    pub fn value(&self) -> u64 {
+        self.0.as_secs()
+    }
+}
+
+impl From<u64> for Seconds {
+	fn from(s: u64) -> Seconds {
+		Seconds(Duration::from_secs(s))
+	}
+}
+
+impl From<Duration> for Seconds {
+	fn from(d: Duration) -> Seconds {
+		Seconds(d)
+	}
+}
+
+impl Into<Duration> for Seconds {
+	fn into(self) -> Duration {
+		self.0
+	}
+}
+
+impl Serialize for Seconds {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u64(self.value())
+    }
+}
+
+impl<'de> Deserialize<'de> for Seconds {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+	    let secs = u64::deserialize(deserializer)?;
+	    Ok(Seconds::from(secs))
+	}
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase", tag = "mode")]
 pub enum Mode {
 	Active,
 	Passive {
-		timeout: Duration,
-		alarm: Duration,
+		#[serde(rename = "mode.timeout")]
+		timeout: Seconds,
+		#[serde(rename = "mode.alarm")]
+		alarm: Seconds,
 	},
 	Dark {
-		timeout: Duration,
+		#[serde(rename = "mode.timeout")]
+		timeout: Seconds,
 	},
 	Offline,
 }
@@ -42,8 +85,8 @@ impl Into<ClientMode> for Mode {
 	fn into(self) -> ClientMode {
 		match self {
 			Mode::Active => ClientMode::Active,
-			Mode::Passive { timeout, alarm } => ClientMode::Passive(timeout, alarm),
-			Mode::Dark { timeout } => ClientMode::Dark(timeout),
+			Mode::Passive { timeout, alarm } => ClientMode::Passive(timeout.into(), alarm.into()),
+			Mode::Dark { timeout } => ClientMode::Dark(timeout.into()),
 			Mode::Offline => ClientMode::Off,
 		}
 	}
@@ -53,21 +96,21 @@ impl From<ClientMode> for Mode {
 	fn from(mode: ClientMode) -> Mode {
 		match mode {
 			ClientMode::Active => Mode::Active,
-			ClientMode::Passive(timeout, alarm) => Mode::Passive { timeout, alarm },
-			ClientMode::Dark(timeout) => Mode::Dark { timeout },
+			ClientMode::Passive(timeout, alarm) => Mode::Passive { timeout: timeout.into(), alarm: alarm.into() },
+			ClientMode::Dark(timeout) => Mode::Dark { timeout: timeout.into() },
 			ClientMode::Off => Mode::Offline,
 		}
 	}
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UserDefaults {
 	pub is_first_launch: bool,
 	#[serde(with = "algorithm_serde")]
 	pub pruning: Algorithm,
 	pub tracing: bool,
 	pub fat_db: bool,
-	#[serde(deserialize_with = "mode_deserialize")]
+	#[serde(flatten)]
 	mode: Mode,
 }
 
@@ -96,16 +139,6 @@ mod algorithm_serde {
 		let pruning = String::deserialize(deserializer)?;
 		pruning.parse().map_err(|_| Error::custom("invalid pruning method"))
 	}
-}
-
-pub fn mode_deserialize<'de, D>(deserializer: D) -> Result<Mode, D::Error>
-where D: Deserializer<'de> {
-	// this was added for migration purposes. since the format of the `mode`
-	// field in `UserDefaults` changed the deserialization of the whole struct
-	// would fail. this way we keep the existing values for the other fields and
-	// only provide a default for the `mode` field in case it fails to
-	// deserialize.
-	Ok(Mode::deserialize(deserializer).unwrap_or(Mode::Active))
 }
 
 impl Default for UserDefaults {
