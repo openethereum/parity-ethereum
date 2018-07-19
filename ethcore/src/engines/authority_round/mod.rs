@@ -1559,9 +1559,10 @@ mod tests {
 
 		let engine = Spec::new_test_round().engine;
 
-		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
