@@ -28,9 +28,9 @@ use ethcore::client::{Mode as ClientMode};
 pub struct Seconds(Duration);
 
 impl Seconds {
-    pub fn value(&self) -> u64 {
-        self.0.as_secs()
-    }
+	pub fn value(&self) -> u64 {
+		self.0.as_secs()
+	}
 }
 
 impl From<u64> for Seconds {
@@ -52,15 +52,15 @@ impl Into<Duration> for Seconds {
 }
 
 impl Serialize for Seconds {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_u64(self.value())
-    }
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		serializer.serialize_u64(self.value())
+	}
 }
 
 impl<'de> Deserialize<'de> for Seconds {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-	    let secs = u64::deserialize(deserializer)?;
-	    Ok(Seconds::from(secs))
+	fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		let secs = u64::deserialize(deserializer)?;
+		Ok(Seconds::from(secs))
 	}
 }
 
