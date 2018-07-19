@@ -51,7 +51,7 @@ cd /build&&git clone https://github.com/paritytech/parity && \
         # add-apt-repository
         software-properties-common \
         make \
-	cmake \
+        cmake \
         curl \
         wget \
         git \
