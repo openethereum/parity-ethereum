@@ -1424,7 +1424,7 @@ mod tests {
 	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::TestSet;
 	use error::{Error, ErrorKind};
-	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep};
+	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 
 	#[test]
 	fn has_valid_metadata() {
@@ -1585,8 +1585,10 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_difficulty(calculate_score(U256::from(4), U256::from(5), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		header.set_seal(vec![encode(&3usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_difficulty(calculate_score(U256::from(4), U256::from(3), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_err());
 	}
 
