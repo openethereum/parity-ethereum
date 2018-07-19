@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethjson;
-use header::Header;
+use ethcore::header::Header;
+use ethcore::spec::Spec;
 use ethereum_types::U256;
-use spec::Spec;
 
-use super::HookType;
+use super::test_common::HookType;
 
 pub fn json_difficulty_test<H: FnMut(&str, HookType)>(json_data: &[u8], spec: Spec, start_stop_hook: &mut H) -> Vec<String> {
 	::ethcore_logger::init_log();
@@ -53,24 +53,22 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(json_data: &[u8], spec: Sp
 }
 
 mod difficulty_test_byzantium {
-	use super::json_difficulty_test;
-	use json_tests::HookType;
+	use super::{json_difficulty_test, HookType};
 
 	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_difficulty_test(json_data, ::ethereum::new_byzantium_test(), h)
+		json_difficulty_test(json_data, ::ethcore::ethereum::new_byzantium_test(), h)
 	}
 
 	declare_test!{DifficultyTests_difficultyByzantium, "BasicTests/difficultyByzantium.json"}
 }
 
 mod difficulty_test_foundation {
-	use super::json_difficulty_test;
+	use super::{json_difficulty_test, HookType};
 	use tempdir::TempDir;
-	use json_tests::HookType;
 
 	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
 		let tempdir = TempDir::new("").unwrap();
-		json_difficulty_test(json_data, ::ethereum::new_foundation(&tempdir.path()), h)
+		json_difficulty_test(json_data, ::ethcore::ethereum::new_foundation(&tempdir.path()), h)
 	}
 
 	declare_test!{DifficultyTests_difficultyMainNetwork, "BasicTests/difficultyMainNetwork.json"}

@@ -14,27 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::path::Path;
 use std::sync::Arc;
-use client::{EvmTestClient, Client, ClientConfig, ChainInfo, ImportBlock};
-use block::Block;
-use spec::Genesis;
+
+use ethcore::block::Block;
+use ethcore::client::{EvmTestClient, Client, ClientConfig, ChainInfo, ImportBlock};
+use ethcore::miner::Miner;
+use ethcore::spec::Genesis;
+use ethcore::test_helpers;
 use ethjson;
-use miner::Miner;
 use io::IoChannel;
-use test_helpers;
 
-use super::HookType;
-
-/// Run chain jsontests on a given folder.
-pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-	::json_tests::test_common::run_test_path(p, skip, json_chain_test, h)
-}
-
-/// Run chain jsontests on a given file.
-pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-	::json_tests::test_common::run_test_file(p, json_chain_test, h)
-}
+use super::test_common::HookType;
 
 pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	::ethcore_logger::init_log();
@@ -107,8 +97,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 
 #[cfg(test)]
 mod block_tests {
-	use super::json_chain_test;
-	use json_tests::HookType;
+	use super::{json_chain_test, HookType};
 
 	fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
 		json_chain_test(json_data, h)
