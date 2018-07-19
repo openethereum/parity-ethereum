@@ -720,10 +720,6 @@ usage! {
 			"--tx-queue-per-sender=[LIMIT]",
 			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
 
-			ARG arg_tx_queue_gas: (String) = "off", or |c: &Config| c.mining.as_ref()?.tx_queue_gas.clone(),
-			"--tx-queue-gas=[LIMIT]",
-			"Maximum amount of total gas for external transactions in the queue. LIMIT can be either an amount of gas or 'auto' or 'off'. 'auto' sets the limit to be 20x the current block gas limit.",
-
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| c.mining.as_ref()?.tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
 			"Prioritization strategy used to order transactions in the queue. S may be: gas_price - Prioritize txs with high gas price",
@@ -794,13 +790,9 @@ usage! {
 			"--no-config",
 			"Don't load a configuration file.",
 
-			ARG arg_ntp_servers: (String) = "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123", or |c: &Config| c.misc.as_ref()?.ntp_servers.clone().map(|vec| vec.join(",")),
-			"--ntp-servers=[HOSTS]",
-			"Comma separated list of NTP servers to provide current time (host:port). Used to verify node health. Parity uses pool.ntp.org NTP servers; consider joining the pool: http://www.pool.ntp.org/join.html",
-
 			ARG arg_logging: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?.logging.clone(),
 			"-l, --logging=[LOGGING]",
-			"Specify the logging level. Must conform to the same format as RUST_LOG.",
+			"Specify the general logging level (error, warn, info, debug or trace). It can also be set for a specific module, example: '-l sync=debug,rpc=trace'",
 
 			ARG arg_log_file: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?.log_file.clone(),
 			"--log-file=[FILENAME]",
@@ -1077,6 +1069,10 @@ usage! {
 			ARG arg_dapps_path: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
 			"--dapps-path=[PATH]",
 			"Specify directory where dapps should be installed.",
+
+			ARG arg_ntp_servers: (Option<String>) = None, or |_| None,
+			"--ntp-servers=[HOSTS]",
+			"Does nothing; checking if clock is sync with NTP servers is now done on the UI.",
 	}
 }
 
@@ -1303,7 +1299,6 @@ struct Mining {
 	tx_queue_size: Option<usize>,
 	tx_queue_per_sender: Option<usize>,
 	tx_queue_mem_limit: Option<u32>,
-	tx_queue_gas: Option<String>,
 	tx_queue_strategy: Option<String>,
 	tx_queue_ban_count: Option<u16>,
 	tx_queue_ban_time: Option<u16>,
@@ -1350,7 +1345,6 @@ struct Snapshots {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Misc {
-	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,
@@ -1729,7 +1723,6 @@ mod tests {
 			arg_tx_queue_size: 8192usize,
 			arg_tx_queue_per_sender: None,
 			arg_tx_queue_mem_limit: 4u32,
-			arg_tx_queue_gas: "off".into(),
 			arg_tx_queue_strategy: "gas_factor".into(),
 			arg_tx_queue_ban_count: Some(1u16),
 			arg_tx_queue_ban_time: Some(180u16),
@@ -1818,7 +1811,7 @@ mod tests {
 			flag_can_restart: false,
 
 			// -- Miscellaneous Options
-			arg_ntp_servers: "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123".into(),
+			arg_ntp_servers: None,
 			flag_version: false,
 			arg_logging: Some("own_tx=trace".into()),
 			arg_log_file: Some("/var/log/parity.log".into()),
@@ -1991,7 +1984,6 @@ mod tests {
 				tx_queue_size: Some(8192),
 				tx_queue_per_sender: None,
 				tx_queue_mem_limit: None,
-				tx_queue_gas: Some("off".into()),
 				tx_queue_strategy: None,
 				tx_queue_ban_count: None,
 				tx_queue_ban_time: None,
@@ -2024,7 +2016,6 @@ mod tests {
 				disable_periodic: Some(true),
 			}),
 			misc: Some(Misc {
-				ntp_servers: Some(vec!["0.parity.pool.ntp.org:123".into()]),
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),
