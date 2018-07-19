@@ -116,8 +116,6 @@ pub struct ExecutedBlock {
 	pub traces: Tracing,
 	/// Hashes of last 256 blocks.
 	pub last_hashes: Arc<LastHashes>,
-	/// Block metadata.
-	pub metadata: Option<Vec<u8>>,
 }
 
 impl ExecutedBlock {
@@ -136,7 +134,6 @@ impl ExecutedBlock {
 				Tracing::Disabled
 			},
 			last_hashes: last_hashes,
-			metadata: None,
 		}
 	}
 
@@ -242,7 +239,6 @@ pub struct OpenBlock<'x> {
 pub struct ClosedBlock {
 	block: ExecutedBlock,
 	unclosed_state: State<StateDB>,
-	unclosed_metadata: Option<Vec<u8>>,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.
@@ -405,7 +401,6 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		let unclosed_state = s.block.state.clone();
-		let unclosed_metadata = s.block.metadata.clone();
 
 		s.engine.on_close_block(&mut s.block)?;
 		s.block.state.commit()?;
@@ -424,7 +419,6 @@ impl<'x> OpenBlock<'x> {
 		Ok(ClosedBlock {
 			block: s.block,
 			unclosed_state,
-			unclosed_metadata,
 		})
 	}
 
@@ -491,7 +485,6 @@ impl ClosedBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
-		block.metadata = self.unclosed_metadata;
 		OpenBlock {
 			block: block,
 			engine: engine,

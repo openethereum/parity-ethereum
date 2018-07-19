@@ -462,6 +462,7 @@ impl Importer {
 		let parent = header.parent_hash();
 		let chain = client.chain.read();
 		let is_finalized = false;
+		let metadata = None;
 
 		// Commit results
 		let block = block.drain();
@@ -478,7 +479,7 @@ impl Importer {
 		let new = ExtendedHeader {
 			header: header.clone(),
 			is_finalized,
-			metadata: block.metadata,
+			metadata,
 			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
 		};
 
