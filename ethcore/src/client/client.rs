@@ -462,7 +462,6 @@ impl Importer {
 		let parent = header.parent_hash();
 		let chain = client.chain.read();
 		let is_finalized = false;
-		let metadata = None;
 
 		// Commit results
 		let block = block.drain();
@@ -479,7 +478,6 @@ impl Importer {
 		let new = ExtendedHeader {
 			header: header.clone(),
 			is_finalized,
-			metadata,
 			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
 		};
 
@@ -495,8 +493,6 @@ impl Importer {
 			ExtendedHeader {
 				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
 				is_finalized: details.is_finalized,
-				metadata: details.metadata,
-
 				header: header,
 			}
 		};
@@ -535,7 +531,6 @@ impl Importer {
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
 			is_finalized,
-			metadata: new.metadata,
 		});
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {
@@ -2393,7 +2388,6 @@ mod tests {
 				another_client.chain.read().insert_block(&mut batch, encoded::Block::new(new_block), Vec::new(), ExtrasInsert {
 					fork_choice: ::engines::ForkChoice::New,
 					is_finalized: false,
-					metadata: None,
 				});
 				go_thread.store(true, Ordering::SeqCst);
 			});

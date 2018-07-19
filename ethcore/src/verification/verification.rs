@@ -456,7 +456,6 @@ mod tests {
 					parent: header.parent_hash().clone(),
 					children: Vec::new(),
 					is_finalized: false,
-					metadata: None,
 				}
 			})
 		}

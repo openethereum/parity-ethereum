@@ -51,7 +51,6 @@ fn chunk_and_restore(amount: u64) {
 		bc.insert_block(&mut batch, block.encoded(), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
