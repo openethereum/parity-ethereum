@@ -1626,6 +1626,7 @@ mod tests {
 		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
+		header.set_difficulty(calculate_score(U256::from(1), U256::from(3), U256::zero()));
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
 
