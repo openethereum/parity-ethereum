@@ -1997,16 +1997,15 @@ mod tests {
 		let empty_step3 = sealed_empty_step(engine, 3, &parent_header.hash());
 
 		let empty_steps = vec![empty_step2, empty_step3];
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(4), U256::from(2)));
+		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![
 			encode(&4usize).into_vec(),
 			encode(&(&*signature as &[u8])).into_vec(),
 			::rlp::encode_list(&empty_steps).into_vec(),
 		]);
 
-		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Ok(_) => true,
-			_ => false,
-		});
+		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 	}
 
 	#[test]
