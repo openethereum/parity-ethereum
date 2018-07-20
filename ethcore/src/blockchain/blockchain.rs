@@ -926,11 +926,7 @@ impl BlockChain {
 
 		parent_details.children.push(child_hash);
 
-		let mut update = HashMap::new();
-		update.insert(block_hash, parent_details);
-
-		let mut write_details = self.block_details.write();
-		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, update, CacheUpdatePolicy::Overwrite);
+		self.update_block_details(batch, block_hash, parent_details);
 
 		self.cache_man.lock().note_used(CacheId::BlockDetails(block_hash));
 	}
