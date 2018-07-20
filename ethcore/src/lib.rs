@@ -146,6 +146,7 @@ pub mod views;
 
 pub mod account_provider;
 pub mod block;
+pub mod builtin;
 pub mod client;
 pub mod db;
 pub mod encoded;
@@ -168,7 +169,6 @@ pub mod verification;
 mod cache_manager;
 mod pod_account;
 mod account_db;
-mod builtin;
 mod externalities;
 mod blockchain;
 mod factory;
