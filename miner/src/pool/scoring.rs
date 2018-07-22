@@ -143,6 +143,10 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 			}
 	 	}
 	}
+
+	fn should_ignore_sender_limit(&self, new: &VerifiedTransaction) -> bool {
+		new.priority().is_local()
+	}
 }
 
 #[cfg(test)]

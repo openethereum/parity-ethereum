@@ -57,7 +57,7 @@ fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,
-/// add to `contains_bugfix_hard_fork`
+/// add to `nonzero_bugfix_hard_fork`
 ///
 /// we define a "bugfix" hard fork as any hard fork which
 /// you would put on-by-default in a new chain.
@@ -188,13 +188,21 @@ impl CommonParams {
 		}
 	}
 
-	/// Whether these params contain any bug-fix hard forks.
-	pub fn contains_bugfix_hard_fork(&self) -> bool {
-		self.eip98_transition != 0 && self.eip155_transition != 0 &&
-			self.validate_receipts_transition != 0 && self.eip86_transition != 0 &&
-			self.eip140_transition != 0 && self.eip210_transition != 0 &&
-			self.eip211_transition != 0 && self.eip214_transition != 0 &&
-			self.validate_chain_id_transition != 0 && self.dust_protection_transition != 0
+	/// Return Some if the current parameters contain a bugfix hard fork not on block 0.
+	pub fn nonzero_bugfix_hard_fork(&self) -> Option<&str> {
+		if self.eip155_transition != 0 {
+			return Some("eip155Transition");
+		}
+
+		if self.validate_receipts_transition != 0 {
+			return Some("validateReceiptsTransition");
+		}
+
+		if self.validate_chain_id_transition != 0 {
+			return Some("validateChainIdTransition");
+		}
+
+		None
 	}
 }
 
