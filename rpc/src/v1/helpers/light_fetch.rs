@@ -301,8 +301,10 @@ impl LightFetch {
 		use std::collections::BTreeMap;
 		use jsonrpc_core::futures::stream::{self, Stream};
 
+		const MAX_BLOCK_RANGE: u64 = 1000;
+
 		let fetcher = self.clone();
-		self.headers_range_by_block_id(filter.from_block, filter.to_block)
+		self.headers_range_by_block_id(filter.from_block, filter.to_block, MAX_BLOCK_RANGE)
 			.and_then(move |mut headers| {
 				if headers.is_empty() {
 					return Either::A(future::ok(Vec::new()));
@@ -438,7 +440,12 @@ impl LightFetch {
 		}
 	}
 
-	fn headers_range_by_block_id(&self, from_block: BlockId, to_block: BlockId) -> impl Future<Item = Vec<encoded::Header>, Error = Error> {
+	fn headers_range_by_block_id(
+		&self,
+		from_block: BlockId,
+		to_block: BlockId,
+		max: u64
+	) -> impl Future<Item = Vec<encoded::Header>, Error = Error> {
 		let fetch_hashes = [from_block, to_block].iter()
 			.filter_map(|block_id| match block_id {
 				BlockId::Hash(hash) => Some(hash.clone()),
@@ -465,6 +472,8 @@ impl LightFetch {
 			if to_block_num < from_block_num {
 				// early exit for "to" block before "from" block.
 				return Either::A(future::err(errors::filter_block_not_found(to_block)));
+			} else if to_block_num - from_block_num >= max {
+				return Either::A(future::err(errors::request_rejected_param_limit(max, "blocks")));
 			}
 
 			let to_header_hint = match to_block {
