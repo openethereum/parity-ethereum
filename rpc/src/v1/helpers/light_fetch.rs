@@ -16,6 +16,7 @@
 
 //! Helpers for fetching blockchain data either from the light client or the network.
 
+use std::cmp;
 use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
@@ -31,7 +32,7 @@ use jsonrpc_macros::Trailing;
 
 use light::cache::Cache;
 use light::client::LightChainClient;
-use light::cht;
+use light::{cht, MAX_HEADERS_PER_REQUEST};
 use light::on_demand::{
 	request, OnDemand, HeaderRef, Request as OnDemandRequest,
 	Response as OnDemandResponse, ExecutionResult,
@@ -519,44 +520,52 @@ impl LightFetch {
 		headers.extend(self.client.ancestry_iter(iter_start)
 				.take_while(|hdr| hdr.number() >= from_number));
 
-		let headers_remaining = range_length - headers.len();
-		if headers_remaining == 0 {
-			return Either::A(future::ok(headers));
-		}
+		let fetcher = self.clone();
+		future::loop_fn(headers, move |mut headers| {
+			let remaining = range_length - headers.len();
+			if remaining == 0 {
+				return Either::A(future::ok(future::Loop::Break(headers)));
+			}
 
-		let mut reqs: Vec<request::Request> = Vec::with_capacity(2);
+			let mut reqs: Vec<request::Request> = Vec::with_capacity(2);
 
-		let start_hash = if let Some(hdr) = headers.last() {
-			hdr.parent_hash().into()
-		} else {
-			let cht_root = cht::block_to_cht_number(to_number)
-				.and_then(|cht_num| self.client.cht_root(cht_num as usize));
+			let start_hash = if let Some(hdr) = headers.last() {
+				hdr.parent_hash().into()
+			} else {
+				let cht_root = cht::block_to_cht_number(to_number)
+					.and_then(|cht_num| fetcher.client.cht_root(cht_num as usize));
 
-			let cht_root = match cht_root {
-				Some(cht_root) => cht_root,
-				None => return Either::A(future::err(errors::unknown_block())),
+				let cht_root = match cht_root {
+					Some(cht_root) => cht_root,
+					None => return Either::A(future::err(errors::unknown_block())),
+				};
+
+				let header_proof = request::HeaderProof::new(to_number, cht_root)
+					.expect("HeaderProof::new is Some(_) if cht::block_to_cht_number() is Some(_); \
+							this would return above if block_to_cht_number returned None; qed");
+
+				let idx = reqs.len();
+				let hash_ref = Field::back_ref(idx, 0);
+				reqs.push(header_proof.into());
+
+				hash_ref
 			};
 
-			let header_proof = request::HeaderProof::new(to_number, cht_root)
-				.expect("HeaderProof::new is Some(_) if cht::block_to_cht_number() is Some(_); \
-						 this would return above if block_to_cht_number returned None; qed");
-			reqs.push(header_proof.into());
-			Field::back_ref(reqs.len() - 1, 0)
-		};
+			let max = cmp::min(remaining as u64, MAX_HEADERS_PER_REQUEST);
+			reqs.push(request::HeaderWithAncestors {
+				block_hash: start_hash,
+				ancestor_count: max - 1,
+			}.into());
 
-		reqs.push(request::HeaderWithAncestors {
-			block_hash: start_hash,
-			ancestor_count: (headers_remaining - 1) as u64,
-		}.into());
-
-		Either::B(self.send_requests(reqs, |mut res| {
-			match res.last_mut() {
-				Some(&mut OnDemandResponse::HeaderWithAncestors(ref mut res_headers)) =>
-					headers.extend(res_headers.drain(..)),
-				_ => panic!("reqs has at least one entry; each request maps to a response; qed"),
-			};
-			headers
-		}))
+			Either::B(fetcher.send_requests(reqs, |mut res| {
+				match res.last_mut() {
+					Some(&mut OnDemandResponse::HeaderWithAncestors(ref mut res_headers)) =>
+						headers.extend(res_headers.drain(..)),
+					_ => panic!("reqs has at least one entry; each request maps to a response; qed"),
+				};
+				future::Loop::Continue(headers)
+			}))
+		})
 	}
 }
 
