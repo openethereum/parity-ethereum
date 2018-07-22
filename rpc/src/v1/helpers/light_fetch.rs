@@ -301,48 +301,11 @@ impl LightFetch {
 		use std::collections::BTreeMap;
 		use jsonrpc_core::futures::stream::{self, Stream};
 
-		let fetch_hashes = [filter.from_block, filter.to_block].iter()
-			.filter_map(|block_id| match block_id {
-				BlockId::Hash(hash) => Some(hash.clone()),
-				_ => None,
-			})
-			.collect::<Vec<_>>();
-
-		let best_number = self.client.chain_info().best_block_number;
-
 		let fetcher = self.clone();
-		let headers_fut = self.headers_by_hash(fetch_hashes);
-		headers_fut.and_then(move |mut header_map| {
-			let (from_block_num, to_block_num) = {
-				let block_number = |id| match id {
-					&BlockId::Earliest => 0,
-					&BlockId::Latest => best_number,
-					&BlockId::Hash(ref h) =>
-						header_map.get(h).map(|hdr| hdr.number())
-						.expect("from_block and to_block headers are fetched by hash; this closure is only called on from_block and to_block; qed"),
-					&BlockId::Number(x) => x,
-				};
-				(block_number(&filter.from_block), block_number(&filter.to_block))
-			};
-
-			if to_block_num < from_block_num {
-				// early exit for "to" block before "from" block.
-				return Either::A(future::err(errors::filter_block_not_found(filter.to_block.clone())));
-			}
-
-			let to_header_hint = match filter.to_block {
-				BlockId::Hash(ref h) => header_map.remove(h),
-				_ => None,
-			};
-			let headers_fut = fetcher.headers_range(from_block_num, to_block_num, to_header_hint);
-			Either::B(headers_fut.and_then(move |mut headers| {
-				// Validate from_block if it's a hash
-				match (headers.last(), filter.from_block) {
-					(None, _) =>
-						return Either::A(future::ok(Vec::new())),
-					(Some(hdr), BlockId::Hash(ref h)) if *h != hdr.hash() =>
-						return Either::A(future::ok(Vec::new())),
-					_ => (),
+		self.headers_range_by_block_id(filter.from_block, filter.to_block)
+			.and_then(move |mut headers| {
+				if headers.is_empty() {
+					return Either::A(future::ok(Vec::new()));
 				}
 
 				let on_demand = &fetcher.on_demand;
@@ -396,8 +359,7 @@ impl LightFetch {
 					Some(fut) => Either::B(Either::A(fut)),
 					None => Either::B(Either::B(future::err(errors::network_disabled()))),
 				}
-			}))
-		})
+			})
 	}
 
 	// Get a transaction by hash. also returns the index in the block.
@@ -474,6 +436,51 @@ impl LightFetch {
 			Some(recv) => recv,
 			None => Box::new(future::err(errors::network_disabled())) as Box<Future<Item = _, Error = _> + Send>
 		}
+	}
+
+	fn headers_range_by_block_id(&self, from_block: BlockId, to_block: BlockId) -> impl Future<Item = Vec<encoded::Header>, Error = Error> {
+		let fetch_hashes = [from_block, to_block].iter()
+			.filter_map(|block_id| match block_id {
+				BlockId::Hash(hash) => Some(hash.clone()),
+				_ => None,
+			})
+			.collect::<Vec<_>>();
+
+		let best_number = self.client.chain_info().best_block_number;
+
+		let fetcher = self.clone();
+		self.headers_by_hash(&fetch_hashes).and_then(move |mut header_map| {
+			let (from_block_num, to_block_num) = {
+				let block_number = |id| match id {
+					&BlockId::Earliest => 0,
+					&BlockId::Latest => best_number,
+					&BlockId::Hash(ref h) =>
+						header_map.get(h).map(|hdr| hdr.number())
+						.expect("from_block and to_block headers are fetched by hash; this closure is only called on from_block and to_block; qed"),
+					&BlockId::Number(x) => x,
+				};
+				(block_number(&from_block), block_number(&to_block))
+			};
+
+			if to_block_num < from_block_num {
+				// early exit for "to" block before "from" block.
+				return Either::A(future::err(errors::filter_block_not_found(to_block)));
+			}
+
+			let to_header_hint = match to_block {
+				BlockId::Hash(ref h) => header_map.remove(h),
+				_ => None,
+			};
+			let headers_fut = fetcher.headers_range(from_block_num, to_block_num, to_header_hint);
+			Either::B(headers_fut.map(move |headers| {
+				// Validate from_block if it's a hash
+				let last_hash = headers.last().map(|hdr| hdr.hash());
+				match (last_hash, from_block) {
+					(Some(h1), BlockId::Hash(h2)) if h1 != h2 => Vec::new(),
+					_ => headers,
+				}
+			}))
+		})
 	}
 
 	fn headers_by_hash(&self, hashes: &Vec<H256>) -> impl Future<Item = H256FastMap<encoded::Header>, Error = Error> {
