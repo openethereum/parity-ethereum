@@ -373,8 +373,11 @@ fn transaction_proof() {
 	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.
 	let root = *client.best_block_header().state_root();
 
+	let machine = test_spec.engine.machine();
+	let env_info = client.latest_env_info();
+	let schedule = machine.schedule(env_info.number);
 	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
-	Executive::new(&mut state, &client.latest_env_info(), test_spec.engine.machine())
+	Executive::new(&mut state, &env_info, &machine, &schedule)
 		.transact(&transaction, TransactOptions::with_no_tracing().dont_check_nonce()).unwrap();
 
 	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());

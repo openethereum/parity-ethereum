@@ -760,10 +760,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(0x100u64), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
 		let FinalizationResult { gas_left, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -817,10 +818,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
 		let FinalizationResult { gas_left, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -859,11 +861,12 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_byzantium_machine(5);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let mut ex = Executive::new(&mut state, &info, &machine);
+		let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 		let output = BytesRef::Fixed(&mut[0u8;0]);
 		ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap();
 
@@ -943,12 +946,13 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(5);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
 		let FinalizationResult { gas_left, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
 			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
 		};
@@ -1059,12 +1063,13 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = ::ethereum::new_byzantium_test_machine();
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
 		let FinalizationResult { gas_left, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
 			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
 		};
@@ -1131,12 +1136,13 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(5);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
 		let FinalizationResult { gas_left, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.create(params.clone(), &mut substate, &mut None, &mut tracer, &mut vm_tracer).unwrap()
 		};
 
@@ -1218,10 +1224,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
 		let FinalizationResult { gas_left, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -1269,10 +1276,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(1024);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
 		{
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
@@ -1329,10 +1337,11 @@ mod tests {
 
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
 		let FinalizationResult { gas_left, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -1373,10 +1382,11 @@ mod tests {
 		state.init_code(&address, code).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
 		let FinalizationResult { gas_left, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -1406,9 +1416,10 @@ mod tests {
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 
 		let executed = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts).unwrap()
 		};
@@ -1443,9 +1454,10 @@ mod tests {
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
@@ -1476,9 +1488,10 @@ mod tests {
 		info.gas_used = U256::from(20_000);
 		info.gas_limit = U256::from(100_000);
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
@@ -1509,9 +1522,10 @@ mod tests {
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
@@ -1542,10 +1556,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = make_frontier_machine(0);
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
 		let result = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer)
 		};
 
@@ -1575,11 +1590,12 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::zero());
 		let info = EnvInfo::default();
 		let machine = ::ethereum::new_byzantium_test_machine();
+		let schedule = machine.schedule(info.number);
 		let mut substate = Substate::new();
 
 		let mut output = [0u8; 14];
 		let FinalizationResult { gas_left: result, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -1619,10 +1635,11 @@ mod tests {
 
 		// Network with wasm activated at block 10
 		let machine = ::ethereum::new_kovan_wasm_test_machine();
+		let schedule = machine.schedule(info.number);
 
 		let mut output = [0u8; 20];
 		let FinalizationResult { gas_left: result, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.call(params.clone(), &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -1635,7 +1652,7 @@ mod tests {
 
 		let mut output = [0u8; 20];
 		let FinalizationResult { gas_left: result, .. } = {
-			let mut ex = Executive::new(&mut state, &info, &machine);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.call(params, &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
