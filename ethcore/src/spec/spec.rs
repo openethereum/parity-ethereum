@@ -631,7 +631,9 @@ impl Spec {
 				let mut substate = Substate::new();
 
 				{
-					let mut exec = Executive::new(&mut state, &env_info, self.engine.machine());
+					let machine = self.engine.machine();
+					let schedule = machine.schedule(env_info.number);
+					let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
 					if let Err(e) = exec.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}

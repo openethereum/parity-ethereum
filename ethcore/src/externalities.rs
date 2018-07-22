@@ -66,11 +66,11 @@ impl OriginInfo {
 pub struct Externalities<'a, T: 'a, V: 'a, B: 'a> {
 	state: &'a mut State<B>,
 	env_info: &'a EnvInfo,
-	machine: &'a Machine,
 	depth: usize,
 	origin_info: OriginInfo,
 	substate: &'a mut Substate,
-	schedule: Schedule,
+	machine: &'a Machine,
+	schedule: &'a Schedule,
 	output: OutputPolicy<'a, 'a>,
 	tracer: &'a mut T,
 	vm_tracer: &'a mut V,
@@ -81,9 +81,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
 	/// Basic `Externalities` constructor.
-	pub fn new(state: &'a mut State<B>,
+	pub fn new(
+		state: &'a mut State<B>,
 		env_info: &'a EnvInfo,
 		machine: &'a Machine,
+		schedule: &'a Schedule,
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
@@ -95,11 +97,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 		Externalities {
 			state: state,
 			env_info: env_info,
-			machine: machine,
 			depth: depth,
 			origin_info: origin_info,
 			substate: substate,
-			schedule: machine.schedule(env_info.number),
+			machine: machine,
+			schedule: schedule,
 			output: output,
 			tracer: tracer,
 			vm_tracer: vm_tracer,
@@ -170,7 +172,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			};
 
 			let mut output = H256::new();
-			let mut ex = Executive::new(self.state, self.env_info, self.machine);
+			let mut ex = Executive::new(self.state, self.env_info, self.machine, self.schedule);
 			let r = ex.call(params, self.substate, BytesRef::Fixed(&mut output), self.tracer, self.vm_tracer);
 			trace!("ext: blockhash contract({}) -> {:?}({}) self.env_info.number={}\n", number, r, output, self.env_info.number);
 			output
@@ -226,7 +228,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				}
 			}
 		}
-		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.depth, self.static_flag);
+		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.schedule, self.depth, self.static_flag);
 
 		// TODO: handle internal error separately
 		match ex.create(params, self.substate, &mut None, self.tracer, self.vm_tracer) {
@@ -280,7 +282,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			params.value = ActionValue::Transfer(value);
 		}
 
-		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.depth, self.static_flag);
+		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.schedule, self.depth, self.static_flag);
 
 		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer, self.vm_tracer) {
 			Ok(FinalizationResult{ gas_left, return_data, apply_state: true }) => MessageCallResult::Success(gas_left, return_data),
