@@ -1635,10 +1635,10 @@ mod tests {
 
 		// Network with wasm activated at block 10
 		let machine = ::ethereum::new_kovan_wasm_test_machine();
-		let schedule = machine.schedule(info.number);
 
 		let mut output = [0u8; 20];
 		let FinalizationResult { gas_left: result, .. } = {
+			let schedule = machine.schedule(info.number);
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.call(params.clone(), &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1652,6 +1652,7 @@ mod tests {
 
 		let mut output = [0u8; 20];
 		let FinalizationResult { gas_left: result, .. } = {
+			let schedule = machine.schedule(info.number);
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.call(params, &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
