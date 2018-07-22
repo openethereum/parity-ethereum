@@ -129,9 +129,11 @@
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
-				"eip649Reward": "0x29A2241AF62C0000",
 				"eip100bTransition": 4370000,
-				"eip649Transition": 4370000
+				"eip649Transition": 4370000,
+				"eip649Reward": "0x29A2241AF62C0000",
+				"eip1234Transition": "0x7fffffffffffff",
+				"eip1234Reward": "0x1BC16D674EC80000"
 			}
 		}
 	},
