@@ -42,6 +42,7 @@ use sync::LightSync;
 use ethereum_types::{U256, Address};
 use hash::H256;
 use parking_lot::Mutex;
+use fastmap::H256FastMap;
 use transaction::{Action, Transaction as EthTransaction, SignedTransaction, LocalizedTransaction};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
@@ -299,78 +300,103 @@ impl LightFetch {
 		use std::collections::BTreeMap;
 		use jsonrpc_core::futures::stream::{self, Stream};
 
-		// early exit for "to" block before "from" block.
+		let fetch_hashes = [filter.from_block, filter.to_block].iter()
+			.filter_map(|block_id| match block_id {
+				BlockId::Hash(hash) => Some(hash.clone()),
+				_ => None,
+			})
+			.collect::<Vec<_>>();
+
 		let best_number = self.client.chain_info().best_block_number;
-		let block_number = |id| match id {
-			BlockId::Earliest => Some(0),
-			BlockId::Latest => Some(best_number),
-			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number()),
-			BlockId::Number(x) => Some(x),
-		};
 
-		let (from_block_number, from_block_header) = match self.client.block_header(filter.from_block) {
-			Some(from) => (from.number(), from),
-			None => return Either::A(future::err(errors::unknown_block())),
-		};
+		let fetcher = self.clone();
+		let headers_fut = self.headers_by_hash(fetch_hashes);
+		headers_fut.and_then(move |mut header_map| {
+			let (from_block_num, to_block_num) = {
+				let block_number = |id| match id {
+					&BlockId::Earliest => 0,
+					&BlockId::Latest => best_number,
+					&BlockId::Hash(ref h) =>
+						header_map.get(h).map(|hdr| hdr.number())
+						.expect("from_block and to_block headers are fetched by hash; this closure is only called on from_block and to_block; qed"),
+					&BlockId::Number(x) => x,
+				};
+				(block_number(&filter.from_block), block_number(&filter.to_block))
+			};
 
-		match block_number(filter.to_block) {
-			Some(to) if to < from_block_number || from_block_number > best_number 
-				=> return Either::A(future::ok(Vec::new())),
-			Some(_) => (),
-			_ => return Either::A(future::err(errors::unknown_block())),
-		}
+			if to_block_num < from_block_num {
+				// early exit for "to" block before "from" block.
+				return Either::A(future::err(errors::filter_block_not_found(filter.to_block.clone())));
+			}
 
-		let maybe_future = self.sync.with_context(move |ctx| {
-			// find all headers which match the filter, and fetch the receipts for each one.
-			// match them with their numbers for easy sorting later.
-			let bit_combos = filter.bloom_possibilities();
-			let receipts_futures: Vec<_> = self.client.ancestry_iter(filter.to_block)
-				.take_while(|ref hdr| hdr.number() != from_block_number)
-				.chain(Some(from_block_header))
-				.filter(|ref hdr| {
-					let hdr_bloom = hdr.log_bloom();
-					bit_combos.iter().any(|bloom| hdr_bloom.contains_bloom(bloom))
-				})
-				.map(|hdr| (hdr.number(), hdr.hash(), request::BlockReceipts(hdr.into())))
-				.map(|(num, hash, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, hash, x)))
-				.collect();
+			let to_header_hint = match filter.to_block {
+				BlockId::Hash(ref h) => header_map.remove(h),
+				_ => None,
+			};
+			let headers_fut = fetcher.headers_range(from_block_num, to_block_num, to_header_hint);
+			Either::B(headers_fut.and_then(move |mut headers| {
+				// Validate from_block if it's a hash
+				match (headers.last(), filter.from_block) {
+					(None, _) =>
+						return Either::A(future::ok(Vec::new())),
+					(Some(hdr), BlockId::Hash(ref h)) if *h != hdr.hash() =>
+						return Either::A(future::ok(Vec::new())),
+					_ => (),
+				}
 
-			// as the receipts come in, find logs within them which match the filter.
-			// insert them into a BTreeMap to maintain order by number and block index.
-			stream::futures_unordered(receipts_futures)
-				.fold(BTreeMap::new(), move |mut matches, (num, hash, receipts)| {
-					let mut block_index = 0;
-					for (transaction_index, receipt) in receipts.into_iter().enumerate() {
-						for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
-							if filter.matches(&log) {
-								matches.insert((num, block_index), Log {
-									address: log.address.into(),
-									topics: log.topics.into_iter().map(Into::into).collect(),
-									data: log.data.into(),
-									block_hash: Some(hash.into()),
-									block_number: Some(num.into()),
-									// No way to easily retrieve transaction hash, so let's just skip it.
-									transaction_hash: None,
-									transaction_index: Some(transaction_index.into()),
-									log_index: Some(block_index.into()),
-									transaction_log_index: Some(transaction_log_index.into()),
-									log_type: "mined".into(),
-									removed: false,
-								});
+				let on_demand = &fetcher.on_demand;
+
+				let maybe_future = fetcher.sync.with_context(move |ctx| {
+					// find all headers which match the filter, and fetch the receipts for each one.
+					// match them with their numbers for easy sorting later.
+					let bit_combos = filter.bloom_possibilities();
+					let receipts_futures: Vec<_> = headers.drain(..)
+						.filter(|ref hdr| {
+							let hdr_bloom = hdr.log_bloom();
+							bit_combos.iter().any(|bloom| hdr_bloom.contains_bloom(bloom))
+						})
+						.map(|hdr| (hdr.number(), hdr.hash(), request::BlockReceipts(hdr.into())))
+						.map(|(num, hash, req)| on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, hash, x)))
+						.collect();
+
+					// as the receipts come in, find logs within them which match the filter.
+					// insert them into a BTreeMap to maintain order by number and block index.
+					stream::futures_unordered(receipts_futures)
+						.fold(BTreeMap::new(), move |mut matches, (num, hash, receipts)| {
+							let mut block_index = 0;
+							for (transaction_index, receipt) in receipts.into_iter().enumerate() {
+								for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
+									if filter.matches(&log) {
+										matches.insert((num, block_index), Log {
+											address: log.address.into(),
+											topics: log.topics.into_iter().map(Into::into).collect(),
+											data: log.data.into(),
+											block_hash: Some(hash.into()),
+											block_number: Some(num.into()),
+											// No way to easily retrieve transaction hash, so let's just skip it.
+											transaction_hash: None,
+											transaction_index: Some(transaction_index.into()),
+											log_index: Some(block_index.into()),
+											transaction_log_index: Some(transaction_log_index.into()),
+											log_type: "mined".into(),
+											removed: false,
+										});
+									}
+									block_index += 1;
+								}
 							}
-							block_index += 1;
-						}
-					}
-					future::ok(matches)
-				}) // and then collect them into a vector.
-				.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
-				.map_err(errors::on_demand_cancel)
-		});
+							future::ok(matches)
+						}) // and then collect them into a vector.
+						.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
+						.map_err(errors::on_demand_cancel)
+				});
 
-		match maybe_future {
-			Some(fut) => Either::B(Either::A(fut)),
-			None => Either::B(Either::B(future::err(errors::network_disabled()))),
-		}
+				match maybe_future {
+					Some(fut) => Either::B(Either::A(fut)),
+					None => Either::B(Either::B(future::err(errors::network_disabled()))),
+				}
+			}))
+		})
 	}
 
 	// Get a transaction by hash. also returns the index in the block.
@@ -447,6 +473,90 @@ impl LightFetch {
 			Some(recv) => recv,
 			None => Box::new(future::err(errors::network_disabled())) as Box<Future<Item = _, Error = _> + Send>
 		}
+	}
+
+	fn headers_by_hash(&self, hashes: &Vec<H256>) -> impl Future<Item = H256FastMap<encoded::Header>, Error = Error> {
+		let mut refs = H256FastMap::with_capacity_and_hasher(hashes.len(), Default::default());
+		let mut reqs = Vec::with_capacity(hashes.len());
+
+		for hash in hashes {
+			refs.entry(*hash).or_insert_with(|| {
+				self.make_header_requests(BlockId::Hash(*hash), &mut reqs)
+					.expect("make_header_requests never fails for BlockId::Hash; qed")
+			});
+		}
+
+		self.send_requests(reqs, move |res| {
+			let headers = refs.drain()
+				.map(|(hash, header_ref)| {
+					let hdr = extract_header(&res, header_ref)
+						.expect("these responses correspond to requests that header_ref belongs to; \
+								qed");
+					(hash, hdr)
+				})
+				.collect();
+			headers
+		})
+	}
+
+	fn headers_range(
+		&self,
+		from_number: u64,
+		to_number: u64,
+		to_header_hint: Option<encoded::Header>
+	) -> impl Future<Item = Vec<encoded::Header>, Error = Error> {
+		let range_length = (to_number - from_number + 1) as usize;
+		let mut headers: Vec<encoded::Header> = Vec::with_capacity(range_length);
+
+		let iter_start = match to_header_hint {
+			Some(hdr) => {
+				let block_id = BlockId::Hash(hdr.parent_hash());
+				headers.push(hdr);
+				block_id
+			}
+			None => BlockId::Number(to_number),
+		};
+		headers.extend(self.client.ancestry_iter(iter_start)
+				.take_while(|hdr| hdr.number() >= from_number));
+
+		let headers_remaining = range_length - headers.len();
+		if headers_remaining == 0 {
+			return Either::A(future::ok(headers));
+		}
+
+		let mut reqs: Vec<request::Request> = Vec::with_capacity(2);
+
+		let start_hash = if let Some(hdr) = headers.last() {
+			hdr.parent_hash().into()
+		} else {
+			let cht_root = cht::block_to_cht_number(to_number)
+				.and_then(|cht_num| self.client.cht_root(cht_num as usize));
+
+			let cht_root = match cht_root {
+				Some(cht_root) => cht_root,
+				None => return Either::A(future::err(errors::unknown_block())),
+			};
+
+			let header_proof = request::HeaderProof::new(to_number, cht_root)
+				.expect("HeaderProof::new is Some(_) if cht::block_to_cht_number() is Some(_); \
+						 this would return above if block_to_cht_number returned None; qed");
+			reqs.push(header_proof.into());
+			Field::back_ref(reqs.len() - 1, 0)
+		};
+
+		reqs.push(request::HeaderWithAncestors {
+			block_hash: start_hash,
+			ancestor_count: (headers_remaining - 1) as u64,
+		}.into());
+
+		Either::B(self.send_requests(reqs, |mut res| {
+			match res.last_mut() {
+				Some(&mut OnDemandResponse::HeaderWithAncestors(ref mut res_headers)) =>
+					headers.extend(res_headers.drain(..)),
+				_ => panic!("reqs has at least one entry; each request maps to a response; qed"),
+			};
+			headers
+		}))
 	}
 }
 
