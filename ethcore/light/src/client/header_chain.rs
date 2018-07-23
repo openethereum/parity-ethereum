@@ -353,7 +353,7 @@ impl HeaderChain {
 		header: Header,
 		transition_proof: Option<Vec<u8>>,
 	) -> Result<PendingChanges, BlockImportError> {
-		self.insert_inner(transaction, header, None, transition_proof, false)
+		self.insert_inner(transaction, header, None, transition_proof, true)
 	}
 
 	/// Insert a pre-verified header, with a known total difficulty. Similarly to `insert`.
@@ -366,7 +366,7 @@ impl HeaderChain {
 		total_difficulty: U256,
 		transition_proof: Option<Vec<u8>>,
 	) -> Result<PendingChanges, BlockImportError> {
-		self.insert_inner(transaction, header, Some(total_difficulty), transition_proof, false)
+		self.insert_inner(transaction, header, Some(total_difficulty), transition_proof, true)
 	}
 
 	pub(super) fn insert_inner(
