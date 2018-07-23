@@ -86,6 +86,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		state: &'a mut State<B>,
 		info: &'a EnvInfo,
 		machine: &'a Machine,
+		schedule: &'a Schedule,
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
@@ -97,7 +98,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		let static_call = false;
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,
-			ext: Externalities::new(state, info, machine, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
+			ext: Externalities::new(state, info, machine, schedule, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
 			callcreates: vec![],
 			sender: address,
 		})
@@ -245,7 +246,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 		let out_of_gas = vm.out_of_gas();
 		let mut state = get_temp_state();
 		state.populate_from(From::from(vm.pre_state.clone()));
-		let info = From::from(vm.env);
+		let info: EnvInfo = From::from(vm.env);
 		let machine = {
 			let mut machine = ::ethereum::new_frontier_test_machine();
 			machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = 1));
@@ -262,10 +263,12 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 
 		// execute
 		let (res, callcreates) = {
+			let schedule = machine.schedule(info.number);
 			let mut ex = try_fail!(TestExt::new(
 				&mut state,
 				&info,
 				&machine,
+				&schedule,
 				0,
 				OriginInfo::from(&params),
 				&mut substate,
@@ -274,7 +277,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(&params, &machine.schedule(0u64.into()));
+			let mut evm = vm_factory.create(&params, schedule.wasm.is_some());
 			let res = evm.exec(params, &mut ex);
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
