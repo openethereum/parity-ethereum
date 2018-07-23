@@ -118,7 +118,7 @@ pub use http::{
 };
 
 pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer};
-pub use v1::block_import::is_major_importing;
+pub use v1::block_import::{is_major_importing, is_major_importing_or_waiting};
 pub use v1::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 pub use authcodes::{AuthCodes, TimeProvider};
 pub use http_common::HttpMetaExtractor;
