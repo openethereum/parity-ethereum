@@ -299,6 +299,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					address: new_address,
 					sender: sender.clone(),
 					origin: sender.clone(),
+					entire_gas: t.gas,
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
@@ -316,6 +317,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					address: address.clone(),
 					sender: sender.clone(),
 					origin: sender.clone(),
+					entire_gas: t.gas,
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
@@ -469,7 +471,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let mut trace_output = tracer.prepare_trace_output();
 			let mut subtracer = tracer.subtracer();
 
-			let gas = params.gas;
+			let entire_gas = params.entire_gas;
 
 			if params.code.is_some() {
 				// part of substate that may be reverted
@@ -490,7 +492,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				match res {
 					Ok(ref res) if res.apply_state => tracer.trace_call(
 						trace_info,
-						gas - res.gas_left,
+						entire_gas - res.gas_left,
 						trace_output,
 						traces
 					),
@@ -565,7 +567,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let trace_info = tracer.prepare_trace_create(&params);
 		let mut trace_output = tracer.prepare_trace_output();
 		let mut subtracer = tracer.subtracer();
-		let gas = params.gas;
+		let entire_gas = params.entire_gas;
 		let created = params.address.clone();
 
 		let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
@@ -584,7 +586,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		match res {
 			Ok(ref res) if res.apply_state => tracer.trace_create(
 				trace_info,
-				gas - res.gas_left,
+				entire_gas - res.gas_left,
 				trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
 				created,
 				subtracer.drain()
@@ -750,6 +752,7 @@ mod tests {
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
+		params.entire_gas = U256::from(100_000);
 		params.code = Some(Arc::new("3331600055".from_hex().unwrap()));
 		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state = get_temp_state_with_factory(factory);
@@ -807,6 +810,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
+		params.entire_gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = get_temp_state_with_factory(factory);
@@ -848,6 +852,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
+		params.entire_gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		params.call_type = CallType::Call;
@@ -932,6 +937,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
+		params.entire_gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		params.call_type = CallType::Call;
@@ -1048,6 +1054,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
+		params.entire_gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		params.call_type = CallType::Call;
@@ -1121,6 +1128,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
+		params.entire_gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(100.into());
 		let mut state = get_temp_state();
@@ -1208,6 +1216,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
+		params.entire_gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = get_temp_state_with_factory(factory);
@@ -1259,6 +1268,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
+		params.entire_gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = get_temp_state_with_factory(factory);
@@ -1606,6 +1616,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.address = contract_address.clone();
 		params.gas = U256::from(20025);
+		params.entire_gas = U256::from(20025);
 		params.code = Some(wasm_sample_code());
 
 		let mut info = EnvInfo::default();

@@ -76,7 +76,9 @@ pub struct ActionParams {
 	pub sender: Address,
 	/// Transaction initiator.
 	pub origin: Address,
-	/// Gas paid up front for transaction execution
+	/// Gas paid up front for entire transaction execution.
+	pub entire_gas: U256,
+	/// Gas paid up front for action execution.
 	pub gas: U256,
 	/// Gas price.
 	pub gas_price: U256,
@@ -101,6 +103,7 @@ impl Default for ActionParams {
 			address: Address::new(),
 			sender: Address::new(),
 			origin: Address::new(),
+			entire_gas: U256::zero(),
 			gas: U256::zero(),
 			gas_price: U256::zero(),
 			value: ActionValue::Transfer(U256::zero()),
@@ -123,6 +126,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			origin: t.origin.into(),
 			code: Some(Arc::new(t.code.into())),
 			data: Some(t.data.into()),
+			entire_gas: t.gas.into(),
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),
 			value: ActionValue::Transfer(t.value.into()),

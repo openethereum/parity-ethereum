@@ -136,6 +136,7 @@ impl EthereumMachine {
 			address: contract_address.clone(),
 			sender: SYSTEM_ADDRESS.clone(),
 			origin: SYSTEM_ADDRESS.clone(),
+			entire_gas: gas,
 			gas: gas,
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),

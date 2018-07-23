@@ -1175,11 +1175,11 @@ mod tests {
 			action: trace::Action::Create(trace::Create {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				value: 100.into(),
-				gas: 77412.into(),
+				gas: 100_000.into(),
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 			}),
 			result: trace::Res::Create(trace::CreateResult {
-				gas_used: U256::from(3224),
+				gas_used: U256::from(25_812),
 				address: Address::from_str("8988167e088c87cd314df6d3c2b83da5acb93ace").unwrap(),
 				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
 			}),
@@ -1232,7 +1232,7 @@ mod tests {
 			action: trace::Action::Create(trace::Create {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				value: 100.into(),
-				gas: 78792.into(),
+				gas: 100_000.into(),
 				init: vec![91, 96, 0, 86],
 			}),
 			result: trace::Res::FailedCreate(TraceError::OutOfGas),
@@ -1270,12 +1270,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(3),
+				gas_used: 21_003.into(),
 				output: vec![]
 			}),
 			subtraces: 0,
@@ -1311,7 +1311,7 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
@@ -1352,7 +1352,7 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: "0000000000000000000000000000000000000001".into(),
 				value: 0.into(),
-				gas: 79_000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
@@ -1394,12 +1394,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 0.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(3_721), // in post-eip150
+				gas_used: 24_721.into(), // in post-eip150
 				output: vec![]
 			}),
 			subtraces: 0,
@@ -1438,12 +1438,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 0.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: 724.into(), // in post-eip150
+				gas_used: 21_724.into(), // in post-eip150
 				output: vec![]
 			}),
 		}, FlatTrace {
@@ -1497,12 +1497,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 0.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(736), // in post-eip150
+				gas_used: 21_736.into(), // in post-eip150
 				output: vec![]
 			}),
 		}, FlatTrace {
@@ -1553,7 +1553,7 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
@@ -1595,12 +1595,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(69),
+				gas_used: 21_069.into(),
 				output: vec![]
 			}),
 		}, FlatTrace {
@@ -1652,12 +1652,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(31761),
+				gas_used: 52_761.into(),
 				output: vec![]
 			}),
 		}, FlatTrace {
@@ -1706,12 +1706,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(31761),
+				gas_used: U256::from(52_761),
 				output: vec![]
 			}),
 		}];
@@ -1749,12 +1749,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(79_000),
+				gas_used: 100_000.into(),
 				output: vec![]
 			}),
 		}, FlatTrace {
@@ -1805,12 +1805,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(135),
+				gas_used: 21_135.into(),
 				output: vec![]
 			}),
 		}, FlatTrace {
@@ -1880,12 +1880,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(79_000),
+				gas_used: 100_000.into(),
 				output: vec![]
 			})
 		}, FlatTrace {
@@ -1950,12 +1950,12 @@ mod tests {
 				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
 				to: 0xa.into(),
 				value: 100.into(),
-				gas: 79000.into(),
+				gas: 100_000.into(),
 				input: vec![],
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: 3.into(),
+				gas_used: 21_003.into(),
 				output: vec![]
 			}),
 		}, FlatTrace {
