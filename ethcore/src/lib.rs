@@ -36,7 +36,7 @@
 //!   curl https://sh.rustup.rs -sSf | sh
 //!
 //!   # download and build parity
-//!   git clone https://github.com/paritytech/parity
+//!   git clone https://github.com/paritytech/parity-ethereum
 //!   cd parity
 //!   cargo build --release
 //!   ```
@@ -49,7 +49,7 @@
 //!   curl https://sh.rustup.rs -sSf | sh
 //!
 //!   # download and build parity
-//!   git clone https://github.com/paritytech/parity
+//!   git clone https://github.com/paritytech/parity-ethereum
 //!   cd parity
 //!   cargo build --release
 //!   ```

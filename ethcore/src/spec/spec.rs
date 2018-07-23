@@ -952,7 +952,7 @@ mod tests {
 	use views::BlockView;
 	use tempdir::TempDir;
 
-	// https://github.com/paritytech/parity/issues/1840
+	// https://github.com/paritytech/parity-ethereum/issues/1840
 	#[test]
 	fn test_load_empty() {
 		let tempdir = TempDir::new("").unwrap();
