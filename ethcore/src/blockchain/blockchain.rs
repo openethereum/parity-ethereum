@@ -1387,8 +1387,8 @@ impl BlockChain {
 		blacklist
 	}
 
-	pub fn bad_blocks(&self) -> HashMap<H256, BlockInfo> {
-		self.bad_blocks.read().clone()
+	pub fn bad_blocks(&self) -> Vec<H256> {
+		self.bad_blocks.read().iter().map(|(hash, _)| *hash).collect::<Vec<H256>>()
 	}
 
 	/// Get best block hash.

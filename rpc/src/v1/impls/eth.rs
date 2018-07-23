@@ -817,6 +817,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Ok(true)
 	}
 
+	fn bad_blocks(&self, include_txs: bool) -> BoxFuture<Vec<RichBlock>> {
+		let blocks = self.client.bad_blocks()
+			.and_then(|vec| {
+				vec.iter().map(|hash| self.rich_block(BlockNumberOrId::Id(BlockId::Hash(*hash)), include_txs)).collect()
+			}).ok_or(Err("No bad blocks"));
+
+		Box::new(future::done(blocks))
+	}
+
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
 		Rlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::rlp)
