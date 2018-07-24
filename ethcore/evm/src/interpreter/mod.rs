@@ -1074,7 +1074,7 @@ mod tests {
 	use vm::tests::{FakeExt, test_finalize};
 
 	fn interpreter(params: ActionParams, ext: &vm::Ext) -> Box<Vm> {
-		Factory::new(VMType::Interpreter, 1).create(params, ext).unwrap()
+		Factory::new(VMType::Interpreter, 1).create(params, ext.schedule(), ext.depth())
 	}
 
 	#[test]
