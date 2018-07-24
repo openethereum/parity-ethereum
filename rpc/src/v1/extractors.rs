@@ -36,9 +36,9 @@ pub struct RpcExtractor;
 impl HttpMetaExtractor for RpcExtractor {
 	type Metadata = Metadata;
 
-	fn read_metadata(&self, _origin: Option<String>, user_agent: Option<String>, _dapps_origin: Option<String>) -> Metadata {
+	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, _dapps_origin: Option<String>) -> Metadata {
 		Metadata {
-			origin: match user_agent {
+			origin: match user_agent.or(origin) {
 				Some(service) => Origin::Rpc(service.into()),
 				None => Origin::Rpc("unknown".into()),
 			},
