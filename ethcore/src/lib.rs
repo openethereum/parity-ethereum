@@ -36,7 +36,7 @@
 //!   curl https://sh.rustup.rs -sSf | sh
 //!
 //!   # download and build parity
-//!   git clone https://github.com/paritytech/parity
+//!   git clone https://github.com/paritytech/parity-ethereum
 //!   cd parity
 //!   cargo build --release
 //!   ```
@@ -49,7 +49,7 @@
 //!   curl https://sh.rustup.rs -sSf | sh
 //!
 //!   # download and build parity
-//!   git clone https://github.com/paritytech/parity
+//!   git clone https://github.com/paritytech/parity-ethereum
 //!   cd parity
 //!   cargo build --release
 //!   ```
@@ -65,9 +65,9 @@ extern crate crossbeam;
 extern crate common_types as types;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
-extern crate ethcore_crypto;
+extern crate parity_crypto;
 extern crate ethcore_io as io;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_logger;
 extern crate ethcore_miner;
 #[cfg(feature = "stratum")]
@@ -97,10 +97,9 @@ extern crate heapsize;
 extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate patricia_trie_ethereum as ethtrie;
-extern crate triehash;
+extern crate triehash_ethereum as triehash;
 extern crate ansi_term;
 extern crate unexpected;
-extern crate util_error;
 extern crate snappy;
 extern crate ethabi;
 extern crate rustc_hex;
@@ -147,6 +146,7 @@ pub mod views;
 
 pub mod account_provider;
 pub mod block;
+pub mod builtin;
 pub mod client;
 pub mod db;
 pub mod encoded;
@@ -169,7 +169,6 @@ pub mod verification;
 mod cache_manager;
 mod pod_account;
 mod account_db;
-mod builtin;
 mod externalities;
 mod blockchain;
 mod factory;

@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::receipt::Receipt;
@@ -33,7 +32,10 @@ use jsonrpc_macros::Trailing;
 use light::cache::Cache;
 use light::client::LightChainClient;
 use light::cht;
-use light::on_demand::{request, OnDemand, HeaderRef, Request as OnDemandRequest, Response as OnDemandResponse};
+use light::on_demand::{
+	request, OnDemand, HeaderRef, Request as OnDemandRequest,
+	Response as OnDemandResponse, ExecutionResult,
+};
 use light::request::Field;
 
 use sync::LightSync;
@@ -85,9 +87,6 @@ pub fn extract_transaction_at_index(block: encoded::Block, index: usize, eip86_t
 		})
 		.map(|tx| Transaction::from_localized(tx, eip86_transition))
 }
-
-/// Type alias for convenience.
-pub type ExecutionResult = ::std::result::Result<Executed, ExecutionError>;
 
 // extract the header indicated by the given `HeaderRef` from the given responses.
 // fails only if they do not correspond.

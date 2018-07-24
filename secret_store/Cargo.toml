@@ -24,14 +24,14 @@ tokio-service = "0.1"
 tokio-proto = "0.1"
 url = "1.0"
 ethcore = { path = "../ethcore" }
-ethcore-bytes = { path = "../util/bytes" }
-ethcore-crypto = { path = "../ethcore/crypto" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 ethcore-logger = { path = "../logger" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
-kvdb = { path = "../util/kvdb" }
-keccak-hash = { path = "../util/hash" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 ethkey = { path = "../ethkey" }
 lazy_static = "1.0"
 ethabi = "5.1"
@@ -41,4 +41,4 @@ ethabi-contract = "5.0"
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
+kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }

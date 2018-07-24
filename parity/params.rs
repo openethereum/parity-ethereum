@@ -334,7 +334,7 @@ pub fn fatdb_switch_to_bool(switch: Switch, user_defaults: &UserDefaults, _algor
 }
 
 pub fn mode_switch_to_bool(switch: Option<Mode>, user_defaults: &UserDefaults) -> Result<Mode, String> {
-	Ok(switch.unwrap_or(user_defaults.mode.clone()))
+	Ok(switch.unwrap_or(user_defaults.mode().clone()))
 }
 
 #[cfg(test)]

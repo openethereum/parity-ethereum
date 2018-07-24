@@ -189,8 +189,8 @@ impl MinerService for TestMinerService {
 
 	fn work_package<C: PrepareOpenBlock>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> {
 		let params = self.authoring_params();
-		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data);
-		let closed = open_block.close();
+		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data).unwrap();
+		let closed = open_block.close().unwrap();
 		let header = closed.header();
 
 		Some((header.hash(), header.number(), header.timestamp(), *header.difficulty()))

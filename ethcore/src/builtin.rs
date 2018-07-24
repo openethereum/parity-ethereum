@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Standard built-in contracts.
+
 use std::cmp::{max, min};
 use std::io::{self, Read};
 
 use byteorder::{ByteOrder, BigEndian};
-use ethcore_crypto::digest;
+use parity_crypto::digest;
 use num::{BigUint, Zero, One};
 
 use hash::keccak;
@@ -27,6 +29,7 @@ use bytes::BytesRef;
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
+/// Execution error.
 #[derive(Debug)]
 pub struct Error(pub &'static str);
 
@@ -207,8 +210,8 @@ impl From<ethjson::spec::Builtin> for Builtin {
 	}
 }
 
-// Ethereum builtin creator.
-fn ethereum_builtin(name: &str) -> Box<Impl> {
+/// Ethereum built-in factory.
+pub fn ethereum_builtin(name: &str) -> Box<Impl> {
 	match name {
 		"identity" => Box::new(Identity) as Box<Impl>,
 		"ecrecover" => Box::new(EcRecover) as Box<Impl>,

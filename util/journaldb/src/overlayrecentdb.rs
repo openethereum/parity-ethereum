@@ -18,10 +18,10 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::io;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use error::{BaseDataError, UtilError};
 use ethereum_types::H256;
 use hashdb::*;
 use heapsize::HeapSizeOf;
@@ -31,8 +31,7 @@ use memorydb::*;
 use parking_lot::RwLock;
 use plain_hasher::H256FastMap;
 use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
-use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use super::JournalDB;
+use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, JournalDB, error_negatively_reference_hash};
 use util::DatabaseKey;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
@@ -284,7 +283,7 @@ impl JournalDB for OverlayRecentDB {
 		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.into_vec()))
 	}
 
-	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		trace!(target: "journaldb", "entry: #{} ({})", now, id);
 
 		let mut journal_overlay = self.journal_overlay.write();
@@ -340,7 +339,7 @@ impl JournalDB for OverlayRecentDB {
 		Ok(ops as u32)
 	}
 
-	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> io::Result<u32> {
 		trace!(target: "journaldb", "canonical: #{} ({})", end_era, canon_id);
 
 		let mut journal_overlay = self.journal_overlay.write();
@@ -412,7 +411,7 @@ impl JournalDB for OverlayRecentDB {
 		self.journal_overlay.write().pending_overlay.clear();
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
+	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		let mut ops = 0;
 		for (key, (value, rc)) in self.transaction_overlay.drain() {
 			if rc != 0 { ops += 1 }
@@ -424,7 +423,7 @@ impl JournalDB for OverlayRecentDB {
 				}
 				-1 => {
 					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_none() {
-						return Err(BaseDataError::NegativelyReferencedHash(key).into());
+						return Err(error_negatively_reference_hash(&key));
 					}
 					batch.delete(self.column, &key)
 				}

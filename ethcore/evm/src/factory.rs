@@ -33,12 +33,12 @@ pub struct Factory {
 impl Factory {
 	/// Create fresh instance of VM
 	/// Might choose implementation depending on supplied gas.
-	pub fn create(&self, params: ActionParams, ext: &vm::Ext) -> vm::Result<Box<Vm>> {
+	pub fn create(&self, params: ActionParams, ext: &vm::Ext) -> Box<Vm> {
 		match self.evm {
 			VMType::Interpreter => if Self::can_fit_in_usize(&params.gas) {
-				Ok(Box::new(super::interpreter::Interpreter::<usize>::new(params, self.evm_cache.clone(), ext)?))
+				Box::new(super::interpreter::Interpreter::<usize>::new(params, self.evm_cache.clone(), ext))
 			} else {
-				Ok(Box::new(super::interpreter::Interpreter::<U256>::new(params, self.evm_cache.clone(), ext)?))
+				Box::new(super::interpreter::Interpreter::<U256>::new(params, self.evm_cache.clone(), ext))
 			}
 		}
 	}

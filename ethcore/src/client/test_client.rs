@@ -46,7 +46,7 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use error::ImportResult;
+use error::{Error, ImportResult};
 use vm::Schedule;
 use miner::{self, Miner, MinerService};
 use spec::Spec;
@@ -373,7 +373,7 @@ impl ReopenBlock for TestBlockChainClient {
 }
 
 impl PrepareOpenBlock for TestBlockChainClient {
-	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> Result<OpenBlock, Error> {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
 		let db = self.spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
@@ -391,10 +391,10 @@ impl PrepareOpenBlock for TestBlockChainClient {
 			extra_data,
 			false,
 			&mut Vec::new().into_iter(),
-		).expect("Opening block for tests will not fail.");
+		)?;
 		// TODO [todr] Override timestamp for predictability
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
-		open_block
+		Ok(open_block)
 	}
 }
 
@@ -610,8 +610,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.execution_result.read().clone().unwrap()
 	}
 
-	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
-		Ok(Box::new(self.execution_result.read().clone().unwrap().into_iter()))
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError> {
+		Ok(Box::new(self.traces.read().clone().unwrap().into_iter().map(|t| t.transaction_hash.unwrap_or(H256::new())).zip(self.execution_result.read().clone().unwrap().into_iter())))
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {

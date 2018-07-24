@@ -9,7 +9,7 @@ bitflags = "0.9"
 byteorder = "1.0.0"
 ethereum-types = "0.3"
 ethcore-network = { path = "../util/network" }
-ethcore-crypto = { path = "../ethcore/crypto" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 ethkey = { path = "../ethkey" }
 hex = "0.2"
 log = "0.3"
@@ -17,7 +17,7 @@ mem = { path = "../util/mem" }
 ordered-float = "0.5"
 parking_lot = "0.6"
 rand = "0.4"
-rlp = { path = "../util/rlp" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"

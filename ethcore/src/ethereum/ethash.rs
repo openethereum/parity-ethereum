@@ -280,9 +280,16 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
+	#[cfg(not(feature = "miner-debug"))]
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_basic(header)
 			.and_then(|_| self.verify_block_unordered(header))
+	}
+
+	#[cfg(feature = "miner-debug")]
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
+		warn!("Skipping seal verification, running in miner testing mode.");
+		Ok(())
 	}
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
@@ -535,7 +542,7 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b = b.close();
+		let b = b.close().unwrap();
 		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
 	}
 
@@ -589,7 +596,7 @@ mod tests {
 		uncle.set_author(uncle_author);
 		b.push_uncle(uncle).unwrap();
 
-		let b = b.close();
+		let b = b.close().unwrap();
 		assert_eq!(b.state().balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
 		assert_eq!(b.state().balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
 	}
@@ -602,7 +609,7 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b = b.close();
+		let b = b.close().unwrap();
 
 		let ubi_contract: Address = "00efdd5883ec628983e9063c7d969fe268bbf310".into();
 		let dev_contract: Address = "00756cf8159095948496617f5fb17ed95059f536".into();

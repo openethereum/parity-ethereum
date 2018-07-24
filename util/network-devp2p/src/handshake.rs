@@ -19,7 +19,7 @@ use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
 use ethereum_types::{H256, H520};
-use ethcore_bytes::Bytes;
+use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
 use connection::{Connection};
 use node_table::NodeId;

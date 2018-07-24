@@ -94,6 +94,7 @@ impl ClientService {
 
 		let pruning = config.pruning;
 		let client = Client::new(config, &spec, blockchain_db.clone(), miner.clone(), io_service.channel())?;
+		miner.set_io_channel(io_service.channel());
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -276,7 +277,6 @@ mod tests {
 
 		client_db_config.memory_budget = client_config.db_cache_size;
 		client_db_config.compaction = CompactionProfile::auto(&client_path);
-		client_db_config.wal = client_config.db_wal;
 
 		let client_db_handler = test_helpers::restoration_db_handler(client_db_config.clone());
 		let client_db = client_db_handler.open(&client_path).unwrap();

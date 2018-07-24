@@ -21,8 +21,6 @@ use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256};
 use ethstore::ethkey::{Generator, Random};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
-use node_health::{self, NodeHealth};
-use parity_reactor;
 use sync::ManageNetwork;
 
 use jsonrpc_core::IoHandler;
@@ -40,12 +38,10 @@ pub struct Dependencies {
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	pub updater: Arc<TestUpdater>,
-	pub health: NodeHealth,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
-	pub dapps_address: Option<Host>,
 	pub ws_address: Option<Host>,
 }
 
@@ -58,11 +54,6 @@ impl Dependencies {
 				network_id: 3,
 				num_peers: 120,
 			})),
-			health: NodeHealth::new(
-				Arc::new(FakeSync),
-				node_health::TimeChecker::new::<String>(&[], node_health::CpuPool::new(1)),
-				parity_reactor::Remote::new_sync(),
-			),
 			updater: Arc::new(TestUpdater::default()),
 			logger: Arc::new(RotatingLogger::new("rpc=trace".to_owned())),
 			settings: Arc::new(NetworkSettings {
@@ -75,7 +66,6 @@ impl Dependencies {
 			}),
 			network: Arc::new(TestManageNetwork),
 			accounts: Arc::new(AccountProvider::transient_provider()),
-			dapps_address: Some("127.0.0.1:18080".into()),
 			ws_address: Some("127.0.0.1:18546".into()),
 		}
 	}
@@ -87,12 +77,10 @@ impl Dependencies {
 			self.sync.clone(),
 			self.updater.clone(),
 			self.network.clone(),
-			self.health.clone(),
 			self.accounts.clone(),
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
-			self.dapps_address.clone(),
 			self.ws_address.clone(),
 		)
 	}
@@ -108,13 +96,6 @@ impl Dependencies {
 		io.extend_with(self.client(Some(Arc::new(signer))).to_delegate());
 		io
 	}
-}
-
-#[derive(Debug)]
-struct FakeSync;
-impl node_health::SyncStatus for FakeSync {
-	fn is_major_importing(&self) -> bool { false }
-	fn peers(&self) -> (usize, usize) { (4, 25) }
 }
 
 #[test]
@@ -329,7 +310,7 @@ fn rpc_parity_net_peers() {
 	let io = deps.default_client();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_netPeers", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"active":0,"connected":120,"max":50,"peers":[{"caps":["eth/62","eth/63"],"id":"node1","name":"Parity/1","network":{"localAddress":"127.0.0.1:8888","remoteAddress":"127.0.0.1:7777"},"protocols":{"eth":{"difficulty":"0x28","head":"0000000000000000000000000000000000000000000000000000000000000032","version":62},"pip":null}},{"caps":["eth/63","eth/64"],"id":null,"name":"Parity/2","network":{"localAddress":"127.0.0.1:3333","remoteAddress":"Handshake"},"protocols":{"eth":{"difficulty":null,"head":"000000000000000000000000000000000000000000000000000000000000003c","version":64},"pip":null}}]},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"active":0,"connected":120,"max":50,"peers":[{"caps":["eth/62","eth/63"],"id":"node1","name":"Parity-Ethereum/1","network":{"localAddress":"127.0.0.1:8888","remoteAddress":"127.0.0.1:7777"},"protocols":{"eth":{"difficulty":"0x28","head":"0000000000000000000000000000000000000000000000000000000000000032","version":62},"pip":null}},{"caps":["eth/63","eth/64"],"id":null,"name":"Parity-Ethereum/2","network":{"localAddress":"127.0.0.1:3333","remoteAddress":"Handshake"},"protocols":{"eth":{"difficulty":null,"head":"000000000000000000000000000000000000000000000000000000000000003c","version":64},"pip":null}}]},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -422,24 +403,6 @@ fn rpc_parity_ws_address() {
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_wsUrl", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":"127.0.0.1:18546","id":1}"#;
 	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"WebSockets Server is disabled. This API is not available."},"id":1}"#;
-
-	// then
-	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
-	assert_eq!(io2.handle_request_sync(request), Some(response2.to_owned()));
-}
-
-#[test]
-fn rpc_parity_dapps_address() {
-	// given
-	let mut deps = Dependencies::new();
-	let io1 = deps.default_client();
-	deps.dapps_address = None;
-	let io2 = deps.default_client();
-
-	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsUrl", "params": [], "id": 1}"#;
-	let response1 = r#"{"jsonrpc":"2.0","result":"127.0.0.1:18080","id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
 
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
@@ -572,17 +535,6 @@ fn rpc_parity_call() {
 		"id": 1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x1234ff"],"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_node_health() {
-	let deps = Dependencies::new();
-	let io = deps.default_client();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_nodeHealth", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"peers":{"details":[4,25],"message":"","status":"ok"},"sync":{"details":false,"message":"","status":"ok"},"time":{"details":0,"message":"","status":"ok"}},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

@@ -17,7 +17,6 @@
 use ethcore::snapshot::{ManifestData, SnapshotService};
 use ethereum_types::H256;
 use hash::keccak;
-use rand::{thread_rng, Rng};
 
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -114,35 +113,32 @@ impl Snapshot {
 		Err(())
 	}
 
-	/// Find a random chunk to download
+	/// Find a chunk to download
 	pub fn needed_chunk(&mut self) -> Option<H256> {
-		// Find all random chunks: first blocks, then state
-		let needed_chunks = {
+		// Find next needed chunk: first block, then state chunks
+		let chunk = {
 			let chunk_filter = |h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h);
 
-			let needed_block_chunks = self.pending_block_chunks.iter()
+			let needed_block_chunk = self.pending_block_chunks.iter()
 				.filter(|&h| chunk_filter(h))
 				.map(|h| *h)
-				.collect::<Vec<H256>>();
+				.next();
 
 			// If no block chunks to download, get the state chunks
-			if needed_block_chunks.len() == 0 {
+			if needed_block_chunk.is_none() {
 				self.pending_state_chunks.iter()
 					.filter(|&h| chunk_filter(h))
 					.map(|h| *h)
-					.collect::<Vec<H256>>()
+					.next()
 			} else {
-				needed_block_chunks
+				needed_block_chunk
 			}
 		};
-
-		// Get a random chunk
-		let chunk = thread_rng().choose(&needed_chunks);
 
 		if let Some(hash) = chunk {
 			self.downloading_chunks.insert(hash.clone());
 		}
-		chunk.map(|h| *h)
+		chunk
 	}
 
 	pub fn clear_chunk_download(&mut self, hash: &H256) {

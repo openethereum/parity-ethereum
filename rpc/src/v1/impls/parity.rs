@@ -32,10 +32,9 @@ use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService};
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
-use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
 use jsonrpc_core::{BoxFuture, Result};
-use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::metadata::Metadata;
@@ -58,12 +57,10 @@ pub struct ParityClient<C, M, U> {
 	updater: Arc<U>,
 	sync: Arc<SyncProvider>,
 	net: Arc<ManageNetwork>,
-	health: NodeHealth,
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<Host>,
 	ws_address: Option<Host>,
 	eip86_transition: u64,
 }
@@ -78,12 +75,10 @@ impl<C, M, U> ParityClient<C, M, U> where
 		sync: Arc<SyncProvider>,
 		updater: Arc<U>,
 		net: Arc<ManageNetwork>,
-		health: NodeHealth,
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<Host>,
 		ws_address: Option<Host>,
 	) -> Self {
 		let eip86_transition = client.eip86_transition();
@@ -93,12 +88,10 @@ impl<C, M, U> ParityClient<C, M, U> where
 			sync,
 			updater,
 			net,
-			health,
 			accounts,
 			logger,
 			settings,
 			signer,
-			dapps_address,
 			ws_address,
 			eip86_transition,
 		}
@@ -142,11 +135,11 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.collect()
 		)
 	}
-	 
+
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
 		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
-	
+
 	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
 		let dapp_id = meta.dapp_id();
 
@@ -350,11 +343,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		)
 	}
 
-	fn dapps_url(&self) -> Result<String> {
-		helpers::to_url(&self.dapps_address)
-			.ok_or_else(|| errors::dapps_disabled())
-	}
-
 	fn ws_url(&self) -> Result<String> {
 		helpers::to_url(&self.ws_address)
 			.ok_or_else(|| errors::ws_disabled())
@@ -473,10 +461,5 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		self.client.call_many(&requests, &mut state, &header)
 				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
 				.map_err(errors::call)
-	}
-
-	fn node_health(&self) -> BoxFuture<Health> {
-		Box::new(self.health.health()
-			.map_err(|err| errors::internal("Health API failure.", err)))
 	}
 }

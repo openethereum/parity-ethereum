@@ -2,7 +2,7 @@
 
 ## Do you have a question?
 
-Check out our [Basic Usage](https://github.com/paritytech/parity/wiki/Basic-Usage), [Configuration](https://github.com/paritytech/parity/wiki/Configuring-Parity), and [FAQ](https://github.com/paritytech/parity/wiki/FAQ) articles on our [wiki](https://github.com/paritytech/parity/wiki)!
+Check out our [Basic Usage](https://wiki.parity.io/Basic-Usage), [Configuration](https://wiki.parity.io/Configuring-Parity-Ethereum), and [FAQ](https://wiki.parity.io/FAQ) articles on our [wiki](https://wiki.parity.io/)!
 
 See also frequently asked questions [tagged with `parity`](https://ethereum.stackexchange.com/questions/tagged/parity?sort=votes&pageSize=50) on Stack Exchange.
 
@@ -10,7 +10,7 @@ See also frequently asked questions [tagged with `parity`](https://ethereum.stac
 
 Do **not** open an issue on Github if you think your discovered bug could be a **security-relevant vulnerability**. Please, read our [security policy](../SECURITY.md) instead.
 
-Otherwise, just create a [new issue](https://github.com/paritytech/parity/issues/new) in our repository and state:
+Otherwise, just create a [new issue](https://github.com/paritytech/parity-ethereum/issues/new) in our repository and state:
 
 - What's your Parity version?
 - What's your operating system and version?
@@ -22,9 +22,9 @@ Also, try to include **steps to reproduce** the issue and expand on the **actual
 
 ## Contribute!
 
-If you would like to contribute to Parity, please **fork it**, fix bugs or implement features, and [propose a pull request](https://github.com/paritytech/parity/compare).
+If you would like to contribute to Parity, please **fork it**, fix bugs or implement features, and [propose a pull request](https://github.com/paritytech/parity-ethereum/compare).
 
-Please, refer to the [Coding Guide](https://github.com/paritytech/parity/wiki/Coding-guide) in our wiki for more details about hacking on Parity.
+Please, refer to the [Coding Guide](https://wiki.parity.io/Coding-guide) in our wiki for more details about hacking on Parity.
 
 ## License.
 

@@ -305,7 +305,7 @@ pub fn prove_transaction<H: AsHashDB<KeccakHasher> + Send + Sync>(
 /// checkpoint can be discarded with `discard_checkpoint`. All of the orignal
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
-pub struct State<B: Backend> {
+pub struct State<B> {
 	db: B,
 	root: H256,
 	cache: RefCell<HashMap<Address, AccountEntry>>,
@@ -745,7 +745,8 @@ impl<B: Backend> State<B> {
 	fn execute<T, V>(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, options: TransactOptions<T, V>, virt: bool)
 		-> Result<Executed<T::Output, V::Output>, ExecutionError> where T: trace::Tracer, V: trace::VMTracer,
 	{
-		let mut e = Executive::new(self, env_info, machine);
+		let schedule = machine.schedule(env_info.number);
+		let mut e = Executive::new(self, env_info, machine, &schedule);
 
 		match virt {
 			true => e.transact_virtual(t, options),

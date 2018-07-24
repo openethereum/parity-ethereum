@@ -24,7 +24,7 @@ use blockchain::TreeRoute;
 use client::Mode;
 use encoded;
 use vm::LastHashes;
-use error::{ImportResult, CallError, BlockImportError};
+use error::{Error, ImportResult, CallError, BlockImportError};
 use evm::Schedule;
 use executive::Executed;
 use filter::Filter;
@@ -303,7 +303,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
 	/// Replays all the transactions in a given block for inspection.
-	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError>;
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError>;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
@@ -395,7 +395,7 @@ pub trait PrepareOpenBlock {
 		author: Address,
 		gas_range_target: (U256, U256),
 		extra_data: Bytes
-	) -> OpenBlock;
+	) -> Result<OpenBlock, Error>;
 }
 
 /// Provides methods used for sealing new state
