@@ -130,7 +130,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	block_at: H256,
 	state_db: &HashDB<KeccakHasher>,
 	writer: W,
-	p: &Progress
+	p: &Progress,
 ) -> Result<(), Error> {
 	let start_header = chain.block_header_data(&block_at)
 		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
@@ -142,14 +142,42 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	let writer = Mutex::new(writer);
 	let chunker = engine.snapshot_components().ok_or(Error::SnapshotsUnsupported)?;
 	let snapshot_version = chunker.current_version();
-	let (state_hashes, block_hashes) = scope(|scope| {
+	let (state_hashes, block_hashes) = scope(|scope| -> Result<(Vec<H256>, Vec<H256>), Error> {
 		let writer = &writer;
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
-		let state_res = chunk_state(state_db, &state_root, writer, p);
 
-		state_res.and_then(|state_hashes| {
-			block_guard.join().map(|block_hashes| (state_hashes, block_hashes))
-		})
+		// The number of threads must be between 1 and 16, and must divide 16
+		let num_threads: usize = ::num_cpus::get() / 2;
+		info!("Using {} threads for Snapshot creation.", num_threads);
+		let parts_per_thread = 16 / num_threads;
+
+		let mut state_guards = Vec::with_capacity(num_threads as usize);
+
+		for thread_idx in 0..num_threads {
+			let state_guard = scope.spawn(move || -> Result<Vec<H256>, Error> {
+				let mut chunk_hashes = Vec::new();
+
+				for part_idx in 0..parts_per_thread {
+					let part = (thread_idx * parts_per_thread + part_idx) as u8;
+					info!("Chunking part {} in thread {}", part, thread_idx);
+					let mut hashes = chunk_state(state_db, &state_root, writer, p, part)?;
+					chunk_hashes.append(&mut hashes);
+				}
+
+				Ok(chunk_hashes)
+			});
+			state_guards.push(state_guard);
+		}
+
+		let block_hashes = block_guard.join()?;
+		let mut state_hashes = Vec::new();
+
+		for guard in state_guards {
+			let mut part_state_hashes = guard.join()?.clone();
+			state_hashes.append(&mut part_state_hashes);
+		}
+
+		Ok((state_hashes, block_hashes))
 	})?;
 
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
@@ -264,10 +292,12 @@ impl<'a> StateChunker<'a> {
 
 /// Walk the given state database starting from the given root,
 /// creating chunks and writing them out.
+/// `part` is a number between 0 and 15, which describe which part of
+/// the tree should be chunked.
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: u8) -> Result<Vec<H256>, Error> {
 	let account_trie = TrieDB::new(db, &root)?;
 
 	let mut chunker = StateChunker {
@@ -282,8 +312,25 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 	let mut used_code = HashSet::new();
 
 	// account_key here is the address' hash.
-	for item in account_trie.iter()? {
+	let mut account_iter = account_trie.iter()?;
+
+	// Check that the given part is correct
+	if part <= 15 {
+		let mut seek_from = vec![0; 32];
+		seek_from[0] = part * 16;
+		account_iter.seek(&seek_from)?;
+	}
+
+	for item in account_iter {
 		let (account_key, account_data) = item?;
+
+		// Prevent overflow : if part 15, then no top limit
+		if part < 15 {
+			if account_key[0] >= (part + 1) * 16 {
+				break;
+			}
+		}
+
 		let account = ::rlp::decode(&*account_data)?;
 		let account_key_hash = H256::from_slice(&account_key);
 
