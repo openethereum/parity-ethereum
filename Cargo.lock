@@ -982,13 +982,13 @@ name = "evm"
 version = "0.1.0"
 dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-bytes 0.1.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
+ "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
