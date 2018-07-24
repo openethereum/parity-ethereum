@@ -159,7 +159,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 			let closest_power_two = (num_threads as f64).log2().floor();
 			num_threads = 2usize.pow(closest_power_two as u32);
 		}
-		info!("Using {} threads for Snapshot creation.", num_threads);
+		info!(target: "snapshot", "Using {} threads for Snapshot creation.", num_threads);
 		let parts_per_thread = SNAPSHOT_SUBPARTS / num_threads;
 
 		let mut state_guards = Vec::with_capacity(num_threads as usize);
@@ -170,7 +170,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 				for part_idx in 0..parts_per_thread {
 					let part = thread_idx * parts_per_thread + part_idx;
-					info!("Chunking part {} in thread {}", part, thread_idx);
+					debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
 					let mut hashes = chunk_state(state_db, &state_root, writer, p, part)?;
 					chunk_hashes.append(&mut hashes);
 				}
