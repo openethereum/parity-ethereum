@@ -200,6 +200,7 @@ pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a Bloc
 			chain,
 			start_hash,
 			&mut chunk_sink,
+			progress,
 			PREFERRED_CHUNK_SIZE,
 		)?;
 	}

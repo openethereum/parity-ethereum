@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB};
 use engines::EthEngine;
-use snapshot::{Error, ManifestData};
+use snapshot::{Error, ManifestData, Progress};
 
 use ethereum_types::H256;
 
@@ -49,6 +49,7 @@ pub trait SnapshotComponents: Send {
 		chain: &BlockChain,
 		block_at: H256,
 		chunk_sink: &mut ChunkSink,
+		progress: &Progress,
 		preferred_size: usize,
 	) -> Result<(), Error>;
 
