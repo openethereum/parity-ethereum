@@ -722,7 +722,6 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use super::*;
 	use ethereum_types::{H256, U256, U512, Address};
-	use bytes::BytesRef;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};
 	use error::ExecutionError;
@@ -773,7 +772,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
@@ -831,7 +830,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -875,8 +874,7 @@ mod tests {
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
 		let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-		let output = BytesRef::Fixed(&mut[0u8;0]);
-		ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap();
+		ex.call(params, &mut substate, &mut tracer, &mut vm_tracer).unwrap();
 
 		assert_eq!(tracer.drain(), vec![FlatTrace {
 			action: trace::Action::Call(trace::Call {
@@ -961,8 +959,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			let output = BytesRef::Fixed(&mut[0u8;0]);
-			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
+			ex.call(params, &mut substate, &mut tracer, &mut vm_tracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(44_752));
@@ -1078,8 +1075,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			let output = BytesRef::Fixed(&mut[0u8;0]);
-			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
+			ex.call(params, &mut substate, &mut tracer, &mut vm_tracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62967));
@@ -1151,7 +1147,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.create(params.clone(), &mut substate, &mut None, &mut tracer, &mut vm_tracer).unwrap()
+			ex.create(params.clone(), &mut substate, &mut tracer, &mut vm_tracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(96_776));
@@ -1237,7 +1233,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -1289,7 +1285,7 @@ mod tests {
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap();
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
 		assert_eq!(substate.contracts_created.len(), 1);
@@ -1350,7 +1346,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(73_237));
@@ -1395,7 +1391,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(59_870));
@@ -1569,7 +1565,7 @@ mod tests {
 
 		let result = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer)
+			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer)
 		};
 
 		match result {
@@ -1602,10 +1598,11 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let mut output = [0u8; 14];
-		let FinalizationResult { gas_left: result, .. } = {
+		let FinalizationResult { gas_left: result, return_data, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
+		(&mut output).copy_from_slice(&return_data[..(cmp::min(14, return_data.len()))]);
 
 		assert_eq!(result, U256::from(1));
 		assert_eq!(output[..], returns[..]);
@@ -1645,11 +1642,12 @@ mod tests {
 		let machine = ::ethereum::new_kovan_wasm_test_machine();
 
 		let mut output = [0u8; 20];
-		let FinalizationResult { gas_left: result, .. } = {
+		let FinalizationResult { gas_left: result, return_data, .. } = {
 			let schedule = machine.schedule(info.number);
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.call(params.clone(), &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.call(params.clone(), &mut Substate::new(), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
+		(&mut output).copy_from_slice(&return_data[..(cmp::min(20, return_data.len()))]);
 
 		assert_eq!(result, U256::from(18433));
 		// Transaction successfully returned sender
@@ -1659,11 +1657,12 @@ mod tests {
 		info.number = 1;
 
 		let mut output = [0u8; 20];
-		let FinalizationResult { gas_left: result, .. } = {
+		let FinalizationResult { gas_left: result, return_data, .. } = {
 			let schedule = machine.schedule(info.number);
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
-			ex.call(params, &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.call(params, &mut Substate::new(), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
+		(&mut output).copy_from_slice(&return_data[..(cmp::min(20, return_data.len()))]);
 
 		assert_eq!(result, U256::from(20025));
 		// Since transaction errored due to wasm was not activated, result is just empty
