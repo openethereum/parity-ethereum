@@ -176,6 +176,7 @@ impl Default for MinerOptions {
 				minimal_gas_price: DEFAULT_MINIMAL_GAS_PRICE.into(),
 				block_gas_limit: U256::max_value(),
 				tx_gas_limit: U256::max_value(),
+				no_early_reject: false,
 			},
 		}
 	}
@@ -283,6 +284,7 @@ impl Miner {
 				minimal_gas_price,
 				block_gas_limit: U256::max_value(),
 				tx_gas_limit: U256::max_value(),
+				no_early_reject: false,
 			},
 			reseal_min_period: Duration::from_secs(0),
 			..Default::default()
@@ -1338,6 +1340,7 @@ mod tests {
 					minimal_gas_price: 0.into(),
 					block_gas_limit: U256::max_value(),
 					tx_gas_limit: U256::max_value(),
+					no_early_reject: false,
 				},
 			},
 			GasPricer::new_fixed(0u64.into()),
