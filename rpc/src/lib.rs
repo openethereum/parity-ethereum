@@ -1,4 +1,4 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,6 +23,7 @@ extern crate futures;
 
 extern crate ansi_term;
 extern crate cid;
+extern crate crypto as rust_crypto;
 extern crate futures_cpupool;
 extern crate itertools;
 extern crate multihash;
@@ -45,8 +46,8 @@ extern crate jsonrpc_pubsub;
 extern crate ethash;
 #[cfg_attr(test, macro_use)]
 extern crate ethcore;
-extern crate parity_bytes as bytes;
-extern crate parity_crypto as crypto;
+extern crate ethcore_bytes as bytes;
+extern crate ethcore_crypto as crypto;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
@@ -58,20 +59,17 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
+extern crate vm;
 extern crate fetch;
-extern crate keccak_hash as hash;
+extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
-extern crate patricia_trie as trie;
 extern crate rlp;
 extern crate stats;
-extern crate vm;
-
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+extern crate keccak_hash as hash;
 extern crate hardware_wallet;
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-extern crate fake_hardware_wallet as hardware_wallet;
+extern crate patricia_trie as trie;
 
 #[macro_use]
 extern crate log;
@@ -117,7 +115,7 @@ pub use http::{
 	AccessControlAllowOrigin, Host, DomainsValidation
 };
 
-pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer};
+pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer, dapps};
 pub use v1::block_import::{is_major_importing, is_major_importing_or_waiting};
 pub use v1::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 pub use authcodes::{AuthCodes, TimeProvider};
@@ -130,43 +128,15 @@ use http::tokio_core;
 pub type HttpServer = http::Server;
 
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_http<M, S, H, T>(
+pub fn start_http<M, S, H, T, R>(
 	addr: &SocketAddr,
 	cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
 	allowed_hosts: http::DomainsValidation<http::Host>,
 	handler: H,
 	remote: tokio_core::reactor::Remote,
 	extractor: T,
+	middleware: Option<R>,
 	threads: usize,
-	max_payload: usize,
-) -> ::std::io::Result<HttpServer> where
-	M: jsonrpc_core::Metadata,
-	S: jsonrpc_core::Middleware<M>,
-	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
-	T: HttpMetaExtractor<Metadata=M>,
-{
-	let extractor = http_common::MetaExtractor::new(extractor);
-	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
-		.threads(threads)
-		.event_loop_remote(remote)
-		.cors(cors_domains.into())
-		.allowed_hosts(allowed_hosts.into())
-		.max_request_body_size(max_payload * 1024 * 1024)
-		.start_http(addr)?)
-}
-
-/// Same as `start_http`, but takes an additional `middleware` parameter that is introduced as a
-/// hyper middleware.
-pub fn start_http_with_middleware<M, S, H, T, R>(
-	addr: &SocketAddr,
-	cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
-	allowed_hosts: http::DomainsValidation<http::Host>,
-	handler: H,
-	remote: tokio_core::reactor::Remote,
-	extractor: T,
-	middleware: R,
-	threads: usize,
-	max_payload: usize,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -175,14 +145,17 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 	R: RequestMiddleware,
 {
 	let extractor = http_common::MetaExtractor::new(extractor);
-	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
+	let mut builder = http::ServerBuilder::with_meta_extractor(handler, extractor)
 		.threads(threads)
 		.event_loop_remote(remote)
 		.cors(cors_domains.into())
-		.allowed_hosts(allowed_hosts.into())
-		.max_request_body_size(max_payload * 1024 * 1024)
-		.request_middleware(middleware)
-		.start_http(addr)?)
+		.allowed_hosts(allowed_hosts.into());
+
+	if let Some(dapps) = middleware {
+		builder = builder.request_middleware(dapps)
+	}
+
+	Ok(builder.start_http(addr)?)
 }
 
 /// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
