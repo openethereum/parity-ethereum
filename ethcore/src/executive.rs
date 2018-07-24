@@ -202,7 +202,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		&'any mut self,
 		origin_info: OriginInfo,
 		substate: &'any mut Substate,
-		output: OutputPolicy<'any, 'any>,
+		output: OutputPolicy,
 		tracer: &'any mut T,
 		vm_tracer: &'any mut V,
 		static_call: bool,
@@ -310,8 +310,12 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					call_type: CallType::None,
 					params_type: vm::ParamsType::Embedded,
 				};
-				let mut out = if output_from_create { Some(vec![]) } else { None };
-				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
+				let res = self.create(params, &mut substate, &mut tracer, &mut vm_tracer);
+				let out = match &res {
+					Ok(res) if output_from_create => res.return_data.to_vec(),
+					_ => Vec::new(),
+				};
+				(res, out)
 			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
@@ -328,8 +332,12 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					call_type: CallType::Call,
 					params_type: vm::ParamsType::Separate,
 				};
-				let mut out = vec![];
-				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
+				let res = self.call(params, &mut substate, &mut tracer, &mut vm_tracer);
+				let out = match &res {
+					Ok(res) => res.return_data.to_vec(),
+					_ => Vec::new(),
+				};
+				(res, out)
 			}
 		};
 
@@ -381,7 +389,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		&mut self,
 		params: ActionParams,
 		substate: &mut Substate,
-		mut output: BytesRef,
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
@@ -431,7 +438,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					Err(evm_err)
 				} else {
 					self.state.discard_checkpoint();
-					output.write(0, &builtin_out_buffer);
 
 					// Trace only top level calls and calls with balance transfer to builtins. The reason why we don't
 					// trace all internal calls to builtin contracts is that memcpy (IDENTITY) is a heavily used
@@ -443,7 +449,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					if self.depth == 0 || is_transferred {
 						let mut trace_output = tracer.prepare_trace_output();
 						if let Some(out) = trace_output.as_mut() {
-							*out = output.to_owned();
+							*out = builtin_out_buffer.clone();
 						}
 
 						tracer.trace_call(
@@ -484,7 +490,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("scope is conditional on params.code.is_some(); qed"));
 
 				let res = {
-					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
+					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return, &mut subtracer, &mut subvmtracer)
 				};
 
 				vm_tracer.done_subtrace(subvmtracer);
@@ -529,7 +535,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		&mut self,
 		params: ActionParams,
 		substate: &mut Substate,
-		output: &mut Option<Bytes>,
 		tracer: &mut T,
 		vm_tracer: &mut V,
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
@@ -578,7 +583,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let res = self.exec_vm(
 			params,
 			&mut unconfirmed_substate,
-			OutputPolicy::InitContract(output.as_mut().or(trace_output.as_mut())),
+			OutputPolicy::InitContract,
 			&mut subtracer,
 			&mut subvmtracer
 		);
@@ -586,13 +591,16 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
-			Ok(ref res) if res.apply_state => tracer.trace_create(
-				trace_info,
-				gas - res.gas_left,
-				trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
-				created,
-				subtracer.drain()
-			),
+			Ok(ref res) if res.apply_state => {
+				trace_output.as_mut().map(|trace| *trace = res.return_data.to_vec());
+				tracer.trace_create(
+					trace_info,
+					gas - res.gas_left,
+					trace_output,
+					created,
+					subtracer.drain()
+				);
+			}
 			Ok(_) => tracer.trace_failed_create(trace_info, subtracer.drain(), vm::Error::Reverted.into()),
 			Err(ref e) => tracer.trace_failed_create(trace_info, subtracer.drain(), e.into())
 		};
