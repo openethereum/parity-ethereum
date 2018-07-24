@@ -904,7 +904,7 @@ mod tests {
 				call_type: CallType::Call
 			}), result: trace::Res::Call(trace::CallResult {
 				gas_used: 600.into(),
-				output: vec![]
+				output: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 156, 17, 133, 165, 197, 233, 252, 84, 97, 40, 8, 151, 126, 232, 245, 72, 178, 37, 141, 49]
 			}),
 			subtraces: 0,
 			trace_address: vec![0].into_iter().collect(),
