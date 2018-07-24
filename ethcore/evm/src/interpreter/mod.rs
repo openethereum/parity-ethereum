@@ -32,7 +32,7 @@ use ethereum_types::{U256, U512, H256, Address};
 
 use vm::{
 	self, ActionParams, ParamsType, ActionValue, CallType, MessageCallResult,
-	ContractCreateResult, CreateContractAddress, ReturnData, GasLeft
+	ContractCreateResult, CreateContractAddress, ReturnData, GasLeft, Schedule
 };
 
 use evm::CostType;
@@ -200,13 +200,13 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 
 impl<Cost: CostType> Interpreter<Cost> {
 	/// Create a new `Interpreter` instance with shared cache.
-	pub fn new(mut params: ActionParams, cache: Arc<SharedCache>, ext: &vm::Ext) -> Interpreter<Cost> {
+	pub fn new(mut params: ActionParams, cache: Arc<SharedCache>, schedule: &Schedule, depth: usize) -> Interpreter<Cost> {
 		let reader = CodeReader::new(params.code.take().expect("VM always called with code; qed"));
 		let params = InterpreterParams::from(params);
-		let informant = informant::EvmInformant::new(ext.depth());
+		let informant = informant::EvmInformant::new(depth);
 		let valid_jump_destinations = None;
 		let gasometer = Cost::from_u256(params.gas).ok().map(|gas| Gasometer::<Cost>::new(gas));
-		let stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
+		let stack = VecStack::with_capacity(schedule.stack_limit, U256::zero());
 
 		Interpreter {
 			cache, params, reader, informant,
