@@ -36,7 +36,7 @@ pub struct RpcExtractor;
 impl HttpMetaExtractor for RpcExtractor {
 	type Metadata = Metadata;
 
-	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, _dapps_origin: Option<String>) -> Metadata {
+	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>) -> Metadata {
 		Metadata {
 			origin: match user_agent.or(origin) {
 				Some(service) => Origin::Rpc(service.into()),
@@ -250,9 +250,9 @@ mod tests {
 		let extractor = RpcExtractor;
 
 		// when
-		let meta1 = extractor.read_metadata(None, None, None);
-		let meta2 = extractor.read_metadata(None, Some("http://parity.io".to_owned()), None);
-		let meta3 = extractor.read_metadata(None, Some("http://parity.io".to_owned()), Some("ignored".into()));
+		let meta1 = extractor.read_metadata(None, None);
+		let meta2 = extractor.read_metadata(None, Some("http://parity.io".to_owned()));
+		let meta3 = extractor.read_metadata(None, Some("http://parity.io".to_owned()));
 
 		// then
 		assert_eq!(meta1.origin, Origin::Rpc("unknown".into()));

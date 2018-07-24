@@ -16,18 +16,14 @@
 
 use transaction::{Transaction, SignedTransaction, Action};
 
+use ethereum_types::U256;
 use jsonrpc_core::Error;
 use v1::helpers::CallRequest;
 
-pub fn sign_call(request: CallRequest, gas_cap: bool) -> Result<SignedTransaction, Error> {
-	let max_gas = 50_000_000.into();
+pub fn sign_call(request: CallRequest) -> Result<SignedTransaction, Error> {
+	let max_gas = U256::from(50_000_000);
 	let gas = match request.gas {
-		Some(gas) if gas_cap && gas > max_gas => {
-			warn!("Gas limit capped to {} (from {})", max_gas, gas);
-			max_gas
-		}
 		Some(gas) => gas,
-		None if gas_cap => max_gas,
 		None => max_gas * 10,
 	};
 	let from = request.from.unwrap_or(0.into());

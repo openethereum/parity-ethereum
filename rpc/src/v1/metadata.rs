@@ -31,13 +31,6 @@ pub struct Metadata {
 	pub session: Option<Arc<Session>>,
 }
 
-impl Metadata {
-	/// Returns true if the request originates from a Dapp.
-	pub fn is_dapp(&self) -> bool {
-		false
-	}
-}
-
 impl jsonrpc_core::Metadata for Metadata {}
 impl PubSubMetadata for Metadata {
 	fn session(&self) -> Option<Arc<Session>> {

@@ -61,7 +61,7 @@ impl fmt::Display for Origin {
 			Origin::Rpc(ref origin) => write!(f, "{} via RPC", origin),
 			Origin::Ipc(ref session) => write!(f, "IPC (session: {})", session),
 			Origin::Ws { ref session } => write!(f, "WebSocket (session: {})", session),
-			Origin::Signer { ref session } => write!(f, "Signer (session: {})", session),
+			Origin::Signer { ref session } => write!(f, "Secure Session (session: {})", session),
 			Origin::CApi => write!(f, "C API"),
 			Origin::Unknown => write!(f, "unknown origin"),
 		}

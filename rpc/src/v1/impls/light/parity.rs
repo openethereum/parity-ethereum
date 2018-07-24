@@ -139,7 +139,7 @@ impl Parity for ParityClient {
 		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
 	}
 
-	fn default_account(&self, _meta: Self::Metadata) -> Result<H160> {
+	fn default_account(&self) -> Result<H160> {
 		Ok(self.accounts
 			.accounts()
 			.ok()
@@ -425,7 +425,7 @@ impl Parity for ParityClient {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+	fn call(&self, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		Err(errors::light_unimplemented(None))
 	}
 

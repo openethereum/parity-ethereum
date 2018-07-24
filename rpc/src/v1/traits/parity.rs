@@ -49,8 +49,8 @@ build_rpc_trait! {
 		fn locked_hardware_accounts_info(&self) -> Result<Vec<String>>;
 
 		/// Returns default account for dapp.
-		#[rpc(meta, name = "parity_defaultAccount")]
-		fn default_account(&self, Self::Metadata) -> Result<H160>;
+		#[rpc(name = "parity_defaultAccount")]
+		fn default_account(&self) -> Result<H160>;
 
 		/// Returns current transactions limit.
 		#[rpc(name = "parity_transactionsLimit")]
@@ -217,8 +217,8 @@ build_rpc_trait! {
 		fn ipfs_cid(&self, Bytes) -> Result<String>;
 
 		/// Call contract, returning the output data.
-		#[rpc(meta, name = "parity_call")]
-		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>>;
+		#[rpc(name = "parity_call")]
+		fn call(&self, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>>;
 
 		/// Returns node's health report.
 		#[rpc(name = "parity_nodeHealth")]

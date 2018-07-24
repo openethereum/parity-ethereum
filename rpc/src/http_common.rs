@@ -25,7 +25,7 @@ pub trait HttpMetaExtractor: Send + Sync + 'static {
 	/// Type of Metadata
 	type Metadata: jsonrpc_core::Metadata;
 	/// Extracts metadata from given params.
-	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Self::Metadata;
+	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>) -> Self::Metadata;
 }
 
 pub struct MetaExtractor<T> {
@@ -49,7 +49,6 @@ impl<M, T> http::MetaExtractor<M> for MetaExtractor<T> where
 
 		let origin = as_string(req.headers().get_raw("origin"));
 		let user_agent = as_string(req.headers().get_raw("user-agent"));
-		let dapps_origin = as_string(req.headers().get_raw("x-parity-origin"));
-		self.extractor.read_metadata(origin, user_agent, dapps_origin)
+		self.extractor.read_metadata(origin, user_agent)
 	}
 }

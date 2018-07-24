@@ -502,7 +502,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}
 	}
 
-	fn author(&self, _meta: Metadata) -> Result<RpcH160> {
+	fn author(&self) -> Result<RpcH160> {
 		let mut miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
 			miner = self.accounts.accounts().ok().and_then(|a| a.get(0).cloned()).unwrap_or_default();
@@ -523,7 +523,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
 	}
 
-	fn accounts(&self, _meta: Metadata) -> Result<Vec<RpcH160>> {
+	fn accounts(&self) -> Result<Vec<RpcH160>> {
 		let accounts = self.accounts.accounts()
 			.map_err(|e| errors::account("Could not fetch accounts.", e))?;
 		Ok(accounts.into_iter().map(Into::into).collect())
@@ -826,9 +826,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
 		let request = CallRequest::into(request);
-		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
+		let signed = try_bf!(fake_sign::sign_call(request));
 
 		let num = num.unwrap_or_default();
 
@@ -866,9 +866,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		))
 	}
 
-	fn estimate_gas(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
 		let request = CallRequest::into(request);
-		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
+		let signed = try_bf!(fake_sign::sign_call(request));
 		let num = num.unwrap_or_default();
 
 		let (state, header) = if num == BlockNumber::Pending {

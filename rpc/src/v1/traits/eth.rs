@@ -40,8 +40,8 @@ build_rpc_trait! {
 		fn hashrate(&self) -> Result<U256>;
 
 		/// Returns block author.
-		#[rpc(meta, name = "eth_coinbase")]
-		fn author(&self, Self::Metadata) -> Result<H160>;
+		#[rpc(name = "eth_coinbase")]
+		fn author(&self) -> Result<H160>;
 
 		/// Returns true if client is actively mining new blocks.
 		#[rpc(name = "eth_mining")]
@@ -52,8 +52,8 @@ build_rpc_trait! {
 		fn gas_price(&self) -> Result<U256>;
 
 		/// Returns accounts list.
-		#[rpc(meta, name = "eth_accounts")]
-		fn accounts(&self, Self::Metadata) -> Result<Vec<H160>>;
+		#[rpc(name = "eth_accounts")]
+		fn accounts(&self) -> Result<Vec<H160>>;
 
 		/// Returns highest block number.
 		#[rpc(name = "eth_blockNumber")]
@@ -108,12 +108,12 @@ build_rpc_trait! {
 		fn submit_transaction(&self, Bytes) -> Result<H256>;
 
 		/// Call contract, returning the output data.
-		#[rpc(meta, name = "eth_call")]
-		fn call(&self, Self::Metadata, CallRequest, Trailing<BlockNumber>) -> BoxFuture<Bytes>;
+		#[rpc(name = "eth_call")]
+		fn call(&self, CallRequest, Trailing<BlockNumber>) -> BoxFuture<Bytes>;
 
 		/// Estimate gas needed for execution of given contract.
-		#[rpc(meta, name = "eth_estimateGas")]
-		fn estimate_gas(&self, Self::Metadata, CallRequest, Trailing<BlockNumber>) -> BoxFuture<U256>;
+		#[rpc(name = "eth_estimateGas")]
+		fn estimate_gas(&self, CallRequest, Trailing<BlockNumber>) -> BoxFuture<U256>;
 
 		/// Get transaction by its hash.
 		#[rpc(name = "eth_getTransactionByHash")]

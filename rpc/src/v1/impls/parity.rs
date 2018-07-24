@@ -140,7 +140,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 
-	fn default_account(&self, _meta: Self::Metadata) -> Result<H160> {
+	fn default_account(&self) -> Result<H160> {
 		Ok(self.accounts.default_account()
 			.map(Into::into)
 			.ok()
@@ -424,11 +424,11 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		ipfs::cid(content)
 	}
 
-	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, num: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+	fn call(&self, requests: Vec<CallRequest>, num: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		let requests = requests
 			.into_iter()
 			.map(|request| Ok((
-				fake_sign::sign_call(request.into(), meta.is_dapp())?,
+				fake_sign::sign_call(request.into())?,
 				Default::default()
 			)))
 			.collect::<Result<Vec<_>>>()?;

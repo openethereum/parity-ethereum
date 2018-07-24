@@ -42,12 +42,12 @@ build_rpc_trait! {
 		fn block_traces(&self, BlockNumber) -> Result<Option<Vec<LocalizedTrace>>>;
 
 		/// Executes the given call and returns a number of possible traces for it.
-		#[rpc(meta, name = "trace_call")]
-		fn call(&self, Self::Metadata, CallRequest, TraceOptions, Trailing<BlockNumber>) -> Result<TraceResults>;
+		#[rpc(name = "trace_call")]
+		fn call(&self, CallRequest, TraceOptions, Trailing<BlockNumber>) -> Result<TraceResults>;
 
 		/// Executes all given calls and returns a number of possible traces for each of it.
-		#[rpc(meta, name = "trace_callMany")]
-		fn call_many(&self, Self::Metadata, Vec<(CallRequest, TraceOptions)>, Trailing<BlockNumber>) -> Result<Vec<TraceResults>>;
+		#[rpc(name = "trace_callMany")]
+		fn call_many(&self, Vec<(CallRequest, TraceOptions)>, Trailing<BlockNumber>) -> Result<Vec<TraceResults>>;
 
 		/// Executes the given raw transaction and returns a number of possible traces for it.
 		#[rpc(name = "trace_rawTransaction")]

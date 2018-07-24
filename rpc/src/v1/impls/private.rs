@@ -100,14 +100,14 @@ impl Private for PrivateClient {
 		})
 	}
 
-	fn private_call(&self, meta: Self::Metadata, block_number: BlockNumber, request: CallRequest) -> Result<Bytes, Error> {
+	fn private_call(&self, block_number: BlockNumber, request: CallRequest) -> Result<Bytes, Error> {
 		let id = match block_number {
 			BlockNumber::Pending => return Err(errors::private_message_block_id_not_supported()),
 			num => block_number_to_id(num)
 		};
 
 		let request = CallRequest::into(request);
-		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
+		let signed = fake_sign::sign_call(request)?;
 		let client = self.unwrap_manager()?;
 		let executed_result = client.private_call(id, &signed).map_err(|e| errors::private_message(e))?;
 		Ok(executed_result.output.into())
