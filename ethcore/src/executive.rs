@@ -499,12 +499,15 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 				let traces = subtracer.drain();
 				match res {
-					Ok(ref res) if res.apply_state => tracer.trace_call(
-						trace_info,
-						gas - res.gas_left,
-						trace_output,
-						traces
-					),
+					Ok(ref res) if res.apply_state => {
+						trace_output.as_mut().map(|d| *d = res.return_data.to_vec());
+						tracer.trace_call(
+							trace_info,
+							gas - res.gas_left,
+							trace_output,
+							traces
+						);
+					},
 					Ok(_) => tracer.trace_failed_call(trace_info, traces, vm::Error::Reverted.into()),
 					Err(ref e) => tracer.trace_failed_call(trace_info, traces, e.into()),
 				};
