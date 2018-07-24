@@ -1665,7 +1665,7 @@ mod tests {
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
 			ex.call(params, &mut Substate::new(), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
-		(&mut output).copy_from_slice(&return_data[..(cmp::min(20, return_data.len()))]);
+		(&mut output[..((cmp::min(20, return_data.len())))]).copy_from_slice(&return_data[..(cmp::min(20, return_data.len()))]);
 
 		assert_eq!(result, U256::from(20025));
 		// Since transaction errored due to wasm was not activated, result is just empty
