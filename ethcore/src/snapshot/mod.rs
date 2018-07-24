@@ -20,6 +20,7 @@
 //! https://wiki.parity.io/Warp-Sync-Snapshot-Format
 
 use std::collections::{HashMap, HashSet};
+use std::cmp;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
@@ -88,6 +89,8 @@ const MAX_CHUNK_SIZE: usize = PREFERRED_CHUNK_SIZE / 4 * 5;
 const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
 // current state chunk version.
 const STATE_CHUNK_VERSION: u64 = 2;
+// number of snapshot subparts, must be in [1; 256] and a power of 2
+const SNAPSHOT_SUBPARTS: usize = 16;
 
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
@@ -146,10 +149,18 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let writer = &writer;
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
 
-		// The number of threads must be between 1 and 16, and must divide 16
-		let num_threads: usize = ::num_cpus::get() / 2;
+		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS, and must be a power of 2
+		let requested_threads = ::std::env::var("SNAPSHOT_THREADS")
+			.ok().and_then(|val| val.parse().ok())
+			.unwrap_or(::num_cpus::get() / 2);
+		let mut num_threads: usize = cmp::min(requested_threads, SNAPSHOT_SUBPARTS);
+		// Check that it's a power of 2, round up to the closest otherwise
+		if (num_threads & (num_threads - 1)) != 0 {
+			let closest_power_two = (num_threads as f64).log2().floor();
+			num_threads = 2usize.pow(closest_power_two as u32);
+		}
 		info!("Using {} threads for Snapshot creation.", num_threads);
-		let parts_per_thread = 16 / num_threads;
+		let parts_per_thread = SNAPSHOT_SUBPARTS / num_threads;
 
 		let mut state_guards = Vec::with_capacity(num_threads as usize);
 
@@ -158,7 +169,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 				let mut chunk_hashes = Vec::new();
 
 				for part_idx in 0..parts_per_thread {
-					let part = (thread_idx * parts_per_thread + part_idx) as u8;
+					let part = thread_idx * parts_per_thread + part_idx;
 					info!("Chunking part {} in thread {}", part, thread_idx);
 					let mut hashes = chunk_state(state_db, &state_root, writer, p, part)?;
 					chunk_hashes.append(&mut hashes);
@@ -297,7 +308,7 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: u8) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: usize) -> Result<Vec<H256>, Error> {
 	let account_trie = TrieDB::new(db, &root)?;
 
 	let mut chunker = StateChunker {
@@ -314,19 +325,26 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 	// account_key here is the address' hash.
 	let mut account_iter = account_trie.iter()?;
 
+	let part_offset = 256 / SNAPSHOT_SUBPARTS;
 	// Check that the given part is correct
-	if part <= 15 {
+	if part <= SNAPSHOT_SUBPARTS - 1 {
 		let mut seek_from = vec![0; 32];
-		seek_from[0] = part * 16;
+		seek_from[0] = (part * part_offset) as u8;
 		account_iter.seek(&seek_from)?;
 	}
+
+	let seek_to = if part < SNAPSHOT_SUBPARTS - 1 {
+		Some(((part + 1) * part_offset) as u8)
+	} else {
+		None
+	};
 
 	for item in account_iter {
 		let (account_key, account_data) = item?;
 
-		// Prevent overflow : if part 15, then no top limit
-		if part < 15 {
-			if account_key[0] >= (part + 1) * 16 {
+		// Prevent overflow : if last part, then no top limit
+		if let Some(seek_to) = seek_to {
+			if account_key[0] >= seek_to {
 				break;
 			}
 		}
