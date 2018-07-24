@@ -1149,9 +1149,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
 		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
-		if header.number() >= self.empty_steps_transition {
-			let validate_empty_steps = || -> Result<(), Error> {
+		let empty_steps_len = if header.number() >= self.empty_steps_transition {
+			let validate_empty_steps = || -> Result<usize, Error> {
 				let empty_steps = header_empty_steps(header)?;
+				let empty_steps_len = empty_steps.len();
 				for empty_step in empty_steps {
 					if empty_step.step <= parent_step || empty_step.step >= step {
 						Err(EngineError::InsufficientProof(
@@ -1168,16 +1169,27 @@ impl Engine<EthereumMachine> for AuthorityRound {
 							format!("invalid empty step proof: {:?}", empty_step)))?;
 					}
 				}
-				Ok(())
+				Ok(empty_steps_len)
 			};
 
-			if let err @ Err(_) = validate_empty_steps() {
-				self.validators.report_benign(header.author(), set_number, header.number());
-				return err;
+			match validate_empty_steps() {
+				Ok(len) => len,
+				Err(err) => {
+					self.validators.report_benign(header.author(), set_number, header.number());
+					return Err(err);
+				},
 			}
-
 		} else {
 			self.report_skipped(header, step, parent_step, &*validators, set_number);
+
+			0
+		};
+
+		if header.number() >= self.validate_score_transition {
+			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
+			if header.difficulty() != &expected_difficulty {
+				return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })));
+			}
 		}
 
 		Ok(())
@@ -1412,7 +1424,7 @@ mod tests {
 	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::TestSet;
 	use error::{Error, ErrorKind};
-	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep};
+	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 
 	#[test]
 	fn has_valid_metadata() {
@@ -1518,12 +1530,15 @@ mod tests {
 
 		let engine = Spec::new_test_round().engine;
 
-		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(2), U256::zero()));
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![encode(&2usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_err());
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
@@ -1544,9 +1559,10 @@ mod tests {
 
 		let engine = Spec::new_test_round().engine;
 
-		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
@@ -1573,8 +1589,10 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_difficulty(calculate_score(U256::from(4), U256::from(5), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		header.set_seal(vec![encode(&3usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_difficulty(calculate_score(U256::from(4), U256::from(3), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_err());
 	}
 
@@ -1608,6 +1626,7 @@ mod tests {
 		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
+		header.set_difficulty(calculate_score(U256::from(1), U256::from(3), U256::zero()));
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
 
@@ -1978,16 +1997,15 @@ mod tests {
 		let empty_step3 = sealed_empty_step(engine, 3, &parent_header.hash());
 
 		let empty_steps = vec![empty_step2, empty_step3];
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(4), U256::from(2)));
+		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![
 			encode(&4usize).into_vec(),
 			encode(&(&*signature as &[u8])).into_vec(),
 			::rlp::encode_list(&empty_steps).into_vec(),
 		]);
 
-		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Ok(_) => true,
-			_ => false,
-		});
+		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 	}
 
 	#[test]

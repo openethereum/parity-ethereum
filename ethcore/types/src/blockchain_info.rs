@@ -50,7 +50,7 @@ pub struct BlockChainInfo {
 impl BlockChainInfo {
 	/// Determine the security model for the current state.
 	pub fn security_level(&self) -> SecurityLevel {
-		// TODO: Detect SecurityLevel::FullState : https://github.com/paritytech/parity/issues/3834
+		// TODO: Detect SecurityLevel::FullState : https://github.com/paritytech/parity-ethereum/issues/3834
 		if self.ancient_block_number.is_none() || self.first_block_number.is_none() {
 			SecurityLevel::FullProofOfWork
 		} else {

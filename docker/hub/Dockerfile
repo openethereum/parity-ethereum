@@ -1,4 +1,4 @@
-FROM ubuntu:14.04
+FROM ubuntu:xenial
 MAINTAINER Parity Technologies <devops@parity.io>
 WORKDIR /build
 #ENV for build TAG
@@ -36,12 +36,11 @@ RUN apt-get update && \
 # show backtraces
  RUST_BACKTRACE=1 && \
 # build parity
-cd /build&&git clone https://github.com/paritytech/parity && \
+cd /build&&git clone https://github.com/paritytech/parity-ethereum && \
         cd parity && \
 	git pull&& \
 	git checkout $BUILD_TAG && \
         cargo build --verbose --release --features final && \
-        #ls /build/parity/target/release/parity && \
         strip /build/parity/target/release/parity && \
  file /build/parity/target/release/parity&&mkdir -p /parity&& cp /build/parity/target/release/parity /parity&&\
 #cleanup Docker image
@@ -52,6 +51,7 @@ cd /build&&git clone https://github.com/paritytech/parity && \
         # add-apt-repository
         software-properties-common \
         make \
+        cmake \
         curl \
         wget \
         git \

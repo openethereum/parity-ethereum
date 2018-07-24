@@ -22,7 +22,7 @@ use std::collections::{HashSet, VecDeque};
 use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
-use rlp::Rlp;
+use rlp::{self, Rlp};
 use ethcore::views::BlockView;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
@@ -76,10 +76,16 @@ pub enum DownloadAction {
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum BlockDownloaderImportError {
-	/// Imported data is rejected as invalid.
+	/// Imported data is rejected as invalid. Peer should be dropped.
 	Invalid,
 	/// Imported data is valid but rejected cause the downloader does not need it.
 	Useless,
+}
+
+impl From<rlp::DecoderError> for BlockDownloaderImportError {
+	fn from(_: rlp::DecoderError) -> BlockDownloaderImportError {
+		BlockDownloaderImportError::Invalid
+	}
 }
 
 /// Block downloader strategy.
@@ -316,7 +322,7 @@ impl BlockDownloader {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn import_bodies(&mut self, _io: &mut SyncIo, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_bodies(&mut self, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
