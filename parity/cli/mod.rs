@@ -861,6 +861,10 @@ usage! {
 			"--no-periodic-snapshot",
 			"Disable automated snapshots which usually occur once every 10000 blocks.",
 
+			ARG arg_snapshot_threads: (Option<usize>) = None, or |c: &Config| c.snapshots.as_ref()?.processing_threads,
+			"--snapshot-threads=[NUM]",
+			"Enables multiple threads for snapshots creation.",
+
 		["Whisper Options"]
 			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
 			"--whisper",
@@ -1340,6 +1344,7 @@ struct Footprint {
 #[serde(deny_unknown_fields)]
 struct Snapshots {
 	disable_periodic: Option<bool>,
+	processing_threads: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]

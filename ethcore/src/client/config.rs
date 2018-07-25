@@ -19,6 +19,7 @@ use std::fmt::{Display, Formatter, Error as FmtError};
 
 use verification::{VerifierType, QueueConfig};
 use journaldb;
+use snapshot::SnapshotConfiguration;
 
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
@@ -120,6 +121,8 @@ pub struct ClientConfig {
 	pub check_seal: bool,
 	/// Maximal number of transactions queued for verification in a separate thread.
 	pub transaction_verification_queue_size: usize,
+	/// Snapshot configuration
+	pub snapshot: SnapshotConfiguration,
 }
 
 impl Default for ClientConfig {
@@ -144,6 +147,7 @@ impl Default for ClientConfig {
 			history_mem: 32 * mb,
 			check_seal: true,
 			transaction_verification_queue_size: 8192,
+			snapshot: Default::default(),
 		}
 	}
 }

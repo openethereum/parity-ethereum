@@ -92,6 +92,24 @@ const STATE_CHUNK_VERSION: u64 = 2;
 // number of snapshot subparts, must be in [1; 256] and a power of 2
 const SNAPSHOT_SUBPARTS: usize = 16;
 
+/// Configuration for the Snapshot service
+#[derive(Debug, Clone, PartialEq)]
+pub struct SnapshotConfiguration {
+	/// If `true`, no periodic snapshots will be created
+	pub no_periodic: bool,
+	/// Number of threads for creating snapshots
+	pub processing_threads: usize,
+}
+
+impl Default for SnapshotConfiguration {
+	fn default() -> Self {
+		SnapshotConfiguration {
+			no_periodic: false,
+			processing_threads: 1,
+		}
+	}
+}
+
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
 pub struct Progress {
@@ -134,6 +152,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	state_db: &HashDB<KeccakHasher>,
 	writer: W,
 	p: &Progress,
+	processing_threads: usize,
 ) -> Result<(), Error> {
 	let start_header = chain.block_header_data(&block_at)
 		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
@@ -150,10 +169,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
 
 		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS, and must be a power of 2
-		let requested_threads = ::std::env::var("SNAPSHOT_THREADS")
-			.ok().and_then(|val| val.parse().ok())
-			.unwrap_or(::num_cpus::get() / 2);
-		let mut num_threads: usize = cmp::min(requested_threads, SNAPSHOT_SUBPARTS);
+		let mut num_threads: usize = cmp::min(processing_threads, SNAPSHOT_SUBPARTS);
 		// Check that it's a power of 2, round up to the closest otherwise
 		if (num_threads & (num_threads - 1)) != 0 {
 			let closest_power_two = (num_threads as f64).log2().floor();
