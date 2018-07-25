@@ -51,7 +51,7 @@ use super::state_db::StateDB;
 use super::state::Account as StateAccount;
 
 use crossbeam::scope;
-use rand::{thread_rng, Rng, OsRng};
+use rand::{Rng, OsRng};
 
 pub use self::error::Error;
 
@@ -173,10 +173,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		info!(target: "snapshot", "Using {} threads for Snapshot creation.", num_threads);
 
 		let mut state_guards = Vec::with_capacity(num_threads as usize);
-		let mut subparts: Vec<usize> = (0..SNAPSHOT_SUBPARTS).collect();
-
-		// Shuffle the subparts to equilibrate chunks
-		thread_rng().shuffle(&mut subparts);
+		let subparts: Vec<usize> = (0..SNAPSHOT_SUBPARTS).collect();
 
 		for thread_idx in 0..num_threads {
 			let subparts_c = subparts.clone();
@@ -205,6 +202,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 			state_hashes.append(&mut part_state_hashes);
 		}
 
+		debug!(target: "snapshot", "Took a snapshot of {} accounts", p.accounts.load(Ordering::SeqCst));
 		Ok((state_hashes, block_hashes))
 	})?;
 
@@ -343,13 +341,11 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 	let mut account_iter = account_trie.iter()?;
 
 	let part_offset = 256 / SNAPSHOT_SUBPARTS;
-	// Check that the given part is correct
-	if part <= SNAPSHOT_SUBPARTS - 1 {
-		let mut seek_from = vec![0; 32];
-		seek_from[0] = (part * part_offset) as u8;
-		account_iter.seek(&seek_from)?;
-	}
+	let mut seek_from = vec![0; 32];
+	seek_from[0] = (part * part_offset) as u8;
+	account_iter.seek(&seek_from)?;
 
+	// Set the upper-bond, except for the last part
 	let seek_to = if part < SNAPSHOT_SUBPARTS - 1 {
 		Some(((part + 1) * part_offset) as u8)
 	} else {
@@ -359,7 +355,6 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 	for item in account_iter {
 		let (account_key, account_data) = item?;
 
-		// Prevent overflow : if last part, then no top limit
 		if let Some(seek_to) = seek_to {
 			if account_key[0] >= seek_to {
 				break;
