@@ -51,7 +51,7 @@ use super::state_db::StateDB;
 use super::state::Account as StateAccount;
 
 use crossbeam::scope;
-use rand::{Rng, OsRng};
+use rand::{thread_rng, Rng, OsRng};
 
 pub use self::error::Error;
 
@@ -168,27 +168,28 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let writer = &writer;
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
 
-		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS, and must be a power of 2
-		let mut num_threads: usize = cmp::min(processing_threads, SNAPSHOT_SUBPARTS);
-		// Check that it's a power of 2, round up to the closest otherwise
-		if (num_threads & (num_threads - 1)) != 0 {
-			let closest_power_two = (num_threads as f64).log2().floor();
-			num_threads = 2usize.pow(closest_power_two as u32);
-		}
+		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS
+		let num_threads: usize = cmp::max(1, cmp::min(processing_threads, SNAPSHOT_SUBPARTS));
 		info!(target: "snapshot", "Using {} threads for Snapshot creation.", num_threads);
-		let parts_per_thread = SNAPSHOT_SUBPARTS / num_threads;
 
 		let mut state_guards = Vec::with_capacity(num_threads as usize);
+		let mut subparts: Vec<usize> = (0..SNAPSHOT_SUBPARTS).collect();
+
+		// Shuffle the subparts to equilibrate chunks
+		thread_rng().shuffle(&mut subparts);
 
 		for thread_idx in 0..num_threads {
+			let subparts_c = subparts.clone();
 			let state_guard = scope.spawn(move || -> Result<Vec<H256>, Error> {
 				let mut chunk_hashes = Vec::new();
 
-				for part_idx in 0..parts_per_thread {
-					let part = thread_idx * parts_per_thread + part_idx;
-					debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
-					let mut hashes = chunk_state(state_db, &state_root, writer, p, part)?;
-					chunk_hashes.append(&mut hashes);
+				for subpart_chunk in subparts_c.chunks(num_threads) {
+					if subpart_chunk.len() > thread_idx {
+						let part = subpart_chunk[thread_idx];
+						debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
+						let mut hashes = chunk_state(state_db, &state_root, writer, p, part)?;
+						chunk_hashes.append(&mut hashes);
+					}
 				}
 
 				Ok(chunk_hashes)
