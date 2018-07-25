@@ -13,6 +13,7 @@ RUN apt-get update && \
         # add-apt-repository
         software-properties-common \
         make \
+        cmake \
         curl \
         wget \
         git \

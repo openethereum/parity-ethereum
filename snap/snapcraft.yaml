@@ -33,7 +33,7 @@ parts:
   # rust-channel: stable  # @TODO enable after https://bugs.launchpad.net/snapcraft/+bug/1778530
     rust-revision: 1.26.2 # @TODO remove after https://bugs.launchpad.net/snapcraft/+bug/1778530
     build-attributes: [no-system-libraries]
-    build-packages: [g++, libudev-dev, libssl-dev, make, pkg-config]
+    build-packages: [g++, libudev-dev, libssl-dev, make, pkg-config, cmake]
     stage-packages: [libc6, libssl1.0.0, libudev1, libstdc++6]
   df:
     plugin: nil

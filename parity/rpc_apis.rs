@@ -20,7 +20,6 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 pub use parity_rpc::signer::SignerService;
-pub use parity_rpc::dapps::LocalDapp;
 
 use ethcore_service::PrivateTxService;
 use ethcore::account_provider::AccountProvider;
