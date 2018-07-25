@@ -2,6 +2,7 @@ stages:
   - test
   - push-release
   - build
+  - docs
 variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
