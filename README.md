@@ -97,7 +97,7 @@ sudo snap install parity --edge
 ```bash
 # download Parity-Ethereum code
 $ git clone https://github.com/paritytech/parity-ethereum
-$ cd parity-ethereum
+$ cd parity
 
 # build in release mode
 $ cargo build --release --features final
