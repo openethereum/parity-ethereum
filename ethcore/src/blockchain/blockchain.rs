@@ -1360,7 +1360,7 @@ impl BlockChain {
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let ancestor_number = self.block_number(&data.ancestor)
-					.expect("hash belongs to an ancestor of an inserted block; this branch is only reachable for normal (non-wrap-sync) block insertion; ancestors of an inserted block are always available for normal block insertion; block number of an inserted block is always available; qed");
+					.expect("hash belongs to an ancestor of an inserted block; this branch is only reachable for normal block insertion (non-ancient); ancestors of an inserted block are always available for normal block insertion; block number of an inserted block is always available; qed");
 				let start_number = ancestor_number + 1;
 
 				let mut blooms: Vec<Bloom> = data.enacted.iter()
