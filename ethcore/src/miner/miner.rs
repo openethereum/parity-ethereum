@@ -417,7 +417,7 @@ impl Miner {
 		let max_transactions = if min_tx_gas.is_zero() {
 			usize::max_value()
 		} else {
-			MAX_SKIPPED_TRANSACTIONS.saturating_add((*open_block.block().header().gas_limit() / min_tx_gas).as_u64() as usize)
+			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.block().header().gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
 		};
 
 		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
