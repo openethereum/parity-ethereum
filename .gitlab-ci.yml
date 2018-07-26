@@ -225,7 +225,6 @@ json-rpc-docs:
   stage: docs
   only:
     - tags
-    - master
   image: parity/rust:gitlab-ci
   script:
     - scripts/gitlab-rpc-docs.sh
