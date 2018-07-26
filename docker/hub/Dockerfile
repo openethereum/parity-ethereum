@@ -23,8 +23,6 @@ RUN apt-get update && \
         libc6-dev \
         binutils \
         file \
-        openssl \
-        libssl-dev \
         libudev-dev \
         pkg-config \
         dpkg-dev \
