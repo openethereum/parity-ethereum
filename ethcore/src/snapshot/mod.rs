@@ -354,18 +354,21 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 
 	for item in account_iter {
 		let (account_key, account_data) = item?;
+		let account_key_hash = H256::from_slice(&account_key);
 
 		if let Some(seek_to) = seek_to {
 			if account_key[0] >= seek_to {
+				trace!(target: "snapshot-key", "[#{}] Stopping at 0x{:x}", part, account_key_hash);
 				break;
 			}
 		}
-		let account_key_hash = H256::from_slice(&account_key);
 
 		if account_key[0] < seek_from[0] {
-			warn!(target: "snapshot", "Invalid key found at part {}! 0x{:x}", part, account_key_hash);
+			warn!(target: "snapshot-key", "[#{}] Invalid key 0x{:x}", part, account_key_hash);
 			continue;
 		}
+
+		trace!(target: "snapshot-key", "[#{}] Processing 0x{:x}", part, account_key_hash);
 
 		let account = ::rlp::decode(&*account_data)?;
 		let account_db = AccountDB::from_hash(db, account_key_hash);
