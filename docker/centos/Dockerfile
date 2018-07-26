@@ -47,7 +47,7 @@ RUN mkdir -p /opt/parity && \
 
 WORKDIR /opt/parity
 
-EXPOSE 8080 8545 818
+EXPOSE 8080 8545 8180
 
 USER 1001
 
