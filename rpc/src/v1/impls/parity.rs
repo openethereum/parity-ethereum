@@ -32,10 +32,9 @@ use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService};
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
-use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
 use jsonrpc_core::{BoxFuture, Result};
-use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::metadata::Metadata;
@@ -58,7 +57,6 @@ pub struct ParityClient<C, M, U> {
 	updater: Arc<U>,
 	sync: Arc<SyncProvider>,
 	net: Arc<ManageNetwork>,
-	health: NodeHealth,
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
@@ -77,7 +75,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 		sync: Arc<SyncProvider>,
 		updater: Arc<U>,
 		net: Arc<ManageNetwork>,
-		health: NodeHealth,
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
@@ -91,7 +88,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 			sync,
 			updater,
 			net,
-			health,
 			accounts,
 			logger,
 			settings,
@@ -465,10 +461,5 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		self.client.call_many(&requests, &mut state, &header)
 				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
 				.map_err(errors::call)
-	}
-
-	fn node_health(&self) -> BoxFuture<Health> {
-		Box::new(self.health.health()
-			.map_err(|err| errors::internal("Health API failure.", err)))
 	}
 }

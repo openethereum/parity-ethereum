@@ -21,8 +21,6 @@ use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256};
 use ethstore::ethkey::{Generator, Random};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
-use node_health::{self, NodeHealth};
-use parity_reactor;
 use sync::ManageNetwork;
 
 use jsonrpc_core::IoHandler;
@@ -40,7 +38,6 @@ pub struct Dependencies {
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	pub updater: Arc<TestUpdater>,
-	pub health: NodeHealth,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
@@ -57,11 +54,6 @@ impl Dependencies {
 				network_id: 3,
 				num_peers: 120,
 			})),
-			health: NodeHealth::new(
-				Arc::new(FakeSync),
-				node_health::TimeChecker::new::<String>(&[], node_health::CpuPool::new(1)),
-				parity_reactor::Remote::new_sync(),
-			),
 			updater: Arc::new(TestUpdater::default()),
 			logger: Arc::new(RotatingLogger::new("rpc=trace".to_owned())),
 			settings: Arc::new(NetworkSettings {
@@ -85,7 +77,6 @@ impl Dependencies {
 			self.sync.clone(),
 			self.updater.clone(),
 			self.network.clone(),
-			self.health.clone(),
 			self.accounts.clone(),
 			self.logger.clone(),
 			self.settings.clone(),
@@ -105,13 +96,6 @@ impl Dependencies {
 		io.extend_with(self.client(Some(Arc::new(signer))).to_delegate());
 		io
 	}
-}
-
-#[derive(Debug)]
-struct FakeSync;
-impl node_health::SyncStatus for FakeSync {
-	fn is_major_importing(&self) -> bool { false }
-	fn peers(&self) -> (usize, usize) { (4, 25) }
 }
 
 #[test]
@@ -551,17 +535,6 @@ fn rpc_parity_call() {
 		"id": 1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x1234ff"],"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_node_health() {
-	let deps = Dependencies::new();
-	let io = deps.default_client();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_nodeHealth", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"peers":{"details":[4,25],"message":"","status":"ok"},"sync":{"details":false,"message":"","status":"ok"},"time":{"details":0,"message":"","status":"ok"}},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

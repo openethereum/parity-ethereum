@@ -102,6 +102,12 @@ pub trait Scoring<T>: fmt::Debug {
 	///
 	/// NOTE returning `InsertNew` here can lead to some transactions being accepted above pool limits.
 	fn should_replace(&self, old: &T, new: &T) -> Choice;
+
+	/// Decides if the transaction should ignore per-sender limit in the pool.
+	///
+	/// If you return `true` for given transaction it's going to be accepted even though
+	/// the per-sender limit is exceeded.
+	fn should_ignore_sender_limit(&self, _new: &T) -> bool { false }
 }
 
 /// A score with a reference to the transaction.
