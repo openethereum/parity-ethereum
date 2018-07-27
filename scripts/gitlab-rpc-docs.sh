@@ -19,8 +19,8 @@ update_wiki_docs() {
 }
 
 setup_git() {
-    git config user.email "runner@parity.com"
-    git config user.name "Parity Runner"
+    git config user.email "devops@parity.com"
+    git config user.name "Devops Parity"
 }
 
 commit_files() {
