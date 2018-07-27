@@ -174,3 +174,7 @@ color = true
 [whisper]
 enabled = false
 pool_size = 20
+
+[hbbft]
+port = 5910
+interface = "local"

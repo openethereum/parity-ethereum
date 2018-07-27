@@ -239,6 +239,7 @@ pub fn default_hypervisor_path() -> PathBuf {
 }
 
 /// Get home directory.
+#[allow(deprecated)]
 fn home() -> PathBuf {
 	home_dir().expect("Failed to get home dir")
 }

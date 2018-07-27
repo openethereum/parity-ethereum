@@ -911,7 +911,7 @@ usage! {
 			"--whisper",
 			"Enable the Whisper network.",
 
- 			ARG arg_whisper_pool_size: (usize) = 10usize, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
+			ARG arg_whisper_pool_size: (usize) = 10usize, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
 			"--whisper-pool-size=[MB]",
 			"Target size of the whisper message pool in megabytes.",
 
@@ -1118,6 +1118,33 @@ usage! {
 			ARG arg_ntp_servers: (Option<String>) = None, or |_| None,
 			"--ntp-servers=[HOSTS]",
 			"Does nothing; checking if clock is sync with NTP servers is now done on the UI.",
+
+		["Hbbft Engine Options"]
+
+			ARG arg_hbbft_port: (Option<u16>) = None, or |c: &Config| c.hbbft.as_ref()?.port.clone(),
+			"--hbbft-port=[PORT]",
+			"Specifies the port upon which the hydrabadger hbbft node will listen.",
+
+			ARG arg_hbbft_interface: (String) = "local", or |c: &Config| c.hbbft.as_ref()?.interface.clone(),
+			"--hbbft-interface=[HOST]",
+			// "Specifies the local address for the hydrabadger hbbft node to listen on.",
+			"Specifies the IP address upon which the hydrabadger hbbft node will listen. Use 'local' for localhost.",
+
+			// ARG arg_hbbft_bind_address: (Option<String>) = None, or |c: &Config| c.hbbft.as_ref()?.bind_address.clone(),
+			// "--hbbft-bind-address=[HOST:PORT]",
+			// "Specifies the local address for the hydrabadger hbbft node to listen on.",
+
+			ARG arg_hbbft_remote_addresses: (Option<String>) = None, or |c: &Config| c.hbbft.as_ref()?.remote_addresses.as_ref().map(|vec| vec.join(",")),
+			"--hbbft-remote-addresses=[NODES]",
+			"Specify remote addresses to connect to upon startup. This is equivalent to bootnodes. NODES should be comma-delimited socket addresses.",
+
+			// // TODO: Add these:
+			// batch_size: usize,
+			// txn_gen_count: usize,
+			// txn_gen_interval: u64,
+			// txn_gen_bytes: usize,
+			// keygen_peer_count: usize,
+			// output_extra_delay_ms: u64,
 	}
 }
 
@@ -1142,6 +1169,7 @@ struct Config {
 	stratum: Option<Stratum>,
 	whisper: Option<Whisper>,
 	light: Option<Light>,
+	hbbft: Option<Hbbft>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1421,12 +1449,21 @@ struct Light {
 	on_demand_request_consecutive_failures: Option<usize>,
 }
 
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Hbbft {
+	port: Option<u16>,
+	interface: Option<String>,
+	bind_address: Option<String>,
+	remote_addresses: Option<Vec<String>>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, Misc, Whisper, SecretStore, Light,
+		Snapshots, Misc, Whisper, SecretStore, Light, Hbbft,
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
@@ -1892,6 +1929,10 @@ mod tests {
 			arg_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,
 			flag_no_config: false,
+
+			arg_hbbft_port: Some(5910),
+			arg_hbbft_interface: "local".into(),
+			arg_hbbft_remote_addresses: None,
 		});
 	}
 
@@ -2115,6 +2156,12 @@ mod tests {
 				pool_size: Some(50),
 			}),
 			stratum: None,
+			hbbft: Some(Hbbft {
+				port: Some(5910),
+				interface: Some("local".into()),
+				bind_address: None,
+				remote_addresses: Some(vec!["127.0.0.1:5911".to_owned()]),
+			})
 		});
 	}
 

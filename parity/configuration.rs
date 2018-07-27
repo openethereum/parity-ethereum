@@ -32,6 +32,7 @@ use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
 use ethcore::snapshot::SnapshotConfiguration;
 use ethcore::verification::queue::VerifierSettings;
+use ethcore::hbbft::HbbftConfig;
 use miner::pool;
 use num_cpus;
 
@@ -346,6 +347,7 @@ impl Configuration {
 			let verifier_settings = self.verifier_settings();
 			let whisper_config = self.whisper_config();
 			let (private_provider_conf, private_enc_conf, private_tx_enabled) = self.private_provider_config()?;
+			let hbbft = self.hbbft_config()?;
 
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
@@ -402,6 +404,7 @@ impl Configuration {
 				on_demand_request_backoff_max: self.args.arg_on_demand_request_backoff_max,
 				on_demand_request_backoff_rounds_max: self.args.arg_on_demand_request_backoff_rounds_max,
 				on_demand_request_consecutive_failures: self.args.arg_on_demand_request_consecutive_failures,
+				hbbft,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -410,6 +413,26 @@ impl Configuration {
 			logger: logger_config,
 			cmd: cmd,
 		})
+	}
+
+	fn hbbft_config(&self) -> Result<HbbftConfig, String> {
+		use std::net::ToSocketAddrs;
+
+		let mut hbbft = HbbftConfig::default();
+
+		if let Some(port) = self.args.arg_hbbft_port {
+			let bind_ip_addr = self.interface(&self.args.arg_hbbft_interface).parse().unwrap();
+			hbbft.bind_address = SocketAddr::new(bind_ip_addr, port);
+		}
+
+		for remote_addr in &self.args.arg_hbbft_remote_addresses {
+			hbbft.remote_addresses.insert(remote_addr.to_socket_addrs()
+				.map_err(|err| format!("Invalid hbbft remote address: {:?}", err))?
+				.next()
+				.unwrap_or(hbbft.bind_address));
+		}
+
+		Ok(hbbft)
 	}
 
 	fn vm_type(&self) -> Result<VMType, String> {
@@ -716,6 +739,7 @@ impl Configuration {
 	fn net_config(&self) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
 		ret.nat_enabled = self.args.arg_nat == "any" || self.args.arg_nat == "upnp";
+		// println!("####### LOADING BOOTNODES FROM: {:?}", self.args.arg_bootnodes);
 		ret.boot_nodes = to_bootnodes(&self.args.arg_bootnodes)?;
 		let (listen, public) = self.net_addresses()?;
 		ret.listen_address = Some(format!("{}", listen));
@@ -736,6 +760,7 @@ impl Configuration {
 		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
+		// println!("####### LOADING RESERVED NODES FROM: {:?}", self.args.arg_reserved_peers);
 		ret.reserved_nodes = self.init_reserved_nodes()?;
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
 		ret.client_version = {
@@ -1457,6 +1482,7 @@ mod tests {
 			on_demand_request_backoff_max: None,
 			on_demand_request_backoff_rounds_max: None,
 			on_demand_request_consecutive_failures: None,
+			hbbft: HbbftConfig::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");

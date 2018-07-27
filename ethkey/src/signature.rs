@@ -139,15 +139,15 @@ impl Default for Signature {
 }
 
 impl Hash for Signature {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-    	H520::from(self.0).hash(state);
-    }
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		H520::from(self.0).hash(state);
+	}
 }
 
 impl Clone for Signature {
-    fn clone(&self) -> Self {
+	fn clone(&self) -> Self {
 		Signature(self.0)
-    }
+	}
 }
 
 impl From<[u8; 65]> for Signature {

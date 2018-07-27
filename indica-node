@@ -1,0 +1,65 @@
+#/bin/bash
+
+# Starts a Parity-hbbft node
+# =========================
+#
+# Optional environment variables:
+#
+# * PARITY_LOG_ADDTL:
+#
+#   Appends additional logging args (debug, trace, filters, etc.).
+#
+# * PARITY_RELEASE:
+#
+#   Builds in debug mode if `PARITY_RELEASE` == `0` or `false`.
+#   Slows down output and makes reading log easier.
+#
+#
+
+let HOST_ID=$1
+let PEER_0_ID=$HOST_ID==0?$HOST_ID+2:$HOST_ID-1
+let PEER_1_ID=$HOST_ID+1
+let JSONRPC_PORT=8500+$HOST_ID
+let WS_PORT=8600+$HOST_ID
+
+printf -v HOST_PORT "59%02d" $HOST_ID
+printf -v PEER_0_PORT "59%02d" $PEER_0_ID
+printf -v PEER_1_PORT "59%02d" $PEER_1_ID
+
+
+
+if [[ $PARITY_RELEASE ]]
+then
+    case "$PARITY_RELEASE" in
+        0|false) RELEASE=""; DIRECTORY="debug" ;;
+        *) RELEASE="--release"; DIRECTORY="release" ;;
+    esac
+else
+    RELEASE="--release"
+    DIRECTORY="release"
+fi
+
+cargo build $RELEASE
+
+PARITY_LOG=peer_node::hydrabadger=error,warn,info,$PARITY_LOG_ADDTL
+
+set -x
+
+bash -c "\
+RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
+    --chain indica \
+    --base-path $HOME/.poanetwork/indica/node_$HOST_ID \
+    --db-path $HOME/.poanetwork/indica/node_$HOST_ID/chains \
+    --keys-path $HOME/.poanetwork/indica/node_$HOST_ID/keys \
+    --ports-shift $HOST_ID \
+    --jsonrpc-port $JSONRPC_PORT \
+    --ws-port $WS_PORT \
+    --hbbft-port $HOST_PORT \
+    --hbbft-remote-addresses localhost:5900 \
+    $2 $3 $4 $5 $6 $7 $8 \
+"
+
+### --reserved-peers $HOME/.poanetwork/indica/bootnodes.txt \
+###  hbbft-remote-addresses localhost:$PEER_0_PORT,localhost:$PEER_1_PORT \
+###  chain $HOME/.poanetwork/indica/spec.json \
+

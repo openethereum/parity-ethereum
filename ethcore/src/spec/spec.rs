@@ -35,7 +35,7 @@ use builtin::Builtin;
 use encoded;
 use engines::{
 	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority,
-	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
+	AuthorityRound, Hbbft, DEFAULT_BLOCKHASH_CONTRACT
 };
 use error::Error;
 use executive::Executive;
@@ -607,6 +607,8 @@ impl Spec {
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
+			ethjson::spec::Engine::Hbbft(hbbft) => Hbbft::new(hbbft.params.into(), machine)
+				.expect("Failed to start the hbbft consensus engine."),
 		}
 	}
 

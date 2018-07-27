@@ -16,7 +16,7 @@
 
 //! Engine deserialization.
 
-use super::{Ethash, BasicAuthority, AuthorityRound, NullEngine, InstantSeal};
+use super::{Ethash, BasicAuthority, AuthorityRound, NullEngine, InstantSeal, Hbbft};
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -34,6 +34,9 @@ pub enum Engine {
 	BasicAuthority(BasicAuthority),
 	/// AuthorityRound engine.
 	AuthorityRound(AuthorityRound),
+		/// Hbbft engine.
+	#[serde(rename="hbbft")]
+	Hbbft(Hbbft),
 }
 
 #[cfg(test)]
@@ -129,6 +132,25 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::AuthorityRound(_) => {}, // AuthorityRound is unit tested in its own file.
+			_ => panic!(),
+		};
+
+		let s = r#"{
+			"hbbft": {
+				"params": {
+					"stepDuration": "0x02",
+					"blockReward": "0xDE0B6B3A7640000",
+					"validators": {
+						"list" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+					},
+					"startStep" : 24,
+					"validateStepTransition": 150
+				}
+			}
+		}"#;
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::Hbbft(_) => {}, // Hbbft is unit tested in its own file.
 			_ => panic!(),
 		};
 	}

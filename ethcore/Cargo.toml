@@ -71,6 +71,11 @@ serde = "1.0"
 serde_derive = "1.0"
 tempdir = {version="0.3", optional = true}
 len-caching-mutex = { path = "../util/len-caching-mutex" }
+failure = "0.1"
+futures = "0.1"
+parity-reactor = { path = "../util/reactor" }
+# hydrabadger = { path = "../hydrabadger"}
+hydrabadger = { git = "https://github.com/poanetwork/hydrabadger"}
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
 hardware-wallet = { path = "../hw" }

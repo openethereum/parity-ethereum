@@ -113,6 +113,9 @@ extern crate serde;
 #[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
 extern crate len_caching_mutex;
+extern crate futures;
+extern crate parity_reactor;
+extern crate hydrabadger;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;
@@ -138,6 +141,8 @@ extern crate rlp_derive;
 extern crate trace_time;
 #[macro_use]
 extern crate serde_derive;
+// #[macro_use]
+extern crate failure;
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
@@ -172,6 +177,7 @@ pub mod state;
 pub mod state_db;
 pub mod trace;
 pub mod verification;
+pub mod hbbft;
 
 mod cache_manager;
 mod account_db;

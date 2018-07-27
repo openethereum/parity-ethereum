@@ -380,6 +380,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		Arc::new(AccountProvider::transient_provider()),
 		Box::new(ethcore_private_tx::NoopEncryptor),
 		Default::default(),
+		None,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	// free up the spec in memory.
@@ -571,6 +572,7 @@ fn start_client(
 		Arc::new(AccountProvider::transient_provider()),
 		Box::new(ethcore_private_tx::NoopEncryptor),
 		Default::default(),
+		None,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	drop(spec);

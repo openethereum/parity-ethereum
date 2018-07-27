@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 macro_rules! println_stderr(
-    ($($arg:tt)*) => { {
-        let r = writeln!(&mut ::std::io::stderr(), $($arg)*);
-        r.expect("failed printing to stderr");
-    } }
+	($($arg:tt)*) => { {
+		let r = writeln!(&mut ::std::io::stderr(), $($arg)*);
+		r.expect("failed printing to stderr");
+	} }
 );
 
 macro_rules! return_if_parse_error {
@@ -611,7 +611,7 @@ macro_rules! usage {
 				)*
 
 				let matches = App::new("Parity")
-				    	.global_setting(AppSettings::VersionlessSubcommands)
+						.global_setting(AppSettings::VersionlessSubcommands)
 						.global_setting(AppSettings::DisableHelpSubcommand)
 						.max_term_width(MAX_TERM_WIDTH)
 						.help(Args::print_help().as_ref())

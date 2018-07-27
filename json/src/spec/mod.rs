@@ -28,6 +28,7 @@ pub mod ethash;
 pub mod validator_set;
 pub mod basic_authority;
 pub mod authority_round;
+pub mod hbbft;
 pub mod null_engine;
 pub mod instant_seal;
 pub mod hardcoded_sync;
@@ -44,6 +45,11 @@ pub use self::ethash::{Ethash, EthashParams, BlockReward};
 pub use self::validator_set::ValidatorSet;
 pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};
 pub use self::authority_round::{AuthorityRound, AuthorityRoundParams};
+<<<<<<< HEAD
+=======
+pub use self::tendermint::{Tendermint, TendermintParams};
+pub use self::hbbft::{Hbbft, HbbftParams};
+>>>>>>> HBBFT: Add preliminary types and configuration files.
 pub use self::null_engine::{NullEngine, NullEngineParams};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::hardcoded_sync::HardcodedSync;

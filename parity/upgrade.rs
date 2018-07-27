@@ -199,6 +199,7 @@ fn upgrade_user_defaults(dirs: &DatabaseDirectories) {
 	}
 }
 
+#[allow(deprecated)]
 pub fn upgrade_data_paths(base_path: &str, dirs: &DatabaseDirectories, pruning: Algorithm) {
 	if home_dir().is_none() {
 		return;

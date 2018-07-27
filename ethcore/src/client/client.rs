@@ -80,6 +80,8 @@ use verification::{PreverifiedBlock, Verifier, BlockQueue};
 use verification::queue::kind::blocks::Unverified;
 use verification::queue::kind::BlockLike;
 
+use hbbft::HbbftClientExt;
+
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
@@ -1324,6 +1326,28 @@ impl snapshot::DatabaseRestore for Client {
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
+	}
+}
+
+impl HbbftClientExt for Client {
+	fn a_specialized_method(&self) {
+		info!("Client: A specialized method has been called!");
+	}
+
+	fn change_me_into_something_useful(&self) {
+		info!("Client: Something useful should be done here!");
+	}
+
+	fn import_a_bad_block_and_panic(&self) {
+		let bad_block = Unverified {
+			header: Header::default(),
+			transactions: vec![],
+			uncles: vec![],
+			bytes: vec![1, 2, 3],
+		};
+
+		info!("HbbftDaemon: Importing a bad block...");
+		self.import_block(bad_block).expect("\n\nBlock import error");
 	}
 }
 

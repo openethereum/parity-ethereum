@@ -18,6 +18,7 @@
 use ::home_dir;
 
 /// Replaces `$HOME` str with home directory path.
+#[allow(deprecated)]
 pub fn replace_home(base: &str, arg: &str) -> String {
 	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
 	// We use an `if` so that we don't need to call `home_dir()` if not necessary.
