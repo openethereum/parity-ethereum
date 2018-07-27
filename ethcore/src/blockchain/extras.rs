@@ -177,8 +177,7 @@ impl rlp::Decodable for BlockDetails {
 	fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
 		let use_short_version = match rlp.item_count()? {
 			4 => true,
-			// 6, cause we used to store metadata
-			5 | 6 => false,
+			5 => false,
 			_ => return Err(rlp::DecoderError::RlpIncorrectListLen),
 		};
 
