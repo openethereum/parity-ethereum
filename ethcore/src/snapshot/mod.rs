@@ -89,8 +89,8 @@ const MAX_CHUNK_SIZE: usize = PREFERRED_CHUNK_SIZE / 4 * 5;
 const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
 // current state chunk version.
 const STATE_CHUNK_VERSION: u64 = 2;
-// number of snapshot subparts, must be in [1; 256] and a power of 2
-const SNAPSHOT_SUBPARTS: usize = 16;
+/// number of snapshot subparts, must be a power of 2 in [1; 256]
+pub const SNAPSHOT_SUBPARTS: usize = 16;
 
 /// Configuration for the Snapshot service
 #[derive(Debug, Clone, PartialEq)]
@@ -184,7 +184,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 					if subpart_chunk.len() > thread_idx {
 						let part = subpart_chunk[thread_idx];
 						debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
-						let mut hashes = chunk_state(state_db, &state_root, writer, p, part)?;
+						let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part))?;
 						chunk_hashes.append(&mut hashes);
 					}
 				}
@@ -323,7 +323,7 @@ impl<'a> StateChunker<'a> {
 ///
 /// Returns a list of hashes of chunks created, or any error it may
 /// have encountered.
-pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: usize) -> Result<Vec<H256>, Error> {
+pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress, part: Option<usize>) -> Result<Vec<H256>, Error> {
 	let account_trie = TrieDB::new(db, &root)?;
 
 	let mut chunker = StateChunker {
@@ -340,17 +340,19 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 	// account_key here is the address' hash.
 	let mut account_iter = account_trie.iter()?;
 
-	let part_offset = 256 / SNAPSHOT_SUBPARTS;
-	let mut seek_from = vec![0; 32];
-	seek_from[0] = (part * part_offset) as u8;
-	account_iter.seek(&seek_from)?;
+	let mut seek_to = None;
 
-	// Set the upper-bond, except for the last part
-	let seek_to = if part < SNAPSHOT_SUBPARTS - 1 {
-		Some(((part + 1) * part_offset) as u8)
-	} else {
-		None
-	};
+	if let Some(part) = part {
+		let part_offset = 256 / SNAPSHOT_SUBPARTS;
+		let mut seek_from = vec![0; 32];
+		seek_from[0] = (part * part_offset) as u8;
+		account_iter.seek(&seek_from)?;
+
+		// Set the upper-bond, except for the last part
+		if part < SNAPSHOT_SUBPARTS - 1 {
+			seek_to = Some(((part + 1) * part_offset) as u8)
+		}
+	}
 
 	for item in account_iter {
 		let (account_key, account_data) = item?;
@@ -358,17 +360,9 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 
 		if let Some(seek_to) = seek_to {
 			if account_key[0] >= seek_to {
-				trace!(target: "snapshot-key", "[#{}] Stopping at 0x{:x}", part, account_key_hash);
 				break;
 			}
 		}
-
-		if account_key[0] < seek_from[0] {
-			warn!(target: "snapshot-key", "[#{}] Invalid key 0x{:x}", part, account_key_hash);
-			continue;
-		}
-
-		trace!(target: "snapshot-key", "[#{}] Processing 0x{:x}", part, account_key_hash);
 
 		let account = ::rlp::decode(&*account_data)?;
 		let account_db = AccountDB::from_hash(db, account_key_hash);
