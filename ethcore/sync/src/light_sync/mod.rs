@@ -301,9 +301,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
 		match *self.state.lock() {
-			SyncState::Snapshot(_) => {
-				return;
-			},
+			SyncState::Snapshot(_) => return,
 			_ => {},
 		};
 

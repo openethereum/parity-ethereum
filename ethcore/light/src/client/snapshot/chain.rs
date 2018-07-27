@@ -73,12 +73,14 @@ impl RestorationTargetChain for LightChain {
 	}
 
 	fn add_child(&self, _batch: &mut DBTransaction, _block_hash: H256, _child_hash: H256) {
-		// TODO
+		// We don't store parent <-> child relationship in the light client.
 	}
 
 	fn insert_epoch_transition(
-		&self, batch: &mut DBTransaction,
-		header: Header, transition: EpochTransition
+		&self,
+		batch: &mut DBTransaction,
+		header: Header,
+		transition: EpochTransition,
 	) {
 		let result = if header.number() == 0 {
 			let td = self.chain.genesis_header().difficulty();
@@ -91,8 +93,13 @@ impl RestorationTargetChain for LightChain {
 	}
 
 	fn insert_unordered_block(
-		&self, batch: &mut DBTransaction, bytes: &[u8], _receipts: Vec<Receipt>,
-		parent_td: Option<U256>, _is_best: bool, _is_ancient: bool
+		&self,
+		batch: &mut DBTransaction,
+		bytes: &[u8],
+		_receipts: Vec<Receipt>,
+		parent_td: Option<U256>,
+		_is_best: bool,
+		_is_ancient: bool,
 	) -> bool {
 		let block = view!(BlockView, bytes);
 		let header = block.header();

@@ -156,10 +156,10 @@ const MAX_TRANSACTIONS_TO_QUERY: usize = 4096;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 /// Min number of blocks to be behind for a snapshot sync
-pub const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
-pub const SNAPSHOT_MIN_PEERS: usize = 3;
+pub(crate) const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
+pub(crate) const SNAPSHOT_MIN_PEERS: usize = 3;
 
-pub const STATUS_PACKET: u8 = 0x00;
+pub(crate) const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
 const TRANSACTIONS_PACKET: u8 = 0x02;
 pub const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
