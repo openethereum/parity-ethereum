@@ -1,23 +1,18 @@
 FROM centos:latest
 WORKDIR /build
 
-# install tools and dependencies
+# install tools and dependencies, cmake 3.12 and rustup
 
-RUN yum -y update 
-RUN yum install -y systemd-devel
-RUN yum install -y git make gcc-c++ gcc file binutils 
-
-
-RUN curl -L "https://cmake.org/files/v3.12/cmake-3.12.0-Linux-x86_64.tar.gz" -o cmake.tar.gz && \
- tar -xzf cmake.tar.gz && \
- cp -r cmake-3.12.0-Linux-x86_64/* /usr/ && \
- rm -rf cmake-3.12.0-Linux-x86_64 && \
- rm -rf cmake.tar.gz
-
-# install rustup
-RUN curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&\
-ls&&\
- sh rustup.sh --disable-sudo
+RUN yum -y update && \
+    yum install -y systemd-devel && \
+    yum install -y git make gcc-c++ gcc file binutils && \
+    curl -L "https://cmake.org/files/v3.12/cmake-3.12.0-Linux-x86_64.tar.gz" -o cmake.tar.gz && \
+    tar -xzf cmake.tar.gz && \
+    cp -r cmake-3.12.0-Linux-x86_64/* /usr/ && \
+    rm -rf cmake-3.12.0-Linux-x86_64 && \
+    rm -rf cmake.tar.gz && \
+    curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&\
+    sh rustup.sh --disable-sudo
 
 # show backtraces
 ENV RUST_BACKTRACE 1
@@ -33,15 +28,15 @@ gcc -v &&\
 g++ -v &&\
 cmake --version
 
-# build parity
+# build parity 
 ADD . /build/parity
 RUN cd parity&&\
     cargo build --release --verbose && \
 	ls /build/parity/target/release/parity &&	\
 	strip /build/parity/target/release/parity
-
 RUN file /build/parity/target/release/parity
 
+# set folder permissions 
 RUN mkdir -p /opt/parity && \
     chmod g+rwX /opt/parity
 
@@ -49,6 +44,7 @@ WORKDIR /opt/parity
 
 EXPOSE 8080 8545 8180
 
+# switch to non-root user
 USER 1001
 
 ENTRYPOINT ["/build/parity/target/release/parity"]
