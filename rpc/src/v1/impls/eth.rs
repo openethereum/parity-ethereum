@@ -743,9 +743,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		// check if we're still syncing and return empty strings in that case
 		{
-			let status = self.sync.status();
-	                let client = &self.client;
-	                let warping = match self.snapshot.status() {
+			let status = self.sync.status()
+			let client = &self.client;
+			let warping = match self.snapshot.status() {
 				RestorationStatus::Ongoing { .. } => true,
 				_ => false,
 			};
