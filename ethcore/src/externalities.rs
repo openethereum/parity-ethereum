@@ -165,7 +165,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				gas: self.machine.params().eip210_contract_gas,
 				gas_price: 0.into(),
 				code: code,
-				code_hash: Some(code_hash),
+				code_hash: code_hash,
 				data: Some(H256::from(number).to_vec()),
 				call_type: CallType::Call,
 				params_type: vm::ParamsType::Separate,
@@ -272,7 +272,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
 			code: code,
-			code_hash: Some(code_hash),
+			code_hash: code_hash,
 			data: Some(data.to_vec()),
 			call_type: call_type,
 			params_type: vm::ParamsType::Separate,
@@ -291,12 +291,16 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		}
 	}
 
-	fn extcode(&self, address: &Address) -> vm::Result<Arc<Bytes>> {
-		Ok(self.state.code(address)?.unwrap_or_else(|| Arc::new(vec![])))
+	fn extcode(&self, address: &Address) -> vm::Result<Option<Arc<Bytes>>> {
+		Ok(self.state.code(address)?)
 	}
 
-	fn extcodesize(&self, address: &Address) -> vm::Result<usize> {
-		Ok(self.state.code_size(address)?.unwrap_or(0))
+	fn extcodehash(&self, address: &Address) -> vm::Result<Option<H256>> {
+		Ok(self.state.code_hash(address)?)
+	}
+
+	fn extcodesize(&self, address: &Address) -> vm::Result<Option<usize>> {
+		Ok(self.state.code_size(address)?)
 	}
 
 	fn ret(mut self, gas: &U256, data: &ReturnData, apply_state: bool) -> vm::Result<U256>

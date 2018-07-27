@@ -143,6 +143,9 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			instructions::EXTCODESIZE => {
 				Request::Gas(Gas::from(schedule.extcodesize_gas))
 			},
+			instructions::EXTCODEHASH => {
+				Request::Gas(Gas::from(schedule.extcodehash_gas))
+			},
 			instructions::SUICIDE => {
 				let mut gas = Gas::from(schedule.suicide_gas);
 
