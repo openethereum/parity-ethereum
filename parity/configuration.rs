@@ -1413,7 +1413,7 @@ mod tests {
 			name: "".into(),
 			custom_bootnodes: false,
 			fat_db: Default::default(),
-			no_periodic_snapshot: false,
+			snapshot_conf: Default::default(),
 			stratum: None,
 			check_seal: true,
 			download_old_blocks: true,

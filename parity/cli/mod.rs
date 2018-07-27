@@ -1770,6 +1770,7 @@ mod tests {
 			arg_export_state_at: "latest".into(),
 			arg_snapshot_at: "latest".into(),
 			flag_no_periodic_snapshot: false,
+			arg_snapshot_threads: None,
 
 			// -- Whisper options.
 			flag_whisper: false,
@@ -2019,6 +2020,7 @@ mod tests {
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
+				processing_threads: None,
 			}),
 			misc: Some(Misc {
 				logging: Some("own_tx=trace".into()),
