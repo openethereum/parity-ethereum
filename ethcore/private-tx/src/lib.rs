@@ -435,7 +435,9 @@ impl Provider where {
 			let (new_address, _) = ethcore_contract_address(engine.create_address_scheme(env_info.number), &sender, &nonce, &transaction.data);
 			Some(new_address)
 		});
-		let result = Executive::new(&mut state, &env_info, engine.machine()).transact_virtual(transaction, options)?;
+		let machine = engine.machine();
+		let schedule = machine.schedule(env_info.number);
+		let result = Executive::new(&mut state, &env_info, &machine, &schedule).transact_virtual(transaction, options)?;
 		let (encrypted_code, encrypted_storage) = match contract_address {
 			None => bail!(ErrorKind::ContractDoesNotExist),
 			Some(address) => {

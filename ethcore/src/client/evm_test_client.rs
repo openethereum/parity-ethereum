@@ -184,7 +184,9 @@ impl<'a> EvmTestClient<'a> {
 		};
 		let mut substate = state::Substate::new();
 		let mut output = vec![];
-		let mut executive = executive::Executive::new(&mut self.state, &info, self.spec.engine.machine());
+		let machine = self.spec.engine.machine();
+		let schedule = machine.schedule(info.number);
+		let mut executive = executive::Executive::new(&mut self.state, &info, &machine, &schedule);
 		executive.call(
 			params,
 			&mut substate,

@@ -73,14 +73,13 @@ use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTrans
 use types::filter::Filter;
 use types::ancestry_action::AncestryAction;
 use verification;
-use verification::{PreverifiedBlock, Verifier};
-use verification::queue::BlockQueue;
+use verification::{PreverifiedBlock, Verifier, BlockQueue};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
-pub use verification::queue::QueueInfo as BlockQueueInfo;
+pub use verification::QueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
@@ -370,8 +369,7 @@ impl Importer {
 			&parent,
 			engine,
 			Some(verification::FullFamilyParams {
-				block_bytes: &block.bytes,
-				transactions: &block.transactions,
+				block: &block,
 				block_provider: &**chain,
 				client
 			}),
@@ -611,7 +609,9 @@ impl Importer {
 							).expect("state known to be available for just-imported block; qed");
 
 							let options = TransactOptions::with_no_tracing().dont_check_nonce();
-							let res = Executive::new(&mut state, &env_info, self.engine.machine())
+							let machine = self.engine.machine();
+							let schedule = machine.schedule(env_info.number);
+							let res = Executive::new(&mut state, &env_info, &machine, &schedule)
 								.transact(&transaction, options);
 
 							let res = match res {
@@ -1227,8 +1227,9 @@ impl Client {
 				.dont_check_nonce()
 				.save_output_from_contract();
 			let original_state = if state_diff { Some(state.clone()) } else { None };
+			let schedule = machine.schedule(env_info.number);
 
-			let mut ret = Executive::new(state, env_info, machine).transact_virtual(transaction, options)?;
+			let mut ret = Executive::new(state, env_info, &machine, &schedule).transact_virtual(transaction, options)?;
 
 			if let Some(original) = original_state {
 				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
@@ -1481,7 +1482,9 @@ impl Call for Client {
 			let tx = tx.fake_sign(sender);
 
 			let mut clone = state.clone();
-			Ok(Executive::new(&mut clone, &env_info, self.engine.machine())
+			let machine = self.engine.machine();
+			let schedule = machine.schedule(env_info.number);
+			Ok(Executive::new(&mut clone, &env_info, &machine, &schedule)
 				.transact_virtual(&tx, options())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))

@@ -670,7 +670,7 @@ impl Host {
 		}
 	}
 
-	fn connection_closed(&self, token: TimerToken, io: &IoContext<NetworkIoMessage>) {
+	fn connection_closed(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		trace!(target: "network", "Connection closed: {}", token);
 		self.kill_connection(token, io, true);
 	}
