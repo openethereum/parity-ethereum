@@ -30,7 +30,7 @@ RUN yum -y update && \
     mkdir -p /opt/parity/target/release && \
 	cp -R /build/parity/target/release /opt/parity/target/release && \
 	rm -r /build && \
-	yum remove -y systemd-devel git make gcc-c++ gcc file binutils && \
+	yum remove -y git make gcc-c++ gcc file binutils && \
     mkdir -p /opt/parity/data && \
     chmod g+rwX /opt/parity/data
 
