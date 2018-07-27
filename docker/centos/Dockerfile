@@ -28,9 +28,8 @@ RUN yum -y update && \
 	strip /build/parity/target/release/parity && \
     file /build/parity/target/release/parity && \
     mkdir -p /opt/parity/target/release && \
-	cp -R /build/parity/target/release /opt/parity/target/release && \
+	cp -R /build/parity/target/release /opt/parity/target && \
 	rm -r /build && \
-	yum remove -y git make gcc-c++ gcc file binutils && \
     mkdir -p /opt/parity/data && \
     chmod g+rwX /opt/parity/data
 
