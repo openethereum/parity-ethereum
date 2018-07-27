@@ -25,8 +25,7 @@ RUN apt-get update && \
         file \
         libudev-dev \
         pkg-config \
-        dpkg-dev \
-        libudev-dev &&\
+        dpkg-dev &&\
 # install rustup
  curl https://sh.rustup.rs -sSf | sh -s -- -y && \
 # rustup directory
