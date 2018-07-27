@@ -1,52 +1,46 @@
 FROM centos:latest
-WORKDIR /build
 
-# install tools and dependencies, cmake 3.12 and rustup
+ADD . /build/parity
 
+# show backtraces & set compiler
+ENV RUST_BACKTRACE 1
+ENV CXX g++
+ENV CC gcc
+
+# install tools and dependencies, build parity, set folder permissions
 RUN yum -y update && \
-    yum install -y systemd-devel && \
-    yum install -y git make gcc-c++ gcc file binutils && \
+    yum install -y systemd-devel git make gcc-c++ gcc file binutils && \
     curl -L "https://cmake.org/files/v3.12/cmake-3.12.0-Linux-x86_64.tar.gz" -o cmake.tar.gz && \
     tar -xzf cmake.tar.gz && \
     cp -r cmake-3.12.0-Linux-x86_64/* /usr/ && \
     rm -rf cmake-3.12.0-Linux-x86_64 && \
     rm -rf cmake.tar.gz && \
     curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&\
-    sh rustup.sh --disable-sudo
-
-# show backtraces
-ENV RUST_BACKTRACE 1
-
-# set compiler
-ENV CXX g++
-ENV CC gcc
-
-# show tools
-RUN rustc -vV && \
-cargo -V && \
-gcc -v &&\
-g++ -v &&\
-cmake --version
-
-# build parity 
-ADD . /build/parity
-RUN cd parity&&\
+    sh rustup.sh --disable-sudo && \
+    rustc -vV && \
+	cargo -V && \
+	gcc -v &&\
+	g++ -v &&\
+    cmake --version &&\
+    cd build/parity &&\
     cargo build --release --verbose && \
-	ls /build/parity/target/release/parity &&	\
-	strip /build/parity/target/release/parity
-RUN file /build/parity/target/release/parity
+	ls /build/parity/target/release/parity && \
+	strip /build/parity/target/release/parity && \
+    file /build/parity/target/release/parity && \
+    mkdir /opt/parity/target/release && \
+	cp -R /build/parity/target/release/ /opt/parity/target/release/ && \
+	rm -r /build && \
+	yum remove -y systemd-devel git make gcc-c++ gcc file binutils && \
+    mkdir -p /opt/parity/data && \
+    chmod g+rwX /opt/parity/data
 
-# set folder permissions 
-RUN mkdir -p /opt/parity && \
-    chmod g+rwX /opt/parity
-
-WORKDIR /opt/parity
+WORKDIR /opt/parity/data
 
 EXPOSE 8080 8545 8180
 
 # switch to non-root user
 USER 1001
 
-ENTRYPOINT ["/build/parity/target/release/parity"]
+ENTRYPOINT ["opt/parity/target/release/parity"]
 
 
