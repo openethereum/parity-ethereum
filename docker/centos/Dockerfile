@@ -27,8 +27,8 @@ RUN yum -y update && \
 	ls /build/parity/target/release/parity && \
 	strip /build/parity/target/release/parity && \
     file /build/parity/target/release/parity && \
-    mkdir /opt/parity/target/release && \
-	cp -R /build/parity/target/release/ /opt/parity/target/release/ && \
+    mkdir -p /opt/parity/target/release && \
+	cp -R /build/parity/target/release /opt/parity/target/release && \
 	rm -r /build && \
 	yum remove -y systemd-devel git make gcc-c++ gcc file binutils && \
     mkdir -p /opt/parity/data && \
