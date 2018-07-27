@@ -6,10 +6,10 @@ description = "Merkle-Patricia Trie (Ethereum Style)"
 license = "GPL-3.0"
 
 [dependencies]
-patricia-trie = { git = "https://github.com/paritytech/parity-common" }
+patricia-trie = { git = "https://github.com/paritytech/parity-common", branch = "ng-fix-triedb-seek" }
 keccak-hasher = { path = "../keccak-hasher" }
-hashdb = { git = "https://github.com/paritytech/parity-common" }
-rlp = { git = "https://github.com/paritytech/parity-common" }
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+hashdb = { git = "https://github.com/paritytech/parity-common", branch = "ng-fix-triedb-seek" }
+rlp = { git = "https://github.com/paritytech/parity-common", branch = "ng-fix-triedb-seek" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common", branch = "ng-fix-triedb-seek" }
 ethereum-types = "0.3"
 elastic-array = "0.10"

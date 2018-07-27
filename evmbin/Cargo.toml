@@ -12,7 +12,7 @@ path = "./src/main.rs"
 docopt = "0.8"
 ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
 ethjson = { path = "../json" }
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common", branch = "ng-fix-triedb-seek" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 evm = { path = "../ethcore/evm" }
