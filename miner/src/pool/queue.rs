@@ -243,11 +243,15 @@ impl TransactionQueue {
 		let options = self.options.read().clone();
 
 		let transaction_to_replace = {
-			let pool = self.pool.read();
-			if pool.is_full() {
-				pool.worst_transaction().map(|worst| (pool.scoring().clone(), worst))
-			} else {
+			if options.no_early_reject {
 				None
+			} else {
+				let pool = self.pool.read();
+				if pool.is_full() {
+					pool.worst_transaction().map(|worst| (pool.scoring().clone(), worst))
+				} else {
+					None
+				}
 			}
 		};
 

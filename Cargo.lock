@@ -1183,7 +1183,7 @@ dependencies = [
 [[package]]
 name = "hashdb"
 version = "0.2.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1449,7 +1449,7 @@ dependencies = [
 [[package]]
 name = "keccak-hash"
 version = "0.1.2"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1477,7 +1477,7 @@ dependencies = [
 [[package]]
 name = "kvdb"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek)",
@@ -1486,7 +1486,7 @@ dependencies = [
 [[package]]
 name = "kvdb-memorydb"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek)",
  "parking_lot 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1495,7 +1495,7 @@ dependencies = [
 [[package]]
 name = "kvdb-rocksdb"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1666,7 +1666,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "memorydb"
 version = "0.2.1"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.2.0 (git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek)",
@@ -1934,7 +1934,7 @@ dependencies = [
 [[package]]
 name = "parity-bytes"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 
 [[package]]
 name = "parity-clib"
@@ -1946,7 +1946,7 @@ dependencies = [
 [[package]]
 name = "parity-crypto"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2308,12 +2308,12 @@ dependencies = [
 [[package]]
 name = "path"
 version = "0.1.1"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 
 [[package]]
 name = "patricia-trie"
 version = "0.2.1"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.2.0 (git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek)",
@@ -2388,7 +2388,7 @@ dependencies = [
 [[package]]
 name = "plain_hasher"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2669,7 +2669,7 @@ dependencies = [
 [[package]]
 name = "rlp"
 version = "0.2.1"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3385,7 +3385,7 @@ dependencies = [
 [[package]]
 name = "trie-standardmap"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek)",
@@ -3396,7 +3396,7 @@ dependencies = [
 [[package]]
 name = "triehash"
 version = "0.2.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#ff37079d162cdf872900362427077276a1230061"
+source = "git+https://github.com/paritytech/parity-common?branch=ng-fix-triedb-seek#9f47d1fec6daa5a6763ec2dab1f19bc35d5c578f"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
