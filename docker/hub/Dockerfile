@@ -34,7 +34,7 @@ RUN apt-get update && \
  RUST_BACKTRACE=1 && \
 # build parity
 cd /build&&git clone https://github.com/paritytech/parity-ethereum && \
-        cd parity && \
+        cd parity-ethereum&& \
 	git pull&& \
 	git checkout $BUILD_TAG && \
         cargo build --verbose --release --features final && \
