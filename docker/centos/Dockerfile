@@ -15,14 +15,14 @@ RUN yum -y update && \
     cp -r cmake-3.12.0-Linux-x86_64/* /usr/ && \
     rm -rf cmake-3.12.0-Linux-x86_64 && \
     rm -rf cmake.tar.gz && \
-    curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&\
+    curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh && \
     sh rustup.sh --disable-sudo && \
     rustc -vV && \
 	cargo -V && \
-	gcc -v &&\
-	g++ -v &&\
-    cmake --version &&\
-    cd build/parity &&\
+	gcc -v && \
+	g++ -v && \
+    cmake --version && \
+    cd build/parity && \
     cargo build --release --verbose && \
 	ls /build/parity/target/release/parity && \
 	strip /build/parity/target/release/parity && \
@@ -31,7 +31,8 @@ RUN yum -y update && \
 	cp -R /build/parity/target/release /opt/parity/target && \
 	rm -r /build && \
     mkdir -p /opt/parity/data && \
-    chmod g+rwX /opt/parity/data
+    chmod g+rwX /opt/parity/data && \
+    yum clean all -y
 
 WORKDIR /opt/parity/data
 
@@ -41,5 +42,3 @@ EXPOSE 8080 8545 8180
 USER 1001
 
 ENTRYPOINT ["/opt/parity/target/release/parity"]
-
-
