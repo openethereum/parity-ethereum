@@ -21,7 +21,7 @@ use std::mem;
 
 use ethereum_types::{U256, H256};
 use bytes::ToPretty;
-use ethcore::trace;
+use ethcore::{trace, storage};
 
 use display;
 use info as vm;
@@ -122,7 +122,7 @@ impl trace::VMTracer for Informant {
 		});
 	}
 
-	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8], _storage: &storage::StorageAccess) {
 		let subdepth = self.subdepth;
 		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
 			let mem_diff = informant.mem_written.clone().map(|(o, s)| (o, &(mem[o..o+s])));
@@ -168,6 +168,15 @@ impl trace::VMTracer for Informant {
 		});
 	}
 
+	fn trace_finalized(&mut self, storage: &storage::StorageAccess) {
+		if self.unmatched {
+			// print last line with final state:
+			self.gas_cost = 0.into();
+			let gas_used = self.gas_used;
+			self.trace_executed(gas_used, &[], &[], storage);
+		}
+	}
+
 	fn prepare_subtrace(&mut self, code: &[u8]) {
 		let subdepth = self.subdepth;
 		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
@@ -191,12 +200,7 @@ impl trace::VMTracer for Informant {
 	}
 
 	fn drain(mut self) -> Option<Self::Output> {
-		if self.unmatched {
-			// print last line with final state:
-			self.gas_cost = 0.into();
-			let gas_used = self.gas_used;
-			self.trace_executed(gas_used, &[], &[]);
-		} else if !self.subtraces.is_empty() {
+		if !self.subtraces.is_empty() {
 			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
 		}
 		Some(self.traces)

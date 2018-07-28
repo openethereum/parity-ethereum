@@ -40,6 +40,7 @@ use ethereum_types::{H256, U256, Address};
 use kvdb::DBTransaction;
 use vm::{Error as VmError, ActionParams};
 use header::BlockNumber;
+use storage::StorageAccess;
 
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {
@@ -86,7 +87,12 @@ pub trait VMTracer: Send {
 	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, _store_written: Option<(U256, U256)>) {}
 
 	/// Trace the finalised execution of a single valid instruction.
-	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem: &[u8]) {}
+	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem: &[u8], _storage: &StorageAccess) {}
+
+	/// Trace the end of a subtrace.
+	///
+	/// After this, no more instructions will be executed for this subtrace.
+	fn trace_finalized(&mut self, _storage: &StorageAccess) {}
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn prepare_subtrace(&mut self, _code: &[u8]) {}

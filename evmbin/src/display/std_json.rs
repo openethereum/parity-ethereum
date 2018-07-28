@@ -21,7 +21,7 @@ use std::io;
 
 use ethereum_types::{H256, U256};
 use bytes::ToPretty;
-use ethcore::trace;
+use ethcore::{trace, storage};
 
 use display;
 use info as vm;
@@ -168,7 +168,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 		});
 	}
 
-	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem: &[u8]) {
+	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem: &[u8], _storage: &storage::StorageAccess) {
 		let subdepth = self.subdepth;
 		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());

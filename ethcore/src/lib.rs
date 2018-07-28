@@ -166,6 +166,7 @@ pub mod state;
 pub mod state_db;
 pub mod trace;
 pub mod verification;
+pub mod storage;
 
 mod cache_manager;
 mod account_db;

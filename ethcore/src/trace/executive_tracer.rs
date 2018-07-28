@@ -20,6 +20,7 @@ use ethereum_types::{U256, Address};
 use vm::{Error as VmError, ActionParams};
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
 use trace::{Tracer, VMTracer, FlatTrace};
+use storage::StorageAccess;
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]
@@ -244,7 +245,7 @@ impl VMTracer for ExecutiveVMTracer {
 		self.last_store_written = store_written;
 	}
 
-	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8], _storage: &StorageAccess) {
 		let mem_diff = self.last_mem_written.take().map(|(o, s)| (o, &(mem[o..o+s])));
 		let store_diff = self.last_store_written.take();
 		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {

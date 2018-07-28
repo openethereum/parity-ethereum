@@ -165,6 +165,9 @@ pub trait Ext {
 	/// Trace the finalised execution of a single instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem: &[u8]) {}
 
+	/// Trace that the subtrace is done executing.
+	fn trace_finalized(&mut self) {}
+
 	/// Check if running in static context.
 	fn is_static(&self) -> bool;
 }

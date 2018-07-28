@@ -29,6 +29,7 @@ use vm::{
 };
 use transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
+use storage::{StorageAccess, StorageError};
 
 /// Policy for handling output data on `RETURN` opcode.
 pub enum OutputPolicy {
@@ -411,7 +412,25 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
-		self.vm_tracer.trace_executed(gas_used, stack_push, mem)
+		let Externalities { ref state, ref mut vm_tracer, .. } = *self;
+
+		let access = ExtStorageAccess(*state, &self.origin_info.address);
+		vm_tracer.trace_executed(gas_used, stack_push, mem, &access)
+	}
+
+	fn trace_finalized(&mut self) {
+		let Externalities { ref state, ref mut vm_tracer, .. } = *self;
+
+		let access = ExtStorageAccess(*state, &self.origin_info.address);
+		vm_tracer.trace_finalized(&access);
+	}
+}
+
+struct ExtStorageAccess<'a, 'b, B: 'a>(&'a State<B>, &'b Address);
+
+impl<'a, 'b, B: 'a> StorageAccess for ExtStorageAccess<'a, 'b, B> where B: StateBackend {
+	fn storage_at(&self, key: &H256) -> Result<H256, StorageError> {
+		self.0.storage_at(self.1, key).map_err(Into::into)
 	}
 }
 
