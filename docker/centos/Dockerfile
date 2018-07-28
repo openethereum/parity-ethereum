@@ -40,6 +40,6 @@ EXPOSE 8080 8545 8180
 # switch to non-root user
 USER 1001
 
-ENTRYPOINT ["opt/parity/target/release/parity"]
+ENTRYPOINT ["/opt/parity/target/release/parity"]
 
 
