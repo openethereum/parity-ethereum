@@ -20,6 +20,8 @@ RUN yum -y update && \
     rm -rf cmake-3.12.0-Linux-x86_64 && \
     rm -rf cmake.tar.gz && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    PATH=/root/.cargo/bin:$PATH && \
+    RUST_BACKTRACE=1 && \
 
     rustc -vV && \
     cargo -V && \
