@@ -32,7 +32,8 @@ RUN yum -y update && \
 	rm -r /build && \
     mkdir -p /opt/parity/data && \
     chmod g+rwX /opt/parity/data && \
-    yum clean all -y
+    yum clean all -y && \
+    rm -rf /var/cache/yum
 
 WORKDIR /opt/parity/data
 
