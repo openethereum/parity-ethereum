@@ -19,8 +19,7 @@ RUN yum -y update && \
     cp -r cmake-3.12.0-Linux-x86_64/* /usr/ && \
     rm -rf cmake-3.12.0-Linux-x86_64 && \
     rm -rf cmake.tar.gz && \
-    curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh && \
-    sh rustup.sh --disable-sudo && \
+    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
 
     rustc -vV && \
     cargo -V && \
@@ -42,6 +41,9 @@ RUN yum -y update && \
     cp /build/parity-ethereum/target/release/parity /opt/parity/release && \
 
     sh /usr/local/lib/rustlib/uninstall.sh && \
+    rm -rf /root/.cargo && \
+    rm -rf /root/.multirust && \
+    rm -rf /root/.rustup \
     yum clean all -y && \
     rm -rf /var/cache/yum && \
     cd / && \
