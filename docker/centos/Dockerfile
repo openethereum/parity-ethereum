@@ -42,7 +42,6 @@ RUN yum -y update && \
     file /build/parity-ethereum/target/release/parity && \
     cp /build/parity-ethereum/target/release/parity /opt/parity/release && \
 
-    sh /usr/local/lib/rustlib/uninstall.sh && \
     rm -rf /root/.cargo && \
     rm -rf /root/.multirust && \
     rm -rf /root/.rustup \
