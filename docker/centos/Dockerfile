@@ -48,7 +48,7 @@ RUN yum -y update && \
     yum clean all -y && \
     rm -rf /var/cache/yum && \
     cd / && \
-    rm -rf /build
+    rm -rf build
 
 WORKDIR /opt/parity/data
 
