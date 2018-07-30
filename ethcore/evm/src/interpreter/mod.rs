@@ -595,9 +595,15 @@ impl<Cost: CostType> Interpreter<Cost> {
 				Self::copy_data_to_memory(&mut self.mem, stack, params.code.as_ref().map_or_else(|| &[] as &[u8], |c| &**c as &[u8]));
 			},
 			instructions::EXTCODECOPY => {
+				use std::ops::Deref;
+
 				let address = u256_to_address(&stack.pop_back());
-				let code = ext.extcode(&address)?.unwrap_or(Arc::new(Vec::new()));
-				Self::copy_data_to_memory(&mut self.mem, stack, &code);
+				let code = ext.extcode(&address)?;
+				Self::copy_data_to_memory(
+					&mut self.mem,
+					stack,
+					code.as_ref().map(|c| &c.deref()[..]).unwrap_or(&[])
+				);
 			},
 			instructions::GASPRICE => {
 				stack.push(params.gas_price.clone());
