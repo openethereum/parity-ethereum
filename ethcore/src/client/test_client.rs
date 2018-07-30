@@ -858,8 +858,8 @@ impl IoClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn queue_ancient_block(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
-		self.import_block(Unverified::from_rlp(b)?)
+	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(unverified)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {

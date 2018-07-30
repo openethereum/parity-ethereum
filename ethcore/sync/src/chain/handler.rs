@@ -165,9 +165,10 @@ impl SyncHandler {
 		}
 		let block = Unverified::from_rlp(r.at(0)?.as_raw().to_vec())?;
 		let hash = block.header.hash();
+		let number = block.header.number();
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, hash);
-		if block.header.number() > sync.highest_block.unwrap_or(0) {
-			sync.highest_block = Some(block.header.number());
+		if number > sync.highest_block.unwrap_or(0) {
+			sync.highest_block = Some(number);
 		}
 		let mut unknown = false;
 
@@ -176,8 +177,8 @@ impl SyncHandler {
 		}
 
 		let last_imported_number = sync.new_blocks.last_imported_block_number();
-		if last_imported_number > block.header.number() && last_imported_number - block.header.number() > MAX_NEW_BLOCK_AGE {
-			trace!(target: "sync", "Ignored ancient new block {:?}", h);
+		if last_imported_number > number && last_imported_number - number > MAX_NEW_BLOCK_AGE {
+			trace!(target: "sync", "Ignored ancient new block {:?}", hash);
 			return Err(DownloaderImportError::Invalid);
 		}
 		match io.chain().import_block(block) {
@@ -190,8 +191,8 @@ impl SyncHandler {
 			Ok(_) => {
 				// abort current download of the same block
 				sync.complete_sync(io);
-				sync.new_blocks.mark_as_known(&hash, block.header.number());
-				trace!(target: "sync", "New block queued {:?} ({})", hash, block.header.number());
+				sync.new_blocks.mark_as_known(&hash, number);
+				trace!(target: "sync", "New block queued {:?} ({})", hash, number);
 			},
 			Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(p)), _)) => {
 				unknown = true;

@@ -486,7 +486,7 @@ impl BlockDownloader {
 			let block = match Unverified::from_rlp(block) {
 				Ok(block) => block,
 				Err(_) => {
-					debug!(target: "sync", "Bad block rlp: {:?}", block);
+					debug!(target: "sync", "Bad block rlp");
 					bad = true;
 					break;
 				}
