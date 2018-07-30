@@ -65,11 +65,6 @@ pub struct Block {
 }
 
 impl Block {
-	/// Returns true if the given bytes form a valid encoding of a block in RLP.
-	pub fn is_good(b: &[u8]) -> bool {
-		Rlp::new(b).as_val::<Block>().is_ok()
-	}
-
 	/// Get the RLP-encoding of the block with the seal.
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);

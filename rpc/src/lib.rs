@@ -43,7 +43,6 @@ extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
 
 extern crate ethash;
-#[cfg_attr(test, macro_use)]
 extern crate ethcore;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
