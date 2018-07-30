@@ -35,6 +35,7 @@ use kvdb::KeyValueDB;
 use bytes::Bytes;
 use rlp::{RlpStream, Rlp};
 use rand::OsRng;
+use encoded;
 
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
@@ -220,7 +221,6 @@ impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
 	fn feed(&mut self, chunk: &[u8], engine: &EthEngine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
-		use views::BlockView;
 		use snapshot::verify_old_block;
 		use ethereum_types::U256;
 		use triehash::ordered_trie_root;
@@ -250,7 +250,7 @@ impl Rebuilder for PowRebuilder {
 			let receipts_root = ordered_trie_root(pair.at(1)?.iter().map(|r| r.as_raw()));
 
 			let block = abridged_block.to_block(parent_hash, cur_number, receipts_root)?;
-			let block_bytes = block.rlp_bytes();
+			let block_bytes = encoded::Block::new(block.rlp_bytes());
 			let is_best = cur_number == self.best_number;
 
 			if is_best {
@@ -275,16 +275,16 @@ impl Rebuilder for PowRebuilder {
 
 			// special-case the first block in each chunk.
 			if idx == 3 {
-				if self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, Some(parent_total_difficulty), is_best, false) {
+				if self.chain.insert_unordered_block(&mut batch, block_bytes, receipts, Some(parent_total_difficulty), is_best, false) {
 					self.disconnected.push((cur_number, block.header.hash()));
 				}
 			} else {
-				self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, is_best, false);
+				self.chain.insert_unordered_block(&mut batch, block_bytes, receipts, None, is_best, false);
 			}
 			self.db.write_buffered(batch);
 			self.chain.commit();
 
-			parent_hash = view!(BlockView, &block_bytes).hash();
+			parent_hash = block.header.hash();
 			cur_number += 1;
 		}
 

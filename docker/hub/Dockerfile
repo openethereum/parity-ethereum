@@ -1,4 +1,4 @@
-FROM ubuntu:14.04
+FROM ubuntu:xenial
 MAINTAINER Parity Technologies <devops@parity.io>
 WORKDIR /build
 #ENV for build TAG
@@ -23,12 +23,9 @@ RUN apt-get update && \
         libc6-dev \
         binutils \
         file \
-        openssl \
-        libssl-dev \
         libudev-dev \
         pkg-config \
-        dpkg-dev \
-        libudev-dev &&\
+        dpkg-dev &&\
 # install rustup
  curl https://sh.rustup.rs -sSf | sh -s -- -y && \
 # rustup directory
@@ -36,14 +33,13 @@ RUN apt-get update && \
 # show backtraces
  RUST_BACKTRACE=1 && \
 # build parity
-cd /build&&git clone https://github.com/paritytech/parity && \
-        cd parity && \
+cd /build&&git clone https://github.com/paritytech/parity-ethereum && \
+        cd parity-ethereum&& \
 	git pull&& \
 	git checkout $BUILD_TAG && \
         cargo build --verbose --release --features final && \
-        #ls /build/parity/target/release/parity && \
-        strip /build/parity/target/release/parity && \
- file /build/parity/target/release/parity&&mkdir -p /parity&& cp /build/parity/target/release/parity /parity&&\
+        strip /build/parity-ethereum/target/release/parity && \
+ file /build/parity-ethereum/target/release/parity&&mkdir -p /parity&& cp /build/parity-ethereum/target/release/parity /parity&&\
 #cleanup Docker image
  rm -rf /root/.cargo&&rm -rf /root/.multirust&&rm -rf /root/.rustup&&rm -rf /build&&\
  apt-get purge -y  \
@@ -52,6 +48,7 @@ cd /build&&git clone https://github.com/paritytech/parity && \
         # add-apt-repository
         software-properties-common \
         make \
+        cmake \
         curl \
         wget \
         git \

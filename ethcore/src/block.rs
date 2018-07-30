@@ -116,10 +116,6 @@ pub struct ExecutedBlock {
 	pub traces: Tracing,
 	/// Hashes of last 256 blocks.
 	pub last_hashes: Arc<LastHashes>,
-	/// Finalization flag.
-	pub is_finalized: bool,
-	/// Block metadata.
-	pub metadata: Option<Vec<u8>>,
 }
 
 impl ExecutedBlock {
@@ -138,8 +134,6 @@ impl ExecutedBlock {
 				Tracing::Disabled
 			},
 			last_hashes: last_hashes,
-			is_finalized: false,
-			metadata: None,
 		}
 	}
 
@@ -228,26 +222,6 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 	}
 }
 
-impl ::parity_machine::Finalizable for ExecutedBlock {
-	fn is_finalized(&self) -> bool {
-		self.is_finalized
-	}
-
-	fn mark_finalized(&mut self) {
-		self.is_finalized = true;
-	}
-}
-
-impl ::parity_machine::WithMetadata for ExecutedBlock {
-	fn metadata(&self) -> Option<&[u8]> {
-		self.metadata.as_ref().map(|v| v.as_ref())
-	}
-
-	fn set_metadata(&mut self, value: Option<Vec<u8>>) {
-		self.metadata = value;
-	}
-}
-
 /// Block that is ready for transactions to be added.
 ///
 /// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and
@@ -264,10 +238,7 @@ pub struct OpenBlock<'x> {
 #[derive(Clone)]
 pub struct ClosedBlock {
 	block: ExecutedBlock,
-	uncle_bytes: Bytes,
 	unclosed_state: State<StateDB>,
-	unclosed_finalization_state: bool,
-	unclosed_metadata: Option<Vec<u8>>,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.
@@ -276,7 +247,6 @@ pub struct ClosedBlock {
 #[derive(Clone)]
 pub struct LockedBlock {
 	block: ExecutedBlock,
-	uncle_bytes: Bytes,
 }
 
 /// A block that has a valid seal.
@@ -284,7 +254,6 @@ pub struct LockedBlock {
 /// The block's header has valid seal arguments. The block cannot be reversed into a `ClosedBlock` or `OpenBlock`.
 pub struct SealedBlock {
 	block: ExecutedBlock,
-	uncle_bytes: Bytes,
 }
 
 impl<'x> OpenBlock<'x> {
@@ -432,14 +401,12 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		let unclosed_state = s.block.state.clone();
-		let unclosed_metadata = s.block.metadata.clone();
-		let unclosed_finalization_state = s.block.is_finalized;
 
 		s.engine.on_close_block(&mut s.block)?;
 		s.block.state.commit()?;
 
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
-		let uncle_bytes = encode_list(&s.block.uncles).into_vec();
+		let uncle_bytes = encode_list(&s.block.uncles);
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
 		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
@@ -451,10 +418,7 @@ impl<'x> OpenBlock<'x> {
 
 		Ok(ClosedBlock {
 			block: s.block,
-			uncle_bytes,
 			unclosed_state,
-			unclosed_metadata,
-			unclosed_finalization_state,
 		})
 	}
 
@@ -468,8 +432,8 @@ impl<'x> OpenBlock<'x> {
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		}
-		let uncle_bytes = encode_list(&s.block.uncles).into_vec();
 		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &KECCAK_EMPTY_LIST_RLP {
+			let uncle_bytes = encode_list(&s.block.uncles);
 			s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		}
 		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &KECCAK_NULL_RLP {
@@ -485,7 +449,6 @@ impl<'x> OpenBlock<'x> {
 
 		Ok(LockedBlock {
 			block: s.block,
-			uncle_bytes,
 		})
 	}
 
@@ -514,7 +477,6 @@ impl ClosedBlock {
 	pub fn lock(self) -> LockedBlock {
 		LockedBlock {
 			block: self.block,
-			uncle_bytes: self.uncle_bytes,
 		}
 	}
 
@@ -523,8 +485,6 @@ impl ClosedBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
-		block.metadata = self.unclosed_metadata;
-		block.is_finalized = self.unclosed_finalization_state;
 		OpenBlock {
 			block: block,
 			engine: engine,
@@ -533,7 +493,6 @@ impl ClosedBlock {
 }
 
 impl LockedBlock {
-
 	/// Removes outcomes from receipts and updates the receipt root.
 	///
 	/// This is done after the block is enacted for historical reasons.
@@ -566,7 +525,9 @@ impl LockedBlock {
 		}
 		s.block.header.set_seal(seal);
 		s.block.header.compute_hash();
-		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
+		Ok(SealedBlock {
+			block: s.block
+		})
 	}
 
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
@@ -584,7 +545,9 @@ impl LockedBlock {
 		// TODO: passing state context to avoid engines owning it?
 		match engine.verify_local_seal(&s.block.header) {
 			Err(e) => Err((e, s)),
-			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
+			_ => Ok(SealedBlock {
+				block: s.block
+			}),
 		}
 	}
 }
@@ -601,7 +564,7 @@ impl SealedBlock {
 		let mut block_rlp = RlpStream::new_list(3);
 		block_rlp.append(&self.block.header);
 		block_rlp.append_list(&self.block.transactions);
-		block_rlp.append_raw(&self.uncle_bytes, 1);
+		block_rlp.append_list(&self.block.uncles);
 		block_rlp.out()
 	}
 }

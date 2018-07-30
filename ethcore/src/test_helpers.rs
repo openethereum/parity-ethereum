@@ -44,6 +44,7 @@ use kvdb::KeyValueDB;
 use kvdb_rocksdb;
 use tempdir::TempDir;
 use verification::queue::kind::blocks::Unverified;
+use encoded;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -355,10 +356,9 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], ExtrasInsert {
+		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block(block_order, bc.best_block_hash())), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
@@ -374,10 +374,9 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], ExtrasInsert {
+		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None)), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
