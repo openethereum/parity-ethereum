@@ -966,7 +966,7 @@ impl<B: Backend> State<B> {
 			return Ok(f(None));
 		}
 		// check global cache
-		let result = match self.db.get_cached(a, |mut acc| {
+		let result = self.db.get_cached(a, |mut acc| {
 			if let Some(ref mut account) = acc {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
 				if !Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb()) {
@@ -974,12 +974,9 @@ impl<B: Backend> State<B> {
 				}
 			}
 			Ok(f(acc.map(|a| &*a)))
-		}) {
-			Some(r) => Some(r?),
-			None => None,
-		};
+		});
 		match result {
-			Some(r) => Ok(r),
+			Some(r) => Ok(r?),
 			None => {
 				// first check if it is not in database for sure
 				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
