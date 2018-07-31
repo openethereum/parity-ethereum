@@ -129,7 +129,7 @@ impl Memory for Vec<u8> {
 				self.truncate(size);
 				self.shrink_to_fit();
 			} else {
-				self = self[offset..size].to_vec();
+				self = self[offset..(offset + size)].to_vec();
 				offset = 0;
 			}
 		}
