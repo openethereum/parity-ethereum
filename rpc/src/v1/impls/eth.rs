@@ -33,7 +33,6 @@ use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
-use ethcore::snapshot::RestorationStatus;
 use ethcore::encoded;
 use sync::{SyncProvider};
 use miner::external::ExternalMinerService;
@@ -480,6 +479,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn syncing(&self) -> Result<SyncStatus> {
+		use ethcore::snapshot::RestorationStatus;
+
 		let status = self.sync.status();
 		let client = &self.client;
 		let snapshot_status = self.snapshot.status();
@@ -745,12 +746,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		{
 			let status = self.sync.status();
 			let client = &self.client;
-			let warping = match self.snapshot.status() {
-				RestorationStatus::Ongoing { .. } => true,
-				_ => false,
-			};
-
-			if warping || is_major_importing(Some(status.state), client.queue_info()) || self.client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+			if is_major_importing(Some(status.state), client.queue_info()) || self.client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
 				trace!(target: "miner", "Syncing. Cannot give any work.");
 				return Err(errors::no_work());
 			}
