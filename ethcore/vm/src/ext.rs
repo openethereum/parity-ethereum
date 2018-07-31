@@ -106,10 +106,13 @@ pub trait Ext {
 	) -> MessageCallResult;
 
 	/// Returns code at given address
-	fn extcode(&self, address: &Address) -> Result<Arc<Bytes>>;
+	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>>;
+
+	/// Returns code hash at given address
+	fn extcodehash(&self, address: &Address) -> Result<Option<H256>>;
 
 	/// Returns code size at given address
-	fn extcodesize(&self, address: &Address) -> Result<usize>;
+	fn extcodesize(&self, address: &Address) -> Result<Option<usize>>;
 
 	/// Creates log entry with given topics and data
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> Result<()>;

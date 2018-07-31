@@ -24,6 +24,7 @@ use {
 	ReturnData, Ext, ContractCreateResult, MessageCallResult,
 	CreateContractAddress, Result, GasLeft,
 };
+use hash::keccak;
 
 pub struct FakeLogEntry {
 	pub topics: Vec<H256>,
@@ -168,12 +169,16 @@ impl Ext for FakeExt {
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> Result<Arc<Bytes>> {
-		Ok(self.codes.get(address).unwrap_or(&Arc::new(Bytes::new())).clone())
+	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>> {
+		Ok(self.codes.get(address).cloned())
 	}
 
-	fn extcodesize(&self, address: &Address) -> Result<usize> {
-		Ok(self.codes.get(address).map_or(0, |c| c.len()))
+	fn extcodesize(&self, address: &Address) -> Result<Option<usize>> {
+		Ok(self.codes.get(address).map(|c| c.len()))
+	}
+
+	fn extcodehash(&self, address: &Address) -> Result<Option<H256>> {
+		Ok(self.codes.get(address).map(|c| keccak(c.as_ref())))
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> Result<()> {

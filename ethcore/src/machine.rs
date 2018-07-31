@@ -140,7 +140,7 @@ impl EthereumMachine {
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
 			code: state.code(&contract_address)?,
-			code_hash: Some(state.code_hash(&contract_address)?),
+			code_hash: state.code_hash(&contract_address)?,
 			data: data,
 			call_type: CallType::Call,
 			params_type: ParamsType::Separate,

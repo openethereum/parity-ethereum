@@ -26,6 +26,8 @@ pub struct Schedule {
 	pub have_create2: bool,
 	/// Does it have a REVERT instruction
 	pub have_revert: bool,
+	/// Does it have a EXTCODEHASH instruction
+	pub have_extcodehash: bool,
 	/// VM stack limit
 	pub stack_limit: usize,
 	/// Max number of nested calls/creates
@@ -92,6 +94,8 @@ pub struct Schedule {
 	pub extcodecopy_base_gas: usize,
 	/// Price of BALANCE
 	pub balance_gas: usize,
+	/// Price of EXTCODEHASH
+	pub extcodehash_gas: usize,
 	/// Price of SUICIDE
 	pub suicide_gas: usize,
 	/// Amount of additional gas to pay when SUICIDE credits a non-existant account
@@ -197,6 +201,7 @@ impl Schedule {
 			have_revert: false,
 			have_return_data: false,
 			have_bitwise_shifting: false,
+			have_extcodehash: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -229,6 +234,7 @@ impl Schedule {
 			copy_gas: 3,
 			extcodesize_gas: 700,
 			extcodecopy_base_gas: 700,
+			extcodehash_gas: 400,
 			balance_gas: 400,
 			suicide_gas: 5000,
 			suicide_to_new_account_cost: 25000,
@@ -268,6 +274,7 @@ impl Schedule {
 			have_revert: false,
 			have_return_data: false,
 			have_bitwise_shifting: false,
+			have_extcodehash: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -300,6 +307,7 @@ impl Schedule {
 			copy_gas: 3,
 			extcodesize_gas: 20,
 			extcodecopy_base_gas: 20,
+			extcodehash_gas: 400,
 			balance_gas: 20,
 			suicide_gas: 0,
 			suicide_to_new_account_cost: 0,
