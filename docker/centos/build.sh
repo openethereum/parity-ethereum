@@ -17,7 +17,7 @@ mkdir docker/centos/parity
 docker cp extract:/build/parity-ethereum/target/release/parity docker/centos/parity
 
 echo Building $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG
-docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG docker/centos/Dockerfile
+docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG . -f docker/centos/Dockerfile
 
 echo Cleaning up ...
 rm -rf docker/centos/parity
