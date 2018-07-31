@@ -1339,7 +1339,7 @@ impl BlockInfo for Client {
 	}
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
-		self.state_at(id).and_then(|s| s.code_hash(address).ok())
+		self.state_at(id).and_then(|s| s.code_hash(address).unwrap_or(None))
 	}
 }
 

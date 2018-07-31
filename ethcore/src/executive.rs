@@ -323,7 +323,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address)?,
-					code_hash: Some(self.state.code_hash(address)?),
+					code_hash: self.state.code_hash(address)?,
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 					params_type: vm::ParamsType::Separate,
