@@ -27,12 +27,12 @@ use client::header_chain::PendingChanges;
 use ethcore::engines::EpochTransition;
 use ethcore::ids::BlockId;
 use ethcore::header::{Header, BlockNumber};
+use ethcore::encoded;
 use ethcore::snapshot::RestorationTargetChain;
 use ethereum_types::{H256, U256};
 use parking_lot::RwLock;
 use kvdb::DBTransaction;
 use ethcore::receipt::Receipt;
-use ethcore::views::BlockView;
 
 /// Wrapper for `HeaderChain` along with pending changes.
 pub struct LightChain {
@@ -95,16 +95,14 @@ impl RestorationTargetChain for LightChain {
 	fn insert_unordered_block(
 		&self,
 		batch: &mut DBTransaction,
-		bytes: &[u8],
+		block: encoded::Block,
 		_receipts: Vec<Receipt>,
 		parent_td: Option<U256>,
 		_is_best: bool,
 		_is_ancient: bool,
 	) -> bool {
-		let block = view!(BlockView, bytes);
-		let header = block.header();
-		let td = parent_td.map(|pd| pd + *header.difficulty());
-		let result = self.chain.insert_inner(batch, header, td, None, true);
+		let td = parent_td.map(|pd| pd + block.header().difficulty());
+		let result = self.chain.insert_inner(batch, block.decode_header(), td, None, true);
 		let pending = result.expect("we either supply the total difficulty, or the parent is present; qed");
 		*self.pending.write() = Some(pending);
 		parent_td.is_some()

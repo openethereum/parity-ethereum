@@ -21,9 +21,10 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use types::{BlockNumber, receipt::Receipt};
-use header::Header;
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
+use encoded;
 use engines::{EthEngine, EpochTransition};
+use header::Header;
 use snapshot::{Error, ManifestData};
 
 use ethereum_types::{H256, U256};
@@ -82,8 +83,10 @@ pub trait RestorationTargetChain: Send {
 	///
 	/// The block the transition occurred at should have already been inserted into the chain.
 	fn insert_epoch_transition(
-		&self, batch: &mut DBTransaction,
-		header: Header, transition: EpochTransition
+		&self,
+		batch: &mut DBTransaction,
+		header: Header,
+		transition: EpochTransition,
 	);
 
 	/// Inserts a verified, known block from the canonical chain.
@@ -96,8 +99,13 @@ pub trait RestorationTargetChain: Send {
 	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
 	/// Returns true if the block is disconnected.
 	fn insert_unordered_block(
-		&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>,
-		parent_td: Option<U256>, is_best: bool, is_ancient: bool
+		&self,
+		batch: &mut DBTransaction,
+		block: encoded::Block,
+		receipts: Vec<Receipt>,
+		parent_td: Option<U256>,
+		is_best: bool,
+		is_ancient: bool,
 	) -> bool;
 
 	/// Apply pending insertion updates.
@@ -177,10 +185,15 @@ impl RestorationTargetChain for BlockChain {
 	}
 
 	fn insert_unordered_block(
-		&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>,
-		parent_td: Option<U256>, is_best: bool, is_ancient: bool
+		&self,
+		batch: &mut DBTransaction,
+		block: encoded::Block,
+		receipts: Vec<Receipt>,
+		parent_td: Option<U256>,
+		is_best: bool,
+		is_ancient: bool,
 	) -> bool {
-		BlockChain::insert_unordered_block(self, batch, bytes, receipts, parent_td, is_best, is_ancient)
+		BlockChain::insert_unordered_block(self, batch, block, receipts, parent_td, is_best, is_ancient)
 	}
 
 	fn commit(&self) {
