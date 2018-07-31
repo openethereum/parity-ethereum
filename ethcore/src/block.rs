@@ -392,9 +392,18 @@ impl<'x> OpenBlock<'x> {
 
 	/// Turn this into a `ClosedBlock`.
 	pub fn close(self) -> Result<ClosedBlock, Error> {
-		let mut s = self;
+		let unclosed_state = self.block.state.clone();
+		let locked = self.close_and_lock()?;
 
-		let unclosed_state = s.block.state.clone();
+		Ok(ClosedBlock {
+			block: locked.block,
+			unclosed_state,
+		})
+	}
+
+	/// Turn this into a `LockedBlock`.
+	pub fn close_and_lock(self) -> Result<LockedBlock, Error> {
+		let mut s = self;
 
 		s.engine.on_close_block(&mut s.block)?;
 		s.block.state.commit()?;
@@ -410,17 +419,8 @@ impl<'x> OpenBlock<'x> {
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
-		Ok(ClosedBlock {
-			block: s.block,
-			unclosed_state,
-		})
-	}
-
-	/// Turn this into a `LockedBlock`.
-	pub fn close_and_lock(self) -> Result<LockedBlock, Error> {
-		let closed = self.close()?;
 		Ok(LockedBlock {
-			block: closed.block,
+			block: s.block,
 		})
 	}
 
