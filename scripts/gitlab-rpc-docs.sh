@@ -6,7 +6,6 @@ clone_repos() {
 }
 
 build_docs() {
-    cp parity-ethereum jsonrpc/.parity
     npm install
     npm run build:markdown
 }
@@ -36,6 +35,7 @@ upload_files() {
 
 setup_git
 clone_repos
+cp parity jsonrpc/.parity
 cd jsonrpc
 build_docs
 cd ..
