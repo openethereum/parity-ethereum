@@ -574,7 +574,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::EXTCODEHASH => {
 				let address = u256_to_address(&stack.pop_back());
-				let hash = ext.extcodehash(&address)?.unwrap_or_else(H256::default);
+				let hash = ext.extcodehash(&address)?.unwrap_or_else(H256::zero);
 				stack.push(U256::from(hash));
 			},
 			instructions::CALLDATACOPY => {
@@ -595,14 +595,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 				Self::copy_data_to_memory(&mut self.mem, stack, params.code.as_ref().map_or_else(|| &[] as &[u8], |c| &**c as &[u8]));
 			},
 			instructions::EXTCODECOPY => {
-				use std::ops::Deref;
-
 				let address = u256_to_address(&stack.pop_back());
 				let code = ext.extcode(&address)?;
 				Self::copy_data_to_memory(
 					&mut self.mem,
 					stack,
-					code.as_ref().map(|c| &c.deref()[..]).unwrap_or(&[])
+					code.as_ref().map(|c| &(*c)[..]).unwrap_or(&[])
 				);
 			},
 			instructions::GASPRICE => {
