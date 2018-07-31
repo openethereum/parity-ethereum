@@ -23,6 +23,6 @@ echo Cleaning up ...
 rm -rf docker/centos/parity
 docker rm -f extract
 
+echo Echoing Parity version:
 docker run $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG --version
-
 echo Done.
