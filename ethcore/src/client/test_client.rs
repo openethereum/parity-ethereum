@@ -758,12 +758,11 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		if let Some(receipt) = self.block_receipts(hash) {
+		self.block_receipts(hash).map(|receipt| {
 			let mut rlp = RlpStream::new();
 			rlp.append(&receipt);
-			return Some(rlp.out());
-		}
-		None
+			rlp.out()
+		})
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
