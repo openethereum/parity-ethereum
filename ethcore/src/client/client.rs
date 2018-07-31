@@ -34,7 +34,6 @@ use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
-use client::Error as ClientError;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
 	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
@@ -73,16 +72,13 @@ use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTrans
 use types::filter::Filter;
 use types::ancestry_action::AncestryAction;
 use verification;
-use verification::{PreverifiedBlock, Verifier};
-use verification::queue::BlockQueue;
-use views::BlockView;
-use parity_machine::{Finalizable, WithMetadata};
+use verification::{PreverifiedBlock, Verifier, BlockQueue};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
-pub use verification::queue::QueueInfo as BlockQueueInfo;
+pub use verification::QueueInfo as BlockQueueInfo;
 
 use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
@@ -200,7 +196,7 @@ pub struct Client {
 
 	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
 	liveness: AtomicBool,
-	io_channel: Mutex<IoChannel<ClientIoMessage>>,
+	io_channel: RwLock<IoChannel<ClientIoMessage>>,
 
 	/// List of actors to be notified on certain chain events
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
@@ -212,7 +208,7 @@ pub struct Client {
 	/// Queued ancient blocks, make sure they are imported in order.
 	queued_ancient_blocks: Arc<RwLock<(
 		HashSet<H256>,
-		VecDeque<(Header, Bytes, Bytes)>
+		VecDeque<(Header, encoded::Block, Bytes)>
 	)>>,
 	ancient_blocks_import_lock: Arc<Mutex<()>>,
 	/// Consensus messages import queue
@@ -290,7 +286,7 @@ impl Importer {
 					continue;
 				}
 
-				if let Ok(closed_block) = self.check_and_close_block(block, client) {
+				if let Ok(closed_block) = self.check_and_lock_block(block, client) {
 					if self.engine.is_proposal(&header) {
 						self.block_queue.mark_as_good(&[hash]);
 						proposed_blocks.push(bytes);
@@ -299,7 +295,7 @@ impl Importer {
 
 						let transactions_len = closed_block.transactions().len();
 
-						let route = self.commit_block(closed_block, &header, &bytes, client);
+						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
 						import_results.push(route);
 
 						client.report.write().accrue_block(&header, transactions_len);
@@ -345,7 +341,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_close_block(&self, block: PreverifiedBlock, client: &Client) -> Result<LockedBlock, ()> {
+	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> Result<LockedBlock, ()> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -372,8 +368,7 @@ impl Importer {
 			&parent,
 			engine,
 			Some(verification::FullFamilyParams {
-				block_bytes: &block.bytes,
-				transactions: &block.transactions,
+				block: &block,
 				block_provider: &**chain,
 				client
 			}),
@@ -433,9 +428,8 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, header: &Header, block_bytes: &[u8], receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
+	fn import_old_block(&self, header: &Header, block: encoded::Block, receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<(), ::error::Error> {
 		let receipts = ::rlp::decode_list(receipts_bytes);
-		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
 
 		{
@@ -446,45 +440,41 @@ impl Importer {
 
 			// Commit results
 			let mut batch = DBTransaction::new();
-			chain.insert_unordered_block(&mut batch, block_bytes, receipts, None, false, true);
+			chain.insert_unordered_block(&mut batch, block, receipts, None, false, true);
 			// Final commit to the DB
 			db.write_buffered(batch);
 			chain.commit();
 		}
 		db.flush().expect("DB flush failed.");
-		Ok(hash)
+		Ok(())
 	}
 
 	// NOTE: the header of the block passed here is not necessarily sealed, as
 	// it is for reconstructing the state transition.
 	//
 	// The header passed is from the original block data and is sealed.
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: &[u8], client: &Client) -> ImportRoute where B: IsBlock + Drain {
+	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, client: &Client) -> ImportRoute where B: Drain {
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
 		let chain = client.chain.read();
+		let is_finalized = false;
 
 		// Commit results
-		let receipts = block.receipts().to_owned();
-		let traces = block.traces().clone().drain();
-
-		assert_eq!(header.hash(), view!(BlockView, block_data).header_view().hash());
-
-		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
+		let block = block.drain();
+		debug_assert_eq!(header.hash(), block_data.header_view().hash());
 
 		let mut batch = DBTransaction::new();
 
-		let ancestry_actions = self.engine.ancestry_actions(block.block(), &mut chain.ancestry_with_metadata_iter(*parent));
+		let ancestry_actions = self.engine.ancestry_actions(&block, &mut chain.ancestry_with_metadata_iter(*parent));
 
+		let receipts = block.receipts;
+		let traces = block.traces.drain();
 		let best_hash = chain.best_block_hash();
-		let metadata = block.block().metadata().map(Into::into);
-		let is_finalized = block.block().is_finalized();
 
 		let new = ExtendedHeader {
 			header: header.clone(),
-			is_finalized: is_finalized,
-			metadata: metadata,
+			is_finalized,
 			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
 		};
 
@@ -500,8 +490,6 @@ impl Importer {
 			ExtendedHeader {
 				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
 				is_finalized: details.is_finalized,
-				metadata: details.metadata,
-
 				header: header,
 			}
 		};
@@ -516,13 +504,13 @@ impl Importer {
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		let mut state = block.drain();
+		let mut state = block.state.drop().1;
 
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
 		self.check_epoch_end_signal(
 			&header,
-			block_data,
+			block_data.raw(),
 			&receipts,
 			&state,
 			&chain,
@@ -539,8 +527,7 @@ impl Importer {
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
-			is_finalized: is_finalized,
-			metadata: new.metadata,
+			is_finalized,
 		});
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {
@@ -621,7 +608,9 @@ impl Importer {
 							).expect("state known to be available for just-imported block; qed");
 
 							let options = TransactOptions::with_no_tracing().dont_check_nonce();
-							let res = Executive::new(&mut state, &env_info, self.engine.machine())
+							let machine = self.engine.machine();
+							let schedule = machine.schedule(env_info.number);
+							let res = Executive::new(&mut state, &env_info, &machine, &schedule)
 								.transact(&transaction, options);
 
 							let res = match res {
@@ -761,7 +750,7 @@ impl Client {
 			db: RwLock::new(db.clone()),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
-			io_channel: Mutex::new(message_channel),
+			io_channel: RwLock::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: IoChannelQueue::new(config.transaction_verification_queue_size),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
@@ -943,7 +932,7 @@ impl Client {
 	}
 
 	// prune ancient states until below the memory limit or only the minimum amount remain.
-	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ClientError> {
+	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ::error::Error> {
 		let number = match state_db.journal_db().latest_era() {
 			Some(n) => n,
 			None => return Ok(()),
@@ -1005,7 +994,7 @@ impl Client {
 
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
-		*self.io_channel.lock() = io_channel;
+		*self.io_channel.write() = io_channel;
 	}
 
 	/// Get a copy of the best block's state.
@@ -1247,8 +1236,9 @@ impl Client {
 				.dont_check_nonce()
 				.save_output_from_contract();
 			let original_state = if state_diff { Some(state.clone()) } else { None };
+			let schedule = machine.schedule(env_info.number);
 
-			let mut ret = Executive::new(state, env_info, machine).transact_virtual(transaction, options)?;
+			let mut ret = Executive::new(state, env_info, &machine, &schedule).transact_virtual(transaction, options)?;
 
 			if let Some(original) = original_state {
 				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
@@ -1341,7 +1331,7 @@ impl ChainInfo for Client {
 }
 
 impl BlockInfo for Client {
-	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		let chain = self.chain.read();
 
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
@@ -1358,7 +1348,7 @@ impl BlockInfo for Client {
 	}
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
-		self.state_at(id).and_then(|s| s.code_hash(address).ok())
+		self.state_at(id).and_then(|s| s.code_hash(address).unwrap_or(None))
 	}
 }
 
@@ -1501,7 +1491,9 @@ impl Call for Client {
 			let tx = tx.fake_sign(sender);
 
 			let mut clone = state.clone();
-			Ok(Executive::new(&mut clone, &env_info, self.engine.machine())
+			let machine = self.engine.machine();
+			let schedule = machine.schedule(env_info.number);
+			Ok(Executive::new(&mut clone, &env_info, &machine, &schedule)
 				.transact_virtual(&tx, options())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
@@ -2025,7 +2017,7 @@ impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		trace_time!("queue_transactions");
 		let len = transactions.len();
-		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |client| {
+		self.queue_transactions.queue(&self.io_channel.read(), len, move |client| {
 			trace_time!("import_queued_transactions");
 
 			let txs: Vec<UnverifiedTransaction> = transactions
@@ -2069,12 +2061,12 @@ impl IoClient for Client {
 		{
 			let mut queued = self.queued_ancient_blocks.write();
 			queued.0.insert(hash);
-			queued.1.push_back((header, block_bytes, receipts_bytes));
+			queued.1.push_back((header, encoded::Block::new(block_bytes), receipts_bytes));
 		}
 
 		let queued = self.queued_ancient_blocks.clone();
 		let lock = self.ancient_blocks_import_lock.clone();
-		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
+		match self.queue_ancient_blocks.queue(&self.io_channel.read(), 1, move |client| {
 			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
 			// We use separate lock, cause we don't want to block queueing.
@@ -2085,7 +2077,7 @@ impl IoClient for Client {
 					let hash = header.hash();
 					let result = client.importer.import_old_block(
 						&header,
-						&block_bytes,
+						block_bytes,
 						&receipts_bytes,
 						&**client.db.read().key_value(),
 						&*client.chain.read(),
@@ -2106,7 +2098,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), 1, move |client| {
+		match self.queue_consensus_message.queue(&self.io_channel.read(), 1, move |client| {
 			if let Err(e) = client.engine().handle_message(&message) {
 				debug!(target: "poa", "Invalid message received: {}", e);
 			}
@@ -2150,7 +2142,7 @@ impl ReopenBlock for Client {
 }
 
 impl PrepareOpenBlock for Client {
-	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> Result<OpenBlock, EthcoreError> {
 		let engine = &*self.engine;
 		let chain = self.chain.read();
 		let best_header = chain.best_block_header();
@@ -2169,7 +2161,7 @@ impl PrepareOpenBlock for Client {
 			extra_data,
 			is_epoch_begin,
 			&mut chain.ancestry_with_metadata_iter(best_header.hash()),
-		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
+		)?;
 
 		// Add uncles
 		chain
@@ -2185,7 +2177,7 @@ impl PrepareOpenBlock for Client {
 												qed");
 			});
 
-		open_block
+		Ok(open_block)
 	}
 }
 
@@ -2210,13 +2202,20 @@ impl ImportSealedBlock for Client {
 			let block_data = block.rlp_bytes();
 			let header = block.header().clone();
 
-			let route = self.importer.commit_block(block, &header, &block_data, self);
+			let route = self.importer.commit_block(block, &header, encoded::Block::new(block_data), self);
 			trace!(target: "client", "Imported sealed block #{} ({})", number, h);
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
 		};
 		let route = ChainRoute::from([route].as_ref());
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), self.engine.seals_internally().is_some());
+		self.importer.miner.chain_new_blocks(
+			self,
+			&[h.clone()],
+			&[],
+			route.enacted(),
+			route.retracted(),
+			self.engine.seals_internally().is_some(),
+		);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
@@ -2391,6 +2390,7 @@ mod tests {
 		use std::sync::atomic::{AtomicBool, Ordering};
 		use kvdb::DBTransaction;
 		use blockchain::ExtrasInsert;
+		use encoded;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;
@@ -2403,10 +2403,9 @@ mod tests {
 			let another_client = client.clone();
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
-				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new(), ExtrasInsert {
+				another_client.chain.read().insert_block(&mut batch, encoded::Block::new(new_block), Vec::new(), ExtrasInsert {
 					fork_choice: ::engines::ForkChoice::New,
 					is_finalized: false,
-					metadata: None,
 				});
 				go_thread.store(true, Ordering::SeqCst);
 			});
@@ -2542,7 +2541,7 @@ impl IoChannelQueue {
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
+	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);

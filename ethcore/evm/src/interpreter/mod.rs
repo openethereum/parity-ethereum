@@ -230,8 +230,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			(instruction == instructions::STATICCALL && !schedule.have_static_call) ||
 			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
 			(instruction == instructions::REVERT && !schedule.have_revert) ||
-			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) {
-
+			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) ||
+			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash)
+		{
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction as u8
 			});
@@ -568,8 +569,13 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::EXTCODESIZE => {
 				let address = u256_to_address(&stack.pop_back());
-				let len = ext.extcodesize(&address)?;
+				let len = ext.extcodesize(&address)?.unwrap_or(0);
 				stack.push(U256::from(len));
+			},
+			instructions::EXTCODEHASH => {
+				let address = u256_to_address(&stack.pop_back());
+				let hash = ext.extcodehash(&address)?.unwrap_or_else(H256::zero);
+				stack.push(U256::from(hash));
 			},
 			instructions::CALLDATACOPY => {
 				Self::copy_data_to_memory(&mut self.mem, stack, params.data.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
@@ -591,7 +597,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
 				let code = ext.extcode(&address)?;
-				Self::copy_data_to_memory(&mut self.mem, stack, &code);
+				Self::copy_data_to_memory(
+					&mut self.mem,
+					stack,
+					code.as_ref().map(|c| &(*c)[..]).unwrap_or(&[])
+				);
 			},
 			instructions::GASPRICE => {
 				stack.push(params.gas_price.clone());

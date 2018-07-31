@@ -189,8 +189,8 @@ impl MinerService for TestMinerService {
 
 	fn work_package<C: PrepareOpenBlock>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> {
 		let params = self.authoring_params();
-		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data);
-		let closed = open_block.close();
+		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data).unwrap();
+		let closed = open_block.close().unwrap();
 		let header = closed.header();
 
 		Some((header.hash(), header.number(), header.timestamp(), *header.difficulty()))
@@ -264,6 +264,7 @@ impl MinerService for TestMinerService {
 				minimal_gas_price: 0x1312d00.into(),
 				block_gas_limit: 5_000_000.into(),
 				tx_gas_limit: 5_000_000.into(),
+				no_early_reject: false,
 			},
 			status: txpool::LightStatus {
 				mem_usage: 1_000,

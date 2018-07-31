@@ -37,6 +37,7 @@ fn new_queue() -> TransactionQueue {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	)
@@ -54,6 +55,7 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -105,6 +107,7 @@ fn should_never_drop_local_transactions_from_different_senders() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -116,12 +119,11 @@ fn should_never_drop_local_transactions_from_different_senders() {
 	let r1 = txq.import(TestClient::new(), vec![tx1].local());
 	let r2 = txq.import(TestClient::new(), vec![tx2].local());
 	assert_eq!(r1, vec![Ok(())]);
-	// max-per-sender is reached, that's ok.
-	assert_eq!(r2, vec![Err(transaction::Error::LimitReached)]);
-	assert_eq!(txq.status().status.transaction_count, 1);
+	assert_eq!(r2, vec![Ok(())]);
+	assert_eq!(txq.status().status.transaction_count, 2);
 
 	// then
-	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 1.into()));
+	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 2.into()));
 
 	// when
 	let tx1 = Tx::gas_price(2).signed();
@@ -134,8 +136,8 @@ fn should_never_drop_local_transactions_from_different_senders() {
 	// then
 	assert_eq!(res, vec![Ok(()), Ok(())]);
 	assert_eq!(res2, vec![Ok(()), Ok(())]);
-	assert_eq!(txq.status().status.transaction_count, 5);
-	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 1.into()));
+	assert_eq!(txq.status().status.transaction_count, 6);
+	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 2.into()));
 }
 
 #[test]
@@ -479,6 +481,7 @@ fn should_prefer_current_transactions_when_hitting_the_limit() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -891,6 +894,7 @@ fn should_include_local_transaction_to_a_full_pool() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -922,6 +926,7 @@ fn should_avoid_verifying_transaction_already_in_pool() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -956,6 +961,7 @@ fn should_avoid_reverifying_recently_rejected_transactions() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -997,6 +1003,7 @@ fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
 			minimal_gas_price: 1.into(),
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: false,
 		},
 		PrioritizationStrategy::GasPriceOnly,
 	);
@@ -1020,4 +1027,43 @@ fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
 
 	// then
 	assert_eq!(txq.status().status.transaction_count, 1);
+}
+
+
+#[test]
+fn should_not_reject_early_in_case_gas_price_is_less_than_min_effective() {
+	// given
+	let txq = TransactionQueue::new(
+		txpool::Options {
+			max_count: 1,
+			max_per_sender: 2,
+			max_mem_usage: 50
+		},
+		verifier::Options {
+			minimal_gas_price: 1.into(),
+			block_gas_limit: 1_000_000.into(),
+			tx_gas_limit: 1_000_000.into(),
+			no_early_reject: true,
+		},
+		PrioritizationStrategy::GasPriceOnly,
+	);
+	// when
+	let tx1 = Tx::gas_price(2).signed();
+	let client = TestClient::new().with_local(&tx1.sender());
+	let res = txq.import(client.clone(), vec![tx1.unverified()]);
+
+	// then
+	assert_eq!(res, vec![Ok(())]);
+	assert_eq!(txq.status().status.transaction_count, 1);
+	assert!(client.was_verification_triggered());
+
+	// when
+	let tx1 = Tx::gas_price(1).signed();
+	let client = TestClient::new().with_local(&tx1.sender());
+	let res = txq.import(client.clone(), vec![tx1.unverified()]);
+
+	// then
+	assert_eq!(res, vec![Ok(())]);
+	assert_eq!(txq.status().status.transaction_count, 2);
+	assert!(client.was_verification_triggered());
 }

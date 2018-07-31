@@ -20,7 +20,6 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 pub use parity_rpc::signer::SignerService;
-pub use parity_rpc::dapps::LocalDapp;
 
 use ethcore_service::PrivateTxService;
 use ethcore::account_provider::AccountProvider;
@@ -35,7 +34,6 @@ use jsonrpc_core::{self as core, MetaIoHandler};
 use light::client::LightChainClient;
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use miner::external::ExternalMiner;
-use node_health::NodeHealth;
 use parity_reactor;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
@@ -225,7 +223,6 @@ pub struct FullDependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub net_service: Arc<ManageNetwork>,
 	pub updater: Arc<Updater>,
-	pub health: NodeHealth,
 	pub geth_compatibility: bool,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
@@ -330,7 +327,6 @@ impl FullDependencies {
 						self.sync.clone(),
 						self.updater.clone(),
 						self.net_service.clone(),
-						self.health.clone(),
 						self.secret_store.clone(),
 						self.logger.clone(),
 						self.settings.clone(),
@@ -431,7 +427,6 @@ pub struct LightDependencies<T> {
 	pub secret_store: Arc<AccountProvider>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
-	pub health: NodeHealth,
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
@@ -545,7 +540,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.secret_store.clone(),
 						self.logger.clone(),
 						self.settings.clone(),
-						self.health.clone(),
 						signer,
 						self.ws_address.clone(),
 						self.gas_price_percentile,

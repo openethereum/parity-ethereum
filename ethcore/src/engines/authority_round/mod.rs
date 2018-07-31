@@ -1149,9 +1149,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
 		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
-		if header.number() >= self.empty_steps_transition {
-			let validate_empty_steps = || -> Result<(), Error> {
+		let empty_steps_len = if header.number() >= self.empty_steps_transition {
+			let validate_empty_steps = || -> Result<usize, Error> {
 				let empty_steps = header_empty_steps(header)?;
+				let empty_steps_len = empty_steps.len();
 				for empty_step in empty_steps {
 					if empty_step.step <= parent_step || empty_step.step >= step {
 						Err(EngineError::InsufficientProof(
@@ -1168,16 +1169,27 @@ impl Engine<EthereumMachine> for AuthorityRound {
 							format!("invalid empty step proof: {:?}", empty_step)))?;
 					}
 				}
-				Ok(())
+				Ok(empty_steps_len)
 			};
 
-			if let err @ Err(_) = validate_empty_steps() {
-				self.validators.report_benign(header.author(), set_number, header.number());
-				return err;
+			match validate_empty_steps() {
+				Ok(len) => len,
+				Err(err) => {
+					self.validators.report_benign(header.author(), set_number, header.number());
+					return Err(err);
+				},
 			}
-
 		} else {
 			self.report_skipped(header, step, parent_step, &*validators, set_number);
+
+			0
+		};
+
+		if header.number() >= self.validate_score_transition {
+			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
+			if header.difficulty() != &expected_difficulty {
+				return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })));
+			}
 		}
 
 		Ok(())
@@ -1403,7 +1415,7 @@ mod tests {
 	use rlp::encode;
 	use block::*;
 	use test_helpers::{
-		generate_dummy_client_with_spec_and_accounts, get_temp_state_db, generate_dummy_client,
+		generate_dummy_client_with_spec_and_accounts, get_temp_state_db,
 		TestNotify
 	};
 	use account_provider::AccountProvider;
@@ -1412,7 +1424,7 @@ mod tests {
 	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::TestSet;
 	use error::{Error, ErrorKind};
-	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep};
+	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
 
 	#[test]
 	fn has_valid_metadata() {
@@ -1451,9 +1463,9 @@ mod tests {
 		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b1 = b1.close_and_lock();
+		let b1 = b1.close_and_lock().unwrap();
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b2 = b2.close_and_lock();
+		let b2 = b2.close_and_lock().unwrap();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b1.block(), &genesis_header) {
@@ -1485,9 +1497,9 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b1 = b1.close_and_lock();
+		let b1 = b1.close_and_lock().unwrap();
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b2 = b2.close_and_lock();
+		let b2 = b2.close_and_lock().unwrap();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
 		match engine.generate_seal(b1.block(), &genesis_header) {
@@ -1518,12 +1530,15 @@ mod tests {
 
 		let engine = Spec::new_test_round().engine;
 
-		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(2), U256::zero()));
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![encode(&2usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_err());
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
@@ -1544,9 +1559,10 @@ mod tests {
 
 		let engine = Spec::new_test_round().engine;
 
-		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
@@ -1573,8 +1589,10 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_difficulty(calculate_score(U256::from(4), U256::from(5), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		header.set_seal(vec![encode(&3usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_difficulty(calculate_score(U256::from(4), U256::from(3), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_err());
 	}
 
@@ -1608,6 +1626,7 @@ mod tests {
 		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
+		header.set_difficulty(calculate_score(U256::from(1), U256::from(3), U256::zero()));
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
 
@@ -1745,15 +1764,16 @@ mod tests {
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b1 = b1.close_and_lock();
 
-		let client = generate_dummy_client(0);
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
+
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b1 = b1.close_and_lock().unwrap();
 
 		// the block is empty so we don't seal and instead broadcast an empty step message
 		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
@@ -1779,9 +1799,14 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
+		let notify = Arc::new(TestNotify::default());
+		client.add_notify(notify.clone());
+		engine.register_client(Arc::downgrade(&client) as _);
+
 		// step 2
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b1 = b1.close_and_lock();
+		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -1798,7 +1823,7 @@ mod tests {
 			value: U256::from(1),
 			data: vec![],
 		}.fake_sign(addr2), None).unwrap();
-		let b2 = b2.close_and_lock();
+		let b2 = b2.close_and_lock().unwrap();
 
 		// we will now seal a block with 1tx and include the accumulated empty step message
 		engine.set_signer(tap.clone(), addr2, "0".into());
@@ -1827,9 +1852,14 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
+		let notify = Arc::new(TestNotify::default());
+		client.add_notify(notify.clone());
+		engine.register_client(Arc::downgrade(&client) as _);
+
 		// step 2
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b1 = b1.close_and_lock();
+		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -1838,7 +1868,7 @@ mod tests {
 
 		// step 3
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b2 = b2.close_and_lock();
+		let b2 = b2.close_and_lock().unwrap();
 		engine.set_signer(tap.clone(), addr2, "0".into());
 		assert_eq!(engine.generate_seal(b2.block(), &genesis_header), Seal::None);
 		engine.step();
@@ -1846,7 +1876,7 @@ mod tests {
 		// step 4
 		// the spec sets the maximum_empty_steps to 2 so we will now seal an empty block and include the empty step messages
 		let b3 = OpenBlock::new(engine, Default::default(), false, db3, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b3 = b3.close_and_lock();
+		let b3 = b3.close_and_lock().unwrap();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b3.block(), &genesis_header) {
@@ -1879,7 +1909,7 @@ mod tests {
 
 		// step 2
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b1 = b1.close_and_lock();
+		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -1892,7 +1922,7 @@ mod tests {
 		let addr1_balance = b2.block().state().balance(&addr1).unwrap();
 
 		// after closing the block `addr1` should be reward twice, one for the included empty step message and another for block creation
-		let b2 = b2.close_and_lock();
+		let b2 = b2.close_and_lock().unwrap();
 
 		// the spec sets the block reward to 10
 		assert_eq!(b2.block().state().balance(&addr1).unwrap(), addr1_balance + (10 * 2).into())
@@ -1967,16 +1997,15 @@ mod tests {
 		let empty_step3 = sealed_empty_step(engine, 3, &parent_header.hash());
 
 		let empty_steps = vec![empty_step2, empty_step3];
+		header.set_difficulty(calculate_score(U256::from(0), U256::from(4), U256::from(2)));
+		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![
 			encode(&4usize).into_vec(),
 			encode(&(&*signature as &[u8])).into_vec(),
 			::rlp::encode_list(&empty_steps).into_vec(),
 		]);
 
-		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Ok(_) => true,
-			_ => false,
-		});
+		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 	}
 
 	#[test]
@@ -2013,7 +2042,7 @@ mod tests {
 			false,
 			&mut Vec::new().into_iter(),
 		).unwrap();
-		let b1 = b1.close_and_lock();
+		let b1 = b1.close_and_lock().unwrap();
 
 		// since the block is empty it isn't sealed and we generate empty steps
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -2039,7 +2068,7 @@ mod tests {
 
 		// after closing the block `addr1` should be reward twice, one for the included empty step
 		// message and another for block creation
-		let b2 = b2.close_and_lock();
+		let b2 = b2.close_and_lock().unwrap();
 
 		// the contract rewards (1000 + kind) for each benefactor/reward kind
 		assert_eq!(

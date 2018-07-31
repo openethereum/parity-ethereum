@@ -404,10 +404,9 @@ impl Service {
 
 			match (block_receipts, parent_total_difficulty) {
 				(Some(block_receipts), Some(parent_total_difficulty)) => {
-					let raw_block = block.into_inner();
 					let block_receipts = block_receipts.receipts;
 
-					next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_total_difficulty), false, true);
+					next_chain.insert_unordered_block(&mut batch, block, block_receipts, Some(parent_total_difficulty), false, true);
 					count += 1;
 				},
 				_ => break,

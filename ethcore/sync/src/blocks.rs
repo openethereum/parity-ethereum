@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, HashMap};
-use std::collections::hash_map::Entry;
+use std::collections::{HashSet, HashMap, hash_map};
 use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
@@ -380,7 +379,7 @@ impl BlockCollection {
 		};
 		self.downloading_receipts.remove(&receipt_root);
 		match self.receipt_ids.entry(receipt_root) {
-			Entry::Occupied(entry) => {
+			hash_map::Entry::Occupied(entry) => {
 				for h in entry.remove() {
 					match self.blocks.get_mut(&h) {
 						Some(ref mut block) => {
@@ -394,8 +393,8 @@ impl BlockCollection {
 					}
 				}
 				Ok(())
-			}
-			_ => {
+			},
+			hash_map::Entry::Vacant(_) => {
 				trace!(target: "sync", "Ignored unknown/stale block receipt {:?}", receipt_root);
 				Err(network::ErrorKind::BadProtocol.into())
 			}

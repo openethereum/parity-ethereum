@@ -140,12 +140,13 @@ impl EthereumMachine {
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
 			code: state.code(&contract_address)?,
-			code_hash: Some(state.code_hash(&contract_address)?),
+			code_hash: state.code_hash(&contract_address)?,
 			data: data,
 			call_type: CallType::Call,
 			params_type: ParamsType::Separate,
 		};
-		let mut ex = Executive::new(&mut state, &env_info, self);
+		let schedule = self.schedule(env_info.number);
+		let mut ex = Executive::new(&mut state, &env_info, self, &schedule);
 		let mut substate = Substate::new();
 		let mut output = Vec::new();
 		if let Err(e) = ex.call(params, &mut substate, BytesRef::Flexible(&mut output), &mut NoopTracer, &mut NoopVMTracer) {

@@ -43,6 +43,7 @@ use blooms_db;
 use kvdb::KeyValueDB;
 use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use tempdir::TempDir;
+use encoded;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -172,14 +173,14 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			n += 1;
 		}
 
-		let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+		let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
 		if let Err(e) = client.import_block(b.rlp_bytes()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 
 		last_header = view!(BlockView, &b.rlp_bytes()).header();
-		db = b.drain();
+		db = b.drain().state.drop().1;
 	}
 	client.flush_queue();
 	client.import_verified_blocks();
@@ -222,13 +223,13 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
-	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new());
+	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
 		b.push_transaction(t.clone(), None).unwrap();
 	}
-	let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+	let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
 	if let Err(e) = client.import_block(b.rlp_bytes()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
@@ -374,10 +375,9 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], ExtrasInsert {
+		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block(block_order, bc.best_block_hash())), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
@@ -393,10 +393,9 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], ExtrasInsert {
+		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None)), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
