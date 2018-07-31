@@ -9,8 +9,6 @@ RUN yum -y update && \
     curl -L "https://cmake.org/files/v3.12/cmake-3.12.0-Linux-x86_64.tar.gz" -o cmake.tar.gz && \
     tar -xzf cmake.tar.gz && \
     cp -r cmake-3.12.0-Linux-x86_64/* /usr/ && \
-    rm -rf cmake-3.12.0-Linux-x86_64 && \
-    rm -rf cmake.tar.gz && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     PATH=/root/.cargo/bin:$PATH && \
     RUST_BACKTRACE=1 && \
