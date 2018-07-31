@@ -2,15 +2,7 @@ FROM centos:latest
 
 WORKDIR /build
 
-#ENV for build TAG
-ARG PARITY_BUILD_TAG
-ENV PARITY_BUILD_TAG ${PARITY_BUILD_TAG:-master}
-RUN echo "Build tag:" $PARITY_BUILD_TAG
-
-#ENV for build REPO
-ARG PARITY_BUILD_REPO
-ENV PARITY_BUILD_REPO ${PARITY_BUILD_REPO:-https://github.com/paritytech/parity-ethereum}
-RUN echo "Build repo:" $PARITY_BUILD_REPO
+ADD . /build/parity-ethereum
 
 RUN yum -y update && \
     yum install -y systemd-devel git make gcc-c++ gcc file binutils && \
@@ -29,11 +21,7 @@ RUN yum -y update && \
     g++ -v && \
     cmake --version && \
     
-
-    git clone $PARITY_BUILD_REPO && \
     cd parity-ethereum && \
-    git pull && \
-    git checkout $PARITY_BUILD_TAG && \
     cargo build --verbose --release --features final && \
     strip /build/parity-ethereum/target/release/parity && \
     file /build/parity-ethereum/target/release/parity
