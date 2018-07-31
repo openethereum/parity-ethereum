@@ -113,6 +113,7 @@ pub mod blocks {
 	}
 
 	/// An unverified block.
+	#[derive(PartialEq, Debug)]
 	pub struct Unverified {
 		/// Unverified block header.
 		pub header: Header,
