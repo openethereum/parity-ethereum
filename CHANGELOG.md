@@ -1,3 +1,55 @@
+## Parity-Ethereum [v2.0.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.1) (2018-07-27)
+
+Parity-Ethereum 2.0.1-beta is a bug-fix release to improve performance and stability.
+
+Note, authorities in PoA networks based on the Aura engine, should upgrade their nodes to 1.11.8-stable or 2.0.1-beta as this release includes a critical fix.
+
+The full list of included changes:
+
+- Backports to 2.0.1-beta ([#9145](https://github.com/paritytech/parity-ethereum/pull/9145))
+  - Parity-version: bump beta to 2.0.1
+  - Ci: update version strings for snaps ([#9160](https://github.com/paritytech/parity-ethereum/pull/9160))
+  - Be more graceful on Aura difficulty validation ([#9164](https://github.com/paritytech/parity-ethereum/pull/9164))
+    - Be more graceful on Aura difficulty validation
+    - Test: rejects_step_backwards
+    - Test: proposer_switching
+    - Test: rejects_future_block
+    - Test: reports_skipped
+    - Test: verify_empty_seal_steps
+  - Remove node-health ([#9119](https://github.com/paritytech/parity-ethereum/pull/9119))
+    - Remove node-health
+    - Remove ntp_servers
+    - Add --ntp-servers as legacy instead of removing it
+    - Add --ntp-servers to deprecated args
+    - Remove unused stuff
+    - Remove _legacy_ntp_servers
+  - Parity: fix UserDefaults json parser ([#9189](https://github.com/paritytech/parity-ethereum/pull/9189))
+    - Parity: fix UserDefaults json parser
+    - Parity: use serde_derive for UserDefaults
+    - Parity: support deserialization of old UserDefault json format
+    - Parity: make UserDefaults serde backwards compatible
+    - Parity: tabify indentation in UserDefaults
+  - Fix bugfix hard fork logic ([#9138](https://github.com/paritytech/parity-ethereum/pull/9138))
+    - Fix bugfix hard fork logic
+    - Remove dustProtectionTransition from bugfix category
+      - Eip-168 is not enabled by default
+    - Remove unnecessary 'static
+  - Disable per-sender limit for local transactions. ([#9148](https://github.com/paritytech/parity-ethereum/pull/9148))
+    - Disable per-sender limit for local transactions.
+    - Add a missing new line.
+  - Rpc: fix is_major_importing sync state condition ([#9112](https://github.com/paritytech/parity-ethereum/pull/9112))
+    - Rpc: fix is_major_importing sync state condition
+    - Rpc: fix informant printout when waiting for peers
+  - Fix verification in ethcore-sync collect_blocks ([#9135](https://github.com/paritytech/parity-ethereum/pull/9135))
+  - Docker: update hub dockerfile ([#9173](https://github.com/paritytech/parity-ethereum/pull/9173))
+    - Update Dockerfile for hub
+      - Update to Ubuntu Xenial 16.04
+      - Fix cmake version
+    - Docker: fix tab indentation in hub dockerfile
+  - Rpc: fix broken merge
+  - Rpc: remove node_health leftover from merge
+  - Rpc: remove dapps leftover from merge
+
 ## Parity-Ethereum [v2.0.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.0) "Ethereum" (2018-07-18)
 
 This is the Parity-Ethereum//v2.0.0-beta release, code-named "Ethereum", **YOLO!**
@@ -57,7 +109,7 @@ The full list of included changes:
     - Update parity-common
   - Offload cull to IoWorker. ([#9099](https://github.com/paritytech/parity-ethereum/pull/9099))
   - Fix work-notify. ([#9104](https://github.com/paritytech/parity-ethereum/pull/9104))
-  - Update hidapi, fixes #7542 ([#9108](https://github.com/paritytech/parity-ethereum/pull/9108))
+  - Update hidapi, fixes [#7542](https://github.com/paritytech/parity-ethereum/issues/7542) ([#9108](https://github.com/paritytech/parity-ethereum/pull/9108))
   - Docker: add cmake dependency ([#9111](https://github.com/paritytech/parity-ethereum/pull/9111))
   - Update light client hardcoded headers ([#9098](https://github.com/paritytech/parity-ethereum/pull/9098))
     - Insert Kovan hardcoded headers until 7690241
