@@ -62,6 +62,9 @@ pub struct Filter {
 	/// To Block
 	#[serde(rename="toBlock")]
 	pub to_block: Option<BlockNumber>,
+	/// Block hash
+	#[serde(rename="blockHash")]
+	pub block_hash: Option<H256>,
 	/// Address
 	pub address: Option<FilterAddress>,
 	/// Topics
@@ -78,9 +81,17 @@ impl Into<EthFilter> for Filter {
 			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
 		};
 
+		let (from_block, to_block) = match self.block_hash {
+			Some(hash) => {
+				let hash = hash.into();
+				(BlockId::Hash(hash), BlockId::Hash(hash))
+			},
+			None => (self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
+					 self.to_block.map_or_else(|| BlockId::Latest, &num_to_id)),
+		};
+
 		EthFilter {
-			from_block: self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
-			to_block: self.to_block.map_or_else(|| BlockId::Latest, &num_to_id),
+			from_block, to_block,
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
 				VariadicValue::Single(a) => Some(vec![a.into()]),
@@ -157,6 +168,7 @@ mod tests {
 		assert_eq!(deserialized, Filter {
 			from_block: Some(BlockNumber::Earliest),
 			to_block: Some(BlockNumber::Latest),
+			block_hash: None,
 			address: None,
 			topics: None,
 			limit: None,
@@ -168,6 +180,7 @@ mod tests {
 		let filter = Filter {
 			from_block: Some(BlockNumber::Earliest),
 			to_block: Some(BlockNumber::Latest),
+			block_hash: None,
 			address: Some(VariadicValue::Multiple(vec![])),
 			topics: Some(vec![
 				VariadicValue::Null,

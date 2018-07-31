@@ -514,7 +514,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		let limit = filter.limit;
 
 		Box::new(Filterable::logs(self, filter.into())
-			.map(move|logs| limit_logs(logs, limit)))
+			.map(move |logs| limit_logs(logs, limit)))
 	}
 
 	fn work(&self, _timeout: Trailing<u64>) -> Result<Work> {
