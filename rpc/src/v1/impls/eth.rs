@@ -744,9 +744,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		// check if we're still syncing and return empty strings in that case
 		{
-			//TODO: check if initial sync is complete here
-			//let sync = self.sync;
-			if /*sync.status().state != SyncState::Idle ||*/ self.client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+			let sync_status = self.sync.status();
+			let queue_info = self.client.queue_info();
+			let total_queue_size = queue_info.total_queue_size();
+
+			if is_major_importing(Some(sync_status.state), queue_info) || total_queue_size > MAX_QUEUE_SIZE_TO_MINE_ON {
 				trace!(target: "miner", "Syncing. Cannot give any work.");
 				return Err(errors::no_work());
 			}
