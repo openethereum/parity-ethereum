@@ -59,7 +59,6 @@ pub struct ParityClient {
 	health: NodeHealth,
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
-	eip86_transition: u64,
 	gas_price_percentile: usize,
 }
 
@@ -84,7 +83,6 @@ impl ParityClient {
 			health,
 			signer,
 			ws_address,
-			eip86_transition: client.eip86_transition(),
 			client,
 			gas_price_percentile,
 		}
@@ -268,7 +266,7 @@ impl Parity for ParityClient {
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
 				.take(limit.unwrap_or_else(usize::max_value))
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -283,7 +281,7 @@ impl Parity for ParityClient {
 			current
 				.into_iter()
 				.chain(future.into_iter())
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -294,7 +292,7 @@ impl Parity for ParityClient {
 		Ok(
 			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
