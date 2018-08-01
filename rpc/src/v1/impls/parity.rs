@@ -46,7 +46,7 @@ use v1::types::{
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
 	AccountInfo, HwAccountInfo, RichHeader,
-	block_number_to_id
+	block_number_to_id, RichBlock, Block
 };
 use Host;
 
@@ -102,6 +102,99 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	U: UpdateService + 'static,
 {
 	type Metadata = Metadata;
+
+	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
+		let client = &self.client;
+
+		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), false);
+
+		let (block, difficulty, extra, is_pending) = match id {
+			BlockNumberOrId::Number(BlockNumber::Pending) => {
+				let info = self.client.chain_info();
+				match self.miner.pending_block(info.best_block_number) {
+					Some(pending_block) => {
+						warn!("`Pending` is deprecated and may be removed in future versions.");
+
+						let difficulty = {
+							let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+							let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+
+							if let Some(difficulty) = pending_difficulty {
+								difficulty + latest_difficulty
+							} else {
+								latest_difficulty
+							}
+						};
+
+						let extra = self.client.engine().extra_info(&pending_block.header);
+
+						(Some(encoded::Block::new(pending_block.rlp_bytes())), Some(difficulty), Some(extra), true)
+					},
+					None => {
+						warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+						client_query(BlockId::Latest)
+					}
+				}
+			},
+
+			BlockNumberOrId::Number(num) => {
+				let id = match num {
+					BlockNumber::Latest => BlockId::Latest,
+					BlockNumber::Earliest => BlockId::Earliest,
+					BlockNumber::Num(n) => BlockId::Number(n),
+					BlockNumber::Pending => unreachable!() // Already covered
+				};
+
+				client_query(id)
+			},
+
+			BlockNumberOrId::Id(id) => client_query(id),
+		};
+
+		match (block, difficulty) {
+			(Some(block), Some(total_difficulty)) => {
+				let view = block.header_view();
+				Ok(Some(RichBlock {
+					inner: Block {
+						hash: match is_pending {
+							true => None,
+							false => Some(view.hash().into()),
+						},
+						size: Some(block.rlp().as_raw().len().into()),
+						parent_hash: view.parent_hash().into(),
+						uncles_hash: view.uncles_hash().into(),
+						author: view.author().into(),
+						miner: view.author().into(),
+						state_root: view.state_root().into(),
+						transactions_root: view.transactions_root().into(),
+						receipts_root: view.receipts_root().into(),
+						number: match is_pending {
+							true => None,
+							false => Some(view.number().into()),
+						},
+						gas_used: view.gas_used().into(),
+						gas_limit: view.gas_limit().into(),
+						logs_bloom: match is_pending {
+							true => None,
+							false => Some(view.log_bloom().into()),
+						},
+						timestamp: view.timestamp().into(),
+						difficulty: view.difficulty().into(),
+						total_difficulty: Some(total_difficulty.into()),
+						seal_fields: view.seal().into_iter().map(Into::into).collect(),
+						uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
+						transactions: match include_txs {
+							true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t)).collect()),
+							false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
+						},
+						extra_data: Bytes::new(view.extra_data()),
+					},
+					extra_info: extra.expect(EXTRA_INFO_PROOF),
+				}))
+			},
+			_ => Ok(None)
+		}
+	}
 
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>> {
 		let dapp = dapp.unwrap_or_default();
@@ -416,6 +509,29 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			extra_info: extra.unwrap_or_default(),
 		}))
 	}
+
+		fn raw_block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
+			Box::new(future::done(self.rich_block(num.into(), include_txs)))
+		}
+
+		fn submit_block(&self, block: RichBlock) -> Result<RpcH256> {
+			// TODO: Re-implement rlp_bytes for rpc/v1/src/types/block.rb 
+			//       or reuse the rlp_bytes from ethcore/src/block.rb?
+			rlp_encoded_block = block.rlp_bytes()
+			Rlp::new(&rlp_encoded_block.into_vec()).as_val()
+				.map_err(errors::rlp)
+				.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))
+				.and_then(|signed_transaction| {
+					FullDispatcher::dispatch_transaction(
+						&*self.client,
+						&*self.miner,
+						signed_transaction.into(),
+						false
+					)
+			})
+			.map(Into::into)
+		}
+
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
 		ipfs::cid(content)
