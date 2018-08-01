@@ -21,8 +21,8 @@ ropsten = { forkBlock = 10, critical = false }
 kovan = { forkBlock = 6600000, critical = false }
 
 [dependencies]
-parity-bytes = { git = "https://github.com/paritytech/parity-common", branch = "ng-fix-triedb-seek" }
-rlp = { git = "https://github.com/paritytech/parity-common", branch = "ng-fix-triedb-seek" }
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
 target_info = "0.1"
 
 [build-dependencies]

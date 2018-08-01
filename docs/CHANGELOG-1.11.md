@@ -1,4 +1,48 @@
-## Parity [v1.11.7](https://github.com/paritytech/parity/releases/tag/v1.11.7) "Prosperity" (2018-07-17)
+## Parity [v1.11.8](https://github.com/paritytech/parity-ethereum/releases/tag/v1.11.8) (2018-07-27)
+
+Parity 1.11.8-stable is a bug-fix release to improve performance and stability.
+
+Note, authorities in PoA networks based on the Aura engine, should upgrade their nodes immediately as this release includes a critical fix.
+
+The full list of included changes:
+
+- Backports to 1.11.8-stable ([#9144](https://github.com/paritytech/parity-ethereum/pull/9144))
+  - Parity-version: bump stable to 1.11.8
+  - Ci: update version strings for snaps ([#9160](https://github.com/paritytech/parity-ethereum/pull/9160))
+  - Be more graceful on Aura difficulty validation ([#9164](https://github.com/paritytech/parity-ethereum/pull/9164))
+    - Be more graceful on Aura difficulty validation
+    - Test: rejects_step_backwards
+    - Test: proposer_switching
+    - Test: rejects_future_block
+    - Test: reports_skipped
+    - Test: verify_empty_seal_steps
+  - Parity: fix UserDefaults json parser ([#9189](https://github.com/paritytech/parity-ethereum/pull/9189))
+    - Parity: fix UserDefaults json parser
+    - Parity: use serde_derive for UserDefaults
+    - Parity: support deserialization of old UserDefault json format
+    - Parity: make UserDefaults serde backwards compatible
+    - Parity: tabify indentation in UserDefaults
+  - Fix bugfix hard fork logic ([#9138](https://github.com/paritytech/parity-ethereum/pull/9138))
+    - Fix bugfix hard fork logic
+    - Remove dustProtectionTransition from bugfix category
+      - EIP-168 is not enabled by default
+    - Remove unnecessary 'static
+  - Disable per-sender limit for local transactions. ([#9148](https://github.com/paritytech/parity-ethereum/pull/9148))
+    - Disable per-sender limit for local transactions.
+    - Add a missing new line.
+  - Rpc: fix is_major_importing sync state condition ([#9112](https://github.com/paritytech/parity-ethereum/pull/9112))
+    - Rpc: fix is_major_importing sync state condition
+    - Rpc: fix informant printout when waiting for peers
+  - Fix verification in ethcore-sync collect_blocks ([#9135](https://github.com/paritytech/parity-ethereum/pull/9135))
+  - Docker: update hub dockerfile ([#9173](https://github.com/paritytech/parity-ethereum/pull/9173))
+    - Update Dockerfile for hub
+      - Update to Ubuntu Xenial 16.04
+      - Fix cmake version
+    - Docker: fix tab indentation in hub dockerfile
+  - Ethcore: update to parity-wasm 0.31
+  - Rpc: fix broken merge
+
+## Parity [v1.11.7](https://github.com/paritytech/parity-ethereum/releases/tag/v1.11.7) "Prosperity" (2018-07-17)
 
 Parity 1.11.7 "Prosperity" is a bug-fix release to improve performance and stability that marks the 1.11 release track as `stable`. Among other fixes, this release significantly addresses peering and synchronization issues. If you experienced such issues before, upgrading is highly recommended. If you rely on old versions of Parity, check out the `old-stable-1.10` branch, cherry-pick fixes, and compile your binaries independently. There will be no official support for any versions prior to 1.11.7, however (EOL).
 
@@ -29,7 +73,7 @@ The full list of included changes:
     - Fix ethcore-sync tests.
     - Fix RPC tests.
   - Make sure to produce full blocks. ([#9115](https://github.com/paritytech/parity/pull/9115))
-  - Update hidapi, fixes #7542 ([#9108](https://github.com/paritytech/parity/pull/9108))
+  - Update hidapi, fixes [#7542](https://github.com/paritytech/parity-ethereum/issues/7542) ([#9108](https://github.com/paritytech/parity/pull/9108))
   - Docker: add cmake dependency ([#9111](https://github.com/paritytech/parity/pull/9111))
   - Fix miner tests.
   - Revert "Make sure to produce full blocks."
@@ -249,7 +293,7 @@ The full list of included changes:
 - Update shell32-sys to fix windows build ([#8792](https://github.com/paritytech/parity/pull/8792))
 - Backports ([#8785](https://github.com/paritytech/parity/pull/8785))
   - Fix light sync with initial validator-set contract ([#8528](https://github.com/paritytech/parity/pull/8528))
-    - Fix #8468
+    - Fix [#8468](https://github.com/paritytech/parity-ethereum/issues/8468)
     - Use U256::max_value() instead
     - Also change initial transaction gas
   - Resumable warp-sync / Seed downloaded snapshots ([#8544](https://github.com/paritytech/parity/pull/8544))

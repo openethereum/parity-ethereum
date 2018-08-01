@@ -34,12 +34,12 @@ RUN apt-get update && \
  RUST_BACKTRACE=1 && \
 # build parity
 cd /build&&git clone https://github.com/paritytech/parity-ethereum && \
-        cd parity && \
+        cd parity-ethereum&& \
 	git pull&& \
 	git checkout $BUILD_TAG && \
         cargo build --verbose --release --features final && \
-        strip /build/parity/target/release/parity && \
- file /build/parity/target/release/parity&&mkdir -p /parity&& cp /build/parity/target/release/parity /parity&&\
+        strip /build/parity-ethereum/target/release/parity && \
+ file /build/parity-ethereum/target/release/parity&&mkdir -p /parity&& cp /build/parity-ethereum/target/release/parity /parity&&\
 #cleanup Docker image
  rm -rf /root/.cargo&&rm -rf /root/.multirust&&rm -rf /root/.rustup&&rm -rf /build&&\
  apt-get purge -y  \

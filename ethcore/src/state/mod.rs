@@ -608,9 +608,9 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Get an account's code hash.
-	pub fn code_hash(&self, a: &Address) -> TrieResult<H256> {
+	pub fn code_hash(&self, a: &Address) -> TrieResult<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
-			|a| a.as_ref().map_or(KECCAK_EMPTY, |a| a.code_hash()))
+			|a| a.as_ref().map(|a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
@@ -911,31 +911,38 @@ impl<B: Backend> State<B> {
 		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
 	}
 
-	// load required account data from the databases.
-	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &B, db: &HashDB<KeccakHasher>) {
+	/// Load required account data from the databases. Returns whether the cache succeeds.
+	#[must_use]
+	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &B, db: &HashDB<KeccakHasher>) -> bool {
 		if let RequireCache::None = require {
-			return;
+			return true;
 		}
 
 		if account.is_cached() {
-			return;
+			return true;
 		}
 
 		// if there's already code in the global cache, always cache it localy
 		let hash = account.code_hash();
 		match state_db.get_cached_code(&hash) {
-			Some(code) => account.cache_given_code(code),
+			Some(code) => {
+				account.cache_given_code(code);
+				true
+			},
 			None => match require {
-				RequireCache::None => {},
+				RequireCache::None => true,
 				RequireCache::Code => {
 					if let Some(code) = account.cache_code(db) {
 						// propagate code loaded from the database to
 						// the global code cache.
-						state_db.cache_code(hash, code)
+						state_db.cache_code(hash, code);
+						true
+					} else {
+						false
 					}
 				},
 				RequireCache::CodeSize => {
-					account.cache_code_size(db);
+					account.cache_code_size(db)
 				}
 			}
 		}
@@ -950,8 +957,11 @@ impl<B: Backend> State<B> {
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
 			if let Some(ref mut account) = maybe_acc.account {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-				Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
-				return Ok(f(Some(account)));
+				if Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb()) {
+					return Ok(f(Some(account)));
+				} else {
+					return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
+				}
 			}
 			return Ok(f(None));
 		}
@@ -959,12 +969,14 @@ impl<B: Backend> State<B> {
 		let result = self.db.get_cached(a, |mut acc| {
 			if let Some(ref mut account) = acc {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-				Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
+				if !Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb()) {
+					return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
+				}
 			}
-			f(acc.map(|a| &*a))
+			Ok(f(acc.map(|a| &*a)))
 		});
 		match result {
-			Some(r) => Ok(r),
+			Some(r) => Ok(r?),
 			None => {
 				// first check if it is not in database for sure
 				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
@@ -975,7 +987,9 @@ impl<B: Backend> State<B> {
 				let mut maybe_acc = db.get_with(a, from_rlp)?;
 				if let Some(ref mut account) = maybe_acc.as_mut() {
 					let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-					Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
+					if !Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb()) {
+						return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))));
+					}
 				}
 				let r = f(maybe_acc.as_ref());
 				self.insert_cache(a, AccountEntry::new_clean(maybe_acc));
