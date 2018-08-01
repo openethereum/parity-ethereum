@@ -17,9 +17,11 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, DeserializeOwned};
 use serde_json::{Value, from_value};
+use jsonrpc_core::{Error as RpcError};
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockId;
 use v1::types::{BlockNumber, H160, H256, Log};
+use v1::helpers::errors::invalid_params;
 
 /// Variadic value
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -73,8 +75,12 @@ pub struct Filter {
 	pub limit: Option<usize>,
 }
 
-impl Into<EthFilter> for Filter {
-	fn into(self) -> EthFilter {
+impl Filter {
+	pub fn try_into(self) -> Result<EthFilter, RpcError> {
+		if self.block_hash.is_some() && (self.from_block.is_some() || self.to_block.is_some()) {
+			return Err(invalid_params("blockHash", "blockHash is mutually exclusive with fromBlock/toBlock"));
+		}
+
 		let num_to_id = |num| match num {
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
@@ -90,7 +96,7 @@ impl Into<EthFilter> for Filter {
 					 self.to_block.map_or_else(|| BlockId::Latest, &num_to_id)),
 		};
 
-		EthFilter {
+		Ok(EthFilter {
 			from_block, to_block,
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
@@ -112,7 +118,7 @@ impl Into<EthFilter> for Filter {
 				]
 			},
 			limit: self.limit,
-		}
+		})
 	}
 }
 
@@ -190,7 +196,7 @@ mod tests {
 			limit: None,
 		};
 
-		let eth_filter: EthFilter = filter.into();
+		let eth_filter: EthFilter = filter.try_into().unwrap();
 		assert_eq!(eth_filter, EthFilter {
 			from_block: BlockId::Earliest,
 			to_block: BlockId::Latest,

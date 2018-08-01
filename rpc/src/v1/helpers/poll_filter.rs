@@ -22,7 +22,8 @@ use std::{
 };
 use ethereum_types::H256;
 use parking_lot::Mutex;
-use v1::types::{Filter, Log};
+use ethcore::filter::Filter;
+use v1::types::Log;
 
 pub type BlockNumber = u64;
 
@@ -52,7 +53,13 @@ pub enum PollFilter {
 	/// Hashes of all pending transactions the client knows about.
 	PendingTransaction(BTreeSet<H256>),
 	/// Number of From block number, last seen block hash, pending logs and log filter itself.
-	Logs(BlockNumber, Option<H256>, HashSet<Log>, Filter)
+	Logs {
+		block_number: BlockNumber,
+		last_block_hash: Option<H256>,
+		previous_logs: HashSet<Log>,
+		filter: Filter,
+		include_pending: bool,
+	}
 }
 
 /// Returns only last `n` logs

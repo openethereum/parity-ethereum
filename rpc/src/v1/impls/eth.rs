@@ -722,7 +722,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
 		let include_pending = filter.to_block == Some(BlockNumber::Pending);
-		let filter: EthcoreFilter = filter.into();
+		let filter: EthcoreFilter = match filter.try_into() {
+			Ok(value) => value,
+			Err(err) => return Box::new(future::err(err)),
+		};
 		let mut logs = self.client.logs(filter.clone())
 			.into_iter()
 			.map(From::from)

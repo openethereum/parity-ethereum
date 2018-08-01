@@ -283,8 +283,13 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 				errors::invalid_params("newHeads", "Expected no parameters.")
 			},
 			(pubsub::Kind::Logs, Some(pubsub::Params::Logs(filter))) => {
-				self.logs_subscribers.write().push(subscriber, filter.into());
-				return;
+				match filter.try_into() {
+					Ok(filter) => {
+						self.logs_subscribers.write().push(subscriber, filter);
+						return;
+					},
+					Err(err) => err,
+				}
 			},
 			(pubsub::Kind::Logs, _) => {
 				errors::invalid_params("logs", "Expected a filter object.")
