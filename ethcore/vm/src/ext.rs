@@ -53,11 +53,11 @@ pub enum MessageCallResult {
 /// Specifies how an address is calculated for a new contract.
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum CreateContractAddress {
-	/// Address is calculated from nonce and sender. Pre EIP-86 (Metropolis)
+	/// Address is calculated from sender and nonce. Pre EIP-86 (Metropolis)
 	FromSenderAndNonce,
-	/// Address is calculated from code hash. Default since EIP-86
-	FromCodeHash,
-	/// Address is calculated from code hash and sender. Used by CREATE_P2SH instruction.
+	/// Address is calculated from sender, salt and code hash. EIP-86 CREATE2 scheme.
+	FromSenderSaltAndCodeHash(H256),
+	/// Address is calculated from code hash and sender. Used by pwasm create ext.
 	FromSenderAndCodeHash,
 }
 

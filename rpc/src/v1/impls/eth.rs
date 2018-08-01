@@ -106,7 +106,6 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
 	options: EthClientOptions,
-	eip86_transition: u64,
 }
 
 #[derive(Debug)]
@@ -168,7 +167,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::default()),
 			options: options,
-			eip86_transition: client.eip86_transition(),
 		}
 	}
 
@@ -253,7 +251,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 						seal_fields: view.seal().into_iter().map(Into::into).collect(),
 						uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
 						transactions: match include_txs {
-							true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t, self.eip86_transition)).collect()),
+							true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t)).collect()),
 							false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 						},
 						extra_data: Bytes::new(view.extra_data()),
@@ -267,7 +265,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 	fn transaction(&self, id: PendingTransactionId) -> Result<Option<Transaction>> {
 		let client_transaction = |id| match self.client.transaction(id) {
-			Some(t) => Ok(Some(Transaction::from_localized(t, self.eip86_transition))),
+			Some(t) => Ok(Some(Transaction::from_localized(t))),
 			None => Ok(None),
 		};
 
@@ -304,7 +302,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 							cached_sender,
 						}
 					})
-					.map(|tx| Transaction::from_localized(tx, self.eip86_transition));
+					.map(|tx| Transaction::from_localized(tx));
 
 				Ok(transaction)
 			}
@@ -651,10 +649,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
 		let hash: H256 = hash.into();
-		let block_number = self.client.chain_info().best_block_number;
 		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
 			self.miner.transaction(&hash)
-				.map(|t| Transaction::from_pending(t.pending().clone(), block_number + 1, self.eip86_transition))
+				.map(|t| Transaction::from_pending(t.pending().clone()))
 		});
 
 		Box::new(future::ok(tx))

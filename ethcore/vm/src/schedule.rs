@@ -22,7 +22,7 @@ pub struct Schedule {
 	pub exceptional_failed_code_deposit: bool,
 	/// Does it have a delegate cal
 	pub have_delegate_call: bool,
-	/// Does it have a CREATE_P2SH instruction
+	/// Does it have a CREATE2 instruction
 	pub have_create2: bool,
 	/// Does it have a REVERT instruction
 	pub have_revert: bool,

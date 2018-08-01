@@ -594,7 +594,7 @@ lazy_static! {
 		arr[DELEGATECALL as usize] = Some(InstructionInfo::new("DELEGATECALL", 6, 1, GasPriceTier::Special));
 		arr[STATICCALL as usize] = Some(InstructionInfo::new("STATICCALL", 6, 1, GasPriceTier::Special));
 		arr[SUICIDE as usize] = Some(InstructionInfo::new("SUICIDE", 1, 0, GasPriceTier::Special));
-		arr[CREATE2 as usize] = Some(InstructionInfo::new("CREATE2", 3, 1, GasPriceTier::Special));
+		arr[CREATE2 as usize] = Some(InstructionInfo::new("CREATE2", 4, 1, GasPriceTier::Special));
 		arr[REVERT as usize] = Some(InstructionInfo::new("REVERT", 2, 0, GasPriceTier::Zero));
 		arr
 	};
