@@ -168,7 +168,7 @@ fn returns_logs() {
 		address: None,
 		topics: vec![],
 		limit: None,
-	});
+	}).unwrap();
 	assert_eq!(logs.len(), 0);
 }
 
@@ -182,7 +182,7 @@ fn returns_logs_with_limit() {
 		address: None,
 		topics: vec![],
 		limit: None,
-	});
+	}).unwrap();
 	assert_eq!(logs.len(), 0);
 }
 

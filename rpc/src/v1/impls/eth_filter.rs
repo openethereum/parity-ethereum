@@ -92,7 +92,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
-		Box::new(future::ok(self.client.logs(filter).into_iter().map(Into::into).collect()))
+		Box::new(future::ok(self.client.logs(filter).unwrap_or_default().into_iter().map(Into::into).collect()))
 	}
 
 	fn pending_logs(&self, block_number: u64, filter: &EthcoreFilter) -> Vec<Log> {
@@ -125,7 +125,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 			filter.from_block = BlockId::Hash(block_hash);
 			filter.to_block = filter.from_block;
 
-			self.client.logs(filter).into_iter().map(|log| {
+			self.client.logs(filter).unwrap_or_default().into_iter().map(|log| {
 				let mut log: Log = log.into();
 				log.log_type = "removed".into();
 				log.removed = true;

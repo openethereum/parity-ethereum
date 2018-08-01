@@ -663,13 +663,13 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+	fn logs(&self, filter: Filter) -> Option<Vec<LocalizedLogEntry>> {
 		let mut logs = self.logs.read().clone();
 		let len = logs.len();
-		match filter.limit {
+		Some(match filter.limit {
 			Some(limit) if limit <= len => logs.split_off(len - limit),
 			_ => logs,
-		}
+		})
 	}
 
 	fn last_hashes(&self) -> LastHashes {

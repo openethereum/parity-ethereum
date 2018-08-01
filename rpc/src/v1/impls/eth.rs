@@ -726,10 +726,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			Ok(value) => value,
 			Err(err) => return Box::new(future::err(err)),
 		};
-		let mut logs = self.client.logs(filter.clone())
-			.into_iter()
-			.map(From::from)
-			.collect::<Vec<Log>>();
+		let mut logs = match self.client.logs(filter.clone()) {
+			Some(logs) => logs
+				.into_iter()
+				.map(From::from)
+				.collect::<Vec<Log>>(),
+			None => return Box::new(future::err(errors::filter_block_not_found())),
+		};
 
 		if include_pending {
 			let best_block = self.client.chain_info().best_block_number;

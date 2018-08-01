@@ -422,6 +422,14 @@ pub fn filter_not_found() -> Error {
 	}
 }
 
+pub fn filter_block_not_found() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "One of the block specified in filter (fromBlock, toBlock or blockHash) cannot be found".into(),
+		data: None,
+	}
+}
+
 // on-demand sender cancelled.
 pub fn on_demand_cancel(_cancel: futures::sync::oneshot::Canceled) -> Error {
 	internal("on-demand sender cancelled", "")
