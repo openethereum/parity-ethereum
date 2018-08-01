@@ -283,7 +283,7 @@ impl ServiceContract for OnChainServiceContract {
 			address: Some(vec![address]),
 			topics: vec![Some(mask_topics(&self.mask))],
 			limit: None,
-		});
+		}).unwrap_or_default();
 
 		Box::new(request_logs.into_iter()
 			.filter_map(|log| {
