@@ -11,9 +11,9 @@ ExternalProject_Add(
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     COMMAND cargo build -p parity-clib      # Note: use --release in a real project
-    BINARY_DIR "${CMAKE_SOURCE_DIR}/../target"
+    BINARY_DIR "${CMAKE_SOURCE_DIR}/../../target"
     INSTALL_COMMAND ""
     LOG_BUILD ON)
 
 add_dependencies(parity-example libparity)
-target_link_libraries(parity-example "${CMAKE_SOURCE_DIR}/../target/debug/libparity.so")
+target_link_libraries(parity-example "${CMAKE_SOURCE_DIR}/../../target/debug/libparity.so")
