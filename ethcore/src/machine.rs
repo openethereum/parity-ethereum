@@ -343,7 +343,7 @@ impl EthereumMachine {
 		-> Result<(), transaction::Error>
 	{
 		if let Some(ref filter) = self.tx_filter.as_ref() {
-			if !filter.transaction_allowed(header.parent_hash(), t, client) {
+			if !filter.transaction_allowed(header.parent_hash(), header.number(), t, client) {
 				return Err(transaction::Error::NotAllowed.into())
 			}
 		}

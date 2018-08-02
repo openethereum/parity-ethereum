@@ -23,6 +23,7 @@ use client::{BlockInfo, CallContract, BlockId};
 use parking_lot::Mutex;
 use spec::CommonParams;
 use transaction::{Action, SignedTransaction};
+use types::BlockNumber;
 use hash::KECCAK_EMPTY;
 
 use_contract!(transact_acl_deprecated, "TransactAclDeprecated", "res/contracts/tx_acl_deprecated.json");
@@ -44,6 +45,7 @@ pub struct TransactionFilter {
 	contract_deprecated: transact_acl_deprecated::TransactAclDeprecated,
 	contract: transact_acl::TransactAcl,
 	contract_address: Address,
+	transition_block: BlockNumber,
 	permission_cache: Mutex<LruCache<(H256, Address), u32>>,
 	contract_version_cache: Mutex<LruCache<(H256), Option<U256>>>
 }
@@ -56,6 +58,7 @@ impl TransactionFilter {
 				contract_deprecated: transact_acl_deprecated::TransactAclDeprecated::default(),
 				contract: transact_acl::TransactAcl::default(),
 				contract_address: address,
+				transition_block: params.transaction_permission_contract_transition,
 				permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 				contract_version_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 			}
@@ -63,7 +66,9 @@ impl TransactionFilter {
 	}
 
 	/// Check if transaction is allowed at given block.
-	pub fn transaction_allowed<C: BlockInfo + CallContract>(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &C) -> bool {
+	pub fn transaction_allowed<C: BlockInfo + CallContract>(&self, parent_hash: &H256, block_number: BlockNumber, transaction: &SignedTransaction, client: &C) -> bool {
+		if block_number < self.transition_block { return true; }
+
 		let mut permission_cache = self.permission_cache.lock();
 		let mut contract_version_cache = self.contract_version_cache.lock();
 
