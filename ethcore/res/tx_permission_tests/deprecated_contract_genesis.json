@@ -17,7 +17,8 @@
 		"minGasLimit": "0x1388",
 		"networkID" : "0x69",
 		"gasLimitBoundDivisor": "0x0400",
-		"transactionPermissionContract": "0x0000000000000000000000000000000000000005"
+		"transactionPermissionContract": "0x0000000000000000000000000000000000000005",
+		"transactionPermissionContractTransition": "1"
 	},
 	"genesis": {
 		"seal": {
