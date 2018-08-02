@@ -43,6 +43,7 @@ use blooms_db;
 use kvdb::KeyValueDB;
 use kvdb_rocksdb;
 use tempdir::TempDir;
+use verification::queue::kind::blocks::Unverified;
 use encoded;
 
 /// Creates test block with corresponding header
@@ -175,7 +176,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 
 		let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
-		if let Err(e) = client.import_block(b.rlp_bytes()) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(b.rlp_bytes()).unwrap()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 
@@ -211,7 +212,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 		rolling_block_number = rolling_block_number + 1;
 		rolling_timestamp = rolling_timestamp + 10;
 
-		if let Err(e) = client.import_block(create_test_block(&header)) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(create_test_block(&header)).unwrap()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 	}
@@ -231,7 +232,7 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	}
 	let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
-	if let Err(e) = client.import_block(b.rlp_bytes()) {
+	if let Err(e) = client.import_block(Unverified::from_rlp(b.rlp_bytes()).unwrap()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
@@ -253,7 +254,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	).unwrap();
 
 	for block in blocks {
-		if let Err(e) = client.import_block(block) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(block).unwrap()) {
 			panic!("error importing block which is well-formed: {:?}", e);
 		}
 	}

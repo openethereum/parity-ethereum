@@ -317,6 +317,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let endowment = stack.pop_back();
+				let address_scheme = match instruction {
+					instructions::CREATE => CreateContractAddress::FromSenderAndNonce,
+					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(stack.pop_back().into()),
+					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
+				};
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 
@@ -336,7 +341,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 				}
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
-				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 
 				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme);
 				return match create_result {

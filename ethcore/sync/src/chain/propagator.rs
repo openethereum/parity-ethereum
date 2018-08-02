@@ -29,11 +29,9 @@ use transaction::SignedTransaction;
 use super::{
 	random,
 	ChainSync,
+	MAX_TRANSACTION_PACKET_SIZE,
 	MAX_PEER_LAG_PROPAGATION,
 	MAX_PEERS_PROPAGATION,
-	MAX_TRANSACTION_PACKET_SIZE,
-	MAX_TRANSACTIONS_TO_PROPAGATE,
-	MAX_TRANSACTIONS_TO_QUERY,
 	MIN_PEERS_PROPAGATION,
 	CONSENSUS_DATA_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
@@ -121,7 +119,7 @@ impl SyncPropagator {
 			return 0;
 		}
 
-		let transactions = io.chain().ready_transactions(MAX_TRANSACTIONS_TO_QUERY);
+		let transactions = io.chain().transactions_to_propagate();
 		if transactions.is_empty() {
 			return 0;
 		}
@@ -184,7 +182,6 @@ impl SyncPropagator {
 
 					// Get hashes of all transactions to send to this peer
 					let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions)
-						.take(MAX_TRANSACTIONS_TO_PROPAGATE)
 						.cloned()
 						.collect::<HashSet<_>>();
 					if to_send.is_empty() {
