@@ -12,13 +12,11 @@ RUN yum -y update && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     PATH=/root/.cargo/bin:$PATH && \
     RUST_BACKTRACE=1 && \
-
     rustc -vV && \
     cargo -V && \
     gcc -v && \
     g++ -v && \
     cmake --version && \
-    
     cd parity-ethereum && \
     cargo build --verbose --release --features final && \
     strip /build/parity-ethereum/target/release/parity && \
