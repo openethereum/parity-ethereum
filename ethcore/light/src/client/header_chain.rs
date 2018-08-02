@@ -453,11 +453,12 @@ impl HeaderChain {
 		// reorganize ancestors so canonical entries are first in their
 		// respective candidates vectors.
 		if is_new_best {
-			let prove = "blocks are only inserted if parent is present; or this is the block we just added; qed";
+			const PROOF: &str = "blocks are only inserted if parent is present;\
+								or this is the block we just added; qed";
 			let mut canon_hash = hash;
 			for (&height, entry) in candidates.iter_mut().rev().skip_while(|&(height, _)| *height > number) {
-				// if we're disallowing producing chts, then blocks are inserted in arbitrary order
-				// and our assumption in `prove` doesn't hold
+				// If we're disallowing producing chts, then blocks are inserted in arbitrary order
+				// and our assumption in the `PROOF` doesn't hold.
 				if !allow_producing_cht ||
 					(height != number && entry.canonical_hash == canon_hash) {
 					break;
@@ -469,7 +470,7 @@ impl HeaderChain {
 				);
 
 				let canon_pos = entry.candidates.iter().position(|x| x.hash == canon_hash)
-					.expect(prove);
+					.expect(PROOF);
 
 				// move the new canonical entry to the front and set the
 				// era's canonical hash.
