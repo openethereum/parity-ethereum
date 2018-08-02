@@ -23,11 +23,10 @@ use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
-use ethcore::views::BlockView;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
-use ethcore::block::Block;
 use ethcore::error::{ImportErrorKind, BlockError};
+use ethcore::verification::queue::kind::blocks::Unverified;
 use sync_io::SyncIo;
 use blocks::BlockCollection;
 
@@ -484,17 +483,18 @@ impl BlockDownloader {
 			let block = block_and_receipts.block;
 			let receipts = block_and_receipts.receipts;
 
-			// Perform basic block verification
-			if !Block::is_good(&block) {
-				debug!(target: "sync", "Bad block rlp: {:?}", block);
-				bad = true;
-				break;
-			}
-
-			let (h, number, parent) = {
-				let header = view!(BlockView, &block).header_view();
-				(header.hash(), header.number(), header.parent_hash())
+			let block = match Unverified::from_rlp(block) {
+				Ok(block) => block,
+				Err(_) => {
+					debug!(target: "sync", "Bad block rlp");
+					bad = true;
+					break;
+				}
 			};
+
+			let h = block.header.hash();
+			let number = block.header.number();
+			let parent = *block.header.parent_hash();
 
 			if self.target_hash.as_ref().map_or(false, |t| t == &h) {
 				self.state = State::Complete;

@@ -34,6 +34,7 @@ use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use transaction::{self, LocalizedTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
+use verification::queue::kind::blocks::Unverified;
 use state::StateInfo;
 use header::Header;
 use engines::EthEngine;
@@ -167,7 +168,7 @@ pub trait RegistryInfo {
 /// Provides methods to import block into blockchain
 pub trait ImportBlock {
 	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
+	fn import_block(&self, block: Unverified) -> Result<H256, BlockImportError>;
 }
 
 /// Provides `call_contract` method
@@ -204,7 +205,7 @@ pub trait IoClient: Sync + Send {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
-	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
+	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Queue conensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);

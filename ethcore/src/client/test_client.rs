@@ -53,6 +53,7 @@ use spec::Spec;
 use types::basic_account::BasicAccount;
 use types::pruning_info::PruningInfo;
 use verification::queue::QueueInfo;
+use verification::queue::kind::blocks::Unverified;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use executive::Executed;
 use error::CallError;
@@ -280,7 +281,8 @@ impl TestBlockChainClient {
 			rlp.append(&header);
 			rlp.append_raw(&txs, 1);
 			rlp.append_raw(uncles.as_raw(), 1);
-			self.import_block(rlp.as_raw().to_vec()).unwrap();
+			let unverified = Unverified::from_rlp(rlp.out()).unwrap();
+			self.import_block(unverified).unwrap();
 		}
 	}
 
@@ -512,8 +514,8 @@ impl RegistryInfo for TestBlockChainClient {
 }
 
 impl ImportBlock for TestBlockChainClient {
-	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
-		let header = view!(BlockView, &b).header();
+	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
+		let header = unverified.header;
 		let h = header.hash();
 		let number: usize = header.number() as usize;
 		if number > self.blocks.read().len() {
@@ -539,7 +541,7 @@ impl ImportBlock for TestBlockChainClient {
 				*difficulty = *difficulty + header.difficulty().clone();
 			}
 			mem::replace(&mut *self.last_hash.write(), h.clone());
-			self.blocks.write().insert(h.clone(), b);
+			self.blocks.write().insert(h.clone(), unverified.bytes);
 			self.numbers.write().insert(number, h.clone());
 			let mut parent_hash = header.parent_hash().clone();
 			if number > 0 {
@@ -552,7 +554,7 @@ impl ImportBlock for TestBlockChainClient {
 			}
 		}
 		else {
-			self.blocks.write().insert(h.clone(), b.to_vec());
+			self.blocks.write().insert(h.clone(), unverified.bytes);
 		}
 		Ok(h)
 	}
@@ -856,8 +858,8 @@ impl IoClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn queue_ancient_block(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
-		self.import_block(b)
+	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(unverified)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
