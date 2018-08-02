@@ -105,7 +105,9 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Error>
 	where F: Fn(&Version) -> Result<usize, Error>
 {
-	let mut path = db_path.map_or({
+	let mut path = db_path.map_or_else(|| {
+		// Note: this can panic on device such as Android where $HOME isn't set
+		// That's why the `map_or_else` is important compared to `map_or`.
 		let mut path = env::home_dir().expect("Applications should have a home dir");
 		path.push(".parity");
 		path
