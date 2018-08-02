@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, BTreeMap, VecDeque};
+use std::cmp;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -1945,7 +1946,25 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>> {
+		const PROPAGATE_FOR_BLOCKS: u32 = 4;
+		const MIN_TX_TO_PROPAGATE: usize = 256;
+
+		let block_gas_limit = *self.best_block_header().gas_limit();
+		let min_tx_gas: U256 = self.latest_schedule().tx_gas.into();
+
+		let max_len = if min_tx_gas.is_zero() {
+			usize::max_value()
+		} else {
+			cmp::max(
+				MIN_TX_TO_PROPAGATE,
+				cmp::min(
+					(block_gas_limit / min_tx_gas) * PROPAGATE_FOR_BLOCKS,
+					// never more than usize
+					usize::max_value().into()
+				).as_u64() as usize
+			)
+		};
 		self.importer.miner.ready_transactions(self, max_len, ::miner::PendingOrdering::Priority)
 	}
 
