@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -93,22 +93,6 @@ pub trait Transactions: LiveBlock {
 
 	/// Get a reference to the transactions in this block.
 	fn transactions(&self) -> &[Self::Transaction];
-}
-
-/// Trait for blocks which have finalized information.
-pub trait Finalizable: LiveBlock {
-	/// Get whether the block is finalized.
-	fn is_finalized(&self) -> bool;
-	/// Mark the block as finalized.
-	fn mark_finalized(&mut self);
-}
-
-/// A state machine with block metadata.
-pub trait WithMetadata: LiveBlock {
-	/// Get the current live block metadata.
-	fn metadata(&self) -> Option<&[u8]>;
-	/// Set the current live block metadata.
-	fn set_metadata(&mut self, value: Option<Vec<u8>>);
 }
 
 /// Generalization of types surrounding blockchain-suitable state machines.

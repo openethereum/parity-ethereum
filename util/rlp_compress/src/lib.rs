@@ -107,4 +107,3 @@ impl<'a> Compressor for Swapper<'a> {
 		self.rlp_to_compressed.get(rlp).cloned()
 	}
 }
-

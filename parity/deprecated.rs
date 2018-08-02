@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,6 +36,8 @@ impl fmt::Display for Deprecated {
 
 pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 	let mut result = vec![];
+
+	// Removed in 1.6 or before.
 
 	if args.flag_warp {
 		result.push(Deprecated::DoesNothing("--warp"));
@@ -77,21 +79,78 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Replaced("--extradata", "--extra-data"));
 	}
 
-	// Removed in 1.7
+	if args.flag_testnet {
+		result.push(Deprecated::Replaced("--testnet", "--chain testnet"));
+	}
+
+	if args.flag_nodiscover {
+		result.push(Deprecated::Replaced("--nodiscover", "--no-discovery"));
+	}
+
+	if args.arg_datadir.is_some() {
+		result.push(Deprecated::Replaced("--datadir", "--base-path"));
+	}
+
+	if args.arg_networkid.is_some() {
+		result.push(Deprecated::Replaced("--networkid", "--network-id"));
+	}
+
+	if args.arg_peers.is_some() {
+		result.push(Deprecated::Replaced("--peers", "--min-peers"));
+	}
+
+	if args.arg_nodekey.is_some() {
+		result.push(Deprecated::Replaced("--nodekey", "--node-key"));
+	}
+
+	if args.arg_rpcaddr.is_some() {
+		result.push(Deprecated::Replaced("--rpcaddr", "--jsonrpc-interface"));
+	}
+
+	if args.arg_rpcport.is_some() {
+		result.push(Deprecated::Replaced("--rpcport", "--jsonrpc-port"));
+	}
+
+	if args.arg_rpcapi.is_some() {
+		result.push(Deprecated::Replaced("--rpcapi", "--jsonrpc-api"));
+	}
+
+	if args.arg_rpccorsdomain.is_some() {
+		result.push(Deprecated::Replaced("--rpccorsdomain", "--jsonrpc-cors"));
+	}
+
+	if args.arg_ipcapi.is_some() {
+		result.push(Deprecated::Replaced("--ipcapi", "--ipc-apis"));
+	}
+
+	if args.arg_ipcpath.is_some() {
+		result.push(Deprecated::Replaced("--ipcpath", "--ipc-path"));
+	}
+
+	if args.arg_gasprice.is_some() {
+		result.push(Deprecated::Replaced("--gasprice", "--min-gas-price"));
+	}
+
+	if args.arg_cache.is_some() {
+		result.push(Deprecated::Replaced("--cache", "--cache-size"));
+	}
+
+	// Removed in 1.7.
+
 	if args.arg_dapps_port.is_some() {
-		result.push(Deprecated::Replaced("--dapps-port", "--jsonrpc-port"));
+		result.push(Deprecated::Removed("--dapps-port"));
 	}
 
 	if args.arg_dapps_interface.is_some() {
-		result.push(Deprecated::Replaced("--dapps-interface", "--jsonrpc-interface"));
+		result.push(Deprecated::Removed("--dapps-interface"));
 	}
 
 	if args.arg_dapps_hosts.is_some() {
-		result.push(Deprecated::Replaced("--dapps-hosts", "--jsonrpc-hosts"));
+		result.push(Deprecated::Removed("--dapps-hosts"));
 	}
 
 	if args.arg_dapps_cors.is_some() {
-		result.push(Deprecated::Replaced("--dapps-cors", "--jsonrpc-cors"));
+		result.push(Deprecated::Removed("--dapps-cors"));
 	}
 
 	if args.arg_dapps_user.is_some() {
@@ -106,7 +165,69 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Replaced("--dapps-apis-all", "--jsonrpc-apis"));
 	}
 
-	// Removed in 1.8
+	// Removed in 1.11.
+
+	if args.flag_public_node {
+		result.push(Deprecated::Removed("--public-node"));
+	}
+
+	if args.flag_force_ui {
+		result.push(Deprecated::Removed("--force-ui"));
+	}
+
+	if args.flag_no_ui {
+		result.push(Deprecated::Removed("--no-ui"));
+	}
+
+	if args.flag_ui_no_validation {
+		result.push(Deprecated::Removed("--ui-no-validation"));
+	}
+
+	if args.arg_ui_interface.is_some() {
+		result.push(Deprecated::Removed("--ui-interface"));
+	}
+
+	if args.arg_ui_hosts.is_some() {
+		result.push(Deprecated::Removed("--ui-hosts"));
+	}
+
+	if args.arg_ui_port.is_some() {
+		result.push(Deprecated::Removed("--ui-port"));
+	}
+
+	if args.arg_tx_queue_ban_count.is_some() {
+		result.push(Deprecated::Removed("--tx-queue-ban-count"));
+	}
+
+	if args.arg_tx_queue_ban_time.is_some() {
+		result.push(Deprecated::Removed("--tx-queue-ban-time"));
+	}
+
+	// Removed in 2.0.
+
+	if args.flag_fast_and_loose {
+		result.push(Deprecated::Removed("--fast-and-loose"));
+	}
+
+	if args.cmd_dapp {
+		result.push(Deprecated::Removed("parity dapp"));
+	}
+
+	if args.arg_dapp_path.is_some() {
+		result.push(Deprecated::Removed("--dapp-path"));
+	}
+
+	if args.flag_no_dapps {
+		result.push(Deprecated::Removed("--no-dapps"));
+	}
+
+	if args.arg_dapps_path.is_some() {
+		result.push(Deprecated::Removed("--dapps-path"));
+	}
+
+	if args.arg_ntp_servers.is_some() {
+		result.push(Deprecated::Removed("--ntp-servers"));
+	}
 
 	result
 }
@@ -138,6 +259,8 @@ mod tests {
 			args.arg_dapps_user = Some(Default::default());
 			args.arg_dapps_pass = Some(Default::default());
 			args.flag_dapps_apis_all = true;
+			args.flag_fast_and_loose = true;
+			args.arg_ntp_servers = Some(Default::default());
 			args
 		}), vec![
 			Deprecated::DoesNothing("--warp"),
@@ -150,14 +273,15 @@ mod tests {
 			Deprecated::Replaced("--ipc-off", "--no-ipc"),
 			Deprecated::Replaced("--etherbase", "--author"),
 			Deprecated::Replaced("--extradata", "--extra-data"),
-			Deprecated::Replaced("--dapps-port", "--jsonrpc-port"),
-			Deprecated::Replaced("--dapps-interface", "--jsonrpc-interface"),
-			Deprecated::Replaced("--dapps-hosts", "--jsonrpc-hosts"),
-			Deprecated::Replaced("--dapps-cors", "--jsonrpc-cors"),
+			Deprecated::Removed("--dapps-port"),
+			Deprecated::Removed("--dapps-interface"),
+			Deprecated::Removed("--dapps-hosts"),
+			Deprecated::Removed("--dapps-cors"),
 			Deprecated::Removed("--dapps-user"),
 			Deprecated::Removed("--dapps-pass"),
 			Deprecated::Replaced("--dapps-apis-all", "--jsonrpc-apis"),
+			Deprecated::Removed("--fast-and-loose"),
+			Deprecated::Removed("--ntp-servers"),
 		]);
 	}
 }
-

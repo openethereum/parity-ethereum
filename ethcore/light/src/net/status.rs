@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
 
 //! Peer status and capabilities.
 
-use rlp::{DecoderError, Encodable, Decodable, RlpStream, Rlp};
 use ethereum_types::{H256, U256};
+use rlp::{DecoderError, Encodable, Decodable, RlpStream, Rlp};
 
 use super::request_credits::FlowParams;
 

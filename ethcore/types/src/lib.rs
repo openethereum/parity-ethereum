@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 //! Types used in the public API
 
 extern crate ethereum_types;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethjson;
 extern crate rlp;
 #[macro_use]
@@ -36,7 +36,6 @@ pub mod call_analytics;
 pub mod filter;
 pub mod ids;
 pub mod log_entry;
-pub mod mode;
 pub mod pruning_info;
 pub mod receipt;
 pub mod restoration_status;

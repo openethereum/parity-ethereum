@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -85,7 +85,7 @@ fn secret_store(dir: Box<RootDiskDirectory>, iterations: Option<u32>) -> Result<
 }
 
 fn new(n: NewAccount) -> Result<String, String> {
-	let password: String = match n.password_file {
+	let password = match n.password_file {
 		Some(file) => password_from_file(file)?,
 		None => password_prompt()?,
 	};

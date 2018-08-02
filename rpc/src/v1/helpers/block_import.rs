@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,14 +19,21 @@
 use ethcore::client::BlockQueueInfo;
 use sync::SyncState;
 
-/// Check if client is during major sync or during block import.
-pub fn is_major_importing(sync_state: Option<SyncState>, queue_info: BlockQueueInfo) -> bool {
+/// Check if client is during major sync or during block import and allows defining whether 'waiting for peers' should
+/// be considered a syncing state.
+pub fn is_major_importing_or_waiting(sync_state: Option<SyncState>, queue_info: BlockQueueInfo, waiting_is_syncing_state: bool) -> bool {
 	let is_syncing_state = sync_state.map_or(false, |s| match s {
-		SyncState::Idle | SyncState::NewBlocks | SyncState::WaitingPeers => false,
+		SyncState::Idle | SyncState::NewBlocks => false,
+		SyncState::WaitingPeers if !waiting_is_syncing_state => false,
 		_ => true,
 	});
 	let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
 	is_verifying || is_syncing_state
+}
+
+/// Check if client is during major sync or during block import.
+pub fn is_major_importing(sync_state: Option<SyncState>, queue_info: BlockQueueInfo) -> bool {
+	is_major_importing_or_waiting(sync_state, queue_info, true)
 }
 
 #[cfg(test)]
@@ -34,7 +41,6 @@ mod tests {
 	use ethcore::client::BlockQueueInfo;
 	use sync::SyncState;
 	use super::is_major_importing;
-
 
 	fn queue_info(unverified: usize, verified: usize) -> BlockQueueInfo {
 		BlockQueueInfo {

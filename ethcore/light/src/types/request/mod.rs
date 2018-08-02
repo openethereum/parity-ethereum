@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -123,8 +123,6 @@ impl<T> Field<T> {
 			Field::BackReference(_, _) => None,
 		}
 	}
-
-
 
 	// attempt conversion into scalar value.
 	fn into_scalar(self) -> Result<T, NoSuchOutput> {
@@ -351,7 +349,7 @@ impl Encodable for Request {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 
-		// hack around https://github.com/paritytech/parity/issues/4356
+		// hack around https://github.com/paritytech/parity-ethereum/issues/4356
 		Encodable::rlp_append(&self.kind(), s);
 
 		match *self {
@@ -598,7 +596,7 @@ impl Encodable for Response {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 
-		// hack around https://github.com/paritytech/parity/issues/4356
+		// hack around https://github.com/paritytech/parity-ethereum/issues/4356
 		Encodable::rlp_append(&self.kind(), s);
 
 		match *self {

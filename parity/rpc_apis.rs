@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,6 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 pub use parity_rpc::signer::SignerService;
-pub use parity_rpc::dapps::{DappsService, LocalDapp};
 
 use ethcore_service::PrivateTxService;
 use ethcore::account_provider::AccountProvider;
@@ -35,7 +34,6 @@ use jsonrpc_core::{self as core, MetaIoHandler};
 use light::client::LightChainClient;
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use miner::external::ExternalMiner;
-use node_health::NodeHealth;
 use parity_reactor;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
@@ -225,16 +223,14 @@ pub struct FullDependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub net_service: Arc<ManageNetwork>,
 	pub updater: Arc<Updater>,
-	pub health: NodeHealth,
 	pub geth_compatibility: bool,
-	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<Host>,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub pool: CpuPool,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub gas_price_percentile: usize,
+	pub poll_lifetime: u32,
 }
 
 impl FullDependencies {
@@ -288,12 +284,13 @@ impl FullDependencies {
 							allow_pending_receipt_query: !self.geth_compatibility,
 							send_block_number_in_get_work: !self.geth_compatibility,
 							gas_price_percentile: self.gas_price_percentile,
+							poll_lifetime: self.poll_lifetime
 						}
 					);
 					handler.extend_with(client.to_delegate());
 
 					if !for_generic_pubsub {
-						let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
+						let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone(), self.poll_lifetime);
 						handler.extend_with(filter_client.to_delegate());
 
 						add_signing_methods!(EthSigning, handler, self, nonces.clone());
@@ -304,7 +301,7 @@ impl FullDependencies {
 						let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
 						let h = client.handler();
 						self.miner.add_transactions_listener(Box::new(move |hashes| if let Some(h) = h.upgrade() {
-							h.new_transactions(hashes);
+							h.notify_new_transactions(hashes);
 						}));
 
 						if let Some(h) = client.handler().upgrade() {
@@ -330,12 +327,10 @@ impl FullDependencies {
 						self.sync.clone(),
 						self.updater.clone(),
 						self.net_service.clone(),
-						self.health.clone(),
 						self.secret_store.clone(),
 						self.logger.clone(),
 						self.settings.clone(),
 						signer,
-						self.dapps_address.clone(),
 						self.ws_address.clone(),
 					).to_delegate());
 
@@ -360,7 +355,6 @@ impl FullDependencies {
 						&self.miner,
 						&self.updater,
 						&self.net_service,
-						self.dapps_service.clone(),
 						self.fetch.clone(),
 						self.pool.clone(),
 					).to_delegate())
@@ -433,12 +427,9 @@ pub struct LightDependencies<T> {
 	pub secret_store: Arc<AccountProvider>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
-	pub health: NodeHealth,
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
-	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<Host>,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub pool: CpuPool,
@@ -447,6 +438,7 @@ pub struct LightDependencies<T> {
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub private_tx_service: Option<Arc<PrivateTransactionManager>>,
 	pub gas_price_percentile: usize,
+	pub poll_lifetime: u32,
 }
 
 impl<C: LightChainClient + 'static> LightDependencies<C> {
@@ -504,6 +496,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.secret_store.clone(),
 						self.cache.clone(),
 						self.gas_price_percentile,
+						self.poll_lifetime,
 					);
 					handler.extend_with(Eth::to_delegate(client.clone()));
 
@@ -525,7 +518,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					let h = client.handler();
 					self.transaction_queue.write().add_listener(Box::new(move |transactions| {
 						if let Some(h) = h.upgrade() {
-							h.new_transactions(transactions);
+							h.notify_new_transactions(transactions);
 						}
 					}));
 					handler.extend_with(EthPubSub::to_delegate(client));
@@ -547,9 +540,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.secret_store.clone(),
 						self.logger.clone(),
 						self.settings.clone(),
-						self.health.clone(),
 						signer,
-						self.dapps_address.clone(),
 						self.ws_address.clone(),
 						self.gas_price_percentile,
 					).to_delegate());
@@ -572,7 +563,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				Api::ParitySet => {
 					handler.extend_with(light::ParitySetClient::new(
 						self.sync.clone(),
-						self.dapps_service.clone(),
 						self.fetch.clone(),
 						self.pool.clone(),
 					).to_delegate())

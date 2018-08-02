@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,15 +16,15 @@
 
 //! Tendermint message handling.
 
-use std::cmp;
-use hash::keccak;
-use ethereum_types::{H256, H520, Address};
 use bytes::Bytes;
-use super::{Height, View, BlockHash, Step};
 use error::Error;
+use ethereum_types::{H256, H520, Address};
+use ethkey::{recover, public_to_address};
+use hash::keccak;
 use header::Header;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
-use ethkey::{recover, public_to_address};
+use std::cmp;
+use super::{Height, View, BlockHash, Step};
 use super::super::vote_collector::Message;
 
 /// Message transmitted between consensus participants.
@@ -42,7 +42,6 @@ pub struct VoteStep {
 	pub view: View,
 	pub step: Step,
 }
-
 
 impl VoteStep {
 	pub fn new(height: Height, view: View, step: Step) -> Self {
@@ -253,7 +252,7 @@ mod tests {
 	#[test]
 	fn generate_and_verify() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
 		let mi = message_info_rlp(&VoteStep::new(123, 2, Step::Precommit), Some(H256::default()));

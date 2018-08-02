@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -67,6 +67,7 @@ impl Default for VerificationStore {
 					minimal_gas_price: 0.into(),
 					block_gas_limit: 8_000_000.into(),
 					tx_gas_limit: U256::max_value(),
+					no_early_reject: false
 				},
 				pool::PrioritizationStrategy::GasPriceOnly,
 			)

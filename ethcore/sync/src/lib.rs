@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,13 +23,14 @@
 
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_transaction as transaction;
 #[macro_use]
 extern crate ethcore;
 extern crate ethereum_types;
 extern crate env_logger;
+extern crate hashdb;
 extern crate plain_hasher;
 extern crate rand;
 extern crate semver;
@@ -38,7 +39,8 @@ extern crate smallvec;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate keccak_hash as hash;
-extern crate triehash;
+extern crate keccak_hasher;
+extern crate triehash_ethereum;
 extern crate kvdb;
 
 extern crate ethcore_light as light;

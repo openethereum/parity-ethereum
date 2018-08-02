@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@ use transaction::{Transaction, Action, SignedTransaction};
 use tempdir::TempDir;
 
 use ethereum_types::Address;
-use kvdb_memorydb;
+use test_helpers;
 
 use_contract!(test_validator_set, "ValidatorSet", "res/contracts/test_validator_set.json");
 
@@ -52,7 +52,6 @@ lazy_static! {
 	static ref RICH_SECRET: Secret = secret!("1");
 }
 
-
 /// Contract code used here: https://gist.github.com/anonymous/2a43783647e0f0dfcc359bd6fd81d6d9
 /// Account with secrets keccak("1") is initially the validator.
 /// Transitions to the contract at block 2, initially same validator set.
@@ -72,7 +71,7 @@ fn make_accounts(secrets: &[Secret]) -> (Arc<AccountProvider>, Vec<Address>) {
 
 	let addrs = secrets.iter()
 		.cloned()
-		.map(|s| provider.insert_account(s, PASS).unwrap())
+		.map(|s| provider.insert_account(s, &PASS.into()).unwrap())
 		.collect();
 
 	(Arc::new(provider), addrs)
@@ -215,7 +214,7 @@ fn fixed_to_contract_only() {
 		secret!("dog42"),
 	]);
 
-	assert!(provider.has_account(*RICH_ADDR).unwrap());
+	assert!(provider.has_account(*RICH_ADDR));
 
 	let client = make_chain(provider, 3, vec![
 		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
@@ -227,12 +226,12 @@ fn fixed_to_contract_only() {
 	assert_eq!(client.chain_info().best_block_number, 11);
 	let (reader, _tempdir) = snapshot_helpers::snap(&*client);
 
-	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0));
+	let new_db = test_helpers::new_db();
 	let spec = spec_fixed_to_contract();
 
 	// ensure fresh engine's step matches.
 	for _ in 0..11 { spec.engine.step() }
-	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
+	snapshot_helpers::restore(new_db, &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
 }
 
 #[test]
@@ -248,7 +247,7 @@ fn fixed_to_contract_to_contract() {
 		secret!("dog42"),
 	]);
 
-	assert!(provider.has_account(*RICH_ADDR).unwrap());
+	assert!(provider.has_account(*RICH_ADDR));
 
 	let client = make_chain(provider, 3, vec![
 		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
@@ -259,9 +258,9 @@ fn fixed_to_contract_to_contract() {
 
 	assert_eq!(client.chain_info().best_block_number, 16);
 	let (reader, _tempdir) = snapshot_helpers::snap(&*client);
-	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0));
+	let new_db = test_helpers::new_db();
 	let spec = spec_fixed_to_contract();
 
 	for _ in 0..16 { spec.engine.step() }
-	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
+	snapshot_helpers::restore(new_db, &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
 }

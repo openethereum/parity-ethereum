@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -52,10 +52,4 @@ pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 pub mod signer {
 	pub use super::helpers::{SigningQueue, SignerService, ConfirmationsQueue};
 	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
-}
-
-/// Dapps integration utilities
-pub mod dapps {
-	pub use super::helpers::dapps::DappsService;
-	pub use super::types::LocalDapp;
 }

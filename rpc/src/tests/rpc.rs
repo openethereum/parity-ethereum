@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,20 +26,21 @@ fn serve(handler: Option<MetaIoHandler<Metadata>>) -> Server<HttpServer> {
 	let address = "127.0.0.1:0".parse().unwrap();
 	let handler = handler.unwrap_or_default();
 
-	Server::new(|remote| ::start_http(
+	Server::new(|remote| ::start_http_with_middleware(
 		&address,
 		http::DomainsValidation::Disabled,
 		http::DomainsValidation::Disabled,
 		handler,
 		remote,
 		extractors::RpcExtractor,
-		Some(|request: hyper::Request| {
+		|request: hyper::Request| {
 			http::RequestMiddlewareAction::Proceed {
 				should_continue_on_invalid_cors: false,
 				request,
 			}
-		}),
+		},
 		1,
+		5,
 	).unwrap())
 }
 

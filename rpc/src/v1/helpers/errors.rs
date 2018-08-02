@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -207,14 +207,6 @@ pub fn signer_disabled() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Trusted Signer is disabled. This API is not available.".into(),
-		data: None,
-	}
-}
-
-pub fn dapps_disabled() -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Dapps Server is disabled. This API is not available.".into(),
 		data: None,
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -113,7 +113,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 		current_mem_size: usize,
 	) -> vm::Result<InstructionRequirements<Gas>> {
 		let schedule = ext.schedule();
-		let tier = instructions::get_tier_idx(info.tier);
+		let tier = info.tier.idx();
 		let default_gas = Gas::from(schedule.tier_step_gas[tier]);
 
 		let cost = match instruction {
@@ -142,6 +142,9 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			},
 			instructions::EXTCODESIZE => {
 				Request::Gas(Gas::from(schedule.extcodesize_gas))
+			},
+			instructions::EXTCODEHASH => {
+				Request::Gas(Gas::from(schedule.extcodehash_gas))
 			},
 			instructions::SUICIDE => {
 				let mut gas = Gas::from(schedule.suicide_gas);
@@ -179,8 +182,8 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			instructions::EXTCODECOPY => {
 				Request::GasMemCopy(schedule.extcodecopy_base_gas.into(), mem_needed(stack.peek(1), stack.peek(3))?, Gas::from_u256(*stack.peek(3))?)
 			},
-			instructions::LOG0...instructions::LOG4 => {
-				let no_of_topics = instructions::get_log_topics(instruction);
+			instructions::LOG0 | instructions::LOG1 | instructions::LOG2 | instructions::LOG3 | instructions::LOG4 => {
+				let no_of_topics = instruction.log_topics().expect("log_topics always return some for LOG* instructions; qed");
 				let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
 
 				let data_gas = overflowing!(Gas::from_u256(*stack.peek(1))?.overflow_mul(Gas::from(schedule.log_data_gas)));
@@ -225,7 +228,11 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let gas = Gas::from(schedule.create_gas);
-				let mem = mem_needed(stack.peek(1), stack.peek(2))?;
+				let mem = match instruction {
+					instructions::CREATE => mem_needed(stack.peek(1), stack.peek(2))?,
+					instructions::CREATE2 => mem_needed(stack.peek(2), stack.peek(3))?,
+					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
+				};
 
 				Request::GasMemProvide(gas, mem, None)
 			},
@@ -316,7 +323,6 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 	}
 }
 
-
 #[inline]
 fn mem_needed_const<Gas: evm::CostType>(mem: &U256, add: usize) -> vm::Result<Gas> {
 	Gas::from_u256(overflowing!(mem.overflowing_add(U256::from(add))))
@@ -369,4 +375,3 @@ fn test_calculate_mem_cost() {
 	assert_eq!(new_mem_gas, 3);
 	assert_eq!(mem_size, 32);
 }
-

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 use ethereum_types::{U256, U512, Address};
 use bytes::Bytes;
-use trie;
+use ethtrie;
 use vm;
 use trace::{VMTrace, FlatTrace};
 use log_entry::LogEntry;
@@ -117,9 +117,14 @@ pub enum ExecutionError {
 	TransactionMalformed(String),
 }
 
-impl From<Box<trie::TrieError>> for ExecutionError {
-	fn from(err: Box<trie::TrieError>) -> Self {
-		ExecutionError::Internal(format!("{}", err))
+impl From<Box<ethtrie::TrieError>> for ExecutionError {
+	fn from(err: Box<ethtrie::TrieError>) -> Self {
+		ExecutionError::Internal(format!("{:?}", err))
+	}
+}
+impl From<ethtrie::TrieError> for ExecutionError {
+	fn from(err: ethtrie::TrieError) -> Self {
+		ExecutionError::Internal(format!("{:?}", err))
 	}
 }
 

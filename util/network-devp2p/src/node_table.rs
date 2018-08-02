@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -33,7 +33,7 @@ use rand::{self, Rng};
 /// Node public key
 pub type NodeId = H512;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// Node address info
 pub struct NodeEndpoint {
 	/// IP(V4 or V6) address

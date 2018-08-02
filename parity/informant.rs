@@ -35,7 +35,7 @@ use io::{TimerToken, IoContext, IoHandler};
 use light::Cache as LightDataCache;
 use light::client::{LightChainClient, LightChainNotify};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-use parity_rpc::{is_major_importing};
+use parity_rpc::is_major_importing_or_waiting;
 use parity_rpc::informant::RpcStats;
 use ethereum_types::H256;
 use bytes::Bytes;
@@ -128,7 +128,7 @@ impl InformantData for FullNodeInformantData {
 
 	fn is_major_importing(&self) -> bool {
 		let state = self.sync.as_ref().map(|sync| sync.status().state);
-		is_major_importing(state, self.client.queue_info())
+		is_major_importing_or_waiting(state, self.client.queue_info(), false)
 	}
 
 	fn report(&self) -> Report {
@@ -142,7 +142,8 @@ impl InformantData for FullNodeInformantData {
 		cache_sizes.insert("queue", queue_info.mem_used);
 		cache_sizes.insert("chain", blockchain_cache_info.total());
 
-		let (importing, sync_info) = match (self.sync.as_ref(), self.net.as_ref()) {
+		let importing = self.is_major_importing();
+		let sync_info = match (self.sync.as_ref(), self.net.as_ref()) {
 			(Some(sync), Some(net)) => {
 				let status = sync.status();
 				let num_peers_range = net.num_peers_range();
@@ -150,16 +151,15 @@ impl InformantData for FullNodeInformantData {
 
 				cache_sizes.insert("sync", status.mem_used);
 
-				let importing = is_major_importing(Some(status.state), queue_info.clone());
-				(importing, Some(SyncInfo {
+				Some(SyncInfo {
 					last_imported_block_number: status.last_imported_block_number.unwrap_or(chain_info.best_block_number),
 					last_imported_old_block_number: status.last_imported_old_block_number,
 					num_peers: status.num_peers,
 					max_peers: status.current_max_peers(num_peers_range.start, num_peers_range.end - 1),
 					snapshot_sync: status.is_snapshot_syncing(),
-				}))
+				})
 			}
-			_ => (is_major_importing(self.sync.as_ref().map(|s| s.status().state), queue_info.clone()), None),
+			_ => None
 		};
 
 		Report {
@@ -304,7 +304,7 @@ impl<T: InformantData> Informant<T> {
 						paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 						if self.target.executes_transactions() {
 							format!("{} blk/s {} tx/s {} Mgas/s",
-								paint(Yellow.bold(), format!("{:5.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
+								paint(Yellow.bold(), format!("{:7.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
 								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_milliseconds() as f64)),
 								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
 							)
@@ -335,7 +335,13 @@ impl<T: InformantData> Informant<T> {
 			match sync_info.as_ref() {
 				Some(ref sync_info) => format!("{}{}/{} peers",
 					match importing {
-						true => format!("{}   ", paint(Green.bold(), format!("{:>8}", format!("#{}", sync_info.last_imported_block_number)))),
+						true => format!("{}",
+							if self.target.executes_transactions() {
+								paint(Green.bold(), format!("{:>8}   ", format!("#{}", sync_info.last_imported_block_number)))
+							} else {
+								String::new()
+							}
+						),
 						false => match sync_info.last_imported_old_block_number {
 							Some(number) => format!("{}   ", paint(Yellow.bold(), format!("{:>8}", format!("#{}", number)))),
 							None => String::new(),

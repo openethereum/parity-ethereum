@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -102,6 +102,12 @@ impl ValidatorSet for SimpleList {
 	fn count_with_caller(&self, _bh: &H256, _: &Call) -> usize {
 		self.validators.len()
 	}
+}
+
+impl AsRef<ValidatorSet> for SimpleList {
+    fn as_ref(&self) -> &ValidatorSet {
+        self
+    }
 }
 
 #[cfg(test)]

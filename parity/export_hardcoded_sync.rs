@@ -1,4 +1,4 @@
-// Copyright 2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -40,7 +40,6 @@ pub struct ExportHsyncCmd {
 	pub spec: SpecType,
 	pub pruning: Pruning,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 }
 
 pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
@@ -69,7 +68,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(false, false, false)?;
+	cmd.dirs.create_dirs(false, false)?;
 
 	// TODO: configurable cache size.
 	let cache = LightDataCache::new(Default::default(), Duration::from_secs(60 * GAS_CORPUS_EXPIRATION_MINUTES));
@@ -89,8 +88,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	// initialize database.
 	let db = db::open_db(&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
-						 &cmd.compaction,
-						 cmd.wal)?;
+						 &cmd.compaction).map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	let service = light_client::Service::start(config, &spec, UnavailableDataFetcher, db, cache)
 		.map_err(|e| format!("Error starting light client: {}", e))?;

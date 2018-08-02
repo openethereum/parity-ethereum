@@ -170,7 +170,7 @@ mod test {
 				"0000000000000000000000000000000000000001".into(),
 				(3141562.into(), 31415620.into()),
 				vec![],
-			);
+			).unwrap();
 
 			let result = machine.execute_as_system(
 				block.block_mut(),

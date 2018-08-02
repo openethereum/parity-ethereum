@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -60,7 +60,6 @@ pub struct SnapshotCommand {
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub file_path: Option<String>,
-	pub wal: bool,
 	pub kind: Kind,
 	pub block_at: BlockId,
 }
@@ -173,17 +172,17 @@ impl SnapshotCommand {
 			tracing,
 			fat_db,
 			self.compaction,
-			self.wal,
 			VMType::default(),
 			"".into(),
 			algorithm,
 			self.pruning_history,
 			self.pruning_memory,
-			true
+			true,
 		);
 
-		let client_db = db::open_client_db(&client_path, &client_config)?;
 		let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
+		let client_db = restoration_db_handler.open(&client_path)
+			.map_err(|e| format!("Failed to open database {:?}", e))?;
 
 		let service = ClientService::start(
 			client_config,

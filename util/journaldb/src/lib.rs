@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,14 +21,14 @@ extern crate heapsize;
 extern crate log;
 
 extern crate ethereum_types;
-extern crate ethcore_bytes as bytes;
+extern crate parity_bytes as bytes;
 extern crate hashdb;
+extern crate keccak_hasher;
 extern crate kvdb;
 extern crate memorydb;
 extern crate parking_lot;
 extern crate plain_hasher;
 extern crate rlp;
-extern crate util_error as error;
 
 #[cfg(test)]
 extern crate ethcore_logger;
@@ -37,7 +37,7 @@ extern crate keccak_hash as keccak;
 #[cfg(test)]
 extern crate kvdb_memorydb;
 
-use std::{fmt, str};
+use std::{fmt, str, io};
 use std::sync::Arc;
 
 /// Export the journaldb module.
@@ -47,6 +47,7 @@ mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
 mod util;
+mod as_hash_db_impls;
 
 pub mod overlaydb;
 
@@ -78,10 +79,6 @@ pub enum Algorithm {
 	///
 	/// References are counted in disk-backed DB.
 	RefCounted,
-}
-
-impl Default for Algorithm {
-	fn default() -> Algorithm { Algorithm::OverlayRecent }
 }
 
 impl str::FromStr for Algorithm {
@@ -153,6 +150,14 @@ pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u
 const DB_PREFIX_LEN : usize = ::kvdb::PREFIX_LEN;
 const LATEST_ERA_KEY : [u8; ::kvdb::PREFIX_LEN] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 
+fn error_key_already_exists(hash: &ethereum_types::H256) -> io::Error {
+	io::Error::new(io::ErrorKind::AlreadyExists, hash.to_string())
+}
+
+fn error_negatively_reference_hash(hash: &ethereum_types::H256) -> io::Error {
+	io::Error::new(io::ErrorKind::Other, format!("Entry {} removed from database more times than it was added.", hash))
+}
+
 #[cfg(test)]
 mod tests {
 	use super::Algorithm;
@@ -179,11 +184,6 @@ mod tests {
 		assert!(Algorithm::OverlayRecent.is_stable());
 		assert!(!Algorithm::EarlyMerge.is_stable());
 		assert!(!Algorithm::RefCounted.is_stable());
-	}
-
-	#[test]
-	fn test_journal_algorithm_default() {
-		assert_eq!(Algorithm::default(), Algorithm::OverlayRecent);
 	}
 
 	#[test]

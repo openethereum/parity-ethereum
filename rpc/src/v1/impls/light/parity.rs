@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,7 +26,6 @@ use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
-use node_health::{NodeHealth, Health};
 use ethcore::ids::BlockId;
 
 use light::client::LightChainClient;
@@ -56,11 +55,8 @@ pub struct ParityClient {
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
-	health: NodeHealth,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<Host>,
 	ws_address: Option<Host>,
-	eip86_transition: u64,
 	gas_price_percentile: usize,
 }
 
@@ -72,9 +68,7 @@ impl ParityClient {
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
-		health: NodeHealth,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<Host>,
 		ws_address: Option<Host>,
 		gas_price_percentile: usize,
 	) -> Self {
@@ -83,11 +77,8 @@ impl ParityClient {
 			accounts,
 			logger,
 			settings,
-			health,
 			signer,
-			dapps_address,
 			ws_address,
-			eip86_transition: client.eip86_transition(),
 			client,
 			gas_price_percentile,
 		}
@@ -264,13 +255,14 @@ impl Parity for ParityClient {
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self) -> Result<Vec<Transaction>> {
+	fn pending_transactions(&self, limit: Trailing<usize>) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.take(limit.unwrap_or_else(usize::max_value))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -285,7 +277,7 @@ impl Parity for ParityClient {
 			current
 				.into_iter()
 				.chain(future.into_iter())
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -296,7 +288,7 @@ impl Parity for ParityClient {
 		Ok(
 			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -304,8 +296,8 @@ impl Parity for ParityClient {
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
 		let stats = self.light_dispatch.sync.transactions_stats();
 		Ok(stats.into_iter()
-		   .map(|(hash, stats)| (hash.into(), stats.into()))
-		   .collect()
+			.map(|(hash, stats)| (hash.into(), stats.into()))
+			.collect()
 		)
 	}
 
@@ -326,11 +318,6 @@ impl Parity for ParityClient {
 		// TODO: other types?
 
 		Ok(map)
-	}
-
-	fn dapps_url(&self) -> Result<String> {
-		helpers::to_url(&self.dapps_address)
-			.ok_or_else(|| errors::dapps_disabled())
 	}
 
 	fn ws_url(&self) -> Result<String> {
@@ -438,10 +425,5 @@ impl Parity for ParityClient {
 
 	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		Err(errors::light_unimplemented(None))
-	}
-
-	fn node_health(&self) -> BoxFuture<Health> {
-		Box::new(self.health.health()
-			.map_err(|err| errors::internal("Health API failure.", err)))
 	}
 }

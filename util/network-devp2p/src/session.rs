@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,7 +28,7 @@ use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
 use network::{Error, ErrorKind, DisconnectReason, SessionInfo, ProtocolId, PeerCapabilityInfo};
-use network::{SessionCapabilityInfo, HostInfo as HostInfoTrait};
+use network::SessionCapabilityInfo;
 use host::*;
 use node_table::NodeId;
 use snappy;
@@ -515,4 +515,3 @@ impl Session {
 		Ok(())
 	}
 }
-

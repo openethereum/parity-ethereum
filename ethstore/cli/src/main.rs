@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -32,7 +32,7 @@ use std::{env, process, fs, fmt};
 
 use docopt::Docopt;
 use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
-use ethstore::ethkey::Address;
+use ethstore::ethkey::{Address, Password};
 use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet, SecretVaultRef, StoreAccountRef};
 
 mod crack;
@@ -145,10 +145,11 @@ impl fmt::Display for Error {
 }
 
 fn main() {
-	panic_hook::set();
+	panic_hook::set_abort();
 
 	match execute(env::args()) {
 		Ok(result) => println!("{}", result),
+		Err(Error::Docopt(ref e)) => e.exit(),
 		Err(err) => {
 			println!("{}", err);
 			process::exit(1);
@@ -200,13 +201,13 @@ fn format_vaults(vaults: &[String]) -> String {
 	vaults.join("\n")
 }
 
-fn load_password(path: &str) -> Result<String, Error> {
+fn load_password(path: &str) -> Result<Password, Error> {
 	let mut file = fs::File::open(path).map_err(|e| ethstore::Error::Custom(format!("Error opening password file {}: {}", path, e)))?;
 	let mut password = String::new();
 	file.read_to_string(&mut password).map_err(|e| ethstore::Error::Custom(format!("Error reading password file {}: {}", path, e)))?;
 	// drop EOF
 	let _ = password.pop();
-	Ok(password)
+	Ok(password.into())
 }
 
 fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
@@ -251,7 +252,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		Ok(format!("0x{:x}", account_ref.address))
 	} else if args.cmd_find_wallet_pass {
 		let passwords = load_password(&args.arg_password)?;
-		let passwords = passwords.lines().map(str::to_owned).collect::<VecDeque<_>>();
+		let passwords = passwords.as_str().lines().map(|line| str::to_owned(line).into()).collect::<VecDeque<_>>();
 		crack::run(passwords, &args.arg_path)?;
 		Ok(format!("Password not found."))
 	} else if args.cmd_remove {

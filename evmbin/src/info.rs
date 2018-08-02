@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -105,7 +105,7 @@ pub fn run_transaction<T: Informant>(
 
 	informant.set_gas(env_info.gas_limit);
 
-	let result = run(spec, env_info.gas_limit, pre_state, |mut client| {
+	let result = run(&spec, env_info.gas_limit, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
 			TransactResult::Ok { state_root, .. } if state_root != post_root => {

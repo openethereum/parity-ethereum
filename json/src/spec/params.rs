@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -108,6 +108,9 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip658Transition")]
 	pub eip658_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip1052Transition")]
+	pub eip1052_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	#[serde(rename="dustProtectionTransition")]
 	pub dust_protection_transition: Option<Uint>,

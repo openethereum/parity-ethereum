@@ -1,3 +1,124 @@
+Note: Parity 1.10 reached End-of-Life on 2018-07-18 (EOL).
+
+## Parity [v1.10.9](https://github.com/paritytech/parity/releases/tag/v1.10.9) (2018-07-07)
+
+Parity 1.10.9 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Stable: 1.10.9 backports ([#9016](https://github.com/paritytech/parity/pull/9016))
+  - Parity-version: bump stable to 1.10.9
+  - Scripts: remove md5 checksums ([#8884](https://github.com/paritytech/parity/pull/8884))
+  - Add support for --chain tobalaba ([#8870](https://github.com/paritytech/parity/pull/8870))
+    - Add support for --chain tobalaba
+  - Only return error log for rustls ([#9025](https://github.com/paritytech/parity/pull/9025))
+  - Fixes for misbehavior reporting in AuthorityRound ([#8998](https://github.com/paritytech/parity/pull/8998))
+    - Aura: only report after checking for repeated skipped primaries
+    - Aura: refactor duplicate code for getting epoch validator set
+    - Aura: verify_external: report on validator set contract instance
+    - Aura: use correct validator set epoch number when reporting
+    - Aura: use epoch set when verifying blocks
+    - Aura: report skipped primaries when generating seal
+    - Aura: handle immediate transitions
+    - Aura: don't report skipped steps from genesis to first block
+    - Aura: fix reporting test
+    - Aura: refactor duplicate code to handle immediate_transitions
+    - Aura: let reporting fail on verify_block_basic
+    - Aura: add comment about possible failure of reporting
+
+## Parity [v1.10.8](https://github.com/paritytech/parity/releases/tag/v1.10.8) (2018-06-29)
+
+Parity 1.10.8 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8986](https://github.com/paritytech/parity/pull/8986))
+  - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530 ([#8984](https://github.com/paritytech/parity/pull/8984))
+    - Snap: downgrade rust to revision 1.26.2, ref snapcraft/+bug/1778530
+    - Snap: use plugin rust
+  - Fix deadlock in blockchain. ([#8977](https://github.com/paritytech/parity/pull/8977))
+  - Remove js-glue from workspace
+- Bump stable to 1.10.8 ([#8951](https://github.com/paritytech/parity/pull/8951))
+  - Parity-version: bump stable to 1.10.8
+  - Update ropsten.json ([#8926](https://github.com/paritytech/parity/pull/8926))
+  - Scripts: minor improvements ([#8930](https://github.com/paritytech/parity/pull/8930))
+    - CI: enable 'latest' docker tag on master pipeline
+    - CI: mark both beta and stable as stable snap.
+    - CI: sign all windows binaries
+    - Scripts: remove whisper target not available in stable
+  - Scripts: fix gitlab strip binaries
+  - Scripts: fix docker build tag on latest using master ([#8952](https://github.com/paritytech/parity/pull/8952))
+  - Rpc: cap gas limit of local calls ([#8943](https://github.com/paritytech/parity/pull/8943))
+
+## Parity [v1.10.7](https://github.com/paritytech/parity/releases/tag/v1.10.7) (2018-06-20)
+
+Parity 1.10.7 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8919](https://github.com/paritytech/parity/pull/8919))
+  - Fixed AuthorityRound deadlock on shutdown, closes [#8088](https://github.com/paritytech/parity/issues/8088) ([#8803](https://github.com/paritytech/parity/pull/8803))
+  - CI: Fix docker tags ([#8822](https://github.com/paritytech/parity/pull/8822))
+    - Scripts: enable docker builds for beta and stable
+    - Scripts: docker latest should be beta not master
+    - Scripts: docker latest is master
+  - Fix concurrent access to signer queue ([#8854](https://github.com/paritytech/parity/pull/8854))
+    - Fix concurrent access to signer queue
+    - Put request back to the queue if confirmation failed
+    - Typo: fix docs and rename functions to be more specific
+    - Change trace info "Transaction" -> "Request"
+  - Add new ovh bootnodes and fix port for foundation bootnode 3.2 ([#8886](https://github.com/paritytech/parity/pull/8886))
+    - Add new ovh bootnodes and fix port for foundation bootnode 3.2
+    - Remove old bootnodes.
+    - Remove duplicate 1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082
+  - Block 0 is valid in queries ([#8891](https://github.com/paritytech/parity/pull/8891))
+  - Update jsonrpc libs, fixed ipc leak, closes [#8774](https://github.com/paritytech/parity/issues/8774) ([#8876](https://github.com/paritytech/parity/pull/8876))
+  - Add ETC Cooperative-run load balanced parity node ([#8892](https://github.com/paritytech/parity/pull/8892))
+  - Minor fix in chain supplier and light provider ([#8906](https://github.com/paritytech/parity/pull/8906))
+    - Fix chain supplier increment
+    - Fix light provider block_headers
+- Parity-version: stable release 1.10.7 ([#8855](https://github.com/paritytech/parity/pull/8855))
+  - Cherry-pick network-specific release flag ([#8821](https://github.com/paritytech/parity/pull/8821))
+  - Parity-version: bump stable to 1.10.7
+
+## Parity [v1.10.6](https://github.com/paritytech/parity/releases/tag/v1.10.6) (2018-06-05)
+
+Parity 1.10.6 is a security-relevant release. Please upgrade your nodes as soon as possible.
+
+If you can not upgrade to 1.10+ yet, please use the following branches and build your own binaries from source:
+
+- git checkout [old-stable-1.9](https://github.com/paritytech/parity/tree/old-stable-1.9) # `v1.9.8` (EOL)
+- git checkout [old-stable-1.8](https://github.com/paritytech/parity/tree/old-stable-1.8) # `v1.8.12` (EOL)
+- git checkout [old-stable-1.7](https://github.com/paritytech/parity/tree/old-stable-1.7) # `v1.7.14` (EOL)
+
+The full list of included changes:
+
+- Parity-version: bump stable to 1.10.6 ([#8805](https://github.com/paritytech/parity/pull/8805))
+  - Parity-version: bump stable to 1.10.6
+  - Disallow unsigned transactions in case EIP-86 is disabled ([#8802](https://github.com/paritytech/parity/pull/8802))
+- Update shell32-sys to fix windows build ([#8793](https://github.com/paritytech/parity/pull/8793))
+- Backports ([#8782](https://github.com/paritytech/parity/pull/8782))
+  - Fix light sync with initial validator-set contract ([#8528](https://github.com/paritytech/parity/pull/8528))
+    - Fix #8468
+    - Use U256::max_value() instead
+    - Fix again
+    - Also change initial transaction gas
+  - Don't open Browser post-install on Mac ([#8641](https://github.com/paritytech/parity/pull/8641))
+  - Prefix uint fmt with `0x` with alternate flag
+  - Set the request index to that of the current request ([#8683](https://github.com/paritytech/parity/pull/8683))
+    - Set the request index to that of the current request
+  - Node table sorting according to last contact data ([#8541](https://github.com/paritytech/parity/pull/8541))
+    - Network-devp2p: sort nodes in node table using last contact data
+    - Network-devp2p: rename node contact types in node table json output
+    - Network-devp2p: fix node table tests
+    - Network-devp2p: note node failure when failed to establish connection
+    - Network-devp2p: handle UselessPeer error
+    - Network-devp2p: note failure when marking node as useless
+  - Network-devp2p: handle UselessPeer disconnect ([#8686](https://github.com/paritytech/parity/pull/8686))
+- Parity: bump stable version to 1.10.5 ([#8749](https://github.com/paritytech/parity/pull/8749))
+  - Parity: bump stable version to 1.10.5
+  - Fix failing doc tests running on non-code
+
 ## Parity [v1.10.4](https://github.com/paritytech/parity/releases/tag/v1.10.4) (2018-05-15)
 
 Parity 1.10.4 is a bug-fix release to improve performance and stability.
@@ -187,61 +308,61 @@ The full list of included changes:
 - Beta Backports ([#8136](https://github.com/paritytech/parity/pull/8136))
   - Support parity protocol. ([#8035](https://github.com/paritytech/parity/pull/8035))
   - updater: apply exponential backoff after download failure ([#8059](https://github.com/paritytech/parity/pull/8059))
-	  - updater: apply exponential backoff after download failure
-	  - updater: reset backoff on new release
+    - updater: apply exponential backoff after download failure
+    - updater: reset backoff on new release
   - Max code size on Kovan ([#8067](https://github.com/paritytech/parity/pull/8067))
-	  - Enable code size limit on kovan
-	  - Fix formatting.
+    - Enable code size limit on kovan
+    - Fix formatting.
   - Limit incoming connections.  ([#8060](https://github.com/paritytech/parity/pull/8060))
-	  - Limit ingress connections
-	  - Optimized handshakes logging
+    - Limit ingress connections
+    - Optimized handshakes logging
   - WASM libraries bump ([#7970](https://github.com/paritytech/parity/pull/7970))
-	  - update wasmi, parity-wasm, wasm-utils to latest version
-	  - Update to new wasmi & error handling
-	  - also utilize new stack limiter
-	  - fix typo
-	  - replace dependency url
-	  - Cargo.lock update
+    - update wasmi, parity-wasm, wasm-utils to latest version
+    - Update to new wasmi & error handling
+    - also utilize new stack limiter
+    - fix typo
+    - replace dependency url
+    - Cargo.lock update
   - add some dos protection ([#8084](https://github.com/paritytech/parity/pull/8084))
   - revert removing blooms ([#8066](https://github.com/paritytech/parity/pull/8066))
   - Revert "fix traces, removed bloomchain crate, closes [#7228](https://github.com/paritytech/parity/issues/7228), closes [#7167](https://github.com/paritytech/parity/issues/7167)"
   - Revert "fixed broken logs ([#7934](https://github.com/paritytech/parity/pull/7934))"
-	  - fixed broken logs
-	  - bring back old lock order
-	  - remove migration v13
-	  - revert CURRENT_VERSION to 12 in migration.rs
+    - fixed broken logs
+    - bring back old lock order
+    - remove migration v13
+    - revert CURRENT_VERSION to 12 in migration.rs
   - more dos protection ([#8104](https://github.com/paritytech/parity/pull/8104))
   - Const time comparison ([#8113](https://github.com/paritytech/parity/pull/8113))
-	  - Use `subtle::slices_equal` for constant time comparison.
-	  - Also update the existing version of subtle in `ethcrypto` from 0.1 to 0.5
-	  - Test specifically for InvalidPassword error.
+    - Use `subtle::slices_equal` for constant time comparison.
+    - Also update the existing version of subtle in `ethcrypto` from 0.1 to 0.5
+    - Test specifically for InvalidPassword error.
   - fix trace filter returning returning unrelated reward calls, closes #8070 ([#8098](https://github.com/paritytech/parity/pull/8098))
   - network: init discovery using healthy nodes ([#8061](https://github.com/paritytech/parity/pull/8061))
-	  - network: init discovery using healthy nodes
-	  - network: fix style grumble
-	  - network: fix typo
+    - network: init discovery using healthy nodes
+    - network: fix style grumble
+    - network: fix typo
   - Postpone Kovan hard fork ([#8137](https://github.com/paritytech/parity/pull/8137))
-	  - ethcore: postpone Kovan hard fork
-	  - util: update version fork metadata
+    - ethcore: postpone Kovan hard fork
+    - util: update version fork metadata
   - Disable UI by default. ([#8105](https://github.com/paritytech/parity/pull/8105))
   - dapps: update parity-ui dependencies ([#8160](https://github.com/paritytech/parity/pull/8160))
 - Probe changes one step deeper ([#8134](https://github.com/paritytech/parity/pull/8134)) ([#8135](https://github.com/paritytech/parity/pull/8135))
 - Beta backports ([#8053](https://github.com/paritytech/parity/pull/8053))
   - CI: Fix cargo cache ([#7968](https://github.com/paritytech/parity/pull/7968))
-	  - Fix cache
-	  - Only clean locked cargo cache on windows
+    - Fix cache
+    - Only clean locked cargo cache on windows
   - fixed ethstore sign ([#8026](https://github.com/paritytech/parity/pull/8026))
   - fixed parsing ethash seals and verify_block_undordered ([#8031](https://github.com/paritytech/parity/pull/8031))
   - fix for verify_block_basic crashing on invalid transaction rlp ([#8032](https://github.com/paritytech/parity/pull/8032))
   - fix cache & snapcraft CI build ([#8052](https://github.com/paritytech/parity/pull/8052))
   - Add MCIP-6 Byzyantium transition to Musicoin spec ([#7841](https://github.com/paritytech/parity/pull/7841))
-	  - Add test chain spec for musicoin byzantium testnet
-	  - Add MCIP-6 Byzyantium transition to Musicoin spec
-	  - Update mcip6_byz.json
-	  - ethcore: update musicoin byzantium block number
-	  - ethcore: update musicoin bootnodes
-	  - Update musicoin.json
-	  - More bootnodes.
+    - Add test chain spec for musicoin byzantium testnet
+    - Add MCIP-6 Byzyantium transition to Musicoin spec
+    - Update mcip6_byz.json
+    - ethcore: update musicoin byzantium block number
+    - ethcore: update musicoin bootnodes
+    - Update musicoin.json
+    - More bootnodes.
 - Make 1.10 beta ([#8022](https://github.com/paritytech/parity/pull/8022))
   - Make 1.10 beta
   - Fix gitlab builds

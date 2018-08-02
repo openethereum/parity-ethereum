@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-
 //! RPC types
 
 mod account_info;
@@ -24,7 +23,6 @@ mod bytes;
 mod call_request;
 mod confirmations;
 mod consensus_status;
-mod dapps;
 mod derivation;
 mod filter;
 mod hash;
@@ -58,7 +56,6 @@ pub use self::confirmations::{
 	TransactionModification, SignRequest, DecryptRequest, Either
 };
 pub use self::consensus_status::*;
-pub use self::dapps::LocalDapp;
 pub use self::derivation::{DeriveHash, DeriveHierarchical, Derive};
 pub use self::filter::{Filter, FilterChanges};
 pub use self::hash::{H64, H160, H256, H512, H520, H2048};
@@ -74,7 +71,7 @@ pub use self::sync::{
 	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo,
 	TransactionStats, ChainStatus, EthProtocolInfo, PipProtocolInfo,
 };
-pub use self::trace::{LocalizedTrace, TraceResults};
+pub use self::trace::{LocalizedTrace, TraceResults, TraceResultsWithTransactionHash};
 pub use self::trace_filter::TraceFilter;
 pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionStatus};
 pub use self::transaction_request::TransactionRequest;

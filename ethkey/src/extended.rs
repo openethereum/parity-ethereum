@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -207,7 +207,7 @@ impl ExtendedKeyPair {
 // Work is based on BIP0032
 // https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 mod derivation {
-	use ethcore_crypto::hmac;
+	use parity_crypto::hmac;
 	use ethereum_types::{U256, U512, H512, H256};
 	use secp256k1::key::{SecretKey, PublicKey};
 	use SECP256K1;

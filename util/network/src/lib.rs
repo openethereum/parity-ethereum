@@ -1,4 +1,4 @@
-// Copyright 2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 #![recursion_limit="128"]
 
-extern crate ethcore_crypto as crypto;
+extern crate parity_crypto as crypto;
 extern crate ethcore_io as io;
 extern crate ethereum_types;
 extern crate ethkey;
@@ -333,17 +333,12 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 	}
 }
 
-pub trait HostInfo {
-	/// Returns public key
-	fn id(&self) -> &NodeId;
-}
-
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.
 /// `Message` is the type for message data.
 pub trait NetworkProtocolHandler: Sync + Send {
 	/// Initialize the handler
-	fn initialize(&self, _io: &NetworkContext, _host_info: &HostInfo) {}
+	fn initialize(&self, _io: &NetworkContext) {}
 	/// Called when new network packet received.
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]);
 	/// Called when new peer is connected. Only called when peer supports the same protocol.

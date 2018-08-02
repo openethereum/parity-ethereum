@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, HashMap};
-use std::collections::hash_map::Entry;
+use std::collections::{HashSet, HashMap, hash_map};
 use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
-use triehash::ordered_trie_root;
+use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;
@@ -194,7 +193,6 @@ impl BlockCollection {
 		needed_bodies
 	}
 
-
 	/// Returns a set of block hashes that require a receipt download. The returned set is marked as being downloaded.
 	pub fn needed_receipts(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
 		if self.head.is_none() || !self.need_receipts {
@@ -296,7 +294,7 @@ impl BlockCollection {
 				let header = view!(HeaderView, &block.header);
 				let block_view = Block::new_from_header_and_body(&header, &body);
 				drained.push(BlockAndReceipts {
-					block: block_view.rlp().as_raw().to_vec(),
+					block: block_view.into_inner(),
 					receipts: block.receipts.clone(),
 				});
 			}
@@ -381,7 +379,7 @@ impl BlockCollection {
 		};
 		self.downloading_receipts.remove(&receipt_root);
 		match self.receipt_ids.entry(receipt_root) {
-			Entry::Occupied(entry) => {
+			hash_map::Entry::Occupied(entry) => {
 				for h in entry.remove() {
 					match self.blocks.get_mut(&h) {
 						Some(ref mut block) => {
@@ -395,8 +393,8 @@ impl BlockCollection {
 					}
 				}
 				Ok(())
-			}
-			_ => {
+			},
+			hash_map::Entry::Vacant(_) => {
 				trace!(target: "sync", "Ignored unknown/stale block receipt {:?}", receipt_root);
 				Err(network::ErrorKind::BadProtocol.into())
 			}
@@ -616,4 +614,3 @@ mod test {
 		assert_eq!(bc.drain().len(), 2);
 	}
 }
-

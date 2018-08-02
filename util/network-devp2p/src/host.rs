@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@ use hash::keccak;
 use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
+use mio::udp::*;
 use ethereum_types::H256;
 use rlp::{RlpStream, Encodable};
 
@@ -39,9 +40,8 @@ use PROTOCOL_VERSION;
 use node_table::*;
 use network::{NetworkConfiguration, NetworkIoMessage, ProtocolId, PeerId, PacketId};
 use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
-use network::HostInfo as HostInfoTrait;
 use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
-use discovery::{Discovery, TableUpdates, NodeEntry};
+use discovery::{Discovery, TableUpdates, NodeEntry, MAX_DATAGRAM_SIZE};
 use ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
@@ -49,7 +49,7 @@ use network::{ConnectionFilter, ConnectionDirection};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
-const MAX_SESSIONS: usize = 1024 + MAX_HANDSHAKES;
+const MAX_SESSIONS: usize = 2048 + MAX_HANDSHAKES;
 const MAX_HANDSHAKES: usize = 1024;
 
 const DEFAULT_PORT: u16 = 30303;
@@ -223,10 +223,8 @@ impl HostInfo {
 	pub(crate) fn secret(&self) -> &Secret {
 		self.keys.secret()
 	}
-}
 
-impl HostInfoTrait for HostInfo {
-	fn id(&self) -> &NodeId {
+	pub(crate) fn id(&self) -> &NodeId {
 		self.keys.public()
 	}
 }
@@ -242,9 +240,10 @@ struct ProtocolTimer {
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
 pub struct Host {
 	pub info: RwLock<HostInfo>,
+	udp_socket: Mutex<Option<UdpSocket>>,
 	tcp_listener: Mutex<TcpListener>,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
-	discovery: Mutex<Option<Discovery>>,
+	discovery: Mutex<Option<Discovery<'static>>>,
 	nodes: RwLock<NodeTable>,
 	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler + Sync>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
@@ -298,6 +297,7 @@ impl Host {
 				local_endpoint: local_endpoint,
 			}),
 			discovery: Mutex::new(None),
+			udp_socket: Mutex::new(None),
 			tcp_listener: Mutex::new(tcp_listener),
 			sessions: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_SESSION, MAX_SESSIONS))),
 			nodes: RwLock::new(NodeTable::new(path)),
@@ -461,13 +461,16 @@ impl Host {
 		let discovery = {
 			let info = self.info.read();
 			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
-				let mut udp_addr = local_endpoint.address.clone();
-				udp_addr.set_port(local_endpoint.udp_port);
-				Some(Discovery::new(&info.keys, udp_addr, public_endpoint, DISCOVERY, allow_ips))
+				Some(Discovery::new(&info.keys, public_endpoint, allow_ips))
 			} else { None }
 		};
 
 		if let Some(mut discovery) = discovery {
+			let mut udp_addr = local_endpoint.address;
+			udp_addr.set_port(local_endpoint.udp_port);
+			let socket = UdpSocket::bind(&udp_addr).expect("Error binding UDP socket");
+			*self.udp_socket.lock() = Some(socket);
+
 			discovery.init_node_list(self.nodes.read().entries());
 			discovery.add_node_list(self.nodes.read().entries());
 			*self.discovery.lock() = Some(discovery);
@@ -667,7 +670,7 @@ impl Host {
 		}
 	}
 
-	fn connection_closed(&self, token: TimerToken, io: &IoContext<NetworkIoMessage>) {
+	fn connection_closed(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		trace!(target: "network", "Connection closed: {}", token);
 		self.kill_connection(token, io, true);
 	}
@@ -822,6 +825,67 @@ impl Host {
 		}
 	}
 
+	fn discovery_readable(&self, io: &IoContext<NetworkIoMessage>) {
+		let node_changes = match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
+			(Some(udp_socket), Some(discovery)) => {
+				let mut buf = [0u8; MAX_DATAGRAM_SIZE];
+				let writable = discovery.any_sends_queued();
+				let res = match udp_socket.recv_from(&mut buf) {
+					Ok(Some((len, address))) => discovery.on_packet(&buf[0..len], address).unwrap_or_else(|e| {
+						debug!(target: "network", "Error processing UDP packet: {:?}", e);
+						None
+					}),
+					Ok(_) => None,
+					Err(e) => {
+						debug!(target: "network", "Error reading UPD socket: {:?}", e);
+						None
+					}
+				};
+				let new_writable = discovery.any_sends_queued();
+				if writable != new_writable {
+					io.update_registration(DISCOVERY)
+						.unwrap_or_else(|e| {
+							debug!(target: "network" ,"Error updating discovery registration: {:?}", e)
+						});
+				}
+				res
+			},
+			_ => None,
+		};
+		if let Some(node_changes) = node_changes {
+			self.update_nodes(io, node_changes);
+		}
+	}
+
+	fn discovery_writable(&self, io: &IoContext<NetworkIoMessage>) {
+		match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
+			(Some(udp_socket), Some(discovery)) => {
+				while let Some(data) = discovery.dequeue_send() {
+					match udp_socket.send_to(&data.payload, &data.address) {
+						Ok(Some(size)) if size == data.payload.len() => {
+						},
+						Ok(Some(_)) => {
+							warn!(target: "network", "UDP sent incomplete datagram");
+						},
+						Ok(None) => {
+							discovery.requeue_send(data);
+							return;
+						}
+						Err(e) => {
+							debug!(target: "network", "UDP send error: {:?}, address: {:?}", e, &data.address);
+							return;
+						}
+					}
+				}
+				io.update_registration(DISCOVERY)
+					.unwrap_or_else(|e| {
+						debug!(target: "network", "Error updating discovery registration: {:?}", e)
+					});
+			},
+			_ => (),
+		}
+	}
+
 	fn connection_timeout(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		trace!(target: "network", "Connection timeout: {}", token);
 		self.kill_connection(token, io, true)
@@ -923,12 +987,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 		}
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
-			DISCOVERY => {
-				let node_changes = { self.discovery.lock().as_mut().map_or(None, |d| d.readable(io)) };
-				if let Some(node_changes) = node_changes {
-					self.update_nodes(io, node_changes);
-				}
-			},
+			DISCOVERY => self.discovery_readable(io),
 			TCP_ACCEPT => self.accept(io),
 			_ => panic!("Received unknown readable token"),
 		}
@@ -940,9 +999,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 		}
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
-			DISCOVERY => {
-				self.discovery.lock().as_mut().map(|d| d.writable(io));
-			}
+			DISCOVERY => self.discovery_writable(io),
 			_ => panic!("Received unknown writable token"),
 		}
 	}
@@ -997,7 +1054,6 @@ impl IoHandler<NetworkIoMessage> for Host {
 				let reserved = self.reserved_nodes.read();
 				h.initialize(
 					&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved),
-					&*self.info.read(),
 				);
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
@@ -1059,7 +1115,13 @@ impl IoHandler<NetworkIoMessage> for Host {
 					session.lock().register_socket(reg, event_loop).expect("Error registering socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.register_socket(event_loop).ok()).expect("Error registering discovery socket"),
+			DISCOVERY => match self.udp_socket.lock().as_ref() {
+				Some(udp_socket) => {
+					event_loop.register(udp_socket, reg, Ready::all(), PollOpt::edge())
+						.expect("Error registering UDP socket");
+				},
+				_ => panic!("Error registering discovery socket"),
+			}
 			TCP_ACCEPT => event_loop.register(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
 		}
@@ -1090,7 +1152,18 @@ impl IoHandler<NetworkIoMessage> for Host {
 					connection.lock().update_socket(reg, event_loop).expect("Error updating socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.update_registration(event_loop).ok()).expect("Error reregistering discovery socket"),
+			DISCOVERY => match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_ref()) {
+				(Some(udp_socket), Some(discovery)) => {
+					let registration = if discovery.any_sends_queued() {
+						Ready::readable() | Ready::writable()
+					} else {
+						Ready::readable()
+					};
+					event_loop.reregister(udp_socket, reg, registration, PollOpt::edge())
+						.expect("Error reregistering UDP socket");
+				},
+				_ => panic!("Error reregistering discovery socket"),
+			}
 			TCP_ACCEPT => event_loop.reregister(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			_ => warn!("Unexpected stream update")
 		}
@@ -1157,7 +1230,6 @@ fn key_save_load() {
 	let r = load_key(tempdir.path());
 	assert_eq!(key, r.unwrap());
 }
-
 
 #[test]
 fn host_client_url() {

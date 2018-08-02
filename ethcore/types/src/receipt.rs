@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,11 @@
 
 //! Receipt
 
-use ethereum_types::{H256, U256, Address, Bloom};
+use ethereum_types::{H160, H256, U256, Address, Bloom};
 use heapsize::HeapSizeOf;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 
-use {BlockNumber};
+use BlockNumber;
 use log_entry::{LogEntry, LocalizedLogEntry};
 
 /// Transaction outcome store in the receipt.
@@ -49,12 +49,15 @@ pub struct Receipt {
 
 impl Receipt {
 	/// Create a new receipt.
-	pub fn new(outcome: TransactionOutcome, gas_used: U256, logs: Vec<LogEntry>) -> Receipt {
-		Receipt {
-			gas_used: gas_used,
-			log_bloom: logs.iter().fold(Bloom::default(), |mut b, l| { b = &b | &l.bloom(); b }), //TODO: use |= operator
-			logs: logs,
-			outcome: outcome,
+	pub fn new(outcome: TransactionOutcome, gas_used: U256, logs: Vec<LogEntry>) -> Self {
+		Self {
+			gas_used,
+			log_bloom: logs.iter().fold(Bloom::default(), |mut b, l| {
+				b.accrue_bloom(&l.bloom());
+				b
+			}),
+			logs,
+			outcome,
 		}
 	}
 }
@@ -157,6 +160,10 @@ pub struct LocalizedReceipt {
 	pub log_bloom: Bloom,
 	/// Transaction outcome.
 	pub outcome: TransactionOutcome,
+	/// Receiver address
+	pub to: Option<H160>,
+	/// Sender
+	pub from: H160
 }
 
 #[cfg(test)]

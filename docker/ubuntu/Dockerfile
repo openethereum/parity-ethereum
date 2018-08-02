@@ -6,11 +6,11 @@ RUN apt-get update && \
         apt-get install -y \
         g++ \
         build-essential \
+        cmake \
         curl \
         git \
         file \
         binutils \
-        libssl-dev \
         pkg-config \
         libudev-dev
 

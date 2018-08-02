@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,18 +16,17 @@
 
 //! Blockchain DB extras.
 
-use std::ops;
 use std::io::Write;
-use blooms::{GroupPosition, BloomGroup};
+use std::ops;
+
 use db::Key;
 use engines::epoch::{Transition as EpochTransition};
+use ethereum_types::{H256, H264, U256};
 use header::BlockNumber;
+use heapsize::HeapSizeOf;
+use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use receipt::Receipt;
 use rlp;
-
-use heapsize::HeapSizeOf;
-use ethereum_types::{H256, H264, U256};
-use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -38,8 +37,6 @@ pub enum ExtrasIndex {
 	BlockHash = 1,
 	/// Transaction address index
 	TransactionAddress = 2,
-	/// Block blooms index
-	BlocksBlooms = 3,
 	/// Block receipts index
 	BlockReceipts = 4,
 	/// Epoch transition data index.
@@ -84,31 +81,6 @@ impl Key<BlockDetails> for H256 {
 
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::BlockDetails)
-	}
-}
-
-pub struct LogGroupKey([u8; 6]);
-
-impl ops::Deref for LogGroupKey {
-	type Target = [u8];
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
-	}
-}
-
-impl Key<BloomGroup> for GroupPosition {
-	type Target = LogGroupKey;
-
-	fn key(&self) -> Self::Target {
-		let mut result = [0u8; 6];
-		result[0] = ExtrasIndex::BlocksBlooms as u8;
-		result[1] = self.level;
-		result[2] = (self.index >> 24) as u8;
-		result[3] = (self.index >> 16) as u8;
-		result[4] = (self.index >> 8) as u8;
-		result[5] = self.index as u8;
-		LogGroupKey(result)
 	}
 }
 
@@ -180,17 +152,15 @@ pub struct BlockDetails {
 	pub children: Vec<H256>,
 	/// Whether the block is considered finalized
 	pub is_finalized: bool,
-	/// Additional block metadata
-	pub metadata: Option<Vec<u8>>,
 }
 
 impl rlp::Encodable for BlockDetails {
 	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
-		let use_short_version = self.metadata.is_none() && !self.is_finalized;
+		let use_short_version = !self.is_finalized;
 
 		match use_short_version {
 			true => { stream.begin_list(4); },
-			false => { stream.begin_list(6); },
+			false => { stream.begin_list(5); },
 		}
 
 		stream.append(&self.number);
@@ -199,7 +169,6 @@ impl rlp::Encodable for BlockDetails {
 		stream.append_list(&self.children);
 		if !use_short_version {
 			stream.append(&self.is_finalized);
-			stream.append(&self.metadata);
 		}
 	}
 }
@@ -208,7 +177,7 @@ impl rlp::Decodable for BlockDetails {
 	fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
 		let use_short_version = match rlp.item_count()? {
 			4 => true,
-			6 => false,
+			5 => false,
 			_ => return Err(rlp::DecoderError::RlpIncorrectListLen),
 		};
 
@@ -221,11 +190,6 @@ impl rlp::Decodable for BlockDetails {
 				false
 			} else {
 				rlp.val_at(4)?
-			},
-			metadata: if use_short_version {
-				None
-			} else {
-				rlp.val_at(5)?
 			},
 		})
 	}
@@ -280,6 +244,7 @@ pub struct EpochTransitions {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
+
 	use super::BlockReceipts;
 
 	#[test]

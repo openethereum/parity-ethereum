@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,7 +21,6 @@ use std::collections::BTreeMap;
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
 
-use node_health::Health;
 use v1::types::{
 	H160, H256, H512, U256, U64, Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
@@ -141,7 +140,7 @@ build_rpc_trait! {
 
 		/// Returns all pending transactions from transaction queue.
 		#[rpc(name = "parity_pendingTransactions")]
-		fn pending_transactions(&self) -> Result<Vec<Transaction>>;
+		fn pending_transactions(&self, Trailing<usize>) -> Result<Vec<Transaction>>;
 
 		/// Returns all transactions from transaction queue.
 		///
@@ -160,10 +159,6 @@ build_rpc_trait! {
 		/// Returns a list of current and past local transactions with status details.
 		#[rpc(name = "parity_localTransactions")]
 		fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>>;
-
-		/// Returns current Dapps Server interface and port or an error if dapps server is disabled.
-		#[rpc(name = "parity_dappsUrl")]
-		fn dapps_url(&self) -> Result<String>;
 
 		/// Returns current WS Server interface and port or an error if ws server is disabled.
 		#[rpc(name = "parity_wsUrl")]
@@ -223,9 +218,5 @@ build_rpc_trait! {
 		/// Call contract, returning the output data.
 		#[rpc(meta, name = "parity_call")]
 		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>>;
-
-		/// Returns node's health report.
-		#[rpc(name = "parity_nodeHealth")]
-		fn node_health(&self) -> BoxFuture<Health>;
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -141,7 +141,7 @@ impl Encodable for CostTable {
 		fn append_cost(s: &mut RlpStream, cost: &Option<U256>, kind: request::Kind) {
 			if let Some(ref cost) = *cost {
 				s.begin_list(2);
-				// hack around https://github.com/paritytech/parity/issues/4356
+				// hack around https://github.com/paritytech/parity-ethereum/issues/4356
 				Encodable::rlp_append(&kind, s);
 				s.append(cost);
 			}

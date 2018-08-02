@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
 
 //! VM errors module
 
-use trie;
 use std::fmt;
+use ethtrie;
 
 /// VM errors.
 #[derive(Debug, Clone, PartialEq)]
@@ -71,9 +71,13 @@ pub enum Error {
 	Reverted,
 }
 
-
-impl From<Box<trie::TrieError>> for Error {
-	fn from(err: Box<trie::TrieError>) -> Self {
+impl From<Box<ethtrie::TrieError>> for Error {
+	fn from(err: Box<ethtrie::TrieError>) -> Self {
+		Error::Internal(format!("Internal error: {}", err))
+	}
+}
+impl From<ethtrie::TrieError> for Error {
+	fn from(err: ethtrie::TrieError) -> Self {
 		Error::Internal(format!("Internal error: {}", err))
 	}
 }

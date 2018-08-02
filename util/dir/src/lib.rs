@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -31,19 +31,23 @@ use app_dirs::{AppInfo, get_app_root, AppDataType};
 // re-export platform-specific functions
 use platform::*;
 
-/// Platform-specific chains path - Windows only
-#[cfg(target_os = "windows")] pub const CHAINS_PATH: &'static str = "$LOCAL/chains";
-/// Platform-specific chains path
-#[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &'static str = "$BASE/chains";
+/// Platform-specific chains path for standard client - Windows only
+#[cfg(target_os = "windows")] pub const CHAINS_PATH: &str = "$LOCAL/chains";
+/// Platform-specific chains path for light client - Windows only
+#[cfg(target_os = "windows")] pub const CHAINS_PATH_LIGHT: &str = "$LOCAL/chains_light";
+/// Platform-specific chains path for standard client
+#[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &str = "$BASE/chains";
+/// Platform-specific chains path for light client
+#[cfg(not(target_os = "windows"))] pub const CHAINS_PATH_LIGHT: &str = "$BASE/chains_light";
 
 /// Platform-specific cache path - Windows only
-#[cfg(target_os = "windows")] pub const CACHE_PATH: &'static str = "$LOCAL/cache";
+#[cfg(target_os = "windows")] pub const CACHE_PATH: &str = "$LOCAL/cache";
 /// Platform-specific cache path
-#[cfg(not(target_os = "windows"))] pub const CACHE_PATH: &'static str = "$BASE/cache";
+#[cfg(not(target_os = "windows"))] pub const CACHE_PATH: &str = "$BASE/cache";
 
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
-const LEGACY_CLIENT_DB_VER_STR: &'static str = "5.3";
+const LEGACY_CLIENT_DB_VER_STR: &str = "5.3";
 
 #[derive(Debug, PartialEq)]
 /// Parity local data directories
@@ -58,8 +62,6 @@ pub struct Directories {
 	pub keys: String,
 	/// Signer dir
 	pub signer: String,
-	/// Dir to store dapps
-	pub dapps: String,
 	/// Secrets dir
 	pub secretstore: String,
 }
@@ -74,7 +76,6 @@ impl Default for Directories {
 			cache: replace_home_and_local(&data_dir, &local_dir, CACHE_PATH),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
-			dapps: replace_home(&data_dir, "$BASE/dapps"),
 			secretstore: replace_home(&data_dir, "$BASE/secretstore"),
 		}
 	}
@@ -82,16 +83,13 @@ impl Default for Directories {
 
 impl Directories {
 	/// Create local directories
-	pub fn create_dirs(&self, dapps_enabled: bool, signer_enabled: bool, secretstore_enabled: bool) -> Result<(), String> {
+	pub fn create_dirs(&self, signer_enabled: bool, secretstore_enabled: bool) -> Result<(), String> {
 		fs::create_dir_all(&self.base).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.db).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.cache).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.keys).map_err(|e| e.to_string())?;
 		if signer_enabled {
 			fs::create_dir_all(&self.signer).map_err(|e| e.to_string())?;
-		}
-		if dapps_enabled {
-			fs::create_dir_all(&self.dapps).map_err(|e| e.to_string())?;
 		}
 		if secretstore_enabled {
 			fs::create_dir_all(&self.secretstore).map_err(|e| e.to_string())?;
@@ -262,9 +260,9 @@ pub fn parity(chain: &str) -> PathBuf {
 #[cfg(target_os = "macos")]
 mod platform {
 	use std::path::PathBuf;
-	pub const AUTHOR: &'static str = "Parity";
-	pub const PRODUCT: &'static str = "io.parity.ethereum";
-	pub const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+	pub const AUTHOR: &str = "Parity";
+	pub const PRODUCT: &str = "io.parity.ethereum";
+	pub const PRODUCT_HYPERVISOR: &str = "io.parity.ethereum-updates";
 
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
@@ -286,9 +284,9 @@ mod platform {
 #[cfg(windows)]
 mod platform {
 	use std::path::PathBuf;
-	pub const AUTHOR: &'static str = "Parity";
-	pub const PRODUCT: &'static str = "Ethereum";
-	pub const PRODUCT_HYPERVISOR: &'static str = "EthereumUpdates";
+	pub const AUTHOR: &str = "Parity";
+	pub const PRODUCT: &str = "Ethereum";
+	pub const PRODUCT_HYPERVISOR: &str = "EthereumUpdates";
 
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
@@ -312,9 +310,9 @@ mod platform {
 #[cfg(not(any(target_os = "macos", windows)))]
 mod platform {
 	use std::path::PathBuf;
-	pub const AUTHOR: &'static str = "parity";
-	pub const PRODUCT: &'static str = "io.parity.ethereum";
-	pub const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+	pub const AUTHOR: &str = "parity";
+	pub const PRODUCT: &str = "io.parity.ethereum";
+	pub const PRODUCT_HYPERVISOR: &str = "io.parity.ethereum-updates";
 
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
@@ -353,7 +351,6 @@ mod tests {
 			),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
-			dapps: replace_home(&data_dir, "$BASE/dapps"),
 			secretstore: replace_home(&data_dir, "$BASE/secretstore"),
 		};
 		assert_eq!(expected, Directories::default());

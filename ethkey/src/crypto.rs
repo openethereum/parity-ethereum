@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 use secp256k1;
 use std::io;
-use ethcore_crypto::error::SymmError;
+use parity_crypto::error::SymmError;
 
 quick_error! {
 	#[derive(Debug)]
@@ -67,7 +67,7 @@ pub mod ecdh {
 
 /// ECIES function
 pub mod ecies {
-	use ethcore_crypto::{aes, digest, hmac, is_equal};
+	use parity_crypto::{aes, digest, hmac, is_equal};
 	use ethereum_types::H128;
 	use super::{ecdh, Error};
 	use {Random, Generator, Public, Secret};

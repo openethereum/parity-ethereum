@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,7 +36,7 @@ use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Ac
 use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
-	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient
@@ -46,15 +46,14 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use error::ImportResult;
+use error::{Error, ImportResult};
 use vm::Schedule;
-use miner::{Miner, MinerService};
+use miner::{self, Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
-use types::mode::Mode;
 use types::pruning_info::PruningInfo;
-
 use verification::queue::QueueInfo;
+use verification::queue::kind::blocks::Unverified;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use executive::Executed;
 use error::CallError;
@@ -63,7 +62,7 @@ use state_db::StateDB;
 use header::Header;
 use encoded;
 use engines::EthEngine;
-use trie;
+use ethtrie;
 use state::StateInfo;
 use views::BlockView;
 
@@ -282,7 +281,8 @@ impl TestBlockChainClient {
 			rlp.append(&header);
 			rlp.append_raw(&txs, 1);
 			rlp.append_raw(uncles.as_raw(), 1);
-			self.import_block(rlp.as_raw().to_vec()).unwrap();
+			let unverified = Unverified::from_rlp(rlp.out()).unwrap();
+			self.import_block(unverified).unwrap();
 		}
 	}
 
@@ -375,7 +375,7 @@ impl ReopenBlock for TestBlockChainClient {
 }
 
 impl PrepareOpenBlock for TestBlockChainClient {
-	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
+	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> Result<OpenBlock, Error> {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
 		let db = self.spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
@@ -393,10 +393,10 @@ impl PrepareOpenBlock for TestBlockChainClient {
 			extra_data,
 			false,
 			&mut Vec::new().into_iter(),
-		).expect("Opening block for tests will not fail.");
+		)?;
 		// TODO [todr] Override timestamp for predictability
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
-		open_block
+		Ok(open_block)
 	}
 }
 
@@ -514,8 +514,8 @@ impl RegistryInfo for TestBlockChainClient {
 }
 
 impl ImportBlock for TestBlockChainClient {
-	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
-		let header = view!(BlockView, &b).header();
+	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
+		let header = unverified.header;
 		let h = header.hash();
 		let number: usize = header.number() as usize;
 		if number > self.blocks.read().len() {
@@ -541,7 +541,7 @@ impl ImportBlock for TestBlockChainClient {
 				*difficulty = *difficulty + header.difficulty().clone();
 			}
 			mem::replace(&mut *self.last_hash.write(), h.clone());
-			self.blocks.write().insert(h.clone(), b);
+			self.blocks.write().insert(h.clone(), unverified.bytes);
 			self.numbers.write().insert(number, h.clone());
 			let mut parent_hash = header.parent_hash().clone();
 			if number > 0 {
@@ -554,7 +554,7 @@ impl ImportBlock for TestBlockChainClient {
 			}
 		}
 		else {
-			self.blocks.write().insert(h.clone(), b.to_vec());
+			self.blocks.write().insert(h.clone(), unverified.bytes);
 		}
 		Ok(h)
 	}
@@ -582,10 +582,10 @@ impl Call for TestBlockChainClient {
 }
 
 impl StateInfo for () {
-	fn nonce(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
-	fn balance(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
-	fn storage_at(&self, _address: &Address, _key: &H256) -> trie::Result<H256> { unimplemented!() }
-	fn code(&self, _address: &Address) -> trie::Result<Option<Arc<Bytes>>> { unimplemented!() }
+	fn nonce(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
+	fn balance(&self, _address: &Address) -> ethtrie::Result<U256> { unimplemented!() }
+	fn storage_at(&self, _address: &Address, _key: &H256) -> ethtrie::Result<H256> { unimplemented!() }
+	fn code(&self, _address: &Address) -> ethtrie::Result<Option<Arc<Bytes>>> { unimplemented!() }
 }
 
 impl StateClient for TestBlockChainClient {
@@ -612,8 +612,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.execution_result.read().clone().unwrap()
 	}
 
-	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
-		Ok(Box::new(self.execution_result.read().clone().unwrap().into_iter()))
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError> {
+		Ok(Box::new(self.traces.read().clone().unwrap().into_iter().map(|t| t.transaction_hash.unwrap_or(H256::new())).zip(self.execution_result.read().clone().unwrap().into_iter())))
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
@@ -703,7 +703,6 @@ impl BlockChainClient for TestBlockChainClient {
 			.map(|block| block.view().header())
 			.map(|header| self.spec.engine.extra_info(&header))
 	}
-
 
 	fn block_status(&self, id: BlockId) -> BlockStatus {
 		match id {
@@ -808,8 +807,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.traces.read().clone()
 	}
 
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.miner.ready_transactions(self)
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>> {
+		self.miner.ready_transactions(self, 4096, miner::PendingOrdering::Priority)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }
@@ -859,8 +858,8 @@ impl IoClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn queue_ancient_block(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
-		self.import_block(b)
+	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(unverified)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {

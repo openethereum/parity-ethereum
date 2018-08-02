@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -57,7 +57,7 @@ fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,
-/// add to `contains_bugfix_hard_fork`
+/// add to `nonzero_bugfix_hard_fork`
 ///
 /// we define a "bugfix" hard fork as any hard fork which
 /// you would put on-by-default in a new chain.
@@ -81,11 +81,11 @@ pub struct CommonParams {
 	/// EIP150 transition block number.
 	pub eip150_transition: BlockNumber,
 	/// Number of first block where EIP-160 rules begin.
-	pub eip160_transition: u64,
+	pub eip160_transition: BlockNumber,
 	/// Number of first block where EIP-161.abc begin.
-	pub eip161abc_transition: u64,
+	pub eip161abc_transition: BlockNumber,
 	/// Number of first block where EIP-161.d begins.
-	pub eip161d_transition: u64,
+	pub eip161d_transition: BlockNumber,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
 	/// Number of first block where EIP-658 rules begin.
@@ -115,6 +115,8 @@ pub struct CommonParams {
 	pub eip214_transition: BlockNumber,
 	/// Number of first block where EIP-145 rules begin.
 	pub eip145_transition: BlockNumber,
+	/// Number of first block where EIP-1052 rules begin.
+	pub eip1052_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -174,6 +176,7 @@ impl CommonParams {
 		schedule.have_static_call = block_number >= self.eip214_transition;
 		schedule.have_return_data = block_number >= self.eip211_transition;
 		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
+		schedule.have_extcodehash = block_number >= self.eip1052_transition;
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
 		}
@@ -188,13 +191,21 @@ impl CommonParams {
 		}
 	}
 
-	/// Whether these params contain any bug-fix hard forks.
-	pub fn contains_bugfix_hard_fork(&self) -> bool {
-		self.eip98_transition != 0 && self.eip155_transition != 0 &&
-			self.validate_receipts_transition != 0 && self.eip86_transition != 0 &&
-			self.eip140_transition != 0 && self.eip210_transition != 0 &&
-			self.eip211_transition != 0 && self.eip214_transition != 0 &&
-			self.validate_chain_id_transition != 0 && self.dust_protection_transition != 0
+	/// Return Some if the current parameters contain a bugfix hard fork not on block 0.
+	pub fn nonzero_bugfix_hard_fork(&self) -> Option<&str> {
+		if self.eip155_transition != 0 {
+			return Some("eip155Transition");
+		}
+
+		if self.validate_receipts_transition != 0 {
+			return Some("validateReceiptsTransition");
+		}
+
+		if self.validate_chain_id_transition != 0 {
+			return Some("validateChainIdTransition");
+		}
+
+		None
 	}
 }
 
@@ -262,6 +273,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				BlockNumber::max_value,
 				Into::into,
 			),
+			eip1052_transition: p.eip1052_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
 			dust_protection_transition: p.dust_protection_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
@@ -319,7 +334,6 @@ impl<'a, T: AsRef<Path>> From<&'a T> for SpecParams<'a> {
 		Self::from_path(path.as_ref())
 	}
 }
-
 
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
@@ -516,6 +530,7 @@ macro_rules! load_bundled {
 	};
 }
 
+#[cfg(any(test, feature = "test-helpers"))]
 macro_rules! load_machine_bundled {
 	($e:expr) => {
 		Spec::load_machine(
@@ -623,7 +638,9 @@ impl Spec {
 				let mut substate = Substate::new();
 
 				{
-					let mut exec = Executive::new(&mut state, &env_info, self.engine.machine());
+					let machine = self.engine.machine();
+					let schedule = machine.schedule(env_info.number);
+					let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
 					if let Err(e) = exec.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}
@@ -839,39 +856,44 @@ impl Spec {
 		self.engine.genesis_epoch_data(&genesis, &call)
 	}
 
-	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a
-	/// NullEngine consensus.
-	pub fn new_test() -> Spec {
-		load_bundled!("null_morden")
-	}
-
-	/// Create the EthereumMachine corresponding to Spec::new_test.
-	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
-
-
-	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
-	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
-
-	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
-	/// secret is keccak('').
-	pub fn new_null() -> Spec {
-		load_bundled!("null")
-	}
-
-	/// Create a new Spec which constructs a contract at address 5 with storage at 0 equal to 1.
-	pub fn new_test_constructor() -> Spec {
-		load_bundled!("constructor")
-	}
-
 	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring
 	/// work).
 	pub fn new_instant() -> Spec {
 		load_bundled!("instant_seal")
 	}
 
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a
+	/// NullEngine consensus.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test() -> Spec {
+		load_bundled!("null_morden")
+	}
+
+	/// Create the EthereumMachine corresponding to Spec::new_test.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
+
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
+
+	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
+	/// secret is keccak('').
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_null() -> Spec {
+		load_bundled!("null")
+	}
+
+	/// Create a new Spec which constructs a contract at address 5 with storage at 0 equal to 1.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn new_test_constructor() -> Spec {
+		load_bundled!("constructor")
+	}
+
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
 	/// requiring work).
 	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round() -> Self {
 		load_bundled!("authority_round")
 	}
@@ -879,6 +901,7 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
 	/// requiring work) with empty step messages enabled.
 	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round_empty_steps() -> Self {
 		load_bundled!("authority_round_empty_steps")
 	}
@@ -886,6 +909,7 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus (with empty steps) using a block reward
 	/// contract. The contract source code can be found at:
 	/// https://github.com/parity-contracts/block-reward/blob/daf7d44383b6cdb11cb6b953b018648e2b027cfb/contracts/ExampleBlockReward.sol
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round_block_reward_contract() -> Self {
 		load_bundled!("authority_round_block_reward_contract")
 	}
@@ -893,6 +917,7 @@ impl Spec {
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_tendermint() -> Self {
 		load_bundled!("tendermint")
 	}
@@ -905,6 +930,7 @@ impl Spec {
 	/// "0xbfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1" and added
 	/// back in using
 	/// "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_safe_contract() -> Self {
 		load_bundled!("validator_safe_contract")
 	}
@@ -912,6 +938,7 @@ impl Spec {
 	/// The same as the `safeContract`, but allows reporting and uses AuthorityRound.
 	/// Account is marked with `reportBenign` it can be checked as disliked with "0xd8f2e0bf".
 	/// Validator can be removed with `reportMalicious`.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_contract() -> Self {
 		load_bundled!("validator_contract")
 	}
@@ -920,6 +947,7 @@ impl Spec {
 	/// height.
 	/// Account with secrets keccak("0") is the validator for block 1 and with keccak("1")
 	/// onwards.
+	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_validator_multi() -> Self {
 		load_bundled!("validator_multi")
 	}
@@ -933,7 +961,7 @@ mod tests {
 	use views::BlockView;
 	use tempdir::TempDir;
 
-	// https://github.com/paritytech/parity/issues/1840
+	// https://github.com/paritytech/parity-ethereum/issues/1840
 	#[test]
 	fn test_load_empty() {
 		let tempdir = TempDir::new("").unwrap();

@@ -1,7 +1,23 @@
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::fs;
 use std::path::Path;
 use json;
-use ethkey::{Address, Secret, KeyPair};
+use ethkey::{Address, Secret, KeyPair, Password};
 use crypto::{Keccak256, pbkdf2};
 use {crypto, Error};
 
@@ -38,7 +54,7 @@ impl PresaleWallet {
 	}
 
 	/// Decrypt the wallet.
-	pub fn decrypt(&self, password: &str) -> Result<KeyPair, Error> {
+	pub fn decrypt(&self, password: &Password) -> Result<KeyPair, Error> {
 		let mut derived_key = [0u8; 32];
 		let salt = pbkdf2::Salt(password.as_bytes());
 		let sec = pbkdf2::Secret(password.as_bytes());
@@ -77,7 +93,7 @@ mod tests {
 
 		let wallet = json::PresaleWallet::load(json.as_bytes()).unwrap();
 		let wallet = PresaleWallet::from(wallet);
-		assert!(wallet.decrypt("123").is_ok());
-		assert!(wallet.decrypt("124").is_err());
+		assert!(wallet.decrypt(&"123".into()).is_ok());
+		assert!(wallet.decrypt(&"124".into()).is_err());
 	}
 }

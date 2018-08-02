@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,22 +20,20 @@
 
 use transaction::UnverifiedTransaction;
 
-use io::TimerToken;
-use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
-use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
+use io::TimerToken;
 use kvdb::DBValue;
+use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use parking_lot::{Mutex, RwLock};
-use std::time::{Duration, Instant};
-
-use std::collections::{HashMap, HashSet};
-use std::fmt;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::ops::{BitOr, BitAnd, Not};
-
 use provider::Provider;
 use request::{Request, NetworkRequests as Requests, Response};
+use rlp::{RlpStream, Rlp};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::ops::{BitOr, BitAnd, Not};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
@@ -85,7 +83,6 @@ pub const PROTOCOL_VERSIONS: &'static [(u8, u8)] = &[
 
 /// Max protocol version.
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
-
 
 // packet ID definitions.
 mod packet {
@@ -648,7 +645,7 @@ impl LightProtocol {
 	fn propagate_transactions(&self, io: &IoContext) {
 		if self.capabilities.read().tx_relay { return }
 
-		let ready_transactions = self.provider.ready_transactions();
+		let ready_transactions = self.provider.transactions_to_propagate();
 		if ready_transactions.is_empty() { return }
 
 		trace!(target: "pip", "propagate transactions: {} ready", ready_transactions.len());
@@ -1082,7 +1079,7 @@ fn punish(peer: PeerId, io: &IoContext, e: Error) {
 }
 
 impl NetworkProtocolHandler for LightProtocol {
-	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
+	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
 		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL)

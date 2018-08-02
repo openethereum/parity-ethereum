@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -158,6 +158,7 @@ mod tests {
 	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
 	use ethereum_types::Address;
+	use verification::queue::kind::blocks::Unverified;
 
 	use super::Multi;
 
@@ -165,8 +166,8 @@ mod tests {
 	fn uses_current_set() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0: Secret = keccak("0").into();
-		let v0 = tap.insert_account(s0.clone(), "").unwrap();
-		let v1 = tap.insert_account(keccak("1").into(), "").unwrap();
+		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
+		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_multi, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client) as _);
 
@@ -198,7 +199,7 @@ mod tests {
 		let sync_client = generate_dummy_client_with_spec_and_data(Spec::new_validator_multi, 0, 0, &[]);
 		sync_client.engine().register_client(Arc::downgrade(&sync_client) as _);
 		for i in 1..4 {
-			sync_client.import_block(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap();
+			sync_client.import_block(Unverified::from_rlp(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap()).unwrap();
 		}
 		sync_client.flush_queue();
 		assert_eq!(sync_client.chain_info().best_block_number, 3);

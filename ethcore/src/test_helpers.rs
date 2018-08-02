@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,10 +16,13 @@
 
 //! Set of different helpers for client tests
 
+use std::path::Path;
+use std::sync::Arc;
+use std::{fs, io};
 use account_provider::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
-use blockchain::{BlockChain, Config as BlockChainConfig, ExtrasInsert};
+use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockChainConfig, ExtrasInsert};
 use bytes::Bytes;
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethkey::KeyPair;
@@ -34,9 +37,14 @@ use rlp::{self, RlpStream};
 use spec::Spec;
 use state_db::StateDB;
 use state::*;
-use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
+use blooms_db;
+use kvdb::KeyValueDB;
+use kvdb_rocksdb;
+use tempdir::TempDir;
+use verification::queue::kind::blocks::Unverified;
+use encoded;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -166,14 +174,14 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			n += 1;
 		}
 
-		let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+		let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
-		if let Err(e) = client.import_block(b.rlp_bytes()) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(b.rlp_bytes()).unwrap()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 
 		last_header = view!(BlockView, &b.rlp_bytes()).header();
-		db = b.drain();
+		db = b.drain().state.drop().1;
 	}
 	client.flush_queue();
 	client.import_verified_blocks();
@@ -204,7 +212,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 		rolling_block_number = rolling_block_number + 1;
 		rolling_timestamp = rolling_timestamp + 10;
 
-		if let Err(e) = client.import_block(create_test_block(&header)) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(create_test_block(&header)).unwrap()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 	}
@@ -216,15 +224,15 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
-	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new());
+	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
 		b.push_transaction(t.clone(), None).unwrap();
 	}
-	let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+	let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
-	if let Err(e) = client.import_block(b.rlp_bytes()) {
+	if let Err(e) = client.import_block(Unverified::from_rlp(b.rlp_bytes()).unwrap()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
@@ -246,7 +254,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	).unwrap();
 
 	for block in blocks {
-		if let Err(e) = client.import_block(block) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(block).unwrap()) {
 			panic!("error importing block which is well-formed: {:?}", e);
 		}
 	}
@@ -255,8 +263,89 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	client
 }
 
-fn new_db() -> Arc<::kvdb::KeyValueDB> {
-	Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
+/// Creates new test instance of `BlockChainDB`
+pub fn new_db() -> Arc<BlockChainDB> {
+	struct TestBlockChainDB {
+		_blooms_dir: TempDir,
+		_trace_blooms_dir: TempDir,
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for TestBlockChainDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &blooms_db::Database {
+			&self.blooms
+		}
+
+		fn trace_blooms(&self) -> &blooms_db::Database {
+			&self.trace_blooms
+		}
+	}
+
+	let blooms_dir = TempDir::new("").unwrap();
+	let trace_blooms_dir = TempDir::new("").unwrap();
+
+	let db = TestBlockChainDB {
+		blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
+		trace_blooms: blooms_db::Database::open(trace_blooms_dir.path()).unwrap(),
+		_blooms_dir: blooms_dir,
+		_trace_blooms_dir: trace_blooms_dir,
+		key_value: Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap()))
+	};
+
+	Arc::new(db)
+}
+
+/// Creates new instance of KeyValueDBHandler
+pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<BlockChainDBHandler> {
+	struct RestorationDBHandler {
+		config: kvdb_rocksdb::DatabaseConfig,
+	}
+
+	struct RestorationDB {
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for RestorationDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &blooms_db::Database {
+			&self.blooms
+		}
+
+		fn trace_blooms(&self) -> &blooms_db::Database {
+			&self.trace_blooms
+		}
+	}
+
+	impl BlockChainDBHandler for RestorationDBHandler {
+		fn open(&self, db_path: &Path) -> io::Result<Arc<BlockChainDB>> {
+			let key_value = Arc::new(kvdb_rocksdb::Database::open(&self.config, &db_path.to_string_lossy())?);
+			let blooms_path = db_path.join("blooms");
+			let trace_blooms_path = db_path.join("trace_blooms");
+			fs::create_dir_all(&blooms_path)?;
+			fs::create_dir_all(&trace_blooms_path)?;
+			let blooms = blooms_db::Database::open(blooms_path).unwrap();
+			let trace_blooms = blooms_db::Database::open(trace_blooms_path).unwrap();
+			let db = RestorationDB {
+				blooms,
+				trace_blooms,
+				key_value,
+			};
+			Ok(Arc::new(db))
+		}
+	}
+
+	Box::new(RestorationDBHandler { config })
 }
 
 /// Generates dummy blockchain with corresponding amount of blocks
@@ -264,17 +353,16 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
-	let mut batch = db.transaction();
+	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], ExtrasInsert {
+		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block(block_order, bc.best_block_hash())), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
-	db.write(batch).unwrap();
+	db.key_value().write(batch).unwrap();
 	bc
 }
 
@@ -283,18 +371,16 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
-
-	let mut batch = db.transaction();
+	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], ExtrasInsert {
+		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None)), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
-	db.write(batch).unwrap();
+	db.key_value().write(batch).unwrap();
 	bc
 }
 
@@ -322,7 +408,7 @@ pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::Sta
 /// Returns temp state db
 pub fn get_temp_state_db() -> StateDB {
 	let db = new_db();
-	let journal_db = ::journaldb::new(db, ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
+	let journal_db = ::journaldb::new(db.key_value().clone(), ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 
 //! Eth RPC interface for the light client.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -41,7 +42,7 @@ use transaction::SignedTransaction;
 
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};
-use v1::helpers::{PollFilter, PollManager};
+use v1::helpers::{SyncPollFilter, PollManager};
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
@@ -61,7 +62,8 @@ pub struct EthClient<T> {
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<AccountProvider>,
 	cache: Arc<Mutex<LightDataCache>>,
-	polls: Mutex<PollManager<PollFilter>>,
+	polls: Mutex<PollManager<SyncPollFilter>>,
+	poll_lifetime: u32,
 	gas_price_percentile: usize,
 }
 
@@ -92,7 +94,8 @@ impl<T> Clone for EthClient<T> {
 			transaction_queue: self.transaction_queue.clone(),
 			accounts: self.accounts.clone(),
 			cache: self.cache.clone(),
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(self.poll_lifetime)),
+			poll_lifetime: self.poll_lifetime,
 			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
@@ -109,6 +112,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		accounts: Arc<AccountProvider>,
 		cache: Arc<Mutex<LightDataCache>>,
 		gas_price_percentile: usize,
+		poll_lifetime: u32
 	) -> Self {
 		EthClient {
 			sync,
@@ -117,7 +121,8 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 			transaction_queue,
 			accounts,
 			cache,
-			polls: Mutex::new(PollManager::new()),
+			polls: Mutex::new(PollManager::new(poll_lifetime)),
+			poll_lifetime,
 			gas_price_percentile,
 		}
 	}
@@ -137,7 +142,6 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 	fn rich_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<RichBlock> {
 		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
 		let (client, engine) = (self.client.clone(), self.client.engine().clone());
-		let eip86_transition = self.client.eip86_transition();
 
 		// helper for filling out a rich block once we've got a block and a score.
 		let fill_rich = move |block: encoded::Block, score: Option<U256>| {
@@ -164,7 +168,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 					seal_fields: header.seal().into_iter().cloned().map(Into::into).collect(),
 					uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
 					transactions: match include_txs {
-						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t, eip86_transition)).collect()),
+						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t)).collect()),
 						_ => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
 					extra_data: Bytes::new(header.extra_data().clone()),
@@ -414,40 +418,34 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
 		let hash = hash.into();
-		let eip86 = self.client.eip86_transition();
 
 		{
 			let tx_queue = self.transaction_queue.read();
 			if let Some(tx) = tx_queue.get(&hash) {
 				return Box::new(future::ok(Some(Transaction::from_pending(
 					tx.clone(),
-					self.client.chain_info().best_block_number,
-					eip86,
 				))));
 			}
 		}
 
-		Box::new(self.fetcher().transaction_by_hash(hash, eip86).map(|x| x.map(|(tx, _)| tx)))
+		Box::new(self.fetcher().transaction_by_hash(hash).map(|x| x.map(|(tx, _)| tx)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> BoxFuture<Option<Transaction>> {
-		let eip86 = self.client.eip86_transition();
 		Box::new(self.fetcher().block(BlockId::Hash(hash.into())).map(move |block| {
-			light_fetch::extract_transaction_at_index(block, idx.value(), eip86)
+			light_fetch::extract_transaction_at_index(block, idx.value())
 		}))
 	}
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<Transaction>> {
-		let eip86 = self.client.eip86_transition();
 		Box::new(self.fetcher().block(Self::num_to_id(num)).map(move |block| {
-			light_fetch::extract_transaction_at_index(block, idx.value(), eip86)
+			light_fetch::extract_transaction_at_index(block, idx.value())
 		}))
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>> {
-		let eip86 = self.client.eip86_transition();
 		let fetcher = self.fetcher();
-		Box::new(fetcher.transaction_by_hash(hash.clone().into(), eip86).and_then(move |tx| {
+		Box::new(fetcher.transaction_by_hash(hash.clone().into()).and_then(move |tx| {
 			// the block hash included in the transaction object here has
 			// already been checked for canonicality and whether it contains
 			// the transaction.
@@ -529,12 +527,12 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 
-	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
-		self.client.block_hash(id).map(Into::into)
+	fn block_hash(&self, id: BlockId) -> Option<::ethereum_types::H256> {
+		self.client.block_hash(id)
 	}
 
-	fn pending_transactions_hashes(&self) -> Vec<::ethereum_types::H256> {
-		Vec::new()
+	fn pending_transaction_hashes(&self) -> BTreeSet<::ethereum_types::H256> {
+		BTreeSet::new()
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
@@ -545,8 +543,12 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		Vec::new() // light clients don't mine.
 	}
 
-	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
+	fn polls(&self) -> &Mutex<PollManager<SyncPollFilter>> {
 		&self.polls
+	}
+
+	fn removed_logs(&self, _block_hash: ::ethereum_types::H256, _filter: &EthcoreFilter) -> (Vec<Log>, u64) {
+		(Default::default(), 0)
 	}
 }
 

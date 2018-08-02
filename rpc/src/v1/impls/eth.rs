@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -65,6 +65,8 @@ pub struct EthClientOptions {
 	pub send_block_number_in_get_work: bool,
 	/// Gas Price Percentile used as default gas price.
 	pub gas_price_percentile: usize,
+	/// Set the timeout for the internal poll manager
+	pub poll_lifetime: u32
 }
 
 impl EthClientOptions {
@@ -83,6 +85,7 @@ impl Default for EthClientOptions {
 			pending_nonce_from_queue: false,
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
+			poll_lifetime: 60u32,
 			gas_price_percentile: 50,
 		}
 	}
@@ -104,7 +107,6 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
 	options: EthClientOptions,
-	eip86_transition: u64,
 }
 
 #[derive(Debug)]
@@ -164,16 +166,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			miner: miner.clone(),
 			accounts: accounts.clone(),
 			external_miner: em.clone(),
-			seed_compute: Mutex::new(SeedHashCompute::new()),
+			seed_compute: Mutex::new(SeedHashCompute::default()),
 			options: options,
-			eip86_transition: client.eip86_transition(),
 		}
-	}
-
-	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
 	}
 
 	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
@@ -257,7 +252,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 						seal_fields: view.seal().into_iter().map(Into::into).collect(),
 						uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
 						transactions: match include_txs {
-							true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t, self.eip86_transition)).collect()),
+							true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t)).collect()),
 							false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 						},
 						extra_data: Bytes::new(view.extra_data()),
@@ -271,7 +266,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 	fn transaction(&self, id: PendingTransactionId) -> Result<Option<Transaction>> {
 		let client_transaction = |id| match self.client.transaction(id) {
-			Some(t) => Ok(Some(Transaction::from_localized(t, self.eip86_transition))),
+			Some(t) => Ok(Some(Transaction::from_localized(t))),
 			None => Ok(None),
 		};
 
@@ -308,7 +303,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 							cached_sender,
 						}
 					})
-					.map(|tx| Transaction::from_localized(tx, self.eip86_transition));
+					.map(|tx| Transaction::from_localized(tx));
 
 				Ok(transaction)
 			}
@@ -404,10 +399,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	}
 
 	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>> {
-		let store = self.account_provider()?;
-		store
+		self.accounts
 			.note_dapp_used(dapp.clone())
-			.and_then(|_| store.dapp_addresses(dapp))
+			.and_then(|_| self.accounts.dapp_addresses(dapp))
 			.map_err(|e| errors::account("Could not fetch accounts.", e))
 	}
 
@@ -494,7 +488,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				(true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done)),
 			_ => (false, None, None),
 		};
-
 
 		if warping || is_major_importing(Some(status.state), client.queue_info()) {
 			let chain_info = client.chain_info();
@@ -617,11 +610,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
-		let block_number = self.client.chain_info().best_block_number;
-
 		Box::new(future::ok(match num {
 			BlockNumber::Pending =>
-				self.miner.pending_transactions(block_number).map(|x| x.len().into()),
+				Some(self.miner.pending_transaction_hashes(&*self.client).len().into()),
 			_ =>
 				self.client.block(block_number_to_id(num)).map(|block| block.transactions_count().into())
 		}))
@@ -665,10 +656,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
 		let hash: H256 = hash.into();
-		let block_number = self.client.chain_info().best_block_number;
 		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
 			self.miner.transaction(&hash)
-				.map(|t| Transaction::from_pending(t.pending().clone(), block_number + 1, self.eip86_transition))
+				.map(|t| Transaction::from_pending(t.pending().clone()))
 		});
 
 		Box::new(future::ok(tx))
@@ -751,9 +741,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		// check if we're still syncing and return empty strings in that case
 		{
-			//TODO: check if initial sync is complete here
-			//let sync = self.sync;
-			if /*sync.status().state != SyncState::Idle ||*/ self.client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+			let sync_status = self.sync.status();
+			let queue_info = self.client.queue_info();
+			let total_queue_size = queue_info.total_queue_size();
+
+			if is_major_importing(Some(sync_status.state), queue_info) || total_queue_size > MAX_QUEUE_SIZE_TO_MINE_ON {
 				trace!(target: "miner", "Syncing. Cannot give any work.");
 				return Err(errors::no_work());
 			}
@@ -833,6 +825,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 					&*self.client,
 					&*self.miner,
 					signed_transaction.into(),
+					false
 				)
 			})
 			.map(Into::into)

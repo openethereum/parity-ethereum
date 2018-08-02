@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,6 @@ use std::sync::Arc;
 use std::path::PathBuf;
 use std::collections::HashSet;
 
-use dapps;
 use dir::default_data_path;
 use dir::helpers::replace_home;
 use helpers::parity_ipc_path;
@@ -45,12 +44,7 @@ pub struct HttpConfiguration {
 	pub hosts: Option<Vec<String>>,
 	pub server_threads: usize,
 	pub processing_threads: usize,
-}
-
-impl HttpConfiguration {
-	pub fn address(&self) -> Option<rpc::Host> {
-		address(self.enabled, &self.interface, self.port, &self.hosts)
-	}
+	pub max_payload: usize,
 }
 
 impl Default for HttpConfiguration {
@@ -64,58 +58,7 @@ impl Default for HttpConfiguration {
 			hosts: Some(vec![]),
 			server_threads: 1,
 			processing_threads: 4,
-		}
-	}
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct UiConfiguration {
-	pub enabled: bool,
-	pub interface: String,
-	pub port: u16,
-	pub hosts: Option<Vec<String>>,
-	pub info_page_only: bool,
-}
-
-impl UiConfiguration {
-	pub fn address(&self) -> Option<rpc::Host> {
-		address(self.enabled, &self.interface, self.port, &self.hosts)
-	}
-
-	pub fn redirection_address(&self) -> Option<(String, u16)> {
-		self.address().map(|host| {
-			let mut it = host.split(':');
-			let hostname: Option<String> = it.next().map(|s| s.to_owned());
-			let port: Option<u16> = it.next().and_then(|s| s.parse().ok());
-
-			(hostname.unwrap_or_else(|| "localhost".into()), port.unwrap_or(8180))
-		})
-	}
-}
-
-impl From<UiConfiguration> for HttpConfiguration {
-	fn from(conf: UiConfiguration) -> Self {
-		HttpConfiguration {
-			enabled: conf.enabled,
-			interface: conf.interface,
-			port: conf.port,
-			apis: rpc_apis::ApiSet::UnsafeContext,
-			cors: Some(vec![]),
-			hosts: conf.hosts,
-			server_threads: 1,
-			processing_threads: 0,
-		}
-	}
-}
-
-impl Default for UiConfiguration {
-	fn default() -> Self {
-		UiConfiguration {
-			enabled: cfg!(feature = "ui-enabled"),
-			port: 8180,
-			interface: "127.0.0.1".into(),
-			hosts: Some(vec![]),
-			info_page_only: true,
+			max_payload: 5,
 		}
 	}
 }
@@ -153,8 +96,6 @@ pub struct WsConfiguration {
 	pub hosts: Option<Vec<String>>,
 	pub signer_path: PathBuf,
 	pub support_token_api: bool,
-	pub ui_address: Option<rpc::Host>,
-	pub dapps_address: Option<rpc::Host>,
 }
 
 impl Default for WsConfiguration {
@@ -170,8 +111,6 @@ impl Default for WsConfiguration {
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 			support_token_api: true,
-			ui_address: Some("127.0.0.1:8180".into()),
-			dapps_address: Some("127.0.0.1:8545".into()),
 		}
 	}
 }
@@ -212,7 +151,6 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
 
-
 	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps);
 	let handler = {
 		let mut handler = MetaIoHandler::with_middleware((
@@ -226,9 +164,8 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	};
 
 	let remote = deps.remote.clone();
-	let ui_address = conf.ui_address.clone();
-	let allowed_origins = into_domains(with_domain(conf.origins, domain, &ui_address, &conf.dapps_address));
-	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into()), &None));
+	let allowed_origins = into_domains(with_domain(conf.origins, domain, &None));
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
 
 	let signer_path;
 	let path = match conf.support_token_api {
@@ -264,7 +201,6 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	options: &str,
 	conf: HttpConfiguration,
 	deps: &Dependencies<D>,
-	middleware: Option<dapps::Middleware>,
 ) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
@@ -277,7 +213,7 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	let remote = deps.remote.clone();
 
 	let cors_domains = into_domains(conf.cors);
-	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into()), &None));
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
 
 	let start_result = rpc::start_http(
 		&addr,
@@ -286,8 +222,8 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		handler,
 		remote,
 		rpc::RpcExtractor,
-		middleware,
 		conf.server_threads,
+		conf.max_payload,
 	);
 
 	match start_result {
@@ -329,7 +265,7 @@ fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidatio
 	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
 }
 
-fn with_domain(items: Option<Vec<String>>, domain: &str, ui_address: &Option<rpc::Host>, dapps_address: &Option<rpc::Host>) -> Option<Vec<String>> {
+fn with_domain(items: Option<Vec<String>>, domain: &str, dapps_address: &Option<rpc::Host>) -> Option<Vec<String>> {
 	fn extract_port(s: &str) -> Option<u16> {
 		s.split(':').nth(1).and_then(|s| s.parse().ok())
 	}
@@ -348,7 +284,6 @@ fn with_domain(items: Option<Vec<String>>, domain: &str, ui_address: &Option<rpc
 				}
 			};
 
-			add_hosts(ui_address);
 			add_hosts(dapps_address);
 		}
 		items.into_iter().collect()

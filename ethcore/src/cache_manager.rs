@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@ use std::hash::Hash;
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
 
-pub struct CacheManager<T> where T: Eq + Hash {
+pub struct CacheManager<T> {
 	pref_cache_size: usize,
 	max_cache_size: usize,
 	bytes_per_cache_entry: usize,

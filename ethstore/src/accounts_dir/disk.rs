@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -33,22 +33,70 @@ const IGNORED_FILES: &'static [&'static str] = &[
 	"vault.json",
 ];
 
-#[cfg(not(windows))]
-fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
-	use std::ffi;
-	use libc;
+/// Find a unique filename that does not exist using four-letter random suffix.
+pub fn find_unique_filename_using_random_suffix(parent_path: &Path, original_filename: &str) -> io::Result<String> {
+	let mut path = parent_path.join(original_filename);
+	let mut deduped_filename = original_filename.to_string();
 
-	let cstr = ffi::CString::new(&*file_path.to_string_lossy())
-		.map_err(|_| -1)?;
-	match unsafe { libc::chmod(cstr.as_ptr(), libc::S_IWUSR | libc::S_IRUSR) } {
-		0 => Ok(()),
-		x => Err(x),
+	if path.exists() {
+		const MAX_RETRIES: usize = 500;
+		let mut retries = 0;
+
+		while path.exists() {
+			if retries >= MAX_RETRIES {
+				return Err(io::Error::new(io::ErrorKind::Other, "Exceeded maximum retries when deduplicating filename."));
+			}
+
+			let suffix = ::random::random_string(4);
+			deduped_filename = format!("{}-{}", original_filename, suffix);
+			path.set_file_name(&deduped_filename);
+			retries += 1;
+		}
 	}
+
+	Ok(deduped_filename)
 }
 
-#[cfg(windows)]
-fn restrict_permissions_to_owner(_file_path: &Path) -> Result<(), i32> {
-	Ok(())
+/// Create a new file and restrict permissions to owner only. It errors if the file already exists.
+#[cfg(unix)]
+pub fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	use libc;
+	use std::os::unix::fs::OpenOptionsExt;
+
+	fs::OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.mode((libc::S_IWUSR | libc::S_IRUSR) as u32)
+		.open(file_path)
+}
+
+/// Create a new file and restrict permissions to owner only. It errors if the file already exists.
+#[cfg(not(unix))]
+pub fn create_new_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	fs::OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.open(file_path)
+}
+
+/// Create a new file and restrict permissions to owner only. It replaces the existing file if it already exists.
+#[cfg(unix)]
+pub fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	use libc;
+	use std::os::unix::fs::PermissionsExt;
+
+	let file = fs::File::create(file_path)?;
+	let mut permissions = file.metadata()?.permissions();
+	permissions.set_mode((libc::S_IWUSR | libc::S_IRUSR) as u32);
+	file.set_permissions(permissions)?;
+
+	Ok(file)
+}
+
+/// Create a new file and restrict permissions to owner only. It replaces the existing file if it already exists.
+#[cfg(not(unix))]
+pub fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs::File> {
+	fs::File::create(file_path)
 }
 
 /// Root keys directory implementation
@@ -153,19 +201,15 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		)
 	}
 
-
 	/// insert account with given filename. if the filename is a duplicate of any stored account and dedup is set to
 	/// true, a random suffix is appended to the filename.
 	pub fn insert_with_filename(&self, account: SafeAccount, mut filename: String, dedup: bool) -> Result<SafeAccount, Error> {
-		// path to keyfile
-		let mut keyfile_path = self.path.join(filename.as_str());
-
-		// check for duplicate filename and append random suffix
-		if dedup && keyfile_path.exists() {
-			let suffix = ::random::random_string(4);
-			filename.push_str(&format!("-{}", suffix));
-			keyfile_path.set_file_name(&filename);
+		if dedup {
+			filename = find_unique_filename_using_random_suffix(&self.path, &filename)?;
 		}
+
+		// path to keyfile
+		let keyfile_path = self.path.join(filename.as_str());
 
 		// update account filename
 		let original_account = account.clone();
@@ -174,17 +218,16 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 		{
 			// save the file
-			let mut file = fs::File::create(&keyfile_path)?;
+			let mut file = if dedup {
+				create_new_file_with_permissions_to_owner(&keyfile_path)?
+			} else {
+				replace_file_with_permissions_to_owner(&keyfile_path)?
+			};
 
 			// write key content
 			self.key_manager.write(original_account, &mut file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
 			file.flush()?;
-
-			if let Err(_) = restrict_permissions_to_owner(keyfile_path.as_path()) {
-				return Err(Error::Io(io::Error::last_os_error()));
-			}
-
 			file.sync_all()?;
 		}
 
@@ -314,11 +357,11 @@ mod test {
 		let mut dir = env::temp_dir();
 		dir.push("ethstore_should_create_new_account");
 		let keypair = Random.generate().unwrap();
-		let password = "hello world";
+		let password = "hello world".into();
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
 		// when
-		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		let res = directory.insert(account.unwrap());
 
 		// then
@@ -335,11 +378,11 @@ mod test {
 		let mut dir = env::temp_dir();
 		dir.push("ethstore_should_handle_duplicate_filenames");
 		let keypair = Random.generate().unwrap();
-		let password = "hello world";
+		let password = "hello world".into();
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
 		// when
-		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned()).unwrap();
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned()).unwrap();
 		let filename = "test".to_string();
 		let dedup = true;
 
@@ -368,14 +411,14 @@ mod test {
 		dir.push("should_create_new_vault");
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 		let vault_name = "vault";
-		let password = "password";
+		let password = "password".into();
 
 		// then
 		assert!(directory.as_vault_provider().is_some());
 
 		// and when
 		let before_root_items_count = fs::read_dir(&dir).unwrap().count();
-		let vault = directory.as_vault_provider().unwrap().create(vault_name, VaultKey::new(password, 1024));
+		let vault = directory.as_vault_provider().unwrap().create(vault_name, VaultKey::new(&password, 1024));
 
 		// then
 		assert!(vault.is_ok());
@@ -383,7 +426,7 @@ mod test {
 		assert!(after_root_items_count > before_root_items_count);
 
 		// and when
-		let vault = directory.as_vault_provider().unwrap().open(vault_name, VaultKey::new(password, 1024));
+		let vault = directory.as_vault_provider().unwrap().open(vault_name, VaultKey::new(&password, 1024));
 
 		// then
 		assert!(vault.is_ok());
@@ -400,8 +443,8 @@ mod test {
 		let temp_path = TempDir::new("").unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 		let vault_provider = directory.as_vault_provider().unwrap();
-		vault_provider.create("vault1", VaultKey::new("password1", 1)).unwrap();
-		vault_provider.create("vault2", VaultKey::new("password2", 1)).unwrap();
+		vault_provider.create("vault1", VaultKey::new(&"password1".into(), 1)).unwrap();
+		vault_provider.create("vault2", VaultKey::new(&"password2".into(), 1)).unwrap();
 
 		// then
 		let vaults = vault_provider.list_vaults().unwrap();
@@ -422,8 +465,8 @@ mod test {
 		);
 
 		let keypair = Random.generate().unwrap();
-		let password = "test pass";
-		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		let password = "test pass".into();
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		directory.insert(account.unwrap()).expect("Account should be inserted ok");
 
 		let new_hash = directory.files_hash().expect("New files hash should be calculated ok");

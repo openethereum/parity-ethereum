@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::Path;
 use std::sync::Arc;
 use super::test_common::*;
 use state::{Backend as StateBackend, State, Substate};
@@ -30,10 +31,22 @@ use ethjson;
 use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};
 use bytes::{Bytes, BytesRef};
-use trie;
+use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
 use machine::EthereumMachine as Machine;
+
+use super::HookType;
+
+/// Run executive jsontests on a given folder.
+pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
+	::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
+}
+
+/// Run executive jsontests on a given file.
+pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
+	::json_tests::test_common::run_test_file(p, do_json_test, h)
+}
 
 #[derive(Debug, PartialEq, Clone)]
 struct CallCreate {
@@ -73,6 +86,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		state: &'a mut State<B>,
 		info: &'a EnvInfo,
 		machine: &'a Machine,
+		schedule: &'a Schedule,
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
@@ -80,11 +94,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		address: Address,
 		tracer: &'a mut T,
 		vm_tracer: &'a mut V,
-	) -> trie::Result<Self> {
+	) -> ethtrie::Result<Self> {
 		let static_call = false;
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,
-			ext: Externalities::new(state, info, machine, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
+			ext: Externalities::new(state, info, machine, schedule, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
 			callcreates: vec![],
 			sender: address,
 		})
@@ -152,12 +166,16 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> vm::Result<Arc<Bytes>>  {
+	fn extcode(&self, address: &Address) -> vm::Result<Option<Arc<Bytes>>>  {
 		self.ext.extcode(address)
 	}
 
-	fn extcodesize(&self, address: &Address) -> vm::Result<usize> {
+	fn extcodesize(&self, address: &Address) -> vm::Result<Option<usize>> {
 		self.ext.extcodesize(address)
+	}
+
+	fn extcodehash(&self, address: &Address) -> vm::Result<Option<H256>> {
+		self.ext.extcodehash(address)
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
@@ -193,20 +211,22 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 	}
 }
 
-fn do_json_test(json_data: &[u8]) -> Vec<String> {
+fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
 	let vms = VMType::all();
 	vms
 		.iter()
-		.flat_map(|vm| do_json_test_for(vm, json_data))
+		.flat_map(|vm| do_json_test_for(vm, json_data, h))
 		.collect()
 }
 
-fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
+fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::vm::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
 	for (name, vm) in tests.into_iter() {
-		println!("name: {:?}", name);
+		start_stop_hook(&format!("{}-{}", name, vm_type), HookType::OnStart);
+
+		info!(target: "jsontests", "name: {:?}", name);
 		let mut fail = false;
 
 		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail {
@@ -230,7 +250,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		let out_of_gas = vm.out_of_gas();
 		let mut state = get_temp_state();
 		state.populate_from(From::from(vm.pre_state.clone()));
-		let info = From::from(vm.env);
+		let info: EnvInfo = From::from(vm.env);
 		let machine = {
 			let mut machine = ::ethereum::new_frontier_test_machine();
 			machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = 1));
@@ -247,10 +267,12 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let (res, callcreates) = {
+			let schedule = machine.schedule(info.number);
 			let mut ex = try_fail!(TestExt::new(
 				&mut state,
 				&info,
 				&machine,
+				&schedule,
 				0,
 				OriginInfo::from(&params),
 				&mut substate,
@@ -259,7 +281,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(&params, &machine.schedule(0u64.into()));
+			let mut evm = vm_factory.create(&params, schedule.wasm.is_some());
 			let res = evm.exec(params, &mut ex);
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
@@ -305,10 +327,12 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				fail_unless(Some(callcreates) == calls, "callcreates does not match");
 			}
 		};
+
+		start_stop_hook(&format!("{}-{}", name, vm_type), HookType::OnStop);
 	}
 
 	for f in &failed {
-		println!("FAILED: {:?}", f);
+		error!("FAILED: {:?}", f);
 	}
 
 	failed

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 //! Test implementation of miner service.
 
 use std::sync::Arc;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
 use ethcore::account_provider::SignError as AccountError;
@@ -27,7 +27,7 @@ use ethcore::engines::EthEngine;
 use ethcore::error::Error;
 use ethcore::header::{BlockNumber, Header};
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerService, AuthoringParams};
+use ethcore::miner::{self, MinerService, AuthoringParams};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
@@ -35,6 +35,7 @@ use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use txpool;
+use ethkey::Password;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -49,7 +50,7 @@ pub struct TestMinerService {
 	/// Next nonces.
 	pub next_nonces: RwLock<HashMap<Address, U256>>,
 	/// Password held by Engine.
-	pub password: RwLock<String>,
+	pub password: RwLock<Password>,
 
 	authoring_params: RwLock<AuthoringParams>,
 }
@@ -62,7 +63,7 @@ impl Default for TestMinerService {
 			local_transactions: Mutex::new(BTreeMap::new()),
 			pending_receipts: Mutex::new(BTreeMap::new()),
 			next_nonces: RwLock::new(HashMap::new()),
-			password: RwLock::new(String::new()),
+			password: RwLock::new("".into()),
 			authoring_params: RwLock::new(AuthoringParams {
 				author: Address::zero(),
 				gas_range_target: (12345.into(), 54321.into()),
@@ -119,7 +120,7 @@ impl MinerService for TestMinerService {
 		self.authoring_params.read().clone()
 	}
 
-	fn set_author(&self, author: Address, password: Option<String>) -> Result<(), AccountError> {
+	fn set_author(&self, author: Address, password: Option<Password>) -> Result<(), AccountError> {
 		self.authoring_params.write().author = author;
 		if let Some(password) = password {
 			*self.password.write() = password;
@@ -155,7 +156,14 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction)
+	fn import_own_transaction<C: Nonce + Sync>(&self, _chain: &C, _pending: PendingTransaction)
+		-> Result<(), transaction::Error> {
+		// this function is no longer called directly from RPC
+		unimplemented!();
+	}
+
+	/// Imports transactions to queue - treats as local based on trusted flag, config, and tx source
+	fn import_claimed_local_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction, _trusted: bool)
 		-> Result<(), transaction::Error> {
 
 		// keep the pending nonces up to date
@@ -181,8 +189,8 @@ impl MinerService for TestMinerService {
 
 	fn work_package<C: PrepareOpenBlock>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> {
 		let params = self.authoring_params();
-		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data);
-		let closed = open_block.close();
+		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data).unwrap();
+		let closed = open_block.close().unwrap();
 		let header = closed.header();
 
 		Some((header.hash(), header.number(), header.timestamp(), *header.difficulty()))
@@ -208,8 +216,12 @@ impl MinerService for TestMinerService {
 		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
 	}
 
-	fn ready_transactions<C>(&self, _chain: &C) -> Vec<Arc<VerifiedTransaction>> {
+	fn ready_transactions<C>(&self, _chain: &C, _max_len: usize, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
 		self.queued_transactions()
+	}
+
+	fn pending_transaction_hashes<C>(&self, _chain: &C) -> BTreeSet<H256> {
+		self.queued_transactions().into_iter().map(|tx| tx.signed().hash()).collect()
 	}
 
 	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
@@ -252,6 +264,7 @@ impl MinerService for TestMinerService {
 				minimal_gas_price: 0x1312d00.into(),
 				block_gas_limit: 5_000_000.into(),
 				tx_gas_limit: 5_000_000.into(),
+				no_early_reject: false,
 			},
 			status: txpool::LightStatus {
 				mem_usage: 1_000,

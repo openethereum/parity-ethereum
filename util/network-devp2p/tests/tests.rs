@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate parking_lot;
-extern crate ethcore_bytes;
+extern crate parity_bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_logger;
 extern crate ethcore_network;
@@ -27,7 +27,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::*;
 use parking_lot::Mutex;
-use ethcore_bytes::Bytes;
+use parity_bytes::Bytes;
 use ethcore_network::*;
 use ethcore_network_devp2p::NetworkService;
 use ethkey::{Random, Generator};
@@ -70,7 +70,7 @@ impl TestProtocol {
 }
 
 impl NetworkProtocolHandler for TestProtocol {
-	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
+	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(0, Duration::from_millis(10)).unwrap();
 	}
 
@@ -98,7 +98,6 @@ impl NetworkProtocolHandler for TestProtocol {
 		self.got_timeout.store(true, AtomicOrdering::Relaxed);
 	}
 }
-
 
 #[test]
 fn net_service() {

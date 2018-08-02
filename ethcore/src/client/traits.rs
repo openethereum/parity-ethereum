@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,9 +21,10 @@ use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
+use client::Mode;
 use encoded;
 use vm::LastHashes;
-use error::{ImportResult, CallError, BlockImportError};
+use error::{Error, ImportResult, CallError, BlockImportError};
 use evm::Schedule;
 use executive::Executed;
 use filter::Filter;
@@ -33,6 +34,7 @@ use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use transaction::{self, LocalizedTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
+use verification::queue::kind::blocks::Unverified;
 use state::StateInfo;
 use header::Header;
 use engines::EthEngine;
@@ -48,7 +50,6 @@ use types::trace_filter::Filter as TraceFilter;
 use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
-use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
 /// State information to be used during client query
@@ -167,7 +168,7 @@ pub trait RegistryInfo {
 /// Provides methods to import block into blockchain
 pub trait ImportBlock {
 	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
+	fn import_block(&self, block: Unverified) -> Result<H256, BlockImportError>;
 }
 
 /// Provides `call_contract` method
@@ -204,7 +205,7 @@ pub trait IoClient: Sync + Send {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
-	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
+	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Queue conensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
@@ -303,7 +304,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
 	/// Replays all the transactions in a given block for inspection.
-	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError>;
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError>;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
@@ -320,8 +321,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
 
-	/// List all transactions that are allowed into the next block.
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
+	/// List all ready transactions that should be propagated to other peers.
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {
@@ -395,7 +396,7 @@ pub trait PrepareOpenBlock {
 		author: Address,
 		gas_range_target: (U256, U256),
 		extra_data: Bytes
-	) -> OpenBlock;
+	) -> Result<OpenBlock, Error>;
 }
 
 /// Provides methods used for sealing new state

@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Standard built-in contracts.
+
 use std::cmp::{max, min};
 use std::io::{self, Read};
 
 use byteorder::{ByteOrder, BigEndian};
-use ethcore_crypto::digest;
+use parity_crypto::digest;
 use num::{BigUint, Zero, One};
 
 use hash::keccak;
@@ -27,6 +29,7 @@ use bytes::BytesRef;
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
+/// Execution error.
 #[derive(Debug)]
 pub struct Error(pub &'static str);
 
@@ -207,8 +210,8 @@ impl From<ethjson::spec::Builtin> for Builtin {
 	}
 }
 
-// Ethereum builtin creator.
-fn ethereum_builtin(name: &str) -> Box<Impl> {
+/// Ethereum built-in factory.
+pub fn ethereum_builtin(name: &str) -> Box<Impl> {
 	match name {
 		"identity" => Box::new(Identity) as Box<Impl>,
 		"ecrecover" => Box::new(EcRecover) as Box<Impl>,
@@ -703,7 +706,6 @@ mod tests {
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
 
-
 		// test for potential exp len overflow
 		{
 			let input = FromHex::from_hex("\
@@ -827,7 +829,6 @@ mod tests {
 			assert_eq!(output, expected);
 		}
 
-
 		// no input, should not fail
 		{
 			let mut empty = [0u8; 0];
@@ -858,7 +859,6 @@ mod tests {
 			assert!(res.is_err(), "There should be built-in error here");
 		}
 	}
-
 
 	#[test]
 	fn bn128_mul() {

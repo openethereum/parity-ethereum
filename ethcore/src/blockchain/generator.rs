@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,11 +19,11 @@
 use std::collections::VecDeque;
 use ethereum_types::{U256, H256, Bloom};
 
-use bytes::Bytes;
 use header::Header;
 use rlp::encode;
 use transaction::SignedTransaction;
 use views::BlockView;
+use encoded;
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default, Clone, RlpEncodable)]
@@ -41,7 +41,7 @@ impl Block {
 
 	#[inline]
 	pub fn hash(&self) -> H256 {
-		view!(BlockView, &self.encoded()).header_view().hash()
+		view!(BlockView, &self.encoded().raw()).header_view().hash()
 	}
 
 	#[inline]
@@ -50,8 +50,8 @@ impl Block {
 	}
 
 	#[inline]
-	pub fn encoded(&self) -> Bytes {
-		encode(self).into_vec()
+	pub fn encoded(&self) -> encoded::Block {
+		encoded::Block::new(encode(self).into_vec())
 	}
 
 	#[inline]

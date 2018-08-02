@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -83,7 +83,6 @@ impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 			_ => {},
 		}
 
-
 		let sender = tx.sender();
 		let state = &self.state;
 		let state_nonce = || state.account_nonce(sender);
@@ -126,6 +125,43 @@ impl txpool::Ready<VerifiedTransaction> for Condition {
 			Some(transaction::Condition::Number(block)) if block > self.block_number => txpool::Readiness::Future,
 			Some(transaction::Condition::Timestamp(time)) if time > self.now => txpool::Readiness::Future,
 			_ => txpool::Readiness::Ready,
+		}
+	}
+}
+
+/// Readiness checker that only relies on nonce cache (does actually go to state).
+///
+/// Checks readiness of transactions by comparing the nonce to state nonce. If nonce
+/// isn't found in provided state nonce store, defaults to the tx nonce and updates
+/// the nonce store. Useful for using with a state nonce cache when false positives are allowed.
+pub struct OptionalState<C> {
+	nonces: HashMap<Address, U256>,
+	state: C,
+}
+
+impl<C> OptionalState<C> {
+	pub fn new(state: C) -> Self {
+		OptionalState {
+			nonces: Default::default(),
+			state,
+		}
+	}
+}
+
+impl<C: Fn(&Address) -> Option<U256>> txpool::Ready<VerifiedTransaction> for OptionalState<C> {
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> txpool::Readiness {
+		let sender = tx.sender();
+		let state = &self.state;
+		let nonce = self.nonces.entry(*sender).or_insert_with(|| {
+			state(sender).unwrap_or_else(|| tx.transaction.nonce)
+		});
+		match tx.transaction.nonce.cmp(nonce) {
+			cmp::Ordering::Greater => txpool::Readiness::Future,
+			cmp::Ordering::Less => txpool::Readiness::Stale,
+			cmp::Ordering::Equal => {
+				*nonce = *nonce + 1.into();
+				txpool::Readiness::Ready
+			},
 		}
 	}
 }

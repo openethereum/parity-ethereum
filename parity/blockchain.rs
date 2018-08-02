@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@ use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError,
 use ethcore::error::{ImportErrorKind, BlockImportErrorKind};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
+use ethcore::verification::queue::kind::blocks::Unverified;
 use ethcore_service::ClientService;
 use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
@@ -90,7 +91,6 @@ pub struct ImportBlockchain {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub vm_type: VMType,
@@ -111,7 +111,6 @@ pub struct ExportBlockchain {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub from_block: BlockId,
@@ -130,7 +129,6 @@ pub struct ExportState {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub at: BlockId,
@@ -187,7 +185,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(false, false, false)?;
+	cmd.dirs.create_dirs(false, false)?;
 
 	let cache = Arc::new(Mutex::new(
 		LightDataCache::new(Default::default(), Duration::new(0, 0))
@@ -207,8 +205,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	// initialize database.
 	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
-						 &cmd.compaction,
-						 cmd.wal)?;
+						 &cmd.compaction).map_err(|e| format!("Failed to open database: {:?}", e))?;
 
 	// TODO: could epoch signals be avilable at the end of the file?
 	let fetch = ::light::client::fetch::unavailable();
@@ -341,7 +338,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(false, false, false)?;
+	cmd.dirs.create_dirs(false, false)?;
 
 	// prepare client config
 	let mut client_config = to_client_config(
@@ -351,19 +348,19 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		tracing,
 		fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.vm_type,
 		"".into(),
 		algorithm,
 		cmd.pruning_history,
 		cmd.pruning_memory,
-		cmd.check_seal
+		cmd.check_seal,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 
-	let client_db = db::open_client_db(&client_path, &client_config)?;
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
+	let client_db = restoration_db_handler.open(&client_path)
+		.map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	// build client
 	let service = ClientService::start(
@@ -421,8 +418,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {
+		let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
-		match client.import_block(bytes) {
+		match client.import_block(block) {
 			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 				trace!("Skipping block already in chain.");
 			}
@@ -493,7 +491,6 @@ fn start_client(
 	tracing: Switch,
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
-	wal: bool,
 	cache_config: CacheConfig,
 	require_fat_db: bool,
 ) -> Result<ClientService, String> {
@@ -533,7 +530,7 @@ fn start_client(
 	execute_upgrades(&dirs.base, &db_dirs, algorithm, &compaction)?;
 
 	// create dirs used by parity
-	dirs.create_dirs(false, false, false)?;
+	dirs.create_dirs(false, false)?;
 
 	// prepare client config
 	let client_config = to_client_config(
@@ -543,7 +540,6 @@ fn start_client(
 		tracing,
 		fat_db,
 		compaction,
-		wal,
 		VMType::default(),
 		"".into(),
 		algorithm,
@@ -552,8 +548,9 @@ fn start_client(
 		true,
 	);
 
-	let client_db = db::open_client_db(&client_path, &client_config)?;
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
+	let client_db = restoration_db_handler.open(&client_path)
+		.map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	let service = ClientService::start(
 		client_config,
@@ -584,7 +581,6 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		cmd.tracing,
 		cmd.fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.cache_config,
 		false,
 	)?;
@@ -629,7 +625,6 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		cmd.tracing,
 		cmd.fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.cache_config,
 		true
 	)?;
