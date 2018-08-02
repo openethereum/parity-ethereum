@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 # The image name
 PARITY_IMAGE_REPO=${PARITY_IMAGE_REPO:-parity/parity}
