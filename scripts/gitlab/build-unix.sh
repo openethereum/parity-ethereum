@@ -18,12 +18,15 @@ time cargo build --target $CARGO_TARGET --release --features final
 time cargo build --target $CARGO_TARGET --release -p evmbin
 time cargo build --target $CARGO_TARGET --release -p ethstore-cli
 time cargo build --target $CARGO_TARGET --release -p ethkey-cli
+time cargo build --target $CARGO_TARGET --release -p whisper-cli
 
 echo "_____ Post-processing binaries _____"
 rm -rf artifacts
 mkdir -p artifacts
 cd artifacts
-cp ../target/$CARGO_TARGET/release/{parity,parity-evm,ethstore,ethkey} .
+mkdir -p $CARGO_TARGET
+cd $CARGO_TARGET
+cp ../../target/$CARGO_TARGET/release/{parity,parity-evm,ethstore,ethkey,whisper} .
 strip -v ./*
 echo "_____ Calculating checksums _____"
 for binary in $(ls)

@@ -11,15 +11,25 @@ time cargo build --target $CARGO_TARGET --release --features final
 time cargo build --target $CARGO_TARGET --release -p evmbin
 time cargo build --target $CARGO_TARGET --release -p ethstore-cli
 time cargo build --target $CARGO_TARGET --release -p ethkey-cli
+time cargo build --target $CARGO_TARGET --release -p whisper-cli
+echo "__________Sign binaries__________"
+scripts/gitlab/sign.cmd $keyfile $certpass target/$CARGO_TARGET/release/parity.exe
+scripts/gitlab/sign.cmd $keyfile $certpass target/$CARGO_TARGET/release/parity-evm.exe
+scripts/gitlab/sign.cmd $keyfile $certpass target/$CARGO_TARGET/release/ethstore.exe
+scripts/gitlab/sign.cmd $keyfile $certpass target/$CARGO_TARGET/release/ethkey.exe
+scripts/gitlab/sign.cmd $keyfile $certpass target/$CARGO_TARGET/release/whisper.exe
 
 echo "_____ Post-processing binaries _____"
 rm -rf artifacts
 mkdir -p artifacts
 cd artifacts
-cp --verbose ../target/$CARGO_TARGET/release/{parity,parity-evm,ethstore,ethkey}.exe .
+mkdir -p $CARGO_TARGET
+cd $CARGO_TARGET
+cp --verbose ../../target/$CARGO_TARGET/release/{parity.exe,parity-evm.exe,ethstore.exe,ethkey.exe,whisper.exe} .
 
 echo "_____ Calculating checksums _____"
 for binary in $(ls)
 do
-  rhash --sha256 $binary -o $binary.unsigned.sha256
+  rhash --sha256 $binary -o $binary.sha256
 done
+cp parity.exe.sha256 parity.sha256

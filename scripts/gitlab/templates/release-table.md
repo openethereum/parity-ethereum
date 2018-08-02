@@ -1,12 +1,12 @@
 | OS | Arch | Download | SHA256 Checksum |
 |:---:|:---:|:---|:---|
-| <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/linux.png" alt="Linux Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | x64 | [parity_$VERSION_centos_x86_64.rpm]($DOWNLOAD_PREFIXparity_$VERSION_centos_x86_64.rpm) | <sup>`sha1`</sup> |
-| <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/linux.png" alt="Linux Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | x64 | [parity_$VERSION_debian_amd64.deb]($DOWNLOAD_PREFIXx86_64-unknown-debian-gnu/parity_$VERSION_debian_amd64.deb) | <sup>`sha2`</sup> |
-| <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/apple.png" alt="Apple Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | x64 | [parity_$VERSION_macos_macos.pkg]($DOWNLOAD_PREFIXx86_64-apple-darwin/parity_$VERSION_macos_macos.pkg) | <sup>`sha3`</sup> |
-| <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/linux.png" alt="Linux Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | x64 | [parity_$VERSION_ubuntu_amd64.deb]($DOWNLOAD_PREFIXx86_64-unknown-linux-gnu/parity_$VERSION_ubuntu_amd64.deb) | <sup>`sha4`</sup> |
-| <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/linux.png" alt="Linux Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | arm64 | [parity_$VERSION_ubuntu_arm64.deb]($DOWNLOAD_PREFIXaarch64-unknown-linux-gnu/parity_$VERSION_ubuntu_arm64.deb) | <sup>`sha5`</sup> |
-| <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/linux.png" alt="Linux Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | armv7 | [parity_$VERSION_ubuntu_armhf.deb]($DOWNLOAD_PREFIXarmv7-unknown-linux-gnueabihf/parity_$VERSION_ubuntu_armhf.deb) | <sup>`sha6`</sup> |
-| <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/windows.png" alt="Windows Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | x64 | [parity_$VERSION_windows_x86_64.exe]($DOWNLOAD_PREFIXx86_64-pc-windows-msvc/parity_$VERSION_windows_x86_64.exe) | <sup>`sha7`</sup> |
+| linux | arm64 | [parity](https://releases.parity.io/$VERSION/aarch64-unknown-linux-gnu/parity) | <sup>`shaaarch64-unknown-linux-gnu`</sup> |
+| android | armv7 | [parity](https://releases.parity.io/$VERSION/armv7-linux-androideabi/parity) | <sup>`shaarmv7-linux-androideabi`</sup> |
+| linux | armv7 | [parity](https://releases.parity.io/$VERSION/armv7-unknown-linux-gnueabihf/parity) | <sup>`shaarmv7-unknown-linux-gnueabihf`</sup> |
+| linux | i686 | [parity](https://releases.parity.io/$VERSION/i686-unknown-linux-gnu/parity) | <sup>`shai686-unknown-linux-gnu`</sup> |
+| osx | x64 | [parity](https://releases.parity.io/$VERSION/x86_64-apple-darwin/parity) | <sup>`shax86_64-apple-darwin`</sup> |
+| windows | x64 | [parity.exe](https://releases.parity.io/$VERSION/x86_64-pc-windows-msvc/parity.exe) | <sup>`shax86_64-pc-windows-msvc`</sup> |
+| linux | x64 | [parity](https://releases.parity.io/$VERSION/x86_64-unknown-linux-gnu/parity) | <sup>`shax86_64-unknown-linux-gnu`</sup> |
 
 | OS | Alternative | Link |
 |:---:|:---:|:---|

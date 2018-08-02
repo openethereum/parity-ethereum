@@ -3,7 +3,7 @@ stages:
   - build
   - package
   - publish
-  - push-release
+  - docs
 
 image:                             parity/rust:gitlab-ci
 
@@ -14,7 +14,6 @@ variables:
   BUILD_TARGET:                    ubuntu
   BUILD_ARCH:                      amd64
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
-  LIBSSL:                          "libssl1.0.0 (>=1.0.0)"
 
 cache:
   key:                             "${CI_JOB_NAME}"
@@ -28,14 +27,13 @@ cache:
     - stable
     - beta
     - tags
-    - nightly
-    - triggers
+    - gitlab-next
 
 .publishable_branches:             # list of git refs for publishing builds to the "production" locations
   only:                            &publishable_branches
     - nightly # Our nightly builds from schedule, on `master`
     - "v*" # Our version tags
-    - triggers
+    - gitlab-next
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
@@ -44,14 +42,6 @@ cache:
     expire_in:                     1 mos
     paths:
     - artifacts/
-
-.collect_packages:                &collect_packages
-  artifacts:
-    name:                          "${CI_JOB_NAME}_${CI_COMMIT_REF_NAME}"
-    when:                          on_success
-    expire_in:                     1 mos
-    paths:
-    - packages/
 
 .determine_version: &determine_version |
   export VERSION=$(grep -m 1 "version =" Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
@@ -71,21 +61,17 @@ test:rust:stable:                  &test
   <<:                              *test
   allow_failure:                   true
   only:
-    - triggers
     - master
-    - nightly
 
 test:rust:beta:
   <<:                              *optional_test
   script:
     - scripts/gitlab/test.sh beta
-  allow_failure:                   true
 
 test:rust:nightly:
   <<:                              *optional_test
   script:
     - scripts/gitlab/test.sh nightly
-  allow_failure:                   true
 
 #test:rustfmt:
 #  <<:                             *optional_test
@@ -101,7 +87,6 @@ test:coverage:
   stage:                           test
   only:
     - master
-    - gitlab-next
   script:
     - scripts/gitlab/coverage.sh
   tags:
@@ -121,18 +106,13 @@ build:linux:ubuntu:amd64:          &build
   <<:                              *collect_artifacts
   tags:
     - rust-stable
+  allow_failure: true
 
-build:linux:debian:amd64:
+build:linux:ubuntu:i386:
   <<:                              *build
-  image:                           parity/rust-debian:gitlab-ci
+  image:                           parity/rust-i686:gitlab-ci
   variables:
-    LIBSSL:                        "libssl1.1 (>=1.1.0)"
-    CARGO_TARGET:                  x86_64-unknown-linux-gnu
-
-build:linux:centos:x86_64:
-  <<:                              *build
-  image:                           parity/rust-centos:gitlab-ci
-  retry: 2 #if version `GLIBC_2.18' not found
+    CARGO_TARGET:                  i686-unknown-linux-gnu
 
 build:linux:ubuntu:arm64:
   <<:                              *build
@@ -156,6 +136,8 @@ build:macos:x86_64:
   <<:                              *build
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
   tags:
     - osx
   <<:                              *collect_artifacts
@@ -168,6 +150,7 @@ build-windows-x86_64:
     paths:
       - "%CI_PROJECT_DIR%/target/"
       - "%CI_PROJECT_DIR%/cargo/"
+      # No cargo caching, since fetch-locking on Windows gets stuck
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
   script:
@@ -179,88 +162,35 @@ build-windows-x86_64:
 
 #### stage:                        package
 
-package:ubuntu:deb:amd64:          &package_unix
-  stage:                           package
-  only:                            *releaseable_branches
-  before_script:
-    - *determine_version
-  variables:
-    BUILD_ARCH:                    amd64
-    IDENT:                         ubuntu
-    PKG:                           deb
-    LIBSSL:                        "libssl1.1 (>=1.1.0)"
-  dependencies:
-    - build:linux:ubuntu:amd64
-  script:
-    - scripts/gitlab/package-unix.sh
-  tags:
-    - rust-stable
-  <<:                              *collect_packages
-
-package:ubuntu:deb:arm64:
-  <<:                              *package_unix
-  variables:
-    BUILD_ARCH:                    arm64
-    IDENT:                         ubuntu
-    PKG:                           deb
-  dependencies:
-    - build:linux:ubuntu:arm64
-
-package:ubuntu:deb:armhf:
-  <<:                              *package_unix
-  variables:
-    BUILD_ARCH:                    armhf
-    IDENT:                         ubuntu
-    PKG:                           deb
-  dependencies:
-    - build:linux:ubuntu:armhf
-
-package:debian:deb:amd64:
-  <<:                              *package_unix
-  variables:
-    BUILD_ARCH:                    amd64
-    IDENT:                         debian
-    PKG:                           deb
-  dependencies:
-    - build:linux:debian:amd64
-
-package:centos:rpm:x86_64:
-  <<:                              *package_unix
-  variables:
-    BUILD_ARCH:                    x86_64
-    IDENT:                         centos
-    PKG:                           rpm
-    LIBSSL:                        "libssl >= 1.0.0"
-  dependencies:
-    - build:linux:centos:x86_64
-
-
-package:macos:pkg:x86_64:
-  <<:                              *package_unix
-  dependencies:
-    - build:macos:x86_64
-  script:
-    - scripts/gitlab/package-macos.sh
-  tags:
-    - osx
-
 package:linux:snap:amd64:          &package_snap
   stage: package
   only: *releaseable_branches
+  cache: {}
   before_script:
     - *determine_version
+  variables:
+    CARGO_TARGET:                  x86_64-unknown-linux-gnu
   dependencies:
     - build:linux:ubuntu:amd64
   script:
     - scripts/gitlab/package-snap.sh
   tags:
     - rust-stable
-  <<:                              *collect_packages
+  <<:                              *collect_artifacts
+
+package:linux:snap:i386:
+  <<:                              *package_snap
+  variables:
+    BUILD_ARCH: i386
+    CARGO_TARGET:                  i686-unknown-linux-gnu
+  dependencies:
+    - build:linux:ubuntu:i386
 
 package:linux:snap:arm64:
   <<:                              *package_snap
   variables:
     BUILD_ARCH: arm64
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
   dependencies:
     - build:linux:ubuntu:arm64
 
@@ -268,19 +198,10 @@ package:linux:snap:armhf:
   <<:                              *package_snap
   variables:
     BUILD_ARCH: armhf
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
   dependencies:
     - build:linux:ubuntu:armhf
 
-package-windows-exe-x86_64:
-  stage:                           package
-  only:                            *releaseable_branches
-  dependencies:
-    - build-windows-x86_64
-  script:
-    - sh scripts/gitlab/package-windows.sh
-  <<:                              *collect_packages
-  tags:
-    - rust-windows
 
 #### stage:                        publish
 
@@ -288,6 +209,7 @@ publish:linux:snap:amd64:          &publish_snap
   stage:                           publish
   only:                            *publishable_branches
   image:                           snapcore/snapcraft:stable
+  cache: {}
   before_script:
     - *determine_version
   variables:
@@ -299,11 +221,21 @@ publish:linux:snap:amd64:          &publish_snap
   tags:
     - rust-stable
 
+publish:linux:snap:i386:
+  <<:                              *publish_snap
+  before_script:
+    - *determine_version
+    #- sleep 60
+  variables:
+    BUILD_ARCH:                    i386
+  dependencies:
+    - package:linux:snap:i386
+
 publish:linux:snap:arm64:
   <<:                              *publish_snap
   before_script:
     - *determine_version
-    - sleep 120
+    #- sleep 360
   variables:
     BUILD_ARCH:                    arm64
   dependencies:
@@ -313,7 +245,7 @@ publish:linux:snap:armhf:
   <<:                              *publish_snap
   before_script:
     - *determine_version
-    - sleep 360
+    #- sleep 520
   variables:
     BUILD_ARCH:                    armhf
   dependencies:
@@ -322,10 +254,12 @@ publish:linux:snap:armhf:
 publish:docker:parity:amd64: &publish_docker
   stage:                           publish
   only:                            *publishable_branches
+  cache: {}
   dependencies:
     - build:linux:ubuntu:amd64
   tags:
     - shell
+  allow_failure:                   true
   script:
     - scripts/gitlab/publish-docker.sh parity
 
@@ -334,31 +268,35 @@ publish:docker:parity-evm:amd64:
   script:
     - scripts/gitlab/publish-docker.sh parity-evm
 
-publish:github:
+publish:github:s3:
   stage:                           publish
   only:                            *publishable_branches
+  cache: {}
   dependencies:
-    - package:ubuntu:deb:amd64
-    - package:ubuntu:deb:armhf
-    - package:ubuntu:deb:arm64
-    - package:debian:deb:amd64
-    - package:centos:rpm:x86_64
-    - package:macos:pkg:x86_64
-    - package-windows-exe-x86_64
+    - build:linux:ubuntu:amd64
+    - build:linux:ubuntu:i386
+    - build:linux:ubuntu:armhf
+    - build:linux:ubuntu:arm64
+    - build:macos:x86_64
+    - build-windows-x86_64
   before_script:
     - *determine_version
   script:
-    - scripts/gitlab/push-github.sh
+    - scripts/gitlab/push.sh
+  tags:
+    - shell
+  allow_failure:                   true
 
-#### stage:                        push-release
 
-push:release:
-  stage: push-release
+####stage:                          docs
+
+json:rpc:docs:
+  stage: docs
   only:
     - tags
-    - triggers
-  image: parity/rust:gitlab-ci
+    - gitlab-next
+  cache: {}
   script:
-    - scripts/gitlab/push-release.sh
+    - scripts/gitlab/rpc-docs.sh
   tags:
-    - curl
+    - shell

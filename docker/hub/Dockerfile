@@ -1,64 +1,27 @@
 FROM ubuntu:xenial
 MAINTAINER Parity Technologies <devops@parity.io>
-WORKDIR /build
-#ENV for build TAG
-ARG BUILD_TAG
-ENV BUILD_TAG ${BUILD_TAG:-master}
-RUN echo "Build tag:" $BUILD_TAG
+#set ENVIROMENT
+ARG TARGET
+ENV TARGET ${TARGET}
+
 # install tools and dependencies
-RUN apt-get update && \
-        apt-get install -y --force-yes --no-install-recommends \
-        # make
-        build-essential \
-        # add-apt-repository
-        software-properties-common \
-        make \
-        cmake \
-        curl \
-        wget \
-        git \
-        g++ \
-        gcc \
-        libc6 \
-        libc6-dev \
-        binutils \
-        file \
-        libudev-dev \
-        pkg-config \
-        dpkg-dev &&\
-# install rustup
- curl https://sh.rustup.rs -sSf | sh -s -- -y && \
-# rustup directory
- PATH=/root/.cargo/bin:$PATH && \
+RUN apt update && apt install -y --no-install-recommends openssl libudev-dev file
+
 # show backtraces
- RUST_BACKTRACE=1 && \
-# build parity
-cd /build&&git clone https://github.com/paritytech/parity-ethereum && \
-        cd parity-ethereum&& \
-	git pull&& \
-	git checkout $BUILD_TAG && \
-        cargo build --verbose --release --features final && \
-        strip /build/parity-ethereum/target/release/parity && \
- file /build/parity-ethereum/target/release/parity&&mkdir -p /parity&& cp /build/parity-ethereum/target/release/parity /parity&&\
+ENV RUST_BACKTRACE 1
+
 #cleanup Docker image
- rm -rf /root/.cargo&&rm -rf /root/.multirust&&rm -rf /root/.rustup&&rm -rf /build&&\
- apt-get purge -y  \
-        # make
-        build-essential \
-        # add-apt-repository
-        software-properties-common \
-        make \
-        cmake \
-        curl \
-        wget \
-        git \
-        g++ \
-        gcc \
-        binutils \
-        file \
-        pkg-config \
-        dpkg-dev &&\
- rm -rf /var/lib/apt/lists/*
+RUN apt autoremove -y
+RUN apt clean -y
+RUN rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*
+
+#add TARGET to docker image
+COPY artifacts/x86_64-unknown-linux-gnu/$TARGET /usr/bin/$TARGET
+
+# Build a shell script because the ENTRYPOINT command doesn't like using ENV
+RUN echo "#!/bin/bash \n ${TARGET} \$@" > ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
 # setup ENTRYPOINT
-EXPOSE 8080 8545 8180
-ENTRYPOINT ["/parity/parity"]
+EXPOSE 5001 8080 8082 8083 8545 8546 8180 30303/tcp 30303/udp
+ENTRYPOINT ["./entrypoint.sh"]
