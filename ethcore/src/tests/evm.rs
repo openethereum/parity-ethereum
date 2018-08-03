@@ -46,14 +46,14 @@ fn test_blockhash_eip210(factory: Factory) {
 	let mut state = get_temp_state_with_factory(factory);
 	let contract_address: Address = 0xf0.into();
 	state.init_code(&contract_address, (*blockhash_contract_code).clone()).unwrap();
-	for i in 1 .. 257 {
+	for i in 2 .. 257 {
 		env_info.number = i.into();
 		let params = ActionParams {
 			code_address: contract_address.clone(),
 			address: contract_address,
 			sender: SYSTEM_ADDRESS.clone(),
 			origin: SYSTEM_ADDRESS.clone(),
-			gas: 100000.into(),
+			gas: 1000000.into(),
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
 			code: Some(blockhash_contract_code.clone()),
@@ -77,7 +77,7 @@ fn test_blockhash_eip210(factory: Factory) {
 		address: Address::new(),
 		sender: Address::new(),
 		origin: Address::new(),
-		gas: 100000.into(),
+		gas: 1000000.into(),
 		gas_price: 0.into(),
 		value: ActionValue::Transfer(0.into()),
 		code: Some(get_prev_hash_code),
