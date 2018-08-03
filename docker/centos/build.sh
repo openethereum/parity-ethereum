@@ -21,6 +21,7 @@ docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG docker/ce
 echo Cleaning up ...
 rm -rf docker/centos/parity
 docker rm -f extract
+docker rmi -f $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
 
 echo Echoing Parity version:
 docker run $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG --version
