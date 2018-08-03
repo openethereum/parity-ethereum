@@ -264,6 +264,7 @@ impl MinerService for TestMinerService {
 				minimal_gas_price: 0x1312d00.into(),
 				block_gas_limit: 5_000_000.into(),
 				tx_gas_limit: 5_000_000.into(),
+				no_early_reject: false,
 			},
 			status: txpool::LightStatus {
 				mem_usage: 1_000,

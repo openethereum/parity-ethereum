@@ -342,8 +342,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			(instruction == instructions::STATICCALL && !schedule.have_static_call) ||
 			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
 			(instruction == instructions::REVERT && !schedule.have_revert) ||
-			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) {
-
+			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) ||
+			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash)
+		{
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction as u8
 			});
@@ -425,6 +426,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let endowment = self.stack.pop_back();
+				let address_scheme = match instruction {
+					instructions::CREATE => CreateContractAddress::FromSenderAndNonce,
+					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(self.stack.pop_back().into()),
+					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
+				};
 				let init_off = self.stack.pop_back();
 				let init_size = self.stack.pop_back();
 
@@ -444,7 +450,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 				}
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
-				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 
 				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme);
 				return match create_result {
@@ -677,8 +682,13 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::EXTCODESIZE => {
 				let address = u256_to_address(&self.stack.pop_back());
-				let len = ext.extcodesize(&address)?;
+				let len = ext.extcodesize(&address)?.unwrap_or(0);
 				self.stack.push(U256::from(len));
+			},
+			instructions::EXTCODEHASH => {
+				let address = u256_to_address(&self.stack.pop_back());
+				let hash = ext.extcodehash(&address)?.unwrap_or_else(H256::zero);
+				self.stack.push(U256::from(hash));
 			},
 			instructions::CALLDATACOPY => {
 				Self::copy_data_to_memory(&mut self.mem, &mut self.stack, &self.params.data.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
@@ -700,7 +710,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&self.stack.pop_back());
 				let code = ext.extcode(&address)?;
-				Self::copy_data_to_memory(&mut self.mem, &mut self.stack, &code);
+				Self::copy_data_to_memory(
+					&mut self.mem,
+					&mut self.stack,
+					code.as_ref().map(|c| &(*c)[..]).unwrap_or(&[])
+				);
 			},
 			instructions::GASPRICE => {
 				self.stack.push(self.params.gas_price.clone());

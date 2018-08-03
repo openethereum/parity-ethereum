@@ -49,7 +49,7 @@ use network::{ConnectionFilter, ConnectionDirection};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
-const MAX_SESSIONS: usize = 1024 + MAX_HANDSHAKES;
+const MAX_SESSIONS: usize = 2048 + MAX_HANDSHAKES;
 const MAX_HANDSHAKES: usize = 1024;
 
 const DEFAULT_PORT: u16 = 30303;
@@ -670,7 +670,7 @@ impl Host {
 		}
 	}
 
-	fn connection_closed(&self, token: TimerToken, io: &IoContext<NetworkIoMessage>) {
+	fn connection_closed(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		trace!(target: "network", "Connection closed: {}", token);
 		self.kill_connection(token, io, true);
 	}

@@ -20,7 +20,12 @@ use std::env;
 /// Replaces `$HOME` str with home directory path.
 pub fn replace_home(base: &str, arg: &str) -> String {
 	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
-	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
+	// We use an `if` so that we don't need to call `home_dir()` if not necessary.
+	let r = if arg.contains("$HOME") {
+		arg.replace("$HOME", env::home_dir().expect("$HOME isn't defined").to_str().unwrap())
+	} else {
+		arg.to_owned()
+	};
 	let r = r.replace("$BASE", base);
 	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
 }

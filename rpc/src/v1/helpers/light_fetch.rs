@@ -66,7 +66,7 @@ pub struct LightFetch {
 }
 
 /// Extract a transaction at given index.
-pub fn extract_transaction_at_index(block: encoded::Block, index: usize, eip86_transition: u64) -> Option<Transaction> {
+pub fn extract_transaction_at_index(block: encoded::Block, index: usize) -> Option<Transaction> {
 	block.transactions().into_iter().nth(index)
 		// Verify if transaction signature is correct.
 		.and_then(|tx| SignedTransaction::new(tx).ok())
@@ -85,7 +85,7 @@ pub fn extract_transaction_at_index(block: encoded::Block, index: usize, eip86_t
 				cached_sender,
 			}
 		})
-		.map(|tx| Transaction::from_localized(tx, eip86_transition))
+		.map(|tx| Transaction::from_localized(tx))
 }
 
 // extract the header indicated by the given `HeaderRef` from the given responses.
@@ -365,7 +365,7 @@ impl LightFetch {
 
 	// Get a transaction by hash. also returns the index in the block.
 	// Only returns transactions in the canonical chain.
-	pub fn transaction_by_hash(&self, tx_hash: H256, eip86_transition: u64)
+	pub fn transaction_by_hash(&self, tx_hash: H256)
 		-> impl Future<Item = Option<(Transaction, usize)>, Error = Error> + Send
 	{
 		let params = (self.sync.clone(), self.on_demand.clone());
@@ -397,7 +397,7 @@ impl LightFetch {
 						}
 
 						let index = index.index as usize;
-						let transaction = extract_transaction_at_index(blk, index, eip86_transition);
+						let transaction = extract_transaction_at_index(blk, index);
 
 						if transaction.as_ref().map_or(true, |tx| tx.hash != tx_hash.into()) {
 							// index is actively wrong: indicated block has

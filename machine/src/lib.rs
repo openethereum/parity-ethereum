@@ -95,22 +95,6 @@ pub trait Transactions: LiveBlock {
 	fn transactions(&self) -> &[Self::Transaction];
 }
 
-/// Trait for blocks which have finalized information.
-pub trait Finalizable: LiveBlock {
-	/// Get whether the block is finalized.
-	fn is_finalized(&self) -> bool;
-	/// Mark the block as finalized.
-	fn mark_finalized(&mut self);
-}
-
-/// A state machine with block metadata.
-pub trait WithMetadata: LiveBlock {
-	/// Get the current live block metadata.
-	fn metadata(&self) -> Option<&[u8]>;
-	/// Set the current live block metadata.
-	fn set_metadata(&mut self, value: Option<Vec<u8>>);
-}
-
 /// Generalization of types surrounding blockchain-suitable state machines.
 pub trait Machine: for<'a> LocalizedMachine<'a> {
 	/// The block header type.

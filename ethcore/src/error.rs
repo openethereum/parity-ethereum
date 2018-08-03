@@ -24,7 +24,6 @@ use unexpected::{Mismatch, OutOfBounds};
 use ethtrie::TrieError;
 use io::*;
 use header::BlockNumber;
-use client::Error as ClientError;
 use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
@@ -250,12 +249,6 @@ error_chain! {
 	}
 
 	errors {
-		#[doc = "Client configuration error."]
-		Client(err: ClientError) {
-			description("Client configuration error.")
-			display("Client configuration error {}", err)
-		}
-
 		#[doc = "Snapshot error."]
 		Snapshot(err: SnapshotError) {
 			description("Snapshot error.")
@@ -296,15 +289,6 @@ error_chain! {
 
 /// Result of import block operation.
 pub type ImportResult = EthcoreResult<H256>;
-
-impl From<ClientError> for Error {
-	fn from(err: ClientError) -> Error {
-		match err {
-			ClientError::Trie(err) => ErrorKind::Trie(err).into(),
-			_ => ErrorKind::Client(err).into()
-		}
-	}
-}
 
 impl From<AccountsError> for Error {
 	fn from(err: AccountsError) -> Error {

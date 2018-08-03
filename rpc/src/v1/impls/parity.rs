@@ -62,7 +62,6 @@ pub struct ParityClient<C, M, U> {
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
-	eip86_transition: u64,
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
@@ -81,7 +80,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 		signer: Option<Arc<SignerService>>,
 		ws_address: Option<Host>,
 	) -> Self {
-		let eip86_transition = client.eip86_transition();
 		ParityClient {
 			client,
 			miner,
@@ -93,7 +91,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 			settings,
 			signer,
 			ws_address,
-			eip86_transition,
 		}
 	}
 }
@@ -296,7 +293,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn pending_transactions(&self, limit: Trailing<usize>) -> Result<Vec<Transaction>> {
-		let block_number = self.client.chain_info().best_block_number;
 		let ready_transactions = self.miner.ready_transactions(
 			&*self.client,
 			limit.unwrap_or_else(usize::max_value),
@@ -305,18 +301,17 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 		Ok(ready_transactions
 			.into_iter()
-			.map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
+			.map(|t| Transaction::from_pending(t.pending().clone()))
 			.collect()
 		)
 	}
 
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {
-		let block_number = self.client.chain_info().best_block_number;
 		let all_transactions = self.miner.queued_transactions();
 
 		Ok(all_transactions
 			.into_iter()
-			.map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
+			.map(|t| Transaction::from_pending(t.pending().clone()))
 			.collect()
 		)
 	}
@@ -335,10 +330,9 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>> {
 		let transactions = self.miner.local_transactions();
-		let block_number = self.client.chain_info().best_block_number;
 		Ok(transactions
 			.into_iter()
-			.map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
+			.map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status)))
 			.collect()
 		)
 	}

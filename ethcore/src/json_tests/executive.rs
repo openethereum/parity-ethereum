@@ -166,12 +166,16 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> vm::Result<Arc<Bytes>>  {
+	fn extcode(&self, address: &Address) -> vm::Result<Option<Arc<Bytes>>>  {
 		self.ext.extcode(address)
 	}
 
-	fn extcodesize(&self, address: &Address) -> vm::Result<usize> {
+	fn extcodesize(&self, address: &Address) -> vm::Result<Option<usize>> {
 		self.ext.extcodesize(address)
+	}
+
+	fn extcodehash(&self, address: &Address) -> vm::Result<Option<H256>> {
+		self.ext.extcodehash(address)
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
