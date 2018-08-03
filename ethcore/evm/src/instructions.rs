@@ -134,6 +134,8 @@ enum_with_from_u8! {
 		RETURNDATASIZE = 0x3d,
 		#[doc = "copy return data buffer to memory"]
 		RETURNDATACOPY = 0x3e,
+		#[doc = "return the keccak256 hash of contract code"]
+		EXTCODEHASH = 0x3f,
 
 		#[doc = "get hash of most recent complete block"]
 		BLOCKHASH = 0x40,
@@ -492,6 +494,7 @@ lazy_static! {
 		arr[CALLDATALOAD as usize] = Some(InstructionInfo::new("CALLDATALOAD", 1, 1, GasPriceTier::VeryLow));
 		arr[CALLDATASIZE as usize] = Some(InstructionInfo::new("CALLDATASIZE", 0, 1, GasPriceTier::Base));
 		arr[CALLDATACOPY as usize] = Some(InstructionInfo::new("CALLDATACOPY", 3, 0, GasPriceTier::VeryLow));
+		arr[EXTCODEHASH as usize] = Some(InstructionInfo::new("EXTCODEHASH", 1, 1, GasPriceTier::Special));
 		arr[CODESIZE as usize] = Some(InstructionInfo::new("CODESIZE", 0, 1, GasPriceTier::Base));
 		arr[CODECOPY as usize] = Some(InstructionInfo::new("CODECOPY", 3, 0, GasPriceTier::VeryLow));
 		arr[GASPRICE as usize] = Some(InstructionInfo::new("GASPRICE", 0, 1, GasPriceTier::Base));
@@ -591,7 +594,7 @@ lazy_static! {
 		arr[DELEGATECALL as usize] = Some(InstructionInfo::new("DELEGATECALL", 6, 1, GasPriceTier::Special));
 		arr[STATICCALL as usize] = Some(InstructionInfo::new("STATICCALL", 6, 1, GasPriceTier::Special));
 		arr[SUICIDE as usize] = Some(InstructionInfo::new("SUICIDE", 1, 0, GasPriceTier::Special));
-		arr[CREATE2 as usize] = Some(InstructionInfo::new("CREATE2", 3, 1, GasPriceTier::Special));
+		arr[CREATE2 as usize] = Some(InstructionInfo::new("CREATE2", 4, 1, GasPriceTier::Special));
 		arr[REVERT as usize] = Some(InstructionInfo::new("REVERT", 2, 0, GasPriceTier::Zero));
 		arr
 	};

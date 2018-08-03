@@ -321,8 +321,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
 
-	/// List all transactions that are allowed into the next block.
-	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>>;
+	/// List all ready transactions that should be propagated to other peers.
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {

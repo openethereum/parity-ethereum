@@ -278,12 +278,13 @@ impl Account {
 		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == KECCAK_EMPTY)
 	}
 
-	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
+	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code. Returns the cached code, if successful.
+	#[must_use]
 	pub fn cache_code(&mut self, db: &HashDB<KeccakHasher>) -> Option<Arc<Bytes>> {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 
-		if self.is_cached() { return Some(self.code_cache.clone()) }
+		if self.is_cached() { return Some(self.code_cache.clone()); }
 
 		match db.get(&self.code_hash) {
 			Some(x) => {
@@ -298,8 +299,7 @@ impl Account {
 		}
 	}
 
-	/// Provide code to cache. For correctness, should be the correct code for the
-	/// account.
+	/// Provide code to cache. For correctness, should be the correct code for the account.
 	pub fn cache_given_code(&mut self, code: Arc<Bytes>) {
 		trace!("Account::cache_given_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 
@@ -307,7 +307,9 @@ impl Account {
 		self.code_cache = code;
 	}
 
-	/// Provide a database to get `code_size`. Should not be called if it is a contract without code.
+	/// Provide a database to get `code_size`. Should not be called if it is a contract without code. Returns whether
+	/// the cache succeeds.
+	#[must_use]
 	pub fn cache_code_size(&mut self, db: &HashDB<KeccakHasher>) -> bool {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code_size: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
@@ -324,7 +326,9 @@ impl Account {
 					},
 				}
 			} else {
-				false
+				// If the code hash is empty hash, then the code size is zero.
+				self.code_size = Some(0);
+				true
 			}
 	}
 
