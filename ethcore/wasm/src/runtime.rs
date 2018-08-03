@@ -585,7 +585,7 @@ impl<'a> Runtime<'a> {
 	pub fn create2(&mut self, args: RuntimeArgs) -> Result<RuntimeValue> {
 		//
 		// method signature:
-		//   fn create(endowment: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
+		//   fn create2(endowment: *const u8, salt: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
 		//
 		trace!(target: "wasm", "runtime: CREATE2");
 		let endowment = self.u256_at(args.nth_checked(0)?)?;
