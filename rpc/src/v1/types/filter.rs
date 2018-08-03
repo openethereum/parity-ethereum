@@ -92,8 +92,9 @@ impl Filter {
 				let hash = hash.into();
 				(BlockId::Hash(hash), BlockId::Hash(hash))
 			},
-			None => (self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
-					 self.to_block.map_or_else(|| BlockId::Latest, &num_to_id)),
+			None =>
+				(self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
+				 self.to_block.map_or_else(|| BlockId::Latest, &num_to_id)),
 		};
 
 		Ok(EthFilter {
