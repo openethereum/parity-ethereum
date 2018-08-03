@@ -766,13 +766,13 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
 	user_defaults.fat_db = fat_db;
-	user_defaults.mode = mode;
+	user_defaults.set_mode(mode);
 	user_defaults.save(&user_defaults_path)?;
 
 	// tell client how to save the default mode if it gets changed.
 	client.on_user_defaults_change(move |mode: Option<Mode>| {
 		if let Some(mode) = mode {
-			user_defaults.mode = mode;
+			user_defaults.set_mode(mode);
 		}
 		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
 	});

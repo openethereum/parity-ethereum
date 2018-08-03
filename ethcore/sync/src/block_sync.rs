@@ -22,12 +22,11 @@ use std::collections::{HashSet, VecDeque};
 use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
-use rlp::Rlp;
-use ethcore::views::BlockView;
+use rlp::{self, Rlp};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
-use ethcore::block::Block;
 use ethcore::error::{ImportErrorKind, BlockError};
+use ethcore::verification::queue::kind::blocks::Unverified;
 use sync_io::SyncIo;
 use blocks::BlockCollection;
 
@@ -76,10 +75,16 @@ pub enum DownloadAction {
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum BlockDownloaderImportError {
-	/// Imported data is rejected as invalid.
+	/// Imported data is rejected as invalid. Peer should be dropped.
 	Invalid,
 	/// Imported data is valid but rejected cause the downloader does not need it.
 	Useless,
+}
+
+impl From<rlp::DecoderError> for BlockDownloaderImportError {
+	fn from(_: rlp::DecoderError) -> BlockDownloaderImportError {
+		BlockDownloaderImportError::Invalid
+	}
 }
 
 /// Block downloader strategy.
@@ -316,7 +321,7 @@ impl BlockDownloader {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn import_bodies(&mut self, _io: &mut SyncIo, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_bodies(&mut self, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
@@ -478,17 +483,18 @@ impl BlockDownloader {
 			let block = block_and_receipts.block;
 			let receipts = block_and_receipts.receipts;
 
-			// Perform basic block verification
-			if !Block::is_good(&block) {
-				debug!(target: "sync", "Bad block rlp: {:?}", block);
-				bad = true;
-				break;
-			}
-
-			let (h, number, parent) = {
-				let header = view!(BlockView, &block).header_view();
-				(header.hash(), header.number(), header.parent_hash())
+			let block = match Unverified::from_rlp(block) {
+				Ok(block) => block,
+				Err(_) => {
+					debug!(target: "sync", "Bad block rlp");
+					bad = true;
+					break;
+				}
 			};
+
+			let h = block.header.hash();
+			let number = block.header.number();
+			let parent = *block.header.parent_hash();
 
 			if self.target_hash.as_ref().map_or(false, |t| t == &h) {
 				self.state = State::Complete;
