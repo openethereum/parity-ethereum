@@ -590,13 +590,13 @@ impl<'a> Runtime<'a> {
 		trace!(target: "wasm", "runtime: CREATE2");
 		let endowment = self.u256_at(args.nth_checked(0)?)?;
 		trace!(target: "wasm", "       val: {:?}", endowment);
-		let salt: H256 = self.u256_at(args.nth_checked(0)?)?.into();
+		let salt: H256 = self.u256_at(args.nth_checked(1)?)?.into();
 		trace!(target: "wasm", "      salt: {:?}", salt);
-		let code_ptr: u32 = args.nth_checked(1)?;
+		let code_ptr: u32 = args.nth_checked(2)?;
 		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
-		let code_len: u32 = args.nth_checked(2)?;
+		let code_len: u32 = args.nth_checked(3)?;
 		trace!(target: "wasm", "  code_len: {:?}", code_len);
-		let result_ptr: u32 = args.nth_checked(3)?;
+		let result_ptr: u32 = args.nth_checked(4)?;
 		trace!(target: "wasm", "result_ptr: {:?}", result_ptr);
 
 		self.do_create(endowment, code_ptr, code_len, result_ptr, vm::CreateContractAddress::FromSenderSaltAndCodeHash(salt))
