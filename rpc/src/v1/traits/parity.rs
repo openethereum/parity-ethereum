@@ -213,11 +213,11 @@ build_rpc_trait! {
 
 		/// Get RLP encoded block.
 		#[rpc(name = "parity_getRawBlockByNumber")]
-		fn raw_block_by_number(&self, BlockNumber, bool) -> BoxFuture<Option<RichBlock>>;
+		fn raw_block_by_number(&self, BlockNumber) -> BoxFuture<Option<Bytes>>;
 
 		/// Publishes block to the network.
 		#[rpc(name = "parity_submitRawBlock")]
-		fn submit_block(&self, RichBlock) -> Result<H256>;
+		fn submit_block(&self, Bytes) -> Result<H256>;
 
 		/// Get IPFS CIDv0 given protobuf encoded bytes.
 		#[rpc(name = "parity_cidV0")]

@@ -103,7 +103,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 {
 	type Metadata = Metadata;
 
-	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
+	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<Bytes>> {
 		let client = &self.client;
 
 		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), false);
@@ -510,27 +510,27 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		}))
 	}
 
-		fn raw_block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-			Box::new(future::done(self.rich_block(num.into(), include_txs)))
-		}
+	fn raw_block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<Bytes>> {
+		Box::new(future::done(self.rich_block(num.into(), include_txs)))
+	}
 
-		fn submit_block(&self, block: RichBlock) -> Result<RpcH256> {
-			// TODO: Re-implement rlp_bytes for rpc/v1/src/types/block.rb 
-			//       or reuse the rlp_bytes from ethcore/src/block.rb?
-			rlp_encoded_block = block.rlp_bytes()
-			Rlp::new(&rlp_encoded_block.into_vec()).as_val()
-				.map_err(errors::rlp)
-				.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))
-				.and_then(|signed_transaction| {
-					FullDispatcher::dispatch_transaction(
-						&*self.client,
-						&*self.miner,
-						signed_transaction.into(),
-						false
-					)
-			})
-			.map(Into::into)
-		}
+	fn submit_block(&self, block: RichBlock) -> Result<RpcH256> {
+		// TODO: Re-implement rlp_bytes for rpc/v1/src/types/block.rb 
+		//       or reuse the rlp_bytes from ethcore/src/block.rb?
+		rlp_encoded_block = block.rlp_bytes()
+		Rlp::new(&rlp_encoded_block.into_vec()).as_val()
+			.map_err(errors::rlp)
+			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))
+			.and_then(|signed_transaction| {
+				FullDispatcher::dispatch_transaction(
+					&*self.client,
+					&*self.miner,
+					signed_transaction.into(),
+					false
+				)
+		})
+		.map(Into::into)
+	}
 
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
