@@ -357,11 +357,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "dir"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "app_dirs 1.2.1 (git+https://github.com/paritytech/app-dirs-rs)",
+ "dirs 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "journaldb 0.2.0",
+]
+
+[[package]]
+name = "dirs"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -618,7 +628,7 @@ dependencies = [
  "rlp_derive 0.1.0",
  "serde 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash-ethereum 0.2.0",
@@ -861,7 +871,7 @@ dependencies = [
  "rlp 0.2.1 (git+https://github.com/paritytech/parity-common)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.0",
  "triehash-ethereum 0.2.0",
 ]
@@ -954,7 +964,7 @@ dependencies = [
 name = "ethstore"
 version = "0.2.0"
 dependencies = [
- "dir 0.1.1",
+ "dir 0.1.2",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -969,7 +979,7 @@ dependencies = [
  "serde 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -979,7 +989,7 @@ dependencies = [
 name = "ethstore-cli"
 version = "0.1.0"
 dependencies = [
- "dir 0.1.1",
+ "dir 0.1.2",
  "docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethstore 0.2.0",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1826,7 +1836,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "num-integer 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1953,7 +1963,7 @@ dependencies = [
  "clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)",
  "daemonize 0.2.3 (git+https://github.com/paritytech/daemonize)",
- "dir 0.1.1",
+ "dir 0.1.2",
  "docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
@@ -2256,7 +2266,7 @@ dependencies = [
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2289,7 +2299,7 @@ dependencies = [
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "petgraph 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "thread-id 3.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2445,7 +2455,7 @@ dependencies = [
  "hamming 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "primal-bit 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "primal-estimate 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2562,7 +2572,7 @@ dependencies = [
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2887,7 +2897,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "smallvec"
-version = "0.4.3"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3284,7 +3294,7 @@ dependencies = [
  "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.0",
 ]
 
@@ -3652,6 +3662,7 @@ dependencies = [
 "checksum ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)" = "<none>"
 "checksum daemonize 0.2.3 (git+https://github.com/paritytech/daemonize)" = "<none>"
 "checksum difference 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b3304d19798a8e067e48d8e69b2c37f0b5e9b4e462504ad9e27e9f3fce02bba8"
+"checksum dirs 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "37a76dd8b997af7107d0bb69d43903cf37153a18266f8b3fdb9911f28efb5444"
 "checksum docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d8acd393692c503b168471874953a2531df0e9ab77d0b6bbc582395743300a4a"
 "checksum dtoa 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "09c3753c3db574d215cba4ea76018483895d7bff25a31b49ba45db21c48e50ab"
 "checksum edit-distance 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6a34f5204fbc13582de418611cf3a7dcdd07c6d312a5b631597ba72c06b9d9c9"
@@ -3826,7 +3837,7 @@ dependencies = [
 "checksum slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"
 "checksum slab 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fdeff4cd9ecff59ec7e3744cbca73dfe5ac35c2aedb2cfba8a1c715a18912e9d"
 "checksum smallvec 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4c8cbcd6df1e117c2210e13ab5109635ad68a929fcbb8964dc965b76cb5ee013"
-"checksum smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8fcd03faf178110ab0334d74ca9631d77f94c8c11cc77fcb59538abf0025695d"
+"checksum smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "f90c5e5fe535e48807ab94fc611d323935f39d4660c52b26b96446a7b33aef10"
 "checksum snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)" = "<none>"
 "checksum snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)" = "<none>"
 "checksum socket2 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "06dc9f86ee48652b7c80f3d254e3b9accb67a928c562c64d10d7b016d3d98dab"
