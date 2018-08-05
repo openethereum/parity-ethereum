@@ -20,9 +20,10 @@
 extern crate app_dirs;
 extern crate ethereum_types;
 extern crate journaldb;
+extern crate dirs;
 
 pub mod helpers;
-use std::{env, fs};
+use std::fs;
 use std::path::{PathBuf, Path};
 use ethereum_types::{H64, H256};
 use journaldb::Algorithm;
@@ -30,6 +31,11 @@ use helpers::{replace_home, replace_home_and_local};
 use app_dirs::{AppInfo, get_app_root, AppDataType};
 // re-export platform-specific functions
 use platform::*;
+
+#[cfg(not(target_os="android"))]
+pub use dirs::home_dir;
+#[cfg(target_os="android")]
+pub use std::env::home_dir;
 
 /// Platform-specific chains path for standard client - Windows only
 #[cfg(target_os = "windows")] pub const CHAINS_PATH: &str = "$LOCAL/chains";
@@ -237,7 +243,7 @@ pub fn default_hypervisor_path() -> PathBuf {
 
 /// Get home directory.
 fn home() -> PathBuf {
-	env::home_dir().expect("Failed to get home dir")
+	dirs::home_dir().expect("Failed to get home dir")
 }
 
 /// Geth path
