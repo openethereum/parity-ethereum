@@ -40,7 +40,7 @@ use engines::EthEngine;
 use error::{Error, BlockError};
 use ethereum_types::{H256, U256, Address, Bloom};
 use factory::Factories;
-use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
+use hash::keccak;
 use header::{Header, ExtendedHeader};
 use receipt::{Receipt, TransactionOutcome};
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
@@ -51,7 +51,6 @@ use transaction::{UnverifiedTransaction, SignedTransaction, Error as Transaction
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
 use verification::PreverifiedBlock;
-use views::BlockView;
 use vm::{EnvInfo, LastHashes};
 
 /// A block, encoded as it is on the block chain.
@@ -66,11 +65,6 @@ pub struct Block {
 }
 
 impl Block {
-	/// Returns true if the given bytes form a valid encoding of a block in RLP.
-	pub fn is_good(b: &[u8]) -> bool {
-		Rlp::new(b).as_val::<Block>().is_ok()
-	}
-
 	/// Get the RLP-encoding of the block with the seal.
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
@@ -398,26 +392,11 @@ impl<'x> OpenBlock<'x> {
 
 	/// Turn this into a `ClosedBlock`.
 	pub fn close(self) -> Result<ClosedBlock, Error> {
-		let mut s = self;
-
-		let unclosed_state = s.block.state.clone();
-
-		s.engine.on_close_block(&mut s.block)?;
-		s.block.state.commit()?;
-
-		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
-		let uncle_bytes = encode_list(&s.block.uncles);
-		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
-		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {
-			b.accrue_bloom(&r.log_bloom);
-			b
-		}));
-		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
+		let unclosed_state = self.block.state.clone();
+		let locked = self.close_and_lock()?;
 
 		Ok(ClosedBlock {
-			block: s.block,
+			block: locked.block,
 			unclosed_state,
 		})
 	}
@@ -429,18 +408,11 @@ impl<'x> OpenBlock<'x> {
 		s.engine.on_close_block(&mut s.block)?;
 		s.block.state.commit()?;
 
-		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
-			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
-		}
-		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &KECCAK_EMPTY_LIST_RLP {
-			let uncle_bytes = encode_list(&s.block.uncles);
-			s.block.header.set_uncles_hash(keccak(&uncle_bytes));
-		}
-		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &KECCAK_NULL_RLP {
-			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
-		}
-
+		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
+		let uncle_bytes = encode_list(&s.block.uncles);
+		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
+		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
 		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {
 			b.accrue_bloom(&r.log_bloom);
 			b
@@ -537,18 +509,16 @@ impl LockedBlock {
 		self,
 		engine: &EthEngine,
 		seal: Vec<Bytes>,
-	) -> Result<SealedBlock, (Error, LockedBlock)> {
+	) -> Result<SealedBlock, Error> {
 		let mut s = self;
 		s.block.header.set_seal(seal);
 		s.block.header.compute_hash();
 
 		// TODO: passing state context to avoid engines owning it?
-		match engine.verify_local_seal(&s.block.header) {
-			Err(e) => Err((e, s)),
-			_ => Ok(SealedBlock {
-				block: s.block
-			}),
-		}
+		engine.verify_local_seal(&s.block.header)?;
+		Ok(SealedBlock {
+			block: s.block
+		})
 	}
 }
 
@@ -637,12 +607,11 @@ pub fn enact_verified(
 	is_epoch_begin: bool,
 	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
-	let view = view!(BlockView, &block.bytes);
 
 	enact(
 		block.header,
 		block.transactions,
-		view.uncles(),
+		block.uncles,
 		engine,
 		tracing,
 		db,

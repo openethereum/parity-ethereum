@@ -294,7 +294,7 @@ impl BlockCollection {
 				let header = view!(HeaderView, &block.header);
 				let block_view = Block::new_from_header_and_body(&header, &body);
 				drained.push(BlockAndReceipts {
-					block: block_view.rlp().as_raw().to_vec(),
+					block: block_view.into_inner(),
 					receipts: block.receipts.clone(),
 				});
 			}

@@ -61,10 +61,12 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 			stream.append(nonce);
 			(From::from(keccak(stream.as_raw())), None)
 		},
-		CreateContractAddress::FromCodeHash => {
+		CreateContractAddress::FromSenderSaltAndCodeHash(salt) => {
 			let code_hash = keccak(code);
-			let mut buffer = [0xffu8; 20 + 32];
-			&mut buffer[20..].copy_from_slice(&code_hash[..]);
+			let mut buffer = [0u8; 20 + 32 + 32];
+			&mut buffer[0..20].copy_from_slice(&sender[..]);
+			&mut buffer[20..(20+32)].copy_from_slice(&salt[..]);
+			&mut buffer[(20+32)..].copy_from_slice(&code_hash[..]);
 			(From::from(keccak(&buffer[..])), Some(code_hash))
 		},
 		CreateContractAddress::FromSenderAndCodeHash => {
@@ -323,7 +325,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address)?,
-					code_hash: Some(self.state.code_hash(address)?),
+					code_hash: self.state.code_hash(address)?,
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 					params_type: vm::ParamsType::Separate,

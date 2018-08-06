@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, BTreeMap, VecDeque};
+use std::cmp;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -34,7 +35,6 @@ use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use blockchain::{BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
-use client::Error as ClientError;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
 	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
@@ -74,6 +74,8 @@ use types::filter::Filter;
 use types::ancestry_action::AncestryAction;
 use verification;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
+use verification::queue::kind::blocks::Unverified;
+use verification::queue::kind::BlockLike;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -209,7 +211,7 @@ pub struct Client {
 	/// Queued ancient blocks, make sure they are imported in order.
 	queued_ancient_blocks: Arc<RwLock<(
 		HashSet<H256>,
-		VecDeque<(Header, encoded::Block, Bytes)>
+		VecDeque<(Unverified, Bytes)>
 	)>>,
 	ancient_blocks_import_lock: Arc<Mutex<()>>,
 	/// Consensus messages import queue
@@ -429,7 +431,7 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, header: &Header, block: encoded::Block, receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<(), ::error::Error> {
+	fn import_old_block(&self, unverified: Unverified, receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<(), ::error::Error> {
 		let receipts = ::rlp::decode_list(receipts_bytes);
 		let _import_lock = self.import_lock.lock();
 
@@ -437,11 +439,11 @@ impl Importer {
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
 			let mut rng = OsRng::new()?;
-			self.ancient_verifier.verify(&mut rng, &header, &chain)?;
+			self.ancient_verifier.verify(&mut rng, &unverified.header, &chain)?;
 
 			// Commit results
 			let mut batch = DBTransaction::new();
-			chain.insert_unordered_block(&mut batch, block, receipts, None, false, true);
+			chain.insert_unordered_block(&mut batch, encoded::Block::new(unverified.bytes), receipts, None, false, true);
 			// Final commit to the DB
 			db.write_buffered(batch);
 			chain.commit();
@@ -933,7 +935,7 @@ impl Client {
 	}
 
 	// prune ancient states until below the memory limit or only the minimum amount remain.
-	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ClientError> {
+	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ::error::Error> {
 		let number = match state_db.journal_db().latest_era() {
 			Some(n) => n,
 			None => return Ok(()),
@@ -1339,7 +1341,7 @@ impl BlockInfo for Client {
 	}
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
-		self.state_at(id).and_then(|s| s.code_hash(address).ok())
+		self.state_at(id).and_then(|s| s.code_hash(address).unwrap_or(None))
 	}
 }
 
@@ -1382,22 +1384,15 @@ impl CallContract for Client {
 }
 
 impl ImportBlock for Client {
-	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		use verification::queue::kind::BlockLike;
-		use verification::queue::kind::blocks::Unverified;
-
-		// create unverified block here so the `keccak` calculation can be cached.
-		let unverified = Unverified::from_rlp(bytes)?;
-
-		{
-			if self.chain.read().is_known(&unverified.hash()) {
-				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
-			}
-			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
-			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
-			}
+	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
+		if self.chain.read().is_known(&unverified.hash()) {
+			bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
+		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
+		if status == BlockStatus::Unknown || status == BlockStatus::Pending {
+			bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
+		}
+
 		Ok(self.importer.block_queue.import(unverified)?)
 	}
 }
@@ -1693,6 +1688,9 @@ impl BlockChainClient for Client {
 		if let Some(after) = after {
 			if let Err(e) = iter.seek(after) {
 				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
+			} else {
+				// Position the iterator after the `after` element
+				iter.next();
 			}
 		}
 
@@ -1736,7 +1734,10 @@ impl BlockChainClient for Client {
 
 		if let Some(after) = after {
 			if let Err(e) = iter.seek(after) {
-				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
+				trace!(target: "fatdb", "list_storage: Couldn't seek the DB: {:?}", e);
+			} else {
+				// Position the iterator after the `after` element
+				iter.next();
 			}
 		}
 
@@ -1840,7 +1841,7 @@ impl BlockChainClient for Client {
 			// Otherwise, we use a slower version that finds a link between from_block and to_block.
 			let from_hash = Self::block_hash(&chain, filter.from_block)?;
 			let from_number = chain.block_number(&from_hash)?;
-			let to_hash = Self::block_hash(&chain, filter.from_block)?;
+			let to_hash = Self::block_hash(&chain, filter.to_block)?;
 
 			let blooms = filter.bloom_possibilities();
 			let bloom_match = |header: &encoded::Header| {
@@ -1940,7 +1941,25 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>> {
+		const PROPAGATE_FOR_BLOCKS: u32 = 4;
+		const MIN_TX_TO_PROPAGATE: usize = 256;
+
+		let block_gas_limit = *self.best_block_header().gas_limit();
+		let min_tx_gas: U256 = self.latest_schedule().tx_gas.into();
+
+		let max_len = if min_tx_gas.is_zero() {
+			usize::max_value()
+		} else {
+			cmp::max(
+				MIN_TX_TO_PROPAGATE,
+				cmp::min(
+					(block_gas_limit / min_tx_gas) * PROPAGATE_FOR_BLOCKS,
+					// never more than usize
+					usize::max_value().into()
+				).as_u64() as usize
+			)
+		};
 		self.importer.miner.ready_transactions(self, max_len, ::miner::PendingOrdering::Priority)
 	}
 
@@ -2017,24 +2036,23 @@ impl IoClient for Client {
 		});
 	}
 
-	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+	fn queue_ancient_block(&self, unverified: Unverified, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
 		trace_time!("queue_ancient_block");
-		let header: Header = ::rlp::Rlp::new(&block_bytes).val_at(0)?;
-		let hash = header.hash();
 
+		let hash = unverified.hash();
 		{
 			// check block order
 			if self.chain.read().is_known(&hash) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-			let parent_hash = header.parent_hash();
+			let parent_hash = unverified.parent_hash();
 			// NOTE To prevent race condition with import, make sure to check queued blocks first
 			// (and attempt to acquire lock)
-			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(parent_hash);
+			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending {
-				let status = self.block_status(BlockId::Hash(*parent_hash));
+				let status = self.block_status(BlockId::Hash(parent_hash));
 				if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*parent_hash)));
+					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 				}
 			}
 		}
@@ -2043,7 +2061,7 @@ impl IoClient for Client {
 		{
 			let mut queued = self.queued_ancient_blocks.write();
 			queued.0.insert(hash);
-			queued.1.push_back((header, encoded::Block::new(block_bytes), receipts_bytes));
+			queued.1.push_back((unverified, receipts_bytes));
 		}
 
 		let queued = self.queued_ancient_blocks.clone();
@@ -2055,11 +2073,10 @@ impl IoClient for Client {
 			let _lock = lock.lock();
 			for _i in 0..MAX_ANCIENT_BLOCKS_TO_IMPORT {
 				let first = queued.write().1.pop_front();
-				if let Some((header, block_bytes, receipts_bytes)) = first {
-					let hash = header.hash();
+				if let Some((unverified, receipts_bytes)) = first {
+					let hash = unverified.hash();
 					let result = client.importer.import_old_block(
-						&header,
-						block_bytes,
+						unverified,
 						&receipts_bytes,
 						&**client.db.read().key_value(),
 						&*client.chain.read(),

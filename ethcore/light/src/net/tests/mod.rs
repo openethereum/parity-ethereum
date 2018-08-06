@@ -171,8 +171,8 @@ impl Provider for TestProvider {
 		})
 	}
 
-	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
-		self.0.client.ready_transactions(max_len)
+	fn transactions_to_propagate(&self) -> Vec<PendingTransaction> {
+		self.0.client.transactions_to_propagate()
 	}
 }
 
