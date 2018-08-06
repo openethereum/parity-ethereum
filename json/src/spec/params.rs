@@ -146,6 +146,9 @@ pub struct Params {
 	/// Wasm activation block height, if not activated from start
 	#[serde(rename="wasmActivationTransition")]
 	pub wasm_activation_transition: Option<Uint>,
+	/// KIP4 activiation block height.
+	#[serde(rename="kip4Transition")]
+	pub kip4_transition: Option<Uint>,
 }
 
 #[cfg(test)]
