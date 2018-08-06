@@ -1813,7 +1813,7 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn logs(&self, filter: Filter) -> Option<Vec<LocalizedLogEntry>> {
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
 		let chain = self.chain.read();
 
 		// First, check whether `filter.from_block` and `filter.to_block` is on the canon chain. If so, we can use the
@@ -1830,8 +1830,14 @@ impl BlockChainClient for Client {
 
 		let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
 			// If we are on the canon chain, use bloom filter to fetch required hashes.
-			let from = self.block_number_ref(&filter.from_block)?;
-			let to = self.block_number_ref(&filter.to_block)?;
+			let from = match self.block_number_ref(&filter.from_block) {
+				Some(val) => val,
+				None => return Err(filter.from_block.clone()),
+			};
+			let to = match self.block_number_ref(&filter.to_block) {
+				Some(val) => val,
+				None => return Err(filter.to_block.clone()),
+			};
 
 			chain.blocks_with_bloom(&filter.bloom_possibilities(), from, to)
 				.into_iter()
@@ -1839,9 +1845,18 @@ impl BlockChainClient for Client {
 				.collect::<Vec<H256>>()
 		} else {
 			// Otherwise, we use a slower version that finds a link between from_block and to_block.
-			let from_hash = Self::block_hash(&chain, filter.from_block)?;
-			let from_number = chain.block_number(&from_hash)?;
-			let to_hash = Self::block_hash(&chain, filter.to_block)?;
+			let from_hash = match Self::block_hash(&chain, filter.from_block) {
+				Some(val) => val,
+				None => return Err(filter.from_block.clone()),
+			};
+			let from_number = match chain.block_number(&from_hash) {
+				Some(val) => val,
+				None => return Err(BlockId::Hash(from_hash)),
+			};
+			let to_hash = match Self::block_hash(&chain, filter.to_block) {
+				Some(val) => val,
+				None => return Err(filter.to_block.clone()),
+			};
 
 			let blooms = filter.bloom_possibilities();
 			let bloom_match = |header: &encoded::Header| {
@@ -1853,7 +1868,10 @@ impl BlockChainClient for Client {
 				let mut current_hash = to_hash;
 
 				loop {
-					let header = chain.block_header_data(&current_hash)?;
+					let header = match chain.block_header_data(&current_hash) {
+						Some(val) => val,
+						None => return Err(BlockId::Hash(current_hash)),
+					};
 					if bloom_match(&header) {
 						blocks.push(current_hash);
 					}
@@ -1871,13 +1889,14 @@ impl BlockChainClient for Client {
 
 			// Check if we've actually reached the expected `from` block.
 			if last_hash != from_hash || blocks.is_empty() {
-				return None;
+				// In this case, from_hash is the cause (for not matching last_hash).
+				return Err(BlockId::Hash(from_hash));
 			}
 
 			blocks
 		};
 
-		Some(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
+		Ok(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {

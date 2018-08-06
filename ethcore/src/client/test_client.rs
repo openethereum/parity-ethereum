@@ -665,10 +665,10 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn logs(&self, filter: Filter) -> Option<Vec<LocalizedLogEntry>> {
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
 		let mut logs = self.logs.read().clone();
 		let len = logs.len();
-		Some(match filter.limit {
+		Ok(match filter.limit {
 			Some(limit) if limit <= len => logs.split_off(len - limit),
 			_ => logs,
 		})
