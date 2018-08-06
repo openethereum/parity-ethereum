@@ -1830,6 +1830,10 @@ impl BlockChainClient for Client {
 
 		let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
 			// If we are on the canon chain, use bloom filter to fetch required hashes.
+			//
+			// If we are sure the block does not exist (where val > best_block_number), then return error. Note that we
+			// don't need to care about pending blocks here because RPC query sets pending back to latest (or handled
+			// pending logs themselves).
 			let from = match self.block_number_ref(&filter.from_block) {
 				Some(val) if val <= chain.best_block_number() => val,
 				_ => return Err(filter.from_block.clone()),
