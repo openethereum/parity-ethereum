@@ -1831,12 +1831,12 @@ impl BlockChainClient for Client {
 		let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
 			// If we are on the canon chain, use bloom filter to fetch required hashes.
 			let from = match self.block_number_ref(&filter.from_block) {
-				Some(val) => val,
-				None => return Err(filter.from_block.clone()),
+				Some(val) if val <= chain.best_block_number() => val,
+				_ => return Err(filter.from_block.clone()),
 			};
 			let to = match self.block_number_ref(&filter.to_block) {
-				Some(val) => val,
-				None => return Err(filter.to_block.clone()),
+				Some(val) if val <= chain.best_block_number() => val,
+				_ => return Err(filter.to_block.clone()),
 			};
 
 			chain.blocks_with_bloom(&filter.bloom_possibilities(), from, to)
