@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 error-chain = "0.12"
-log = "0.3"
+log = "0.4"
 smallvec = "0.4"
 trace-time = { path = "../util/trace-time", version = "0.1" }
 

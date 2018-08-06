@@ -11,7 +11,7 @@ ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }
 kvdb = { git = "https://github.com/paritytech/parity-common" }
-log = "0.3"
+log = "0.4"
 stop-guard = { path = "../../util/stop-guard" }
 trace-time = { path = "../../util/trace-time" }
 
