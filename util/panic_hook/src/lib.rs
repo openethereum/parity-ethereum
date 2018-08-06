@@ -34,8 +34,8 @@ pub fn set_abort() {
 
 /// Set the panic hook with a closure to be called. The closure receives the panic message.
 ///
-/// Depending on how Parity was compiled, after the closure either returns the process aborts or
-/// unwinding starts.
+/// Depending on how Parity was compiled, after the closure has been executed, either the process
+/// aborts or unwinding starts.
 ///
 /// If you panic within the closure, a double panic happens and the process will stop.
 pub fn set_with<F>(f: F)
