@@ -20,6 +20,7 @@ use std::fmt;
 
 use ethcore::account_provider::{SignError as AccountError};
 use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
+use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
@@ -422,11 +423,16 @@ pub fn filter_not_found() -> Error {
 	}
 }
 
-pub fn filter_block_not_found() -> Error {
+pub fn filter_block_not_found(id: BlockId) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "One of the block specified in filter (fromBlock, toBlock or blockHash) cannot be found".into(),
-		data: None,
+		data: Some(Value::String(match id {
+			BlockId::Hash(hash) => format!("0x{:x}", hash),
+			BlockId::Number(number) => format!("0x{:x}", number),
+			BlockId::Earliest => "earliest".to_string(),
+			BlockId::Latest => "latest".to_string(),
+		})),
 	}
 }
 

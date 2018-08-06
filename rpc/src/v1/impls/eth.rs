@@ -724,11 +724,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			Err(err) => return Box::new(future::err(err)),
 		};
 		let mut logs = match self.client.logs(filter.clone()) {
-			Some(logs) => logs
+			Ok(logs) => logs
 				.into_iter()
 				.map(From::from)
 				.collect::<Vec<Log>>(),
-			None => return Box::new(future::err(errors::filter_block_not_found())),
+			Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
 		};
 
 		if include_pending {
