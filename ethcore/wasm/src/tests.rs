@@ -20,7 +20,7 @@ use byteorder::{LittleEndian, ByteOrder};
 use ethereum_types::{H256, U256, Address};
 
 use super::WasmInterpreter;
-use vm::{self, Vm, GasLeft, ActionParams, ActionValue};
+use vm::{self, Vm, GasLeft, ActionParams, ActionValue, CreateContractAddress};
 use vm::tests::{FakeCall, FakeExt, FakeCallType};
 
 macro_rules! load_sample {
@@ -281,14 +281,19 @@ fn create() {
 	params.value = ActionValue::transfer(1_000_000_000);
 
 	let mut ext = FakeExt::new().with_wasm();
+	ext.schedule.wasm.as_mut().unwrap().have_create2 = true;
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
 		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
 		match result {
-			GasLeft::Known(gas) => gas,
-			GasLeft::NeedsReturn { .. } => {
-				panic!("Create contract should not return anthing because ext always fails on creation");
+			GasLeft::Known(_) => {
+				panic!("Create contract always return 40 bytes of the creation address, or in the case where it fails, return 40 bytes of zero.");
+			},
+			GasLeft::NeedsReturn { gas_left, data, apply_state } => {
+				assert!(apply_state);
+				assert_eq!(data.as_ref(), [0u8; 40].as_ref()); // FakeExt never succeeds in create.
+				gas_left
 			},
 		}
 	};
@@ -297,15 +302,28 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(59_269),
+			create_scheme: Some(CreateContractAddress::FromSenderAndCodeHash),
+			gas: U256::from(52_018),
 			sender_address: None,
 			receive_address: None,
-			value: Some(1_000_000_000.into()),
+			value: Some((1_000_000_000 / 2).into()),
 			data: vec![0u8, 2, 4, 8, 16, 32, 64, 128],
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(59_212));
+	assert!(ext.calls.contains(
+		&FakeCall {
+			call_type: FakeCallType::Create,
+			create_scheme: Some(CreateContractAddress::FromSenderSaltAndCodeHash(H256::default())),
+			gas: U256::from(10_746),
+			sender_address: None,
+			receive_address: None,
+			value: Some((1_000_000_000 / 2).into()),
+			data: vec![0u8, 2, 4, 8, 16, 32, 64, 128],
+			code_address: None,
+		}
+	));
+	assert_eq!(gas_left, U256::from(10_680));
 }
 
 #[test]
@@ -340,6 +358,7 @@ fn call_msg() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
+			create_scheme: None,
 			gas: U256::from(33_000),
 			sender_address: Some(receiver),
 			receive_address: Some(Address::from([99, 88, 77, 66, 55, 44, 33, 22, 11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 0])),
@@ -382,6 +401,7 @@ fn call_code() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
+			create_scheme: None,
 			gas: U256::from(20_000),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
@@ -429,6 +449,7 @@ fn call_static() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
+			create_scheme: None,
 			gas: U256::from(20_000),
 			sender_address: Some(receiver),
 			receive_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),
