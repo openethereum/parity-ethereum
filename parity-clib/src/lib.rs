@@ -18,6 +18,7 @@
 //! duplicating documentation.
 
 extern crate parity_ethereum;
+extern crate panic_hook;
 
 use std::os::raw::{c_char, c_void, c_int};
 use std::panic;
@@ -161,4 +162,22 @@ pub extern fn parity_rpc(client: *mut c_void, query: *const char, len: usize, ou
 			}
 		}).unwrap_or(1)
 	}
+}
+
+#[no_mangle]
+pub extern fn parity_set_panic_hook(callback: extern "C" fn(*mut c_void, *const c_char, usize), param: *mut c_void) {
+	struct Cb(extern "C" fn(*mut c_void, *const c_char, usize), *mut c_void);
+	unsafe impl Send for Cb {}
+	unsafe impl Sync for Cb {}
+	impl Cb {
+		fn call(&self, msg: &str) {
+			let cb = &self.0;
+			cb(self.1, msg.as_bytes().as_ptr() as *const _, msg.len())
+		}
+	}
+
+	let cb = Cb(callback, param);
+	panic_hook::set_with(move |panic_msg| {
+		cb.call(panic_msg);
+	});
 }
