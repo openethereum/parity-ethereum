@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 futures = "0.1"
 hyper = "0.11"
 hyper-rustls = "0.11"
+hyper-proxy = "0.4"
 log = "0.4"
 tokio-core = "0.1"
 tokio-timer = "0.1"

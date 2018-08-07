@@ -20,8 +20,10 @@ use futures::{self, Future, Async, Sink, Stream};
 use hyper::header::{UserAgent, Location, ContentLength, ContentType};
 use hyper::mime::Mime;
 use hyper::{self, Method, StatusCode};
+use hyper_proxy::{Intercept, Proxy, ProxyConnector};
 use hyper_rustls;
 use std;
+use std::env;
 use std::cmp::min;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -206,9 +208,28 @@ impl Client {
 				Err(e) => return tx_start.send(Err(e)).unwrap_or(())
 			};
 
+			let connector = {
+				let https_connector = hyper_rustls::HttpsConnector::new(4, &core.handle());
+				let proxy_env_var = env::var("HTTPS_PROXY").or_else(|_| env::var("https_proxy"));
+
+				match proxy_env_var.unwrap_or_default().parse() {
+					Ok(proxy_url) => {
+						debug!(target: "fetch", "https proxy is {:?}", proxy_url);
+						ProxyConnector::from_proxy(
+							https_connector,
+							Proxy::new(Intercept::Https, proxy_url),
+						).unwrap()
+					}
+					Err(_) => {
+						debug!(target: "fetch", "https proxy is not set");
+						ProxyConnector::new(https_connector).unwrap()
+					}
+				}
+			};
+
 			let handle = core.handle();
 			let hyper = hyper::Client::configure()
-				.connector(hyper_rustls::HttpsConnector::new(4, &core.handle()))
+				.connector(connector)
 				.build(&core.handle());
 
 			let future = rx_proto.take_while(|item| Ok(item.is_some()))
