@@ -886,21 +886,45 @@ impl ChainSync {
 		let warp_protocol = warp_protocol_version != 0;
 		let protocol = if warp_protocol { warp_protocol_version } else { ETH_PROTOCOL_VERSION_63.0 };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
-		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
 		let chain = io.chain().chain_info();
-		packet.append(&(protocol as u32));
-		packet.append(&self.network_id);
-		packet.append(&chain.total_difficulty);
-		packet.append(&chain.best_block_hash);
-		packet.append(&chain.genesis_hash);
-		if warp_protocol {
+		let (manifest_number, manifest_hash) = if warp_protocol {
 			let manifest = io.snapshot_service().manifest();
-			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
-			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
+			(
+				Some(manifest.as_ref().map_or(0, |m| m.block_number)),
+				Some(manifest.map_or(H256::new(), |m| keccak(m.into_rlp()))),
+			)
+		} else {
+			(None, None)
+		};
+		let packet = ChainSync::status_packet(
+			protocol as u32,
+			self.network_id,
+			&chain,
+			manifest_hash,
+			manifest_number,
+		);
+		io.respond(STATUS_PACKET, packet)
+	}
+
+	pub(crate) fn status_packet(
+		protocol_version: u32,
+		network_id: u64,
+		chain_info: &BlockChainInfo,
+		manifest_hash: Option<H256>,
+		manifest_number: Option<u64>,
+	) -> Vec<u8> {
+		let warp_protocol = manifest_hash.is_some() && manifest_number.is_some();
+		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
+		packet.append(&protocol_version);
+		packet.append(&network_id);
+		packet.append(&chain_info.total_difficulty);
+		packet.append(&chain_info.best_block_hash);
+		packet.append(&chain_info.genesis_hash);
+		if let (Some(manifest_hash), Some(manifest_number)) = (manifest_hash, manifest_number) {
 			packet.append(&manifest_hash);
-			packet.append(&block_number);
+			packet.append(&manifest_number);
 		}
-		io.respond(STATUS_PACKET, packet.out())
+		packet.out()
 	}
 
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {

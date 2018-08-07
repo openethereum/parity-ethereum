@@ -56,7 +56,7 @@ use hash::keccak;
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::{PeerId};
 use ethereum_types::{H256, U256};
-use rlp::{Rlp, RlpStream};
+use rlp::Rlp;
 use ethcore::snapshot::{ManifestData, RestorationStatus, SnapshotService};
 use snapshot::ChunkType;
 use self::sync_round::{AbortReason, SyncRound, ResponseContext};
@@ -826,19 +826,17 @@ impl<L: AsLightClient> LightSync<L> {
 		let chain_info = self.client.as_light_client().chain_info();
 
 		let manifest_hash = H256::new();
-		let block_number: u64 = 0;
+		let manifest_number: u64 = 0;
 
-		let mut packet = RlpStream::new_list(7);
-		packet.append(&(protocol as u32));
-		packet.append(&network_id);
-		packet.append(&chain_info.total_difficulty);
-		packet.append(&chain_info.best_block_hash);
-		packet.append(&chain_info.genesis_hash);
+		let packet = chain::ChainSync::status_packet(
+			protocol as u32,
+			network_id,
+			&chain_info,
+			Some(manifest_hash),
+			Some(manifest_number),
+		);
 
-		packet.append(&manifest_hash);
-		packet.append(&block_number);
-
-		event.as_context().send(event.peer(), chain::STATUS_PACKET, packet.out());
+		event.as_context().send(event.peer(), chain::STATUS_PACKET, packet);
 		true
 	}
 }
