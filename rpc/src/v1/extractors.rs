@@ -38,10 +38,11 @@ impl HttpMetaExtractor for RpcExtractor {
 
 	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>) -> Metadata {
 		Metadata {
-			origin: match user_agent.or(origin) {
-				Some(service) => Origin::Rpc(service.into()),
-				None => Origin::Rpc("unknown".into()),
-			},
+			origin: Origin::Rpc(
+				format!("{} / {}",
+						origin.unwrap_or("unknown origin".to_string()),
+						user_agent.unwrap_or("unknown agent".to_string()))
+			),
 			session: None,
 		}
 	}
