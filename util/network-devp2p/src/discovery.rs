@@ -42,8 +42,8 @@ const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 
-const PING_TIMEOUT: Duration = Duration::from_millis(300);
-const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
+const PING_TIMEOUT: Duration = Duration::from_secs(20);
+const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(20);
 const EXPIRY_TIME: Duration = Duration::from_secs(60);
 const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
 const REQUEST_BACKOFF: [Duration; 4] = [
@@ -319,7 +319,7 @@ impl<'a> Discovery<'a> {
 		self.expiring_pings.push_back((node.id, request_info.sent_at));
 		self.in_flight_requests.insert(node.id, request_info);
 
-		trace!(target: "discovery", "Sent Ping to {:?}", &node.endpoint);
+		trace!(target: "discovery", "Sent Ping to {:?} ; node_id=0x{:x}", &node.endpoint, node.id);
 		Ok(())
 	}
 
@@ -449,7 +449,7 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn on_ping(&mut self, rlp: &Rlp, node: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
-		trace!(target: "discovery", "Got Ping from {:?}", &from);
+		trace!(target: "discovery", "Got Ping from {:?} ; node_id=0x{:x}", &from, node);
 		let source = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
 		let dest = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
@@ -474,7 +474,7 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn on_pong(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
-		trace!(target: "discovery", "Got Pong from {:?}", &from);
+		trace!(target: "discovery", "Got Pong from {:?} ; node_id=0x{:x}", &from, node_id);
 		let dest = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
 		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
@@ -489,14 +489,25 @@ impl<'a> Discovery<'a> {
 			Entry::Occupied(entry) => {
 				let is_expected = {
 					let request = entry.get();
-					request.packet_id == PACKET_PING && request.packet_hash == echo_hash
+					if request.packet_id != PACKET_PING {
+						debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_id={}", &from, request.packet_id);
+						false
+					} else if request.packet_hash != echo_hash {
+						debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash=0x{:x} ; expected_hash=0x{:x}", &from, request.packet_hash, echo_hash);
+						false
+					} else {
+						true
+					}
 				};
 				if is_expected {
 					entry.remove();
 				}
 				is_expected
 			},
-			Entry::Vacant(_) => false
+			Entry::Vacant(_) => {
+				debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
+				false
+			}
 		};
 
 		if is_expected {
@@ -611,6 +622,7 @@ impl<'a> Discovery<'a> {
 	fn expire_in_flight_request(&mut self, node_id: NodeId, sent_at: Instant) {
 		if let Entry::Occupied(entry) = self.in_flight_requests.entry(node_id) {
 			if entry.get().sent_at == sent_at {
+				debug!(target: "discovery", "Removing expired request for node_id=0x{:x} sent_at={:?}", node_id, sent_at);
 				entry.remove();
 
 				// Attempt to remove from bucket if in one.
