@@ -88,18 +88,8 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 		let config = Box::from_raw(cfg.configuration as *mut parity_ethereum::Configuration);
 
 		let on_client_restart_cb = {
-			struct Cb(Option<extern "C" fn(*mut c_void, *const c_char, usize)>, *mut c_void);
-			unsafe impl Send for Cb {}
-			unsafe impl Sync for Cb {}
-			impl Cb {
-				fn call(&self, new_chain: String) {
-					if let Some(ref cb) = self.0 {
-						cb(self.1, new_chain.as_bytes().as_ptr() as *const _, new_chain.len())
-					}
-				}
-			}
-			let cb = Cb(cfg.on_client_restart_cb, cfg.on_client_restart_cb_custom);
-			move |new_chain: String| { cb.call(new_chain); }
+			let cb = CallbackStr(cfg.on_client_restart_cb, cfg.on_client_restart_cb_custom);
+			move |new_chain: String| { cb.call(&new_chain); }
 		};
 
 		let action = match parity_ethereum::start(*config, on_client_restart_cb, || {}) {
@@ -156,18 +146,20 @@ pub unsafe extern fn parity_rpc(client: *mut c_void, query: *const char, len: us
 
 #[no_mangle]
 pub unsafe extern fn parity_set_panic_hook(callback: extern "C" fn(*mut c_void, *const c_char, usize), param: *mut c_void) {
-	struct Cb(extern "C" fn(*mut c_void, *const c_char, usize), *mut c_void);
-	unsafe impl Send for Cb {}
-	unsafe impl Sync for Cb {}
-	impl Cb {
-		fn call(&self, msg: &str) {
-			let cb = &self.0;
-			cb(self.1, msg.as_bytes().as_ptr() as *const _, msg.len())
-		}
-	}
-
-	let cb = Cb(callback, param);
+	let cb = CallbackStr(Some(callback), param);
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg);
 	});
+}
+
+// Internal structure for handling callbacks that get passed a string.
+struct CallbackStr(Option<extern "C" fn(*mut c_void, *const c_char, usize)>, *mut c_void);
+unsafe impl Send for CallbackStr {}
+unsafe impl Sync for CallbackStr {}
+impl CallbackStr {
+	fn call(&self, new_chain: &str) {
+		if let Some(ref cb) = self.0 {
+			cb(self.1, new_chain.as_bytes().as_ptr() as *const _, new_chain.len())
+		}
+	}
 }
