@@ -29,7 +29,7 @@ use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
-use ethcore::account_provider::{AccountProvider, DappId};
+use ethcore::account_provider::AccountProvider;
 use ethcore::encoded;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::ids::BlockId;
@@ -251,7 +251,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}
 	}
 
-	fn author(&self, _meta: Self::Metadata) -> Result<RpcH160> {
+	fn author(&self) -> Result<RpcH160> {
 		Ok(Default::default())
 	}
 
@@ -270,12 +270,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 			.unwrap_or_else(Default::default))
 	}
 
-	fn accounts(&self, meta: Metadata) -> Result<Vec<RpcH160>> {
-		let dapp: DappId = meta.dapp_id().into();
-
-		self.accounts
-			.note_dapp_used(dapp.clone())
-			.and_then(|_| self.accounts.dapp_addresses(dapp))
+	fn accounts(&self) -> Result<Vec<RpcH160>> {
+		self.accounts.accounts()
 			.map_err(|e| errors::account("Could not fetch accounts.", e))
 			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect())
 	}
@@ -397,7 +393,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, _meta: Self::Metadata, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
 		Box::new(self.fetcher().proved_execution(req, num).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.output.into()),
@@ -406,7 +402,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-	fn estimate_gas(&self, _meta: Self::Metadata, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
 		// TODO: binary chop for more accurate estimates.
 		Box::new(self.fetcher().proved_execution(req, num).and_then(|res| {
 			match res {

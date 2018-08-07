@@ -18,9 +18,9 @@
 
 mod stores;
 
-use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
+use self::stores::AddressBook;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 use std::time::{Instant, Duration};
 
@@ -96,20 +96,6 @@ impl From<SSError> for SignError {
 /// `AccountProvider` errors.
 pub type Error = SSError;
 
-/// Dapp identifier
-#[derive(Default, Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct DappId(String);
-
-impl From<DappId> for String {
-	fn from(id: DappId) -> String { id.0 }
-}
-impl From<String> for DappId {
-	fn from(id: String) -> DappId { DappId(id) }
-}
-impl<'a> From<&'a str> for DappId {
-	fn from(id: &'a str) -> DappId { DappId(id.to_owned()) }
-}
-
 fn transient_sstore() -> EthMultiStore {
 	EthMultiStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")
 }
@@ -125,8 +111,6 @@ pub struct AccountProvider {
 	unlocked: RwLock<HashMap<StoreAccountRef, AccountData>>,
 	/// Address book.
 	address_book: RwLock<AddressBook>,
-	/// Dapps settings.
-	dapps_settings: RwLock<DappsSettingsStore>,
 	/// Accounts on disk
 	sstore: Box<SecretStore>,
 	/// Accounts unlocked with rolling tokens
@@ -167,7 +151,7 @@ impl AccountProvider {
 	/// Creates new account provider.
 	pub fn new(sstore: Box<SecretStore>, settings: AccountProviderSettings) -> Self {
 		let mut hardware_store = None;
-		
+
 		if settings.enable_hardware_wallets {
 			match HardwareWalletManager::new() {
 				Ok(manager) => {
@@ -195,7 +179,6 @@ impl AccountProvider {
 			unlocked_secrets: RwLock::new(HashMap::new()),
 			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(address_book),
-			dapps_settings: RwLock::new(DappsSettingsStore::new(&sstore.local_path())),
 			sstore: sstore,
 			transient_sstore: transient_sstore(),
 			hardware_store: hardware_store,
@@ -210,7 +193,6 @@ impl AccountProvider {
 			unlocked_secrets: RwLock::new(HashMap::new()),
 			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(AddressBook::transient()),
-			dapps_settings: RwLock::new(DappsSettingsStore::transient()),
 			sstore: Box::new(EthStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")),
 			transient_sstore: transient_sstore(),
 			hardware_store: None,
@@ -290,9 +272,14 @@ impl AccountProvider {
 		)
 	}
 
+	/// Returns the address of default account.
+	pub fn default_account(&self) -> Result<Address, Error> {
+		Ok(self.accounts()?.first().cloned().unwrap_or_default())
+	}
+
 	/// Returns addresses of hardware accounts.
 	pub fn hardware_accounts(&self) -> Result<Vec<Address>, Error> {
-		if let Some(accounts) = self.hardware_store.as_ref().map(|h| h.list_wallets()) { 
+		if let Some(accounts) = self.hardware_store.as_ref().map(|h| h.list_wallets()) {
 			if !accounts.is_empty() {
 				return Ok(accounts.into_iter().map(|a| a.address).collect());
 			}
@@ -308,7 +295,7 @@ impl AccountProvider {
 			Some(Ok(s)) => Ok(s),
 		}
 	}
-	
+
 	/// Provide a pin to a locked hardware wallet on USB path to unlock it
 	pub fn hardware_pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, SignError> {
 		match self.hardware_store.as_ref().map(|h| h.pin_matrix_ack(path, pin)) {
@@ -316,175 +303,6 @@ impl AccountProvider {
 			Some(Err(e)) => Err(SignError::Hardware(e)),
 			Some(Ok(s)) => Ok(s),
 		}
-	}
-
-	/// Sets addresses of accounts exposed for unknown dapps.
-	/// `None` means that all accounts will be visible.
-	/// If not `None` or empty it will also override default account.
-	pub fn set_new_dapps_addresses(&self, accounts: Option<Vec<Address>>) -> Result<(), Error> {
-		let current_default = self.new_dapps_default_address()?;
-
-		self.dapps_settings.write().set_policy(match accounts {
-			None => NewDappsPolicy::AllAccounts {
-				default: current_default,
-			},
-			Some(accounts) => NewDappsPolicy::Whitelist(accounts),
-		});
-		Ok(())
-	}
-
-	/// Gets addresses of accounts exposed for unknown dapps.
-	/// `None` means that all accounts will be visible.
-	pub fn new_dapps_addresses(&self) -> Result<Option<Vec<Address>>, Error> {
-		Ok(match self.dapps_settings.read().policy() {
-			NewDappsPolicy::AllAccounts { .. } => None,
-			NewDappsPolicy::Whitelist(accounts) => Some(accounts),
-		})
-	}
-
-	/// Sets a default account for unknown dapps.
-	/// This account will always be returned as the first one.
-	pub fn set_new_dapps_default_address(&self, address: Address) -> Result<(), Error> {
-		if !self.valid_addresses()?.contains(&address) {
-			return Err(SSError::InvalidAccount.into());
-		}
-
-		let mut settings = self.dapps_settings.write();
-		let new_policy = match settings.policy() {
-			NewDappsPolicy::AllAccounts { .. } => NewDappsPolicy::AllAccounts { default: address },
-			NewDappsPolicy::Whitelist(list) => NewDappsPolicy::Whitelist(Self::insert_default(list, address)),
-		};
-		settings.set_policy(new_policy);
-
-		Ok(())
-	}
-
-	/// Inserts given address as first in the vector, preventing duplicates.
-	fn insert_default(mut addresses: Vec<Address>, default: Address) -> Vec<Address> {
-		if let Some(position) = addresses.iter().position(|address| address == &default) {
-			addresses.swap(0, position);
-		} else {
-			addresses.insert(0, default);
-		}
-
-		addresses
-	}
-
-	/// Returns a list of accounts that new dapp should see.
-	/// First account is always the default account.
-	fn new_dapps_addresses_list(&self) -> Result<Vec<Address>, Error> {
-		match self.dapps_settings.read().policy() {
-			NewDappsPolicy::AllAccounts { default } => if default.is_zero() {
-				self.accounts()
-			} else {
-				Ok(Self::insert_default(self.accounts()?, default))
-			},
-			NewDappsPolicy::Whitelist(accounts) => {
-				let addresses = self.filter_addresses(accounts)?;
-				if addresses.is_empty() {
-					Ok(vec![self.accounts()?.get(0).cloned().unwrap_or(0.into())])
-				} else {
-					Ok(addresses)
-				}
-			},
-		}
-	}
-
-	/// Gets a default account for new dapps
-	/// Will return zero address in case the default is not set and there are no accounts configured.
-	pub fn new_dapps_default_address(&self) -> Result<Address, Error> {
-		Ok(self.new_dapps_addresses_list()?
-			.get(0)
-			.cloned()
-			.unwrap_or(0.into())
-		)
-	}
-
-	/// Gets a list of dapps recently requesting accounts.
-	pub fn recent_dapps(&self) -> Result<HashMap<DappId, u64>, Error> {
-		Ok(self.dapps_settings.read().recent_dapps())
-	}
-
-	/// Marks dapp as recently used.
-	pub fn note_dapp_used(&self, dapp: DappId) -> Result<(), Error> {
-		let mut dapps = self.dapps_settings.write();
-		dapps.mark_dapp_used(dapp.clone());
-		Ok(())
-	}
-
-	/// Gets addresses visible for given dapp.
-	pub fn dapp_addresses(&self, dapp: DappId) -> Result<Vec<Address>, Error> {
-		let accounts = self.dapps_settings.read().settings().get(&dapp).map(|settings| {
-			(settings.accounts.clone(), settings.default.clone())
-		});
-
-		match accounts {
-			Some((Some(accounts), Some(default))) => self.filter_addresses(Self::insert_default(accounts, default)),
-			Some((Some(accounts), None)) => self.filter_addresses(accounts),
-			Some((None, Some(default))) => self.filter_addresses(Self::insert_default(self.new_dapps_addresses_list()?, default)),
-			_ => self.new_dapps_addresses_list(),
-		}
-	}
-
-	/// Returns default account for particular dapp falling back to other allowed accounts if necessary.
-	pub fn dapp_default_address(&self, dapp: DappId) -> Result<Address, Error> {
-		let dapp_default = self.dapp_addresses(dapp)?
-			.get(0)
-			.cloned();
-
-		match dapp_default {
-			Some(default) => Ok(default),
-			None => self.new_dapps_default_address(),
-		}
-	}
-
-	/// Sets default address for given dapp.
-	/// Does not alter dapp addresses, but this account will always be returned as the first one.
-	pub fn set_dapp_default_address(&self, dapp: DappId, address: Address) -> Result<(), Error> {
-		if !self.valid_addresses()?.contains(&address) {
-			return Err(SSError::InvalidAccount.into());
-		}
-
-		self.dapps_settings.write().set_default(dapp, address);
-		Ok(())
-	}
-
-	/// Sets addresses visible for given dapp.
-	/// If `None` - falls back to dapps addresses
-	/// If not `None` and not empty it will also override default account.
-	pub fn set_dapp_addresses(&self, dapp: DappId, addresses: Option<Vec<Address>>) -> Result<(), Error> {
-		let (addresses, default) = match addresses {
-			Some(addresses) => {
-				let addresses = self.filter_addresses(addresses)?;
-				let default = addresses.get(0).cloned();
-				(Some(addresses), default)
-			},
-			None => (None, None),
-		};
-
-		let mut settings = self.dapps_settings.write();
-		if let Some(default) = default {
-			settings.set_default(dapp.clone(), default);
-		}
-		settings.set_accounts(dapp, addresses);
-		Ok(())
-	}
-
-	fn valid_addresses(&self) -> Result<HashSet<Address>, Error> {
-		Ok(self.addresses_info().into_iter()
-			.map(|(address, _)| address)
-			.chain(self.accounts()?)
-			.collect())
-	}
-
-	/// Removes addresses that are neither accounts nor in address book.
-	fn filter_addresses(&self, addresses: Vec<Address>) -> Result<Vec<Address>, Error> {
-		let valid = self.valid_addresses()?;
-
-		Ok(addresses.into_iter()
-			.filter(|a| valid.contains(&a))
-			.collect()
-		)
 	}
 
 	/// Returns each address along with metadata.
@@ -849,7 +667,7 @@ impl AccountProvider {
 
 #[cfg(test)]
 mod tests {
-	use super::{AccountProvider, Unlock, DappId};
+	use super::{AccountProvider, Unlock};
 	use std::time::{Duration, Instant};
 	use ethstore::ethkey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
@@ -975,96 +793,6 @@ mod tests {
 		ap.sign_with_token(kp.address(), token.clone(), Default::default())
 			.expect("First usage of token should be correct.");
 		assert!(ap.sign_with_token(kp.address(), token, Default::default()).is_err(), "Second usage of the same token should fail.");
-	}
-
-	#[test]
-	fn should_reset_dapp_addresses_to_default() {
-		// given
-		let ap = AccountProvider::transient_provider();
-		let app = DappId("app1".into());
-		// add accounts to address book
-		ap.set_address_name(1.into(), "1".into());
-		ap.set_address_name(2.into(), "2".into());
-		// set `AllAccounts` policy
-		ap.set_new_dapps_addresses(Some(vec![1.into(), 2.into()])).unwrap();
-		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
-
-		// Alter and check
-		ap.set_dapp_addresses(app.clone(), Some(vec![1.into(), 3.into()])).unwrap();
-		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into()]);
-
-		// Reset back to default
-		ap.set_dapp_addresses(app.clone(), None).unwrap();
-		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
-	}
-
-	#[test]
-	fn should_set_dapps_default_address() {
-		// given
-		let ap = AccountProvider::transient_provider();
-		let app = DappId("app1".into());
-		// set `AllAccounts` policy
-		ap.set_new_dapps_addresses(None).unwrap();
-		// add accounts to address book
-		ap.set_address_name(1.into(), "1".into());
-		ap.set_address_name(2.into(), "2".into());
-
-		ap.set_dapp_addresses(app.clone(), Some(vec![1.into(), 2.into(), 3.into()])).unwrap();
-		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
-		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), 1.into());
-
-		// when setting empty list
-		ap.set_dapp_addresses(app.clone(), Some(vec![])).unwrap();
-
-		// then default account is intact
-		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into()]);
-		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), 1.into());
-
-		// alter default account
-		ap.set_dapp_default_address("app1".into(), 2.into()).unwrap();
-		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![2.into()]);
-		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), 2.into());
-	}
-
-	#[test]
-	fn should_set_dapps_policy_and_default_account() {
-		// given
-		let ap = AccountProvider::transient_provider();
-
-		// default_account should be always available
-		assert_eq!(ap.new_dapps_default_address().unwrap(), 0.into());
-
-		let address = ap.new_account(&"test".into()).unwrap();
-		ap.set_address_name(1.into(), "1".into());
-
-		// Default account set to first account by default
-		assert_eq!(ap.new_dapps_default_address().unwrap(), address);
-		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), address);
-
-		// Even when returning nothing
-		ap.set_new_dapps_addresses(Some(vec![])).unwrap();
-		// Default account is still returned
-		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
-
-		// change to all
-		ap.set_new_dapps_addresses(None).unwrap();
-		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
-
-		// change to non-existent account
-		ap.set_new_dapps_addresses(Some(vec![2.into()])).unwrap();
-		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
-
-		// change to a addresses
-		ap.set_new_dapps_addresses(Some(vec![1.into()])).unwrap();
-		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![1.into()]);
-
-		// it overrides default account
-		assert_eq!(ap.new_dapps_default_address().unwrap(), 1.into());
-		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), 1.into());
-
-		ap.set_new_dapps_default_address(address).unwrap();
-		assert_eq!(ap.new_dapps_default_address().unwrap(), address);
-		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), address);
 	}
 
 	#[test]

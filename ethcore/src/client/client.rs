@@ -1843,7 +1843,7 @@ impl BlockChainClient for Client {
 				// Otherwise, we use a slower version that finds a link between from_block and to_block.
 				let from_hash = Self::block_hash(&chain, filter.from_block)?;
 				let from_number = chain.block_number(&from_hash)?;
-				let to_hash = Self::block_hash(&chain, filter.from_block)?;
+				let to_hash = Self::block_hash(&chain, filter.to_block)?;
 
 				let blooms = filter.bloom_possibilities();
 				let bloom_match = |header: &encoded::Header| {
