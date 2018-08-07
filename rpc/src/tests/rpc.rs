@@ -73,7 +73,7 @@ mod testsing {
 
 		// when
 		let req = r#"{"method":"hello","params":[],"jsonrpc":"2.0","id":1}"#;
-		let expected = "34\n{\"jsonrpc\":\"2.0\",\"result\":\"unknown via RPC\",\"id\":1}\n\n0\n\n";
+		let expected = "4B\n{\"jsonrpc\":\"2.0\",\"result\":\"unknown origin / unknown agent via RPC\",\"id\":1}\n\n0\n\n";
 		let res = request(server,
 			&format!("\
 				POST / HTTP/1.1\r\n\
@@ -98,68 +98,13 @@ mod testsing {
 
 		// when
 		let req = r#"{"method":"hello","params":[],"jsonrpc":"2.0","id":1}"#;
-		let expected = "38\n{\"jsonrpc\":\"2.0\",\"result\":\"curl/7.16.3 via RPC\",\"id\":1}\n\n0\n\n";
+		let expected = "49\n{\"jsonrpc\":\"2.0\",\"result\":\"unknown origin / curl/7.16.3 via RPC\",\"id\":1}\n\n0\n\n";
 		let res = request(server,
 			&format!("\
 				POST / HTTP/1.1\r\n\
 				Host: {}\r\n\
 				Content-Type: application/json\r\n\
 				Content-Length: {}\r\n\
-				Connection: close\r\n\
-				User-Agent: curl/7.16.3\r\n\
-				\r\n\
-				{}
-			", address, req.len(), req)
-		);
-
-		// then
-		res.assert_status("HTTP/1.1 200 OK");
-		assert_eq!(res.body, expected);
-	}
-
-	#[test]
-	fn should_extract_dapp_origin() {
-		// given
-		let (server, address) = serve();
-
-		// when
-		let req = r#"{"method":"hello","params":[],"jsonrpc":"2.0","id":1}"#;
-		let expected = "3A\n{\"jsonrpc\":\"2.0\",\"result\":\"Dapp http://parity.io\",\"id\":1}\n\n0\n\n";
-		let res = request(server,
-			&format!("\
-				POST / HTTP/1.1\r\n\
-				Host: {}\r\n\
-				Content-Type: application/json\r\n\
-				Content-Length: {}\r\n\
-				Origin: http://parity.io\r\n\
-				Connection: close\r\n\
-				User-Agent: curl/7.16.3\r\n\
-				\r\n\
-				{}
-			", address, req.len(), req)
-		);
-
-		// then
-		res.assert_status("HTTP/1.1 200 OK");
-		assert_eq!(res.body, expected);
-	}
-
-	#[test]
-	fn should_extract_dapp_origin_from_extension() {
-		// given
-		let (server, address) = serve();
-
-		// when
-		let req = r#"{"method":"hello","params":[],"jsonrpc":"2.0","id":1}"#;
-		let expected = "44\n{\"jsonrpc\":\"2.0\",\"result\":\"Dapp http://wallet.ethereum.org\",\"id\":1}\n\n0\n\n";
-		let res = request(server,
-			&format!("\
-				POST / HTTP/1.1\r\n\
-				Host: {}\r\n\
-				Content-Type: application/json\r\n\
-				Content-Length: {}\r\n\
-				Origin: null\r\n\
-				X-Parity-Origin: http://wallet.ethereum.org\r\n\
 				Connection: close\r\n\
 				User-Agent: curl/7.16.3\r\n\
 				\r\n\
