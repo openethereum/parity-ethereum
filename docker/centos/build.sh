@@ -8,7 +8,7 @@ PARITY_BUILDER_IMAGE_TAG=${PARITY_BUILDER_IMAGE_TAG:-build}
 PARITY_RUNNER_IMAGE_TAG=${PARITY_RUNNER_IMAGE_TAG:-latest}
 
 echo Building $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
-docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") . -f docker/centos/build.Dockerfile
+docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") . -f docker/centos/Dockerfile.build
 
 echo Creating $PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H"), extracting binary
 docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") 
