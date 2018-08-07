@@ -139,6 +139,8 @@ pub struct CommonParams {
 	pub max_code_size_transition: BlockNumber,
 	/// Transaction permission managing contract address.
 	pub transaction_permission_contract: Option<Address>,
+	/// Block at which the transaction permission contract should start being used.
+	pub transaction_permission_contract_transition: BlockNumber,
 	/// Maximum size of transaction's RLP payload
 	pub max_transaction_size: usize,
 }
@@ -296,6 +298,8 @@ impl From<ethjson::spec::Params> for CommonParams {
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
 			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
+			transaction_permission_contract_transition:
+				p.transaction_permission_contract_transition.map_or(0, Into::into),
 			wasm_activation_transition: p.wasm_activation_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into
