@@ -256,8 +256,8 @@ mod tests {
 		let meta3 = extractor.read_metadata(None, Some("http://parity.io".to_owned()));
 
 		// then
-		assert_eq!(meta1.origin, Origin::Rpc("unknown".into()));
-		assert_eq!(meta2.origin, Origin::Rpc("http://parity.io".into()));
-		assert_eq!(meta3.origin, Origin::Rpc("http://parity.io".into()));
+		assert_eq!(meta1.origin, Origin::Rpc("unknown origin / unknown agent".into()));
+		assert_eq!(meta2.origin, Origin::Rpc("unknown origin / http://parity.io".into()));
+		assert_eq!(meta3.origin, Origin::Rpc("unknown origin / http://parity.io".into()));
 	}
 }

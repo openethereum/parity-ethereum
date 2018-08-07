@@ -73,7 +73,7 @@ mod testsing {
 
 		// when
 		let req = r#"{"method":"hello","params":[],"jsonrpc":"2.0","id":1}"#;
-		let expected = "34\n{\"jsonrpc\":\"2.0\",\"result\":\"unknown via RPC\",\"id\":1}\n\n0\n\n";
+		let expected = "4B\n{\"jsonrpc\":\"2.0\",\"result\":\"unknown origin / unknown agent via RPC\",\"id\":1}\n\n0\n\n";
 		let res = request(server,
 			&format!("\
 				POST / HTTP/1.1\r\n\
@@ -98,7 +98,7 @@ mod testsing {
 
 		// when
 		let req = r#"{"method":"hello","params":[],"jsonrpc":"2.0","id":1}"#;
-		let expected = "38\n{\"jsonrpc\":\"2.0\",\"result\":\"curl/7.16.3 via RPC\",\"id\":1}\n\n0\n\n";
+		let expected = "49\n{\"jsonrpc\":\"2.0\",\"result\":\"unknown origin / curl/7.16.3 via RPC\",\"id\":1}\n\n0\n\n";
 		let res = request(server,
 			&format!("\
 				POST / HTTP/1.1\r\n\
