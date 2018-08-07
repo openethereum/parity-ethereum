@@ -87,11 +87,11 @@ impl<C, S> Traces for TracesClient<C> where
 			.map(LocalizedTrace::from))
 	}
 
-	fn call(&self, meta: Self::Metadata, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn call(&self, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
 		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
-		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
+		let signed = fake_sign::sign_call(request)?;
 
 		let id = match block {
 			BlockNumber::Num(num) => BlockId::Number(num),
@@ -109,13 +109,13 @@ impl<C, S> Traces for TracesClient<C> where
 			.map_err(errors::call)
 	}
 
-	fn call_many(&self, meta: Self::Metadata, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
+	fn call_many(&self, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
 		let block = block.unwrap_or_default();
 
 		let requests = requests.into_iter()
 			.map(|(request, flags)| {
 				let request = CallRequest::into(request);
-				let signed = fake_sign::sign_call(request, meta.is_dapp())?;
+				let signed = fake_sign::sign_call(request)?;
 				Ok((signed, to_call_analytics(flags)))
 			})
 			.collect::<Result<Vec<_>>>()?;

@@ -112,7 +112,6 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		let accounts = self.accounts.clone();
 		let default_account = match default_account {
 			DefaultAccount::Provided(acc) => acc,
-			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
 		};
 
 		let dispatcher = self.dispatcher.clone();
@@ -138,8 +137,8 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
-	fn compose_transaction(&self, meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest> {
-		let default_account = self.accounts.dapp_default_address(meta.dapp_id().into()).ok().unwrap_or_default();
+	fn compose_transaction(&self, _meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest> {
+		let default_account = self.accounts.default_account().ok().unwrap_or_default();
 		Box::new(self.dispatcher.fill_optional_fields(transaction.into(), default_account, true).map(Into::into))
 	}
 
@@ -164,7 +163,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		let remote = self.remote.clone();
 		let confirmations = self.confirmations.clone();
 
-		Box::new(self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.dapp_id().into(), meta.origin)
+		Box::new(self.dispatch(RpcConfirmationPayload::SendTransaction(request), DefaultAccount::Provided(self.accounts.default_account().ok().unwrap_or_default()), meta.origin)
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
 				DispatchResult::Future(id, future) => {
@@ -221,7 +220,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	fn send_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256> {
 		let res = self.dispatch(
 			RpcConfirmationPayload::SendTransaction(request),
-			meta.dapp_id().into(),
+			DefaultAccount::Provided(self.accounts.default_account().ok().unwrap_or_default()),
 			meta.origin,
 		);
 
@@ -236,7 +235,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	fn sign_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction> {
 		let res = self.dispatch(
 			RpcConfirmationPayload::SignTransaction(request),
-			meta.dapp_id().into(),
+			DefaultAccount::Provided(self.accounts.default_account().ok().unwrap_or_default()),
 			meta.origin,
 		);
 

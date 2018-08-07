@@ -17,9 +17,8 @@
 use std::collections::BTreeMap;
 use ethereum_types::{U256, Address};
 use parking_lot::{Mutex, RwLock};
-use ethcore::account_provider::DappId;
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot, errors};
-use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
+use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin};
 
 use jsonrpc_core::Error;
 
@@ -30,14 +29,6 @@ pub type ConfirmationResult = Result<ConfirmationResponse, Error>;
 pub enum DefaultAccount {
 	/// Default account is known
 	Provided(Address),
-	/// Should use default account for dapp
-	ForDapp(DappId),
-}
-
-impl From<RpcDappId> for DefaultAccount {
-	fn from(dapp_id: RpcDappId) -> Self {
-		DefaultAccount::ForDapp(dapp_id.into())
-	}
 }
 
 impl From<RpcH160> for DefaultAccount {
