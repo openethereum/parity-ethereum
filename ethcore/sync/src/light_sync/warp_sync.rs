@@ -571,7 +571,7 @@ impl SnapshotManager {
 			return Err(WarpSyncError::WrongNetwork);
 		}
 
-		// may be be a light client
+		// may be a light client
 		if snapshot_number == 0 {
 			trace!(target: "warp", "Received a status message with snapshot number 0 from {}", peer_id);
 			return Ok(());
