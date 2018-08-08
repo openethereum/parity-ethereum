@@ -32,6 +32,7 @@ pub const VAULT_TEMP_FILE_NAME: &'static str = "vault_temp.json";
 pub type VaultDiskDirectory = DiskDirectory<VaultKeyFileManager>;
 
 /// Vault key file manager
+#[derive(Debug)]
 pub struct VaultKeyFileManager {
 	name: String,
 	key: VaultKey,
