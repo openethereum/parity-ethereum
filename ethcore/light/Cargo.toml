@@ -20,7 +20,7 @@ ethcore-io = { path = "../../util/io" }
 hashdb = { git = "https://github.com/paritytech/parity-common" }
 heapsize = "0.4"
 vm = { path = "../vm" }
-plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+fastmap = { path = "../../util/fastmap" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
 rlp_derive = { path = "../../util/rlp_derive" }
 smallvec = "0.4"

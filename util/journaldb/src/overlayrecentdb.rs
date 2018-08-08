@@ -29,7 +29,7 @@ use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction};
 use memorydb::*;
 use parking_lot::RwLock;
-use plain_hasher::H256FastMap;
+use fastmap::H256FastMap;
 use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, JournalDB, error_negatively_reference_hash};
 use util::DatabaseKey;
