@@ -265,7 +265,7 @@ fn light_params(
 	network_id: u64,
 	max_peers: u32,
 	pruning_info: PruningInfo,
-	sample_store: Option<Box<SampleStore>>
+	sample_store: Option<Box<SampleStore>>,
 ) -> LightParams {
 	const MAX_LIGHTSERV_LOAD: f64 = 0.5;
 
@@ -304,7 +304,7 @@ impl EthSync {
 					params.config.network_id,
 					params.network_config.max_peers,
 					pruning_info,
-					sample_store
+					sample_store,
 				);
 
 				let mut light_proto = LightProtocol::new(params.provider, light_params);
