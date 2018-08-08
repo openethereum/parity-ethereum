@@ -34,22 +34,31 @@ use_contract!(block_reward_contract, "BlockReward", "res/contracts/block_reward.
 /// The kind of block reward.
 /// Depending on the consensus engine the allocated block reward might have
 /// different semantics which could lead e.g. to different reward values.
-#[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum RewardKind {
 	/// Reward attributed to the block author.
-	Author = 0,
-	/// Reward attributed to the block uncle(s).
-	Uncle = 1,
+	Author,
 	/// Reward attributed to the author(s) of empty step(s) included in the block (AuthorityRound engine).
-	EmptyStep = 2,
+	EmptyStep,
 	/// Reward attributed by an external protocol (e.g. block reward contract).
-	External = 3,
+	External,
+
+	/// Reward attributed to the block uncle(s) without any reference of block difference. This is used by all except Ethash engine's reward contract.
+	Uncle,
+	/// Reward attributed to the block uncle(s) with given difference. This is used by Ethash engine's reward contract.
+	UncleWithDifference(u16),
 }
 
 impl From<RewardKind> for u16 {
 	fn from(reward_kind: RewardKind) -> Self {
-		reward_kind as u16
+		match reward_kind {
+			RewardKind::Author => 0,
+			RewardKind::EmptyStep => 2,
+			RewardKind::External => 3,
+
+			RewardKind::Uncle => 1,
+			RewardKind::UncleWithDifference(diff) => 100 + diff,
+		}
 	}
 }
 
@@ -57,7 +66,8 @@ impl Into<trace::RewardType> for RewardKind {
 	fn into(self) -> trace::RewardType {
 		match self {
 			RewardKind::Author => trace::RewardType::Block,
-			RewardKind::Uncle => trace::RewardType::Uncle,
+			RewardKind::Uncle | RewardKind::UncleWithDifference(_) =>
+				trace::RewardType::Uncle,
 			RewardKind::EmptyStep => trace::RewardType::EmptyStep,
 			RewardKind::External => trace::RewardType::External,
 		}
@@ -65,6 +75,7 @@ impl Into<trace::RewardType> for RewardKind {
 }
 
 /// A client for the block reward contract.
+#[derive(PartialEq, Debug)]
 pub struct BlockRewardContract {
 	kind: SystemOrCodeCallKind,
 	block_reward_contract: block_reward_contract::BlockReward,
@@ -152,7 +163,7 @@ pub fn apply_block_rewards<M: Machine + WithBalances + WithRewards>(
 	}
 
 	let rewards: Vec<_> = rewards.into_iter().map(|&(a, k, r)| (a, k.into(), r)).collect();
-	machine.note_rewards(block,  &rewards)
+	machine.note_rewards(block, &rewards)
 }
 
 #[cfg(test)]

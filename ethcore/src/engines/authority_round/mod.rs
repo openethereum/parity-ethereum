@@ -103,7 +103,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
 			block_reward_contract: match (p.block_reward_contract_code, p.block_reward_contract_address) {
 				(Some(code), _) => Some(BlockRewardContract::new_from_code(Arc::new(code.into()))),
-				(_, Some(address)) => Some(BlockRewardContract::new_from_address(address)),
+				(_, Some(address)) => Some(BlockRewardContract::new_from_address(address.into())),
 				(None, None) => None,
 			},
 			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),

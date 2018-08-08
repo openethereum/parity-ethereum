@@ -16,7 +16,7 @@
 
 //! Authority params deserialization.
 
-use ethereum_types::Address;
+use hash::Address;
 use uint::Uint;
 use bytes::Bytes;
 use super::ValidatorSet;

@@ -137,7 +137,7 @@ pub type SystemCall<'a> = FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + '
 pub type SystemOrCodeCall<'a> = FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
 
 /// Kind of SystemOrCodeCall, this is either an on-chain address, or code.
-#[derive(Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum SystemOrCodeCallKind {
 	/// On-chain address.
 	Address(Address),

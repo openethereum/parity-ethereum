@@ -17,6 +17,7 @@
 //! Ethash params deserialization.
 
 use uint::{self, Uint};
+use bytes::Bytes;
 use hash::Address;
 
 /// Deserializable doppelganger of EthashParams.
@@ -47,6 +48,16 @@ pub struct EthashParams {
 	/// Reward per block in wei.
 	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
+	/// Block at which the block reward contract should start being used.
+	#[serde(rename="blockRewardContractTransition")]
+	pub block_reward_contract_transition: Option<Uint>,
+	/// Block reward contract address (setting the block reward contract
+	/// overrides all other block reward parameters).
+	#[serde(rename="blockRewardContractAddress")]
+	pub block_reward_contract_address: Option<Address>,
+	/// Block reward code. This overrides the block reward contract address.
+	#[serde(rename="blockRewardContractCode")]
+	pub block_reward_contract_code: Option<Bytes>,
 
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkTransition")]
