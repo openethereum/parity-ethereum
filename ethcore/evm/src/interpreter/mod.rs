@@ -516,7 +516,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let current_val = U256::from(&*ext.storage_at(&address)?);
 				// Increase refund for clear
 				if !self.is_zero(&current_val) && self.is_zero(&val) {
-					ext.inc_sstore_clears();
+					let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
+					ext.inc_sstore_refund(sstore_clears_schedule);
 				}
 				ext.set_storage(address, H256::from(&val))?;
 			},

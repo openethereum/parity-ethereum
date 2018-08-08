@@ -616,7 +616,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let schedule = self.schedule;
 
 		// refunds from SSTORE nonzero -> zero
-		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.sstore_clears_count;
+		let sstore_refunds = substate.sstore_clears_refund;
 		// refunds from contract suicides
 		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
 		let refunds_bound = sstore_refunds + suicide_refunds;

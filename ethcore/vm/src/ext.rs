@@ -140,8 +140,11 @@ pub trait Ext {
 	/// then A depth is 0, B is 1, C is 2 and so on.
 	fn depth(&self) -> usize;
 
-	/// Increments sstore refunds count by 1.
-	fn inc_sstore_clears(&mut self);
+	/// Increments sstore refunds counter.
+	fn inc_sstore_refund(&mut self, value: U256);
+
+	/// Decrements sstore refunds counter.
+	fn dec_sstore_refund(&mut self, value: U256);
 
 	/// Decide if any more operations should be traced. Passthrough for the VM trace.
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }

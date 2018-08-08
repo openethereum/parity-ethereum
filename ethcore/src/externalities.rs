@@ -400,8 +400,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		self.depth
 	}
 
-	fn inc_sstore_clears(&mut self) {
-		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
+	fn inc_sstore_refund(&mut self, value: U256) {
+		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund + value;
+	}
+
+	fn dec_sstore_refund(&mut self, value: U256) {
+		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund - value;
 	}
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {

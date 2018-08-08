@@ -56,7 +56,7 @@ pub struct FakeExt {
 	pub store: HashMap<H256, H256>,
 	pub suicides: HashSet<Address>,
 	pub calls: HashSet<FakeCall>,
-	pub sstore_clears: usize,
+	pub sstore_clears: U256,
 	pub depth: usize,
 	pub blockhashes: HashMap<U256, H256>,
 	pub codes: HashMap<Address, Arc<Bytes>>,
@@ -221,8 +221,12 @@ impl Ext for FakeExt {
 		self.is_static
 	}
 
-	fn inc_sstore_clears(&mut self) {
-		self.sstore_clears += 1;
+	fn inc_sstore_refund(&mut self, value: U256) {
+		self.sstore_clears = self.sstore_clears + value;
+	}
+
+	fn dec_sstore_refund(&mut self, value: U256) {
+		self.sstore_clears = self.sstore_clears - value;
 	}
 
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _gas: U256) -> bool {

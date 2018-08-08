@@ -119,6 +119,8 @@ pub struct Schedule {
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-86 rules
 	pub eip86: bool,
+	/// Enable EIP-1283 rules
+	pub eip1283: bool,
 	/// Wasm extra schedule settings, if wasm activated
 	pub wasm: Option<WasmCosts>,
 }
@@ -248,6 +250,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
+			eip1283: false,
 			wasm: None,
 		}
 	}
@@ -321,6 +324,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
+			eip1283: false,
 			wasm: None,
 		}
 	}
