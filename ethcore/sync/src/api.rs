@@ -283,7 +283,7 @@ impl EthSync {
 					sample_store: sample_store,
 				};
 
-				let max_peers = ::std::cmp::min(params.network_config.max_peers, 1);
+				let max_peers = ::std::cmp::max(params.network_config.max_peers, 1);
 				light_params.config.load_share = MAX_LIGHTSERV_LOAD / max_peers as f64;
 
 				let mut light_proto = LightProtocol::new(params.provider, light_params);
