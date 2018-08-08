@@ -70,8 +70,8 @@ impl Peer {
 		};
 
 		local_caps.serve_headers >= request.serve_headers &&
-				can_serve_since(request.serve_chain_since, local_caps.serve_chain_since) &&
-				can_serve_since(request.serve_state_since, local_caps.serve_state_since)
+			can_serve_since(request.serve_chain_since, local_caps.serve_chain_since) &&
+			can_serve_since(request.serve_state_since, local_caps.serve_state_since)
 	}
 }
 
@@ -506,14 +506,15 @@ impl Handler for OnDemand {
 			None => return,
 		};
 
-		if responses.len() == 0
-			&& pending.rem_query == 0 {
-			pending.no_response();
-			return;
+		if responses.len() == 0 {
+			if pending.rem_query == 0 {
+				pending.no_response();
+				return;
+			}
 		} else {
-      // do not keep query counter for others elements of this batch
-      pending.first_query = None;
-    }
+			// do not keep query counter for others elements of this batch
+			pending.first_query = None;
+		}
 
 		// for each incoming response
 		//   1. ensure verification data filled.

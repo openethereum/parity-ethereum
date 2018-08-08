@@ -180,7 +180,7 @@ fn no_capabilities() {
 
 	harness.inject_peer(peer_id, Peer {
 		status: dummy_status(),
-		capabilities: capabilities,
+		capabilities: capabilities.clone(),
 	});
 
 	let _recv = harness.service.request_raw(
@@ -192,7 +192,7 @@ fn no_capabilities() {
 
 	harness.service.dispatch_pending(&Context::NoOp);
 
-	assert_eq!(harness.service.pending.read().len(), 1);
+	assert_eq!(harness.service.pending.read().len(), 0);
 }
 
 #[test]
