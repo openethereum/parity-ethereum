@@ -471,7 +471,7 @@ impl Host {
 			let socket = UdpSocket::bind(&udp_addr).expect("Error binding UDP socket");
 			*self.udp_socket.lock() = Some(socket);
 
-			discovery.init_node_list(self.nodes.read().entries());
+			// discovery.init_node_list(self.nodes.read().entries());
 			discovery.add_node_list(self.nodes.read().entries());
 			*self.discovery.lock() = Some(discovery);
 			io.register_stream(DISCOVERY)?;

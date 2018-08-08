@@ -42,8 +42,8 @@ const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 
-const PING_TIMEOUT: Duration = Duration::from_secs(20);
-const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(20);
+const PING_TIMEOUT: Duration = Duration::from_secs(5);
+const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(10);
 const EXPIRY_TIME: Duration = Duration::from_secs(60);
 const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
 const REQUEST_BACKOFF: [Duration; 4] = [
@@ -156,12 +156,24 @@ impl<'a> Discovery<'a> {
 		}
 	}
 
+	/// Print the current nodes
+	fn print_nodes(&self) {
+		let mut index = 1;
+		for bucket in self.node_buckets.iter() {
+			for node in bucket.nodes.iter() {
+				trace!(target: "discovery", "#{} enode://{:x}@{}", index, node.address.id, node.address.endpoint.address);
+				index += 1;
+			}
+		}
+	}
+
 	/// Add a new node to discovery table. Pings the node.
 	pub fn add_node(&mut self, e: NodeEntry) {
 		// If distance returns None, then we are trying to add ourself.
 		let id_hash = keccak(e.id);
 		if let Some(dist) = Discovery::distance(&self.id_hash, &id_hash) {
 			if self.node_buckets[dist].nodes.iter().any(|n| n.id_hash == id_hash) {
+				trace!(target: "discovery", "Node {:?} already in buckets", e);
 				return;
 			}
 			self.try_ping(e);
@@ -215,6 +227,7 @@ impl<'a> Discovery<'a> {
 				} else { None }
 			} else { None }
 		};
+		self.print_nodes();
 		if let Some(node) = ping {
 			self.try_ping(node);
 		}
@@ -285,10 +298,16 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn try_ping(&mut self, node: NodeEntry) {
-		if !self.is_allowed(&node) ||
-			self.in_flight_requests.contains_key(&node.id) ||
-			self.adding_nodes.iter().any(|n| n.id == node.id)
-		{
+		if !self.is_allowed(&node) {
+			trace!(target: "discovery", "Node {:?} not allowed", node);
+			return;
+		}
+		if self.in_flight_requests.contains_key(&node.id) {
+			trace!(target: "discovery", "Node {:?} in flight requests", node);
+			return;
+		}
+		if self.adding_nodes.iter().any(|n| n.id == node.id) {
+			trace!(target: "discovery", "Node {:?} in adding nodes", node);
 			return;
 		}
 
@@ -513,9 +532,45 @@ impl<'a> Discovery<'a> {
 		if is_expected {
 			Ok(self.update_node(node))
 		} else {
-			debug!(target: "discovery", "Got unexpected Pong from {:?}", &from);
 			Ok(None)
 		}
+
+		// let to_remove = match self.in_flight_requests.iter().find(|(_, r)| r.packet_hash == echo_hash) {
+		// 	Some((r_node_id, request)) => {
+		// 		if request.packet_id != PACKET_PING {
+		// 			debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_id={}", &from, request.packet_id);
+		// 			None
+		// 		} else {
+		// 			Some(r_node_id.clone())
+		// 		}
+		// 	},
+		// 	None => {
+		// 		debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
+		// 		None
+		// 	}
+		// };
+
+		// if let Some(r_node_id) = to_remove {
+		// 	self.in_flight_requests.remove(&r_node_id);
+		// 	let mut updates = self.update_node(node.clone());
+
+		// 	if r_node_id != *node_id {
+		// 		node.id = r_node_id;
+		// 		match self.update_node(node) {
+		// 			Some(updates_bis) => {
+		// 				updates.as_mut().map(|ref mut table_update| {
+		// 					table_update.added.extend(updates_bis.added);
+		// 				});
+		// 			},
+		// 			None => (),
+		// 		}
+		// 	}
+
+		// 	Ok(updates)
+		// } else {
+		// 	debug!(target: "discovery", "Got unexpected Pong from {:?}", &from);
+		// 	Ok(None)
+		// }
 	}
 
 	fn on_find_node(&mut self, rlp: &Rlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
@@ -565,6 +620,7 @@ impl<'a> Discovery<'a> {
 						request.response_count += results_count;
 						true
 					} else {
+						debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; oversized packet ({} + {}) node_id=0x{:x}", &from, request.response_count, results_count, node_id);
 						false
 					}
 				};
@@ -573,11 +629,13 @@ impl<'a> Discovery<'a> {
 				}
 				result
 			}
-			Entry::Vacant(_) => false,
+			Entry::Vacant(_) => {
+				debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; couldn't find node_id=0x{:x}", &from, node_id);
+				false
+			},
 		};
 
 		if !is_expected {
-			debug!(target: "discovery", "Got unexpected Neighbors from {:?}", &from);
 			return Ok(None);
 		}
 
@@ -647,6 +705,7 @@ impl<'a> Discovery<'a> {
 				}
 			}
 		}
+		self.print_nodes();
 	}
 
 	pub fn round(&mut self) {
