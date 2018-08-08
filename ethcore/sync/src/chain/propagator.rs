@@ -237,8 +237,9 @@ impl SyncPropagator {
 			let lucky_peers_len = lucky_peers.len();
 			for (peer_id, sent, rlp) in lucky_peers {
 				peers.insert(peer_id);
+				let size = rlp.len();
 				SyncPropagator::send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
-				trace!(target: "sync", "{:02} <- Transactions ({} entries)", peer_id, sent);
+				trace!(target: "sync", "{:02} <- Transactions ({} entries; {} bytes)", peer_id, sent, size);
 				max_sent = cmp::max(max_sent, sent);
 			}
 			debug!(target: "sync", "Sent up to {} transactions to {} peers.", max_sent, lucky_peers_len);
