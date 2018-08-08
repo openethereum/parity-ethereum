@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 use ethcore::executed::{Executed, ExecutionError};
 
-use futures::{Poll, Future};
+use futures::{Poll, Future, Async};
 use futures::sync::oneshot::{self, Receiver, Canceled};
 use network::PeerId;
 use parking_lot::{RwLock, Mutex};
@@ -50,6 +50,7 @@ pub mod request;
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
 // relevant peer info.
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Peer {
 	status: Status,
 	capabilities: Capabilities,
@@ -69,8 +70,8 @@ impl Peer {
 		};
 
 		local_caps.serve_headers >= request.serve_headers &&
-		    can_serve_since(request.serve_chain_since, local_caps.serve_chain_since) &&
-		    can_serve_since(request.serve_state_since, local_caps.serve_state_since)
+				can_serve_since(request.serve_chain_since, local_caps.serve_chain_since) &&
+				can_serve_since(request.serve_state_since, local_caps.serve_state_since)
 	}
 }
 
@@ -81,6 +82,9 @@ struct Pending {
 	required_capabilities: Capabilities,
 	responses: Vec<Response>,
 	sender: oneshot::Sender<Vec<Response>>,
+	first_query: Option<usize>,
+	nb_query: usize,
+	rem_query: usize,
 }
 
 impl Pending {
@@ -145,7 +149,8 @@ impl Pending {
 	// if the requests are complete, send the result and consume self.
 	fn try_complete(self) -> Option<Self> {
 		if self.requests.is_complete() {
-			let _ = self.sender.send(self.responses);
+			self.sender.send(self.responses).map_err(|_|())
+				.expect("Non used one shot channel");
 			None
 		} else {
 			Some(self)
@@ -179,6 +184,14 @@ impl Pending {
 		let capabilities = guess_capabilities(&self.requests[num_answered..]);
 		self.net_requests = builder.build();
 		self.required_capabilities = capabilities;
+	}
+
+	// return no response, will result in an error
+	// consume object (similar to drop when no reply found)
+	fn no_response(self) {
+		trace!(target: "on_demand", "Dropping a pending query (no reply)");
+		self.sender.send(Vec::with_capacity(0)).map_err(|_|())
+			.expect("Non used one shot channel");
 	}
 }
 
@@ -240,7 +253,16 @@ impl<T: request::RequestAdapter> Future for OnResponses<T> {
 	type Error = Canceled;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		self.receiver.poll().map(|async| async.map(T::extract_from))
+		match self.receiver.poll() {
+			Ok(Async::Ready(v)) => {
+				if v.len() == 0 {
+					return Err(Canceled);
+				}
+				Ok(Async::Ready(T::extract_from(v)))
+			},
+			Ok(Async::NotReady) => Ok(Async::NotReady),
+			Err(e) => Err(e),
+		}
 	}
 }
 
@@ -326,6 +348,9 @@ impl OnDemand {
 			required_capabilities: capabilities,
 			responses: responses,
 			sender: sender,
+			first_query: None,
+			nb_query: 0,
+			rem_query: 0,
 		});
 
 		Ok(receiver)
@@ -364,30 +389,52 @@ impl OnDemand {
 		let peers = self.peers.read();
 		*pending = ::std::mem::replace(&mut *pending, Vec::new()).into_iter()
 			.filter(|pending| !pending.sender.is_canceled())
-			.filter_map(|pending| {
+			.filter_map(|mut pending| {
 				// the peer we dispatch to is chosen randomly
 				let num_peers = peers.len();
-				let rng = rand::random::<usize>() % cmp::max(num_peers, 1);
-				for (peer_id, peer) in peers.iter().chain(peers.iter()).skip(rng).take(num_peers) {
+				let rng = if pending.first_query.is_none() {
+					let rand = rand::random::<usize>() % cmp::max(num_peers, 1);
+					pending.first_query = Some(rand);
+					pending.rem_query = num_peers;
+					pending.nb_query = num_peers;
+					rand
+				} else {
+					if pending.nb_query < num_peers {
+						// add some
+						pending.nb_query = num_peers;
+					}
+					pending.first_query.unwrap()
+				};
+				let init_rem_query = pending.rem_query; // to fail in case of big reduction of nb of peers
+				for (peer_id, peer) in peers.iter().chain(peers.iter())
+					.skip(rng + (pending.nb_query - pending.rem_query))
+					.take(pending.rem_query) {
 					// TODO: see which requests can be answered by the cache?
 
+					pending.rem_query -= 1;
 					if !peer.can_fulfill(&pending.required_capabilities) {
+						trace!(target: "on_demand", "Peer {} without required capabilities, skipping, {} remaining attempts", peer_id, pending.rem_query);
 						continue
 					}
 
 					match ctx.request_from(*peer_id, pending.net_requests.clone()) {
 						Ok(req_id) => {
-							trace!(target: "on_demand", "Dispatched request {} to peer {}", req_id, peer_id);
+							trace!(target: "on_demand", "Dispatched request {} to peer {}, {} remaining attempts", req_id, peer_id, pending.rem_query);
 							self.in_transit.write().insert(req_id, pending);
 							return None
 						}
 						Err(net::Error::NoCredits) | Err(net::Error::NotServer) => {}
 						Err(e) => debug!(target: "on_demand", "Error dispatching request to peer: {}", e),
 					}
+
 				}
 
-				// TODO: maximum number of failures _when we have peers_.
-				Some(pending)
+				if pending.rem_query == 0 || init_rem_query == pending.rem_query {
+					pending.no_response();
+					None
+				} else {
+					Some(pending)
+				}
 			})
 			.collect(); // `pending` now contains all requests we couldn't dispatch.
 
@@ -458,6 +505,15 @@ impl Handler for OnDemand {
 			Some(req) => req,
 			None => return,
 		};
+
+		if responses.len() == 0
+			&& pending.rem_query == 0 {
+			pending.no_response();
+			return;
+		} else {
+      // do not keep query counter for others elements of this batch
+      pending.first_query = None;
+    }
 
 		// for each incoming response
 		//   1. ensure verification data filled.

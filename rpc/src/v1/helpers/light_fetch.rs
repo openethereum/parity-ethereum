@@ -27,6 +27,7 @@ use ethcore::receipt::Receipt;
 use jsonrpc_core::{Result, Error};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
+use futures::sync::oneshot::Canceled as FutureCanceled;
 use jsonrpc_macros::Trailing;
 
 use light::cache::Cache;
@@ -48,6 +49,8 @@ use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
 const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
+
+const WRONG_RESPONSE_AMOUNT_TYPE: &'static str = "responses correspond directly with requests in amount and type; qed";
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
@@ -145,8 +148,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |res|
 			extract_header(&res, header_ref)
-				.expect("these responses correspond to requests that header_ref belongs to \
-						therefore it will not fail; qed")
+				.expect(WRONG_RESPONSE_AMOUNT_TYPE)
 		))
 	}
 
@@ -164,7 +166,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Code(code)) => code,
-			_ => panic!("responses correspond directly with requests in amount and type; qed"),
+			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE),
 		}))
 	}
 
@@ -181,7 +183,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |mut res|match res.pop() {
 			Some(OnDemandResponse::Account(acc)) => acc,
-			_ => panic!("responses correspond directly with requests in amount and type; qed"),
+			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE),
 		}))
 	}
 
@@ -287,7 +289,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Body(b)) => b,
-			_ => panic!("responses correspond directly with requests in amount and type; qed"),
+			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE),
 		}))
 	}
 
@@ -303,7 +305,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Receipts(b)) => b,
-			_ => panic!("responses correspond directly with requests in amount and type; qed"),
+			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE),
 		}))
 	}
 
@@ -429,6 +431,13 @@ impl LightFetch {
 		let maybe_future = self.sync.with_context(move |ctx| {
 			Box::new(self.on_demand.request_raw(ctx, reqs)
 					 .expect(NO_INVALID_BACK_REFS)
+					 .and_then(|responses|{
+						 if responses.len() == 0 {
+							 Err(FutureCanceled) // TODO better error type
+						 } else {
+							 Ok(responses)
+						 }
+					 })
 					 .map(parse_response)
 					 .map_err(errors::on_demand_cancel))
 		});
