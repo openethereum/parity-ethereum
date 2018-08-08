@@ -124,13 +124,18 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				let address = H256::from(stack.peek(0));
 				let newval = stack.peek(1);
 				let val = U256::from(&*ext.storage_at(&address)?);
+				let orig = U256::from(&*ext.reverted_storage_at(&address)?);
 
-				let gas = if val.is_zero() && !newval.is_zero() {
-					schedule.sstore_set_gas
+				let gas = if schedule.eip1283 {
+					calculate_eip1283_sstore_gas(schedule, &orig, &val, &newval)
 				} else {
-					// Refund for below case is added when actually executing sstore
-					// !is_zero(&val) && is_zero(newval)
-					schedule.sstore_reset_gas
+					if val.is_zero() && !newval.is_zero() {
+						schedule.sstore_set_gas
+					} else {
+						// Refund for below case is added when actually executing sstore
+						// !is_zero(&val) && is_zero(newval)
+						schedule.sstore_reset_gas
+					}
 				};
 				Request::Gas(Gas::from(gas))
 			},
@@ -340,6 +345,60 @@ fn mem_needed<Gas: evm::CostType>(offset: &U256, size: &U256) -> vm::Result<Gas>
 #[inline]
 fn add_gas_usize<Gas: evm::CostType>(value: Gas, num: usize) -> (Gas, bool) {
 	value.overflow_add(Gas::from(num))
+}
+
+#[inline]
+fn calculate_eip1283_sstore_gas<Gas: evm::CostType>(schedule: &Schedule, original: &U256, current: &U256, new: &U256) -> Gas {
+	Gas::from(
+		if current == new {
+			schedule.sload_gas
+		} else {
+			if original == current {
+				if original.is_zero() {
+					schedule.sstore_set_gas
+				} else {
+					schedule.sstore_reset_gas
+				}
+			} else {
+				schedule.sload_gas
+			}
+		}
+	)
+}
+
+pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, current: &U256, new: &U256) {
+	let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
+
+	if current == new {
+		// No refund
+	} else {
+		if original == current {
+			if original.is_zero() {
+				// No refund
+			} else {
+				if new.is_zero() {
+					ext.inc_sstore_refund(sstore_clears_schedule);
+				}
+			}
+		} else {
+			if !original.is_zero() {
+				if current.is_zero() {
+					ext.dec_sstore_refund(sstore_clears_schedule);
+				} else if new.is_zero() {
+					ext.inc_sstore_refund(sstore_clears_schedule);
+				}
+			}
+			if original == new {
+				if original.is_zero() {
+					let refund = U256::from(ext.schedule().sstore_set_gas - ext.schedule().sload_gas);
+					ext.inc_sstore_refund(refund);
+				} else {
+					let refund = U256::from(ext.schedule().sstore_reset_gas - ext.schedule().sload_gas);
+					ext.inc_sstore_refund(refund);
+				}
+			}
+		}
+	}
 }
 
 #[test]
