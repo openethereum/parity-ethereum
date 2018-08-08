@@ -113,6 +113,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
+	fn reverted_storage_at(&self, key: &H256) -> vm::Result<H256> {
+		self.state.last_checkpoint_storage_at(&self.origin_info.address, key).map_err(Into::into)
+	}
+
 	fn storage_at(&self, key: &H256) -> vm::Result<H256> {
 		self.state.storage_at(&self.origin_info.address, key).map_err(Into::into)
 	}
@@ -613,7 +617,7 @@ mod tests {
 
 		let address = {
 			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
-	
+
 			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderSaltAndCodeHash(H256::default())) {
 				ContractCreateResult::Created(address, _) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),

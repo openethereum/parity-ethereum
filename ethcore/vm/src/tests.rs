@@ -105,6 +105,10 @@ impl FakeExt {
 }
 
 impl Ext for FakeExt {
+	fn reverted_storage_at(&self, _key: &H256) -> Result<H256> {
+		Ok(H256::new())
+	}
+
 	fn storage_at(&self, key: &H256) -> Result<H256> {
 		Ok(self.store.get(key).unwrap_or(&H256::new()).clone())
 	}
