@@ -319,14 +319,15 @@ impl Miner {
 	/// Retrieves an existing pending block iff it's not older than given block number.
 	///
 	/// NOTE: This will not prepare a new pending block if it's not existing.
-	/// See `map_pending_block` for alternative behaviour.
 	fn map_existing_pending_block<F, T>(&self, f: F, latest_block_number: BlockNumber) -> Option<T> where
 		F: FnOnce(&ClosedBlock) -> T,
 	{
 		self.sealing.lock().queue
 			.peek_last_ref()
 			.and_then(|b| {
-				if b.block().header().number() > latest_block_number {
+				// to prevent a data race between block import and updating pending block
+				// we allow the number to be equal.
+				if b.block().header().number() >= latest_block_number {
 					Some(f(b))
 				} else {
 					None
