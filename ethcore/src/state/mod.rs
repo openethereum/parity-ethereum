@@ -539,8 +539,49 @@ impl<B: Backend> State<B> {
 			|a| a.as_ref().and_then(|account| account.storage_root().cloned()))
 	}
 
-	/// Mutate storage of account `address` so that it is `value` for `key`.
-	pub fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+	/// Get the value of storage at last checkpoint.
+	pub fn last_checkpoint_storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+		if let Some(ref checkpoint) = self.checkpoints.borrow().last() {
+			if let Some(entry) = checkpoint.get(address) {
+				match entry {
+					Some(entry) => {
+						match entry.account {
+							Some(ref account) => {
+								if let Some(value) = account.cached_storage_at(key) {
+									Ok(value)
+								} else {
+									// This key has checkpoint entry, but not in the entry's cache.
+									// So it's not modified at all.
+									self.original_storage_at(address, key)
+								}
+							},
+							None => {
+								// The account didn't exist at that point. Return empty value.
+								Ok(H256::new())
+							},
+						}
+					},
+					None => {
+						// The value was not cached at that checkpoint, meaning it was not modified.
+						self.original_storage_at(address, key)
+					},
+				}
+			} else {
+				// This key does not have a checkpoint entry. We use the current value.
+				self.storage_at(address, key)
+			}
+		} else {
+			// No checkpoint has been found. We use the current value.
+			self.storage_at(address, key)
+		}
+	}
+
+	fn storage_at_inner<FCachedStorageAt, FStorageAt>(
+		&self, address: &Address, key: &H256, f_cached_at: FCachedStorageAt, f_at: FStorageAt,
+	) -> TrieResult<H256> where
+		FCachedStorageAt: Fn(&Account, &H256) -> Option<H256>,
+		FStorageAt: Fn(&Account, &HashDB<KeccakHasher>, &H256) -> TrieResult<H256>
+	{
 		// Storage key search and update works like this:
 		// 1. If there's an entry for the account in the local cache check for the key and return it if found.
 		// 2. If there's an entry for the account in the global cache check for the key or load it into that account.
@@ -553,7 +594,7 @@ impl<B: Backend> State<B> {
 			if let Some(maybe_acc) = local_cache.get(address) {
 				match maybe_acc.account {
 					Some(ref account) => {
-						if let Some(value) = account.cached_storage_at(key) {
+						if let Some(value) = f_cached_at(account, key) {
 							return Ok(value);
 						} else {
 							local_account = Some(maybe_acc);
@@ -567,7 +608,7 @@ impl<B: Backend> State<B> {
 				None => Ok(H256::new()),
 				Some(a) => {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
-					a.storage_at(account_db.as_hashdb(), key)
+					f_at(a, account_db.as_hashdb(), key)
 				}
 			});
 
@@ -579,7 +620,7 @@ impl<B: Backend> State<B> {
 			if let Some(ref mut acc) = local_account {
 				if let Some(ref account) = acc.account {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(address));
-					return account.storage_at(account_db.as_hashdb(), key)
+					return f_at(account, account_db.as_hashdb(), key)
 				} else {
 					return Ok(H256::new())
 				}
@@ -595,10 +636,30 @@ impl<B: Backend> State<B> {
 		let maybe_acc = db.get_with(address, from_rlp)?;
 		let r = maybe_acc.as_ref().map_or(Ok(H256::new()), |a| {
 			let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
-			a.storage_at(account_db.as_hashdb(), key)
+			f_at(a, account_db.as_hashdb(), key)
 		});
 		self.insert_cache(address, AccountEntry::new_clean(maybe_acc));
 		r
+	}
+
+	/// Mutate storage of account `address` so that it is `value` for `key`.
+	pub fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+		self.storage_at_inner(
+			address,
+			key,
+			|account, key| { account.cached_storage_at(key) },
+			|account, db, key| { account.storage_at(db, key) },
+		)
+	}
+
+	/// Get the value of storage after last state commitment.
+	pub fn original_storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+		self.storage_at_inner(
+			address,
+			key,
+			|account, key| { account.cached_original_storage_at(key) },
+			|account, db, key| { account.original_storage_at(db, key) },
+		)
 	}
 
 	/// Get accounts' code.

@@ -204,6 +204,19 @@ impl Account {
 		if let Some(value) = self.cached_storage_at(key) {
 			return Ok(value);
 		}
+		self.get_and_cache_storage(db, key)
+	}
+
+	/// Get (and cache) the contents of the trie's storage at `key`.
+	/// Does not take modified storage into account.
+	pub fn original_storage_at(&self, db: &HashDB<KeccakHasher>, key: &H256) -> TrieResult<H256> {
+		if let Some(value) = self.cached_original_storage_at(key) {
+			return Ok(value);
+		}
+		self.get_and_cache_storage(db, key)
+	}
+
+	fn get_and_cache_storage(&self, db: &HashDB<KeccakHasher>, key: &H256) -> TrieResult<H256> {
 		let db = SecTrieDB::new(db, &self.storage_root)?;
 		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
 		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
@@ -218,6 +231,11 @@ impl Account {
 		if let Some(value) = self.storage_changes.get(key) {
 			return Some(value.clone())
 		}
+		self.cached_original_storage_at(key)
+	}
+
+	/// Get cached original storage value after last state commitment. Returns `None` if the key is not in the cache.
+	pub fn cached_original_storage_at(&self, key: &H256) -> Option<H256> {
 		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
 			return Some(value.clone())
 		}
