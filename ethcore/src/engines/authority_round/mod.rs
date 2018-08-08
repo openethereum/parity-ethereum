@@ -35,6 +35,7 @@ use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
 use header::{Header, BlockNumber, ExtendedHeader};
+use super::SystemOrCodeCallKind;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 use self::finality::RollingFinality;
@@ -100,7 +101,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
-			block_reward_contract: p.block_reward_contract_address.map(BlockRewardContract::new),
+			block_reward_contract: p.block_reward_contract_address.map(BlockRewardContract::new_from_address),
 			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
@@ -1081,12 +1082,27 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				// NOTE: this logic should be moved to a function when another
 				//       engine needs support for block reward contract.
 				let mut call = |to, data| {
-					let result = self.machine.execute_as_system(
-						block,
-						to,
-						U256::max_value(), // unbounded gas? maybe make configurable.
-						Some(data),
-					);
+					let result = match to {
+						SystemOrCodeCallKind::Address(address) => {
+							self.machine.execute_as_system(
+								block,
+								address,
+								U256::max_value(),
+								Some(data),
+							)
+						},
+						SystemOrCodeCallKind::Code(code, code_hash) => {
+							self.machine.execute_code_as_system(
+								block,
+								None,
+								Some(code),
+								Some(code_hash),
+								U256::max_value(),
+								Some(data),
+							)
+						},
+					};
+
 					result.map_err(|e| format!("{}", e))
 				};
 

@@ -21,11 +21,13 @@ use ethabi;
 use ethabi::ParamType;
 use ethereum_types::{H160, Address, U256};
 
+use std::sync::Arc;
+use hash::keccak;
 use error::Error;
 use machine::WithRewards;
 use parity_machine::{Machine, WithBalances};
 use trace;
-use super::SystemCall;
+use super::{SystemOrCodeCall, SystemOrCodeCallKind};
 
 use_contract!(block_reward_contract, "BlockReward", "res/contracts/block_reward.json");
 
@@ -64,18 +66,29 @@ impl Into<trace::RewardType> for RewardKind {
 
 /// A client for the block reward contract.
 pub struct BlockRewardContract {
-	/// Address of the contract.
-	address: Address,
+	kind: SystemOrCodeCallKind,
 	block_reward_contract: block_reward_contract::BlockReward,
 }
 
 impl BlockRewardContract {
-	/// Create a new block reward contract client targeting the given address.
-	pub fn new(address: Address) -> BlockRewardContract {
+	/// Create a new block reward contract client targeting the system call kind.
+	pub fn new(kind: SystemOrCodeCallKind) -> BlockRewardContract {
 		BlockRewardContract {
-			address,
+			kind,
 			block_reward_contract: block_reward_contract::BlockReward::default(),
 		}
+	}
+
+	/// Create a new block reward contract client targeting the contract address.
+	pub fn new_from_address(address: Address) -> BlockRewardContract {
+		Self::new(SystemOrCodeCallKind::Address(address))
+	}
+
+	/// Create a new block reward contract client targeting the given code.
+	pub fn new_from_code(code: Arc<Vec<u8>>) -> BlockRewardContract {
+		let code_hash = keccak(&code[..]);
+
+		Self::new(SystemOrCodeCallKind::Code(code, code_hash))
 	}
 
 	/// Calls the block reward contract with the given benefactors list (and associated reward kind)
@@ -85,7 +98,7 @@ impl BlockRewardContract {
 	pub fn reward(
 		&self,
 		benefactors: &[(Address, RewardKind)],
-		caller: &mut SystemCall,
+		caller: &mut SystemOrCodeCall,
 	) -> Result<Vec<(Address, U256)>, Error> {
 		let reward = self.block_reward_contract.functions().reward();
 
@@ -94,7 +107,7 @@ impl BlockRewardContract {
 			benefactors.iter().map(|&(_, ref reward_kind)| u16::from(*reward_kind)),
 		);
 
-		let output = caller(self.address, input)
+		let output = caller(self.kind.clone(), input)
 			.map_err(Into::into)
 			.map_err(::engines::EngineError::FailedSystemCall)?;
 
@@ -149,6 +162,7 @@ mod test {
 	use spec::Spec;
 	use test_helpers::generate_dummy_client_with_spec_and_accounts;
 
+	use engines::SystemOrCodeCallKind;
 	use super::{BlockRewardContract, RewardKind};
 
 	#[test]
@@ -161,7 +175,7 @@ mod test {
 		let machine = Spec::new_test_machine();
 
 		// the spec has a block reward contract defined at the given address
-		let block_reward_contract = BlockRewardContract::new(
+		let block_reward_contract = BlockRewardContract::new_from_address(
 			"0000000000000000000000000000000000000042".into(),
 		);
 
@@ -172,12 +186,17 @@ mod test {
 				vec![],
 			).unwrap();
 
-			let result = machine.execute_as_system(
-				block.block_mut(),
-				to,
-				U256::max_value(),
-				Some(data),
-			);
+			let result = match to {
+				SystemOrCodeCallKind::Address(to) => {
+					machine.execute_as_system(
+						block.block_mut(),
+						to,
+						U256::max_value(),
+						Some(data),
+					)
+				},
+				_ => panic!("Test reward contract is created by an address, we never reach this branch."),
+			};
 
 			result.map_err(|e| format!("{}", e))
 		};
