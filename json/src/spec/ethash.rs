@@ -193,7 +193,7 @@ mod tests {
 		let deserialized: Ethash = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, Ethash {
-			params: EthashParams{
+			params: EthashParams {
 				minimum_difficulty: Uint(U256::from(0x020000)),
 				difficulty_bound_divisor: Uint(U256::from(0x0800)),
 				difficulty_increment_divisor: None,
@@ -201,6 +201,9 @@ mod tests {
 				duration_limit: Some(Uint(U256::from(0x0d))),
 				homestead_transition: Some(Uint(U256::from(0x42))),
 				block_reward: Some(Uint(U256::from(0x100))),
+				block_reward_contract_address: None,
+				block_reward_contract_code: None,
+				block_reward_contract_transition: None,
 				dao_hardfork_transition: Some(Uint(U256::from(0x08))),
 				dao_hardfork_beneficiary: Some(Address(H160::from("0xabcabcabcabcabcabcabcabcabcabcabcabcabca"))),
 				dao_hardfork_accounts: Some(vec![
@@ -266,6 +269,9 @@ mod tests {
 				duration_limit: None,
 				homestead_transition: None,
 				block_reward: None,
+				block_reward_contract_address: None,
+				block_reward_contract_code: None,
+				block_reward_contract_transition: None,
 				dao_hardfork_transition: None,
 				dao_hardfork_beneficiary: None,
 				dao_hardfork_accounts: None,
