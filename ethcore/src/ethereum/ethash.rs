@@ -249,8 +249,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				benefactors.push((author, RewardKind::Author));
 				for u in LiveBlock::uncles(&*block) {
 					let uncle_author = u.author();
-					let uncle_diff = (number - u.number()) as u16;
-					benefactors.push((*uncle_author, RewardKind::UncleWithDifference(uncle_diff)));
+					let uncle_diff = if number > u.number() && number - u.number() <= u8::max_value().into() { (number - u.number()) as u8 } else { 0 };
+					benefactors.push((*uncle_author, RewardKind::UncleWithDepth(uncle_diff)));
 				}
 
 				let mut call = |to, data| {

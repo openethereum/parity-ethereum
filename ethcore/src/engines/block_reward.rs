@@ -46,7 +46,7 @@ pub enum RewardKind {
 	/// Reward attributed to the block uncle(s) without any reference of block difference. This is used by all except Ethash engine's reward contract.
 	Uncle,
 	/// Reward attributed to the block uncle(s) with given difference. This is used by Ethash engine's reward contract.
-	UncleWithDifference(u16),
+	UncleWithDepth(u8),
 }
 
 impl From<RewardKind> for u16 {
@@ -57,7 +57,7 @@ impl From<RewardKind> for u16 {
 			RewardKind::External => 3,
 
 			RewardKind::Uncle => 1,
-			RewardKind::UncleWithDifference(diff) => 100 + diff,
+			RewardKind::UncleWithDepth(depth) => 100 + depth as u16,
 		}
 	}
 }
@@ -66,7 +66,7 @@ impl Into<trace::RewardType> for RewardKind {
 	fn into(self) -> trace::RewardType {
 		match self {
 			RewardKind::Author => trace::RewardType::Block,
-			RewardKind::Uncle | RewardKind::UncleWithDifference(_) =>
+			RewardKind::Uncle | RewardKind::UncleWithDepth(_) =>
 				trace::RewardType::Uncle,
 			RewardKind::EmptyStep => trace::RewardType::EmptyStep,
 			RewardKind::External => trace::RewardType::External,
