@@ -26,7 +26,7 @@ pub struct Pbkdf2 {
 	pub c: u32,
 	pub dklen: u32,
 	pub prf: Prf,
-	pub salt: [u8; 32],
+	pub salt: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

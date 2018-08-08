@@ -24,6 +24,10 @@ extern crate rustc_hex;
 extern crate serde;
 
 #[macro_use]
+extern crate log;
+extern crate env_logger;
+
+#[macro_use]
 extern crate serde_derive;
 
 use std::collections::VecDeque;
@@ -146,6 +150,10 @@ impl fmt::Display for Error {
 
 fn main() {
 	panic_hook::set_abort();
+	if env::var("RUST_LOG").is_err() {
+		env::set_var("RUST_LOG", "info")
+	}
+	env_logger::init();
 
 	match execute(env::args()) {
 		Ok(result) => println!("{}", result),
@@ -169,6 +177,7 @@ fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
 		path => Box::new(RootDiskDirectory::create(path)?),
 	};
 
+	info!("using key dir {:?}", dir);
 	Ok(dir)
 }
 
@@ -235,7 +244,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let accounts: Vec<_> = accounts
 			.into_iter()
 			.filter(|a| &a.vault == &vault_ref)
-			.map(|a| a.address)
+			.map(|a| a.address )
 			.collect();
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {

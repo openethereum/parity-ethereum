@@ -79,12 +79,14 @@ impl Crypto {
 
 	/// Encrypt custom plain data
 	pub fn with_plain(plain: &[u8], password: &Password, iterations: u32) -> Result<Self, crypto::Error> {
-		let salt: [u8; 32] = Random::random();
+		let salt_arr: [u8; 32] = Random::random();
+		let salt: Vec<u8> = salt_arr.to_vec();
 		let iv: [u8; 16] = Random::random();
 
 		// two parts of derived key
 		// DK = [ DK[0..15] DK[16..31] ] = [derived_left_bits, derived_right_bits]
-		let (derived_left_bits, derived_right_bits) = crypto::derive_key_iterations(password.as_bytes(), &salt, iterations);
+		let (derived_left_bits, derived_right_bits) =
+			crypto::derive_key_iterations(password.as_bytes(), &salt, iterations);
 
 		// preallocated (on-stack in case of `Secret`) buffer to hold cipher
 		// length = length(plain) as we are using CTR-approach

@@ -36,7 +36,7 @@ pub enum SetKeyError {
 }
 
 /// Vault key
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct VaultKey {
 	/// Vault password
 	pub password: Password,
@@ -45,7 +45,7 @@ pub struct VaultKey {
 }
 
 /// Keys directory
-pub trait KeyDirectory: Send + Sync {
+pub trait KeyDirectory: Send + Sync + Debug {
 	/// Read keys from directory
 	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
 	/// Insert new key to directory
@@ -93,6 +93,7 @@ pub trait VaultKeyDirectory: KeyDirectory {
 pub use self::disk::{RootDiskDirectory, DiskKeyFileManager, KeyFileManager};
 pub use self::memory::MemoryDirectory;
 pub use self::vault::VaultDiskDirectory;
+use std::fmt::Debug;
 
 impl VaultKey {
 	/// Create new vault key

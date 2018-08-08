@@ -23,6 +23,7 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey};
 use super::vault::{VAULT_FILE_NAME, VaultDiskDirectory};
+use std::fmt::Debug;
 
 const IGNORED_FILES: &'static [&'static str] = &[
 	"thumbs.db",
@@ -103,7 +104,7 @@ pub fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs
 pub type RootDiskDirectory = DiskDirectory<DiskKeyFileManager>;
 
 /// Disk directory key file manager
-pub trait KeyFileManager: Send + Sync {
+pub trait KeyFileManager: Send + Sync + Debug {
 	/// Read `SafeAccount` from given key file stream
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read;
 	/// Write `SafeAccount` to given key file stream
@@ -111,12 +112,14 @@ pub trait KeyFileManager: Send + Sync {
 }
 
 /// Disk-based keys directory implementation
+#[derive(Debug)]
 pub struct DiskDirectory<T> where T: KeyFileManager {
 	path: PathBuf,
 	key_manager: T,
 }
 
 /// Keys file manager for root keys directory
+#[derive(Debug)]
 pub struct DiskKeyFileManager;
 
 impl RootDiskDirectory {
@@ -191,7 +194,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 					.map_err(Into::into)
 					.and_then(|file| self.key_manager.read(filename, file))
 					.map_err(|err| {
-						warn!("Invalid key file: {:?} ({})", path, err);
+						warn!("Invalid key file: {:?}\n\t ({})", path, err);
 						err
 					})
 					.map(|account| (path, account))
@@ -318,7 +321,9 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 
 impl KeyFileManager for DiskKeyFileManager {
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
-		let key_file = json::KeyFile::load(reader).map_err(|e| Error::Custom(format!("{:?}", e)))?;
+		info!("reading file: {:?}", filename);
+		let key_file = json::KeyFile::load(reader).map_err(|e| {
+			Error::Custom(format!("{:?}", e))})?;
 		Ok(SafeAccount::from_file(key_file, filename))
 	}
 
