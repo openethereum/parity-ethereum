@@ -453,7 +453,7 @@ impl HeaderChain {
 		// reorganize ancestors so canonical entries are first in their
 		// respective candidates vectors.
 		if is_new_best {
-			const PROOF: &str = "blocks are only inserted if parent is present;\
+			const PROOF: &str = "blocks are only inserted if parent is present; \
 								or this is the block we just added; qed";
 			let mut canon_hash = hash;
 			for (&height, entry) in candidates.iter_mut().rev().skip_while(|&(height, _)| *height > number) {
