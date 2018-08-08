@@ -102,7 +102,7 @@ impl RestorationTargetChain for LightChain {
 		_is_ancient: bool,
 	) -> bool {
 		let td = parent_td.map(|pd| pd + block.header().difficulty());
-		let result = self.chain.insert_inner(batch, block.decode_header(), td, None, true);
+		let result = self.chain.insert_inner(batch, block.decode_header(), td, None, false);
 		let pending = result.expect("we either supply the total difficulty, or the parent is present; qed");
 		*self.pending.write() = Some(pending);
 		parent_td.is_some()
