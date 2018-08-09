@@ -27,7 +27,7 @@ extern crate keccak_hasher;
 extern crate kvdb;
 extern crate memorydb;
 extern crate parking_lot;
-extern crate plain_hasher;
+extern crate fastmap;
 extern crate rlp;
 
 #[cfg(test)]
