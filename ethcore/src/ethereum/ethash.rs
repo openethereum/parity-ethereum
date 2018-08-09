@@ -454,7 +454,8 @@ impl Ethash {
 		if d <= U256::one() {
 			U256::max_value()
 		} else {
-			((U256::one() << 255) / d) << 1
+			let rest = (U256::max_value() % d) + U256::one();
+			U256::max_value() / d + rest / d
 		}
 	}
 
@@ -463,7 +464,8 @@ impl Ethash {
 		if *difficulty <= U256::one() {
 			U256::max_value().into()
 		} else {
-			(((U256::one() << 255) / *difficulty) << 1).into()
+			let rest = (U256::max_value() % *difficulty) + U256::one();
+			(U256::max_value() / *difficulty + rest / *difficulty).into()
 		}
 	}
 }
@@ -532,6 +534,15 @@ mod tests {
 			expip2_transition: u64::max_value(),
 			expip2_duration_limit: 30,
 		}
+	}
+
+	#[test]
+	fn test_difficulty() {
+		// edge case from https://github.com/paritytech/parity-ethereum/issues/8397
+		let source_difficulty = 307_293.into();
+		let boundary = Ethash::difficulty_to_boundary(&source_difficulty);
+		let difficulty = Ethash::boundary_to_difficulty(&boundary);
+		assert_eq!(source_difficulty, difficulty);
 	}
 
 	#[test]
