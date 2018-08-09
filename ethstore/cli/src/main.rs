@@ -244,7 +244,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let accounts: Vec<_> = accounts
 			.into_iter()
 			.filter(|a| &a.vault == &vault_ref)
-			.map(|a| a.address )
+			.map(|a| a.address)
 			.collect();
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {

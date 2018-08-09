@@ -1991,7 +1991,7 @@ dependencies = [
 [[package]]
 name = "parity-crypto"
 version = "0.1.0"
-source = "git+https://github.com/tworec/parity-common?branch=unbound-salt#efef0bc1972cd59c1db6214102b2fae4677f8e4d"
+source = "git+https://github.com/tworec/parity-common?branch=unbound-salt#6d280d224977d014a7359b7ebc91f3aaf3256c3e"
 dependencies = [
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",

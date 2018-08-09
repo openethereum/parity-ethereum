@@ -35,7 +35,7 @@ pub struct Scrypt {
 	pub p: u32,
 	pub n: u32,
 	pub r: u32,
-	pub salt: [u8; 32],
+	pub salt: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
