@@ -16,8 +16,7 @@
 
 use std::sync::Arc;
 use std::cmp;
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 
 use bytes::Bytes;
 use ethcore_miner::pool;
@@ -84,11 +83,11 @@ impl pool::ScoredTransaction for VerifiedPrivateTransaction {
 	}
 }
 
-/// Checks readiness of transactions by comparing the nonce to state nonce.
+/// Checks readiness of transactions by looking if the transaction from sender already exists.
 /// Guarantees only one transaction per sender
 #[derive(Debug)]
 pub struct PrivateReadyState<C> {
-	nonces: HashMap<Address, U256>,
+	senders: HashSet<Address>,
 	state: C,
 }
 
@@ -98,7 +97,7 @@ impl<C> PrivateReadyState<C> {
 		state: C,
 	) -> Self {
 		PrivateReadyState {
-			nonces: Default::default(),
+			senders: Default::default(),
 			state,
 		}
 	}
@@ -109,20 +108,14 @@ impl<C: pool::client::NonceClient> txpool::Ready<VerifiedPrivateTransaction> for
 		let sender = tx.sender();
 		let state = &self.state;
 		let state_nonce = state.account_nonce(sender);
-		match self.nonces.entry(*sender) {
-			Entry::Vacant(entry) => {
-				let nonce = entry.insert(state_nonce);
-				match tx.transaction.nonce.cmp(nonce) {
-					cmp::Ordering::Greater => txpool::Readiness::Future,
-					cmp::Ordering::Less => txpool::Readiness::Stale,
-					cmp::Ordering::Equal => {
-						*nonce = *nonce + 1.into();
-						txpool::Readiness::Ready
-					},
-				}
-			}
-			Entry::Occupied(_) => {
-				txpool::Readiness::Future
+		if self.senders.contains(sender) {
+			txpool::Readiness::Future
+		} else {
+			self.senders.insert(*sender);
+			match tx.transaction.nonce.cmp(&state_nonce) {
+				cmp::Ordering::Greater => txpool::Readiness::Future,
+				cmp::Ordering::Less => txpool::Readiness::Stale,
+				cmp::Ordering::Equal => txpool::Readiness::Ready,
 			}
 		}
 	}
