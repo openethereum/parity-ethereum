@@ -786,6 +786,7 @@ mod tests {
 	#[test]
 	fn test_difficulty_to_boundary_regression() {
 		// the last bit was originally being truncated when performing the conversion
+		// https://github.com/paritytech/parity-ethereum/issues/8397
 		for difficulty in 1..9 {
 			assert_eq!(U256::from(difficulty), Ethash::boundary_to_difficulty(&Ethash::difficulty_to_boundary(&difficulty.into())));
 			assert_eq!(H256::from(difficulty), Ethash::difficulty_to_boundary(&Ethash::boundary_to_difficulty(&difficulty.into())));
