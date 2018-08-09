@@ -23,7 +23,7 @@ ethkey = { path = "../../ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
-log = "0.3"
+log = "0.4"
 parking_lot = "0.6"
 patricia-trie = { git = "https://github.com/paritytech/parity-common" }
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
