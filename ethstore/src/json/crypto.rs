@@ -123,7 +123,7 @@ impl<'a> Visitor<'a> for CryptoVisitor {
 				Some(CryptoField::Kdf) => { kdf = Some(visitor.next_value()?); }
 				Some(CryptoField::KdfParams) => { kdfparams = Some(visitor.next_value()?); }
 				Some(CryptoField::Mac) => { mac = Some(visitor.next_value()?); }
-				Some(CryptoField::Ignored) => { let _ : i32 = visitor.next_value()?; () }
+				Some(CryptoField::Ignored) => { let _ignored : i32 = visitor.next_value()?; () }
 				None => { break; }
 			}
 		}

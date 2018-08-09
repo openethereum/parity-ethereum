@@ -48,7 +48,7 @@ pub struct KeyFile {
 	pub id: Uuid,
 	pub version: Version,
 	pub crypto: Crypto,
-	pub address: Address,
+	pub address: Option<Address>,
 	pub name: Option<String>,
 	pub meta: Option<String>,
 }
@@ -158,11 +158,6 @@ impl<'a> Visitor<'a> for KeyFileVisitor {
 		let crypto = match crypto {
 			Some(crypto) => crypto,
 			None => return Err(V::Error::missing_field("crypto")),
-		};
-
-		let address = match address {
-			Some(address) => address,
-			None => Address::zero(),
 		};
 
 		let result = KeyFile {
