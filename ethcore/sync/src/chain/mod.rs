@@ -1093,13 +1093,10 @@ impl ChainSync {
 			// Select random peer to re-broadcast transactions to.
 			let peer = random::new().gen_range(0, self.peers.len());
 			trace!(target: "sync", "Re-broadcasting transactions to a random peer.");
-			self.peers.values_mut().nth(peer).map(|peer_info|
-				peer_info.last_sent_transactions.clear()
-			);
-
-			//re-broadcast private packets as well
-			self.peers.values_mut().nth(peer).map(|peer_info|
-				peer_info.reset_private_stats()
+			self.peers.values_mut().nth(peer).map(|peer_info| {
+					peer_info.last_sent_transactions.clear();
+					peer_info.reset_private_stats()
+				}
 			);
 		}
 	}

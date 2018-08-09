@@ -67,7 +67,7 @@ impl NonceAndGasPrice {
 	}
 }
 
-impl<P: ?Sized> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txpool::VerifiedTransaction + Sized {
+impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txpool::VerifiedTransaction {
 	type Score = U256;
 	type Event = ();
 
@@ -83,7 +83,7 @@ impl<P: ?Sized> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransacti
 		let old_gp = old.gas_price();
 		let new_gp = new.gas_price();
 
-		let min_required_gp = bump_gas_price(old_gp);
+		let min_required_gp = bump_gas_price(*old_gp);
 
 		match min_required_gp.cmp(&new_gp) {
 			cmp::Ordering::Greater => scoring::Choice::RejectNew,
@@ -101,7 +101,7 @@ impl<P: ?Sized> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransacti
 				assert!(i < txs.len());
 				assert!(i < scores.len());
 
-				scores[i] = txs[i].transaction.gas_price();
+				scores[i] = *txs[i].transaction.gas_price();
 				let boost = match txs[i].priority() {
 					super::Priority::Local => 15,
 					super::Priority::Retracted => 10,

@@ -73,8 +73,8 @@ impl pool::ScoredTransaction for VerifiedPrivateTransaction {
 	}
 
 	/// Gets transaction gas price.
-	fn gas_price(&self) -> U256 {
-		self.transaction.gas_price
+	fn gas_price(&self) -> &U256 {
+		&self.transaction.gas_price
 	}
 
 	/// Gets transaction nonce.
