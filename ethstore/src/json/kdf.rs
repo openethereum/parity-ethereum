@@ -17,7 +17,7 @@
 use std::fmt;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
-use super::{Error, H256, Bytes};
+use super::{Error, Bytes};
 
 #[derive(Debug, PartialEq)]
 pub enum KdfSer {
@@ -120,7 +120,7 @@ pub struct Scrypt {
 	pub p: u32,
 	pub n: u32,
 	pub r: u32,
-	pub salt: H256,
+	pub salt: Bytes,
 }
 
 #[derive(Debug, PartialEq)]
@@ -145,14 +145,10 @@ impl<'a> Deserialize<'a> for KdfSerParams {
 		use serde_json::{Value, from_value};
 
 		let v: Value = Deserialize::deserialize(deserializer)?;
-		debug!("v={:?}", v);
 
-		let x = from_value(v.clone()).map(KdfSerParams::Pbkdf2)
+		from_value(v.clone()).map(KdfSerParams::Pbkdf2)
 			.or_else(|_| from_value(v).map(KdfSerParams::Scrypt))
-			.map_err(|_| D::Error::custom("Invalid KDF algorithm"));
-
-		debug!("x={:?}", x);
-		x
+			.map_err(|_| D::Error::custom("Invalid KDF algorithm"))
 	}
 }
 

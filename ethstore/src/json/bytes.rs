@@ -19,7 +19,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
 use rustc_hex::{ToHex, FromHex, FromHexError};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Bytes(Vec<u8>);
 
 impl ops::Deref for Bytes {
