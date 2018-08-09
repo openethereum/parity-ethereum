@@ -82,9 +82,9 @@ struct Pending {
 	required_capabilities: Capabilities,
 	responses: Vec<Response>,
 	sender: oneshot::Sender<Vec<Response>>,
-	first_query: Option<usize>,
-	nb_query: usize,
-	rem_query: usize,
+	base_query_index: Option<usize>,
+	total_query_count: usize,
+	remaining_query_count: usize,
 }
 
 impl Pending {
@@ -186,8 +186,8 @@ impl Pending {
 		self.required_capabilities = capabilities;
 	}
 
-	// return no response, will result in an error
-	// consume object (similar to drop when no reply found)
+	// returning no reponse, it will result in an error.
+	// self is consumed on purpose.
 	fn no_response(self) {
 		trace!(target: "on_demand", "Dropping a pending query (no reply)");
 		self.sender.send(Vec::with_capacity(0)).map_err(|_|())
@@ -348,9 +348,9 @@ impl OnDemand {
 			required_capabilities: capabilities,
 			responses: responses,
 			sender: sender,
-			first_query: None,
-			nb_query: 0,
-			rem_query: 0,
+			base_query_index: None,
+			total_query_count: 0,
+			remaining_query_count: 0,
 		});
 
 		Ok(receiver)
@@ -392,34 +392,34 @@ impl OnDemand {
 			.filter_map(|mut pending| {
 				// the peer we dispatch to is chosen randomly
 				let num_peers = peers.len();
-				let rng = if pending.first_query.is_none() {
+				let rng = if pending.base_query_index.is_none() {
 					let rand = rand::random::<usize>() % cmp::max(num_peers, 1);
-					pending.first_query = Some(rand);
-					pending.rem_query = num_peers;
-					pending.nb_query = num_peers;
+					pending.base_query_index = Some(rand);
+					pending.remaining_query_count = num_peers;
+					pending.total_query_count = num_peers;
 					rand
 				} else {
-					if pending.nb_query < num_peers {
+					if pending.total_query_count < num_peers {
 						// add some
-						pending.nb_query = num_peers;
+						pending.total_query_count = num_peers;
 					}
-					pending.first_query.unwrap()
+					pending.base_query_index.unwrap()
 				};
-				let init_rem_query = pending.rem_query; // to fail in case of big reduction of nb of peers
+				let init_remaining_query_count = pending.remaining_query_count; // to fail in case of big reduction of nb of peers
 				for (peer_id, peer) in peers.iter().chain(peers.iter())
-					.skip(rng + (pending.nb_query - pending.rem_query))
-					.take(pending.rem_query) {
+					.skip(rng + (pending.total_query_count - pending.remaining_query_count))
+					.take(pending.remaining_query_count) {
 					// TODO: see which requests can be answered by the cache?
 
-					pending.rem_query -= 1;
+					pending.remaining_query_count -= 1;
 					if !peer.can_fulfill(&pending.required_capabilities) {
-						trace!(target: "on_demand", "Peer {} without required capabilities, skipping, {} remaining attempts", peer_id, pending.rem_query);
+						trace!(target: "on_demand", "Peer {} without required capabilities, skipping, {} remaining attempts", peer_id, pending.remaining_query_count);
 						continue
 					}
 
 					match ctx.request_from(*peer_id, pending.net_requests.clone()) {
 						Ok(req_id) => {
-							trace!(target: "on_demand", "Dispatched request {} to peer {}, {} remaining attempts", req_id, peer_id, pending.rem_query);
+							trace!(target: "on_demand", "Dispatched request {} to peer {}, {} remaining attempts", req_id, peer_id, pending.remaining_query_count);
 							self.in_transit.write().insert(req_id, pending);
 							return None
 						}
@@ -429,7 +429,7 @@ impl OnDemand {
 
 				}
 
-				if pending.rem_query == 0 || init_rem_query == pending.rem_query {
+				if pending.remaining_query_count == 0 || init_remaining_query_count == pending.remaining_query_count {
 					pending.no_response();
 					None
 				} else {
@@ -507,13 +507,13 @@ impl Handler for OnDemand {
 		};
 
 		if responses.len() == 0 {
-			if pending.rem_query == 0 {
+			if pending.remaining_query_count == 0 {
 				pending.no_response();
 				return;
 			}
 		} else {
 			// do not keep query counter for others elements of this batch
-			pending.first_query = None;
+			pending.base_query_index = None;
 		}
 
 		// for each incoming response
