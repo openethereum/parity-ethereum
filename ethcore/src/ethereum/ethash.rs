@@ -775,8 +775,6 @@ mod tests {
 
 	#[test]
 	fn test_difficulty_to_boundary() {
-		// result of f(0) is undefined, so do not assert the result
-		let _ = Ethash::difficulty_to_boundary(&U256::from(0));
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(1)), H256::from(U256::max_value()));
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(2)), H256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(4)), H256::from_str("4000000000000000000000000000000000000000000000000000000000000000").unwrap());
@@ -793,6 +791,18 @@ mod tests {
 			assert_eq!(U256::from(difficulty), Ethash::boundary_to_difficulty(&Ethash::boundary_to_difficulty(&difficulty.into()).into()));
 			assert_eq!(H256::from(difficulty), Ethash::difficulty_to_boundary(&Ethash::difficulty_to_boundary(&difficulty.into()).into()));
 		}
+	}
+
+	#[test]
+	#[should_panic]
+	fn test_difficulty_to_boundary_panics_on_zero() {
+		Ethash::difficulty_to_boundary(&U256::from(0));
+	}
+
+	#[test]
+	#[should_panic]
+	fn test_boundary_to_difficulty_panics_on_zero() {
+		Ethash::boundary_to_difficulty(&H256::from(0));
 	}
 
 	#[test]
