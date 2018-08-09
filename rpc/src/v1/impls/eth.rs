@@ -24,10 +24,9 @@ use rlp::{self, Rlp};
 use ethereum_types::{U256, H64, H256, Address};
 use parking_lot::Mutex;
 
-use ethash::SeedHashCompute;
+use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
-use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
@@ -758,7 +757,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		})?;
 
 		let (pow_hash, number, timestamp, difficulty) = work;
-		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let target = ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = self.seed_compute.lock().hash_block_number(number);
 
 		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();

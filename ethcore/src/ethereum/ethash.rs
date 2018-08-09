@@ -20,8 +20,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use engines::block_reward::{self, RewardKind};
-use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
-use ethereum_types::{H256, H64, U512, U256, Address};
+use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
+use ethereum_types::{H256, H64, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
@@ -302,7 +302,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
 		}
 
-		let difficulty = Ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
+		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
 			&header.bare_hash().0,
 			seal.nonce.low_u64(),
 			&seal.mix_hash.0
@@ -324,7 +324,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.low_u64());
 		let mix = H256(result.mix_hash);
-		let difficulty = Ethash::boundary_to_difficulty(&H256(result.value));
+		let difficulty = ethash::boundary_to_difficulty(&H256(result.value));
 		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
 			   num = header.number() as u64,
 			   seed = H256(slow_hash_block_number(header.number() as u64)),
@@ -446,32 +446,6 @@ impl Ethash {
 			}
 		}
 		target
-	}
-
-	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
-	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
-		assert!(!boundary.is_zero());
-
-		let d = U512::from(&**boundary);
-		if d == U512::one() {
-			U256::max_value()
-		} else {
-			// d > 1, so result should never overflow 256 bits
-			U256::from((U512::one() << 256) / d)
-		}
-	}
-
-	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
-	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-		assert!(!difficulty.is_zero());
-
-		if *difficulty == U256::one() {
-			U256::max_value().into()
-		} else {
-			let d = U512::from(difficulty);
-			// d > 1, so result should never overflow 256 bits
-			U256::from((U512::one() << 256) / d).into()
-		}
 	}
 }
 
@@ -771,38 +745,6 @@ mod tests {
 			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
-	}
-
-	#[test]
-	fn test_difficulty_to_boundary() {
-		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(1)), H256::from(U256::max_value()));
-		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(2)), H256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
-		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(4)), H256::from_str("4000000000000000000000000000000000000000000000000000000000000000").unwrap());
-		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
-	}
-
-	#[test]
-	fn test_difficulty_to_boundary_regression() {
-		// the last bit was originally being truncated when performing the conversion
-		// https://github.com/paritytech/parity-ethereum/issues/8397
-		for difficulty in 1..9 {
-			assert_eq!(U256::from(difficulty), Ethash::boundary_to_difficulty(&Ethash::difficulty_to_boundary(&difficulty.into())));
-			assert_eq!(H256::from(difficulty), Ethash::difficulty_to_boundary(&Ethash::boundary_to_difficulty(&difficulty.into())));
-			assert_eq!(U256::from(difficulty), Ethash::boundary_to_difficulty(&Ethash::boundary_to_difficulty(&difficulty.into()).into()));
-			assert_eq!(H256::from(difficulty), Ethash::difficulty_to_boundary(&Ethash::difficulty_to_boundary(&difficulty.into()).into()));
-		}
-	}
-
-	#[test]
-	#[should_panic]
-	fn test_difficulty_to_boundary_panics_on_zero() {
-		Ethash::difficulty_to_boundary(&U256::from(0));
-	}
-
-	#[test]
-	#[should_panic]
-	fn test_boundary_to_difficulty_panics_on_zero() {
-		Ethash::boundary_to_difficulty(&H256::from(0));
 	}
 
 	#[test]
