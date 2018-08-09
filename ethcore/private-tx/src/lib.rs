@@ -193,7 +193,7 @@ impl Provider where {
 	pub fn create_private_transaction(&self, signed_transaction: SignedTransaction) -> Result<Receipt, Error> {
 		trace!("Creating private transaction from regular transaction: {:?}", signed_transaction);
 		if self.signer_account.is_none() {
-			trace!("Signing account not set");
+			warn!("Signing account not set");
 			bail!(ErrorKind::SignerAccountNotSet);
 		}
 		let tx_hash = signed_transaction.hash();
@@ -222,7 +222,7 @@ impl Provider where {
 				self.broadcast_private_transaction(private.hash(), private.rlp_bytes().into_vec());
 				Ok(Receipt {
 					hash: tx_hash,
-					contract_address: None,
+					contract_address: Some(contract),
 					status_code: 0,
 				})
 			}
@@ -236,14 +236,6 @@ impl Provider where {
 		state_buf[..32].clone_from_slice(&state_hash);
 		state_buf[32..].clone_from_slice(&H256::from(nonce));
 		keccak(&state_buf.as_ref())
-	}
-
-	/// Extract signed transaction from private transaction
-	fn extract_original_transaction(&self, private: PrivateTransaction, contract: &Address) -> Result<UnverifiedTransaction, Error> {
-		let encrypted_transaction = private.encrypted;
-		let transaction_bytes = self.decrypt(contract, &encrypted_transaction)?;
-		let original_transaction: UnverifiedTransaction = Rlp::new(&transaction_bytes).as_val()?;
-		Ok(original_transaction)
 	}
 
 	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache) -> miner::pool_client::PoolClient<'a, Client> {
@@ -261,34 +253,31 @@ impl Provider where {
 	/// Retrieve and verify the first available private transaction for every sender
 	fn process_verification_queue(&self) -> Result<(), Error> {
 		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
-		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache));
-		for transaction in ready_transactions {
+		let process_transaction = |transaction: &VerifiedPrivateTransaction| -> Result<_, String> {
 			let private_hash = transaction.private_transaction.hash();
 			match transaction.validator_account {
 				None => {
 					trace!("Propagating transaction further");
 					self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes().into_vec());
-					continue;
+					return Ok(());
 				}
 				Some(validator_account) => {
 					if !self.validator_accounts.contains(&validator_account) {
 						trace!("Propagating transaction further");
 						self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes().into_vec());
-						continue;
+						return Ok(());
 					}
 					let tx_action = transaction.transaction.action.clone();
 					if let Action::Call(contract) = tx_action {
 						// TODO [ToDr] Usage of BlockId::Latest
 						let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest);
 						if let Err(e) = contract_nonce {
-							warn!("Cannot retrieve contract nonce: {:?}", e);
-							continue;
+							bail!("Cannot retrieve contract nonce: {:?}", e);
 						}
 						let contract_nonce = contract_nonce.expect("Error was checked before");
 						let private_state = self.execute_private_transaction(BlockId::Latest, &transaction.transaction);
 						if let Err(e) = private_state {
-							warn!("Cannot retrieve private state: {:?}", e);
-							continue;
+							bail!("Cannot retrieve private state: {:?}", e);
 						}
 						let private_state = private_state.expect("Error was checked before");
 						let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
@@ -296,17 +285,23 @@ impl Provider where {
 						let password = find_account_password(&self.passwords, &*self.accounts, &validator_account);
 						let signed_state = self.accounts.sign(validator_account, password, private_state_hash);
 						if let Err(e) = signed_state {
-							warn!("Cannot sign the state: {:?}", e);
-							continue;
+							bail!("Cannot sign the state: {:?}", e);
 						}
 						let signed_state = signed_state.expect("Error was checked before");
 						let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
 						trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
 						self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes().into_vec());
 					} else {
-						warn!("Incorrect type of action for the transaction");
+						bail!("Incorrect type of action for the transaction");
 					}
 				}
+			}
+			return Ok(());
+		};
+		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache));
+		for transaction in ready_transactions {
+			if let Err(e) = process_transaction(&transaction) {
+				warn!("Error: {:?}", e);
 			}
 		}
 		Ok(())
@@ -350,7 +345,7 @@ impl Provider where {
 			match self.miner.import_own_transaction(&*self.client, signed.into()) {
 				Ok(_) => trace!("Public transaction added to queue"),
 				Err(err) => {
-					trace!("Failed to add transaction to queue, error: {:?}", err);
+					warn!("Failed to add transaction to queue, error: {:?}", err);
 					bail!(err);
 				}
 			}
@@ -358,7 +353,7 @@ impl Provider where {
 			match self.transactions_for_signing.write().remove(&private_hash) {
 				Ok(_) => {}
 				Err(err) => {
-					trace!("Failed to remove transaction from signing store, error: {:?}", err);
+					warn!("Failed to remove transaction from signing store, error: {:?}", err);
 					bail!(err);
 				}
 			}
@@ -367,7 +362,7 @@ impl Provider where {
 			match self.transactions_for_signing.write().add_signature(&private_hash, signed_tx.signature()) {
 				Ok(_) => trace!("Signature stored for private transaction"),
 				Err(err) => {
-					trace!("Failed to add signature to signing store, error: {:?}", err);
+					warn!("Failed to add signature to signing store, error: {:?}", err);
 					bail!(err);
 				}
 			}
@@ -388,13 +383,13 @@ impl Provider where {
 						Ok(desc.received_signatures.len() + 1 == desc.validators.len())
 					}
 					false => {
-						trace!("Sender's state doesn't correspond to validator's");
+						warn!("Sender's state doesn't correspond to validator's");
 						bail!(ErrorKind::StateIncorrect);
 					}
 				}
 			}
 			Err(err) => {
-				trace!("Sender's state doesn't correspond to validator's, error {:?}", err);
+				warn!("Sender's state doesn't correspond to validator's, error {:?}", err);
 				bail!(err);
 			}
 		}
@@ -638,16 +633,19 @@ impl Importer for Arc<Provider> {
 		trace!("Private transaction received");
 		let private_tx: PrivateTransaction = Rlp::new(rlp).as_val()?;
 		let private_tx_hash = private_tx.hash();
-		let contract = private_tx.contract;
+		let contract = private_tx.contract();
 		let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
 
 		let validation_account = contract_validators
 			.iter()
 			.find(|address| self.validator_accounts.contains(address));
 
-		let original_tx = self.extract_original_transaction(private_tx.clone(), &contract)?;
-		trace!("Original transaction: {:?}", original_tx);
+		//extract the original transaction
+		let encrypted_data = private_tx.encrypted();
+		let transaction_bytes = self.decrypt(&contract, &encrypted_data)?;
+		let original_tx: UnverifiedTransaction = Rlp::new(&transaction_bytes).as_val()?;
 		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
+		//add to the queue for further verification
 		self.transactions_for_verification.add_transaction(
 			original_tx,
 			validation_account.map(|&account| account),
@@ -655,14 +653,15 @@ impl Importer for Arc<Provider> {
 			self.pool_client(&nonce_cache),
 		)?;
 		let provider = Arc::downgrade(self);
-		if let Err(e) = self.channel.send(ClientIoMessage::execute(move |_| {
+		let result = self.channel.send(ClientIoMessage::execute(move |_| {
 					if let Some(provider) = provider.upgrade() {
 						if let Err(e) = provider.process_verification_queue() {
-							debug!("Unable to process the queue: {}", e);
+							warn!("Unable to process the queue: {}", e);
 						}
 					}
-				})) {
-			trace!("Error sending NewPrivateTransaction message: {:?}", e);
+				}));
+		if let Err(e) = result {
+			warn!("Error sending NewPrivateTransaction message: {:?}", e);
 		}
 		Ok(private_tx_hash)
 	}
@@ -675,11 +674,11 @@ impl Importer for Arc<Provider> {
 		if let Err(e) = self.channel.send(ClientIoMessage::execute(move |_| {
 					if let Some(provider) = provider.upgrade() {
 						if let Err(e) = provider.process_signature(tx.clone()) {
-							debug!("Unable to process the signature: {}", e);
+							warn!("Unable to process the signature: {}", e);
 						}
 					}
 				})) {
-			trace!("Error sending NewSignedPrivateTransaction message: {:?}", e);
+			warn!("Error sending NewSignedPrivateTransaction message: {:?}", e);
 		}
 		Ok(private_hash)
 	}
@@ -700,7 +699,7 @@ impl ChainNotify for Provider {
 		if !imported.is_empty() {
 			trace!("New blocks imported, try to prune the queue");
 			if let Err(err) = self.process_verification_queue() {
-				trace!("Cannot prune private transactions queue. error: {:?}", err);
+				warn!("Cannot prune private transactions queue. error: {:?}", err);
 			}
 		}
 	}

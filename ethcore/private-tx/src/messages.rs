@@ -25,9 +25,9 @@ use transaction::signature::{add_chain_replay_protection, check_replay_protectio
 #[derive(Default, Debug, Clone, PartialEq, RlpEncodable, RlpDecodable, Eq)]
 pub struct PrivateTransaction {
 	/// Encrypted data
-	pub encrypted: Bytes,
+	encrypted: Bytes,
 	/// Address of the contract
-	pub contract: Address,
+	contract: Address,
 	/// Hash
 	hash: H256,
 }
@@ -50,6 +50,16 @@ impl PrivateTransaction {
 	/// Hash of the private transaction
 	pub fn hash(&self) -> H256 {
 		self.hash
+	}
+
+	/// Address of the contract
+	pub fn contract(&self) -> Address {
+		self.contract
+	}
+
+	/// Encrypted data
+	pub fn encrypted(&self) -> Bytes {
+		self.encrypted.clone()
 	}
 }
 
