@@ -20,8 +20,9 @@ use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
+use ethcore::ids::BlockId;
+use ethcore::log_entry::LocalizedLogEntry;
 use ethcore::receipt::Receipt;
 
 use jsonrpc_core::{Result, Error};
@@ -338,17 +339,34 @@ impl LightFetch {
 					let hdr_bloom = hdr.log_bloom();
 					bit_combos.iter().find(|&bloom| hdr_bloom & *bloom == *bloom).is_some()
 				})
-				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr.into())))
-				.map(|(num, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, x)))
+				.map(|hdr| (hdr.number(), hdr.hash(), request::BlockReceipts(hdr.into())))
+				.map(|(num, hash, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, hash, x)))
 				.collect();
 
 			// as the receipts come in, find logs within them which match the filter.
 			// insert them into a BTreeMap to maintain order by number and block index.
 			stream::futures_unordered(receipts_futures)
-				.fold(BTreeMap::new(), move |mut matches, (num, receipts)| {
-					for (block_index, log) in receipts.into_iter().flat_map(|r| r.logs).enumerate() {
-						if filter.matches(&log) {
-							matches.insert((num, block_index), log.into());
+				.fold(BTreeMap::new(), move |mut matches, (num, hash, receipts)| {
+					let mut block_index = 0;
+					for (transaction_index, receipt) in receipts.into_iter().enumerate() {
+						for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
+							if filter.matches(&log) {
+								let log = LocalizedLogEntry {
+									entry: log,
+									block_hash: hash,
+									block_number: num,
+									// No way to easily retrieve transaction hash, so let's just skip it.
+									transaction_hash: Default::default(),
+									transaction_index,
+									log_index: block_index,
+									transaction_log_index,
+								};
+								let mut log = Log::from(log);
+								// overwrite transaction_hash
+								log.transaction_hash = None;
+								matches.insert((num, block_index), log);
+							}
+							block_index += 1;
 						}
 					}
 					future::ok(matches)
