@@ -21,7 +21,7 @@ use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use engines::block_reward::{self, RewardKind};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
-use ethereum_types::{H256, H64, U256, Address};
+use ethereum_types::{H256, H64, U512, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
@@ -450,11 +450,12 @@ impl Ethash {
 
 	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
 	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
-		let d = U256::from(*boundary);
-		if d <= U256::one() {
+		let d = U512::from(&**boundary);
+		if d <= U512::one() {
 			U256::max_value()
 		} else {
-			((U256::one() << 255) / d) << 1
+			// d > 1, so result should never overflow 256 bits
+			U256::from((U512::one() << 256) / d)
 		}
 	}
 
@@ -463,7 +464,9 @@ impl Ethash {
 		if *difficulty <= U256::one() {
 			U256::max_value().into()
 		} else {
-			(((U256::one() << 255) / *difficulty) << 1).into()
+			let d = U512::from(difficulty);
+			// d > 1, so result should never overflow 256 bits
+			U256::from((U512::one() << 256) / d).into()
 		}
 	}
 }
@@ -774,6 +777,17 @@ mod tests {
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(2)), H256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(4)), H256::from_str("4000000000000000000000000000000000000000000000000000000000000000").unwrap());
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
+	}
+
+	#[test]
+	fn test_difficulty_to_boundary_regression() {
+		// the last bit was originally being truncated when performing the conversion
+		for difficulty in 1..9 {
+			assert_eq!(U256::from(difficulty), Ethash::boundary_to_difficulty(&Ethash::difficulty_to_boundary(&difficulty.into())));
+			assert_eq!(H256::from(difficulty), Ethash::difficulty_to_boundary(&Ethash::boundary_to_difficulty(&difficulty.into())));
+			assert_eq!(U256::from(difficulty), Ethash::boundary_to_difficulty(&Ethash::boundary_to_difficulty(&difficulty.into()).into()));
+			assert_eq!(H256::from(difficulty), Ethash::difficulty_to_boundary(&Ethash::difficulty_to_boundary(&difficulty.into()).into()));
+		}
 	}
 
 	#[test]

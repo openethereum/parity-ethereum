@@ -28,7 +28,7 @@ use self::ethash::SeedHashCompute;
 use self::url::Url;
 use self::hyper::header::ContentType;
 
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, U512};
 use parking_lot::Mutex;
 use futures::Future;
 
@@ -72,7 +72,9 @@ fn difficulty_to_boundary(difficulty: &U256) -> H256 {
 	if *difficulty <= U256::one() {
 		U256::max_value().into()
 	} else {
-		(((U256::one() << 255) / *difficulty) << 1).into()
+		let d = U512::from(difficulty);
+		// d > 1, so result should never overflow 256 bits
+		U256::from((U512::one() << 256) / d).into()
 	}
 }
 
