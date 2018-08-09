@@ -17,7 +17,7 @@ ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
 ethereum-types = "0.3"
 hashdb = { git = "https://github.com/paritytech/parity-common" }
-plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+fastmap = { path = "../../util/fastmap" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
 rustc-hex = "1.0"
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
