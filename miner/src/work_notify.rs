@@ -69,7 +69,9 @@ impl WorkPoster {
 
 /// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
 fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-	if *difficulty <= U256::one() {
+	assert!(!difficulty.is_zero());
+
+	if *difficulty == U256::one() {
 		U256::max_value().into()
 	} else {
 		let d = U512::from(difficulty);
