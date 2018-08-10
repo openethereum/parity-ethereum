@@ -154,9 +154,9 @@ fn difficulty_to_boundary_aux<T: Into<U512>>(difficulty: T) -> ethereum_types::U
 	assert!(!difficulty.is_zero());
 
 	if difficulty == U512::one() {
-		U256::max_value().into()
+		U256::max_value()
 	} else {
-		// d > 1, so result should never overflow 256 bits
+		// difficulty > 1, so result should never overflow 256 bits
 		U256::from((U512::one() << 256) / difficulty)
 	}
 }
