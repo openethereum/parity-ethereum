@@ -471,7 +471,9 @@ impl Host {
 			let socket = UdpSocket::bind(&udp_addr).expect("Error binding UDP socket");
 			*self.udp_socket.lock() = Some(socket);
 
-			// discovery.init_node_list(self.nodes.read().entries());
+			if ::std::env::var("DISCOVERY_INIT").is_ok() {
+				discovery.init_node_list(self.nodes.read().entries());
+			}
 			discovery.add_node_list(self.nodes.read().entries());
 			*self.discovery.lock() = Some(discovery);
 			io.register_stream(DISCOVERY)?;
@@ -756,9 +758,11 @@ impl Host {
 									let mut nodes = self.nodes.write();
 									if !nodes.contains(&entry.id) {
 										nodes.add_node(Node::new(entry.id, entry.endpoint.clone()));
-										let mut discovery = self.discovery.lock();
-										if let Some(ref mut discovery) = *discovery {
-											discovery.add_node(entry);
+										if ::std::env::var("FULL_DISCOVERY").is_ok() {
+											let mut discovery = self.discovery.lock();
+											if let Some(ref mut discovery) = *discovery {
+												discovery.add_node(entry);
+											}
 										}
 									}
 								}
@@ -1009,17 +1013,26 @@ impl IoHandler<NetworkIoMessage> for Host {
 			return;
 		}
 		match token {
-			IDLE => self.maintain_network(io),
-			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
+			IDLE => {
+				trace_time!("network::timeout::maintain_network");
+				self.maintain_network(io)
+			},
+			FIRST_SESSION ... LAST_SESSION => {
+				trace_time!("network::timeout::connection_timeout");
+				self.connection_timeout(token, io)
+			},
 			DISCOVERY_REFRESH => {
+				trace_time!("network::timeout::discovery_refresh");
 				self.discovery.lock().as_mut().map(|d| d.refresh());
 				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			DISCOVERY_ROUND => {
+				trace_time!("network::timeout::discovery_round");
 				self.discovery.lock().as_mut().map(|d| d.round());
 				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			NODE_TABLE => {
+				trace_time!("network::timeout::clear_useless");
 				trace!(target: "network", "Refreshing node table");
 				self.nodes.write().clear_useless();
 				self.nodes.write().save();
@@ -1028,6 +1041,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 				Some(timer) => match self.handlers.read().get(&timer.protocol).cloned() {
 					None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
 					Some(h) => {
+						trace_time!("network::timeout::handler_timeout");
 						let reserved = self.reserved_nodes.read();
 						h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone(), &reserved), timer.token);
 					}

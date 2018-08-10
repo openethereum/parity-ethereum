@@ -97,6 +97,8 @@ extern crate serde_derive;
 extern crate tempdir;
 #[cfg(test)] #[macro_use]
 extern crate assert_matches;
+#[macro_use]
+extern crate trace_time;
 
 mod host;
 mod connection;

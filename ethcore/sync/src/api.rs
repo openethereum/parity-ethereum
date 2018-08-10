@@ -405,12 +405,21 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
-		trace_time!("sync::timeout");
 		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay);
 		match timer {
-			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
-			SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
+			PEERS_TIMER => {
+				trace_time!("sync::timeout::maintain_peers");
+				trace!(target: "sync", "[timer] Maintaining peers");
+				self.sync.write().maintain_peers(&mut io)
+			},
+			SYNC_TIMER => {
+				trace_time!("sync::timeout::maintain_sync");
+				trace!(target: "sync", "[timer] Maintaining sync");
+				self.sync.write().maintain_sync(&mut io)
+			},
 			TX_TIMER => {
+				trace_time!("sync::timeout::propagate_new_transactions");
+				trace!(target: "sync", "[timer] Propagating new transactions");
 				self.sync.write().propagate_new_transactions(&mut io);
 			},
 			_ => warn!("Unknown timer {} triggered.", timer),

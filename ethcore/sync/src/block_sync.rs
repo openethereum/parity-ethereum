@@ -475,6 +475,7 @@ impl BlockDownloader {
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
 	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), BlockDownloaderImportError> {
+		trace_time!("block_sync::collect_blocks");
 		let mut bad = false;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();

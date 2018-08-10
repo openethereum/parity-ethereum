@@ -270,8 +270,10 @@ impl BlockCollection {
 			return Vec::new();
 		}
 
+		let start_time = ::std::time::Instant::now();
 		let mut drained = Vec::new();
 		let mut hashes = Vec::new();
+		let num_blocks = self.blocks.len();
 		{
 			let mut blocks = Vec::new();
 			let mut head = self.head;
@@ -302,7 +304,12 @@ impl BlockCollection {
 		for h in hashes {
 			self.blocks.remove(&h);
 		}
-		trace!(target: "sync", "Drained {} blocks, new head :{:?}", drained.len(), self.head);
+		let elapsed = start_time.elapsed();
+		trace!(target: "sync", "Drained {} blocks in {}ms out of {} ({} still in queue), new head :{:?}",
+			drained.len(),
+			(1000*1000*1000 * elapsed.as_secs() + (elapsed.subsec_nanos() as u64)) / (1000 * 1000),
+			num_blocks, self.blocks.len(),
+			self.head);
 		drained
 	}
 

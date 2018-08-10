@@ -297,7 +297,9 @@ impl SyncHandler {
 			return Ok(());
 		}
 		let item_count = r.item_count()?;
-		trace!(target: "sync", "{} -> BlockBodies ({} entries), set = {:?}", peer_id, item_count, block_set);
+		let asking_time = sync.peers.get(&peer_id).map(|p| p.ask_time).unwrap_or(Instant::now());
+		let elapsed = (1000*1000*1000 * asking_time.elapsed().as_secs() + (asking_time.elapsed().subsec_nanos() as u64)) / (1000 * 1000);
+		trace!(target: "sync", "{} -> BlockBodies ({} entries) in {}ms, set = {:?}", peer_id, item_count, elapsed, block_set);
 		if item_count == 0 {
 			Err(DownloaderImportError::Useless)
 		} else if sync.state == SyncState::Waiting {
@@ -373,7 +375,9 @@ impl SyncHandler {
 			return Ok(());
 		}
 		let item_count = r.item_count()?;
-		trace!(target: "sync", "{} -> BlockHeaders ({} entries), state = {:?}, set = {:?}", peer_id, item_count, sync.state, block_set);
+		let asking_time = sync.peers.get(&peer_id).map(|p| p.ask_time).unwrap_or(Instant::now());
+		let elapsed = (1000*1000*1000 * asking_time.elapsed().as_secs() + (asking_time.elapsed().subsec_nanos() as u64)) / (1000 * 1000);
+		trace!(target: "sync", "{} -> BlockHeaders ({} entries) in {}ms, state = {:?}, set = {:?}", peer_id, item_count, elapsed, sync.state, block_set);
 		if (sync.state == SyncState::Idle || sync.state == SyncState::WaitingPeers) && sync.old_blocks.is_none() {
 			trace!(target: "sync", "Ignored unexpected block headers");
 			return Ok(());
@@ -420,7 +424,9 @@ impl SyncHandler {
 			return Ok(());
 		}
 		let item_count = r.item_count()?;
-		trace!(target: "sync", "{} -> BlockReceipts ({} entries)", peer_id, item_count);
+		let asking_time = sync.peers.get(&peer_id).map(|p| p.ask_time).unwrap_or(Instant::now());
+		let elapsed = (1000*1000*1000 * asking_time.elapsed().as_secs() + (asking_time.elapsed().subsec_nanos() as u64)) / (1000 * 1000);
+		trace!(target: "sync", "{} -> BlockReceipts ({} entries) in {}ms", peer_id, item_count, elapsed);
 		if item_count == 0 {
 			Err(DownloaderImportError::Useless)
 		} else if sync.state == SyncState::Waiting {
