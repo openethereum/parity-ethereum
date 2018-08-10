@@ -656,12 +656,12 @@ impl Importer for Arc<Provider> {
 		)?;
 		let provider = Arc::downgrade(self);
 		let result = self.channel.send(ClientIoMessage::execute(move |_| {
-					if let Some(provider) = provider.upgrade() {
-						if let Err(e) = provider.process_verification_queue() {
-							warn!("Unable to process the queue: {}", e);
-						}
-					}
-				}));
+			if let Some(provider) = provider.upgrade() {
+				if let Err(e) = provider.process_verification_queue() {
+					warn!("Unable to process the queue: {}", e);
+				}
+			}
+		}));
 		if let Err(e) = result {
 			warn!("Error sending NewPrivateTransaction message: {:?}", e);
 		}
@@ -673,13 +673,14 @@ impl Importer for Arc<Provider> {
 		trace!("Signature for private transaction received: {:?}", tx);
 		let private_hash = tx.private_transaction_hash();
 		let provider = Arc::downgrade(self);
-		if let Err(e) = self.channel.send(ClientIoMessage::execute(move |_| {
-					if let Some(provider) = provider.upgrade() {
-						if let Err(e) = provider.process_signature(tx.clone()) {
-							warn!("Unable to process the signature: {}", e);
-						}
-					}
-				})) {
+		let result = self.channel.send(ClientIoMessage::execute(move |_| {
+			if let Some(provider) = provider.upgrade() {
+				if let Err(e) = provider.process_signature(tx.clone()) {
+					warn!("Unable to process the signature: {}", e);
+				}
+			}
+		}));
+		if let Err(e) = result {
 			warn!("Error sending NewSignedPrivateTransaction message: {:?}", e);
 		}
 		Ok(private_hash)
