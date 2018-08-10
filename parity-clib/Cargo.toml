@@ -10,6 +10,7 @@ name = "parity"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
+panic_hook = { path = "../util/panic_hook" }
 parity-ethereum = { path = "../", default-features = false }
 
 [features]
