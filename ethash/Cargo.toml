@@ -6,13 +6,14 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-log = "0.3"
-keccak-hash = { path = "../util/hash" }
-primal = "0.2.3"
-parking_lot = "0.5"
 crunchy = "0.1.0"
-memmap = "0.6"
 either = "1.0.0"
+ethereum-types = "0.3"
+keccak-hash = { path = "../util/hash" }
+log = "0.3"
+memmap = "0.6"
+parking_lot = "0.5"
+primal = "0.2.3"
 
 [dev-dependencies]
 tempdir = "0.3"
