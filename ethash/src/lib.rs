@@ -140,27 +140,24 @@ impl EthashManager {
 
 /// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
 pub fn boundary_to_difficulty(boundary: &ethereum_types::H256) -> U256 {
-	assert!(!boundary.is_zero());
-
-	let d = U512::from(&**boundary);
-	if d == U512::one() {
-		U256::max_value()
-	} else {
-		// d > 1, so result should never overflow 256 bits
-		U256::from((U512::one() << 256) / d)
-	}
+	difficulty_to_boundary_aux(&**boundary)
 }
 
 /// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
 pub fn difficulty_to_boundary(difficulty: &U256) -> ethereum_types::H256 {
+	difficulty_to_boundary_aux(difficulty).into()
+}
+
+fn difficulty_to_boundary_aux<T: Into<U512>>(difficulty: T) -> ethereum_types::U256 {
+	let difficulty = difficulty.into();
+
 	assert!(!difficulty.is_zero());
 
-	if *difficulty == U256::one() {
+	if difficulty == U512::one() {
 		U256::max_value().into()
 	} else {
-		let d = U512::from(difficulty);
 		// d > 1, so result should never overflow 256 bits
-		U256::from((U512::one() << 256) / d).into()
+		U256::from((U512::one() << 256) / difficulty)
 	}
 }
 
