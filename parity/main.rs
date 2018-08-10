@@ -253,7 +253,8 @@ fn main_direct(force_can_restart: bool) -> i32 {
 				panic_hook::set_with({
 					let e = exit.clone();
 					let exiting = exiting.clone();
-					move || {
+					move |panic_msg| {
+						let _ = stdio::stderr().write_all(panic_msg.as_bytes());
 						if !exiting.swap(true, Ordering::SeqCst) {
 							*e.0.lock() = ExitStatus {
 								panicking: true,

@@ -41,7 +41,7 @@ use ethereum_types::{H256, H264, U256};
 use heapsize::HeapSizeOf;
 use kvdb::{DBTransaction, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
-use plain_hasher::H256FastMap;
+use fastmap::H256FastMap;
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 use smallvec::SmallVec;
 

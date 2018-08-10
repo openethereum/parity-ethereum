@@ -83,7 +83,7 @@ pub enum Change<T = ()> {
 ///
 pub trait Scoring<T>: fmt::Debug {
 	/// A score of a transaction.
-	type Score: cmp::Ord + Clone + Default + fmt::Debug;
+	type Score: cmp::Ord + Clone + Default + fmt::Debug + Send;
 	/// Custom scoring update event type.
 	type Event: fmt::Debug;
 

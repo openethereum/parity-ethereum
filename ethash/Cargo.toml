@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-log = "0.3"
+log = "0.4"
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 primal = "0.2.3"
 parking_lot = "0.6"

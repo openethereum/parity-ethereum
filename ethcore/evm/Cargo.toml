@@ -8,7 +8,7 @@ bit-set = "0.4"
 ethereum-types = "0.3"
 heapsize = "0.4"
 lazy_static = "1.0"
-log = "0.3"
+log = "0.4"
 vm = { path = "../vm" }
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 parking_lot = "0.6"

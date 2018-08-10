@@ -99,7 +99,7 @@ use std::time::{Duration, Instant};
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
-use plain_hasher::H256FastMap;
+use fastmap::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
