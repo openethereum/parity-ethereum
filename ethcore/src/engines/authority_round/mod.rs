@@ -1048,7 +1048,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		let mut benefactors = Vec::new();
+		let mut beneficiaries = Vec::new();
 		if block.header().number() >= self.empty_steps_transition {
 			let empty_steps = if block.header().seal().is_empty() {
 				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
@@ -1074,12 +1074,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 			for empty_step in empty_steps {
 				let author = empty_step.author()?;
-				benefactors.push((author, RewardKind::EmptyStep));
+				beneficiaries.push((author, RewardKind::EmptyStep));
 			}
 		}
 
 		let author = *block.header().author();
-		benefactors.push((author, RewardKind::Author));
+		beneficiaries.push((author, RewardKind::Author));
 
 		let rewards: Vec<_> = match self.block_reward_contract {
 			Some(ref c) if block.header().number() >= self.block_reward_contract_transition => {
@@ -1110,11 +1110,11 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					result.map_err(|e| format!("{}", e))
 				};
 
-				let rewards = c.reward(&benefactors, &mut call)?;
+				let rewards = c.reward(&beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
 			},
 			_ => {
-				benefactors.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
+				beneficiaries.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
 			},
 		};
 

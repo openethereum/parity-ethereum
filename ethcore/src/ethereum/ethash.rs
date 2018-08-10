@@ -244,13 +244,13 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		let rewards = match self.ethash_params.block_reward_contract {
 			Some(ref c) if number >= self.ethash_params.block_reward_contract_transition => {
-				let mut benefactors = Vec::new();
+				let mut beneficiaries = Vec::new();
 
-				benefactors.push((author, RewardKind::Author));
+				beneficiaries.push((author, RewardKind::Author));
 				for u in LiveBlock::uncles(&*block) {
 					let uncle_author = u.author();
 					let uncle_diff = if number > u.number() && number - u.number() <= u8::max_value().into() { (number - u.number()) as u8 } else { 0 };
-					benefactors.push((*uncle_author, RewardKind::UncleWithDepth(uncle_diff)));
+					beneficiaries.push((*uncle_author, RewardKind::UncleWithDepth(uncle_diff)));
 				}
 
 				let mut call = |to, data| {
@@ -278,7 +278,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 					result.map_err(|e| format!("{}", e))
 				};
 
-				let rewards = c.reward(&benefactors, &mut call)?;
+				let rewards = c.reward(&beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
 			},
 			_ => {

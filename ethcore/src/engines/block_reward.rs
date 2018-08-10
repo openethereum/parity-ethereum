@@ -102,20 +102,20 @@ impl BlockRewardContract {
 		Self::new(SystemOrCodeCallKind::Code(code, code_hash))
 	}
 
-	/// Calls the block reward contract with the given benefactors list (and associated reward kind)
+	/// Calls the block reward contract with the given beneficiaries list (and associated reward kind)
 	/// and returns the reward allocation (address - value). The block reward contract *must* be
 	/// called by the system address so the `caller` must ensure that (e.g. using
 	/// `machine.execute_as_system`).
 	pub fn reward(
 		&self,
-		benefactors: &[(Address, RewardKind)],
+		beneficiaries: &[(Address, RewardKind)],
 		caller: &mut SystemOrCodeCall,
 	) -> Result<Vec<(Address, U256)>, Error> {
 		let reward = self.block_reward_contract.functions().reward();
 
 		let input = reward.input(
-			benefactors.iter().map(|&(address, _)| H160::from(address)),
-			benefactors.iter().map(|&(_, ref reward_kind)| u16::from(*reward_kind)),
+			beneficiaries.iter().map(|&(address, _)| H160::from(address)),
+			beneficiaries.iter().map(|&(_, ref reward_kind)| u16::from(*reward_kind)),
 		);
 
 		let output = caller(self.kind.clone(), input)
@@ -151,7 +151,7 @@ impl BlockRewardContract {
 	}
 }
 
-/// Applies the given block rewards, i.e. adds the given balance to each benefactors' address.
+/// Applies the given block rewards, i.e. adds the given balance to each beneficiary' address.
 /// If tracing is enabled the operations are recorded.
 pub fn apply_block_rewards<M: Machine + WithBalances + WithRewards>(
 	rewards: &[(Address, RewardKind, U256)],
@@ -212,17 +212,17 @@ mod test {
 			result.map_err(|e| format!("{}", e))
 		};
 
-		// if no benefactors are given no rewards are attributed
+		// if no beneficiaries are given no rewards are attributed
 		assert!(block_reward_contract.reward(&vec![], &mut call).unwrap().is_empty());
 
 		// the contract rewards (1000 + kind) for each benefactor
-		let benefactors = vec![
+		let beneficiaries = vec![
 			("0000000000000000000000000000000000000033".into(), RewardKind::Author),
 			("0000000000000000000000000000000000000034".into(), RewardKind::Uncle),
 			("0000000000000000000000000000000000000035".into(), RewardKind::EmptyStep),
 		];
 
-		let rewards = block_reward_contract.reward(&benefactors, &mut call).unwrap();
+		let rewards = block_reward_contract.reward(&beneficiaries, &mut call).unwrap();
 		let expected = vec![
 			("0000000000000000000000000000000000000033".into(), U256::from(1000)),
 			("0000000000000000000000000000000000000034".into(), U256::from(1000 + 1)),
