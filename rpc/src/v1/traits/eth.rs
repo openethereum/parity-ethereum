@@ -69,11 +69,11 @@ build_rpc_trait! {
 
 		/// Returns block with given hash.
 		#[rpc(name = "eth_getBlockByHash")]
-		fn block_by_hash(&self, H256, bool) -> BoxFuture<Option<RichBlock>>;
+		fn block_by_hash(&self, H256, bool, bool) -> BoxFuture<Option<RichBlock>>;
 
 		/// Returns block with given number.
 		#[rpc(name = "eth_getBlockByNumber")]
-		fn block_by_number(&self, BlockNumber, bool) -> BoxFuture<Option<RichBlock>>;
+		fn block_by_number(&self, BlockNumber, bool, bool) -> BoxFuture<Option<RichBlock>>;
 
 		/// Returns the number of transactions sent from given address at given time (block number).
 		#[rpc(name = "eth_getTransactionCount")]

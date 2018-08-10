@@ -139,12 +139,12 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 	}
 
 	// get a "rich" block structure. Fails on unknown block.
-	fn rich_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<RichBlock> {
+	fn rich_block(&self, id: BlockId, include_txs: bool, include_receipts: bool) -> BoxFuture<RichBlock> {
 		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
 		let (client, engine) = (self.client.clone(), self.client.engine().clone());
 
 		// helper for filling out a rich block once we've got a block and a score.
-		let fill_rich = move |block: encoded::Block, score: Option<U256>| {
+		let fill_rich = move |block: encoded::Block, score: Option<U256>, receipts: Vec<Receipt>| {
 			let header = block.decode_header();
 			let extra_info = engine.extra_info(&header);
 			RichBlock {
@@ -171,6 +171,19 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t)).collect()),
 						_ => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
+					receipts: match include_receipts {
+						true => {
+							let receipts_with_transactions: Vec<Receipt> = block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t, eip86_transition)).zip(receipts.into_iter()).map(|(tx, mut receipt)|{
+							receipt.transaction_hash = Some(tx.hash);
+							receipt.transaction_index = tx.transaction_index;
+							receipt.block_hash = tx.block_hash;
+							receipt.block_number = tx.block_number;
+							receipt
+							}).collect();
+						Some(receipts_with_transactions.into_iter().map(Into::into).collect())
+						},
+						false => None,
+					},
 					extra_data: Bytes::new(header.extra_data().clone()),
 				},
 				extra_info: extra_info
@@ -178,10 +191,12 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		};
 
 		// get the block itself.
-		Box::new(self.fetcher().block(id).and_then(move |block| {
+		Box::new(self.fetcher().block(id).join(self.fetcher().receipts(id)).and_then(move |(block, r)| {
+
+			let receipts = r.into_iter().map(Receipt::from).collect();
 			// then fetch the total difficulty (this is much easier after getting the block).
 			match client.score(id) {
-				Some(score) => Either::A(future::ok(fill_rich(block, Some(score)))),
+				Some(score) => Either::A(future::ok(fill_rich(block, Some(score), receipts))),
 				None => {
 					// make a CHT request to fetch the chain score.
 					let req = cht::block_to_cht_number(block.number())
@@ -197,7 +212,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 								.expect("genesis always stored; qed")
 								.difficulty();
 
-							return Either::A(future::ok(fill_rich(block, Some(score))))
+							return Either::A(future::ok(fill_rich(block, Some(score), receipts)))
 						}
 					};
 
@@ -215,7 +230,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 									None
 								};
 
-								fill_rich(block, score)
+								fill_rich(block, score, receipts)
 							}).map_err(errors::on_demand_cancel)),
 						None => Either::A(future::err(errors::network_disabled())),
 					}
@@ -289,12 +304,12 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		Box::new(future::err(errors::unimplemented(None)))
 	}
 
-	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(self.rich_block(BlockId::Hash(hash.into()), include_txs).map(Some))
+	fn block_by_hash(&self, hash: RpcH256, include_txs: bool, include_receipts: bool) -> BoxFuture<Option<RichBlock>> {
+		Box::new(self.rich_block(BlockId::Hash(hash.into()), include_txs, include_receipts).map(Some))
 	}
 
-	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(self.rich_block(Self::num_to_id(num), include_txs).map(Some))
+	fn block_by_number(&self, num: BlockNumber, include_txs: bool, include_receipts: bool) -> BoxFuture<Option<RichBlock>> {
+		Box::new(self.rich_block(Self::num_to_id(num), include_txs, include_receipts).map(Some))
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
@@ -577,6 +592,7 @@ fn extract_uncle_at_index<T: LightChainClient>(block: encoded::Block, index: Ind
 				seal_fields: uncle.seal().into_iter().cloned().map(Into::into).collect(),
 				uncles: vec![],
 				transactions: BlockTransactions::Hashes(vec![]),
+				receipts: Some(vec![]),
 			},
 			extra_info: extra_info,
 		})

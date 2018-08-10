@@ -171,7 +171,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		}
 	}
 
-	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
+	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool, include_receipts: bool) -> Result<Option<RichBlock>> {
 		let client = &self.client;
 
 		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), false);
@@ -256,6 +256,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 							false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 						},
 						extra_data: Bytes::new(view.extra_data()),
+						receipts: match include_receipts {
+							true => block.transaction_hashes().into_iter().map(|h| self.client.transaction_receipt(TransactionId::Hash(h)).map(Into::into)).collect(),
+							false => None,
+						},
 					},
 					extra_info: extra.expect(EXTRA_INFO_PROOF),
 				}))
@@ -392,6 +396,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				seal_fields: uncle.seal().into_iter().cloned().map(Into::into).collect(),
 				uncles: vec![],
 				transactions: BlockTransactions::Hashes(vec![]),
+				receipts: Some(vec![]),
 			},
 			extra_info: extra,
 		};
@@ -636,12 +641,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)))
+	fn block_by_hash(&self, hash: RpcH256, include_txs: bool, include_receipts: bool) -> BoxFuture<Option<RichBlock>> {
+		Box::new(future::done(self.rich_block(BlockId::Hash(hash.into()).into(), include_txs, include_receipts)))
 	}
 
-	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.rich_block(num.into(), include_txs)))
+	fn block_by_number(&self, num: BlockNumber, include_txs: bool, include_receipts: bool) -> BoxFuture<Option<RichBlock>> {
+		Box::new(future::done(self.rich_block(num.into(), include_txs, include_receipts)))
 	}
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
