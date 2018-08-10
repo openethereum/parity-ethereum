@@ -144,7 +144,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 	 	}
 	}
 
-	fn should_ignore_sender_limit(&self, new: &VerifiedTransaction) -> bool {
+	fn should_ignore_sender_limit(&self, new: &P) -> bool {
 		new.priority().is_local()
 	}
 }
