@@ -306,14 +306,15 @@ impl Miner {
 	/// Retrieves an existing pending block iff it's not older than given block number.
 	///
 	/// NOTE: This will not prepare a new pending block if it's not existing.
-	/// See `map_pending_block` for alternative behaviour.
 	fn map_existing_pending_block<F, T>(&self, f: F, latest_block_number: BlockNumber) -> Option<T> where
 		F: FnOnce(&ClosedBlock) -> T,
 	{
 		self.sealing.lock().queue
 			.peek_last_ref()
 			.and_then(|b| {
-				if b.block().header().number() > latest_block_number {
+				// to prevent a data race between block import and updating pending block
+				// we allow the number to be equal.
+				if b.block().header().number() >= latest_block_number {
 					Some(f(b))
 				} else {
 					None
@@ -352,7 +353,7 @@ impl Miner {
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-			let mut open_block = match sealing.queue.pop_if(|b| b.block().header().parent_hash() == &best_hash) {
+			let mut open_block = match sealing.queue.get_pending_if(|b| b.block().header().parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
@@ -602,7 +603,7 @@ impl Miner {
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
-					sealing.queue.push(block.clone());
+					sealing.queue.set_pending(block.clone());
 					sealing.queue.use_last_ref();
 				}
 
@@ -664,7 +665,7 @@ impl Miner {
 				);
 				let is_new = original_work_hash.map_or(true, |h| h != block_hash);
 
-				sealing.queue.push(block);
+				sealing.queue.set_pending(block);
 
 				#[cfg(feature = "work-notify")]
 				{
@@ -1073,7 +1074,7 @@ impl miner::MinerService for Miner {
 			Some(false) => {
 				trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now");
 				// anyway, save the block for later use
-				self.sealing.lock().queue.push(block);
+				self.sealing.lock().queue.set_pending(block);
 			},
 			None => {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
