@@ -25,8 +25,8 @@ keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 kvdb = { git = "https://github.com/paritytech/parity-common" }
 macros = { path = "../../util/macros" }
-log = "0.3"
-env_logger = "0.4"
+log = "0.4"
+env_logger = "0.5"
 rand = "0.4"
 heapsize = "0.4"
 semver = "0.9"

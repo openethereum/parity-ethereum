@@ -1,29 +1,43 @@
-FROM alpine:edge
-
-WORKDIR /build
-
-# install tools and dependencies
-RUN apk add --no-cache gcc musl-dev pkgconfig g++ make curl \
-						eudev-dev rust cargo git file binutils \
-						libusb-dev linux-headers perl cmake
+FROM alpine:edge AS builder
 
 # show backtraces
 ENV RUST_BACKTRACE 1
 
-# show tools
-RUN rustc -vV && \
-cargo -V && \
-gcc -v &&\
-g++ -v
+RUN apk add --no-cache \
+  build-base \
+  cargo \
+  cmake \
+  eudev-dev \
+  linux-headers \
+  perl \
+  rust
 
-# build parity
-ADD . /build/parity
-RUN cd parity && \
-	cargo build --release --verbose && \
-	ls /build/parity/target/release/parity && \
-	strip /build/parity/target/release/parity
+WORKDIR /parity
+COPY . /parity
+RUN cargo build --release --target x86_64-alpine-linux-musl --verbose
+RUN strip target/x86_64-alpine-linux-musl/release/parity
 
-RUN file /build/parity/target/release/parity
+
+FROM alpine:edge
+
+# show backtraces
+ENV RUST_BACKTRACE 1
+
+RUN apk add --no-cache \
+  libstdc++ \
+  eudev-libs \
+  libgcc
+
+RUN addgroup -g 1000 parity \
+  && adduser -u 1000 -G parity -s /bin/sh -D parity
+
+USER parity
 
 EXPOSE 8080 8545 8180
-ENTRYPOINT ["/build/parity/target/release/parity"]
+
+WORKDIR /home/parity
+
+RUN mkdir -p /home/parity/.local/share/io.parity.ethereum/
+COPY --chown=parity:parity --from=builder /parity/target/x86_64-alpine-linux-musl/release/parity ./
+
+ENTRYPOINT ["./parity"]

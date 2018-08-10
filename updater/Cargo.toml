@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 lazy_static = "1.0"
-log = "0.3"
+log = "0.4"
 ethabi = "5.1"
 ethabi-derive = "5.0"
 ethabi-contract = "5.0"
