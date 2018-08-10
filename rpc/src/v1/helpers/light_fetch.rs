@@ -337,10 +337,10 @@ impl LightFetch {
 					BlockId::Hash(hdr.hash()) != filter.from_block
 					&& BlockId::Number(hdr.number()) != filter.from_block
 				})
-				.chain(::std::iter::once(self.client.block_header(filter.from_block).expect("checked before")))
+				.chain(Some(self.client.block_header(filter.from_block).expect("checked before")))
 				.filter(|ref hdr| {
 					let hdr_bloom = hdr.log_bloom();
-					bit_combos.iter().find(|&bloom| hdr_bloom & *bloom == *bloom).is_some()
+					bit_combos.iter().any(|bloom| hdr_bloom.contains_bloom(bloom))
 				})
 				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr.into())))
 				.map(|(num, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, x)))
