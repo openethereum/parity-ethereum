@@ -40,3 +40,21 @@ impl Serialize for Work {
 		}
 	}
 }
+
+/// The result of an `eth_submitWorkDetail` call: it differs based on an option
+/// whether to send the error message.
+#[derive(Debug, PartialEq, Eq)]
+pub struct SubmitDetailResult {
+	/// Whether the submission was successful.
+	pub success: bool,
+	/// The error message.
+	pub error_msg: Option<String>,
+	/// The block hash.
+	pub block_hash: Option<H256>,
+}
+
+impl Serialize for SubmitDetailResult {
+	fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		(&self.success, &self.error_msg, &self.block_hash).serialize(s)
+	}
+}

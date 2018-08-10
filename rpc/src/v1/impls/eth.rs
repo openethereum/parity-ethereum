@@ -48,7 +48,7 @@ use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
-	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
+	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, SubmitDetailResult,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256, block_number_to_id,
 };
 use v1::metadata::Metadata;
@@ -797,6 +797,36 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			Err(err) => {
 				warn!(target: "miner", "Cannot submit work - {:?}.", err);
 				Ok(false)
+			},
+		}
+	}
+
+	fn submit_work_detail(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<SubmitDetailResult> {
+		// TODO [ToDr] Should disallow submissions in case of PoA?
+		let nonce: H64 = nonce.into();
+		let pow_hash: H256 = pow_hash.into();
+		let mix_hash: H256 = mix_hash.into();
+		trace!(target: "miner", "submit_work_detail: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
+
+		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
+		let import = self.miner.submit_seal(pow_hash, seal)
+			.and_then(|block| self.client.import_sealed_block(block));
+
+		match import {
+			Ok(hash) => {
+				Ok(SubmitDetailResult{
+					success: true,
+					error_msg: None,
+					block_hash: Some(hash.into())
+				})
+			},
+			Err(err) => {
+				warn!(target: "miner", "Cannot submit work - {:?}.", err);
+				Ok(SubmitDetailResult{
+					success: false,
+					error_msg: Some(err.to_string()),
+					block_hash: None
+				})
 			},
 		}
 	}

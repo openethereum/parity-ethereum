@@ -19,7 +19,7 @@ use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_macros::Trailing;
 
 use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
-use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
+use v1::types::{Log, Receipt, SyncStatus, Transaction, Work, SubmitDetailResult};
 use v1::types::{H64, H160, H256, U256};
 
 build_rpc_trait! {
@@ -170,6 +170,10 @@ build_rpc_trait! {
 		/// Used for submitting a proof-of-work solution.
 		#[rpc(name = "eth_submitWork")]
 		fn submit_work(&self, H64, H256, H256) -> Result<bool>;
+
+		/// Used for submitting a proof-of-work solution (more details in the response than `eth_submitWork`).
+		#[rpc(name = "eth_submitWorkDetail")]
+		fn submit_work_detail(&self, H64, H256, H256) -> Result<SubmitDetailResult>;
 
 		/// Used for submitting mining hashrate.
 		#[rpc(name = "eth_submitHashrate")]

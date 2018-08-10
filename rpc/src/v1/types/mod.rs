@@ -78,6 +78,7 @@ pub use self::transaction_request::TransactionRequest;
 pub use self::transaction_condition::TransactionCondition;
 pub use self::uint::{U128, U256, U64};
 pub use self::work::Work;
+pub use self::work::SubmitDetailResult;
 pub use self::private_receipt::{PrivateTransactionReceipt, PrivateTransactionReceiptAndTransaction};
 
 // TODO [ToDr] Refactor to a proper type Vec of enums?
