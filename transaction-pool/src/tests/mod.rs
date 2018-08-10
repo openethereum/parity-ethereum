@@ -591,6 +591,33 @@ fn should_not_import_even_if_limit_is_reached_and_should_replace_returns_false()
 	});
 }
 
+#[test]
+fn should_import_even_if_sender_limit_is_reached() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::with_scoring(DummyScoring::always_insert(), Options {
+		max_count: 1,
+		max_per_sender: 1,
+		..Default::default()
+	});
+	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 1,
+		senders: 1,
+		mem_usage: 0,
+	});
+
+	// when
+	txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap();
+
+	// then
+	assert_eq!(txq.light_status(), LightStatus {
+		transaction_count: 2,
+		senders: 1,
+		mem_usage: 0,
+	});
+}
+
 mod listener {
 	use std::cell::RefCell;
 	use std::rc::Rc;

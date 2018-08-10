@@ -21,13 +21,12 @@ use std::collections::BTreeMap;
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
 
-use node_health::Health;
 use v1::types::{
 	H160, H256, H512, U256, U64, Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, DappId, ChainStatus,
+	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, RichHeader,
 };
 
@@ -38,7 +37,7 @@ build_rpc_trait! {
 
 		/// Returns accounts information.
 		#[rpc(name = "parity_accountsInfo")]
-		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>>;
+		fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>>;
 
 		/// Returns hardware accounts information.
 		#[rpc(name = "parity_hardwareAccountsInfo")]
@@ -49,8 +48,8 @@ build_rpc_trait! {
 		fn locked_hardware_accounts_info(&self) -> Result<Vec<String>>;
 
 		/// Returns default account for dapp.
-		#[rpc(meta, name = "parity_defaultAccount")]
-		fn default_account(&self, Self::Metadata) -> Result<H160>;
+		#[rpc(name = "parity_defaultAccount")]
+		fn default_account(&self) -> Result<H160>;
 
 		/// Returns current transactions limit.
 		#[rpc(name = "parity_transactionsLimit")]
@@ -217,11 +216,7 @@ build_rpc_trait! {
 		fn ipfs_cid(&self, Bytes) -> Result<String>;
 
 		/// Call contract, returning the output data.
-		#[rpc(meta, name = "parity_call")]
-		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>>;
-
-		/// Returns node's health report.
-		#[rpc(name = "parity_nodeHealth")]
-		fn node_health(&self) -> BoxFuture<Health>;
+		#[rpc(name = "parity_call")]
+		fn call(&self, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>>;
 	}
 }

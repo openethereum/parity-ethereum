@@ -29,7 +29,7 @@ use std::collections::hash_map::Entry;
 
 use transaction::{self, Condition, PendingTransaction, SignedTransaction};
 use ethereum_types::{H256, U256, Address};
-use plain_hasher::H256FastMap;
+use fastmap::H256FastMap;
 
 // Knowledge of an account's current nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]

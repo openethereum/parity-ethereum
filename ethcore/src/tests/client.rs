@@ -35,9 +35,9 @@ use views::BlockView;
 use ethkey::KeyPair;
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
-use rlp::{RlpStream, EMPTY_LIST_RLP};
 use tempdir::TempDir;
 use test_helpers;
+use verification::queue::kind::blocks::Unverified;
 
 #[test]
 fn imports_from_empty() {
@@ -97,7 +97,7 @@ fn imports_good_block() {
 		IoChannel::disconnected(),
 	).unwrap();
 	let good_block = get_good_dummy_block();
-	if client.import_block(good_block).is_err() {
+	if client.import_block(Unverified::from_rlp(good_block).unwrap()).is_err() {
 		panic!("error importing block being good by definition");
 	}
 	client.flush_queue();
@@ -105,24 +105,6 @@ fn imports_good_block() {
 
 	let block = client.block_header(BlockId::Number(1)).unwrap();
 	assert!(!block.into_inner().is_empty());
-}
-
-#[test]
-fn fails_to_import_block_with_invalid_rlp() {
-	use error::{BlockImportError, BlockImportErrorKind};
-
-	let client = generate_dummy_client(6);
-	let mut rlp = RlpStream::new_list(3);
-	rlp.append_raw(&EMPTY_LIST_RLP, 1); // empty header
-	rlp.append_raw(&EMPTY_LIST_RLP, 1);
-	rlp.append_raw(&EMPTY_LIST_RLP, 1);
-	let invalid_header_block = rlp.out();
-
-	match client.import_block(invalid_header_block) {
-		Err(BlockImportError(BlockImportErrorKind::Decoder(_), _)) => (), // all good
-		Err(_) => panic!("Should fail with a decoder error"),
-		Ok(_) => panic!("Should not import block with invalid header"),
-	}
 }
 
 #[test]
@@ -334,11 +316,11 @@ fn does_not_propagate_delayed_transactions() {
 
 	client.miner().import_own_transaction(&*client, tx0).unwrap();
 	client.miner().import_own_transaction(&*client, tx1).unwrap();
-	assert_eq!(0, client.ready_transactions(10).len());
+	assert_eq!(0, client.transactions_to_propagate().len());
 	assert_eq!(0, client.miner().ready_transactions(&*client, 10, PendingOrdering::Priority).len());
 	push_blocks_to_client(&client, 53, 2, 2);
 	client.flush_queue();
-	assert_eq!(2, client.ready_transactions(10).len());
+	assert_eq!(2, client.transactions_to_propagate().len());
 	assert_eq!(2, client.miner().ready_transactions(&*client, 10, PendingOrdering::Priority).len());
 }
 
@@ -373,8 +355,11 @@ fn transaction_proof() {
 	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.
 	let root = *client.best_block_header().state_root();
 
+	let machine = test_spec.engine.machine();
+	let env_info = client.latest_env_info();
+	let schedule = machine.schedule(env_info.number);
 	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
-	Executive::new(&mut state, &client.latest_env_info(), test_spec.engine.machine())
+	Executive::new(&mut state, &env_info, &machine, &schedule)
 		.transact(&transaction, TransactOptions::with_no_tracing().dont_check_nonce()).unwrap();
 
 	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());

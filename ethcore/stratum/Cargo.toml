@@ -11,11 +11,11 @@ keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-log = "0.3"
+log = "0.4"
 parking_lot = "0.6"
 
 [dev-dependencies]
-env_logger = "0.4"
+env_logger = "0.5"
 tokio-core = "0.1"
 tokio-io = "0.1"
 ethcore-logger = { path = "../../logger" }

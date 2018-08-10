@@ -57,7 +57,7 @@ fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,
-/// add to `contains_bugfix_hard_fork`
+/// add to `nonzero_bugfix_hard_fork`
 ///
 /// we define a "bugfix" hard fork as any hard fork which
 /// you would put on-by-default in a new chain.
@@ -115,6 +115,8 @@ pub struct CommonParams {
 	pub eip214_transition: BlockNumber,
 	/// Number of first block where EIP-145 rules begin.
 	pub eip145_transition: BlockNumber,
+	/// Number of first block where EIP-1052 rules begin.
+	pub eip1052_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -123,6 +125,8 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm activation blocknumber, if any disabled initially.
 	pub wasm_activation_transition: BlockNumber,
+	/// Number of first block where KIP-4 rules begin. Only has effect if Wasm is activated.
+	pub kip4_transition: BlockNumber,
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
@@ -135,6 +139,8 @@ pub struct CommonParams {
 	pub max_code_size_transition: BlockNumber,
 	/// Transaction permission managing contract address.
 	pub transaction_permission_contract: Option<Address>,
+	/// Block at which the transaction permission contract should start being used.
+	pub transaction_permission_contract_transition: BlockNumber,
 	/// Maximum size of transaction's RLP payload
 	pub max_transaction_size: usize,
 }
@@ -174,6 +180,7 @@ impl CommonParams {
 		schedule.have_static_call = block_number >= self.eip214_transition;
 		schedule.have_return_data = block_number >= self.eip211_transition;
 		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
+		schedule.have_extcodehash = block_number >= self.eip1052_transition;
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
 		}
@@ -184,17 +191,29 @@ impl CommonParams {
 			};
 		}
 		if block_number >= self.wasm_activation_transition {
-			schedule.wasm = Some(Default::default());
+			let mut wasm = ::vm::WasmCosts::default();
+			if block_number >= self.kip4_transition {
+				wasm.have_create2 = true;
+			}
+			schedule.wasm = Some(wasm);
 		}
 	}
 
-	/// Whether these params contain any bug-fix hard forks.
-	pub fn contains_bugfix_hard_fork(&self) -> bool {
-		self.eip98_transition != 0 && self.eip155_transition != 0 &&
-			self.validate_receipts_transition != 0 && self.eip86_transition != 0 &&
-			self.eip140_transition != 0 && self.eip210_transition != 0 &&
-			self.eip211_transition != 0 && self.eip214_transition != 0 &&
-			self.validate_chain_id_transition != 0 && self.dust_protection_transition != 0
+	/// Return Some if the current parameters contain a bugfix hard fork not on block 0.
+	pub fn nonzero_bugfix_hard_fork(&self) -> Option<&str> {
+		if self.eip155_transition != 0 {
+			return Some("eip155Transition");
+		}
+
+		if self.validate_receipts_transition != 0 {
+			return Some("validateReceiptsTransition");
+		}
+
+		if self.validate_chain_id_transition != 0 {
+			return Some("validateChainIdTransition");
+		}
+
+		None
 	}
 }
 
@@ -262,6 +281,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				BlockNumber::max_value,
 				Into::into,
 			),
+			eip1052_transition: p.eip1052_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
 			dust_protection_transition: p.dust_protection_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
@@ -275,7 +298,13 @@ impl From<ethjson::spec::Params> for CommonParams {
 			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
 			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
+			transaction_permission_contract_transition:
+				p.transaction_permission_contract_transition.map_or(0, Into::into),
 			wasm_activation_transition: p.wasm_activation_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into
+			),
+			kip4_transition: p.kip4_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into
 			),
@@ -623,7 +652,9 @@ impl Spec {
 				let mut substate = Substate::new();
 
 				{
-					let mut exec = Executive::new(&mut state, &env_info, self.engine.machine());
+					let machine = self.engine.machine();
+					let schedule = machine.schedule(env_info.number);
+					let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
 					if let Err(e) = exec.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}
@@ -944,7 +975,7 @@ mod tests {
 	use views::BlockView;
 	use tempdir::TempDir;
 
-	// https://github.com/paritytech/parity/issues/1840
+	// https://github.com/paritytech/parity-ethereum/issues/1840
 	#[test]
 	fn test_load_empty() {
 		let tempdir = TempDir::new("").unwrap();

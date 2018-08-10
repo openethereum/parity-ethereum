@@ -111,7 +111,7 @@ pub trait VerifiedTransaction: fmt::Debug {
 	type Hash: fmt::Debug + fmt::LowerHex + Eq + Clone + Hash;
 
 	/// Transaction sender type.
-	type Sender: fmt::Debug + Eq + Clone + Hash;
+	type Sender: fmt::Debug + Eq + Clone + Hash + Send;
 
 	/// Transaction hash
 	fn hash(&self) -> &Self::Hash;

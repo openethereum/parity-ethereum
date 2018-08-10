@@ -17,7 +17,7 @@
 //! Snapshot creation, restoration, and network service.
 //!
 //! Documentation of the format can be found at
-//! https://github.com/paritytech/parity/wiki/Warp-Sync-Snapshot-Format
+//! https://wiki.parity.io/Warp-Sync-Snapshot-Format
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

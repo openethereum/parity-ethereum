@@ -23,24 +23,6 @@ RUN /usr/local/android-ndk-r16b/build/tools/make-standalone-toolchain.sh \
     --arch=arm --install-dir=/opt/ndk-standalone --stl=libc++ --platform=android-26
 ENV PATH $PATH:/opt/ndk-standalone/bin
 
-# Compiling OpenSSL for Android
-RUN cd /root && \
-    git clone git://git.openssl.org/openssl.git && \
-    cd openssl && \
-    git checkout OpenSSL_1_1_0-stable
-ENV CROSS_SYSROOT /opt/ndk-standalone/sysroot
-RUN cd /root/openssl && \
-    ./Configure android-armeabi --cross-compile-prefix=arm-linux-androideabi- \
-    -static no-stdio no-ui \
-    -I/usr/local/android-ndk-r16b/sysroot/usr/include \
-    -I/usr/local/android-ndk-r16b/sysroot/usr/include/arm-linux-androideabi \
-    -L/usr/local/android-ndk-r16b/sysroot/usr/lib \
-    --prefix=/opt/ndk-standalone/sysroot/usr
-RUN cd /root/openssl && \
-    make build_libs && \
-    make install_dev
-RUN rm -rf /root/openssl
-
 # Compiling libudev for Android
 # This is the most hacky part of the process, as we need to apply a patch and pass specific
 # options that the compiler environment doesn't define.

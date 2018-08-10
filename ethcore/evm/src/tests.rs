@@ -746,6 +746,7 @@ fn test_calls(factory: super::Factory) {
 
 	assert_set_contains(&ext.calls, &FakeCall {
 		call_type: FakeCallType::Call,
+		create_scheme: None,
 		gas: U256::from(2556),
 		sender_address: Some(address.clone()),
 		receive_address: Some(code_address.clone()),
@@ -755,6 +756,7 @@ fn test_calls(factory: super::Factory) {
 	});
 	assert_set_contains(&ext.calls, &FakeCall {
 		call_type: FakeCallType::Call,
+		create_scheme: None,
 		gas: U256::from(2556),
 		sender_address: Some(address.clone()),
 		receive_address: Some(address.clone()),

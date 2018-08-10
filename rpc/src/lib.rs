@@ -43,7 +43,6 @@ extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
 
 extern crate ethash;
-#[cfg_attr(test, macro_use)]
 extern crate ethcore;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
@@ -60,7 +59,6 @@ extern crate ethkey;
 extern crate ethstore;
 extern crate fetch;
 extern crate keccak_hash as hash;
-extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
@@ -119,7 +117,7 @@ pub use http::{
 };
 
 pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer};
-pub use v1::block_import::is_major_importing;
+pub use v1::block_import::{is_major_importing, is_major_importing_or_waiting};
 pub use v1::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 pub use authcodes::{AuthCodes, TimeProvider};
 pub use http_common::HttpMetaExtractor;

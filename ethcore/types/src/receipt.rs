@@ -52,7 +52,10 @@ impl Receipt {
 	pub fn new(outcome: TransactionOutcome, gas_used: U256, logs: Vec<LogEntry>) -> Self {
 		Self {
 			gas_used,
-			log_bloom: logs.iter().fold(Bloom::default(), |b, l| b | l.bloom()),
+			log_bloom: logs.iter().fold(Bloom::default(), |mut b, l| {
+				b.accrue_bloom(&l.bloom());
+				b
+			}),
 			logs,
 			outcome,
 		}

@@ -99,7 +99,7 @@ use std::time::{Duration, Instant};
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
-use plain_hasher::H256FastMap;
+use fastmap::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
@@ -149,12 +149,6 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
 const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
-// Maximal number of transactions queried from miner to propagate.
-// This set is used to diff with transactions known by the peer and
-// we will send a difference of length up to `MAX_TRANSACTIONS_TO_PROPAGATE`.
-const MAX_TRANSACTIONS_TO_QUERY: usize = 4096;
-// Maximal number of transactions in sent in single packet.
-const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
@@ -767,14 +761,24 @@ impl ChainSync {
 						}
 					}
 
-					// Only ask for old blocks if the peer has a higher difficulty
-					if force || higher_difficulty {
+					// Only ask for old blocks if the peer has a higher difficulty than the last imported old block
+					let last_imported_old_block_difficulty = self.old_blocks.as_mut().and_then(|d| {
+						io.chain().block_total_difficulty(BlockId::Number(d.last_imported_block_number()))
+					});
+
+					if force || last_imported_old_block_difficulty.map_or(true, |ld| peer_difficulty.map_or(true, |pd| pd > ld)) {
 						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
 							return;
 						}
 					} else {
-						trace!(target: "sync", "peer {} is not suitable for asking old blocks", peer_id);
+						trace!(
+							target: "sync",
+							"peer {:?} is not suitable for requesting old blocks, last_imported_old_block_difficulty={:?}, peer_difficulty={:?}",
+							peer_id,
+							last_imported_old_block_difficulty,
+							peer_difficulty
+						);
 						self.deactivate_peer(io, peer_id);
 					}
 				},

@@ -95,7 +95,7 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 
 	fn push_cheapest_transaction(&mut self, tx: Transaction<T>, scoring: &S, max_count: usize) -> AddResult<Transaction<T>, S::Score> {
 		let index = self.transactions.len();
-		if index == max_count {
+		if index == max_count && !scoring.should_ignore_sender_limit(&tx) {
 			let min_score = self.scores[index - 1].clone();
 			AddResult::TooCheapToEnter(tx, min_score)
 		} else {

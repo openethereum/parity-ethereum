@@ -43,8 +43,6 @@ pub struct ExtendedHeader {
 	pub is_finalized: bool,
 	/// The parent block difficulty.
 	pub parent_total_difficulty: U256,
-	/// The block metadata information.
-	pub metadata: Option<Vec<u8>>,
 }
 
 /// A block header.
@@ -416,10 +414,6 @@ impl ::parity_machine::TotalScoredHeader for ExtendedHeader {
 
 impl ::parity_machine::FinalizableHeader for ExtendedHeader {
 	fn is_finalized(&self) -> bool { self.is_finalized }
-}
-
-impl ::parity_machine::WithMetadataHeader for ExtendedHeader {
-	fn metadata(&self) -> Option<&[u8]> { self.metadata.as_ref().map(|v| v.as_ref()) }
 }
 
 #[cfg(test)]

@@ -282,6 +282,12 @@ pub struct UnverifiedTransaction {
 	hash: H256,
 }
 
+impl HeapSizeOf for UnverifiedTransaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.unsigned.heap_size_of_children()
+	}
+}
+
 impl Deref for UnverifiedTransaction {
 	type Target = Transaction;
 
@@ -436,7 +442,7 @@ pub struct SignedTransaction {
 
 impl HeapSizeOf for SignedTransaction {
 	fn heap_size_of_children(&self) -> usize {
-		self.transaction.unsigned.heap_size_of_children()
+		self.transaction.heap_size_of_children()
 	}
 }
 

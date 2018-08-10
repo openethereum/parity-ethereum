@@ -14,107 +14,130 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::collections::BTreeMap;
 use std::time::Duration;
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::{Error, Visitor, MapAccess};
-use serde::de::value::MapAccessDeserializer;
-use serde_json::Value;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
 use journaldb::Algorithm;
-use ethcore::client::Mode;
+use ethcore::client::{Mode as ClientMode};
 
+#[derive(Clone)]
+pub struct Seconds(Duration);
+
+impl Seconds {
+	pub fn value(&self) -> u64 {
+		self.0.as_secs()
+	}
+}
+
+impl From<u64> for Seconds {
+	fn from(s: u64) -> Seconds {
+		Seconds(Duration::from_secs(s))
+	}
+}
+
+impl From<Duration> for Seconds {
+	fn from(d: Duration) -> Seconds {
+		Seconds(d)
+	}
+}
+
+impl Into<Duration> for Seconds {
+	fn into(self) -> Duration {
+		self.0
+	}
+}
+
+impl Serialize for Seconds {
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		serializer.serialize_u64(self.value())
+	}
+}
+
+impl<'de> Deserialize<'de> for Seconds {
+	fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		let secs = u64::deserialize(deserializer)?;
+		Ok(Seconds::from(secs))
+	}
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase", tag = "mode")]
+pub enum Mode {
+	Active,
+	Passive {
+		#[serde(rename = "mode.timeout")]
+		timeout: Seconds,
+		#[serde(rename = "mode.alarm")]
+		alarm: Seconds,
+	},
+	Dark {
+		#[serde(rename = "mode.timeout")]
+		timeout: Seconds,
+	},
+	Offline,
+}
+
+impl Into<ClientMode> for Mode {
+	fn into(self) -> ClientMode {
+		match self {
+			Mode::Active => ClientMode::Active,
+			Mode::Passive { timeout, alarm } => ClientMode::Passive(timeout.into(), alarm.into()),
+			Mode::Dark { timeout } => ClientMode::Dark(timeout.into()),
+			Mode::Offline => ClientMode::Off,
+		}
+	}
+}
+
+impl From<ClientMode> for Mode {
+	fn from(mode: ClientMode) -> Mode {
+		match mode {
+			ClientMode::Active => Mode::Active,
+			ClientMode::Passive(timeout, alarm) => Mode::Passive { timeout: timeout.into(), alarm: alarm.into() },
+			ClientMode::Dark(timeout) => Mode::Dark { timeout: timeout.into() },
+			ClientMode::Off => Mode::Offline,
+		}
+	}
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct UserDefaults {
 	pub is_first_launch: bool,
+	#[serde(with = "algorithm_serde")]
 	pub pruning: Algorithm,
 	pub tracing: bool,
 	pub fat_db: bool,
-	pub mode: Mode,
+	#[serde(flatten)]
+	mode: Mode,
 }
 
-impl Serialize for UserDefaults {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl UserDefaults {
+	pub fn mode(&self) -> ClientMode {
+		self.mode.clone().into()
+	}
+
+	pub fn set_mode(&mut self, mode: ClientMode) {
+		self.mode = mode.into();
+	}
+}
+
+mod algorithm_serde {
+	use serde::{Deserialize, Deserializer, Serialize, Serializer};
+	use serde::de::Error;
+	use journaldb::Algorithm;
+
+	pub fn serialize<S>(algorithm: &Algorithm, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		let mut map: BTreeMap<String, Value> = BTreeMap::new();
-		map.insert("is_first_launch".into(), Value::Bool(self.is_first_launch));
-		map.insert("pruning".into(), Value::String(self.pruning.as_str().into()));
-		map.insert("tracing".into(), Value::Bool(self.tracing));
-		map.insert("fat_db".into(), Value::Bool(self.fat_db));
-		let mode_str = match self.mode {
-			Mode::Off => "offline",
-			Mode::Dark(timeout) => {
-				map.insert("mode.timeout".into(), Value::Number(timeout.as_secs().into()));
-				"dark"
-			},
-			Mode::Passive(timeout, alarm) => {
-				map.insert("mode.timeout".into(), Value::Number(timeout.as_secs().into()));
-				map.insert("mode.alarm".into(), Value::Number(alarm.as_secs().into()));
-				"passive"
-			},
-			Mode::Active => "active",
-		};
-		map.insert("mode".into(), Value::String(mode_str.into()));
-
-		map.serialize(serializer)
-	}
-}
-
-struct UserDefaultsVisitor;
-
-impl<'a> Deserialize<'a> for UserDefaults {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer<'a> {
-		deserializer.deserialize_any(UserDefaultsVisitor)
-	}
-}
-
-impl<'a> Visitor<'a> for UserDefaultsVisitor {
-	type Value = UserDefaults;
-
-	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		write!(formatter, "a valid UserDefaults object")
+		algorithm.as_str().serialize(serializer)
 	}
 
-	fn visit_map<V>(self, visitor: V) -> Result<Self::Value, V::Error> where V: MapAccess<'a> {
-		let mut map: BTreeMap<String, Value> = Deserialize::deserialize(MapAccessDeserializer::new(visitor))?;
-		let pruning: Value = map.remove("pruning").ok_or_else(|| Error::custom("missing pruning"))?;
-		let pruning = pruning.as_str().ok_or_else(|| Error::custom("invalid pruning value"))?;
-		let pruning = pruning.parse().map_err(|_| Error::custom("invalid pruning method"))?;
-		let tracing: Value = map.remove("tracing").ok_or_else(|| Error::custom("missing tracing"))?;
-		let tracing = tracing.as_bool().ok_or_else(|| Error::custom("invalid tracing value"))?;
-		let fat_db: Value = map.remove("fat_db").unwrap_or_else(|| Value::Bool(false));
-		let fat_db = fat_db.as_bool().ok_or_else(|| Error::custom("invalid fat_db value"))?;
-
-		let mode: Value = map.remove("mode").unwrap_or_else(|| Value::String("active".to_owned()));
-		let mode = match mode.as_str().ok_or_else(|| Error::custom("invalid mode value"))? {
-			"offline" => Mode::Off,
-			"dark" => {
-				let timeout = map.remove("mode.timeout").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value"))?;
-				Mode::Dark(Duration::from_secs(timeout))
-			},
-			"passive" => {
-				let timeout = map.remove("mode.timeout").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value"))?;
-				let alarm = map.remove("mode.alarm").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.alarm value"))?;
-				Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))
-			},
-			"active" => Mode::Active,
-			_ => { return Err(Error::custom("invalid mode value")); },
-		};
-
-		let user_defaults = UserDefaults {
-			is_first_launch: false,
-			pruning: pruning,
-			tracing: tracing,
-			fat_db: fat_db,
-			mode: mode,
-		};
-
-		Ok(user_defaults)
+	pub fn deserialize<'de, D>(deserializer: D) -> Result<Algorithm, D::Error>
+	where D: Deserializer<'de> {
+		let pruning = String::deserialize(deserializer)?;
+		pruning.parse().map_err(|_| Error::custom("invalid pruning method"))
 	}
 }
 

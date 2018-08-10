@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-log = "0.3"
+log = "0.4"
 macros = { path = "../macros" }
 kvdb = { git = "https://github.com/paritytech/parity-common" }
 kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
