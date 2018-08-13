@@ -543,39 +543,39 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Get the value of storage at last checkpoint.
-	pub fn last_checkpoint_storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
-		if let Some(ref checkpoint) = self.checkpoints.borrow().last() {
-			if let Some(entry) = checkpoint.get(address) {
+	pub fn checkpoint_storage_at(&self, checkpoint_index: usize, address: &Address, key: &H256) -> TrieResult<Option<H256>> {
+		if let Some(ref checkpoint) = self.checkpoints.borrow().get(checkpoint_index) {
+			Ok(Some(if let Some(entry) = checkpoint.get(address) {
 				match entry {
 					Some(entry) => {
 						match entry.account {
 							Some(ref account) => {
 								if let Some(value) = account.cached_storage_at(key) {
-									Ok(value)
+									value
 								} else {
 									// This key has checkpoint entry, but not in the entry's cache.
 									// So it's not modified at all.
-									self.original_storage_at(address, key)
+									self.original_storage_at(address, key)?
 								}
 							},
 							None => {
 								// The account didn't exist at that point. Return empty value.
-								Ok(H256::new())
+								H256::new()
 							},
 						}
 					},
 					None => {
 						// The value was not cached at that checkpoint, meaning it was not modified.
-						self.original_storage_at(address, key)
+						self.original_storage_at(address, key)?
 					},
 				}
 			} else {
 				// This key does not have a checkpoint entry. We use the current value.
-				self.storage_at(address, key)
-			}
+				self.storage_at(address, key)?
+			}))
 		} else {
-			// No checkpoint has been found. We use the current value.
-			self.storage_at(address, key)
+			// The checkpoint was not found. Return None.
+			Ok(None)
 		}
 	}
 
