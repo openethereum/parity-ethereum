@@ -189,7 +189,10 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: 
 				opts_lens.push(s.to_bytes().len());
 				jni_strings.push(s);
 			},
-			Err(_) => panic!()		// TODO:
+			Err(err) => {
+				let _ = env.throw_new("java/lang/Exception", err.to_string());
+				0
+			}
 		};
 	}
 
