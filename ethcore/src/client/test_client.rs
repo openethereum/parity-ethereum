@@ -94,6 +94,8 @@ pub struct TestBlockChainClient {
 	pub receipts: RwLock<HashMap<TransactionId, LocalizedReceipt>>,
 	/// Logs
 	pub logs: RwLock<Vec<LocalizedLogEntry>>,
+	/// Should return errors on logs.
+	pub error_on_logs: RwLock<Option<BlockId>>,
 	/// Block queue size.
 	pub queue_size: AtomicUsize,
 	/// Miner
@@ -178,6 +180,7 @@ impl TestBlockChainClient {
 			traces: RwLock::new(None),
 			history: RwLock::new(None),
 			disabled: AtomicBool::new(false),
+			error_on_logs: RwLock::new(None),
 		};
 
 		// insert genesis hash.
@@ -231,6 +234,11 @@ impl TestBlockChainClient {
 	/// Set logs to return for each logs call.
 	pub fn set_logs(&self, logs: Vec<LocalizedLogEntry>) {
 		*self.logs.write() = logs;
+	}
+
+	/// Set return errors on logs.
+	pub fn set_error_on_logs(&self, val: Option<BlockId>) {
+		*self.error_on_logs.write() = val;
 	}
 
 	/// Add blocks to test client.
@@ -665,13 +673,18 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
+		match self.error_on_logs.read().as_ref() {
+			Some(id) => return Err(id.clone()),
+			None => (),
+		}
+
 		let mut logs = self.logs.read().clone();
 		let len = logs.len();
-		match filter.limit {
+		Ok(match filter.limit {
 			Some(limit) if limit <= len => logs.split_off(len - limit),
 			_ => logs,
-		}
+		})
 	}
 
 	fn last_hashes(&self) -> LastHashes {

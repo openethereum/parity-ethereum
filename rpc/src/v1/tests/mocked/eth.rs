@@ -234,6 +234,15 @@ fn rpc_eth_logs() {
 }
 
 #[test]
+fn rpc_eth_logs_error() {
+	let tester = EthTester::default();
+	tester.client.set_error_on_logs(Some(BlockId::Hash(H256::from([5u8].as_ref()))));
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{"limit":1,"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"One of the blocks specified in filter (fromBlock, toBlock or blockHash) cannot be found","data":"0x0500000000000000000000000000000000000000000000000000000000000000"},"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_logs_filter() {
 	let tester = EthTester::default();
 	// Set some logs
