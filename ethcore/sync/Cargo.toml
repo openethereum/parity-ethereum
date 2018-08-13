@@ -8,6 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
+common-types = { path = "../types" }
 parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
