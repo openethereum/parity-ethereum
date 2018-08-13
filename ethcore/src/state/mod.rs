@@ -401,9 +401,12 @@ impl<B: Backend> State<B> {
 		self.factories.vm.clone()
 	}
 
-	/// Create a recoverable checkpoint of this state.
-	pub fn checkpoint(&mut self) {
-		self.checkpoints.get_mut().push(HashMap::new());
+	/// Create a recoverable checkpoint of this state. Return the checkpoint index.
+	pub fn checkpoint(&mut self) -> usize {
+		let checkpoints = self.checkpoints.get_mut();
+		let index = checkpoints.len();
+		checkpoints.push(HashMap::new());
+		index
 	}
 
 	/// Merge last checkpoint with previous.
