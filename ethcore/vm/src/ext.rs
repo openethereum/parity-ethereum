@@ -63,7 +63,7 @@ pub enum CreateContractAddress {
 
 /// Externalities interface for EVMs
 pub trait Ext {
-	/// Returns the storage value for a given key if reversion happens.
+	/// Returns the storage value for a given key if reversion happens on the current transaction.
 	fn reverted_storage_at(&self, key: &H256) -> Result<H256>;
 
 	/// Returns a value for given key.
