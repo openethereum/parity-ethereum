@@ -30,7 +30,7 @@ use test_helpers::get_temp_state;
 use ethjson;
 use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};
-use bytes::{Bytes, BytesRef};
+use bytes::Bytes;
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
@@ -90,7 +90,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
-		output: OutputPolicy<'a, 'a>,
+		output: OutputPolicy,
 		address: Address,
 		tracer: &'a mut T,
 		vm_tracer: &'a mut V,
@@ -154,7 +154,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		value: Option<U256>,
 		data: &[u8],
 		_code_address: &Address,
-		_output: &mut [u8],
 		_call_type: CallType
 	) -> MessageCallResult {
 		self.callcreates.push(CallCreate {
@@ -262,7 +261,6 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 		let mut substate = Substate::new();
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
-		let mut output = vec![];
 		let vm_factory = state.vm_factory();
 
 		// execute
@@ -276,7 +274,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				0,
 				OriginInfo::from(&params),
 				&mut substate,
-				OutputPolicy::Return(BytesRef::Flexible(&mut output), None),
+				OutputPolicy::Return,
 				params.address.clone(),
 				&mut tracer,
 				&mut vm_tracer,
@@ -286,6 +284,11 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
 			(res.finalize(ex), callcreates)
+		};
+
+		let output = match &res {
+			Ok(res) => res.return_data.to_vec(),
+			Err(_) => Vec::new(),
 		};
 
 		let log_hash = {
