@@ -149,8 +149,9 @@ impl Pending {
 	// if the requests are complete, send the result and consume self.
 	fn try_complete(self) -> Option<Self> {
 		if self.requests.is_complete() {
-			self.sender.send(self.responses).map_err(|_|())
-				.expect("Non used one shot channel");
+			if self.sender.send(self.responses).is_err() {
+				debug!(target: "on_demand", "Dropped oneshot channel receiver on complet request");
+			}
 			None
 		} else {
 			Some(self)
@@ -190,8 +191,9 @@ impl Pending {
 	// self is consumed on purpose.
 	fn no_response(self) {
 		trace!(target: "on_demand", "Dropping a pending query (no reply)");
-		self.sender.send(Vec::with_capacity(0)).map_err(|_|())
-			.expect("Non used one shot channel");
+		if self.sender.send(Vec::with_capacity(0)).is_err() {
+			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
+		}
 	}
 }
 
@@ -255,7 +257,7 @@ impl<T: request::RequestAdapter> Future for OnResponses<T> {
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		match self.receiver.poll() {
 			Ok(Async::Ready(v)) => {
-				if v.len() == 0 {
+				if v.is_empty() {
 					return Err(Canceled);
 				}
 				Ok(Async::Ready(T::extract_from(v)))
