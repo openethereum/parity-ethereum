@@ -89,7 +89,7 @@ fn test_blockhash_eip210(factory: Factory) {
 	let mut substate = Substate::new();
 	let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer);
 	let output = match res {
-		Ok(res) => H256::from(&res.return_data[0..32]),
+		Ok(res) => H256::from(&res.return_data[..32]),
 		Err(e) => {
 			panic!("Encountered error on getting last hash: {}", e);
 		},
