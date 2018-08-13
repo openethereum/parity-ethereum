@@ -9,7 +9,7 @@ parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethereum-types = "0.3"
 patricia-trie = { git = "https://github.com/paritytech/parity-common" }
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
-log = "0.3"
+log = "0.4"
 common-types = { path = "../types" }
 ethjson = { path = "../../json" }
 rlp = { git = "https://github.com/paritytech/parity-common" }

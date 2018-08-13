@@ -23,13 +23,11 @@ use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
-use ethcore::views::BlockView;
-use ethcore::header::{BlockNumber, Header as BlockHeader};
+use ethcore::header::BlockNumber;
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
-use ethcore::block::Block;
 use ethcore::error::{ImportErrorKind, BlockError};
 use sync_io::SyncIo;
-use blocks::BlockCollection;
+use blocks::{BlockCollection, SyncBody, SyncHeader};
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
 const MAX_BODIES_TO_REQUEST: usize = 32;
@@ -237,45 +235,39 @@ impl BlockDownloader {
 		let mut valid_response = item_count == 0; //empty response is valid
 		let mut any_known = false;
 		for i in 0..item_count {
-			let info: BlockHeader = r.val_at(i).map_err(|e| {
-				trace!(target: "sync", "Error decoding block header RLP: {:?}", e);
-				BlockDownloaderImportError::Invalid
-			})?;
-			let number = BlockNumber::from(info.number());
+			let info = SyncHeader::from_rlp(r.at(i)?.as_raw().to_vec())?;
+			let number = BlockNumber::from(info.header.number());
+			let hash = info.header.hash();
 			// Check if any of the headers matches the hash we requested
 			if !valid_response {
 				if let Some(expected) = expected_hash {
-					valid_response = expected == info.hash()
+					valid_response = expected == hash;
 				}
 			}
-			any_known = any_known || self.blocks.contains_head(&info.hash());
-			if self.blocks.contains(&info.hash()) {
-				trace!(target: "sync", "Skipping existing block header {} ({:?})", number, info.hash());
+			any_known = any_known || self.blocks.contains_head(&hash);
+			if self.blocks.contains(&hash) {
+				trace!(target: "sync", "Skipping existing block header {} ({:?})", number, hash);
 				continue;
 			}
 
 			if self.highest_block.as_ref().map_or(true, |n| number > *n) {
 				self.highest_block = Some(number);
 			}
-			let hash = info.hash();
-			let hdr = r.at(i).map_err(|e| {
-				trace!(target: "sync", "Error decoding block header RLP: {:?}", e);
-				BlockDownloaderImportError::Invalid
-			})?;
+
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain | BlockStatus::Queued => {
 					match self.state {
 						State::Blocks => trace!(target: "sync", "Header already in chain {} ({})", number, hash),
 						_ => trace!(target: "sync", "Header already in chain {} ({}), state = {:?}", number, hash, self.state),
 					}
-					headers.push(hdr.as_raw().to_vec());
+					headers.push(info);
 					hashes.push(hash);
 				},
 				BlockStatus::Bad => {
 					return Err(BlockDownloaderImportError::Invalid);
 				},
 				BlockStatus::Unknown | BlockStatus::Pending => {
-					headers.push(hdr.as_raw().to_vec());
+					headers.push(info);
 					hashes.push(hash);
 				}
 			}
@@ -326,19 +318,15 @@ impl BlockDownloader {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
-		}
-		else if self.state != State::Blocks {
+		} else if self.state != State::Blocks {
 			trace!(target: "sync", "Ignored unexpected block bodies");
-		}
-		else {
+		} else {
 			let mut bodies = Vec::with_capacity(item_count);
 			for i in 0..item_count {
-				let body = r.at(i).map_err(|e| {
-					trace!(target: "sync", "Error decoding block boides RLP: {:?}", e);
-					BlockDownloaderImportError::Invalid
-				})?;
-				bodies.push(body.as_raw().to_vec());
+				let body = SyncBody::from_rlp(r.at(i)?.as_raw())?;
+				bodies.push(body);
 			}
+
 			if self.blocks.insert_bodies(bodies) != item_count {
 				trace!(target: "sync", "Deactivating peer for giving invalid block bodies");
 				return Err(BlockDownloaderImportError::Invalid);
@@ -484,17 +472,9 @@ impl BlockDownloader {
 			let block = block_and_receipts.block;
 			let receipts = block_and_receipts.receipts;
 
-			// Perform basic block verification
-			if !Block::is_good(&block) {
-				debug!(target: "sync", "Bad block rlp: {:?}", block);
-				bad = true;
-				break;
-			}
-
-			let (h, number, parent) = {
-				let header = view!(BlockView, &block).header_view();
-				(header.hash(), header.number(), header.parent_hash())
-			};
+			let h = block.header.hash();
+			let number = block.header.number();
+			let parent = *block.header.parent_hash();
 
 			if self.target_hash.as_ref().map_or(false, |t| t == &h) {
 				self.state = State::Complete;

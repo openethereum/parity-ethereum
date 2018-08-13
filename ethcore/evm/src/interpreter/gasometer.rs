@@ -143,6 +143,9 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			instructions::EXTCODESIZE => {
 				Request::Gas(Gas::from(schedule.extcodesize_gas))
 			},
+			instructions::EXTCODEHASH => {
+				Request::Gas(Gas::from(schedule.extcodehash_gas))
+			},
 			instructions::SUICIDE => {
 				let mut gas = Gas::from(schedule.suicide_gas);
 
@@ -225,7 +228,11 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let gas = Gas::from(schedule.create_gas);
-				let mem = mem_needed(stack.peek(1), stack.peek(2))?;
+				let mem = match instruction {
+					instructions::CREATE => mem_needed(stack.peek(1), stack.peek(2))?,
+					instructions::CREATE2 => mem_needed(stack.peek(2), stack.peek(3))?,
+					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
+				};
 
 				Request::GasMemProvide(gas, mem, None)
 			},

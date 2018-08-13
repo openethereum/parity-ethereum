@@ -16,8 +16,8 @@
 
 //! Block verification utilities.
 
-pub mod verification;
-pub mod verifier;
+mod verification;
+mod verifier;
 pub mod queue;
 mod canon_verifier;
 mod noop_verifier;

@@ -1,0 +1,10 @@
+[package]
+name = "fastmap"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "Specialized version of `HashMap` with H256 keys and fast hashing function."
+license = "GPL-3.0"
+
+[dependencies]
+ethereum-types = "0.3"
+plain_hasher = { git = "https://github.com/paritytech/parity-common" }

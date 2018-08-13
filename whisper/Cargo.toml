@@ -12,7 +12,7 @@ ethcore-network = { path = "../util/network" }
 parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 ethkey = { path = "../ethkey" }
 hex = "0.2"
-log = "0.3"
+log = "0.4"
 mem = { path = "../util/mem" }
 ordered-float = "0.5"
 parking_lot = "0.6"

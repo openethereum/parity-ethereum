@@ -34,6 +34,7 @@ use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use transaction::{self, LocalizedTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
+use verification::queue::kind::blocks::Unverified;
 use state::StateInfo;
 use header::Header;
 use engines::EthEngine;
@@ -167,7 +168,7 @@ pub trait RegistryInfo {
 /// Provides methods to import block into blockchain
 pub trait ImportBlock {
 	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
+	fn import_block(&self, block: Unverified) -> Result<H256, BlockImportError>;
 }
 
 /// Provides `call_contract` method
@@ -204,7 +205,7 @@ pub trait IoClient: Sync + Send {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
-	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
+	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Queue conensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
@@ -296,8 +297,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get the registrar address, if it exists.
 	fn additional_params(&self) -> BTreeMap<String, String>;
 
-	/// Returns logs matching given filter.
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
+	/// Returns logs matching given filter. If one of the filtering block cannot be found, returns the block id that caused the error.
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId>;
 
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
@@ -320,8 +321,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
 
-	/// List all transactions that are allowed into the next block.
-	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>>;
+	/// List all ready transactions that should be propagated to other peers.
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {

@@ -68,7 +68,7 @@ extern crate keccak_hasher;
 extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate patricia_trie_ethereum as ethtrie;
-extern crate plain_hasher;
+extern crate fastmap;
 extern crate rand;
 extern crate rlp;
 extern crate parking_lot;

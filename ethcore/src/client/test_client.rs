@@ -53,6 +53,7 @@ use spec::Spec;
 use types::basic_account::BasicAccount;
 use types::pruning_info::PruningInfo;
 use verification::queue::QueueInfo;
+use verification::queue::kind::blocks::Unverified;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use executive::Executed;
 use error::CallError;
@@ -93,6 +94,8 @@ pub struct TestBlockChainClient {
 	pub receipts: RwLock<HashMap<TransactionId, LocalizedReceipt>>,
 	/// Logs
 	pub logs: RwLock<Vec<LocalizedLogEntry>>,
+	/// Should return errors on logs.
+	pub error_on_logs: RwLock<Option<BlockId>>,
 	/// Block queue size.
 	pub queue_size: AtomicUsize,
 	/// Miner
@@ -177,6 +180,7 @@ impl TestBlockChainClient {
 			traces: RwLock::new(None),
 			history: RwLock::new(None),
 			disabled: AtomicBool::new(false),
+			error_on_logs: RwLock::new(None),
 		};
 
 		// insert genesis hash.
@@ -232,6 +236,11 @@ impl TestBlockChainClient {
 		*self.logs.write() = logs;
 	}
 
+	/// Set return errors on logs.
+	pub fn set_error_on_logs(&self, val: Option<BlockId>) {
+		*self.error_on_logs.write() = val;
+	}
+
 	/// Add blocks to test client.
 	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().len();
@@ -280,7 +289,8 @@ impl TestBlockChainClient {
 			rlp.append(&header);
 			rlp.append_raw(&txs, 1);
 			rlp.append_raw(uncles.as_raw(), 1);
-			self.import_block(rlp.as_raw().to_vec()).unwrap();
+			let unverified = Unverified::from_rlp(rlp.out()).unwrap();
+			self.import_block(unverified).unwrap();
 		}
 	}
 
@@ -512,8 +522,8 @@ impl RegistryInfo for TestBlockChainClient {
 }
 
 impl ImportBlock for TestBlockChainClient {
-	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
-		let header = view!(BlockView, &b).header();
+	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
+		let header = unverified.header;
 		let h = header.hash();
 		let number: usize = header.number() as usize;
 		if number > self.blocks.read().len() {
@@ -539,7 +549,7 @@ impl ImportBlock for TestBlockChainClient {
 				*difficulty = *difficulty + header.difficulty().clone();
 			}
 			mem::replace(&mut *self.last_hash.write(), h.clone());
-			self.blocks.write().insert(h.clone(), b);
+			self.blocks.write().insert(h.clone(), unverified.bytes);
 			self.numbers.write().insert(number, h.clone());
 			let mut parent_hash = header.parent_hash().clone();
 			if number > 0 {
@@ -552,7 +562,7 @@ impl ImportBlock for TestBlockChainClient {
 			}
 		}
 		else {
-			self.blocks.write().insert(h.clone(), b.to_vec());
+			self.blocks.write().insert(h.clone(), unverified.bytes);
 		}
 		Ok(h)
 	}
@@ -663,13 +673,18 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
+		match self.error_on_logs.read().as_ref() {
+			Some(id) => return Err(id.clone()),
+			None => (),
+		}
+
 		let mut logs = self.logs.read().clone();
 		let len = logs.len();
-		match filter.limit {
+		Ok(match filter.limit {
 			Some(limit) if limit <= len => logs.split_off(len - limit),
 			_ => logs,
-		}
+		})
 	}
 
 	fn last_hashes(&self) -> LastHashes {
@@ -805,8 +820,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.traces.read().clone()
 	}
 
-	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
-		self.miner.ready_transactions(self, max_len, miner::PendingOrdering::Priority)
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>> {
+		self.miner.ready_transactions(self, 4096, miner::PendingOrdering::Priority)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }
@@ -856,8 +871,8 @@ impl IoClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn queue_ancient_block(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
-		self.import_block(b)
+	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(unverified)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {

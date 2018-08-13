@@ -51,13 +51,13 @@ pub enum MessageCallResult {
 }
 
 /// Specifies how an address is calculated for a new contract.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum CreateContractAddress {
-	/// Address is calculated from nonce and sender. Pre EIP-86 (Metropolis)
+	/// Address is calculated from sender and nonce. Pre EIP-86 (Metropolis)
 	FromSenderAndNonce,
-	/// Address is calculated from code hash. Default since EIP-86
-	FromCodeHash,
-	/// Address is calculated from code hash and sender. Used by CREATE_P2SH instruction.
+	/// Address is calculated from sender, salt and code hash. EIP-86 CREATE2 scheme.
+	FromSenderSaltAndCodeHash(H256),
+	/// Address is calculated from code hash and sender. Used by pwasm create ext.
 	FromSenderAndCodeHash,
 }
 
@@ -105,10 +105,13 @@ pub trait Ext {
 	) -> MessageCallResult;
 
 	/// Returns code at given address
-	fn extcode(&self, address: &Address) -> Result<Arc<Bytes>>;
+	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>>;
+
+	/// Returns code hash at given address
+	fn extcodehash(&self, address: &Address) -> Result<Option<H256>>;
 
 	/// Returns code size at given address
-	fn extcodesize(&self, address: &Address) -> Result<usize>;
+	fn extcodesize(&self, address: &Address) -> Result<Option<usize>>;
 
 	/// Creates log entry with given topics and data
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> Result<()>;

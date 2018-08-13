@@ -24,7 +24,7 @@ futures-cpupool = "0.1"
 heapsize = "0.4"
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 linked-hash-map = "0.5"
-log = "0.3"
+log = "0.4"
 parking_lot = "0.6"
 price-info = { path = "../price-info", optional = true }
 rlp = { git = "https://github.com/paritytech/parity-common" }
@@ -32,7 +32,7 @@ trace-time = { path = "../util/trace-time" }
 transaction-pool = { path = "../transaction-pool" }
 
 [dev-dependencies]
-env_logger = "0.4"
+env_logger = "0.5"
 ethkey = { path = "../ethkey" }
 rustc-hex = "1.0"
 

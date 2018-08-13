@@ -139,7 +139,7 @@ impl EthereumMachine {
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
 			code: state.code(&contract_address)?,
-			code_hash: Some(state.code_hash(&contract_address)?),
+			code_hash: state.code_hash(&contract_address)?,
 			data: data,
 			call_type: CallType::Call,
 			params_type: ParamsType::Separate,
@@ -313,12 +313,8 @@ impl EthereumMachine {
 	}
 
 	/// Returns new contract address generation scheme at given block number.
-	pub fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
-		if number >= self.params().eip86_transition {
-			CreateContractAddress::FromCodeHash
-		} else {
-			CreateContractAddress::FromSenderAndNonce
-		}
+	pub fn create_address_scheme(&self, _number: BlockNumber) -> CreateContractAddress {
+		CreateContractAddress::FromSenderAndNonce
 	}
 
 	/// Verify a particular transaction is valid, regardless of order.
@@ -350,7 +346,7 @@ impl EthereumMachine {
 		-> Result<(), transaction::Error>
 	{
 		if let Some(ref filter) = self.tx_filter.as_ref() {
-			if !filter.transaction_allowed(header.parent_hash(), t, client) {
+			if !filter.transaction_allowed(header.parent_hash(), header.number(), t, client) {
 				return Err(transaction::Error::NotAllowed.into())
 			}
 		}

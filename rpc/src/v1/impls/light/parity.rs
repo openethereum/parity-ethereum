@@ -43,7 +43,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, DappId, ChainStatus,
+	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, Header, RichHeader,
 };
 use Host;
@@ -57,7 +57,6 @@ pub struct ParityClient {
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
-	eip86_transition: u64,
 	gas_price_percentile: usize,
 }
 
@@ -80,7 +79,6 @@ impl ParityClient {
 			settings,
 			signer,
 			ws_address,
-			eip86_transition: client.eip86_transition(),
 			client,
 			gas_price_percentile,
 		}
@@ -101,13 +99,10 @@ impl ParityClient {
 impl Parity for ParityClient {
 	type Metadata = Metadata;
 
-	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>> {
-		let dapp = dapp.unwrap_or_default();
-
+	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
 		let store = &self.accounts;
 		let dapp_accounts = store
-			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| store.dapp_addresses(dapp.into()))
+			.accounts()
 			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
@@ -138,10 +133,9 @@ impl Parity for ParityClient {
 		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
 	}
 
-	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
-		let dapp_id = meta.dapp_id();
+	fn default_account(&self) -> Result<H160> {
 		Ok(self.accounts
-			.dapp_addresses(dapp_id.into())
+			.accounts()
 			.ok()
 			.and_then(|accounts| accounts.get(0).cloned())
 			.map(|acc| acc.into())
@@ -264,7 +258,7 @@ impl Parity for ParityClient {
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
 				.take(limit.unwrap_or_else(usize::max_value))
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -279,7 +273,7 @@ impl Parity for ParityClient {
 			current
 				.into_iter()
 				.chain(future.into_iter())
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -290,7 +284,7 @@ impl Parity for ParityClient {
 		Ok(
 			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -425,7 +419,7 @@ impl Parity for ParityClient {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+	fn call(&self, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		Err(errors::light_unimplemented(None))
 	}
 }

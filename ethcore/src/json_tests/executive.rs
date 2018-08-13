@@ -165,12 +165,16 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> vm::Result<Arc<Bytes>>  {
+	fn extcode(&self, address: &Address) -> vm::Result<Option<Arc<Bytes>>>  {
 		self.ext.extcode(address)
 	}
 
-	fn extcodesize(&self, address: &Address) -> vm::Result<usize> {
+	fn extcodesize(&self, address: &Address) -> vm::Result<Option<usize>> {
 		self.ext.extcodesize(address)
+	}
+
+	fn extcodehash(&self, address: &Address) -> vm::Result<Option<H256>> {
+		self.ext.extcodehash(address)
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
@@ -275,8 +279,8 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(&params, schedule.wasm.is_some());
-			let res = evm.exec(params, &mut ex);
+			let mut evm = vm_factory.create(params, &schedule, 0);
+			let res = evm.exec(&mut ex);
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
 			(res.finalize(ex), callcreates)

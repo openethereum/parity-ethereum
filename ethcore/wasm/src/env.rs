@@ -17,6 +17,7 @@
 //! Env module glue for wasmi interpreter
 
 use std::cell::RefCell;
+use vm::WasmCosts;
 use wasmi::{
 	self, Signature, Error, FuncRef, FuncInstance, MemoryDescriptor,
 	MemoryRef, MemoryInstance, memory_units,
@@ -47,6 +48,7 @@ pub mod ids {
 	pub const SENDER_FUNC: usize = 190;
 	pub const ORIGIN_FUNC: usize = 200;
 	pub const ELOG_FUNC: usize = 210;
+	pub const CREATE2_FUNC: usize = 220;
 
 	pub const PANIC_FUNC: usize = 1000;
 	pub const DEBUG_FUNC: usize = 1010;
@@ -125,6 +127,11 @@ pub mod signatures {
 		Some(I32),
 	);
 
+	pub const CREATE2: StaticSignature = StaticSignature(
+		&[I32, I32, I32, I32, I32],
+		Some(I32),
+	);
+
 	pub const SUICIDE: StaticSignature = StaticSignature(
 		&[I32],
 		None,
@@ -195,18 +202,21 @@ fn host(signature: signatures::StaticSignature, idx: usize) -> FuncRef {
 /// Maps all functions that runtime support to the corresponding contract import
 /// entries.
 /// Also manages initial memory request from the runtime.
-#[derive(Default)]
 pub struct ImportResolver {
 	max_memory: u32,
 	memory: RefCell<Option<MemoryRef>>,
+
+	have_create2: bool,
 }
 
 impl ImportResolver {
 	/// New import resolver with specifed maximum amount of inital memory (in wasm pages = 64kb)
-	pub fn with_limit(max_memory: u32) -> ImportResolver {
+	pub fn with_limit(max_memory: u32, schedule: &WasmCosts) -> ImportResolver {
 		ImportResolver {
 			max_memory: max_memory,
 			memory: RefCell::new(None),
+
+			have_create2: schedule.have_create2,
 		}
 	}
 
@@ -263,6 +273,7 @@ impl wasmi::ModuleImportResolver for ImportResolver {
 			"sender" => host(signatures::SENDER, ids::SENDER_FUNC),
 			"origin" => host(signatures::ORIGIN, ids::ORIGIN_FUNC),
 			"elog" => host(signatures::ELOG, ids::ELOG_FUNC),
+			"create2" if self.have_create2 => host(signatures::CREATE2, ids::CREATE2_FUNC),
 			_ => {
 				return Err(wasmi::Error::Instantiation(
 					format!("Export {} not found", field_name),

@@ -70,9 +70,6 @@ const PROPAGATE_TIMEOUT_INTERVAL: Duration = Duration::from_secs(5);
 const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
 const RECALCULATE_COSTS_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
-/// Max number of transactions in a single packet.
-const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
-
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
 
@@ -648,7 +645,7 @@ impl LightProtocol {
 	fn propagate_transactions(&self, io: &IoContext) {
 		if self.capabilities.read().tx_relay { return }
 
-		let ready_transactions = self.provider.ready_transactions(MAX_TRANSACTIONS_TO_PROPAGATE);
+		let ready_transactions = self.provider.transactions_to_propagate();
 		if ready_transactions.is_empty() { return }
 
 		trace!(target: "pip", "propagate transactions: {} ready", ready_transactions.len());

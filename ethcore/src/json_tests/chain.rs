@@ -17,12 +17,12 @@
 use std::path::Path;
 use std::sync::Arc;
 use client::{EvmTestClient, Client, ClientConfig, ChainInfo, ImportBlock};
-use block::Block;
 use spec::Genesis;
 use ethjson;
 use miner::Miner;
 use io::IoChannel;
 use test_helpers;
+use verification::queue::kind::blocks::Unverified;
 
 use super::HookType;
 
@@ -83,9 +83,9 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					Arc::new(Miner::new_for_tests(&spec, None)),
 					IoChannel::disconnected(),
 				).unwrap();
-				for b in &blockchain.blocks_rlp() {
-					if Block::is_good(&b) {
-						let _ = client.import_block(b.clone());
+				for b in blockchain.blocks_rlp() {
+					if let Ok(block) = Unverified::from_rlp(b) {
+						let _ = client.import_block(block);
 						client.flush_queue();
 						client.import_verified_blocks();
 					}

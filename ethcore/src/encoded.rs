@@ -222,6 +222,11 @@ impl Block {
 
 	/// Consume the view and return the raw bytes.
 	pub fn into_inner(self) -> Vec<u8> { self.0 }
+
+	/// Returns the reference to slice of bytes
+	pub fn raw(&self) -> &[u8] {
+		&self.0
+	}
 }
 
 // forwarders to borrowed header view.

@@ -67,19 +67,10 @@ impl WorkPoster {
 	}
 }
 
-/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
-fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-	if *difficulty <= U256::one() {
-		U256::max_value().into()
-	} else {
-		(((U256::one() << 255) / *difficulty) << 1).into()
-	}
-}
-
 impl NotifyWork for WorkPoster {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
 		// TODO: move this to engine
-		let target = difficulty_to_boundary(&difficulty);
+		let target = ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = &self.seed_compute.lock().hash_block_number(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		let body = format!(

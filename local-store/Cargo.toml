@@ -9,7 +9,7 @@ ethcore = { path = "../ethcore" }
 ethcore-io = { path = "../util/io" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 kvdb = { git = "https://github.com/paritytech/parity-common" }
-log = "0.3"
+log = "0.4"
 rlp = { git = "https://github.com/paritytech/parity-common" }
 serde = "1.0"
 serde_derive = "1.0"

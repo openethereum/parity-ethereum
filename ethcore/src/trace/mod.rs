@@ -49,15 +49,21 @@ pub trait Tracer: Send {
 	type Output;
 
 	/// Prepares call trace for given params. Noop tracer should return None.
+	///
+	/// This is called before a call has been executed.
 	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call>;
 
 	/// Prepares create trace for given params. Noop tracer should return None.
+	///
+	/// This is called before a create has been executed.
 	fn prepare_trace_create(&self, params: &ActionParams) -> Option<Create>;
 
 	/// Prepare trace output. Noop tracer should return None.
 	fn prepare_trace_output(&self) -> Option<Bytes>;
 
 	/// Stores trace call info.
+	///
+	/// This is called after a call has completed successfully.
 	fn trace_call(
 		&mut self,
 		call: Option<Call>,
@@ -67,6 +73,8 @@ pub trait Tracer: Send {
 	);
 
 	/// Stores trace create info.
+	///
+	/// This is called after a create has completed successfully.
 	fn trace_create(
 		&mut self,
 		create: Option<Create>,
@@ -77,9 +85,13 @@ pub trait Tracer: Send {
 	);
 
 	/// Stores failed call trace.
+	///
+	/// This is called after a call has completed erroneously.
 	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<Self::Output>, error: TraceError);
 
 	/// Stores failed create trace.
+	///
+	/// This is called after a create has completed erroneously.
 	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<Self::Output>, error: TraceError);
 
 	/// Stores suicide info.
