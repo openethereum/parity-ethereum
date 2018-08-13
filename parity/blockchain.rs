@@ -180,6 +180,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
@@ -202,6 +203,24 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 	config.queue.verifier_settings = cmd.verifier_settings;
 
+	// initialize snapshot restoration db handler
+	let tracing = false;
+	let fat_db = false;
+	let client_config = to_client_config(
+		&cmd.cache_config,
+		spec.name.to_lowercase(),
+		Mode::Active,
+		tracing,
+		fat_db,
+		cmd.compaction,
+		cmd.vm_type,
+		/*name: */"".into(),
+		algorithm,
+		cmd.pruning_history,
+		cmd.pruning_memory,
+		cmd.check_seal,
+	);
+	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
 	// initialize database.
 	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
@@ -209,11 +228,10 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 
 	// TODO: could epoch signals be avilable at the end of the file?
 	let fetch = ::light::client::fetch::unavailable();
-	let service = LightClientService::start(config, &spec, fetch, db, cache)
-		.map_err(|e| format!("Failed to start client: {}", e))?;
-
-	// free up the spec in memory.
-	drop(spec);
+	let service = LightClientService::start(
+		config, spec, fetch, db, cache,
+		restoration_db_handler, &snapshot_path,
+	).map_err(|e| format!("Failed to start client: {}", e))?;
 
 	let client = service.client();
 

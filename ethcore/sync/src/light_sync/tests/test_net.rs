@@ -24,6 +24,7 @@ use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 
 use ethcore::client::TestBlockChainClient;
 use ethcore::spec::Spec;
+use super::super::WarpSync;
 use io::IoChannel;
 use kvdb_memorydb;
 use light::client::fetch::{self, Unavailable};
@@ -110,7 +111,7 @@ impl Peer {
 
 	// create a new light-client peer to sync to full peers.
 	pub fn new_light(chain: Arc<LightClient>) -> Self {
-		let sync = Arc::new(LightSync::new(chain.clone()).unwrap());
+		let sync = Arc::new(LightSync::new(chain.clone(), WarpSync::Disabled).unwrap());
 		let params = LightParams {
 			network_id: NETWORK_ID,
 			config: Default::default(),

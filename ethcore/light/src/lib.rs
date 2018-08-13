@@ -84,8 +84,11 @@ extern crate kvdb;
 extern crate memory_cache;
 #[macro_use]
 extern crate error_chain;
+extern crate snappy;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate tempdir;
+#[cfg(test)]
+extern crate kvdb_rocksdb;

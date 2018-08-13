@@ -204,7 +204,8 @@ pub fn fetch_gas_price_corpus(
 	let eventual_corpus = sync.with_context(|ctx| {
 		// get some recent headers with gas used,
 		// and request each of the blocks from the network.
-		let block_requests = client.ancestry_iter(BlockId::Latest)
+		let ancestry_iter = client.ancestry_iter();
+		let block_requests = ancestry_iter.iter(BlockId::Latest)
 			.filter(|hdr| hdr.gas_used() != U256::default())
 			.take(GAS_PRICE_SAMPLE_SIZE)
 			.map(|hdr| request::Body(hdr.into()))

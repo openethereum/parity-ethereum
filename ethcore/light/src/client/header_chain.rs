@@ -190,6 +190,7 @@ pub struct PendingChanges {
 }
 
 /// Whether or not the hardcoded sync feature is allowed.
+#[derive(Clone, Debug, Copy)]
 pub enum HardcodedSync {
 	Allow,
 	Deny,
@@ -352,10 +353,10 @@ impl HeaderChain {
 		header: Header,
 		transition_proof: Option<Vec<u8>>,
 	) -> Result<PendingChanges, BlockImportError> {
-		self.insert_inner(transaction, header, None, transition_proof)
+		self.insert_inner(transaction, header, None, transition_proof, true)
 	}
 
-	/// Insert a pre-verified header, with a known total difficulty. Similary to `insert`.
+	/// Insert a pre-verified header, with a known total difficulty. Similarly to `insert`.
 	///
 	/// This blindly trusts that the data given to it is sensible.
 	pub fn insert_with_td(
@@ -365,15 +366,16 @@ impl HeaderChain {
 		total_difficulty: U256,
 		transition_proof: Option<Vec<u8>>,
 	) -> Result<PendingChanges, BlockImportError> {
-		self.insert_inner(transaction, header, Some(total_difficulty), transition_proof)
+		self.insert_inner(transaction, header, Some(total_difficulty), transition_proof, true)
 	}
 
-	fn insert_inner(
+	pub(super) fn insert_inner(
 		&self,
 		transaction: &mut DBTransaction,
 		header: Header,
 		total_difficulty: Option<U256>,
 		transition_proof: Option<Vec<u8>>,
+		allow_producing_cht: bool,
 	) -> Result<PendingChanges, BlockImportError> {
 		let hash = header.hash();
 		let number = header.number();
@@ -451,15 +453,24 @@ impl HeaderChain {
 		// reorganize ancestors so canonical entries are first in their
 		// respective candidates vectors.
 		if is_new_best {
+			const PROOF: &str = "blocks are only inserted if parent is present; \
+								or this is the block we just added; qed";
 			let mut canon_hash = hash;
 			for (&height, entry) in candidates.iter_mut().rev().skip_while(|&(height, _)| *height > number) {
-				if height != number && entry.canonical_hash == canon_hash { break; }
+				// If we're disallowing producing chts, then blocks are inserted in arbitrary order
+				// and our assumption in the `PROOF` doesn't hold.
+				if !allow_producing_cht ||
+					(height != number && entry.canonical_hash == canon_hash) {
+					break;
+				}
 
-				trace!(target: "chain", "Setting new canonical block {} for block height {}",
-					canon_hash, height);
+				trace!(
+					target: "chain", "Setting new canonical block {} for block height {}",
+					canon_hash, height
+				);
 
 				let canon_pos = entry.candidates.iter().position(|x| x.hash == canon_hash)
-					.expect("blocks are only inserted if parent is present; or this is the block we just added; qed");
+					.expect(PROOF);
 
 				// move the new canonical entry to the front and set the
 				// era's canonical hash.
@@ -485,65 +496,10 @@ impl HeaderChain {
 			});
 
 			// produce next CHT root if it's time.
-			let earliest_era = *candidates.keys().next().expect("at least one era just created; qed");
-			if earliest_era + HISTORY + cht::SIZE <= number {
-				let cht_num = cht::block_to_cht_number(earliest_era)
-					.expect("fails only for number == 0; genesis never imported; qed");
-
-				let mut last_canonical_transition = None;
-				let cht_root = {
-					let mut i = earliest_era;
-					let mut live_epoch_proofs = self.live_epoch_proofs.write();
-
-					// iterable function which removes the candidates as it goes
-					// along. this will only be called until the CHT is complete.
-					let iter = || {
-						let era_entry = candidates.remove(&i)
-							.expect("all eras are sequential with no gaps; qed");
-						transaction.delete(self.col, era_key(i).as_bytes());
-
-						i += 1;
-
-						// prune old blocks and epoch proofs.
-						for ancient in &era_entry.candidates {
-							let maybe_transition = live_epoch_proofs.remove(&ancient.hash);
-							if let Some(epoch_transition) = maybe_transition {
-								transaction.delete(self.col, &*transition_key(ancient.hash));
-
-								if ancient.hash == era_entry.canonical_hash {
-									last_canonical_transition = match self.db.get(self.col, &ancient.hash) {
-										Err(e) => {
-											warn!(target: "chain", "Error reading from DB: {}\n
-												", e);
-											None
-										}
-										Ok(None) => panic!("stored candidates always have corresponding headers; qed"),
-										Ok(Some(header)) => Some((
-											epoch_transition,
-											::rlp::decode(&header).expect("decoding value from db failed")
-										)),
-									};
-								}
-							}
-
-							transaction.delete(self.col, &ancient.hash);
-						}
-
-						let canon = &era_entry.candidates[0];
-						(canon.hash, canon.total_difficulty)
-					};
-					cht::compute_root(cht_num, ::itertools::repeat_call(iter))
-						.expect("fails only when too few items; this is checked; qed")
-				};
-
-				// write the CHT root to the database.
-				debug!(target: "chain", "Produced CHT {} root: {:?}", cht_num, cht_root);
-				transaction.put(self.col, cht_key(cht_num).as_bytes(), &::rlp::encode(&cht_root));
-
-				// update the last canonical transition proof
-				if let Some((epoch_transition, header)) = last_canonical_transition {
-					let x = encode_canonical_transition(&header, &epoch_transition.proof);
-					transaction.put_vec(self.col, LAST_CANONICAL_TRANSITION, x);
+			if allow_producing_cht {
+				let earliest_era = *candidates.keys().next().expect("at least one era just created; qed");
+				if earliest_era + HISTORY + cht::SIZE <= number  {
+					self.produce_next_cht_root(earliest_era, &mut candidates, transaction);
 				}
 			}
 		}
@@ -555,6 +511,69 @@ impl HeaderChain {
 			transaction.put(self.col, CURRENT_KEY, &::rlp::encode(&curr))
 		}
 		Ok(pending)
+	}
+
+	fn produce_next_cht_root(
+		&self,
+		from_era: u64,
+		candidates: &mut BTreeMap<u64, Entry>,
+		transaction: &mut DBTransaction,
+	) {
+		let cht_num = cht::block_to_cht_number(from_era)
+			.expect("fails only for number == 0; genesis never imported; qed");
+
+		let mut last_canonical_transition = None;
+		let cht_root = {
+			let mut i = from_era;
+			let mut live_epoch_proofs = self.live_epoch_proofs.write();
+
+			// iterable function which removes the candidates as it goes
+			// along. this will only be called until the CHT is complete.
+			let iter = || {
+				let era_entry = candidates.remove(&i)
+					.expect("all eras are sequential with no gaps; qed");
+				transaction.delete(self.col, era_key(i).as_bytes());
+
+				i += 1;
+
+				// prune old blocks and epoch proofs.
+				for ancient in &era_entry.candidates {
+					let maybe_transition = live_epoch_proofs.remove(&ancient.hash);
+					if let Some(epoch_transition) = maybe_transition {
+						transaction.delete(self.col, &*transition_key(ancient.hash));
+
+						if ancient.hash == era_entry.canonical_hash {
+							last_canonical_transition = match self.db.get(self.col, &ancient.hash) {
+								Err(e) => {
+									warn!(target: "chain", "Error reading from DB: {}", e);
+									None
+								}
+								Ok(None) => panic!("stored candidates always have corresponding headers; qed"),
+								Ok(Some(header)) => Some((epoch_transition, ::rlp::decode(&header))),
+							};
+						}
+					}
+
+					transaction.delete(self.col, &ancient.hash);
+				}
+
+				let canon = &era_entry.candidates[0];
+				(canon.hash, canon.total_difficulty)
+			};
+			cht::compute_root(cht_num, ::itertools::repeat_call(iter))
+				.expect("fails only when too few items; this is checked; qed")
+		};
+
+		// write the CHT root to the database.
+		debug!(target: "chain", "Produced CHT {} root: {:?}", cht_num, cht_root);
+		transaction.put(self.col, cht_key(cht_num).as_bytes(), &::rlp::encode(&cht_root));
+
+		// update the last canonical transition proof
+		if let Some((epoch_transition, header)) = last_canonical_transition {
+			let header = header.expect("headers from db are always decodable; qed");
+			let x = encode_canonical_transition(&header, &epoch_transition.proof);
+			transaction.put_vec(self.col, LAST_CANONICAL_TRANSITION, x);
+		}
 	}
 
 	/// Generates the specifications for hardcoded sync. This is typically only called manually
@@ -748,6 +767,11 @@ impl HeaderChain {
 	/// Get the genesis hash.
 	pub fn genesis_hash(&self) -> H256 {
 		self.genesis_header.hash()
+	}
+
+	/// Get the genesis header.
+	pub(super) fn genesis_header(&self) -> encoded::Header {
+		self.genesis_header.clone()
 	}
 
 	/// Get the best block's data.

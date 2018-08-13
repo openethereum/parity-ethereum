@@ -20,7 +20,10 @@
 //! The secondary chunks in this instance are 30,000 "abridged blocks" from the head
 //! of the chain, which serve as an indication of valid chain.
 
-use super::{SnapshotComponents, Rebuilder, ChunkSink};
+use super::{
+	SnapshotComponents, RestorationTargetChain,
+	RebuilderFactory, Rebuilder, ChunkSink
+};
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -75,10 +78,12 @@ impl SnapshotComponents for PowSnapshot {
 			preferred_size: preferred_size,
 		}.chunk_all(self.blocks)
 	}
+}
 
+impl RebuilderFactory for PowSnapshot {
 	fn rebuilder(
 		&self,
-		chain: BlockChain,
+		chain: Box<RestorationTargetChain>,
 		db: Arc<BlockChainDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error> {
@@ -106,7 +111,7 @@ impl<'a> PowWorker<'a> {
 		let mut loaded_size = 0;
 		let mut last = self.current_hash;
 
-		let genesis_hash = self.chain.genesis_hash();
+		let genesis_hash = RestorationTargetChain::genesis_hash(self.chain);
 
 		for _ in 0..snapshot_blocks {
 			if self.current_hash == genesis_hash { break }
@@ -154,7 +159,7 @@ impl<'a> PowWorker<'a> {
 	fn write_chunk(&mut self, last: H256) -> Result<(), Error> {
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
 
-		let (last_header, last_details) = self.chain.block_header_data(&last)
+		let (last_header, last_details) = BlockProvider::block_header_data(self.chain, &last)
 			.and_then(|n| self.chain.block_details(&last).map(|d| (n, d)))
 			.ok_or(Error::BlockNotFound(last))?;
 
@@ -189,7 +194,7 @@ impl<'a> PowWorker<'a> {
 ///
 /// After all chunks have been submitted, we "glue" the chunks together.
 pub struct PowRebuilder {
-	chain: BlockChain,
+	chain: Box<RestorationTargetChain>,
 	db: Arc<KeyValueDB>,
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
@@ -202,7 +207,12 @@ pub struct PowRebuilder {
 
 impl PowRebuilder {
 	/// Create a new PowRebuilder.
-	fn new(chain: BlockChain, db: Arc<KeyValueDB>, manifest: &ManifestData, snapshot_blocks: u64) -> Result<Self, ::error::Error> {
+	fn new(
+		chain: Box<RestorationTargetChain>,
+		db: Arc<KeyValueDB>,
+		manifest: &ManifestData,
+		snapshot_blocks: u64
+	) -> Result<Self, ::error::Error> {
 		Ok(PowRebuilder {
 			chain: chain,
 			db: db,
@@ -232,7 +242,7 @@ impl Rebuilder for PowRebuilder {
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", num_blocks);
 
 		if self.fed_blocks + num_blocks > self.snapshot_blocks {
-			return Err(Error::TooManyBlocks(self.snapshot_blocks, self.fed_blocks + num_blocks).into())
+			bail!(Error::TooManyBlocks(self.snapshot_blocks, self.fed_blocks + num_blocks))
 		}
 
 		// todo: assert here that these values are consistent with chunks being in order.
@@ -241,7 +251,7 @@ impl Rebuilder for PowRebuilder {
 		let parent_total_difficulty = rlp.val_at::<U256>(2)?;
 
 		for idx in 3..item_count {
-			if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
+			if !abort_flag.load(Ordering::SeqCst) { bail!(Error::RestorationAborted) }
 
 			let pair = rlp.at(idx)?;
 			let abridged_rlp = pair.at(0)?.as_raw().to_owned();
@@ -255,11 +265,11 @@ impl Rebuilder for PowRebuilder {
 
 			if is_best {
 				if block.header.hash() != self.best_hash {
-					return Err(Error::WrongBlockHash(cur_number, self.best_hash, block.header.hash()).into())
+					bail!(Error::WrongBlockHash(cur_number, self.best_hash, block.header.hash()))
 				}
 
 				if block.header.state_root() != &self.best_root {
-					return Err(Error::WrongStateRoot(self.best_root, *block.header.state_root()).into())
+					bail!(Error::WrongStateRoot(self.best_root, *block.header.state_root()))
 				}
 			}
 
@@ -267,7 +277,7 @@ impl Rebuilder for PowRebuilder {
 				&mut self.rng,
 				&block.header,
 				engine,
-				&self.chain,
+				&*self.chain,
 				is_best
 			)?;
 
@@ -310,11 +320,14 @@ impl Rebuilder for PowRebuilder {
 		}
 
 		let genesis_hash = self.chain.genesis_hash();
-		self.chain.insert_epoch_transition(&mut batch, 0, ::engines::EpochTransition {
-			block_number: 0,
-			block_hash: genesis_hash,
-			proof: vec![],
-		});
+		self.chain.insert_epoch_transition(
+			&mut batch, self.chain.genesis_header(),
+			::engines::EpochTransition {
+				block_number: 0,
+				block_hash: genesis_hash,
+				proof: vec![],
+			}
+		);
 
 		self.db.write_buffered(batch);
 		Ok(())

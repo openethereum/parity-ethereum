@@ -175,7 +175,7 @@ pub fn restore(
 	let mut state = StateRebuilder::new(db.key_value().clone(), journaldb::Algorithm::Archive);
 	let mut secondary = {
 		let chain = BlockChain::new(Default::default(), genesis, db.clone());
-		components.rebuilder(chain, db, manifest).unwrap()
+		components.rebuilder(Box::new(chain), db, manifest).unwrap()
 	};
 
 	let mut snappy_buffer = Vec::new();

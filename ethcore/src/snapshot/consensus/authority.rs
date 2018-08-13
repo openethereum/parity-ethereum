@@ -19,7 +19,10 @@
 //!
 //! The chunks here contain state proofs of transitions, along with validator proofs.
 
-use super::{SnapshotComponents, Rebuilder, ChunkSink};
+use super::{
+	SnapshotComponents, RestorationTargetChain,
+	RebuilderFactory, Rebuilder, ChunkSink
+};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -75,7 +78,7 @@ impl SnapshotComponents for PoaSnapshot {
 				break
 			}
 
-			let header = chain.block_header_data(&transition.block_hash)
+			let header = BlockProvider::block_header_data(chain, &transition.block_hash)
 				.ok_or(Error::BlockNotFound(transition.block_hash))?;
 
 			let entry = {
@@ -123,10 +126,12 @@ impl SnapshotComponents for PoaSnapshot {
 
 		Ok(())
 	}
+}
 
+impl RebuilderFactory for PoaSnapshot {
 	fn rebuilder(
 		&self,
-		chain: BlockChain,
+		chain: Box<RestorationTargetChain>,
 		db: Arc<BlockChainDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error> {
@@ -163,7 +168,7 @@ fn write_chunk(last: bool, chunk_data: &mut Vec<Bytes>, sink: &mut ChunkSink) ->
 struct ChunkRebuilder {
 	manifest: ManifestData,
 	warp_target: Option<Header>,
-	chain: BlockChain,
+	chain: Box<RestorationTargetChain>,
 	db: Arc<KeyValueDB>,
 	had_genesis: bool,
 
@@ -203,7 +208,7 @@ impl ChunkRebuilder {
 					Some(ref last) =>
 						if last.check_finality_proof(finality_proof).map_or(true, |hashes| !hashes.contains(&hash))
 					{
-						return Err(Error::BadEpochProof(header.number()).into());
+						bail!(Error::BadEpochProof(header.number()));
 					},
 					None if header.number() != 0 => {
 						// genesis never requires additional validation.
@@ -256,13 +261,13 @@ impl Rebuilder for ChunkRebuilder {
 		};
 
 		if num_transitions == 0 && !is_last_chunk {
-			return Err(Error::WrongChunkFormat("Found non-last chunk without any data.".into()).into());
+			bail!(Error::WrongChunkFormat("Found non-last chunk without any data.".into()));
 		}
 
 		let mut last_verifier = None;
 		let mut last_number = None;
 		for transition_rlp in rlp.iter().skip(1).take(num_transitions).with_position() {
-			if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
+			if !abort_flag.load(Ordering::SeqCst) { bail!(Error::RestorationAborted) }
 
 			let (is_first, is_last) = match transition_rlp {
 				Position::First(_) => (true, false),
@@ -279,7 +284,7 @@ impl Rebuilder for ChunkRebuilder {
 			)?;
 
 			if last_number.map_or(false, |num| verified.header.number() <= num) {
-				return Err(Error::WrongChunkFormat("Later epoch transition in earlier or same block.".into()).into());
+				bail!(Error::WrongChunkFormat("Later epoch transition in earlier or same block.".into()));
 			}
 
 			last_number = Some(verified.header.number());
@@ -290,7 +295,7 @@ impl Rebuilder for ChunkRebuilder {
 				// but it doesn't need verification later.
 				if verified.header.number() == 0 {
 					if verified.header.hash() != self.chain.genesis_hash() {
-						return Err(Error::WrongBlockHash(0, verified.header.hash(), self.chain.genesis_hash()).into());
+						bail!(Error::WrongBlockHash(0, verified.header.hash(), self.chain.genesis_hash()));
 					}
 
 					self.had_genesis = true;
@@ -310,8 +315,10 @@ impl Rebuilder for ChunkRebuilder {
 
 			// write epoch transition into database.
 			let mut batch = self.db.transaction();
-			self.chain.insert_epoch_transition(&mut batch, verified.header.number(),
-				verified.epoch_transition);
+			self.chain.insert_epoch_transition(
+				&mut batch, verified.header.clone(),
+				verified.epoch_transition
+			);
 			self.db.write_buffered(batch);
 
 			trace!(target: "snapshot", "Verified epoch transition for epoch at block {}", verified.header.number());
@@ -333,7 +340,7 @@ impl Rebuilder for ChunkRebuilder {
 				let hash = block.header.hash();
 				let best_hash = self.manifest.block_hash;
 				if hash != best_hash {
-					return Err(Error::WrongBlockHash(block.header.number(), best_hash, hash).into())
+					bail!(Error::WrongBlockHash(block.header.number(), best_hash, hash))
 				}
 			}
 
@@ -351,12 +358,12 @@ impl Rebuilder for ChunkRebuilder {
 
 	fn finalize(&mut self, _engine: &EthEngine) -> Result<(), ::error::Error> {
 		if !self.had_genesis {
-			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
+			bail!(Error::WrongChunkFormat("No genesis transition included.".into()));
 		}
 
 		let target_header = match self.warp_target.take() {
 			Some(x) => x,
-			None => return Err(Error::WrongChunkFormat("Warp target block not included.".into()).into()),
+			None => bail!(Error::WrongChunkFormat("Warp target block not included.".into())),
 		};
 
 		// verify the first entries of chunks we couldn't before.
@@ -368,7 +375,7 @@ impl Rebuilder for ChunkRebuilder {
 			while let Some(&(ref last_header, ref last_verifier)) = lasts_reversed.next() {
 				if last_header.number() < header.number() {
 					if last_verifier.check_finality_proof(&finality_proof).map_or(true, |hashes| !hashes.contains(&hash)) {
-						return Err(Error::BadEpochProof(header.number()).into());
+						bail!(Error::BadEpochProof(header.number()));
 					}
 					found = true;
 					break;
@@ -376,7 +383,7 @@ impl Rebuilder for ChunkRebuilder {
 			}
 
 			if !found {
-				return Err(Error::WrongChunkFormat("Inconsistent chunk ordering.".into()).into());
+				bail!(Error::WrongChunkFormat("Inconsistent chunk ordering.".into()));
 			}
 		}
 

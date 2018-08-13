@@ -1275,9 +1275,9 @@ impl Client {
 	}
 }
 
-impl snapshot::DatabaseRestore for Client {
+impl snapshot::DatabaseRestore<snapshot::FullNodeRestorationParams> for Client {
 	/// Restart the client with a new backend
-	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError> {
+	fn restore_db(&self, new_db: &str, _: &snapshot::FullNodeRestorationParams) -> Result<(), EthcoreError> {
 		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
 
 		let _import_lock = self.importer.import_lock.lock();

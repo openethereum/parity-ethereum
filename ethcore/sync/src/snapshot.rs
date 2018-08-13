@@ -27,6 +27,7 @@ pub enum ChunkType {
 	Block(H256),
 }
 
+#[derive(Default, Debug)]
 pub struct Snapshot {
 	pending_state_chunks: Vec<H256>,
 	pending_block_chunks: Vec<H256>,
@@ -35,19 +36,21 @@ pub struct Snapshot {
 	snapshot_hash: Option<H256>,
 	bad_hashes: HashSet<H256>,
 	initialized: bool,
+	/// Whether to ignore state chunks.
+	is_light: bool,
 }
 
 impl Snapshot {
 	/// Create a new instance.
 	pub fn new() -> Snapshot {
+		Default::default()
+	}
+
+	/// Create a new light instance.
+	pub fn new_light() -> Snapshot {
 		Snapshot {
-			pending_state_chunks: Vec::new(),
-			pending_block_chunks: Vec::new(),
-			downloading_chunks: HashSet::new(),
-			completed_chunks: HashSet::new(),
-			snapshot_hash: None,
-			bad_hashes: HashSet::new(),
-			initialized: false,
+			is_light: true,
+			..Default::default()
 		}
 	}
 
@@ -88,7 +91,9 @@ impl Snapshot {
 	/// Reset collection for a manifest RLP
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
-		self.pending_state_chunks = manifest.state_hashes.clone();
+		if !self.is_light {
+			self.pending_state_chunks = manifest.state_hashes.clone();
+		}
 		self.pending_block_chunks = manifest.block_hashes.clone();
 		self.snapshot_hash = Some(hash.clone());
 	}

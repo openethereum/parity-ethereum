@@ -59,7 +59,7 @@ pub enum AbortReason {
 
 // A request for headers with a known starting header hash.
 // and a known parent hash for the last block.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 struct SubchainRequest {
 	subchain_parent: (u64, H256),
 	headers_request: HeadersRequest,
@@ -84,6 +84,7 @@ impl Ord for SubchainRequest {
 }
 
 /// Manages downloading of interior blocks of a sparse header chain.
+#[derive(Debug)]
 pub struct Fetcher {
 	sparse: VecDeque<Header>, // sparse header chain.
 	requests: BinaryHeap<SubchainRequest>,
@@ -316,6 +317,7 @@ fn scaffold_params(diff: u64) -> (u64, u64) {
 /// If the sync target is within ROUND_SKIP of the start, we request
 /// only those blocks. If the sync target is within (ROUND_SKIP + 1) * (ROUND_PIVOTS - 1) of
 /// the start, we reduce the number of pivots so the target is outside it.
+#[derive(Debug)]
 pub struct RoundStart {
 	start_block: (u64, H256),
 	target: (u64, H256),

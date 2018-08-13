@@ -214,24 +214,53 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		sync: sync_handle.clone(),
 	};
 
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 	// initialize database.
-	let db = db::open_db(&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
+	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
 						 &cmd.compaction).map_err(|e| format!("Failed to open database {:?}", e))?;
 
-	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
-		.map_err(|e| format!("Error starting light client: {}", e))?;
-	let client = service.client().clone();
-	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
-	let provider = ::light::provider::LightProvider::new(client.clone(), txq.clone());
+	// initialize snapshot restoration db handler
+	let mode = mode_switch_to_bool(cmd.mode, &user_defaults)?;
+	let tracing = false;
+	let fat_db = false;
+	let client_config = to_client_config(
+		&cmd.cache_config,
+		spec.name.to_lowercase(),
+		mode,
+		tracing,
+		fat_db,
+		cmd.compaction,
+		cmd.vm_type,
+		cmd.name,
+		algorithm,
+		cmd.pruning_history,
+		cmd.pruning_memory,
+		cmd.check_seal,
+	);
+	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
 
-	// start network.
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
+	// copy spec params
+	let network_id = spec.network_id();
+	let engine_supports_warp_sync = spec.engine.supports_warp();
+	let data_dir = spec.data_dir.clone();
 
+	let service = light_client::Service::start(
+		config, spec, fetch, db, cache.clone(),
+		restoration_db_handler, &snapshot_path,
+	).map_err(|e| format!("Error starting light client: {}", e))?;
+
+	let client = service.client().clone();
+	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
+	let provider = ::light::provider::LightProvider::new(client.clone(), txq.clone());
+
+	// start network.
 	let mut attached_protos = Vec::new();
 	let whisper_factory = if cmd.whisper.enabled {
 		let whisper_factory = ::whisper::setup(cmd.whisper.target_message_pool_size, &mut attached_protos)
@@ -246,12 +275,20 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let sync_params = LightSyncParams {
 		network_config: net_conf.into_basic().map_err(|e| format!("Failed to produce network config: {}", e))?,
 		client: Arc::new(provider),
-		network_id: cmd.network_id.unwrap_or(spec.network_id()),
+		network_id: cmd.network_id.unwrap_or(network_id),
 		subprotocol_name: sync::LIGHT_PROTOCOL,
 		handlers: vec![on_demand.clone()],
 		attached_protos: attached_protos,
 	};
-	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
+
+	let warp_sync = match (engine_supports_warp_sync && cmd.warp_sync, cmd.warp_barrier) {
+		(true, Some(block)) => sync::WarpSync::OnlyAndAfter(block),
+		(true, _) => sync::WarpSync::Enabled,
+		_ => sync::WarpSync::Disabled,
+	};
+
+	let light_sync = LightSync::new(sync_params, warp_sync, service.snapshot_service())
+		.map_err(|e| format!("Error starting network: {}", e))?;
 	let light_sync = Arc::new(light_sync);
 	*sync_handle.write() = Arc::downgrade(&light_sync);
 
@@ -279,7 +316,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
-	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
+	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &data_dir, cmd.acc_conf, &passwords)?);
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 
 	// the dapps server
@@ -332,18 +369,20 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 			sync: light_sync.clone(),
 			cache: cache,
 		},
-		None,
+		Some(service.snapshot_service()),
 		Some(rpc_stats),
 		cmd.logger_config.color,
 	));
 	service.add_notify(informant.clone());
 	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
+	let service = Arc::new(service);
 	Ok(RunningClient {
 		inner: RunningClientInner::Light {
 			rpc: rpc_direct,
 			informant,
 			client,
+			client_service: service.clone(),
 			keep_alive: Box::new((event_loop, service, ws_server, http_server, ipc_server)),
 		}
 	})
@@ -823,6 +862,7 @@ enum RunningClientInner {
 		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<rpc_apis::LightClientNotifier>>,
 		informant: Arc<Informant<LightNodeInformantData>>,
 		client: Arc<LightClient>,
+		client_service: Arc<::light::client::Service<::light_helpers::EpochFetch>>,
 		keep_alive: Box<Any>,
 	},
 	Full {
@@ -856,10 +896,13 @@ impl RunningClient {
 	/// Shuts down the client.
 	pub fn shutdown(self) {
 		match self.inner {
-			RunningClientInner::Light { rpc, informant, client, keep_alive } => {
+			RunningClientInner::Light { rpc, informant, client, client_service, keep_alive } => {
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);
+				// Shutdown and drop the ServiceClient
+				client_service.shutdown();
+				drop(client_service);
 				drop(rpc);
 				drop(keep_alive);
 				informant.shutdown();

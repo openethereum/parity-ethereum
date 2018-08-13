@@ -40,6 +40,7 @@ use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
 use light::client::AsLightClient;
 use light::Provider;
 use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
+use light_sync::{SnapshotSyncLightHandler as WarpProto, LightSync as SyncHandler};
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
 use transaction::UnverifiedTransaction;
@@ -748,6 +749,7 @@ pub struct LightSyncParams<L> {
 /// Service for light synchronization.
 pub struct LightSync {
 	proto: Arc<LightProtocol>,
+	warp_proto: Arc<WarpProto>,
 	sync: Arc<::light_sync::SyncInfo + Sync + Send>,
 	attached_protos: Vec<AttachedProtocol>,
 	network: NetworkService,
@@ -757,13 +759,15 @@ pub struct LightSync {
 
 impl LightSync {
 	/// Create a new light sync service.
-	pub fn new<L>(params: LightSyncParams<L>) -> Result<Self, Error>
+	pub fn new<L>(
+		params: LightSyncParams<L>,
+		warp_sync: WarpSync,
+		snapshot_service: Arc<SnapshotService>,
+	) -> Result<Self, Error>
 		where L: AsLightClient + Provider + Sync + Send + 'static
 	{
-		use light_sync::LightSync as SyncHandler;
-
 		// initialize light protocol handler and attach sync module.
-		let (sync, light_proto) = {
+		let (sync, light_proto, warp_proto) = {
 			let light_params = LightParams {
 				network_id: params.network_id,
 				config: Default::default(),
@@ -776,21 +780,23 @@ impl LightSync {
 				sample_store: None,
 			};
 
+			let sync_handler = Arc::new(SyncHandler::new(params.client.clone(), warp_sync)?);
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
-			let sync_handler = Arc::new(SyncHandler::new(params.client.clone())?);
+			let mut warp_proto = WarpProto::new(params.network_id, sync_handler.clone(), snapshot_service);
 			light_proto.add_handler(sync_handler.clone());
 
 			for handler in params.handlers {
 				light_proto.add_handler(handler);
 			}
 
-			(sync_handler, Arc::new(light_proto))
+			(sync_handler, Arc::new(light_proto), Arc::new(warp_proto))
 		};
 
 		let service = NetworkService::new(params.network_config, None)?;
 
 		Ok(LightSync {
 			proto: light_proto,
+			warp_proto: warp_proto,
 			sync: sync,
 			attached_protos: params.attached_protos,
 			network: service,
@@ -850,6 +856,8 @@ impl ManageNetwork for LightSync {
 
 		self.network.register_protocol(light_proto, self.subprotocol_name, ::light::net::PROTOCOL_VERSIONS)
 			.unwrap_or_else(|e| warn!("Error registering light client protocol: {:?}", e));
+		self.network.register_protocol(self.warp_proto.clone(), WARP_SYNC_PROTOCOL_ID, &[PAR_PROTOCOL_VERSION_1])
+			.unwrap_or_else(|e| warn!("Error registering warp sync protocol: {:?}", e));
 
 		for proto in &self.attached_protos { proto.register(&self.network) }
 	}
@@ -870,7 +878,12 @@ impl ManageNetwork for LightSync {
 
 impl LightSyncProvider for LightSync {
 	fn peer_numbers(&self) -> PeerNumbers {
-		let (connected, active) = self.proto.peer_count();
+		let (connected, active) = if self.sync.is_snapshot_syncing() {
+			let connected = self.sync.connected_snapshot_peers();
+			(connected, connected)
+		} else {
+			self.proto.peer_count()
+		};
 		let peers_range = self.num_peers_range();
 		debug_assert!(peers_range.end > peers_range.start);
 		PeerNumbers {

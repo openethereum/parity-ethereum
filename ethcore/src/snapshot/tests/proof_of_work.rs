@@ -22,7 +22,7 @@ use error::{Error, ErrorKind};
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::{BlockChain, ExtrasInsert};
-use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
+use snapshot::{chunk_secondary, Error as SnapshotError, Progress, RebuilderFactory};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use parking_lot::Mutex;
@@ -83,7 +83,7 @@ fn chunk_and_restore(amount: u64) {
 	// restore it.
 	let new_db = test_helpers::new_db();
 	let new_chain = BlockChain::new(Default::default(), genesis.encoded().raw(), new_db.clone());
-	let mut rebuilder = SNAPSHOT_MODE.rebuilder(new_chain, new_db.clone(), &manifest).unwrap();
+	let mut rebuilder = SNAPSHOT_MODE.rebuilder(Box::new(new_chain), new_db.clone(), &manifest).unwrap();
 
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
 	let flag = AtomicBool::new(true);
@@ -140,7 +140,7 @@ fn checks_flag() {
 		block_hash: H256::default(),
 	};
 
-	let mut rebuilder = SNAPSHOT_MODE.rebuilder(chain, db.clone(), &manifest).unwrap();
+	let mut rebuilder = SNAPSHOT_MODE.rebuilder(Box::new(chain), db.clone(), &manifest).unwrap();
 
 	match rebuilder.feed(&chunk, engine.as_ref(), &AtomicBool::new(false)) {
 		Err(Error(ErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => {}

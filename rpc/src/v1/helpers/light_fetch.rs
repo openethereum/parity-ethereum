@@ -331,7 +331,8 @@ impl LightFetch {
 			// find all headers which match the filter, and fetch the receipts for each one.
 			// match them with their numbers for easy sorting later.
 			let bit_combos = filter.bloom_possibilities();
-			let receipts_futures: Vec<_> = self.client.ancestry_iter(filter.to_block)
+			let ancestry_iter = self.client.ancestry_iter();
+			let receipts_futures: Vec<_> = ancestry_iter.iter(filter.to_block)
 				.take_while(|ref hdr| BlockId::Number(hdr.number()) != filter.from_block)
 				.take_while(|ref hdr| BlockId::Hash(hdr.hash()) != filter.from_block)
 				.filter(|ref hdr| {

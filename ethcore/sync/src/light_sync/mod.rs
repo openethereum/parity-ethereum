@@ -31,29 +31,49 @@
 //! - When within a certain distance of the head of the chain, aggressively download all
 //!   announced blocks.
 //! - On bad block/response, punish peer and reset.
+//!
+//! When `warp_sync` is enabled (by default), a light client will first try to
+//! sync using snapshots. If a client fails to get a snapshot manifest within a certain period of time,
+//! it will fall back to normal sync.
 
 use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
+use bytes::Bytes;
 
 use ethcore::encoded;
+use super::WarpSync;
+use chain;
 use light::client::{AsLightClient, LightChainClient};
 use light::net::{
 	PeerStatus, Announcement, Handler, BasicContext,
 	EventContext, Capabilities, ReqId, Status,
 	Error as NetError,
 };
+
+use hash::keccak;
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
-use network::PeerId;
+use network::{PeerId};
 use ethereum_types::{H256, U256};
+use rlp::Rlp;
+use ethcore::snapshot::{ManifestData, RestorationStatus, SnapshotService};
+use snapshot::ChunkType;
+use self::sync_round::{AbortReason, SyncRound, ResponseContext};
+use self::warp_sync::{
+	SnapshotSyncHandler, SnapshotSyncContext, SnapshotSyncEvent,
+	SnapshotManager, WarpSyncError, SnapshotPeerAsking, WarpSyncState,
+	GroupedPeers,
+};
+
+pub use self::warp_sync::SnapshotSyncLightHandler;
+
 use parking_lot::{Mutex, RwLock};
 use rand::{Rng, OsRng};
 
-use self::sync_round::{AbortReason, SyncRound, ResponseContext};
-
 mod response;
 mod sync_round;
+mod warp_sync;
 
 #[cfg(test)]
 mod tests;
@@ -64,6 +84,8 @@ const REQ_TIMEOUT_BASE: Duration = Duration::from_secs(7);
 // If we request N headers, then the timeout will be:
 //  REQ_TIMEOUT_BASE + N * REQ_TIMEOUT_PER_HEADER
 const REQ_TIMEOUT_PER_HEADER: Duration = Duration::from_millis(10);
+// This number is pretty random.
+pub(super) const MAX_BLOCK_CHUNKS_DOWNLOAD_AHEAD: usize = 10;
 
 /// Peer chain info.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -211,6 +233,8 @@ enum SyncState {
 	AncestorSearch(AncestorSearch),
 	// Doing sync rounds.
 	Rounds(SyncRound),
+	// warp sync
+	Snapshot(WarpSyncState),
 }
 
 struct ResponseCtx<'a> {
@@ -236,6 +260,7 @@ pub struct LightSync<L: AsLightClient> {
 	client: Arc<L>,
 	rng: Mutex<OsRng>,
 	state: Mutex<SyncState>,
+	snapshot_manager: RwLock<SnapshotManager>,
 }
 
 #[derive(Debug, Clone)]
@@ -275,6 +300,11 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 	}
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
+		match *self.state.lock() {
+			SyncState::Snapshot(_) => return,
+			_ => {},
+		};
+
 		let peer_id = ctx.peer();
 
 		let peer = match self.peers.write().remove(&peer_id).map(|p| p.into_inner()) {
@@ -314,10 +344,13 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 			let mut state = self.state.lock();
 
 			*state = match mem::replace(&mut *state, SyncState::Idle) {
-				SyncState::Idle => SyncState::Idle,
+				SyncState::Idle =>
+					SyncState::Idle,
 				SyncState::AncestorSearch(search) =>
 					SyncState::AncestorSearch(search.requests_abandoned(unfulfilled)),
-				SyncState::Rounds(round) => SyncState::Rounds(round.requests_abandoned(unfulfilled)),
+				SyncState::Rounds(round) =>
+					SyncState::Rounds(round.requests_abandoned(unfulfilled)),
+				other => other,
 			};
 		}
 
@@ -391,10 +424,13 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 			};
 
 			*state = match mem::replace(&mut *state, SyncState::Idle) {
-				SyncState::Idle => SyncState::Idle,
+				SyncState::Idle =>
+					SyncState::Idle,
 				SyncState::AncestorSearch(search) =>
 					SyncState::AncestorSearch(search.process_response(&ctx, &*self.client)),
-				SyncState::Rounds(round) => SyncState::Rounds(round.process_response(&ctx)),
+				SyncState::Rounds(round) =>
+					SyncState::Rounds(round.process_response(&ctx)),
+				other => other,
 			};
 		}
 
@@ -403,6 +439,405 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 
 	fn tick(&self, ctx: &BasicContext) {
 		self.maintain_sync(ctx);
+	}
+}
+
+// snapshot sync handler methods
+impl<L: AsLightClient + Send + Sync> SnapshotSyncHandler for LightSync<L> {
+	fn on_connect(&self, event: &SnapshotSyncEvent) {
+		match *self.state.lock() {
+			SyncState::Snapshot(_) => {}
+			_ => {
+				return;
+			}
+		}
+		if self.send_warp_sync_status_packet(event) {
+			self.maintain_sync_with_snap(event.as_context());
+		}
+	}
+
+	fn on_disconnect(&self, event: &SnapshotSyncEvent) {
+		match *self.state.lock() {
+			SyncState::Snapshot(_) => {}
+			_ => {
+				return;
+			}
+		}
+		trace!(target: "warp", "Disconnected from peer {}", event.peer());
+		let asking = self.snapshot_manager.write().on_peer_aborting(&event.peer());
+		if let Some(SnapshotPeerAsking::SnapshotManifest) = asking {
+			// TODO: if this was the last peer with the same snapshot,
+			//       maybe we should restart warp sync from scratch
+			self.restart(event.as_context().snapshot_service());
+			self.maintain_sync_with_snap(event.as_context());
+		}
+	}
+
+	fn on_warp_peer_status(&self, event: &SnapshotSyncEvent, rlp: Rlp) -> Result<(), WarpSyncError> {
+		let genesis_hash = self.client.as_light_client().chain_info().genesis_hash;
+		self.snapshot_manager.write().on_peer_status(event, rlp, genesis_hash)
+	}
+
+	fn on_snap_manifest(&self, event: &SnapshotSyncEvent, rlp: Rlp) -> Result<(), WarpSyncError> {
+		let peer_id = event.peer();
+		if self.snapshot_manager.read().get(&peer_id).is_none() {
+			trace!(target: "warp", "Ignoring snapshot manifest from unknown peer {}", peer_id);
+			return Ok(());
+		}
+
+		let (manifest, manifest_hash) = {
+			let is_manifest_state = {
+				match *self.state.lock() {
+					SyncState::Snapshot(WarpSyncState::Manifest) => true,
+					_ => false
+				}
+			};
+
+			let asked_for_manifest = match self.snapshot_manager.write().reset_peer_asking(&peer_id) {
+				Some(SnapshotPeerAsking::SnapshotManifest) => true,
+				_ => false,
+			};
+			if !asked_for_manifest || !is_manifest_state {
+				trace!(target: "warp", "{}: Ignored unexpected manifest", peer_id);
+				return Ok(());
+			}
+
+			let manifest_rlp = rlp.at(0)?;
+			match ManifestData::from_rlp(manifest_rlp.as_raw()) {
+				Err(e) => {
+					trace!(target: "warp", "{}: Ignored bad manifest: {:?}", peer_id, e);
+					return Err(WarpSyncError::BadManifest);
+				}
+				Ok(manifest) => (manifest, keccak(manifest_rlp.as_raw())),
+			}
+		};
+
+		let is_supported_version = event.as_context().snapshot_service().supported_versions()
+			.map_or(false, |(l, h)| manifest.version >= l && manifest.version <= h);
+
+		if !is_supported_version {
+			trace!(target: "warp", "{}: Snapshot manifest version not supported: {}", peer_id, manifest.version);
+			return Err(WarpSyncError::UnsupportedManifestVersion(manifest.version));
+		}
+
+		trace!(target: "warp", "Received a manifest ({}) from {}", manifest.block_hash, peer_id);
+
+		self.snapshot_manager.write().reset_manifest_to(&manifest, &manifest_hash);
+		event.as_context().snapshot_service().begin_restore(manifest);
+		*self.state.lock() = SyncState::Snapshot(WarpSyncState::Blocks);
+
+		self.maintain_sync_with_snap(event.as_context());
+
+		Ok(())
+	}
+
+	fn on_snap_data(&self, event: &SnapshotSyncEvent, rlp: Rlp) -> Result<(), WarpSyncError> {
+		let peer_id = event.peer();
+		if self.snapshot_manager.read().get(&peer_id).is_none() {
+			trace!(target: "warp", "Ignoring snapshot chunk from unknown peer {}", peer_id);
+			return Ok(());
+		}
+
+		self.snapshot_manager.write().clear_peer_download(&peer_id);
+
+		let (chunk, hash) = {
+			let is_blocks_state = {
+				match *self.state.lock() {
+					SyncState::Snapshot(WarpSyncState::Blocks) => true,
+					_ => false
+				}
+			};
+
+			// always lock the snapshot manager before the state
+			let mut snap = self.snapshot_manager.write();
+
+			let asking = snap.reset_peer_asking(&peer_id);
+			let asked_for_snapshot_data = match asking {
+				Some(SnapshotPeerAsking::SnapshotData(_)) => true,
+				_ => false,
+			};
+
+			if !asked_for_snapshot_data || !is_blocks_state {
+				trace!(target: "warp", "Peer {}: Ignored unexpected snapshot chunk", peer_id);
+				return Ok(());
+			}
+
+			let status = event.as_context().snapshot_service().status();
+			match status {
+				RestorationStatus::Inactive | RestorationStatus::Failed => {
+					trace!(target: "warp", "Snapshot restoration aborted");
+					*self.state.lock() = SyncState::Snapshot(WarpSyncState::WaitingPeers);
+
+					// only note bad if restoration failed.
+					if let (Some(hash), RestorationStatus::Failed) = (snap.snapshot_hash(), status) {
+						trace!(target: "warp", "Noting snapshot hash {} as bad", hash);
+						snap.note_bad(hash);
+					}
+
+					snap.clear();
+					return Ok(());
+				},
+				RestorationStatus::Initializing { .. } => {
+					trace!(target: "warp", "{}: Snapshot restoration is initializing", peer_id);
+					return Ok(());
+				},
+				RestorationStatus::Ongoing { .. } => {
+					trace!(target: "warp", "{}: Snapshot restoration is ongoing", peer_id);
+				},
+			}
+
+			let snapshot_data: Bytes = rlp.val_at(0)?;
+			match snap.validate_chunk(&snapshot_data) {
+				Ok(ChunkType::Block(hash)) => {
+					match asking {
+						Some(SnapshotPeerAsking::SnapshotData(h)) if h != hash => {
+							trace!(target: "warp", "{}: Asked for a different block chunk", peer_id);
+						},
+						_ => {},
+					}
+					(snapshot_data, hash)
+				}
+				_ => {
+					trace!(target: "warp", "{}: Got a state or a bad block chunk on light client", peer_id);
+					return Err(WarpSyncError::BadBlockChunk);
+				}
+			}
+		};
+
+		trace!(target: "warp", "{}: Processing block chunk", peer_id);
+		event.as_context().snapshot_service().restore_block_chunk(hash, chunk);
+
+		if self.snapshot_manager.read().is_complete() {
+			// wait for snapshot restoration process to complete
+			*self.state.lock() = SyncState::Snapshot(WarpSyncState::WaitingService);
+		}
+
+		Ok(())
+	}
+
+	fn on_tick(&self, ctx: &SnapshotSyncContext) {
+		self.maintain_sync_with_snap(ctx);
+		self.snapshot_manager.write().disconnect_slowpokes(ctx);
+	}
+}
+
+// private warp sync helpers
+impl<L: AsLightClient> LightSync<L> {
+
+	fn get_init_state(client: &LightChainClient, warp_sync: WarpSync) -> SyncState {
+		let best_block = client.chain_info().best_block_number;
+		let waiting_peers = SyncState::Snapshot(WarpSyncState::WaitingPeers);
+		match warp_sync {
+			WarpSync::Enabled => waiting_peers,
+			WarpSync::OnlyAndAfter(block) if block > best_block => waiting_peers,
+			_ => SyncState::Idle,
+		}
+	}
+
+	fn maintain_sync_with_snap(&self, ctx: &SnapshotSyncContext) {
+		if !self.warp_sync_enabled(ctx.snapshot_service()) {
+			trace!(target: "warp", "Skipping warp sync. Disabled or not supported.");
+			return;
+		}
+
+		let our_best_block = self.client.as_light_client().chain_info().best_block_number;
+		let best_seen = SyncInfo::highest_block(self);
+		let peers = self.snapshot_manager.read().best_peer_group(our_best_block, best_seen);
+
+		self.maybe_start_snapshot_sync(ctx, &peers);
+
+		match *self.state.lock() {
+			SyncState::Snapshot(_) => {}
+			_ => {
+				return;
+			}
+		}
+
+		let old_state = match *self.state.lock() {
+			SyncState::Snapshot(s) => s,
+			_ => { return; }
+		};
+		match old_state {
+			WarpSyncState::WaitingService => {
+				match ctx.snapshot_service().status() {
+					RestorationStatus::Initializing { .. } => {
+						trace!(target: "warp", "Snapshot restoration is initializing");
+						return;
+					},
+					RestorationStatus::Inactive => {
+						trace!(target: "warp", "Snapshot restoration is complete");
+						self.restart(ctx.snapshot_service());
+						return;
+					},
+					RestorationStatus::Ongoing { block_chunks_done, .. } => {
+						// Initialize the snapshot if not already done
+						self.snapshot_manager.write().initialize(ctx.snapshot_service());
+						let left_chunks = self.snapshot_manager.read()
+							.done_chunks()
+							.saturating_sub(block_chunks_done as usize);
+						if !self.snapshot_manager.read().is_complete() &&
+							left_chunks <= MAX_BLOCK_CHUNKS_DOWNLOAD_AHEAD
+						{
+							trace!(target: "warp", "Resuming snapshot sync");
+							*self.state.lock() = SyncState::Snapshot(WarpSyncState::Blocks);
+						}
+					},
+					RestorationStatus::Failed => {
+						trace!(target: "warp", "Snapshot restoration aborted");
+						self.snapshot_manager.write().clear();
+						*self.state.lock() = SyncState::Snapshot(WarpSyncState::WaitingPeers);
+					},
+				}
+				self.continue_warp_sync(ctx, &peers);
+			},
+			WarpSyncState::Blocks => {
+				self.continue_warp_sync(ctx, &peers);
+			}
+			_ => {},
+		};
+	}
+
+	fn restart(&self, service: &SnapshotService) {
+		trace!(target: "sync", "Restarting");
+		if let SyncState::Snapshot(WarpSyncState::Blocks) = *self.state.lock() {
+			debug!(target: "warp", "Aborting snapshot restore");
+			service.abort_restore();
+		}
+		self.snapshot_manager.write().clear();
+		let warp_sync = self.snapshot_manager.read().warp_sync();
+		let init_state = Self::get_init_state(self.client.as_light_client(), warp_sync);
+		*self.state.lock() = init_state;
+	}
+
+	fn continue_warp_sync(&self, ctx: &SnapshotSyncContext, peers: &Option<GroupedPeers>) {
+		let old_state = match *self.state.lock() {
+			SyncState::Snapshot(s) => s,
+			_ => { return; }
+		};
+		match old_state {
+			WarpSyncState::Blocks => {
+				match ctx.snapshot_service().status() {
+					RestorationStatus::Initializing { .. } => {
+						self.snapshot_manager.write().initialize(ctx.snapshot_service());
+						trace!(target: "warp", "Snapshot service is initializing, pausing sync");
+						*self.state.lock() = SyncState::Snapshot(WarpSyncState::WaitingService);
+						return;
+					}
+					RestorationStatus::Ongoing { block_chunks_done, .. } => {
+						// Initialize the snapshot if not already done
+						self.snapshot_manager.write().initialize(ctx.snapshot_service());
+						let processed_chunks = self.snapshot_manager.read()
+							.done_chunks()
+							.saturating_sub(block_chunks_done as usize);
+						if processed_chunks > MAX_BLOCK_CHUNKS_DOWNLOAD_AHEAD {
+							trace!(target: "warp", "Snapshot queue full, pausing sync");
+							*self.state.lock() = SyncState::Snapshot(WarpSyncState::WaitingService);
+							return;
+						}
+					}
+					RestorationStatus::Failed => {
+						trace!(target: "warp", "Snapshot restoration aborted");
+						self.snapshot_manager.write().clear();
+						*self.state.lock() = SyncState::Snapshot(WarpSyncState::WaitingPeers);
+						return;
+					}
+					s => {
+						trace!(target: "warp", "Downloading chunks, but snapshot service state is {:?}", s);
+					}
+				}
+				if let Some(peers) = peers {
+					self.snapshot_manager.write().request_snapshot_blocks(ctx, &peers.peers);
+				} else {
+					debug!(target: "warp", "No peers to download snapshot blocks from");
+				}
+			},
+			_ => {},
+		}
+	}
+
+	fn warp_sync_enabled(&self, service: &SnapshotService) -> bool {
+		let warp_sync = self.snapshot_manager.read().warp_sync();
+		warp_sync.is_enabled() && service.supported_versions().is_some()
+	}
+
+	fn maybe_start_snapshot_sync(&self, ctx: &SnapshotSyncContext, peers: &Option<GroupedPeers>) {
+		match *self.state.lock() {
+			SyncState::Snapshot(WarpSyncState::WaitingPeers) => {}
+			_ => {
+				return;
+			}
+		}
+
+		let has_manifest = self.snapshot_manager.read().has_manifest();
+		let timeout = self.snapshot_manager.read().timeout();
+
+		if !has_manifest {
+			let requested = match *peers {
+				Some(ref p) => {
+					if p.peers.len() >= chain::SNAPSHOT_MIN_PEERS || timeout {
+						self.maybe_request_manifest(ctx, &p.peers)
+					} else {
+						false
+					}
+				},
+				None => false,
+			};
+
+			if !requested {
+				trace!(target: "warp", "No appropriate snapshots found");
+			} else {
+				return;
+			}
+		}
+
+		let warp_sync = self.snapshot_manager.read().warp_sync();
+
+		let timeout = match *self.state.lock() {
+			SyncState::Snapshot(WarpSyncState::WaitingPeers) if timeout => true,
+			_ => false,
+		};
+
+		if timeout && !warp_sync.is_warp_only() {
+			trace!(target: "warp", "No snapshots found, starting header sync");
+			*self.state.lock() = SyncState::Idle;
+		}
+	}
+
+	fn maybe_request_manifest(&self, ctx: &SnapshotSyncContext, peers: &[PeerId]) -> bool {
+		let peer = self.snapshot_manager.write().request_manifest(ctx, peers);
+		if let Some(id) = peer {
+			*self.state.lock() = SyncState::Snapshot(WarpSyncState::Manifest);
+			trace!(target: "warp", "Requested a snapshot manifest from peer {}", id);
+		}
+		peer.is_some()
+	}
+
+	fn send_warp_sync_status_packet(&self, event: &SnapshotSyncEvent) -> bool {
+		let protocol = event.as_context().protocol_version(event.peer()).unwrap_or(0);
+		let is_warp_protocol = protocol != 0;
+		if !is_warp_protocol {
+			trace!(target: "warp", "Peer {} doesn't support warp protocol", event.peer());
+			return false;
+		}
+
+		trace!(target: "warp", "Sending status to {}", event.peer());
+
+		let network_id = event.as_context().network_id();
+		let chain_info = self.client.as_light_client().chain_info();
+
+		let manifest_hash = H256::new();
+		let manifest_number: u64 = 0;
+
+		let packet = chain::ChainSync::status_packet(
+			protocol as u32,
+			network_id,
+			&chain_info,
+			Some(manifest_hash),
+			Some(manifest_number),
+		);
+
+		event.as_context().send(event.peer(), chain::STATUS_PACKET, packet);
+		true
 	}
 }
 
@@ -421,7 +856,7 @@ impl<L: AsLightClient> LightSync<L> {
 		let chain_info = self.client.as_light_client().chain_info();
 
 		trace!(target: "sync", "Beginning search for common ancestor from {:?}",
-			(chain_info.best_block_number, chain_info.best_block_hash));
+			   (chain_info.best_block_number, chain_info.best_block_hash));
 		*state = SyncState::AncestorSearch(AncestorSearch::begin(chain_info.best_block_number));
 	}
 
@@ -435,6 +870,16 @@ impl<L: AsLightClient> LightSync<L> {
 		let chain_info = client.chain_info();
 
 		let mut state = self.state.lock();
+
+		// skip normal sync if we're warp syncing
+		match *state {
+			SyncState::Snapshot(s) => {
+				trace!(target: "sync", "Skipping non-warp sync. State: {:?}", s);
+				return;
+			},
+			_ => {},
+		};
+
 		debug!(target: "sync", "Maintaining sync ({:?})", &*state);
 
 		// drain any pending blocks into the queue.
@@ -544,10 +989,13 @@ impl<L: AsLightClient> LightSync<L> {
 				drop(pending_reqs);
 
 				*state = match mem::replace(&mut *state, SyncState::Idle) {
-					SyncState::Idle => SyncState::Idle,
+					SyncState::Idle =>
+						SyncState::Idle,
 					SyncState::AncestorSearch(search) =>
 						SyncState::AncestorSearch(search.requests_abandoned(&unfulfilled)),
-					SyncState::Rounds(round) => SyncState::Rounds(round.requests_abandoned(&unfulfilled)),
+					SyncState::Rounds(round) =>
+						SyncState::Rounds(round.requests_abandoned(&unfulfilled)),
+					other => other,
 				};
 			}
 		}
@@ -622,15 +1070,18 @@ impl<L: AsLightClient> LightSync<L> {
 	///
 	/// This won't do anything until registered as a handler
 	/// so it can act on events.
-	pub fn new(client: Arc<L>) -> Result<Self, ::std::io::Error> {
+	pub fn new(client: Arc<L>, warp_sync: WarpSync) -> Result<Self, ::std::io::Error> {
+		let best_block = client.as_light_client().chain_info().best_block_number;
+		let state = Self::get_init_state(client.as_light_client(), warp_sync);
 		Ok(LightSync {
-			start_block_number: client.as_light_client().chain_info().best_block_number,
+			start_block_number: best_block,
 			best_seen: Mutex::new(None),
 			peers: RwLock::new(HashMap::new()),
 			pending_reqs: Mutex::new(HashMap::new()),
 			client: client,
 			rng: Mutex::new(OsRng::new()?),
-			state: Mutex::new(SyncState::Idle),
+			state: Mutex::new(state),
+			snapshot_manager: RwLock::new(SnapshotManager::new(warp_sync)),
 		})
 	}
 }
@@ -645,6 +1096,12 @@ pub trait SyncInfo {
 
 	/// Whether major sync is underway.
 	fn is_major_importing(&self) -> bool;
+
+	/// Whether warp sync is underway.
+	fn is_snapshot_syncing(&self) -> bool;
+
+	/// Count the number of connected peers with snapshots.
+	fn connected_snapshot_peers(&self) -> usize;
 }
 
 impl<L: AsLightClient> SyncInfo for LightSync<L> {
@@ -667,5 +1124,16 @@ impl<L: AsLightClient> SyncInfo for LightSync<L> {
 			SyncState::Idle => false,
 			_ => true,
 		}
+	}
+
+	fn is_snapshot_syncing(&self) -> bool {
+		match *self.state.lock() {
+			SyncState::Snapshot(_) => true,
+			_ => false,
+		}
+	}
+
+	fn connected_snapshot_peers(&self) -> usize {
+		self.snapshot_manager.read().peers_count()
 	}
 }

@@ -28,7 +28,11 @@ use sync::PrivateTxHandler;
 use ethcore::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
-use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
+use ethcore::snapshot::service::{
+	Service as SnapshotService,
+	ServiceParams as SnapServiceParams,
+	FullNodeRestorationParams
+};
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
@@ -67,7 +71,7 @@ impl PrivateTxHandler for PrivateTxService {
 pub struct ClientService {
 	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
-	snapshot: Arc<SnapshotService>,
+	snapshot: Arc<SnapshotService<FullNodeRestorationParams>>,
 	private_tx: Arc<PrivateTxService>,
 	database: Arc<BlockChainDB>,
 	_stop_guard: StopGuard,
@@ -98,9 +102,11 @@ impl ClientService {
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
-			genesis_block: spec.genesis_block(),
 			restoration_db_handler: restoration_db_handler,
-			pruning: pruning,
+			chain_params: FullNodeRestorationParams {
+				pruning,
+				genesis_block: spec.genesis_block(),
+			},
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),
 			db_restore: client.clone(),
@@ -148,7 +154,7 @@ impl ClientService {
 	}
 
 	/// Get snapshot interface.
-	pub fn snapshot_service(&self) -> Arc<SnapshotService> {
+	pub fn snapshot_service(&self) -> Arc<SnapshotService<FullNodeRestorationParams>> {
 		self.snapshot.clone()
 	}
 
@@ -179,7 +185,7 @@ impl ClientService {
 /// IO interface for the Client handler
 struct ClientIoHandler {
 	client: Arc<Client>,
-	snapshot: Arc<SnapshotService>,
+	snapshot: Arc<SnapshotService<FullNodeRestorationParams>>,
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;

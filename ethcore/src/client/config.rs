@@ -26,7 +26,7 @@ pub use trace::Config as TraceConfig;
 pub use evm::VMType;
 
 /// Client state db compaction profile
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum DatabaseCompactionProfile {
 	/// Try to determine compaction profile automatically
 	Auto,
