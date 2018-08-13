@@ -5,6 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 bit-set = "0.4"
+parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethereum-types = "0.3"
 heapsize = "0.4"
 lazy_static = "1.0"

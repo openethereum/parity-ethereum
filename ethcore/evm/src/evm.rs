@@ -55,6 +55,12 @@ impl Finalize for Result<GasLeft> {
 	}
 }
 
+impl Finalize for Error {
+	fn finalize<E: Ext>(self, _ext: E) -> Result<FinalizationResult> {
+		Err(self)
+	}
+}
+
 /// Cost calculation type. For low-gas usage we calculate costs using usize instead of U256
 pub trait CostType: Sized + From<usize> + Copy
 	+ ops::Mul<Output=Self> + ops::Div<Output=Self> + ops::Add<Output=Self> +ops::Sub<Output=Self>

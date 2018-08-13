@@ -281,8 +281,8 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(&params, schedule.wasm.is_some());
-			let res = evm.exec(params, &mut ex);
+			let mut evm = vm_factory.create(params, &schedule, 0);
+			let res = evm.exec(&mut ex);
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
 			(res.finalize(ex), callcreates)
