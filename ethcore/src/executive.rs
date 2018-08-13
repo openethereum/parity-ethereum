@@ -290,7 +290,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let mut substate = Substate::new();
 
 		// NOTE: there can be no invalid transactions from this point.
-		if !schedule.eip86 || !t.is_unsigned() {
+		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
 		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;

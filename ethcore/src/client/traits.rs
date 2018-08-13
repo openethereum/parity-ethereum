@@ -378,9 +378,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
-
-	/// Get the EIP-86 transition block number.
-	fn eip86_transition(&self) -> u64;
 }
 
 /// Provides `reopen_block` method
