@@ -124,7 +124,7 @@ pub unsafe extern fn parity_destroy(client: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_rpc(client: *mut c_void, query: *const char, len: usize, out_str: *mut c_char, out_len: *mut usize) -> c_int {
+pub unsafe extern fn parity_rpc(client: *mut c_void, query: *const c_char, len: usize, out_str: *mut c_char, out_len: *mut usize) -> c_int {
 	panic::catch_unwind(|| {
 		let client: &mut parity_ethereum::RunningClient = &mut *(client as *mut parity_ethereum::RunningClient);
 
