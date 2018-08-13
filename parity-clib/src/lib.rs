@@ -173,7 +173,7 @@ impl CallbackStr {
 
 #[cfg(feature = "jni")]
 #[no_mangle]
-pub unsafe extern fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv, _: JClass, cli: jobjectArray) -> jlong {
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv, _: JClass, cli: jobjectArray) -> jlong {
 	let cli_len = env.get_array_length(cli).expect("invalid Java bindings");
 
 	let mut jni_strings = Vec::with_capacity(cli_len as usize);
@@ -205,7 +205,7 @@ pub unsafe extern fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv, _
 
 #[cfg(feature = "jni")]
 #[no_mangle]
-pub unsafe extern fn Java_io_parity_ethereum_Parity_build(env: JNIEnv, _: JClass, config: jlong) -> jlong {
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_build(env: JNIEnv, _: JClass, config: jlong) -> jlong {
 	let params = ParityParams {
 		configuration: config as usize as *mut c_void,
 		.. mem::zeroed()
@@ -223,14 +223,14 @@ pub unsafe extern fn Java_io_parity_ethereum_Parity_build(env: JNIEnv, _: JClass
 
 #[cfg(feature = "jni")]
 #[no_mangle]
-pub unsafe extern fn Java_io_parity_ethereum_Parity_destroy(_env: JNIEnv, _: JClass, parity: jlong) {
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_destroy(_env: JNIEnv, _: JClass, parity: jlong) {
 	let parity = parity as usize as *mut c_void;
 	parity_destroy(parity);
 }
 
 #[cfg(feature = "jni")]
 #[no_mangle]
-pub unsafe extern fn Java_io_parity_ethereum_Parity_rpcQueryNative<'a>(env: JNIEnv<'a>, _: JClass, parity: jlong, rpc: JString) -> JString<'a> {
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative<'a>(env: JNIEnv<'a>, _: JClass, parity: jlong, rpc: JString) -> JString<'a> {
 	let parity = parity as usize as *mut c_void;
 
 	let rpc = match env.get_string(rpc) {
