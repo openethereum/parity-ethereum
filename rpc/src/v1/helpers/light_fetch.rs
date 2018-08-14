@@ -20,8 +20,8 @@ use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
+use ethcore::ids::BlockId;
 use ethcore::receipt::Receipt;
 
 use jsonrpc_core::{Result, Error};
@@ -344,17 +344,34 @@ impl LightFetch {
 					let hdr_bloom = hdr.log_bloom();
 					bit_combos.iter().any(|bloom| hdr_bloom.contains_bloom(bloom))
 				})
-				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr.into())))
-				.map(|(num, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, x)))
+				.map(|hdr| (hdr.number(), hdr.hash(), request::BlockReceipts(hdr.into())))
+				.map(|(num, hash, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, hash, x)))
 				.collect();
 
 			// as the receipts come in, find logs within them which match the filter.
 			// insert them into a BTreeMap to maintain order by number and block index.
 			stream::futures_unordered(receipts_futures)
-				.fold(BTreeMap::new(), move |mut matches, (num, receipts)| {
-					for (block_index, log) in receipts.into_iter().flat_map(|r| r.logs).enumerate() {
-						if filter.matches(&log) {
-							matches.insert((num, block_index), log.into());
+				.fold(BTreeMap::new(), move |mut matches, (num, hash, receipts)| {
+					let mut block_index = 0;
+					for (transaction_index, receipt) in receipts.into_iter().enumerate() {
+						for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
+							if filter.matches(&log) {
+								matches.insert((num, block_index), Log {
+									address: log.address.into(),
+									topics: log.topics.into_iter().map(Into::into).collect(),
+									data: log.data.into(),
+									block_hash: Some(hash.into()),
+									block_number: Some(num.into()),
+									// No way to easily retrieve transaction hash, so let's just skip it.
+									transaction_hash: None,
+									transaction_index: Some(transaction_index.into()),
+									log_index: Some(block_index.into()),
+									transaction_log_index: Some(transaction_log_index.into()),
+									log_type: "mined".into(),
+									removed: false,
+								});
+							}
+							block_index += 1;
 						}
 					}
 					future::ok(matches)
