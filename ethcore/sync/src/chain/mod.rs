@@ -148,7 +148,8 @@ const MAX_PEER_LAG_PROPAGATION: BlockNumber = 20;
 const MAX_NEW_HASHES: usize = 64;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
-const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
+// keep it under 8MB as well, cause it seems that it may result oversized after compression.
+const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
