@@ -567,6 +567,10 @@ usage! {
 			"--on_demand_nb_retry=[RETRIES]",
 			"Specify maximum number of retry query to send to other node for a query.",
 
+			ARG arg_on_demand_inactive_time_limit: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_inactive_time_limit,
+			"--on_demand_inactive_time_limit=[MS]",
+			"Specify maximum total time limit for a light client query to stay inactive. O for no limit.",
+
 		["Secret Store Options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
 			"--no-secretstore",
@@ -1374,6 +1378,7 @@ struct Whisper {
 #[serde(deny_unknown_fields)]
 struct Light {
 	on_demand_nb_retry: Option<usize>,
+	on_demand_inactive_time_limit: Option<u64>,
 }
 
 
@@ -1788,6 +1793,8 @@ mod tests {
 
 			// -- Light options.
 			arg_on_demand_nb_retry: Some(15),
+			arg_on_demand_inactive_time_limit: Some(15000),
+
 			// -- Whisper options.
 			flag_whisper: false,
 			arg_whisper_pool_size: 20,
@@ -2037,6 +2044,7 @@ mod tests {
 			}),
 			light: Some(Light {
 				on_demand_nb_retry: Some(12),
+				on_demand_inactive_time_limit: Some(20000),
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),

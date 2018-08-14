@@ -72,6 +72,7 @@ scale_verifiers = false
 
 [light]
 on_demand_nb_retry = 12
+on_demand_inactive_time_limit = 20000
 
 [snapshots]
 disable_periodic = true

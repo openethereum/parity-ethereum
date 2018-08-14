@@ -157,6 +157,7 @@ num_verifiers = 6
 
 [light]
 on_demand_nb_retry = 15
+on_demand_inactive_time_limit = 15000
 
 [snapshots]
 disable_periodic = false

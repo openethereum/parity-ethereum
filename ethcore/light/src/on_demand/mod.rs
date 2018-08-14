@@ -30,6 +30,7 @@ use futures::sync::oneshot::{self, Receiver, Canceled};
 use network::PeerId;
 use parking_lot::{RwLock, Mutex};
 use rand;
+use std::time::{Duration, SystemTime};
 
 use net::{
 	self, Handler, PeerStatus, Status, Capabilities,
@@ -51,6 +52,9 @@ pub type ExecutionResult = Result<Executed, ExecutionError>;
 
 /// The default number of retry for OnDemand queries send to other nodes
 pub const DEFAULT_NB_RETRY: usize = 10;
+
+/// The default time limit in milliseconds for inactive (no new peer to connect to) OnDemand queries (0 for unlimited)
+pub const DEFAULT_QUERY_TIME_LIMIT: u64 = 10000;
 
 // relevant peer info.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,6 +92,7 @@ struct Pending {
 	base_query_index: usize,
 	remaining_query_count: usize,
 	query_id_history: BTreeSet<PeerId>,
+	inactive_time_limit: Option<SystemTime>,
 }
 
 impl Pending {
@@ -282,6 +287,7 @@ pub struct OnDemand {
 	cache: Arc<Mutex<Cache>>,
 	no_immediate_dispatch: bool,
 	base_retry_number: usize,
+	query_inactive_time_limit: Option<Duration>,
 }
 
 impl OnDemand {
@@ -295,6 +301,7 @@ impl OnDemand {
 			cache: cache,
 			no_immediate_dispatch: false,
 			base_retry_number: DEFAULT_NB_RETRY,
+			query_inactive_time_limit: Some(Duration::from_millis(DEFAULT_QUERY_TIME_LIMIT)),
 		}
 	}
 
@@ -359,6 +366,7 @@ impl OnDemand {
 			base_query_index: 0,
 			remaining_query_count: 0,
 			query_id_history: BTreeSet::new(),
+			inactive_time_limit: None,
 		});
 
 		Ok(receiver)
@@ -402,7 +410,7 @@ impl OnDemand {
 				let num_peers = peers.len();
 				let history_len = pending.query_id_history.len();
 				let start = if history_len == 0 {
-					pending.remaining_query_count = cmp::min(num_peers, self.base_retry_number);
+					pending.remaining_query_count = self.base_retry_number;
 					let rand = rand::random::<usize>();
 					pending.base_query_index = rand;
 					rand
@@ -425,6 +433,7 @@ impl OnDemand {
 						}
 
 						pending.remaining_query_count -= 1;
+						pending.inactive_time_limit = None;
 
 						match ctx.request_from(*peer_id, pending.net_requests.clone()) {
 							Ok(req_id) => {
@@ -438,10 +447,22 @@ impl OnDemand {
 					}
 				}
 
-				if pending.remaining_query_count == 0 || init_remaining_query_count == pending.remaining_query_count {
-					// TODO different reply on a no query but still remaining query to do (warn peer that cannot fullfill will mess with the count
+				if pending.remaining_query_count == 0	{
 					pending.no_response();
 					None
+				} else if init_remaining_query_count == pending.remaining_query_count {
+					if let Some(query_inactive_time_limit) = self.query_inactive_time_limit {
+						let now = SystemTime::now();
+						if pending.inactive_time_limit.is_none() {
+							debug!(target: "on_demand", "No more peer to query, waiting for {} seconds until dropping query", query_inactive_time_limit.as_secs());
+							pending.inactive_time_limit = Some(now + query_inactive_time_limit);
+						} else {
+							if now > pending.inactive_time_limit.unwrap() {
+								return None
+							}
+						}
+					}
+					Some(pending)
 				} else {
 					Some(pending)
 				}
@@ -469,6 +490,16 @@ impl OnDemand {
 	pub fn default_retry_number(&mut self, nb_retry: usize) {
 		self.base_retry_number = nb_retry;
 	}
+
+	/// Changes default time limit for query.
+	pub fn query_inactive_time_limit(&mut self, inactive_time_limit: u64) {
+		self.query_inactive_time_limit = if inactive_time_limit == 0 {
+			None
+		} else {
+			Some(Duration::from_millis(inactive_time_limit))
+		};
+	}
+
 }
 
 impl Handler for OnDemand {

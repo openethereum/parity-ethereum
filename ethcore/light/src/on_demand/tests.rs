@@ -192,7 +192,7 @@ fn no_capabilities() {
 
 	harness.service.dispatch_pending(&Context::NoOp);
 
-	assert_eq!(harness.service.pending.read().len(), 0);
+	assert_eq!(harness.service.pending.read().len(), 1);
 }
 
 #[test]
