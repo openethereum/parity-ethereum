@@ -12,10 +12,10 @@ hashdb = { git = "https://github.com/paritytech/parity-common" }
 heapsize = "0.4"
 keccak-hasher = { path = "../keccak-hasher" }
 kvdb = { git = "https://github.com/paritytech/parity-common" }
-log = "0.3"
+log = "0.4"
 memorydb = { git = "https://github.com/paritytech/parity-common" }
 parking_lot = "0.6"
-plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+fastmap = { path = "../../util/fastmap" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
 
 [dev-dependencies]

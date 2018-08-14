@@ -54,7 +54,7 @@ impl<T> UsingQueue<T> {
 
 	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
 	/// this constitutes using the item and will remain in the queue for at least another
-	/// `max_size` invocations of `push()`.
+	/// `max_size` invocations of `set_pending() + use_last_ref()`.
 	pub fn use_last_ref(&mut self) -> Option<&T> {
 		if let Some(x) = self.pending.take() {
 			self.in_use.push(x);
@@ -65,9 +65,9 @@ impl<T> UsingQueue<T> {
 		self.in_use.last()
 	}
 
-	/// Place an item on the end of the queue. The previously `push()`ed item will be removed
-	/// if `use_last_ref()` since it was `push()`ed.
-	pub fn push(&mut self, b: T) {
+	/// Place an item on the end of the queue. The previously pending item will be removed
+	/// if `use_last_ref()` since it was set.
+	pub fn set_pending(&mut self, b: T) {
 		self.pending = Some(b);
 	}
 
@@ -100,17 +100,16 @@ impl<T> UsingQueue<T> {
 		}
 	}
 
-	/// Returns the most recently pushed block if `f` returns `true` with a reference to it as
+	/// Returns a clone of the pending block if `f` returns `true` with a reference to it as
 	/// a parameter, otherwise `None`.
-	/// Will not destroy a block if a reference to it has previously been returned by `use_last_ref`,
-	/// but rather clone it.
-	pub fn pop_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool, T: Clone {
+	///
+	/// If pending block is not available will clone the first of the used blocks that match the predicate.
+	pub fn get_pending_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool, T: Clone {
 		// a bit clumsy - TODO: think about a nicer way of expressing this.
-		if let Some(x) = self.pending.take() {
-			if predicate(&x) {
-				Some(x)
+		if let Some(ref x) = self.pending {
+			if predicate(x) {
+				Some(x.clone())
 			} else {
-				self.pending = Some(x);
 				None
 			}
 		} else {
@@ -122,21 +121,21 @@ impl<T> UsingQueue<T> {
 #[test]
 fn should_not_find_when_pushed() {
 	let mut q = UsingQueue::new(2);
-	q.push(1);
+	q.set_pending(1);
 	assert!(q.take_used_if(|i| i == &1).is_none());
 }
 
 #[test]
 fn should_not_find_when_pushed_with_clone() {
 	let mut q = UsingQueue::new(2);
-	q.push(1);
+	q.set_pending(1);
 	assert!(q.clone_used_if(|i| i == &1).is_none());
 }
 
 #[test]
 fn should_find_when_pushed_and_used() {
 	let mut q = UsingQueue::new(2);
-	q.push(1);
+	q.set_pending(1);
 	q.use_last_ref();
 	assert!(q.take_used_if(|i| i == &1).unwrap() == 1);
 }
@@ -144,7 +143,7 @@ fn should_find_when_pushed_and_used() {
 #[test]
 fn should_have_same_semantics_for_get_take_clone() {
 	let mut q = UsingQueue::new(2);
-	q.push(1);
+	q.set_pending(1);
 	assert!(q.get_used_if(GetAction::Clone, |i| i == &1).is_none());
 	assert!(q.get_used_if(GetAction::Take, |i| i == &1).is_none());
 	q.use_last_ref();
@@ -158,7 +157,7 @@ fn should_have_same_semantics_for_get_take_clone() {
 #[test]
 fn should_find_when_pushed_and_used_with_clone() {
 	let mut q = UsingQueue::new(2);
-	q.push(1);
+	q.set_pending(1);
 	q.use_last_ref();
 	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
 }
@@ -166,7 +165,7 @@ fn should_find_when_pushed_and_used_with_clone() {
 #[test]
 fn should_not_find_again_when_pushed_and_taken() {
 	let mut q = UsingQueue::new(2);
-	q.push(1);
+	q.set_pending(1);
 	q.use_last_ref();
 	assert!(q.take_used_if(|i| i == &1).unwrap() == 1);
 	assert!(q.clone_used_if(|i| i == &1).is_none());
@@ -175,7 +174,7 @@ fn should_not_find_again_when_pushed_and_taken() {
 #[test]
 fn should_find_again_when_pushed_and_cloned() {
 	let mut q = UsingQueue::new(2);
-	q.push(1);
+	q.set_pending(1);
 	q.use_last_ref();
 	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
 	assert!(q.clone_used_if(|i| i == &1).unwrap() == 1);
@@ -185,9 +184,9 @@ fn should_find_again_when_pushed_and_cloned() {
 #[test]
 fn should_find_when_others_used() {
 	let mut q = UsingQueue::new(2);
-	q.push(1);
+	q.set_pending(1);
 	q.use_last_ref();
-	q.push(2);
+	q.set_pending(2);
 	q.use_last_ref();
 	assert!(q.take_used_if(|i| i == &1).is_some());
 }
@@ -195,9 +194,9 @@ fn should_find_when_others_used() {
 #[test]
 fn should_not_find_when_too_many_used() {
 	let mut q = UsingQueue::new(1);
-	q.push(1);
+	q.set_pending(1);
 	q.use_last_ref();
-	q.push(2);
+	q.set_pending(2);
 	q.use_last_ref();
 	assert!(q.take_used_if(|i| i == &1).is_none());
 }
@@ -205,8 +204,8 @@ fn should_not_find_when_too_many_used() {
 #[test]
 fn should_not_find_when_not_used_and_then_pushed() {
 	let mut q = UsingQueue::new(3);
-	q.push(1);
-	q.push(2);
+	q.set_pending(1);
+	q.set_pending(2);
 	q.use_last_ref();
 	assert!(q.take_used_if(|i| i == &1).is_none());
 }
@@ -214,19 +213,19 @@ fn should_not_find_when_not_used_and_then_pushed() {
 #[test]
 fn should_peek_correctly_after_push() {
 	let mut q = UsingQueue::new(3);
-	q.push(1);
+	q.set_pending(1);
 	assert_eq!(q.peek_last_ref(), Some(&1));
-	q.push(2);
+	q.set_pending(2);
 	assert_eq!(q.peek_last_ref(), Some(&2));
 }
 
 #[test]
 fn should_inspect_correctly() {
 	let mut q = UsingQueue::new(3);
-	q.push(1);
+	q.set_pending(1);
 	assert_eq!(q.use_last_ref(), Some(&1));
 	assert_eq!(q.peek_last_ref(), Some(&1));
-	q.push(2);
+	q.set_pending(2);
 	assert_eq!(q.use_last_ref(), Some(&2));
 	assert_eq!(q.peek_last_ref(), Some(&2));
 }
@@ -234,9 +233,9 @@ fn should_inspect_correctly() {
 #[test]
 fn should_not_find_when_not_used_peeked_and_then_pushed() {
 	let mut q = UsingQueue::new(3);
-	q.push(1);
+	q.set_pending(1);
 	q.peek_last_ref();
-	q.push(2);
+	q.set_pending(2);
 	q.use_last_ref();
 	assert!(q.take_used_if(|i| i == &1).is_none());
 }
@@ -244,34 +243,34 @@ fn should_not_find_when_not_used_peeked_and_then_pushed() {
 #[test]
 fn should_pop_used() {
 	let mut q = UsingQueue::new(3);
-	q.push(1);
+	q.set_pending(1);
 	q.use_last_ref();
-	let popped = q.pop_if(|i| i == &1);
+	let popped = q.get_pending_if(|i| i == &1);
 	assert_eq!(popped, Some(1));
 }
 
 #[test]
-fn should_pop_unused() {
+fn should_not_pop_last_pending() {
 	let mut q = UsingQueue::new(3);
-	q.push(1);
-	assert_eq!(q.pop_if(|i| i == &1), Some(1));
-	assert_eq!(q.pop_if(|i| i == &1), None);
+	q.set_pending(1);
+	assert_eq!(q.get_pending_if(|i| i == &1), Some(1));
+	assert_eq!(q.get_pending_if(|i| i == &1), Some(1));
 }
 
 #[test]
 fn should_not_pop_unused_before_used() {
 	let mut q = UsingQueue::new(3);
-	q.push(1);
-	q.push(2);
-	let popped = q.pop_if(|i| i == &1);
+	q.set_pending(1);
+	q.set_pending(2);
+	let popped = q.get_pending_if(|i| i == &1);
 	assert_eq!(popped, None);
 }
 
 #[test]
 fn should_not_remove_used_popped() {
 	let mut q = UsingQueue::new(3);
-	q.push(1);
+	q.set_pending(1);
 	q.use_last_ref();
-	assert_eq!(q.pop_if(|i| i == &1), Some(1));
-	assert_eq!(q.pop_if(|i| i == &1), Some(1));
+	assert_eq!(q.get_pending_if(|i| i == &1), Some(1));
+	assert_eq!(q.get_pending_if(|i| i == &1), Some(1));
 }

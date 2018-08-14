@@ -23,6 +23,7 @@ extern crate heapsize;
 extern crate vm;
 extern crate keccak_hash as hash;
 extern crate memory_cache;
+extern crate parity_bytes as bytes;
 
 #[macro_use]
 extern crate lazy_static;

@@ -24,6 +24,8 @@ use devp2p::NetworkService;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
 	ConnectionFilter};
+
+use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
@@ -39,7 +41,10 @@ use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
 	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3};
 use light::client::AsLightClient;
 use light::Provider;
-use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
+use light::net::{
+	self as light_net, LightProtocol, Params as LightParams,
+	Capabilities, Handler as LightHandler, EventContext, SampleStore,
+};
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
 use transaction::UnverifiedTransaction;
@@ -256,11 +261,35 @@ pub struct EthSync {
 	light_subprotocol_name: [u8; 3],
 }
 
+fn light_params(
+	network_id: u64,
+	max_peers: u32,
+	pruning_info: PruningInfo,
+	sample_store: Option<Box<SampleStore>>,
+) -> LightParams {
+	const MAX_LIGHTSERV_LOAD: f64 = 0.5;
+
+	let mut light_params = LightParams {
+		network_id: network_id,
+		config: Default::default(),
+		capabilities: Capabilities {
+			serve_headers: true,
+			serve_chain_since: Some(pruning_info.earliest_chain),
+			serve_state_since: Some(pruning_info.earliest_state),
+			tx_relay: true,
+		},
+		sample_store: sample_store,
+	};
+
+	let max_peers = ::std::cmp::max(max_peers, 1);
+	light_params.config.load_share = MAX_LIGHTSERV_LOAD / max_peers as f64;
+
+	light_params
+}
+
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(params: Params, connection_filter: Option<Arc<ConnectionFilter>>) -> Result<Arc<EthSync>, Error> {
-		const MAX_LIGHTSERV_LOAD: f64 = 0.5;
-
 		let pruning_info = params.chain.pruning_info();
 		let light_proto = match params.config.serve_light {
 			false => None,
@@ -271,20 +300,12 @@ impl EthSync {
 					.map(|mut p| { p.push("request_timings"); light_net::FileStore(p) })
 					.map(|store| Box::new(store) as Box<_>);
 
-				let mut light_params = LightParams {
-					network_id: params.config.network_id,
-					config: Default::default(),
-					capabilities: Capabilities {
-						serve_headers: true,
-						serve_chain_since: Some(pruning_info.earliest_chain),
-						serve_state_since: Some(pruning_info.earliest_state),
-						tx_relay: true,
-					},
-					sample_store: sample_store,
-				};
-
-				let max_peers = ::std::cmp::min(params.network_config.max_peers, 1);
-				light_params.config.load_share = MAX_LIGHTSERV_LOAD / max_peers as f64;
+				let light_params = light_params(
+					params.config.network_id,
+					params.network_config.max_peers,
+					pruning_info,
+					sample_store,
+				);
 
 				let mut light_proto = LightProtocol::new(params.provider, light_params);
 				light_proto.add_handler(Arc::new(TxRelay(params.chain.clone())));
@@ -914,5 +935,21 @@ impl LightSyncProvider for LightSync {
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
 		Default::default() // TODO
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn light_params_load_share_depends_on_max_peers() {
+		let pruning_info = PruningInfo {
+			earliest_chain: 0,
+			earliest_state: 0,
+		};
+		let params1 = light_params(0, 10, pruning_info.clone(), None);
+		let params2 = light_params(0, 20, pruning_info, None);
+		assert!(params1.config.load_share > params2.config.load_share)
 	}
 }

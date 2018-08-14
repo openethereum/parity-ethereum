@@ -24,16 +24,26 @@ use std::thread;
 use std::process;
 use backtrace::Backtrace;
 
-/// Set the panic hook
+/// Set the panic hook to write to stderr and abort the process when a panic happens.
 pub fn set_abort() {
-	set_with(|| process::abort());
+	set_with(|msg| {
+		let _ = io::stderr().write_all(msg.as_bytes());
+		process::abort()
+	});
 }
 
-/// Set the panic hook with a closure to be called afterwards.
-pub fn set_with<F: Fn() + Send + Sync + 'static>(f: F) {
+/// Set the panic hook with a closure to be called. The closure receives the panic message.
+///
+/// Depending on how Parity was compiled, after the closure has been executed, either the process
+/// aborts or unwinding starts.
+///
+/// If you panic within the closure, a double panic happens and the process will stop.
+pub fn set_with<F>(f: F)
+where F: Fn(&str) + Send + Sync + 'static
+{
 	panic::set_hook(Box::new(move |info| {
-		panic_hook(info);
-		f();
+		let msg = gen_panic_msg(info);
+		f(&msg);
 	}));
 }
 
@@ -43,7 +53,7 @@ This is a bug. Please report it at:
     https://github.com/paritytech/parity-ethereum/issues/new
 ";
 
-fn panic_hook(info: &PanicInfo) {
+fn gen_panic_msg(info: &PanicInfo) -> String {
 	let location = info.location();
 	let file = location.as_ref().map(|l| l.file()).unwrap_or("<unknown>");
 	let line = location.as_ref().map(|l| l.line()).unwrap_or(0);
@@ -61,18 +71,13 @@ fn panic_hook(info: &PanicInfo) {
 
 	let backtrace = Backtrace::new();
 
-	let mut stderr = io::stderr();
+	format!(r#"
 
-	let _ = writeln!(stderr, "");
-	let _ = writeln!(stderr, "====================");
-	let _ = writeln!(stderr, "");
-	let _ = writeln!(stderr, "{:?}", backtrace);
-	let _ = writeln!(stderr, "");
-	let _ = writeln!(
-		stderr,
-		"Thread '{}' panicked at '{}', {}:{}",
-		name, msg, file, line
-	);
+====================
 
-	let _ = writeln!(stderr, "{}", ABOUT_PANIC);
+{backtrace:?}
+
+Thread '{name}' panicked at '{msg}', {file}:{line}
+{about}
+"#, backtrace = backtrace, name = name, msg = msg, file = file, line = line, about = ABOUT_PANIC)
 }

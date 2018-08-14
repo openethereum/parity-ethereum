@@ -33,7 +33,6 @@ use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction
 use tx_filter::TransactionFilter;
 
 use ethereum_types::{U256, Address};
-use bytes::BytesRef;
 use rlp::Rlp;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
@@ -148,10 +147,14 @@ impl EthereumMachine {
 		let schedule = self.schedule(env_info.number);
 		let mut ex = Executive::new(&mut state, &env_info, self, &schedule);
 		let mut substate = Substate::new();
-		let mut output = Vec::new();
-		if let Err(e) = ex.call(params, &mut substate, BytesRef::Flexible(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
-			warn!("Encountered error on making system call: {}", e);
-		}
+		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer);
+		let output = match res {
+			Ok(res) => res.return_data.to_vec(),
+			Err(e) => {
+				warn!("Encountered error on making system call: {}", e);
+				Vec::new()
+			}
+		};
 
 		Ok(output)
 	}
