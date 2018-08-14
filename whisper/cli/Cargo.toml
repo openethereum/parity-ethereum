@@ -17,7 +17,7 @@ panic_hook = { path = "../../util/panic_hook" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-log = "0.3"
+log = "0.4"
 
 [[bin]]
 name = "whisper"

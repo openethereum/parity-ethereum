@@ -6,4 +6,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 license = "GPL-3.0"
 
 [dependencies]
-log = "0.3"
+log = "0.4"

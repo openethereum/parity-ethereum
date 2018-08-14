@@ -297,8 +297,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get the registrar address, if it exists.
 	fn additional_params(&self) -> BTreeMap<String, String>;
 
-	/// Returns logs matching given filter.
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
+	/// Returns logs matching given filter. If one of the filtering block cannot be found, returns the block id that caused the error.
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId>;
 
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;

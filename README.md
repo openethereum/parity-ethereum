@@ -3,7 +3,7 @@
 ### [» Download the latest release «](https://github.com/paritytech/parity-ethereum/releases/latest)
 
 [![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
-[![codecov](https://codecov.io/gh/paritytech/parity/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity)
+[![codecov](https://codecov.io/gh/paritytech/parity-ethereum/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity-ethereum)
 [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
 [![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 

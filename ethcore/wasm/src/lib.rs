@@ -69,7 +69,15 @@ impl From<Error> for vm::Error {
 }
 
 /// Wasm interpreter instance
-pub struct WasmInterpreter;
+pub struct WasmInterpreter {
+	params: ActionParams,
+}
+
+impl WasmInterpreter {
+	pub fn new(params: ActionParams) -> Self {
+		WasmInterpreter { params }
+	}
+}
 
 impl From<runtime::Error> for vm::Error {
 	fn from(e: runtime::Error) -> Self {
@@ -85,8 +93,8 @@ enum ExecutionOutcome {
 
 impl vm::Vm for WasmInterpreter {
 
-	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
-		let (module, data) = parser::payload(&params, ext.schedule().wasm())?;
+	fn exec(&mut self, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
+		let (module, data) = parser::payload(&self.params, ext.schedule().wasm())?;
 
 		let loaded_module = wasmi::Module::from_parity_wasm_module(module).map_err(Error::Interpreter)?;
 
@@ -97,7 +105,7 @@ impl vm::Vm for WasmInterpreter {
 			&wasmi::ImportsBuilder::new().with_resolver("env", &instantiation_resolver)
 		).map_err(Error::Interpreter)?;
 
-		let adjusted_gas = params.gas * U256::from(ext.schedule().wasm().opcodes_div) /
+		let adjusted_gas = self.params.gas * U256::from(ext.schedule().wasm().opcodes_div) /
 			U256::from(ext.schedule().wasm().opcodes_mul);
 
 		if adjusted_gas > ::std::u64::MAX.into()
@@ -116,11 +124,11 @@ impl vm::Vm for WasmInterpreter {
 				adjusted_gas.low_u64(),
 				data.to_vec(),
 				RuntimeContext {
-					address: params.address,
-					sender: params.sender,
-					origin: params.origin,
-					code_address: params.code_address,
-					value: params.value.value(),
+					address: self.params.address,
+					sender: self.params.sender,
+					origin: self.params.origin,
+					code_address: self.params.code_address,
+					value: self.params.value.value(),
 				},
 			);
 

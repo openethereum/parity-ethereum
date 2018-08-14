@@ -8,6 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
+common-types = { path = "../types" }
 parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
@@ -17,7 +18,7 @@ ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
 ethereum-types = "0.3"
 hashdb = { git = "https://github.com/paritytech/parity-common" }
-plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+fastmap = { path = "../../util/fastmap" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
 rustc-hex = "1.0"
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
@@ -25,8 +26,8 @@ keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 kvdb = { git = "https://github.com/paritytech/parity-common" }
 macros = { path = "../../util/macros" }
-log = "0.3"
-env_logger = "0.4"
+log = "0.4"
+env_logger = "0.5"
 rand = "0.4"
 heapsize = "0.4"
 semver = "0.9"

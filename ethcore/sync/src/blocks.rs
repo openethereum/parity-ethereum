@@ -23,34 +23,114 @@ use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;
-use ethcore::encoded::Block;
-use ethcore::views::{HeaderView, BodyView};
 use ethcore::header::Header as BlockHeader;
+use ethcore::verification::queue::kind::blocks::Unverified;
+use transaction::UnverifiedTransaction;
 
 known_heap_size!(0, HeaderId);
 
 type SmallHashVec = SmallVec<[H256; 1]>;
 
-/// Block data with optional body.
-struct SyncBlock {
-	header: Bytes,
-	body: Option<Bytes>,
-	receipts: Option<Bytes>,
-	receipts_root: H256,
+pub struct SyncHeader {
+	pub bytes: Bytes,
+	pub header: BlockHeader,
 }
 
-/// Block with optional receipt
-pub struct BlockAndReceipts {
-	/// Block data.
-	pub block: Bytes,
-	/// Block receipts RLP list.
-	pub receipts: Option<Bytes>,
+impl HeapSizeOf for SyncHeader {
+	fn heap_size_of_children(&self) -> usize {
+		self.bytes.heap_size_of_children()
+			+ self.header.heap_size_of_children()
+	}
+}
+
+impl SyncHeader {
+	pub fn from_rlp(bytes: Bytes) -> Result<Self, DecoderError> {
+		let result = SyncHeader {
+			header: ::rlp::decode(&bytes)?,
+			bytes,
+		};
+
+		Ok(result)
+	}
+}
+
+pub struct SyncBody {
+	pub transactions_bytes: Bytes,
+	pub transactions: Vec<UnverifiedTransaction>,
+	pub uncles_bytes: Bytes,
+	pub uncles: Vec<BlockHeader>,
+}
+
+impl SyncBody {
+	pub fn from_rlp(bytes: &[u8]) -> Result<Self, DecoderError> {
+		let rlp = Rlp::new(bytes);
+		let transactions_rlp = rlp.at(0)?;
+		let uncles_rlp = rlp.at(1)?;
+
+		let result = SyncBody {
+			transactions_bytes: transactions_rlp.as_raw().to_vec(),
+			transactions: transactions_rlp.as_list()?,
+			uncles_bytes: uncles_rlp.as_raw().to_vec(),
+			uncles: uncles_rlp.as_list()?,
+		};
+
+		Ok(result)
+	}
+
+	fn empty_body() -> Self {
+		SyncBody {
+			transactions_bytes: ::rlp::EMPTY_LIST_RLP.to_vec(),
+			transactions: Vec::with_capacity(0),
+			uncles_bytes: ::rlp::EMPTY_LIST_RLP.to_vec(),
+			uncles: Vec::with_capacity(0),
+		}
+	}
+}
+
+impl HeapSizeOf for SyncBody {
+	fn heap_size_of_children(&self) -> usize {
+		self.transactions_bytes.heap_size_of_children()
+			+ self.transactions.heap_size_of_children()
+			+ self.uncles_bytes.heap_size_of_children()
+			+ self.uncles.heap_size_of_children()
+	}
+}
+
+/// Block data with optional body.
+struct SyncBlock {
+	header: SyncHeader,
+	body: Option<SyncBody>,
+	receipts: Option<Bytes>,
+	receipts_root: H256,
 }
 
 impl HeapSizeOf for SyncBlock {
 	fn heap_size_of_children(&self) -> usize {
 		self.header.heap_size_of_children() + self.body.heap_size_of_children()
 	}
+}
+
+fn unverified_from_sync(header: SyncHeader, body: Option<SyncBody>) -> Unverified {
+	let mut stream = RlpStream::new_list(3);
+	stream.append_raw(&header.bytes, 1);
+	let body = body.unwrap_or_else(SyncBody::empty_body);
+	stream.append_raw(&body.transactions_bytes, 1);
+	stream.append_raw(&body.uncles_bytes, 1);
+
+	Unverified {
+		header: header.header,
+		transactions: body.transactions,
+		uncles: body.uncles,
+		bytes: stream.out().to_vec(),
+	}
+}
+
+/// Block with optional receipt
+pub struct BlockAndReceipts {
+	/// Block data.
+	pub block: Unverified,
+	/// Block receipts RLP list.
+	pub receipts: Option<Bytes>,
 }
 
 /// Used to identify header by transactions and uncles hashes
@@ -124,7 +204,7 @@ impl BlockCollection {
 	}
 
 	/// Insert a set of headers into collection and advance subchain head pointers.
-	pub fn insert_headers(&mut self, headers: Vec<Bytes>) {
+	pub fn insert_headers(&mut self, headers: Vec<SyncHeader>) {
 		for h in headers {
 			if let Err(e) =  self.insert_header(h) {
 				trace!(target: "sync", "Ignored invalid header: {:?}", e);
@@ -134,7 +214,7 @@ impl BlockCollection {
 	}
 
 	/// Insert a collection of block bodies for previously downloaded headers.
-	pub fn insert_bodies(&mut self, bodies: Vec<Bytes>) -> usize {
+	pub fn insert_bodies(&mut self, bodies: Vec<SyncBody>) -> usize {
 		let mut inserted = 0;
 		for b in bodies {
 			if let Err(e) =  self.insert_body(b) {
@@ -278,30 +358,33 @@ impl BlockCollection {
 			while let Some(h) = head {
 				head = self.parents.get(&h).cloned();
 				if let Some(head) = head {
-					match self.blocks.get(&head) {
-						Some(block) if block.body.is_some() && (!self.need_receipts || block.receipts.is_some()) => {
-							blocks.push(block);
-							hashes.push(head);
-							self.head = Some(head);
-						}
-						_ => break,
+					match self.blocks.remove(&head) {
+						Some(block) => {
+							if block.body.is_some() && (!self.need_receipts || block.receipts.is_some()) {
+								blocks.push(block);
+								hashes.push(head);
+								self.head = Some(head);
+							} else {
+								self.blocks.insert(head, block);
+								break;
+							}
+						},
+						_ => {
+							break;
+						},
 					}
 				}
 			}
 
-			for block in blocks {
-				let body = view!(BodyView, block.body.as_ref().expect("blocks contains only full blocks; qed"));
-				let header = view!(HeaderView, &block.header);
-				let block_view = Block::new_from_header_and_body(&header, &body);
+			for block in blocks.into_iter() {
+				let unverified = unverified_from_sync(block.header, block.body);
 				drained.push(BlockAndReceipts {
-					block: block_view.into_inner(),
+					block: unverified,
 					receipts: block.receipts.clone(),
 				});
 			}
 		}
-		for h in hashes {
-			self.blocks.remove(&h);
-		}
+
 		trace!(target: "sync", "Drained {} blocks, new head :{:?}", drained.len(), self.head);
 		drained
 	}
@@ -337,26 +420,23 @@ impl BlockCollection {
 		self.downloading_headers.contains(hash) || self.downloading_bodies.contains(hash)
 	}
 
-	fn insert_body(&mut self, b: Bytes) -> Result<(), network::Error> {
+	fn insert_body(&mut self, body: SyncBody) -> Result<(), network::Error> {
 		let header_id = {
-			let body = Rlp::new(&b);
-			let tx = body.at(0)?;
-			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
-			let uncles = keccak(body.at(1)?.as_raw());
+			let tx_root = ordered_trie_root(Rlp::new(&body.transactions_bytes).iter().map(|r| r.as_raw()));
+			let uncles = keccak(&body.uncles_bytes);
 			HeaderId {
 				transactions_root: tx_root,
 				uncles: uncles
 			}
 		};
 
-		match self.header_ids.get(&header_id).cloned() {
+		match self.header_ids.remove(&header_id) {
 			Some(h) => {
-				self.header_ids.remove(&header_id);
 				self.downloading_bodies.remove(&h);
 				match self.blocks.get_mut(&h) {
 					Some(ref mut block) => {
 						trace!(target: "sync", "Got body {}", h);
-						block.body = Some(b);
+						block.body = Some(body);
 						Ok(())
 					},
 					None => {
@@ -401,54 +481,63 @@ impl BlockCollection {
 		}
 	}
 
-	fn insert_header(&mut self, header: Bytes) -> Result<H256, DecoderError> {
-		let info: BlockHeader = Rlp::new(&header).as_val()?;
-		let hash = info.hash();
+	fn insert_header(&mut self, info: SyncHeader) -> Result<H256, DecoderError> {
+		let hash = info.header.hash();
 		if self.blocks.contains_key(&hash) {
 			return Ok(hash);
 		}
+
 		match self.head {
 			None if hash == self.heads[0] => {
 				trace!(target: "sync", "New head {}", hash);
-				self.head = Some(info.parent_hash().clone());
+				self.head = Some(info.header.parent_hash().clone());
 			},
 			_ => ()
 		}
 
-		let mut block = SyncBlock {
-			header: header,
-			body: None,
-			receipts: None,
-			receipts_root: H256::new(),
-		};
 		let header_id = HeaderId {
-			transactions_root: info.transactions_root().clone(),
-			uncles: info.uncles_hash().clone(),
+			transactions_root: *info.header.transactions_root(),
+			uncles: *info.header.uncles_hash(),
 		};
-		if header_id.transactions_root == KECCAK_NULL_RLP && header_id.uncles == KECCAK_EMPTY_LIST_RLP {
+
+		let body = if header_id.transactions_root == KECCAK_NULL_RLP && header_id.uncles == KECCAK_EMPTY_LIST_RLP {
 			// empty body, just mark as downloaded
-			let mut body_stream = RlpStream::new_list(2);
-			body_stream.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
-			body_stream.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
-			block.body = Some(body_stream.out());
-		}
-		else {
-			trace!("Queueing body tx_root = {:?}, uncles = {:?}, block = {:?}, number = {}", header_id.transactions_root, header_id.uncles, hash, info.number());
-			self.header_ids.insert(header_id, hash.clone());
-		}
-		if self.need_receipts {
-			let receipt_root = info.receipts_root().clone();
+			Some(SyncBody::empty_body())
+		} else {
+			trace!(
+				"Queueing body tx_root = {:?}, uncles = {:?}, block = {:?}, number = {}",
+				header_id.transactions_root,
+				header_id.uncles,
+				hash,
+				info.header.number()
+			);
+			self.header_ids.insert(header_id, hash);
+			None
+		};
+
+		let (receipts, receipts_root) = if self.need_receipts {
+			let receipt_root = *info.header.receipts_root();
 			if receipt_root == KECCAK_NULL_RLP {
 				let receipts_stream = RlpStream::new_list(0);
-				block.receipts = Some(receipts_stream.out());
+				(Some(receipts_stream.out()), receipt_root)
 			} else {
-				self.receipt_ids.entry(receipt_root).or_insert_with(|| SmallHashVec::new()).push(hash.clone());
+				self.receipt_ids.entry(receipt_root).or_insert_with(|| SmallHashVec::new()).push(hash);
+				(None, receipt_root)
 			}
-			block.receipts_root = receipt_root;
-		}
+		} else {
+			(None, H256::new())
+		};
 
-		self.parents.insert(info.parent_hash().clone(), hash.clone());
-		self.blocks.insert(hash.clone(), block);
+		self.parents.insert(*info.header.parent_hash(), hash);
+
+		let block = SyncBlock {
+			header: info,
+			body,
+			receipts,
+			receipts_root,
+		};
+
+		self.blocks.insert(hash, block);
 		trace!(target: "sync", "New header: {:x}", hash);
 		Ok(hash)
 	}
@@ -485,10 +574,11 @@ impl BlockCollection {
 
 #[cfg(test)]
 mod test {
-	use super::BlockCollection;
+	use super::{BlockCollection, SyncHeader};
 	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
-	use ethcore::views::HeaderView;
 	use ethcore::header::BlockNumber;
+	use ethcore::verification::queue::kind::blocks::Unverified;
+	use ethcore::views::HeaderView;
 	use rlp::*;
 
 	fn is_empty(bc: &BlockCollection) -> bool {
@@ -541,7 +631,7 @@ mod test {
 		assert_eq!(bc.downloading_headers.len(), 1);
 		assert!(bc.drain().is_empty());
 
-		bc.insert_headers(headers[0..6].to_vec());
+		bc.insert_headers(headers[0..6].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
 		assert_eq!(hashes[5], bc.heads[0]);
 		for h in &hashes[0..6] {
 			bc.clear_header_download(h)
@@ -550,7 +640,10 @@ mod test {
 		assert!(!bc.is_downloading(&hashes[0]));
 		assert!(bc.contains(&hashes[0]));
 
-		assert_eq!(&bc.drain().into_iter().map(|b| b.block).collect::<Vec<_>>()[..], &blocks[0..6]);
+		assert_eq!(
+			bc.drain().into_iter().map(|b| b.block).collect::<Vec<_>>(),
+			blocks[0..6].iter().map(|b| Unverified::from_rlp(b.to_vec()).unwrap()).collect::<Vec<_>>()
+		);
 		assert!(!bc.contains(&hashes[0]));
 		assert_eq!(hashes[5], bc.head.unwrap());
 
@@ -558,13 +651,17 @@ mod test {
 		assert_eq!(hashes[5], h);
 		let (h, _) = bc.needed_headers(6, false).unwrap();
 		assert_eq!(hashes[20], h);
-		bc.insert_headers(headers[10..16].to_vec());
+		bc.insert_headers(headers[10..16].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
 		assert!(bc.drain().is_empty());
-		bc.insert_headers(headers[5..10].to_vec());
-		assert_eq!(&bc.drain().into_iter().map(|b| b.block).collect::<Vec<_>>()[..], &blocks[6..16]);
+		bc.insert_headers(headers[5..10].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		assert_eq!(
+			bc.drain().into_iter().map(|b| b.block).collect::<Vec<_>>(),
+			blocks[6..16].iter().map(|b| Unverified::from_rlp(b.to_vec()).unwrap()).collect::<Vec<_>>()
+		);
+
 		assert_eq!(hashes[15], bc.heads[0]);
 
-		bc.insert_headers(headers[15..].to_vec());
+		bc.insert_headers(headers[15..].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
 		bc.drain();
 		assert!(bc.is_empty());
 	}
@@ -584,11 +681,11 @@ mod test {
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 
-		bc.insert_headers(headers[2..22].to_vec());
+		bc.insert_headers(headers[2..22].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
 		assert_eq!(hashes[0], bc.heads[0]);
 		assert_eq!(hashes[21], bc.heads[1]);
 		assert!(bc.head.is_none());
-		bc.insert_headers(headers[0..2].to_vec());
+		bc.insert_headers(headers[0..2].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
 		assert!(bc.head.is_some());
 		assert_eq!(hashes[21], bc.heads[0]);
 	}
@@ -608,9 +705,9 @@ mod test {
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 
-		bc.insert_headers(headers[1..2].to_vec());
+		bc.insert_headers(headers[1..2].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
 		assert!(bc.drain().is_empty());
-		bc.insert_headers(headers[0..1].to_vec());
+		bc.insert_headers(headers[0..1].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
 		assert_eq!(bc.drain().len(), 2);
 	}
 }
