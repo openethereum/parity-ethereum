@@ -98,7 +98,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		let static_call = false;
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,
-			ext: Externalities::new(state, info, machine, schedule, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
+			ext: Externalities::new(state, info, machine, schedule, depth, origin_info, substate, output, tracer, vm_tracer, static_call, 0),
 			callcreates: vec![],
 			sender: address,
 		})
@@ -112,8 +112,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.storage_at(key)
 	}
 
-	fn reverted_storage_at(&self, key: &H256) -> vm::Result<H256> {
-		self.ext.reverted_storage_at(key)
+	fn reverted_storage_at(&self, _key: &H256) -> vm::Result<H256> {
+		Ok(H256::zero())
 	}
 
 	fn set_storage(&mut self, key: H256, value: H256) -> vm::Result<()> {
