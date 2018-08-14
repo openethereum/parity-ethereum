@@ -70,6 +70,9 @@ db_compaction = "ssd"
 fat_db = "off"
 scale_verifiers = false
 
+[light]
+on_demand_nb_retry = 12
+
 [snapshots]
 disable_periodic = true
 

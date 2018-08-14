@@ -155,6 +155,9 @@ fat_db = "auto"
 scale_verifiers = true
 num_verifiers = 6
 
+[light]
+on_demand_nb_retry = 15
+
 [snapshots]
 disable_periodic = false
 

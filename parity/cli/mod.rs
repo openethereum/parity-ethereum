@@ -1383,7 +1383,7 @@ mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, Misc, Whisper, SecretStore,
+		Snapshots, Misc, Whisper, SecretStore, Light,
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
@@ -1786,6 +1786,8 @@ mod tests {
 			arg_snapshot_at: "latest".into(),
 			flag_no_periodic_snapshot: false,
 
+			// -- Light options.
+			arg_on_demand_nb_retry: Some(15),
 			// -- Whisper options.
 			flag_whisper: false,
 			arg_whisper_pool_size: 20,
@@ -2032,6 +2034,9 @@ mod tests {
 				fat_db: Some("off".into()),
 				scale_verifiers: Some(false),
 				num_verifiers: None,
+			}),
+			light: Some(Light {
+				on_demand_nb_retry: Some(12),
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
