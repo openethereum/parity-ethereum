@@ -19,7 +19,7 @@
 //! will take the raw data received here and extract meaningful results from it.
 
 use std::cmp;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeSet};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -82,9 +82,9 @@ struct Pending {
 	required_capabilities: Capabilities,
 	responses: Vec<Response>,
 	sender: oneshot::Sender<Vec<Response>>,
-	base_query_index: Option<usize>,
-	total_query_count: usize,
+	base_query_index: usize,
 	remaining_query_count: usize,
+	query_id_history: BTreeSet<PeerId>,
 }
 
 impl Pending {
@@ -350,9 +350,9 @@ impl OnDemand {
 			required_capabilities: capabilities,
 			responses: responses,
 			sender: sender,
-			base_query_index: None,
-			total_query_count: 0,
+			base_query_index: 0,
 			remaining_query_count: 0,
+			query_id_history: BTreeSet::new(),
 		});
 
 		Ok(receiver)
@@ -394,45 +394,44 @@ impl OnDemand {
 			.filter_map(|mut pending| {
 				// the peer we dispatch to is chosen randomly
 				let num_peers = peers.len();
-				let rng = if pending.base_query_index.is_none() {
-					let rand = rand::random::<usize>() % cmp::max(num_peers, 1);
-					pending.base_query_index = Some(rand);
-					pending.remaining_query_count = num_peers;
-					pending.total_query_count = num_peers;
+				let history_len = pending.query_id_history.len();
+				let start = if history_len == 0 {
+					pending.remaining_query_count = num_peers; // TODO init to constant or parameter
+					let rand = rand::random::<usize>();
+					pending.base_query_index = rand;
 					rand
 				} else {
-					if pending.total_query_count < num_peers {
-						// add some
-						pending.total_query_count = num_peers;
-					}
-					pending.base_query_index.unwrap()
-				};
+					pending.base_query_index + history_len
+				} % cmp::max(num_peers, 1);
 				let init_remaining_query_count = pending.remaining_query_count; // to fail in case of big reduction of nb of peers
 				for (peer_id, peer) in peers.iter().chain(peers.iter())
-					.skip(rng + (pending.total_query_count - pending.remaining_query_count))
-					.take(pending.remaining_query_count) {
+					.skip(start).take(num_peers) {
 					// TODO: see which requests can be answered by the cache?
-
-					pending.remaining_query_count -= 1;
-					if !peer.can_fulfill(&pending.required_capabilities) {
-						trace!(target: "on_demand", "Peer {} without required capabilities, skipping, {} remaining attempts", peer_id, pending.remaining_query_count);
-						continue
+					if pending.remaining_query_count == 0 {
+						break
 					}
 
-					match ctx.request_from(*peer_id, pending.net_requests.clone()) {
-						Ok(req_id) => {
-							trace!(target: "on_demand", "Dispatched request {} to peer {}, {} remaining attempts", req_id, peer_id, pending.remaining_query_count);
-							self.in_transit.write().insert(req_id, pending);
-							return None
+					if pending.query_id_history.insert(peer_id.clone()) {
+						pending.remaining_query_count -= 1;
+						if !peer.can_fulfill(&pending.required_capabilities) {
+							trace!(target: "on_demand", "Peer {} without required capabilities, skipping, {} remaining attempts", peer_id, pending.remaining_query_count);
+							continue
 						}
-						Err(net::Error::NoCredits) | Err(net::Error::NotServer) => {}
-						Err(e) => debug!(target: "on_demand", "Error dispatching request to peer: {}", e),
-					}
 
+						match ctx.request_from(*peer_id, pending.net_requests.clone()) {
+							Ok(req_id) => {
+								trace!(target: "on_demand", "Dispatched request {} to peer {}, {} remaining attempts", req_id, peer_id, pending.remaining_query_count);
+								self.in_transit.write().insert(req_id, pending);
+								return None
+							}
+							Err(net::Error::NoCredits) | Err(net::Error::NotServer) => {}
+							Err(e) => debug!(target: "on_demand", "Error dispatching request to peer: {}", e),
+						}
+					}
 				}
 
 				if pending.remaining_query_count == 0 || init_remaining_query_count == pending.remaining_query_count {
-					pending.no_response();
+					pending.no_response(); // TODO different reply on a no query but still remaining query to do
 					None
 				} else {
 					Some(pending)
@@ -515,7 +514,7 @@ impl Handler for OnDemand {
 			}
 		} else {
 			// do not keep query counter for others elements of this batch
-			pending.base_query_index = None;
+			pending.query_id_history.clear();
 		}
 
 		// for each incoming response
