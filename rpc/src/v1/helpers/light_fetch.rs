@@ -22,7 +22,6 @@ use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::ids::BlockId;
-use ethcore::log_entry::LocalizedLogEntry;
 use ethcore::receipt::Receipt;
 
 use jsonrpc_core::{Result, Error};
@@ -351,20 +350,20 @@ impl LightFetch {
 					for (transaction_index, receipt) in receipts.into_iter().enumerate() {
 						for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
 							if filter.matches(&log) {
-								let log = LocalizedLogEntry {
-									entry: log,
-									block_hash: hash,
-									block_number: num,
+								matches.insert((num, block_index), Log {
+									address: log.address.into(),
+									topics: log.topics.into_iter().map(Into::into).collect(),
+									data: log.data.into(),
+									block_hash: Some(hash.into()),
+									block_number: Some(num.into()),
 									// No way to easily retrieve transaction hash, so let's just skip it.
-									transaction_hash: Default::default(),
-									transaction_index,
-									log_index: block_index,
-									transaction_log_index,
-								};
-								let mut log = Log::from(log);
-								// overwrite transaction_hash
-								log.transaction_hash = None;
-								matches.insert((num, block_index), log);
+									transaction_hash: None,
+									transaction_index: Some(transaction_index.into()),
+									log_index: Some(block_index.into()),
+									transaction_log_index: Some(transaction_log_index.into()),
+									log_type: "mined".into(),
+									removed: false,
+								});
 							}
 							block_index += 1;
 						}
