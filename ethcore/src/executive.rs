@@ -423,8 +423,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let default = [];
 			let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
 
-			let trace_info = tracer.prepare_trace_call(&params);
-
 			let cost = builtin.cost(data);
 			if cost <= params.gas {
 				let mut builtin_out_buffer = Vec::new();
@@ -435,7 +433,12 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				if let Err(e) = result {
 					self.state.revert_to_checkpoint();
 					let evm_err: vm::Error = e.into();
-					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
+					let trace_info = tracer.prepare_trace_call(&params);
+					tracer.trace_failed_call(
+						trace_info,
+						vec![],
+						evm_err.clone().into()
+					);
 					Err(evm_err)
 				} else {
 					self.state.discard_checkpoint();
@@ -448,15 +451,11 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 						ActionValue::Apparent(_) => false,
 					};
 					if self.depth == 0 || is_transferred {
-						let mut trace_output = tracer.prepare_trace_output();
-						if let Some(out) = trace_output.as_mut() {
-							*out = builtin_out_buffer.clone();
-						}
-
+						let trace_info = tracer.prepare_trace_call(&params);
 						tracer.trace_call(
 							trace_info,
 							cost,
-							trace_output,
+							&builtin_out_buffer,
 							vec![]
 						);
 					}
@@ -472,13 +471,17 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				// just drain the whole gas
 				self.state.revert_to_checkpoint();
 
-				tracer.trace_failed_call(trace_info, vec![], vm::Error::OutOfGas.into());
+				let trace_info = tracer.prepare_trace_call(&params);
+				tracer.trace_failed_call(
+					trace_info,
+					vec![],
+					vm::Error::OutOfGas.into()
+				);
 
 				Err(vm::Error::OutOfGas)
 			}
 		} else {
 			let trace_info = tracer.prepare_trace_call(&params);
-			let mut trace_output = tracer.prepare_trace_output();
 			let mut subtracer = tracer.subtracer();
 
 			let gas = params.gas;
@@ -501,11 +504,10 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let traces = subtracer.drain();
 				match res {
 					Ok(ref res) if res.apply_state => {
-						trace_output.as_mut().map(|d| *d = res.return_data.to_vec());
 						tracer.trace_call(
 							trace_info,
 							gas - res.gas_left,
-							trace_output,
+							&res.return_data,
 							traces
 						);
 					},
@@ -522,7 +524,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.discard_checkpoint();
 
-				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
+				tracer.trace_call(trace_info, U256::zero(), &[], vec![]);
 				Ok(FinalizationResult {
 					gas_left: params.gas,
 					return_data: ReturnData::empty(),
@@ -577,7 +579,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 
 		let trace_info = tracer.prepare_trace_create(&params);
-		let mut trace_output = tracer.prepare_trace_output();
 		let mut subtracer = tracer.subtracer();
 		let gas = params.gas;
 		let created = params.address.clone();
@@ -596,11 +597,10 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		match res {
 			Ok(ref res) if res.apply_state => {
-				trace_output.as_mut().map(|trace| *trace = res.return_data.to_vec());
 				tracer.trace_create(
 					trace_info,
 					gas - res.gas_left,
-					trace_output,
+					&res.return_data,
 					created,
 					subtracer.drain()
 				);
