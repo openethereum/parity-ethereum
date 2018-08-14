@@ -321,9 +321,15 @@ impl LightFetch {
 			BlockId::Number(x) => Some(x),
 		};
 
-		match (block_number(filter.to_block), block_number(filter.from_block)) {
-			(Some(to), Some(from)) if to < from => return Either::A(future::ok(Vec::new())),
-			(Some(_), Some(_)) => {},
+		let (from_block_number, from_block_header) = match self.client.block_header(filter.from_block) {
+			Some(from) => (from.number(), from),
+			None => return Either::A(future::err(errors::unknown_block())),
+		};
+
+		match block_number(filter.to_block) {
+			Some(to) if to < from_block_number || from_block_number > best_number 
+				=> return Either::A(future::ok(Vec::new())),
+			Some(_) => (),
 			_ => return Either::A(future::err(errors::unknown_block())),
 		}
 
@@ -332,11 +338,11 @@ impl LightFetch {
 			// match them with their numbers for easy sorting later.
 			let bit_combos = filter.bloom_possibilities();
 			let receipts_futures: Vec<_> = self.client.ancestry_iter(filter.to_block)
-				.take_while(|ref hdr| BlockId::Number(hdr.number()) != filter.from_block)
-				.take_while(|ref hdr| BlockId::Hash(hdr.hash()) != filter.from_block)
+				.take_while(|ref hdr| hdr.number() != from_block_number)
+				.chain(Some(from_block_header))
 				.filter(|ref hdr| {
 					let hdr_bloom = hdr.log_bloom();
-					bit_combos.iter().find(|&bloom| hdr_bloom & *bloom == *bloom).is_some()
+					bit_combos.iter().any(|bloom| hdr_bloom.contains_bloom(bloom))
 				})
 				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr.into())))
 				.map(|(num, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, x)))
