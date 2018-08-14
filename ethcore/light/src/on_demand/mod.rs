@@ -49,6 +49,9 @@ pub mod request;
 /// The result of execution
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
+/// The default number of retry for OnDemand queries send to other nodes
+pub const DEFAULT_NB_RETRY: usize = 10;
+
 // relevant peer info.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Peer {
@@ -278,9 +281,11 @@ pub struct OnDemand {
 	in_transit: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
 	no_immediate_dispatch: bool,
+	base_retry_number: usize,
 }
 
 impl OnDemand {
+
 	/// Create a new `OnDemand` service with the given cache.
 	pub fn new(cache: Arc<Mutex<Cache>>) -> Self {
 		OnDemand {
@@ -289,6 +294,7 @@ impl OnDemand {
 			in_transit: RwLock::new(HashMap::new()),
 			cache: cache,
 			no_immediate_dispatch: false,
+			base_retry_number: DEFAULT_NB_RETRY,
 		}
 	}
 
@@ -396,7 +402,7 @@ impl OnDemand {
 				let num_peers = peers.len();
 				let history_len = pending.query_id_history.len();
 				let start = if history_len == 0 {
-					pending.remaining_query_count = num_peers; // TODO init to constant or parameter
+					pending.remaining_query_count = cmp::min(num_peers, self.base_retry_number);
 					let rand = rand::random::<usize>();
 					pending.base_query_index = rand;
 					rand
@@ -412,11 +418,13 @@ impl OnDemand {
 					}
 
 					if pending.query_id_history.insert(peer_id.clone()) {
-						pending.remaining_query_count -= 1;
+
 						if !peer.can_fulfill(&pending.required_capabilities) {
 							trace!(target: "on_demand", "Peer {} without required capabilities, skipping, {} remaining attempts", peer_id, pending.remaining_query_count);
 							continue
 						}
+
+						pending.remaining_query_count -= 1;
 
 						match ctx.request_from(*peer_id, pending.net_requests.clone()) {
 							Ok(req_id) => {
@@ -431,7 +439,8 @@ impl OnDemand {
 				}
 
 				if pending.remaining_query_count == 0 || init_remaining_query_count == pending.remaining_query_count {
-					pending.no_response(); // TODO different reply on a no query but still remaining query to do
+					// TODO different reply on a no query but still remaining query to do (warn peer that cannot fullfill will mess with the count
+					pending.no_response();
 					None
 				} else {
 					Some(pending)
@@ -454,6 +463,11 @@ impl OnDemand {
 			self.pending.write().push(pending);
 			self.attempt_dispatch(ctx);
 		}
+	}
+
+	/// Changes default number of retry for query.
+	pub fn default_retry_number(&mut self, nb_retry: usize) {
+		self.base_retry_number = nb_retry;
 	}
 }
 

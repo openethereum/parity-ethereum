@@ -128,6 +128,7 @@ pub struct RunCmd {
 	pub no_persistent_txqueue: bool,
 	pub whisper: ::whisper::Config,
 	pub no_hardcoded_sync: bool,
+	pub ondemand_nb_retry: Option<usize>,
 }
 
 // node info fetcher for the local store.
@@ -206,7 +207,11 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	config.queue.verifier_settings = cmd.verifier_settings;
 
 	// start on_demand service.
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
+	let on_demand = Arc::new({
+		let mut on_demand = ::light::on_demand::OnDemand::new(cache.clone());
+		on_demand.default_retry_number(cmd.ondemand_nb_retry.unwrap_or(::light::on_demand::DEFAULT_NB_RETRY));
+		on_demand
+	});
 
 	let sync_handle = Arc::new(RwLock::new(Weak::new()));
 	let fetch = ::light_helpers::EpochFetch {
@@ -352,7 +357,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr,
 						on_updater_rq: Rr) -> Result<RunningClient, String>
 	where Cr: Fn(String) + 'static + Send,
-		  Rr: Fn() + 'static + Send
+			Rr: Fn() + 'static + Send
 {
 	// load spec
 	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
@@ -900,7 +905,7 @@ impl RunningClient {
 pub fn execute<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>,
 						on_client_rq: Cr, on_updater_rq: Rr) -> Result<RunningClient, String>
 	where Cr: Fn(String) + 'static + Send,
-		  Rr: Fn() + 'static + Send
+			Rr: Fn() + 'static + Send
 {
 	if cmd.light {
 		execute_light_impl(cmd, logger)

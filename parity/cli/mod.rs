@@ -562,6 +562,11 @@ usage! {
 			"--ipfs-api-cors=[URL]",
 			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
 
+		["Light Client Options"]
+			ARG arg_on_demand_nb_retry: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_nb_retry,
+			"--on_demand_nb_retry=[RETRIES]",
+			"Specify maximum number of retry query to send to other node for a query.",
+
 		["Secret Store Options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
 			"--no-secretstore",
@@ -875,7 +880,7 @@ usage! {
 			"Target size of the whisper message pool in megabytes.",
 
 		["Legacy Options"]
-		    // Options that are hidden from config, but are still unique for its functionality.
+			// Options that are hidden from config, but are still unique for its functionality.
 
 			FLAG flag_geth: (bool) = false, or |_| None,
 			"--geth",
@@ -1100,6 +1105,7 @@ struct Config {
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
 	whisper: Option<Whisper>,
+	light: Option<Light>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1363,6 +1369,14 @@ struct Whisper {
 	enabled: Option<bool>,
 	pool_size: Option<usize>,
 }
+
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Light {
+	on_demand_nb_retry: Option<usize>,
+}
+
+
 
 #[cfg(test)]
 mod tests {

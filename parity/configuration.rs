@@ -205,7 +205,7 @@ impl Configuration {
 			};
 			Cmd::Account(account_cmd)
 		} else if self.args.flag_import_geth_keys {
-        	let account_cmd = AccountCmd::ImportFromGeth(
+					let account_cmd = AccountCmd::ImportFromGeth(
 				ImportFromGethAccounts {
 					spec: spec,
 					to: dirs.keys,
@@ -383,6 +383,7 @@ impl Configuration {
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 				whisper: whisper_config,
 				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
+				ondemand_nb_retry: self.args.arg_on_demand_nb_retry,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1331,10 +1332,10 @@ mod tests {
 			support_token_api: true,
 			max_connections: 100,
 		}, LogConfig {
-            color: true,
-            mode: None,
-            file: None,
-        } ));
+						color: true,
+						mode: None,
+						file: None,
+				} ));
 	}
 
 	#[test]
@@ -1516,11 +1517,11 @@ mod tests {
 						 "--jsonrpc-apis", "web3,eth"
 						 ]);
 		let conf2 = parse(&["parity", "--rpc",
-						  "--rpcport", "8000",
-						  "--rpcaddr", "all",
-						  "--rpccorsdomain", "*",
-						  "--rpcapi", "web3,eth"
-						  ]);
+							"--rpcport", "8000",
+							"--rpcaddr", "all",
+							"--rpccorsdomain", "*",
+							"--rpcapi", "web3,eth"
+							]);
 
 		// then
 		assert(conf1);
