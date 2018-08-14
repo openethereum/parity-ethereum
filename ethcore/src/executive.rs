@@ -447,19 +447,23 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 						ActionValue::Transfer(value) => value != U256::zero(),
 						ActionValue::Apparent(_) => false,
 					};
-					if self.depth == 0 || is_transferred {
+
+					let trace_output = if self.depth == 0 || is_transferred {
 						let mut trace_output = tracer.prepare_trace_output();
 						if let Some(out) = trace_output.as_mut() {
 							*out = builtin_out_buffer.clone();
 						}
+						trace_output
+					} else {
+						None
+					};
 
-						tracer.trace_call(
-							trace_info,
-							cost,
-							trace_output,
-							vec![]
-						);
-					}
+					tracer.trace_call(
+						trace_info,
+						cost,
+						trace_output,
+						vec![]
+					);
 
 					let out_len = builtin_out_buffer.len();
 					Ok(FinalizationResult {
