@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 
+use light::on_demand::error::Error as OnDemandError;
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::ids::BlockId;
@@ -27,7 +28,6 @@ use ethcore::receipt::Receipt;
 use jsonrpc_core::{Result, Error};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
-use futures::sync::oneshot::Canceled as FutureCanceled;
 use jsonrpc_macros::Trailing;
 
 use light::cache::Cache;
@@ -354,15 +354,16 @@ impl LightFetch {
 			// insert them into a BTreeMap to maintain order by number and block index.
 			stream::futures_unordered(receipts_futures)
 				.fold(BTreeMap::new(), move |mut matches, (num, receipts)| {
+					let receipts : Vec<::ethcore::receipt::Receipt> = receipts;
 					for (block_index, log) in receipts.into_iter().flat_map(|r| r.logs).enumerate() {
 						if filter.matches(&log) {
 							matches.insert((num, block_index), log.into());
 						}
 					}
-					future::ok(matches)
+					future::ok::<_,OnDemandError>(matches)
 				}) // and then collect them into a vector.
 				.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
-				.map_err(errors::on_demand_cancel)
+				.map_err(errors::on_demand_error)
 		});
 
 		match maybe_future {
@@ -386,7 +387,7 @@ impl LightFetch {
 			});
 
 			let eventual_index = match maybe_future {
-				Some(e) => e.expect(NO_INVALID_BACK_REFS).map_err(errors::on_demand_cancel),
+				Some(e) => e.expect(NO_INVALID_BACK_REFS).map_err(errors::on_demand_error),
 				None => return Either::A(future::err(errors::network_disabled())),
 			};
 
@@ -437,15 +438,14 @@ impl LightFetch {
 		let maybe_future = self.sync.with_context(move |ctx| {
 			Box::new(self.on_demand.request_raw(ctx, reqs)
 					 .expect(NO_INVALID_BACK_REFS)
-					 .and_then(|responses|{
-						 if responses.len() == 0 {
-							 Err(FutureCanceled) // TODO better error type
-						 } else {
-							 Ok(responses)
+					 .map_err(errors::on_demand_cancel)
+					 .and_then(|responses| {
+						 match responses {
+							 Ok(responses) => Ok(parse_response(responses)),
+							 Err(e) => Err(errors::on_demand_error(e)),
 						 }
 					 })
-					 .map(parse_response)
-					 .map_err(errors::on_demand_cancel))
+			)
 		});
 
 		match maybe_future {
@@ -508,7 +508,7 @@ fn execute_tx(gas_known: bool, params: ExecuteParams) -> impl Future<Item = Exec
 			on_demand
 				.request(ctx, request)
 				.expect("no back-references; therefore all back-refs valid; qed")
-				.map_err(errors::on_demand_cancel)
+				.map_err(errors::on_demand_error)
 		});
 
 		match proved_future {

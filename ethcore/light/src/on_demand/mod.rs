@@ -26,7 +26,7 @@ use std::sync::Arc;
 use ethcore::executed::{Executed, ExecutionError};
 
 use futures::{Poll, Future, Async};
-use futures::sync::oneshot::{self, Receiver, Canceled};
+use futures::sync::oneshot::{self, Receiver};
 use network::PeerId;
 use parking_lot::{RwLock, Mutex};
 use rand;
@@ -56,6 +56,35 @@ pub const DEFAULT_NB_RETRY: usize = 10;
 /// The default time limit in milliseconds for inactive (no new peer to connect to) OnDemand queries (0 for unlimited)
 pub const DEFAULT_QUERY_TIME_LIMIT: u64 = 10000;
 
+/// OnDemand related errors
+pub mod error {
+	use futures::sync::oneshot::Canceled;
+
+	error_chain! {
+
+		foreign_links {
+			ChannelCanceled(Canceled) #[doc = "Canceled oneshot channel"];
+		}
+
+		errors {
+			#[doc = "Max number of on demand attempt reached without results for a query."]
+			MaxAttemptReach(query_index: usize) {
+				description("On demand query limit reached")
+				display("On demand query limit reached on query #{}", query_index)
+			}
+
+			#[doc = "No reply with current peer set, time out occured while waiting for new peers for additional query attempt."]
+			TimeoutOnNewPeers(query_index: usize, remaining_attempts: usize) {
+				description("Timeout for On demand query")
+				display("Timeout for On demand query, remaining {} query attempts on query #{}", remaining_attempts, query_index)
+			}
+
+		}
+
+	}
+
+}
+
 // relevant peer info.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Peer {
@@ -82,13 +111,18 @@ impl Peer {
 	}
 }
 
+
+/// Either an array of response or a single error
+/// Currently fails globally.
+type PendingResponse = self::error::Result<Vec<Response>>;
+
 // Attempted request info and sender to put received value.
 struct Pending {
 	requests: basic_request::Batch<CheckedRequest>,
 	net_requests: basic_request::Batch<NetworkRequest>,
 	required_capabilities: Capabilities,
 	responses: Vec<Response>,
-	sender: oneshot::Sender<Vec<Response>>,
+	sender: oneshot::Sender<PendingResponse>,
 	base_query_index: usize,
 	remaining_query_count: usize,
 	query_id_history: BTreeSet<PeerId>,
@@ -157,7 +191,7 @@ impl Pending {
 	// if the requests are complete, send the result and consume self.
 	fn try_complete(self) -> Option<Self> {
 		if self.requests.is_complete() {
-			if self.sender.send(self.responses).is_err() {
+			if self.sender.send(Ok(self.responses)).is_err() {
 				debug!(target: "on_demand", "Dropped oneshot channel receiver on complet request");
 			}
 			None
@@ -199,7 +233,17 @@ impl Pending {
 	// self is consumed on purpose.
 	fn no_response(self) {
 		trace!(target: "on_demand", "Dropping a pending query (no reply)");
-		if self.sender.send(Vec::with_capacity(0)).is_err() {
+		let err = self::error::ErrorKind::MaxAttemptReach(self.requests.num_answered());
+		if self.sender.send(Err(err.into())).is_err() {
+			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
+		}
+	}
+
+	// returning a peer discovery timeout during queries attempts
+	fn time_out(self) {
+		trace!(target: "on_demand", "Dropping a pending query (no new peer time out)");
+		let err = self::error::ErrorKind::TimeoutOnNewPeers(self.requests.num_answered(), self.query_id_history.len());
+		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
 		}
 	}
@@ -254,24 +298,20 @@ fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
 /// A future extracting the concrete output type of the generic adapter
 /// from a vector of responses.
 pub struct OnResponses<T: request::RequestAdapter> {
-	receiver: Receiver<Vec<Response>>,
+	receiver: Receiver<PendingResponse>,
 	_marker: PhantomData<T>,
 }
 
 impl<T: request::RequestAdapter> Future for OnResponses<T> {
 	type Item = T::Out;
-	type Error = Canceled;
+	type Error = self::error::Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		match self.receiver.poll() {
-			Ok(Async::Ready(v)) => {
-				if v.is_empty() {
-					return Err(Canceled);
-				}
-				Ok(Async::Ready(T::extract_from(v)))
-			},
+			Ok(Async::Ready(Ok(v))) => Ok(Async::Ready(T::extract_from(v))),
+			Ok(Async::Ready(Err(e))) => Err(e),
 			Ok(Async::NotReady) => Ok(Async::NotReady),
-			Err(e) => Err(e),
+			Err(e) => Err(e.into()),
 		}
 	}
 }
@@ -320,11 +360,11 @@ impl OnDemand {
 	/// Fails if back-references are not coherent.
 	/// The returned vector of responses will correspond to the requests exactly.
 	pub fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
-		-> Result<Receiver<Vec<Response>>, basic_request::NoSuchOutput>
+		-> Result<Receiver<PendingResponse>, basic_request::NoSuchOutput>
 	{
 		let (sender, receiver) = oneshot::channel();
 		if requests.is_empty() {
-			assert!(sender.send(Vec::new()).is_ok(), "receiver still in scope; qed");
+			assert!(sender.send(Ok(Vec::new())).is_ok(), "receiver still in scope; qed");
 			return Ok(receiver);
 		}
 
@@ -458,6 +498,7 @@ impl OnDemand {
 							pending.inactive_time_limit = Some(now + query_inactive_time_limit);
 						} else {
 							if now > pending.inactive_time_limit.unwrap() {
+								pending.time_out();
 								return None
 							}
 						}
