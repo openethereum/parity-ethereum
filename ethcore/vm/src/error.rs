@@ -16,8 +16,16 @@
 
 //! VM errors module
 
+use ::Vm;
+use action_params::ActionParams;
 use std::fmt;
 use ethtrie;
+
+#[derive(Debug, Clone)]
+pub enum TrapKind {
+	Call(ActionParams),
+	Create(ActionParams),
+}
 
 /// VM errors.
 #[derive(Debug, Clone, PartialEq)]
@@ -76,17 +84,12 @@ impl From<Box<ethtrie::TrieError>> for Error {
 		Error::Internal(format!("Internal error: {}", err))
 	}
 }
+
 impl From<ethtrie::TrieError> for Error {
 	fn from(err: ethtrie::TrieError) -> Self {
 		Error::Internal(format!("Internal error: {}", err))
 	}
 }
-
-// impl From<wasm::RuntimeError> for Error {
-// 	fn from(err: wasm::RuntimeError) -> Self {
-// 		Error::Wasm(format!("Runtime error: {:?}", err))
-// 	}
-// }
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -108,3 +111,4 @@ impl fmt::Display for Error {
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;
+pub type TrapResult<T> = ::std::result::Result<Result<T>, (TrapKind, Box<Vm>)>;

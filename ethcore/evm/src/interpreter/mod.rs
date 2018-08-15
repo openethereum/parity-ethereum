@@ -186,15 +186,8 @@ pub struct Interpreter<Cost: CostType> {
 }
 
 impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
-	fn exec(&mut self, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
-		loop {
-			let result = self.step(ext);
-			match result {
-				InterpreterResult::Continue => {},
-				InterpreterResult::Done(value) => return value,
-				InterpreterResult::Stopped => panic!("Attempted to execute an already stopped VM.")
-			}
-		}
+	fn exec(self: Box<Self>, ext: &mut vm::Ext) -> vm::TrapResult<GasLeft> {
+		Ok(self.run(ext))
 	}
 }
 
@@ -216,6 +209,17 @@ impl<Cost: CostType> Interpreter<Cost> {
 			mem: Vec::new(),
 			return_data: ReturnData::empty(),
 			_type: PhantomData,
+		}
+	}
+
+	pub fn run(mut self: Box<Self>, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
+		loop {
+			let result = self.step(ext);
+			match result {
+				InterpreterResult::Continue => {},
+				InterpreterResult::Done(value) => return value,
+				InterpreterResult::Stopped => panic!("Attempted to execute an already stopped VM.")
+			}
 		}
 	}
 
