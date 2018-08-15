@@ -453,7 +453,7 @@ impl<'a> CallCreateExecutive<'a> {
 				let out = {
 					let static_call = params.call_type == CallType::StaticCall;
 					// TODO: use proper sub-tracers.
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -476,6 +476,82 @@ impl<'a> CallCreateExecutive<'a> {
 				Ok(res)
 			},
 			CallCreateExecutiveKind::ResumeCall(..) | CallCreateExecutiveKind::ResumeCreate(..) => panic!("This executive has already been executed once."),
+		}
+	}
+
+	pub fn resume_call<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, result: vm::MessageCallResult, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> ExecutiveTrapResult<'a, FinalizationResult> {
+		match self.kind {
+			CallCreateExecutiveKind::ResumeCall(params, resume, mut unconfirmed_substate) => {
+				let out = {
+					let exec = resume.resume_call(result);
+
+					let static_call = params.call_type == CallType::StaticCall;
+					// TODO: use proper sub-tracers.
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
+					match exec.exec(&mut ext) {
+						Ok(val) => Ok(val.finalize(ext)),
+						Err(err) => Err(err),
+					}
+				};
+
+				let res = match out {
+					Ok(val) => val,
+					Err(TrapError::Call(subparams, resume)) => {
+						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
+						return Err(TrapError::Call(subparams, self));
+					},
+					Err(TrapError::Create(subparams, resume)) => {
+						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
+						return Err(TrapError::Create(subparams, self));
+					},
+				};
+
+				Self::enact_result(&res, state, substate, unconfirmed_substate);
+				Ok(res)
+			},
+			CallCreateExecutiveKind::ResumeCreate(..) =>
+				panic!("Resumable as create, but called resume_call"),
+			CallCreateExecutiveKind::Transfer(..) | CallCreateExecutiveKind::CallBuiltin(..) |
+			CallCreateExecutiveKind::ExecCall(..) | CallCreateExecutiveKind::ExecCreate(..) =>
+				panic!("Not resumable"),
+		}
+	}
+
+	pub fn resume_create<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, result: vm::ContractCreateResult, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> ExecutiveTrapResult<'a, FinalizationResult> {
+		match self.kind {
+			CallCreateExecutiveKind::ResumeCreate(params, resume, mut unconfirmed_substate) => {
+				let out = {
+					let exec = resume.resume_create(result);
+
+					let static_call = params.call_type == CallType::StaticCall;
+					// TODO: use proper sub-tracers.
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
+					match exec.exec(&mut ext) {
+						Ok(val) => Ok(val.finalize(ext)),
+						Err(err) => Err(err),
+					}
+				};
+
+				let res = match out {
+					Ok(val) => val,
+					Err(TrapError::Call(subparams, resume)) => {
+						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
+						return Err(TrapError::Call(subparams, self));
+					},
+					Err(TrapError::Create(subparams, resume)) => {
+						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
+						return Err(TrapError::Create(subparams, self));
+					},
+				};
+
+				Self::enact_result(&res, state, substate, unconfirmed_substate);
+				Ok(res)
+			},
+			CallCreateExecutiveKind::ResumeCall(..) =>
+				panic!("Resumable as call, but called resume_create"),
+			CallCreateExecutiveKind::Transfer(..) | CallCreateExecutiveKind::CallBuiltin(..) |
+			CallCreateExecutiveKind::ExecCall(..) | CallCreateExecutiveKind::ExecCreate(..) =>
+				panic!("Not resumable"),
 		}
 	}
 }
