@@ -201,6 +201,7 @@ pub struct CallCreateExecutive<'a> {
 	info: &'a EnvInfo,
 	machine: &'a Machine,
 	schedule: &'a Schedule,
+	factory: &'a VmFactory,
 	depth: usize,
 	static_flag: bool,
 	is_create: bool,
@@ -208,7 +209,7 @@ pub struct CallCreateExecutive<'a> {
 }
 
 impl<'a> CallCreateExecutive<'a> {
-	pub fn new_call_raw<'any>(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'any VmFactory, depth: usize, static_flag: bool) -> Self {
+	pub fn new_call_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, static_flag: bool) -> Self {
 		trace!("Executive::call(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
 
 		// if destination is builtin, try to execute it
@@ -230,21 +231,25 @@ impl<'a> CallCreateExecutive<'a> {
 		};
 
 		Self {
-			info, machine, schedule, depth, static_flag, kind,
+			info, machine, schedule, factory, depth, static_flag, kind,
 			is_create: false,
 		}
 	}
 
-	pub fn new_create_raw<'any>(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'any VmFactory, depth: usize, static_flag: bool) -> Self {
+	pub fn new_create_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, static_flag: bool) -> Self {
 		trace!("Executive::create(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
 
 		// TODO: Remove this additional clone.
 		let kind = CallCreateExecutiveKind::ExecCreate(params.clone(), factory.create(params, schedule, depth), Substate::new());
 
 		Self {
-			info, machine, schedule, depth, static_flag, kind,
+			info, machine, schedule, factory, depth, static_flag, kind,
 			is_create: true,
 		}
+	}
+
+	pub fn sub_static_flag(&self, subparams: &ActionParams) -> bool {
+		self.static_flag || subparams.call_type == CallType::StaticCall
 	}
 
 	fn check_static_flag(params: &ActionParams, static_flag: bool, is_create: bool) -> vm::Result<()> {
@@ -573,6 +578,89 @@ impl<'a> CallCreateExecutive<'a> {
 			CallCreateExecutiveKind::Transfer(..) | CallCreateExecutiveKind::CallBuiltin(..) |
 			CallCreateExecutiveKind::ExecCall(..) | CallCreateExecutiveKind::ExecCreate(..) =>
 				panic!("Not resumable"),
+		}
+	}
+
+	pub fn consume<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> vm::Result<FinalizationResult> {
+		let mut last_is_create = self.is_create;
+		let mut last_create_address = None;
+		let mut last_res = Some(self.exec(state, substate, tracer, vm_tracer));
+
+		let mut callstack: Vec<CallCreateExecutive<'a>> = Vec::new();
+		loop {
+			match last_res {
+				None => {
+					match callstack.pop() {
+						Some(exec) => {
+							last_is_create = exec.is_create;
+							last_res = Some(exec.exec(state, substate, tracer, vm_tracer));
+						},
+						None => panic!("TODO: PROOF"),
+					}
+				},
+				Some(Ok(val)) => {
+					let current = callstack.pop();
+
+					match current {
+						Some(exec) => {
+							if last_is_create {
+								let address = last_create_address.expect("TODO: PROOF");
+								last_is_create = exec.is_create;
+								last_res = Some(exec.resume_create(
+									into_contract_create_result(val, &address, substate),
+									state,
+									substate,
+									tracer,
+									vm_tracer
+								));
+							} else {
+								last_is_create = exec.is_create;
+								last_res = Some(exec.resume_call(
+									into_message_call_result(val),
+									state,
+									substate,
+									tracer,
+									vm_tracer
+								));
+							}
+						},
+						None => return val,
+					}
+				},
+				Some(Err(TrapError::Call(subparams, resume))) => {
+					let sub_static_flag = resume.sub_static_flag(&subparams);
+					let sub_exec = CallCreateExecutive::new_call_raw(
+						subparams,
+						resume.info,
+						resume.machine,
+						resume.schedule,
+						resume.factory,
+						resume.depth + 1,
+						sub_static_flag
+					);
+
+					callstack.push(resume);
+					callstack.push(sub_exec);
+					last_res = None;
+				},
+				Some(Err(TrapError::Create(subparams, address, resume))) => {
+					let sub_static_flag = resume.sub_static_flag(&subparams);
+					let sub_exec = CallCreateExecutive::new_create_raw(
+						subparams,
+						resume.info,
+						resume.machine,
+						resume.schedule,
+						resume.factory,
+						resume.depth + 1,
+						sub_static_flag
+					);
+
+					callstack.push(resume);
+					callstack.push(sub_exec);
+					last_create_address = Some(address);
+					last_res = None;
+				},
+			}
 		}
 	}
 }
