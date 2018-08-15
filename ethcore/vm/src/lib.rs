@@ -41,14 +41,14 @@ pub use env_info::{EnvInfo, LastHashes};
 pub use schedule::{Schedule, CleanDustMode, WasmCosts};
 pub use ext::{Ext, MessageCallResult, ContractCreateResult, CreateContractAddress};
 pub use return_data::{ReturnData, GasLeft};
-pub use error::{Error, Result, TrapResult, TrapError};
+pub use error::{Error, Result, TrapResult, TrapError, TrapKind, ExecTrapResult, ExecTrapError};
 
 /// Virtual Machine interface
 pub trait Exec {
 	/// This function should be used to execute transaction.
 	/// It returns either an error, a known amount of gas left, or parameters to be used
 	/// to compute the final gas left.
-	fn exec(self: Box<Self>, ext: &mut Ext) -> TrapResult<GasLeft>;
+	fn exec(self: Box<Self>, ext: &mut Ext) -> ExecTrapResult<GasLeft>;
 }
 
 /// Resume call interface

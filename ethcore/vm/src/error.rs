@@ -21,9 +21,14 @@ use action_params::ActionParams;
 use std::fmt;
 use ethtrie;
 
-pub enum TrapError {
-	Call(ActionParams, Box<ResumeCall>),
-	Create(ActionParams, Box<ResumeCreate>),
+pub enum TrapKind {
+	Call(ActionParams),
+	Create(ActionParams),
+}
+
+pub enum TrapError<Call, Create> {
+	Call(ActionParams, Call),
+	Create(ActionParams, Create),
 }
 
 /// VM errors.
@@ -110,4 +115,7 @@ impl fmt::Display for Error {
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;
-pub type TrapResult<T> = ::std::result::Result<Result<T>, TrapError>;
+pub type TrapResult<T, Call, Create> = ::std::result::Result<Result<T>, TrapError<Call, Create>>;
+
+pub type ExecTrapResult<T> = TrapResult<T, Box<ResumeCall>, Box<ResumeCreate>>;
+pub type ExecTrapError = TrapError<Box<ResumeCall>, Box<ResumeCreate>>;

@@ -186,7 +186,7 @@ pub struct Interpreter<Cost: CostType> {
 }
 
 impl<Cost: CostType> vm::Exec for Interpreter<Cost> {
-	fn exec(self: Box<Self>, ext: &mut vm::Ext) -> vm::TrapResult<GasLeft> {
+	fn exec(self: Box<Self>, ext: &mut vm::Ext) -> vm::ExecTrapResult<GasLeft> {
 		Ok(self.run(ext))
 	}
 }
