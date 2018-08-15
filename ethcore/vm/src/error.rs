@@ -16,15 +16,14 @@
 
 //! VM errors module
 
-use ::Vm;
+use ::{ResumeCall, ResumeCreate};
 use action_params::ActionParams;
 use std::fmt;
 use ethtrie;
 
-#[derive(Debug, Clone)]
-pub enum TrapKind {
-	Call(ActionParams),
-	Create(ActionParams),
+pub enum TrapError {
+	Call(ActionParams, Box<ResumeCall>),
+	Create(ActionParams, Box<ResumeCreate>),
 }
 
 /// VM errors.
@@ -111,4 +110,4 @@ impl fmt::Display for Error {
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;
-pub type TrapResult<T> = ::std::result::Result<Result<T>, (TrapKind, Box<Vm>)>;
+pub type TrapResult<T> = ::std::result::Result<Result<T>, TrapError>;

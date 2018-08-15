@@ -190,7 +190,7 @@ impl WasmInterpreter {
 	}
 }
 
-impl vm::Vm for WasmInterpreter {
+impl vm::Exec for WasmInterpreter {
 	fn exec(self: Box<WasmInterpreter>, ext: &mut vm::Ext) -> vm::TrapResult<GasLeft> {
 		Ok(self.run(ext))
 	}
