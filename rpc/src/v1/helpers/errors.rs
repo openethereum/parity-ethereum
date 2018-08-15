@@ -426,7 +426,7 @@ pub fn filter_not_found() -> Error {
 pub fn filter_block_not_found(id: BlockId) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST), // Specified in EIP-234.
-		message: "One of the blocks specified in filter (fromBlock, toBlock or blockHash) cannot be found".into(),
+		message: "One of the blocks specified in filter (fromBlock, toBlock or blockHash) cannot be found, or fromBlock and toBlock are out of order".into(),
 		data: Some(Value::String(match id {
 			BlockId::Hash(hash) => format!("0x{:x}", hash),
 			BlockId::Number(number) => format!("0x{:x}", number),
