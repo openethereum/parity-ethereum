@@ -79,6 +79,27 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 	}
 }
 
+pub fn into_message_call_result(result: vm::Result<FinalizationResult>) -> vm::MessageCallResult {
+	match result {
+		Ok(FinalizationResult { gas_left, return_data, apply_state: true }) => vm::MessageCallResult::Success(gas_left, return_data),
+		Ok(FinalizationResult { gas_left, return_data, apply_state: false }) => vm::MessageCallResult::Reverted(gas_left, return_data),
+		_ => vm::MessageCallResult::Failed
+	}
+}
+
+pub fn into_contract_create_result(result: vm::Result<FinalizationResult>, address: &Address, substate: &mut Substate) -> vm::ContractCreateResult {
+	match result {
+		Ok(FinalizationResult { gas_left, apply_state: true, .. }) => {
+			substate.contracts_created.push(address.clone());
+			vm::ContractCreateResult::Created(address.clone(), gas_left)
+		},
+		Ok(FinalizationResult { gas_left, apply_state: false, return_data }) => {
+			vm::ContractCreateResult::Reverted(gas_left, return_data)
+		},
+		_ => vm::ContractCreateResult::Failed,
+	}
+}
+
 /// Transaction execution options.
 #[derive(Copy, Clone, PartialEq)]
 pub struct TransactOptions<T, V> {
@@ -417,9 +438,9 @@ impl<'a> CallCreateExecutive<'a> {
 						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
 						return Err(TrapError::Call(subparams, self));
 					},
-					Err(TrapError::Create(subparams, resume)) => {
+					Err(TrapError::Create(subparams, address, resume)) => {
 						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
-						return Err(TrapError::Create(subparams, self));
+						return Err(TrapError::Create(subparams, address, self));
 					},
 				};
 
@@ -466,9 +487,9 @@ impl<'a> CallCreateExecutive<'a> {
 						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
 						return Err(TrapError::Call(subparams, self));
 					},
-					Err(TrapError::Create(subparams, resume)) => {
+					Err(TrapError::Create(subparams, address, resume)) => {
 						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
-						return Err(TrapError::Create(subparams, self));
+						return Err(TrapError::Create(subparams, address, self));
 					},
 				};
 
@@ -500,9 +521,9 @@ impl<'a> CallCreateExecutive<'a> {
 						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
 						return Err(TrapError::Call(subparams, self));
 					},
-					Err(TrapError::Create(subparams, resume)) => {
+					Err(TrapError::Create(subparams, address, resume)) => {
 						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
-						return Err(TrapError::Create(subparams, self));
+						return Err(TrapError::Create(subparams, address, self));
 					},
 				};
 
@@ -538,9 +559,9 @@ impl<'a> CallCreateExecutive<'a> {
 						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
 						return Err(TrapError::Call(subparams, self));
 					},
-					Err(TrapError::Create(subparams, resume)) => {
+					Err(TrapError::Create(subparams, address, resume)) => {
 						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
-						return Err(TrapError::Create(subparams, self));
+						return Err(TrapError::Create(subparams, address, self));
 					},
 				};
 

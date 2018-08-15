@@ -17,18 +17,19 @@
 //! VM errors module
 
 use ::{ResumeCall, ResumeCreate};
+use ethereum_types::Address;
 use action_params::ActionParams;
 use std::fmt;
 use ethtrie;
 
 pub enum TrapKind {
 	Call(ActionParams),
-	Create(ActionParams),
+	Create(ActionParams, Address),
 }
 
 pub enum TrapError<Call, Create> {
 	Call(ActionParams, Call),
-	Create(ActionParams, Create),
+	Create(ActionParams, Address, Create),
 }
 
 /// VM errors.
