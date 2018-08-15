@@ -533,11 +533,11 @@ impl OnDemand {
 	}
 
 	/// Changes default time limit for query.
-	pub fn query_inactive_time_limit(&mut self, inactive_time_limit: u64) {
-		self.query_inactive_time_limit = if inactive_time_limit == 0 {
+	pub fn query_inactive_time_limit(&mut self, inactive_time_limit: Duration) {
+		self.query_inactive_time_limit = if inactive_time_limit == Duration::new(0,0) {
 			None
 		} else {
-			Some(Duration::from_millis(inactive_time_limit))
+			Some(inactive_time_limit)
 		};
 	}
 

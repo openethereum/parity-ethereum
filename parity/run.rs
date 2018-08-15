@@ -211,7 +211,8 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let on_demand = Arc::new({
 		let mut on_demand = ::light::on_demand::OnDemand::new(cache.clone());
 		on_demand.default_retry_number(cmd.ondemand_nb_retry.unwrap_or(::light::on_demand::DEFAULT_NB_RETRY));
-		on_demand.query_inactive_time_limit(cmd.ondemand_inactive_time_limit.unwrap_or(::light::on_demand::DEFAULT_QUERY_TIME_LIMIT));
+		on_demand.query_inactive_time_limit(cmd.ondemand_inactive_time_limit.map(Duration::from_millis)
+																				.unwrap_or(::light::on_demand::DEFAULT_QUERY_TIME_LIMIT));
 		on_demand
 	});
 
