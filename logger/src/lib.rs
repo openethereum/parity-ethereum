@@ -127,7 +127,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 			println!("{}", ret);
 		}
 
-		write!(buf, "{}", ret)
+		writeln!(buf, "{}", ret)
     };
 
 	builder.format(format);
