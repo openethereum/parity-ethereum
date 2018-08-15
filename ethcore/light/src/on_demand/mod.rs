@@ -50,11 +50,11 @@ pub mod request;
 /// The result of execution
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
-/// The default number of retry for OnDemand queries send to other nodes
+/// The default number of retries for OnDemand queries to send to the other nodes
 pub const DEFAULT_NB_RETRY: usize = 10;
 
 /// The default time limit in milliseconds for inactive (no new peer to connect to) OnDemand queries (0 for unlimited)
-pub const DEFAULT_QUERY_TIME_LIMIT: u64 = 10000;
+pub const DEFAULT_QUERY_TIME_LIMIT: Duration = Duration::from_millis(10000);
 
 /// OnDemand related errors
 pub mod error {
@@ -192,7 +192,7 @@ impl Pending {
 	fn try_complete(self) -> Option<Self> {
 		if self.requests.is_complete() {
 			if self.sender.send(Ok(self.responses)).is_err() {
-				debug!(target: "on_demand", "Dropped oneshot channel receiver on complet request");
+				debug!(target: "on_demand", "Dropped oneshot channel receiver on complete request");
 			}
 			None
 		} else {
@@ -341,7 +341,7 @@ impl OnDemand {
 			cache: cache,
 			no_immediate_dispatch: false,
 			base_retry_number: DEFAULT_NB_RETRY,
-			query_inactive_time_limit: Some(Duration::from_millis(DEFAULT_QUERY_TIME_LIMIT)),
+			query_inactive_time_limit: Some(DEFAULT_QUERY_TIME_LIMIT),
 		}
 	}
 
