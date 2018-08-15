@@ -127,10 +127,6 @@ pub struct EthashParams {
 	#[serde(rename="callistoTransition")]
 	pub callisto_transition: Option<Uint>,
 
-	/// Callisto Miner reward
-	#[serde(rename="callistoMinerReward")]
-	pub callisto_miner_reward: Option<Uint>,
-
 	/// Callisto Treasury Address
 	#[serde(rename="callistoTreasuryAddress")]
 	pub callisto_treasury_address: Option<Address>,
@@ -257,7 +253,6 @@ mod tests {
 				expip2_transition: None,
 				expip2_duration_limit: None,
 				callisto_transition: None,
-				callisto_miner_reward: None,
 				callisto_treasury_address: None,
 				callisto_treasury_reward: None,
 				callisto_stake_address: None,
@@ -307,7 +302,6 @@ mod tests {
 				expip2_transition: None,
 				expip2_duration_limit: None,
 				callisto_transition: None,
-				callisto_miner_reward: None,
 				callisto_treasury_address: None,
 				callisto_treasury_reward: None,
 				callisto_stake_address: None,

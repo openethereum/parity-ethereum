@@ -126,8 +126,6 @@ pub struct EthashParams {
 	pub expip2_duration_limit: u64,
 	/// Callisto transition block
 	pub callisto_transition: u64,
-	/// Callisto Miner reward
-	pub callisto_miner_reward: U256,
 	/// Callisto Treasury Address
 	pub callisto_treasury_address: Address,
 	/// Callisto Treasury reward
@@ -167,7 +165,6 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
 			callisto_transition: p.callisto_transition.map_or(u64::max_value(), Into::into),
-			callisto_miner_reward: p.callisto_miner_reward.map_or_else(Default::default, Into::into),
 			callisto_treasury_address: p.callisto_treasury_address.map_or_else(Address::new, Into::into),
 			callisto_treasury_reward: p.callisto_treasury_reward.map_or_else(Default::default, Into::into),
 			callisto_stake_address: p.callisto_stake_address.map_or_else(Address::new, Into::into),
@@ -261,13 +258,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		// Applies ECIP-1017 eras.
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
-
-		// Applies Callisto reward.
-		let reward = if number >= self.ethash_params.callisto_transition {
-			self.ethash_params.callisto_miner_reward
-		} else {
-			reward
-		};
 
 		let n_uncles = LiveBlock::uncles(&*block).len();
 
@@ -560,7 +550,6 @@ mod tests {
 			mcip3_dev_reward: 0.into(),
 			mcip3_dev_contract: "0000000000000000000000000000000000000001".into(),
 			callisto_transition: u64::max_value(),
-			callisto_miner_reward: 0.into(),
 			callisto_treasury_address: "0000000000000000000000000000000000000001".into(),
 			callisto_treasury_reward: 0.into(),
 			callisto_stake_address: "0000000000000000000000000000000000000001".into(),
