@@ -854,7 +854,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			&vm_factory,
 			self.depth,
 			self.static_flag
-		).exec(self.state, substate, tracer, vm_tracer).ok().unwrap()
+		).consume(self.state, substate, tracer, vm_tracer)
 	}
 
 	/// Creates contract with given contract params.
@@ -876,7 +876,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			&vm_factory,
 			self.depth,
 			self.static_flag
-		).exec(self.state, substate, tracer, vm_tracer).ok().unwrap()
+		).consume(self.state, substate, tracer, vm_tracer)
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
