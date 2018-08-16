@@ -48,9 +48,9 @@ use transaction::{Action, Transaction as EthTransaction, SignedTransaction, Loca
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
-const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
+const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
-const WRONG_RESPONSE_AMOUNT_TYPE: &'static str = "responses correspond directly with requests in amount and type; qed";
+const WRONG_RESPONSE_AMOUNT_TYPE: &str = "responses correspond directly with requests in amount and type; qed";
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.

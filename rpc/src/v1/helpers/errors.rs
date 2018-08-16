@@ -440,9 +440,9 @@ pub fn filter_block_not_found(id: BlockId) -> Error {
 pub fn on_demand_error(err: OnDemandError) -> Error {
 	match err.kind() {
 		OnDemandErrorKind::ChannelCanceled(ref e) => return on_demand_cancel(e.clone()),
-		OnDemandErrorKind::MaxAttemptReach(_) => max_attempt_reach(err.to_string()),
-		OnDemandErrorKind::TimeoutOnNewPeers(_,_) => timeout_new_peer(err.to_string()),
-		_ => on_demand_others(err.to_string()),
+		OnDemandErrorKind::MaxAttemptReach(_) => max_attempt_reach(&err),
+		OnDemandErrorKind::TimeoutOnNewPeers(_,_) => timeout_new_peer(&err),
+		_ => on_demand_others(&err),
 	}
 }
 
@@ -451,26 +451,26 @@ pub fn on_demand_cancel(_cancel: futures::sync::oneshot::Canceled) -> Error {
 	internal("on-demand sender cancelled", "")
 }
 
-pub fn max_attempt_reach(msg : String) -> Error {
+pub fn max_attempt_reach(err: &OnDemandError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::REQUEST_NOT_FOUND),
-		message: msg,
+		message: err.to_string(),
 		data: None,
 	}
 }
 
-pub fn timeout_new_peer(msg : String) -> Error {
+pub fn timeout_new_peer(err: &OnDemandError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
-		message: msg,
+		message: err.to_string(),
 		data: None,
 	}
 }
 
-pub fn on_demand_others(msg : String) -> Error {
+pub fn on_demand_others(err: &OnDemandError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
-		message: msg,
+		message: err.to_string(),
 		data: None,
 	}
 }

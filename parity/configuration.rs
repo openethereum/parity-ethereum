@@ -205,7 +205,7 @@ impl Configuration {
 			};
 			Cmd::Account(account_cmd)
 		} else if self.args.flag_import_geth_keys {
-					let account_cmd = AccountCmd::ImportFromGeth(
+				let account_cmd = AccountCmd::ImportFromGeth(
 				ImportFromGethAccounts {
 					spec: spec,
 					to: dirs.keys,
@@ -1410,8 +1410,8 @@ mod tests {
 			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
-      ondemand_nb_retry: None,
-      ondemand_inactive_time_limit: None,
+			ondemand_nb_retry: None,
+			ondemand_inactive_time_limit: None,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");

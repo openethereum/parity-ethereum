@@ -1381,8 +1381,6 @@ struct Light {
 	on_demand_inactive_time_limit: Option<u64>,
 }
 
-
-
 #[cfg(test)]
 mod tests {
 	use super::{
