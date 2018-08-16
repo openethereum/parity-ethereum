@@ -25,7 +25,7 @@ use executive::*;
 use vm::{
 	self, ActionParams, ActionValue, EnvInfo, CallType, Schedule,
 	Ext, ContractCreateResult, MessageCallResult, CreateContractAddress,
-	ReturnData
+	ReturnData, TrapKind
 };
 use evm::FinalizationResult;
 use transaction::UNSIGNED_SENDER;
@@ -202,14 +202,15 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		gas: &U256,
 		value: &U256,
 		code: &[u8],
-		address_scheme: CreateContractAddress
-	) -> ContractCreateResult {
+		address_scheme: CreateContractAddress,
+		trap: bool,
+	) -> ::std::result::Result<ContractCreateResult, TrapKind> {
 		// create new contract address
 		let (address, code_hash) = match self.state.nonce(&self.origin_info.address) {
 			Ok(nonce) => contract_address(address_scheme, &self.origin_info.address, &nonce, &code),
 			Err(e) => {
 				debug!(target: "ext", "Database corruption encountered: {:?}", e);
-				return ContractCreateResult::Failed
+				return Ok(ContractCreateResult::Failed)
 			}
 		};
 
@@ -229,11 +230,15 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			params_type: vm::ParamsType::Embedded,
 		};
 
+		if trap {
+			return Err(TrapKind::Create(params, address));
+		}
+
 		if !self.static_flag {
 			if !self.schedule.eip86 || params.sender != UNSIGNED_SENDER {
 				if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
 					debug!(target: "ext", "Database corruption encountered: {:?}", e);
-					return ContractCreateResult::Failed
+					return Ok(ContractCreateResult::Failed)
 				}
 			}
 		}
@@ -241,7 +246,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 
 		// TODO: handle internal error separately
 		let out = ex.create(params, self.substate, self.tracer, self.vm_tracer);
-		into_contract_create_result(out, &address, self.substate)
+		Ok(into_contract_create_result(out, &address, self.substate))
 	}
 
 	fn call(
@@ -252,8 +257,9 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		call_type: CallType
-	) -> MessageCallResult {
+		call_type: CallType,
+		trap: bool,
+	) -> ::std::result::Result<MessageCallResult, TrapKind> {
 		trace!(target: "externalities", "call");
 
 		let code_res = self.state.code(code_address)
@@ -261,7 +267,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 
 		let (code, code_hash) = match code_res {
 			Ok((code, hash)) => (code, hash),
-			Err(_) => return MessageCallResult::Failed,
+			Err(_) => return Ok(MessageCallResult::Failed),
 		};
 
 		let mut params = ActionParams {
@@ -283,9 +289,13 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			params.value = ActionValue::Transfer(value);
 		}
 
+		if trap {
+			return Err(TrapKind::Call(params));
+		}
+
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.schedule, self.depth, self.static_flag);
 
-		into_message_call_result(ex.call(params, self.substate, self.tracer, self.vm_tracer))
+		Ok(into_message_call_result(ex.call(params, self.substate, self.tracer, self.vm_tracer)))
 	}
 
 	fn extcode(&self, address: &Address) -> vm::Result<Option<Arc<Bytes>>> {

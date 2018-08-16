@@ -23,7 +23,7 @@ use call_type::CallType;
 use env_info::EnvInfo;
 use schedule::Schedule;
 use return_data::ReturnData;
-use error::Result;
+use error::{Result, TrapKind};
 
 /// Result of externalities create function.
 pub enum ContractCreateResult {
@@ -87,22 +87,31 @@ pub trait Ext {
 	/// Creates new contract.
 	///
 	/// Returns gas_left and contract address if contract creation was succesfull.
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult;
+	fn create(
+		&mut self,
+		gas: &U256,
+		value: &U256,
+		code: &[u8],
+		address: CreateContractAddress,
+		trap: bool,
+	) -> ::std::result::Result<ContractCreateResult, TrapKind>;
 
 	/// Message call.
 	///
 	/// Returns Err, if we run out of gas.
 	/// Otherwise returns call_result which contains gas left
 	/// and true if subcall was successfull.
-	fn call(&mut self,
+	fn call(
+		&mut self,
 		gas: &U256,
 		sender_address: &Address,
 		receive_address: &Address,
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		call_type: CallType
-	) -> MessageCallResult;
+		call_type: CallType,
+		trap: bool
+	) -> ::std::result::Result<MessageCallResult, TrapKind>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>>;
