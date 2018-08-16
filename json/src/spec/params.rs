@@ -152,6 +152,9 @@ pub struct Params {
 	/// KIP4 activiation block height.
 	#[serde(rename="kip4Transition")]
 	pub kip4_transition: Option<Uint>,
+	/// Wasm `gasleft` extern (aka opcode) activation block height.
+	#[serde(rename="wasmGasleftActivationTransition")]
+	pub wasm_gasleft_activation_transition: Option<Uint>,
 }
 
 #[cfg(test)]

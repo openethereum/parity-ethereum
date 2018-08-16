@@ -125,6 +125,8 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm activation blocknumber, if any disabled initially.
 	pub wasm_activation_transition: BlockNumber,
+	/// Wasm activation blocknumber, if any disabled initially.
+	pub wasm_gasleft_activation_transition: BlockNumber,
 	/// Number of first block where KIP-4 rules begin. Only has effect if Wasm is activated.
 	pub kip4_transition: BlockNumber,
 	/// Gas limit bound divisor (how much gas limit can change per block)
@@ -194,6 +196,9 @@ impl CommonParams {
 			let mut wasm = ::vm::WasmCosts::default();
 			if block_number >= self.kip4_transition {
 				wasm.have_create2 = true;
+			}
+			if block_number >= self.wasm_gasleft_activation_transition {
+				wasm.have_gasleft = true;
 			}
 			schedule.wasm = Some(wasm);
 		}
@@ -305,6 +310,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into
 			),
 			kip4_transition: p.kip4_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into
+			),
+			wasm_gasleft_activation_transition: p.wasm_gasleft_activation_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into
 			),

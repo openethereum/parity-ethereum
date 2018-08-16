@@ -815,6 +815,47 @@ fn externs() {
 	assert_eq!(gas_left, U256::from(90_428));
 }
 
+// This test checks the ability of wasm contract to invoke gasleft
+#[test]
+fn gasleft() {
+	::ethcore_logger::init_log();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample!("gasleft.wasm")));
+
+	let mut ext = FakeExt::new().with_wasm();
+	ext.schedule.wasm.as_mut().unwrap().have_gasleft = true;
+
+	let mut interpreter = wasm_interpreter(params);
+	let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
+	match result {
+		GasLeft::Known(_) => {},
+		GasLeft::NeedsReturn { gas_left, data, .. } => {
+			let gas = LittleEndian::read_u64(data.as_ref());
+			assert_eq!(gas, 93_420);
+			assert_eq!(gas_left, U256::from(93_343));
+		},
+	}
+}
+
+// This test should fail because
+// ext.schedule.wasm.as_mut().unwrap().have_gasleft = false;
+#[test]
+fn gasleft_panic() {
+	::ethcore_logger::init_log();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample!("gasleft.wasm")));
+	let mut ext = FakeExt::new().with_wasm();
+	let mut interpreter = wasm_interpreter(params);
+	match interpreter.exec(&mut ext) {
+		Err(..) => {},
+		Ok(..) => panic!("interpreter.exec should return Err if ext.schedule.wasm.have_gasleft = false")
+	}
+}
+
 #[test]
 fn embedded_keccak() {
 	::ethcore_logger::init_log();
