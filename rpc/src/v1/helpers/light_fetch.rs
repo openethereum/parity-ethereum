@@ -47,7 +47,7 @@ use transaction::{Action, Transaction as EthTransaction, SignedTransaction, Loca
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
-const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
+const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
@@ -207,7 +207,7 @@ impl LightFetch {
 			}
 		};
 
-		let from = req.from.unwrap_or(Address::zero());
+		let from = req.from.unwrap_or_else(|| Address::zero());
 		let nonce_fut = match req.nonce {
 			Some(nonce) => Either::A(future::ok(Some(nonce))),
 			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
@@ -232,29 +232,16 @@ impl LightFetch {
 
 		// fetch missing transaction fields from the network.
 		Box::new(nonce_fut.join(gas_price_fut).and_then(move |(nonce, gas_price)| {
-			let action = req.to.map_or(Action::Create, Action::Call);
-			let value = req.value.unwrap_or_else(U256::zero);
-			let data = req.data.unwrap_or_default();
-
-			future::done(match (nonce, req.gas) {
-				(Some(n), Some(gas)) => Ok((true, EthTransaction {
-					nonce: n,
-					action: action,
-					gas: gas,
-					gas_price: gas_price,
-					value: value,
-					data: data,
-				})),
-				(Some(n), None) => Ok((false, EthTransaction {
-					nonce: n,
-					action: action,
-					gas: START_GAS.into(),
-					gas_price: gas_price,
-					value: value,
-					data: data,
-				})),
-				(None, _) => Err(errors::unknown_block()),
-			})
+			future::done(
+				Ok((req.gas.is_some(), EthTransaction {
+					nonce: nonce.unwrap_or_default(),
+					action: req.to.map_or(Action::Create, Action::Call),
+					gas: req.gas.unwrap_or_else(|| START_GAS.into()),
+					gas_price,
+					value: req.value.unwrap_or_else(U256::zero),
+					data: req.data.unwrap_or_default(),
+				}))
+			)
 		}).join(header_fut).and_then(move |((gas_known, tx), hdr)| {
 			// then request proved execution.
 			// TODO: get last-hashes from network.
