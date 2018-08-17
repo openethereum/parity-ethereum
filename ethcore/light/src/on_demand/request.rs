@@ -532,7 +532,7 @@ impl IncompleteRequest for CheckedRequest {
 				trace!(target: "on_demand", "Receipt request completed {:?}", req);
 				req.complete().map(CompleteRequest::Receipts)
 			}
-				CheckedRequest::Body(_, req) => {
+			CheckedRequest::Body(_, req) => {
 				trace!(target: "on_demand", "Block request completed {:?}", req);
 				req.complete().map(CompleteRequest::Body)
 			}
