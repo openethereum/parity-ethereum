@@ -14,26 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity RPC requests Metadata.
-use std::sync::Arc;
+//! Provides a `H256FastMap` type with H256 keys and fast hashing function.
 
-use jsonrpc_core;
-use jsonrpc_pubsub::{Session, PubSubMetadata};
+extern crate ethereum_types;
+extern crate plain_hasher;
 
-use v1::types::Origin;
+use ethereum_types::H256;
+use std::hash;
+use std::collections::HashMap;
+use plain_hasher::PlainHasher;
 
-/// RPC methods metadata.
-#[derive(Clone, Default, Debug)]
-pub struct Metadata {
-	/// Request origin
-	pub origin: Origin,
-	/// Request PubSub Session
-	pub session: Option<Arc<Session>>,
-}
+/// Specialized version of `HashMap` with H256 keys and fast hashing function.
+pub type H256FastMap<T> = HashMap<H256, T, hash::BuildHasherDefault<PlainHasher>>;
 
-impl jsonrpc_core::Metadata for Metadata {}
-impl PubSubMetadata for Metadata {
-	fn session(&self) -> Option<Arc<Session>> {
-		self.session.clone()
-	}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_works() {
+        let mut h = H256FastMap::default();
+        h.insert(H256::from(123), "abc");
+    }
 }

@@ -39,7 +39,7 @@ evm = { path = "evm" }
 heapsize = "0.4"
 itertools = "0.5"
 lazy_static = "1.0"
-log = "0.3"
+log = "0.4"
 lru-cache = "0.1"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"

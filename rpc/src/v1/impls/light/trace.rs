@@ -46,11 +46,11 @@ impl Traces for TracesClient {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn call(&self, _meta: Self::Metadata, _request: CallRequest, _flags: TraceOptions, _block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn call(&self, _request: CallRequest, _flags: TraceOptions, _block: Trailing<BlockNumber>) -> Result<TraceResults> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn call_many(&self, _meta: Self::Metadata, _request: Vec<(CallRequest, TraceOptions)>, _block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
+	fn call_many(&self, _request: Vec<(CallRequest, TraceOptions)>, _block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
 		Err(errors::light_unimplemented(None))
 	}
 

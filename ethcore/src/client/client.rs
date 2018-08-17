@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, BTreeMap, VecDeque};
+use std::cmp;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -1812,76 +1813,100 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
-		// Wrap the logic inside a closure so that we can take advantage of question mark syntax.
-		let fetch_logs = || {
-			let chain = self.chain.read();
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
+		let chain = self.chain.read();
 
-			// First, check whether `filter.from_block` and `filter.to_block` is on the canon chain. If so, we can use the
-			// optimized version.
-			let is_canon = |id| {
-				match id {
-					// If it is referred by number, then it is always on the canon chain.
-					&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => true,
-					// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
-					// result.
-					&BlockId::Hash(ref hash) => chain.is_canon(hash),
-				}
-			};
-
-			let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
-				// If we are on the canon chain, use bloom filter to fetch required hashes.
-				let from = self.block_number_ref(&filter.from_block)?;
-				let to = self.block_number_ref(&filter.to_block)?;
-
-				chain.blocks_with_bloom(&filter.bloom_possibilities(), from, to)
-					.into_iter()
-					.filter_map(|n| chain.block_hash(n))
-					.collect::<Vec<H256>>()
-			} else {
-				// Otherwise, we use a slower version that finds a link between from_block and to_block.
-				let from_hash = Self::block_hash(&chain, filter.from_block)?;
-				let from_number = chain.block_number(&from_hash)?;
-				let to_hash = Self::block_hash(&chain, filter.from_block)?;
-
-				let blooms = filter.bloom_possibilities();
-				let bloom_match = |header: &encoded::Header| {
-					blooms.iter().any(|bloom| header.log_bloom().contains_bloom(bloom))
-				};
-
-				let (blocks, last_hash) = {
-					let mut blocks = Vec::new();
-					let mut current_hash = to_hash;
-
-					loop {
-						let header = chain.block_header_data(&current_hash)?;
-						if bloom_match(&header) {
-							blocks.push(current_hash);
-						}
-
-						// Stop if `from` block is reached.
-						if header.number() <= from_number {
-							break;
-						}
-						current_hash = header.parent_hash();
-					}
-
-					blocks.reverse();
-					(blocks, current_hash)
-				};
-
-				// Check if we've actually reached the expected `from` block.
-				if last_hash != from_hash || blocks.is_empty() {
-					return None;
-				}
-
-				blocks
-			};
-
-			Some(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
+		// First, check whether `filter.from_block` and `filter.to_block` is on the canon chain. If so, we can use the
+		// optimized version.
+		let is_canon = |id| {
+			match id {
+				// If it is referred by number, then it is always on the canon chain.
+				&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => true,
+				// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
+				// result.
+				&BlockId::Hash(ref hash) => chain.is_canon(hash),
+			}
 		};
 
-		fetch_logs().unwrap_or_default()
+		let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
+			// If we are on the canon chain, use bloom filter to fetch required hashes.
+			//
+			// If we are sure the block does not exist (where val > best_block_number), then return error. Note that we
+			// don't need to care about pending blocks here because RPC query sets pending back to latest (or handled
+			// pending logs themselves).
+			let from = match self.block_number_ref(&filter.from_block) {
+				Some(val) if val <= chain.best_block_number() => val,
+				_ => return Err(filter.from_block.clone()),
+			};
+			let to = match self.block_number_ref(&filter.to_block) {
+				Some(val) if val <= chain.best_block_number() => val,
+				_ => return Err(filter.to_block.clone()),
+			};
+
+			// If from is greater than to, then the current bloom filter behavior is to just return empty
+			// result. There's no point to continue here.
+			if from > to {
+				return Err(filter.to_block.clone());
+			}
+
+			chain.blocks_with_bloom(&filter.bloom_possibilities(), from, to)
+				.into_iter()
+				.filter_map(|n| chain.block_hash(n))
+				.collect::<Vec<H256>>()
+		} else {
+			// Otherwise, we use a slower version that finds a link between from_block and to_block.
+			let from_hash = match Self::block_hash(&chain, filter.from_block) {
+				Some(val) => val,
+				None => return Err(filter.from_block.clone()),
+			};
+			let from_number = match chain.block_number(&from_hash) {
+				Some(val) => val,
+				None => return Err(BlockId::Hash(from_hash)),
+			};
+			let to_hash = match Self::block_hash(&chain, filter.to_block) {
+				Some(val) => val,
+				None => return Err(filter.to_block.clone()),
+			};
+
+			let blooms = filter.bloom_possibilities();
+			let bloom_match = |header: &encoded::Header| {
+				blooms.iter().any(|bloom| header.log_bloom().contains_bloom(bloom))
+			};
+
+			let (blocks, last_hash) = {
+				let mut blocks = Vec::new();
+				let mut current_hash = to_hash;
+
+				loop {
+					let header = match chain.block_header_data(&current_hash) {
+						Some(val) => val,
+						None => return Err(BlockId::Hash(current_hash)),
+					};
+					if bloom_match(&header) {
+						blocks.push(current_hash);
+					}
+
+					// Stop if `from` block is reached.
+					if header.number() <= from_number {
+						break;
+					}
+					current_hash = header.parent_hash();
+				}
+
+				blocks.reverse();
+				(blocks, current_hash)
+			};
+
+			// Check if we've actually reached the expected `from` block.
+			if last_hash != from_hash || blocks.is_empty() {
+				// In this case, from_hash is the cause (for not matching last_hash).
+				return Err(BlockId::Hash(from_hash));
+			}
+
+			blocks
+		};
+
+		Ok(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -1945,7 +1970,25 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>> {
+		const PROPAGATE_FOR_BLOCKS: u32 = 4;
+		const MIN_TX_TO_PROPAGATE: usize = 256;
+
+		let block_gas_limit = *self.best_block_header().gas_limit();
+		let min_tx_gas: U256 = self.latest_schedule().tx_gas.into();
+
+		let max_len = if min_tx_gas.is_zero() {
+			usize::max_value()
+		} else {
+			cmp::max(
+				MIN_TX_TO_PROPAGATE,
+				cmp::min(
+					(block_gas_limit / min_tx_gas) * PROPAGATE_FOR_BLOCKS,
+					// never more than usize
+					usize::max_value().into()
+				).as_u64() as usize
+			)
+		};
 		self.importer.miner.ready_transactions(self, max_len, ::miner::PendingOrdering::Priority)
 	}
 

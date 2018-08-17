@@ -150,7 +150,7 @@ fn returns_logs() {
 		address: None,
 		topics: vec![],
 		limit: None,
-	});
+	}).unwrap();
 	assert_eq!(logs.len(), 0);
 }
 
@@ -164,7 +164,7 @@ fn returns_logs_with_limit() {
 		address: None,
 		topics: vec![],
 		limit: None,
-	});
+	}).unwrap();
 	assert_eq!(logs.len(), 0);
 }
 
@@ -316,11 +316,11 @@ fn does_not_propagate_delayed_transactions() {
 
 	client.miner().import_own_transaction(&*client, tx0).unwrap();
 	client.miner().import_own_transaction(&*client, tx1).unwrap();
-	assert_eq!(0, client.ready_transactions(10).len());
+	assert_eq!(0, client.transactions_to_propagate().len());
 	assert_eq!(0, client.miner().ready_transactions(&*client, 10, PendingOrdering::Priority).len());
 	push_blocks_to_client(&client, 53, 2, 2);
 	client.flush_queue();
-	assert_eq!(2, client.ready_transactions(10).len());
+	assert_eq!(2, client.transactions_to_propagate().len());
 	assert_eq!(2, client.miner().ready_transactions(&*client, 10, PendingOrdering::Priority).len());
 }
 
