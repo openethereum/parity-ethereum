@@ -68,7 +68,7 @@ impl NetworkService {
 		})
 	}
 
-	/// Regiter a new protocol handler with the event loop.
+	/// Register a new protocol handler with the event loop.
 	pub fn register_protocol(
 		&self,
 		handler: Arc<NetworkProtocolHandler + Send + Sync>,
