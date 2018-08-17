@@ -207,7 +207,7 @@ impl LightFetch {
 			}
 		};
 
-		let from = req.from.unwrap_or(Address::zero());
+		let from = req.from.unwrap_or_else(|| Address::zero());
 		let nonce_fut = match req.nonce {
 			Some(nonce) => Either::A(future::ok(Some(nonce))),
 			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
@@ -232,29 +232,16 @@ impl LightFetch {
 
 		// fetch missing transaction fields from the network.
 		Box::new(nonce_fut.join(gas_price_fut).and_then(move |(nonce, gas_price)| {
-			let action = req.to.map_or(Action::Create, Action::Call);
-			let value = req.value.unwrap_or_else(U256::zero);
-			let data = req.data.unwrap_or_default();
-			let nonce = nonce.unwrap_or_default();
-
-			future::done(match (nonce, req.gas) {
-				(n, Some(gas)) => Ok((true, EthTransaction {
-					nonce: n,
-					action,
-					gas,
+			future::done(
+				Ok((req.gas.is_some(), EthTransaction {
+					nonce: nonce.unwrap_or_default(),
+					action: req.to.map_or(Action::Create, Action::Call),
+					gas: req.gas.unwrap_or_else(|| START_GAS.into()),
 					gas_price,
-					value,
-					data,
-				})),
-				(n, None) => Ok((false, EthTransaction {
-					nonce: n,
-					action,
-					gas: START_GAS.into(),
-					gas_price,
-					value,
-					data,
-				})),
-			})
+					value: req.value.unwrap_or_else(U256::zero),
+					data: req.data.unwrap_or_default(),
+				}))
+			)
 		}).join(header_fut).and_then(move |((gas_known, tx), hdr)| {
 			// then request proved execution.
 			// TODO: get last-hashes from network.
