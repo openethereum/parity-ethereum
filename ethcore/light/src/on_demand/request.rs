@@ -603,7 +603,7 @@ impl net_request::CheckedRequest for CheckedRequest {
 				expect!((&NetResponse::Code(ref res), &CompleteRequest::Code(ref req)) =>
 					prover.check_response(cache, &req.code_hash, &res.code).map(Response::Code)),
 			CheckedRequest::Execution(ref prover, _) =>
-				expect!((&NetResponse::Execution(ref res), _) => 
+				expect!((&NetResponse::Execution(ref res), _) =>
 					prover.check_response(cache, &res.items).map(Response::Execution)),
 			CheckedRequest::Signal(ref prover, _) =>
 				expect!((&NetResponse::Signal(ref res), _) =>
