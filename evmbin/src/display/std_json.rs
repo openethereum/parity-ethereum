@@ -167,13 +167,13 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::sync::{Arc, Mutex};
 	use super::*;
 	use info::tests::run_test;
 
 	#[derive(Debug, Clone, Default)]
-	struct TestWriter(pub Arc<Mutex<Vec<u8>>>);
+	pub struct TestWriter(pub Arc<Mutex<Vec<u8>>>);
 
 	impl Writer for TestWriter {
 		fn clone(&self) -> Self { Clone::clone(self) }
@@ -189,7 +189,7 @@ mod tests {
 		}
 	}
 
-	fn informant() -> (Informant<TestWriter>, Arc<Mutex<Vec<u8>>>) {
+	pub fn informant() -> (Informant<TestWriter>, Arc<Mutex<Vec<u8>>>) {
 		let writer = TestWriter::default();
 		let res = writer.0.clone();
 		(Informant::new(writer), res)
