@@ -47,7 +47,7 @@ use transaction::{Action, Transaction as EthTransaction, SignedTransaction, Loca
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
-const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
+const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
@@ -235,25 +235,25 @@ impl LightFetch {
 			let action = req.to.map_or(Action::Create, Action::Call);
 			let value = req.value.unwrap_or_else(U256::zero);
 			let data = req.data.unwrap_or_default();
+			let nonce = nonce.unwrap_or_default();
 
 			future::done(match (nonce, req.gas) {
-				(Some(n), Some(gas)) => Ok((true, EthTransaction {
+				(n, Some(gas)) => Ok((true, EthTransaction {
 					nonce: n,
-					action: action,
-					gas: gas,
-					gas_price: gas_price,
-					value: value,
-					data: data,
+					action,
+					gas,
+					gas_price,
+					value,
+					data,
 				})),
-				(Some(n), None) => Ok((false, EthTransaction {
+				(n, None) => Ok((false, EthTransaction {
 					nonce: n,
-					action: action,
+					action,
 					gas: START_GAS.into(),
-					gas_price: gas_price,
-					value: value,
-					data: data,
+					gas_price,
+					value,
+					data,
 				})),
-				(None, _) => Err(errors::unknown_block()),
 			})
 		}).join(header_fut).and_then(move |((gas_known, tx), hdr)| {
 			// then request proved execution.
