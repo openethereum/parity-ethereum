@@ -353,7 +353,7 @@ impl EncryptedConnection {
 		}
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
-		//TODO: ger rid of vectors here
+		//TODO: get rid of vectors here
 		let mut header = header.out();
 		let padding = (16 - (payload.len() % 16)) % 16;
 		header.resize(16, 0u8);
@@ -442,7 +442,7 @@ impl EncryptedConnection {
 		mac.update(&enc);
 	}
 
-	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
+	/// Readable IO handler. Tracker receive status and returns decoded packet if available.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, Error> where Message: Send + Clone + Sync + 'static {
 		io.clear_timer(self.connection.token)?;
 		if let EncryptedConnectionState::Header = self.read_state {
@@ -465,7 +465,7 @@ impl EncryptedConnection {
 		}
 	}
 
-	/// Writable IO handler. Processes send queeue.
+	/// Writable IO handler. Processes send queue.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
 		self.connection.writable(io)?;
 		Ok(())
