@@ -150,7 +150,6 @@
 		"eip161dTransition": 2675000,
 		"eip155Transition": 2675000,
 		"eip98Transition": "0x7fffffffffffff",
-		"eip86Transition": "0x7fffffffffffff",
 		"maxCodeSize": 24576,
 		"maxCodeSizeTransition": 2675000,
 		"eip140Transition": 4370000,

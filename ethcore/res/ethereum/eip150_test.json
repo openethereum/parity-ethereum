@@ -23,7 +23,6 @@
 		"eip161abcTransition": "0x7fffffffffffffff",
 		"eip161dTransition": "0x7fffffffffffffff",
 		"eip98Transition": "0x7fffffffffffffff",
-		"eip86Transition": "0x7fffffffffffffff",
 		"eip155Transition": "0x7fffffffffffffff",
 		"maxCodeSize": 24576,
 		"maxCodeSizeTransition": "0x7fffffffffffffff"
