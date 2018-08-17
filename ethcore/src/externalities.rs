@@ -611,6 +611,6 @@ mod tests {
 			}
 		};
 
-		assert_eq!(address, Address::from_str("b7c227636666831278bacdb8d7f52933b8698ab9").unwrap());
+		assert_eq!(address, Address::from_str("e33c0c7f7df4809055c3eba6c09cfe4baf1bd9e0").unwrap());
 	}
 }
