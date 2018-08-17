@@ -64,7 +64,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 
 Once you have rustup installed, then you need to install:
 * [Perl](https://www.perl.org)
-* [Yasm](http://yasm.tortall.net)
+* [Yasm](https://yasm.tortall.net)
 
 Make sure that these binaries are in your `PATH`. After that you should be able to build Parity-Ethereum from source.
 
