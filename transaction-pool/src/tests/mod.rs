@@ -648,8 +648,8 @@ mod listener {
 			self.0.borrow_mut().push("canceled".into());
 		}
 
-		fn mined(&mut self, _tx: &SharedTransaction) {
-			self.0.borrow_mut().push("mined".into());
+		fn culled(&mut self, _tx: &SharedTransaction) {
+			self.0.borrow_mut().push("culled".into());
 		}
 	}
 
@@ -743,6 +743,6 @@ mod listener {
 		txq.cull(None, NonceReady::new(3));
 
 		// then
-		assert_eq!(*results.borrow(), &["added", "added", "mined", "mined"]);
+		assert_eq!(*results.borrow(), &["added", "added", "culled", "culled"]);
 	}
 }
