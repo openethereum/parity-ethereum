@@ -167,8 +167,8 @@ impl Connection {
 	/// Create a new connection with given id and socket.
 	pub fn new(token: StreamToken, socket: TcpStream) -> Connection {
 		Connection {
-			token: token,
-			socket: socket,
+			token,
+			socket,
 			send_queue: VecDeque::new(),
 			rec_buf: Bytes::new(),
 			rec_size: 0,
@@ -318,24 +318,24 @@ impl EncryptedConnection {
 		let mac_encoder = EcbEncryptor::new(AesSafe256Encryptor::new(&key_material[32..64]), NoPadding);
 
 		let mut egress_mac = Keccak::new_keccak256();
-		let mut mac_material = &H256::from_slice(&key_material[32..64]) ^ &handshake.remote_nonce;
+		let mut mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.remote_nonce;
 		egress_mac.update(&mac_material);
 		egress_mac.update(if handshake.originated { &handshake.auth_cipher } else { &handshake.ack_cipher });
 
 		let mut ingress_mac = Keccak::new_keccak256();
-		mac_material = &H256::from_slice(&key_material[32..64]) ^ &handshake.nonce;
+		mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.nonce;
 		ingress_mac.update(&mac_material);
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
 		let old_connection = handshake.connection.try_clone()?;
 		let connection = ::std::mem::replace(&mut handshake.connection, old_connection);
 		let mut enc = EncryptedConnection {
-			connection: connection,
-			encoder: encoder,
-			decoder: decoder,
-			mac_encoder: mac_encoder,
-			egress_mac: egress_mac,
-			ingress_mac: ingress_mac,
+			connection,
+			encoder,
+			decoder,
+			mac_encoder,
+			egress_mac,
+			ingress_mac,
 			read_state: EncryptedConnectionState::Header,
 			protocol_id: 0,
 			payload_len: 0,
@@ -534,7 +534,7 @@ mod tests {
 				read_buffer: vec![],
 				write_buffer: vec![],
 				cursor: 0,
-				buf_size: buf_size,
+				buf_size,
 			}
 		}
 	}

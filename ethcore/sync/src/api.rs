@@ -569,11 +569,11 @@ pub trait ManageNetwork : Send + Sync {
 
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
-		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);
+		self.network.set_non_reserved_mode(&NonReservedPeerMode::Accept);
 	}
 
 	fn deny_unreserved_peers(&self) {
-		self.network.set_non_reserved_mode(NonReservedPeerMode::Deny);
+		self.network.set_non_reserved_mode(&NonReservedPeerMode::Deny);
 	}
 
 	fn remove_reserved_peer(&self, peer: String) -> Result<(), String> {
@@ -839,11 +839,11 @@ impl ::std::ops::Deref for LightSync {
 
 impl ManageNetwork for LightSync {
 	fn accept_unreserved_peers(&self) {
-		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);
+		self.network.set_non_reserved_mode(&NonReservedPeerMode::Accept);
 	}
 
 	fn deny_unreserved_peers(&self) {
-		self.network.set_non_reserved_mode(NonReservedPeerMode::Deny);
+		self.network.set_non_reserved_mode(&NonReservedPeerMode::Deny);
 	}
 
 	fn remove_reserved_peer(&self, peer: String) -> Result<(), String> {

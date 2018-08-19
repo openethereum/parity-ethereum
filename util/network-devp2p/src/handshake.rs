@@ -271,7 +271,7 @@ impl Handshake {
 
 			// E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
 			let shared = *ecdh::agree(secret, &self.id)?;
-			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))?);
+			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(shared ^ self.nonce))?);
 			write_keccak(self.ecdhe.public(), hepubk);
 			pubk.copy_from_slice(public);
 			nonce.copy_from_slice(&self.nonce);
