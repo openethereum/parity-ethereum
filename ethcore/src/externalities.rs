@@ -474,7 +474,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+		let ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
 		assert_eq!(ext.env_info().number, 100);
 	}
@@ -486,7 +486,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
 		let hash = ext.blockhash(&"0000000000000000000000000000000000000000000000000000000000120000".parse::<U256>().unwrap());
 
@@ -510,7 +510,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
 		let hash = ext.blockhash(&"0000000000000000000000000000000000000000000000000000000000120000".parse::<U256>().unwrap());
 
@@ -525,7 +525,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
 		// this should panic because we have no balance on any account
 		ext.call(
@@ -535,8 +535,9 @@ mod tests {
 			Some("0000000000000000000000000000000000000000000000000000000000150000".parse::<U256>().unwrap()),
 			&[],
 			&Address::new(),
-			CallType::Call
-		);
+			CallType::Call,
+			false,
+		).ok().unwrap();
 	}
 
 	#[test]
@@ -550,7 +551,7 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 			ext.log(log_topics, &log_data).unwrap();
 		}
 
@@ -567,7 +568,7 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 			ext.suicide(refund_account).unwrap();
 		}
 
@@ -584,9 +585,9 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		let address = {
-			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
-			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderAndNonce) {
-				ContractCreateResult::Created(address, _) => address,
+			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderAndNonce, false) {
+				Ok(ContractCreateResult::Created(address, _)) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),
 			}
 		};
@@ -604,10 +605,10 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		let address = {
-			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
-			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderSaltAndCodeHash(H256::default())) {
-				ContractCreateResult::Created(address, _) => address,
+			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderSaltAndCodeHash(H256::default()), false) {
+				Ok(ContractCreateResult::Created(address, _)) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),
 			}
 		};

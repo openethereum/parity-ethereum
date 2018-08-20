@@ -257,13 +257,13 @@ mod tests {
 	fn should_prefix_address_properly() {
 		let mut tracer = ExecutiveTracer::default();
 
-		tracer.prepare_trace_call(ActionParams::default());
-		tracer.prepare_trace_call(ActionParams::default());
-		tracer.prepare_trace_call(ActionParams::default());
+		tracer.prepare_trace_call(&ActionParams::default());
+		tracer.prepare_trace_call(&ActionParams::default());
+		tracer.prepare_trace_call(&ActionParams::default());
 		tracer.done_trace_call(U256::zero(), &[]);
-		tracer.prepare_trace_call(ActionParams::default());
+		tracer.prepare_trace_call(&ActionParams::default());
 		tracer.done_trace_call(U256::zero(), &[]);
-		tracer.prepare_trace_call(ActionParams::default());
+		tracer.prepare_trace_call(&ActionParams::default());
 		tracer.done_trace_call(U256::zero(), &[]);
 		tracer.done_trace_call(U256::zero(), &[]);
 		tracer.done_trace_call(U256::zero(), &[]);
