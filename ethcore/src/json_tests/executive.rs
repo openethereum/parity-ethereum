@@ -98,7 +98,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		let static_call = false;
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,
-			ext: Externalities::new(state, info, machine, schedule, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
+			ext: Externalities::new(state, info, machine, schedule, depth, 0, origin_info, substate, output, tracer, vm_tracer, static_call),
 			callcreates: vec![],
 			sender: address,
 		})
@@ -136,7 +136,14 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.blockhash(number)
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult {
+	fn create(
+		&mut self,
+		gas: &U256,
+		value: &U256,
+		code: &[u8],
+		address: CreateContractAddress,
+		_trap: bool
+	) -> Result<ContractCreateResult, vm::TrapKind> {
 		self.callcreates.push(CallCreate {
 			data: code.to_vec(),
 			destination: None,
@@ -144,25 +151,27 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 			value: *value
 		});
 		let contract_address = contract_address(address, &self.sender, &self.nonce, &code).0;
-		ContractCreateResult::Created(contract_address, *gas)
+		Ok(ContractCreateResult::Created(contract_address, *gas))
 	}
 
-	fn call(&mut self,
+	fn call(
+		&mut self,
 		gas: &U256,
 		_sender_address: &Address,
 		receive_address: &Address,
 		value: Option<U256>,
 		data: &[u8],
 		_code_address: &Address,
-		_call_type: CallType
-	) -> MessageCallResult {
+		_call_type: CallType,
+		_trap: bool
+	) -> Result<MessageCallResult, vm::TrapKind> {
 		self.callcreates.push(CallCreate {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),
 			gas_limit: *gas,
 			value: value.unwrap()
 		});
-		MessageCallResult::Success(*gas, ReturnData::empty())
+		Ok(MessageCallResult::Success(*gas, ReturnData::empty()))
 	}
 
 	fn extcode(&self, address: &Address) -> vm::Result<Option<Arc<Bytes>>>  {
@@ -280,7 +289,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&mut vm_tracer,
 			));
 			let mut evm = vm_factory.create(params, &schedule, 0);
-			let res = evm.exec(&mut ex);
+			let res = evm.exec(&mut ex).ok().expect("TestExt never trap; resume error never happens; qed");
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
 			(res.finalize(ex), callcreates)
