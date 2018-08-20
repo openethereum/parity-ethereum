@@ -169,7 +169,7 @@ impl Status {
 }
 
 /// Peer capabilities.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Capabilities {
 	/// Whether this peer can serve headers
 	pub serve_headers: bool,
