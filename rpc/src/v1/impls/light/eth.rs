@@ -252,7 +252,15 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn author(&self) -> Result<RpcH160> {
-		Ok(Default::default())
+		let account = self.accounts.accounts()
+			.ok()
+			.and_then(|a| a.first().cloned());
+
+		if let Some(acc) = account {
+			Ok(RpcH160::from(acc))
+		} else {
+			Err(errors::account("No accounts were found", ""))
+		}
 	}
 
 	fn is_mining(&self) -> Result<bool> {
