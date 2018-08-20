@@ -205,12 +205,15 @@ pub struct CallCreateExecutive<'a> {
 	depth: usize,
 	static_flag: bool,
 	is_create: bool,
+	gas: U256,
 	kind: CallCreateExecutiveKind,
 }
 
 impl<'a> CallCreateExecutive<'a> {
 	pub fn new_call_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, static_flag: bool) -> Self {
 		trace!("Executive::call(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
+
+		let gas = params.gas;
 
 		// if destination is builtin, try to execute it
 		let kind = if let Some(builtin) = machine.builtin(&params.code_address, info.number) {
@@ -231,7 +234,7 @@ impl<'a> CallCreateExecutive<'a> {
 		};
 
 		Self {
-			info, machine, schedule, factory, depth, static_flag, kind,
+			info, machine, schedule, factory, depth, static_flag, kind, gas,
 			is_create: false,
 		}
 	}
@@ -239,11 +242,13 @@ impl<'a> CallCreateExecutive<'a> {
 	pub fn new_create_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, static_flag: bool) -> Self {
 		trace!("Executive::create(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
 
+		let gas = params.gas;
+
 		// TODO: Remove this additional clone.
 		let kind = CallCreateExecutiveKind::ExecCreate(params.clone(), factory.create(params, schedule, depth), Substate::new());
 
 		Self {
-			info, machine, schedule, factory, depth, static_flag, kind,
+			info, machine, schedule, factory, depth, static_flag, kind, gas,
 			is_create: true,
 		}
 	}
@@ -343,8 +348,6 @@ impl<'a> CallCreateExecutive<'a> {
 					Self::check_static_flag(params, self.static_flag, self.is_create)?;
 					Self::transfer_exec_balance(params, self.schedule, state, substate)?;
 
-					// TODO: Trace call.
-
 					Ok(FinalizationResult {
 						gas_left: params.gas,
 						return_data: ReturnData::empty(),
@@ -377,13 +380,9 @@ impl<'a> CallCreateExecutive<'a> {
 						if let Err(e) = result {
 							state.revert_to_checkpoint();
 
-							// TODO: Tracing
-
 							Err(e.into())
 						} else {
 							state.discard_checkpoint();
-
-							// TODO: Tracing
 
 							let out_len = builtin_out_buffer.len();
 							Ok(FinalizationResult {
@@ -395,8 +394,6 @@ impl<'a> CallCreateExecutive<'a> {
 					} else {
 						// just drain the whole gas
 						state.revert_to_checkpoint();
-
-						// TODO: Tracing
 
 						Err(vm::Error::OutOfGas)
 					}
@@ -425,11 +422,8 @@ impl<'a> CallCreateExecutive<'a> {
 					}
 				}
 
-				// TODO: tracing.
-
 				let out = {
 					let static_call = params.call_type == CallType::StaticCall;
-					// TODO: use proper sub-tracers.
 					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
@@ -474,11 +468,8 @@ impl<'a> CallCreateExecutive<'a> {
 					}
 				}
 
-				// TODO: tracing.
-
 				let out = {
 					let static_call = params.call_type == CallType::StaticCall;
-					// TODO: use proper sub-tracers.
 					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
@@ -512,7 +503,6 @@ impl<'a> CallCreateExecutive<'a> {
 					let exec = resume.resume_call(result);
 
 					let static_call = params.call_type == CallType::StaticCall;
-					// TODO: use proper sub-tracers.
 					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
@@ -550,7 +540,6 @@ impl<'a> CallCreateExecutive<'a> {
 					let exec = resume.resume_create(result);
 
 					let static_call = params.call_type == CallType::StaticCall;
-					// TODO: use proper sub-tracers.
 					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
@@ -584,7 +573,7 @@ impl<'a> CallCreateExecutive<'a> {
 	pub fn consume<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> vm::Result<FinalizationResult> {
 		let mut last_is_create = self.is_create;
 		let mut last_create_address = None;
-		let mut last_res = Some(self.exec(state, substate, tracer, vm_tracer));
+		let mut last_res = Some((self.gas, self.exec(state, substate, tracer, vm_tracer)));
 
 		let mut callstack: Vec<CallCreateExecutive<'a>> = Vec::new();
 		loop {
@@ -593,41 +582,74 @@ impl<'a> CallCreateExecutive<'a> {
 					match callstack.pop() {
 						Some(exec) => {
 							last_is_create = exec.is_create;
-							last_res = Some(exec.exec(state, substate, tracer, vm_tracer));
+							last_res = Some((exec.gas, exec.exec(state, substate, tracer, vm_tracer)));
 						},
 						None => panic!("TODO: PROOF"),
 					}
 				},
-				Some(Ok(val)) => {
+				Some((gas, Ok(val))) => {
 					let current = callstack.pop();
 
 					match current {
 						Some(exec) => {
 							if last_is_create {
 								let address = last_create_address.expect("TODO: PROOF");
+
+								match val {
+									Ok(ref val) => {
+										tracer.done_trace_create(
+											gas - val.gas_left,
+											&val.return_data,
+											address
+										);
+									},
+									Err(ref err) => {
+										tracer.done_trace_failed(err);
+									},
+								}
+
+								vm_tracer.done_subtrace();
+
 								last_is_create = exec.is_create;
-								last_res = Some(exec.resume_create(
+								last_res = Some((exec.gas, exec.resume_create(
 									into_contract_create_result(val, &address, substate),
 									state,
 									substate,
 									tracer,
 									vm_tracer
-								));
+								)));
 							} else {
+								match val {
+									Ok(ref val) => {
+										tracer.done_trace_call(
+											gas - val.gas_left,
+											&val.return_data,
+										);
+									},
+									Err(ref err) => {
+										tracer.done_trace_failed(err);
+									},
+								}
+
+								vm_tracer.done_subtrace();
+
 								last_is_create = exec.is_create;
-								last_res = Some(exec.resume_call(
+								last_res = Some((exec.gas, exec.resume_call(
 									into_message_call_result(val),
 									state,
 									substate,
 									tracer,
 									vm_tracer
-								));
+								)));
 							}
 						},
 						None => return val,
 					}
 				},
-				Some(Err(TrapError::Call(subparams, resume))) => {
+				Some((gas, Err(TrapError::Call(subparams, resume)))) => {
+					tracer.prepare_trace_call(&subparams);
+					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
+
 					let sub_static_flag = resume.sub_static_flag(&subparams);
 					let sub_exec = CallCreateExecutive::new_call_raw(
 						subparams,
@@ -643,7 +665,10 @@ impl<'a> CallCreateExecutive<'a> {
 					callstack.push(sub_exec);
 					last_res = None;
 				},
-				Some(Err(TrapError::Create(subparams, address, resume))) => {
+				Some((gas, Err(TrapError::Create(subparams, address, resume)))) => {
+					tracer.prepare_trace_create(&subparams);
+					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
+
 					let sub_static_flag = resume.sub_static_flag(&subparams);
 					let sub_exec = CallCreateExecutive::new_create_raw(
 						subparams,
