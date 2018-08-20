@@ -349,11 +349,11 @@ impl Host {
 		Ok(())
 	}
 
-	pub fn set_non_reserved_mode(&self, mode: &NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
+	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
 		let mut info = self.info.write();
 
-		if &info.config.non_reserved_mode != mode {
-			info.config.non_reserved_mode = mode.clone();
+		if info.config.non_reserved_mode != mode {
+			info.config.non_reserved_mode = mode;
 			drop(info);
 			if let NonReservedPeerMode::Deny = mode {
 				// disconnect all non-reserved peers here.
