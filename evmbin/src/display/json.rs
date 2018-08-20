@@ -40,6 +40,8 @@ pub struct Informant {
 	storage: HashMap<H256, H256>,
 	traces: Vec<String>,
 	subtraces: Vec<String>,
+	subinfos: Vec<Informant>,
+	subdepth: usize,
 	unmatched: bool,
 }
 
@@ -58,6 +60,14 @@ impl Informant {
 			.map(|(k, v)| format!("\"0x{:?}\": \"0x{:?}\"", k, v))
 			.collect::<Vec<_>>();
 		format!("{{{}}}", vals.join(","))
+	}
+
+	fn with_informant_in_depth<F: Fn(&mut Informant)>(informant: &mut Informant, depth: usize, f: F) {
+		if depth == 0 {
+			f(informant);
+		} else {
+			Self::with_informant_in_depth(informant.subinfos.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
+		}
 	}
 }
 
@@ -162,18 +172,25 @@ impl trace::VMTracer for Informant {
 		}
 	}
 
-	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized {
-		let mut vm = Informant::default();
-		vm.depth = self.depth + 1;
-		vm.code = code.to_vec();
-		vm.gas_used = self.gas_used;
-		vm
+	fn prepare_subtrace(&mut self, code: &[u8]) {
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			let mut vm = Informant::default();
+			vm.depth = informant.depth + 1;
+			vm.code = code.to_vec();
+			vm.gas_used = informant.gas_used;
+			informant.subinfos.push(vm);
+		});
 	}
 
-	fn done_subtrace(&mut self, sub: Self) {
-		if let Some(subtraces) = sub.drain() {
-			self.subtraces.extend(subtraces);
-		}
+	fn done_subtrace(&mut self) {
+		self.subdepth -= 1;
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			if let Some(subtraces) = informant.subinfos.pop().expect("prepare/done_subtrace are not balanced").drain() {
+				informant.subtraces.extend(subtraces);
+			}
+		});
 	}
 
 	fn drain(mut self) -> Option<Self::Output> {

@@ -43,6 +43,8 @@ pub struct Informant<T: Writer = io::Stdout> {
 	depth: usize,
 	stack: Vec<U256>,
 	storage: HashMap<H256, H256>,
+	subinfos: Vec<Informant<T>>,
+	subdepth: usize,
 	sink: T,
 }
 
@@ -60,7 +62,17 @@ impl<T: Writer> Informant<T> {
 			depth: Default::default(),
 			stack: Default::default(),
 			storage: Default::default(),
+			subinfos: Default::default(),
+			subdepth: 0,
 			sink,
+		}
+	}
+
+	fn with_informant_in_depth<F: Fn(&mut Informant<T>)>(informant: &mut Informant<T>, depth: usize, f: F) {
+		if depth == 0 {
+			f(informant);
+		} else {
+			Self::with_informant_in_depth(informant.subinfos.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
 		}
 	}
 }
@@ -154,14 +166,23 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 		}
 	}
 
-	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized {
-		let mut vm = Informant::new(self.sink.clone());
-		vm.depth = self.depth + 1;
-		vm.code = code.to_vec();
-		vm
+	fn prepare_subtrace(&mut self, code: &[u8]) {
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+			let mut vm = Informant::new(informant.sink.clone());
+			vm.depth = informant.depth + 1;
+			vm.code = code.to_vec();
+			informant.subinfos.push(vm);
+		});
 	}
 
-	fn done_subtrace(&mut self, _sub: Self) {}
+	fn done_subtrace(&mut self) {
+		self.subdepth -= 1;
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+			informant.subinfos.pop();
+		});
+	}
 
 	fn drain(self) -> Option<Self::Output> { None }
 }
