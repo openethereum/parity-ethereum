@@ -1161,10 +1161,10 @@ mod tests {
 	use rustc_hex::FromHex;
 	use vmtype::VMType;
 	use factory::Factory;
-	use vm::{self, Vm, ActionParams, ActionValue};
+	use vm::{self, Exec, ActionParams, ActionValue};
 	use vm::tests::{FakeExt, test_finalize};
 
-	fn interpreter(params: ActionParams, ext: &vm::Ext) -> Box<Vm> {
+	fn interpreter(params: ActionParams, ext: &vm::Ext) -> Box<Exec> {
 		Factory::new(VMType::Interpreter, 1).create(params, ext.schedule(), ext.depth())
 	}
 
@@ -1184,7 +1184,7 @@ mod tests {
 
 		let gas_left = {
 			let mut vm = interpreter(params, &ext);
-			test_finalize(vm.exec(&mut ext)).unwrap()
+			test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
 		};
 
 		assert_eq!(ext.calls.len(), 1);
@@ -1206,7 +1206,7 @@ mod tests {
 
 		let err = {
 			let mut vm = interpreter(params, &ext);
-			test_finalize(vm.exec(&mut ext)).err().unwrap()
+			test_finalize(vm.exec(&mut ext).ok().unwrap()).err().unwrap()
 		};
 
 		assert_eq!(err, ::vm::Error::OutOfBounds);
