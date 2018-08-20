@@ -208,6 +208,7 @@ pub struct CallCreateExecutive<'a> {
 	schedule: &'a Schedule,
 	factory: &'a VmFactory,
 	depth: usize,
+	stack_depth: usize,
 	static_flag: bool,
 	is_create: bool,
 	gas: U256,
@@ -216,7 +217,7 @@ pub struct CallCreateExecutive<'a> {
 
 impl<'a> CallCreateExecutive<'a> {
 	/// Create a new call executive using raw data.
-	pub fn new_call_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, static_flag: bool) -> Self {
+	pub fn new_call_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, stack_depth: usize, static_flag: bool) -> Self {
 		trace!("Executive::call(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
 
 		let gas = params.gas;
@@ -240,13 +241,13 @@ impl<'a> CallCreateExecutive<'a> {
 		};
 
 		Self {
-			info, machine, schedule, factory, depth, static_flag, kind, gas,
+			info, machine, schedule, factory, depth, stack_depth, static_flag, kind, gas,
 			is_create: false,
 		}
 	}
 
 	/// Create a new create executive using raw data.
-	pub fn new_create_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, static_flag: bool) -> Self {
+	pub fn new_create_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, stack_depth: usize, static_flag: bool) -> Self {
 		trace!("Executive::create(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
 
 		let gas = params.gas;
@@ -255,7 +256,7 @@ impl<'a> CallCreateExecutive<'a> {
 		let kind = CallCreateExecutiveKind::ExecCreate(params.clone(), factory.create(params, schedule, depth), Substate::new());
 
 		Self {
-			info, machine, schedule, factory, depth, static_flag, kind, gas,
+			info, machine, schedule, factory, depth, stack_depth, static_flag, kind, gas,
 			is_create: true,
 		}
 	}
@@ -335,6 +336,7 @@ impl<'a> CallCreateExecutive<'a> {
 		machine: &'any Machine,
 		schedule: &'any Schedule,
 		depth: usize,
+		stack_depth: usize,
 		static_flag: bool,
 		origin_info: OriginInfo,
 		substate: &'any mut Substate,
@@ -344,7 +346,7 @@ impl<'a> CallCreateExecutive<'a> {
 		static_call: bool,
 	) -> Externalities<'any, T, V, B> where T: Tracer, V: VMTracer {
 		let is_static = static_flag || static_call;
-		Externalities::new(state, info, machine, schedule, depth, origin_info, substate, output, tracer, vm_tracer, is_static)
+		Externalities::new(state, info, machine, schedule, depth, stack_depth, origin_info, substate, output, tracer, vm_tracer, is_static)
 	}
 
 	/// Execute the executive. If a sub-call/create action is required, a resume trap error is returned. The caller is
@@ -436,7 +438,7 @@ impl<'a> CallCreateExecutive<'a> {
 
 				let out = {
 					let static_call = params.call_type == CallType::StaticCall;
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -482,7 +484,7 @@ impl<'a> CallCreateExecutive<'a> {
 
 				let out = {
 					let static_call = params.call_type == CallType::StaticCall;
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -518,7 +520,7 @@ impl<'a> CallCreateExecutive<'a> {
 					let exec = resume.resume_call(result);
 
 					let static_call = params.call_type == CallType::StaticCall;
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -558,7 +560,7 @@ impl<'a> CallCreateExecutive<'a> {
 					let exec = resume.resume_create(result);
 
 					let static_call = params.call_type == CallType::StaticCall;
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -677,6 +679,7 @@ impl<'a> CallCreateExecutive<'a> {
 						resume.schedule,
 						resume.factory,
 						resume.depth + 1,
+						resume.stack_depth,
 						sub_static_flag
 					);
 
@@ -696,6 +699,7 @@ impl<'a> CallCreateExecutive<'a> {
 						resume.schedule,
 						resume.factory,
 						resume.depth + 1,
+						resume.stack_depth,
 						sub_static_flag
 					);
 
@@ -897,6 +901,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			self.schedule,
 			&vm_factory,
 			self.depth,
+			0,
 			self.static_flag
 		).consume(self.state, substate, tracer, vm_tracer)
 	}
@@ -919,6 +924,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			self.schedule,
 			&vm_factory,
 			self.depth,
+			0,
 			self.static_flag
 		).consume(self.state, substate, tracer, vm_tracer)
 	}

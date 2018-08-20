@@ -22,58 +22,6 @@ use vm::{Error as VmError, ActionParams};
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
 use trace::{Tracer, VMTracer, FlatTrace};
 
-fn top_level_subtraces(traces: &[FlatTrace]) -> usize {
-	traces.iter().filter(|t| t.trace_address.is_empty()).count()
-}
-
-fn prefix_subtrace_addresses(traces: &mut [FlatTrace]) {
-	// input traces are expected to be ordered like
-	// []
-	// [0]
-	// [0, 0]
-	// [0, 1]
-	// []
-	// [0]
-	//
-	// so they can be transformed to
-	//
-	// [0]
-	// [0, 0]
-	// [0, 0, 0]
-	// [0, 0, 1]
-	// [1]
-	// [1, 0]
-	let mut current_subtrace_index = 0;
-	let mut first = true;
-	for trace in traces {
-		match (first, trace.trace_address.is_empty()) {
-			(true, _) => first = false,
-			(_, true) => current_subtrace_index += 1,
-			_ => {}
-		}
-		trace.trace_address.push_front(current_subtrace_index);
-	}
-}
-
-#[test]
-fn should_prefix_address_properly() {
-	use super::trace::{Action, Res, Suicide};
-
-	let f = |v: Vec<usize>| FlatTrace {
-		action: Action::Suicide(Suicide {
-			address: Default::default(),
-			balance: Default::default(),
-			refund_address: Default::default(),
-		}),
-		result: Res::None,
-		subtraces: 0,
-		trace_address: v.into_iter().collect(),
-	};
-	let t = vec![vec![], vec![0], vec![0, 0], vec![0], vec![], vec![], vec![0], vec![]].into_iter().map(&f).collect();
-	let t = prefix_subtrace_addresses(t);
-	assert_eq!(t, vec![vec![0], vec![0, 0], vec![0, 0, 0], vec![0, 0], vec![1], vec![2], vec![2, 0], vec![3]].into_iter().map(&f).collect::<Vec<_>>());
-}
-
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]
 pub struct ExecutiveTracer {
@@ -299,4 +247,27 @@ impl VMTracer for ExecutiveVMTracer {
 	}
 
 	fn drain(mut self) -> Option<VMTrace> { self.data.subs.pop() }
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn should_prefix_address_properly() {
+		let mut tracer = ExecutiveTracer::default();
+
+		tracer.prepare_trace_call(ActionParams::default());
+		tracer.prepare_trace_call(ActionParams::default());
+		tracer.prepare_trace_call(ActionParams::default());
+		tracer.done_trace_call(U256::zero(), &[]);
+		tracer.prepare_trace_call(ActionParams::default());
+		tracer.done_trace_call(U256::zero(), &[]);
+		tracer.prepare_trace_call(ActionParams::default());
+		tracer.done_trace_call(U256::zero(), &[]);
+		tracer.done_trace_call(U256::zero(), &[]);
+		tracer.done_trace_call(U256::zero(), &[]);
+
+		panic!();
+	}
 }
