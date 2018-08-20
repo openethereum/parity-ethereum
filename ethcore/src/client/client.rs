@@ -16,7 +16,6 @@
 
 use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::cmp;
-use std::fmt;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
@@ -50,13 +49,16 @@ use client::{
 };
 use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
-use error::{ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use error::{
+	ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult,
+	QueueError, QueueErrorKind, Error as EthcoreError
+};
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
 use header::{BlockNumber, Header, ExtendedHeader};
-use io::{IoChannel, IoError};
+use io::IoChannel;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
 use ethcore_miner::pool::VerifiedTransaction;
@@ -2095,7 +2097,7 @@ impl IoClient for Client {
 
 		let queued = self.queued_ancient_blocks.clone();
 		let lock = self.ancient_blocks_import_lock.clone();
-		match self.queue_ancient_blocks.queue(&self.io_channel.read(), 1, move |client| {
+		self.queue_ancient_blocks.queue(&self.io_channel.read(), 1, move |client| {
 			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
 			// We use separate lock, cause we don't want to block queueing.
@@ -2119,10 +2121,9 @@ impl IoClient for Client {
 					break;
 				}
 			}
-		}) {
-			Ok(_) => Ok(hash),
-			Err(e) => bail!(BlockImportErrorKind::Other(format!("{}", e))),
-		}
+		})?;
+
+		Ok(hash)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
@@ -2538,21 +2539,6 @@ mod tests {
 	}
 }
 
-#[derive(Debug)]
-enum QueueError {
-	Channel(IoError),
-	Full(usize),
-}
-
-impl fmt::Display for QueueError {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			QueueError::Channel(ref c) => fmt::Display::fmt(c, fmt),
-			QueueError::Full(limit) => write!(fmt, "The queue is full ({})", limit),
-		}
-	}
-}
-
 /// Queue some items to be processed by IO client.
 struct IoChannelQueue {
 	currently_queued: Arc<AtomicUsize>,
@@ -2571,7 +2557,7 @@ impl IoChannelQueue {
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
-		ensure!(queue_size < self.limit, QueueError::Full(self.limit));
+		ensure!(queue_size < self.limit, QueueErrorKind::Full(self.limit));
 
 		let currently_queued = self.currently_queued.clone();
 		let result = channel.send(ClientIoMessage::execute(move |client| {
@@ -2584,7 +2570,7 @@ impl IoChannelQueue {
 				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
 				Ok(())
 			},
-			Err(e) => Err(QueueError::Channel(e)),
+			Err(e) => bail!(QueueErrorKind::Channel(e)),
 		}
 	}
 }
