@@ -43,6 +43,7 @@ pub enum SpecType {
 	Ellaism,
 	Easthub,
 	Social,
+	EOSC,
 	Dev,
 	Custom(String),
 }
@@ -70,6 +71,7 @@ impl str::FromStr for SpecType {
 			"ellaism" => SpecType::Ellaism,
 			"easthub" => SpecType::Easthub,
 			"social" => SpecType::Social,
+			"eosc" => SpecType::EOSC,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -90,6 +92,7 @@ impl fmt::Display for SpecType {
 			SpecType::Ellaism => "ellaism",
 			SpecType::Easthub => "easthub",
 			SpecType::Social => "social",
+			SpecType::EOSC => "eosc",
 			SpecType::Kovan => "kovan",
 			SpecType::Tobalaba => "tobalaba",
 			SpecType::Dev => "dev",
@@ -112,6 +115,7 @@ impl SpecType {
 			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
 			SpecType::Easthub => Ok(ethereum::new_easthub(params)),
 			SpecType::Social => Ok(ethereum::new_social(params)),
+			SpecType::EOSC => Ok(ethereum::new_eosc(params)),
 			SpecType::Tobalaba => Ok(ethereum::new_tobalaba(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
