@@ -770,6 +770,11 @@ impl Spec {
 		Ok(())
 	}
 
+	/// Return genesis state as Plain old data.
+	pub fn genesis_state(&self) -> &PodState {
+		&self.genesis_state
+	}
+
 	/// Returns `false` if the memoized state root is invalid. `true` otherwise.
 	pub fn is_state_root_valid(&self) -> bool {
 		// TODO: get rid of this function and ensure state root always is valid.

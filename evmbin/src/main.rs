@@ -31,6 +31,7 @@ extern crate ethereum_types;
 extern crate vm;
 extern crate evm;
 extern crate panic_hook;
+extern crate env_logger;
 
 #[cfg(test)]
 #[macro_use]
@@ -92,6 +93,7 @@ General options:
 
 fn main() {
 	panic_hook::set_abort();
+	env_logger::init();
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
