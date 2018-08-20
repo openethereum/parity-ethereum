@@ -16,7 +16,6 @@
 
 //! Simple executive tracer.
 
-use std::collections::VecDeque;
 use ethereum_types::{U256, Address};
 use vm::{Error as VmError, ActionParams};
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
@@ -26,7 +25,7 @@ use trace::{Tracer, VMTracer, FlatTrace};
 #[derive(Default)]
 pub struct ExecutiveTracer {
 	traces: Vec<FlatTrace>,
-	index_deque: VecDeque<usize>,
+	index_stack: Vec<usize>,
 	vecindex_stack: Vec<usize>,
 	sublen_stack: Vec<usize>,
 }
@@ -40,7 +39,7 @@ impl Tracer for ExecutiveTracer {
 		}
 
 		let trace = FlatTrace {
-			trace_address: self.index_deque.clone(),
+			trace_address: self.index_stack.clone(),
 			subtraces: self.sublen_stack.last().cloned().unwrap_or(0),
 			action: Action::Call(Call::from(params.clone())),
 			result: Res::Call(CallResult {
@@ -50,7 +49,7 @@ impl Tracer for ExecutiveTracer {
 		};
 		self.vecindex_stack.push(self.traces.len());
 		self.traces.push(trace);
-		self.index_deque.push_front(0);
+		self.index_stack.push(0);
 		self.sublen_stack.push(0);
 	}
 
@@ -60,7 +59,7 @@ impl Tracer for ExecutiveTracer {
 		}
 
 		let trace = FlatTrace {
-			trace_address: self.index_deque.clone(),
+			trace_address: self.index_stack.clone(),
 			subtraces: self.sublen_stack.last().cloned().unwrap_or(0),
 			action: Action::Create(Create::from(params.clone())),
 			result: Res::Create(CreateResult {
@@ -71,14 +70,14 @@ impl Tracer for ExecutiveTracer {
 		};
 		self.vecindex_stack.push(self.traces.len());
 		self.traces.push(trace);
-		self.index_deque.push_front(0);
+		self.index_stack.push(0);
 		self.sublen_stack.push(0);
 	}
 
 	fn done_trace_call(&mut self, gas_used: U256, output: &[u8]) {
 		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
 		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
-		self.index_deque.pop_front();
+		self.index_stack.pop();
 
 		self.traces[vecindex].result = Res::Call(CallResult {
 			gas_used,
@@ -86,7 +85,7 @@ impl Tracer for ExecutiveTracer {
 		});
 		self.traces[vecindex].subtraces = sublen;
 
-		if let Some(index) = self.index_deque.front_mut() {
+		if let Some(index) = self.index_stack.last_mut() {
 			*index += 1;
 		}
 	}
@@ -94,7 +93,7 @@ impl Tracer for ExecutiveTracer {
 	fn done_trace_create(&mut self, gas_used: U256, code: &[u8], address: Address) {
 		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
 		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
-		self.index_deque.pop_front();
+		self.index_stack.pop();
 
 		self.traces[vecindex].result = Res::Create(CreateResult {
 			gas_used, address,
@@ -102,7 +101,7 @@ impl Tracer for ExecutiveTracer {
 		});
 		self.traces[vecindex].subtraces = sublen;
 
-		if let Some(index) = self.index_deque.front_mut() {
+		if let Some(index) = self.index_stack.last_mut() {
 			*index += 1;
 		}
 	}
@@ -110,7 +109,7 @@ impl Tracer for ExecutiveTracer {
 	fn done_trace_failed(&mut self, error: &VmError) {
 		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
 		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
-		self.index_deque.pop_front();
+		self.index_stack.pop();
 
 		let is_create = match self.traces[vecindex].action {
 			Action::Create(_) => true,
@@ -124,7 +123,7 @@ impl Tracer for ExecutiveTracer {
 		}
 		self.traces[vecindex].subtraces = sublen;
 
-		if let Some(index) = self.index_deque.front_mut() {
+		if let Some(index) = self.index_stack.last_mut() {
 			*index += 1;
 		}
 	}
@@ -143,7 +142,7 @@ impl Tracer for ExecutiveTracer {
 		debug!(target: "trace", "Traced suicide {:?}", trace);
 		self.traces.push(trace);
 
-		if let Some(index) = self.index_deque.front_mut() {
+		if let Some(index) = self.index_stack.last_mut() {
 			*index += 1;
 		}
 	}
@@ -162,7 +161,7 @@ impl Tracer for ExecutiveTracer {
 		debug!(target: "trace", "Traced reward {:?}", trace);
 		self.traces.push(trace);
 
-		if let Some(index) = self.index_deque.front_mut() {
+		if let Some(index) = self.index_stack.last_mut() {
 			*index += 1;
 		}
 	}
@@ -268,6 +267,11 @@ mod tests {
 		tracer.done_trace_call(U256::zero(), &[]);
 		tracer.done_trace_call(U256::zero(), &[]);
 
-		panic!();
+		let drained = tracer.drain();
+		assert!(drained[0].trace_address.len() == 0);
+		assert_eq!(&drained[1].trace_address, &[0]);
+		assert_eq!(&drained[2].trace_address, &[0, 0]);
+		assert_eq!(&drained[3].trace_address, &[0, 1]);
+		assert_eq!(&drained[4].trace_address, &[0, 2]);
 	}
 }
