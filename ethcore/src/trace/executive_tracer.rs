@@ -16,22 +16,17 @@
 
 //! Simple executive tracer.
 
+use std::collections::VecDeque;
 use ethereum_types::{U256, Address};
-use vm::ActionParams;
+use vm::{Error as VmError, ActionParams};
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
-
-/// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
-#[derive(Default)]
-pub struct ExecutiveTracer {
-	traces: Vec<FlatTrace>,
-}
 
 fn top_level_subtraces(traces: &[FlatTrace]) -> usize {
 	traces.iter().filter(|t| t.trace_address.is_empty()).count()
 }
 
-fn prefix_subtrace_addresses(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
+fn prefix_subtrace_addresses(mut traces: &mut [FlatTrace]) {
 	// input traces are expected to be ordered like
 	// []
 	// [0]
@@ -50,7 +45,7 @@ fn prefix_subtrace_addresses(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 	// [1, 0]
 	let mut current_subtrace_index = 0;
 	let mut first = true;
-	for trace in &mut traces {
+	for trace in traces {
 		match (first, trace.trace_address.is_empty()) {
 			(true, _) => first = false,
 			(_, true) => current_subtrace_index += 1,
@@ -58,7 +53,6 @@ fn prefix_subtrace_addresses(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 		}
 		trace.trace_address.push_front(current_subtrace_index);
 	}
-	traces
 }
 
 #[test]
@@ -80,73 +74,118 @@ fn should_prefix_address_properly() {
 	assert_eq!(t, vec![vec![0], vec![0, 0], vec![0, 0, 0], vec![0, 0], vec![1], vec![2], vec![2, 0], vec![3]].into_iter().map(&f).collect::<Vec<_>>());
 }
 
+/// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
+#[derive(Default)]
+pub struct ExecutiveTracer {
+	traces: Vec<FlatTrace>,
+	index_deque: VecDeque<usize>,
+	vecindex_stack: Vec<usize>,
+	sublen_stack: Vec<usize>,
+}
+
 impl Tracer for ExecutiveTracer {
 	type Output = FlatTrace;
 
-	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call> {
-		Some(Call::from(params.clone()))
-	}
+	fn prepare_trace_call(&mut self, params: &ActionParams) {
+		if let Some(parentlen) = self.sublen_stack.last_mut() {
+			*parentlen += 1;
+		}
 
-	fn prepare_trace_create(&self, params: &ActionParams) -> Option<Create> {
-		Some(Create::from(params.clone()))
-	}
-
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: &[u8], subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
-			trace_address: Default::default(),
-			subtraces: top_level_subtraces(&subs),
-			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
+			trace_address: self.index_deque.clone(),
+			subtraces: self.sublen_stack.last().cloned().unwrap_or(0),
+			action: Action::Call(Call::from(params.clone())),
 			result: Res::Call(CallResult {
-				gas_used: gas_used,
-				output: output.into()
+				gas_used: U256::zero(),
+				output: Vec::new()
 			}),
 		};
-		debug!(target: "trace", "Traced call {:?}", trace);
+		self.vecindex_stack.push(self.traces.len());
 		self.traces.push(trace);
-		self.traces.extend(prefix_subtrace_addresses(subs));
+		self.index_deque.push_front(0);
+		self.sublen_stack.push(0);
 	}
 
-	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: &[u8], address: Address, subs: Vec<FlatTrace>) {
+	fn prepare_trace_create(&mut self, params: &ActionParams) {
+		if let Some(parentlen) = self.sublen_stack.last_mut() {
+			*parentlen += 1;
+		}
+
 		let trace = FlatTrace {
-			subtraces: top_level_subtraces(&subs),
-			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
+			trace_address: self.index_deque.clone(),
+			subtraces: self.sublen_stack.last().cloned().unwrap_or(0),
+			action: Action::Create(Create::from(params.clone())),
 			result: Res::Create(CreateResult {
-				gas_used: gas_used,
-				code: code.into(),
-				address: address
+				gas_used: U256::zero(),
+				code: Vec::new(),
+				address: Address::default(),
 			}),
-			trace_address: Default::default(),
 		};
-		debug!(target: "trace", "Traced create {:?}", trace);
+		self.vecindex_stack.push(self.traces.len());
 		self.traces.push(trace);
-		self.traces.extend(prefix_subtrace_addresses(subs));
+		self.index_deque.push_front(0);
+		self.sublen_stack.push(0);
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>, error: TraceError) {
-		let trace = FlatTrace {
-			trace_address: Default::default(),
-			subtraces: top_level_subtraces(&subs),
-			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
-			result: Res::FailedCall(error),
-		};
-		debug!(target: "trace", "Traced failed call {:?}", trace);
-		self.traces.push(trace);
-		self.traces.extend(prefix_subtrace_addresses(subs));
+	fn done_trace_call(&mut self, gas_used: U256, output: &[u8]) {
+		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
+		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
+		self.index_deque.pop_front();
+
+		self.traces[vecindex].result = Res::Call(CallResult {
+			gas_used,
+			output: output.into(),
+		});
+		self.traces[vecindex].subtraces = sublen;
+
+		if let Some(index) = self.index_deque.front_mut() {
+			*index += 1;
+		}
 	}
 
-	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>, error: TraceError) {
-		let trace = FlatTrace {
-			subtraces: top_level_subtraces(&subs),
-			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
-			result: Res::FailedCreate(error),
-			trace_address: Default::default(),
+	fn done_trace_create(&mut self, gas_used: U256, code: &[u8], address: Address) {
+		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
+		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
+		self.index_deque.pop_front();
+
+		self.traces[vecindex].result = Res::Create(CreateResult {
+			gas_used, address,
+			code: code.into(),
+		});
+		self.traces[vecindex].subtraces = sublen;
+
+		if let Some(index) = self.index_deque.front_mut() {
+			*index += 1;
+		}
+	}
+
+	fn done_trace_failed(&mut self, error: &VmError) {
+		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
+		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
+		self.index_deque.pop_front();
+
+		let is_create = match self.traces[vecindex].action {
+			Action::Create(_) => true,
+			_ => false,
 		};
-		debug!(target: "trace", "Traced failed create {:?}", trace);
-		self.traces.push(trace);
-		self.traces.extend(prefix_subtrace_addresses(subs));
+
+		if is_create {
+			self.traces[vecindex].result = Res::FailedCreate(error.into());
+		} else {
+			self.traces[vecindex].result = Res::FailedCall(error.into());
+		}
+		self.traces[vecindex].subtraces = sublen;
+
+		if let Some(index) = self.index_deque.front_mut() {
+			*index += 1;
+		}
 	}
 
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address) {
+		if let Some(parentlen) = self.sublen_stack.last_mut() {
+			*parentlen += 1;
+		}
+
 		let trace = FlatTrace {
 			subtraces: 0,
 			action: Action::Suicide(Suicide { address, refund_address, balance } ),
@@ -155,9 +194,17 @@ impl Tracer for ExecutiveTracer {
 		};
 		debug!(target: "trace", "Traced suicide {:?}", trace);
 		self.traces.push(trace);
+
+		if let Some(index) = self.index_deque.front_mut() {
+			*index += 1;
+		}
 	}
 
 	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType) {
+		if let Some(parentlen) = self.sublen_stack.last_mut() {
+			*parentlen += 1;
+		}
+
 		let trace = FlatTrace {
 			subtraces: 0,
 			action: Action::Reward(Reward { author, value, reward_type } ),
@@ -166,10 +213,10 @@ impl Tracer for ExecutiveTracer {
 		};
 		debug!(target: "trace", "Traced reward {:?}", trace);
 		self.traces.push(trace);
-	}
 
-	fn subtracer(&self) -> Self {
-		ExecutiveTracer::default()
+		if let Some(index) = self.index_deque.front_mut() {
+			*index += 1;
+		}
 	}
 
 	fn drain(self) -> Vec<FlatTrace> {
