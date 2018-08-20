@@ -461,7 +461,7 @@ impl<'a> CallCreateExecutive<'a> {
 					let schedule = self.schedule;
 
 					let mut pre_inner = || {
-						Self::check_eip684(&params, state);
+						Self::check_eip684(&params, state)?;
 						Self::check_static_flag(&params, static_flag, is_create)?;
 						state.checkpoint();
 						Self::transfer_exec_balance_and_init_contract(&params, schedule, state, substate)?;

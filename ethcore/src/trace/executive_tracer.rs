@@ -227,6 +227,7 @@ impl Tracer for ExecutiveTracer {
 /// Simple VM tracer. Traces all operations.
 pub struct ExecutiveVMTracer {
 	data: VMTrace,
+	depth: usize,
 }
 
 impl ExecutiveVMTracer {
@@ -238,7 +239,16 @@ impl ExecutiveVMTracer {
 				code: vec![],
 				operations: vec![Default::default()],	// prefill with a single entry so that prepare_subtrace can get the parent_step
 				subs: vec![],
-			}
+			},
+			depth: 0,
+		}
+	}
+
+	fn with_trace_in_depth<F: Fn(&mut VMTrace)>(trace: &mut VMTrace, depth: usize, f: F) {
+		if depth == 0 {
+			f(trace);
+		} else {
+			Self::with_trace_in_depth(trace.subs.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
 		}
 	}
 }
@@ -249,35 +259,43 @@ impl VMTracer for ExecutiveVMTracer {
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { true }
 
 	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
-		self.data.operations.push(VMOperation {
-			pc: pc,
-			instruction: instruction,
-			gas_cost: gas_cost,
-			executed: None,
+		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
+			trace.operations.push(VMOperation {
+				pc: pc,
+				instruction: instruction,
+				gas_cost: gas_cost,
+				executed: None,
+			});
 		});
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
-		let ex = VMExecutedOperation {
-			gas_used: gas_used,
-			stack_push: stack_push.iter().cloned().collect(),
-			mem_diff: mem_diff.map(|(s, r)| MemoryDiff{ offset: s, data: r.iter().cloned().collect() }),
-			store_diff: store_diff.map(|(l, v)| StorageDiff{ location: l, value: v }),
-		};
-		self.data.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute").executed = Some(ex);
+		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
+			let ex = VMExecutedOperation {
+				gas_used: gas_used,
+				stack_push: stack_push.iter().cloned().collect(),
+				mem_diff: mem_diff.map(|(s, r)| MemoryDiff { offset: s, data: r.iter().cloned().collect() }),
+				store_diff: store_diff.map(|(l, v)| StorageDiff { location: l, value: v }),
+			};
+			trace.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute").executed = Some(ex);
+		});
 	}
 
-	fn prepare_subtrace(&self, code: &[u8]) -> Self {
-		ExecutiveVMTracer { data: VMTrace {
-			parent_step: self.data.operations.len() - 1,	// won't overflow since we must already have pushed an operation in trace_prepare_execute.
-			code: code.to_vec(),
-			operations: vec![],
-			subs: vec![],
-		}}
+	fn prepare_subtrace(&mut self, code: &[u8]) {
+		let parent_step = self.data.operations.len() - 1; // won't overflow since we must already have pushed an operation in trace_prepare_execute.
+		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
+			trace.subs.push(VMTrace {
+				parent_step,
+				code: code.to_vec(),
+				operations: vec![],
+				subs: vec![],
+			});
+		});
+		self.depth += 1;
 	}
 
-	fn done_subtrace(&mut self, sub: Self) {
-		self.data.subs.push(sub.data);
+	fn done_subtrace(&mut self) {
+		self.depth -= 1;
 	}
 
 	fn drain(mut self) -> Option<VMTrace> { self.data.subs.pop() }
