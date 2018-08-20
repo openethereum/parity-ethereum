@@ -79,6 +79,7 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 	}
 }
 
+/// Convert a finalization result into a VM message call result.
 pub fn into_message_call_result(result: vm::Result<FinalizationResult>) -> vm::MessageCallResult {
 	match result {
 		Ok(FinalizationResult { gas_left, return_data, apply_state: true }) => vm::MessageCallResult::Success(gas_left, return_data),
@@ -87,6 +88,7 @@ pub fn into_message_call_result(result: vm::Result<FinalizationResult>) -> vm::M
 	}
 }
 
+/// Convert a finalization result into a VM contract create result.
 pub fn into_contract_create_result(result: vm::Result<FinalizationResult>, address: &Address, substate: &mut Substate) -> vm::ContractCreateResult {
 	match result {
 		Ok(FinalizationResult { gas_left, apply_state: true, .. }) => {
@@ -185,10 +187,12 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 	}
 }
 
+/// Trap result returned by executive.
 pub type ExecutiveTrapResult<'a, T> = vm::TrapResult<T, CallCreateExecutive<'a>, CallCreateExecutive<'a>>;
+/// Trap error for executive.
 pub type ExecutiveTrapError<'a> = vm::TrapError<CallCreateExecutive<'a>, CallCreateExecutive<'a>>;
 
-pub enum CallCreateExecutiveKind {
+enum CallCreateExecutiveKind {
 	Transfer(ActionParams),
 	CallBuiltin(ActionParams),
 	ExecCall(ActionParams, Box<Exec>, Substate),
@@ -197,6 +201,7 @@ pub enum CallCreateExecutiveKind {
 	ResumeCreate(ActionParams, Box<ResumeCreate>, Substate),
 }
 
+/// Executive for a raw call/create action.
 pub struct CallCreateExecutive<'a> {
 	info: &'a EnvInfo,
 	machine: &'a Machine,
@@ -210,6 +215,7 @@ pub struct CallCreateExecutive<'a> {
 }
 
 impl<'a> CallCreateExecutive<'a> {
+	/// Create a new call executive using raw data.
 	pub fn new_call_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, static_flag: bool) -> Self {
 		trace!("Executive::call(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
 
@@ -239,6 +245,7 @@ impl<'a> CallCreateExecutive<'a> {
 		}
 	}
 
+	/// Create a new create executive using raw data.
 	pub fn new_create_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, static_flag: bool) -> Self {
 		trace!("Executive::create(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
 
@@ -253,6 +260,7 @@ impl<'a> CallCreateExecutive<'a> {
 		}
 	}
 
+	/// Given action parameters, return whether it would have static flag if it is a sub-call if current executive.
 	pub fn sub_static_flag(&self, subparams: &ActionParams) -> bool {
 		self.static_flag || subparams.call_type == CallType::StaticCall
 	}
@@ -339,6 +347,10 @@ impl<'a> CallCreateExecutive<'a> {
 		Externalities::new(state, info, machine, schedule, depth, origin_info, substate, output, tracer, vm_tracer, is_static)
 	}
 
+	/// Execute the executive. If a sub-call/create action is required, a resume trap error is returned. The caller is
+	/// then expected to call `resume_call` or `resume_create` to continue the execution.
+	///
+	/// Current-level tracing is expected to be handled by caller.
 	pub fn exec<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> ExecutiveTrapResult<'a, FinalizationResult> {
 		match self.kind {
 			CallCreateExecutiveKind::Transfer(ref params) => {
@@ -496,6 +508,9 @@ impl<'a> CallCreateExecutive<'a> {
 		}
 	}
 
+	/// Resume execution from a call trap previsouly trapped by `exec`.
+	///
+	/// Current-level tracing is expected to be handled by caller.
 	pub fn resume_call<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, result: vm::MessageCallResult, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> ExecutiveTrapResult<'a, FinalizationResult> {
 		match self.kind {
 			CallCreateExecutiveKind::ResumeCall(params, resume, mut unconfirmed_substate) => {
@@ -533,6 +548,9 @@ impl<'a> CallCreateExecutive<'a> {
 		}
 	}
 
+	/// Resume execution from a create trap previsouly trapped by `exec`.
+	///
+	/// Current-level tracing is expected to be handled by caller.
 	pub fn resume_create<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, result: vm::ContractCreateResult, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> ExecutiveTrapResult<'a, FinalizationResult> {
 		match self.kind {
 			CallCreateExecutiveKind::ResumeCreate(params, resume, mut unconfirmed_substate) => {
@@ -570,7 +588,8 @@ impl<'a> CallCreateExecutive<'a> {
 		}
 	}
 
-	pub fn consume<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> vm::Result<FinalizationResult> {
+	/// Execute and consume the current executive. This function handles resume traps as well as current-level tracing.
+	pub fn consume<B: 'a + StateBackend, T: Tracer, V: VMTracer>(self, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> vm::Result<FinalizationResult> {
 		let mut last_is_create = self.is_create;
 		let mut last_create_address = None;
 		let mut last_res = Some((self.gas, self.exec(state, substate, tracer, vm_tracer)));
@@ -646,7 +665,7 @@ impl<'a> CallCreateExecutive<'a> {
 						None => return val,
 					}
 				},
-				Some((gas, Err(TrapError::Call(subparams, resume)))) => {
+				Some((_, Err(TrapError::Call(subparams, resume)))) => {
 					tracer.prepare_trace_call(&subparams);
 					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 
@@ -665,7 +684,7 @@ impl<'a> CallCreateExecutive<'a> {
 					callstack.push(sub_exec);
 					last_res = None;
 				},
-				Some((gas, Err(TrapError::Create(subparams, address, resume)))) => {
+				Some((_, Err(TrapError::Create(subparams, address, resume)))) => {
 					tracer.prepare_trace_create(&subparams);
 					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 

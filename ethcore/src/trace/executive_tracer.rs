@@ -20,13 +20,13 @@ use std::collections::VecDeque;
 use ethereum_types::{U256, Address};
 use vm::{Error as VmError, ActionParams};
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
-use trace::{Tracer, VMTracer, FlatTrace, TraceError};
+use trace::{Tracer, VMTracer, FlatTrace};
 
 fn top_level_subtraces(traces: &[FlatTrace]) -> usize {
 	traces.iter().filter(|t| t.trace_address.is_empty()).count()
 }
 
-fn prefix_subtrace_addresses(mut traces: &mut [FlatTrace]) {
+fn prefix_subtrace_addresses(traces: &mut [FlatTrace]) {
 	// input traces are expected to be ordered like
 	// []
 	// [0]

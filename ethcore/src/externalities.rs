@@ -27,7 +27,6 @@ use vm::{
 	Ext, ContractCreateResult, MessageCallResult, CreateContractAddress,
 	ReturnData, TrapKind
 };
-use evm::FinalizationResult;
 use transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
 
