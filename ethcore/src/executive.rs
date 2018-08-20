@@ -32,6 +32,7 @@ use factory::VmFactory;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
+use crossbeam;
 pub use executed::{Executed, ExecutionResult};
 
 #[cfg(debug_assertions)]
@@ -882,14 +883,15 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		Ok(self.finalize(t, substate, result, output, tracer.drain(), vm_tracer.drain())?)
 	}
 
-	/// Calls contract function with given contract params.
+	/// Calls contract function with given contract params and stack depth.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `vm::Error`.
-	pub fn call<T, V>(
+	pub fn call_with_stack_depth<T, V>(
 		&mut self,
 		params: ActionParams,
 		substate: &mut Substate,
+		stack_depth: usize,
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
@@ -901,18 +903,54 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			self.schedule,
 			&vm_factory,
 			self.depth,
-			0,
+			stack_depth,
 			self.static_flag
 		).consume(self.state, substate, tracer, vm_tracer)
 	}
 
-	/// Creates contract with given contract params.
-	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
-	/// Modifies the substate.
-	pub fn create<T, V>(
+	/// Calls contract function with given contract params, if the stack depth is above a threshold, create a new thread
+	/// to execute it.
+	pub fn call_with_crossbeam<T, V>(
 		&mut self,
 		params: ActionParams,
 		substate: &mut Substate,
+		stack_depth: usize,
+		tracer: &mut T,
+		vm_tracer: &mut V
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
+		let local_stack_size = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get());
+		let depth_threshold = local_stack_size.saturating_sub(STACK_SIZE_ENTRY_OVERHEAD) / STACK_SIZE_PER_DEPTH;
+
+		if stack_depth != depth_threshold {
+			self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
+		} else {
+			crossbeam::scope(|scope| {
+				scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
+					self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
+				}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
+			}).join()
+		}
+	}
+
+	/// Calls contract function with given contract params.
+	pub fn call<T, V>(
+		&mut self,
+		params: ActionParams,
+		substate: &mut Substate,
+		tracer: &mut T,
+		vm_tracer: &mut V
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
+		self.call_with_stack_depth(params, substate, 0, tracer, vm_tracer)
+	}
+
+	/// Creates contract with given contract params and stack depth.
+	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
+	/// Modifies the substate.
+	pub fn create_with_stack_depth<T, V>(
+		&mut self,
+		params: ActionParams,
+		substate: &mut Substate,
+		stack_depth: usize,
 		tracer: &mut T,
 		vm_tracer: &mut V,
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
@@ -924,9 +962,44 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			self.schedule,
 			&vm_factory,
 			self.depth,
-			0,
+			stack_depth,
 			self.static_flag
 		).consume(self.state, substate, tracer, vm_tracer)
+	}
+
+	/// Creates contract with given contract params, if the stack depth is above a threshold, create a new thread to
+	/// execute it.
+	pub fn create_with_crossbeam<T, V>(
+		&mut self,
+		params: ActionParams,
+		substate: &mut Substate,
+		stack_depth: usize,
+		tracer: &mut T,
+		vm_tracer: &mut V,
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
+		let local_stack_size = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get());
+		let depth_threshold = local_stack_size.saturating_sub(STACK_SIZE_ENTRY_OVERHEAD) / STACK_SIZE_PER_DEPTH;
+
+		if stack_depth != depth_threshold {
+			self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
+		} else {
+			crossbeam::scope(|scope| {
+				scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
+					self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
+				}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
+			}).join()
+		}
+	}
+
+	/// Creates contract with given contract params.
+	pub fn create<T, V>(
+		&mut self,
+		params: ActionParams,
+		substate: &mut Substate,
+		tracer: &mut T,
+		vm_tracer: &mut V,
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
+		self.create_with_stack_depth(params, substate, 0, tracer, vm_tracer)
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
