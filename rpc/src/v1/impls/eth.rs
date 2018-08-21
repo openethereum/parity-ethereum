@@ -819,10 +819,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn bad_blocks(&self, include_txs: bool) -> BoxFuture<Vec<RichBlock>> {
 		let blocks = self.client.bad_blocks()
-			.unwrap()
-			.iter()
-			.map(|hash| self.rich_block(BlockNumberOrId::Id(BlockId::Hash(*hash)), include_txs).unwrap().unwrap())
-			.collect();
+			.and_then(|vec| {
+				vec.iter()
+					.filter_map(|hash| {
+						self.rich_block(BlockNumberOrId::Id(BlockId::Hash(*hash)), include_txs).ok()
+					})
+					.collect()
+			});
 
 		Box::new(future::done(Ok(blocks)))
 	}
