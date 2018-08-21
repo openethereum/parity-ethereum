@@ -35,6 +35,8 @@ pub struct Informant {
 	instruction: u8,
 	gas_cost: U256,
 	gas_used: U256,
+	mem_written: Option<(usize, usize)>,
+	store_written: Option<(U256, U256)>,
 	stack: Vec<U256>,
 	memory: Vec<u8>,
 	storage: HashMap<H256, H256>,
@@ -124,13 +126,17 @@ impl trace::VMTracer for Informant {
 		true
 	}
 
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256, mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
 		self.pc = pc;
 		self.instruction = instruction;
 		self.gas_cost = gas_cost;
+		self.mem_written = mem_written;
+		self.store_written = store_written;
 	}
 
-	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
+		let mem_diff = self.mem_written.clone().map(|(o, s)| (o, &(mem[o..o+s])));
+		let store_diff = self.store_written.clone();
 		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
 
 		let trace = format!(
@@ -198,7 +204,7 @@ impl trace::VMTracer for Informant {
 			// print last line with final state:
 			self.gas_cost = 0.into();
 			let gas_used = self.gas_used;
-			self.trace_executed(gas_used, &[], None, None);
+			self.trace_executed(gas_used, &[], &[]);
 		} else if !self.subtraces.is_empty() {
 			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
 		}

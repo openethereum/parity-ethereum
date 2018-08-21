@@ -150,20 +150,19 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 		true
 	}
 
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
+		if let Some((pos, val)) = store_written {
+			self.storage.insert(pos.into(), val.into());
+		}
 	}
 
-	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
+	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem: &[u8]) {
 		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
 
 		let len = self.stack.len();
 		let info_args = info.map(|i| i.args).unwrap_or(0);
 		self.stack.truncate(if len > info_args { len - info_args } else { 0 });
 		self.stack.extend_from_slice(stack_push);
-
-		if let Some((pos, val)) = store_diff {
-			self.storage.insert(pos.into(), val.into());
-		}
 	}
 
 	fn prepare_subtrace(&mut self, code: &[u8]) {
