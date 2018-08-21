@@ -48,6 +48,6 @@ build_docs
 cd ..
 update_wiki_docs
 cd wiki
-set_remote
+set_remote_wiki
 commit_files
 upload_files
