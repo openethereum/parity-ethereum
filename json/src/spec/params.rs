@@ -152,6 +152,9 @@ pub struct Params {
 	/// KIP4 activiation block height.
 	#[serde(rename="kip4Transition")]
 	pub kip4_transition: Option<Uint>,
+	/// KIP6 activiation block height.
+	#[serde(rename="kip6Transition")]
+	pub kip6_transition: Option<Uint>,
 }
 
 #[cfg(test)]
