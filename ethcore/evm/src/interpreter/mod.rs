@@ -214,29 +214,34 @@ impl<Cost: 'static + CostType> vm::Exec for Interpreter<Cost> {
 
 impl<Cost: 'static + CostType> vm::ResumeCall for Interpreter<Cost> {
 	fn resume_call(mut self: Box<Self>, result: MessageCallResult) -> Box<vm::Exec> {
-		let (out_off, out_size) = self.resume_output_range.take().expect("TODO: PROOF");
+		{
+			let this = &mut *self;
+			let (out_off, out_size) = this.resume_output_range.take().expect("TODO: PROOF");
 
-		match result {
-			MessageCallResult::Success(gas_left, data) => {
-				let output_len = self.mem.writeable_slice(out_off, out_size).len();
-				let len = cmp::min(output_len, data.len());
-				(&mut self.mem.writeable_slice(out_off, out_size)[..len]).copy_from_slice(&data[..len]);
-				self.return_data = data;
-				self.stack.push(U256::one());
-				self.resume_result = Some(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")));
-			},
-			MessageCallResult::Reverted(gas_left, data) => {
-				let output_len = self.mem.writeable_slice(out_off, out_size).len();
-				let len = cmp::min(output_len, data.len());
-				(&mut self.mem.writeable_slice(out_off, out_size)[..len]).copy_from_slice(&data[..len]);
-				self.stack.push(U256::zero());
-				self.return_data = data;
-				self.resume_result = Some(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")));
-			},
-			MessageCallResult::Failed => {
-				self.stack.push(U256::zero());
-				self.resume_result = Some(InstructionResult::Ok);
-			},
+			match result {
+				MessageCallResult::Success(gas_left, data) => {
+					let output = this.mem.writeable_slice(out_off, out_size);
+					let len = cmp::min(output.len(), data.len());
+					(&mut output[..len]).copy_from_slice(&data[..len]);
+
+					this.return_data = data;
+					this.stack.push(U256::one());
+					this.resume_result = Some(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")));
+				},
+				MessageCallResult::Reverted(gas_left, data) => {
+					let output = this.mem.writeable_slice(out_off, out_size);
+					let len = cmp::min(output.len(), data.len());
+					(&mut output[..len]).copy_from_slice(&data[..len]);
+
+					this.return_data = data;
+					this.stack.push(U256::zero());
+					this.resume_result = Some(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")));
+				},
+				MessageCallResult::Failed => {
+					this.stack.push(U256::zero());
+					this.resume_result = Some(InstructionResult::Ok);
+				},
+			}
 		}
 		self
 	}
@@ -524,7 +529,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
 
-				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme, false);
+				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme, true);
 				return match create_result {
 					Ok(ContractCreateResult::Created(address, gas_left)) => {
 						self.stack.push(address_to_u256(address));
@@ -603,11 +608,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 					ext.call(&call_gas.as_u256(), sender_address, receive_address, value, input, &code_address, call_type, true)
 				};
 
-				let output = self.mem.writeable_slice(out_off, out_size);
 				self.resume_output_range = Some((out_off, out_size));
 
 				return match call_result {
 					Ok(MessageCallResult::Success(gas_left, data)) => {
+						let output = self.mem.writeable_slice(out_off, out_size);
 						let len = cmp::min(output.len(), data.len());
 						(&mut output[..len]).copy_from_slice(&data[..len]);
 
@@ -616,6 +621,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")))
 					},
 					Ok(MessageCallResult::Reverted(gas_left, data)) => {
+						let output = self.mem.writeable_slice(out_off, out_size);
 						let len = cmp::min(output.len(), data.len());
 						(&mut output[..len]).copy_from_slice(&data[..len]);
 

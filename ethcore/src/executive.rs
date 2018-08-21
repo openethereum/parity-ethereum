@@ -218,10 +218,11 @@ pub struct CallCreateExecutive<'a> {
 
 impl<'a> CallCreateExecutive<'a> {
 	/// Create a new call executive using raw data.
-	pub fn new_call_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, stack_depth: usize, static_flag: bool) -> Self {
-		trace!("Executive::call(params={:?}) self.env_info={:?}, static={}", params, info, static_flag);
+	pub fn new_call_raw(params: ActionParams, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, factory: &'a VmFactory, depth: usize, stack_depth: usize, parent_static_flag: bool) -> Self {
+		trace!("Executive::call(params={:?}) self.env_info={:?}, parent_static={}", params, info, parent_static_flag);
 
 		let gas = params.gas;
+		let static_flag = parent_static_flag || params.call_type == CallType::StaticCall;
 
 		// if destination is builtin, try to execute it
 		let kind = if let Some(builtin) = machine.builtin(&params.code_address, info.number) {
@@ -262,18 +263,29 @@ impl<'a> CallCreateExecutive<'a> {
 		}
 	}
 
-	/// Given action parameters, return whether it would have static flag if it is a sub-call if current executive.
-	pub fn sub_static_flag(&self, subparams: &ActionParams) -> bool {
-		self.static_flag || subparams.call_type == CallType::StaticCall
+	/// If this executive contains an unconfirmed substate, returns a mutable reference to it.
+	pub fn unconfirmed_substate(&mut self) -> Option<&mut Substate> {
+		match self.kind {
+			CallCreateExecutiveKind::ExecCall(_, _, ref mut unsub) => Some(unsub),
+			CallCreateExecutiveKind::ExecCreate(_, _, ref mut unsub) => Some(unsub),
+			CallCreateExecutiveKind::ResumeCreate(_, _, ref mut unsub) => Some(unsub),
+			CallCreateExecutiveKind::ResumeCall(_, _, ref mut unsub) => Some(unsub),
+			CallCreateExecutiveKind::Transfer(..) | CallCreateExecutiveKind::CallBuiltin(..) => None,
+		}
 	}
 
 	fn check_static_flag(params: &ActionParams, static_flag: bool, is_create: bool) -> vm::Result<()> {
-		if (params.call_type == CallType::StaticCall ||
-			((params.call_type == CallType::Call || is_create) &&
-			 static_flag)) &&
-			(is_create || params.value.value() > 0.into())
-		{
-			return Err(vm::Error::MutableCallInStaticContext);
+		if is_create {
+			if static_flag {
+				return Err(vm::Error::MutableCallInStaticContext);
+			}
+		} else {
+			if (static_flag &&
+				(params.call_type == CallType::StaticCall || params.call_type == CallType::Call)) &&
+				params.value.value() > U256::zero()
+			{
+				return Err(vm::Error::MutableCallInStaticContext);
+			}
 		}
 
 		Ok(())
@@ -344,10 +356,8 @@ impl<'a> CallCreateExecutive<'a> {
 		output: OutputPolicy,
 		tracer: &'any mut T,
 		vm_tracer: &'any mut V,
-		static_call: bool,
 	) -> Externalities<'any, T, V, B> where T: Tracer, V: VMTracer {
-		let is_static = static_flag || static_call;
-		Externalities::new(state, info, machine, schedule, depth, stack_depth, origin_info, substate, output, tracer, vm_tracer, is_static)
+		Externalities::new(state, info, machine, schedule, depth, stack_depth, origin_info, substate, output, tracer, vm_tracer, static_flag)
 	}
 
 	/// Execute the executive. If a sub-call/create action is required, a resume trap error is returned. The caller is
@@ -438,8 +448,7 @@ impl<'a> CallCreateExecutive<'a> {
 				}
 
 				let out = {
-					let static_call = params.call_type == CallType::StaticCall;
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -484,8 +493,7 @@ impl<'a> CallCreateExecutive<'a> {
 				}
 
 				let out = {
-					let static_call = params.call_type == CallType::StaticCall;
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -520,8 +528,7 @@ impl<'a> CallCreateExecutive<'a> {
 				let out = {
 					let exec = resume.resume_call(result);
 
-					let static_call = params.call_type == CallType::StaticCall;
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -560,8 +567,7 @@ impl<'a> CallCreateExecutive<'a> {
 				let out = {
 					let exec = resume.resume_create(result);
 
-					let static_call = params.call_type == CallType::StaticCall;
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer, static_call);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -592,10 +598,10 @@ impl<'a> CallCreateExecutive<'a> {
 	}
 
 	/// Execute and consume the current executive. This function handles resume traps as well as current-level tracing.
-	pub fn consume<B: 'a + StateBackend, T: Tracer, V: VMTracer>(self, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> vm::Result<FinalizationResult> {
+	pub fn consume<B: 'a + StateBackend, T: Tracer, V: VMTracer>(self, state: &mut State<B>, top_substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> vm::Result<FinalizationResult> {
 		let mut last_is_create = self.is_create;
 		let mut last_create_address = None;
-		let mut last_res = Some((self.gas, self.exec(state, substate, tracer, vm_tracer)));
+		let mut last_res = Some((self.gas, self.exec(state, top_substate, tracer, vm_tracer)));
 
 		let mut callstack: Vec<CallCreateExecutive<'a>> = Vec::new();
 		loop {
@@ -603,8 +609,14 @@ impl<'a> CallCreateExecutive<'a> {
 				None => {
 					match callstack.pop() {
 						Some(exec) => {
+							let second_last = callstack.last_mut();
+							let parent_substate = match second_last {
+								Some(second_last) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
+								None => top_substate,
+							};
+
 							last_is_create = exec.is_create;
-							last_res = Some((exec.gas, exec.exec(state, substate, tracer, vm_tracer)));
+							last_res = Some((exec.gas, exec.exec(state, parent_substate, tracer, vm_tracer)));
 						},
 						None => panic!("TODO: PROOF"),
 					}
@@ -613,7 +625,7 @@ impl<'a> CallCreateExecutive<'a> {
 					let current = callstack.pop();
 
 					match current {
-						Some(exec) => {
+						Some(mut exec) => {
 							if last_is_create {
 								let address = last_create_address.expect("TODO: PROOF");
 
@@ -632,11 +644,18 @@ impl<'a> CallCreateExecutive<'a> {
 
 								vm_tracer.done_subtrace();
 
+								let second_last = callstack.last_mut();
+								let parent_substate = match second_last {
+									Some(second_last) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
+									None => top_substate,
+								};
+
+								let contract_create_result = into_contract_create_result(val, &address, exec.unconfirmed_substate().expect("Executive is resumed from a create; it has an unconfirmed substate; qed"));
 								last_is_create = exec.is_create;
 								last_res = Some((exec.gas, exec.resume_create(
-									into_contract_create_result(val, &address, substate),
+									contract_create_result,
 									state,
-									substate,
+									parent_substate,
 									tracer,
 									vm_tracer
 								)));
@@ -655,11 +674,17 @@ impl<'a> CallCreateExecutive<'a> {
 
 								vm_tracer.done_subtrace();
 
+								let second_last = callstack.last_mut();
+								let parent_substate = match second_last {
+									Some(second_last) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
+									None => top_substate,
+								};
+
 								last_is_create = exec.is_create;
 								last_res = Some((exec.gas, exec.resume_call(
 									into_message_call_result(val),
 									state,
-									substate,
+									parent_substate,
 									tracer,
 									vm_tracer
 								)));
@@ -672,7 +697,6 @@ impl<'a> CallCreateExecutive<'a> {
 					tracer.prepare_trace_call(&subparams);
 					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 
-					let sub_static_flag = resume.sub_static_flag(&subparams);
 					let sub_exec = CallCreateExecutive::new_call_raw(
 						subparams,
 						resume.info,
@@ -681,7 +705,7 @@ impl<'a> CallCreateExecutive<'a> {
 						resume.factory,
 						resume.depth + 1,
 						resume.stack_depth,
-						sub_static_flag
+						resume.static_flag,
 					);
 
 					callstack.push(resume);
@@ -692,7 +716,6 @@ impl<'a> CallCreateExecutive<'a> {
 					tracer.prepare_trace_create(&subparams);
 					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 
-					let sub_static_flag = resume.sub_static_flag(&subparams);
 					let sub_exec = CallCreateExecutive::new_create_raw(
 						subparams,
 						resume.info,
@@ -701,7 +724,7 @@ impl<'a> CallCreateExecutive<'a> {
 						resume.factory,
 						resume.depth + 1,
 						resume.stack_depth,
-						sub_static_flag
+						resume.static_flag
 					);
 
 					callstack.push(resume);
