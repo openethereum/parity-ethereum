@@ -644,7 +644,14 @@ pub trait SyncInfo {
 	fn start_block(&self) -> u64;
 
 	/// Whether major sync is underway.
-	fn is_major_importing(&self) -> bool;
+	#[inline]
+	fn is_major_importing(&self) -> bool {
+		self.is_major_importing_do_wait(true)
+	}
+
+	/// Whether major sync is underway.
+	/// When not waiting on the state we return false by default
+	fn is_major_importing_do_wait(&self, wait: bool) -> bool;
 }
 
 impl<L: AsLightClient> SyncInfo for LightSync<L> {
@@ -656,14 +663,22 @@ impl<L: AsLightClient> SyncInfo for LightSync<L> {
 		self.start_block_number
 	}
 
-	fn is_major_importing(&self) -> bool {
+	fn is_major_importing_do_wait(&self, wait: bool) -> bool {
 		const EMPTY_QUEUE: usize = 3;
 
 		if self.client.as_light_client().queue_info().unverified_queue_size > EMPTY_QUEUE {
 			return true;
 		}
-
-		match *self.state.lock() {
+		let mg_state = if wait {
+			self.state.lock()
+		} else {
+			if let Some(mg_state) = self.state.try_lock() {
+				mg_state
+			} else {
+				return false;
+			}
+		};
+		match *mg_state {
 			SyncState::Idle => false,
 			_ => true,
 		}
