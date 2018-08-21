@@ -599,35 +599,32 @@ impl<'a> CallCreateExecutive<'a> {
 
 	/// Execute and consume the current executive. This function handles resume traps as well as current-level tracing.
 	pub fn consume<B: 'a + StateBackend, T: Tracer, V: VMTracer>(self, state: &mut State<B>, top_substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> vm::Result<FinalizationResult> {
-		let mut last_is_create = self.is_create;
-		let mut last_create_address = None;
-		let mut last_res = Some((self.gas, self.exec(state, top_substate, tracer, vm_tracer)));
+		let mut last_res = Some((false, self.gas, self.exec(state, top_substate, tracer, vm_tracer)));
 
-		let mut callstack: Vec<CallCreateExecutive<'a>> = Vec::new();
+		let mut callstack: Vec<(Option<Address>, CallCreateExecutive<'a>)> = Vec::new();
 		loop {
 			match last_res {
 				None => {
 					match callstack.pop() {
-						Some(exec) => {
+						Some((_, exec)) => {
 							let second_last = callstack.last_mut();
 							let parent_substate = match second_last {
-								Some(second_last) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
+								Some((_, ref mut second_last)) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
 								None => top_substate,
 							};
 
-							last_is_create = exec.is_create;
-							last_res = Some((exec.gas, exec.exec(state, parent_substate, tracer, vm_tracer)));
+							last_res = Some((exec.is_create, exec.gas, exec.exec(state, parent_substate, tracer, vm_tracer)));
 						},
 						None => panic!("TODO: PROOF"),
 					}
 				},
-				Some((gas, Ok(val))) => {
+				Some((is_create, gas, Ok(val))) => {
 					let current = callstack.pop();
 
 					match current {
-						Some(mut exec) => {
-							if last_is_create {
-								let address = last_create_address.expect("TODO: PROOF");
+						Some((address, mut exec)) => {
+							if is_create {
+								let address = address.expect("TODO: PROOF");
 
 								match val {
 									Ok(ref val) => {
@@ -646,13 +643,12 @@ impl<'a> CallCreateExecutive<'a> {
 
 								let second_last = callstack.last_mut();
 								let parent_substate = match second_last {
-									Some(second_last) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
+									Some((_, ref mut second_last)) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
 									None => top_substate,
 								};
 
 								let contract_create_result = into_contract_create_result(val, &address, exec.unconfirmed_substate().expect("Executive is resumed from a create; it has an unconfirmed substate; qed"));
-								last_is_create = exec.is_create;
-								last_res = Some((exec.gas, exec.resume_create(
+								last_res = Some((exec.is_create, exec.gas, exec.resume_create(
 									contract_create_result,
 									state,
 									parent_substate,
@@ -676,12 +672,11 @@ impl<'a> CallCreateExecutive<'a> {
 
 								let second_last = callstack.last_mut();
 								let parent_substate = match second_last {
-									Some(second_last) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
+									Some((_, ref mut second_last)) => second_last.unconfirmed_substate().expect("Current stack value is created from second last item; second last item must be call or create; qed"),
 									None => top_substate,
 								};
 
-								last_is_create = exec.is_create;
-								last_res = Some((exec.gas, exec.resume_call(
+								last_res = Some((exec.is_create, exec.gas, exec.resume_call(
 									into_message_call_result(val),
 									state,
 									parent_substate,
@@ -693,7 +688,7 @@ impl<'a> CallCreateExecutive<'a> {
 						None => return val,
 					}
 				},
-				Some((_, Err(TrapError::Call(subparams, resume)))) => {
+				Some((_, _, Err(TrapError::Call(subparams, resume)))) => {
 					tracer.prepare_trace_call(&subparams);
 					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 
@@ -708,11 +703,11 @@ impl<'a> CallCreateExecutive<'a> {
 						resume.static_flag,
 					);
 
-					callstack.push(resume);
-					callstack.push(sub_exec);
+					callstack.push((None, resume));
+					callstack.push((None, sub_exec));
 					last_res = None;
 				},
-				Some((_, Err(TrapError::Create(subparams, address, resume)))) => {
+				Some((_, _, Err(TrapError::Create(subparams, address, resume)))) => {
 					tracer.prepare_trace_create(&subparams);
 					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 
@@ -727,9 +722,8 @@ impl<'a> CallCreateExecutive<'a> {
 						resume.static_flag
 					);
 
-					callstack.push(resume);
-					callstack.push(sub_exec);
-					last_create_address = Some(address);
+					callstack.push((Some(address), resume));
+					callstack.push((None, sub_exec));
 					last_res = None;
 				},
 			}
