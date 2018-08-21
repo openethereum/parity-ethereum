@@ -393,7 +393,6 @@ impl NodeTable {
 		let nodes = node_ids.into_iter()
 			.map(|id| self.nodes.get(&id).expect("self.nodes() only returns node IDs from self.nodes"))
 			.take(MAX_NODES)
-			.map(|node| node.clone())
 			.map(Into::into)
 			.collect();
 		let table = json::NodeTable { nodes };

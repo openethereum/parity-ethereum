@@ -59,12 +59,12 @@ impl NetworkService {
 		let io_service = IoService::<NetworkIoMessage>::start()?;
 
 		Ok(NetworkService {
-			io_service: io_service,
+			io_service,
 			host_info: config.client_version.clone(),
 			host: RwLock::new(None),
-			config: config,
-			host_handler: host_handler,
-			filter: filter,
+			config,
+			host_handler,
+			filter,
 		})
 	}
 
@@ -120,10 +120,10 @@ impl NetworkService {
 	/// In case of error, also returns the listening address for better error reporting.
 	pub fn start(&self) -> Result<(), (Error, Option<SocketAddr>)> {
 		let mut host = self.host.write();
-		let listen_addr = self.config.listen_address.clone();
+		let listen_addr = self.config.listen_address;
 		if host.is_none() {
 			let h = Arc::new(Host::new(self.config.clone(), self.filter.clone())
-				.map_err(|err| (err.into(), listen_addr))?);
+				.map_err(|err| (err, listen_addr))?);
 			self.io_service.register_handler(h.clone())
 				.map_err(|err| (err.into(), listen_addr))?;
 			*host = Some(h);
@@ -177,7 +177,7 @@ impl NetworkService {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			let io_ctxt = IoContext::new(self.io_service.channel(), 0);
-			host.set_non_reserved_mode(&mode, &io_ctxt);
+			host.set_non_reserved_mode(mode, &io_ctxt);
 		}
 	}
 
