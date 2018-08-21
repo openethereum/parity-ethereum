@@ -45,7 +45,7 @@ macro_rules! enum_with_from_u8 {
 enum_with_from_u8! {
 	#[doc = "Virtual machine bytecode instruction."]
 	#[repr(u8)]
-	#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
+	#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug, Hash)]
 	pub enum Instruction {
 		#[doc = "halts execution"]
 		STOP = 0x00,

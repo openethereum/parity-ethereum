@@ -175,6 +175,8 @@ impl Tracer for ExecutiveTracer {
 pub struct ExecutiveVMTracer {
 	data: VMTrace,
 	depth: usize,
+	last_mem_written: Option<(usize, usize)>,
+	last_store_written: Option<(U256, U256)>,
 }
 
 impl ExecutiveVMTracer {
@@ -188,6 +190,8 @@ impl ExecutiveVMTracer {
 				subs: vec![],
 			},
 			depth: 0,
+			last_mem_written: None,
+			last_store_written: None,
 		}
 	}
 
@@ -205,7 +209,7 @@ impl VMTracer for ExecutiveVMTracer {
 
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { true }
 
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256, mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
 		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
 			trace.operations.push(VMOperation {
 				pc: pc,
@@ -214,9 +218,13 @@ impl VMTracer for ExecutiveVMTracer {
 				executed: None,
 			});
 		});
+		self.last_mem_written = mem_written;
+		self.last_store_written = store_written;
 	}
 
-	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
+		let mem_diff = self.last_mem_written.take().map(|(o, s)| (o, &(mem[o..o+s])));
+		let store_diff = self.last_store_written.take();
 		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
 			let ex = VMExecutedOperation {
 				gas_used: gas_used,

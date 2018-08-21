@@ -232,10 +232,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			params_type: vm::ParamsType::Embedded,
 		};
 
-		if trap {
-			return Err(TrapKind::Create(params, address));
-		}
-
 		if !self.static_flag {
 			if !self.schedule.eip86 || params.sender != UNSIGNED_SENDER {
 				if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
@@ -244,9 +240,13 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				}
 			}
 		}
-		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.schedule, self.depth, self.static_flag);
+
+		if trap {
+			return Err(TrapKind::Create(params, address));
+		}
 
 		// TODO: handle internal error separately
+		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.schedule, self.depth, self.static_flag);
 		let out = ex.create_with_crossbeam(params, self.substate, self.stack_depth + 1, self.tracer, self.vm_tracer);
 		Ok(into_contract_create_result(out, &address, self.substate))
 	}
@@ -399,12 +399,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		self.vm_tracer.trace_next_instruction(pc, instruction, current_gas)
 	}
 
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
-		self.vm_tracer.trace_prepare_execute(pc, instruction, gas_cost)
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256, mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
+		self.vm_tracer.trace_prepare_execute(pc, instruction, gas_cost, mem_written, store_written)
 	}
 
-	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
-		self.vm_tracer.trace_executed(gas_used, stack_push, mem_diff, store_diff)
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
+		self.vm_tracer.trace_executed(gas_used, stack_push, mem)
 	}
 }
 

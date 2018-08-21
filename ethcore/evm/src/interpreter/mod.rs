@@ -186,6 +186,8 @@ pub struct Interpreter<Cost: CostType> {
 	gasometer: Option<Gasometer<Cost>>,
 	stack: VecStack<U256>,
 	resume_output_range: Option<(U256, U256)>,
+	resume_result: Option<InstructionResult<Cost>>,
+	last_stack_ret_len: usize,
 	_type: PhantomData<Cost>,
 }
 
@@ -216,23 +218,24 @@ impl<Cost: 'static + CostType> vm::ResumeCall for Interpreter<Cost> {
 
 		match result {
 			MessageCallResult::Success(gas_left, data) => {
-				self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one");
 				let output_len = self.mem.writeable_slice(out_off, out_size).len();
 				let len = cmp::min(output_len, data.len());
 				(&mut self.mem.writeable_slice(out_off, out_size)[..len]).copy_from_slice(&data[..len]);
 				self.return_data = data;
 				self.stack.push(U256::one());
+				self.resume_result = Some(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")));
 			},
 			MessageCallResult::Reverted(gas_left, data) => {
-				self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one");
 				let output_len = self.mem.writeable_slice(out_off, out_size).len();
 				let len = cmp::min(output_len, data.len());
 				(&mut self.mem.writeable_slice(out_off, out_size)[..len]).copy_from_slice(&data[..len]);
 				self.stack.push(U256::zero());
 				self.return_data = data;
+				self.resume_result = Some(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")));
 			},
 			MessageCallResult::Failed => {
 				self.stack.push(U256::zero());
+				self.resume_result = Some(InstructionResult::Ok);
 			},
 		}
 		self
@@ -243,16 +246,17 @@ impl<Cost: 'static + CostType> vm::ResumeCreate for Interpreter<Cost> {
 	fn resume_create(mut self: Box<Self>, result: ContractCreateResult) -> Box<vm::Exec> {
 		match result {
 			ContractCreateResult::Created(address, gas_left) => {
-				self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one");
 				self.stack.push(address_to_u256(address));
+				self.resume_result = Some(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater.")));
 			},
 			ContractCreateResult::Reverted(gas_left, return_data) => {
-				self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one");
 				self.stack.push(U256::zero());
 				self.return_data = return_data;
+				self.resume_result = Some(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater.")));
 			},
 			ContractCreateResult::Failed => {
 				self.stack.push(U256::zero());
+				self.resume_result = Some(InstructionResult::Ok);
 			},
 		}
 		self
@@ -276,7 +280,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			do_trace: true,
 			mem: Vec::new(),
 			return_data: ReturnData::empty(),
+			last_stack_ret_len: 0,
 			resume_output_range: None,
+			resume_result: None,
 			_type: PhantomData,
 		}
 	}
@@ -306,50 +312,53 @@ impl<Cost: CostType> Interpreter<Cost> {
 	/// Inner helper function for step.
 	#[inline(always)]
 	fn step_inner(&mut self, ext: &mut vm::Ext) -> Result<Never, InterpreterResult> {
-		let opcode = self.reader.code[self.reader.position];
-		let instruction = Instruction::from_u8(opcode);
-		self.reader.position += 1;
+		let result = match self.resume_result.take() {
+			Some(result) => result,
+			None => {
+				let opcode = self.reader.code[self.reader.position];
+				let instruction = Instruction::from_u8(opcode);
+				self.reader.position += 1;
 
-		// TODO: make compile-time removable if too much of a performance hit.
-		self.do_trace = self.do_trace && ext.trace_next_instruction(
-			self.reader.position - 1, opcode, self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas.as_u256(),
-		);
+				// TODO: make compile-time removable if too much of a performance hit.
+				self.do_trace = self.do_trace && ext.trace_next_instruction(
+					self.reader.position - 1, opcode, self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas.as_u256(),
+				);
 
-		let instruction = match instruction {
-			Some(i) => i,
-			None => return Err(InterpreterResult::Done(Err(vm::Error::BadInstruction {
-				instruction: opcode
-			}))),
+				let instruction = match instruction {
+					Some(i) => i,
+					None => return Err(InterpreterResult::Done(Err(vm::Error::BadInstruction {
+						instruction: opcode
+					}))),
+				};
+
+				let info = instruction.info();
+				self.last_stack_ret_len = info.ret;
+				self.verify_instruction(ext, instruction, info)?;
+
+				// Calculate gas cost
+				let requirements = self.gasometer.as_mut().expect(GASOMETER_PROOF).requirements(ext, instruction, info, &self.stack, self.mem.size())?;
+				if self.do_trace {
+					ext.trace_prepare_execute(self.reader.position - 1, opcode, requirements.gas_cost.as_u256(), Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack));
+				}
+
+				self.gasometer.as_mut().expect(GASOMETER_PROOF).verify_gas(&requirements.gas_cost)?;
+				self.mem.expand(requirements.memory_required_size);
+				self.gasometer.as_mut().expect(GASOMETER_PROOF).current_mem_gas = requirements.memory_total_gas;
+				self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas - requirements.gas_cost;
+
+				evm_debug!({ self.informant.before_instruction(self.reader.position, instruction, info, &self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, &self.stack) });
+
+				// Execute instruction
+				let current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas;
+				let result = self.exec_instruction(
+					current_gas, ext, instruction, requirements.provide_gas
+				)?;
+
+				evm_debug!({ self.informant.after_instruction(instruction) });
+
+				result
+			},
 		};
-
-		let info = instruction.info();
-		self.verify_instruction(ext, instruction, info)?;
-
-		// Calculate gas cost
-		let requirements = self.gasometer.as_mut().expect(GASOMETER_PROOF).requirements(ext, instruction, info, &self.stack, self.mem.size())?;
-		if self.do_trace {
-			ext.trace_prepare_execute(self.reader.position - 1, opcode, requirements.gas_cost.as_u256());
-		}
-
-		self.gasometer.as_mut().expect(GASOMETER_PROOF).verify_gas(&requirements.gas_cost)?;
-		self.mem.expand(requirements.memory_required_size);
-		self.gasometer.as_mut().expect(GASOMETER_PROOF).current_mem_gas = requirements.memory_total_gas;
-		self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas - requirements.gas_cost;
-
-		evm_debug!({ informant.before_instruction(reader.position, instruction, info, &self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, &stack) });
-
-		let (mem_written, store_written) = match self.do_trace {
-			true => (Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack)),
-			false => (None, None),
-		};
-
-		// Execute instruction
-		let current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas;
-		let result = self.exec_instruction(
-			current_gas, ext, instruction, requirements.provide_gas
-		)?;
-
-		evm_debug!({ informant.after_instruction(instruction) });
 
 		if let InstructionResult::UnusedGas(ref gas) = result {
 			self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + *gas;
@@ -358,9 +367,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 		if self.do_trace {
 			ext.trace_executed(
 				self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas.as_u256(),
-				self.stack.peek_top(info.ret),
-				mem_written.map(|(o, s)| (o, &(self.mem[o..o+s]))),
-				store_written,
+				self.stack.peek_top(self.last_stack_ret_len),
+				&self.mem,
 			);
 		}
 
@@ -516,7 +524,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
 
-				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme, true);
+				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme, false);
 				return match create_result {
 					Ok(ContractCreateResult::Created(address, gas_left)) => {
 						self.stack.push(address_to_u256(address));

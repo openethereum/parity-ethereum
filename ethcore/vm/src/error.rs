@@ -22,6 +22,7 @@ use action_params::ActionParams;
 use std::fmt;
 use ethtrie;
 
+#[derive(Debug)]
 pub enum TrapKind {
 	Call(ActionParams),
 	Create(ActionParams, Address),

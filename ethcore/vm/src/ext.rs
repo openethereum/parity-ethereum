@@ -25,6 +25,7 @@ use schedule::Schedule;
 use return_data::ReturnData;
 use error::{Result, TrapKind};
 
+#[derive(Debug)]
 /// Result of externalities create function.
 pub enum ContractCreateResult {
 	/// Returned when creation was successfull.
@@ -37,6 +38,7 @@ pub enum ContractCreateResult {
 	Reverted(U256, ReturnData),
 }
 
+#[derive(Debug)]
 /// Result of externalities call function.
 pub enum MessageCallResult {
 	/// Returned when message call was successfull.
@@ -152,10 +154,10 @@ pub trait Ext {
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
 
 	/// Prepare to trace an operation. Passthrough for the VM trace.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {}
 
 	/// Trace the finalised execution of a single instruction.
-	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
+	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem: &[u8]) {}
 
 	/// Check if running in static context.
 	fn is_static(&self) -> bool;
