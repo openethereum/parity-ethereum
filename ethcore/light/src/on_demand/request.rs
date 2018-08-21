@@ -415,6 +415,26 @@ impl CheckedRequest {
 
 				None
 			}
+			CheckedRequest::HeaderWithAncestors(_, ref req) => {
+				if req.skip != 1 || !req.reverse {
+					return None;
+				}
+
+				if let Some(&net_request::HashOrNumber::Hash(start)) = req.start.as_ref() {
+					let mut result = Vec::with_capacity(req.max as usize);
+					let mut hash = start;
+					for _ in 0..req.max {
+						match cache.lock().block_header(&hash) {
+							Some(header) => {
+								hash = header.parent_hash();
+								result.push(header);
+							}
+							None => return None,
+						}
+					}
+					Some(Response::HeaderWithAncestors(result))
+				} else { None }
+			}
 			CheckedRequest::Receipts(ref check, ref req) => {
 				// empty transactions -> no receipts
 				if check.0.as_ref().ok().map_or(false, |hdr| hdr.receipts_root() == KECCAK_NULL_RLP) {
@@ -791,7 +811,7 @@ impl HeaderWithAncestors {
 	/// Check a response for the headers.
 	pub fn check_response(
 		&self,
-		_cache: &Mutex<::cache::Cache>,
+		cache: &Mutex<::cache::Cache>,
 		start: &net_request::HashOrNumber,
 		headers: &[encoded::Header]
 	) -> Result<Vec<encoded::Header>, Error> {
@@ -826,6 +846,11 @@ impl HeaderWithAncestors {
 			{
 				return Err(Error::WrongHeaderSequence)
 			}
+		}
+
+		let mut cache = cache.lock();
+		for header in headers {
+			cache.insert_block_header(header.hash(), header.clone());
 		}
 
 		Ok(headers.to_vec())
