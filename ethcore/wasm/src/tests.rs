@@ -842,7 +842,7 @@ fn gasleft() {
 // This test should fail because
 // ext.schedule.wasm.as_mut().unwrap().have_gasleft = false;
 #[test]
-fn gasleft_panic() {
+fn gasleft_fail() {
 	::ethcore_logger::init_log();
 
 	let mut params = ActionParams::default();
