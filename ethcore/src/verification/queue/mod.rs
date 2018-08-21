@@ -202,8 +202,6 @@ struct Verification<K: Kind> {
 	verifying: Mutex<VecDeque<Verifying<K>>>,
 	verified: Mutex<VecDeque<K::Verified>>,
 	bad: Mutex<HashSet<H256>>,
-	more_to_verify: Mutex<()>,
-	empty: Mutex<()>,
 	sizes: Sizes,
 	check_seal: bool,
 }
@@ -216,8 +214,6 @@ impl<K: Kind> VerificationQueue<K> {
 			verifying: Mutex::new(VecDeque::new()),
 			verified: Mutex::new(VecDeque::new()),
 			bad: Mutex::new(HashSet::new()),
-			more_to_verify: Mutex::new(()),
-			empty: Mutex::new(()),
 			sizes: Sizes {
 				unverified: AtomicUsize::new(0),
 				verifying: AtomicUsize::new(0),
@@ -319,19 +315,19 @@ impl<K: Kind> VerificationQueue<K> {
 
 			// wait for work if empty.
 			{
-				let mut more_to_verify = verification.more_to_verify.lock();
+				let mut unverified = verification.unverified.lock();
 
-				if verification.unverified.lock().is_empty() && verification.verifying.lock().is_empty() {
+				if unverified.is_empty() && verification.verifying.lock().is_empty() {
 					empty.notify_all();
 				}
 
-				while verification.unverified.lock().is_empty() {
+				while unverified.is_empty() {
 					if let State::Exit = *state.0.lock() {
 						debug!(target: "verification", "verifier {} exiting", id);
 						return;
 					}
 
-					wait.wait(&mut more_to_verify);
+					wait.wait(&mut unverified);
 				}
 
 				if let State::Exit = *state.0.lock() {
@@ -450,9 +446,9 @@ impl<K: Kind> VerificationQueue<K> {
 
 	/// Wait for unverified queue to be empty
 	pub fn flush(&self) {
-		let mut lock = self.verification.empty.lock();
-		while !self.verification.unverified.lock().is_empty() || !self.verification.verifying.lock().is_empty() {
-			self.empty.wait(&mut lock);
+		let mut unverified = self.verification.unverified.lock();
+		while !unverified.is_empty() || !self.verification.verifying.lock().is_empty() {
+			self.empty.wait(&mut unverified);
 		}
 	}
 
@@ -712,7 +708,7 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 		// acquire this lock to force threads to reach the waiting point
 		// if they're in-between the exit check and the more_to_verify wait.
 		{
-			let _more = self.verification.more_to_verify.lock();
+			let _unverified = self.verification.unverified.lock();
 			self.more_to_verify.notify_all();
 		}
 
