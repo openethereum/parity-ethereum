@@ -17,29 +17,37 @@ update_wiki_docs() {
     done
 }
 
+set_remote_wiki() {
+    git config remote.origin.url "https://${GITHUB_TOKEN}@github.com/paritytech/wiki.git"
+}
+
 setup_git() {
-    git config user.email "devops@parity.com"
-    git config user.name "Devops Parity"
+    git config --global user.email "devops@parity.com"
+    git config --global user.name "Devops Parity"
 }
 
 commit_files() {
     git checkout -b rpcdoc-update-${CI_COMMIT_REF_NAME}
-    git commit .
+    git add .
     git commit -m "Update docs to ${CI_COMMIT_REF_NAME}"
-    git tag -a "${CI_COMMIT_REF_NAME}"
+    git tag -a "${CI_COMMIT_REF_NAME}" -m "Updated to ${CI_COMMIT_REF_NAME}"
 }
 
 upload_files() {
     git push --tags
 }
 
+PROJECT_DIR=$(pwd)
+
 setup_git
+cd ..
 clone_repos
-cp parity jsonrpc/.parity
+cp -r $PROJECT_DIR jsonrpc/.parity
 cd jsonrpc
 build_docs
 cd ..
 update_wiki_docs
 cd wiki
+set_remote
 commit_files
 upload_files
