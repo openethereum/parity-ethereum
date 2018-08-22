@@ -423,8 +423,9 @@ impl CheckedRequest {
 				if let Some(&net_request::HashOrNumber::Hash(start)) = req.start.as_ref() {
 					let mut result = Vec::with_capacity(req.max as usize);
 					let mut hash = start;
+					let mut cache = cache.lock();
 					for _ in 0..req.max {
-						match cache.lock().block_header(&hash) {
+						match cache.block_header(&hash) {
 							Some(header) => {
 								hash = header.parent_hash();
 								result.push(header);

@@ -456,7 +456,7 @@ impl LightFetch {
 		let best_number = self.client.chain_info().best_block_number;
 
 		let fetcher = self.clone();
-		self.headers_by_hash(&fetch_hashes).and_then(move |mut header_map| {
+		self.headers_by_hash(&fetch_hashes[..]).and_then(move |mut header_map| {
 			let (from_block_num, to_block_num) = {
 				let block_number = |id| match id {
 					&BlockId::Earliest => 0,
@@ -492,7 +492,7 @@ impl LightFetch {
 		})
 	}
 
-	fn headers_by_hash(&self, hashes: &Vec<H256>) -> impl Future<Item = H256FastMap<encoded::Header>, Error = Error> {
+	fn headers_by_hash(&self, hashes: &[H256]) -> impl Future<Item = H256FastMap<encoded::Header>, Error = Error> {
 		let mut refs = H256FastMap::with_capacity_and_hasher(hashes.len(), Default::default());
 		let mut reqs = Vec::with_capacity(hashes.len());
 
