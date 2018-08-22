@@ -250,8 +250,8 @@ impl VMTracer for ExecutiveVMTracer {
 	}
 
 	fn prepare_subtrace(&mut self, code: &[u8]) {
-		let parent_step = self.data.operations.len() - 1; // won't overflow since we must already have pushed an operation in trace_prepare_execute.
 		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
+			let parent_step = trace.operations.len() - 1; // won't overflow since we must already have pushed an operation in trace_prepare_execute.
 			trace.subs.push(VMTrace {
 				parent_step,
 				code: code.to_vec(),
