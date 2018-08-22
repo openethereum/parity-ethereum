@@ -47,7 +47,7 @@ pub trait Tracer: Send {
 	type Output;
 
 	/// Prepares call trace for given params. Would panic if prepare/done_trace are not balanced.
-	fn prepare_trace_call(&mut self, params: &ActionParams);
+	fn prepare_trace_call(&mut self, params: &ActionParams, depth: usize, is_builtin: bool);
 
 	/// Prepares create trace for given params. Would panic if prepare/done_trace are not balanced.
 	fn prepare_trace_create(&mut self, params: &ActionParams);

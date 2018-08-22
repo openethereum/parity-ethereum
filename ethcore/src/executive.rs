@@ -689,7 +689,7 @@ impl<'a> CallCreateExecutive<'a> {
 					}
 				},
 				Some((_, _, Err(TrapError::Call(subparams, resume)))) => {
-					tracer.prepare_trace_call(&subparams);
+					tracer.prepare_trace_call(&subparams, resume.depth + 1, resume.machine.builtin(&subparams.address, resume.info.number).is_some());
 					vm_tracer.prepare_subtrace(subparams.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 
 					let sub_exec = CallCreateExecutive::new_call_raw(
@@ -912,7 +912,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
-		tracer.prepare_trace_call(&params);
+		tracer.prepare_trace_call(&params, self.depth, self.machine.builtin(&params.address, self.info.number).is_some());
 		vm_tracer.prepare_subtrace(params.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 
 		let gas = params.gas;

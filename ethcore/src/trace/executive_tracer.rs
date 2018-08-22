@@ -28,12 +28,18 @@ pub struct ExecutiveTracer {
 	index_stack: Vec<usize>,
 	vecindex_stack: Vec<usize>,
 	sublen_stack: Vec<usize>,
+	skip_one: bool,
 }
 
 impl Tracer for ExecutiveTracer {
 	type Output = FlatTrace;
 
-	fn prepare_trace_call(&mut self, params: &ActionParams) {
+	fn prepare_trace_call(&mut self, params: &ActionParams, depth: usize, is_builtin: bool) {
+		if depth != 0 && is_builtin && params.value.value() == U256::zero() {
+			self.skip_one = true;
+			return;
+		}
+
 		if let Some(parentlen) = self.sublen_stack.last_mut() {
 			*parentlen += 1;
 		}
@@ -75,6 +81,11 @@ impl Tracer for ExecutiveTracer {
 	}
 
 	fn done_trace_call(&mut self, gas_used: U256, output: &[u8]) {
+		if self.skip_one {
+			self.skip_one = false;
+			return;
+		}
+
 		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
 		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
 		self.index_stack.pop();
@@ -91,6 +102,8 @@ impl Tracer for ExecutiveTracer {
 	}
 
 	fn done_trace_create(&mut self, gas_used: U256, code: &[u8], address: Address) {
+		assert!(!self.skip_one, "Skip one is only set for prepare_trace_call");
+
 		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
 		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
 		self.index_stack.pop();
@@ -264,13 +277,13 @@ mod tests {
 	fn should_prefix_address_properly() {
 		let mut tracer = ExecutiveTracer::default();
 
-		tracer.prepare_trace_call(&ActionParams::default());
-		tracer.prepare_trace_call(&ActionParams::default());
-		tracer.prepare_trace_call(&ActionParams::default());
+		tracer.prepare_trace_call(&ActionParams::default(), 0, false);
+		tracer.prepare_trace_call(&ActionParams::default(), 1, false);
+		tracer.prepare_trace_call(&ActionParams::default(), 2, false);
 		tracer.done_trace_call(U256::zero(), &[]);
-		tracer.prepare_trace_call(&ActionParams::default());
+		tracer.prepare_trace_call(&ActionParams::default(), 2, false);
 		tracer.done_trace_call(U256::zero(), &[]);
-		tracer.prepare_trace_call(&ActionParams::default());
+		tracer.prepare_trace_call(&ActionParams::default(), 2, false);
 		tracer.done_trace_call(U256::zero(), &[]);
 		tracer.done_trace_call(U256::zero(), &[]);
 		tracer.done_trace_call(U256::zero(), &[]);

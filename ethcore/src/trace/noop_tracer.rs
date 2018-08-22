@@ -27,7 +27,7 @@ pub struct NoopTracer;
 impl Tracer for NoopTracer {
 	type Output = FlatTrace;
 
-	fn prepare_trace_call(&mut self, _: &ActionParams) { }
+	fn prepare_trace_call(&mut self, _: &ActionParams, _: usize, _: bool) { }
 	fn prepare_trace_create(&mut self, _: &ActionParams) { }
 	fn done_trace_call(&mut self, _: U256, _: &[u8]) { }
 	fn done_trace_create(&mut self, _: U256, _: &[u8], _: Address) { }
