@@ -18,7 +18,7 @@
 use std::cmp;
 use std::sync::Arc;
 use ethereum_types::{H256, U256, Address};
-use bytes::{Bytes, BytesRef};
+use bytes::Bytes;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use machine::EthereumMachine as Machine;
 use executive::*;
@@ -32,12 +32,12 @@ use transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
-pub enum OutputPolicy<'a, 'b> {
+pub enum OutputPolicy {
 	/// Return reference to fixed sized output.
 	/// Used for message calls.
-	Return(BytesRef<'a>, Option<&'b mut Bytes>),
+	Return,
 	/// Init new contract as soon as `RETURN` is called.
-	InitContract(Option<&'b mut Bytes>),
+	InitContract,
 }
 
 /// Transaction properties that externalities need to know about.
@@ -71,7 +71,7 @@ pub struct Externalities<'a, T: 'a, V: 'a, B: 'a> {
 	substate: &'a mut Substate,
 	machine: &'a Machine,
 	schedule: &'a Schedule,
-	output: OutputPolicy<'a, 'a>,
+	output: OutputPolicy,
 	tracer: &'a mut T,
 	vm_tracer: &'a mut V,
 	static_flag: bool,
@@ -89,7 +89,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
-		output: OutputPolicy<'a, 'a>,
+		output: OutputPolicy,
 		tracer: &'a mut T,
 		vm_tracer: &'a mut V,
 		static_flag: bool,
@@ -171,9 +171,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				params_type: vm::ParamsType::Separate,
 			};
 
-			let mut output = H256::new();
 			let mut ex = Executive::new(self.state, self.env_info, self.machine, self.schedule);
-			let r = ex.call(params, self.substate, BytesRef::Fixed(&mut output), self.tracer, self.vm_tracer);
+			let r = ex.call(params, self.substate, self.tracer, self.vm_tracer);
+			let output = match &r {
+				Ok(ref r) => H256::from(&r.return_data[..32]),
+				_ => H256::new(),
+			};
 			trace!("ext: blockhash contract({}) -> {:?}({}) self.env_info.number={}\n", number, r, output, self.env_info.number);
 			output
 		} else {
@@ -194,7 +197,13 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		}
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address_scheme: CreateContractAddress) -> ContractCreateResult {
+	fn create(
+		&mut self,
+		gas: &U256,
+		value: &U256,
+		code: &[u8],
+		address_scheme: CreateContractAddress
+	) -> ContractCreateResult {
 		// create new contract address
 		let (address, code_hash) = match self.state.nonce(&self.origin_info.address) {
 			Ok(nonce) => contract_address(address_scheme, &self.origin_info.address, &nonce, &code),
@@ -231,7 +240,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.schedule, self.depth, self.static_flag);
 
 		// TODO: handle internal error separately
-		match ex.create(params, self.substate, &mut None, self.tracer, self.vm_tracer) {
+		match ex.create(params, self.substate, self.tracer, self.vm_tracer) {
 			Ok(FinalizationResult{ gas_left, apply_state: true, .. }) => {
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)
@@ -243,14 +252,14 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		}
 	}
 
-	fn call(&mut self,
+	fn call(
+		&mut self,
 		gas: &U256,
 		sender_address: &Address,
 		receive_address: &Address,
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		output: &mut [u8],
 		call_type: CallType
 	) -> MessageCallResult {
 		trace!(target: "externalities", "call");
@@ -284,7 +293,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.machine, self.schedule, self.depth, self.static_flag);
 
-		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer, self.vm_tracer) {
+		match ex.call(params, self.substate, self.tracer, self.vm_tracer) {
 			Ok(FinalizationResult{ gas_left, return_data, apply_state: true }) => MessageCallResult::Success(gas_left, return_data),
 			Ok(FinalizationResult{ gas_left, return_data, apply_state: false }) => MessageCallResult::Reverted(gas_left, return_data),
 			_ => MessageCallResult::Failed
@@ -303,27 +312,13 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		Ok(self.state.code_size(address)?)
 	}
 
-	fn ret(mut self, gas: &U256, data: &ReturnData, apply_state: bool) -> vm::Result<U256>
+	fn ret(self, gas: &U256, data: &ReturnData, apply_state: bool) -> vm::Result<U256>
 		where Self: Sized {
-		let handle_copy = |to: &mut Option<&mut Bytes>| {
-			to.as_mut().map(|b| **b = data.to_vec());
-		};
 		match self.output {
-			OutputPolicy::Return(BytesRef::Fixed(ref mut slice), ref mut copy) => {
-				handle_copy(copy);
-
-				let len = cmp::min(slice.len(), data.len());
-				(&mut slice[..len]).copy_from_slice(&data[..len]);
+			OutputPolicy::Return => {
 				Ok(*gas)
 			},
-			OutputPolicy::Return(BytesRef::Flexible(ref mut vec), ref mut copy) => {
-				handle_copy(copy);
-
-				vec.clear();
-				vec.extend_from_slice(&*data);
-				Ok(*gas)
-			},
-			OutputPolicy::InitContract(ref mut copy) if apply_state => {
+			OutputPolicy::InitContract if apply_state => {
 				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
 				if return_cost > *gas || data.len() > self.schedule.create_data_limit {
 					return match self.schedule.exceptional_failed_code_deposit {
@@ -331,11 +326,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 						false => Ok(*gas)
 					}
 				}
-				handle_copy(copy);
 				self.state.init_code(&self.origin_info.address, data.to_vec())?;
 				Ok(*gas - return_cost)
 			},
-			OutputPolicy::InitContract(_) => {
+			OutputPolicy::InitContract => {
 				Ok(*gas)
 			},
 		}
@@ -479,7 +473,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
+		let ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
 		assert_eq!(ext.env_info().number, 100);
 	}
@@ -491,7 +485,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
+		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
 		let hash = ext.blockhash(&"0000000000000000000000000000000000000000000000000000000000120000".parse::<U256>().unwrap());
 
@@ -515,7 +509,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
+		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
 		let hash = ext.blockhash(&"0000000000000000000000000000000000000000000000000000000000120000".parse::<U256>().unwrap());
 
@@ -530,9 +524,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
-
-		let mut output = vec![];
+		let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 
 		// this should panic because we have no balance on any account
 		ext.call(
@@ -542,7 +534,6 @@ mod tests {
 			Some("0000000000000000000000000000000000000000000000000000000000150000".parse::<U256>().unwrap()),
 			&[],
 			&Address::new(),
-			&mut output,
 			CallType::Call
 		);
 	}
@@ -558,7 +549,7 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
+			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 			ext.log(log_topics, &log_data).unwrap();
 		}
 
@@ -575,7 +566,7 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
+			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 			ext.suicide(refund_account).unwrap();
 		}
 
@@ -592,7 +583,7 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		let address = {
-			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
+			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
 			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderAndNonce) {
 				ContractCreateResult::Created(address, _) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),
@@ -612,8 +603,8 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		let address = {
-			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
-	
+			let mut ext = Externalities::new(state, &setup.env_info, &setup.machine, &setup.schedule, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract, &mut tracer, &mut vm_tracer, false);
+
 			match ext.create(&U256::max_value(), &U256::zero(), &[], CreateContractAddress::FromSenderSaltAndCodeHash(H256::default())) {
 				ContractCreateResult::Created(address, _) => address,
 				_ => panic!("Test create failed; expected Created, got Failed/Reverted."),

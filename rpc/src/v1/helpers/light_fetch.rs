@@ -20,8 +20,8 @@ use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
+use ethcore::ids::BlockId;
 use ethcore::receipt::Receipt;
 
 use jsonrpc_core::{Result, Error};
@@ -47,7 +47,7 @@ use transaction::{Action, Transaction as EthTransaction, SignedTransaction, Loca
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
-const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
+const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
@@ -207,7 +207,7 @@ impl LightFetch {
 			}
 		};
 
-		let from = req.from.unwrap_or(Address::zero());
+		let from = req.from.unwrap_or_else(|| Address::zero());
 		let nonce_fut = match req.nonce {
 			Some(nonce) => Either::A(future::ok(Some(nonce))),
 			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
@@ -232,29 +232,16 @@ impl LightFetch {
 
 		// fetch missing transaction fields from the network.
 		Box::new(nonce_fut.join(gas_price_fut).and_then(move |(nonce, gas_price)| {
-			let action = req.to.map_or(Action::Create, Action::Call);
-			let value = req.value.unwrap_or_else(U256::zero);
-			let data = req.data.unwrap_or_default();
-
-			future::done(match (nonce, req.gas) {
-				(Some(n), Some(gas)) => Ok((true, EthTransaction {
-					nonce: n,
-					action: action,
-					gas: gas,
-					gas_price: gas_price,
-					value: value,
-					data: data,
-				})),
-				(Some(n), None) => Ok((false, EthTransaction {
-					nonce: n,
-					action: action,
-					gas: START_GAS.into(),
-					gas_price: gas_price,
-					value: value,
-					data: data,
-				})),
-				(None, _) => Err(errors::unknown_block()),
-			})
+			future::done(
+				Ok((req.gas.is_some(), EthTransaction {
+					nonce: nonce.unwrap_or_default(),
+					action: req.to.map_or(Action::Create, Action::Call),
+					gas: req.gas.unwrap_or_else(|| START_GAS.into()),
+					gas_price,
+					value: req.value.unwrap_or_else(U256::zero),
+					data: req.data.unwrap_or_default(),
+				}))
+			)
 		}).join(header_fut).and_then(move |((gas_known, tx), hdr)| {
 			// then request proved execution.
 			// TODO: get last-hashes from network.
@@ -321,9 +308,15 @@ impl LightFetch {
 			BlockId::Number(x) => Some(x),
 		};
 
-		match (block_number(filter.to_block), block_number(filter.from_block)) {
-			(Some(to), Some(from)) if to < from => return Either::A(future::ok(Vec::new())),
-			(Some(_), Some(_)) => {},
+		let (from_block_number, from_block_header) = match self.client.block_header(filter.from_block) {
+			Some(from) => (from.number(), from),
+			None => return Either::A(future::err(errors::unknown_block())),
+		};
+
+		match block_number(filter.to_block) {
+			Some(to) if to < from_block_number || from_block_number > best_number 
+				=> return Either::A(future::ok(Vec::new())),
+			Some(_) => (),
 			_ => return Either::A(future::err(errors::unknown_block())),
 		}
 
@@ -332,23 +325,40 @@ impl LightFetch {
 			// match them with their numbers for easy sorting later.
 			let bit_combos = filter.bloom_possibilities();
 			let receipts_futures: Vec<_> = self.client.ancestry_iter(filter.to_block)
-				.take_while(|ref hdr| BlockId::Number(hdr.number()) != filter.from_block)
-				.take_while(|ref hdr| BlockId::Hash(hdr.hash()) != filter.from_block)
+				.take_while(|ref hdr| hdr.number() != from_block_number)
+				.chain(Some(from_block_header))
 				.filter(|ref hdr| {
 					let hdr_bloom = hdr.log_bloom();
-					bit_combos.iter().find(|&bloom| hdr_bloom & *bloom == *bloom).is_some()
+					bit_combos.iter().any(|bloom| hdr_bloom.contains_bloom(bloom))
 				})
-				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr.into())))
-				.map(|(num, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, x)))
+				.map(|hdr| (hdr.number(), hdr.hash(), request::BlockReceipts(hdr.into())))
+				.map(|(num, hash, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, hash, x)))
 				.collect();
 
 			// as the receipts come in, find logs within them which match the filter.
 			// insert them into a BTreeMap to maintain order by number and block index.
 			stream::futures_unordered(receipts_futures)
-				.fold(BTreeMap::new(), move |mut matches, (num, receipts)| {
-					for (block_index, log) in receipts.into_iter().flat_map(|r| r.logs).enumerate() {
-						if filter.matches(&log) {
-							matches.insert((num, block_index), log.into());
+				.fold(BTreeMap::new(), move |mut matches, (num, hash, receipts)| {
+					let mut block_index = 0;
+					for (transaction_index, receipt) in receipts.into_iter().enumerate() {
+						for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
+							if filter.matches(&log) {
+								matches.insert((num, block_index), Log {
+									address: log.address.into(),
+									topics: log.topics.into_iter().map(Into::into).collect(),
+									data: log.data.into(),
+									block_hash: Some(hash.into()),
+									block_number: Some(num.into()),
+									// No way to easily retrieve transaction hash, so let's just skip it.
+									transaction_hash: None,
+									transaction_index: Some(transaction_index.into()),
+									log_index: Some(block_index.into()),
+									transaction_log_index: Some(transaction_log_index.into()),
+									log_type: "mined".into(),
+									removed: false,
+								});
+							}
+							block_index += 1;
 						}
 					}
 					future::ok(matches)

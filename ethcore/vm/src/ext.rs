@@ -101,7 +101,6 @@ pub trait Ext {
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		output: &mut [u8],
 		call_type: CallType
 	) -> MessageCallResult;
 

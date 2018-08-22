@@ -38,7 +38,7 @@ pub type NodeId = H512;
 pub struct NodeEndpoint {
 	/// IP(V4 or V6) address
 	pub address: SocketAddr,
-	/// Conneciton port.
+	/// Connection port.
 	pub udp_port: u16
 }
 
@@ -373,7 +373,7 @@ impl NodeTable {
 		self.useless_nodes.insert(id.clone());
 	}
 
-	/// Atempt to connect to useless nodes again.
+	/// Attempt to connect to useless nodes again.
 	pub fn clear_useless(&mut self) {
 		self.useless_nodes.clear();
 	}
@@ -393,7 +393,6 @@ impl NodeTable {
 		let nodes = node_ids.into_iter()
 			.map(|id| self.nodes.get(&id).expect("self.nodes() only returns node IDs from self.nodes"))
 			.take(MAX_NODES)
-			.map(|node| node.clone())
 			.map(Into::into)
 			.collect();
 		let table = json::NodeTable { nodes };

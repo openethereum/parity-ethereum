@@ -96,7 +96,7 @@ pub mod scoring;
 pub use self::error::{Error, ErrorKind};
 pub use self::listener::{Listener, NoopListener};
 pub use self::options::Options;
-pub use self::pool::{Pool, PendingIterator, Transaction};
+pub use self::pool::{Pool, PendingIterator, UnorderedIterator, Transaction};
 pub use self::ready::{Ready, Readiness};
 pub use self::scoring::Scoring;
 pub use self::status::{LightStatus, Status};
@@ -111,7 +111,7 @@ pub trait VerifiedTransaction: fmt::Debug {
 	type Hash: fmt::Debug + fmt::LowerHex + Eq + Clone + Hash;
 
 	/// Transaction sender type.
-	type Sender: fmt::Debug + Eq + Clone + Hash;
+	type Sender: fmt::Debug + Eq + Clone + Hash + Send;
 
 	/// Transaction hash
 	fn hash(&self) -> &Self::Hash;

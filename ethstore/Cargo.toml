@@ -4,7 +4,7 @@ version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-log = "0.3"
+log = "0.4"
 libc = "0.2"
 rand = "0.4"
 ethkey = { path = "../ethkey" }

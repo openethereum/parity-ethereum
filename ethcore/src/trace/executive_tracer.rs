@@ -17,7 +17,6 @@
 //! Simple executive tracer.
 
 use ethereum_types::{U256, Address};
-use bytes::Bytes;
 use vm::ActionParams;
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
@@ -92,18 +91,14 @@ impl Tracer for ExecutiveTracer {
 		Some(Create::from(params.clone()))
 	}
 
-	fn prepare_trace_output(&self) -> Option<Bytes> {
-		Some(vec![])
-	}
-
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, subs: Vec<FlatTrace>) {
+	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: &[u8], subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
 			trace_address: Default::default(),
 			subtraces: top_level_subtraces(&subs),
 			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::Call(CallResult {
 				gas_used: gas_used,
-				output: output.expect("self.prepare_trace_output().is_some(): so we must be tracing: qed")
+				output: output.into()
 			}),
 		};
 		debug!(target: "trace", "Traced call {:?}", trace);
@@ -111,13 +106,13 @@ impl Tracer for ExecutiveTracer {
 		self.traces.extend(prefix_subtrace_addresses(subs));
 	}
 
-	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: Option<Bytes>, address: Address, subs: Vec<FlatTrace>) {
+	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: &[u8], address: Address, subs: Vec<FlatTrace>) {
 		let trace = FlatTrace {
 			subtraces: top_level_subtraces(&subs),
 			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::Create(CreateResult {
 				gas_used: gas_used,
-				code: code.expect("self.prepare_trace_output.is_some(): so we must be tracing: qed"),
+				code: code.into(),
 				address: address
 			}),
 			trace_address: Default::default(),

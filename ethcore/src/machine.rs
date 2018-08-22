@@ -178,8 +178,9 @@ impl EthereumMachine {
 		let schedule = self.schedule(env_info.number);
 		let mut ex = Executive::new(&mut state, &env_info, self, &schedule);
 		let mut substate = Substate::new();
-		let mut output = Vec::new();
-		ex.call(params, &mut substate, BytesRef::Flexible(&mut output), &mut NoopTracer, &mut NoopVMTracer).map_err(|e| ::engines::EngineError::FailedSystemCall(format!("{}", e)))?;
+
+		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).map_err(|e| ::engines::EngineError::FailedSystemCall(format!("{}", e)))?;
+		let output = res.return_data.to_vec();
 
 		Ok(output)
 	}

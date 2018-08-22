@@ -38,7 +38,7 @@ use transaction::SignedTransaction;
 use trie::Trie;
 use vm::EnvInfo;
 
-const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
+const SUPPLIED_MATCHES: &str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 
 /// Core unit of the API: submit batches of these to be answered with `Response`s.
 #[derive(Clone)]
@@ -265,30 +265,35 @@ impl From<Request> for CheckedRequest {
 					max: 1,
 					reverse: false,
 				};
+				trace!(target: "on_demand", "HeaderByHash Request, {:?}", net_req);
 				CheckedRequest::HeaderByHash(req, net_req)
 			}
 			Request::HeaderProof(req) => {
 				let net_req = net_request::IncompleteHeaderProofRequest {
 					num: req.num().into(),
 				};
+				trace!(target: "on_demand", "HeaderProof Request, {:?}", net_req);
 				CheckedRequest::HeaderProof(req, net_req)
 			}
 			Request::TransactionIndex(req) => {
 				let net_req = net_request::IncompleteTransactionIndexRequest {
 					hash: req.0.clone(),
 				};
+				trace!(target: "on_demand", "TransactionIndex Request, {:?}", net_req);
 				CheckedRequest::TransactionIndex(req, net_req)
 			}
-			Request::Body(req) =>  {
+			Request::Body(req) => {
 				let net_req = net_request::IncompleteBodyRequest {
 					hash: req.0.field(),
 				};
+				trace!(target: "on_demand", "Body Request, {:?}", net_req);
 				CheckedRequest::Body(req, net_req)
 			}
 			Request::Receipts(req) => {
 				let net_req = net_request::IncompleteReceiptsRequest {
 					hash: req.0.field(),
 				};
+				trace!(target: "on_demand", "Receipt Request, {:?}", net_req);
 				CheckedRequest::Receipts(req, net_req)
 			}
 			Request::Account(req) => {
@@ -296,6 +301,7 @@ impl From<Request> for CheckedRequest {
 					block_hash: req.header.field(),
 					address_hash: ::hash::keccak(&req.address).into(),
 				};
+				trace!(target: "on_demand", "Account Request, {:?}", net_req);
 				CheckedRequest::Account(req, net_req)
 			}
 			Request::Code(req) => {
@@ -303,6 +309,7 @@ impl From<Request> for CheckedRequest {
 					block_hash: req.header.field(),
 					code_hash: req.code_hash.into(),
 				};
+				trace!(target: "on_demand", "Code Request, {:?}", net_req);
 				CheckedRequest::Code(req, net_req)
 			}
 			Request::Execution(req) => {
@@ -315,12 +322,14 @@ impl From<Request> for CheckedRequest {
 					value: req.tx.value,
 					data: req.tx.data.clone(),
 				};
+				trace!(target: "on_demand", "Execution request, {:?}", net_req);
 				CheckedRequest::Execution(req, net_req)
 			}
 			Request::Signal(req) => {
 				let net_req = net_request::IncompleteSignalRequest {
 					block_hash: req.hash.into(),
 				};
+				trace!(target: "on_demand", "Signal Request, {:?}", net_req);
 				CheckedRequest::Signal(req, net_req)
 			}
 		}
@@ -507,15 +516,42 @@ impl IncompleteRequest for CheckedRequest {
 
 	fn complete(self) -> Result<Self::Complete, net_request::NoSuchOutput> {
 		match self {
-			CheckedRequest::HeaderProof(_, req) => req.complete().map(CompleteRequest::HeaderProof),
-			CheckedRequest::HeaderByHash(_, req) => req.complete().map(CompleteRequest::Headers),
-			CheckedRequest::TransactionIndex(_, req) => req.complete().map(CompleteRequest::TransactionIndex),
-			CheckedRequest::Receipts(_, req) => req.complete().map(CompleteRequest::Receipts),
-			CheckedRequest::Body(_, req) => req.complete().map(CompleteRequest::Body),
-			CheckedRequest::Account(_, req) => req.complete().map(CompleteRequest::Account),
-			CheckedRequest::Code(_, req) => req.complete().map(CompleteRequest::Code),
-			CheckedRequest::Execution(_, req) => req.complete().map(CompleteRequest::Execution),
-			CheckedRequest::Signal(_, req) => req.complete().map(CompleteRequest::Signal),
+			CheckedRequest::HeaderProof(_, req) => {
+				trace!(target: "on_demand", "HeaderProof request completed {:?}", req);
+				req.complete().map(CompleteRequest::HeaderProof)
+			}
+			CheckedRequest::HeaderByHash(_, req) => {
+				trace!(target: "on_demand", "HeaderByHash request completed {:?}", req);
+				req.complete().map(CompleteRequest::Headers)
+			}
+			CheckedRequest::TransactionIndex(_, req) => {
+				trace!(target: "on_demand", "TransactionIndex request completed {:?}", req);
+				req.complete().map(CompleteRequest::TransactionIndex)
+			}
+			CheckedRequest::Receipts(_, req) => {
+				trace!(target: "on_demand", "Receipt request completed {:?}", req);
+				req.complete().map(CompleteRequest::Receipts)
+			}
+			CheckedRequest::Body(_, req) => {
+				trace!(target: "on_demand", "Block request completed {:?}", req);
+				req.complete().map(CompleteRequest::Body)
+			}
+			CheckedRequest::Account(_, req) => {
+				trace!(target: "on_demand", "Account request completed {:?}", req);
+				req.complete().map(CompleteRequest::Account)
+			}
+			CheckedRequest::Code(_, req) => {
+				trace!(target: "on_demand", "Code request completed {:?}", req);
+				req.complete().map(CompleteRequest::Code)
+			}
+			CheckedRequest::Execution(_, req) => {
+				trace!(target: "on_demand", "Execution request completed {:?}", req);
+				req.complete().map(CompleteRequest::Execution)
+			}
+			CheckedRequest::Signal(_, req) => {
+				trace!(target: "on_demand", "Signal request completed {:?}", req);
+				req.complete().map(CompleteRequest::Signal)
+			}
 		}
 	}
 
@@ -772,11 +808,13 @@ impl Body {
 		let header = self.0.as_ref()?;
 		let tx_root = ::triehash::ordered_trie_root(body.transactions_rlp().iter().map(|r| r.as_raw()));
 		if tx_root != header.transactions_root() {
+			trace!(target: "on_demand", "Body Response: \"WrongTrieRoot\" tx_root: {:?} header_root: {:?}", tx_root, header.transactions_root());
 			return Err(Error::WrongTrieRoot(header.transactions_root(), tx_root));
 		}
 
 		let uncles_hash = keccak(body.uncles_rlp().as_raw());
 		if uncles_hash != header.uncles_hash() {
+			trace!(target: "on_demand", "Body Response: \"WrongHash\" tx_root: {:?} header_root: {:?}", uncles_hash, header.uncles_hash());
 			return Err(Error::WrongHash(header.uncles_hash(), uncles_hash));
 		}
 
@@ -784,7 +822,6 @@ impl Body {
 		let block = encoded::Block::new_from_header_and_body(&header.view(), &body.view());
 
 		cache.lock().insert_block_body(header.hash(), body.clone());
-
 		Ok(block)
 	}
 }
@@ -804,7 +841,10 @@ impl BlockReceipts {
 				cache.lock().insert_block_receipts(receipts_root, receipts.to_vec());
 				Ok(receipts.to_vec())
 			}
-			false => Err(Error::WrongTrieRoot(receipts_root, found_root)),
+			false => {
+				trace!(target: "on_demand", "Receipt Reponse: \"WrongTrieRoot\" receipts_root: {:?} found_root: {:?}", receipts_root, found_root);
+				Err(Error::WrongTrieRoot(receipts_root, found_root))
+			}
 		}
 	}
 }
@@ -837,7 +877,10 @@ impl Account {
 					code_hash: rlp.val_at(3)?,
 				}))
 			},
-			None => Ok(None),
+			None => {
+				trace!(target: "on_demand", "Account {:?} not found", self.address);
+				Ok(None)
+			}
 		}
 	}
 }
@@ -899,9 +942,18 @@ impl TransactionProof {
 		);
 
 		match proved_execution {
-			ProvedExecution::BadProof => Err(Error::BadProof),
-			ProvedExecution::Failed(e) => Ok(Err(e)),
-			ProvedExecution::Complete(e) => Ok(Ok(e)),
+			ProvedExecution::BadProof => {
+				trace!(target: "on_demand", "BadExecution Proof");
+				Err(Error::BadProof)
+			}
+			ProvedExecution::Failed(e) => {
+				trace!(target: "on_demand", "Execution Proof failed: {:?}", e);
+				Ok(Err(e))
+			}
+			ProvedExecution::Complete(e) => {
+				trace!(target: "on_demand", "Execution successful: {:?}", e);
+				Ok(Ok(e))
+			}
 		}
 	}
 }

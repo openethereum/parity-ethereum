@@ -16,7 +16,16 @@
 		"gasLimitBoundDivisor": "0x400",
 		"minGasLimit": "0x1388",
 		"networkID": "0x62121",
-		"wasmActivationTransition": 4000000
+		"wasmActivationTransition": 6666666,
+		"eip140Transition": 6666666,
+		"eip211Transition": 6666666,
+		"eip214Transition": 6666666,
+		"eip658Transition": 6666666,
+
+		"maxCodeSize": 24576,
+		"maxCodeSizeTransition": 6666666,
+
+		"registrar": "0xb8624dc8cb3ca3147c178ac4c21734eb49e04071"
 	},
 	"genesis": {
 		"seal": {
@@ -43,12 +52,22 @@
 		},
 		"0x4ba15b56452521c0826a35a6f2022e1210fc519b": {
 			"balance": "0x7E37BE2022B2B09472D89C0000"
-		}
+		},
+
+		"0x0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "activate_at": 6666666, "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0x0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "activate_at": 6666666, "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0x0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "activate_at": 6666666, "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0x0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "activate_at": 6666666, "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0x0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": 6666666, "pricing": { "modexp": { "divisor": 20 } } } },
+		"0x0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": 6666666, "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0x0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": 6666666, "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0x0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": 6666666, "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } }
 	},
+
 	"nodes": [
-		"enode://147573f46fe9f5cc38fbe070089a31390baec5dd2827c8f2ef168833e4d0254fbee3969a02c5b9910ea5d5b23d86a6ed5eabcda17cc12007b7d9178b6c697aa5@37.120.168.56:30303",
-		"enode://a370d5fd55959f20af6d1565b151a760c1372f5a2aaf674d4892cd4fd2de0d1f672781cd40e0d4e4b51c5823527ddec73b31cc14ac685449d9f0866996a16b9f@13.76.165.180:30303",
-		"enode://da019fa5fb1fda105100d68a986938ec15ac5c6ff69d6e4ad3e350e377057f3e67e33aea5feb22d5cdcfc22041d141c8453c77baa64a216fff98f191ca76b3ec@18.220.108.238:30303",
-		"enode://49498fb8cdcd79c813ccdaa9496a3a4be0a187a3183e99adbc04d9c90b9a62ad59f0b6832f6e43b48e63fbebf74ec5438eb0d6d9098330edf36413d276fedf81@13.80.148.117:30303"
+		"enode://eda34244538d72f42605a6fc8b8a34b15714c683989e8b29dc9e7a2b2088da490a5b32f2c149bec5a5c482bf03ec2c4f38b833ae31e36fcb26fb05fd094b2a88@18.197.33.9:30303",
+		"enode://12e903e900137b02b22e01f7918bd6e7310773c313e4e577281f35597e394a3e0b54c7314a8970a9776c5a3e5dc4daee289215dea3897bcb6d5cf0bb1dd2d356@18.197.31.231:30303",
+		"enode://423fdb91b37ec0714af0c19f625ec4af3ada2844367a36e45a05703577a84f7f0e9483585d4950a35c9e3738dba8c6abd7e1ce278d9a1f3f28065bc009f409cd@52.221.203.209:30303",
+		"enode://a9327d37d07799817d4a3e13d49fb4f5cc1486d4adf3ec8a6b98be62c4d7a5453914a5139dbe124809a388514cb0be37f9fa799539abe2250672f6d3d778b821@18.191.209.251:30303"
 	]
 }

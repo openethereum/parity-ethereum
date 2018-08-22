@@ -19,7 +19,7 @@
 use std::fmt;
 use std::sync::Arc;
 use ethereum_types::{H256, U256, H160};
-use {factory, journaldb, trie, kvdb_memorydb, bytes};
+use {factory, journaldb, trie, kvdb_memorydb};
 use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state, log_entry, receipt};
 use factory::Factories;
@@ -183,14 +183,12 @@ impl<'a> EvmTestClient<'a> {
 			gas_limit: *genesis.gas_limit(),
 		};
 		let mut substate = state::Substate::new();
-		let mut output = vec![];
 		let machine = self.spec.engine.machine();
 		let schedule = machine.schedule(info.number);
 		let mut executive = executive::Executive::new(&mut self.state, &info, &machine, &schedule);
 		executive.call(
 			params,
 			&mut substate,
-			bytes::BytesRef::Flexible(&mut output),
 			tracer,
 			vm_tracer,
 		).map_err(EvmTestError::Evm)
