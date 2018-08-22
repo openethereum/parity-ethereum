@@ -150,7 +150,7 @@ impl Tracer for ExecutiveTracer {
 			subtraces: 0,
 			action: Action::Suicide(Suicide { address, refund_address, balance } ),
 			result: Res::None,
-			trace_address: Default::default(),
+			trace_address: self.index_stack.clone(),
 		};
 		debug!(target: "trace", "Traced suicide {:?}", trace);
 		self.traces.push(trace);
@@ -169,7 +169,7 @@ impl Tracer for ExecutiveTracer {
 			subtraces: 0,
 			action: Action::Reward(Reward { author, value, reward_type } ),
 			result: Res::None,
-			trace_address: Default::default(),
+			trace_address: self.index_stack.clone(),
 		};
 		debug!(target: "trace", "Traced reward {:?}", trace);
 		self.traces.push(trace);
