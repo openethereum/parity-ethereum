@@ -827,7 +827,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 					.collect()
 			});
 
-		Box::new(future::done(Ok(blocks)))
+		match blocks {
+			Some(b) => Box::new(future::done(Ok(b))),
+			None => Box::new(future::done(Ok(<Vec<RichBlock>>::new())))
+		}
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
