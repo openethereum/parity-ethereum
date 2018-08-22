@@ -365,6 +365,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 		};
 
+		if let InstructionResult::Trap(trap) = result {
+			return Err(InterpreterResult::Trap(trap));
+		}
+
 		if let InstructionResult::UnusedGas(ref gas) = result {
 			self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + *gas;
 		}
@@ -398,9 +402,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			InstructionResult::StopExecution => {
 				return Err(InterpreterResult::Done(Ok(GasLeft::Known(self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas.as_u256()))));
-			},
-			InstructionResult::Trap(trap) => {
-				return Err(InterpreterResult::Trap(trap));
 			},
 			_ => {},
 		}
