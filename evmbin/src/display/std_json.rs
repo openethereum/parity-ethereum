@@ -130,39 +130,47 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 	type Output = ();
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
-		let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
-		self.instruction = instruction;
-		let storage = self.storage();
-		let stack = self.stack();
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+			let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
+			informant.instruction = instruction;
+			let storage = informant.storage();
+			let stack = informant.stack();
 
-		writeln!(
-			&mut self.sink,
-			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
-			pc = pc,
-			op = instruction,
-			name = info.map(|i| i.name).unwrap_or(""),
-			gas = current_gas,
-			stack = stack,
-			storage = storage,
-			depth = self.depth,
-		).expect("The sink must be writeable.");
-
+			writeln!(
+				&mut informant.sink,
+				"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
+				pc = pc,
+				op = instruction,
+				name = info.map(|i| i.name).unwrap_or(""),
+				gas = current_gas,
+				stack = stack,
+				storage = storage,
+				depth = informant.depth,
+			).expect("The sink must be writeable.");
+		});
 		true
 	}
 
 	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
-		if let Some((pos, val)) = store_written {
-			self.storage.insert(pos.into(), val.into());
-		}
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+			if let Some((pos, val)) = store_written {
+				informant.storage.insert(pos.into(), val.into());
+			}
+		});
 	}
 
 	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem: &[u8]) {
-		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-		let len = self.stack.len();
-		let info_args = info.map(|i| i.args).unwrap_or(0);
-		self.stack.truncate(if len > info_args { len - info_args } else { 0 });
-		self.stack.extend_from_slice(stack_push);
+			let len = informant.stack.len();
+			let info_args = info.map(|i| i.args).unwrap_or(0);
+			informant.stack.truncate(if len > info_args { len - info_args } else { 0 });
+			informant.stack.extend_from_slice(stack_push);
+		});
 	}
 
 	fn prepare_subtrace(&mut self, code: &[u8]) {
@@ -173,6 +181,7 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 			vm.code = code.to_vec();
 			informant.subinfos.push(vm);
 		});
+		self.subdepth += 1;
 	}
 
 	fn done_subtrace(&mut self) {

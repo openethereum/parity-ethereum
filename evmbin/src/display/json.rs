@@ -120,62 +120,71 @@ impl trace::VMTracer for Informant {
 	type Output = Vec<String>;
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, _current_gas: U256) -> bool {
-		self.pc = pc;
-		self.instruction = instruction;
-		self.unmatched = true;
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			informant.pc = pc;
+			informant.instruction = instruction;
+			informant.unmatched = true;
+		});
 		true
 	}
 
 	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256, mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
-		self.pc = pc;
-		self.instruction = instruction;
-		self.gas_cost = gas_cost;
-		self.mem_written = mem_written;
-		self.store_written = store_written;
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			informant.pc = pc;
+			informant.instruction = instruction;
+			informant.gas_cost = gas_cost;
+			informant.mem_written = mem_written;
+			informant.store_written = store_written;
+		});
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
-		let mem_diff = self.mem_written.clone().map(|(o, s)| (o, &(mem[o..o+s])));
-		let store_diff = self.store_written.clone();
-		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			let mem_diff = informant.mem_written.clone().map(|(o, s)| (o, &(mem[o..o+s])));
+			let store_diff = informant.store_written.clone();
+			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-		let trace = format!(
-			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"gasCost\":\"0x{gas_cost:x}\",\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
-			pc = self.pc,
-			op = self.instruction,
-			name = info.map(|i| i.name).unwrap_or(""),
-			gas = gas_used.saturating_add(self.gas_cost),
-			gas_cost = self.gas_cost,
-			memory = self.memory(),
-			stack = self.stack(),
-			storage = self.storage(),
-			depth = self.depth,
-		);
-		self.traces.push(trace);
+			let trace = format!(
+				"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"gasCost\":\"0x{gas_cost:x}\",\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
+				pc = informant.pc,
+				op = informant.instruction,
+				name = info.map(|i| i.name).unwrap_or(""),
+				gas = gas_used.saturating_add(informant.gas_cost),
+				gas_cost = informant.gas_cost,
+				memory = informant.memory(),
+				stack = informant.stack(),
+				storage = informant.storage(),
+				depth = informant.depth,
+			);
+			informant.traces.push(trace);
 
-		self.unmatched = false;
-		self.gas_used = gas_used;
+			informant.unmatched = false;
+			informant.gas_used = gas_used;
 
-		let len = self.stack.len();
-		let info_args = info.map(|i| i.args).unwrap_or(0);
-		self.stack.truncate(if len > info_args { len - info_args } else { 0 });
-		self.stack.extend_from_slice(stack_push);
+			let len = informant.stack.len();
+			let info_args = info.map(|i| i.args).unwrap_or(0);
+			informant.stack.truncate(if len > info_args { len - info_args } else { 0 });
+			informant.stack.extend_from_slice(stack_push);
 
-		// TODO [ToDr] Align memory?
-		if let Some((pos, data)) = mem_diff {
-			if self.memory.len() < (pos + data.len()) {
-				self.memory.resize(pos + data.len(), 0);
+			// TODO [ToDr] Align memory?
+			if let Some((pos, data)) = mem_diff {
+				if informant.memory.len() < (pos + data.len()) {
+					informant.memory.resize(pos + data.len(), 0);
+				}
+				informant.memory[pos..pos + data.len()].copy_from_slice(data);
 			}
-			self.memory[pos..pos + data.len()].copy_from_slice(data);
-		}
 
-		if let Some((pos, val)) = store_diff {
-			self.storage.insert(pos.into(), val.into());
-		}
+			if let Some((pos, val)) = store_diff {
+				informant.storage.insert(pos.into(), val.into());
+			}
 
-		if !self.subtraces.is_empty() {
-			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
-		}
+			if !informant.subtraces.is_empty() {
+				informant.traces.extend(mem::replace(&mut informant.subtraces, vec![]));
+			}
+		});
 	}
 
 	fn prepare_subtrace(&mut self, code: &[u8]) {
@@ -187,6 +196,7 @@ impl trace::VMTracer for Informant {
 			vm.gas_used = informant.gas_used;
 			informant.subinfos.push(vm);
 		});
+		self.subdepth += 1;
 	}
 
 	fn done_subtrace(&mut self) {
