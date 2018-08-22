@@ -16,7 +16,7 @@
 
 //! Local Transactions List.
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use ethereum_types::H256;
 use linked_hash_map::LinkedHashMap;
@@ -32,6 +32,8 @@ pub enum Status {
 	Pending(Arc<Transaction>),
 	/// Transaction is already mined.
 	Mined(Arc<Transaction>),
+	/// Transaction didn't get into any block, but some other tx with the same nonce got.
+	Culled(Arc<Transaction>),
 	/// Transaction is dropped because of limit
 	Dropped(Arc<Transaction>),
 	/// Replaced because of higher gas price of another transaction.
@@ -60,11 +62,22 @@ impl Status {
 }
 
 /// Keeps track of local transactions that are in the queue or were mined/dropped recently.
-#[derive(Debug)]
 pub struct LocalTransactionsList {
 	max_old: usize,
 	transactions: LinkedHashMap<H256, Status>,
 	pending: usize,
+	in_chain: Option<Box<Fn(&H256) -> bool + Send + Sync>>,
+}
+
+impl fmt::Debug for LocalTransactionsList {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.debug_struct("LocalTransactionsList")
+			.field("max_old", &self.max_old)
+			.field("transactions", &self.transactions)
+			.field("pending", &self.pending)
+			.field("in_chain", &self.in_chain.is_some())
+			.finish()
+	}
 }
 
 impl Default for LocalTransactionsList {
@@ -80,7 +93,18 @@ impl LocalTransactionsList {
 			max_old,
 			transactions: Default::default(),
 			pending: 0,
+			in_chain: None,
 		}
+	}
+
+	/// Set blockchain checker.
+	///
+	/// The function should return true if transaction is included in chain.
+	pub fn set_in_chain_checker<F, T>(&mut self, checker: T) where
+		T: Into<Option<F>>,
+		F: Fn(&H256) -> bool + Send + Sync + 'static
+	{
+		self.in_chain = checker.into().map(|f| Box::new(f) as _);
 	}
 
 	/// Returns true if the transaction is already in local transactions.
@@ -190,14 +214,20 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		self.clear_old();
 	}
 
-	/// The transaction has been mined.
-	fn mined(&mut self, tx: &Arc<Transaction>) {
+	fn culled(&mut self, tx: &Arc<Transaction>) {
 		if !tx.priority().is_local() {
 			return;
 		}
 
-		info!(target: "own_tx", "Transaction mined (hash {:?})", tx.hash());
-		self.insert(*tx.hash(), Status::Mined(tx.clone()));
+		let is_in_chain = self.in_chain.as_ref().map(|checker| checker(tx.hash())).unwrap_or(false);
+		if is_in_chain {
+			info!(target: "own_tx", "Transaction mined (hash {:?})", tx.hash());
+			self.insert(*tx.hash(), Status::Mined(tx.clone()));
+			return;
+		}
+
+		info!(target: "own_tx", "Transaction culled (hash {:?})", tx.hash());
+		self.insert(*tx.hash(), Status::Culled(tx.clone()));
 	}
 }
 
@@ -227,6 +257,26 @@ mod tests {
 		assert!(list.contains(tx2.hash()));
 		let statuses = list.all_transactions().values().cloned().collect::<Vec<Status>>();
 		assert_eq!(statuses, vec![Status::Pending(tx1), Status::Pending(tx2)]);
+	}
+
+	#[test]
+	fn should_use_in_chain_checker_if_present() {
+		// given
+		let mut list = LocalTransactionsList::default();
+		let tx1 = new_tx(10);
+		let tx2 = new_tx(20);
+		list.culled(&tx1);
+		list.culled(&tx2);
+		let statuses = list.all_transactions().values().cloned().collect::<Vec<Status>>();
+		assert_eq!(statuses, vec![Status::Culled(tx1.clone()), Status::Culled(tx2.clone())]);
+
+		// when
+		list.set_in_chain_checker(|_: &_| true);
+		list.culled(&tx1);
+
+		// then
+		let statuses = list.all_transactions().values().cloned().collect::<Vec<Status>>();
+		assert_eq!(statuses, vec![Status::Culled(tx2), Status::Mined(tx1)]);
 	}
 
 	#[test]

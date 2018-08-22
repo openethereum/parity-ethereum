@@ -252,9 +252,9 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 		self.notify_logs(route.route(), |filter, ex| {
 			match ex {
 				&ChainRouteType::Enacted =>
-					Ok(self.client.logs(filter).into_iter().map(Into::into).collect()),
+					Ok(self.client.logs(filter).unwrap_or_default().into_iter().map(Into::into).collect()),
 				&ChainRouteType::Retracted =>
-					Ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
+					Ok(self.client.logs(filter).unwrap_or_default().into_iter().map(Into::into).map(|mut log: Log| {
 						log.log_type = "removed".into();
 						log.removed = true;
 						log
@@ -283,8 +283,13 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 				errors::invalid_params("newHeads", "Expected no parameters.")
 			},
 			(pubsub::Kind::Logs, Some(pubsub::Params::Logs(filter))) => {
-				self.logs_subscribers.write().push(subscriber, filter.into());
-				return;
+				match filter.try_into() {
+					Ok(filter) => {
+						self.logs_subscribers.write().push(subscriber, filter);
+						return;
+					},
+					Err(err) => err,
+				}
 			},
 			(pubsub::Kind::Logs, _) => {
 				errors::invalid_params("logs", "Expected a filter object.")

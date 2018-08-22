@@ -155,7 +155,6 @@ impl Ext for FakeExt {
 			value: Option<U256>,
 			data: &[u8],
 			code_address: &Address,
-			_output: &mut [u8],
 			_call_type: CallType
 		) -> MessageCallResult {
 

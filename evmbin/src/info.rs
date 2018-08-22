@@ -68,11 +68,19 @@ pub type RunResult<T> = Result<Success<T>, Failure<T>>;
 /// Execute given `ActionParams` and return the result.
 pub fn run_action<T: Informant>(
 	spec: &spec::Spec,
-	params: ActionParams,
+	mut params: ActionParams,
 	mut informant: T,
 ) -> RunResult<T::Output> {
 	informant.set_gas(params.gas);
-	run(spec, params.gas, None, |mut client| {
+
+	// if the code is not overwritten from CLI, use code from spec file.
+	if params.code.is_none() {
+		if let Some(acc) = spec.genesis_state().get().get(&params.code_address) {
+			params.code = acc.code.clone().map(::std::sync::Arc::new);
+			params.code_hash = None;
+		}
+	}
+	run(spec, params.gas, spec.genesis_state(), |mut client| {
 		let result = client
 			.call(params, &mut trace::NoopTracer, &mut informant)
 			.map(|r| (0.into(), r.gas_left, r.return_data.to_vec()));
@@ -130,24 +138,21 @@ pub fn run_transaction<T: Informant>(
 }
 
 /// Execute VM with given `ActionParams`
-pub fn run<'a, F, T, X>(
+pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
 	initial_gas: U256,
-	pre_state: T,
+	pre_state: &'a pod_state::PodState,
 	run: F,
 ) -> RunResult<X> where
 	F: FnOnce(EvmTestClient) -> (Result<(H256, U256, Vec<u8>), EvmTestError>, Option<X>),
-	T: Into<Option<&'a pod_state::PodState>>,
 {
-	let test_client = match pre_state.into() {
-		Some(pre_state) => EvmTestClient::from_pod_state(spec, pre_state.clone()),
-		None => EvmTestClient::new(spec),
-	}.map_err(|error| Failure {
-		gas_used: 0.into(),
-		error,
-		time: Duration::from_secs(0),
-		traces: None,
-	})?;
+	let test_client = EvmTestClient::from_pod_state(spec, pre_state.clone())
+		.map_err(|error| Failure {
+			gas_used: 0.into(),
+			error,
+			time: Duration::from_secs(0),
+			traces: None,
+		})?;
 
 	let start = Instant::now();
 	let result = run(test_client);
@@ -203,5 +208,32 @@ pub mod tests {
 				compare(traces, expected)
 			},
 		}
+	}
+
+	#[test]
+	fn should_call_account_from_spec() {
+		use display::std_json::tests::informant;
+
+		let (inf, res) = informant();
+		let mut params = ActionParams::default();
+		params.code_address = 0x20.into();
+		params.gas = 0xffff.into();
+
+		let spec = ::ethcore::ethereum::load(None, include_bytes!("../res/testchain.json"));
+		let _result = run_action(&spec, params, inf);
+
+		assert_eq!(
+			&String::from_utf8_lossy(&**res.lock().unwrap()),
+r#"{"pc":0,"op":98,"opName":"PUSH3","gas":"0xffff","stack":[],"storage":{},"depth":1}
+{"pc":4,"op":96,"opName":"PUSH1","gas":"0xfffc","stack":["0xaaaaaa"],"storage":{},"depth":1}
+{"pc":6,"op":96,"opName":"PUSH1","gas":"0xfff9","stack":["0xaaaaaa","0xaa"],"storage":{},"depth":1}
+{"pc":8,"op":80,"opName":"POP","gas":"0xfff6","stack":["0xaaaaaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":9,"op":96,"opName":"PUSH1","gas":"0xfff4","stack":["0xaaaaaa","0xaa"],"storage":{},"depth":1}
+{"pc":11,"op":96,"opName":"PUSH1","gas":"0xfff1","stack":["0xaaaaaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":13,"op":96,"opName":"PUSH1","gas":"0xffee","stack":["0xaaaaaa","0xaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":15,"op":96,"opName":"PUSH1","gas":"0xffeb","stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":17,"op":96,"opName":"PUSH1","gas":"0xffe8","stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{},"depth":1}
+{"pc":19,"op":96,"opName":"PUSH1","gas":"0xffe5","stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{},"depth":1}
+"#);
 	}
 }

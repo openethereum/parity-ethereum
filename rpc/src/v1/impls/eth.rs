@@ -24,10 +24,9 @@ use rlp::{self, Rlp};
 use ethereum_types::{U256, H64, H256, Address};
 use parking_lot::Mutex;
 
-use ethash::SeedHashCompute;
+use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
-use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
@@ -709,11 +708,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
 		let include_pending = filter.to_block == Some(BlockNumber::Pending);
-		let filter: EthcoreFilter = filter.into();
-		let mut logs = self.client.logs(filter.clone())
-			.into_iter()
-			.map(From::from)
-			.collect::<Vec<Log>>();
+		let filter: EthcoreFilter = match filter.try_into() {
+			Ok(value) => value,
+			Err(err) => return Box::new(future::err(err)),
+		};
+		let mut logs = match self.client.logs(filter.clone()) {
+			Ok(logs) => logs
+				.into_iter()
+				.map(From::from)
+				.collect::<Vec<Log>>(),
+			Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
+		};
 
 		if include_pending {
 			let best_block = self.client.chain_info().best_block_number;
@@ -758,7 +763,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		})?;
 
 		let (pow_hash, number, timestamp, difficulty) = work;
-		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let target = ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = self.seed_compute.lock().hash_block_number(number);
 
 		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();

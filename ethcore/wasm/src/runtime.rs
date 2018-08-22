@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
 use ethereum_types::{U256, H256, Address};
 use vm::{self, CallType};
 use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError, Trap, TrapKind};
@@ -447,12 +448,14 @@ impl<'a> Runtime<'a> {
 			val,
 			&payload,
 			&address,
-			&mut result[..],
 			call_type,
 		);
 
 		match call_result {
-			vm::MessageCallResult::Success(gas_left, _) => {
+			vm::MessageCallResult::Success(gas_left, data) => {
+				let len = cmp::min(result.len(), data.len());
+				(&mut result[..len]).copy_from_slice(&data[..len]);
+
 				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
 				self.gas_counter = self.gas_counter -
 					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
@@ -461,7 +464,10 @@ impl<'a> Runtime<'a> {
 				self.memory.set(result_ptr, &result)?;
 				Ok(0i32.into())
 			},
-			vm::MessageCallResult::Reverted(gas_left, _) => {
+			vm::MessageCallResult::Reverted(gas_left, data) => {
+				let len = cmp::min(result.len(), data.len());
+				(&mut result[..len]).copy_from_slice(&data[..len]);
+
 				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
 				self.gas_counter = self.gas_counter -
 					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64

@@ -17,7 +17,7 @@
 use api::TransactionStats;
 use std::collections::{HashSet, HashMap};
 use ethereum_types::{H256, H512};
-use plain_hasher::H256FastMap;
+use fastmap::H256FastMap;
 
 type NodeId = H512;
 type BlockNumber = u64;

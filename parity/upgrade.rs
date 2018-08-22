@@ -19,11 +19,10 @@
 use semver::{Version, SemVerError};
 use std::collections::*;
 use std::fs::{self, File, create_dir_all};
-use std::env;
 use std::io;
 use std::io::{Read, Write};
 use std::path::{PathBuf, Path};
-use dir::{DatabaseDirectories, default_data_path};
+use dir::{DatabaseDirectories, default_data_path, home_dir};
 use dir::helpers::replace_home;
 use journaldb::Algorithm;
 
@@ -201,7 +200,7 @@ fn upgrade_user_defaults(dirs: &DatabaseDirectories) {
 }
 
 pub fn upgrade_data_paths(base_path: &str, dirs: &DatabaseDirectories, pruning: Algorithm) {
-	if env::home_dir().is_none() {
+	if home_dir().is_none() {
 		return;
 	}
 
