@@ -145,6 +145,34 @@ pub enum SystemOrCodeCallKind {
 	Code(Arc<Vec<u8>>, H256),
 }
 
+/// Default SystemOrCodeCall implementation.
+pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
+	move |to, data| {
+		let result = match to {
+			SystemOrCodeCallKind::Address(address) => {
+				machine.execute_as_system(
+					block,
+					address,
+					U256::max_value(),
+					Some(data),
+				)
+			},
+			SystemOrCodeCallKind::Code(code, code_hash) => {
+				machine.execute_code_as_system(
+					block,
+					None,
+					Some(code),
+					Some(code_hash),
+					U256::max_value(),
+					Some(data),
+				)
+			},
+		};
+
+		result.map_err(|e| format!("{}", e))
+	}
+}
+
 /// Type alias for a function we can get headers by hash through.
 pub type Headers<'a, H> = Fn(H256) -> Option<H> + 'a;
 

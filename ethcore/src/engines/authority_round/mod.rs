@@ -1083,32 +1083,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		let rewards: Vec<_> = match self.block_reward_contract {
 			Some(ref c) if block.header().number() >= self.block_reward_contract_transition => {
-				// NOTE: this logic should be moved to a function when another
-				//       engine needs support for block reward contract.
-				let mut call = |to, data| {
-					let result = match to {
-						SystemOrCodeCallKind::Address(address) => {
-							self.machine.execute_as_system(
-								block,
-								address,
-								U256::max_value(),
-								Some(data),
-							)
-						},
-						SystemOrCodeCallKind::Code(code, code_hash) => {
-							self.machine.execute_code_as_system(
-								block,
-								None,
-								Some(code),
-								Some(code_hash),
-								U256::max_value(),
-								Some(data),
-							)
-						},
-					};
-
-					result.map_err(|e| format!("{}", e))
-				};
+				let mut call = engines::default_system_or_code_call(&self.machine, block);
 
 				let rewards = c.reward(&beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()

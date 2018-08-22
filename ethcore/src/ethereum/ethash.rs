@@ -19,7 +19,6 @@ use std::cmp;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
-use engines::SystemOrCodeCallKind;
 use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use ethereum_types::{H256, H64, U256, Address};
@@ -253,30 +252,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 					beneficiaries.push((*uncle_author, RewardKind::UncleWithDepth(uncle_diff)));
 				}
 
-				let mut call = |to, data| {
-					let result = match to {
-						SystemOrCodeCallKind::Address(address) => {
-							self.machine.execute_as_system(
-								block,
-								address,
-								U256::max_value(),
-								Some(data),
-							)
-						},
-						SystemOrCodeCallKind::Code(code, code_hash) => {
-							self.machine.execute_code_as_system(
-								block,
-								None,
-								Some(code),
-								Some(code_hash),
-								U256::max_value(),
-								Some(data),
-							)
-						},
-					};
-
-					result.map_err(|e| format!("{}", e))
-				};
+				let mut call = engines::default_system_or_code_call(&self.machine, block);
 
 				let rewards = c.reward(&beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
