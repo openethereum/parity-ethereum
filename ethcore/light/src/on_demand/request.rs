@@ -1191,46 +1191,53 @@ mod tests {
 
 		let cache = Mutex::new(make_cache());
 
+		let header_with_ancestors = |hash, count| {
+			HeaderWithAncestors {
+				block_hash: hash,
+				ancestor_count: count
+			}
+		};
+
 		// Correct responses
-		assert!(HeaderWithAncestors(headers[0].hash().into(), 0)
+		assert!(header_with_ancestors(headers[0].hash().into(), 0)
 				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..1]).is_ok());
-		assert!(HeaderWithAncestors(headers[0].hash().into(), 2)
+		assert!(header_with_ancestors(headers[0].hash().into(), 2)
 				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..3]).is_ok());
-		assert!(HeaderWithAncestors(headers[0].hash().into(), 10)
+		assert!(header_with_ancestors(headers[0].hash().into(), 10)
 				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..11]).is_ok());
-		assert!(HeaderWithAncestors(headers[2].hash().into(), 2)
+		assert!(header_with_ancestors(headers[2].hash().into(), 2)
 				.check_response(&cache, &headers[2].hash().into(), &raw_headers[2..5]).is_ok());
-		assert!(HeaderWithAncestors(headers[2].hash().into(), 10)
+		assert!(header_with_ancestors(headers[2].hash().into(), 10)
 				.check_response(&cache, &headers[2].hash().into(), &raw_headers[2..11]).is_ok());
-		assert!(HeaderWithAncestors(invalid_successor.hash().into(), 0)
+		assert!(header_with_ancestors(invalid_successor.hash().into(), 0)
 				.check_response(&cache, &invalid_successor.hash().into(), &[raw_invalid_successor.clone()]).is_ok());
 
 		// Incorrect responses
-		assert_eq!(HeaderWithAncestors(invalid_successor.hash().into(), 0)
+		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 0)
 				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..1]),
 				   Err(Error::WrongHash(invalid_successor.hash(), headers[0].hash())));
-		assert_eq!(HeaderWithAncestors(headers[0].hash().into(), 0)
+		assert_eq!(header_with_ancestors(headers[0].hash().into(), 0)
 				   .check_response(&cache, &headers[0].hash().into(), &[]),
 				   Err(Error::Empty));
-		assert_eq!(HeaderWithAncestors(headers[0].hash().into(), 10)
+		assert_eq!(header_with_ancestors(headers[0].hash().into(), 10)
 				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..10]),
 				   Err(Error::TooFewResults(11, 10)));
-		assert_eq!(HeaderWithAncestors(headers[0].hash().into(), 9)
+		assert_eq!(header_with_ancestors(headers[0].hash().into(), 9)
 				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..11]),
 				   Err(Error::TooManyResults(10, 11)));
 
 		let response = &[raw_headers[0].clone(), raw_headers[2].clone()];
-		assert_eq!(HeaderWithAncestors(headers[0].hash().into(), 1)
+		assert_eq!(header_with_ancestors(headers[0].hash().into(), 1)
 				   .check_response(&cache, &headers[0].hash().into(), response),
 				   Err(Error::WrongHeaderSequence));
 
 		let response = &[raw_invalid_successor.clone(), raw_headers[0].clone()];
-		assert_eq!(HeaderWithAncestors(invalid_successor.hash().into(), 1)
+		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 1)
 				   .check_response(&cache, &invalid_successor.hash().into(), response),
 				   Err(Error::WrongHeaderSequence));
 
 		let response = &[raw_invalid_successor.clone(), raw_headers[1].clone()];
-		assert_eq!(HeaderWithAncestors(invalid_successor.hash().into(), 1)
+		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 1)
 				   .check_response(&cache, &invalid_successor.hash().into(), response),
 				   Err(Error::WrongHeaderSequence));
 	}
