@@ -196,8 +196,8 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let mut state_hashes = Vec::new();
 
 		for guard in state_guards {
-			let mut part_state_hashes = guard.join()?.clone();
-			state_hashes.append(&mut part_state_hashes);
+			let part_state_hashes = guard.join()?;
+			state_hashes.extend(part_state_hashes);
 		}
 
 		debug!(target: "snapshot", "Took a snapshot of {} accounts", p.accounts.load(Ordering::SeqCst));
