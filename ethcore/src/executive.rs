@@ -597,7 +597,7 @@ impl<'a> CallCreateExecutive<'a> {
 		}
 	}
 
-	/// Execute and consume the current executive. This function handles resume traps as well as current-level tracing.
+	/// Execute and consume the current executive. This function handles resume traps and sub-level tracing. The caller is expected to handle current-level tracing.
 	pub fn consume<B: 'a + StateBackend, T: Tracer, V: VMTracer>(self, state: &mut State<B>, top_substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> vm::Result<FinalizationResult> {
 		let mut last_res = Some((false, self.gas, self.exec(state, top_substate, tracer, vm_tracer)));
 
@@ -912,8 +912,13 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
+		tracer.prepare_trace_call(&params);
+		vm_tracer.prepare_subtrace(params.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
+
+		let gas = params.gas;
+
 		let vm_factory = self.state.vm_factory();
-		CallCreateExecutive::new_call_raw(
+		let result = CallCreateExecutive::new_call_raw(
 			params,
 			self.info,
 			self.machine,
@@ -922,7 +927,22 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			self.depth,
 			stack_depth,
 			self.static_flag
-		).consume(self.state, substate, tracer, vm_tracer)
+		).consume(self.state, substate, tracer, vm_tracer);
+
+		match result {
+			Ok(ref val) => {
+				tracer.done_trace_call(
+					gas - val.gas_left,
+					&val.return_data,
+				);
+			},
+			Err(ref err) => {
+				tracer.done_trace_failed(err);
+			},
+		}
+		vm_tracer.done_subtrace();
+
+		result
 	}
 
 	/// Calls contract function with given contract params, if the stack depth is above a threshold, create a new thread
@@ -971,8 +991,14 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		tracer: &mut T,
 		vm_tracer: &mut V,
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
+		tracer.prepare_trace_create(&params);
+		vm_tracer.prepare_subtrace(params.code.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
+
+		let address = params.address;
+		let gas = params.gas;
+
 		let vm_factory = self.state.vm_factory();
-		CallCreateExecutive::new_create_raw(
+		let result = CallCreateExecutive::new_create_raw(
 			params,
 			self.info,
 			self.machine,
@@ -981,7 +1007,23 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			self.depth,
 			stack_depth,
 			self.static_flag
-		).consume(self.state, substate, tracer, vm_tracer)
+		).consume(self.state, substate, tracer, vm_tracer);
+
+		match result {
+			Ok(ref val) => {
+				tracer.done_trace_create(
+					gas - val.gas_left,
+					&val.return_data,
+					address,
+				);
+			},
+			Err(ref err) => {
+				tracer.done_trace_failed(err);
+			},
+		}
+		vm_tracer.done_subtrace();
+
+		result
 	}
 
 	/// Creates contract with given contract params, if the stack depth is above a threshold, create a new thread to
