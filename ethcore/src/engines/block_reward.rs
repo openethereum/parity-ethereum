@@ -27,6 +27,7 @@ use error::Error;
 use machine::WithRewards;
 use parity_machine::{Machine, WithBalances};
 use trace;
+use types::BlockNumber;
 use super::{SystemOrCodeCall, SystemOrCodeCallKind};
 
 use_contract!(block_reward_contract, "BlockReward", "res/contracts/block_reward.json");
@@ -42,11 +43,15 @@ pub enum RewardKind {
 	EmptyStep,
 	/// Reward attributed by an external protocol (e.g. block reward contract).
 	External,
+	/// Reward attributed to the block uncle(s) with given difference.
+	Uncle(u8),
+}
 
-	/// Reward attributed to the block uncle(s) without any reference of block difference. This is used by all except Ethash engine's reward contract.
-	Uncle,
-	/// Reward attributed to the block uncle(s) with given difference. This is used by Ethash engine's reward contract.
-	UncleWithDepth(u8),
+impl RewardKind {
+	/// Create `RewardKind::Uncle` from given current block number and uncle block number.
+	pub fn uncle(number: BlockNumber, uncle: BlockNumber) -> Self {
+		RewardKind::Uncle(if number > uncle && number - uncle <= u8::max_value().into() { (number - uncle) as u8 } else { 0 })
+	}
 }
 
 impl From<RewardKind> for u16 {
@@ -56,8 +61,7 @@ impl From<RewardKind> for u16 {
 			RewardKind::EmptyStep => 2,
 			RewardKind::External => 3,
 
-			RewardKind::Uncle => 1,
-			RewardKind::UncleWithDepth(depth) => 100 + depth as u16,
+			RewardKind::Uncle(depth) => 100 + depth as u16,
 		}
 	}
 }
@@ -66,8 +70,7 @@ impl Into<trace::RewardType> for RewardKind {
 	fn into(self) -> trace::RewardType {
 		match self {
 			RewardKind::Author => trace::RewardType::Block,
-			RewardKind::Uncle | RewardKind::UncleWithDepth(_) =>
-				trace::RewardType::Uncle,
+			RewardKind::Uncle(_) => trace::RewardType::Uncle,
 			RewardKind::EmptyStep => trace::RewardType::EmptyStep,
 			RewardKind::External => trace::RewardType::External,
 		}
@@ -218,14 +221,14 @@ mod test {
 		// the contract rewards (1000 + kind) for each benefactor
 		let beneficiaries = vec![
 			("0000000000000000000000000000000000000033".into(), RewardKind::Author),
-			("0000000000000000000000000000000000000034".into(), RewardKind::Uncle),
+			("0000000000000000000000000000000000000034".into(), RewardKind::Uncle(1)),
 			("0000000000000000000000000000000000000035".into(), RewardKind::EmptyStep),
 		];
 
 		let rewards = block_reward_contract.reward(&beneficiaries, &mut call).unwrap();
 		let expected = vec![
 			("0000000000000000000000000000000000000033".into(), U256::from(1000)),
-			("0000000000000000000000000000000000000034".into(), U256::from(1000 + 1)),
+			("0000000000000000000000000000000000000034".into(), U256::from(1000 + 101)),
 			("0000000000000000000000000000000000000035".into(), U256::from(1000 + 2)),
 		];
 

@@ -35,7 +35,6 @@ use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
 use header::{Header, BlockNumber, ExtendedHeader};
-use super::SystemOrCodeCallKind;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 use self::finality::RollingFinality;
@@ -1083,7 +1082,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		let rewards: Vec<_> = match self.block_reward_contract {
 			Some(ref c) if block.header().number() >= self.block_reward_contract_transition => {
-				let mut call = engines::default_system_or_code_call(&self.machine, block);
+				let mut call = super::default_system_or_code_call(&self.machine, block);
 
 				let rewards = c.reward(&beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()

@@ -248,8 +248,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				beneficiaries.push((author, RewardKind::Author));
 				for u in LiveBlock::uncles(&*block) {
 					let uncle_author = u.author();
-					let uncle_diff = if number > u.number() && number - u.number() <= u8::max_value().into() { (number - u.number()) as u8 } else { 0 };
-					beneficiaries.push((*uncle_author, RewardKind::UncleWithDepth(uncle_diff)));
+					beneficiaries.push((*uncle_author, RewardKind::uncle(number, u.number())));
 				}
 
 				let mut call = engines::default_system_or_code_call(&self.machine, block);
@@ -301,7 +300,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 						reward.shr(5)
 					};
 
-					rewards.push((*uncle_author, RewardKind::Uncle, result_uncle_reward));
+					rewards.push((*uncle_author, RewardKind::uncle(number, u.number()), result_uncle_reward));
 				}
 
 				rewards
