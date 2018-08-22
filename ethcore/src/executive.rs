@@ -627,12 +627,15 @@ impl<'a> CallCreateExecutive<'a> {
 								let address = address.expect("TODO: PROOF");
 
 								match val {
-									Ok(ref val) => {
+									Ok(ref val) if val.apply_state => {
 										tracer.done_trace_create(
 											gas - val.gas_left,
 											&val.return_data,
 											address
 										);
+									},
+									Ok(_) => {
+										tracer.done_trace_failed(&vm::Error::Reverted);
 									},
 									Err(ref err) => {
 										tracer.done_trace_failed(err);
@@ -657,11 +660,14 @@ impl<'a> CallCreateExecutive<'a> {
 								)));
 							} else {
 								match val {
-									Ok(ref val) => {
+									Ok(ref val) if val.apply_state => {
 										tracer.done_trace_call(
 											gas - val.gas_left,
 											&val.return_data,
 										);
+									},
+									Ok(_) => {
+										tracer.done_trace_failed(&vm::Error::Reverted);
 									},
 									Err(ref err) => {
 										tracer.done_trace_failed(err);
@@ -930,11 +936,14 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		).consume(self.state, substate, tracer, vm_tracer);
 
 		match result {
-			Ok(ref val) => {
+			Ok(ref val) if val.apply_state => {
 				tracer.done_trace_call(
 					gas - val.gas_left,
 					&val.return_data,
 				);
+			},
+			Ok(_) => {
+				tracer.done_trace_failed(&vm::Error::Reverted);
 			},
 			Err(ref err) => {
 				tracer.done_trace_failed(err);
@@ -1010,12 +1019,15 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		).consume(self.state, substate, tracer, vm_tracer);
 
 		match result {
-			Ok(ref val) => {
+			Ok(ref val) if val.apply_state => {
 				tracer.done_trace_create(
 					gas - val.gas_left,
 					&val.return_data,
 					address,
 				);
+			},
+			Ok(_) => {
+				tracer.done_trace_failed(&vm::Error::Reverted);
 			},
 			Err(ref err) => {
 				tracer.done_trace_failed(err);
