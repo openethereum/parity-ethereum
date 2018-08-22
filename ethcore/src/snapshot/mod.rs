@@ -91,6 +91,8 @@ const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
 const STATE_CHUNK_VERSION: u64 = 2;
 /// number of snapshot subparts, must be a power of 2 in [1; 256]
 pub const SNAPSHOT_SUBPARTS: usize = 16;
+/// Maximum number of snapshot subparts (must be a multiple of `SNAPSHOT_SUBPARTS`)
+pub const MAX_SNAPSHOT_SUBPARTS: usize = 256;
 
 /// Configuration for the Snapshot service
 #[derive(Debug, Clone, PartialEq)]
@@ -169,24 +171,20 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
 
 		// The number of threads must be between 1 and SNAPSHOT_SUBPARTS
-		let num_threads: usize = cmp::max(1, cmp::min(processing_threads, SNAPSHOT_SUBPARTS));
+		assert!(processing_threads >= 1, "Cannot use less than 1 threads for creating snapshots");
+		let num_threads: usize = cmp::min(processing_threads, SNAPSHOT_SUBPARTS);
 		info!(target: "snapshot", "Using {} threads for Snapshot creation.", num_threads);
 
 		let mut state_guards = Vec::with_capacity(num_threads as usize);
-		let subparts: Vec<usize> = (0..SNAPSHOT_SUBPARTS).collect();
 
 		for thread_idx in 0..num_threads {
-			let subparts_c = subparts.clone();
 			let state_guard = scope.spawn(move || -> Result<Vec<H256>, Error> {
 				let mut chunk_hashes = Vec::new();
 
-				for subpart_chunk in subparts_c.chunks(num_threads) {
-					if subpart_chunk.len() > thread_idx {
-						let part = subpart_chunk[thread_idx];
-						debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
-						let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part))?;
-						chunk_hashes.append(&mut hashes);
-					}
+				for part in (thread_idx..SNAPSHOT_SUBPARTS).step_by(num_threads) {
+					debug!(target: "snapshot", "Chunking part {} in thread {}", part, thread_idx);
+					let mut hashes = chunk_state(state_db, &state_root, writer, p, Some(part))?;
+					chunk_hashes.append(&mut hashes);
 				}
 
 				Ok(chunk_hashes)
@@ -206,7 +204,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		Ok((state_hashes, block_hashes))
 	})?;
 
-	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
+	info!(target: "snapshot", "produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
 		version: snapshot_version,
@@ -343,12 +341,14 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 	let mut seek_to = None;
 
 	if let Some(part) = part {
-		let part_offset = 256 / SNAPSHOT_SUBPARTS;
+		assert!(part < 16, "Wrong chunk state part number (must be <16) in snapshot creation.");
+
+		let part_offset = MAX_SNAPSHOT_SUBPARTS / SNAPSHOT_SUBPARTS;
 		let mut seek_from = vec![0; 32];
 		seek_from[0] = (part * part_offset) as u8;
 		account_iter.seek(&seek_from)?;
 
-		// Set the upper-bond, except for the last part
+		// Set the upper-bound, except for the last part
 		if part < SNAPSHOT_SUBPARTS - 1 {
 			seek_to = Some(((part + 1) * part_offset) as u8)
 		}
