@@ -149,6 +149,8 @@ pub struct WasmCosts {
 	pub opcodes_mul: u32,
 	/// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
 	pub opcodes_div: u32,
+	/// Whether create2 extern function is activated.
+	pub have_create2: bool,
 }
 
 impl Default for WasmCosts {
@@ -166,6 +168,7 @@ impl Default for WasmCosts {
 			max_stack_height: 64*1024,
 			opcodes_mul: 3,
 			opcodes_div: 8,
+			have_create2: false,
 		}
 	}
 }
