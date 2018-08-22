@@ -33,7 +33,6 @@ use transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, 
 use tx_filter::TransactionFilter;
 
 use ethereum_types::{U256, H256, Address};
-use bytes::BytesRef;
 use rlp::Rlp;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
