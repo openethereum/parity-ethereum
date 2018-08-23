@@ -899,8 +899,8 @@ fn gasleft_fail() {
 	let mut ext = FakeExt::new().with_wasm();
 	let mut interpreter = wasm_interpreter(params);
 	match interpreter.exec(&mut ext) {
-		Err(..) => {},
-		Ok(..) => panic!("interpreter.exec should return Err if ext.schedule.wasm.have_gasleft = false")
+		Err(_) => {},
+		Ok(_) => panic!("interpreter.exec should return Err if ext.schedule.wasm.have_gasleft = false")
 	}
 }
 
