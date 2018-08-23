@@ -26,7 +26,7 @@ use machine::EthereumMachine as Machine;
 use evm::{CallType, Finalize, FinalizationResult};
 use vm::{
 	self, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
-	ActionValue, Schedule, TrapError, Exec, ResumeCall, ResumeCreate
+	ActionValue, Schedule, TrapError, ResumeCall, ResumeCreate
 };
 use factory::VmFactory;
 use externalities::*;
@@ -196,10 +196,10 @@ pub type ExecutiveTrapError<'a> = vm::TrapError<CallCreateExecutive<'a>, CallCre
 enum CallCreateExecutiveKind {
 	Transfer(ActionParams),
 	CallBuiltin(ActionParams),
-	ExecCall(ActionParams, Box<Exec>, Substate),
-	ExecCreate(ActionParams, Box<Exec>, Substate),
-	ResumeCall(ActionParams, Box<ResumeCall>, Substate),
-	ResumeCreate(ActionParams, Box<ResumeCreate>, Substate),
+	ExecCall(ActionParams, Substate),
+	ExecCreate(ActionParams, Substate),
+	ResumeCall(OriginInfo, Box<ResumeCall>, Substate),
+	ResumeCreate(OriginInfo, Box<ResumeCreate>, Substate),
 }
 
 /// Executive for a raw call/create action.
@@ -235,8 +235,7 @@ impl<'a> CallCreateExecutive<'a> {
 			CallCreateExecutiveKind::CallBuiltin(params)
 		} else {
 			if params.code.is_some() {
-				// TODO: Remove this additional clone.
-				CallCreateExecutiveKind::ExecCall(params.clone(), factory.create(params, schedule, depth), Substate::new())
+				CallCreateExecutiveKind::ExecCall(params, Substate::new())
 			} else {
 				CallCreateExecutiveKind::Transfer(params)
 			}
@@ -254,8 +253,7 @@ impl<'a> CallCreateExecutive<'a> {
 
 		let gas = params.gas;
 
-		// TODO: Remove this additional clone.
-		let kind = CallCreateExecutiveKind::ExecCreate(params.clone(), factory.create(params, schedule, depth), Substate::new());
+		let kind = CallCreateExecutiveKind::ExecCreate(params, Substate::new());
 
 		Self {
 			info, machine, schedule, factory, depth, stack_depth, static_flag, kind, gas,
@@ -266,8 +264,8 @@ impl<'a> CallCreateExecutive<'a> {
 	/// If this executive contains an unconfirmed substate, returns a mutable reference to it.
 	pub fn unconfirmed_substate(&mut self) -> Option<&mut Substate> {
 		match self.kind {
-			CallCreateExecutiveKind::ExecCall(_, _, ref mut unsub) => Some(unsub),
-			CallCreateExecutiveKind::ExecCreate(_, _, ref mut unsub) => Some(unsub),
+			CallCreateExecutiveKind::ExecCall(_, ref mut unsub) => Some(unsub),
+			CallCreateExecutiveKind::ExecCreate(_, ref mut unsub) => Some(unsub),
 			CallCreateExecutiveKind::ResumeCreate(_, _, ref mut unsub) => Some(unsub),
 			CallCreateExecutiveKind::ResumeCall(_, _, ref mut unsub) => Some(unsub),
 			CallCreateExecutiveKind::Transfer(..) | CallCreateExecutiveKind::CallBuiltin(..) => None,
@@ -351,7 +349,7 @@ impl<'a> CallCreateExecutive<'a> {
 		depth: usize,
 		stack_depth: usize,
 		static_flag: bool,
-		origin_info: OriginInfo,
+		origin_info: &'any OriginInfo,
 		substate: &'any mut Substate,
 		output: OutputPolicy,
 		tracer: &'any mut T,
@@ -426,7 +424,7 @@ impl<'a> CallCreateExecutive<'a> {
 
 				Ok(inner())
 			},
-			CallCreateExecutiveKind::ExecCall(params, exec, mut unconfirmed_substate) => {
+			CallCreateExecutiveKind::ExecCall(params, mut unconfirmed_substate) => {
 				assert!(!self.is_create);
 
 				{
@@ -447,8 +445,11 @@ impl<'a> CallCreateExecutive<'a> {
 					}
 				}
 
+				let origin_info = OriginInfo::from(&params);
+				let exec = self.factory.create(params, self.schedule, self.depth);
+
 				let out = {
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -458,11 +459,11 @@ impl<'a> CallCreateExecutive<'a> {
 				let res = match out {
 					Ok(val) => val,
 					Err(TrapError::Call(subparams, resume)) => {
-						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
+						self.kind = CallCreateExecutiveKind::ResumeCall(origin_info, resume, unconfirmed_substate);
 						return Err(TrapError::Call(subparams, self));
 					},
 					Err(TrapError::Create(subparams, address, resume)) => {
-						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
+						self.kind = CallCreateExecutiveKind::ResumeCreate(origin_info, resume, unconfirmed_substate);
 						return Err(TrapError::Create(subparams, address, self));
 					},
 				};
@@ -470,7 +471,7 @@ impl<'a> CallCreateExecutive<'a> {
 				Self::enact_result(&res, state, substate, unconfirmed_substate);
 				Ok(res)
 			},
-			CallCreateExecutiveKind::ExecCreate(params, exec, mut unconfirmed_substate) => {
+			CallCreateExecutiveKind::ExecCreate(params, mut unconfirmed_substate) => {
 				assert!(self.is_create);
 
 				{
@@ -492,8 +493,11 @@ impl<'a> CallCreateExecutive<'a> {
 					}
 				}
 
+				let origin_info = OriginInfo::from(&params);
+				let exec = self.factory.create(params, self.schedule, self.depth);
+
 				let out = {
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -503,11 +507,11 @@ impl<'a> CallCreateExecutive<'a> {
 				let res = match out {
 					Ok(val) => val,
 					Err(TrapError::Call(subparams, resume)) => {
-						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
+						self.kind = CallCreateExecutiveKind::ResumeCall(origin_info, resume, unconfirmed_substate);
 						return Err(TrapError::Call(subparams, self));
 					},
 					Err(TrapError::Create(subparams, address, resume)) => {
-						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
+						self.kind = CallCreateExecutiveKind::ResumeCreate(origin_info, resume, unconfirmed_substate);
 						return Err(TrapError::Create(subparams, address, self));
 					},
 				};
@@ -524,11 +528,11 @@ impl<'a> CallCreateExecutive<'a> {
 	/// Current-level tracing is expected to be handled by caller.
 	pub fn resume_call<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, result: vm::MessageCallResult, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> ExecutiveTrapResult<'a, FinalizationResult> {
 		match self.kind {
-			CallCreateExecutiveKind::ResumeCall(params, resume, mut unconfirmed_substate) => {
+			CallCreateExecutiveKind::ResumeCall(origin_info, resume, mut unconfirmed_substate) => {
 				let out = {
 					let exec = resume.resume_call(result);
 
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -538,11 +542,11 @@ impl<'a> CallCreateExecutive<'a> {
 				let res = match out {
 					Ok(val) => val,
 					Err(TrapError::Call(subparams, resume)) => {
-						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
+						self.kind = CallCreateExecutiveKind::ResumeCall(origin_info, resume, unconfirmed_substate);
 						return Err(TrapError::Call(subparams, self));
 					},
 					Err(TrapError::Create(subparams, address, resume)) => {
-						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
+						self.kind = CallCreateExecutiveKind::ResumeCreate(origin_info, resume, unconfirmed_substate);
 						return Err(TrapError::Create(subparams, address, self));
 					},
 				};
@@ -563,11 +567,11 @@ impl<'a> CallCreateExecutive<'a> {
 	/// Current-level tracing is expected to be handled by caller.
 	pub fn resume_create<B: 'a + StateBackend, T: Tracer, V: VMTracer>(mut self, result: vm::ContractCreateResult, state: &mut State<B>, substate: &mut Substate, tracer: &mut T, vm_tracer: &mut V) -> ExecutiveTrapResult<'a, FinalizationResult> {
 		match self.kind {
-			CallCreateExecutiveKind::ResumeCreate(params, resume, mut unconfirmed_substate) => {
+			CallCreateExecutiveKind::ResumeCreate(origin_info, resume, mut unconfirmed_substate) => {
 				let out = {
 					let exec = resume.resume_create(result);
 
-					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, OriginInfo::from(&params), &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer);
+					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer);
 					match exec.exec(&mut ext) {
 						Ok(val) => Ok(val.finalize(ext)),
 						Err(err) => Err(err),
@@ -577,11 +581,11 @@ impl<'a> CallCreateExecutive<'a> {
 				let res = match out {
 					Ok(val) => val,
 					Err(TrapError::Call(subparams, resume)) => {
-						self.kind = CallCreateExecutiveKind::ResumeCall(params, resume, unconfirmed_substate);
+						self.kind = CallCreateExecutiveKind::ResumeCall(origin_info, resume, unconfirmed_substate);
 						return Err(TrapError::Call(subparams, self));
 					},
 					Err(TrapError::Create(subparams, address, resume)) => {
-						self.kind = CallCreateExecutiveKind::ResumeCreate(params, resume, unconfirmed_substate);
+						self.kind = CallCreateExecutiveKind::ResumeCreate(origin_info, resume, unconfirmed_substate);
 						return Err(TrapError::Create(subparams, address, self));
 					},
 				};
