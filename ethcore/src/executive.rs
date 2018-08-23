@@ -384,7 +384,7 @@ impl<'a> CallCreateExecutive<'a> {
 				assert!(!self.is_create);
 
 				let mut inner = || {
-					let builtin = self.machine.builtin(&params.code_address, self.info.number).expect("TODO: add PROOF");
+					let builtin = self.machine.builtin(&params.code_address, self.info.number).expect("Builtin is_some is checked when creating this kind in new_call_raw; qed");
 
 					Self::check_static_flag(&params, self.static_flag, self.is_create)?;
 					state.checkpoint();
@@ -619,7 +619,7 @@ impl<'a> CallCreateExecutive<'a> {
 
 							last_res = Some((exec.is_create, exec.gas, exec.exec(state, parent_substate, tracer, vm_tracer)));
 						},
-						None => panic!("TODO: PROOF"),
+						None => panic!("When callstack only had one item and it was executed, this function would return; callstack never reaches zero item; qed"),
 					}
 				},
 				Some((is_create, gas, Ok(val))) => {
@@ -628,7 +628,7 @@ impl<'a> CallCreateExecutive<'a> {
 					match current {
 						Some((address, mut exec)) => {
 							if is_create {
-								let address = address.expect("TODO: PROOF");
+								let address = address.expect("If the last executed status was from a create executive, then the destination address was pushed to the callstack; address is_some if it is_create; qed");
 
 								match val {
 									Ok(ref val) if val.apply_state => {

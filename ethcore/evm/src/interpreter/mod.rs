@@ -216,7 +216,7 @@ impl<Cost: 'static + CostType> vm::ResumeCall for Interpreter<Cost> {
 	fn resume_call(mut self: Box<Self>, result: MessageCallResult) -> Box<vm::Exec> {
 		{
 			let this = &mut *self;
-			let (out_off, out_size) = this.resume_output_range.take().expect("TODO: PROOF");
+			let (out_off, out_size) = this.resume_output_range.take().expect("Box<ResumeCall> is obtained from a call opcode; resume_output_range is always set after those opcodes are executed; qed");
 
 			match result {
 				MessageCallResult::Success(gas_left, data) => {
