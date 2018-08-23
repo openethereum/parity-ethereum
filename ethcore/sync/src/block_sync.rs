@@ -466,6 +466,7 @@ impl BlockDownloader {
 	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), BlockDownloaderImportError> {
 		let mut bad = false;
 		let mut err = false;
+		let mut last_imported = None;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
 		let count = blocks.len();
@@ -502,6 +503,7 @@ impl BlockDownloader {
 				Ok(_) => {
 					trace!(target: "sync", "Block queued {:?}", h);
 					imported.insert(h.clone());
+					last_imported = Some(h.clone());
 					self.block_imported(&h, number, &parent);
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(_)), _)) if allow_out_of_order => {
@@ -533,10 +535,16 @@ impl BlockDownloader {
 		trace!(target: "sync", "Imported {} of {}", imported.len(), count);
 		self.imported_this_round = Some(self.imported_this_round.unwrap_or(0) + imported.len());
 
-		if self.blocks.is_empty() || err {
+		if self.blocks.is_empty() {
 			// complete sync round
-			trace!(target: "sync", "Sync round complete: err: {}", err);
+			trace!(target: "sync", "Sync round complete");
 			self.reset();
+		}
+
+		if err {
+			let reset = last_imported.unwrap_or(self.last_imported_hash);
+			trace!(target: "sync", "Sync round error: resetting to: {:?}", reset);
+			self.reset_to(vec![reset]);
 		}
 
 		if bad {
