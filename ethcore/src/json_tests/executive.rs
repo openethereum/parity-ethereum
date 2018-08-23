@@ -88,7 +88,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		machine: &'a Machine,
 		schedule: &'a Schedule,
 		depth: usize,
-		origin_info: OriginInfo,
+		origin_info: &'a OriginInfo,
 		substate: &'a mut Substate,
 		output: OutputPolicy,
 		address: Address,
@@ -271,6 +271,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 		let vm_factory = state.vm_factory();
+		let origin_info = OriginInfo::from(&params);
 
 		// execute
 		let (res, callcreates) = {
@@ -281,7 +282,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&machine,
 				&schedule,
 				0,
-				OriginInfo::from(&params),
+				&origin_info,
 				&mut substate,
 				OutputPolicy::Return,
 				params.address.clone(),
