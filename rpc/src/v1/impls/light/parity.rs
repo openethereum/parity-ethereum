@@ -39,12 +39,13 @@ use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H160, H256, H512, CallRequest,
+	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, Header, RichHeader,
+	SubmitDetailResult,
 };
 use Host;
 
@@ -420,6 +421,10 @@ impl Parity for ParityClient {
 	}
 
 	fn call(&self, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+		Err(errors::light_unimplemented(None))
+	}
+
+	fn submit_work_detail(&self, _nonce: H64, _pow_hash: H256, _mix_hash: H256) -> Result<SubmitDetailResult> {
 		Err(errors::light_unimplemented(None))
 	}
 }

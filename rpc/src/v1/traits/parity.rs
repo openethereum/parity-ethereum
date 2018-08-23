@@ -22,12 +22,13 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
 
 use v1::types::{
-	H160, H256, H512, U256, U64, Bytes, CallRequest,
+	H64, H160, H256, H512, U256, U64, Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, RichHeader,
+	SubmitDetailResult,
 };
 
 build_rpc_trait! {
@@ -218,5 +219,9 @@ build_rpc_trait! {
 		/// Call contract, returning the output data.
 		#[rpc(name = "parity_call")]
 		fn call(&self, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>>;
+
+		/// Used for submitting a proof-of-work solution (more details in the response than `eth_submitWork`).
+		#[rpc(name = "parity_submitWorkDetail")]
+		fn submit_work_detail(&self, H64, H256, H256) -> Result<SubmitDetailResult>;
 	}
 }

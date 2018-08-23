@@ -41,7 +41,7 @@ impl Serialize for Work {
 	}
 }
 
-/// The result of an `eth_submitWorkDetail` call: it differs based on an option
+/// The result of an `parity_submitWorkDetail` call: it differs based on an option
 /// whether to send the error message.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SubmitDetailResult {
