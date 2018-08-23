@@ -407,7 +407,7 @@ fn call_msg_gasleft() {
 		&FakeCall {
 			call_type: FakeCallType::Call,
 			create_scheme: None,
-			gas: U256::from(91_163),
+			gas: U256::from(91_165),
 			sender_address: Some(receiver),
 			receive_address: Some(Address::from([99, 88, 77, 66, 55, 44, 33, 22, 11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 0])),
 			value: Some(1000000000.into()),
@@ -416,7 +416,7 @@ fn call_msg_gasleft() {
 		}
 	));
 
-	assert_eq!(gas_left, U256::from(91_669));
+	assert_eq!(gas_left, U256::from(91_671));
 }
 
 #[test]
@@ -881,8 +881,8 @@ fn gasleft() {
 		GasLeft::Known(_) => {},
 		GasLeft::NeedsReturn { gas_left, data, .. } => {
 			let gas = LittleEndian::read_u64(data.as_ref());
-			assert_eq!(gas, 93_420);
-			assert_eq!(gas_left, U256::from(93_343));
+			assert_eq!(gas, 93_423);
+			assert_eq!(gas_left, U256::from(93_349));
 		},
 	}
 }
