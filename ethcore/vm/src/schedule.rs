@@ -151,7 +151,7 @@ pub struct WasmCosts {
 	pub opcodes_div: u32,
 	/// Whether create2 extern function is activated.
 	pub have_create2: bool,
-	/// Does it have a GASLEFT instruction
+	/// Whether gasleft extern function is activated.
 	pub have_gasleft: bool,
 }
 
