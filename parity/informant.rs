@@ -184,7 +184,7 @@ impl InformantData for LightNodeInformantData {
 	fn executes_transactions(&self) -> bool { false }
 
 	fn is_major_importing(&self) -> bool {
-		self.sync.is_major_importing_do_wait(false)
+		self.sync.is_major_importing_no_sync()
 	}
 
 	fn report(&self) -> Report {
