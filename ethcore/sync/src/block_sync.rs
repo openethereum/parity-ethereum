@@ -465,8 +465,7 @@ impl BlockDownloader {
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
 	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), BlockDownloaderImportError> {
 		let mut bad = false;
-		let mut err = false;
-		let mut last_imported = None;
+		let mut reset = false;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
 		let count = blocks.len();
@@ -503,26 +502,25 @@ impl BlockDownloader {
 				Ok(_) => {
 					trace!(target: "sync", "Block queued {:?}", h);
 					imported.insert(h.clone());
-					last_imported = Some(h.clone());
 					self.block_imported(&h, number, &parent);
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(_)), _)) if allow_out_of_order => {
-					err = true;
+					reset = true;
 					break;
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(_)), _)) => {
 					trace!(target: "sync", "Unknown new block parent, restarting sync");
-					err = true;
+					reset = true;
 					break;
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) => {
 					debug!(target: "sync", "Block temporarily invalid, restarting sync");
-					err = true;
+					reset = true;
 					break;
 				},
 				Err(BlockImportError(BlockImportErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
 					debug!(target: "sync", "Block import queue full ({}), restarting sync", limit);
-					err = true;
+					reset = true;
 					break;
 				},
 				Err(e) => {
@@ -539,16 +537,18 @@ impl BlockDownloader {
 			// complete sync round
 			trace!(target: "sync", "Sync round complete");
 			self.reset();
-		}
-
-		if err {
-			let reset = last_imported.unwrap_or(self.last_imported_hash);
-			trace!(target: "sync", "Sync round error: resetting to: {:?}", reset);
-			self.reset_to(vec![reset]);
+			return Ok(());
 		}
 
 		if bad {
 			return Err(BlockDownloaderImportError::Invalid);
+		}
+
+		if reset {
+			// there was an error importing one of the blocks so we reset the sync to the last successful imported hash
+			trace!(target: "sync", "Resetting sync round to: {}", self.last_imported_hash);
+			let hashes = vec![self.last_imported_hash];
+			self.reset_to(hashes);
 		}
 
 		Ok(())
