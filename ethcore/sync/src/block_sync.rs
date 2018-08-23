@@ -465,9 +465,11 @@ impl BlockDownloader {
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
 	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), BlockDownloaderImportError> {
 		let mut bad = false;
+		let mut err = false;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
 		let count = blocks.len();
+
 		for block_and_receipts in blocks {
 			let block = block_and_receipts.block;
 			let receipts = block_and_receipts.receipts;
@@ -503,18 +505,22 @@ impl BlockDownloader {
 					self.block_imported(&h, number, &parent);
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(_)), _)) if allow_out_of_order => {
+					err = true;
 					break;
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(_)), _)) => {
 					trace!(target: "sync", "Unknown new block parent, restarting sync");
+					err = true;
 					break;
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) => {
 					debug!(target: "sync", "Block temporarily invalid, restarting sync");
+					err = true;
 					break;
 				},
 				Err(BlockImportError(BlockImportErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
 					debug!(target: "sync", "Block import queue full ({}), restarting sync", limit);
+					err = true;
 					break;
 				},
 				Err(e) => {
@@ -527,15 +533,16 @@ impl BlockDownloader {
 		trace!(target: "sync", "Imported {} of {}", imported.len(), count);
 		self.imported_this_round = Some(self.imported_this_round.unwrap_or(0) + imported.len());
 
+		if self.blocks.is_empty() || err {
+			// complete sync round
+			trace!(target: "sync", "Sync round complete: err: {}", err);
+			self.reset();
+		}
+
 		if bad {
 			return Err(BlockDownloaderImportError::Invalid);
 		}
 
-		if self.blocks.is_empty() {
-			// complete sync round
-			trace!(target: "sync", "Sync round complete");
-			self.reset();
-		}
 		Ok(())
 	}
 
