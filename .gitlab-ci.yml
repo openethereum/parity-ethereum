@@ -1,16 +1,12 @@
 stages:
   - test
   - build
-<<<<<<< HEAD
   - package
   - publish
   - docs
 
 image:                             parity/rust:gitlab-ci
 
-=======
-  - docs
->>>>>>> master
 variables:
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/cargo"
@@ -288,7 +284,6 @@ publish:github:s3:
   script:
     - scripts/gitlab/push.sh
   tags:
-<<<<<<< HEAD
     - shell
   allow_failure:                   true
 
@@ -297,22 +292,6 @@ publish:github:s3:
 
 json:rpc:docs:
   stage: docs
-=======
-    - rust
-    - rust-nightly
-  allow_failure: true
-json-rpc-docs:
-  stage: docs
-  only:
-    - tags
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab-rpc-docs.sh
-  tags:
-    - docs
-push-release:
-  stage: push-release
->>>>>>> master
   only:
     - tags
     - gitlab-next
