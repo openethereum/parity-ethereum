@@ -191,8 +191,8 @@ pub fn no_work_required() -> Error {
 pub fn cannot_submit_work(err: EthcoreError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::CANNOT_SUBMIT_WORK),
-		message: err.to_string(),
-		data: None,
+		message: "Cannot submit work.".into(),
+		data: Some(Value::String(err.to_string())),
 	}
 }
 
