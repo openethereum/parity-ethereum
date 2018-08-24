@@ -32,7 +32,7 @@ setup_git() {
 commit_files() {
     echo "__________Commit files__________"
     git checkout -b rpcdoc-update-${CI_COMMIT_REF_NAME}
-    git commit .
+    git add .
     git commit -m "Update docs to ${CI_COMMIT_REF_NAME}"
     git tag -a "${CI_COMMIT_REF_NAME}"
 }
