@@ -178,7 +178,7 @@ build_rpc_trait! {
 		#[rpc(name = "parity_chainId")]
 		fn chain_id(&self) -> Result<Option<U64>>;
 
-		/// Get the chain name. Returns one of: "foundation", "kovan", &c. of a filename.
+		/// Get the chain name. Returns one of the pre-configured chain names or a filename.
 		#[rpc(name = "parity_chain")]
 		fn chain(&self) -> Result<String>;
 
