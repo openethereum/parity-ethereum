@@ -2,6 +2,7 @@ stages:
   - test
   - push-release
   - build
+  - docs
 variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
@@ -220,6 +221,15 @@ test-rust-nightly:
     - rust
     - rust-nightly
   allow_failure: true
+json-rpc-docs:
+  stage: docs
+  only:
+    - tags
+  image: parity/rust:gitlab-ci
+  script:
+    - scripts/gitlab-rpc-docs.sh
+  tags:
+    - docs
 push-release:
   stage: push-release
   only:
