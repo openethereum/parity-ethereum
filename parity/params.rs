@@ -387,7 +387,7 @@ mod tests {
 
 	#[test]
 	fn test_spec_type_display() {
-		assert_eq!(format!("{}", SpecType::Foundation), "ethereum");
+		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Poanet), "poanet");
 		assert_eq!(format!("{}", SpecType::Tobalaba), "tobalaba");
