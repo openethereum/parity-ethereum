@@ -14,7 +14,7 @@ RELEASE_TABLE="$(echo "${RELEASE_TABLE//\$VERSION/${VERSION}}")"
 #The text in the file CANGELOG.md before which the table with links is inserted. Must be present in this file necessarily
 REPLACE_TEXT="The full list of included changes:"
 case ${CI_COMMIT_REF_NAME} in
-  master|*v2.1*|gitlab-next) NAME="Parity "$VERSION" nightly";;
+  nightly|*v2.1*) NAME="Parity "$VERSION" nightly";;
   beta|*v2.0*) NAME="Parity "$VERSION" beta";;
   stable|*v1.11*) NAME="Parity "$VERSION" stable";;
   *) echo "No release" exit 0;;

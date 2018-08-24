@@ -3,7 +3,7 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 case ${CI_COMMIT_REF_NAME} in
-  master|*v2.1*|gitlab-next) export GRADE="devel";;
+  nightly|*v2.1*) export GRADE="devel";;
   beta|*v2.0*) export GRADE="stable";;
   stable|*v1.11*) export GRADE="stable";;
   *) echo "No release" exit 0;;

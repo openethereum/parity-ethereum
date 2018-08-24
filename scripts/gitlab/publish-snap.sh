@@ -4,7 +4,7 @@ set -e # fail on any error
 set -u # treat unset variables as error
 
 case ${CI_COMMIT_REF_NAME} in
-  master|*v2.1*|gitlab-next) export CHANNEL="edge";;
+  nightly|*v2.1*) export CHANNEL="edge";;
   beta|*v2.0*) export CHANNEL="beta";;
   stable|*v1.11*) export CHANNEL="stable";;
   *) echo "No release" exit 0;;
