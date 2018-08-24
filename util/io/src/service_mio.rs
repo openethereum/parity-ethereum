@@ -24,8 +24,7 @@ use crossbeam::sync::chase_lev;
 use slab::Slab;
 use {IoError, IoHandler};
 use worker::{Worker, Work, WorkType};
-use parking_lot::{RwLock, Mutex};
-use std::sync::{Condvar as SCondvar, Mutex as SMutex};
+use parking_lot::{Condvar, RwLock, Mutex};
 use std::time::Duration;
 
 /// Timer ID
@@ -186,7 +185,7 @@ pub struct IoManager<Message> where Message: Send + Sync {
 	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>>>>,
 	workers: Vec<Worker>,
 	worker_channel: chase_lev::Worker<Work<Message>>,
-	work_ready: Arc<SCondvar>,
+	work_ready: Arc<Condvar>,
 }
 
 impl<Message> IoManager<Message> where Message: Send + Sync + 'static {
@@ -197,8 +196,8 @@ impl<Message> IoManager<Message> where Message: Send + Sync + 'static {
 	) -> Result<(), IoError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
-		let work_ready_mutex =  Arc::new(SMutex::new(()));
-		let work_ready = Arc::new(SCondvar::new());
+		let work_ready_mutex =  Arc::new(Mutex::new(()));
+		let work_ready = Arc::new(Condvar::new());
 		let workers = (0..num_workers).map(|i|
 			Worker::new(
 				i,

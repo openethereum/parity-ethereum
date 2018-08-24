@@ -40,8 +40,8 @@ pub trait Listener<T> {
 	/// The transaction has been canceled.
 	fn canceled(&mut self, _tx: &Arc<T>) {}
 
-	/// The transaction has been mined.
-	fn mined(&mut self, _tx: &Arc<T>) {}
+	/// The transaction has been culled from the pool.
+	fn culled(&mut self, _tx: &Arc<T>) {}
 }
 
 /// A no-op implementation of `Listener`.
@@ -78,8 +78,8 @@ impl<T, A, B> Listener<T> for (A, B) where
 		self.1.canceled(tx);
 	}
 
-	fn mined(&mut self, tx: &Arc<T>) {
-		self.0.mined(tx);
-		self.1.mined(tx);
+	fn culled(&mut self, tx: &Arc<T>) {
+		self.0.culled(tx);
+		self.1.culled(tx);
 	}
 }

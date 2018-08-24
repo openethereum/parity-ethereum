@@ -92,7 +92,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
-		Box::new(future::ok(self.client.logs(filter).into_iter().map(Into::into).collect()))
+		Box::new(future::ok(self.client.logs(filter).unwrap_or_default().into_iter().map(Into::into).collect()))
 	}
 
 	fn pending_logs(&self, block_number: u64, filter: &EthcoreFilter) -> Vec<Log> {
@@ -125,7 +125,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 			filter.from_block = BlockId::Hash(block_hash);
 			filter.to_block = filter.from_block;
 
-			self.client.logs(filter).into_iter().map(|log| {
+			self.client.logs(filter).unwrap_or_default().into_iter().map(|log| {
 				let mut log: Log = log.into();
 				log.log_type = "removed".into();
 				log.removed = true;
@@ -140,7 +140,13 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	fn new_filter(&self, filter: Filter) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
 		let block_number = self.best_block_number();
-		let id = polls.create_poll(SyncPollFilter::new(PollFilter::Logs(block_number, None, Default::default(), filter)));
+		let include_pending = filter.to_block == Some(BlockNumber::Pending);
+		let filter = filter.try_into()?;
+		let id = polls.create_poll(SyncPollFilter::new(PollFilter::Logs {
+			block_number, filter, include_pending,
+			last_block_hash: None,
+			previous_logs: Default::default()
+		}));
 		Ok(id.into())
 	}
 
@@ -195,15 +201,17 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 				// return new hashes
 				Either::A(future::ok(FilterChanges::Hashes(new_hashes)))
 			},
-			PollFilter::Logs(ref mut block_number, ref mut last_block_hash, ref mut previous_logs, ref filter) => {
+			PollFilter::Logs {
+				ref mut block_number,
+				ref mut last_block_hash,
+				ref mut previous_logs,
+				ref filter,
+				include_pending,
+			} => {
 				// retrive the current block number
 				let current_number = self.best_block_number();
 
-				// check if we need to check pending hashes
-				let include_pending = filter.to_block == Some(BlockNumber::Pending);
-
-				// build appropriate filter
-				let mut filter: EthcoreFilter = filter.clone().into();
+				let mut filter = filter.clone();
 
 				// retrieve reorg logs
 				let (mut reorg, reorg_len) = last_block_hash.map_or_else(|| (Vec::new(), 0), |h| self.removed_logs(h, &filter));
@@ -250,20 +258,18 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	}
 
 	fn filter_logs(&self, index: Index) -> BoxFuture<Vec<Log>> {
-		let filter = {
+		let (filter, include_pending) = {
 			let mut polls = self.polls().lock();
 
 			match polls.poll(&index.value()).and_then(|f| f.modify(|filter| match *filter {
-				PollFilter::Logs(.., ref filter) => Some(filter.clone()),
+				PollFilter::Logs { ref filter, include_pending, .. } =>
+					Some((filter.clone(), include_pending)),
 				_ => None,
 			})) {
-				Some(filter) => filter,
+				Some((filter, include_pending)) => (filter, include_pending),
 				None => return Box::new(future::err(errors::filter_not_found())),
 			}
 		};
-
-		let include_pending = filter.to_block == Some(BlockNumber::Pending);
-		let filter: EthcoreFilter = filter.into();
 
 		// fetch pending logs.
 		let pending = if include_pending {

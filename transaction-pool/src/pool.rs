@@ -370,7 +370,7 @@ impl<T, S, L> Pool<T, S, L> where
 				let len = removed.len();
 				for tx in removed {
 					self.finalize_remove(tx.hash());
-					self.listener.mined(&tx);
+					self.listener.culled(&tx);
 				}
 				len
 			},

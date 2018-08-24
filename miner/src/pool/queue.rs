@@ -229,6 +229,13 @@ impl TransactionQueue {
 		*self.options.write() = options;
 	}
 
+	/// Sets the in-chain transaction checker for pool listener.
+	pub fn set_in_chain_checker<F>(&self, f: F) where
+		F: Fn(&H256) -> bool + Send + Sync + 'static
+	{
+		self.pool.write().listener_mut().0.set_in_chain_checker(f)
+	}
+
 	/// Import a set of transactions to the pool.
 	///
 	/// Given blockchain and state access (Client)
