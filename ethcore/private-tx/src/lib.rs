@@ -296,7 +296,7 @@ impl Provider where {
 					}
 				}
 			}
-			return Ok(());
+			Ok(())
 		};
 		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache));
 		for transaction in ready_transactions {
@@ -309,7 +309,7 @@ impl Provider where {
 
 	/// Add signed private transaction into the store
 	/// Creates corresponding public transaction if last required signature collected and sends it to the chain
-	pub fn process_signature(&self, signed_tx: SignedPrivateTransaction) -> Result<(), Error> {
+	pub fn process_signature(&self, signed_tx: &SignedPrivateTransaction) -> Result<(), Error> {
 		trace!("Processing signed private transaction");
 		let private_hash = signed_tx.private_transaction_hash();
 		let desc = match self.transactions_for_signing.read().get(&private_hash) {
@@ -350,12 +350,9 @@ impl Provider where {
 				}
 			}
 			//Remove from store for signing
-			match self.transactions_for_signing.write().remove(&private_hash) {
-				Ok(_) => {}
-				Err(err) => {
-					warn!("Failed to remove transaction from signing store, error: {:?}", err);
-					bail!(err);
-				}
+			if let Err(err) = self.transactions_for_signing.write().remove(&private_hash) {
+				warn!("Failed to remove transaction from signing store, error: {:?}", err);
+				bail!(err);
 			}
 		} else {
 			//Add signature to the store
@@ -675,7 +672,7 @@ impl Importer for Arc<Provider> {
 		let provider = Arc::downgrade(self);
 		let result = self.channel.send(ClientIoMessage::execute(move |_| {
 			if let Some(provider) = provider.upgrade() {
-				if let Err(e) = provider.process_signature(tx.clone()) {
+				if let Err(e) = provider.process_signature(&tx) {
 					warn!("Unable to process the signature: {}", e);
 				}
 			}

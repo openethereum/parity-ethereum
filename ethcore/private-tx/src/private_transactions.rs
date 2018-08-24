@@ -35,18 +35,18 @@ type Pool = txpool::Pool<VerifiedPrivateTransaction, pool::scoring::NonceAndGasP
 /// Maximum length for private transactions queues.
 const MAX_QUEUE_LEN: usize = 8312;
 
-/// Desriptor for private transaction stored in queue for verification
+/// Private transaction stored in queue for verification
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedPrivateTransaction {
 	/// Original private transaction
 	pub private_transaction: PrivateTransaction,
 	/// Address that should be used for verification
 	pub validator_account: Option<Address>,
-	/// Resulted verified
+	/// Resulting verified transaction
 	pub transaction: SignedTransaction,
-	/// Original transaction's hash
+	/// Original transaction hash
 	pub transaction_hash: H256,
-	/// Original transaction's sender
+	/// Original transaction sender
 	pub transaction_sender: Address,
 }
 
@@ -165,7 +165,8 @@ impl VerificationStore {
 		let options = self.verification_options.clone();
 		// Use pool's verifying pipeline for original transaction's verification
 		let verifier = pool::verifier::Verifier::new(client, options, Default::default(), None);
-		let verified_tx = verifier.verify_transaction(pool::verifier::Transaction::Unverified(transaction.clone()))?;
+		let unverified = pool::verifier::Transaction::Unverified(transaction);
+		let verified_tx = verifier.verify_transaction(unverified)?;
 		let signed_tx: SignedTransaction = verified_tx.signed().clone();
 		let signed_hash = signed_tx.hash();
 		let signed_sender = signed_tx.sender();

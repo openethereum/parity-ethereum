@@ -20,11 +20,11 @@ use ethereum_types::H256;
 /// Trait which should be implemented by a private transaction handler.
 pub trait PrivateTxHandler: Send + Sync + 'static {
 	/// Function called on new private transaction received.
-	/// Returns hash of the imported transaction
+	/// Returns the hash of the imported transaction
 	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String>;
 
 	/// Function called on new signed private transaction received.
-	/// Returns hash of the imported transaction
+	/// Returns the hash of the imported transaction
 	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String>;
 }
 
