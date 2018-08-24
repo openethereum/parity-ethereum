@@ -27,13 +27,11 @@ cache:
     - stable
     - beta
     - tags
-    - gitlab-next
 
 .publishable_branches:             # list of git refs for publishing builds to the "production" locations
   only:                            &publishable_branches
     - nightly # Our nightly builds from schedule, on `master`
-    - "v*" # Our version tags
-    - gitlab-next
+    - "v2*" # Our version tags
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
@@ -294,7 +292,6 @@ json:rpc:docs:
   stage: docs
   only:
     - tags
-    - gitlab-next
   cache: {}
   script:
     - scripts/gitlab/rpc-docs.sh
