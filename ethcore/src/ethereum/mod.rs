@@ -54,7 +54,7 @@ pub fn new_classic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 
 /// Create a new POA Network mainnet chain spec.
 pub fn new_poanet<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/poanet.json"))
+	load(params.into(), include_bytes!("../../res/ethereum/poacore.json"))
 }
 
 /// Create a new Tobalaba mainnet chain spec.
