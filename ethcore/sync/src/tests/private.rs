@@ -146,7 +146,7 @@ fn send_private_transaction() {
 	let signed_private_transaction = received_signed_private_transactions[0].clone();
 	assert!(pm0.import_signed_private_transaction(&signed_private_transaction).is_ok());
 	let signature: SignedPrivateTransaction = Rlp::new(&signed_private_transaction).as_val().unwrap();
-	assert!(pm0.process_signature(signature).is_ok());
+	assert!(pm0.process_signature(&signature).is_ok());
 	let local_transactions = net.peer(0).miner.local_transactions();
 	assert_eq!(local_transactions.len(), 1);
 }

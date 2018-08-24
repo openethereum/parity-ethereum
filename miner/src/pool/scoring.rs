@@ -185,7 +185,7 @@ mod tests {
 		};
 
 		let keypair = Random.generate().unwrap();
-		let txs = vec![tx1, tx2, tx3, tx4].into_iter().map(|(_, tx)| {
+		let txs = vec![tx1, tx2, tx3, tx4].into_iter().map(|tx| {
 			tx.unsigned().sign(keypair.secret(), None).verified()
 		}).collect::<Vec<_>>();
 
