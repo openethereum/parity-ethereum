@@ -19,17 +19,17 @@
 
 ## Technical Overview
 
-Parity Ethereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity Ethereum using the sophisticated and cutting-edge Rust programming language. Parity Ethereum is licensed under the GPLv3 and can be used for all your Ethereum needs.
+Parity Ethereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity Ethereum using the sophisticated and cutting-edge **Rust programming language**. Parity Ethereum is licensed under the GPLv3 and can be used for all your Ethereum needs.
 
-By default, Parity Ethereum runs a JSON-RPC HTTP server on `127.0.0.1:8545` and a Web-Sockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
+By default, Parity Ethereum runs a JSON-RPC HTTP server on port `:8545` and a Web-Sockets server on port `:8546`. This is fully configurable and supports a number of APIs.
 
-If you run into problems while using Parity Ethereum, feel free to file an issue in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
+If you run into problems while using Parity Ethereum, check out the [wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/paritytech/parity-ethereum/issues/new), or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
 Parity Ethereum's current beta-release is 2.0. You can download it at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
 ## Build Dependencies
 
-Parity Ethereum requires Rust version 1.28.x to build.
+Parity Ethereum requires **Rust version 1.28.x** to build.
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have `rustup`, you can install it like this:
 
@@ -117,8 +117,6 @@ or
 $ git checkout beta
 ```
 
-first.
-
 ## Simple One-Line Installer for Mac and Linux
 
 ```bash
@@ -164,4 +162,6 @@ Alternatively, join our community on Matrix:
 
 ## Documentation
 
-Official website: https://parity.io | Be sure to check out [our wiki](https://wiki.parity.io) for more information.
+Official website: https://parity.io
+
+Be sure to [check out our wiki](https://wiki.parity.io) for more information.
