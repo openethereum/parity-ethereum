@@ -666,6 +666,15 @@ impl<'a> Runtime<'a> {
 		self.return_u256_ptr(args.nth_checked(0)?, difficulty)
 	}
 
+	///	Signature: `fn gasleft() -> i64`
+	pub fn gasleft(&mut self) -> Result<RuntimeValue> {
+		Ok(RuntimeValue::from(
+			self.gas_left()? * self.ext.schedule().wasm().opcodes_mul as u64
+				/ self.ext.schedule().wasm().opcodes_div as u64
+			)
+		)
+	}
+
 	///	Signature: `fn gaslimit(dest: *mut u8)`
 	pub fn gaslimit(&mut self, args: RuntimeArgs) -> Result<()> {
 		let gas_limit = self.ext.env_info().gas_limit;
@@ -782,6 +791,7 @@ mod ext_impl {
 				ORIGIN_FUNC => void!(self.origin(args)),
 				ELOG_FUNC => void!(self.elog(args)),
 				CREATE2_FUNC => some!(self.create2(args)),
+				GASLEFT_FUNC => some!(self.gasleft()),
 				_ => panic!("env module doesn't provide function at index {}", index),
 			}
 		}

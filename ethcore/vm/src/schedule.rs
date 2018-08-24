@@ -151,6 +151,8 @@ pub struct WasmCosts {
 	pub opcodes_div: u32,
 	/// Whether create2 extern function is activated.
 	pub have_create2: bool,
+	/// Whether gasleft extern function is activated.
+	pub have_gasleft: bool,
 }
 
 impl Default for WasmCosts {
@@ -169,6 +171,7 @@ impl Default for WasmCosts {
 			opcodes_mul: 3,
 			opcodes_div: 8,
 			have_create2: false,
+			have_gasleft: false,
 		}
 	}
 }
