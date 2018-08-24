@@ -1,14 +1,13 @@
-## Parity-Ethereum - a fast, light, and robust EVM and WASM blockchain client
+<p align="center"><img src="https://raw.githubusercontent.com/paritytech/parity-ethereum/d37ab724c38e6bcc3b40e8b296ad41ad33470160/docs/logo-parity-ethereum.svg" /></p>
 
-![Parity-Ethereum](docs/logo-parity-ethereum.svg)
+## The fastest and most advanced Ethereum client.
 
-### [» Download the latest release «](https://github.com/paritytech/parity-ethereum/releases/latest)
+<p align="center"><strong><a href="https://github.com/paritytech/parity-ethereum/releases/latest">» Download the latest release «</a></strong></p>
 
-[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
-[![codecov](https://codecov.io/gh/paritytech/parity-ethereum/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity-ethereum)
-[![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
-[![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
-
+<p align="center"><a href="https://gitlab.parity.io/parity/parity/commits/master" target="_blank"><img src="https://gitlab.parity.io/parity/parity/badges/master/build.svg" /></a>
+<a href="https://codecov.io/gh/paritytech/parity-ethereum" target="_blank"><img src="https://codecov.io/gh/paritytech/parity-ethereum/branch/master/graph/badge.svg" /></a>
+<a href="https://build.snapcraft.io/user/paritytech/parity" target="_blank"><img src="https://build.snapcraft.io/badge/paritytech/parity.svg" /></a>
+<a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank"><img src="https://img.shields.io/badge/license-GPL%20v3-green.svg" /></a></p>
 
 ### Join the chat!
 
