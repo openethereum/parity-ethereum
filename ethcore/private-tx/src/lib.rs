@@ -191,9 +191,9 @@ impl Provider where {
 	/// 3. Save it with state returned on prev step to the queue for signing
 	/// 4. Broadcast corresponding message to the chain
 	pub fn create_private_transaction(&self, signed_transaction: SignedTransaction) -> Result<Receipt, Error> {
-		trace!("Creating private transaction from regular transaction: {:?}", signed_transaction);
+		trace!(target: "privatetx", "Creating private transaction from regular transaction: {:?}", signed_transaction);
 		if self.signer_account.is_none() {
-			warn!("Signing account not set");
+			warn!(target: "privatetx", "Signing account not set");
 			bail!(ErrorKind::SignerAccountNotSet);
 		}
 		let tx_hash = signed_transaction.hash();
@@ -213,11 +213,11 @@ impl Provider where {
 				// in private-tx to avoid such mistakes.
 				let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
 				let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction)?;
-				trace!("Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
+				trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
 				let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
-				trace!("Required validators: {:?}", contract_validators);
+				trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
 				let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-				trace!("Hashed effective private state for sender: {:?}", private_state_hash);
+				trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
 				self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, contract_validators, private_state, contract_nonce)?;
 				self.broadcast_private_transaction(private.hash(), private.rlp_bytes().into_vec());
 				Ok(Receipt {
@@ -257,13 +257,13 @@ impl Provider where {
 			let private_hash = transaction.private_transaction.hash();
 			match transaction.validator_account {
 				None => {
-					trace!("Propagating transaction further");
+					trace!(target: "privatetx", "Propagating transaction further");
 					self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes().into_vec());
 					return Ok(());
 				}
 				Some(validator_account) => {
 					if !self.validator_accounts.contains(&validator_account) {
-						trace!("Propagating transaction further");
+						trace!(target: "privatetx", "Propagating transaction further");
 						self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes().into_vec());
 						return Ok(());
 					}
@@ -281,7 +281,7 @@ impl Provider where {
 						}
 						let private_state = private_state.expect("Error was checked before");
 						let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-						trace!("Hashed effective private state for validator: {:?}", private_state_hash);
+						trace!(target: "privatetx", "Hashed effective private state for validator: {:?}", private_state_hash);
 						let password = find_account_password(&self.passwords, &*self.accounts, &validator_account);
 						let signed_state = self.accounts.sign(validator_account, password, private_state_hash);
 						if let Err(e) = signed_state {
@@ -289,7 +289,7 @@ impl Provider where {
 						}
 						let signed_state = signed_state.expect("Error was checked before");
 						let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
-						trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
+						trace!(target: "privatetx", "Sending signature for private transaction: {:?}", signed_private_transaction);
 						self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes().into_vec());
 					} else {
 						bail!("Incorrect type of action for the transaction");
@@ -301,7 +301,7 @@ impl Provider where {
 		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache));
 		for transaction in ready_transactions {
 			if let Err(e) = process_transaction(&transaction) {
-				warn!("Error: {:?}", e);
+				warn!(target: "privatetx", "Error: {:?}", e);
 			}
 		}
 		Ok(())
@@ -310,7 +310,7 @@ impl Provider where {
 	/// Add signed private transaction into the store
 	/// Creates corresponding public transaction if last required signature collected and sends it to the chain
 	pub fn process_signature(&self, signed_tx: &SignedPrivateTransaction) -> Result<(), Error> {
-		trace!("Processing signed private transaction");
+		trace!(target: "privatetx", "Processing signed private transaction");
 		let private_hash = signed_tx.private_transaction_hash();
 		let desc = match self.transactions_for_signing.read().get(&private_hash) {
 			None => {
@@ -334,7 +334,7 @@ impl Provider where {
 				desc.original_transaction.nonce,
 				desc.original_transaction.gas_price
 			)?;
-			trace!("Last required signature received, public transaction created: {:?}", public_tx);
+			trace!(target: "privatetx", "Last required signature received, public transaction created: {:?}", public_tx);
 			//Sign and add it to the queue
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
@@ -343,23 +343,23 @@ impl Provider where {
 			let signature = self.accounts.sign(signer_account, password, hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 			match self.miner.import_own_transaction(&*self.client, signed.into()) {
-				Ok(_) => trace!("Public transaction added to queue"),
+				Ok(_) => trace!(target: "privatetx", "Public transaction added to queue"),
 				Err(err) => {
-					warn!("Failed to add transaction to queue, error: {:?}", err);
+					warn!(target: "privatetx", "Failed to add transaction to queue, error: {:?}", err);
 					bail!(err);
 				}
 			}
 			//Remove from store for signing
 			if let Err(err) = self.transactions_for_signing.write().remove(&private_hash) {
-				warn!("Failed to remove transaction from signing store, error: {:?}", err);
+				warn!(target: "privatetx", "Failed to remove transaction from signing store, error: {:?}", err);
 				bail!(err);
 			}
 		} else {
 			//Add signature to the store
 			match self.transactions_for_signing.write().add_signature(&private_hash, signed_tx.signature()) {
-				Ok(_) => trace!("Signature stored for private transaction"),
+				Ok(_) => trace!(target: "privatetx", "Signature stored for private transaction"),
 				Err(err) => {
-					warn!("Failed to add signature to signing store, error: {:?}", err);
+					warn!(target: "privatetx", "Failed to add signature to signing store, error: {:?}", err);
 					bail!(err);
 				}
 			}
@@ -380,13 +380,13 @@ impl Provider where {
 						Ok(desc.received_signatures.len() + 1 == desc.validators.len())
 					}
 					false => {
-						warn!("Sender's state doesn't correspond to validator's");
+						warn!(target: "privatetx", "Sender's state doesn't correspond to validator's");
 						bail!(ErrorKind::StateIncorrect);
 					}
 				}
 			}
 			Err(err) => {
-				warn!("Sender's state doesn't correspond to validator's, error {:?}", err);
+				warn!(target: "privatetx", "Sender's state doesn't correspond to validator's, error {:?}", err);
 				bail!(err);
 			}
 		}
@@ -415,12 +415,12 @@ impl Provider where {
 	}
 
 	fn encrypt(&self, contract_address: &Address, initialisation_vector: &H128, data: &[u8]) -> Result<Bytes, Error> {
-		trace!("Encrypt data using key(address): {:?}", contract_address);
+		trace!(target: "privatetx", "Encrypt data using key(address): {:?}", contract_address);
 		Ok(self.encryptor.encrypt(contract_address, &*self.accounts, initialisation_vector, data)?)
 	}
 
 	fn decrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, Error> {
-		trace!("Decrypt data using key(address): {:?}", contract_address);
+		trace!(target: "privatetx", "Decrypt data using key(address): {:?}", contract_address);
 		Ok(self.encryptor.decrypt(contract_address, &*self.accounts, data)?)
 	}
 
@@ -485,7 +485,7 @@ impl Provider where {
 			Action::Call(ref contract_address) => {
 				let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
 				let contract_state = self.get_decrypted_state(contract_address, block)?;
-				trace!("Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
+				trace!(target: "privatetx", "Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
 				state.patch_account(contract_address, contract_code, Self::snapshot_to_storage(contract_state))?;
 				Some(*contract_address)
 			},
@@ -513,7 +513,7 @@ impl Provider where {
 				(enc_code, self.encrypt(&address, &Self::iv_from_transaction(transaction), &Self::snapshot_from_storage(&storage))?)
 			},
 		};
-		trace!("Private contract executed. code: {:?}, state: {:?}, result: {:?}", encrypted_code, encrypted_storage, result.output);
+		trace!(target: "privatetx", "Private contract executed. code: {:?}, state: {:?}, result: {:?}", encrypted_code, encrypted_storage, result.output);
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
 			state: encrypted_storage,
@@ -629,7 +629,7 @@ pub trait Importer {
 
 impl Importer for Arc<Provider> {
 	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, Error> {
-		trace!("Private transaction received");
+		trace!(target: "privatetx", "Private transaction received");
 		let private_tx: PrivateTransaction = Rlp::new(rlp).as_val()?;
 		let private_tx_hash = private_tx.hash();
 		let contract = private_tx.contract();
@@ -655,30 +655,30 @@ impl Importer for Arc<Provider> {
 		let result = self.channel.send(ClientIoMessage::execute(move |_| {
 			if let Some(provider) = provider.upgrade() {
 				if let Err(e) = provider.process_verification_queue() {
-					warn!("Unable to process the queue: {}", e);
+					warn!(target: "privatetx", "Unable to process the queue: {}", e);
 				}
 			}
 		}));
 		if let Err(e) = result {
-			warn!("Error sending NewPrivateTransaction message: {:?}", e);
+			warn!(target: "privatetx", "Error sending NewPrivateTransaction message: {:?}", e);
 		}
 		Ok(private_tx_hash)
 	}
 
 	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, Error> {
 		let tx: SignedPrivateTransaction = Rlp::new(rlp).as_val()?;
-		trace!("Signature for private transaction received: {:?}", tx);
+		trace!(target: "privatetx", "Signature for private transaction received: {:?}", tx);
 		let private_hash = tx.private_transaction_hash();
 		let provider = Arc::downgrade(self);
 		let result = self.channel.send(ClientIoMessage::execute(move |_| {
 			if let Some(provider) = provider.upgrade() {
 				if let Err(e) = provider.process_signature(&tx) {
-					warn!("Unable to process the signature: {}", e);
+					warn!(target: "privatetx", "Unable to process the signature: {}", e);
 				}
 			}
 		}));
 		if let Err(e) = result {
-			warn!("Error sending NewSignedPrivateTransaction message: {:?}", e);
+			warn!(target: "privatetx", "Error sending NewSignedPrivateTransaction message: {:?}", e);
 		}
 		Ok(private_hash)
 	}
@@ -697,9 +697,9 @@ fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountPr
 impl ChainNotify for Provider {
 	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
 		if !imported.is_empty() {
-			trace!("New blocks imported, try to prune the queue");
+			trace!(target: "privatetx", "New blocks imported, try to prune the queue");
 			if let Err(err) = self.process_verification_queue() {
-				warn!("Cannot prune private transactions queue. error: {:?}", err);
+				warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);
 			}
 		}
 	}

@@ -56,11 +56,23 @@ impl PrivateTxService {
 
 impl PrivateTxHandler for PrivateTxService {
 	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
-		self.provider.import_private_transaction(rlp).map_err(|e| e.to_string())
+		match self.provider.import_private_transaction(rlp) {
+			Ok(import_result) => Ok(import_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to import private transaction packet: {}", err);
+				bail!(err.to_string())
+			}
+		}
 	}
 
 	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
-		self.provider.import_signed_private_transaction(rlp).map_err(|e| e.to_string())
+		match self.provider.import_signed_private_transaction(rlp) {
+			Ok(import_result) => Ok(import_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to import signed private transaction packet: {}", err);
+				bail!(err.to_string())
+			}
+		}
 	}
 }
 
