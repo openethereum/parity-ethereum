@@ -9,20 +9,15 @@
 <a href="https://build.snapcraft.io/user/paritytech/parity" target="_blank"><img src="https://build.snapcraft.io/badge/paritytech/parity.svg" /></a>
 <a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank"><img src="https://img.shields.io/badge/license-GPL%20v3-green.svg" /></a></p>
 
-### Join the chat!
+**Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronisation and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
 
-Get in touch with us on Gitter:
-[![Gitter: Parity](https://img.shields.io/badge/gitter-parity-4AB495.svg)](https://gitter.im/paritytech/parity)
-[![Gitter: Parity.js](https://img.shields.io/badge/gitter-parity.js-4AB495.svg)](https://gitter.im/paritytech/parity.js)
-[![Gitter: Parity/Miners](https://img.shields.io/badge/gitter-parity/miners-4AB495.svg)](https://gitter.im/paritytech/parity/miners)
-[![Gitter: Parity-PoA](https://img.shields.io/badge/gitter-parity--poa-4AB495.svg)](https://gitter.im/paritytech/parity-poa)
+- Clean, modular codebase for easy customisation
+- Advanced CLI-based client
+- Minimal memory and storage footprint
+- Synchronise in hours, not days with Warp Sync
+- Modular for light integration into your service or product
 
-Or join our community on Matrix:
-[![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
-
-Official website: https://parity.io | Be sure to check out [our wiki](https://wiki.parity.io) for more information.
-
-## About Parity-Ethereum
+## Overview
 
 Parity-Ethereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity-Ethereum using the sophisticated and cutting-edge Rust programming language. Parity-Ethereum is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
@@ -34,7 +29,7 @@ Parity-Ethereum's current beta-release is 2.0. You can download it at [the relea
 
 ## Build dependencies
 
-**Parity-Ethereum requires Rust version 1.27.0 to build**
+**Parity-Ethereum requires Rust version 1.28.x to build**
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
@@ -155,3 +150,16 @@ To start Parity-Ethereum as a regular user using systemd init:
 1. Copy `./scripts/parity.service` to your
 systemd user directory (usually `~/.config/systemd/user`).
 2. To configure Parity-Ethereum, write a `/etc/parity/config.toml` config file, see [Configuring Parity-Ethereum](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+
+### Join the chat!
+
+Questions? Get in touch with us on Gitter:
+[![Gitter: Parity](https://img.shields.io/badge/gitter-parity-4AB495.svg)](https://gitter.im/paritytech/parity)
+[![Gitter: Parity.js](https://img.shields.io/badge/gitter-parity.js-4AB495.svg)](https://gitter.im/paritytech/parity.js)
+[![Gitter: Parity/Miners](https://img.shields.io/badge/gitter-parity/miners-4AB495.svg)](https://gitter.im/paritytech/parity/miners)
+[![Gitter: Parity-PoA](https://img.shields.io/badge/gitter-parity--poa-4AB495.svg)](https://gitter.im/paritytech/parity-poa)
+
+Or join our community on Matrix:
+[![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
+
+Official website: https://parity.io | Be sure to check out [our wiki](https://wiki.parity.io) for more information.
