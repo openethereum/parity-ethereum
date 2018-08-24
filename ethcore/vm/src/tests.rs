@@ -39,6 +39,7 @@ pub enum FakeCallType {
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct FakeCall {
 	pub call_type: FakeCallType,
+	pub create_scheme: Option<CreateContractAddress>,
 	pub gas: U256,
 	pub sender_address: Option<Address>,
 	pub receive_address: Option<Address>,
@@ -133,9 +134,10 @@ impl Ext for FakeExt {
 		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], _address: CreateContractAddress) -> ContractCreateResult {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult {
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::Create,
+			create_scheme: Some(address),
 			gas: *gas,
 			sender_address: None,
 			receive_address: None,
@@ -153,12 +155,12 @@ impl Ext for FakeExt {
 			value: Option<U256>,
 			data: &[u8],
 			code_address: &Address,
-			_output: &mut [u8],
 			_call_type: CallType
 		) -> MessageCallResult {
 
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::Call,
+			create_scheme: None,
 			gas: *gas,
 			sender_address: Some(sender_address.clone()),
 			receive_address: Some(receive_address.clone()),

@@ -51,7 +51,7 @@ pub enum MessageCallResult {
 }
 
 /// Specifies how an address is calculated for a new contract.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum CreateContractAddress {
 	/// Address is calculated from sender and nonce. Pre EIP-86 (Metropolis)
 	FromSenderAndNonce,
@@ -101,7 +101,6 @@ pub trait Ext {
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		output: &mut [u8],
 		call_type: CallType
 	) -> MessageCallResult;
 

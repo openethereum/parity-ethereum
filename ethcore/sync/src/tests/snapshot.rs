@@ -141,7 +141,7 @@ impl SnapshotService for TestSnapshotService {
 
 #[test]
 fn snapshot_sync() {
-	::env_logger::init().ok();
+	::env_logger::try_init().ok();
 	let mut config = SyncConfig::default();
 	config.warp_sync = WarpSync::Enabled;
 	let mut net = TestNet::new_with_config(5, config);

@@ -17,8 +17,8 @@
 //! Common log helper functions
 
 use std::env;
-use rlog::LogLevelFilter;
-use env_logger::LogBuilder;
+use rlog::LevelFilter;
+use env_logger::Builder as LogBuilder;
 use arrayvec::ArrayVec;
 
 use parking_lot::{RwLock, RwLockReadGuard};
@@ -26,13 +26,13 @@ use parking_lot::{RwLock, RwLockReadGuard};
 lazy_static! {
 	static ref LOG_DUMMY: () = {
 		let mut builder = LogBuilder::new();
-		builder.filter(None, LogLevelFilter::Info);
+		builder.filter(None, LevelFilter::Info);
 
 		if let Ok(log) = env::var("RUST_LOG") {
 			builder.parse(&log);
 		}
 
-		if !builder.init().is_ok() {
+		if !builder.try_init().is_ok() {
 			println!("logger initialization failed!");
 		}
 	};

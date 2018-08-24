@@ -261,7 +261,7 @@ pub fn execute_upgrades(
 
 	upgrade_data_paths(base_path, dirs, pruning);
 
-	match upgrade(Some(&dirs.path)) {
+	match upgrade(&dirs.path) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
 use ethereum_types::{U256, H256, Address};
 use vm::{self, CallType};
 use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError, Trap, TrapKind};
@@ -321,7 +322,7 @@ impl<'a> Runtime<'a> {
 		if self.gas_counter > self.gas_limit { return Err(Error::InvalidGasState); }
 		Ok(self.gas_limit - self.gas_counter)
 	}
-	
+
 	/// General gas charging extern.
 	fn gas(&mut self, args: RuntimeArgs) -> Result<()> {
 		let amount: u32 = args.nth_checked(0)?;
@@ -447,12 +448,14 @@ impl<'a> Runtime<'a> {
 			val,
 			&payload,
 			&address,
-			&mut result[..],
 			call_type,
 		);
 
 		match call_result {
-			vm::MessageCallResult::Success(gas_left, _) => {
+			vm::MessageCallResult::Success(gas_left, data) => {
+				let len = cmp::min(result.len(), data.len());
+				(&mut result[..len]).copy_from_slice(&data[..len]);
+
 				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
 				self.gas_counter = self.gas_counter -
 					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
@@ -461,7 +464,10 @@ impl<'a> Runtime<'a> {
 				self.memory.set(result_ptr, &result)?;
 				Ok(0i32.into())
 			},
-			vm::MessageCallResult::Reverted(gas_left, _) => {
+			vm::MessageCallResult::Reverted(gas_left, data) => {
+				let len = cmp::min(result.len(), data.len());
+				(&mut result[..len]).copy_from_slice(&data[..len]);
+
 				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
 				self.gas_counter = self.gas_counter -
 					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
@@ -511,29 +517,7 @@ impl<'a> Runtime<'a> {
 		self.return_u256_ptr(args.nth_checked(0)?, val)
 	}
 
-	/// Creates a new contract
-	///
-	/// Arguments:
-	/// * endowment - how much value (in Wei) transfer to the newly created contract
-	/// * code_ptr - pointer to the code data
-	/// * code_len - lenght of the code data
-	/// * result_ptr - pointer to write an address of the newly created contract
-	pub fn create(&mut self, args: RuntimeArgs) -> Result<RuntimeValue>
-	{
-		//
-		// method signature:
-		//   fn create(endowment: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
-		//
-		trace!(target: "wasm", "runtime: CREATE");
-		let endowment = self.u256_at(args.nth_checked(0)?)?;
-		trace!(target: "wasm", "       val: {:?}", endowment);
-		let code_ptr: u32 = args.nth_checked(1)?;
-		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
-		let code_len: u32 = args.nth_checked(2)?;
-		trace!(target: "wasm", "  code_len: {:?}", code_len);
-		let result_ptr: u32 = args.nth_checked(3)?;
-		trace!(target: "wasm", "result_ptr: {:?}", result_ptr);
-
+	fn do_create(&mut self, endowment: U256, code_ptr: u32, code_len: u32, result_ptr: u32, scheme: vm::CreateContractAddress) -> Result<RuntimeValue> {
 		let code = self.memory.get(code_ptr, code_len as usize)?;
 
 		self.adjusted_charge(|schedule| schedule.create_gas as u64)?;
@@ -543,7 +527,7 @@ impl<'a> Runtime<'a> {
 			* U256::from(self.ext.schedule().wasm().opcodes_mul)
 			/ U256::from(self.ext.schedule().wasm().opcodes_div);
 
-		match self.ext.create(&gas_left, &endowment, &code, vm::CreateContractAddress::FromSenderAndCodeHash) {
+		match self.ext.create(&gas_left, &endowment, &code, scheme) {
 			vm::ContractCreateResult::Created(address, gas_left) => {
 				self.memory.set(result_ptr, &*address)?;
 				self.gas_counter = self.gas_limit -
@@ -569,6 +553,59 @@ impl<'a> Runtime<'a> {
 				Ok((-1i32).into())
 			},
 		}
+	}
+
+	/// Creates a new contract
+	///
+	/// Arguments:
+	/// * endowment - how much value (in Wei) transfer to the newly created contract
+	/// * code_ptr - pointer to the code data
+	/// * code_len - lenght of the code data
+	/// * result_ptr - pointer to write an address of the newly created contract
+	pub fn create(&mut self, args: RuntimeArgs) -> Result<RuntimeValue> {
+		//
+		// method signature:
+		//   fn create(endowment: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
+		//
+		trace!(target: "wasm", "runtime: CREATE");
+		let endowment = self.u256_at(args.nth_checked(0)?)?;
+		trace!(target: "wasm", "       val: {:?}", endowment);
+		let code_ptr: u32 = args.nth_checked(1)?;
+		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
+		let code_len: u32 = args.nth_checked(2)?;
+		trace!(target: "wasm", "  code_len: {:?}", code_len);
+		let result_ptr: u32 = args.nth_checked(3)?;
+		trace!(target: "wasm", "result_ptr: {:?}", result_ptr);
+
+		self.do_create(endowment, code_ptr, code_len, result_ptr, vm::CreateContractAddress::FromSenderAndCodeHash)
+	}
+
+	/// Creates a new contract using FromSenderSaltAndCodeHash scheme
+	///
+	/// Arguments:
+	/// * endowment - how much value (in Wei) transfer to the newly created contract
+	/// * salt - salt to be used in contract creation address
+	/// * code_ptr - pointer to the code data
+	/// * code_len - lenght of the code data
+	/// * result_ptr - pointer to write an address of the newly created contract
+	pub fn create2(&mut self, args: RuntimeArgs) -> Result<RuntimeValue> {
+		//
+		// method signature:
+		//   fn create2(endowment: *const u8, salt: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
+		//
+		trace!(target: "wasm", "runtime: CREATE2");
+		let endowment = self.u256_at(args.nth_checked(0)?)?;
+		trace!(target: "wasm", "       val: {:?}", endowment);
+		let salt: H256 = self.u256_at(args.nth_checked(1)?)?.into();
+		trace!(target: "wasm", "      salt: {:?}", salt);
+		let code_ptr: u32 = args.nth_checked(2)?;
+		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
+		let code_len: u32 = args.nth_checked(3)?;
+		trace!(target: "wasm", "  code_len: {:?}", code_len);
+		let result_ptr: u32 = args.nth_checked(4)?;
+		trace!(target: "wasm", "result_ptr: {:?}", result_ptr);
+
+		self.do_create(endowment, code_ptr, code_len, result_ptr, vm::CreateContractAddress::FromSenderSaltAndCodeHash(salt))
 	}
 
 	fn debug(&mut self, args: RuntimeArgs) -> Result<()>
@@ -627,6 +664,15 @@ impl<'a> Runtime<'a> {
 	pub fn difficulty(&mut self, args: RuntimeArgs) -> Result<()> {
 		let difficulty = self.ext.env_info().difficulty;
 		self.return_u256_ptr(args.nth_checked(0)?, difficulty)
+	}
+
+	///	Signature: `fn gasleft() -> i64`
+	pub fn gasleft(&mut self) -> Result<RuntimeValue> {
+		Ok(RuntimeValue::from(
+			self.gas_left()? * self.ext.schedule().wasm().opcodes_mul as u64
+				/ self.ext.schedule().wasm().opcodes_div as u64
+			)
+		)
 	}
 
 	///	Signature: `fn gaslimit(dest: *mut u8)`
@@ -744,6 +790,8 @@ mod ext_impl {
 				SENDER_FUNC => void!(self.sender(args)),
 				ORIGIN_FUNC => void!(self.origin(args)),
 				ELOG_FUNC => void!(self.elog(args)),
+				CREATE2_FUNC => some!(self.create2(args)),
+				GASLEFT_FUNC => some!(self.gasleft()),
 				_ => panic!("env module doesn't provide function at index {}", index),
 			}
 		}

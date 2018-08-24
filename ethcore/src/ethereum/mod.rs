@@ -30,7 +30,8 @@ pub use self::denominations::*;
 use machine::EthereumMachine;
 use super::spec::*;
 
-fn load<'a, T: Into<Option<SpecParams<'a>>>>(params: T, b: &[u8]) -> Spec {
+/// Load chain spec from `SpecParams` and JSON.
+pub fn load<'a, T: Into<Option<SpecParams<'a>>>>(params: T, b: &[u8]) -> Spec {
 	match params.into() {
 		Some(params) => Spec::load(params, b),
 		None => Spec::load(&::std::env::temp_dir(), b)

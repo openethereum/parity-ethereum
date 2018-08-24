@@ -63,7 +63,7 @@ pub use self::histogram::Histogram;
 pub use self::index::Index;
 pub use self::log::Log;
 pub use self::node_kind::{NodeKind, Availability, Capability};
-pub use self::provenance::{Origin, DappId};
+pub use self::provenance::Origin;
 pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
 pub use self::secretstore::EncryptedDocumentKey;

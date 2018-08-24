@@ -7,7 +7,7 @@ version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-log = "0.3"
+log = "0.4"
 ethcore = { path = ".."}
 parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 ethcore-transaction = { path = "../transaction" }
@@ -20,7 +20,7 @@ ethcore-io = { path = "../../util/io" }
 hashdb = { git = "https://github.com/paritytech/parity-common" }
 heapsize = "0.4"
 vm = { path = "../vm" }
-plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+fastmap = { path = "../../util/fastmap" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
 rlp_derive = { path = "../../util/rlp_derive" }
 smallvec = "0.4"

@@ -162,7 +162,7 @@ impl DisplayMode {
 
 fn main() {
 	panic_hook::set_abort();
-	env_logger::init().expect("Logger initialized only once.");
+	env_logger::try_init().expect("Logger initialized only once.");
 
 	match execute(env::args()) {
 		Ok(ok) => println!("{}", ok),

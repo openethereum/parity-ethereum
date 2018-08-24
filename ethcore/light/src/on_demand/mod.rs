@@ -418,7 +418,7 @@ impl Handler for OnDemand {
 	) -> PeerStatus {
 		self.peers.write().insert(
 			ctx.peer(),
-			Peer { status: status.clone(), capabilities: capabilities.clone() }
+			Peer { status: status.clone(), capabilities: *capabilities }
 		);
 		self.attempt_dispatch(ctx.as_basic());
 		PeerStatus::Kept

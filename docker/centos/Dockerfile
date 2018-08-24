@@ -1,36 +1,28 @@
 FROM centos:latest
-WORKDIR /build
 
-# install tools and dependencies
-RUN yum -y update&& \
-    yum install -y git make gcc-c++ gcc file binutils cmake
+RUN mkdir -p /opt/parity/data && \
+    chmod g+rwX /opt/parity/data && \
+    mkdir -p /opt/parity/release
 
-# install rustup
-RUN curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&\
-ls&&\
- sh rustup.sh --disable-sudo
+COPY parity/parity /opt/parity/release
 
-# show backtraces
-ENV RUST_BACKTRACE 1
+WORKDIR /opt/parity/data
 
-# set compiler
-ENV CXX g++
-ENV CC gcc
+# exposing default ports
+#
+#           secret
+#      ipfs store     ui   rpc  ws   listener  discovery
+#      ↓    ↓         ↓    ↓    ↓    ↓         ↓
+EXPOSE 5001 8082 8083 8180 8545 8546 30303/tcp 30303/udp
 
-# show tools
-RUN rustc -vV && \
-cargo -V && \
-gcc -v &&\
-g++ -v
+# switch to non-root user
+USER 1001
 
-# build parity
-ADD . /build/parity
-RUN cd parity&&\
-    cargo build --release --verbose && \
-	ls /build/parity/target/release/parity &&	\
-	strip /build/parity/target/release/parity
+#if no base path provided, assume it's current workdir
+CMD ["--base-path","."]
+ENTRYPOINT ["/opt/parity/release/parity"]  
 
-RUN file /build/parity/target/release/parity
 
-EXPOSE 8080 8545 8180
-ENTRYPOINT ["/build/parity/target/release/parity"]
+   
+
+
