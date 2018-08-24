@@ -45,7 +45,6 @@ use v1::types::{
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, Header, RichHeader,
-	SubmitDetailResult,
 };
 use Host;
 
@@ -424,7 +423,7 @@ impl Parity for ParityClient {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn submit_work_detail(&self, _nonce: H64, _pow_hash: H256, _mix_hash: H256) -> Result<SubmitDetailResult> {
+	fn submit_work_detail(&self, _nonce: H64, _pow_hash: H256, _mix_hash: H256) -> Result<H256> {
 		Err(errors::light_unimplemented(None))
 	}
 }

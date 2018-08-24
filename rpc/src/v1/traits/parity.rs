@@ -28,7 +28,6 @@ use v1::types::{
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, RichHeader,
-	SubmitDetailResult,
 };
 
 build_rpc_trait! {
@@ -220,8 +219,9 @@ build_rpc_trait! {
 		#[rpc(name = "parity_call")]
 		fn call(&self, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>>;
 
-		/// Used for submitting a proof-of-work solution (more details in the response than `eth_submitWork`).
+		/// Used for submitting a proof-of-work solution (similar to `eth_submitWork`,
+		/// but returns block hash on success, and returns an explicit error message on failure).
 		#[rpc(name = "parity_submitWorkDetail")]
-		fn submit_work_detail(&self, H64, H256, H256) -> Result<SubmitDetailResult>;
+		fn submit_work_detail(&self, H64, H256, H256) -> Result<H256>;
 	}
 }
