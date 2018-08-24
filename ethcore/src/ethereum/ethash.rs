@@ -36,8 +36,9 @@ use machine::EthereumMachine;
 const SNAPSHOT_BLOCKS: u64 = 5000;
 /// Maximum number of blocks allowed in an ethash snapshot.
 const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
-
+/// Default number of blocks the difficulty bomb is delayed in EIP-{649,1234}
 const DEFAULT_EIP649_DELAY: u64 = 3_000_000;
+const DEFAULT_EIP1234_DELAY: u64 = 3_000_000;
 
 /// Ethash specific seal
 #[derive(Debug, PartialEq)]
@@ -120,6 +121,12 @@ pub struct EthashParams {
 	pub eip649_delay: u64,
 	/// EIP-649 base reward.
 	pub eip649_reward: Option<U256>,
+	/// EIP-1234 transition block.
+	pub eip1234_transition: u64,
+	/// EIP-1234 bomb delay.
+	pub eip1234_delay: u64,
+	/// EIP-1234 base reward.
+	pub eip1234_reward: Option<U256>,
 	/// EXPIP-2 block height
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
@@ -152,6 +159,9 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip649_transition: p.eip649_transition.map_or(u64::max_value(), Into::into),
 			eip649_delay: p.eip649_delay.map_or(DEFAULT_EIP649_DELAY, Into::into),
 			eip649_reward: p.eip649_reward.map(Into::into),
+			eip1234_transition: p.eip1234_transition.map_or(u64::max_value(), Into::into),
+			eip1234_delay: p.eip1234_delay.map_or(DEFAULT_EIP1234_DELAY, Into::into),
+			eip1234_reward: p.eip1234_reward.map(Into::into),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
 		}
@@ -233,8 +243,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		let mut rewards = Vec::new();
 
-		// Applies EIP-649 reward.
-		let reward = if number >= self.ethash_params.eip649_transition {
+		// Applies EIP-{649,1234} reward, defaults to block_reward.
+		let reward = if number >= self.ethash_params.eip1234_transition {
+			self.ethash_params.eip1234_reward.unwrap_or(self.ethash_params.block_reward)
+		} else if number >= self.ethash_params.eip649_transition {
 			self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
 		} else {
 			self.ethash_params.block_reward
@@ -427,6 +439,9 @@ impl Ethash {
 		if header.number() < self.ethash_params.bomb_defuse_transition {
 			if header.number() < self.ethash_params.ecip1010_pause_transition {
 				let mut number = header.number();
+				if number >= self.ethash_params.eip1234_transition {
+					number = number.saturating_sub(self.ethash_params.eip1234_delay);
+				}
 				if number >= self.ethash_params.eip649_transition {
 					number = number.saturating_sub(self.ethash_params.eip649_delay);
 				}
@@ -510,6 +525,9 @@ mod tests {
 			eip649_transition: u64::max_value(),
 			eip649_delay: 3_000_000,
 			eip649_reward: None,
+			eip1234_transition: u64::max_value(),
+			eip1234_delay: 3_000_000,
+			eip1234_reward: None,
 			expip2_transition: u64::max_value(),
 			expip2_duration_limit: 30,
 		}
