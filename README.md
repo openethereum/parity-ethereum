@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/paritytech/parity-ethereum/d37ab724c38e6bcc3b40e8b296ad41ad33470160/docs/logo-parity-ethereum.svg" /></p>
+![Parity-Ethereum](docs/logo-parity-ethereum.svg)
 
 ## The fastest and most advanced Ethereum client.
 
@@ -22,8 +22,6 @@ Or join our community on Matrix:
 
 Official website: https://parity.io | Be sure to check out [our wiki](https://wiki.parity.io) for more information.
 
-----
-
 ## About Parity-Ethereum
 
 Parity-Ethereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity-Ethereum using the sophisticated and cutting-edge Rust programming language. Parity-Ethereum is licensed under the GPLv3, and can be used for all your Ethereum needs.
@@ -33,8 +31,6 @@ By default, Parity-Ethereum will run a JSON-RPC HTTP server on `127.0.0.1:8545` 
 If you run into problems while using Parity-Ethereum, feel free to file an issue in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
 Parity-Ethereum's current beta-release is 2.0. You can download it at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
-
-----
 
 ## Build dependencies
 
@@ -69,8 +65,6 @@ Once you have rustup installed, then you need to install:
 
 Make sure that these binaries are in your `PATH`. After that you should be able to build Parity-Ethereum from source.
 
-----
-
 ## Install from the snap store
 
 In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
@@ -90,8 +84,6 @@ And to test the latest code landed into the master branch:
 ```bash
 sudo snap install parity --edge
 ```
-
-----
 
 ## Build from source
 
@@ -131,8 +123,6 @@ $ git checkout beta
 ```
 
 first.
-
-----
 
 ## Simple one-line installer for Mac and Ubuntu
 
