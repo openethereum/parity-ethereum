@@ -62,7 +62,7 @@ impl str::FromStr for SpecType {
 		let spec = match s {
 			"ethereum" | "frontier" | "homestead" | "byzantium" | "foundation" | "mainnet" => SpecType::Foundation,
 			"classic" | "frontier-dogmatic" | "homestead-dogmatic" => SpecType::Classic,
-			"poanet" => SpecType::Poanet,
+			"poanet" | "poacore" => SpecType::Poanet,
 			"tobalaba" => SpecType::Tobalaba,
 			"expanse" => SpecType::Expanse,
 			"musicoin" => SpecType::Musicoin,
@@ -73,7 +73,7 @@ impl str::FromStr for SpecType {
 			"morden" | "classic-testnet" => SpecType::Morden,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
-			"sokol" => SpecType::Sokol,
+			"sokol" | "poasokol" => SpecType::Sokol,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -363,6 +363,7 @@ mod tests {
 		assert_eq!(SpecType::Classic, "frontier-dogmatic".parse().unwrap());
 		assert_eq!(SpecType::Classic, "homestead-dogmatic".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
+		assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
 		assert_eq!(SpecType::Tobalaba, "tobalaba".parse().unwrap());
 		assert_eq!(SpecType::Expanse, "expanse".parse().unwrap());
 		assert_eq!(SpecType::Musicoin, "musicoin".parse().unwrap());
@@ -376,6 +377,7 @@ mod tests {
 		assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
 		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
+		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
 	}
 
 	#[test]
