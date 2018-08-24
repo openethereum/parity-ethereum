@@ -48,7 +48,7 @@ cache:
 
 #### stage:                        test
 
-test:rust:stable:                  &test
+test-rust-stable:                  &test
   stage:                           test
   script:
     - scripts/gitlab/test.sh stable
@@ -61,27 +61,27 @@ test:rust:stable:                  &test
   only:
     - master
 
-test:rust:beta:
+test-rust-beta:
   <<:                              *optional_test
   script:
     - scripts/gitlab/test.sh beta
 
-test:rust:nightly:
+test-rust-nightly:
   <<:                              *optional_test
   script:
     - scripts/gitlab/test.sh nightly
 
-#test:rustfmt:
-#  <<:                             *optional_test
-#  script:
-#    - scripts/gitlab/rustfmt.sh
+test-lint-rustfmt:
+  <<:                             *optional_test
+  script:
+    - scripts/gitlab/rustfmt.sh
 
-#test:clippy:
-#  <<:                             *optional_test
-#  script:
-#    - scripts/gitlab/clippy.sh
+test-lint-clippy:
+  <<:                             *optional_test
+  script:
+    - scripts/gitlab/clippy.sh
 
-test:coverage:
+test-coverage-kcov:
   stage:                           test
   only:
     - master
@@ -94,7 +94,7 @@ test:coverage:
 
 #### stage:                        build
 
-build:linux:ubuntu:amd64:          &build
+build-linux-ubuntu-amd64:          &build
   stage:                           build
   only:                            *releaseable_branches
   variables:
@@ -106,31 +106,31 @@ build:linux:ubuntu:amd64:          &build
     - rust-stable
   allow_failure: true
 
-build:linux:ubuntu:i386:
+build-linux-ubuntu-i386:
   <<:                              *build
   image:                           parity/rust-i686:gitlab-ci
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
 
-build:linux:ubuntu:arm64:
+build-linux-ubuntu-arm64:
   <<:                              *build
   image:                           parity/rust-arm64:gitlab-ci
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
 
-build:linux:ubuntu:armhf:
+build-linux-ubuntu-armhf:
   <<:                              *build
   image:                           parity/rust-armv7:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
 
-build:linux:android:armhf:
+build-linux-android-armhf:
   <<:                              *build
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
 
-build:darwin:macos:x86_64:
+build-darwin-macos-x86_64:
   <<:                              *build
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
@@ -140,7 +140,7 @@ build:darwin:macos:x86_64:
     - osx
   <<:                              *collect_artifacts
 
-build:windows:msvc:x86_64:
+build-windows-msvc-x86_64:
   stage:                           build
   only:                            *releaseable_branches
   cache:
@@ -160,7 +160,7 @@ build:windows:msvc:x86_64:
 
 #### stage:                        package
 
-package:linux:snap:amd64:          &package_snap
+package-linux-snap-amd64:          &package_snap
   stage: package
   only: *releaseable_branches
   cache: {}
@@ -169,41 +169,41 @@ package:linux:snap:amd64:          &package_snap
   variables:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
   dependencies:
-    - build:linux:ubuntu:amd64
+    - build-linux-ubuntu-amd64
   script:
     - scripts/gitlab/package-snap.sh
   tags:
     - rust-stable
   <<:                              *collect_artifacts
 
-package:linux:snap:i386:
+package-linux-snap-i386:
   <<:                              *package_snap
   variables:
     BUILD_ARCH: i386
     CARGO_TARGET:                  i686-unknown-linux-gnu
   dependencies:
-    - build:linux:ubuntu:i386
+    - build-linux-ubuntu-i386
 
-package:linux:snap:arm64:
+package-linux-snap-arm64:
   <<:                              *package_snap
   variables:
     BUILD_ARCH: arm64
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
   dependencies:
-    - build:linux:ubuntu:arm64
+    - build-linux-ubuntu-arm64
 
-package:linux:snap:armhf:
+package-linux-snap-armhf:
   <<:                              *package_snap
   variables:
     BUILD_ARCH: armhf
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
   dependencies:
-    - build:linux:ubuntu:armhf
+    - build-linux-ubuntu-armhf
 
 
 #### stage:                        publish
 
-publish:linux:snap:amd64:          &publish_snap
+publish-linux-snap-amd64:          &publish_snap
   stage:                           publish
   only:                            *publishable_branches
   image:                           snapcore/snapcraft:stable
@@ -213,67 +213,67 @@ publish:linux:snap:amd64:          &publish_snap
   variables:
     BUILD_ARCH:                    amd64
   dependencies:
-    - package:linux:snap:amd64
+    - package-linux-snap-amd64
   script:
     - scripts/gitlab/publish-snap.sh
   tags:
     - rust-stable
 
-publish:linux:snap:i386:
+publish-linux-snap-i386:
   <<:                              *publish_snap
   before_script:
     - *determine_version
   variables:
     BUILD_ARCH:                    i386
   dependencies:
-    - package:linux:snap:i386
+    - package-linux-snap-i386
 
-publish:linux:snap:arm64:
+publish-linux-snap-arm64:
   <<:                              *publish_snap
   before_script:
     - *determine_version
   variables:
     BUILD_ARCH:                    arm64
   dependencies:
-    - package:linux:snap:arm64
+    - package-linux-snap-arm64
 
-publish:linux:snap:armhf:
+publish-linux-snap-armhf:
   <<:                              *publish_snap
   before_script:
     - *determine_version
   variables:
     BUILD_ARCH:                    armhf
   dependencies:
-    - package:linux:snap:armhf
+    - package-linux-snap-armhf
 
-publish:docker:parity:amd64: &publish_docker
+publish-docker-parity-amd64: &publish_docker
   stage:                           publish
   only:                            *publishable_branches
   cache: {}
   dependencies:
-    - build:linux:ubuntu:amd64
+    - build-linux-ubuntu-amd64
   tags:
     - shell
   allow_failure:                   true
   script:
     - scripts/gitlab/publish-docker.sh parity
 
-publish:docker:parity-evm:amd64:
+publish-docker-parityevm-amd64:
   <<:                              *publish_docker
   script:
     - scripts/gitlab/publish-docker.sh parity-evm
 
-publish:github:and:s3:
+publish-github-and-s3:
   stage:                           publish
   only:                            *publishable_branches
   cache: {}
   dependencies:
-    - build:linux:ubuntu:amd64
-    - build:linux:ubuntu:i386
-    - build:linux:ubuntu:armhf
-    - build:linux:ubuntu:arm64
-    - build:macos:x86_64
-    - build-windows-x86_64
+    - build-linux-ubuntu-amd64
+    - build-linux-ubuntu-i386
+    - build-linux-ubuntu-armhf
+    - build-linux-ubuntu-arm64
+    - build-darwin-macos-x86_64
+    - build-windows-msvc-x86_64
   before_script:
     - *determine_version
   script:
@@ -285,7 +285,7 @@ publish:github:and:s3:
 
 ####stage:                          docs
 
-json:rpc:docs:
+docs-rpc-json:
   stage: docs
   only:
     - tags
