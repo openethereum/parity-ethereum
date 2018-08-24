@@ -130,7 +130,7 @@ build:linux:android:armhf:
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
 
-build:macos:x86_64:
+build:darwin:macos:x86_64:
   <<:                              *build
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
@@ -140,7 +140,7 @@ build:macos:x86_64:
     - osx
   <<:                              *collect_artifacts
 
-build-windows-x86_64:
+build:windows:msvc:x86_64:
   stage:                           build
   only:                            *releaseable_branches
   cache:
@@ -223,7 +223,6 @@ publish:linux:snap:i386:
   <<:                              *publish_snap
   before_script:
     - *determine_version
-    #- sleep 60
   variables:
     BUILD_ARCH:                    i386
   dependencies:
@@ -233,7 +232,6 @@ publish:linux:snap:arm64:
   <<:                              *publish_snap
   before_script:
     - *determine_version
-    #- sleep 360
   variables:
     BUILD_ARCH:                    arm64
   dependencies:
@@ -243,7 +241,6 @@ publish:linux:snap:armhf:
   <<:                              *publish_snap
   before_script:
     - *determine_version
-    #- sleep 520
   variables:
     BUILD_ARCH:                    armhf
   dependencies:
@@ -266,7 +263,7 @@ publish:docker:parity-evm:amd64:
   script:
     - scripts/gitlab/publish-docker.sh parity-evm
 
-publish:github:s3:
+publish:github:and:s3:
   stage:                           publish
   only:                            *publishable_branches
   cache: {}
