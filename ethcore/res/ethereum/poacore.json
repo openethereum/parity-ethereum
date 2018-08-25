@@ -1,5 +1,5 @@
 {
-	"name": "POA Network",
+	"name": "POA Core",
 	"dataDir": "poacore",
 	"engine": {
 		"authorityRound": {
