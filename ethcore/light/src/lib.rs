@@ -43,7 +43,7 @@ pub mod provider;
 mod types;
 
 pub use self::cache::Cache;
-pub use self::provider::Provider;
+pub use self::provider::{Provider, MAX_HEADERS_PER_REQUEST};
 pub use self::transaction_queue::TransactionQueue;
 pub use types::request as request;
 
