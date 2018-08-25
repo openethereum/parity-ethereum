@@ -44,7 +44,7 @@ upload_files() {
 
 setup_git
 clone_repos
-cp parity jsonrpc/.parity
+cp -r parity/ jsonrpc/.parity/
 cd jsonrpc
 build_docs
 cd ..
