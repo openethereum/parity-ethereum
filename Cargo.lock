@@ -2146,6 +2146,7 @@ dependencies = [
  "ethstore 0.2.0",
  "fake-fetch 0.0.1",
  "fake-hardware-wallet 0.0.1",
+ "fastmap 0.1.0",
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
