@@ -33,6 +33,9 @@ use transaction_queue::TransactionQueue;
 
 use request;
 
+/// Maximum allowed size of a headers request.
+pub const MAX_HEADERS_PER_REQUEST: u64 = 512;
+
 /// Defines the operations that a provider for the light subprotocol must fulfill.
 pub trait Provider: Send + Sync {
 	/// Provide current blockchain info.
@@ -54,7 +57,6 @@ pub trait Provider: Send + Sync {
 	/// results within must adhere to the `skip` and `reverse` parameters.
 	fn block_headers(&self, req: request::CompleteHeadersRequest) -> Option<request::HeadersResponse> {
 		use request::HashOrNumber;
-		const MAX_HEADERS_TO_SEND: u64 = 512;
 
 		if req.max == 0 { return None }
 
@@ -83,7 +85,7 @@ pub trait Provider: Send + Sync {
 			}
 		};
 
-		let max = ::std::cmp::min(MAX_HEADERS_TO_SEND, req.max);
+		let max = ::std::cmp::min(MAX_HEADERS_PER_REQUEST, req.max);
 
 		let headers: Vec<_> = (0u64..max)
 			.map(|x: u64| x.saturating_mul(req.skip.saturating_add(1)))

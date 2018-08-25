@@ -70,6 +70,7 @@ extern crate stats;
 extern crate keccak_hash as hash;
 extern crate hardware_wallet;
 extern crate patricia_trie as trie;
+extern crate plain_hasher;
 
 #[macro_use]
 extern crate log;
