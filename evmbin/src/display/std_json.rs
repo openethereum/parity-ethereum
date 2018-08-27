@@ -96,7 +96,7 @@ impl<T: Writer> vm::Informant for Informant<T> {
 			Ok(success) => {
 				println!("{{\"stateRoot\":\"{:?}\"}}", success.state_root);
 				println!(
-					"{{\"output\":\"0x{output}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
+					"{{\"output\":\"0x{output}\",\"gasUsed\":\"0x{gas:x}\",\"time\":{time}}}",
 					output = success.output.to_hex(),
 					gas = success.gas_used,
 					time = display::as_micros(&success.time),
@@ -104,7 +104,7 @@ impl<T: Writer> vm::Informant for Informant<T> {
 			},
 			Err(failure) => {
 				println!(
-					"{{\"error\":\"{error}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
+					"{{\"error\":\"{error}\",\"gasUsed\":\"0x{gas:x}\",\"time\":{time}}}",
 					error = failure.error,
 					gas = failure.gas_used,
 					time = display::as_micros(&failure.time),
