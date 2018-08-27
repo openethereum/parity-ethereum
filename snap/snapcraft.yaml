@@ -1,11 +1,14 @@
-name: parity
+name: Parity Ethereum
 version: git
-summary: Fast, light, robust Ethereum implementation
+summary: The fastest and most advanced Ethereum client.
 description: |
-  Parity's goal is to be the fastest, lightest, and most secure Ethereum
-  client. We are developing Parity using the sophisticated and cutting-edge
-  Rust programming language. Parity is licensed under the GPLv3, and can be
-  used for all your Ethereum needs.
+  Parity Ethereum's goal is to be the fastest, lightest, and most secure
+  Ethereum client. We are developing Parity Ethereum using the sophisticated and
+  cutting-edge Rust programming language. Parity Ethereum is licensed under the
+  GPLv3 and can be used for all your Ethereum needs. Built for mission-critical
+  use: Miners, service providers, and exchanges need fast synchronisation and
+  maximum uptime. Parity Ethereum provides the core infrastructure essential for
+  speedy and reliable services.
 
 grade: devel
 confinement: strict

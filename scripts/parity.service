@@ -1,5 +1,5 @@
 [Unit]
-Description=Parity Daemon
+Description=Parity Ethereum Daemon
 After=network.target
 
 [Service]
