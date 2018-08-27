@@ -312,10 +312,10 @@ impl LightDispatcher {
 			address: addr,
 		}).expect("no back-references; therefore all back-references valid; qed"));
 
-		 match account_future {
+		match account_future {
 			Some(response) => {
-				// this is not very elegant but if an account is not found in the `state trie`
-				// still provide a nonce to keep the same behavior!
+				// if an account is not found in the `state trie` then provide a default nonce and the rest to zero
+				// because of this we can't distinguish between the errors: `account not found` and `insufficient account balance
 				Box::new(response.map(move |account| {
 					account.unwrap_or_else(|| BasicAccount {
 						nonce: account_start_nonce,
@@ -333,19 +333,16 @@ impl LightDispatcher {
 	/// Get an account's next nonce.
 	pub fn next_nonce(&self, addr: &Address) -> BoxFuture<U256> {
 		Box::new(self.account(addr.clone())
-			.map_err(|_| errors::no_light_peers())
 			.map(move |account| account.nonce)
 		)
 	}
 
 	/// Try fetching the next nonce from the cache
-	/// Use `BoxFuture` for consistency in the other RPC's even though
-	/// it is not an `async computation`
-	pub fn cached_next_nonce(&self, addr: &Address) -> BoxFuture<U256> {
+	pub fn cached_next_nonce(&self, addr: &Address) -> Result<U256> {
 		if let Some(nonce) = self.transaction_queue.read().next_nonce(&addr) {
-			Box::new(future::ok(nonce))
+			Ok(nonce)
 		} else {
-			Box::new(future::err(errors::internal("the next nonce is not in the cache", "need to ask the network")))
+			Err(errors::internal("the next nonce is not in the cache", "need to ask the network"))
 		}
 	}
 }
@@ -413,13 +410,12 @@ impl Dispatcher for LightDispatcher {
 		let nonces = self.nonces.clone();
 		let cost = filled.value + filled.gas_price * filled.gas;
 
-		// Go to the network and get the state of the given account
+		// Go to the network and get the state of the account that created the transaction
 		//
 		// Note, we must do this every time even if the next_nonce is cached
 		// because if the account hasn't sufficient funds we should not add it to the
 		// transaction queue!
 		Box::new(self.account(filled.from)
-			.map_err(|_| errors::no_light_peers())
 			.and_then(move |account| {
 				// The account has not sufficient funds for the transaction
 				if cost > account.balance {
@@ -444,7 +440,7 @@ impl Dispatcher for LightDispatcher {
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256> {
 		let hash = signed_transaction.transaction.hash();
 
-			self.transaction_queue.write().import(signed_transaction)
+		self.transaction_queue.write().import(signed_transaction)
 			.map_err(errors::transaction)
 			.map(|_| hash)
 	}
