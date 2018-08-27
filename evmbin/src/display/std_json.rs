@@ -201,6 +201,7 @@ pub mod tests {
 
 	impl Writer for TestWriter {
 		fn clone(&self) -> Self { Clone::clone(self) }
+		fn default() -> Self { Default::default() }
 	}
 
 	impl io::Write for TestWriter {
@@ -213,10 +214,11 @@ pub mod tests {
 		}
 	}
 
-	pub fn informant() -> (Informant<TestWriter>, Arc<Mutex<Vec<u8>>>) {
-		let writer = TestWriter::default();
-		let res = writer.0.clone();
-		(Informant::new(writer), res)
+	pub fn informant() -> (Informant<TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
+		let trace_writer: TestWriter = Default::default();
+		let out_writer: TestWriter = Default::default();
+		let res = trace_writer.0.clone();
+		(Informant::new(trace_writer, out_writer), res)
 	}
 
 	#[test]
