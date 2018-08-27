@@ -14,22 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
-//! method calls properly.
+//! Debug APIs RPC implementation
 
-mod debug;
-mod eth;
-mod eth_pubsub;
-mod manage_network;
-mod net;
-mod parity;
-mod parity_accounts;
-mod parity_set;
-mod personal;
-mod pubsub;
-mod rpc;
-mod secretstore;
-mod signer;
-mod signing;
-mod traces;
-mod web3;
+use std::sync::Arc;
+
+use ethcore::client::BlockChainClient;
+
+use jsonrpc_core::Result;
+use v1::traits::Debug;
+use v1::types::RichBlock;
+
+/// Debug rpc implementation.
+pub struct DebugClient<C> {
+	client: Arc<C>,
+}
+
+impl<C> DebugClient<C> {
+	/// Creates new debug client.
+	pub fn new(client: Arc<C>) -> Self {
+		Self {
+			client,
+		}
+	}
+}
+
+impl<C: BlockChainClient + 'static> Debug for DebugClient<C> {
+	fn bad_blocks(&self) -> Result<Vec<RichBlock>> {
+		unimplemented!()
+	}
+}

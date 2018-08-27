@@ -14,22 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
-//! method calls properly.
+use std::sync::Arc;
 
-mod debug;
-mod eth;
-mod eth_pubsub;
-mod manage_network;
-mod net;
-mod parity;
-mod parity_accounts;
-mod parity_set;
-mod personal;
-mod pubsub;
-mod rpc;
-mod secretstore;
-mod signer;
-mod signing;
-mod traces;
-mod web3;
+use ethcore::client::TestBlockChainClient;
+
+use jsonrpc_core::IoHandler;
+use v1::{Debug, DebugClient};
+
+fn io() -> IoHandler {
+	let client = Arc::new(TestBlockChainClient::new());
+
+	let mut io = IoHandler::new();
+	io.extend_with(DebugClient::new(client).to_delegate());
+	io
+}
+
+#[test]
+fn rpc_debug_get_bad_blocks() {
+	let request = r#"{"jsonrpc": "2.0", "method": "debug_getBadBlocks", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"63","id":1}"#;
+
+	assert_eq!(io().handle_request_sync(request), Some(response.to_owned()));
+}
