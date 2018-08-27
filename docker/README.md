@@ -5,7 +5,6 @@
 ## Usage - CentOS
 
 Builds a lightweight non-root Parity docker image:
-
 ```
 git clone https://github.com/paritytech/parity-ethereum.git
 cd parity-ethereum
@@ -19,7 +18,6 @@ PARITY_BUILDER_IMAGE_TAG=build-latest \
 PARITY_RUNNER_IMAGE_TAG=centos-parity-experimental \
 ./docker/centos/build.sh
 ```
-
 
 Default values:
 ```
