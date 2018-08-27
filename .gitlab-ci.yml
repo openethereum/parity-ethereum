@@ -1,242 +1,296 @@
 stages:
   - test
-  - push-release
   - build
+  - package
+  - publish
   - docs
+
+image:                             parity/rust:gitlab-ci
+
 variables:
-  RUST_BACKTRACE: "1"
-  RUSTFLAGS: ""
-  CARGOFLAGS: ""
-  CI_SERVER_NAME: "GitLab CI"
+  CI_SERVER_NAME:                  "GitLab CI"
+  CARGO_HOME:                      "${CI_PROJECT_DIR}/cargo"
+
+  BUILD_TARGET:                    ubuntu
+  BUILD_ARCH:                      amd64
+  CARGO_TARGET:                    x86_64-unknown-linux-gnu
+
 cache:
-  key: "$CI_BUILD_STAGE-$CI_BUILD_REF_NAME"
+  key:                             "${CI_JOB_NAME}"
   paths:
-    - target/
-  untracked: true
-linux-amd64:
-  stage: build
-  image: parity/rust:gitlab-ci
-  only:
+    - ${CI_PROJECT_DIR}/target/
+    - ${CI_PROJECT_DIR}/cargo/
+
+.releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
+  only:                            &releaseable_branches
+    - master
+    - stable
     - beta
     - tags
-    - stable
-    - triggers
+
+.publishable_branches:             # list of git refs for publishing builds to the "production" locations
+  only:                            &publishable_branches
+    - nightly # Our nightly builds from schedule, on `master`
+    - "v2*" # Our version tags
+
+.collect_artifacts:                &collect_artifacts
+  artifacts:
+    name:                          "${CI_JOB_NAME}_${CI_COMMIT_REF_NAME}"
+    when:                          on_success
+    expire_in:                     1 mos
+    paths:
+    - artifacts/
+
+.determine_version: &determine_version |
+  export VERSION=$(grep -m 1 "version =" Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+  echo "Version" $VERSION
+
+
+#### stage:                        test
+
+test-rust-stable:                  &test
+  stage:                           test
   script:
-    - rustup default stable
-    # ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags 6. binary identifier
-    - scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 gcc g++ linux
+    - scripts/gitlab/test.sh stable
   tags:
     - rust-stable
-  artifacts:
-    paths:
-    - parity.zip
-    name: "stable-x86_64-unknown-linux-gnu_parity"
-linux-i686:
-  stage: build
-  image: parity/rust-i686:gitlab-ci
+
+.optional_test:                    &optional_test
+  <<:                              *test
+  allow_failure:                   true
   only:
-    - beta
-    - tags
-    - stable
-    - triggers
+    - master
+
+test-rust-beta:
+  <<:                              *optional_test
   script:
-    - scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 gcc g++ linux
+    - scripts/gitlab/test.sh beta
+
+test-rust-nightly:
+  <<:                              *optional_test
+  script:
+    - scripts/gitlab/test.sh nightly
+
+test-lint-rustfmt:
+  <<:                             *optional_test
+  script:
+    - scripts/gitlab/rustfmt.sh
+
+test-lint-clippy:
+  <<:                             *optional_test
+  script:
+    - scripts/gitlab/clippy.sh
+
+test-coverage-kcov:
+  stage:                           test
+  only:
+    - master
+  script:
+    - scripts/gitlab/coverage.sh
   tags:
-    - rust-i686
-  artifacts:
-    paths:
-      - parity.zip
-    name: "i686-unknown-linux-gnu"
-  allow_failure: true
-linux-armv7:
-  stage: build
-  image: parity/rust-armv7:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
+    - shell
+  allow_failure:                   true
+
+
+#### stage:                        build
+
+build-linux-ubuntu-amd64:          &build
+  stage:                           build
+  only:                            *releaseable_branches
+  variables:
+    CARGO_TARGET:                  x86_64-unknown-linux-gnu
   script:
-    - scripts/gitlab-build.sh armv7-unknown-linux-gnueabihf armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ linux
-  tags:
-    - rust-arm
-  artifacts:
-    paths:
-    - parity.zip
-    name: "armv7_unknown_linux_gnueabihf_parity"
-  allow_failure: true
-linux-armhf:
-  stage: build
-  image: parity/rust-arm:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh arm-unknown-linux-gnueabihf arm-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ linux
-  tags:
-    - rust-arm
-  artifacts:
-    paths:
-    - parity.zip
-    name: "arm-unknown-linux-gnueabihf_parity"
-  allow_failure: true
-linux-aarch64:
-  stage: build
-  image: parity/rust-arm64:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh aarch64-unknown-linux-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++ linux
-  tags:
-    - rust-arm
-  artifacts:
-    paths:
-    - parity.zip
-    name: "aarch64-unknown-linux-gnu_parity"
-linux-snap:
-  stage: build
-  image: parity/snapcraft:gitlab-ci
-  only:
-    - stable
-    - beta
-    - tags
-    - triggers
-  script:
-    - scripts/gitlab-build.sh x86_64-unknown-snap-gnu x86_64-unknown-linux-gnu amd64 gcc g++ snap
+    - scripts/gitlab/build-unix.sh
+  <<:                              *collect_artifacts
   tags:
     - rust-stable
-  artifacts:
-    paths:
-    - parity.zip
-    name: "stable-x86_64-unknown-snap-gnu_parity"
-darwin:
-  stage: build
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh x86_64-apple-darwin x86_64-apple-darwin macos gcc g++ macos
+  allow_failure: true
+
+build-linux-ubuntu-i386:
+  <<:                              *build
+  image:                           parity/rust-i686:gitlab-ci
+  variables:
+    CARGO_TARGET:                  i686-unknown-linux-gnu
+
+build-linux-ubuntu-arm64:
+  <<:                              *build
+  image:                           parity/rust-arm64:gitlab-ci
+  variables:
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
+
+build-linux-ubuntu-armhf:
+  <<:                              *build
+  image:                           parity/rust-armv7:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
+
+build-linux-android-armhf:
+  <<:                              *build
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+
+build-darwin-macos-x86_64:
+  <<:                              *build
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
   tags:
     - osx
-  artifacts:
-    paths:
-    - parity.zip
-    name: "x86_64-apple-darwin_parity"
-windows:
+  <<:                              *collect_artifacts
+
+build-windows-msvc-x86_64:
+  stage:                           build
+  only:                            *releaseable_branches
   cache:
-    key: "%CI_BUILD_STAGE%-%CI_BUILD_REF_NAME%"
-    untracked: true
-  stage: build
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
+    key:                           "%CI_JOB_NAME%"
+    paths:
+      - "%CI_PROJECT_DIR%/target/"
+      - "%CI_PROJECT_DIR%/cargo/"
+      # No cargo caching, since fetch-locking on Windows gets stuck
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
   script:
-    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc amd64 "" "" windows
+    - sh scripts/gitlab/build-windows.sh
   tags:
    - rust-windows
-  artifacts:
-    paths:
-    - parity.zip
-    name: "x86_64-pc-windows-msvc_parity"
-android-armv7:
-  stage: build
-  image: parity/parity-android:latest
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - cargo build --target=armv7-linux-androideabi
-  tags:
-    - rust-arm
-  allow_failure: true
-  artifacts:
-    paths:
-    - parity.zip
-    name: "armv7-linux-androideabi_parity"
-docker-build:
-  stage: build
-  only:
-    - tags
-    - master
-    - beta
-    - stable
-    - triggers
+  <<:                              *collect_artifacts
+
+
+#### stage:                        package
+
+package-linux-snap-amd64:          &package_snap
+  stage: package
+  only: *releaseable_branches
+  cache: {}
   before_script:
-    - docker info
+    - *determine_version
+  variables:
+    CARGO_TARGET:                  x86_64-unknown-linux-gnu
+  dependencies:
+    - build-linux-ubuntu-amd64
   script:
-    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
-    - echo "Tag:" $DOCKER_TAG
-    - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
-    - scripts/docker-build.sh $DOCKER_TAG
-    - docker logout
-  tags:
-    - docker
-test-coverage:
-  stage: test
-  only:
-    - master
-  script:
-    - scripts/gitlab-test.sh test-coverage
-  tags:
-    - kcov
-  allow_failure: true
-test-rust-stable:
-  stage: test
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab-test.sh stable
+    - scripts/gitlab/package-snap.sh
   tags:
     - rust-stable
-test-rust-beta:
-  stage: test
-  only:
-    - triggers
-    - master
-  image: parity/rust:gitlab-ci
+  <<:                              *collect_artifacts
+
+package-linux-snap-i386:
+  <<:                              *package_snap
+  variables:
+    BUILD_ARCH: i386
+    CARGO_TARGET:                  i686-unknown-linux-gnu
+  dependencies:
+    - build-linux-ubuntu-i386
+
+package-linux-snap-arm64:
+  <<:                              *package_snap
+  variables:
+    BUILD_ARCH: arm64
+    CARGO_TARGET:                  aarch64-unknown-linux-gnu
+  dependencies:
+    - build-linux-ubuntu-arm64
+
+package-linux-snap-armhf:
+  <<:                              *package_snap
+  variables:
+    BUILD_ARCH: armhf
+    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
+  dependencies:
+    - build-linux-ubuntu-armhf
+
+
+#### stage:                        publish
+
+publish-linux-snap-amd64:          &publish_snap
+  stage:                           publish
+  only:                            *publishable_branches
+  image:                           snapcore/snapcraft:stable
+  cache: {}
+  before_script:
+    - *determine_version
+  variables:
+    BUILD_ARCH:                    amd64
+  dependencies:
+    - package-linux-snap-amd64
   script:
-    - scripts/gitlab-test.sh beta
+    - scripts/gitlab/publish-snap.sh
   tags:
-    - rust-beta
-  allow_failure: true
-test-rust-nightly:
-  stage: test
-  only:
-    - triggers
-    - master
-  image: parity/rust:gitlab-ci
+    - rust-stable
+
+publish-linux-snap-i386:
+  <<:                              *publish_snap
+  before_script:
+    - *determine_version
+  variables:
+    BUILD_ARCH:                    i386
+  dependencies:
+    - package-linux-snap-i386
+
+publish-linux-snap-arm64:
+  <<:                              *publish_snap
+  before_script:
+    - *determine_version
+  variables:
+    BUILD_ARCH:                    arm64
+  dependencies:
+    - package-linux-snap-arm64
+
+publish-linux-snap-armhf:
+  <<:                              *publish_snap
+  before_script:
+    - *determine_version
+  variables:
+    BUILD_ARCH:                    armhf
+  dependencies:
+    - package-linux-snap-armhf
+
+publish-docker-parity-amd64: &publish_docker
+  stage:                           publish
+  only:                            *publishable_branches
+  cache: {}
+  dependencies:
+    - build-linux-ubuntu-amd64
+  tags:
+    - shell
+  allow_failure:                   true
   script:
-    - scripts/gitlab-test.sh nightly
+    - scripts/gitlab/publish-docker.sh parity
+
+publish-docker-parityevm-amd64:
+  <<:                              *publish_docker
+  script:
+    - scripts/gitlab/publish-docker.sh parity-evm
+
+publish-github-and-s3:
+  stage:                           publish
+  only:                            *publishable_branches
+  cache: {}
+  dependencies:
+    - build-linux-ubuntu-amd64
+    - build-linux-ubuntu-i386
+    - build-linux-ubuntu-armhf
+    - build-linux-ubuntu-arm64
+    - build-darwin-macos-x86_64
+    - build-windows-msvc-x86_64
+  before_script:
+    - *determine_version
+  script:
+    - scripts/gitlab/push.sh
   tags:
-    - rust
-    - rust-nightly
-  allow_failure: true
-json-rpc-docs:
+    - shell
+  allow_failure:                   true
+
+
+####stage:                          docs
+
+docs-rpc-json:
   stage: docs
   only:
     - tags
-  image: parity/rust:gitlab-ci
+  cache: {}
   script:
-    - scripts/gitlab-rpc-docs.sh
+    - scripts/gitlab/rpc-docs.sh
   tags:
-    - docs
-push-release:
-  stage: push-release
-  only:
-    - tags
-    - triggers
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab-push-release.sh
-  tags:
-    - curl
+    - shell

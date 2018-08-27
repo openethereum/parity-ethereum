@@ -37,6 +37,7 @@ jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
+fastmap = { path = "../util/fastmap" }
 parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 ethcore-devtools = { path = "../devtools" }
