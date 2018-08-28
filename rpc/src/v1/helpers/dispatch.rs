@@ -219,7 +219,6 @@ pub fn fetch_gas_price_corpus(
 					for t in block.transaction_views().iter() {
 						v.push(t.gas_price())
 					}
-
 					v
 				})
 			})
@@ -314,8 +313,8 @@ impl LightDispatcher {
 
 		match account_future {
 			Some(response) => {
-				// if an account is not found in the `state trie` then provide a default nonce and the rest to zero
-				// because of this we can't distinguish between the errors: `account not found` and `insufficient account balance
+				// if an account is not found in the `state trie` then provide a default nonce and set the rest to zero
+				// because of this we can't distinguish between the errors: `account not found` and `insufficient account balance`
 				Box::new(response.map(move |account| {
 					account.unwrap_or_else(|| BasicAccount {
 						nonce: account_start_nonce,
@@ -342,7 +341,7 @@ impl LightDispatcher {
 		if let Some(nonce) = self.transaction_queue.read().next_nonce(&addr) {
 			Ok(nonce)
 		} else {
-			Err(errors::internal("the next nonce is not in the cache", "need to ask the network"))
+			Err(errors::internal("the next nonce is not in the cache need to ask the network", ""))
 		}
 	}
 }
@@ -391,7 +390,13 @@ impl Dispatcher for LightDispatcher {
 		match (request_nonce, force_nonce) {
 			(_, false) | (Some(_), true) => Box::new(gas_price),
 			(None, true) => {
-				let next_nonce = self.cached_next_nonce(&from);
+				let next_nonce = {
+					if let Ok(nonce) = self.cached_next_nonce(&from) {
+						Box::new(future::ok(nonce))
+					} else {
+						self.next_nonce(&from)
+					}
+				};
 				Box::new(gas_price.and_then(move |mut filled| next_nonce
 					.map_err(|_| errors::no_light_peers())
 					.map(move |nonce| {
