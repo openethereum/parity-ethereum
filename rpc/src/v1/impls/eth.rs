@@ -500,12 +500,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn author(&self) -> Result<RpcH160> {
-		let mut miner = self.miner.authoring_params().author;
+		let miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
-			miner = self.accounts.accounts().ok().and_then(|a| a.get(0).cloned()).unwrap_or_default();
+			self.accounts.accounts()
+				.ok()
+				.and_then(|a| a.first().cloned())
+				.map(From::from)
+				.ok_or_else(|| errors::account("No accounts were found", ""))
+		} else {
+			Ok(RpcH160::from(miner))
 		}
-
-		Ok(RpcH160::from(miner))
 	}
 
 	fn is_mining(&self) -> Result<bool> {
