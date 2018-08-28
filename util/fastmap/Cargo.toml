@@ -6,5 +6,5 @@ description = "Specialized version of `HashMap` with H256 keys and fast hashing 
 license = "GPL-3.0"
 
 [dependencies]
-ethereum-types = "0.3"
-plain_hasher = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.4"
+plain_hasher = "0.2"
