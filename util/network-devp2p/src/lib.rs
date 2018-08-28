@@ -77,7 +77,7 @@ extern crate slab;
 extern crate ethkey;
 extern crate rlp;
 extern crate bytes;
-extern crate path;
+extern crate parity_path;
 extern crate ethcore_logger;
 extern crate ethcore_network as network;
 extern crate ipnetwork;

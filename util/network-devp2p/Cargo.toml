@@ -24,7 +24,7 @@ parity-bytes = "0.1"
 parity-crypto = "0.1"
 ethcore-logger = { path ="../../logger" }
 ethcore-network = { path = "../network" }
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 ethkey = { path = "../../ethkey" }
 rlp = { version = "0.2.4", features = ["ethereum"] }
 parity-path = "0.1"
