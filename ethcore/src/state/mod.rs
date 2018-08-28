@@ -571,10 +571,10 @@ impl<B: Backend> State<B> {
 				}
 			} else {
 				// This key does not have a checkpoint entry.
-				if checkpoint_index == 0 {
-					self.original_storage_at(address, key)?
+				if checkpoint_index >= self.checkpoints.len() - 1 {
+					self.storage_at(address, key)?
 				} else {
-					self.checkpoint_storage_at(checkpoint_index - 1, address, key)?.expect("checkpoint_index exists; checkpoint_index - 1 must exist; qed")
+					self.checkpoint_storage_at(checkpoint_index + 1, address, key)?.expect("checkpoint_index exists; checkpoint_index - 1 must exist; qed")
 				}
 			}))
 		} else {
