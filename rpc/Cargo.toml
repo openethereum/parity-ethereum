@@ -47,7 +47,7 @@ ethcore-miner = { path = "../miner" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
-ethereum-types = "0.3.2"
+ethereum-types = "0.4"
 
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
@@ -57,7 +57,7 @@ keccak-hash = "0.1.2"
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-patricia-trie = { git = "https://github.com/paritytech/parity-common" } # TODO:
+patricia-trie = "0.2.1"
 rlp = { version = "0.2.4", features = ["ethereum"] }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
@@ -72,7 +72,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" } # TODO:
+kvdb-memorydb = "0.1"
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = "1.13"
