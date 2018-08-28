@@ -381,6 +381,7 @@ pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, c
 				}
 			}
 		} else {
+			// Handle invalidated and newly validated R_RESET refunds.
 			if !original.is_zero() {
 				if current.is_zero() {
 					ext.dec_sstore_refund(sstore_clears_schedule);
@@ -388,11 +389,14 @@ pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, c
 					ext.inc_sstore_refund(sstore_clears_schedule);
 				}
 			}
+			// Reset storage slot to its original value.
 			if original == new {
 				if original.is_zero() {
+					// Revert sstore full cost (minus sload amount)
 					let refund = U256::from(ext.schedule().sstore_set_gas - ext.schedule().sload_gas);
 					ext.inc_sstore_refund(refund);
 				} else {
+					// Revert sstore change cost (revert of refund done in previous conditions)
 					let refund = U256::from(ext.schedule().sstore_reset_gas - ext.schedule().sload_gas);
 					ext.inc_sstore_refund(refund);
 				}

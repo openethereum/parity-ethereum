@@ -542,7 +542,7 @@ impl<B: Backend> State<B> {
 			|a| a.as_ref().and_then(|account| account.storage_root().cloned()))
 	}
 
-	/// Get the value of storage at last checkpoint.
+	/// Get the value of storage at a specific checkpoint.
 	pub fn checkpoint_storage_at(&self, checkpoint_index: usize, address: &Address, key: &H256) -> TrieResult<Option<H256>> {
 		if let Some(ref checkpoint) = self.checkpoints.borrow().get(checkpoint_index) {
 			Ok(Some(if let Some(entry) = checkpoint.get(address) {
@@ -570,8 +570,12 @@ impl<B: Backend> State<B> {
 					},
 				}
 			} else {
-				// This key does not have a checkpoint entry. We use the current value.
-				self.storage_at(address, key)?
+				// This key does not have a checkpoint entry.
+				if checkpoint_index == 0 {
+					self.original_storage_at(address, key)?
+				} else {
+					self.checkpoint_storage_at(checkpoint_index - 1, address, key)?.expect("checkpoint_index exists; checkpoint_index - 1 must exist; qed")
+				}
 			}))
 		} else {
 			// The checkpoint was not found. Return None.
