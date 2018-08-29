@@ -52,7 +52,7 @@ impl Writer for io::Stderr {
 }
 
 /// JSON formatting informant.
-pub struct Informant<Trace: Writer = io::Stderr, Out: Writer = io::Stdout> {
+pub struct Informant<Trace = io::Stderr, Out = io::Stdout> {
 	code: Vec<u8>,
 	instruction: u8,
 	depth: usize,
