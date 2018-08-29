@@ -39,7 +39,8 @@ use client::{
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient
+	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
+	BadBlocks,
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -611,6 +612,12 @@ impl StateClient for TestBlockChainClient {
 
 impl EngineInfo for TestBlockChainClient {
 	fn engine(&self) -> &EthEngine {
+		unimplemented!()
+	}
+}
+
+impl BadBlocks for TestBlockChainClient {
+	fn bad_blocks(&self) -> Vec<(Unverified, String)> {
 		unimplemented!()
 	}
 }
