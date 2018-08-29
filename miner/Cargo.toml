@@ -10,7 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 # Only work_notify, consider a separate crate
 ethash = { path = "../ethash", optional = true }
 fetch = { path = "../util/fetch", optional = true }
-hyper = { version = "0.11", optional = true }
+hyper = { version = "0.12", optional = true }
 parity-reactor = { path = "../util/reactor", optional = true }
 url = { version = "1", optional = true }
 

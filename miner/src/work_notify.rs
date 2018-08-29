@@ -26,10 +26,11 @@ use self::fetch::{Fetch, Request, Client as FetchClient, Method};
 use self::parity_reactor::Remote;
 use self::ethash::SeedHashCompute;
 use self::url::Url;
-use self::hyper::header::ContentType;
+use self::hyper::header::{self, HeaderValue};
 
 use ethereum_types::{H256, U256};
 use parking_lot::Mutex;
+
 use futures::Future;
 
 /// Trait for notifying about new mining work
@@ -81,8 +82,8 @@ impl NotifyWork for WorkPoster {
 		for u in &self.urls {
 			let u = u.clone();
 			self.remote.spawn(self.client.fetch(
-				Request::new(u.clone(), Method::Post)
-					.with_header(ContentType::json())
+				Request::new(u.clone(), Method::POST)
+					.with_header(header::CONTENT_TYPE, HeaderValue::from_static("application/json"))
 					.with_body(body.clone()), Default::default()
 			).map_err(move |e| {
 				warn!("Error sending HTTP notification to {} : {}, retrying", u, e);

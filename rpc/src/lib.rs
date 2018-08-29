@@ -124,7 +124,6 @@ pub use authcodes::{AuthCodes, TimeProvider};
 pub use http_common::HttpMetaExtractor;
 
 use std::net::SocketAddr;
-use http::tokio_core;
 
 /// RPC HTTP Server instance
 pub type HttpServer = http::Server;
@@ -135,7 +134,6 @@ pub fn start_http<M, S, H, T>(
 	cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
 	allowed_hosts: http::DomainsValidation<http::Host>,
 	handler: H,
-	remote: tokio_core::reactor::Remote,
 	extractor: T,
 	threads: usize,
 	max_payload: usize,
@@ -148,7 +146,6 @@ pub fn start_http<M, S, H, T>(
 	let extractor = http_common::MetaExtractor::new(extractor);
 	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
 		.threads(threads)
-		.event_loop_remote(remote)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
 		.max_request_body_size(max_payload * 1024 * 1024)
@@ -162,7 +159,6 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 	cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
 	allowed_hosts: http::DomainsValidation<http::Host>,
 	handler: H,
-	remote: tokio_core::reactor::Remote,
 	extractor: T,
 	middleware: R,
 	threads: usize,
@@ -177,7 +173,6 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 	let extractor = http_common::MetaExtractor::new(extractor);
 	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
 		.threads(threads)
-		.event_loop_remote(remote)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
 		.max_request_body_size(max_payload * 1024 * 1024)
@@ -189,7 +184,6 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 pub fn start_ipc<M, S, H, T>(
 	addr: &str,
 	handler: H,
-	remote: tokio_core::reactor::Remote,
 	extractor: T,
 ) -> ::std::io::Result<ipc::Server> where
 	M: jsonrpc_core::Metadata,
@@ -198,7 +192,6 @@ pub fn start_ipc<M, S, H, T>(
 	T: IpcMetaExtractor<M>,
 {
 	ipc::ServerBuilder::with_meta_extractor(handler, extractor)
-		.event_loop_remote(remote)
 		.start(addr)
 }
 
@@ -206,7 +199,6 @@ pub fn start_ipc<M, S, H, T>(
 pub fn start_ws<M, S, H, T, U, V>(
 	addr: &SocketAddr,
 	handler: H,
-	remote: tokio_core::reactor::Remote,
 	allowed_origins: ws::DomainsValidation<ws::Origin>,
 	allowed_hosts: ws::DomainsValidation<ws::Host>,
 	max_connections: usize,
@@ -222,7 +214,6 @@ pub fn start_ws<M, S, H, T, U, V>(
 	V: ws::RequestMiddleware,
 {
 	ws::ServerBuilder::with_meta_extractor(handler, extractor)
-		.event_loop_remote(remote)
 		.request_middleware(middleware)
 		.allowed_origins(allowed_origins)
 		.allowed_hosts(allowed_hosts)

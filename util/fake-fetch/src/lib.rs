@@ -18,7 +18,7 @@ extern crate fetch;
 extern crate hyper;
 extern crate futures;
 
-use hyper::StatusCode;
+use hyper::{StatusCode, Body};
 use futures::{future, future::FutureResult};
 use fetch::{Fetch, Url, Request};
 
@@ -39,10 +39,13 @@ impl<T: 'static> Fetch for FakeFetch<T> where T: Clone + Send+ Sync {
 	fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
 		let u = request.url().clone();
 		future::ok(if self.val.is_some() {
-			let r = hyper::Response::new().with_body(&b"Some content"[..]);
+			let r = hyper::Response::new("Some content".into());
 			fetch::client::Response::new(u, r, abort)
 		} else {
-			fetch::client::Response::new(u, hyper::Response::new().with_status(StatusCode::NotFound), abort)
+			let r = hyper::Response::builder()
+				.status(StatusCode::NOT_FOUND)
+				.body(Body::empty()).expect("Nothing to parse, can not fail; qed");
+			fetch::client::Response::new(u, r, abort)
 		})
 	}
 

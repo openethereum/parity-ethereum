@@ -17,16 +17,17 @@
 //! Tokio Core Reactor wrapper.
 
 extern crate futures;
-extern crate tokio_core;
+extern crate tokio;
 
 use std::{fmt, thread};
 use std::sync::mpsc;
-use std::time::Duration;
-use futures::{Future, IntoFuture};
-pub use tokio_core::reactor::{Remote as TokioRemote, Handle, Timeout};
+use std::time::{Duration, Instant};
+use futures::{future, Future, IntoFuture};
+pub use tokio::timer::Delay;
+pub use tokio::runtime::{Runtime, Builder as RuntimeBuilder, TaskExecutor};
 
 /// Event Loop for futures.
-/// Wrapper around `tokio::reactor::Core`.
+///
 /// Runs in a separate thread.
 pub struct EventLoop {
 	remote: Remote,
@@ -39,9 +40,14 @@ impl EventLoop {
 		let (stop, stopped) = futures::oneshot();
 		let (tx, rx) = mpsc::channel();
 		let handle = thread::spawn(move || {
-			let mut el = tokio_core::reactor::Core::new().expect("Creating an event loop should not fail.");
-			tx.send(el.remote()).expect("Rx is blocking upper thread.");
-			let _ = el.run(futures::empty().select(stopped));
+			let mut runtime = RuntimeBuilder::new()
+				.core_threads(1)
+				.build()
+				.expect("Building a Tokio runtime will only fail when mio components \
+					cannot be initialized (catastrophic).");
+			tx.send(runtime.executor()).expect("Rx is blocking upper thread.");
+			runtime.block_on(futures::empty().select(stopped).map(|_| ()).map_err(|_| ()))
+				.expect("Tokio runtime should not have unhandled errors.");
 		});
 		let remote = rx.recv().expect("tx is transfered to a newly spawned thread.");
 
@@ -56,12 +62,12 @@ impl EventLoop {
 		}
 	}
 
-	/// Returns this event loop raw remote.
+	/// Returns this event loop raw executor.
 	///
 	/// Deprecated: Exists only to connect with current JSONRPC implementation.
-	pub fn raw_remote(&self) -> TokioRemote {
-		if let Mode::Tokio(ref remote) = self.remote.inner {
-			remote.clone()
+	pub fn raw_executor(&self) -> TaskExecutor {
+		if let Mode::Tokio(ref executor) = self.remote.inner {
+			executor.clone()
 		} else {
 			panic!("Event loop is never initialized in other mode then Tokio.")
 		}
@@ -75,7 +81,7 @@ impl EventLoop {
 
 #[derive(Clone)]
 enum Mode {
-	Tokio(TokioRemote),
+	Tokio(TaskExecutor),
 	Sync,
 	ThreadPerFuture,
 }
@@ -92,6 +98,25 @@ impl fmt::Debug for Mode {
 	}
 }
 
+/// Returns a future which runs `f` until `duration` has elapsed, at which
+/// time `on_timeout` is run and the future resolves.
+fn timeout<F, R, T>(f: F, duration: Duration, on_timeout: T)
+	-> impl Future<Item = (), Error = ()> + Send + 'static
+where
+	T: FnOnce() -> () + Send + 'static,
+	F: FnOnce() -> R + Send + 'static,
+	R: IntoFuture<Item=(), Error=()> + Send + 'static,
+	R::Future: Send + 'static,
+{
+	let future = future::lazy(f);
+	let timeout = Delay::new(Instant::now() + duration)
+		.then(move |_| {
+			on_timeout();
+			Ok(())
+		});
+	future.select(timeout).then(|_| Ok(()))
+}
+
 #[derive(Debug, Clone)]
 pub struct Remote {
 	inner: Mode,
@@ -101,7 +126,7 @@ impl Remote {
 	/// Remote for existing event loop.
 	///
 	/// Deprecated: Exists only to connect with current JSONRPC implementation.
-	pub fn new(remote: TokioRemote) -> Self {
+	pub fn new(remote: TaskExecutor) -> Self {
 		Remote {
 			inner: Mode::Tokio(remote),
 		}
@@ -124,10 +149,10 @@ impl Remote {
 	/// Spawn a future to this event loop
 	pub fn spawn<R>(&self, r: R) where
         R: IntoFuture<Item=(), Error=()> + Send + 'static,
-        R::Future: 'static,
+        R::Future: Send + 'static,
 	{
 		match self.inner {
-			Mode::Tokio(ref remote) => remote.spawn(move |_| r),
+			Mode::Tokio(ref remote) => remote.spawn(r.into_future()),
 			Mode::Sync => {
 				let _= r.into_future().wait();
 			},
@@ -141,22 +166,18 @@ impl Remote {
 
 	/// Spawn a new future returned by given closure.
 	pub fn spawn_fn<F, R>(&self, f: F) where
-		F: FnOnce(&Handle) -> R + Send + 'static,
-        R: IntoFuture<Item=(), Error=()>,
-        R::Future: 'static,
+		F: FnOnce() -> R + Send + 'static,
+        R: IntoFuture<Item=(), Error=()> + Send + 'static,
+        R::Future: Send + 'static,
 	{
 		match self.inner {
-			Mode::Tokio(ref remote) => remote.spawn(move |handle| f(handle)),
+			Mode::Tokio(ref remote) => remote.spawn(future::lazy(f)),
 			Mode::Sync => {
-				let mut core = tokio_core::reactor::Core::new().expect("Creating an event loop should not fail.");
-				let handle = core.handle();
-				let _ = core.run(f(&handle).into_future());
+				let _ = future::lazy(f).wait();
 			},
 			Mode::ThreadPerFuture => {
 				thread::spawn(move || {
-					let mut core = tokio_core::reactor::Core::new().expect("Creating an event loop should not fail.");
-					let handle = core.handle();
-					let _ = core.run(f(&handle).into_future());
+					let _= f().into_future().wait();
 				});
 			},
 		}
@@ -165,39 +186,20 @@ impl Remote {
 	/// Spawn a new future and wait for it or for a timeout to occur.
 	pub fn spawn_with_timeout<F, R, T>(&self, f: F, duration: Duration, on_timeout: T) where
 		T: FnOnce() -> () + Send + 'static,
-		F: FnOnce(&Handle) -> R + Send + 'static,
-		R: IntoFuture<Item=(), Error=()>,
-		R::Future: 'static,
+		F: FnOnce() -> R + Send + 'static,
+		R: IntoFuture<Item=(), Error=()> + Send + 'static,
+		R::Future: Send + 'static,
 	{
 		match self.inner {
-			Mode::Tokio(ref remote) => remote.spawn(move |handle| {
-				let future = f(handle).into_future();
-				let timeout = Timeout::new(duration, handle).expect("Event loop is still up.");
-				future.select(timeout.then(move |_| {
-					on_timeout();
-					Ok(())
-				})).then(|_| Ok(()))
-			}),
+			Mode::Tokio(ref remote) => {
+				remote.spawn(timeout(f, duration, on_timeout))
+			},
 			Mode::Sync => {
-				let mut core = tokio_core::reactor::Core::new().expect("Creating an event loop should not fail.");
-				let handle = core.handle();
-				let future = f(&handle).into_future();
-				let timeout = Timeout::new(duration, &handle).expect("Event loop is still up.");
-				let _: Result<(), ()> = core.run(future.select(timeout.then(move |_| {
-					on_timeout();
-					Ok(())
-				})).then(|_| Ok(())));
+				let _ = timeout(f, duration, on_timeout).wait();
 			},
 			Mode::ThreadPerFuture => {
 				thread::spawn(move || {
-					let mut core = tokio_core::reactor::Core::new().expect("Creating an event loop should not fail.");
-					let handle = core.handle();
-					let future = f(&handle).into_future();
-					let timeout = Timeout::new(duration, &handle).expect("Event loop is still up.");
-					let _: Result<(), ()> = core.run(future.select(timeout.then(move |_| {
-						on_timeout();
-						Ok(())
-					})).then(|_| Ok(())));
+					let _ = timeout(f, duration, on_timeout).wait();
 				});
 			},
 		}

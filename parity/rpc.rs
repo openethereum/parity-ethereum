@@ -23,7 +23,7 @@ use dir::default_data_path;
 use dir::helpers::replace_home;
 use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
-use parity_reactor::TokioRemote;
+use parity_reactor::Remote;
 use parity_rpc::informant::{RpcStats, Middleware};
 use parity_rpc::{self as rpc, Metadata, DomainsValidation};
 use rpc_apis::{self, ApiSet};
@@ -134,7 +134,7 @@ fn address(enabled: bool, bind_iface: &str, bind_port: u16, hosts: &Option<Vec<S
 
 pub struct Dependencies<D: rpc_apis::Dependencies> {
 	pub apis: Arc<D>,
-	pub remote: TokioRemote,
+	pub remote: Remote,
 	pub stats: Arc<RpcStats>,
 	pub pool: Option<CpuPool>,
 }
@@ -163,7 +163,6 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 		handler
 	};
 
-	let remote = deps.remote.clone();
 	let allowed_origins = into_domains(with_domain(conf.origins, domain, &None));
 	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
 
@@ -178,7 +177,6 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let start_result = rpc::start_ws(
 		&addr,
 		handler,
-		remote.clone(),
 		allowed_origins,
 		allowed_hosts,
 		conf.max_connections,
@@ -210,7 +208,6 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = url.parse().map_err(|_| format!("Invalid {} listen host/port given: {}", id, url))?;
 	let handler = setup_apis(conf.apis, deps);
-	let remote = deps.remote.clone();
 
 	let cors_domains = into_domains(conf.cors);
 	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
@@ -220,7 +217,6 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		cors_domains,
 		allowed_hosts,
 		handler,
-		remote,
 		rpc::RpcExtractor,
 		conf.server_threads,
 		conf.max_payload,
@@ -244,7 +240,6 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 	}
 
 	let handler = setup_apis(conf.apis, dependencies);
-	let remote = dependencies.remote.clone();
 	let path = PathBuf::from(&conf.socket_addr);
 	// Make sure socket file can be created on unix-like OS.
 	// Windows pipe paths are not on the FS.
@@ -255,7 +250,7 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 		}
 	}
 
-	match rpc::start_ipc(&conf.socket_addr, handler, remote, rpc::RpcExtractor) {
+	match rpc::start_ipc(&conf.socket_addr, handler, rpc::RpcExtractor) {
 		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("IPC error: {}", io_error)),
 	}

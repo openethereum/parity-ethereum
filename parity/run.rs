@@ -324,7 +324,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 	let dependencies = rpc::Dependencies {
 		apis: deps_for_rpc_apis.clone(),
-		remote: event_loop.raw_remote(),
+		remote: event_loop.remote(),
 		stats: rpc_stats.clone(),
 		pool: if cmd.http_conf.processing_threads > 0 {
 			Some(rpc::CpuPool::new(cmd.http_conf.processing_threads))
@@ -733,7 +733,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let dependencies = rpc::Dependencies {
 		apis: deps_for_rpc_apis.clone(),
-		remote: event_loop.raw_remote(),
+		remote: event_loop.remote(),
 		stats: rpc_stats.clone(),
 		pool: if cmd.http_conf.processing_threads > 0 {
 			Some(rpc::CpuPool::new(cmd.http_conf.processing_threads))
