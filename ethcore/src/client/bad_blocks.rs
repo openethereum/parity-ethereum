@@ -16,8 +16,9 @@
 
 //! Stores recently seen bad blocks.
 
-use bytes::Bytes;
+use bytes::{Bytes, ToPretty};
 use ethereum_types::H256;
+use itertools::Itertools;
 use memory_cache::MemoryLruCache;
 use parking_lot::RwLock;
 use verification::queue::kind::blocks::Unverified;
@@ -30,7 +31,7 @@ pub struct BadBlocks {
 impl Default for BadBlocks {
 	fn default() -> Self {
 		BadBlocks {
-			last_blocks: RwLock::new(MemoryLruCache::new(1 * 1024 * 1024)),
+			last_blocks: RwLock::new(MemoryLruCache::new(8 * 1024 * 1024)),
 		}
 	}
 }
@@ -40,8 +41,23 @@ impl BadBlocks {
 	pub  fn report(&self, raw: Bytes, message: String) {
 		match Unverified::from_rlp(raw) {
 			Ok(unverified) => {
-				// TODO [ToDr] Nicer debug message
-				error!(target: "client", "Bad block detected: {}\n{:?}", message, unverified);
+				error!(
+					target: "client",
+					"\nBad block detected: {}\nRLP: {}\nHeader: {:?}\nUncles: {}\nTransactions:{}\n",
+					message,
+					unverified.bytes.to_hex(),
+					unverified.header,
+					unverified.uncles
+						.iter()
+						.enumerate()
+						.map(|(index, uncle)| format!("[Uncle {}] {:?}", index, uncle))
+						.join("\n"),
+					unverified.transactions
+						.iter()
+						.enumerate()
+						.map(|(index, tx)| format!("[Tx {}] {:?}", index, tx))
+						.join("\n"),
+				);
 				self.last_blocks.write().insert(unverified.header.hash(), (unverified, message));
 			},
 			Err(err) => {
