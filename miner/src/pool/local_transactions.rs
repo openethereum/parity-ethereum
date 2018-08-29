@@ -20,7 +20,7 @@ use std::{fmt, sync::Arc};
 
 use ethereum_types::H256;
 use linked_hash_map::LinkedHashMap;
-use pool::VerifiedTransaction as Transaction;
+use pool::{VerifiedTransaction as Transaction, ScoredTransaction};
 use txpool::{self, VerifiedTransaction};
 
 /// Status of local transaction.
