@@ -852,11 +852,11 @@ impl miner::MinerService for Miner {
 
 	fn sensible_gas_price(&self) -> U256 {
 		// 10% above our minimum.
-		self.transaction_queue.current_worst_gas_price() * 110u32 / 100.into()
+		self.transaction_queue.current_worst_gas_price() * 110u32 / 100
 	}
 
 	fn sensible_gas_limit(&self) -> U256 {
-		self.params.read().gas_range_target.0 / 5.into()
+		self.params.read().gas_range_target.0 / 5
 	}
 
 	fn import_external_transactions<C: miner::BlockChainClient>(

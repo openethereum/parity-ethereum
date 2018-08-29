@@ -11,9 +11,9 @@ log = "0.4"
 ethcore = { path = ".."}
 parity-bytes = "0.1"
 ethcore-transaction = { path = "../transaction" }
-ethereum-types = "0.3"
-memorydb = { git = "https://github.com/paritytech/parity-common" }
-patricia-trie = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.4"
+memorydb = "0.2.1"
+patricia-trie = "0.2.1"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
@@ -41,7 +41,7 @@ error-chain = { version = "0.12", default-features = false }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = "0.1"
 tempdir = "0.3"
 
 [features]

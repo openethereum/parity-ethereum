@@ -19,7 +19,7 @@
 use std::{fmt, error};
 use std::time::SystemTime;
 use ethereum_types::{H256, U256, Address, Bloom};
-use snappy::InvalidInput;
+use parity_snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
 use ethtrie::TrieError;
 use io::*;

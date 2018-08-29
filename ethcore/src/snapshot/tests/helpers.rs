@@ -166,7 +166,7 @@ pub fn restore(
 	genesis: &[u8],
 ) -> Result<(), ::error::Error> {
 	use std::sync::atomic::AtomicBool;
-	use snappy;
+	use parity_snappy as snappy;
 
 	let flag = AtomicBool::new(true);
 	let components = engine.snapshot_components().unwrap();

@@ -16,7 +16,7 @@ ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
 ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 hashdb = "0.2.1"
 fastmap = { path = "../../util/fastmap" }
 rlp = { version = "0.2.4", features = ["ethereum"] }
@@ -39,6 +39,6 @@ ipnetwork = "0.12.6"
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethkey = { path = "../../ethkey" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = "0.1"
 ethcore-private-tx = { path = "../private-tx" }
 ethcore = { path = "..", features = ["test-helpers"] }

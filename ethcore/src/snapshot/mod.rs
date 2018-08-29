@@ -34,7 +34,7 @@ use ethereum_types::{H256, U256};
 use hashdb::HashDB;
 use keccak_hasher::KeccakHasher;
 use kvdb::DBValue;
-use snappy;
+use parity_snappy as snappy;
 use bytes::Bytes;
 use parking_lot::Mutex;
 use journaldb::{self, Algorithm, JournalDB};

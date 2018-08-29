@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 rlp = { version = "0.2.4", features = ["ethereum"] }
 rlp_derive = { path = "../../util/rlp_derive" }
 parity-bytes = "0.1"
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 ethjson = { path = "../../json" }
 keccak-hash = "0.1"
 heapsize = "0.4"
