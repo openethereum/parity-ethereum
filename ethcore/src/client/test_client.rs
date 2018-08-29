@@ -618,7 +618,14 @@ impl EngineInfo for TestBlockChainClient {
 
 impl BadBlocks for TestBlockChainClient {
 	fn bad_blocks(&self) -> Vec<(Unverified, String)> {
-		unimplemented!()
+		vec![
+			(Unverified {
+				header: Default::default(),
+				transactions: vec![],
+				uncles: vec![],
+				bytes: vec![1, 2, 3],
+			}, "Invalid block".into())
+		]
 	}
 }
 
