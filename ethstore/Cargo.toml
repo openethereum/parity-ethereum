@@ -16,8 +16,8 @@ tiny-keccak = "1.4"
 time = "0.1.34"
 itertools = "0.5"
 parking_lot = "0.6"
-parity-crypto = { git = "https://github.com/tworec/parity-common", branch = "unbound-salt" }
-#parity-crypto = { path = "parity-crypto" }
+#parity-crypto = { git = "https://github.com/paritytech/parity-common", rev="51258799"}
+parity-crypto = { path = "../../parity-common/parity-crypto" }
 ethereum-types = "0.3"
 dir = { path = "../util/dir" }
 smallvec = "0.4"
