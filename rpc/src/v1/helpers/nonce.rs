@@ -104,8 +104,8 @@ impl SenderReservations {
 	pub fn reserve_nonce(&mut self, minimal: U256) -> Reserved {
 		// Update prospective value
 		let dropped = self.dropped.swap(0, atomic::Ordering::SeqCst);
-		let prospective_value = cmp::max(minimal, self.prospective_value - dropped.into());
-		self.prospective_value = prospective_value + 1.into();
+		let prospective_value = cmp::max(minimal, self.prospective_value - dropped);
+		self.prospective_value = prospective_value + 1;
 
 		let (next, rx) = oneshot::channel();
 		let next = Some(next);
@@ -236,7 +236,7 @@ impl Ready {
 	pub fn mark_used(mut self) {
 		let next = self.next.take().expect("Nonce can be marked as used only once; qed");
 		self.next_sent.store(true, atomic::Ordering::SeqCst);
-		next.send(self.value + 1.into()).expect(Self::RECV_PROOF);
+		next.send(self.value + 1).expect(Self::RECV_PROOF);
 	}
 }
 

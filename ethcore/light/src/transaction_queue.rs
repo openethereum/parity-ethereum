@@ -388,7 +388,7 @@ mod tests {
 
 		assert_eq!(txq.queued_senders(), vec![sender]);
 
-		txq.cull(sender, 1);
+		txq.cull(sender, 1.into());
 
 		assert_eq!(txq.queued_senders(), vec![]);
 		assert!(txq.by_hash.is_empty());
@@ -535,7 +535,7 @@ mod tests {
 		let tx_b: PendingTransaction = Transaction::default().fake_sign(sender).into();
 		let tx_a: PendingTransaction = {
 			let mut tx_a = Transaction::default();
-			tx_a.gas_price = tx_b.gas_price + 1.into();
+			tx_a.gas_price = tx_b.gas_price + 1;
 			tx_a.fake_sign(sender).into()
 		};
 

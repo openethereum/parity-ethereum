@@ -17,7 +17,7 @@
 use std::{io, net, fmt};
 use libc::{ENFILE, EMFILE};
 use io::IoError;
-use {rlp, ethkey, crypto, snappy};
+use {rlp, ethkey, crypto, parity_snappy as snappy};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisconnectReason

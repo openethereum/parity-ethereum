@@ -43,7 +43,7 @@ ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
 ethcore-transaction = { path = "ethcore/transaction" }
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 rlp = { version = "0.2.4", features = ["ethereum"] }
@@ -63,7 +63,7 @@ panic_hook = { path = "util/panic_hook" }
 keccak-hash = "0.1"
 migration-rocksdb = { path = "util/migration-rocksdb" }
 kvdb = "0.1"
-kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-rocksdb = "0.1.2-beta.0"
 journaldb = { path = "util/journaldb" }
 mem = { path = "util/mem" }
 

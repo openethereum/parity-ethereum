@@ -29,7 +29,7 @@ use dir::helpers::replace_home;
 use upgrade::{upgrade, upgrade_data_paths};
 use sync::{validate_node_url, self};
 use db::migrate;
-use parity_path;
+use path;
 use ethkey::Password;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
@@ -455,7 +455,7 @@ but the first password is trimmed
 	#[test]
 	#[cfg(not(windows))]
 	fn test_geth_ipc_path() {
-		use parity_path;
+		use path;
 		assert_eq!(geth_ipc_path(true), path::ethereum::with_testnet("geth.ipc").to_str().unwrap().to_owned());
 		assert_eq!(geth_ipc_path(false), path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned());
 	}
