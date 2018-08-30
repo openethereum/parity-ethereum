@@ -83,6 +83,7 @@ mod generic {
 
 	declare_test!{TrieTests_trietest, "TrieTests/trietest"}
 	declare_test!{TrieTests_trieanyorder, "TrieTests/trieanyorder"}
+	declare_test!{TrieTests_trietestnextprev, "TrieTests/trietestnextprev"}
 }
 
 mod secure {

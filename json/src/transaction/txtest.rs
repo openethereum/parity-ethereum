@@ -16,7 +16,6 @@
 
 //! Transaction test deserialization.
 
-use uint::Uint;
 use bytes::Bytes;
 use hash::Address;
 use std::collections::BTreeMap;
