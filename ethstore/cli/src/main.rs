@@ -177,7 +177,7 @@ fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
 		path => Box::new(RootDiskDirectory::create(path)?),
 	};
 
-	info!("using key dir {:?}", dir);
+	info!("using key dir {:?}", dir.path());
 	Ok(dir)
 }
 
