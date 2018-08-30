@@ -69,12 +69,12 @@ pub struct EvmTestClient<'a> {
 }
 
 impl<'a> fmt::Debug for EvmTestClient<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("EvmTestClient")
-            .field("state", &self.state)
-            .field("spec", &self.spec.name)
-            .finish()
-    }
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.debug_struct("EvmTestClient")
+			.field("state", &self.state)
+			.field("spec", &self.spec.name)
+			.finish()
+	}
 }
 
 impl<'a> EvmTestClient<'a> {
