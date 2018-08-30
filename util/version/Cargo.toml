@@ -2,7 +2,7 @@
 # Make sure to update the service if it's moved or the structure is changed.
 [package]
 name = "parity-version"
-# NOTE: this value is used for Parity version string (via env CARGO_PKG_VERSION)
+# NOTE: this value is used for Parity Ethereum version string (via env CARGO_PKG_VERSION)
 version = "2.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"

@@ -41,14 +41,13 @@ echo "________Validate chainspecs________"
 time ./scripts/validate_chainspecs.sh
 fi
 
-
 # Running the C++ example
 echo "________Running the C++ example________"
 cd parity-clib-examples/cpp && \
   mkdir -p build && \
   cd build && \
   cmake .. && \
-  make && \
+  make -j 8 && \
   ./parity-example && \
   cd .. && \
   rm -rf build && \
