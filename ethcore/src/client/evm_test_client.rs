@@ -69,12 +69,12 @@ pub struct EvmTestClient<'a> {
 }
 
 impl<'a> fmt::Debug for EvmTestClient<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("EvmTestClient")
-            .field("state", &self.state)
-            .field("spec", &self.spec.name)
-            .finish()
-    }
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.debug_struct("EvmTestClient")
+			.field("state", &self.state)
+			.field("spec", &self.spec.name)
+			.finish()
+	}
 }
 
 impl<'a> EvmTestClient<'a> {
@@ -212,27 +212,39 @@ impl<'a> EvmTestClient<'a> {
 				error: error.into(),
 			};
 		}
+		let remove_empty_account = env_info.number >= self.spec.params().eip161d_transition;
 
 		// Apply transaction
 		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
 		let scheme = self.spec.engine.machine().create_address_scheme(env_info.number);
 
+		// post actions
+		if result.is_ok() {
+			self.state.commit().ok();
+		}
+		// From ethtest comments. In case :
+		// - the coinbase suicided, or
+		// - there are only 'bad' transactions, which aren't executed. In those cases,
+		//   the coinbase gets no txfee, so isn't created, and thus needs to be touched
+		//   touch the coinbase
+		if !remove_empty_account {
+			self.state.test_touch(&env_info.author).expect("Touch account");
+			self.state.commit().ok(); // TODO a commit that keep empty account...
+		}
+
 		match result {
-			Ok(result) => {
-				self.state.commit().ok();
-				TransactResult::Ok {
-					state_root: *self.state.root(),
-					gas_left: initial_gas - result.receipt.gas_used,
-					outcome: result.receipt.outcome,
-					output: result.output,
-					trace: result.trace,
-					vm_trace: result.vm_trace,
-					logs: result.receipt.logs,
-					contract_address: if let transaction::Action::Create = transaction.action {
-						Some(executive::contract_address(scheme, &transaction.sender(), &transaction.nonce, &transaction.data).0)
-					} else {
-						None
-					}
+			Ok(result) => TransactResult::Ok {
+				state_root: *self.state.root(),
+				gas_left: initial_gas - result.receipt.gas_used,
+				outcome: result.receipt.outcome,
+				output: result.output,
+				trace: result.trace,
+				vm_trace: result.vm_trace,
+				logs: result.receipt.logs,
+				contract_address: if let transaction::Action::Create = transaction.action {
+					Some(executive::contract_address(scheme, &transaction.sender(), &transaction.nonce, &transaction.data).0)
+				} else {
+					None
 				}
 			},
 			Err(error) => TransactResult::Err {

@@ -759,6 +759,12 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
+	/// Expose touch function for test case only.
+	#[cfg(any(test, feature = "test-helpers"))]
+	pub fn test_touch(&mut self, a: &Address) -> TrieResult<()> {
+		self.touch(a)
+	}
+
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
 		// first, commit the sub trees.
