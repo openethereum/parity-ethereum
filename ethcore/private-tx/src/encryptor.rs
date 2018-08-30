@@ -208,7 +208,7 @@ impl Encryptor for SecretStoreEncryptor {
 		let key = match self.retrieve_key("", false, contract_address, &*accounts) {
 			Ok(key) => Ok(key),
 			Err(Error(ErrorKind::EncryptionKeyNotFound(_), _)) => {
-				trace!("Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
+				trace!(target: "privatetx", "Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
 				self.retrieve_key(&format!("/{}", self.config.threshold), true, contract_address, &*accounts)
 			}
 			Err(err) => Err(err),

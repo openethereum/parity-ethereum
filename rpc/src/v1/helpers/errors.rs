@@ -101,6 +101,14 @@ pub fn request_rejected_limit() -> Error {
 	}
 }
 
+pub fn request_rejected_param_limit(limit: u64, items_desc: &str) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::REQUEST_REJECTED_LIMIT),
+		message: format!("Requested data size exceeds limit of {} {}.", limit, items_desc),
+		data: None,
+	}
+}
+
 pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ACCOUNT_ERROR),

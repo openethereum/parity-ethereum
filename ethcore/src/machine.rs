@@ -29,10 +29,10 @@ use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
-use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
+use transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
-use ethereum_types::{U256, Address};
+use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
@@ -123,6 +123,35 @@ impl EthereumMachine {
 		gas: U256,
 		data: Option<Vec<u8>>,
 	) -> Result<Vec<u8>, Error> {
+		let (code, code_hash) = {
+			let state = block.state();
+
+			(state.code(&contract_address)?,
+			 state.code_hash(&contract_address)?)
+		};
+
+		self.execute_code_as_system(
+			block,
+			Some(contract_address),
+			code,
+			code_hash,
+			gas,
+			data
+		)
+	}
+
+	/// Same as execute_as_system, but execute code directly. If contract address is None, use the null sender
+	/// address. If code is None, then this function has no effect. The call is executed without finalization, and does
+	/// not form a transaction.
+	pub fn execute_code_as_system(
+		&self,
+		block: &mut ExecutedBlock,
+		contract_address: Option<Address>,
+		code: Option<Arc<Vec<u8>>>,
+		code_hash: Option<H256>,
+		gas: U256,
+		data: Option<Vec<u8>>
+	) -> Result<Vec<u8>, Error> {
 		let env_info = {
 			let mut env_info = block.env_info();
 			env_info.gas_limit = env_info.gas_used.saturating_add(gas);
@@ -130,31 +159,27 @@ impl EthereumMachine {
 		};
 
 		let mut state = block.state_mut();
+
 		let params = ActionParams {
-			code_address: contract_address.clone(),
-			address: contract_address.clone(),
-			sender: SYSTEM_ADDRESS.clone(),
-			origin: SYSTEM_ADDRESS.clone(),
-			gas: gas,
+			code_address: contract_address.unwrap_or(UNSIGNED_SENDER),
+			address: contract_address.unwrap_or(UNSIGNED_SENDER),
+			sender: SYSTEM_ADDRESS,
+			origin: SYSTEM_ADDRESS,
+			gas,
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
-			code: state.code(&contract_address)?,
-			code_hash: state.code_hash(&contract_address)?,
-			data: data,
+			code,
+			code_hash,
+			data,
 			call_type: CallType::Call,
 			params_type: ParamsType::Separate,
 		};
 		let schedule = self.schedule(env_info.number);
 		let mut ex = Executive::new(&mut state, &env_info, self, &schedule);
 		let mut substate = Substate::new();
-		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer);
-		let output = match res {
-			Ok(res) => res.return_data.to_vec(),
-			Err(e) => {
-				warn!("Encountered error on making system call: {}", e);
-				Vec::new()
-			}
-		};
+
+		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).map_err(|e| ::engines::EngineError::FailedSystemCall(format!("{}", e)))?;
+		let output = res.return_data.to_vec();
 
 		Ok(output)
 	}

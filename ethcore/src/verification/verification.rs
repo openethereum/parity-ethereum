@@ -376,7 +376,6 @@ mod tests {
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
 	use rlp;
 	use triehash::ordered_trie_root;
-	use views::BlockView;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -420,10 +419,10 @@ mod tests {
 		}
 
 		pub fn insert(&mut self, bytes: Bytes) {
-			let number = view!(BlockView, &bytes).header_view().number();
-			let hash = view!(BlockView, &bytes).header_view().hash();
-			self.blocks.insert(hash.clone(), bytes);
-			self.numbers.insert(number, hash.clone());
+			let header = Unverified::from_rlp(bytes.clone()).unwrap().header;
+			let hash = header.hash();
+			self.blocks.insert(hash, bytes);
+			self.numbers.insert(header.number(), hash);
 		}
 	}
 
@@ -460,11 +459,11 @@ mod tests {
 		/// Get the familial details concerning a block.
 		fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 			self.blocks.get(hash).map(|bytes| {
-				let header = view!(BlockView, bytes).header();
+				let header = Unverified::from_rlp(bytes.to_vec()).unwrap().header;
 				BlockDetails {
 					number: header.number(),
-					total_difficulty: header.difficulty().clone(),
-					parent: header.parent_hash().clone(),
+					total_difficulty: *header.difficulty(),
+					parent: *header.parent_hash(),
 					children: Vec::new(),
 					is_finalized: false,
 				}
@@ -501,9 +500,9 @@ mod tests {
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
-		let view = view!(BlockView, bytes);
-		let header = view.header();
-		let transactions: Vec<_> = view.transactions()
+		let block = Unverified::from_rlp(bytes.to_vec()).unwrap();
+		let header = block.header;
+		let transactions: Vec<_> = block.transactions
 			.into_iter()
 			.map(SignedTransaction::new)
 			.collect::<Result<_,_>>()?;
@@ -520,7 +519,7 @@ mod tests {
 		let block = PreverifiedBlock {
 			header,
 			transactions,
-			uncles: view.uncles(),
+			uncles: block.uncles,
 			bytes: bytes.to_vec(),
 		};
 
@@ -533,7 +532,6 @@ mod tests {
 	}
 
 	fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
-		use verification::queue::kind::blocks::Unverified;
 		let un = Unverified::from_rlp(bytes.to_vec())?;
 		verify_block_unordered(un, engine, false)?;
 		Ok(())

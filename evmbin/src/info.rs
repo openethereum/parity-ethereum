@@ -81,10 +81,11 @@ pub fn run_action<T: Informant>(
 		}
 	}
 	run(spec, params.gas, spec.genesis_state(), |mut client| {
-		let result = client
-			.call(params, &mut trace::NoopTracer, &mut informant)
-			.map(|r| (0.into(), r.gas_left, r.return_data.to_vec()));
-		(result, informant.drain())
+		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
+			Ok(r) => (Ok((0.into(), r.return_data.to_vec())), Some(r.gas_left)),
+			Err(err) => (Err(err), None),
+		};
+		(result.0, result.1, informant.drain())
 	})
 }
 
@@ -116,20 +117,20 @@ pub fn run_transaction<T: Informant>(
 	let result = run(&spec, env_info.gas_limit, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
-			TransactResult::Ok { state_root, .. } if state_root != post_root => {
+			TransactResult::Ok { state_root, gas_left, .. } if state_root != post_root => {
 				(Err(EvmTestError::PostCondition(format!(
-					"State root mismatch (got: {}, expected: {})",
+					"State root mismatch (got: 0x{:x}, expected: 0x{:x})",
 					state_root,
 					post_root,
-				))), None)
+				))), Some(gas_left), None)
 			},
 			TransactResult::Ok { state_root, gas_left, output, vm_trace, .. } => {
-				(Ok((state_root, gas_left, output)), vm_trace)
+				(Ok((state_root, output)), Some(gas_left), vm_trace)
 			},
 			TransactResult::Err { error, .. } => {
 				(Err(EvmTestError::PostCondition(format!(
 					"Unexpected execution error: {:?}", error
-				))), None)
+				))), None, None)
 			},
 		}
 	});
@@ -144,7 +145,7 @@ pub fn run<'a, F, X>(
 	pre_state: &'a pod_state::PodState,
 	run: F,
 ) -> RunResult<X> where
-	F: FnOnce(EvmTestClient) -> (Result<(H256, U256, Vec<u8>), EvmTestError>, Option<X>),
+	F: FnOnce(EvmTestClient) -> (Result<(H256, Vec<u8>), EvmTestError>, Option<U256>, Option<X>),
 {
 	let test_client = EvmTestClient::from_pod_state(spec, pre_state.clone())
 		.map_err(|error| Failure {
@@ -159,15 +160,15 @@ pub fn run<'a, F, X>(
 	let time = start.elapsed();
 
 	match result {
-		(Ok((state_root, gas_left, output)), traces) => Ok(Success {
+		(Ok((state_root, output)), gas_left, traces) => Ok(Success {
 			state_root,
-			gas_used: initial_gas - gas_left,
+			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
 			output,
 			time,
 			traces,
 		}),
-		(Err(error), traces) => Err(Failure {
-			gas_used: initial_gas,
+		(Err(error), gas_left, traces) => Err(Failure {
+			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
 			error,
 			time,
 			traces,

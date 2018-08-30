@@ -22,7 +22,8 @@ ethjson = { path = "../../json" }
 ethkey = { path = "../../ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
-keccak-hash = "0.1"
+heapsize = "0.4"
+keccak-hash = "0.1.2"
 log = "0.4"
 parking_lot = "0.6"
 patricia-trie = "0.2.1"
@@ -35,6 +36,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 tiny-keccak = "1.4"
+transaction-pool = "1.13.2"
 url = "1"
 
 [dev-dependencies]

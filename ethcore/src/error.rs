@@ -152,6 +152,24 @@ impl error::Error for BlockError {
 
 error_chain! {
 	types {
+		QueueError, QueueErrorKind, QueueErrorResultExt, QueueErrorResult;
+	}
+
+	errors {
+		#[doc = "Queue is full"]
+		Full(limit: usize) {
+			description("Queue is full")
+			display("The queue is full ({})", limit)
+		}
+	}
+
+	foreign_links {
+		Channel(IoError) #[doc = "Io channel error"];
+	}
+}
+
+error_chain! {
+	types {
 		ImportError, ImportErrorKind, ImportErrorResultExt, ImportErrorResult;
 	}
 
@@ -183,6 +201,7 @@ error_chain! {
 
 	links {
 		Import(ImportError, ImportErrorKind) #[doc = "Import error"];
+		Queue(QueueError, QueueErrorKind) #[doc = "Io channel queue error"];
 	}
 
 	foreign_links {
