@@ -32,17 +32,19 @@ use user_defaults::UserDefaults;
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
 	Foundation,
-	Morden,
-	Ropsten,
-	Tobalaba,
-	Kovan,
-	Olympic,
 	Classic,
+	Poanet,
+	Tobalaba,
 	Expanse,
 	Musicoin,
 	Ellaism,
 	Easthub,
 	Social,
+	Olympic,
+	Morden,
+	Ropsten,
+	Kovan,
+	Sokol,
 	Dev,
 	Custom(String),
 }
@@ -58,18 +60,20 @@ impl str::FromStr for SpecType {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let spec = match s {
-			"foundation" | "frontier" | "homestead" | "mainnet" => SpecType::Foundation,
-			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
-			"morden" | "classic-testnet" => SpecType::Morden,
-			"ropsten" => SpecType::Ropsten,
-			"kovan" | "testnet" => SpecType::Kovan,
+			"ethereum" | "frontier" | "homestead" | "byzantium" | "foundation" | "mainnet" => SpecType::Foundation,
+			"classic" | "frontier-dogmatic" | "homestead-dogmatic" => SpecType::Classic,
+			"poanet" | "poacore" => SpecType::Poanet,
 			"tobalaba" => SpecType::Tobalaba,
-			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
 			"musicoin" => SpecType::Musicoin,
 			"ellaism" => SpecType::Ellaism,
 			"easthub" => SpecType::Easthub,
 			"social" => SpecType::Social,
+			"olympic" => SpecType::Olympic,
+			"morden" | "classic-testnet" => SpecType::Morden,
+			"ropsten" => SpecType::Ropsten,
+			"kovan" | "testnet" => SpecType::Kovan,
+			"sokol" | "poasokol" => SpecType::Sokol,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -81,17 +85,19 @@ impl fmt::Display for SpecType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match *self {
 			SpecType::Foundation => "foundation",
-			SpecType::Morden => "morden",
-			SpecType::Ropsten => "ropsten",
-			SpecType::Olympic => "olympic",
 			SpecType::Classic => "classic",
+			SpecType::Poanet => "poanet",
+			SpecType::Tobalaba => "tobalaba",
 			SpecType::Expanse => "expanse",
 			SpecType::Musicoin => "musicoin",
 			SpecType::Ellaism => "ellaism",
 			SpecType::Easthub => "easthub",
 			SpecType::Social => "social",
+			SpecType::Olympic => "olympic",
+			SpecType::Morden => "morden",
+			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
-			SpecType::Tobalaba => "tobalaba",
+			SpecType::Sokol => "sokol",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
 		})
@@ -103,17 +109,19 @@ impl SpecType {
 		let params = params.into();
 		match *self {
 			SpecType::Foundation => Ok(ethereum::new_foundation(params)),
-			SpecType::Morden => Ok(ethereum::new_morden(params)),
-			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
-			SpecType::Olympic => Ok(ethereum::new_olympic(params)),
 			SpecType::Classic => Ok(ethereum::new_classic(params)),
+			SpecType::Poanet => Ok(ethereum::new_poanet(params)),
+			SpecType::Tobalaba => Ok(ethereum::new_tobalaba(params)),
 			SpecType::Expanse => Ok(ethereum::new_expanse(params)),
 			SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
 			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
 			SpecType::Easthub => Ok(ethereum::new_easthub(params)),
 			SpecType::Social => Ok(ethereum::new_social(params)),
-			SpecType::Tobalaba => Ok(ethereum::new_tobalaba(params)),
+			SpecType::Olympic => Ok(ethereum::new_olympic(params)),
+			SpecType::Morden => Ok(ethereum::new_morden(params)),
+			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
+			SpecType::Sokol => Ok(ethereum::new_sokol(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
@@ -345,17 +353,31 @@ mod tests {
 
 	#[test]
 	fn test_spec_type_parsing() {
+		assert_eq!(SpecType::Foundation, "foundation".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "frontier".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "homestead".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "byzantium".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "mainnet".parse().unwrap());
-		assert_eq!(SpecType::Foundation, "foundation".parse().unwrap());
-		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
-		assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
-		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
-		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
-		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "ethereum".parse().unwrap());
 		assert_eq!(SpecType::Classic, "classic".parse().unwrap());
+		assert_eq!(SpecType::Classic, "frontier-dogmatic".parse().unwrap());
+		assert_eq!(SpecType::Classic, "homestead-dogmatic".parse().unwrap());
+		assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
+		assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
+		assert_eq!(SpecType::Tobalaba, "tobalaba".parse().unwrap());
+		assert_eq!(SpecType::Expanse, "expanse".parse().unwrap());
+		assert_eq!(SpecType::Musicoin, "musicoin".parse().unwrap());
+		assert_eq!(SpecType::Ellaism, "ellaism".parse().unwrap());
+		assert_eq!(SpecType::Easthub, "easthub".parse().unwrap());
+		assert_eq!(SpecType::Social, "social".parse().unwrap());
+		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
+		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Morden, "classic-testnet".parse().unwrap());
+		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
+		assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
+		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
+		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
 	}
 
 	#[test]
@@ -366,13 +388,19 @@ mod tests {
 	#[test]
 	fn test_spec_type_display() {
 		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
-		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
-		assert_eq!(format!("{}", SpecType::Morden), "morden");
-		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
+		assert_eq!(format!("{}", SpecType::Poanet), "poanet");
+		assert_eq!(format!("{}", SpecType::Tobalaba), "tobalaba");
 		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
 		assert_eq!(format!("{}", SpecType::Musicoin), "musicoin");
+		assert_eq!(format!("{}", SpecType::Ellaism), "ellaism");
+		assert_eq!(format!("{}", SpecType::Easthub), "easthub");
+		assert_eq!(format!("{}", SpecType::Social), "social");
+		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
+		assert_eq!(format!("{}", SpecType::Morden), "morden");
+		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
+		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
