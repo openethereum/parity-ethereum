@@ -23,7 +23,7 @@ use {SafeAccount, Error};
 use super::KeyDirectory;
 
 /// Accounts in-memory storage.
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct MemoryDirectory {
 	accounts: RwLock<HashMap<Address, Vec<SafeAccount>>>,
 }

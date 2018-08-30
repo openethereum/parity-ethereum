@@ -23,7 +23,6 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey};
 use super::vault::{VAULT_FILE_NAME, VaultDiskDirectory};
-use std::fmt::Debug;
 
 const IGNORED_FILES: &'static [&'static str] = &[
 	"thumbs.db",
@@ -104,7 +103,7 @@ pub fn replace_file_with_permissions_to_owner(file_path: &Path) -> io::Result<fs
 pub type RootDiskDirectory = DiskDirectory<DiskKeyFileManager>;
 
 /// Disk directory key file manager
-pub trait KeyFileManager: Send + Sync + Debug {
+pub trait KeyFileManager: Send + Sync {
 	/// Read `SafeAccount` from given key file stream
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read;
 	/// Write `SafeAccount` to given key file stream
@@ -112,14 +111,12 @@ pub trait KeyFileManager: Send + Sync + Debug {
 }
 
 /// Disk-based keys directory implementation
-#[derive(Debug)]
 pub struct DiskDirectory<T> where T: KeyFileManager {
 	path: PathBuf,
 	key_manager: T,
 }
 
 /// Keys file manager for root keys directory
-#[derive(Debug)]
 pub struct DiskKeyFileManager;
 
 impl RootDiskDirectory {
