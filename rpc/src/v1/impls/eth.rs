@@ -24,10 +24,9 @@ use rlp::{self, Rlp};
 use ethereum_types::{U256, H64, H160, H256, Address};
 use parking_lot::Mutex;
 
-use ethash::SeedHashCompute;
+use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
-use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
@@ -740,9 +739,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		// check if we're still syncing and return empty strings in that case
 		{
-			//TODO: check if initial sync is complete here
-			//let sync = self.sync;
-			if /*sync.status().state != SyncState::Idle ||*/ self.client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+			let sync_status = self.sync.status();
+			let queue_info = self.client.queue_info();
+			let total_queue_size = queue_info.total_queue_size();
+
+			if is_major_importing(Some(sync_status.state), queue_info) || total_queue_size > MAX_QUEUE_SIZE_TO_MINE_ON {
 				trace!(target: "miner", "Syncing. Cannot give any work.");
 				return Err(errors::no_work());
 			}
@@ -765,7 +766,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		})?;
 
 		let (pow_hash, number, timestamp, difficulty) = work;
-		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let target = ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = self.seed_compute.lock().hash_block_number(number);
 
 		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();

@@ -23,7 +23,7 @@ use std::fmt;
 use client::{Client, ImportSealedBlock};
 use ethereum_types::{H64, H256, clean_0x, U256};
 use ethereum::ethash::Ethash;
-use ethash::SeedHashCompute;
+use ethash::{self, SeedHashCompute};
 use ethcore_miner::work_notify::NotifyWork;
 use ethcore_stratum::{
 	JobDispatcher, PushWorkHandler,
@@ -166,7 +166,7 @@ impl StratumJobDispatcher {
 	/// Serializes payload for stratum service
 	fn payload(&self, pow_hash: H256, difficulty: U256, number: u64) -> String {
 		// TODO: move this to engine
-		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let target = ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = &self.seed_compute.lock().hash_block_number(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		format!(

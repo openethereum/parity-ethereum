@@ -24,6 +24,7 @@ use hash::Address;
 pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="minimumDifficulty")]
+	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub minimum_difficulty: Uint,
 	/// See main EthashParams docs.
 	#[serde(rename="difficultyBoundDivisor")]

@@ -33,6 +33,9 @@ use transaction_queue::TransactionQueue;
 
 use request;
 
+/// Maximum allowed size of a headers request.
+pub const MAX_HEADERS_PER_REQUEST: u64 = 512;
+
 /// Defines the operations that a provider for the light subprotocol must fulfill.
 pub trait Provider: Send + Sync {
 	/// Provide current blockchain info.
@@ -54,7 +57,6 @@ pub trait Provider: Send + Sync {
 	/// results within must adhere to the `skip` and `reverse` parameters.
 	fn block_headers(&self, req: request::CompleteHeadersRequest) -> Option<request::HeadersResponse> {
 		use request::HashOrNumber;
-		const MAX_HEADERS_TO_SEND: u64 = 512;
 
 		if req.max == 0 { return None }
 
@@ -83,7 +85,7 @@ pub trait Provider: Send + Sync {
 			}
 		};
 
-		let max = ::std::cmp::min(MAX_HEADERS_TO_SEND, req.max);
+		let max = ::std::cmp::min(MAX_HEADERS_PER_REQUEST, req.max);
 
 		let headers: Vec<_> = (0u64..max)
 			.map(|x: u64| x.saturating_mul(req.skip.saturating_add(1)))
@@ -128,7 +130,7 @@ pub trait Provider: Send + Sync {
 	fn header_proof(&self, req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse>;
 
 	/// Provide pending transactions.
-	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction>;
+	fn transactions_to_propagate(&self) -> Vec<PendingTransaction>;
 
 	/// Provide a proof-of-execution for the given transaction proof request.
 	/// Returns a vector of all state items necessary to execute the transaction.
@@ -283,8 +285,8 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 			.map(|(_, proof)| ::request::ExecutionResponse { items: proof })
 	}
 
-	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
-		BlockChainClient::ready_transactions(self, max_len)
+	fn transactions_to_propagate(&self) -> Vec<PendingTransaction> {
+		BlockChainClient::transactions_to_propagate(self)
 			.into_iter()
 			.map(|tx| tx.pending().clone())
 			.collect()
@@ -370,12 +372,10 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 		None
 	}
 
-	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
+	fn transactions_to_propagate(&self) -> Vec<PendingTransaction> {
 		let chain_info = self.chain_info();
-		let mut transactions = self.txqueue.read()
-			.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
-		transactions.truncate(max_len);
-		transactions
+		self.txqueue.read()
+			.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 	}
 }
 

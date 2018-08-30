@@ -204,6 +204,8 @@ fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
 				caps.serve_headers = true,
 			CheckedRequest::HeaderByHash(_, _) =>
 				caps.serve_headers = true,
+			CheckedRequest::HeaderWithAncestors(_, _) =>
+				caps.serve_headers = true,
 			CheckedRequest::TransactionIndex(_, _) => {} // hashes yield no info.
 			CheckedRequest::Signal(_, _) =>
 				caps.serve_headers = true,

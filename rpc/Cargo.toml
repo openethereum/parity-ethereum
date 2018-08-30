@@ -61,6 +61,7 @@ parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 patricia-trie = { path = "../util/patricia_trie" }
+plain_hasher = { path = "../util/plain_hasher" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }

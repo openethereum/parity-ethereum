@@ -19,6 +19,7 @@
 use std::fmt;
 
 use ethcore::account_provider::{SignError as AccountError};
+use ethcore::client::BlockId;
 use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
@@ -104,6 +105,14 @@ pub fn request_rejected_limit() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::REQUEST_REJECTED_LIMIT),
 		message: "Request has been rejected because of queue limit.".into(),
+		data: None,
+	}
+}
+
+pub fn request_rejected_param_limit(limit: u64, items_desc: &str) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::REQUEST_REJECTED_LIMIT),
+		message: format!("Requested data size exceeds limit of {} {}.", limit, items_desc),
 		data: None,
 	}
 }
@@ -435,6 +444,19 @@ pub fn filter_not_found() -> Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Filter not found".into(),
 		data: None,
+	}
+}
+
+pub fn filter_block_not_found(id: BlockId) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST), // Specified in EIP-234.
+		message: "One of the blocks specified in filter (fromBlock, toBlock or blockHash) cannot be found".into(),
+		data: Some(Value::String(match id {
+			BlockId::Hash(hash) => format!("0x{:x}", hash),
+			BlockId::Number(number) => format!("0x{:x}", number),
+			BlockId::Earliest => "earliest".to_string(),
+			BlockId::Latest => "latest".to_string(),
+		})),
 	}
 }
 
