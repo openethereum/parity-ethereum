@@ -98,6 +98,7 @@ pub struct ImportBlockchain {
 	pub with_color: bool,
 	pub verifier_settings: VerifierSettings,
 	pub light: bool,
+	pub max_round_blocks_to_import: usize,
 }
 
 #[derive(Debug, PartialEq)]
@@ -116,6 +117,7 @@ pub struct ExportBlockchain {
 	pub from_block: BlockId,
 	pub to_block: BlockId,
 	pub check_seal: bool,
+	pub max_round_blocks_to_import: usize,
 }
 
 #[derive(Debug, PartialEq)]
@@ -136,6 +138,7 @@ pub struct ExportState {
 	pub code: bool,
 	pub min_balance: Option<U256>,
 	pub max_balance: Option<U256>,
+	pub max_round_blocks_to_import: usize,
 }
 
 pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
@@ -354,6 +357,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		cmd.pruning_history,
 		cmd.pruning_memory,
 		cmd.check_seal,
+		12,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
@@ -493,6 +497,7 @@ fn start_client(
 	compaction: DatabaseCompactionProfile,
 	cache_config: CacheConfig,
 	require_fat_db: bool,
+	max_round_blocks_to_import: usize,
 ) -> Result<ClientService, String> {
 
 	// load spec file
@@ -546,6 +551,7 @@ fn start_client(
 		pruning_history,
 		pruning_memory,
 		true,
+		max_round_blocks_to_import,
 	);
 
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
@@ -583,6 +589,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		cmd.compaction,
 		cmd.cache_config,
 		false,
+		cmd.max_round_blocks_to_import,
 	)?;
 	let format = cmd.format.unwrap_or_default();
 
@@ -626,7 +633,8 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		cmd.fat_db,
 		cmd.compaction,
 		cmd.cache_config,
-		true
+		true,
+		cmd.max_round_blocks_to_import,
 	)?;
 
 	let client = service.client();

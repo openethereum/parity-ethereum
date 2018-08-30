@@ -776,6 +776,10 @@ usage! {
 			"--stratum-secret=[STRING]",
 			"Secret for authorizing Stratum server for peers.",
 
+			ARG arg_max_round_blocks_to_import: (usize) = 12usize, or |c: &Config| c.mining.as_ref()?.max_round_blocks_to_import.clone(),
+			"--max-round-blocks-to-import=[S]",
+			"Maximal number of blocks to import for each import round.",
+
 		["Internal Options"]
 			FLAG flag_can_restart: (bool) = false, or |_| None,
 			"--can-restart",
@@ -1312,6 +1316,7 @@ struct Mining {
 	notify_work: Option<Vec<String>>,
 	refuse_service_transactions: Option<bool>,
 	infinite_pending_block: Option<bool>,
+	max_round_blocks_to_import: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1736,6 +1741,7 @@ mod tests {
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
 			flag_infinite_pending_block: false,
+			arg_max_round_blocks_to_import: 12usize,
 
 			flag_stratum: false,
 			arg_stratum_interface: "local".to_owned(),
@@ -2002,6 +2008,7 @@ mod tests {
 				notify_work: None,
 				refuse_service_transactions: None,
 				infinite_pending_block: None,
+				max_round_blocks_to_import: Some(32),
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),

@@ -62,6 +62,7 @@ pub struct SnapshotCommand {
 	pub file_path: Option<String>,
 	pub kind: Kind,
 	pub block_at: BlockId,
+	pub max_round_blocks_to_import: usize,
 }
 
 // helper for reading chunks from arbitrary reader and feeding them into the
@@ -178,6 +179,7 @@ impl SnapshotCommand {
 			self.pruning_history,
 			self.pruning_memory,
 			true,
+			self.max_round_blocks_to_import,
 		);
 
 		let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
