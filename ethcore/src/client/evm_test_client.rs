@@ -60,7 +60,7 @@ impl fmt::Display for EvmTestError {
 }
 
 use ethereum;
-use ethjson::state::test::ForkSpec;
+use ethjson::spec::ForkSpec;
 
 /// Simplified, single-block EVM test client.
 pub struct EvmTestClient<'a> {

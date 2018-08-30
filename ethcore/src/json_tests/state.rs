@@ -114,12 +114,16 @@ mod state_tests {
 		json_chain_test(json_data, h)
 	}
 
+	declare_test!{GeneralStateTest_stArgsZeroOneBalance, "GeneralStateTests/stArgsZeroOneBalance/"}
 	declare_test!{GeneralStateTest_stAttackTest, "GeneralStateTests/stAttackTest/"}
 	declare_test!{GeneralStateTest_stBadOpcodeTest, "GeneralStateTests/stBadOpcode/"}
+	declare_test!{GeneralStateTest_stBugs, "GeneralStateTests/stBugs/"}
 	declare_test!{GeneralStateTest_stCallCodes, "GeneralStateTests/stCallCodes/"}
+	declare_test!{GeneralStateTest_stCallCreateCallCodeTest, "GeneralStateTests/stCallCreateCallCodeTest/"}
 	declare_test!{GeneralStateTest_stCallDelegateCodesCallCodeHomestead, "GeneralStateTests/stCallDelegateCodesCallCodeHomestead/"}
 	declare_test!{GeneralStateTest_stCallDelegateCodesHomestead, "GeneralStateTests/stCallDelegateCodesHomestead/"}
 	declare_test!{GeneralStateTest_stChangedEIP150, "GeneralStateTests/stChangedEIP150/"}
+	declare_test!{GeneralStateTest_stCodeCopyTest, "GeneralStateTests/stCodeCopyTest/"}
 	declare_test!{GeneralStateTest_stCodeSizeLimit, "GeneralStateTests/stCodeSizeLimit/"}
 	declare_test!{GeneralStateTest_stCreateTest, "GeneralStateTests/stCreateTest/"}
 	declare_test!{GeneralStateTest_stDelegatecallTestHomestead, "GeneralStateTests/stDelegatecallTestHomestead/"}
@@ -135,12 +139,15 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stMemoryTest, "GeneralStateTests/stMemoryTest/"}
 	declare_test!{GeneralStateTest_stNonZeroCallsTest, "GeneralStateTests/stNonZeroCallsTest/"}
 	declare_test!{GeneralStateTest_stPreCompiledContracts, "GeneralStateTests/stPreCompiledContracts/"}
+	declare_test!{GeneralStateTest_stPreCompiledContracts2, "GeneralStateTests/stPreCompiledContracts2/"}
 	declare_test!{heavy => GeneralStateTest_stQuadraticComplexityTest, "GeneralStateTests/stQuadraticComplexityTest/"}
 	declare_test!{GeneralStateTest_stRandom, "GeneralStateTests/stRandom/"}
+	declare_test!{GeneralStateTest_stRandom2, "GeneralStateTests/stRandom2/"}
 	declare_test!{GeneralStateTest_stRecursiveCreate, "GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{GeneralStateTest_stRefundTest, "GeneralStateTests/stRefundTest/"}
 	declare_test!{GeneralStateTest_stReturnDataTest, "GeneralStateTests/stReturnDataTest/"}
 	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
+	declare_test!{GeneralStateTest_stShift, "GeneralStateTests/stShift/"}
 	declare_test!{GeneralStateTest_stSolidityTest, "GeneralStateTests/stSolidityTest/"}
 	declare_test!{GeneralStateTest_stSpecialTest, "GeneralStateTests/stSpecialTest/"}
 	declare_test!{GeneralStateTest_stStackTests, "GeneralStateTests/stStackTests/"}
@@ -152,4 +159,5 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stZeroCallsRevert, "GeneralStateTests/stZeroCallsRevert/"}
 	declare_test!{GeneralStateTest_stZeroCallsTest, "GeneralStateTests/stZeroCallsTest/"}
 	declare_test!{GeneralStateTest_stZeroKnowledge, "GeneralStateTests/stZeroKnowledge/"}
+	declare_test!{GeneralStateTest_stZeroKnowledge2, "GeneralStateTests/stZeroKnowledge2/"}
 }

@@ -21,6 +21,21 @@ use serde_json;
 use serde_json::Error;
 use spec::{Params, Genesis, Engine, State, HardcodedSync};
 
+/// Fork spec definition
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+pub enum ForkSpec {
+	EIP150,
+	EIP158,
+	Frontier,
+	Homestead,
+	Byzantium,
+	Constantinople,
+	EIP158ToByzantiumAt5,
+	FrontierToHomesteadAt5,
+	HomesteadToDaoAt5,
+	HomesteadToEIP150At5,
+}
+
 /// Spec deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Spec {

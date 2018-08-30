@@ -19,7 +19,7 @@
 #[macro_use]
 mod test_common;
 
-// mod transaction;
+mod transaction;
 mod executive;
 mod state;
 mod chain;
@@ -30,8 +30,8 @@ mod difficulty;
 
 pub use self::test_common::HookType;
 
-// pub use self::transaction::run_test_path as run_transaction_test_path;
-// pub use self::transaction::run_test_file as run_transaction_test_file;
+pub use self::transaction::run_test_path as run_transaction_test_path;
+pub use self::transaction::run_test_file as run_transaction_test_file;
 pub use self::executive::run_test_path as run_executive_test_path;
 pub use self::executive::run_test_file as run_executive_test_file;
 pub use self::state::run_test_path as run_state_test_path;

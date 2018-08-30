@@ -51,6 +51,8 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 			}}) {
 			run_test_path(&p, skip, runner, start_stop_hook)
 		}
+	} else if path.extension().and_then(|s| s.to_str()) == Some("swp") {
+		// Ignore junk
 	} else {
 		let mut path = p.to_path_buf();
 		path.set_extension("json");
@@ -64,7 +66,10 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(
 	start_stop_hook: &mut H
 ) {
 	let mut data = Vec::new();
-	let mut file = File::open(&path).expect("Error opening test file");
+	let mut file = match File::open(&path) {
+		Ok(file) => file,
+		Err(_) => panic!("Error opening test file at: {:?}", path),
+	};
 	file.read_to_end(&mut data).expect("Error reading test file");
 	let results = runner(&data, start_stop_hook);
 	let empty: [String; 0] = [];
