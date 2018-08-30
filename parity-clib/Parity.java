@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-namespace io.parity.ethereum;
+package io.parity.ethereum;
 
 /**
  * Interface to the Parity client.
@@ -50,10 +50,9 @@ public class Parity {
         destroy(inner);
     }
 
-    // You may need to uncomment this if you're building Parity as a dynamic library.
-    //static {
-    //    System.loadLibrary("parity");
-    //}
+    static {
+        System.loadLibrary("parity");
+    }
 
     private static native long configFromCli(String[] cliOptions);
     private static native long build(long config);
