@@ -41,6 +41,7 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 		os.push(".json");
 		os
 	}).collect();
+	let extension = path.extension().and_then(|s| s.to_str());
 	if path.is_dir() {
 		for p in read_dir(path).unwrap().filter_map(|e| {
 			let e = e.unwrap();
@@ -51,7 +52,7 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 			}}) {
 			run_test_path(&p, skip, runner, start_stop_hook)
 		}
-	} else if path.extension().and_then(|s| s.to_str()) == Some("swp") {
+	} else if extension == Some("swp") || extension == None {
 		// Ignore junk
 	} else {
 		let mut path = p.to_path_buf();
