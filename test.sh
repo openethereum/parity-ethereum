@@ -32,15 +32,14 @@ set -e
 if [ "$VALIDATE" -eq "1" ]; then
 # Validate --no-default-features build
 echo "________Validate build________"
-cargo check --no-default-features
-cargo check --manifest-path util/io/Cargo.toml --no-default-features
-cargo check --manifest-path util/io/Cargo.toml --features "mio"
+time cargo check --no-default-features
+time cargo check --manifest-path util/io/Cargo.toml --no-default-features
+time cargo check --manifest-path util/io/Cargo.toml --features "mio"
 
 # Validate chainspecs
 echo "________Validate chainspecs________"
-./scripts/validate_chainspecs.sh
+time ./scripts/validate_chainspecs.sh
 fi
-
 
 # Running the C++ example
 echo "________Running the C++ example________"
@@ -48,7 +47,7 @@ cd parity-clib-examples/cpp && \
   mkdir -p build && \
   cd build && \
   cmake .. && \
-  make && \
+  make -j 8 && \
   ./parity-example && \
   cd .. && \
   rm -rf build && \
@@ -57,4 +56,4 @@ cd parity-clib-examples/cpp && \
 # Running tests
 echo "________Running Parity Full Test Suite________"
 git submodule update --init --recursive
-cargo test -j 8 $OPTIONS --features "$FEATURES" --all $1
+time cargo test  $OPTIONS --features "$FEATURES" --all $1 -- --test-threads 8

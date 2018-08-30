@@ -43,7 +43,7 @@ use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use block::{ClosedBlock, IsBlock, Block, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce
+	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
 use executive::contract_address;
@@ -294,6 +294,19 @@ impl Miner {
 	/// Sets `IoChannel`
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
 		*self.io_channel.write() = Some(io_channel);
+	}
+
+	/// Sets in-blockchain checker for transactions.
+	pub fn set_in_chain_checker<C>(&self, chain: &Arc<C>) where
+		C: TransactionInfo + Send + Sync + 'static,
+	{
+		let client = Arc::downgrade(chain);
+		self.transaction_queue.set_in_chain_checker(move |hash| {
+			match client.upgrade() {
+				Some(info) => info.transaction_block(TransactionId::Hash(*hash)).is_some(),
+				None => false,
+			}
+		});
 	}
 
 	/// Clear all pending block states

@@ -307,11 +307,11 @@ mod test {
 	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream};
 	use super::{*, super::tests::*};
+	use blocks::SyncHeader;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 
 	#[test]
 	fn return_block_headers() {
-		use ethcore::views::HeaderView;
 		fn make_hash_req(h: &H256, count: usize, skip: usize, reverse: bool) -> Bytes {
 			let mut rlp = RlpStream::new_list(4);
 			rlp.append(h);
@@ -329,16 +329,16 @@ mod test {
 			rlp.append(&if reverse {1u32} else {0u32});
 			rlp.out()
 		}
-		fn to_header_vec(rlp: ::chain::RlpResponseResult) -> Vec<Bytes> {
-			Rlp::new(&rlp.unwrap().unwrap().1.out()).iter().map(|r| r.as_raw().to_vec()).collect()
+		fn to_header_vec(rlp: ::chain::RlpResponseResult) -> Vec<SyncHeader> {
+			Rlp::new(&rlp.unwrap().unwrap().1.out()).iter().map(|r| SyncHeader::from_rlp(r.as_raw().to_vec()).unwrap()).collect()
 		}
 
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Nothing);
 		let blocks: Vec<_> = (0 .. 100)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).map(|b| b.into_inner()).unwrap()).collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| SyncHeader::from_rlp(Rlp::new(b).at(0).unwrap().as_raw().to_vec()).unwrap()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| h.header.hash()).collect();
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();

@@ -637,10 +637,11 @@ mod tests {
 	use ethereum_types::Address;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
+	use verification::queue::kind::blocks::Unverified;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
-		block_bytes: &[u8],
+		block_bytes: Vec<u8>,
 		engine: &EthEngine,
 		tracing: bool,
 		db: StateDB,
@@ -648,10 +649,10 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
-		let block = view!(BlockView, block_bytes);
-		let header = block.header();
+		let block = Unverified::from_rlp(block_bytes)?;
+		let header = block.header;
 		let transactions: Result<Vec<_>, Error> = block
-			.transactions()
+			.transactions
 			.into_iter()
 			.map(SignedTransaction::new)
 			.map(|r| r.map_err(Into::into))
@@ -683,8 +684,8 @@ mod tests {
 		b.populate_from(&header);
 		b.push_transactions(transactions)?;
 
-		for u in &block.uncles() {
-			b.push_uncle(u.clone())?;
+		for u in block.uncles {
+			b.push_uncle(u)?;
 		}
 
 		b.close_and_lock()
@@ -692,7 +693,7 @@ mod tests {
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
 	fn enact_and_seal(
-		block_bytes: &[u8],
+		block_bytes: Vec<u8>,
 		engine: &EthEngine,
 		tracing: bool,
 		db: StateDB,
@@ -700,8 +701,9 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
-		let header = view!(BlockView, block_bytes).header_view();
-		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?.seal(engine, header.seal())?)
+		let header = Unverified::from_rlp(block_bytes.clone())?.header;
+		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
+		   .seal(engine, header.seal().to_vec())?)
 	}
 
 	#[test]
@@ -731,7 +733,7 @@ mod tests {
 		let orig_db = b.drain().state.drop().1;
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
-		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
+		let e = enact_and_seal(orig_bytes.clone(), engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 
@@ -762,7 +764,7 @@ mod tests {
 		let orig_db = b.drain().state.drop().1;
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
-		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
+		let e = enact_and_seal(orig_bytes.clone(), engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);

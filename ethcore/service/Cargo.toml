@@ -10,6 +10,7 @@ ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }
+ethereum-types = "0.3"
 kvdb = { git = "https://github.com/paritytech/parity-common" }
 log = "0.4"
 stop-guard = { path = "../../util/stop-guard" }

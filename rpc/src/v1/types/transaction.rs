@@ -82,8 +82,10 @@ pub enum LocalTransactionStatus {
 	Pending,
 	/// Transaction is in future part of the queue
 	Future,
-	/// Transaction is already mined.
+	/// Transaction was mined.
 	Mined(Transaction),
+	/// Transaction was removed from the queue, but not mined.
+	Culled(Transaction),
 	/// Transaction was dropped because of limit.
 	Dropped(Transaction),
 	/// Transaction was replaced by transaction with higher gas price.
@@ -104,7 +106,7 @@ impl Serialize for LocalTransactionStatus {
 
 		let elems = match *self {
 			Pending | Future => 1,
-			Mined(..) | Dropped(..) | Invalid(..) | Canceled(..) => 2,
+			Mined(..) | Culled(..) | Dropped(..) | Invalid(..) | Canceled(..) => 2,
 			Rejected(..) => 3,
 			Replaced(..) => 4,
 		};
@@ -118,6 +120,10 @@ impl Serialize for LocalTransactionStatus {
 			Future => struc.serialize_field(status, "future")?,
 			Mined(ref tx) => {
 				struc.serialize_field(status, "mined")?;
+				struc.serialize_field(transaction, tx)?;
+			},
+			Culled(ref tx) => {
+				struc.serialize_field(status, "culled")?;
 				struc.serialize_field(transaction, tx)?;
 			},
 			Dropped(ref tx) => {
@@ -257,6 +263,7 @@ impl LocalTransactionStatus {
 		match s {
 			Pending(_) => LocalTransactionStatus::Pending,
 			Mined(tx) => LocalTransactionStatus::Mined(convert(tx)),
+			Culled(tx) => LocalTransactionStatus::Culled(convert(tx)),
 			Dropped(tx) => LocalTransactionStatus::Dropped(convert(tx)),
 			Rejected(tx, reason) => LocalTransactionStatus::Rejected(convert(tx), reason),
 			Invalid(tx) => LocalTransactionStatus::Invalid(convert(tx)),

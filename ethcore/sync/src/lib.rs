@@ -21,12 +21,12 @@
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
 //!
 
+extern crate common_types as types;
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;
 extern crate parity_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_transaction as transaction;
-#[cfg_attr(test, macro_use)]
 extern crate ethcore;
 extern crate ethereum_types;
 extern crate env_logger;

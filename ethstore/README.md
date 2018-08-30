@@ -1,19 +1,12 @@
-# ethstore
+## ethstore-cli
 
-[![Build Status][travis-image]][travis-url]
-
-[travis-image]: https://travis-ci.org/paritytech/ethstore.svg?branch=master
-[travis-url]: https://travis-ci.org/paritytech/ethstore
-
-Ethereum key management.
-
-[Documentation](http://paritytech.github.io/ethstore/ethstore/index.html)
+Parity Ethereum key management.
 
 ### Usage
 
 ```
-Ethereum key management.
-  Copyright 2016, 2017 Parity Technologies (UK) Ltd
+Parity Ethereum key management tool.
+  Copyright 2015-2018 Parity Technologies (UK) Ltd.
 
 Usage:
     ethstore insert <secret> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
@@ -35,19 +28,19 @@ Usage:
 Options:
     -h, --help               Display this message and exit.
     --dir DIR                Specify the secret store directory. It may be either
-                             parity, parity-test, geth, geth-test
+                             parity, parity-(chain), geth, geth-test
                              or a path [default: parity].
     --vault VAULT            Specify vault to use in this operation.
     --vault-pwd VAULTPWD     Specify vault password to use in this operation. Please note
                              that this option is required when vault option is set.
                              Otherwise it is ignored.
     --src DIR                Specify import source. It may be either
-                             parity, parity-test, get, geth-test
+                             parity, parity-(chain), geth, geth-test
                              or a path [default: geth].
 
 Commands:
     insert             Save account with password.
-    change-pwd         Change account password.
+    change-pwd         Change password.
     list               List accounts.
     import             Import accounts from src.
     import-wallet      Import presale wallet.
@@ -59,7 +52,7 @@ Commands:
     create-vault       Create new vault.
     change-vault-pwd   Change vault password.
     move-to-vault      Move account to vault from another vault/root directory.
-    move-from-vault    Move account to root directory from given vault or root.
+    move-from-vault    Move account to root directory from given vault.
 ```
 
 ### Examples
@@ -337,11 +330,11 @@ ethstore move-from-vault 00e63fdb87ceb815ec96ae185b8f7381a0b4a5ea vault1 vault1_
 OK
 ```
 
---
+## Parity Ethereum toolchain
+_This project is a part of the Parity Ethereum toolchain._
 
-# Parity toolchain
-*this project is a part of the parity toolchain*
-
-- [**ethkey**](https://github.com/paritytech/ethkey) - Ethereum keys generator and signer.
-- [**ethstore**](https://github.com/paritytech/ethstore) - Ethereum key management.
-- [**ethabi**](https://github.com/paritytech/ethabi) - Ethereum function calls encoding.
+- [evmbin](https://github.com/paritytech/parity-ethereum/blob/master/evmbin/) - EVM implementation for Parity Ethereum.
+- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum function calls encoding.
+- [ethstore](https://github.com/paritytech/parity-ethereum/blob/master/ethstore/) - Parity Ethereum key management.
+- [ethkey](https://github.com/paritytech/parity-ethereum/blob/master/ethkey/) - Parity Ethereum keys generator.
+- [whisper](https://github.com/paritytech/parity-ethereum/blob/master/whisper/) - Implementation of Whisper-v2 PoC.

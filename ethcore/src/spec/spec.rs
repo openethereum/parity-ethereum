@@ -127,6 +127,8 @@ pub struct CommonParams {
 	pub wasm_activation_transition: BlockNumber,
 	/// Number of first block where KIP-4 rules begin. Only has effect if Wasm is activated.
 	pub kip4_transition: BlockNumber,
+	/// Number of first block where KIP-6 rules begin. Only has effect if Wasm is activated.
+	pub kip6_transition: BlockNumber,
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
@@ -194,6 +196,9 @@ impl CommonParams {
 			let mut wasm = ::vm::WasmCosts::default();
 			if block_number >= self.kip4_transition {
 				wasm.have_create2 = true;
+			}
+			if block_number >= self.kip6_transition {
+				wasm.have_gasleft = true;
 			}
 			schedule.wasm = Some(wasm);
 		}
@@ -305,6 +310,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into
 			),
 			kip4_transition: p.kip4_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into
+			),
+			kip6_transition: p.kip6_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into
 			),
@@ -655,7 +664,7 @@ impl Spec {
 					let machine = self.engine.machine();
 					let schedule = machine.schedule(env_info.number);
 					let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
-					if let Err(e) = exec.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer) {
+					if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}
 				}
@@ -768,6 +777,11 @@ impl Spec {
 		)?;
 
 		Ok(())
+	}
+
+	/// Return genesis state as Plain old data.
+	pub fn genesis_state(&self) -> &PodState {
+		&self.genesis_state
 	}
 
 	/// Returns `false` if the memoized state root is invalid. `true` otherwise.
