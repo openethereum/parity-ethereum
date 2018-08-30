@@ -38,7 +38,7 @@ impl Default for BadBlocks {
 
 impl BadBlocks {
 	/// Reports given RLP as invalid block.
-	pub  fn report(&self, raw: Bytes, message: String) {
+	pub fn report(&self, raw: Bytes, message: String) {
 		match Unverified::from_rlp(raw) {
 			Ok(unverified) => {
 				error!(
