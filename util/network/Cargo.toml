@@ -15,7 +15,7 @@ ethkey = { path = "../../ethkey" }
 ipnetwork = "0.12.6"
 rlp = { version = "0.2.4", features = ["ethereum"] }
 libc = "0.2"
-parity-snappy = "0.1.0-beta.0"
+parity-snappy = "0.1"
 
 [dev-dependencies]
 assert_matches = "1.2"
