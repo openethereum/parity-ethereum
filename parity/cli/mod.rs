@@ -2008,7 +2008,7 @@ mod tests {
 				notify_work: None,
 				refuse_service_transactions: None,
 				infinite_pending_block: None,
-				max_round_blocks_to_import: Some(32),
+				max_round_blocks_to_import: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),
