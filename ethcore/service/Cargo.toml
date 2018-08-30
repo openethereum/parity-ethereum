@@ -19,4 +19,4 @@ trace-time = "0.1"
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = "0.1.2-beta.0"
+kvdb-rocksdb = "0.1.2"
