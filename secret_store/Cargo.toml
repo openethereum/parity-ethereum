@@ -30,7 +30,7 @@ ethcore-logger = { path = "../logger" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
-kvdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb = "0.1.0"
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 ethkey = { path = "../ethkey" }
 lazy_static = "1.0"
@@ -41,4 +41,4 @@ ethabi-contract = "5.0"
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-rocksdb = "0.1.3"

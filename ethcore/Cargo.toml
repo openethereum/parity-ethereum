@@ -50,9 +50,9 @@ rand = "0.4"
 rlp = { git = "https://github.com/paritytech/parity-common" }
 rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
-kvdb = { git = "https://github.com/paritytech/parity-common" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
-snappy = { git = "https://github.com/paritytech/rust-snappy" }
+kvdb = "0.1.0"
+kvdb-memorydb = "0.1.0"
+parity-snappy = "0.1.0"
 stop-guard = { path = "../util/stop-guard" }
 macros = { path = "../util/macros" }
 rustc-hex = "1.0"
@@ -66,7 +66,7 @@ triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 keccak-hasher = { path = "../util/keccak-hasher" }
-kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-rocksdb = "0.1.3"
 tempdir = {version="0.3", optional = true}
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
