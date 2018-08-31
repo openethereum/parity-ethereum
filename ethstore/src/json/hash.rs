@@ -24,6 +24,12 @@ macro_rules! impl_hash {
 	($name: ident, $size: expr) => {
 		pub struct $name([u8; $size]);
 
+		impl $name {
+			pub fn zero() -> Self {
+				$name([0u8; $size])
+			}
+		}
+
 		impl fmt::Debug for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 				let self_ref: &[u8] = &self.0;

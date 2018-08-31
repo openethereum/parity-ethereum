@@ -160,7 +160,7 @@ impl<'a> Visitor<'a> for KeyFileVisitor {
 
 		let address = match address {
 			Some(address) => address,
-			None => return Err(V::Error::missing_field("address")),
+			None => H160::zero(),
 		};
 
 		let result = KeyFile {

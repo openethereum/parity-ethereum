@@ -52,6 +52,7 @@ enum CryptoField {
 	Kdf,
 	KdfParams,
 	Mac,
+	Ignored,
 }
 
 impl<'a> Deserialize<'a> for CryptoField {
@@ -81,7 +82,7 @@ impl<'a> Visitor<'a> for CryptoFieldVisitor {
 			"kdf" => Ok(CryptoField::Kdf),
 			"kdfparams" => Ok(CryptoField::KdfParams),
 			"mac" => Ok(CryptoField::Mac),
-			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
+			_ => Ok(CryptoField::Ignored),
 		}
 	}
 }
@@ -122,6 +123,7 @@ impl<'a> Visitor<'a> for CryptoVisitor {
 				Some(CryptoField::Kdf) => { kdf = Some(visitor.next_value()?); }
 				Some(CryptoField::KdfParams) => { kdfparams = Some(visitor.next_value()?); }
 				Some(CryptoField::Mac) => { mac = Some(visitor.next_value()?); }
+				Some(CryptoField::Ignored) => { visitor.next_value().unwrap_or(()) }
 				None => { break; }
 			}
 		}
