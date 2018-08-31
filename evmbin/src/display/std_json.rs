@@ -58,7 +58,7 @@ pub struct Informant<Trace = io::Stderr, Out = io::Stdout> {
 	depth: usize,
 	stack: Vec<U256>,
 	storage: HashMap<H256, H256>,
-	subinfos: Vec<Informant<T>>,
+	subinfos: Vec<Informant<Trace, Out>>,
 	subdepth: usize,
 	trace_sink: Trace,
 	out_sink: Out,
@@ -84,7 +84,7 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 		}
 	}
 
-	fn with_informant_in_depth<F: Fn(&mut Informant<T>)>(informant: &mut Informant<T>, depth: usize, f: F) {
+	fn with_informant_in_depth<F: Fn(&mut Informant<Trace, Out>)>(informant: &mut Informant<Trace, Out>, depth: usize, f: F) {
 		if depth == 0 {
 			f(informant);
 		} else {
@@ -155,7 +155,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
 		let subdepth = self.subdepth;
-		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
 			informant.instruction = instruction;
 			let storage = informant.storage();
@@ -178,7 +178,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 
 	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
 		let subdepth = self.subdepth;
-		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			if let Some((pos, val)) = store_written {
 				informant.storage.insert(pos.into(), val.into());
 			}
@@ -187,7 +187,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 
 	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem: &[u8]) {
 		let subdepth = self.subdepth;
-		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
 			let len = informant.stack.len();
@@ -199,7 +199,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 
 	fn prepare_subtrace(&mut self, code: &[u8]) {
 		let subdepth = self.subdepth;
-		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			let mut vm = Informant::new(informant.trace_sink.clone(), informant.out_sink.clone());
 			vm.depth = informant.depth + 1;
 			vm.code = code.to_vec();
@@ -211,7 +211,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 	fn done_subtrace(&mut self) {
 		self.subdepth -= 1;
 		let subdepth = self.subdepth;
-		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
 			informant.subinfos.pop();
 		});
 	}
