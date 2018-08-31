@@ -58,14 +58,14 @@ impl<D: Dispatcher> PersonalClient<D> {
 }
 
 impl<D: Dispatcher + 'static> PersonalClient<D> {
-	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
+	fn do_sign_transaction(&self, _meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
 		let default = match request.from.as_ref() {
 			Some(account) => Ok(account.clone().into()),
 			None => accounts
-				.dapp_default_address(meta.dapp_id().into())
+				.default_account()
 				.map_err(|e| errors::account("Cannot find default account.", e)),
 		};
 

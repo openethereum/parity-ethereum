@@ -21,13 +21,12 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
 use rlp::{self, Rlp};
-use ethereum_types::{U256, H64, H160, H256, Address};
+use ethereum_types::{U256, H64, H256, Address};
 use parking_lot::Mutex;
 
-use ethash::SeedHashCompute;
-use ethcore::account_provider::{AccountProvider, DappId};
+use ethash::{self, SeedHashCompute};
+use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
-use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
@@ -400,13 +399,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		Ok(Some(block))
 	}
 
-	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>> {
-		self.accounts
-			.note_dapp_used(dapp.clone())
-			.and_then(|_| self.accounts.dapp_addresses(dapp))
-			.map_err(|e| errors::account("Could not fetch accounts.", e))
-	}
-
 	fn get_state(&self, number: BlockNumber) -> StateOrBlock {
 		match number {
 			BlockNumber::Num(num) => BlockId::Number(num).into(),
@@ -509,12 +501,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		}
 	}
 
-	fn author(&self, meta: Metadata) -> Result<RpcH160> {
-		let dapp = meta.dapp_id();
-
+	fn author(&self) -> Result<RpcH160> {
 		let mut miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
-			miner = self.dapp_accounts(dapp.into())?.get(0).cloned().unwrap_or_default();
+			miner = self.accounts.accounts().ok().and_then(|a| a.get(0).cloned()).unwrap_or_default();
 		}
 
 		Ok(RpcH160::from(miner))
@@ -532,10 +522,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
 	}
 
-	fn accounts(&self, meta: Metadata) -> Result<Vec<RpcH160>> {
-		let dapp = meta.dapp_id();
-
-		let accounts = self.dapp_accounts(dapp.into())?;
+	fn accounts(&self) -> Result<Vec<RpcH160>> {
+		let accounts = self.accounts.accounts()
+			.map_err(|e| errors::account("Could not fetch accounts.", e))?;
 		Ok(accounts.into_iter().map(Into::into).collect())
 	}
 
@@ -744,9 +733,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		// check if we're still syncing and return empty strings in that case
 		{
-			//TODO: check if initial sync is complete here
-			//let sync = self.sync;
-			if /*sync.status().state != SyncState::Idle ||*/ self.client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+			let sync_status = self.sync.status();
+			let queue_info = self.client.queue_info();
+			let total_queue_size = queue_info.total_queue_size();
+
+			if is_major_importing(Some(sync_status.state), queue_info) || total_queue_size > MAX_QUEUE_SIZE_TO_MINE_ON {
 				trace!(target: "miner", "Syncing. Cannot give any work.");
 				return Err(errors::no_work());
 			}
@@ -769,7 +760,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		})?;
 
 		let (pow_hash, number, timestamp, difficulty) = work;
-		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let target = ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = self.seed_compute.lock().hash_block_number(number);
 
 		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
@@ -836,9 +827,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
 		let request = CallRequest::into(request);
-		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
+		let signed = try_bf!(fake_sign::sign_call(request));
 
 		let num = num.unwrap_or_default();
 
@@ -876,9 +867,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		))
 	}
 
-	fn estimate_gas(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
 		let request = CallRequest::into(request);
-		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
+		let signed = try_bf!(fake_sign::sign_call(request));
 		let num = num.unwrap_or_default();
 
 		let (state, header) = if num == BlockNumber::Pending {

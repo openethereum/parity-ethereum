@@ -58,6 +58,7 @@ parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 patricia-trie = { git = "https://github.com/paritytech/parity-common" }
+plain_hasher = { git = "https://github.com/paritytech/parity-common" }
 rlp = { git = "https://github.com/paritytech/parity-common" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }

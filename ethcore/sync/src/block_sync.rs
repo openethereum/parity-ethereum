@@ -23,11 +23,11 @@ use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use rlp::Rlp;
+use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
-use ethcore::block::Block;
-use ethcore::error::{ImportErrorKind, BlockError};
+use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError};
 use sync_io::SyncIo;
 use blocks::BlockCollection;
 
@@ -525,6 +525,10 @@ impl BlockDownloader {
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) => {
 					debug!(target: "sync", "Block temporarily invalid, restarting sync");
+					break;
+				},
+				Err(BlockImportError(BlockImportErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
+					debug!(target: "sync", "Block import queue full ({}), restarting sync", limit);
 					break;
 				},
 				Err(e) => {

@@ -64,6 +64,7 @@ extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate patricia_trie as trie;
+extern crate plain_hasher;
 extern crate rlp;
 extern crate stats;
 extern crate vm;
