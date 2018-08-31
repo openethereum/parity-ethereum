@@ -63,10 +63,11 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 		},
 		CreateContractAddress::FromSenderSaltAndCodeHash(salt) => {
 			let code_hash = keccak(code);
-			let mut buffer = [0u8; 20 + 32 + 32];
-			&mut buffer[0..20].copy_from_slice(&sender[..]);
-			&mut buffer[20..(20+32)].copy_from_slice(&salt[..]);
-			&mut buffer[(20+32)..].copy_from_slice(&code_hash[..]);
+			let mut buffer = [0u8; 1 + 20 + 32 + 32];
+			buffer[0] = 0xff;
+			&mut buffer[1..(1+20)].copy_from_slice(&sender[..]);
+			&mut buffer[(1+20)..(1+20+32)].copy_from_slice(&salt[..]);
+			&mut buffer[(1+20+32)..].copy_from_slice(&code_hash[..]);
 			(From::from(keccak(&buffer[..])), Some(code_hash))
 		},
 		CreateContractAddress::FromSenderAndCodeHash => {
@@ -290,7 +291,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let mut substate = Substate::new();
 
 		// NOTE: there can be no invalid transactions from this point.
-		if !schedule.eip86 || !t.is_unsigned() {
+		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
 		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;

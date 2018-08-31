@@ -205,7 +205,7 @@ impl<'a> EvmTestClient<'a> {
 	) -> TransactResult<T::Output, V::Output> {
 		let initial_gas = transaction.gas;
 		// Verify transaction
-		let is_ok = transaction.verify_basic(true, None, env_info.number >= self.spec.engine.params().eip86_transition);
+		let is_ok = transaction.verify_basic(true, None, false);
 		if let Err(error) = is_ok {
 			return TransactResult::Err {
 				state_root: *self.state.root(),

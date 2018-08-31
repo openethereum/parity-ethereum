@@ -2039,10 +2039,6 @@ impl BlockChainClient for Client {
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar_address.clone()
 	}
-
-	fn eip86_transition(&self) -> u64 {
-		self.engine().params().eip86_transition
-	}
 }
 
 impl IoClient for Client {

@@ -96,8 +96,6 @@ pub struct CommonParams {
 	pub validate_receipts_transition: BlockNumber,
 	/// Validate transaction chain id.
 	pub validate_chain_id_transition: BlockNumber,
-	/// Number of first block where EIP-86 (Metropolis) rules begin.
-	pub eip86_transition: BlockNumber,
 	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
 	pub eip140_transition: BlockNumber,
 	/// Number of first block where EIP-210 (Metropolis: BLOCKHASH changes) rules begin.
@@ -117,6 +115,8 @@ pub struct CommonParams {
 	pub eip145_transition: BlockNumber,
 	/// Number of first block where EIP-1052 rules begin.
 	pub eip1052_transition: BlockNumber,
+	/// Number of first block where EIP-1014 rules begin.
+	pub eip1014_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -177,7 +177,7 @@ impl CommonParams {
 
 	/// Apply common spec config parameters to the schedule.
 	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::vm::Schedule) {
-		schedule.have_create2 = block_number >= self.eip86_transition;
+		schedule.have_create2 = block_number >= self.eip1014_transition;
 		schedule.have_revert = block_number >= self.eip140_transition;
 		schedule.have_static_call = block_number >= self.eip214_transition;
 		schedule.have_return_data = block_number >= self.eip211_transition;
@@ -248,10 +248,6 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),
-			eip86_transition: p.eip86_transition.map_or_else(
-				BlockNumber::max_value,
-				Into::into,
-			),
 			eip140_transition: p.eip140_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
@@ -287,6 +283,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip1052_transition: p.eip1052_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1014_transition: p.eip1014_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
 			),
