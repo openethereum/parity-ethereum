@@ -395,7 +395,7 @@ fn call_msg_gasleft() {
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter(params);
-		let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas_left) => gas_left,
 			GasLeft::NeedsReturn { .. } => { panic!("Call test should not return payload"); },
@@ -876,7 +876,7 @@ fn gasleft() {
 	ext.schedule.wasm.as_mut().unwrap().have_gasleft = true;
 
 	let mut interpreter = wasm_interpreter(params);
-	let result = interpreter.exec(&mut ext).expect("Interpreter to execute without any errors");
+	let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 	match result {
 		GasLeft::Known(_) => {},
 		GasLeft::NeedsReturn { gas_left, data, .. } => {
