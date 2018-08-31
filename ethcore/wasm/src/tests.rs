@@ -875,7 +875,7 @@ fn gasleft() {
 	let mut ext = FakeExt::new().with_wasm();
 	ext.schedule.wasm.as_mut().unwrap().have_gasleft = true;
 
-	let mut interpreter = wasm_interpreter(params);
+	let interpreter = wasm_interpreter(params);
 	let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 	match result {
 		GasLeft::Known(_) => {},
@@ -897,8 +897,8 @@ fn gasleft_fail() {
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(load_sample!("gasleft.wasm")));
 	let mut ext = FakeExt::new().with_wasm();
-	let mut interpreter = wasm_interpreter(params);
-	match interpreter.exec(&mut ext) {
+	let interpreter = wasm_interpreter(params);
+	match interpreter.exec(&mut ext).ok().unwrap() {
 		Err(_) => {},
 		Ok(_) => panic!("interpreter.exec should return Err if ext.schedule.wasm.have_gasleft = false")
 	}
