@@ -32,6 +32,10 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
 	::json_tests::test_common::run_test_file(p, do_json_test, h)
 }
 
+// Block number used to run the tests.
+// Make sure that all the specified features are activated.
+const BLOCK_NUMBER: u64 = 0x6ffffffffffffe;
+
 fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
@@ -59,7 +63,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 				.and_then(|t: UnverifiedTransaction| {
 					let mut header: Header = Default::default();
 					// Use high enough number to activate all required features.
-					header.set_number(0x6ffffffffffffe);
+					header.set_number(BLOCK_NUMBER);
 
 					let minimal = t.gas_required(&spec.engine.schedule(header.number())).into();
 					if t.gas < minimal {
