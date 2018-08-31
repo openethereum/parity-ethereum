@@ -87,6 +87,10 @@ impl IoContext for Expect {
 	fn persistent_peer_id(&self, _peer: PeerId) -> Option<NodeId> {
 		None
 	}
+
+	fn is_reserved_peer(&self, _peer: PeerId) -> bool {
+		false
+	}
 }
 
 // can't implement directly for Arc due to cross-crate orphan rules.
