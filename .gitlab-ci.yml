@@ -111,24 +111,32 @@ build-linux-ubuntu-i386:
   image:                           parity/rust-i686:gitlab-ci
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
+  tags:
+    - rust-i686
 
 build-linux-ubuntu-arm64:
   <<:                              *build
   image:                           parity/rust-arm64:gitlab-ci
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
+  tags:
+    - rust-arm
 
 build-linux-ubuntu-armhf:
   <<:                              *build
   image:                           parity/rust-armv7:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
+  tags:
+    - rust-arm
 
 build-linux-android-armhf:
   <<:                              *build
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
+  tags:
+    - rust-arm
 
 build-darwin-macos-x86_64:
   <<:                              *build
