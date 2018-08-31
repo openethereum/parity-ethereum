@@ -165,5 +165,5 @@ mod state_tests {
 	// https://github.com/ethereum/tests/blob/726b161ba8a739691006cc1ba080672bb50a9d49/GeneralStateTests/stZeroKnowledge2/ecmul_0-3_5616_28000_96.json#L170
 	// Balance:
 	// https://github.com/ethereum/tests/blob/726b161ba8a739691006cc1ba080672bb50a9d49/GeneralStateTests/stZeroKnowledge2/ecmul_0-3_5616_28000_96.json#L126
-	declare_test!{ignore => GeneralStateTest_stZeroKnowledge2, "GeneralStateTests/stZeroKnowledge2/"}
+	declare_test!{GeneralStateTest_stZeroKnowledge2, "GeneralStateTests/stZeroKnowledge2/"}
 }
