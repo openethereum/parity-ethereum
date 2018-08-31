@@ -21,8 +21,6 @@ use serde::de::{Error, Visitor, MapAccess, DeserializeOwned};
 use serde_json;
 use super::{Uuid, Version, Crypto, H160};
 
-pub type Address = H160;
-
 /// Public opaque type representing serializable `KeyFile`.
 #[derive(Debug, PartialEq)]
 pub struct OpaqueKeyFile {
@@ -48,7 +46,7 @@ pub struct KeyFile {
 	pub id: Uuid,
 	pub version: Version,
 	pub crypto: Crypto,
-	pub address: Option<Address>,
+	pub address: H160,
 	pub name: Option<String>,
 	pub meta: Option<String>,
 }
@@ -158,6 +156,11 @@ impl<'a> Visitor<'a> for KeyFileVisitor {
 		let crypto = match crypto {
 			Some(crypto) => crypto,
 			None => return Err(V::Error::missing_field("crypto")),
+		};
+
+		let address = match address {
+			Some(address) => address,
+			None => H160::zero(),
 		};
 
 		let result = KeyFile {

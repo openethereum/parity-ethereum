@@ -191,7 +191,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 					.map_err(Into::into)
 					.and_then(|file| self.key_manager.read(filename, file))
 					.map_err(|err| {
-						warn!("Invalid key file: {:?}\n\t ({})", path, err);
+						warn!("Invalid key file: {:?} ({})", path, err);
 						err
 					})
 					.map(|account| (path, account))
@@ -318,9 +318,8 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 
 impl KeyFileManager for DiskKeyFileManager {
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
-		info!("reading file: {:?}", filename);
 		let key_file = json::KeyFile::load(reader).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		SafeAccount::from_file(key_file, filename)
+		Ok(SafeAccount::from_file(key_file, filename))
 	}
 
 	fn write<T>(&self, mut account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {
