@@ -68,6 +68,7 @@ impl<'a> IoContext for TestIoContext<'a> {
 	fn protocol_version(&self, _peer: PeerId) -> Option<u8> { Some(::light::net::MAX_PROTOCOL_VERSION) }
 
 	fn persistent_peer_id(&self, _peer: PeerId) -> Option<NodeId> { unimplemented!() }
+	fn is_reserved_peer(&self, _peer: PeerId) -> bool { false }
 }
 
 // peer-specific data.

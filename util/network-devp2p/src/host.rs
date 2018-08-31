@@ -102,7 +102,7 @@ pub struct NetworkContext<'s> {
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	session: Option<SharedSession>,
 	session_id: Option<StreamToken>,
-	_reserved_peers: &'s HashSet<NodeId>,
+	reserved_peers: &'s HashSet<NodeId>,
 }
 
 impl<'s> NetworkContext<'s> {
@@ -121,7 +121,7 @@ impl<'s> NetworkContext<'s> {
 			session_id: id,
 			session,
 			sessions,
-			_reserved_peers: reserved_peers,
+			reserved_peers: reserved_peers,
 		}
 	}
 
@@ -190,6 +190,13 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 	}
 
 	fn subprotocol_name(&self) -> ProtocolId { self.protocol }
+
+	fn is_reserved_peer(&self, peer: PeerId) -> bool {
+		self.session_info(peer)
+			.and_then(|info| info.id)
+			.map(|node| self.reserved_peers.contains(&node))
+			.unwrap_or(false)
+	}
 }
 
 /// Shared host information

@@ -285,6 +285,9 @@ pub trait NetworkContext {
 
 	/// Returns this object's subprotocol name.
 	fn subprotocol_name(&self) -> ProtocolId;
+
+	/// Returns whether the given peer ID is a reserved peer.
+	fn is_reserved_peer(&self, peer: PeerId) -> bool;
 }
 
 impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
@@ -330,6 +333,10 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 
 	fn subprotocol_name(&self) -> ProtocolId {
 		(**self).subprotocol_name()
+	}
+
+	fn is_reserved_peer(&self, peer: PeerId) -> bool {
+		(**self).is_reserved_peer(peer)
 	}
 }
 
