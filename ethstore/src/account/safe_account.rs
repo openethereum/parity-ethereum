@@ -45,7 +45,7 @@ impl Into<json::KeyFile> for SafeAccount {
 		json::KeyFile {
 			id: From::from(self.id),
 			version: self.version.into(),
-			address: Some(self.address.into()),
+			address: self.address.into(),
 			crypto: self.crypto.into(),
 			name: Some(self.name.into()),
 			meta: Some(self.meta.into()),
@@ -64,32 +64,28 @@ impl SafeAccount {
 		meta: String
 	) -> Result<Self, crypto::Error> {
 		Ok(SafeAccount {
-			id,
+			id: id,
 			version: Version::V3,
 			crypto: Crypto::with_secret(keypair.secret(), password, iterations)?,
 			address: keypair.address(),
 			filename: None,
-			name,
-			meta,
+			name: name,
+			meta: meta,
 		})
 	}
 
 	/// Create a new `SafeAccount` from the given `json`; if it was read from a
 	/// file, the `filename` should be `Some` name. If it is as yet anonymous, then it
 	/// can be left `None`.
-	pub fn from_file(json: json::KeyFile, filename: Option<String>) -> Result<Self, Error> {
-		match json.address {
-			None => Err(Error::Custom(format!("file {:?} has no address. Skipping.", filename))),
-			Some(address) =>
-				Ok(SafeAccount {
-					id: json.id.into(),
-					version: json.version.into(),
-					address: address.into(),
-					crypto: json.crypto.into(),
-					filename,
-					name: json.name.unwrap_or(String::new()),
-					meta: json.meta.unwrap_or("{}".to_owned()),
-				})
+	pub fn from_file(json: json::KeyFile, filename: Option<String>) -> Self {
+		SafeAccount {
+			id: json.id.into(),
+			version: json.version.into(),
+			address: json.address.into(),
+			crypto: json.crypto.into(),
+			filename: filename,
+			name: json.name.unwrap_or(String::new()),
+			meta: json.meta.unwrap_or("{}".to_owned()),
 		}
 	}
 
@@ -101,14 +97,14 @@ impl SafeAccount {
 		let meta_plain = meta_crypto.decrypt(password)?;
 		let meta_plain = json::VaultKeyMeta::load(&meta_plain).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
-		SafeAccount::from_file(json::KeyFile {
+		Ok(SafeAccount::from_file(json::KeyFile {
 			id: json.id,
 			version: json.version,
 			crypto: json.crypto,
-			address: Some(meta_plain.address),
+			address: meta_plain.address,
 			name: meta_plain.name,
 			meta: meta_plain.meta,
-		}, filename)
+		}, filename))
 	}
 
 	/// Create a new `VaultKeyFile` from the given `self`
