@@ -79,9 +79,6 @@ pub struct Params {
 	#[serde(rename="validateReceiptsTransition")]
 	pub validate_receipts_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip86Transition")]
-	pub eip86_transition: Option<Uint>,
-	/// See `CommonParams` docs.
 	#[serde(rename="eip140Transition")]
 	pub eip140_transition: Option<Uint>,
 	/// See `CommonParams` docs.
@@ -111,6 +108,9 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip1052Transition")]
 	pub eip1052_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip1014Transition")]
+	pub eip1014_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	#[serde(rename="dustProtectionTransition")]
 	pub dust_protection_transition: Option<Uint>,
