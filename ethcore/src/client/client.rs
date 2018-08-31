@@ -1391,7 +1391,7 @@ impl ImportBlock for Client {
 			bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
-		if status == BlockStatus::Unknown || status == BlockStatus::Pending {
+		if status == BlockStatus::Unknown {
 			bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
@@ -2082,7 +2082,7 @@ impl IoClient for Client {
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending {
 				let status = self.block_status(BlockId::Hash(parent_hash));
-				if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				if  status == BlockStatus::Unknown {
 					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 				}
 			}
