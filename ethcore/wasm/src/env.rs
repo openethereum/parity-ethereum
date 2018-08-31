@@ -49,6 +49,7 @@ pub mod ids {
 	pub const ORIGIN_FUNC: usize = 200;
 	pub const ELOG_FUNC: usize = 210;
 	pub const CREATE2_FUNC: usize = 220;
+	pub const GASLEFT_FUNC: usize = 230;
 
 	pub const PANIC_FUNC: usize = 1000;
 	pub const DEBUG_FUNC: usize = 1010;
@@ -157,6 +158,11 @@ pub mod signatures {
 		None,
 	);
 
+	pub const GASLEFT: StaticSignature = StaticSignature(
+		&[],
+		Some(I64),
+	);
+
 	pub const GASLIMIT: StaticSignature = StaticSignature(
 		&[I32],
 		None,
@@ -207,6 +213,7 @@ pub struct ImportResolver {
 	memory: RefCell<Option<MemoryRef>>,
 
 	have_create2: bool,
+	have_gasleft: bool,
 }
 
 impl ImportResolver {
@@ -217,6 +224,7 @@ impl ImportResolver {
 			memory: RefCell::new(None),
 
 			have_create2: schedule.have_create2,
+			have_gasleft: schedule.have_gasleft,
 		}
 	}
 
@@ -274,6 +282,7 @@ impl wasmi::ModuleImportResolver for ImportResolver {
 			"origin" => host(signatures::ORIGIN, ids::ORIGIN_FUNC),
 			"elog" => host(signatures::ELOG, ids::ELOG_FUNC),
 			"create2" if self.have_create2 => host(signatures::CREATE2, ids::CREATE2_FUNC),
+			"gasleft" if self.have_gasleft => host(signatures::GASLEFT, ids::GASLEFT_FUNC),
 			_ => {
 				return Err(wasmi::Error::Instantiation(
 					format!("Export {} not found", field_name),

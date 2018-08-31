@@ -24,11 +24,12 @@ use ethcore::CreateContractAddress;
 use transaction::{Transaction, Action};
 use ethcore::executive::{contract_address};
 use ethcore::test_helpers::{push_block_with_transactions};
-use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer};
+use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction};
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair};
 use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
+use rlp::Rlp;
 use SyncConfig;
 
 fn seal_spec() -> Spec {
@@ -144,6 +145,8 @@ fn send_private_transaction() {
 	//process signed response
 	let signed_private_transaction = received_signed_private_transactions[0].clone();
 	assert!(pm0.import_signed_private_transaction(&signed_private_transaction).is_ok());
+	let signature: SignedPrivateTransaction = Rlp::new(&signed_private_transaction).as_val().unwrap();
+	assert!(pm0.process_signature(&signature).is_ok());
 	let local_transactions = net.peer(0).miner.local_transactions();
 	assert_eq!(local_transactions.len(), 1);
 }

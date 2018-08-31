@@ -16,14 +16,14 @@
 		"gasLimitBoundDivisor": "0x400",
 		"minGasLimit": "0x1388",
 		"networkID": "0x62121",
-		"wasmActivationTransition": 6666666,
-		"eip140Transition": 6666666,
-		"eip211Transition": 6666666,
-		"eip214Transition": 6666666,
-		"eip658Transition": 6666666,
+		"wasmActivationTransition": 7250000,
+		"eip140Transition": 7250000,
+		"eip211Transition": 7250000,
+		"eip214Transition": 7250000,
+		"eip658Transition": 7250000,
 
 		"maxCodeSize": 24576,
-		"maxCodeSizeTransition": 6666666,
+		"maxCodeSizeTransition": 7250000,
 
 		"registrar": "0xb8624dc8cb3ca3147c178ac4c21734eb49e04071"
 	},
@@ -54,14 +54,14 @@
 			"balance": "0x7E37BE2022B2B09472D89C0000"
 		},
 
-		"0x0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "activate_at": 6666666, "pricing": { "linear": { "base": 3000, "word": 0 } } } },
-		"0x0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "activate_at": 6666666, "pricing": { "linear": { "base": 60, "word": 12 } } } },
-		"0x0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "activate_at": 6666666, "pricing": { "linear": { "base": 600, "word": 120 } } } },
-		"0x0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "activate_at": 6666666, "pricing": { "linear": { "base": 15, "word": 3 } } } },
-		"0x0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": 6666666, "pricing": { "modexp": { "divisor": 20 } } } },
-		"0x0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": 6666666, "pricing": { "linear": { "base": 500, "word": 0 } } } },
-		"0x0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": 6666666, "pricing": { "linear": { "base": 40000, "word": 0 } } } },
-		"0x0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": 6666666, "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } }
+		"0x0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "activate_at": 7250000, "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0x0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "activate_at": 7250000, "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0x0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "activate_at": 7250000, "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0x0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "activate_at": 7250000, "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0x0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": 7250000, "pricing": { "modexp": { "divisor": 20 } } } },
+		"0x0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": 7250000, "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0x0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": 7250000, "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0x0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": 7250000, "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } }
 	},
 
 	"nodes": [

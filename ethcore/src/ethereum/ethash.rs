@@ -19,7 +19,7 @@ use std::cmp;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
-use engines::block_reward::{self, RewardKind};
+use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use ethereum_types::{H256, H64, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
@@ -124,6 +124,10 @@ pub struct EthashParams {
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: u64,
+	/// Block reward contract transition block.
+	pub block_reward_contract_transition: u64,
+	/// Block reward contract.
+	pub block_reward_contract: Option<BlockRewardContract>,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -154,6 +158,12 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip649_reward: p.eip649_reward.map(Into::into),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
+			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
+			block_reward_contract: match (p.block_reward_contract_code, p.block_reward_contract_address) {
+				(Some(code), _) => Some(BlockRewardContract::new_from_code(Arc::new(code.into()))),
+				(_, Some(address)) => Some(BlockRewardContract::new_from_address(address.into())),
+				(None, None) => None,
+			},
 		}
 	}
 }
@@ -231,51 +241,71 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let author = *LiveBlock::header(&*block).author();
 		let number = LiveBlock::header(&*block).number();
 
-		let mut rewards = Vec::new();
+		let rewards = match self.ethash_params.block_reward_contract {
+			Some(ref c) if number >= self.ethash_params.block_reward_contract_transition => {
+				let mut beneficiaries = Vec::new();
 
-		// Applies EIP-649 reward.
-		let reward = if number >= self.ethash_params.eip649_transition {
-			self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
-		} else {
-			self.ethash_params.block_reward
+				beneficiaries.push((author, RewardKind::Author));
+				for u in LiveBlock::uncles(&*block) {
+					let uncle_author = u.author();
+					beneficiaries.push((*uncle_author, RewardKind::uncle(number, u.number())));
+				}
+
+				let mut call = engines::default_system_or_code_call(&self.machine, block);
+
+				let rewards = c.reward(&beneficiaries, &mut call)?;
+				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
+			},
+			_ => {
+				let mut rewards = Vec::new();
+
+				// Applies EIP-649 reward.
+				let reward = if number >= self.ethash_params.eip649_transition {
+					self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
+				} else {
+					self.ethash_params.block_reward
+				};
+
+				// Applies ECIP-1017 eras.
+				let eras_rounds = self.ethash_params.ecip1017_era_rounds;
+				let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
+
+				let n_uncles = LiveBlock::uncles(&*block).len();
+
+				// Bestow block rewards.
+				let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
+
+				if number >= self.ethash_params.mcip3_transition {
+					result_block_reward = self.ethash_params.mcip3_miner_reward;
+
+					let ubi_contract = self.ethash_params.mcip3_ubi_contract;
+					let ubi_reward = self.ethash_params.mcip3_ubi_reward;
+					let dev_contract = self.ethash_params.mcip3_dev_contract;
+					let dev_reward = self.ethash_params.mcip3_dev_reward;
+
+					rewards.push((author, RewardKind::Author, result_block_reward));
+					rewards.push((ubi_contract, RewardKind::External, ubi_reward));
+					rewards.push((dev_contract, RewardKind::External, dev_reward));
+
+				} else {
+					rewards.push((author, RewardKind::Author, result_block_reward));
+				}
+
+				// Bestow uncle rewards.
+				for u in LiveBlock::uncles(&*block) {
+					let uncle_author = u.author();
+					let result_uncle_reward = if eras == 0 {
+						(reward * U256::from(8 + u.number() - number)).shr(3)
+					} else {
+						reward.shr(5)
+					};
+
+					rewards.push((*uncle_author, RewardKind::uncle(number, u.number()), result_uncle_reward));
+				}
+
+				rewards
+			},
 		};
-
-		// Applies ECIP-1017 eras.
-		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
-
-		let n_uncles = LiveBlock::uncles(&*block).len();
-
-		// Bestow block rewards.
-		let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
-
-		if number >= self.ethash_params.mcip3_transition {
-			result_block_reward = self.ethash_params.mcip3_miner_reward;
-
-			let ubi_contract = self.ethash_params.mcip3_ubi_contract;
-			let ubi_reward = self.ethash_params.mcip3_ubi_reward;
-			let dev_contract = self.ethash_params.mcip3_dev_contract;
-			let dev_reward = self.ethash_params.mcip3_dev_reward;
-
-			rewards.push((author, RewardKind::Author, result_block_reward));
-			rewards.push((ubi_contract, RewardKind::External, ubi_reward));
-			rewards.push((dev_contract, RewardKind::External, dev_reward));
-
-		} else {
-			rewards.push((author, RewardKind::Author, result_block_reward));
-		}
-
-		// Bestow uncle rewards.
-		for u in LiveBlock::uncles(&*block) {
-			let uncle_author = u.author();
-			let result_uncle_reward = if eras == 0 {
-				(reward * U256::from(8 + u.number() - number)).shr(3)
-			} else {
-				reward.shr(5)
-			};
-
-			rewards.push((*uncle_author, RewardKind::Uncle, result_uncle_reward));
-		}
 
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
@@ -512,6 +542,8 @@ mod tests {
 			eip649_reward: None,
 			expip2_transition: u64::max_value(),
 			expip2_duration_limit: 30,
+			block_reward_contract: None,
+			block_reward_contract_transition: 0,
 		}
 	}
 

@@ -28,16 +28,31 @@ use info as vm;
 
 pub trait Writer: io::Write + Send + Sized {
 	fn clone(&self) -> Self;
+	fn default() -> Self;
 }
 
 impl Writer for io::Stdout {
 	fn clone(&self) -> Self {
 		io::stdout()
 	}
+
+	fn default() -> Self {
+		io::stdout()
+	}
+}
+
+impl Writer for io::Stderr {
+	fn clone(&self) -> Self {
+		io::stderr()
+	}
+
+	fn default() -> Self {
+		io::stderr()
+	}
 }
 
 /// JSON formatting informant.
-pub struct Informant<T: Writer = io::Stdout> {
+pub struct Informant<Trace = io::Stderr, Out = io::Stdout> {
 	code: Vec<u8>,
 	instruction: u8,
 	depth: usize,
@@ -45,17 +60,18 @@ pub struct Informant<T: Writer = io::Stdout> {
 	storage: HashMap<H256, H256>,
 	subinfos: Vec<Informant<T>>,
 	subdepth: usize,
-	sink: T,
+	trace_sink: Trace,
+	out_sink: Out,
 }
 
 impl Default for Informant {
 	fn default() -> Self {
-		Self::new(io::stdout())
+		Self::new(io::stderr(), io::stdout())
 	}
 }
 
-impl<T: Writer> Informant<T> {
-	pub fn new(sink: T) -> Self {
+impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
+	pub fn new(trace_sink: Trace, out_sink: Out) -> Self {
 		Informant {
 			code: Default::default(),
 			instruction: Default::default(),
@@ -64,7 +80,7 @@ impl<T: Writer> Informant<T> {
 			storage: Default::default(),
 			subinfos: Default::default(),
 			subdepth: 0,
-			sink,
+			trace_sink, out_sink
 		}
 	}
 
@@ -77,7 +93,7 @@ impl<T: Writer> Informant<T> {
 	}
 }
 
-impl<T: Writer> Informant<T> {
+impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 	fn stack(&self) -> String {
 		let items = self.stack.iter().map(|i| format!("\"0x{:x}\"", i)).collect::<Vec<_>>();
 		format!("[{}]", items.join(","))
@@ -91,10 +107,10 @@ impl<T: Writer> Informant<T> {
 	}
 }
 
-impl<T: Writer> vm::Informant for Informant<T> {
+impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	fn before_test(&mut self, name: &str, action: &str) {
 		writeln!(
-			&mut self.sink,
+			&mut self.out_sink,
 			"{{\"test\":\"{name}\",\"action\":\"{action}\"}}",
 			name = name,
 			action = action,
@@ -103,30 +119,38 @@ impl<T: Writer> vm::Informant for Informant<T> {
 
 	fn set_gas(&mut self, _gas: U256) {}
 
-	fn finish(result: vm::RunResult<Self::Output>) {
+	fn finish(result: vm::RunResult<<Self as trace::VMTracer>::Output>) {
+		let mut trace_sink = Trace::default();
+		let mut out_sink = Out::default();
+
 		match result {
 			Ok(success) => {
-				println!("{{\"stateRoot\":\"{:?}\"}}", success.state_root);
-				println!(
-					"{{\"output\":\"0x{output}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
+				writeln!(
+					&mut trace_sink,
+					"{{\"stateRoot\":\"{:?}\"}}", success.state_root
+				).expect("The sink must be writeable.");
+				writeln!(
+					&mut out_sink,
+					"{{\"output\":\"0x{output}\",\"gasUsed\":\"0x{gas:x}\",\"time\":{time}}}",
 					output = success.output.to_hex(),
 					gas = success.gas_used,
 					time = display::as_micros(&success.time),
-				);
+				).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
-				println!(
-					"{{\"error\":\"{error}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
+				writeln!(
+					&mut out_sink,
+					"{{\"error\":\"{error}\",\"gasUsed\":\"0x{gas:x}\",\"time\":{time}}}",
 					error = failure.error,
 					gas = failure.gas_used,
 					time = display::as_micros(&failure.time),
-				)
+				).expect("The sink must be writeable.");
 			},
 		}
 	}
 }
 
-impl<T: Writer> trace::VMTracer for Informant<T> {
+impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 	type Output = ();
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
@@ -138,7 +162,7 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 			let stack = informant.stack();
 
 			writeln!(
-				&mut informant.sink,
+				&mut informant.trace_sink,
 				"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
 				pc = pc,
 				op = instruction,
@@ -176,7 +200,7 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 	fn prepare_subtrace(&mut self, code: &[u8]) {
 		let subdepth = self.subdepth;
 		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<T>| {
-			let mut vm = Informant::new(informant.sink.clone());
+			let mut vm = Informant::new(informant.trace_sink.clone(), informant.out_sink.clone());
 			vm.depth = informant.depth + 1;
 			vm.code = code.to_vec();
 			informant.subinfos.push(vm);
@@ -196,16 +220,17 @@ impl<T: Writer> trace::VMTracer for Informant<T> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::sync::{Arc, Mutex};
 	use super::*;
 	use info::tests::run_test;
 
 	#[derive(Debug, Clone, Default)]
-	struct TestWriter(pub Arc<Mutex<Vec<u8>>>);
+	pub struct TestWriter(pub Arc<Mutex<Vec<u8>>>);
 
 	impl Writer for TestWriter {
 		fn clone(&self) -> Self { Clone::clone(self) }
+		fn default() -> Self { Default::default() }
 	}
 
 	impl io::Write for TestWriter {
@@ -218,10 +243,11 @@ mod tests {
 		}
 	}
 
-	fn informant() -> (Informant<TestWriter>, Arc<Mutex<Vec<u8>>>) {
-		let writer = TestWriter::default();
-		let res = writer.0.clone();
-		(Informant::new(writer), res)
+	pub fn informant() -> (Informant<TestWriter, TestWriter>, Arc<Mutex<Vec<u8>>>) {
+		let trace_writer: TestWriter = Default::default();
+		let out_writer: TestWriter = Default::default();
+		let res = trace_writer.0.clone();
+		(Informant::new(trace_writer, out_writer), res)
 	}
 
 	#[test]

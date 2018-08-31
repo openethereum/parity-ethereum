@@ -10,6 +10,7 @@ path = "./src/main.rs"
 
 [dependencies]
 docopt = "0.8"
+env_logger = "0.5"
 ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
 ethjson = { path = "../json" }
 parity-bytes = { git = "https://github.com/paritytech/parity-common" }
