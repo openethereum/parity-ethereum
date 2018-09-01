@@ -359,25 +359,27 @@ fn rpc_eth_author() {
 	let make_res = |addr| r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:x}", addr) + r#"","id":1}"#;
 	let tester = EthTester::default();
 
-	let req = r#"{
+	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_coinbase",
 		"params": [],
 		"id": 1
 	}"#;
 
-	// No accounts - returns zero
-	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(Address::zero())));
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32023,"message":"No accounts were found","data":"\"\""},"id":1}"#;
+
+	// No accounts - returns an error indicating that no accounts were found
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_string()));
 
 	// Account set - return first account
 	let addr = tester.accounts_provider.new_account(&"123".into()).unwrap();
-	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
+	assert_eq!(tester.io.handle_request_sync(request), Some(make_res(addr)));
 
 	for i in 0..20 {
 		let addr = tester.accounts_provider.new_account(&format!("{}", i).into()).unwrap();
 		tester.miner.set_author(addr.clone(), None).unwrap();
 
-		assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
+		assert_eq!(tester.io.handle_request_sync(request), Some(make_res(addr)));
 	}
 }
 
