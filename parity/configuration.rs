@@ -724,6 +724,7 @@ impl Configuration {
 			}
 			client_version
 		};
+		ret.https_proxy = self.args.arg_https_proxy.clone();
 		Ok(ret)
 	}
 

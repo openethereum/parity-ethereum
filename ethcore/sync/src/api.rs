@@ -650,6 +650,8 @@ pub struct NetworkConfiguration {
 	pub ip_filter: IpFilter,
 	/// Client version string
 	pub client_version: String,
+	/// HTTPS Proxy
+	pub https_proxy: Option<String>,
 }
 
 impl NetworkConfiguration {
@@ -683,6 +685,7 @@ impl NetworkConfiguration {
 			ip_filter: self.ip_filter,
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
 			client_version: self.client_version,
+			https_proxy: self.https_proxy,
 		})
 	}
 }
@@ -707,6 +710,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			ip_filter: other.ip_filter,
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
 			client_version: other.client_version,
+			https_proxy: other.https_proxy,
 		}
 	}
 }

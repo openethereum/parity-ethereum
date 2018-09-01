@@ -451,6 +451,10 @@ usage! {
 			"--reserved-peers=[FILE]",
 			"Provide a file containing enodes, one per line. These nodes will always have a reserved slot on top of the normal maximum peers.",
 
+			ARG arg_https_proxy: (Option<String>) = None, or |c: &Config| c.network.as_ref()?.https_proxy.clone(),
+			"--https_proxy=[URL]",
+			"Specify HTTPS proxy URL to use for external HTTPS requests.",
+
 			CHECK |args: &Args| {
 				if let (Some(max_peers), Some(min_peers)) = (args.arg_max_peers, args.arg_min_peers) {
 					if min_peers > max_peers {
@@ -1187,6 +1191,7 @@ struct Network {
 	reserved_peers: Option<String>,
 	reserved_only: Option<bool>,
 	no_serve_light: Option<bool>,
+	https_proxy: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1645,6 +1650,7 @@ mod tests {
 			flag_reserved_only: false,
 			flag_no_ancient_blocks: false,
 			flag_no_serve_light: false,
+			arg_https_proxy: Some("http://localhost:8080".into()),
 
 			// -- API and Console Options
 			// RPC
@@ -1905,6 +1911,7 @@ mod tests {
 				reserved_peers: Some("./path/to/reserved_peers".into()),
 				reserved_only: Some(true),
 				no_serve_light: None,
+				https_proxy: None,
 			}),
 			websockets: Some(Ws {
 				disable: Some(true),

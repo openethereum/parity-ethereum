@@ -35,7 +35,7 @@ use sync::{self, SyncConfig};
 use miner::work_notify::WorkPoster;
 use futures::IntoFuture;
 use futures_cpupool::CpuPool;
-use hash_fetch::{self, fetch};
+use hash_fetch::{self};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
@@ -50,7 +50,7 @@ use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
-use helpers::{to_client_config, execute_upgrades, passwords_from_files};
+use helpers::{to_client_config, execute_upgrades, passwords_from_files, new_fetch_client};
 use upgrade::upgrade_key_location;
 use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
@@ -209,7 +209,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
 
 	let sync_handle = Arc::new(RwLock::new(Weak::new()));
-	let fetch = ::light_helpers::EpochFetch {
+	let epoch_fetch = ::light_helpers::EpochFetch {
 		on_demand: on_demand.clone(),
 		sync: sync_handle.clone(),
 	};
@@ -219,7 +219,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 						 &cmd.cache_config,
 						 &cmd.compaction).map_err(|e| format!("Failed to open database {:?}", e))?;
 
-	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
+	let service = light_client::Service::start(config, &spec, epoch_fetch, db, cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 	let client = service.client().clone();
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
@@ -240,6 +240,9 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	} else {
 		None
 	};
+
+	// fetch service
+	let fetch = new_fetch_client(net_conf.https_proxy.as_ref())?;
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
@@ -274,8 +277,6 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 	let cpu_pool = CpuPool::new(4);
 
-	// fetch service
-	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
@@ -468,8 +469,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// spin up event loop
 	let event_loop = EventLoop::spawn();
 
-	// fetch service
-	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
+	let mut net_conf = cmd.net_conf;
+	let fetch = new_fetch_client(net_conf.https_proxy.as_ref())?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
 	// create miner
@@ -533,7 +534,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	client_config.transaction_verification_queue_size = ::std::cmp::max(2048, txpool_size / 4);
 
 	// set up bootnodes
-	let mut net_conf = cmd.net_conf;
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}

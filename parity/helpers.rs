@@ -31,6 +31,7 @@ use sync::{validate_node_url, self};
 use db::migrate;
 use path;
 use ethkey::Password;
+use hash_fetch::fetch;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -200,6 +201,7 @@ pub fn default_network_config() -> ::sync::NetworkConfiguration {
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
 		client_version: ::parity_version::version(),
+		https_proxy: None,
 	}
 }
 
@@ -296,6 +298,12 @@ pub fn password_prompt() -> Result<Password, String> {
 	}
 
 	Ok(password)
+}
+
+pub fn new_fetch_client(https_proxy: Option<&String>) -> Result<fetch::Client, String> {
+	return https_proxy
+		.map_or_else(|| fetch::Client::new(), |s| fetch::Client::new_with_proxy(Some(s.to_string())))
+		.map_err(|e| format!("Error starting fetch client: {:?}", e));
 }
 
 /// Read a password from password file.

@@ -203,6 +203,8 @@ pub struct NetworkConfiguration {
 	pub ip_filter: IpFilter,
 	/// Client identifier
 	pub client_version: String,
+	/// HTTPS Proxy
+	pub https_proxy: Option<String>,
 }
 
 impl Default for NetworkConfiguration {
@@ -232,6 +234,7 @@ impl NetworkConfiguration {
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
 			client_version: "Parity-network".into(),
+			https_proxy: None,
 		}
 	}
 
