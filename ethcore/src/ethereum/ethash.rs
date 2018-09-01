@@ -104,6 +104,16 @@ pub struct EthashParams {
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: u64,
+	/// Callisto transition block
+	pub callisto_transition: u64,
+	/// Callisto Treasury Address
+	pub callisto_treasury_address: Address,
+	/// Callisto Treasury reward
+	pub callisto_treasury_reward: U256,
+	/// Callisto Stake Address
+	pub callisto_stake_address: Address,
+	/// Callisto Stake reward
+	pub callisto_stake_reward: U256,
 	/// Block reward contract transition block.
 	pub block_reward_contract_transition: u64,
 	/// Block reward contract.
@@ -150,6 +160,11 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 				}),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
+			callisto_transition: p.callisto_transition.map_or(u64::max_value(), Into::into),
+			callisto_treasury_address: p.callisto_treasury_address.map_or_else(Address::new, Into::into),
+			callisto_treasury_reward: p.callisto_treasury_reward.map_or_else(Default::default, Into::into),
+			callisto_stake_address: p.callisto_stake_address.map_or_else(Address::new, Into::into),
+			callisto_stake_reward: p.callisto_stake_reward.map_or_else(Default::default, Into::into),
 			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
 			block_reward_contract: match (p.block_reward_contract_code, p.block_reward_contract_address) {
 				(Some(code), _) => Some(BlockRewardContract::new_from_code(Arc::new(code.into()))),
