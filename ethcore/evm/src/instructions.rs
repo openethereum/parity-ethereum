@@ -328,7 +328,7 @@ enum_with_from_u8! {
 		#[doc = "like CALLCODE but keeps caller's value and sender"]
 		DELEGATECALL = 0xf4,
 		#[doc = "create a new account and set creation address to sha3(sender + sha3(init code)) % 2**160"]
-		CREATE2 = 0xfb,
+		CREATE2 = 0xf5,
 		#[doc = "stop execution and revert state changes. Return output data."]
 		REVERT = 0xfd,
 		#[doc = "like CALL but it does not take value, nor modify the state"]

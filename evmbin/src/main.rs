@@ -31,6 +31,7 @@ extern crate ethereum_types;
 extern crate vm;
 extern crate evm;
 extern crate panic_hook;
+extern crate env_logger;
 
 #[cfg(test)]
 #[macro_use]
@@ -56,7 +57,7 @@ use info::Informant;
 
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
-  Copyright 2016, 2017 Parity Technologies (UK) Ltd
+  Copyright 2015-2018 Parity Technologies (UK) Ltd.
 
 Usage:
     parity-evm state-test <file> [--json --std-json --only NAME --chain CHAIN]
@@ -68,8 +69,8 @@ Usage:
 Commands:
     state-test         Run a state test from a json file.
     stats              Execute EVM runtime code and return the statistics.
-    stats-jsontests-vm Execute standard jsontests format VMTests and return
-                       timing statistcis in tsv format.
+    stats-jsontests-vm Execute standard json-tests format VMTests and return
+                       timing statistics in tsv format.
 
 Transaction options:
     --code CODE        Contract code as hex (without 0x).
@@ -85,13 +86,14 @@ State test options:
 
 General options:
     --json             Display verbose results in JSON.
-	--std-json         Display results in standardized JSON format.
+    --std-json         Display results in standardized JSON format.
     --chain CHAIN      Chain spec file path.
     -h, --help         Display this message and exit.
 "#;
 
 fn main() {
 	panic_hook::set_abort();
+	env_logger::init();
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 

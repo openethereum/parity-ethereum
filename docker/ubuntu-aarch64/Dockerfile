@@ -6,7 +6,7 @@ RUN apt-get -y update && \
         apt-get install -y --force-yes --no-install-recommends \
         curl git make g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
         libc6-arm64-cross libc6-dev-arm64-cross wget file ca-certificates \
-        binutils-aarch64-linux-gnu cmake \
+        binutils-aarch64-linux-gnu cmake3 libudev-dev \
         && \
     apt-get clean
 

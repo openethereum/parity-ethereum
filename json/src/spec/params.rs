@@ -79,9 +79,6 @@ pub struct Params {
 	#[serde(rename="validateReceiptsTransition")]
 	pub validate_receipts_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip86Transition")]
-	pub eip86_transition: Option<Uint>,
-	/// See `CommonParams` docs.
 	#[serde(rename="eip140Transition")]
 	pub eip140_transition: Option<Uint>,
 	/// See `CommonParams` docs.
@@ -114,6 +111,8 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip1283Transition")]
 	pub eip1283_transition: Option<Uint>,
+	#[serde(rename="eip1014Transition")]
+	pub eip1014_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	#[serde(rename="dustProtectionTransition")]
 	pub dust_protection_transition: Option<Uint>,
@@ -155,6 +154,9 @@ pub struct Params {
 	/// KIP4 activiation block height.
 	#[serde(rename="kip4Transition")]
 	pub kip4_transition: Option<Uint>,
+	/// KIP6 activiation block height.
+	#[serde(rename="kip6Transition")]
+	pub kip6_transition: Option<Uint>,
 }
 
 #[cfg(test)]

@@ -222,7 +222,7 @@ fn status(chain_info: BlockChainInfo) -> Status {
 fn handshake_expected() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 
 	let status = status(provider.client.chain_info());
 
@@ -236,7 +236,7 @@ fn handshake_expected() {
 fn genesis_mismatch() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 
 	let mut status = status(provider.client.chain_info());
 	status.genesis_hash = H256::default();
@@ -250,7 +250,7 @@ fn genesis_mismatch() {
 fn credit_overflow() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 
 	let status = status(provider.client.chain_info());
 
@@ -283,7 +283,7 @@ fn credit_overflow() {
 fn get_block_headers() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let cur_status = status(provider.client.chain_info());
@@ -335,7 +335,7 @@ fn get_block_headers() {
 fn get_block_bodies() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let cur_status = status(provider.client.chain_info());
@@ -383,7 +383,7 @@ fn get_block_bodies() {
 fn get_block_receipts() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let cur_status = status(provider.client.chain_info());
@@ -438,7 +438,7 @@ fn get_block_receipts() {
 fn get_state_proofs() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let provider = TestProvider(provider);
@@ -497,7 +497,7 @@ fn get_state_proofs() {
 fn get_contract_code() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let cur_status = status(provider.client.chain_info());
@@ -540,7 +540,7 @@ fn get_contract_code() {
 fn epoch_signal() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let cur_status = status(provider.client.chain_info());
@@ -583,7 +583,7 @@ fn epoch_signal() {
 fn proof_of_execution() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let cur_status = status(provider.client.chain_info());
@@ -643,7 +643,7 @@ fn id_guard() {
 
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let req_id_1 = ReqId(5143);
@@ -666,7 +666,7 @@ fn id_guard() {
 	proto.peers.write().insert(peer_id, ::parking_lot::Mutex::new(Peer {
 		local_credits: flow_params.create_credits(),
 		status: status(provider.client.chain_info()),
-		capabilities: capabilities.clone(),
+		capabilities,
 		remote_flow: Some((flow_params.create_credits(), (&*flow_params).clone())),
 		sent_head: provider.client.chain_info().best_block_hash,
 		last_update: Instant::now(),
@@ -723,7 +723,7 @@ fn id_guard() {
 fn get_transaction_index() {
 	let capabilities = capabilities();
 
-	let (provider, proto) = setup(capabilities.clone());
+	let (provider, proto) = setup(capabilities);
 	let flow_params = proto.flow_params.read().clone();
 
 	let cur_status = status(provider.client.chain_info());

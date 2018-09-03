@@ -860,8 +860,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn registrar_address(&self) -> Option<Address> { None }
-
-	fn eip86_transition(&self) -> u64 { u64::max_value() }
 }
 
 impl IoClient for TestBlockChainClient {

@@ -120,17 +120,15 @@ impl LoadDistribution {
 	pub fn expected_time(&self, kind: Kind) -> Duration {
 		let samples = self.samples.read();
 		samples.get(&kind).and_then(|s| {
-			if s.len() == 0 { return None }
+			if s.is_empty() { return None }
 
-			let alpha: f64 = 1f64 / s.len() as f64;
-			let start = s.front().expect("length known to be non-zero; qed").clone();
-			let ema = s.iter().skip(1).fold(start as f64, |a, &c| {
+			let alpha: f64 = 1_f64 / s.len() as f64;
+			let start = *s.front().expect("length known to be non-zero; qed") as f64;
+			let ema = s.iter().skip(1).fold(start, |a, &c| {
 				(alpha * c as f64) + ((1.0 - alpha) * a)
 			});
 
-			// TODO: use `Duration::from_nanos` once stable (https://github.com/rust-lang/rust/issues/46507)
-			let ema = ema as u64;
-			Some(Duration::new(ema / 1_000_000_000, (ema % 1_000_000_000) as u32))
+			Some(Duration::from_nanos(ema as u64))
 		}).unwrap_or_else(move || hardcoded_serve_time(kind))
 	}
 
