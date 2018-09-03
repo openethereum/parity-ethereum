@@ -303,36 +303,27 @@ impl LightDispatcher {
 	}
 
 	/// Get an account's state
-	fn account(&self, addr: Address)-> BoxFuture<BasicAccount> {
+	fn account(&self, addr: Address) -> BoxFuture<Option<BasicAccount>> {
 		let best_header = self.client.best_block_header();
-		let account_start_nonce = self.client.engine().account_start_nonce(best_header.number());
 		let account_future = self.sync.with_context(|ctx| self.on_demand.request(ctx, request::Account {
 			header: best_header.into(),
 			address: addr,
 		}).expect("no back-references; therefore all back-references valid; qed"));
 
 		match account_future {
-			Some(response) => {
-				// if an account is not found in the `state trie` then provide a default nonce and set the rest to zero
-				// because of this we can't distinguish between the errors: `account not found` and `insufficient account balance`
-				Box::new(response.map(move |account| {
-					account.unwrap_or_else(|| BasicAccount {
-						nonce: account_start_nonce,
-						balance: 0.into(),
-						storage_root: 0.into(),
-						code_hash: 0.into()
-					})
-				})
-				.map_err(|_| errors::no_light_peers()))
-			}
+			Some(response) => Box::new(response.map_err(|_| errors::no_light_peers())),
 			None => Box::new(future::err(errors::network_disabled())),
 		}
 	}
 
 	/// Get an account's next nonce.
+	/// If the account is not found in the `state trie` then provide the `local start nonce`
 	pub fn next_nonce(&self, addr: &Address) -> BoxFuture<U256> {
+		let account_start_nonce = self.client.engine().account_start_nonce(self.client.best_block_header().number());
 		Box::new(self.account(addr.clone())
-			.map(move |account| account.nonce)
+			.and_then(move |maybe_account| {
+				future::ok(maybe_account.map_or(account_start_nonce, |account| account.nonce))
+			})
 		)
 	}
 
@@ -421,15 +412,16 @@ impl Dispatcher for LightDispatcher {
 		// because if the account hasn't sufficient funds we should not add it to the
 		// transaction queue!
 		Box::new(self.account(filled.from)
-			.and_then(move |account| {
-				// The account has not sufficient funds for the transaction
-				if cost > account.balance {
-					Err(errors::transaction(TransactionError::InsufficientBalance {
-						balance: account.balance,
-						cost,
-					}))
-				} else {
-					Ok(account)
+			.and_then(move |maybe_account| {
+				match maybe_account {
+					Some(ref account) if cost > account.balance => {
+						Err(errors::transaction(TransactionError::InsufficientBalance {
+							balance: account.balance,
+							cost,
+						}))
+					}
+					Some(account) => Ok(account),
+					None => Err(errors::account("Account not found", "")),
 				}
 			})
 			.and_then(move |account| {
