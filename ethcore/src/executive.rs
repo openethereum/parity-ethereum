@@ -1620,6 +1620,62 @@ mod tests {
 		assert_eq!(state.storage_at(&contract_address, &H256::from(&U256::zero())).unwrap(), H256::from(&U256::from(0)));
 	}
 
+	evm_test!{test_eip1283: test_eip1283_int}
+	fn test_eip1283(factory: Factory) {
+		let x1 = Address::from(0x1000);
+		let x2 = Address::from(0x1001);
+		let y1 = Address::from(0x2001);
+		let y2 = Address::from(0x2002);
+
+		let mut state = get_temp_state_with_factory(factory.clone());
+		state.new_contract(&x1, U256::zero(), U256::from(1));
+		state.init_code(&x1, "600160005560006000556001600055".from_hex().unwrap()).unwrap();
+		state.new_contract(&x2, U256::zero(), U256::from(1));
+		state.init_code(&x2, "600060005560016000556000600055".from_hex().unwrap()).unwrap();
+		state.new_contract(&y1, U256::zero(), U256::from(1));
+		state.init_code(&y1, "600060006000600061100062fffffff4".from_hex().unwrap()).unwrap();
+		state.new_contract(&y2, U256::zero(), U256::from(1));
+		state.init_code(&y2, "600060006000600061100162fffffff4".from_hex().unwrap()).unwrap();
+
+		let info = EnvInfo::default();
+		let machine = ::ethereum::new_constantinople_test_machine();
+		let schedule = machine.schedule(info.number);
+
+		// Test a call via top-level -> y1 -> x1
+		let (FinalizationResult { gas_left, .. }, refund, gas) = {
+			let gas = U256::from(0xffffffffffu64);
+			let mut params = ActionParams::default();
+			params.code = Some(Arc::new("6001600055600060006000600061200163fffffffff4".from_hex().unwrap()));
+			params.gas = gas;
+			let mut substate = Substate::new();
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
+			let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
+
+			(res, substate.sstore_clears_refund, gas)
+		};
+		let gas_used = gas - gas_left;
+		// sstore: 0 -> (1) -> () -> (1 -> 0 -> 1)
+		assert_eq!(gas_used, U256::from(41860));
+		assert_eq!(refund, U256::from(19800));
+
+		// Test a call via top-level -> y2 -> x2
+		let (FinalizationResult { gas_left, .. }, refund, gas) = {
+			let gas = U256::from(0xffffffffffu64);
+			let mut params = ActionParams::default();
+			params.code = Some(Arc::new("6001600055600060006000600061200263fffffffff4".from_hex().unwrap()));
+			params.gas = gas;
+			let mut substate = Substate::new();
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
+			let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
+
+			(res, substate.sstore_clears_refund, gas)
+		};
+		let gas_used = gas - gas_left;
+		// sstore: 1 -> (1) -> () -> (0 -> 1 -> 0)
+		assert_eq!(gas_used, U256::from(11860));
+		assert_eq!(refund, U256::from(19800));
+	}
+
 	fn wasm_sample_code() -> Arc<Vec<u8>> {
 		Arc::new(
 			"0061736d01000000010d0360027f7f0060017f0060000002270303656e7603726574000003656e760673656e646572000103656e76066d656d6f727902010110030201020404017000000501000708010463616c6c00020901000ac10101be0102057f017e4100410028020441c0006b22043602042004412c6a41106a220041003602002004412c6a41086a22014200370200200441186a41106a22024100360200200441186a41086a220342003703002004420037022c2004410036021c20044100360218200441186a1001200020022802002202360200200120032903002205370200200441106a2002360200200441086a200537030020042004290318220537022c200420053703002004411410004100200441c0006a3602040b0b0a010041040b0410c00000"
