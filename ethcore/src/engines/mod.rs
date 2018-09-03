@@ -348,6 +348,15 @@ pub trait Engine<M: Machine>: Sync + Send {
 		None
 	}
 
+	fn is_epoch_end_light(
+		&self,
+		_chain_head: &M::Header,
+		_chain: &Headers<M::Header>,
+		_transition_store: &PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		None
+	}
+
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
 	fn epoch_verifier<'a>(&self, _header: &M::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a, M> {
