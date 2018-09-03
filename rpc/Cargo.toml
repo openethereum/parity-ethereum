@@ -73,7 +73,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = "0.1.0"
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = { path = "../transaction-pool" }

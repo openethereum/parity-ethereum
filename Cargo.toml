@@ -62,8 +62,8 @@ dir = { path = "util/dir" }
 panic_hook = { path = "util/panic_hook" }
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
 migration-rocksdb = { path = "util/migration-rocksdb" }
-kvdb = { git = "https://github.com/paritytech/parity-common" }
-kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb = "0.1.0"
+kvdb-rocksdb = "0.1.3"
 journaldb = { path = "util/journaldb" }
 mem = { path = "util/mem" }
 

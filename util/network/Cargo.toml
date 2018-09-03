@@ -15,7 +15,7 @@ ethkey = { path = "../../ethkey" }
 ipnetwork = "0.12.6"
 rlp = { git = "https://github.com/paritytech/parity-common" }
 libc = "0.2"
-snappy = { git = "https://github.com/paritytech/rust-snappy" }
+parity-snappy = "0.1.0"
 
 
 [dev-dependencies]

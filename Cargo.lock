@@ -526,9 +526,9 @@ dependencies = [
  "journaldb 0.2.0",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
  "keccak-hasher 0.1.0",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-memorydb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-rocksdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-rocksdb 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -540,6 +540,7 @@ dependencies = [
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",
  "parity-crypto 0.1.0 (git+https://github.com/paritytech/parity-common)",
  "parity-machine 0.1.0",
+ "parity-snappy 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.2.1 (git+https://github.com/paritytech/parity-common)",
  "patricia-trie-ethereum 0.1.0",
@@ -549,7 +550,6 @@ dependencies = [
  "rlp_compress 0.1.0",
  "rlp_derive 0.1.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
  "stats 0.1.0",
  "stop-guard 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -606,8 +606,8 @@ dependencies = [
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
  "keccak-hasher 0.1.0",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-memorydb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
  "memorydb 0.2.1 (git+https://github.com/paritytech/parity-common)",
@@ -683,8 +683,8 @@ dependencies = [
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-crypto 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "parity-snappy 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1 (git+https://github.com/paritytech/parity-common)",
- "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
 ]
 
 [[package]]
@@ -708,6 +708,7 @@ dependencies = [
  "mio 0.6.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",
  "parity-crypto 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "parity-snappy 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.1 (git+https://github.com/paritytech/parity-common)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -718,7 +719,6 @@ dependencies = [
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -779,8 +779,8 @@ dependencies = [
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.11.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-rocksdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-rocksdb 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",
@@ -811,8 +811,8 @@ dependencies = [
  "ethcore-private-tx 1.0.0",
  "ethcore-sync 1.12.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-rocksdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-rocksdb 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "stop-guard 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -857,8 +857,8 @@ dependencies = [
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
  "keccak-hasher 0.1.0",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-memorydb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",
@@ -1361,8 +1361,8 @@ dependencies = [
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
  "keccak-hasher 0.1.0",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-memorydb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "memorydb 0.2.1 (git+https://github.com/paritytech/parity-common)",
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",
@@ -1497,36 +1497,35 @@ dependencies = [
 [[package]]
 name = "kvdb"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common#0045887fecd2fec39e56c962a0b27e2caf3b9474"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "kvdb-memorydb"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common#0045887fecd2fec39e56c962a0b27e2caf3b9474"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "kvdb-rocksdb"
-version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common#0045887fecd2fec39e56c962a0b27e2caf3b9474"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fs-swap 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "interleaved-ordered 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-rocksdb 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)",
 ]
 
 [[package]]
@@ -1699,8 +1698,8 @@ dependencies = [
 name = "migration-rocksdb"
 version = "0.1.0"
 dependencies = [
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-rocksdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-rocksdb 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1829,7 +1828,7 @@ dependencies = [
  "ethcore-network 1.12.0",
  "ethcore-network-devp2p 1.12.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1958,6 +1957,11 @@ version = "0.1.0"
 source = "git+https://github.com/paritytech/parity-common#0045887fecd2fec39e56c962a0b27e2caf3b9474"
 
 [[package]]
+name = "parity-bytes"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "parity-clib"
 version = "1.12.0"
 dependencies = [
@@ -2011,8 +2015,8 @@ dependencies = [
  "journaldb 0.2.0",
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-rocksdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-rocksdb 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "mem 0.1.0",
  "migration-rocksdb 0.1.0",
@@ -2099,8 +2103,8 @@ dependencies = [
  "ethcore-io 1.12.0",
  "ethcore-transaction 0.1.0",
  "ethkey 0.3.0",
- "kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)",
- "kvdb-memorydb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1 (git+https://github.com/paritytech/parity-common)",
  "serde 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2121,6 +2125,27 @@ version = "0.1.0"
 dependencies = [
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-rocksdb"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "local-encoding 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-rocksdb-sys 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-rocksdb-sys"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cmake 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "local-encoding 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-snappy-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2159,7 +2184,7 @@ dependencies = [
  "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "jsonrpc-ws-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
- "kvdb-memorydb 0.1.0 (git+https://github.com/paritytech/parity-common)",
+ "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "multihash 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2203,6 +2228,24 @@ dependencies = [
  "serde 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-snappy"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-snappy-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-snappy-sys"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cmake 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2712,27 +2755,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rocksdb"
-version = "0.4.5"
-source = "git+https://github.com/paritytech/rust-rocksdb#86460c5e42d63c861b66172657531531de7f00b5"
-dependencies = [
- "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "local-encoding 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb)",
-]
-
-[[package]]
-name = "rocksdb-sys"
-version = "0.3.0"
-source = "git+https://github.com/paritytech/rust-rocksdb#86460c5e42d63c861b66172657531531de7f00b5"
-dependencies = [
- "cmake 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "local-encoding 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
-]
-
-[[package]]
 name = "rpassword"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2946,24 +2968,6 @@ version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "snappy"
-version = "0.1.0"
-source = "git+https://github.com/paritytech/rust-snappy#798408ffef8f86dd51481673aca10f5348d7491b"
-dependencies = [
- "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
-]
-
-[[package]]
-name = "snappy-sys"
-version = "0.1.0"
-source = "git+https://github.com/paritytech/rust-snappy#798408ffef8f86dd51481673aca10f5348d7491b"
-dependencies = [
- "cmake 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3784,9 +3788,9 @@ dependencies = [
 "checksum jsonrpc-ws-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)" = "<none>"
 "checksum keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
-"checksum kvdb 0.1.0 (git+https://github.com/paritytech/parity-common)" = "<none>"
-"checksum kvdb-memorydb 0.1.0 (git+https://github.com/paritytech/parity-common)" = "<none>"
-"checksum kvdb-rocksdb 0.1.0 (git+https://github.com/paritytech/parity-common)" = "<none>"
+"checksum kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "72ae89206cea31c32014b39d5a454b96135894221610dbfd19cf4d2d044fa546"
+"checksum kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "45bcdf5eb083602cff61a6f8438dce2a7900d714e893fc48781c39fb119d37aa"
+"checksum kvdb-rocksdb 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "e731661c9e7409857d73ac574da418cef6f9605e967bed0aeb93182ef8d4b1c7"
 "checksum language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
 "checksum lazy_static 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "76f033c7ad61445c5b347c7382dd1237847eb1bce590fe50365dcb33d546be73"
 "checksum lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c8f31047daa365f19be14b47c29df4f7c3b581832407daabe6ae77397619237d"
@@ -3834,7 +3838,12 @@ dependencies = [
 "checksum ordermap 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "a86ed3f5f244b372d6b1a00b72ef7f8876d0bc6a78a4c9985c53614041512063"
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
 "checksum parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)" = "<none>"
+"checksum parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fa5168b4cf41f3835e4bc6ffb32f51bc9365dc50cb351904595b3931d917fd0c"
 "checksum parity-crypto 0.1.0 (git+https://github.com/paritytech/parity-common)" = "<none>"
+"checksum parity-rocksdb 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cd55d2d6d6000ec99f021cf52c9acc7d2a402e14f95ced4c5de230696fabe00b"
+"checksum parity-rocksdb-sys 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9ae07d4bfb2759541957c19f471996b807fc09ef3a5bdce14409b57f038de49f"
+"checksum parity-snappy 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2c5f9d149b13134b8b354d93a92830efcbee6fe5b73a2e6e540fe70d4dd8a63"
+"checksum parity-snappy-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c2086caac40c79289cb70d7e1c64f5888e1c53f5d38399d3e95101493739f423"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
 "checksum parity-wasm 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e1c91199d14bd5b78ecade323d4a891d094799749c1b9e82d9c590c2e2849a40"
 "checksum parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d0dec124478845b142f68b446cbee953d14d4b41f1bc0425024417720dce693"
@@ -3876,8 +3885,6 @@ dependencies = [
 "checksum relay 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1576e382688d7e9deecea24417e350d3062d97e32e45d70b1cde65994ff1489a"
 "checksum ring 0.12.1 (git+https://github.com/paritytech/ring)" = "<none>"
 "checksum rlp 0.2.1 (git+https://github.com/paritytech/parity-common)" = "<none>"
-"checksum rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)" = "<none>"
-"checksum rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb)" = "<none>"
 "checksum rpassword 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b273c91bd242ca03ad6d71c143b6f17a48790e61f21a6c78568fa2b6774a24a4"
 "checksum rprompt 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1601f32bc5858aae3cbfa1c645c96c4d820cc5c16be0194f089560c00b6eb625"
 "checksum rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)" = "f76d05d3993fd5f4af9434e8e436db163a12a9d40e1a58a726f27a01dfd12a2a"
@@ -3907,8 +3914,6 @@ dependencies = [
 "checksum slab 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fdeff4cd9ecff59ec7e3744cbca73dfe5ac35c2aedb2cfba8a1c715a18912e9d"
 "checksum smallvec 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4c8cbcd6df1e117c2210e13ab5109635ad68a929fcbb8964dc965b76cb5ee013"
 "checksum smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "f90c5e5fe535e48807ab94fc611d323935f39d4660c52b26b96446a7b33aef10"
-"checksum snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)" = "<none>"
-"checksum snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)" = "<none>"
 "checksum socket2 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "06dc9f86ee48652b7c80f3d254e3b9accb67a928c562c64d10d7b016d3d98dab"
 "checksum stable_deref_trait 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "15132e0e364248108c5e2c02e3ab539be8d6f5d52a01ca9bbf27ed657316f02b"
 "checksum strsim 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b4d15c810519a91cf877e7e36e63fe068815c678181439f2f29e2562147c3694"
