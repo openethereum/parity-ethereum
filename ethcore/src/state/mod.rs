@@ -2267,6 +2267,27 @@ mod tests {
 	}
 
 	#[test]
+	fn checkpoint_get_storage_at() {
+		let mut state = get_temp_state();
+		let a = Address::zero();
+		let k = H256::from(U256::from(0));
+		let c1 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
+		let c2 = state.checkpoint();
+		let c3 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(3))).unwrap();
+		let c4 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(4))).unwrap();
+		let c5 = state.checkpoint();
+
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c4, &a, &k).unwrap(), Some(H256::from(U256::from(3))));
+		assert_eq!(state.checkpoint_storage_at(c5, &a, &k).unwrap(), Some(H256::from(U256::from(4))));
+	}
+
+	#[test]
 	fn create_empty() {
 		let mut state = get_temp_state();
 		state.commit().unwrap();
