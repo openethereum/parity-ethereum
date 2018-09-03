@@ -160,6 +160,15 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		self.validators.is_epoch_end(first, chain_head)
 	}
 
+	fn is_epoch_end_light(
+		&self,
+		chain_head: &Header,
+		chain: &super::Headers<Header>,
+		transition_store: &super::PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		self.is_epoch_end(chain_head, &[], chain, transition_store)
+	}
+
 	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
 		let first = header.number() == 0;
 
