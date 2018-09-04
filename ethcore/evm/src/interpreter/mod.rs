@@ -795,7 +795,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 						TWO_POW_96 => a >> 96,
 						TWO_POW_224 => a >> 224,
 						TWO_POW_248 => a >> 248,
-						_ => a/b,
+						_ => a / b,
 					}
 				} else {
 					U256::zero()
@@ -821,7 +821,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				} else if a == min && b == !U256::zero() {
 					min
 				} else {
-					let c = a/b;
+					let c = a / b;
 					set_sign(c, sign_a ^ sign_b)
 				});
 			},

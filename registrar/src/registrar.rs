@@ -52,7 +52,7 @@ impl Registrar {
 		};
 
 		let address_fetcher = self.registrar.functions().get_address();
-		let hashed_key : [u8; 32] = keccak(key).into();
+		let hashed_key: [u8; 32] = keccak(key).into();
 		let id = address_fetcher.input(hashed_key, DNS_A_RECORD);
 
 		let future = self.client.call_contract(registrar_address, id).and_then(move |address| {
