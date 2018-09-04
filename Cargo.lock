@@ -743,6 +743,7 @@ dependencies = [
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "im 12.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (git+https://github.com/paritytech/parity-common)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (git+https://github.com/paritytech/parity-common)",

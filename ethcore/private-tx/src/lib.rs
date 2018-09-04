@@ -45,6 +45,7 @@ extern crate transaction_pool as txpool;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
 extern crate url;
+extern crate im;
 extern crate rustc_hex;
 #[macro_use]
 extern crate log;
@@ -72,6 +73,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
+use im::{HashMap as IMHashMap};
 use rlp::*;
 use parking_lot::RwLock;
 use bytes::Bytes;
@@ -462,7 +464,7 @@ impl Provider where {
 		}).collect()
 	}
 
-	fn snapshot_from_storage(storage: &HashMap<H256, H256>) -> Bytes {
+	fn snapshot_from_storage(storage: &IMHashMap<H256, H256>) -> Bytes {
 		let mut raw = Vec::with_capacity(storage.len() * 64);
 		for (key, value) in storage {
 			raw.extend_from_slice(key);
