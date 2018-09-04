@@ -446,10 +446,10 @@ pub fn filter_block_not_found(id: BlockId) -> Error {
 }
 
 pub fn on_demand_error(err: OnDemandError) -> Error {
-	match err.kind() {
-		OnDemandErrorKind::ChannelCanceled(ref e) => return on_demand_cancel(e.clone()),
-		OnDemandErrorKind::MaxAttemptReach(_) => max_attempt_reach(&err),
-		OnDemandErrorKind::TimeoutOnNewPeers(_,_) => timeout_new_peer(&err),
+	match err {
+		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
+		OnDemandError(OnDemandErrorKind::MaxAttemptReach(_), _) => max_attempt_reach(&err),
+		OnDemandError(OnDemandErrorKind::TimeoutOnNewPeers(_,_), _) => timeout_new_peer(&err),
 		_ => on_demand_others(&err),
 	}
 }

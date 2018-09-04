@@ -495,14 +495,14 @@ impl OnDemand {
 				} else if init_remaining_query_count == pending.remaining_query_count {
 					if let Some(query_inactive_time_limit) = self.query_inactive_time_limit {
 						let now = SystemTime::now();
-						if pending.inactive_time_limit.is_none() {
-							debug!(target: "on_demand", "No more peer to query, waiting for {} seconds until dropping query", query_inactive_time_limit.as_secs());
-							pending.inactive_time_limit = Some(now + query_inactive_time_limit);
-						} else {
-							if now > pending.inactive_time_limit.unwrap() {
+						if let Some(inactive_time_limit) = pending.inactive_time_limit {
+							if now > inactive_time_limit {
 								pending.time_out();
 								return None
 							}
+						} else {
+							debug!(target: "on_demand", "No more peer to query, waiting for {} seconds until dropping query", query_inactive_time_limit.as_secs());
+							pending.inactive_time_limit = Some(now + query_inactive_time_limit);
 						}
 					}
 					Some(pending)
@@ -595,7 +595,7 @@ impl Handler for OnDemand {
 			None => return,
 		};
 
-		if responses.len() == 0 {
+		if responses.is_empty() {
 			if pending.remaining_query_count == 0 {
 				pending.no_response();
 				return;

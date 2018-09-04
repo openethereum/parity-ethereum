@@ -180,7 +180,7 @@ fn no_capabilities() {
 
 	harness.inject_peer(peer_id, Peer {
 		status: dummy_status(),
-		capabilities: capabilities.clone(),
+		capabilities: capabilities,
 	});
 
 	let _recv = harness.service.request_raw(

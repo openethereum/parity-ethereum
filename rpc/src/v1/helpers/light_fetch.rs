@@ -353,10 +353,10 @@ impl LightFetch {
 									block_index += 1;
 								}
 							}
-							future::ok(matches)
+							future::ok::<_,OnDemandError>(matches)
 						}) // and then collect them into a vector.
 						.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
-						.map_err(errors::on_demand_cancel)
+						.map_err(errors::on_demand_error)
 				});
 
 				match maybe_future {
