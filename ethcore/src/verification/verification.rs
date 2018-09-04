@@ -501,7 +501,7 @@ mod tests {
 
 	fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
 		let unverified = Unverified::from_rlp(bytes.to_vec())?;
-		verify_block_basic(&unverified, engine)
+		verify_block_basic(&unverified, engine, true)
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
