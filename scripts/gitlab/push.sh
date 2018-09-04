@@ -52,7 +52,7 @@ DESCRIPTION="$(echo "${DESCRIPTION/${REPLACE_TEXT}/${RELEASE_TABLE}
 
 ${REPLACE_TEXT}}")"
 echo "$DESCRIPTION"
-if [["$CI_COMMIT_REF_NAME" == "nightly" ]]; then DESCRIPTION=""; fi #TODO in the future, we need to prepare a script that will do changelog
+if [[ "$CI_COMMIT_REF_NAME" == "nightly" ]]; then DESCRIPTION=""; fi #TODO in the future, we need to prepare a script that will do changelog
 echo "__________Create release to Github____________"
 github-release release --user devops-parity --repo parity-ethereum --tag "$CI_COMMIT_REF_NAME" --draft --name "$NAME" --description "$DESCRIPTION"
 echo "__________Push binaries to AWS S3____________"
