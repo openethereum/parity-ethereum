@@ -26,7 +26,7 @@ use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotCompon
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use parking_lot::Mutex;
-use parity_snappy as snappy;
+use snappy;
 use kvdb::DBTransaction;
 use test_helpers;
 
