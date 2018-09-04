@@ -69,7 +69,7 @@ pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};
 
 use std::sync::{Arc, Weak};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
@@ -454,7 +454,7 @@ impl Provider where {
 			.map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?)
 	}
 
-	fn snapshot_to_storage(raw: Bytes) -> HashMap<H256, H256> {
+	fn snapshot_to_storage(raw: Bytes) -> IMHashMap<H256, H256> {
 		let items = raw.len() / 64;
 		(0..items).map(|i| {
 			let offset = i * 64;
