@@ -34,8 +34,8 @@ use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, 
 use rustc_hex::{FromHex, FromHexError};
 
 const USAGE: &'static str = r#"
-Ethereum keys generator.
-  Copyright 2016, 2017 Parity Technologies (UK) Ltd
+Parity Ethereum keys generator.
+  Copyright 2015-2018 Parity Technologies (UK) Ltd.
 
 Usage:
     ethkey info <secret-or-phrase> [options]
@@ -49,17 +49,17 @@ Usage:
 
 Options:
     -h, --help         Display this message and exit.
-    -s, --secret       Display only the secret.
-    -p, --public       Display only the public.
+    -s, --secret       Display only the secret key.
+    -p, --public       Display only the public key.
     -a, --address      Display only the address.
-    -b, --brain        Use parity brain wallet algorithm.
+    -b, --brain        Use parity brain wallet algorithm. Not recommended.
 
 Commands:
-    info               Display public and address of the secret.
-    generate random    Generates new random ethereum key.
-    generate prefix    Random generation, but address must start with a prefix.
-    sign               Sign message using secret.
-    verify             Verify signer of the signature.
+    info               Display public key and address of the secret.
+    generate random    Generates new random Ethereum key.
+    generate prefix    Random generation, but address must start with a prefix ("vanity address").
+    sign               Sign message using a secret key.
+    verify             Verify signer of the signature by public key or address.
     recover            Try to find brain phrase matching given address from partial phrase.
 "#;
 

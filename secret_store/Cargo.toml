@@ -41,4 +41,4 @@ ethabi-contract = "5.1.1"
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = "0.1.2"
+kvdb-rocksdb = "0.1.3"

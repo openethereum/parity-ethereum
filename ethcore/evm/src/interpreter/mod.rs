@@ -426,13 +426,13 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let endowment = self.stack.pop_back();
+				let init_off = self.stack.pop_back();
+				let init_size = self.stack.pop_back();
 				let address_scheme = match instruction {
 					instructions::CREATE => CreateContractAddress::FromSenderAndNonce,
 					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(self.stack.pop_back().into()),
 					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
 				};
-				let init_off = self.stack.pop_back();
-				let init_size = self.stack.pop_back();
 
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
