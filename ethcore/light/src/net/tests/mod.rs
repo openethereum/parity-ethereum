@@ -228,7 +228,7 @@ fn handshake_expected() {
 
 	let packet_body = write_handshake(&status, &capabilities, &proto);
 
-	proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
+	proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body));
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn genesis_mismatch() {
 
 	let packet_body = write_handshake(&status, &capabilities, &proto);
 
-	proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
+	proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body));
 }
 
 #[test]
@@ -256,12 +256,12 @@ fn credit_overflow() {
 
 	{
 		let packet_body = write_handshake(&status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body));
 	}
 
 	{
 		let my_status = write_handshake(&status, &capabilities, &proto);
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &my_status);
 	}
 
 	// 1 billion requests is far too many for the default flow params.
@@ -273,7 +273,7 @@ fn credit_overflow() {
 	}));
 	let request = make_packet(111, &requests);
 
-	proto.handle_packet(&Expect::Punish(1), &1, packet::REQUEST, &request);
+	proto.handle_packet(&Expect::Punish(1), 1, packet::REQUEST, &request);
 }
 
 // test the basic request types -- these just make sure that requests are parsed
@@ -295,8 +295,8 @@ fn get_block_headers() {
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body));
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &my_status);
 	}
 
 	let request = Request::Headers(IncompleteHeadersRequest {
@@ -317,9 +317,7 @@ fn get_block_headers() {
 
 		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
-		let response = vec![Response::Headers(HeadersResponse {
-			headers: headers,
-		})];
+		let response = vec![Response::Headers(HeadersResponse { headers })];
 
 		let mut stream = RlpStream::new_list(3);
 		stream.append(&req_id).append(&new_creds).append_list(&response);
@@ -328,7 +326,7 @@ fn get_block_headers() {
 	};
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -347,8 +345,8 @@ fn get_block_bodies() {
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body));
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &my_status);
 	}
 
 	let mut builder = Builder::default();
@@ -376,7 +374,7 @@ fn get_block_bodies() {
 	};
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -395,8 +393,8 @@ fn get_block_receipts() {
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body));
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &my_status);
 	}
 
 	// find the first 10 block hashes starting with `f` because receipts are only provided
@@ -431,7 +429,7 @@ fn get_block_receipts() {
 	};
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -447,8 +445,8 @@ fn get_state_proofs() {
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &packet_body);
 	}
 
 	let req_id = 112;
@@ -490,7 +488,7 @@ fn get_state_proofs() {
 	};
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -504,8 +502,8 @@ fn get_contract_code() {
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &packet_body);
 	}
 
 	let req_id = 112;
@@ -533,7 +531,7 @@ fn get_contract_code() {
 	};
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -547,8 +545,8 @@ fn epoch_signal() {
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &packet_body);
 	}
 
 	let req_id = 112;
@@ -576,7 +574,7 @@ fn epoch_signal() {
 	};
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -590,8 +588,8 @@ fn proof_of_execution() {
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &packet_body);
 	}
 
 	let req_id = 112;
@@ -622,7 +620,7 @@ fn proof_of_execution() {
 	};
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 
 	// next: way too much requested gas.
 	if let Request::Execution(ref mut req) = request {
@@ -633,7 +631,7 @@ fn proof_of_execution() {
 	let request_body = make_packet(req_id, &requests);
 
 	let expected = Expect::Punish(1);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -682,33 +680,33 @@ fn id_guard() {
 	{
 		let mut stream = RlpStream::new_list(3);
 		stream.append(&req_id_1.0);
-		stream.append(&4_000_000usize);
-		stream.begin_list(2).append(&125usize).append(&3usize);
+		stream.append(&4_000_000_usize);
+		stream.begin_list(2).append(&125_usize).append(&3_usize);
 
 		let packet = stream.out();
-		assert!(proto.response(&peer_id, &Expect::Nothing, Rlp::new(&packet)).is_err());
+		assert!(proto.response(peer_id, &Expect::Nothing, &Rlp::new(&packet)).is_err());
 	}
 
 	// next, do an unexpected response.
 	{
 		let mut stream = RlpStream::new_list(3);
-		stream.append(&10000usize);
-		stream.append(&3_000_000usize);
+		stream.append(&10000_usize);
+		stream.append(&3_000_000_usize);
 		stream.begin_list(0);
 
 		let packet = stream.out();
-		assert!(proto.response(&peer_id, &Expect::Nothing, Rlp::new(&packet)).is_err());
+		assert!(proto.response(peer_id, &Expect::Nothing, &Rlp::new(&packet)).is_err());
 	}
 
 	// lastly, do a valid (but empty) response.
 	{
 		let mut stream = RlpStream::new_list(3);
 		stream.append(&req_id_2.0);
-		stream.append(&3_000_000usize);
+		stream.append(&3_000_000_usize);
 		stream.begin_list(0);
 
 		let packet = stream.out();
-		assert!(proto.response(&peer_id, &Expect::Nothing, Rlp::new(&packet)).is_ok());
+		assert!(proto.response(peer_id, &Expect::Nothing, &Rlp::new(&packet)).is_ok());
 	}
 
 	let peers = proto.peers.read();
@@ -730,8 +728,8 @@ fn get_transaction_index() {
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
-		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+		proto.on_connect(1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, 1, packet::STATUS, &packet_body);
 	}
 
 	let req_id = 112;
@@ -759,5 +757,5 @@ fn get_transaction_index() {
 	};
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
-	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
 }
