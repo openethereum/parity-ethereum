@@ -16,7 +16,7 @@
 
 //! Engine deserialization.
 
-use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine};
+use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine, InstantSeal};
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -26,7 +26,7 @@ pub enum Engine {
 	Null(NullEngine),
 	/// Instantly sealing engine.
 	#[serde(rename="instantSeal")]
-	InstantSeal,
+	InstantSeal(InstantSeal),
 	/// Ethash engine.
 	Ethash(Ethash),
 	/// BasicAuthority engine.
