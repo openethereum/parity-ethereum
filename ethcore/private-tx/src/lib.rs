@@ -73,7 +73,6 @@ use std::collections::HashSet;
 use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
-use im::{HashMap as IMHashMap};
 use rlp::*;
 use parking_lot::RwLock;
 use bytes::Bytes;
@@ -454,7 +453,7 @@ impl Provider where {
 			.map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?)
 	}
 
-	fn snapshot_to_storage(raw: Bytes) -> IMHashMap<H256, H256> {
+	fn snapshot_to_storage(raw: Bytes) -> im::HashMap<H256, H256> {
 		let items = raw.len() / 64;
 		(0..items).map(|i| {
 			let offset = i * 64;
@@ -464,7 +463,7 @@ impl Provider where {
 		}).collect()
 	}
 
-	fn snapshot_from_storage(storage: &IMHashMap<H256, H256>) -> Bytes {
+	fn snapshot_from_storage(storage: &im::HashMap<H256, H256>) -> Bytes {
 		let mut raw = Vec::with_capacity(storage.len() * 64);
 		for (key, value) in storage {
 			raw.extend_from_slice(key);

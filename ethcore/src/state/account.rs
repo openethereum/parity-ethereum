@@ -30,7 +30,7 @@ use trie::{Trie, Recorder};
 use ethtrie::{TrieFactory, TrieDB, SecTrieDB, Result as TrieResult};
 use pod_account::*;
 use rlp::{RlpStream, encode};
-use im::{HashMap as IMHashMap};
+use im;
 use lru_cache::LruCache;
 use basic_account::BasicAccount;
 
@@ -62,7 +62,7 @@ pub struct Account {
 	storage_cache: RefCell<LruCache<H256, H256>>,
 	// Modified storage. Accumulates changes to storage made in `set_storage`
 	// Takes precedence over `storage_cache`.
-	storage_changes: IMHashMap<H256, H256>,
+	storage_changes: im::HashMap<H256, H256>,
 	// Code hash of the account.
 	code_hash: H256,
 	// Size of the account code.
@@ -82,7 +82,7 @@ impl From<BasicAccount> for Account {
 			nonce: basic.nonce,
 			storage_root: basic.storage_root,
 			storage_cache: Self::empty_storage_cache(),
-			storage_changes: IMHashMap::new(),
+			storage_changes: im::HashMap::new(),
 			code_hash: basic.code_hash,
 			code_size: None,
 			code_cache: Arc::new(vec![]),
@@ -95,7 +95,7 @@ impl From<BasicAccount> for Account {
 impl Account {
 	#[cfg(test)]
 	/// General constructor.
-	pub fn new(balance: U256, nonce: U256, storage: IMHashMap<H256, H256>, code: Bytes) -> Account {
+	pub fn new(balance: U256, nonce: U256, storage: im::HashMap<H256, H256>, code: Bytes) -> Account {
 		Account {
 			balance: balance,
 			nonce: nonce,
@@ -137,7 +137,7 @@ impl Account {
 			nonce: nonce,
 			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
-			storage_changes: IMHashMap::new(),
+			storage_changes: im::HashMap::new(),
 			code_hash: KECCAK_EMPTY,
 			code_cache: Arc::new(vec![]),
 			code_size: Some(0),
@@ -161,7 +161,7 @@ impl Account {
 			nonce: nonce,
 			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
-			storage_changes: IMHashMap::new(),
+			storage_changes: im::HashMap::new(),
 			code_hash: KECCAK_EMPTY,
 			code_cache: Arc::new(vec![]),
 			code_size: None,
@@ -185,7 +185,7 @@ impl Account {
 	}
 
 	/// Reset this account's code and storage to given values.
-	pub fn reset_code_and_storage(&mut self, code: Arc<Bytes>, storage: IMHashMap<H256, H256>) {
+	pub fn reset_code_and_storage(&mut self, code: Arc<Bytes>, storage: im::HashMap<H256, H256>) {
 		self.code_hash = keccak(&*code);
 		self.code_cache = code;
 		self.code_size = Some(self.code_cache.len());
@@ -360,7 +360,7 @@ impl Account {
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
 
 	/// Return the storage overlay.
-	pub fn storage_changes(&self) -> &IMHashMap<H256, H256> { &self.storage_changes }
+	pub fn storage_changes(&self) -> &im::HashMap<H256, H256> { &self.storage_changes }
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) {
@@ -383,7 +383,7 @@ impl Account {
 	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB<KeccakHasher>) -> TrieResult<()> {
 		let mut t = trie_factory.from_existing(db, &mut self.storage_root)?;
 		let old_storage_changes = {
-			let mut tmp = IMHashMap::new();
+			let mut tmp = im::HashMap::new();
 			::std::mem::swap(&mut tmp, &mut self.storage_changes);
 			tmp
 		};
@@ -434,7 +434,7 @@ impl Account {
 			nonce: self.nonce.clone(),
 			storage_root: self.storage_root.clone(),
 			storage_cache: Self::empty_storage_cache(),
-			storage_changes: IMHashMap::new(),
+			storage_changes: im::HashMap::new(),
 			code_hash: self.code_hash.clone(),
 			code_size: self.code_size.clone(),
 			code_cache: self.code_cache.clone(),
@@ -619,7 +619,7 @@ mod tests {
 
 	#[test]
 	fn rlpio() {
-		let a = Account::new(69u8.into(), 0u8.into(), IMHashMap::new(), Bytes::new());
+		let a = Account::new(69u8.into(), 0u8.into(), im::HashMap::new(), Bytes::new());
 		let b = Account::from_rlp(&a.rlp()).unwrap();
 		assert_eq!(a.balance(), b.balance());
 		assert_eq!(a.nonce(), b.nonce());
@@ -629,7 +629,7 @@ mod tests {
 
 	#[test]
 	fn new_account() {
-		let a = Account::new(69u8.into(), 0u8.into(), IMHashMap::new(), Bytes::new());
+		let a = Account::new(69u8.into(), 0u8.into(), im::HashMap::new(), Bytes::new());
 		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 		assert_eq!(*a.balance(), 69u8.into());
 		assert_eq!(*a.nonce(), 0u8.into());
@@ -639,7 +639,7 @@ mod tests {
 
 	#[test]
 	fn create_account() {
-		let a = Account::new(69u8.into(), 0u8.into(), IMHashMap::new(), Bytes::new());
+		let a = Account::new(69u8.into(), 0u8.into(), im::HashMap::new(), Bytes::new());
 		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 	}
 
