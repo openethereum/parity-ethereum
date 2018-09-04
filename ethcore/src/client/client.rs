@@ -474,7 +474,7 @@ impl Importer {
 		let number = header.number();
 		let parent = header.parent_hash();
 		let chain = client.chain.read();
-		let is_finalized = false;
+		let mut is_finalized = false;
 
 		// Commit results
 		let block = block.drain();
@@ -538,7 +538,14 @@ impl Importer {
 
 		let finalized: Vec<_> = ancestry_actions.into_iter().map(|ancestry_action| {
 			let AncestryAction::MarkFinalized(a) = ancestry_action;
-			chain.mark_finalized(&mut batch, a).expect("Engine's ancestry action must be known blocks; qed");
+
+			if a != header.hash() {
+				chain.mark_finalized(&mut batch, a).expect("Engine's ancestry action must be known blocks; qed");
+			} else {
+				// we're finalizing the current block
+				is_finalized = true;
+			}
+
 			a
 		}).collect();
 
