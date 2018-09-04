@@ -173,7 +173,6 @@ pub struct Executive<'a, B: 'a> {
 	schedule: &'a Schedule,
 	depth: usize,
 	static_flag: bool,
-	transaction_checkpoint_index: Option<usize>,
 }
 
 impl<'a, B: 'a + StateBackend> Executive<'a, B> {
@@ -186,12 +185,11 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			schedule: schedule,
 			depth: 0,
 			static_flag: false,
-			transaction_checkpoint_index: None,
 		}
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, parent_depth: usize, static_flag: bool, transaction_checkpoint_index: usize) -> Self {
+	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine, schedule: &'a Schedule, parent_depth: usize, static_flag: bool) -> Self {
 		Executive {
 			state: state,
 			info: info,
@@ -199,7 +197,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			schedule: schedule,
 			depth: parent_depth + 1,
 			static_flag: static_flag,
-			transaction_checkpoint_index: Some(transaction_checkpoint_index),
 		}
 	}
 
@@ -212,11 +209,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		tracer: &'any mut T,
 		vm_tracer: &'any mut V,
 		static_call: bool,
-		current_checkpoint_index: usize,
 	) -> Externalities<'any, T, V, B> where T: Tracer, V: VMTracer {
 		let is_static = self.static_flag || static_call;
-		let transaction_checkpoint_index = self.transaction_checkpoint_index.unwrap_or(current_checkpoint_index);
-		Externalities::new(self.state, self.info, self.machine, self.schedule, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static, transaction_checkpoint_index)
+		Externalities::new(self.state, self.info, self.machine, self.schedule, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
 	}
 
 	/// This function should be used to execute transaction.
@@ -358,7 +353,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		params: ActionParams,
 		unconfirmed_substate: &mut Substate,
 		output_policy: OutputPolicy,
-		current_checkpoint_index: usize,
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
@@ -372,7 +366,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let origin_info = OriginInfo::from(&params);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", self.schedule.have_delegate_call);
 			let mut vm = vm_factory.create(params, self.schedule, self.depth);
-			let mut ext = self.as_externalities(origin_info, unconfirmed_substate, output_policy, tracer, vm_tracer, static_call, current_checkpoint_index);
+			let mut ext = self.as_externalities(origin_info, unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			return vm.exec(&mut ext).finalize(ext);
 		}
 
@@ -383,7 +377,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 			scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
 				let mut vm = vm_factory.create(params, self.schedule, self.depth);
-				let mut ext = self.as_externalities(origin_info, unconfirmed_substate, output_policy, tracer, vm_tracer, static_call, current_checkpoint_index);
+				let mut ext = self.as_externalities(origin_info, unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 				vm.exec(&mut ext).finalize(ext)
 			}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
 		}).join()
@@ -410,7 +404,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 
 		// backup used in case of running out of gas
-		let current_checkpoint_index = self.state.checkpoint();
+		self.state.checkpoint();
 
 		let schedule = self.schedule;
 
@@ -501,7 +495,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("scope is conditional on params.code.is_some(); qed"));
 
 				let res = {
-					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return, current_checkpoint_index, &mut subtracer, &mut subvmtracer)
+					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return, &mut subtracer, &mut subvmtracer)
 				};
 
 				vm_tracer.done_subtrace(subvmtracer);
@@ -569,7 +563,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 
 		// backup used in case of running out of gas
-		let current_checkpoint_index = self.state.checkpoint();
+		self.state.checkpoint();
 
 		// part of substate that may be reverted
 		let mut unconfirmed_substate = Substate::new();
@@ -596,7 +590,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			params,
 			&mut unconfirmed_substate,
 			OutputPolicy::InitContract,
-			current_checkpoint_index,
 			&mut subtracer,
 			&mut subvmtracer
 		);
