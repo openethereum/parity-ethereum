@@ -208,6 +208,14 @@ pub fn cannot_submit_work(err: EthcoreError) -> Error {
 	}
 }
 
+pub fn ancient_block_missing() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Ancient block missing".into(),
+		data: None,
+	}
+}
+
 pub fn not_enough_data() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),

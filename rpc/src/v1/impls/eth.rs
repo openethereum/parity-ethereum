@@ -647,6 +647,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
+		if let Ok(SyncStatus::Info(_)) = self.syncing() {
+			// alas, we're still syncing!
+			warn!("Attempted to fetch transaction via hash while sync is in progress");
+			return Box::new(future::err(errors::ancient_block_missing()))
+		}
+
 		let hash: H256 = hash.into();
 		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
 			self.miner.transaction(&hash)
@@ -658,7 +664,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>> {
 		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash.into())), index.value());
-		Box::new(future::done(self.transaction(id)))
+		Box::new(future::done(self.transaction(id).and_then(|res| {
+			if  res.is_none() {
+				if let Ok(SyncStatus::Info(_)) = self.syncing() {
+					// alas, we're still syncing!
+					warn!("Call made to transaction_by_block_hash_and_index while sync is in progress");
+					return Err(errors::ancient_block_missing())
+				}
+			}
+			Ok(res)
+		})))
 	}
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<Transaction>> {
@@ -674,6 +689,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>> {
+		if let Ok(SyncStatus::Info(_)) = self.syncing() {
+			// alas, we're still syncing!
+			warn!("Attempted to fetch transaction via hash while sync is in progress");
+			return Box::new(future::err(errors::ancient_block_missing()))
+		}
+
 		let hash: H256 = hash.into();
 
 		if self.options.allow_pending_receipt_query {
