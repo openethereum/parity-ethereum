@@ -52,7 +52,6 @@ impl Registrar {
 		};
 
 		let address_fetcher = self.registrar.functions().get_address();
-		// TODO: keccak(), from `keccak-hash`, uses `ethereum-types 0.4 which is different from what ethabi 5.x uses so keccak_hasher::H256 != ethereum_types::H256 – I think the only way out is to upgrade ethabi as well. :/
 		let hashed_key : [u8; 32] = keccak(key).into();
 		let id = address_fetcher.input(hashed_key, DNS_A_RECORD);
 
