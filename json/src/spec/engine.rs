@@ -62,12 +62,12 @@ mod tests {
 		}
 
 		let s = r#"{
-			"instantSeal": null
+			"instantSeal": {"params": {}}
 		}"#;
 
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
-			Engine::InstantSeal => {},	// instant seal is unit tested in its own file.
+			Engine::InstantSeal(_) => {},	// instant seal is unit tested in its own file.
 			_ => panic!(),
 		};
 
