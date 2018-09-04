@@ -184,7 +184,7 @@ impl InformantData for LightNodeInformantData {
 	fn executes_transactions(&self) -> bool { false }
 
 	fn is_major_importing(&self) -> bool {
-		self.sync.is_major_importing()
+		self.sync.is_major_importing_no_sync()
 	}
 
 	fn report(&self) -> Report {
@@ -422,15 +422,15 @@ impl LightChainNotify for Informant<LightNodeInformantData> {
 		if ripe {
 			if let Some(header) = good.last().and_then(|h| client.block_header(BlockId::Hash(*h))) {
 				info!(target: "import", "Imported {} {} ({} Mgas){}",
-					  Colour::White.bold().paint(format!("#{}", header.number())),
-					  Colour::White.bold().paint(format!("{}", header.hash())),
-					  Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32  / 1000000f32)),
-					  if good.len() > 1 {
-						  format!(" + another {} header(s)",
-								  Colour::Red.bold().paint(format!("{}", good.len() - 1)))
-					  } else {
-						  String::new()
-					  }
+					Colour::White.bold().paint(format!("#{}", header.number())),
+					Colour::White.bold().paint(format!("{}", header.hash())),
+					Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32 / 1000000f32)),
+					if good.len() > 1 {
+						format!(" + another {} header(s)",
+								Colour::Red.bold().paint(format!("{}", good.len() - 1)))
+					} else {
+						String::new()
+					}
 				);
 				*last_import = Instant::now();
 			}
