@@ -1508,7 +1508,7 @@ impl Call for Client {
 			where F: FnMut(U256) -> Result<bool, E>
 		{
 			while upper - lower > 1.into() {
-				let mid = (lower + upper) / 2.into();
+				let mid = (lower + upper) / 2;
 				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
 				let c = cond(mid)?;
 				match c {
@@ -2510,7 +2510,7 @@ mod tests {
 			block_hash: block_hash,
 			block_number: block_number,
 			cumulative_gas_used: gas_used,
-			gas_used: gas_used - 5.into(),
+			gas_used: gas_used - 5,
 			contract_address: None,
 			logs: vec![LocalizedLogEntry {
 				entry: logs[0].clone(),

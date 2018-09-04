@@ -5,7 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.0"
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 log = "0.4"
 parity-wasm = "0.31"
 libc = "0.2"

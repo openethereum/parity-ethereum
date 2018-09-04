@@ -8,9 +8,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore = { path = "../ethcore" }
 ethcore-io = { path = "../util/io" }
 ethcore-transaction = { path = "../ethcore/transaction" }
-kvdb = "0.1.0"
+kvdb = "0.1"
 log = "0.4"
-rlp = { git = "https://github.com/paritytech/parity-common" }
+rlp = { version = "0.2.4", features = ["ethereum"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
@@ -18,4 +18,4 @@ serde_json = "1.0"
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethkey = { path = "../ethkey" }
-kvdb-memorydb = "0.1.0"
+kvdb-memorydb = "0.1"

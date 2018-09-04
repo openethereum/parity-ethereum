@@ -21,8 +21,8 @@ ropsten = { forkBlock = 10, critical = false }
 kovan = { forkBlock = 6600000, critical = false }
 
 [dependencies]
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
-rlp = { git = "https://github.com/paritytech/parity-common" }
+parity-bytes = "0.1"
+rlp = { version = "0.2.4", features = ["ethereum"] }
 target_info = "0.1"
 
 [build-dependencies]
