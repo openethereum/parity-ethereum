@@ -107,8 +107,8 @@ impl txpool::Listener<Transaction> for Logger {
 		debug!(target: "txqueue", "[{:?}] Canceled by the user.", tx.hash());
 	}
 
-	fn mined(&mut self, tx: &Arc<Transaction>) {
-		debug!(target: "txqueue", "[{:?}] Mined.", tx.hash());
+	fn culled(&mut self, tx: &Arc<Transaction>) {
+		debug!(target: "txqueue", "[{:?}] Culled or mined.", tx.hash());
 	}
 }
 

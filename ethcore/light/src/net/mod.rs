@@ -823,7 +823,7 @@ impl LightProtocol {
 		self.peers.write().insert(*peer, Mutex::new(Peer {
 			local_credits: local_flow.create_credits(),
 			status: status.clone(),
-			capabilities: capabilities.clone(),
+			capabilities,
 			remote_flow: remote_flow,
 			sent_head: pending.sent_head,
 			last_update: pending.last_update,

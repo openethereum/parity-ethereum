@@ -230,7 +230,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		};
 
 		if !self.static_flag {
-			if !self.schedule.eip86 || params.sender != UNSIGNED_SENDER {
+			if !self.schedule.keep_unsigned_nonce || params.sender != UNSIGNED_SENDER {
 				if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
 					debug!(target: "ext", "Database corruption encountered: {:?}", e);
 					return ContractCreateResult::Failed
@@ -611,6 +611,6 @@ mod tests {
 			}
 		};
 
-		assert_eq!(address, Address::from_str("b7c227636666831278bacdb8d7f52933b8698ab9").unwrap());
+		assert_eq!(address, Address::from_str("e33c0c7f7df4809055c3eba6c09cfe4baf1bd9e0").unwrap());
 	}
 }

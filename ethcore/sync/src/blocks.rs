@@ -31,6 +31,7 @@ known_heap_size!(0, HeaderId);
 
 type SmallHashVec = SmallVec<[H256; 1]>;
 
+#[derive(PartialEq, Debug, Clone)]
 pub struct SyncHeader {
 	pub bytes: Bytes,
 	pub header: BlockHeader,
@@ -578,7 +579,6 @@ mod test {
 	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
 	use ethcore::header::BlockNumber;
 	use ethcore::verification::queue::kind::blocks::Unverified;
-	use ethcore::views::HeaderView;
 	use rlp::*;
 
 	fn is_empty(bc: &BlockCollection) -> bool {
@@ -614,9 +614,9 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
-		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| SyncHeader::from_rlp(Rlp::new(b).at(0).unwrap().as_raw().to_vec()).unwrap()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| h.header.hash()).collect();
+		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(*h) } else { None }).collect();
 		bc.reset_to(heads);
 		assert!(!bc.is_empty());
 		assert_eq!(hashes[0], bc.heads[0]);
@@ -631,7 +631,7 @@ mod test {
 		assert_eq!(bc.downloading_headers.len(), 1);
 		assert!(bc.drain().is_empty());
 
-		bc.insert_headers(headers[0..6].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		bc.insert_headers(headers[0..6].into_iter().map(Clone::clone).collect());
 		assert_eq!(hashes[5], bc.heads[0]);
 		for h in &hashes[0..6] {
 			bc.clear_header_download(h)
@@ -651,9 +651,9 @@ mod test {
 		assert_eq!(hashes[5], h);
 		let (h, _) = bc.needed_headers(6, false).unwrap();
 		assert_eq!(hashes[20], h);
-		bc.insert_headers(headers[10..16].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		bc.insert_headers(headers[10..16].into_iter().map(Clone::clone).collect());
 		assert!(bc.drain().is_empty());
-		bc.insert_headers(headers[5..10].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		bc.insert_headers(headers[5..10].into_iter().map(Clone::clone).collect());
 		assert_eq!(
 			bc.drain().into_iter().map(|b| b.block).collect::<Vec<_>>(),
 			blocks[6..16].iter().map(|b| Unverified::from_rlp(b.to_vec()).unwrap()).collect::<Vec<_>>()
@@ -661,7 +661,7 @@ mod test {
 
 		assert_eq!(hashes[15], bc.heads[0]);
 
-		bc.insert_headers(headers[15..].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		bc.insert_headers(headers[15..].into_iter().map(Clone::clone).collect());
 		bc.drain();
 		assert!(bc.is_empty());
 	}
@@ -676,16 +676,16 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
-		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| SyncHeader::from_rlp(Rlp::new(b).at(0).unwrap().as_raw().to_vec()).unwrap()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| h.header.hash()).collect();
+		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(*h) } else { None }).collect();
 		bc.reset_to(heads);
 
-		bc.insert_headers(headers[2..22].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		bc.insert_headers(headers[2..22].into_iter().map(Clone::clone).collect());
 		assert_eq!(hashes[0], bc.heads[0]);
 		assert_eq!(hashes[21], bc.heads[1]);
 		assert!(bc.head.is_none());
-		bc.insert_headers(headers[0..2].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		bc.insert_headers(headers[0..2].into_iter().map(Clone::clone).collect());
 		assert!(bc.head.is_some());
 		assert_eq!(hashes[21], bc.heads[0]);
 	}
@@ -700,14 +700,14 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
-		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| SyncHeader::from_rlp(Rlp::new(b).at(0).unwrap().as_raw().to_vec()).unwrap()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| h.header.hash()).collect();
+		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(*h) } else { None }).collect();
 		bc.reset_to(heads);
 
-		bc.insert_headers(headers[1..2].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		bc.insert_headers(headers[1..2].into_iter().map(Clone::clone).collect());
 		assert!(bc.drain().is_empty());
-		bc.insert_headers(headers[0..1].iter().map(|h| SyncHeader::from_rlp(h.to_vec()).unwrap()).collect());
+		bc.insert_headers(headers[0..1].into_iter().map(Clone::clone).collect());
 		assert_eq!(bc.drain().len(), 2);
 	}
 }

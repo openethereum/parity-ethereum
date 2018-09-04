@@ -19,7 +19,7 @@
 
 use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
-use std::sync::{Condvar as SCondvar, Mutex as SMutex, Arc};
+use std::sync::Arc;
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
 use heapsize::HeapSizeOf;
@@ -141,11 +141,11 @@ struct Sizes {
 /// Keeps them in the same order as inserted, minus invalid items.
 pub struct VerificationQueue<K: Kind> {
 	engine: Arc<EthEngine>,
-	more_to_verify: Arc<SCondvar>,
+	more_to_verify: Arc<Condvar>,
 	verification: Arc<Verification<K>>,
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
-	empty: Arc<SCondvar>,
+	empty: Arc<Condvar>,
 	processing: RwLock<HashMap<H256, U256>>, // hash to difficulty
 	ticks_since_adjustment: AtomicUsize,
 	max_queue_size: usize,
@@ -202,8 +202,6 @@ struct Verification<K: Kind> {
 	verifying: Mutex<VecDeque<Verifying<K>>>,
 	verified: Mutex<VecDeque<K::Verified>>,
 	bad: Mutex<HashSet<H256>>,
-	more_to_verify: SMutex<()>,
-	empty: SMutex<()>,
 	sizes: Sizes,
 	check_seal: bool,
 }
@@ -216,8 +214,6 @@ impl<K: Kind> VerificationQueue<K> {
 			verifying: Mutex::new(VecDeque::new()),
 			verified: Mutex::new(VecDeque::new()),
 			bad: Mutex::new(HashSet::new()),
-			more_to_verify: SMutex::new(()),
-			empty: SMutex::new(()),
 			sizes: Sizes {
 				unverified: AtomicUsize::new(0),
 				verifying: AtomicUsize::new(0),
@@ -225,14 +221,14 @@ impl<K: Kind> VerificationQueue<K> {
 			},
 			check_seal: check_seal,
 		});
-		let more_to_verify = Arc::new(SCondvar::new());
+		let more_to_verify = Arc::new(Condvar::new());
 		let deleting = Arc::new(AtomicBool::new(false));
 		let ready_signal = Arc::new(QueueSignal {
 			deleting: deleting.clone(),
 			signalled: AtomicBool::new(false),
 			message_channel: Mutex::new(message_channel),
 		});
-		let empty = Arc::new(SCondvar::new());
+		let empty = Arc::new(Condvar::new());
 		let scale_verifiers = config.verifier_settings.scale_verifiers;
 
 		let num_cpus = ::num_cpus::get();
@@ -292,9 +288,9 @@ impl<K: Kind> VerificationQueue<K> {
 	fn verify(
 		verification: Arc<Verification<K>>,
 		engine: Arc<EthEngine>,
-		wait: Arc<SCondvar>,
+		wait: Arc<Condvar>,
 		ready: Arc<QueueSignal>,
-		empty: Arc<SCondvar>,
+		empty: Arc<Condvar>,
 		state: Arc<(Mutex<State>, Condvar)>,
 		id: usize,
 	) {
@@ -319,19 +315,19 @@ impl<K: Kind> VerificationQueue<K> {
 
 			// wait for work if empty.
 			{
-				let mut more_to_verify = verification.more_to_verify.lock().unwrap();
+				let mut unverified = verification.unverified.lock();
 
-				if verification.unverified.lock().is_empty() && verification.verifying.lock().is_empty() {
+				if unverified.is_empty() && verification.verifying.lock().is_empty() {
 					empty.notify_all();
 				}
 
-				while verification.unverified.lock().is_empty() {
+				while unverified.is_empty() {
 					if let State::Exit = *state.0.lock() {
 						debug!(target: "verification", "verifier {} exiting", id);
 						return;
 					}
 
-					more_to_verify = wait.wait(more_to_verify).unwrap();
+					wait.wait(&mut unverified);
 				}
 
 				if let State::Exit = *state.0.lock() {
@@ -450,9 +446,9 @@ impl<K: Kind> VerificationQueue<K> {
 
 	/// Wait for unverified queue to be empty
 	pub fn flush(&self) {
-		let mut lock = self.verification.empty.lock().unwrap();
-		while !self.verification.unverified.lock().is_empty() || !self.verification.verifying.lock().is_empty() {
-			lock = self.empty.wait(lock).unwrap();
+		let mut unverified = self.verification.unverified.lock();
+		while !unverified.is_empty() || !self.verification.verifying.lock().is_empty() {
+			self.empty.wait(&mut unverified);
 		}
 	}
 
@@ -712,7 +708,7 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 		// acquire this lock to force threads to reach the waiting point
 		// if they're in-between the exit check and the more_to_verify wait.
 		{
-			let _more = self.verification.more_to_verify.lock().unwrap();
+			let _unverified = self.verification.unverified.lock();
 			self.more_to_verify.notify_all();
 		}
 

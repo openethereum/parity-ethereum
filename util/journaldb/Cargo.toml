@@ -11,7 +11,7 @@ ethereum-types = "0.3"
 hashdb = { git = "https://github.com/paritytech/parity-common" }
 heapsize = "0.4"
 keccak-hasher = { path = "../keccak-hasher" }
-kvdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb = "0.1.0"
 log = "0.4"
 memorydb = { git = "https://github.com/paritytech/parity-common" }
 parking_lot = "0.6"
@@ -21,4 +21,4 @@ rlp = { git = "https://github.com/paritytech/parity-common" }
 [dev-dependencies]
 ethcore-logger = { path = "../../logger" }
 keccak-hash = { git = "https://github.com/paritytech/parity-common" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = "0.1.0"

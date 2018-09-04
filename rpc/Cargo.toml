@@ -37,6 +37,7 @@ jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
+fastmap = { path = "../util/fastmap" }
 parity-bytes = { git = "https://github.com/paritytech/parity-common" }
 parity-crypto = { git = "https://github.com/paritytech/parity-common" }
 ethcore-devtools = { path = "../devtools" }
@@ -72,7 +73,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = "0.1.0"
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = { path = "../transaction-pool" }
