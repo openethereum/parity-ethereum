@@ -31,7 +31,7 @@ use std::time::Duration;
 pub type TimerToken = usize;
 /// Timer ID
 pub type StreamToken = usize;
-/// IO Hadndler ID
+/// IO Handler ID
 pub type HandlerId = usize;
 
 /// Maximum number of tokens a handler can use

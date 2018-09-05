@@ -5,13 +5,13 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 bit-set = "0.4"
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
-ethereum-types = "0.3"
+parity-bytes = "0.1"
+ethereum-types = "0.4"
 heapsize = "0.4"
 lazy_static = "1.0"
 log = "0.4"
 vm = { path = "../vm" }
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+keccak-hash = "0.1"
 parking_lot = "0.6"
 memory-cache = { path = "../../util/memory_cache" }
 

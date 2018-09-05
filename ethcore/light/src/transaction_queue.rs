@@ -95,7 +95,7 @@ impl AccountTransactions {
 	}
 
 	fn next_nonce(&self) -> U256 {
-		self.current.last().map(|last| last.nonce + 1.into())
+		self.current.last().map(|last| last.nonce + 1)
 			.unwrap_or_else(|| *self.cur_nonce.value())
 	}
 
@@ -113,7 +113,7 @@ impl AccountTransactions {
 				None => break,
 			}
 
-			next_nonce = next_nonce + 1.into();
+			next_nonce = next_nonce + 1;
 		}
 
 		promoted
@@ -196,7 +196,7 @@ impl TransactionQueue {
 					}
 					Err(idx) => {
 						let cur_len = acct_txs.current.len();
-						let incr_nonce = nonce + 1.into();
+						let incr_nonce = nonce + 1;
 
 						// current is sorted with one tx per nonce,
 						// so if a tx with given nonce wasn't found that means it is either
@@ -215,7 +215,7 @@ impl TransactionQueue {
 							}
 
 							(ImportDestination::Current, vec![hash])
-						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1.into() != nonce) {
+						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1 != nonce) {
 							trace!(target: "txqueue", "Queued future transaction for {}, nonce={}", sender, nonce);
 							let future_nonce = nonce;
 							acct_txs.future.insert(future_nonce, tx_info);
@@ -535,7 +535,7 @@ mod tests {
 		let tx_b: PendingTransaction = Transaction::default().fake_sign(sender).into();
 		let tx_a: PendingTransaction = {
 			let mut tx_a = Transaction::default();
-			tx_a.gas_price = tx_b.gas_price + 1.into();
+			tx_a.gas_price = tx_b.gas_price + 1;
 			tx_a.fake_sign(sender).into()
 		};
 

@@ -1,9 +1,0 @@
-[package]
-name = "trace-time"
-description = "Easily trace time to execute a scope."
-version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-license = "GPL-3.0"
-
-[dependencies]
-log = "0.4"

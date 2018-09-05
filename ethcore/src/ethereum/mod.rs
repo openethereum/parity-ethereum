@@ -42,29 +42,29 @@ fn load_machine(b: &[u8]) -> EthereumMachine {
 	Spec::load_machine(b).expect("chain spec is invalid")
 }
 
-/// Create a new Foundation Olympic chain spec.
-pub fn new_olympic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/olympic.json"))
-}
-
-/// Create a new Foundation Mainnet chain spec.
+/// Create a new Foundation mainnet chain spec.
 pub fn new_foundation<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/foundation.json"))
 }
 
-/// Create a new Classic Mainnet chain spec without the DAO hardfork.
+/// Create a new Classic mainnet chain spec without the DAO hardfork.
 pub fn new_classic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/classic.json"))
+}
+
+/// Create a new POA Network mainnet chain spec.
+pub fn new_poanet<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/poacore.json"))
+}
+
+/// Create a new Tobalaba mainnet chain spec.
+pub fn new_tobalaba<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/tobalaba.json"))
 }
 
 /// Create a new Expanse mainnet chain spec.
 pub fn new_expanse<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/expanse.json"))
-}
-
-/// Create a new Tobalaba chain spec.
-pub fn new_tobalaba<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/tobalaba.json"))
 }
 
 /// Create a new Musicoin mainnet chain spec.
@@ -87,19 +87,29 @@ pub fn new_social<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/social.json"))
 }
 
+/// Create a new Olympic testnet chain spec.
+pub fn new_olympic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/olympic.json"))
+}
+
+/// Create a new Morden testnet chain spec.
+pub fn new_morden<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/morden.json"))
+}
+
+/// Create a new Ropsten testnet chain spec.
+pub fn new_ropsten<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/ropsten.json"))
+}
+
 /// Create a new Kovan testnet chain spec.
 pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/kovan.json"))
 }
 
-/// Create a new Foundation Ropsten chain spec.
-pub fn new_ropsten<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/ropsten.json"))
-}
-
-/// Create a new Morden chain spec.
-pub fn new_morden<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/morden.json"))
+/// Create a new POA Sokol testnet chain spec.
+pub fn new_sokol<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/poasokol.json"))
 }
 
 // For tests

@@ -129,7 +129,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 				writeln!(
 					&mut out_sink,
 					"{{\"error\":\"{error}\",\"gasUsed\":\"0x{gas:x}\",\"time\":{time}}}",
-					error = failure.error,
+					error = display::escape_newlines(&failure.error),
 					gas = failure.gas_used,
 					time = display::as_micros(&failure.time),
 				).expect("The sink must be writeable.");
