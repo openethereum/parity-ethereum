@@ -476,8 +476,8 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		(report.blocks_imported * 1000) as u64 / ms,
 		report.transactions_applied,
 		(report.transactions_applied * 1000) as u64 / ms,
-		report.gas_processed / From::from(1_000_000),
-		(report.gas_processed / From::from(ms * 1000)).low_u64(),
+		report.gas_processed / 1_000_000,
+		(report.gas_processed / (ms * 1000)).low_u64(),
 	);
 	Ok(())
 }

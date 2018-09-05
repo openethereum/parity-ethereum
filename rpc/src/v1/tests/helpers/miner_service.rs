@@ -78,7 +78,7 @@ impl TestMinerService {
 	pub fn increment_nonce(&self, address: &Address) {
 		let mut next_nonces = self.next_nonces.write();
 		let nonce = next_nonces.entry(*address).or_insert_with(|| 0.into());
-		*nonce = *nonce + 1.into();
+		*nonce = *nonce + 1;
 	}
 }
 

@@ -1919,7 +1919,7 @@ mod tests {
 		let b2 = b2.close_and_lock().unwrap();
 
 		// the spec sets the block reward to 10
-		assert_eq!(b2.block().state().balance(&addr1).unwrap(), addr1_balance + (10 * 2).into())
+		assert_eq!(b2.block().state().balance(&addr1).unwrap(), addr1_balance + (10 * 2))
 	}
 
 	#[test]
@@ -2067,7 +2067,7 @@ mod tests {
 		// the contract rewards (1000 + kind) for each benefactor/reward kind
 		assert_eq!(
 			b2.block().state().balance(&addr1).unwrap(),
-			addr1_balance + (1000 + 0).into() + (1000 + 2).into(),
+			addr1_balance + (1000 + 0) + (1000 + 2),
 		)
 	}
 }
