@@ -672,7 +672,7 @@ mod tests {
 		header.set_uncles_hash(good_uncles_hash.clone());
 		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
-		header.set_gas_limit(min_gas_limit - From::from(1));
+		header.set_gas_limit(min_gas_limit - 1);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit().clone() }));
 
@@ -682,7 +682,7 @@ mod tests {
 			RidiculousNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number() }));
 
 		header = good.clone();
-		let gas_used = header.gas_limit().clone() + 1.into();
+		let gas_used = header.gas_limit().clone() + 1;
 		header.set_gas_used(gas_used);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit().clone()), min: None, found: header.gas_used().clone() }));

@@ -795,7 +795,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 						TWO_POW_96 => a >> 96,
 						TWO_POW_224 => a >> 224,
 						TWO_POW_248 => a >> 248,
-						_ => a.overflowing_div(b).0,
+						_ => a / b,
 					}
 				} else {
 					U256::zero()
@@ -805,7 +805,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let a = self.stack.pop_back();
 				let b = self.stack.pop_back();
 				self.stack.push(if !b.is_zero() {
-					a.overflowing_rem(b).0
+					a % b
 				} else {
 					U256::zero()
 				});
@@ -821,7 +821,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				} else if a == min && b == !U256::zero() {
 					min
 				} else {
-					let c = a.overflowing_div(b).0;
+					let c = a / b;
 					set_sign(c, sign_a ^ sign_b)
 				});
 			},
@@ -832,7 +832,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let b = get_and_reset_sign(ub).0;
 
 				self.stack.push(if !b.is_zero() {
-					let c = a.overflowing_rem(b).0;
+					let c = a % b;
 					set_sign(c, sign_a)
 				} else {
 					U256::zero()
@@ -920,7 +920,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					// upcast to 512
 					let a5 = U512::from(a);
 					let res = a5.overflowing_add(U512::from(b)).0;
-					let x = res.overflowing_rem(U512::from(c)).0;
+					let x = res % U512::from(c);
 					U256::from(x)
 				} else {
 					U256::zero()
@@ -934,7 +934,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				self.stack.push(if !c.is_zero() {
 					let a5 = U512::from(a);
 					let res = a5.overflowing_mul(U512::from(b)).0;
-					let x = res.overflowing_rem(U512::from(c)).0;
+					let x = res % U512::from(c);
 					U256::from(x)
 				} else {
 					U256::zero()
