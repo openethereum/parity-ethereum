@@ -642,24 +642,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)))
 	}
 
-	fn check_block_existence(&self, num: BlockNumber) -> Result<()> {
-		if let BlockNumber::Num(number) = num {
-			match self.client.chain_info().best_block_number {
-				BlockNumber::Num(best_block_number) => {
-					if num < best_block_number {
-						return Err(errors::unavailable_block())
-					}
-				}
-				// this should be unreachable, right?
-				_ => {}
-			}
-		}
-		Ok(())
-	}
-
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		let result = self.check_block_existence(num)
-			.and_then(|_| self.rich_block(num.into(), include_txs));
+		let result = self.rich_block(num.clone().into(), include_txs)
+			.and_then(errors::check_block_existence(&*self.client, num));
 		Box::new(future::done(result))
 	}
 
@@ -669,15 +654,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			self.miner.transaction(&hash)
 				.map(|t| Transaction::from_pending(t.pending().clone()))
 		});
-		let result = Ok(tx)
-			.and_then(errors::check_for_unavailable_block(self.syncing()));
-		Box::new(future::done(result))
+		Box::new(future::ok(tx))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>> {
 		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash.into())), index.value());
-		let result = self.transaction(id)
-			.and_then(errors::check_for_unavailable_block(self.syncing()));
+		let result = self.transaction(id);
 		Box::new(future::done(result))
 	}
 
@@ -691,7 +673,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let transaction_id = PendingTransactionId::Location(block_id, index.value());
 		let result = self.transaction(transaction_id)
-			.and_then(errors::check_for_unavailable_block(self.syncing()));
+			.and_then(errors::check_block_existence(&*self.client, num));
 		Box::new(future::done(result))
 	}
 
@@ -703,9 +685,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			(Some(receipt), true) => Box::new(future::ok(Some(receipt.into()))),
 			_ => {
 				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-				let result = Ok(receipt.map(Into::into))
-					.and_then(errors::check_for_unavailable_block(self.syncing()));
-				Box::new(future::done(result))
+				let result = receipt.map(Into::into);
+				Box::new(future::ok(result))
 			}
 		}
 

@@ -27,7 +27,8 @@ use transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
-use v1::types::SyncStatus;
+use ethcore::client::BlockChainClient;
+use v1::types::BlockNumber;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -217,17 +218,19 @@ pub fn unavailable_block() -> Error {
 	}
 }
 
-pub fn check_for_unavailable_block<T>(sync_status: RpcResult<SyncStatus>) -> impl Fn(Option<T>) ->
-RpcResult<Option<T>> {
-	move |res| {
-		if res.is_none() {
-			if let Ok(SyncStatus::Info(_)) = sync_status {
-				// alas, we're still syncing!
-				warn!("RPC call is unavailable while synching");
-				return Err(unavailable_block());
+pub fn check_block_existence<'a, T, C>(client: &'a C, num: BlockNumber) ->
+	impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
+	where C: BlockChainClient,
+{
+	move |response| {
+		if response.is_none() {
+			if let BlockNumber::Num(block_number) = num {
+				if block_number < client.chain_info().best_block_number {
+					return Err(unavailable_block());
+				}
 			}
 		}
-		Ok(res)
+		Ok(response)
 	}
 }
 
