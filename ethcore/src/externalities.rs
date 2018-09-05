@@ -395,11 +395,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	}
 
 	fn inc_sstore_refund(&mut self, value: U256) {
-		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund + value;
+		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund.saturating_add(value);
 	}
 
 	fn dec_sstore_refund(&mut self, value: U256) {
-		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund - value;
+		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund.saturating_sub(value);
 	}
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
