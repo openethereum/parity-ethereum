@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 serde = "1"
 serde_json = "1"
 serde_derive = "1"
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 ethjson = { path = "../../../json" }
 vm = { path = "../../vm" }
 wasm = { path = "../" }
