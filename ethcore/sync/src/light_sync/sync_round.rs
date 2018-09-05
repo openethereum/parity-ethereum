@@ -148,11 +148,16 @@ impl Fetcher {
 	// collect complete requests and their subchain from the sparse header chain
 	// into the ready set in order.
 	fn collect_ready(&mut self) {
-		while let Some(first) = self.sparse.pop_front() {
-			match self.complete_requests.remove(&first.hash()) {
-				None => { self.sparse.push_front(first); break; }
+		loop {
+			let start_hash = match self.sparse.front() {
+				Some(first) => first.hash(),
+				None => break,
+			};
+
+			match self.complete_requests.remove(&start_hash) {
+				None => break,
 				Some(complete_req) => {
-					self.ready.push_back(first);
+					self.ready.push_back(self.sparse.pop_front().expect("first known to exist; qed"));
 					self.ready.extend(complete_req.downloaded);
 				}
 			}
