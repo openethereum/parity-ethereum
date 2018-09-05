@@ -225,6 +225,9 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
 	let provider = ::light::provider::LightProvider::new(client.clone(), txq.clone());
 
+	// fetch service
+	let fetch = new_fetch_client(cmd.net_conf.https_proxy.as_ref())?;
+
 	// start network.
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;
@@ -240,9 +243,6 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	} else {
 		None
 	};
-
-	// fetch service
-	let fetch = new_fetch_client(net_conf.https_proxy.as_ref())?;
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
@@ -469,8 +469,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// spin up event loop
 	let event_loop = EventLoop::spawn();
 
-	let mut net_conf = cmd.net_conf;
-	let fetch = new_fetch_client(net_conf.https_proxy.as_ref())?;
+	let fetch = new_fetch_client(cmd.net_conf.https_proxy.as_ref())?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
 	// create miner
@@ -534,6 +533,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	client_config.transaction_verification_queue_size = ::std::cmp::max(2048, txpool_size / 4);
 
 	// set up bootnodes
+	let mut net_conf = cmd.net_conf;
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}

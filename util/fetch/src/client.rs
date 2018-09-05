@@ -38,6 +38,7 @@ use bytes::Bytes;
 const MAX_SIZE: usize = 64 * 1024 * 1024;
 const MAX_SECS: Duration = Duration::from_secs(5);
 const MAX_REDR: usize = 5;
+const MAX_FETCH_TIME: Duration = Duration::from_secs(10);
 
 /// A handle to abort requests.
 ///
@@ -171,13 +172,13 @@ impl Drop for Client {
 
 impl Client {
 	/// Create a new fetch client with a proxy.
-	pub fn new_with_proxy(https_proxy_url: Option<String>) -> Result<Self, Error> {
+	pub fn new_with_proxy(https_proxy_url: &String) -> Result<Self, Error> {
 		let (tx_start, rx_start) = std::sync::mpsc::sync_channel(1);
 		let (tx_proto, rx_proto) = mpsc::channel(64);
 
-		Client::background_thread(tx_start, rx_proto, https_proxy_url)?;
+		Client::background_thread(tx_start, rx_proto, https_proxy_url.to_owned())?;
 
-		match rx_start.recv_timeout(Duration::from_secs(10)) {
+		match rx_start.recv_timeout(MAX_FETCH_TIME) {
 			Err(RecvTimeoutError::Timeout) => {
 				error!(target: "fetch", "timeout starting background thread");
 				return Err(Error::BackgroundThreadDead)
@@ -205,9 +206,9 @@ impl Client {
 		let (tx_start, rx_start) = std::sync::mpsc::sync_channel(1);
 		let (tx_proto, rx_proto) = mpsc::channel(64);
 
-		Client::background_thread(tx_start, rx_proto, None)?;
+		Client::background_thread(tx_start, rx_proto, String::default())?;
 
-		match rx_start.recv_timeout(Duration::from_secs(10)) {
+		match rx_start.recv_timeout(MAX_FETCH_TIME) {
 			Err(RecvTimeoutError::Timeout) => {
 				error!(target: "fetch", "timeout starting background thread");
 				return Err(Error::BackgroundThreadDead)
@@ -230,7 +231,7 @@ impl Client {
 		})
 	}
 
-	fn background_thread(tx_start: TxStartup, rx_proto: mpsc::Receiver<ChanItem>, https_proxy_url: Option<String>) -> io::Result<thread::JoinHandle<()>> {
+	fn background_thread(tx_start: TxStartup, rx_proto: mpsc::Receiver<ChanItem>, https_proxy_url: String) -> io::Result<thread::JoinHandle<()>> {
 		thread::Builder::new().name("fetch".into()).spawn(move || {
 			let mut core = match reactor::Core::new() {
 				Ok(c) => c,
@@ -240,7 +241,7 @@ impl Client {
 			let connector = {
 				let https_connector = hyper_rustls::HttpsConnector::new(4, &core.handle());
 
-				match https_proxy_url.unwrap_or_default().parse() {
+				match https_proxy_url.parse() {
 					Ok(proxy_url) => {
 						debug!(target: "fetch", "https proxy is {:?}", proxy_url);
 						ProxyConnector::from_proxy(
@@ -248,7 +249,7 @@ impl Client {
 							Proxy::new(Intercept::Https, proxy_url),
 						).unwrap()
 					}
-					Err(_) => {
+					_ => {
 						debug!(target: "fetch", "https proxy is not set");
 						ProxyConnector::new(https_connector).unwrap()
 					}
