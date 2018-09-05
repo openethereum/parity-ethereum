@@ -149,7 +149,7 @@ mod tests {
 	use uint::Uint;
 	use ethereum_types::{H160, U256};
 	use hash::Address;
-	use spec::ethash::{Ethash, EthashParams};
+	use spec::ethash::{Ethash, EthashParams, BlockReward};
 
 	#[test]
 	fn ethash_deserialization() {
@@ -201,7 +201,7 @@ mod tests {
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: Some(Uint(U256::from(0x0d))),
 				homestead_transition: Some(Uint(U256::from(0x42))),
-				block_reward: Some(Uint(U256::from(0x100))),
+				block_reward: Some(BlockReward::Single(Uint(U256::from(0x100)))),
 				block_reward_contract_address: None,
 				block_reward_contract_code: None,
 				block_reward_contract_transition: None,
@@ -242,11 +242,9 @@ mod tests {
 				mcip3_ubi_contract: None,
 				mcip3_dev_reward: None,
 				mcip3_dev_contract: None,
-				eip649_transition: None,
-				eip649_delay: None,
-				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				difficulty_bomb_delays: None,
 			}
 		});
 	}
@@ -289,11 +287,9 @@ mod tests {
 				mcip3_ubi_contract: None,
 				mcip3_dev_reward: None,
 				mcip3_dev_contract: None,
-				eip649_transition: None,
-				eip649_delay: None,
-				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				difficulty_bomb_delays: None,
 			}
 		});
 	}
