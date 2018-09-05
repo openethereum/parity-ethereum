@@ -2271,10 +2271,12 @@ mod tests {
 		let mut state = get_temp_state();
 		let a = Address::zero();
 		let k = H256::from(U256::from(0));
+		let k2 = H256::from(U256::from(1));
 		let c1 = state.checkpoint();
 		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
 		let c2 = state.checkpoint();
 		let c3 = state.checkpoint();
+		state.set_storage(&a, k2, H256::from(U256::from(3))).unwrap();
 		state.set_storage(&a, k, H256::from(U256::from(3))).unwrap();
 		let c4 = state.checkpoint();
 		state.set_storage(&a, k, H256::from(U256::from(4))).unwrap();
@@ -2285,6 +2287,24 @@ mod tests {
 		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
 		assert_eq!(state.checkpoint_storage_at(c4, &a, &k).unwrap(), Some(H256::from(U256::from(3))));
 		assert_eq!(state.checkpoint_storage_at(c5, &a, &k).unwrap(), Some(H256::from(U256::from(4))));
+
+		state.discard_checkpoint(); // Commit/discard c5.
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c4, &a, &k).unwrap(), Some(H256::from(U256::from(3))));
+
+		state.revert_to_checkpoint(); // Revert to c4.
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+
+		state.discard_checkpoint(); // Commit/discard c3.
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+
+		state.revert_to_checkpoint(); // Revert to c2.
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
 	}
 
 	#[test]
