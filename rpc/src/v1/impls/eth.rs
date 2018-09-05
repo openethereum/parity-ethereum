@@ -642,8 +642,25 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)))
 	}
 
+	fn check_block_existence(&self, num: BlockNumber) -> Result<()> {
+		if let BlockNumber::Num(number) = num {
+			match self.client.chain_info().best_block_number {
+				BlockNumber::Num(best_block_number) => {
+					if num < best_block_number {
+						return Err(errors::unavailable_block())
+					}
+				}
+				// this should be unreachable, right?
+				_ => {}
+			}
+		}
+		Ok(())
+	}
+
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.rich_block(num.into(), include_txs)))
+		let result = self.check_block_existence(num)
+			.and_then(|_| self.rich_block(num.into(), include_txs));
+		Box::new(future::done(result))
 	}
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
