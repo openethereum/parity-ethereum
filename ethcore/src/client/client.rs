@@ -85,7 +85,7 @@ pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
 
-use_contract!(registry, "Registry", "res/contracts/registrar.json");
+use_contract!(registry, "res/contracts/registrar.json");
 
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
@@ -228,8 +228,6 @@ pub struct Client {
 	/// An action to be done if a mode/spec_name change happens
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 
-	/// Link to a registry object useful for looking up names
-	registrar: registry::Registry,
 	registrar_address: Option<Address>,
 
 	/// A closure to call when we want to restart the client
@@ -766,7 +764,6 @@ impl Client {
 			factories: factories,
 			history: history,
 			on_user_defaults_change: Mutex::new(None),
-			registrar: registry::Registry::default(),
 			registrar_address,
 			exit_handler: Mutex::new(None),
 			importer,
@@ -1357,17 +1354,17 @@ impl BlockChainTrait for Client {}
 
 impl RegistryInfo for Client {
 	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
+		use ethabi::FunctionOutputDecoder;
+
 		let address = self.registrar_address?;
 
-		self.registrar.functions()
-			.get_address()
-			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
-			.ok()
-			.and_then(|a| if a.is_zero() {
-				None
-			} else {
-				Some(a)
-			})
+		let (data, decoder) = registry::functions::get_address::call(keccak(name.as_bytes()), "A");
+		let value = decoder.decode(&self.call_contract(block, address, data).ok()?).ok()?;
+		if value.is_zero() {
+			None
+		} else {
+			Some(value)
+		}
 	}
 }
 
