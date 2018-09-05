@@ -222,6 +222,7 @@ publish-linux-snap-amd64:          &publish_snap
     BUILD_ARCH:                    amd64
   dependencies:
     - package-linux-snap-amd64
+  allow_failure:                   true
   script:
     - scripts/gitlab/publish-snap.sh
   tags:
@@ -229,8 +230,6 @@ publish-linux-snap-amd64:          &publish_snap
 
 publish-linux-snap-i386:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    i386
   dependencies:
@@ -238,8 +237,6 @@ publish-linux-snap-i386:
 
 publish-linux-snap-arm64:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    arm64
   dependencies:
@@ -247,8 +244,6 @@ publish-linux-snap-arm64:
 
 publish-linux-snap-armhf:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    armhf
   dependencies:
