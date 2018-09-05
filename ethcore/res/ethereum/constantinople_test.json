@@ -9,7 +9,9 @@
 				"blockReward": "0x29A2241AF62C0000",
 				"homesteadTransition": "0x0",
 				"eip100bTransition": "0x0",
-				"eip649Transition": "0x0"
+				"difficultyBombDelays": {
+					0: 3000000
+				}
 			}
 		}
 	},

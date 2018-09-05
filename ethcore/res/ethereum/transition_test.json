@@ -12,7 +12,9 @@
 				},
 				"homesteadTransition": "0",
 				"eip100bTransition": "5",
-				"eip649Transition": "5"
+				"difficultyBombDelays": {
+					5: 3000000
+				}
 			}
 		}
 	},

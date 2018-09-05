@@ -124,18 +124,13 @@ pub struct EthashParams {
 	#[serde(rename="mcip3DevContract")]
 	pub mcip3_dev_contract: Option<Address>,
 
-	/// EIP-649 transition block.
-	#[serde(rename="eip649Transition")]
-	pub eip649_transition: Option<Uint>,
-
-	/// EIP-649 bomb delay.
-	#[serde(rename="eip649Delay")]
-	pub eip649_delay: Option<Uint>,
+	/// Delays of difficulty bombs.
+	#[serde(rename="difficultyBombDelays")]
+	pub difficulty_bomb_delays: Option<BTreeMap<Uint, Uint>>,
 
 	/// EXPIP-2 block height
 	#[serde(rename="expip2Transition")]
 	pub expip2_transition: Option<Uint>,
-
 	/// EXPIP-2 duration limit
 	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,

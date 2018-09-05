@@ -133,7 +133,9 @@
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
 				"eip100bTransition": 4370000,
-				"eip649Transition": 4370000
+				"difficultyBombDelays": {
+					4370000: 3000000
+				}
 			}
 		}
 	},

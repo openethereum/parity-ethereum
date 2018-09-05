@@ -18,7 +18,9 @@
 				"bombDefuseTransition": "0x30d40",
 				"eip100bTransition": "0xC3500",
 				"metropolisDifficultyIncrementDivisor": "0x1E",
-				"eip649Transition": "0xC3500",
+				"difficultyBombDelays": {
+					"0xC3500": 3000000
+				},
 				"expip2Transition": "0xC3500",
 				"expip2DurationLimit": "0x1E"
 			}
