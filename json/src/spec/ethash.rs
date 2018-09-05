@@ -16,9 +16,18 @@
 
 //! Ethash params deserialization.
 
+use std::collections::BTreeMap;
 use uint::{self, Uint};
 use bytes::Bytes;
 use hash::Address;
+
+/// Deserializable doppelganger of block rewards for EthashParams
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum BlockReward {
+	Single(Uint),
+	Multi(BTreeMap<Uint, Uint>),
+}
 
 /// Deserializable doppelganger of EthashParams.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -48,7 +57,7 @@ pub struct EthashParams {
 	pub homestead_transition: Option<Uint>,
 	/// Reward per block in wei.
 	#[serde(rename="blockReward")]
-	pub block_reward: Option<Uint>,
+	pub block_reward: Option<BlockReward>,
 	/// Block at which the block reward contract should start being used.
 	#[serde(rename="blockRewardContractTransition")]
 	pub block_reward_contract_transition: Option<Uint>,
@@ -122,10 +131,6 @@ pub struct EthashParams {
 	/// EIP-649 bomb delay.
 	#[serde(rename="eip649Delay")]
 	pub eip649_delay: Option<Uint>,
-
-	/// EIP-649 base reward.
-	#[serde(rename="eip649Reward")]
-	pub eip649_reward: Option<Uint>,
 
 	/// EXPIP-2 block height
 	#[serde(rename="expip2Transition")]
