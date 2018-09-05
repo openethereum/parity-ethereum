@@ -17,6 +17,8 @@
 //! Note that all the structs and functions here are documented in `parity.h`, to avoid
 //! duplicating documentation.
 
+#[cfg(feature = "jni")]
+extern crate jni;
 extern crate parity_ethereum;
 extern crate panic_hook;
 
@@ -25,6 +27,11 @@ use std::panic;
 use std::ptr;
 use std::slice;
 use std::str;
+
+#[cfg(feature = "jni")]
+use std::mem;
+#[cfg(feature = "jni")]
+use jni::{JNIEnv, objects::JClass, objects::JString, sys::jlong, sys::jobjectArray};
 
 #[repr(C)]
 pub struct ParityParams {
@@ -117,7 +124,7 @@ pub unsafe extern fn parity_destroy(client: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_rpc(client: *mut c_void, query: *const char, len: usize, out_str: *mut c_char, out_len: *mut usize) -> c_int {
+pub unsafe extern fn parity_rpc(client: *mut c_void, query: *const c_char, len: usize, out_str: *mut c_char, out_len: *mut usize) -> c_int {
 	panic::catch_unwind(|| {
 		let client: &mut parity_ethereum::RunningClient = &mut *(client as *mut parity_ethereum::RunningClient);
 
@@ -160,6 +167,101 @@ impl CallbackStr {
 	fn call(&self, new_chain: &str) {
 		if let Some(ref cb) = self.0 {
 			cb(self.1, new_chain.as_bytes().as_ptr() as *const _, new_chain.len())
+		}
+	}
+}
+
+#[cfg(feature = "jni")]
+#[no_mangle]
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv, _: JClass, cli: jobjectArray) -> jlong {
+	let cli_len = env.get_array_length(cli).expect("invalid Java bindings");
+
+	let mut jni_strings = Vec::with_capacity(cli_len as usize);
+	let mut opts = Vec::with_capacity(cli_len as usize);
+	let mut opts_lens = Vec::with_capacity(cli_len as usize);
+
+	for n in 0 .. cli_len {
+		let elem = env.get_object_array_element(cli, n).expect("invalid Java bindings");
+		let elem_str: JString = elem.into();
+		match env.get_string(elem_str) {
+			Ok(s) => {
+				opts.push(s.as_ptr());
+				opts_lens.push(s.to_bytes().len());
+				jni_strings.push(s);
+			},
+			Err(err) => {
+				let _ = env.throw_new("java/lang/Exception", err.to_string());
+				0
+			}
+		};
+	}
+
+	let mut out = ptr::null_mut();
+	match parity_config_from_cli(opts.as_ptr(), opts_lens.as_ptr(), cli_len as usize, &mut out) {
+		0 => out as usize as jlong,
+		_ => {
+			let _ = env.throw_new("java/lang/Exception", "failed to create config object");
+			0
+		},
+	}
+}
+
+#[cfg(feature = "jni")]
+#[no_mangle]
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_build(env: JNIEnv, _: JClass, config: jlong) -> jlong {
+	let params = ParityParams {
+		configuration: config as usize as *mut c_void,
+		.. mem::zeroed()
+	};
+
+	let mut out = ptr::null_mut();
+	match parity_start(&params, &mut out) {
+		0 => out as usize as jlong,
+		_ => {
+			let _ = env.throw_new("java/lang/Exception", "failed to start Parity");
+			0
+		},
+	}
+}
+
+#[cfg(feature = "jni")]
+#[no_mangle]
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_destroy(_env: JNIEnv, _: JClass, parity: jlong) {
+	let parity = parity as usize as *mut c_void;
+	parity_destroy(parity);
+}
+
+#[cfg(feature = "jni")]
+#[no_mangle]
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative<'a>(env: JNIEnv<'a>, _: JClass, parity: jlong, rpc: JString) -> JString<'a> {
+	let parity = parity as usize as *mut c_void;
+
+	let rpc = match env.get_string(rpc) {
+		Ok(s) => s,
+		Err(err) => {
+			let _ = env.throw_new("java/lang/Exception", err.to_string());
+			return env.new_string("").expect("Creating an empty string never fails");
+		},
+	};
+
+	let mut out_len = 255;
+	let mut out = [0u8; 256];
+
+	match parity_rpc(parity, rpc.as_ptr(), rpc.to_bytes().len(), out.as_mut_ptr() as *mut c_char, &mut out_len) {
+		0 => (),
+		_ => {
+			let _ = env.throw_new("java/lang/Exception", "failed to perform RPC query");
+			return env.new_string("").expect("Creating an empty string never fails");
+		},
+	}
+
+	let out = str::from_utf8(&out[..out_len])
+		.expect("parity always generates an UTF-8 RPC response");
+	match env.new_string(out) {
+		Ok(s) => s,
+		Err(err) => {
+			let _ = env.throw_new("java/lang/Exception", err.to_string());
+			return env.new_string("").expect("Creating an empty string never fails");
 		}
 	}
 }
