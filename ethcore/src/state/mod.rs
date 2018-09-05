@@ -503,6 +503,7 @@ impl<B: Backend> State<B> {
 
 	/// Remove an existing account.
 	pub fn kill_account(&mut self, account: &Address) {
+		assert!(self.checkpoints.borrow().is_empty());
 		self.insert_cache(account, AccountEntry::new_dirty(None));
 	}
 
@@ -831,6 +832,7 @@ impl<B: Backend> State<B> {
 
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
+		assert!(self.checkpoints.borrow().is_empty());
 		// first, commit the sub trees.
 		let mut accounts = self.cache.borrow_mut();
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
