@@ -38,8 +38,8 @@ use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, Presal
 mod crack;
 
 pub const USAGE: &'static str = r#"
-Ethereum key management.
-  Copyright 2016, 2017 Parity Technologies (UK) Ltd
+Parity Ethereum key management tool.
+  Copyright 2015-2018 Parity Technologies (UK) Ltd.
 
 Usage:
     ethstore insert <secret> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
@@ -68,7 +68,7 @@ Options:
                              that this option is required when vault option is set.
                              Otherwise it is ignored.
     --src DIR                Specify import source. It may be either
-                             parity, parity-(chain), get, geth-test
+                             parity, parity-(chain), geth, geth-test
                              or a path [default: geth].
 
 Commands:

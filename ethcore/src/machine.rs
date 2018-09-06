@@ -233,8 +233,8 @@ impl EthereumMachine {
 		if let Some(ref ethash_params) = self.ethash_extensions {
 			let gas_limit = {
 				let bound_divisor = self.params().gas_limit_bound_divisor;
-				let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
-				let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
+				let lower_limit = gas_limit - gas_limit / bound_divisor + 1;
+				let upper_limit = gas_limit + gas_limit / bound_divisor - 1;
 				let gas_limit = if gas_limit < gas_floor_target {
 					let gas_limit = cmp::min(gas_floor_target, upper_limit);
 					round_block_gas_limit(gas_limit, lower_limit, upper_limit)
@@ -245,7 +245,7 @@ impl EthereumMachine {
 					let total_lower_limit = cmp::max(lower_limit, gas_floor_target);
 					let total_upper_limit = cmp::min(upper_limit, gas_ceil_target);
 					let gas_limit = cmp::max(gas_floor_target, cmp::min(total_upper_limit,
-						lower_limit + (header.gas_used().clone() * 6u32 / 5.into()) / bound_divisor));
+						lower_limit + (header.gas_used().clone() * 6u32 / 5) / bound_divisor));
 					round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
 				};
 				// ensure that we are not violating protocol limits
@@ -265,9 +265,9 @@ impl EthereumMachine {
 		header.set_gas_limit({
 			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1)
 			} else {
-				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1)
 			}
 		});
 	}

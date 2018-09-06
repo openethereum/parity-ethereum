@@ -1391,7 +1391,7 @@ impl ImportBlock for Client {
 			bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
-		if status == BlockStatus::Unknown || status == BlockStatus::Pending {
+		if status == BlockStatus::Unknown {
 			bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
@@ -1508,7 +1508,7 @@ impl Call for Client {
 			where F: FnMut(U256) -> Result<bool, E>
 		{
 			while upper - lower > 1.into() {
-				let mid = (lower + upper) / 2.into();
+				let mid = (lower + upper) / 2;
 				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
 				let c = cond(mid)?;
 				match c {
@@ -2039,10 +2039,6 @@ impl BlockChainClient for Client {
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar_address.clone()
 	}
-
-	fn eip86_transition(&self) -> u64 {
-		self.engine().params().eip86_transition
-	}
 }
 
 impl IoClient for Client {
@@ -2082,7 +2078,7 @@ impl IoClient for Client {
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending {
 				let status = self.block_status(BlockId::Hash(parent_hash));
-				if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				if  status == BlockStatus::Unknown {
 					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 				}
 			}
@@ -2514,7 +2510,7 @@ mod tests {
 			block_hash: block_hash,
 			block_number: block_number,
 			cumulative_gas_used: gas_used,
-			gas_used: gas_used - 5.into(),
+			gas_used: gas_used - 5,
 			contract_address: None,
 			logs: vec![LocalizedLogEntry {
 				entry: logs[0].clone(),

@@ -575,8 +575,8 @@ fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, node: &NodeId,
 	};
 
 	let server_key_id_value: U256 = server_key_id.into();
-	let range_interval = U256::max_value() / total_servers_count.into();
-	let range_begin = (range_interval + 1.into()) * this_server_index as u32;
+	let range_interval = U256::max_value() / total_servers_count;
+	let range_begin = (range_interval + 1) * this_server_index as u32;
 	let range_end = range_begin.saturating_add(range_interval);
 
 	server_key_id_value >= range_begin && server_key_id_value <= range_end

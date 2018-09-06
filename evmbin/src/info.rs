@@ -114,7 +114,7 @@ pub fn run_transaction<T: Informant>(
 
 	informant.set_gas(env_info.gas_limit);
 
-	let result = run(&spec, env_info.gas_limit, pre_state, |mut client| {
+	let result = run(&spec, transaction.gas, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
 			TransactResult::Ok { state_root, gas_left, .. } if state_root != post_root => {

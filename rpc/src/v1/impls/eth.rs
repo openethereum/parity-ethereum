@@ -33,7 +33,7 @@ use ethcore::log_entry::LogEntry;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
-use sync::{SyncProvider};
+use sync::SyncProvider;
 use miner::external::ExternalMinerService;
 use transaction::{SignedTransaction, LocalizedTransaction};
 
@@ -52,7 +52,7 @@ use v1::types::{
 };
 use v1::metadata::Metadata;
 
-const EXTRA_INFO_PROOF: &'static str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+const EXTRA_INFO_PROOF: &str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 
 /// Eth RPC options
 pub struct EthClientOptions {
@@ -500,12 +500,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn author(&self) -> Result<RpcH160> {
-		let mut miner = self.miner.authoring_params().author;
+		let miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
-			miner = self.accounts.accounts().ok().and_then(|a| a.get(0).cloned()).unwrap_or_default();
+			self.accounts.accounts()
+				.ok()
+				.and_then(|a| a.first().cloned())
+				.map(From::from)
+				.ok_or_else(|| errors::account("No accounts were found", ""))
+		} else {
+			Ok(RpcH160::from(miner))
 		}
-
-		Ok(RpcH160::from(miner))
 	}
 
 	fn is_mining(&self) -> Result<bool> {
