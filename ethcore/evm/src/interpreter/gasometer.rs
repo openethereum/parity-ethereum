@@ -351,16 +351,32 @@ fn add_gas_usize<Gas: evm::CostType>(value: Gas, num: usize) -> (Gas, bool) {
 fn calculate_eip1283_sstore_gas<Gas: evm::CostType>(schedule: &Schedule, original: &U256, current: &U256, new: &U256) -> Gas {
 	Gas::from(
 		if current == new {
+			// 1. If current value equals new value (this is a no-op), 200 gas is deducted.
 			schedule.sload_gas
 		} else {
+			// 2. If current value does not equal new value
 			if original == current {
+				// 2.1. If original value equals current value (this storage slot has not been changed by the current execution context)
 				if original.is_zero() {
+					// 2.1.1. If original value is 0, 20000 gas is deducted.
 					schedule.sstore_set_gas
 				} else {
+					// 2.1.2. Otherwise, 5000 gas is deducted.
 					schedule.sstore_reset_gas
+
+					// 2.1.2.1. If new value is 0, add 15000 gas to refund counter.
 				}
 			} else {
+				// 2.2. If original value does not equal current value (this storage slot is dirty), 200 gas is deducted. Apply both of the following clauses.
 				schedule.sload_gas
+
+				// 2.2.1. If original value is not 0
+				// 2.2.1.1. If current value is 0 (also means that new value is not 0), remove 15000 gas from refund counter. We can prove that refund counter will never go below 0.
+				// 2.2.1.2. If new value is 0 (also means that current value is not 0), add 15000 gas to refund counter.
+
+				// 2.2.2. If original value equals new value (this storage slot is reset)
+				// 2.2.2.1. If original value is 0, add 19800 gas to refund counter.
+				// 2.2.2.2. Otherwise, add 4800 gas to refund counter.
 			}
 		}
 	)
@@ -370,33 +386,42 @@ pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, c
 	let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
 
 	if current == new {
-		// No refund
+		// 1. If current value equals new value (this is a no-op), 200 gas is deducted.
 	} else {
+		// 2. If current value does not equal new value
 		if original == current {
+			// 2.1. If original value equals current value (this storage slot has not been changed by the current execution context)
 			if original.is_zero() {
-				// No refund
+				// 2.1.1. If original value is 0, 20000 gas is deducted.
 			} else {
+				// 2.1.2. Otherwise, 5000 gas is deducted.
 				if new.is_zero() {
+					// 2.1.2.1. If new value is 0, add 15000 gas to refund counter.
 					ext.inc_sstore_refund(sstore_clears_schedule);
 				}
 			}
 		} else {
-			// Handle invalidated and newly validated R_RESET refunds.
+			// 2.2. If original value does not equal current value (this storage slot is dirty), 200 gas is deducted. Apply both of the following clauses.
+
 			if !original.is_zero() {
+				// 2.2.1. If original value is not 0
 				if current.is_zero() {
+					// 2.2.1.1. If current value is 0 (also means that new value is not 0), remove 15000 gas from refund counter. We can prove that refund counter will never go below 0.
 					ext.dec_sstore_refund(sstore_clears_schedule);
 				} else if new.is_zero() {
+					// 2.2.1.2. If new value is 0 (also means that current value is not 0), add 15000 gas to refund counter.
 					ext.inc_sstore_refund(sstore_clears_schedule);
 				}
 			}
-			// Reset storage slot to its original value.
+
 			if original == new {
+				// 2.2.2. If original value equals new value (this storage slot is reset)
 				if original.is_zero() {
-					// Revert sstore full cost (minus sload amount)
+					// 2.2.2.1. If original value is 0, add 19800 gas to refund counter.
 					let refund = U256::from(ext.schedule().sstore_set_gas - ext.schedule().sload_gas);
 					ext.inc_sstore_refund(refund);
 				} else {
-					// Revert sstore change cost (revert of refund done in previous conditions)
+					// 2.2.2.2. Otherwise, add 4800 gas to refund counter.
 					let refund = U256::from(ext.schedule().sstore_reset_gas - ext.schedule().sload_gas);
 					ext.inc_sstore_refund(refund);
 				}
