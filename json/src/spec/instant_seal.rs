@@ -21,7 +21,8 @@
 pub struct InstantSealParams {
 	/// Whether to enable millisecond timestamp.
 	#[serde(rename="millisecondTimestamp")]
-	pub millisecond_timestamp: Option<bool>,
+	#[serde(default)]
+	pub millisecond_timestamp: bool,
 }
 
 /// Instant seal engine descriptor.

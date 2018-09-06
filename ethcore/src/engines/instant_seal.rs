@@ -27,7 +27,7 @@ pub struct InstantSealParams {
 impl From<::ethjson::spec::InstantSealParams> for InstantSealParams {
 	fn from(p: ::ethjson::spec::InstantSealParams) -> Self {
 		InstantSealParams {
-			millisecond_timestamp: p.millisecond_timestamp.unwrap_or(false),
+			millisecond_timestamp: p.millisecond_timestamp,
 		}
 	}
 }
