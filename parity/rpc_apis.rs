@@ -752,7 +752,7 @@ mod test {
 			// semi-safe
 			Api::ParityAccounts,
 			// Unsafe
-			Api::ParitySet, Api::Signer,
+			Api::ParitySet, Api::Signer, Api::Debug
 		].into_iter().collect();
 		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}
@@ -775,7 +775,7 @@ mod test {
 			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
-			Api::Private
+			Api::Private, Api::Debug,
 		].into_iter().collect()));
 	}
 
