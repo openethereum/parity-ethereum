@@ -171,42 +171,12 @@ impl Drop for Client {
 }
 
 impl Client {
-	/// Create a new fetch client with a proxy.
-	pub fn new_with_proxy(https_proxy_url: &String) -> Result<Self, Error> {
-		let (tx_start, rx_start) = std::sync::mpsc::sync_channel(1);
-		let (tx_proto, rx_proto) = mpsc::channel(64);
-
-		Client::background_thread(tx_start, rx_proto, https_proxy_url.to_owned())?;
-
-		match rx_start.recv_timeout(MAX_FETCH_TIME) {
-			Err(RecvTimeoutError::Timeout) => {
-				error!(target: "fetch", "timeout starting background thread");
-				return Err(Error::BackgroundThreadDead)
-			}
-			Err(RecvTimeoutError::Disconnected) => {
-				error!(target: "fetch", "background thread gone");
-				return Err(Error::BackgroundThreadDead)
-			}
-			Ok(Err(e)) => {
-				error!(target: "fetch", "error starting background thread: {}", e);
-				return Err(e.into())
-			}
-			Ok(Ok(())) => {}
-		}
-
-		Ok(Client {
-			core: tx_proto,
-			refs: Arc::new(AtomicUsize::new(1)),
-			timer: Timer::default(),
-		})
-	}
-
 	/// Create a new fetch client.
-	pub fn new() -> Result<Self, Error> {
+	pub fn new(https_proxy_url: &Option<String>) -> Result<Self, Error> {
 		let (tx_start, rx_start) = std::sync::mpsc::sync_channel(1);
 		let (tx_proto, rx_proto) = mpsc::channel(64);
 
-		Client::background_thread(tx_start, rx_proto, String::default())?;
+		Client::background_thread(tx_start, rx_proto, https_proxy_url)?;
 
 		match rx_start.recv_timeout(MAX_FETCH_TIME) {
 			Err(RecvTimeoutError::Timeout) => {
@@ -231,7 +201,9 @@ impl Client {
 		})
 	}
 
-	fn background_thread(tx_start: TxStartup, rx_proto: mpsc::Receiver<ChanItem>, https_proxy_url: String) -> io::Result<thread::JoinHandle<()>> {
+	fn background_thread(tx_start: TxStartup, rx_proto: mpsc::Receiver<ChanItem>, https_proxy_url: &Option<String>) -> io::Result<thread::JoinHandle<()>> {
+		let owned_proxy_url = https_proxy_url.to_owned();
+
 		thread::Builder::new().name("fetch".into()).spawn(move || {
 			let mut core = match reactor::Core::new() {
 				Ok(c) => c,
@@ -241,8 +213,8 @@ impl Client {
 			let connector = {
 				let https_connector = hyper_rustls::HttpsConnector::new(4, &core.handle());
 
-				match https_proxy_url.parse() {
-					Ok(proxy_url) => {
+				match owned_proxy_url.map(|url| url.parse()) {
+					Some(Ok(proxy_url)) => {
 						debug!(target: "fetch", "https proxy is {:?}", proxy_url);
 						ProxyConnector::from_proxy(
 							https_connector,
@@ -690,7 +662,7 @@ mod test {
 	#[test]
 	fn it_should_fetch() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(&None).unwrap();
 		let future = client.get(&format!("http://{}?123", server.addr()), Default::default());
 		let resp = future.wait().unwrap();
 		assert!(resp.is_success());
@@ -701,7 +673,7 @@ mod test {
 	#[test]
 	fn it_should_timeout() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(&None).unwrap();
 		let abort = Abort::default().with_max_duration(Duration::from_secs(1));
 		match client.get(&format!("http://{}/delay?3", server.addr()), abort).wait() {
 			Err(Error::Timeout) => {}
@@ -712,7 +684,7 @@ mod test {
 	#[test]
 	fn it_should_follow_redirects() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(&None).unwrap();
 		let abort = Abort::default();
 		let future = client.get(&format!("http://{}/redirect?http://{}/", server.addr(), server.addr()), abort);
 		assert!(future.wait().unwrap().is_success())
@@ -721,7 +693,7 @@ mod test {
 	#[test]
 	fn it_should_follow_relative_redirects() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(&None).unwrap();
 		let abort = Abort::default().with_max_redirects(4);
 		let future = client.get(&format!("http://{}/redirect?/", server.addr()), abort);
 		assert!(future.wait().unwrap().is_success())
@@ -730,7 +702,7 @@ mod test {
 	#[test]
 	fn it_should_not_follow_too_many_redirects() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(&None).unwrap();
 		let abort = Abort::default().with_max_redirects(3);
 		match client.get(&format!("http://{}/loop", server.addr()), abort).wait() {
 			Err(Error::TooManyRedirects) => {}
@@ -741,7 +713,7 @@ mod test {
 	#[test]
 	fn it_should_read_data() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(&None).unwrap();
 		let abort = Abort::default();
 		let future = client.get(&format!("http://{}?abcdefghijklmnopqrstuvwxyz", server.addr()), abort);
 		let resp = future.wait().unwrap();
@@ -752,7 +724,7 @@ mod test {
 	#[test]
 	fn it_should_not_read_too_much_data() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(&None).unwrap();
 		let abort = Abort::default().with_max_size(3);
 		let resp = client.get(&format!("http://{}/?1234", server.addr()), abort).wait().unwrap();
 		assert!(resp.is_success());
@@ -765,7 +737,7 @@ mod test {
 	#[test]
 	fn it_should_not_read_too_much_data_sync() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(&None).unwrap();
 		let abort = Abort::default().with_max_size(3);
 		let resp = client.get(&format!("http://{}/?1234", server.addr()), abort).wait().unwrap();
 		assert!(resp.is_success());

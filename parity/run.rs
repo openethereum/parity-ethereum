@@ -226,7 +226,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let provider = ::light::provider::LightProvider::new(client.clone(), txq.clone());
 
 	// fetch service
-	let fetch = new_fetch_client(cmd.net_conf.https_proxy.as_ref())?;
+	let fetch = new_fetch_client(&cmd.net_conf.https_proxy)?;
 
 	// start network.
 	// set up bootnodes
@@ -469,7 +469,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// spin up event loop
 	let event_loop = EventLoop::spawn();
 
-	let fetch = new_fetch_client(cmd.net_conf.https_proxy.as_ref())?;
+	let fetch = new_fetch_client(&cmd.net_conf.https_proxy)?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
 	// create miner

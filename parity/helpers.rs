@@ -300,9 +300,8 @@ pub fn password_prompt() -> Result<Password, String> {
 	Ok(password)
 }
 
-pub fn new_fetch_client(https_proxy: Option<&String>) -> Result<fetch::Client, String> {
-	https_proxy
-		.map_or_else(|| fetch::Client::new(), |s| fetch::Client::new_with_proxy(s))
+pub fn new_fetch_client(https_proxy: &Option<String>) -> Result<fetch::Client, String> {
+	fetch::Client::new(https_proxy)
 		.map_err(|e| format!("Error starting fetch client: {:?}", e))
 }
 
