@@ -181,6 +181,8 @@ impl AccountEntry {
 			Some(acc) => {
 				if let Some(ref mut ours) = self.account {
 					ours.overwrite_with(acc);
+				} else {
+					self.account = Some(acc);
 				}
 			},
 			None => self.account = None,
@@ -419,7 +421,16 @@ impl<B: Backend> State<B> {
 					**prev = checkpoint;
 				} else {
 					for (k, v) in checkpoint.drain() {
-						prev.entry(k).or_insert(v);
+						match prev.entry(k) {
+							Entry::Occupied(mut e) => {
+								if e.get().is_none() {
+									e.insert(v);
+								}
+							},
+							Entry::Vacant(e) => {
+								e.insert(v);
+							}
+						}
 					}
 				}
 			}
@@ -503,7 +514,6 @@ impl<B: Backend> State<B> {
 
 	/// Remove an existing account.
 	pub fn kill_account(&mut self, account: &Address) {
-		assert!(self.checkpoints.borrow().is_empty());
 		self.insert_cache(account, AccountEntry::new_dirty(None));
 	}
 
@@ -2274,6 +2284,15 @@ mod tests {
 		let a = Address::zero();
 		let k = H256::from(U256::from(0));
 		let k2 = H256::from(U256::from(1));
+
+		state.set_storage(&a, k, H256::from(U256::from(0xffff))).unwrap();
+		state.commit().unwrap();
+		state.clear();
+
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0xffff)));
+
+		let c0 = state.checkpoint();
+		state.new_contract(&a, U256::zero(), U256::zero());
 		let c1 = state.checkpoint();
 		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
 		let c2 = state.checkpoint();
@@ -2284,6 +2303,7 @@ mod tests {
 		state.set_storage(&a, k, H256::from(U256::from(4))).unwrap();
 		let c5 = state.checkpoint();
 
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
 		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
 		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
 		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
@@ -2291,22 +2311,44 @@ mod tests {
 		assert_eq!(state.checkpoint_storage_at(c5, &a, &k).unwrap(), Some(H256::from(U256::from(4))));
 
 		state.discard_checkpoint(); // Commit/discard c5.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
 		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
 		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
 		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
 		assert_eq!(state.checkpoint_storage_at(c4, &a, &k).unwrap(), Some(H256::from(U256::from(3))));
 
 		state.revert_to_checkpoint(); // Revert to c4.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
 		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
 		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
 		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
 
 		state.discard_checkpoint(); // Commit/discard c3.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
 		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
 		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
 
 		state.revert_to_checkpoint(); // Revert to c2.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
 		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+
+		state.discard_checkpoint(); // Commit/discard c1.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+	}
+
+	#[test]
+	fn kill_account_with_checkpoints() {
+		let mut state = get_temp_state();
+		let a = Address::zero();
+		let k = H256::from(U256::from(0));
+		state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
+		state.checkpoint();
+		state.kill_account(&a);
+
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0)));
+		state.revert_to_checkpoint();
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(1)));
 	}
 
 	#[test]
