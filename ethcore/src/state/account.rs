@@ -284,6 +284,12 @@ impl Account {
 
 	/// Get cached original storage value since last contract creation on this address. Returns `None` if the key is not in the cache.
 	fn cached_moved_original_storage_at(&self, key: &H256) -> Option<H256> {
+		// If storage root is empty RLP, then early return zero value. Practically, this makes it so that if
+		// `original_storage_cache` is used, then `storage_cache` will always remain empty.
+		if self.storage_root == KECCAK_NULL_RLP {
+			return Some(H256::new());
+		}
+
 		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
 			Some(value.clone())
 		} else {
