@@ -2290,6 +2290,7 @@ mod tests {
 		state.clear();
 
 		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0xffff)));
+		state.clear();
 
 		let c0 = state.checkpoint();
 		state.new_contract(&a, U256::zero(), U256::zero());
