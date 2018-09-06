@@ -639,12 +639,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)))
+		let result = self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)
+			.and_then(errors::check_block_gap(&*self.client));
+		Box::new(future::done(result))
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
 		let result = self.rich_block(num.clone().into(), include_txs)
-			.and_then(errors::check_block_existence(&*self.client, num));
+			.and_then(errors::check_block_number_existence(&*self.client, num));
 		Box::new(future::done(result))
 	}
 
@@ -654,12 +656,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			self.miner.transaction(&hash)
 				.map(|t| Transaction::from_pending(t.pending().clone()))
 		});
-		Box::new(future::ok(tx))
+		let result = Ok(tx).and_then(errors::check_block_gap(&*self.client));
+		Box::new(future::done(result))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>> {
 		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash.into())), index.value());
-		let result = self.transaction(id);
+		let result = self.transaction(id)
+			.and_then(errors::check_block_gap(&*self.client));
 		Box::new(future::done(result))
 	}
 
@@ -673,7 +677,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let transaction_id = PendingTransactionId::Location(block_id, index.value());
 		let result = self.transaction(transaction_id)
-			.and_then(errors::check_block_existence(&*self.client, num));
+			.and_then(errors::check_block_number_existence(&*self.client, num));
 		Box::new(future::done(result))
 	}
 
@@ -685,8 +689,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			(Some(receipt), true) => Box::new(future::ok(Some(receipt.into()))),
 			_ => {
 				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-				let result = receipt.map(Into::into);
-				Box::new(future::ok(result))
+				let result = Ok(receipt.map(Into::into))
+					.and_then(errors::check_block_gap(&*self.client));
+				Box::new(future::done(result))
 			}
 		}
 
