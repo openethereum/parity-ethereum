@@ -589,7 +589,7 @@ impl Spec {
 		match engine_spec {
 			ethjson::spec::Engine::Null(null) => Arc::new(NullEngine::new(null.params.into(), machine)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(::ethereum::Ethash::new(spec_params.cache_dir, ethash.params.into(), machine, spec_params.optimization_setting)),
-			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(machine)),
+			ethjson::spec::Engine::InstantSeal(instant_seal) => Arc::new(InstantSeal::new(instant_seal.params.into(), machine)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
