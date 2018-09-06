@@ -8,8 +8,8 @@
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"blockReward": {
-					0: "0x4563918244F40000",
-					4370000: "0x29A2241AF62C0000"
+					"0": "0x4563918244F40000",
+					"4370000": "0x29A2241AF62C0000"
 				},
 				"homesteadTransition": "0x118c30",
 				"daoHardforkTransition": "0x1d4c00",
@@ -134,7 +134,7 @@
 				],
 				"eip100bTransition": 4370000,
 				"difficultyBombDelays": {
-					4370000: 3000000
+					"4370000": 3000000
 				}
 			}
 		}

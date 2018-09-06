@@ -13,7 +13,7 @@
 				"homesteadTransition": "0",
 				"eip100bTransition": "5",
 				"difficultyBombDelays": {
-					5: 3000000
+					"5": 3000000
 				}
 			}
 		}
