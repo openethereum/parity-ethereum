@@ -41,14 +41,13 @@ use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, Ne
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H160, H256, H512, CallRequest,
+	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, RichHeader,
-	block_number_to_id,
-	H64 as RpcH64, H256 as RpcH256,
+	block_number_to_id
 };
 use Host;
 
@@ -452,7 +451,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 				.map_err(errors::call)
 	}
 
-	fn submit_work_detail(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<H256> {
+	fn submit_work_detail(&self, nonce: H64, pow_hash: H256, mix_hash: H256) -> Result<H256> {
 		// TODO [ToDr] Should disallow submissions in case of PoA?
 		let nonce: EthcoreH64 = nonce.into();
 		let pow_hash: EthcoreH256 = pow_hash.into();
