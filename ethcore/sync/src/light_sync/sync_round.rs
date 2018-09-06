@@ -183,7 +183,7 @@ impl Fetcher {
 
 		let headers = ctx.data();
 
-		if headers.len() == 0 {
+		if headers.is_empty() {
 			trace!(target: "sync", "Punishing peer {} for empty response", ctx.responder());
 			ctx.punish_responder();
 
@@ -204,20 +204,19 @@ impl Fetcher {
 			Ok(headers) => {
 				let mut parent_hash = None;
 				for header in headers {
-					if parent_hash.as_ref().map_or(false, |h| h != &header.hash()) {
-						trace!(target: "sync", "Punishing peer {} for parent mismatch", ctx.responder());
-						ctx.punish_responder();
-
-						self.requests.push(request);
-						return SyncRound::Fetch(self);
+					if let Some(hash) = parent_hash.as_ref() {
+						if *hash != header.hash() {
+							trace!(target: "sync", "Punishing peer {} for parent mismatch", ctx.responder());
+							ctx.punish_responder();
+							self.requests.push(request);
+							return SyncRound::Fetch(self);
+						}
 					}
-
 					// incrementally update the frame request as we go so we can
 					// return at any time in the loop.
-					parent_hash = Some(header.parent_hash().clone());
+					parent_hash = Some(*header.parent_hash());
 					request.headers_request.start = header.parent_hash().clone().into();
 					request.headers_request.max -= 1;
-
 					request.downloaded.push_front(header);
 				}
 
@@ -379,7 +378,7 @@ impl RoundStart {
 
 		match response::verify(ctx.data(), &req) {
 			Ok(headers) => {
-				if self.sparse_headers.len() == 0
+				if self.sparse_headers.is_empty()
 					&& headers.get(0).map_or(false, |x| x.parent_hash() != &self.start_block.1) {
 					trace!(target: "sync", "Wrong parent for first header in round");
 					ctx.punish_responder(); // or should we reset?

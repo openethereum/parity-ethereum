@@ -235,7 +235,8 @@ impl Account {
 		self.code_hash.clone()
 	}
 
-	/// return the code hash associated with this account.
+	/// return and cache `keccak(address)`, `address` must be the address of this
+	/// account.
 	pub fn address_hash(&self, address: &Address) -> H256 {
 		let hash = self.address_hash.get();
 		hash.unwrap_or_else(|| {

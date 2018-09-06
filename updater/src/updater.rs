@@ -31,7 +31,7 @@ use ethcore::client::{BlockId, BlockChainClient, ChainNotify, ChainRoute};
 use ethcore::filter::Filter;
 use ethereum_types::H256;
 use hash_fetch::{self as fetch, HashFetch};
-use path::restrict_permissions_owner;
+use parity_path::restrict_permissions_owner;
 use service::Service;
 use sync::{SyncProvider};
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};

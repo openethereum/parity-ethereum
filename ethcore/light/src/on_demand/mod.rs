@@ -157,19 +157,16 @@ impl Pending {
 	// verification.
 	// `idx` is the index of the request the response corresponds to.
 	fn update_header_refs(&mut self, idx: usize, response: &Response) {
-		match *response {
-			Response::HeaderByHash(ref hdr) => {
+		if let Response::HeaderByHash(ref hdr) = *response {
 				// fill the header for all requests waiting on this one.
 				// TODO: could be faster if we stored a map usize => Vec<usize>
 				// but typical use just has one header request that others
 				// depend on.
-				for r in self.requests.iter_mut().skip(idx + 1) {
-					if r.needs_header().map_or(false, |(i, _)| i == idx) {
-						r.provide_header(hdr.clone())
-					}
+			for r in self.requests.iter_mut().skip(idx + 1) {
+				if r.needs_header().map_or(false, |(i, _)| i == idx) {
+					r.provide_header(hdr.clone())
 				}
 			}
-			_ => {}, // no other responses produce headers.
 		}
 	}
 
@@ -340,7 +337,7 @@ impl OnDemand {
 			pending: RwLock::new(Vec::new()),
 			peers: RwLock::new(HashMap::new()),
 			in_transit: RwLock::new(HashMap::new()),
-			cache: cache,
+			cache,
 			no_immediate_dispatch: false,
 			base_retry_number: DEFAULT_NB_RETRY,
 			query_inactive_time_limit: Some(DEFAULT_QUERY_TIME_LIMIT),
@@ -389,7 +386,7 @@ impl OnDemand {
 				}
 			}
 			if let CheckedRequest::HeaderByHash(ref req, _) = request {
-				header_producers.insert(i, req.0.clone());
+				header_producers.insert(i, req.0);
 			}
 
 			builder.push(request)?;
@@ -400,11 +397,11 @@ impl OnDemand {
 		let capabilities = guess_capabilities(requests.requests());
 
 		self.submit_pending(ctx, Pending {
-			requests: requests,
-			net_requests: net_requests,
+			requests,
+			net_requests,
 			required_capabilities: capabilities,
-			responses: responses,
-			sender: sender,
+			responses,
+			sender,
 			base_query_index: 0,
 			remaining_query_count: 0,
 			query_id_history: BTreeSet::new(),

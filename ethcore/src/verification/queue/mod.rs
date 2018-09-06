@@ -482,7 +482,7 @@ impl<K: Kind> VerificationQueue<K> {
 			}
 		}
 
-		match K::create(input, &*self.engine) {
+		match K::create(input, &*self.engine, self.verification.check_seal) {
 			Ok(item) => {
 				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
 

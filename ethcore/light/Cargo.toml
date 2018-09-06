@@ -9,19 +9,19 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.4"
 ethcore = { path = ".."}
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+parity-bytes = "0.1"
 ethcore-transaction = { path = "../transaction" }
-ethereum-types = "0.3"
-memorydb = { git = "https://github.com/paritytech/parity-common" }
-patricia-trie = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.4"
+memorydb = "0.2.1"
+patricia-trie = "0.2.1"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
-hashdb = { git = "https://github.com/paritytech/parity-common" }
+hashdb = "0.2.1"
 heapsize = "0.4"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
-rlp = { git = "https://github.com/paritytech/parity-common" }
+rlp = { version = "0.2.4", features = ["ethereum"] }
 rlp_derive = { path = "../../util/rlp_derive" }
 smallvec = "0.4"
 futures = "0.1"
@@ -32,16 +32,16 @@ serde = "1.0"
 serde_derive = "1.0"
 parking_lot = "0.6"
 stats = { path = "../../util/stats" }
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+keccak-hash = "0.1"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
-kvdb = "0.1.0"
+kvdb = "0.1"
 memory-cache = { path = "../../util/memory_cache" }
 error-chain = { version = "0.12", default-features = false }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = "0.1.0"
+kvdb-memorydb = "0.1"
 tempdir = "0.3"
 
 [features]

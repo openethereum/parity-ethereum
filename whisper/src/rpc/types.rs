@@ -19,7 +19,7 @@
 use std::fmt;
 use std::ops::Deref;
 
-use ethereum_types::{H32, H64, H128, H256, H264, H512, H1024};
+use ethereum_types::{H32, H64, H128, H256, H264, H512};
 use hex::{ToHex, FromHex};
 
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
@@ -51,7 +51,7 @@ macro_rules! impl_hex_for_hash {
 }
 
 impl_hex_for_hash!(
-	H32 H64 H128 H256 H264 H512 H1024
+	H32 H64 H128 H256 H264 H512
 );
 
 /// Wrapper structure around hex-encoded data.

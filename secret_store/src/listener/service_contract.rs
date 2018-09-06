@@ -422,7 +422,7 @@ impl<F> Iterator for PendingRequestsIterator<F> where F: Fn(U256) -> Option<(boo
 		}
 
 		let index = self.index.clone();
-		self.index = self.index + 1.into();
+		self.index = self.index + 1;
 
 		(self.read_request)(index)
 	}
@@ -691,7 +691,7 @@ impl DocumentKeyShadowRetrievalService {
 		for participant in participants {
 			let participant_index = Self::map_key_server_address(client, contract_address, contract, participant.clone())
 				.map_err(|e| format!("Error searching for {} participant: {}", participant, e))?;
-			participants_mask = participants_mask | (U256::one() << participant_index.into());
+			participants_mask = participants_mask | (U256::one() << participant_index);
 		}
 		Ok(contract.functions()
 			.document_key_personal_retrieved()
