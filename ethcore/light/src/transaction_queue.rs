@@ -74,7 +74,7 @@ impl<'a> From<&'a PendingTransaction> for TransactionInfo {
 	fn from(tx: &'a PendingTransaction) -> Self {
 		TransactionInfo {
 			hash: tx.hash(),
-			nonce: tx.nonce.clone(),
+			nonce: tx.nonce,
 			condition: tx.condition.clone(),
 		}
 	}
@@ -104,15 +104,9 @@ impl AccountTransactions {
 		let mut promoted = Vec::new();
 		let mut next_nonce = self.next_nonce();
 
-		loop {
-			match self.future.remove(&next_nonce) {
-				Some(tx) => {
-					promoted.push(tx.hash);
-					self.current.push(tx)
-				},
-				None => break,
-			}
-
+		while let Some(tx) = self.future.remove(&next_nonce) {
+			promoted.push(tx.hash);
+			self.current.push(tx);
 			next_nonce = next_nonce + 1;
 		}
 
@@ -154,7 +148,7 @@ impl fmt::Debug for TransactionQueue {
 
 impl TransactionQueue {
 	/// Import a pending transaction to be queued.
-	pub fn import(&mut self, tx: PendingTransaction) -> Result<ImportDestination, transaction::Error>  {
+	pub fn import(&mut self, tx: PendingTransaction) -> Result<ImportDestination, transaction::Error> {
 		let sender = tx.sender();
 		let hash = tx.hash();
 		let nonce = tx.nonce;
@@ -174,7 +168,7 @@ impl TransactionQueue {
 			}
 			Entry::Occupied(mut entry) => {
 				let acct_txs = entry.get_mut();
-				if &nonce < acct_txs.cur_nonce.value() {
+				if nonce < *acct_txs.cur_nonce.value() {
 					// don't accept txs from before known current nonce.
 					if acct_txs.cur_nonce.is_known() {
 						return Err(transaction::Error::Old)

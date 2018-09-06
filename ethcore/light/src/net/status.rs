@@ -43,8 +43,8 @@ enum Key {
 
 impl Key {
 	// get the string value of this key.
-	fn as_str(&self) -> &'static str {
-		match *self {
+	fn as_str(self) -> &'static str {
+		match self {
 			Key::ProtocolVersion => "protocolVersion",
 			Key::NetworkId => "networkId",
 			Key::HeadTD => "headTd",
@@ -85,7 +85,7 @@ impl Key {
 // helper for decoding key-value pairs in the handshake or an announcement.
 struct Parser<'a> {
 	pos: usize,
-	rlp: Rlp<'a>,
+	rlp: &'a Rlp<'a>,
 }
 
 impl<'a> Parser<'a> {
@@ -208,10 +208,10 @@ impl Capabilities {
 ///   - chain status
 ///   - serving capabilities
 ///   - request credit parameters
-pub fn parse_handshake(rlp: Rlp) -> Result<(Status, Capabilities, Option<FlowParams>), DecoderError> {
+pub fn parse_handshake(rlp: &Rlp) -> Result<(Status, Capabilities, Option<FlowParams>), DecoderError> {
 	let mut parser = Parser {
 		pos: 0,
-		rlp: rlp,
+		rlp,
 	};
 
 	let status = Status {
@@ -304,7 +304,7 @@ pub struct Announcement {
 }
 
 /// Parse an announcement.
-pub fn parse_announcement(rlp: Rlp) -> Result<Announcement, DecoderError> {
+pub fn parse_announcement(rlp: &Rlp) -> Result<Announcement, DecoderError> {
 	let mut last_key = None;
 
 	let mut announcement = Announcement {
@@ -320,7 +320,7 @@ pub fn parse_announcement(rlp: Rlp) -> Result<Announcement, DecoderError> {
 
 	let mut parser = Parser {
 		pos: 4,
-		rlp: rlp,
+		rlp,
 	};
 
 	while let Some((key, item)) = parser.get_next()? {
@@ -404,7 +404,7 @@ mod tests {
 		let handshake = write_handshake(&status, &capabilities, Some(&flow_params));
 
 		let (read_status, read_capabilities, read_flow)
-			= parse_handshake(Rlp::new(&handshake)).unwrap();
+			= parse_handshake(&Rlp::new(&handshake)).unwrap();
 
 		assert_eq!(read_status, status);
 		assert_eq!(read_capabilities, capabilities);
@@ -439,7 +439,7 @@ mod tests {
 		let handshake = write_handshake(&status, &capabilities, Some(&flow_params));
 
 		let (read_status, read_capabilities, read_flow)
-			= parse_handshake(Rlp::new(&handshake)).unwrap();
+			= parse_handshake(&Rlp::new(&handshake)).unwrap();
 
 		assert_eq!(read_status, status);
 		assert_eq!(read_capabilities, capabilities);
@@ -489,7 +489,7 @@ mod tests {
 		};
 
 		let (read_status, read_capabilities, read_flow)
-			= parse_handshake(Rlp::new(&interleaved)).unwrap();
+			= parse_handshake(&Rlp::new(&interleaved)).unwrap();
 
 		assert_eq!(read_status, status);
 		assert_eq!(read_capabilities, capabilities);
@@ -510,7 +510,7 @@ mod tests {
 		};
 
 		let serialized = write_announcement(&announcement);
-		let read = parse_announcement(Rlp::new(&serialized)).unwrap();
+		let read = parse_announcement(&Rlp::new(&serialized)).unwrap();
 
 		assert_eq!(read, announcement);
 	}
@@ -522,26 +522,26 @@ mod tests {
 		let mut stream = RlpStream::new_list(6);
 		stream
 			.append(&H256::zero())
-			.append(&10u64)
-			.append(&100_000u64)
-			.append(&2u64)
-			.append_raw(&encode_pair(Key::ServeStateSince, &44u64), 1)
+			.append(&10_u64)
+			.append(&100_000_u64)
+			.append(&2_u64)
+			.append_raw(&encode_pair(Key::ServeStateSince, &44_u64), 1)
 			.append_raw(&encode_flag(Key::ServeHeaders), 1);
 
 		let out = stream.drain();
-		assert!(parse_announcement(Rlp::new(&out)).is_err());
+		assert!(parse_announcement(&Rlp::new(&out)).is_err());
 
 		let mut stream = RlpStream::new_list(6);
 		stream
 			.append(&H256::zero())
-			.append(&10u64)
-			.append(&100_000u64)
-			.append(&2u64)
+			.append(&10_u64)
+			.append(&100_000_u64)
+			.append(&2_u64)
 			.append_raw(&encode_flag(Key::ServeHeaders), 1)
-			.append_raw(&encode_pair(Key::ServeStateSince, &44u64), 1);
+			.append_raw(&encode_pair(Key::ServeStateSince, &44_u64), 1);
 
 		let out = stream.drain();
-		assert!(parse_announcement(Rlp::new(&out)).is_ok());
+		assert!(parse_announcement(&Rlp::new(&out)).is_ok());
 	}
 
 	#[test]
@@ -566,7 +566,7 @@ mod tests {
 		let handshake = write_handshake(&status, &capabilities, None);
 
 		let (read_status, read_capabilities, read_flow)
-			= parse_handshake(Rlp::new(&handshake)).unwrap();
+			= parse_handshake(&Rlp::new(&handshake)).unwrap();
 
 		assert_eq!(read_status, status);
 		assert_eq!(read_capabilities, capabilities);

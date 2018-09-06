@@ -423,16 +423,14 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
 		.collect::<Vec<(H256, LogEntry)>>();
 
-	let result = pending_logs.into_iter()
+	pending_logs.into_iter()
 		.filter(|pair| filter.matches(&pair.1))
 		.map(|pair| {
 			let mut log = Log::from(pair.1);
 			log.transaction_hash = Some(pair.0.into());
 			log
 		})
-		.collect();
-
-	result
+		.collect()
 }
 
 fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockChainClient {

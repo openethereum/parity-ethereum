@@ -46,7 +46,7 @@ pub struct Credits {
 
 impl Credits {
 	/// Get the current amount of credits..
-	pub fn current(&self) -> U256 { self.estimate.clone() }
+	pub fn current(&self) -> U256 { self.estimate }
 
 	/// Make a definitive update.
 	/// This will be the value obtained after receiving
@@ -68,12 +68,11 @@ impl Credits {
 	/// If unsuccessful, the structure will be unaltered an an
 	/// error will be produced.
 	pub fn deduct_cost(&mut self, cost: U256) -> Result<(), Error> {
-		match cost > self.estimate {
-			true => Err(Error::NoCredits),
-			false => {
-				self.estimate = self.estimate - cost;
-				Ok(())
-			}
+		if cost > self.estimate {
+			Err(Error::NoCredits)
+		} else {
+			self.estimate = self.estimate - cost;
+			Ok(())
 		}
 	}
 }
@@ -121,7 +120,7 @@ impl Default for CostTable {
 	fn default() -> Self {
 		// arbitrarily chosen constants.
 		CostTable {
-			base: 100000.into(),
+			base: 100_000.into(),
 			headers: Some(10000.into()),
 			transaction_index: Some(10000.into()),
 			body: Some(15000.into()),
@@ -193,17 +192,17 @@ impl Decodable for CostTable {
 		}
 
 		let table = CostTable {
-			base: base,
-			headers: headers,
-			transaction_index: transaction_index,
-			body: body,
-			receipts: receipts,
-			account: account,
-			storage: storage,
-			code: code,
-			header_proof: header_proof,
-			transaction_proof: transaction_proof,
-			epoch_signal: epoch_signal,
+			base,
+			headers,
+			transaction_index,
+			body,
+			receipts,
+			account,
+			storage,
+			code,
+			header_proof,
+			transaction_proof,
+			epoch_signal,
 		};
 
 		if table.costs_set() == 0 {
@@ -227,9 +226,9 @@ impl FlowParams {
 	/// credit limit, and (minimum) rate of recharge.
 	pub fn new(limit: U256, costs: CostTable, recharge: U256) -> Self {
 		FlowParams {
-			costs: costs,
-			limit: limit,
-			recharge: recharge,
+			costs,
+			limit,
+			recharge,
 		}
 	}
 
@@ -283,7 +282,7 @@ impl FlowParams {
 		};
 
 		FlowParams {
-			costs: costs,
+			costs,
 			limit: max.into(),
 			recharge: recharge.into(),
 		}
@@ -293,19 +292,19 @@ impl FlowParams {
 	pub fn free() -> Self {
 		let free_cost: Option<U256> = Some(0.into());
 		FlowParams {
-			limit: (!0u64).into(),
+			limit: (!0_u64).into(),
 			recharge: 1.into(),
 			costs: CostTable {
 				base: 0.into(),
-				headers: free_cost.clone(),
-				transaction_index: free_cost.clone(),
-				body: free_cost.clone(),
-				receipts: free_cost.clone(),
-				account: free_cost.clone(),
-				storage: free_cost.clone(),
-				code: free_cost.clone(),
-				header_proof: free_cost.clone(),
-				transaction_proof: free_cost.clone(),
+				headers: free_cost,
+				transaction_index: free_cost,
+				body: free_cost,
+				receipts: free_cost,
+				account: free_cost,
+				storage: free_cost,
+				code: free_cost,
+				header_proof: free_cost,
+				transaction_proof: free_cost,
 				epoch_signal: free_cost,
 			}
 		}
@@ -370,7 +369,7 @@ impl FlowParams {
 		// recompute and update only in terms of full seconds elapsed
 		// in order to keep the estimate as an underestimate.
 		let elapsed = (now - credits.recharge_point).as_secs();
-		credits.recharge_point = credits.recharge_point + Duration::from_secs(elapsed);
+		credits.recharge_point += Duration::from_secs(elapsed);
 
 		let elapsed: U256 = elapsed.into();
 
@@ -418,7 +417,7 @@ mod tests {
 		use std::time::Duration;
 
 		let flow_params = FlowParams::new(100.into(), Default::default(), 20.into());
-		let mut credits =  flow_params.create_credits();
+		let mut credits = flow_params.create_credits();
 
 		assert!(credits.deduct_cost(101.into()).is_err());
 		assert!(credits.deduct_cost(10.into()).is_ok());

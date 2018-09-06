@@ -79,8 +79,8 @@ impl<T: ChainDataFetcher> Service<T> {
 		spec.engine.register_client(Arc::downgrade(&client) as _);
 
 		Ok(Service {
-			client: client,
-			io_service: io_service,
+			client,
+			io_service,
 		})
 	}
 

@@ -164,7 +164,7 @@ impl PeerLike for Peer {
 
 	fn on_connect(&self, other: PeerId) {
 		let io = self.io(Some(other));
-		self.proto.on_connect(&other, &io);
+		self.proto.on_connect(other, &io);
 	}
 
 	fn on_disconnect(&self, other: PeerId){
@@ -174,7 +174,7 @@ impl PeerLike for Peer {
 
 	fn receive_message(&self, from: PeerId, msg: TestPacket) -> HashSet<PeerId> {
 		let io = self.io(Some(from));
-		self.proto.handle_packet(&io, &from, msg.packet_id, &msg.data);
+		self.proto.handle_packet(&io, from, msg.packet_id, &msg.data);
 		io.to_disconnect.into_inner()
 	}
 
