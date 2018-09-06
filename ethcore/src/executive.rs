@@ -574,9 +574,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let prev_bal = self.state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
-			self.state.new_contract(&params.address, val + prev_bal, nonce_offset);
+			self.state.new_contract(&params.address, val + prev_bal, nonce_offset)?;
 		} else {
-			self.state.new_contract(&params.address, prev_bal, nonce_offset);
+			self.state.new_contract(&params.address, prev_bal, nonce_offset)?;
 		}
 
 		let trace_info = tracer.prepare_trace_create(&params);
@@ -1622,13 +1622,13 @@ mod tests {
 		let y2 = Address::from(0x2002);
 
 		let mut state = get_temp_state_with_factory(factory.clone());
-		state.new_contract(&x1, U256::zero(), U256::from(1));
+		state.new_contract(&x1, U256::zero(), U256::from(1)).unwrap();
 		state.init_code(&x1, "600160005560006000556001600055".from_hex().unwrap()).unwrap();
-		state.new_contract(&x2, U256::zero(), U256::from(1));
+		state.new_contract(&x2, U256::zero(), U256::from(1)).unwrap();
 		state.init_code(&x2, "600060005560016000556000600055".from_hex().unwrap()).unwrap();
-		state.new_contract(&y1, U256::zero(), U256::from(1));
+		state.new_contract(&y1, U256::zero(), U256::from(1)).unwrap();
 		state.init_code(&y1, "600060006000600061100062fffffff4".from_hex().unwrap()).unwrap();
-		state.new_contract(&y2, U256::zero(), U256::from(1));
+		state.new_contract(&y2, U256::zero(), U256::from(1)).unwrap();
 		state.init_code(&y2, "600060006000600061100162fffffff4".from_hex().unwrap()).unwrap();
 
 		let info = EnvInfo::default();

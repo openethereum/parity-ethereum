@@ -508,8 +508,10 @@ impl<B: Backend> State<B> {
 
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
-	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256) {
-		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, self.account_start_nonce + nonce_offset))));
+	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256) -> TrieResult<()> {
+		let original_storage_root = self.original_storage_root(contract)?;
+		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, self.account_start_nonce + nonce_offset, original_storage_root))));
+		Ok(())
 	}
 
 	/// Remove an existing account.
@@ -550,7 +552,14 @@ impl<B: Backend> State<B> {
 	/// Get the storage root of account `a`.
 	pub fn storage_root(&self, a: &Address) -> TrieResult<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
-			|a| a.as_ref().and_then(|account| account.storage_root().cloned()))
+			|a| a.as_ref().and_then(|account| account.storage_root()))
+	}
+
+	/// Get the original storage root since last commit of account `a`.
+	pub fn original_storage_root(&self, a: &Address) -> TrieResult<H256> {
+		Ok(self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map(|account| account.original_storage_root()))?
+			.unwrap_or(KECCAK_NULL_RLP))
 	}
 
 	/// Get the value of storage at a specific checkpoint.
@@ -566,9 +575,19 @@ impl<B: Backend> State<B> {
 								if let Some(value) = account.cached_storage_at(key) {
 									Ok(Some(value))
 								} else {
-									// This key has checkpoint entry, but not in the entry's cache.
-									// So it's not modified at all.
-									Ok(Some(self.original_storage_at(address, key)?))
+									// This account has checkpoint entry, but the key is not in the entry's cache. We
+									// can use original_storage_at if current account's original storage root is the
+									// same as checkpoint account's original storage root. Otherwise, we need to
+									// populate the checkpoint account. Note that the later case is not possible under
+									// current Ethereum consensus rules.
+									if account.base_storage_root() == self.original_storage_root(address)? {
+										Ok(Some(self.original_storage_at(address, key)?))
+									} else {
+										// This account (with given storage root) is definitely not in global cache,
+										// because the particular storage root must have been created after last state
+										// commitment. The only possible case for this is an empty storage.
+										Ok(Some(H256::new()))
+									}
 								}
 							},
 							None => {
@@ -578,7 +597,7 @@ impl<B: Backend> State<B> {
 						}
 					},
 					None => {
-						// The value was not cached at that checkpoint, meaning it was not modified.
+						// The value was not cached at that checkpoint, meaning it was not modified at all.
 						Ok(Some(self.original_storage_at(address, key)?))
 					},
 				}
@@ -752,13 +771,13 @@ impl<B: Backend> State<B> {
 	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.init_code(code);
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.init_code(code);
 		Ok(())
 	}
 
 	/// Reset the code of account `a` so that it is `code`.
 	pub fn reset_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.reset_code(code);
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.reset_code(code);
 		Ok(())
 	}
 
@@ -1222,7 +1241,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use hash::keccak;
+	use hash::{keccak, KECCAK_NULL_RLP};
 	use super::*;
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address};
@@ -2074,7 +2093,7 @@ mod tests {
 		let a = Address::zero();
 		let (root, db) = {
 			let mut state = get_temp_state();
-			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{}).unwrap();
+			state.require_or_from(&a, false, || Account::new_contract(42.into(), 0.into(), KECCAK_NULL_RLP), |_|{}).unwrap();
 			state.init_code(&a, vec![1, 2, 3]).unwrap();
 			assert_eq!(state.code(&a).unwrap(), Some(Arc::new(vec![1u8, 2, 3])));
 			state.commit().unwrap();
@@ -2293,7 +2312,7 @@ mod tests {
 		state.clear();
 
 		let c0 = state.checkpoint();
-		state.new_contract(&a, U256::zero(), U256::zero());
+		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
 		let c1 = state.checkpoint();
 		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
 		let c2 = state.checkpoint();
@@ -2389,7 +2408,7 @@ mod tests {
 			state.add_balance(&b, &100.into(), CleanupMode::ForceCreate).unwrap(); // create a dust account
 			state.add_balance(&c, &101.into(), CleanupMode::ForceCreate).unwrap(); // create a normal account
 			state.add_balance(&d, &99.into(), CleanupMode::ForceCreate).unwrap(); // create another dust account
-			state.new_contract(&e, 100.into(), 1.into()); // create a contract account
+			state.new_contract(&e, 100.into(), 1.into()).unwrap(); // create a contract account
 			state.init_code(&e, vec![0x00]).unwrap();
 			state.commit().unwrap();
 			state.drop()
