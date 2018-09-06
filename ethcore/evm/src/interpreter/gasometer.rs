@@ -124,7 +124,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				let address = H256::from(stack.peek(0));
 				let newval = stack.peek(1);
 				let val = U256::from(&*ext.storage_at(&address)?);
-				let orig = U256::from(&*ext.reverted_storage_at(&address)?);
+				let orig = U256::from(&*ext.initial_storage_at(&address)?);
 
 				let gas = if schedule.eip1283 {
 					calculate_eip1283_sstore_gas(schedule, &orig, &val, &newval)
@@ -397,7 +397,7 @@ pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, c
 				// 2.1.2. Otherwise, 5000 gas is deducted.
 				if new.is_zero() {
 					// 2.1.2.1. If new value is 0, add 15000 gas to refund counter.
-					ext.inc_sstore_refund(sstore_clears_schedule);
+					ext.add_sstore_refund(sstore_clears_schedule);
 				}
 			}
 		} else {
@@ -407,10 +407,10 @@ pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, c
 				// 2.2.1. If original value is not 0
 				if current.is_zero() {
 					// 2.2.1.1. If current value is 0 (also means that new value is not 0), remove 15000 gas from refund counter. We can prove that refund counter will never go below 0.
-					ext.dec_sstore_refund(sstore_clears_schedule);
+					ext.sub_sstore_refund(sstore_clears_schedule);
 				} else if new.is_zero() {
 					// 2.2.1.2. If new value is 0 (also means that current value is not 0), add 15000 gas to refund counter.
-					ext.inc_sstore_refund(sstore_clears_schedule);
+					ext.add_sstore_refund(sstore_clears_schedule);
 				}
 			}
 
@@ -419,11 +419,11 @@ pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, c
 				if original.is_zero() {
 					// 2.2.2.1. If original value is 0, add 19800 gas to refund counter.
 					let refund = U256::from(ext.schedule().sstore_set_gas - ext.schedule().sload_gas);
-					ext.inc_sstore_refund(refund);
+					ext.add_sstore_refund(refund);
 				} else {
 					// 2.2.2.2. Otherwise, add 4800 gas to refund counter.
 					let refund = U256::from(ext.schedule().sstore_reset_gas - ext.schedule().sload_gas);
-					ext.inc_sstore_refund(refund);
+					ext.add_sstore_refund(refund);
 				}
 			}
 		}

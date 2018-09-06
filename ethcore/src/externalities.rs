@@ -113,7 +113,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
-	fn reverted_storage_at(&self, key: &H256) -> vm::Result<H256> {
+	fn initial_storage_at(&self, key: &H256) -> vm::Result<H256> {
 		self.state.checkpoint_storage_at(0, &self.origin_info.address, key).map(|v| v.unwrap_or(H256::zero())).map_err(Into::into)
 	}
 
@@ -394,11 +394,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		self.depth
 	}
 
-	fn inc_sstore_refund(&mut self, value: U256) {
+	fn add_sstore_refund(&mut self, value: U256) {
 		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund.saturating_add(value);
 	}
 
-	fn dec_sstore_refund(&mut self, value: U256) {
+	fn sub_sstore_refund(&mut self, value: U256) {
 		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund.saturating_sub(value);
 	}
 

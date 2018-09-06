@@ -64,7 +64,7 @@ pub enum CreateContractAddress {
 /// Externalities interface for EVMs
 pub trait Ext {
 	/// Returns the storage value for a given key if reversion happens on the current transaction.
-	fn reverted_storage_at(&self, key: &H256) -> Result<H256>;
+	fn initial_storage_at(&self, key: &H256) -> Result<H256>;
 
 	/// Returns a value for given key.
 	fn storage_at(&self, key: &H256) -> Result<H256>;
@@ -140,10 +140,10 @@ pub trait Ext {
 	fn depth(&self) -> usize;
 
 	/// Increments sstore refunds counter.
-	fn inc_sstore_refund(&mut self, value: U256);
+	fn add_sstore_refund(&mut self, value: U256);
 
 	/// Decrements sstore refunds counter.
-	fn dec_sstore_refund(&mut self, value: U256);
+	fn sub_sstore_refund(&mut self, value: U256);
 
 	/// Decide if any more operations should be traced. Passthrough for the VM trace.
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }

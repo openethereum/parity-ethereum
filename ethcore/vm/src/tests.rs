@@ -105,7 +105,7 @@ impl FakeExt {
 }
 
 impl Ext for FakeExt {
-	fn reverted_storage_at(&self, _key: &H256) -> Result<H256> {
+	fn initial_storage_at(&self, _key: &H256) -> Result<H256> {
 		Ok(H256::new())
 	}
 
@@ -220,11 +220,11 @@ impl Ext for FakeExt {
 		self.is_static
 	}
 
-	fn inc_sstore_refund(&mut self, value: U256) {
+	fn add_sstore_refund(&mut self, value: U256) {
 		self.sstore_clears = self.sstore_clears + value;
 	}
 
-	fn dec_sstore_refund(&mut self, value: U256) {
+	fn sub_sstore_refund(&mut self, value: U256) {
 		self.sstore_clears = self.sstore_clears - value;
 	}
 
