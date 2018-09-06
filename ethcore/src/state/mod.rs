@@ -573,51 +573,45 @@ impl<B: Backend> State<B> {
 
 		let (checkpoints_len, kind) = {
 			let checkpoints = self.checkpoints.borrow();
-			(checkpoints.len(),
-			 if let Some(ref checkpoint) = checkpoints.get(checkpoint_index) {
-				 if let Some(entry) = checkpoint.get(address) {
-					 match entry {
-						 Some(entry) => {
-							 match entry.account {
-								 Some(ref account) => {
-									 if let Some(value) = account.cached_storage_at(key) {
-										 return Ok(Some(value));
-									 } else {
-										 // This account has checkpoint entry, but the key is not in the entry's cache. We
-										 // can use original_storage_at if current account's original storage root is the
-										 // same as checkpoint account's original storage root. Otherwise, we need to
-										 // populate the checkpoint account. Note that the later case is not possible under
-										 // current Ethereum consensus rules.
-										 if account.base_storage_root() == self.original_storage_root(address)? {
-											 ReturnKind::OriginalAt
-										 } else {
-											 // If account base storage root is different from the original storage root
-											 // since last commit, then it can only be created from a new contract, where the
-											 // base storage root would always be empty. Note that this branch is actually
-											 // never called, because `cached_storage_at` handled this case.
-											 return Ok(Some(H256::new()));
-										 }
-									 }
-								 },
-								 None => {
-									 // The account didn't exist at that point. Return empty value.
-									 return Ok(Some(H256::new()));
-								 },
-							 }
-						 },
-						 None => {
-							 // The value was not cached at that checkpoint, meaning it was not modified at all.
-							 ReturnKind::OriginalAt
-						 },
-					 }
-				 } else {
-					 // This key does not have a checkpoint entry.
-					 ReturnKind::Downward
-				 }
-			 } else {
-				 // The checkpoint was not found. Return None.
-				 return Ok(None);
-			 })
+			let checkpoints_len = checkpoints.len();
+			let checkpoint = match checkpoints.get(checkpoint_index) {
+				Some(checkpoint) => checkpoint,
+				// The checkpoint was not found. Return None.
+				None => return Ok(None),
+			};
+
+			let kind = match checkpoint.get(address) {
+				// The account exists at this checkpoint.
+				Some(Some(AccountEntry { account: Some(ref account), .. })) => {
+					if let Some(value) = account.cached_storage_at(key) {
+						return Ok(Some(value));
+					} else {
+						// This account has checkpoint entry, but the key is not in the entry's cache. We can use
+						// original_storage_at if current account's original storage root is the same as checkpoint
+						// account's original storage root. Otherwise, we need to populate the checkpoint account. Note
+						// that the later case is not possible under current Ethereum consensus rules.
+						if account.base_storage_root() == self.original_storage_root(address)? {
+							ReturnKind::OriginalAt
+						} else {
+							// If account base storage root is different from the original storage root since last
+							// commit, then it can only be created from a new contract, where the base storage root
+							// would always be empty. Note that this branch is actually never called, because
+							// `cached_storage_at` handled this case.
+							return Ok(Some(H256::new()));
+						}
+					}
+				},
+				// The account didn't exist at that point. Return empty value.
+				Some(Some(AccountEntry { account: None, .. })) => {
+					return Ok(Some(H256::new()));
+				},
+				// The value was not cached at that checkpoint, meaning it was not modified at all.
+				Some(None) => ReturnKind::OriginalAt,
+				// This key does not have a checkpoint entry.
+				None => ReturnKind::Downward,
+			};
+
+			(checkpoints_len, kind)
 		};
 
 		match kind {
