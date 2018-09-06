@@ -43,7 +43,7 @@ use jsonrpc_macros::Trailing;
 
 use v1::helpers::{errors, limit_logs, fake_sign};
 use v1::helpers::dispatch::{FullDispatcher, default_gas_price};
-use v1::helpers::block_import::is_major_importing;
+use v1::helpers::block_import::{is_major_importing, is_warp_syncing};
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
@@ -740,7 +740,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			let queue_info = self.client.queue_info();
 			let total_queue_size = queue_info.total_queue_size();
 
-			if is_major_importing(Some(sync_status.state), queue_info) || total_queue_size > MAX_QUEUE_SIZE_TO_MINE_ON {
+			if is_warp_syncing(Some(sync_status.state)) || total_queue_size > MAX_QUEUE_SIZE_TO_MINE_ON {
 				trace!(target: "miner", "Syncing. Cannot give any work.");
 				return Err(errors::no_work());
 			}
