@@ -583,9 +583,10 @@ impl<B: Backend> State<B> {
 									if account.base_storage_root() == self.original_storage_root(address)? {
 										Ok(Some(self.original_storage_at(address, key)?))
 									} else {
-										// This account (with given storage root) is definitely not in global cache,
-										// because the particular storage root must have been created after last state
-										// commitment. The only possible case for this is an empty storage.
+										// If account base storage root is different from the original storage root
+										// since last commit, then it can only be created from a new contract, where the
+										// base storage root would always be empty. Note that this branch is actually
+										// never called, because `cached_storage_at` handled this case.
 										Ok(Some(H256::new()))
 									}
 								}
