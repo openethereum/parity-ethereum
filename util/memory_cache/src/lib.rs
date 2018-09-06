@@ -91,7 +91,6 @@ impl<K: Eq + Hash, V: HeapSizeOf> MemoryLruCache<K, V> {
 	pub fn backstore(&self) -> &LruCache<K, V> {
 		&self.inner
 	}
-
 }
 
 #[cfg(test)]
