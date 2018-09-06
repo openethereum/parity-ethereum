@@ -564,55 +564,71 @@ impl<B: Backend> State<B> {
 
 	/// Get the value of storage at a specific checkpoint.
 	pub fn checkpoint_storage_at(&self, checkpoint_index: usize, address: &Address, key: &H256) -> TrieResult<Option<H256>> {
-		let checkpoints = self.checkpoints.borrow();
-		let checkpoints_len = checkpoints.len();
-		if let Some(ref checkpoint) = checkpoints.get(checkpoint_index) {
-			if let Some(entry) = checkpoint.get(address) {
-				match entry {
-					Some(entry) => {
-						match entry.account {
-							Some(ref account) => {
-								if let Some(value) = account.cached_storage_at(key) {
-									Ok(Some(value))
-								} else {
-									// This account has checkpoint entry, but the key is not in the entry's cache. We
-									// can use original_storage_at if current account's original storage root is the
-									// same as checkpoint account's original storage root. Otherwise, we need to
-									// populate the checkpoint account. Note that the later case is not possible under
-									// current Ethereum consensus rules.
-									if account.base_storage_root() == self.original_storage_root(address)? {
-										Ok(Some(self.original_storage_at(address, key)?))
-									} else {
-										// If account base storage root is different from the original storage root
-										// since last commit, then it can only be created from a new contract, where the
-										// base storage root would always be empty. Note that this branch is actually
-										// never called, because `cached_storage_at` handled this case.
-										Ok(Some(H256::new()))
-									}
-								}
-							},
-							None => {
-								// The account didn't exist at that point. Return empty value.
-								Ok(Some(H256::new()))
-							},
-						}
-					},
-					None => {
-						// The value was not cached at that checkpoint, meaning it was not modified at all.
-						Ok(Some(self.original_storage_at(address, key)?))
-					},
-				}
-			} else {
-				// This key does not have a checkpoint entry.
+		enum ReturnKind {
+			/// Use original storage at value at this address.
+			OriginalAt,
+			/// Use the downward checkpoint value.
+			Downward,
+		}
+
+		let (checkpoints_len, kind) = {
+			let checkpoints = self.checkpoints.borrow();
+			(checkpoints.len(),
+			 if let Some(ref checkpoint) = checkpoints.get(checkpoint_index) {
+				 if let Some(entry) = checkpoint.get(address) {
+					 match entry {
+						 Some(entry) => {
+							 match entry.account {
+								 Some(ref account) => {
+									 if let Some(value) = account.cached_storage_at(key) {
+										 return Ok(Some(value));
+									 } else {
+										 // This account has checkpoint entry, but the key is not in the entry's cache. We
+										 // can use original_storage_at if current account's original storage root is the
+										 // same as checkpoint account's original storage root. Otherwise, we need to
+										 // populate the checkpoint account. Note that the later case is not possible under
+										 // current Ethereum consensus rules.
+										 if account.base_storage_root() == self.original_storage_root(address)? {
+											 ReturnKind::OriginalAt
+										 } else {
+											 // If account base storage root is different from the original storage root
+											 // since last commit, then it can only be created from a new contract, where the
+											 // base storage root would always be empty. Note that this branch is actually
+											 // never called, because `cached_storage_at` handled this case.
+											 return Ok(Some(H256::new()));
+										 }
+									 }
+								 },
+								 None => {
+									 // The account didn't exist at that point. Return empty value.
+									 return Ok(Some(H256::new()));
+								 },
+							 }
+						 },
+						 None => {
+							 // The value was not cached at that checkpoint, meaning it was not modified at all.
+							 ReturnKind::OriginalAt
+						 },
+					 }
+				 } else {
+					 // This key does not have a checkpoint entry.
+					 ReturnKind::Downward
+				 }
+			 } else {
+				 // The checkpoint was not found. Return None.
+				 return Ok(None);
+			 })
+		};
+
+		match kind {
+			ReturnKind::Downward => {
 				if checkpoint_index >= checkpoints_len - 1 {
 					Ok(Some(self.storage_at(address, key)?))
 				} else {
 					self.checkpoint_storage_at(checkpoint_index + 1, address, key)
 				}
-			}
-		} else {
-			// The checkpoint was not found. Return None.
-			Ok(None)
+			},
+			ReturnKind::OriginalAt => Ok(Some(self.original_storage_at(address, key)?)),
 		}
 	}
 
