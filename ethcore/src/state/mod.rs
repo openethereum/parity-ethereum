@@ -45,6 +45,7 @@ use factory::VmFactory;
 use ethereum_types::{H256, U256, Address};
 use hashdb::{HashDB, AsHashDB};
 use keccak_hasher::KeccakHasher;
+use im;
 use kvdb::DBValue;
 use bytes::Bytes;
 
@@ -481,7 +482,7 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Destroy the current object and return single account data.
-	pub fn into_account(self, account: &Address) -> TrieResult<(Option<Arc<Bytes>>, HashMap<H256, H256>)> {
+	pub fn into_account(self, account: &Address) -> TrieResult<(Option<Arc<Bytes>>, im::HashMap<H256, H256>)> {
 		// TODO: deconstruct without cloning.
 		let account = self.require(account, true)?;
 		Ok((account.code().clone(), account.storage_changes().clone()))
@@ -1052,7 +1053,7 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Replace account code and storage. Creates account if it does not exist.
-	pub fn patch_account(&self, a: &Address, code: Arc<Bytes>, storage: HashMap<H256, H256>) -> TrieResult<()> {
+	pub fn patch_account(&self, a: &Address, code: Arc<Bytes>, storage: im::HashMap<H256, H256>) -> TrieResult<()> {
 		Ok(self.require(a, false)?.reset_code_and_storage(code, storage))
 	}
 }
