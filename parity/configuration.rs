@@ -33,6 +33,7 @@ use ethcore::miner::{stratum, MinerOptions};
 use ethcore::snapshot::SnapshotConfiguration;
 use ethcore::verification::queue::VerifierSettings;
 use miner::pool;
+use num_cpus;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
@@ -899,7 +900,7 @@ impl Configuration {
 			no_periodic: self.args.flag_no_periodic_snapshot,
 			processing_threads: match self.args.arg_snapshot_threads {
 				Some(threads) if threads > 0 => threads,
-				_ => 1,
+				_ => ::std::cmp::max(1, num_cpus::get() / 2),
 			},
 		};
 
