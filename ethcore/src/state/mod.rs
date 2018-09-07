@@ -918,6 +918,7 @@ impl<B: Backend> State<B> {
 
 	/// Clear state cache
 	pub fn clear(&mut self) {
+		assert!(self.checkpoints.borrow().is_empty());
 		self.cache.borrow_mut().clear();
 	}
 
@@ -2306,6 +2307,25 @@ mod tests {
 		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.revert_to_checkpoint();
 		assert_eq!(state.balance(&a).unwrap(), U256::from(0));
+	}
+
+	#[test]
+	fn checkpoint_revert_to_get_storage_at() {
+		let mut state = get_temp_state();
+		let a = Address::zero();
+		let k = H256::from(U256::from(0));
+
+		let c0 = state.checkpoint();
+		let c1 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
+
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(1)));
+
+		state.revert_to_checkpoint(); // Revert to c1.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0)));
 	}
 
 	#[test]
