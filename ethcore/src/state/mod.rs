@@ -601,9 +601,7 @@ impl<B: Backend> State<B> {
 					}
 				},
 				// The account didn't exist at that point. Return empty value.
-				Some(Some(AccountEntry { account: None, .. })) => {
-					return Ok(Some(H256::new()));
-				},
+				Some(Some(AccountEntry { account: None, .. })) => return Ok(Some(H256::new())),
 				// The value was not cached at that checkpoint, meaning it was not modified at all.
 				Some(None) => ReturnKind::OriginalAt,
 				// This key does not have a checkpoint entry.
