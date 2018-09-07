@@ -589,7 +589,7 @@ impl Service {
 		// TODO: be able to process block chunks and state chunks at same time?
 		let mut restoration = self.restoration.lock();
 		match self.feed_chunk_with_restoration(&mut restoration, hash, chunk, is_state) {
-			Ok(()) => (),
+			Ok(()) |
 			Err(Error(SnapshotErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => (),
 			Err(e) => {
 				warn!("Encountered error during snapshot restoration: {}", e);
