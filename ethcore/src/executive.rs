@@ -1620,6 +1620,8 @@ mod tests {
 		let x2 = Address::from(0x1001);
 		let y1 = Address::from(0x2001);
 		let y2 = Address::from(0x2002);
+		let operating_address = Address::from(0);
+		let k = H256::new();
 
 		let mut state = get_temp_state_with_factory(factory.clone());
 		state.new_contract(&x1, U256::zero(), U256::from(1)).unwrap();
@@ -1635,6 +1637,7 @@ mod tests {
 		let machine = ::ethereum::new_constantinople_test_machine();
 		let schedule = machine.schedule(info.number);
 
+		assert_eq!(state.storage_at(&operating_address, &k).unwrap(), H256::from(U256::from(0)));
 		// Test a call via top-level -> y1 -> x1
 		let (FinalizationResult { gas_left, .. }, refund, gas) = {
 			let gas = U256::from(0xffffffffffu64);
@@ -1652,6 +1655,7 @@ mod tests {
 		assert_eq!(gas_used, U256::from(41860));
 		assert_eq!(refund, U256::from(19800));
 
+		assert_eq!(state.storage_at(&operating_address, &k).unwrap(), H256::from(U256::from(1)));
 		// Test a call via top-level -> y2 -> x2
 		let (FinalizationResult { gas_left, .. }, refund, gas) = {
 			let gas = U256::from(0xffffffffffu64);
