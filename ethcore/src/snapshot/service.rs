@@ -368,16 +368,18 @@ impl Service {
 			let next_available_from = next_chain_info.first_block_number?;
 			let cur_available_to = cur_chain_info.ancient_block_number.unwrap_or(cur_chain_info.best_block_number);
 
-			let target_block_num = cmp::min(next_available_from.saturating_sub(1), cur_available_to);
+			let highest_block_num = cmp::min(next_available_from.saturating_sub(1), cur_available_to);
 
-			if target_block_num == 0 {
+			if highest_block_num == 0 {
 				return None;
 			}
 
-			trace!(target: "snapshot", "Trying to import ancient blocks until {}", target_block_num);
+			trace!(target: "snapshot", "Trying to import ancient blocks until {}", highest_block_num);
 
+			// Here we start from the highest block number and go backward to 0,
+			// thus starting at `highest_block_num` and targetting `0`.
 			let target_hash = self.client.block_hash(BlockId::Number(0))?;
-			let start_hash = self.client.block_hash(BlockId::Number(target_block_num))?;
+			let start_hash = self.client.block_hash(BlockId::Number(highest_block_num))?;
 
 			Some((start_hash, target_hash))
 		};
