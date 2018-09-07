@@ -30,6 +30,7 @@ use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError,
 use ethcore::error::{ImportErrorKind, BlockImportErrorKind};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
+use ethcore::verification::queue::kind::blocks::Unverified;
 use ethcore_service::ClientService;
 use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
@@ -417,8 +418,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {
+		let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
-		match client.import_block(bytes) {
+		match client.import_block(block) {
 			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 				trace!("Skipping block already in chain.");
 			}
@@ -474,8 +476,8 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		(report.blocks_imported * 1000) as u64 / ms,
 		report.transactions_applied,
 		(report.transactions_applied * 1000) as u64 / ms,
-		report.gas_processed / From::from(1_000_000),
-		(report.gas_processed / From::from(ms * 1000)).low_u64(),
+		report.gas_processed / 1_000_000,
+		(report.gas_processed / (ms * 1000)).low_u64(),
 	);
 	Ok(())
 }

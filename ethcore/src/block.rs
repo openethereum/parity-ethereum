@@ -40,7 +40,7 @@ use engines::EthEngine;
 use error::{Error, BlockError};
 use ethereum_types::{H256, U256, Address, Bloom};
 use factory::Factories;
-use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
+use hash::keccak;
 use header::{Header, ExtendedHeader};
 use receipt::{Receipt, TransactionOutcome};
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
@@ -51,7 +51,6 @@ use transaction::{UnverifiedTransaction, SignedTransaction, Error as Transaction
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
 use verification::PreverifiedBlock;
-use views::BlockView;
 use vm::{EnvInfo, LastHashes};
 
 /// A block, encoded as it is on the block chain.
@@ -66,11 +65,6 @@ pub struct Block {
 }
 
 impl Block {
-	/// Returns true if the given bytes form a valid encoding of a block in RLP.
-	pub fn is_good(b: &[u8]) -> bool {
-		Rlp::new(b).as_val::<Block>().is_ok()
-	}
-
 	/// Get the RLP-encoding of the block with the seal.
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
@@ -398,26 +392,11 @@ impl<'x> OpenBlock<'x> {
 
 	/// Turn this into a `ClosedBlock`.
 	pub fn close(self) -> Result<ClosedBlock, Error> {
-		let mut s = self;
-
-		let unclosed_state = s.block.state.clone();
-
-		s.engine.on_close_block(&mut s.block)?;
-		s.block.state.commit()?;
-
-		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
-		let uncle_bytes = encode_list(&s.block.uncles);
-		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
-		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {
-			b.accrue_bloom(&r.log_bloom);
-			b
-		}));
-		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
+		let unclosed_state = self.block.state.clone();
+		let locked = self.close_and_lock()?;
 
 		Ok(ClosedBlock {
-			block: s.block,
+			block: locked.block,
 			unclosed_state,
 		})
 	}
@@ -429,18 +408,11 @@ impl<'x> OpenBlock<'x> {
 		s.engine.on_close_block(&mut s.block)?;
 		s.block.state.commit()?;
 
-		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
-			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
-		}
-		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &KECCAK_EMPTY_LIST_RLP {
-			let uncle_bytes = encode_list(&s.block.uncles);
-			s.block.header.set_uncles_hash(keccak(&uncle_bytes));
-		}
-		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &KECCAK_NULL_RLP {
-			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
-		}
-
+		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
+		let uncle_bytes = encode_list(&s.block.uncles);
+		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
+		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
 		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {
 			b.accrue_bloom(&r.log_bloom);
 			b
@@ -537,18 +509,16 @@ impl LockedBlock {
 		self,
 		engine: &EthEngine,
 		seal: Vec<Bytes>,
-	) -> Result<SealedBlock, (Error, LockedBlock)> {
+	) -> Result<SealedBlock, Error> {
 		let mut s = self;
 		s.block.header.set_seal(seal);
 		s.block.header.compute_hash();
 
 		// TODO: passing state context to avoid engines owning it?
-		match engine.verify_local_seal(&s.block.header) {
-			Err(e) => Err((e, s)),
-			_ => Ok(SealedBlock {
-				block: s.block
-			}),
-		}
+		engine.verify_local_seal(&s.block.header)?;
+		Ok(SealedBlock {
+			block: s.block
+		})
 	}
 }
 
@@ -594,7 +564,7 @@ fn enact(
 	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
 	{
-		if ::log::max_log_level() >= ::log::LogLevel::Trace {
+		if ::log::max_level() >= ::log::Level::Trace {
 			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
 			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
 				header.number(), s.root(), header.author(), s.balance(&header.author())?);
@@ -637,12 +607,11 @@ pub fn enact_verified(
 	is_epoch_begin: bool,
 	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
-	let view = view!(BlockView, &block.bytes);
 
 	enact(
 		block.header,
 		block.transactions,
-		view.uncles(),
+		block.uncles,
 		engine,
 		tracing,
 		db,
@@ -668,10 +637,11 @@ mod tests {
 	use ethereum_types::Address;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
+	use verification::queue::kind::blocks::Unverified;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
-		block_bytes: &[u8],
+		block_bytes: Vec<u8>,
 		engine: &EthEngine,
 		tracing: bool,
 		db: StateDB,
@@ -679,10 +649,10 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
-		let block = view!(BlockView, block_bytes);
-		let header = block.header();
+		let block = Unverified::from_rlp(block_bytes)?;
+		let header = block.header;
 		let transactions: Result<Vec<_>, Error> = block
-			.transactions()
+			.transactions
 			.into_iter()
 			.map(SignedTransaction::new)
 			.map(|r| r.map_err(Into::into))
@@ -690,7 +660,7 @@ mod tests {
 		let transactions = transactions?;
 
 		{
-			if ::log::max_log_level() >= ::log::LogLevel::Trace {
+			if ::log::max_level() >= ::log::Level::Trace {
 				let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
 				trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
 					header.number(), s.root(), header.author(), s.balance(&header.author())?);
@@ -714,8 +684,8 @@ mod tests {
 		b.populate_from(&header);
 		b.push_transactions(transactions)?;
 
-		for u in &block.uncles() {
-			b.push_uncle(u.clone())?;
+		for u in block.uncles {
+			b.push_uncle(u)?;
 		}
 
 		b.close_and_lock()
@@ -723,7 +693,7 @@ mod tests {
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
 	fn enact_and_seal(
-		block_bytes: &[u8],
+		block_bytes: Vec<u8>,
 		engine: &EthEngine,
 		tracing: bool,
 		db: StateDB,
@@ -731,8 +701,9 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
-		let header = view!(BlockView, block_bytes).header_view();
-		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?.seal(engine, header.seal())?)
+		let header = Unverified::from_rlp(block_bytes.clone())?.header;
+		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
+		   .seal(engine, header.seal().to_vec())?)
 	}
 
 	#[test]
@@ -762,7 +733,7 @@ mod tests {
 		let orig_db = b.drain().state.drop().1;
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
-		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
+		let e = enact_and_seal(orig_bytes.clone(), engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 
@@ -793,7 +764,7 @@ mod tests {
 		let orig_db = b.drain().state.drop().1;
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
-		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
+		let e = enact_and_seal(orig_bytes.clone(), engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);

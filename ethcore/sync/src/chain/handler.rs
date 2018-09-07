@@ -19,8 +19,9 @@ use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAc
 use bytes::Bytes;
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
 use ethcore::error::*;
-use ethcore::header::{BlockNumber, Header as BlockHeader};
+use ethcore::header::BlockNumber;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
+use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
@@ -162,44 +163,43 @@ impl SyncHandler {
 				peer.difficulty = Some(difficulty);
 			}
 		}
-		let block_rlp = r.at(0)?;
-		let header_rlp = block_rlp.at(0)?;
-		let h = keccak(&header_rlp.as_raw());
-		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		let header: BlockHeader = header_rlp.as_val()?;
-		if header.number() > sync.highest_block.unwrap_or(0) {
-			sync.highest_block = Some(header.number());
+		let block = Unverified::from_rlp(r.at(0)?.as_raw().to_vec())?;
+		let hash = block.header.hash();
+		let number = block.header.number();
+		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, hash);
+		if number > sync.highest_block.unwrap_or(0) {
+			sync.highest_block = Some(number);
 		}
 		let mut unknown = false;
-		{
-			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-				peer.latest_hash = header.hash();
-			}
+
+		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+			peer.latest_hash = hash;
 		}
+
 		let last_imported_number = sync.new_blocks.last_imported_block_number();
-		if last_imported_number > header.number() && last_imported_number - header.number() > MAX_NEW_BLOCK_AGE {
-			trace!(target: "sync", "Ignored ancient new block {:?}", h);
+		if last_imported_number > number && last_imported_number - number > MAX_NEW_BLOCK_AGE {
+			trace!(target: "sync", "Ignored ancient new block {:?}", hash);
 			return Err(DownloaderImportError::Invalid);
 		}
-		match io.chain().import_block(block_rlp.as_raw().to_vec()) {
+		match io.chain().import_block(block) {
 			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
-				trace!(target: "sync", "New block already in chain {:?}", h);
+				trace!(target: "sync", "New block already in chain {:?}", hash);
 			},
 			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
-				trace!(target: "sync", "New block already queued {:?}", h);
+				trace!(target: "sync", "New block already queued {:?}", hash);
 			},
 			Ok(_) => {
 				// abort current download of the same block
 				sync.complete_sync(io);
-				sync.new_blocks.mark_as_known(&header.hash(), header.number());
-				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
+				sync.new_blocks.mark_as_known(&hash, number);
+				trace!(target: "sync", "New block queued {:?} ({})", hash, number);
 			},
 			Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(p)), _)) => {
 				unknown = true;
-				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
+				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, hash);
 			},
 			Err(e) => {
-				debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
+				debug!(target: "sync", "Bad new block {:?} : {:?}", hash, e);
 				return Err(DownloaderImportError::Invalid);
 			}
 		};
@@ -207,7 +207,7 @@ impl SyncHandler {
 			if sync.state != SyncState::Idle {
 				trace!(target: "sync", "NewBlock ignored while seeking");
 			} else {
-				trace!(target: "sync", "New unknown block {:?}", h);
+				trace!(target: "sync", "New unknown block {:?}", hash);
 				//TODO: handle too many unknown blocks
 				sync.sync_peer(io, peer_id, true);
 			}
@@ -261,7 +261,7 @@ impl SyncHandler {
 				BlockStatus::Queued => {
 					trace!(target: "sync", "New hash block already queued {:?}", hash);
 				},
-				BlockStatus::Unknown | BlockStatus::Pending => {
+				BlockStatus::Unknown => {
 					new_hashes.push(hash.clone());
 					if number > max_height {
 						trace!(target: "sync", "New unknown block hash {:?}", hash);
@@ -552,6 +552,7 @@ impl SyncHandler {
 			asking_hash: None,
 			ask_time: Instant::now(),
 			last_sent_transactions: HashSet::new(),
+			last_sent_private_transactions: HashSet::new(),
 			expired: false,
 			confirmation: if sync.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
 			asking_snapshot_data: None,
@@ -631,21 +632,29 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us signed private transaction packet
-	fn on_signed_private_transaction(sync: &ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_signed_private_transaction(sync: &mut ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
 
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
-		if let Err(e) = sync.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
-			trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
-		}
+		match sync.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
+			Ok(transaction_hash) => {
+				//don't send the packet back
+				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+					peer.last_sent_private_transactions.insert(transaction_hash);
+				}
+			},
+			Err(e) => {
+				trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
+			}
+ 		}
 		Ok(())
 	}
 
 	/// Called when peer sends us new private transaction packet
-	fn on_private_transaction(sync: &ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	fn on_private_transaction(sync: &mut ChainSync, _io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
@@ -653,9 +662,17 @@ impl SyncHandler {
 
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
 
-		if let Err(e) = sync.private_tx_handler.import_private_transaction(r.as_raw()) {
-			trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
-		}
+		match sync.private_tx_handler.import_private_transaction(r.as_raw()) {
+			Ok(transaction_hash) => {
+				//don't send the packet back
+				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+					peer.last_sent_private_transactions.insert(transaction_hash);
+				}
+			},
+			Err(e) => {
+				trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
+			}
+ 		}
 		Ok(())
 	}
 }

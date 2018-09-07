@@ -178,8 +178,7 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
-		let block_number = self.client.best_block_header().number();
-		RpcRichRawTransaction::from_signed(signed_transaction, block_number, self.client.eip86_transition())
+		RpcRichRawTransaction::from_signed(signed_transaction)
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256> {
@@ -347,7 +346,7 @@ impl Dispatcher for LightDispatcher {
 				to: request.to,
 				nonce: request.nonce,
 				gas_price: gas_price,
-				gas: request.gas.unwrap_or_else(|| gas_limit / 3.into()),
+				gas: request.gas.unwrap_or_else(|| gas_limit / 3),
 				value: request.value.unwrap_or_else(|| 0.into()),
 				data: request.data.unwrap_or_else(Vec::new),
 				condition: request.condition,
@@ -405,8 +404,7 @@ impl Dispatcher for LightDispatcher {
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
-		let block_number = self.client.best_block_header().number();
-		RpcRichRawTransaction::from_signed(signed_transaction, block_number, self.client.eip86_transition())
+		RpcRichRawTransaction::from_signed(signed_transaction)
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256> {

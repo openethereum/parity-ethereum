@@ -339,7 +339,7 @@ fn should_add_sign_transaction_to_the_queue() {
 			// respond
 			let sender = signer.take(&1.into()).unwrap();
 			signer.request_confirmed(sender, Ok(ConfirmationResponse::SignTransaction(
-				RichRawTransaction::from_signed(t.into(), 0x0, u64::max_value())
+				RichRawTransaction::from_signed(t.into())
 			)));
 			break
 		}

@@ -33,6 +33,7 @@ use views::BlockView;
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 use test_helpers;
+use verification::queue::kind::blocks::Unverified;
 
 #[test]
 fn can_trace_block_and_uncle_reward() {
@@ -91,7 +92,7 @@ fn can_trace_block_and_uncle_reward() {
 
 	let root_block = root_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
-	if let Err(e) = client.import_block(root_block.rlp_bytes()) {
+	if let Err(e) = client.import_block(Unverified::from_rlp(root_block.rlp_bytes()).unwrap()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
@@ -120,7 +121,7 @@ fn can_trace_block_and_uncle_reward() {
 
 	let parent_block = parent_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
-	if let Err(e) = client.import_block(parent_block.rlp_bytes()) {
+	if let Err(e) = client.import_block(Unverified::from_rlp(parent_block.rlp_bytes()).unwrap()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
@@ -170,7 +171,7 @@ fn can_trace_block_and_uncle_reward() {
 
 	let block = block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
-	let res = client.import_block(block.rlp_bytes());
+	let res = client.import_block(Unverified::from_rlp(block.rlp_bytes()).unwrap());
 	if res.is_err() {
 		panic!("error importing block: {:#?}", res.err().unwrap());
 	}

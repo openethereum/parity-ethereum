@@ -119,6 +119,7 @@ mod tests {
 		assert_eq!(logs1, Params::Logs(Filter {
 			from_block: None,
 			to_block: None,
+			block_hash: None,
 			address: None,
 			topics: None,
 			limit: None,
@@ -126,6 +127,7 @@ mod tests {
 		assert_eq!(logs2, Params::Logs(Filter {
 			from_block: None,
 			to_block: None,
+			block_hash: None,
 			address: None,
 			topics: None,
 			limit: Some(10),
@@ -133,6 +135,7 @@ mod tests {
 		assert_eq!(logs3, Params::Logs(Filter {
 			from_block: None,
 			to_block: None,
+			block_hash: None,
 			address: None,
 			topics: Some(vec![
 				VariadicValue::Single("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b".parse().unwrap()

@@ -14,23 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Transaction Pool options.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Options {
-	/// Maximal number of transactions in the pool.
-	pub max_count: usize,
-	/// Maximal number of transactions from single sender.
-	pub max_per_sender: usize,
-	/// Maximal memory usage.
-	pub max_mem_usage: usize,
-}
+//! Provides a `H256FastMap` type with H256 keys and fast hashing function.
 
-impl Default for Options {
-	fn default() -> Self {
-		Options {
-			max_count: 1024,
-			max_per_sender: 16,
-			max_mem_usage: 8 * 1024 * 1024,
-		}
-	}
+extern crate ethereum_types;
+extern crate plain_hasher;
+
+use ethereum_types::H256;
+use std::hash;
+use std::collections::HashMap;
+use plain_hasher::PlainHasher;
+
+/// Specialized version of `HashMap` with H256 keys and fast hashing function.
+pub type H256FastMap<T> = HashMap<H256, T, hash::BuildHasherDefault<PlainHasher>>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_works() {
+        let mut h = H256FastMap::default();
+        h.insert(H256::from(123), "abc");
+    }
 }

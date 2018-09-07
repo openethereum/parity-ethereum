@@ -29,17 +29,13 @@ use transaction::SignedTransaction;
 use super::{
 	random,
 	ChainSync,
+	MAX_TRANSACTION_PACKET_SIZE,
 	MAX_PEER_LAG_PROPAGATION,
 	MAX_PEERS_PROPAGATION,
-	MAX_TRANSACTION_PACKET_SIZE,
-	MAX_TRANSACTIONS_TO_PROPAGATE,
-	MAX_TRANSACTIONS_TO_QUERY,
 	MIN_PEERS_PROPAGATION,
 	CONSENSUS_DATA_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
 	NEW_BLOCK_PACKET,
-	PRIVATE_TRANSACTION_PACKET,
-	SIGNED_PRIVATE_TRANSACTION_PACKET,
 	TRANSACTIONS_PACKET,
 };
 
@@ -121,7 +117,7 @@ impl SyncPropagator {
 			return 0;
 		}
 
-		let transactions = io.chain().ready_transactions(MAX_TRANSACTIONS_TO_QUERY);
+		let transactions = io.chain().transactions_to_propagate();
 		if transactions.is_empty() {
 			return 0;
 		}
@@ -184,7 +180,6 @@ impl SyncPropagator {
 
 					// Get hashes of all transactions to send to this peer
 					let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions)
-						.take(MAX_TRANSACTIONS_TO_PROPAGATE)
 						.cloned()
 						.collect::<HashSet<_>>();
 					if to_send.is_empty() {
@@ -240,8 +235,9 @@ impl SyncPropagator {
 			let lucky_peers_len = lucky_peers.len();
 			for (peer_id, sent, rlp) in lucky_peers {
 				peers.insert(peer_id);
+				let size = rlp.len();
 				SyncPropagator::send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
-				trace!(target: "sync", "{:02} <- Transactions ({} entries)", peer_id, sent);
+				trace!(target: "sync", "{:02} <- Transactions ({} entries; {} bytes)", peer_id, sent, size);
 				max_sent = cmp::max(max_sent, sent);
 			}
 			debug!(target: "sync", "Sent up to {} transactions to {} peers.", max_sent, lucky_peers_len);
@@ -295,20 +291,14 @@ impl SyncPropagator {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers());
+	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
+		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
 		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
-			SyncPropagator::send_packet(io, peer_id, PRIVATE_TRANSACTION_PACKET, packet.clone());
-		}
-	}
-
-	/// Broadcast signed private transaction message to peers.
-	pub fn propagate_signed_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers());
-		trace!(target: "sync", "Sending signed private transaction packet to {:?}", lucky_peers);
-		for peer_id in lucky_peers {
-			SyncPropagator::send_packet(io, peer_id, SIGNED_PRIVATE_TRANSACTION_PACKET, packet.clone());
+			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+				peer.last_sent_private_transactions.insert(transaction_hash);
+			}
+			SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
 		}
 	}
 
@@ -430,6 +420,7 @@ mod tests {
 				asking_hash: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: HashSet::new(),
+				last_sent_private_transactions: HashSet::new(),
 				expired: false,
 				confirmation: ForkConfirmation::Confirmed,
 				snapshot_number: None,

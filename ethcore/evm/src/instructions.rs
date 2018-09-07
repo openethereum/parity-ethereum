@@ -328,7 +328,7 @@ enum_with_from_u8! {
 		#[doc = "like CALLCODE but keeps caller's value and sender"]
 		DELEGATECALL = 0xf4,
 		#[doc = "create a new account and set creation address to sha3(sender + sha3(init code)) % 2**160"]
-		CREATE2 = 0xfb,
+		CREATE2 = 0xf5,
 		#[doc = "stop execution and revert state changes. Return output data."]
 		REVERT = 0xfd,
 		#[doc = "like CALL but it does not take value, nor modify the state"]
@@ -594,7 +594,7 @@ lazy_static! {
 		arr[DELEGATECALL as usize] = Some(InstructionInfo::new("DELEGATECALL", 6, 1, GasPriceTier::Special));
 		arr[STATICCALL as usize] = Some(InstructionInfo::new("STATICCALL", 6, 1, GasPriceTier::Special));
 		arr[SUICIDE as usize] = Some(InstructionInfo::new("SUICIDE", 1, 0, GasPriceTier::Special));
-		arr[CREATE2 as usize] = Some(InstructionInfo::new("CREATE2", 3, 1, GasPriceTier::Special));
+		arr[CREATE2 as usize] = Some(InstructionInfo::new("CREATE2", 4, 1, GasPriceTier::Special));
 		arr[REVERT as usize] = Some(InstructionInfo::new("REVERT", 2, 0, GasPriceTier::Zero));
 		arr
 	};

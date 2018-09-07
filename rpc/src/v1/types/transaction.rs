@@ -82,8 +82,10 @@ pub enum LocalTransactionStatus {
 	Pending,
 	/// Transaction is in future part of the queue
 	Future,
-	/// Transaction is already mined.
+	/// Transaction was mined.
 	Mined(Transaction),
+	/// Transaction was removed from the queue, but not mined.
+	Culled(Transaction),
 	/// Transaction was dropped because of limit.
 	Dropped(Transaction),
 	/// Transaction was replaced by transaction with higher gas price.
@@ -104,7 +106,7 @@ impl Serialize for LocalTransactionStatus {
 
 		let elems = match *self {
 			Pending | Future => 1,
-			Mined(..) | Dropped(..) | Invalid(..) | Canceled(..) => 2,
+			Mined(..) | Culled(..) | Dropped(..) | Invalid(..) | Canceled(..) => 2,
 			Rejected(..) => 3,
 			Replaced(..) => 4,
 		};
@@ -118,6 +120,10 @@ impl Serialize for LocalTransactionStatus {
 			Future => struc.serialize_field(status, "future")?,
 			Mined(ref tx) => {
 				struc.serialize_field(status, "mined")?;
+				struc.serialize_field(transaction, tx)?;
+			},
+			Culled(ref tx) => {
+				struc.serialize_field(status, "culled")?;
 				struc.serialize_field(transaction, tx)?;
 			},
 			Dropped(ref tx) => {
@@ -161,8 +167,8 @@ pub struct RichRawTransaction {
 
 impl RichRawTransaction {
 	/// Creates new `RichRawTransaction` from `SignedTransaction`.
-	pub fn from_signed(tx: SignedTransaction, block_number: u64, eip86_transition: u64) -> Self {
-		let tx = Transaction::from_signed(tx, block_number, eip86_transition);
+	pub fn from_signed(tx: SignedTransaction) -> Self {
+		let tx = Transaction::from_signed(tx);
 		RichRawTransaction {
 			raw: tx.raw.clone(),
 			transaction: tx,
@@ -172,9 +178,9 @@ impl RichRawTransaction {
 
 impl Transaction {
 	/// Convert `LocalizedTransaction` into RPC Transaction.
-	pub fn from_localized(mut t: LocalizedTransaction, eip86_transition: u64) -> Transaction {
+	pub fn from_localized(mut t: LocalizedTransaction) -> Transaction {
 		let signature = t.signature();
-		let scheme = if t.block_number >= eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce };
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -206,9 +212,9 @@ impl Transaction {
 	}
 
 	/// Convert `SignedTransaction` into RPC Transaction.
-	pub fn from_signed(t: SignedTransaction, block_number: u64, eip86_transition: u64) -> Transaction {
+	pub fn from_signed(t: SignedTransaction) -> Transaction {
 		let signature = t.signature();
-		let scheme = if block_number >= eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce };
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -240,8 +246,8 @@ impl Transaction {
 	}
 
 	/// Convert `PendingTransaction` into RPC Transaction.
-	pub fn from_pending(t: PendingTransaction, block_number: u64, eip86_transition: u64) -> Transaction {
-		let mut r = Transaction::from_signed(t.transaction, block_number, eip86_transition);
+	pub fn from_pending(t: PendingTransaction) -> Transaction {
+		let mut r = Transaction::from_signed(t.transaction);
 		r.condition = t.condition.map(|b| b.into());
 		r
 	}
@@ -249,14 +255,15 @@ impl Transaction {
 
 impl LocalTransactionStatus {
 	/// Convert `LocalTransactionStatus` into RPC `LocalTransactionStatus`.
-	pub fn from(s: miner::pool::local_transactions::Status, block_number: u64, eip86_transition: u64) -> Self {
+	pub fn from(s: miner::pool::local_transactions::Status) -> Self {
 		let convert = |tx: Arc<miner::pool::VerifiedTransaction>| {
-			Transaction::from_signed(tx.signed().clone(), block_number, eip86_transition)
+			Transaction::from_signed(tx.signed().clone())
 		};
 		use miner::pool::local_transactions::Status::*;
 		match s {
 			Pending(_) => LocalTransactionStatus::Pending,
 			Mined(tx) => LocalTransactionStatus::Mined(convert(tx)),
+			Culled(tx) => LocalTransactionStatus::Culled(convert(tx)),
 			Dropped(tx) => LocalTransactionStatus::Dropped(convert(tx)),
 			Rejected(tx, reason) => LocalTransactionStatus::Rejected(convert(tx), reason),
 			Invalid(tx) => LocalTransactionStatus::Invalid(convert(tx)),

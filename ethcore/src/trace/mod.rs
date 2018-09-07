@@ -38,7 +38,6 @@ pub use self::types::filter::{Filter, AddressesFilter};
 
 use ethereum_types::{H256, U256, Address};
 use kvdb::DBTransaction;
-use bytes::Bytes;
 use self::trace::{Call, Create};
 use vm::ActionParams;
 use header::BlockNumber;
@@ -58,9 +57,6 @@ pub trait Tracer: Send {
 	/// This is called before a create has been executed.
 	fn prepare_trace_create(&self, params: &ActionParams) -> Option<Create>;
 
-	/// Prepare trace output. Noop tracer should return None.
-	fn prepare_trace_output(&self) -> Option<Bytes>;
-
 	/// Stores trace call info.
 	///
 	/// This is called after a call has completed successfully.
@@ -68,7 +64,7 @@ pub trait Tracer: Send {
 		&mut self,
 		call: Option<Call>,
 		gas_used: U256,
-		output: Option<Bytes>,
+		output: &[u8],
 		subs: Vec<Self::Output>,
 	);
 
@@ -79,7 +75,7 @@ pub trait Tracer: Send {
 		&mut self,
 		create: Option<Create>,
 		gas_used: U256,
-		code: Option<Bytes>,
+		code: &[u8],
 		address: Address,
 		subs: Vec<Self::Output>
 	);

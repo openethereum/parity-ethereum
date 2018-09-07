@@ -20,14 +20,13 @@ use std::sync::Arc;
 
 use ethereum_types::{H256, Address};
 use ethcore::account_provider::AccountProvider;
-use ethcore::block::Block;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
 use ethcore::miner::Miner;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::test_helpers;
-use ethcore::views::BlockView;
+use ethcore::verification::queue::kind::blocks::Unverified;
 use ethjson::blockchain::BlockChain;
 use ethjson::state::test::ForkSpec;
 use io::IoChannel;
@@ -85,9 +84,9 @@ impl EthTester {
 	fn from_chain(chain: &BlockChain) -> Self {
 		let tester = Self::from_spec(make_spec(chain));
 
-		for b in &chain.blocks_rlp() {
-			if Block::is_good(&b) {
-				let _ = tester.client.import_block(b.clone());
+		for b in chain.blocks_rlp() {
+			if let Ok(block) = Unverified::from_rlp(b) {
+				let _ = tester.client.import_block(block);
 				tester.client.flush_queue();
 				tester.client.import_verified_blocks();
 			}
@@ -423,11 +422,11 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 	let tester = EthTester::from_chain(&chain);
 
 	let mut id = 1;
-	for b in chain.blocks_rlp().iter().filter(|b| Block::is_good(b)).map(|b| view!(BlockView, b)) {
-		let count = b.transactions_count();
+	for b in chain.blocks_rlp().into_iter().filter_map(|b| Unverified::from_rlp(b).ok()) {
+		let count = b.transactions.len();
 
-		let hash = b.hash();
-		let number = b.header_view().number();
+		let hash = b.header.hash();
+		let number = b.header.number();
 
 		let (req, res) = by_hash(hash, count, &mut id);
 		assert_eq!(tester.handler.handle_request_sync(&req), Some(res));

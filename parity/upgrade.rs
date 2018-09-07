@@ -19,11 +19,10 @@
 use semver::{Version, SemVerError};
 use std::collections::*;
 use std::fs::{self, File, create_dir_all};
-use std::env;
 use std::io;
 use std::io::{Read, Write};
 use std::path::{PathBuf, Path};
-use dir::{DatabaseDirectories, default_data_path};
+use dir::{DatabaseDirectories, default_data_path, home_dir};
 use dir::helpers::replace_home;
 use journaldb::Algorithm;
 
@@ -102,14 +101,10 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 	Ok(count)
 }
 
-fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Error>
+fn with_locked_version<F>(db_path: &str, script: F) -> Result<usize, Error>
 	where F: Fn(&Version) -> Result<usize, Error>
 {
-	let mut path = db_path.map_or({
-		let mut path = env::home_dir().expect("Applications should have a home dir");
-		path.push(".parity");
-		path
-	}, PathBuf::from);
+	let mut path = PathBuf::from(db_path);
 	create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath)?;
 	path.push("ver.lock");
 
@@ -131,7 +126,7 @@ fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Err
 	result
 }
 
-pub fn upgrade(db_path: Option<&str>) -> Result<usize, Error> {
+pub fn upgrade(db_path: &str) -> Result<usize, Error> {
 	with_locked_version(db_path, |ver| {
 		upgrade_from_version(ver)
 	})
@@ -205,6 +200,10 @@ fn upgrade_user_defaults(dirs: &DatabaseDirectories) {
 }
 
 pub fn upgrade_data_paths(base_path: &str, dirs: &DatabaseDirectories, pruning: Algorithm) {
+	if home_dir().is_none() {
+		return;
+	}
+
 	let legacy_root_path = replace_home("", "$HOME/.parity");
 	let default_path = default_data_path();
 	if legacy_root_path != base_path && base_path == default_path {

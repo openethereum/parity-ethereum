@@ -72,7 +72,7 @@ impl BucketEntry {
 		let now = Instant::now();
 		BucketEntry {
 			id_hash: keccak(address.id),
-			address: address,
+			address,
 			last_seen: now,
 			backoff_until: now,
 			fail_count: 0,
@@ -137,7 +137,7 @@ pub struct TableUpdates {
 impl<'a> Discovery<'a> {
 	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery<'static> {
 		Discovery {
-			id: key.public().clone(),
+			id: *key.public(),
 			id_hash: keccak(key.public()),
 			secret: key.secret().clone(),
 			public_endpoint: public,
@@ -151,7 +151,7 @@ impl<'a> Discovery<'a> {
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
 			adding_nodes: Vec::new(),
-			ip_filter: ip_filter,
+			ip_filter,
 			request_backoff: &REQUEST_BACKOFF,
 		}
 	}
@@ -248,11 +248,11 @@ impl<'a> Discovery<'a> {
 		{
 			let nearest = self.nearest_node_entries(&self.discovery_id).into_iter();
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
-			let target = self.discovery_id.clone();
+			let target = self.discovery_id;
 			for r in nearest {
 				match self.send_find_node(&r, &target) {
 					Ok(()) => {
-						self.discovery_nodes.insert(r.id.clone());
+						self.discovery_nodes.insert(r.id);
 						tried_count += 1;
 					},
 					Err(e) => {
@@ -401,7 +401,7 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn send_to(&mut self, payload: Bytes, address: SocketAddr) {
-		self.send_queue.push_back(Datagram { payload: payload, address: address });
+		self.send_queue.push_back(Datagram { payload, address });
 	}
 
 
@@ -461,7 +461,7 @@ impl<'a> Discovery<'a> {
 		append_expiration(&mut response);
 		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
-		let entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
+		let entry = NodeEntry { id: *node, endpoint: source.clone() };
 		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		} else if !self.is_allowed(&entry) {
@@ -479,10 +479,10 @@ impl<'a> Discovery<'a> {
 		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
-		let mut node = NodeEntry { id: node_id.clone(), endpoint: dest };
+		let mut node = NodeEntry { id: *node_id, endpoint: dest };
 		if !node.endpoint.is_valid() {
 			debug!(target: "discovery", "Bad address: {:?}", node);
-			node.endpoint.address = from.clone();
+			node.endpoint.address = *from;
 		}
 
 		let is_expected = match self.in_flight_requests.entry(*node_id) {
@@ -530,10 +530,10 @@ impl<'a> Discovery<'a> {
 		let packets = chunks.map(|c| {
 			let mut rlp = RlpStream::new_list(2);
 			rlp.begin_list(c.len());
-			for n in 0 .. c.len() {
+			for n in c {
 				rlp.begin_list(4);
-				c[n].endpoint.to_rlp(&mut rlp);
-				rlp.append(&c[n].id);
+				n.endpoint.to_rlp(&mut rlp);
+				rlp.append(&n.id);
 			}
 			append_expiration(&mut rlp);
 			rlp.out()
@@ -581,7 +581,7 @@ impl<'a> Discovery<'a> {
 			if node_id == self.id {
 				continue;
 			}
-			let entry = NodeEntry { id: node_id.clone(), endpoint: endpoint };
+			let entry = NodeEntry { id: node_id, endpoint };
 			if !self.is_allowed(&entry) {
 				debug!(target: "discovery", "Address not allowed: {:?}", entry);
 				continue;
@@ -644,7 +644,7 @@ impl<'a> Discovery<'a> {
 		let removed = self.check_expired(Instant::now());
 		self.discover();
 		if !removed.is_empty() {
-			Some(TableUpdates { added: HashMap::new(), removed: removed })
+			Some(TableUpdates { added: HashMap::new(), removed })
 		} else { None }
 	}
 

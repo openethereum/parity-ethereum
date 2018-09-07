@@ -458,6 +458,7 @@ mod tests {
 	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
+	use verification::queue::kind::blocks::Unverified;
 
 	#[test]
 	fn fetches_validators() {
@@ -530,7 +531,7 @@ mod tests {
 		let sync_client = generate_dummy_client_with_spec_and_data(Spec::new_validator_safe_contract, 0, 0, &[]);
 		sync_client.engine().register_client(Arc::downgrade(&sync_client) as _);
 		for i in 1..4 {
-			sync_client.import_block(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap();
+			sync_client.import_block(Unverified::from_rlp(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap()).unwrap();
 		}
 		sync_client.flush_queue();
 		assert_eq!(sync_client.chain_info().best_block_number, 3);

@@ -17,7 +17,6 @@
 //! Nonoperative tracer.
 
 use ethereum_types::{U256, Address};
-use bytes::Bytes;
 use vm::ActionParams;
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
 use trace::trace::{Call, Create, VMTrace, RewardType};
@@ -36,18 +35,12 @@ impl Tracer for NoopTracer {
 		None
 	}
 
-	fn prepare_trace_output(&self) -> Option<Bytes> {
-		None
-	}
-
-	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: Vec<FlatTrace>) {
+	fn trace_call(&mut self, call: Option<Call>, _: U256, _: &[u8], _: Vec<FlatTrace>) {
 		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
-		assert!(output.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
-	fn trace_create(&mut self, create: Option<Create>, _: U256, code: Option<Bytes>, _: Address, _: Vec<FlatTrace>) {
+	fn trace_create(&mut self, create: Option<Create>, _: U256, _: &[u8], _: Address, _: Vec<FlatTrace>) {
 		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
-		assert!(code.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
 	fn trace_failed_call(&mut self, call: Option<Call>, _: Vec<FlatTrace>, _: TraceError) {

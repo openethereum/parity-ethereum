@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, BTreeMap, VecDeque};
-use std::fmt;
+use std::cmp;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
@@ -49,13 +49,16 @@ use client::{
 };
 use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
-use error::{ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use error::{
+	ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult,
+	QueueError, QueueErrorKind, Error as EthcoreError
+};
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
 use header::{BlockNumber, Header, ExtendedHeader};
-use io::{IoChannel, IoError};
+use io::IoChannel;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
 use ethcore_miner::pool::VerifiedTransaction;
@@ -73,6 +76,8 @@ use types::filter::Filter;
 use types::ancestry_action::AncestryAction;
 use verification;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
+use verification::queue::kind::blocks::Unverified;
+use verification::queue::kind::BlockLike;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -208,7 +213,7 @@ pub struct Client {
 	/// Queued ancient blocks, make sure they are imported in order.
 	queued_ancient_blocks: Arc<RwLock<(
 		HashSet<H256>,
-		VecDeque<(Header, encoded::Block, Bytes)>
+		VecDeque<(Unverified, Bytes)>
 	)>>,
 	ancient_blocks_import_lock: Arc<Mutex<()>>,
 	/// Consensus messages import queue
@@ -428,7 +433,7 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, header: &Header, block: encoded::Block, receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<(), ::error::Error> {
+	fn import_old_block(&self, unverified: Unverified, receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<(), ::error::Error> {
 		let receipts = ::rlp::decode_list(receipts_bytes);
 		let _import_lock = self.import_lock.lock();
 
@@ -436,11 +441,11 @@ impl Importer {
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
 			let mut rng = OsRng::new()?;
-			self.ancient_verifier.verify(&mut rng, &header, &chain)?;
+			self.ancient_verifier.verify(&mut rng, &unverified.header, &chain)?;
 
 			// Commit results
 			let mut batch = DBTransaction::new();
-			chain.insert_unordered_block(&mut batch, block, receipts, None, false, true);
+			chain.insert_unordered_block(&mut batch, encoded::Block::new(unverified.bytes), receipts, None, false, true);
 			// Final commit to the DB
 			db.write_buffered(batch);
 			chain.commit();
@@ -1391,22 +1396,15 @@ impl CallContract for Client {
 }
 
 impl ImportBlock for Client {
-	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		use verification::queue::kind::BlockLike;
-		use verification::queue::kind::blocks::Unverified;
-
-		// create unverified block here so the `keccak` calculation can be cached.
-		let unverified = Unverified::from_rlp(bytes)?;
-
-		{
-			if self.chain.read().is_known(&unverified.hash()) {
-				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
-			}
-			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
-			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
-			}
+	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
+		if self.chain.read().is_known(&unverified.hash()) {
+			bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
+		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
+		if status == BlockStatus::Unknown {
+			bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
+		}
+
 		Ok(self.importer.block_queue.import(unverified)?)
 	}
 }
@@ -1520,7 +1518,7 @@ impl Call for Client {
 			where F: FnMut(U256) -> Result<bool, E>
 		{
 			while upper - lower > 1.into() {
-				let mid = (lower + upper) / 2.into();
+				let mid = (lower + upper) / 2;
 				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
 				let c = cond(mid)?;
 				match c {
@@ -1702,6 +1700,9 @@ impl BlockChainClient for Client {
 		if let Some(after) = after {
 			if let Err(e) = iter.seek(after) {
 				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
+			} else {
+				// Position the iterator after the `after` element
+				iter.next();
 			}
 		}
 
@@ -1745,7 +1746,10 @@ impl BlockChainClient for Client {
 
 		if let Some(after) = after {
 			if let Err(e) = iter.seek(after) {
-				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
+				trace!(target: "fatdb", "list_storage: Couldn't seek the DB: {:?}", e);
+			} else {
+				// Position the iterator after the `after` element
+				iter.next();
 			}
 		}
 
@@ -1825,76 +1829,100 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
-		// Wrap the logic inside a closure so that we can take advantage of question mark syntax.
-		let fetch_logs = || {
-			let chain = self.chain.read();
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
+		let chain = self.chain.read();
 
-			// First, check whether `filter.from_block` and `filter.to_block` is on the canon chain. If so, we can use the
-			// optimized version.
-			let is_canon = |id| {
-				match id {
-					// If it is referred by number, then it is always on the canon chain.
-					&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => true,
-					// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
-					// result.
-					&BlockId::Hash(ref hash) => chain.is_canon(hash),
-				}
-			};
-
-			let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
-				// If we are on the canon chain, use bloom filter to fetch required hashes.
-				let from = self.block_number_ref(&filter.from_block)?;
-				let to = self.block_number_ref(&filter.to_block)?;
-
-				chain.blocks_with_bloom(&filter.bloom_possibilities(), from, to)
-					.into_iter()
-					.filter_map(|n| chain.block_hash(n))
-					.collect::<Vec<H256>>()
-			} else {
-				// Otherwise, we use a slower version that finds a link between from_block and to_block.
-				let from_hash = Self::block_hash(&chain, filter.from_block)?;
-				let from_number = chain.block_number(&from_hash)?;
-				let to_hash = Self::block_hash(&chain, filter.from_block)?;
-
-				let blooms = filter.bloom_possibilities();
-				let bloom_match = |header: &encoded::Header| {
-					blooms.iter().any(|bloom| header.log_bloom().contains_bloom(bloom))
-				};
-
-				let (blocks, last_hash) = {
-					let mut blocks = Vec::new();
-					let mut current_hash = to_hash;
-
-					loop {
-						let header = chain.block_header_data(&current_hash)?;
-						if bloom_match(&header) {
-							blocks.push(current_hash);
-						}
-
-						// Stop if `from` block is reached.
-						if header.number() <= from_number {
-							break;
-						}
-						current_hash = header.parent_hash();
-					}
-
-					blocks.reverse();
-					(blocks, current_hash)
-				};
-
-				// Check if we've actually reached the expected `from` block.
-				if last_hash != from_hash || blocks.is_empty() {
-					return None;
-				}
-
-				blocks
-			};
-
-			Some(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
+		// First, check whether `filter.from_block` and `filter.to_block` is on the canon chain. If so, we can use the
+		// optimized version.
+		let is_canon = |id| {
+			match id {
+				// If it is referred by number, then it is always on the canon chain.
+				&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => true,
+				// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
+				// result.
+				&BlockId::Hash(ref hash) => chain.is_canon(hash),
+			}
 		};
 
-		fetch_logs().unwrap_or_default()
+		let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
+			// If we are on the canon chain, use bloom filter to fetch required hashes.
+			//
+			// If we are sure the block does not exist (where val > best_block_number), then return error. Note that we
+			// don't need to care about pending blocks here because RPC query sets pending back to latest (or handled
+			// pending logs themselves).
+			let from = match self.block_number_ref(&filter.from_block) {
+				Some(val) if val <= chain.best_block_number() => val,
+				_ => return Err(filter.from_block.clone()),
+			};
+			let to = match self.block_number_ref(&filter.to_block) {
+				Some(val) if val <= chain.best_block_number() => val,
+				_ => return Err(filter.to_block.clone()),
+			};
+
+			// If from is greater than to, then the current bloom filter behavior is to just return empty
+			// result. There's no point to continue here.
+			if from > to {
+				return Err(filter.to_block.clone());
+			}
+
+			chain.blocks_with_bloom(&filter.bloom_possibilities(), from, to)
+				.into_iter()
+				.filter_map(|n| chain.block_hash(n))
+				.collect::<Vec<H256>>()
+		} else {
+			// Otherwise, we use a slower version that finds a link between from_block and to_block.
+			let from_hash = match Self::block_hash(&chain, filter.from_block) {
+				Some(val) => val,
+				None => return Err(filter.from_block.clone()),
+			};
+			let from_number = match chain.block_number(&from_hash) {
+				Some(val) => val,
+				None => return Err(BlockId::Hash(from_hash)),
+			};
+			let to_hash = match Self::block_hash(&chain, filter.to_block) {
+				Some(val) => val,
+				None => return Err(filter.to_block.clone()),
+			};
+
+			let blooms = filter.bloom_possibilities();
+			let bloom_match = |header: &encoded::Header| {
+				blooms.iter().any(|bloom| header.log_bloom().contains_bloom(bloom))
+			};
+
+			let (blocks, last_hash) = {
+				let mut blocks = Vec::new();
+				let mut current_hash = to_hash;
+
+				loop {
+					let header = match chain.block_header_data(&current_hash) {
+						Some(val) => val,
+						None => return Err(BlockId::Hash(current_hash)),
+					};
+					if bloom_match(&header) {
+						blocks.push(current_hash);
+					}
+
+					// Stop if `from` block is reached.
+					if header.number() <= from_number {
+						break;
+					}
+					current_hash = header.parent_hash();
+				}
+
+				blocks.reverse();
+				(blocks, current_hash)
+			};
+
+			// Check if we've actually reached the expected `from` block.
+			if last_hash != from_hash || blocks.is_empty() {
+				// In this case, from_hash is the cause (for not matching last_hash).
+				return Err(BlockId::Hash(from_hash));
+			}
+
+			blocks
+		};
+
+		Ok(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -1958,7 +1986,25 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>> {
+		const PROPAGATE_FOR_BLOCKS: u32 = 4;
+		const MIN_TX_TO_PROPAGATE: usize = 256;
+
+		let block_gas_limit = *self.best_block_header().gas_limit();
+		let min_tx_gas: U256 = self.latest_schedule().tx_gas.into();
+
+		let max_len = if min_tx_gas.is_zero() {
+			usize::max_value()
+		} else {
+			cmp::max(
+				MIN_TX_TO_PROPAGATE,
+				cmp::min(
+					(block_gas_limit / min_tx_gas) * PROPAGATE_FOR_BLOCKS,
+					// never more than usize
+					usize::max_value().into()
+				).as_u64() as usize
+			)
+		};
 		self.importer.miner.ready_transactions(self, max_len, ::miner::PendingOrdering::Priority)
 	}
 
@@ -2007,10 +2053,6 @@ impl BlockChainClient for Client {
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar_address.clone()
 	}
-
-	fn eip86_transition(&self) -> u64 {
-		self.engine().params().eip86_transition
-	}
 }
 
 impl IoClient for Client {
@@ -2035,24 +2077,23 @@ impl IoClient for Client {
 		});
 	}
 
-	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+	fn queue_ancient_block(&self, unverified: Unverified, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
 		trace_time!("queue_ancient_block");
-		let header: Header = ::rlp::Rlp::new(&block_bytes).val_at(0)?;
-		let hash = header.hash();
 
+		let hash = unverified.hash();
 		{
 			// check block order
 			if self.chain.read().is_known(&hash) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-			let parent_hash = header.parent_hash();
+			let parent_hash = unverified.parent_hash();
 			// NOTE To prevent race condition with import, make sure to check queued blocks first
 			// (and attempt to acquire lock)
-			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(parent_hash);
+			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending {
-				let status = self.block_status(BlockId::Hash(*parent_hash));
-				if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*parent_hash)));
+				let status = self.block_status(BlockId::Hash(parent_hash));
+				if  status == BlockStatus::Unknown {
+					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 				}
 			}
 		}
@@ -2061,23 +2102,22 @@ impl IoClient for Client {
 		{
 			let mut queued = self.queued_ancient_blocks.write();
 			queued.0.insert(hash);
-			queued.1.push_back((header, encoded::Block::new(block_bytes), receipts_bytes));
+			queued.1.push_back((unverified, receipts_bytes));
 		}
 
 		let queued = self.queued_ancient_blocks.clone();
 		let lock = self.ancient_blocks_import_lock.clone();
-		match self.queue_ancient_blocks.queue(&self.io_channel.read(), 1, move |client| {
+		self.queue_ancient_blocks.queue(&self.io_channel.read(), 1, move |client| {
 			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
 			// We use separate lock, cause we don't want to block queueing.
 			let _lock = lock.lock();
 			for _i in 0..MAX_ANCIENT_BLOCKS_TO_IMPORT {
 				let first = queued.write().1.pop_front();
-				if let Some((header, block_bytes, receipts_bytes)) = first {
-					let hash = header.hash();
+				if let Some((unverified, receipts_bytes)) = first {
+					let hash = unverified.hash();
 					let result = client.importer.import_old_block(
-						&header,
-						block_bytes,
+						unverified,
 						&receipts_bytes,
 						&**client.db.read().key_value(),
 						&*client.chain.read(),
@@ -2091,10 +2131,9 @@ impl IoClient for Client {
 					break;
 				}
 			}
-		}) {
-			Ok(_) => Ok(hash),
-			Err(e) => bail!(BlockImportErrorKind::Other(format!("{}", e))),
-		}
+		})?;
+
+		Ok(hash)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
@@ -2487,7 +2526,7 @@ mod tests {
 			block_hash: block_hash,
 			block_number: block_number,
 			cumulative_gas_used: gas_used,
-			gas_used: gas_used - 5.into(),
+			gas_used: gas_used - 5,
 			contract_address: None,
 			logs: vec![LocalizedLogEntry {
 				entry: logs[0].clone(),
@@ -2512,21 +2551,6 @@ mod tests {
 	}
 }
 
-#[derive(Debug)]
-enum QueueError {
-	Channel(IoError),
-	Full(usize),
-}
-
-impl fmt::Display for QueueError {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			QueueError::Channel(ref c) => fmt::Display::fmt(c, fmt),
-			QueueError::Full(limit) => write!(fmt, "The queue is full ({})", limit),
-		}
-	}
-}
-
 /// Queue some items to be processed by IO client.
 struct IoChannelQueue {
 	currently_queued: Arc<AtomicUsize>,
@@ -2545,7 +2569,7 @@ impl IoChannelQueue {
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
-		ensure!(queue_size < self.limit, QueueError::Full(self.limit));
+		ensure!(queue_size < self.limit, QueueErrorKind::Full(self.limit));
 
 		let currently_queued = self.currently_queued.clone();
 		let result = channel.send(ClientIoMessage::execute(move |client| {
@@ -2558,7 +2582,7 @@ impl IoChannelQueue {
 				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
 				Ok(())
 			},
-			Err(e) => Err(QueueError::Channel(e)),
+			Err(e) => bail!(QueueErrorKind::Channel(e)),
 		}
 	}
 }

@@ -944,7 +944,7 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		hardware_wallet_classic_key: spec == &SpecType::Classic,
 		unlock_keep_secret: cfg.enable_fast_unlock,
 		blacklisted_accounts: 	match *spec {
-			SpecType::Morden | SpecType::Ropsten | SpecType::Kovan | SpecType::Dev => vec![],
+			SpecType::Morden | SpecType::Ropsten | SpecType::Kovan | SpecType::Sokol | SpecType::Dev => vec![],
 			_ => vec![
 				"00a329c0648769a73afac7f9381e08fb43dbea72".into()
 			],

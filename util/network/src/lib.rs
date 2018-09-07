@@ -22,7 +22,7 @@ extern crate ethereum_types;
 extern crate ethkey;
 extern crate rlp;
 extern crate ipnetwork;
-extern crate snappy;
+extern crate parity_snappy as snappy;
 extern crate libc;
 
 #[cfg(test)] #[macro_use]
@@ -350,7 +350,7 @@ pub trait NetworkProtocolHandler: Sync + Send {
 }
 
 /// Non-reserved peer modes.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NonReservedPeerMode {
 	/// Accept them. This is the default.
 	Accept,

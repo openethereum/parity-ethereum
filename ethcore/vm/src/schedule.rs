@@ -22,7 +22,7 @@ pub struct Schedule {
 	pub exceptional_failed_code_deposit: bool,
 	/// Does it have a delegate cal
 	pub have_delegate_call: bool,
-	/// Does it have a CREATE_P2SH instruction
+	/// Does it have a CREATE2 instruction
 	pub have_create2: bool,
 	/// Does it have a REVERT instruction
 	pub have_revert: bool,
@@ -117,8 +117,10 @@ pub struct Schedule {
 	pub have_bitwise_shifting: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
-	/// Enable EIP-86 rules
-	pub eip86: bool,
+	/// Enable EIP-1283 rules
+	pub eip1283: bool,
+	/// VM execution does not increase null signed address nonce if this field is true.
+	pub keep_unsigned_nonce: bool,
 	/// Wasm extra schedule settings, if wasm activated
 	pub wasm: Option<WasmCosts>,
 }
@@ -149,6 +151,10 @@ pub struct WasmCosts {
 	pub opcodes_mul: u32,
 	/// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
 	pub opcodes_div: u32,
+	/// Whether create2 extern function is activated.
+	pub have_create2: bool,
+	/// Whether gasleft extern function is activated.
+	pub have_gasleft: bool,
 }
 
 impl Default for WasmCosts {
@@ -166,6 +172,8 @@ impl Default for WasmCosts {
 			max_stack_height: 64*1024,
 			opcodes_mul: 3,
 			opcodes_div: 8,
+			have_create2: false,
+			have_gasleft: false,
 		}
 	}
 }
@@ -244,7 +252,8 @@ impl Schedule {
 			blockhash_gas: 20,
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
-			eip86: false,
+			eip1283: false,
+			keep_unsigned_nonce: false,
 			wasm: None,
 		}
 	}
@@ -317,7 +326,8 @@ impl Schedule {
 			blockhash_gas: 20,
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
-			eip86: false,
+			eip1283: false,
+			keep_unsigned_nonce: false,
 			wasm: None,
 		}
 	}

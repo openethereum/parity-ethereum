@@ -181,6 +181,8 @@ impl AccountEntry {
 			Some(acc) => {
 				if let Some(ref mut ours) = self.account {
 					ours.overwrite_with(acc);
+				} else {
+					self.account = Some(acc);
 				}
 			},
 			None => self.account = None,
@@ -401,9 +403,12 @@ impl<B: Backend> State<B> {
 		self.factories.vm.clone()
 	}
 
-	/// Create a recoverable checkpoint of this state.
-	pub fn checkpoint(&mut self) {
-		self.checkpoints.get_mut().push(HashMap::new());
+	/// Create a recoverable checkpoint of this state. Return the checkpoint index.
+	pub fn checkpoint(&mut self) -> usize {
+		let checkpoints = self.checkpoints.get_mut();
+		let index = checkpoints.len();
+		checkpoints.push(HashMap::new());
+		index
 	}
 
 	/// Merge last checkpoint with previous.
@@ -416,7 +421,16 @@ impl<B: Backend> State<B> {
 					**prev = checkpoint;
 				} else {
 					for (k, v) in checkpoint.drain() {
-						prev.entry(k).or_insert(v);
+						match prev.entry(k) {
+							Entry::Occupied(mut e) => {
+								if e.get().is_none() {
+									e.insert(v);
+								}
+							},
+							Entry::Vacant(e) => {
+								e.insert(v);
+							}
+						}
 					}
 				}
 			}
@@ -494,8 +508,10 @@ impl<B: Backend> State<B> {
 
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
-	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256) {
-		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, self.account_start_nonce + nonce_offset))));
+	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256) -> TrieResult<()> {
+		let original_storage_root = self.original_storage_root(contract)?;
+		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, self.account_start_nonce + nonce_offset, original_storage_root))));
+		Ok(())
 	}
 
 	/// Remove an existing account.
@@ -536,11 +552,84 @@ impl<B: Backend> State<B> {
 	/// Get the storage root of account `a`.
 	pub fn storage_root(&self, a: &Address) -> TrieResult<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
-			|a| a.as_ref().and_then(|account| account.storage_root().cloned()))
+			|a| a.as_ref().and_then(|account| account.storage_root()))
 	}
 
-	/// Mutate storage of account `address` so that it is `value` for `key`.
-	pub fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+	/// Get the original storage root since last commit of account `a`.
+	pub fn original_storage_root(&self, a: &Address) -> TrieResult<H256> {
+		Ok(self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map(|account| account.original_storage_root()))?
+			.unwrap_or(KECCAK_NULL_RLP))
+	}
+
+	/// Get the value of storage at a specific checkpoint.
+	pub fn checkpoint_storage_at(&self, checkpoint_index: usize, address: &Address, key: &H256) -> TrieResult<Option<H256>> {
+		enum ReturnKind {
+			/// Use original storage at value at this address.
+			OriginalAt,
+			/// Use the downward checkpoint value.
+			Downward,
+		}
+
+		let (checkpoints_len, kind) = {
+			let checkpoints = self.checkpoints.borrow();
+			let checkpoints_len = checkpoints.len();
+			let checkpoint = match checkpoints.get(checkpoint_index) {
+				Some(checkpoint) => checkpoint,
+				// The checkpoint was not found. Return None.
+				None => return Ok(None),
+			};
+
+			let kind = match checkpoint.get(address) {
+				// The account exists at this checkpoint.
+				Some(Some(AccountEntry { account: Some(ref account), .. })) => {
+					if let Some(value) = account.cached_storage_at(key) {
+						return Ok(Some(value));
+					} else {
+						// This account has checkpoint entry, but the key is not in the entry's cache. We can use
+						// original_storage_at if current account's original storage root is the same as checkpoint
+						// account's original storage root. Otherwise, the account must be a newly created contract.
+						if account.base_storage_root() == self.original_storage_root(address)? {
+							ReturnKind::OriginalAt
+						} else {
+							// If account base storage root is different from the original storage root since last
+							// commit, then it can only be created from a new contract, where the base storage root
+							// would always be empty. Note that this branch is actually never called, because
+							// `cached_storage_at` handled this case.
+							warn!("Trying to get an account's cached storage value, but base storage root does not equal to original storage root! Assuming the value is empty.");
+							return Ok(Some(H256::new()));
+						}
+					}
+				},
+				// The account didn't exist at that point. Return empty value.
+				Some(Some(AccountEntry { account: None, .. })) => return Ok(Some(H256::new())),
+				// The value was not cached at that checkpoint, meaning it was not modified at all.
+				Some(None) => ReturnKind::OriginalAt,
+				// This key does not have a checkpoint entry.
+				None => ReturnKind::Downward,
+			};
+
+			(checkpoints_len, kind)
+		};
+
+		match kind {
+			ReturnKind::Downward => {
+				if checkpoint_index >= checkpoints_len - 1 {
+					Ok(Some(self.storage_at(address, key)?))
+				} else {
+					self.checkpoint_storage_at(checkpoint_index + 1, address, key)
+				}
+			},
+			ReturnKind::OriginalAt => Ok(Some(self.original_storage_at(address, key)?)),
+		}
+	}
+
+	fn storage_at_inner<FCachedStorageAt, FStorageAt>(
+		&self, address: &Address, key: &H256, f_cached_at: FCachedStorageAt, f_at: FStorageAt,
+	) -> TrieResult<H256> where
+		FCachedStorageAt: Fn(&Account, &H256) -> Option<H256>,
+		FStorageAt: Fn(&Account, &HashDB<KeccakHasher>, &H256) -> TrieResult<H256>
+	{
 		// Storage key search and update works like this:
 		// 1. If there's an entry for the account in the local cache check for the key and return it if found.
 		// 2. If there's an entry for the account in the global cache check for the key or load it into that account.
@@ -553,7 +642,7 @@ impl<B: Backend> State<B> {
 			if let Some(maybe_acc) = local_cache.get(address) {
 				match maybe_acc.account {
 					Some(ref account) => {
-						if let Some(value) = account.cached_storage_at(key) {
+						if let Some(value) = f_cached_at(account, key) {
 							return Ok(value);
 						} else {
 							local_account = Some(maybe_acc);
@@ -567,7 +656,7 @@ impl<B: Backend> State<B> {
 				None => Ok(H256::new()),
 				Some(a) => {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
-					a.storage_at(account_db.as_hashdb(), key)
+					f_at(a, account_db.as_hashdb(), key)
 				}
 			});
 
@@ -579,7 +668,7 @@ impl<B: Backend> State<B> {
 			if let Some(ref mut acc) = local_account {
 				if let Some(ref account) = acc.account {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(address));
-					return account.storage_at(account_db.as_hashdb(), key)
+					return f_at(account, account_db.as_hashdb(), key)
 				} else {
 					return Ok(H256::new())
 				}
@@ -595,10 +684,30 @@ impl<B: Backend> State<B> {
 		let maybe_acc = db.get_with(address, from_rlp)?;
 		let r = maybe_acc.as_ref().map_or(Ok(H256::new()), |a| {
 			let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
-			a.storage_at(account_db.as_hashdb(), key)
+			f_at(a, account_db.as_hashdb(), key)
 		});
 		self.insert_cache(address, AccountEntry::new_clean(maybe_acc));
 		r
+	}
+
+	/// Mutate storage of account `address` so that it is `value` for `key`.
+	pub fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+		self.storage_at_inner(
+			address,
+			key,
+			|account, key| { account.cached_storage_at(key) },
+			|account, db, key| { account.storage_at(db, key) },
+		)
+	}
+
+	/// Get the value of storage after last state commitment.
+	pub fn original_storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> {
+		self.storage_at_inner(
+			address,
+			key,
+			|account, key| { account.cached_original_storage_at(key) },
+			|account, db, key| { account.original_storage_at(db, key) },
+		)
 	}
 
 	/// Get accounts' code.
@@ -671,13 +780,13 @@ impl<B: Backend> State<B> {
 	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.init_code(code);
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.init_code(code);
 		Ok(())
 	}
 
 	/// Reset the code of account `a` so that it is `code`.
 	pub fn reset_code(&mut self, a: &Address, code: Bytes) -> TrieResult<()> {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.reset_code(code);
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce, KECCAK_NULL_RLP), |_| {})?.reset_code(code);
 		Ok(())
 	}
 
@@ -761,6 +870,7 @@ impl<B: Backend> State<B> {
 
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
+		assert!(self.checkpoints.borrow().is_empty());
 		// first, commit the sub trees.
 		let mut accounts = self.cache.borrow_mut();
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
@@ -806,6 +916,7 @@ impl<B: Backend> State<B> {
 
 	/// Clear state cache
 	pub fn clear(&mut self) {
+		assert!(self.checkpoints.borrow().is_empty());
 		self.cache.borrow_mut().clear();
 	}
 
@@ -1000,7 +1111,7 @@ impl<B: Backend> State<B> {
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	fn require<'a>(&'a self, a: &Address, require_code: bool) -> TrieResult<RefMut<'a, Account>> {
-		self.require_or_from(a, require_code, || Account::new_basic(0u8.into(), self.account_start_nonce), |_|{})
+		self.require_or_from(a, require_code, || Account::new_basic(0u8.into(), self.account_start_nonce), |_| {})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
@@ -1140,7 +1251,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use hash::keccak;
+	use hash::{keccak, KECCAK_NULL_RLP};
 	use super::*;
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address};
@@ -1992,7 +2103,7 @@ mod tests {
 		let a = Address::zero();
 		let (root, db) = {
 			let mut state = get_temp_state();
-			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{}).unwrap();
+			state.require_or_from(&a, false, || Account::new_contract(42.into(), 0.into(), KECCAK_NULL_RLP), |_|{}).unwrap();
 			state.init_code(&a, vec![1, 2, 3]).unwrap();
 			assert_eq!(state.code(&a).unwrap(), Some(Arc::new(vec![1u8, 2, 3])));
 			state.commit().unwrap();
@@ -2197,6 +2308,161 @@ mod tests {
 	}
 
 	#[test]
+	fn checkpoint_revert_to_get_storage_at() {
+		let mut state = get_temp_state();
+		let a = Address::zero();
+		let k = H256::from(U256::from(0));
+
+		let c0 = state.checkpoint();
+		let c1 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
+
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(1)));
+
+		state.revert_to_checkpoint(); // Revert to c1.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0)));
+	}
+
+	#[test]
+	fn checkpoint_from_empty_get_storage_at() {
+		let mut state = get_temp_state();
+		let a = Address::zero();
+		let k = H256::from(U256::from(0));
+		let k2 = H256::from(U256::from(1));
+
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0)));
+		state.clear();
+
+		let c0 = state.checkpoint();
+		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		let c1 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
+		let c2 = state.checkpoint();
+		let c3 = state.checkpoint();
+		state.set_storage(&a, k2, H256::from(U256::from(3))).unwrap();
+		state.set_storage(&a, k, H256::from(U256::from(3))).unwrap();
+		let c4 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(4))).unwrap();
+		let c5 = state.checkpoint();
+
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c4, &a, &k).unwrap(), Some(H256::from(U256::from(3))));
+		assert_eq!(state.checkpoint_storage_at(c5, &a, &k).unwrap(), Some(H256::from(U256::from(4))));
+
+		state.discard_checkpoint(); // Commit/discard c5.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c4, &a, &k).unwrap(), Some(H256::from(U256::from(3))));
+
+		state.revert_to_checkpoint(); // Revert to c4.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+
+		state.discard_checkpoint(); // Commit/discard c3.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+
+		state.revert_to_checkpoint(); // Revert to c2.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+
+		state.discard_checkpoint(); // Commit/discard c1.
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+	}
+
+	#[test]
+	fn checkpoint_get_storage_at() {
+		let mut state = get_temp_state();
+		let a = Address::zero();
+		let k = H256::from(U256::from(0));
+		let k2 = H256::from(U256::from(1));
+
+		state.set_storage(&a, k, H256::from(U256::from(0xffff))).unwrap();
+		state.commit().unwrap();
+		state.clear();
+
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0xffff)));
+		state.clear();
+
+		let cm1 = state.checkpoint();
+		let c0 = state.checkpoint();
+		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		let c1 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
+		let c2 = state.checkpoint();
+		let c3 = state.checkpoint();
+		state.set_storage(&a, k2, H256::from(U256::from(3))).unwrap();
+		state.set_storage(&a, k, H256::from(U256::from(3))).unwrap();
+		let c4 = state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(4))).unwrap();
+		let c5 = state.checkpoint();
+
+		assert_eq!(state.checkpoint_storage_at(cm1, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c4, &a, &k).unwrap(), Some(H256::from(U256::from(3))));
+		assert_eq!(state.checkpoint_storage_at(c5, &a, &k).unwrap(), Some(H256::from(U256::from(4))));
+
+		state.discard_checkpoint(); // Commit/discard c5.
+		assert_eq!(state.checkpoint_storage_at(cm1, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c4, &a, &k).unwrap(), Some(H256::from(U256::from(3))));
+
+		state.revert_to_checkpoint(); // Revert to c4.
+		assert_eq!(state.checkpoint_storage_at(cm1, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+		assert_eq!(state.checkpoint_storage_at(c3, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+
+		state.discard_checkpoint(); // Commit/discard c3.
+		assert_eq!(state.checkpoint_storage_at(cm1, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+		assert_eq!(state.checkpoint_storage_at(c2, &a, &k).unwrap(), Some(H256::from(U256::from(1))));
+
+		state.revert_to_checkpoint(); // Revert to c2.
+		assert_eq!(state.checkpoint_storage_at(cm1, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c1, &a, &k).unwrap(), Some(H256::from(U256::from(0))));
+
+		state.discard_checkpoint(); // Commit/discard c1.
+		assert_eq!(state.checkpoint_storage_at(cm1, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+		assert_eq!(state.checkpoint_storage_at(c0, &a, &k).unwrap(), Some(H256::from(U256::from(0xffff))));
+	}
+
+	#[test]
+	fn kill_account_with_checkpoints() {
+		let mut state = get_temp_state();
+		let a = Address::zero();
+		let k = H256::from(U256::from(0));
+		state.checkpoint();
+		state.set_storage(&a, k, H256::from(U256::from(1))).unwrap();
+		state.checkpoint();
+		state.kill_account(&a);
+
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0)));
+		state.revert_to_checkpoint();
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(1)));
+	}
+
+	#[test]
 	fn create_empty() {
 		let mut state = get_temp_state();
 		state.commit().unwrap();
@@ -2233,7 +2499,7 @@ mod tests {
 			state.add_balance(&b, &100.into(), CleanupMode::ForceCreate).unwrap(); // create a dust account
 			state.add_balance(&c, &101.into(), CleanupMode::ForceCreate).unwrap(); // create a normal account
 			state.add_balance(&d, &99.into(), CleanupMode::ForceCreate).unwrap(); // create another dust account
-			state.new_contract(&e, 100.into(), 1.into()); // create a contract account
+			state.new_contract(&e, 100.into(), 1.into()).unwrap(); // create a contract account
 			state.init_code(&e, vec![0x00]).unwrap();
 			state.commit().unwrap();
 			state.drop()

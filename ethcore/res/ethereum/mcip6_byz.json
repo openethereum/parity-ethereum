@@ -33,7 +33,6 @@
 		"eip160Transition":"0x7fffffffffffff",
 		"eip161abcTransition":"0x7fffffffffffff",
 		"eip161dTransition":"0x7fffffffffffff",
-		"eip86Transition":"0x7fffffffffffff",
 		"eip98Transition":"0x7fffffffffffff",
 		"eip140Transition":"0x2a",
 		"eip155Transition":"0x2a",

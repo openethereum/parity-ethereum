@@ -31,7 +31,7 @@ use std::cmp;
 
 use ethereum_types::U256;
 use txpool::{self, scoring};
-use super::{verifier, PrioritizationStrategy, VerifiedTransaction};
+use super::{verifier, PrioritizationStrategy, VerifiedTransaction, ScoredTransaction};
 
 /// Transaction with the same (sender, nonce) can be replaced only if
 /// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
@@ -67,23 +67,23 @@ impl NonceAndGasPrice {
 	}
 }
 
-impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
+impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txpool::VerifiedTransaction {
 	type Score = U256;
 	type Event = ();
 
-	fn compare(&self, old: &VerifiedTransaction, other: &VerifiedTransaction) -> cmp::Ordering {
-		old.transaction.nonce.cmp(&other.transaction.nonce)
+	fn compare(&self, old: &P, other: &P) -> cmp::Ordering {
+		old.nonce().cmp(&other.nonce())
 	}
 
-	fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> scoring::Choice {
-		if old.transaction.nonce != new.transaction.nonce {
+	fn choose(&self, old: &P, new: &P) -> scoring::Choice {
+		if old.nonce() != new.nonce() {
 			return scoring::Choice::InsertNew
 		}
 
-		let old_gp = old.transaction.gas_price;
-		let new_gp = new.transaction.gas_price;
+		let old_gp = old.gas_price();
+		let new_gp = new.gas_price();
 
-		let min_required_gp = bump_gas_price(old_gp);
+		let min_required_gp = bump_gas_price(*old_gp);
 
 		match min_required_gp.cmp(&new_gp) {
 			cmp::Ordering::Greater => scoring::Choice::RejectNew,
@@ -91,7 +91,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		}
 	}
 
-	fn update_scores(&self, txs: &[txpool::Transaction<VerifiedTransaction>], scores: &mut [U256], change: scoring::Change) {
+	fn update_scores(&self, txs: &[txpool::Transaction<P>], scores: &mut [U256], change: scoring::Change) {
 		use self::scoring::Change;
 
 		match change {
@@ -101,7 +101,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 				assert!(i < txs.len());
 				assert!(i < scores.len());
 
-				scores[i] = txs[i].transaction.transaction.gas_price;
+				scores[i] = *txs[i].transaction.gas_price();
 				let boost = match txs[i].priority() {
 					super::Priority::Local => 15,
 					super::Priority::Retracted => 10,
@@ -122,10 +122,10 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		}
 	}
 
-	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> scoring::Choice {
-		if old.sender == new.sender {
+	fn should_replace(&self, old: &P, new: &P) -> scoring::Choice {
+		if old.sender() == new.sender() {
 			// prefer earliest transaction
-			match new.transaction.nonce.cmp(&old.transaction.nonce) {
+			match new.nonce().cmp(&old.nonce()) {
 				cmp::Ordering::Less => scoring::Choice::ReplaceOld,
 				cmp::Ordering::Greater => scoring::Choice::RejectNew,
 				cmp::Ordering::Equal => self.choose(old, new),
@@ -134,8 +134,8 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 			// accept local transactions over the limit
 			scoring::Choice::InsertNew
 		} else {
-			let old_score = (old.priority(), old.transaction.gas_price);
-			let new_score = (new.priority(), new.transaction.gas_price);
+			let old_score = (old.priority(), old.gas_price());
+			let new_score = (new.priority(), new.gas_price());
 			if new_score > old_score {
 				scoring::Choice::ReplaceOld
 			} else {
@@ -144,7 +144,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 	 	}
 	}
 
-	fn should_ignore_sender_limit(&self, new: &VerifiedTransaction) -> bool {
+	fn should_ignore_sender_limit(&self, new: &P) -> bool {
 		new.priority().is_local()
 	}
 }
@@ -185,12 +185,8 @@ mod tests {
 		};
 
 		let keypair = Random.generate().unwrap();
-		let txs = vec![tx1, tx2, tx3, tx4].into_iter().enumerate().map(|(i, tx)| {
-			let verified = tx.unsigned().sign(keypair.secret(), None).verified();
-			txpool::Transaction {
-				insertion_id: i as u64,
-				transaction: Arc::new(verified),
-			}
+		let txs = vec![tx1, tx2, tx3, tx4].into_iter().map(|tx| {
+			tx.unsigned().sign(keypair.secret(), None).verified()
 		}).collect::<Vec<_>>();
 
 		assert_eq!(scoring.should_replace(&txs[0], &txs[1]), RejectNew);
@@ -213,11 +209,7 @@ mod tests {
 				gas_price: 1,
 				..Default::default()
 			};
-			let verified_tx = tx.signed().verified();
-			txpool::Transaction {
-				insertion_id: 0,
-				transaction: Arc::new(verified_tx),
-			}
+			tx.signed().verified()
 		};
 		let tx_regular_high_gas = {
 			let tx = Tx {
@@ -225,11 +217,7 @@ mod tests {
 				gas_price: 10,
 				..Default::default()
 			};
-			let verified_tx = tx.signed().verified();
-			txpool::Transaction {
-				insertion_id: 1,
-				transaction: Arc::new(verified_tx),
-			}
+			tx.signed().verified()
 		};
 		let tx_local_low_gas = {
 			let tx = Tx {
@@ -239,10 +227,7 @@ mod tests {
 			};
 			let mut verified_tx = tx.signed().verified();
 			verified_tx.priority = ::pool::Priority::Local;
-			txpool::Transaction {
-				insertion_id: 2,
-				transaction: Arc::new(verified_tx),
-			}
+			verified_tx
 		};
 		let tx_local_high_gas = {
 			let tx = Tx {
@@ -252,10 +237,7 @@ mod tests {
 			};
 			let mut verified_tx = tx.signed().verified();
 			verified_tx.priority = ::pool::Priority::Local;
-			txpool::Transaction {
-				insertion_id: 3,
-				transaction: Arc::new(verified_tx),
-			}
+			verified_tx
 		};
 
 		assert_eq!(scoring.should_replace(&tx_regular_low_gas, &tx_regular_high_gas), ReplaceOld);

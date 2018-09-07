@@ -9,10 +9,10 @@ ethjson = { path = "../../json" }
 ethkey = { path = "../../ethkey" }
 evm = { path = "../evm" }
 heapsize = "0.4"
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
-rlp = { git = "https://github.com/paritytech/parity-common" }
+keccak-hash = "0.1"
+rlp = { version = "0.2.4", features = ["ethereum"] }
 unexpected = { path = "../../util/unexpected" }
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 
 [dev-dependencies]
 rustc-hex= "1.0"

@@ -31,7 +31,7 @@ use ethcore::client::{BlockId, BlockChainClient, ChainNotify, ChainRoute};
 use ethcore::filter::Filter;
 use ethereum_types::H256;
 use hash_fetch::{self as fetch, HashFetch};
-use path::restrict_permissions_owner;
+use parity_path::restrict_permissions_owner;
 use service::Service;
 use sync::{SyncProvider};
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
@@ -314,6 +314,7 @@ impl OperationsClient for OperationsContractClient {
 		};
 
 		client.logs(filter)
+			.unwrap_or_default()
 			.iter()
 			.filter_map(|log| {
 				let event = event.parse_log((log.topics.clone(), log.data.clone()).into()).ok()?;
@@ -618,7 +619,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 
 		// Only check for updates every n blocks
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-		
+
 		if !cfg!(feature = "test-updater") {
 			if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
 				return;

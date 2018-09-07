@@ -39,7 +39,6 @@ use v1::helpers::nonce;
 use v1::helpers::dispatch::FullDispatcher;
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 use v1::metadata::Metadata;
-use v1::types::Origin;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -235,6 +234,15 @@ fn rpc_eth_logs() {
 }
 
 #[test]
+fn rpc_eth_logs_error() {
+	let tester = EthTester::default();
+	tester.client.set_error_on_logs(Some(BlockId::Hash(H256::from([5u8].as_ref()))));
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{"limit":1,"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"One of the blocks specified in filter (fromBlock, toBlock or blockHash) cannot be found","data":"0x0500000000000000000000000000000000000000000000000000000000000000"},"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_logs_filter() {
 	let tester = EthTester::default();
 	// Set some logs
@@ -351,25 +359,27 @@ fn rpc_eth_author() {
 	let make_res = |addr| r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:x}", addr) + r#"","id":1}"#;
 	let tester = EthTester::default();
 
-	let req = r#"{
+	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_coinbase",
 		"params": [],
 		"id": 1
 	}"#;
 
-	// No accounts - returns zero
-	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(Address::zero())));
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32023,"message":"No accounts were found","data":"\"\""},"id":1}"#;
+
+	// No accounts - returns an error indicating that no accounts were found
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_string()));
 
 	// Account set - return first account
 	let addr = tester.accounts_provider.new_account(&"123".into()).unwrap();
-	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
+	assert_eq!(tester.io.handle_request_sync(request), Some(make_res(addr)));
 
 	for i in 0..20 {
 		let addr = tester.accounts_provider.new_account(&format!("{}", i).into()).unwrap();
 		tester.miner.set_author(addr.clone(), None).unwrap();
 
-		assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
+		assert_eq!(tester.io.handle_request_sync(request), Some(make_res(addr)));
 	}
 }
 
@@ -395,7 +405,6 @@ fn rpc_eth_gas_price() {
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account(&"".into()).unwrap();
-	tester.accounts_provider.set_new_dapps_addresses(None).unwrap();
 	tester.accounts_provider.set_address_name(1.into(), "1".into());
 	tester.accounts_provider.set_address_name(10.into(), "10".into());
 
@@ -403,20 +412,6 @@ fn rpc_eth_accounts() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:x}", address) + r#""],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-
-	tester.accounts_provider.set_new_dapps_addresses(Some(vec![1.into()])).unwrap();
-	// even with some account it should return empty list (no dapp detected)
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
-	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-
-	// when we add visible address it should return that.
-	tester.accounts_provider.set_dapp_addresses("app1".into(), Some(vec![10.into()])).unwrap();
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
-	let mut meta = Metadata::default();
-	meta.origin = Origin::Dapps("app1".into());
-	assert_eq!((*tester.io).handle_request_sync(request, meta), Some(response.to_owned()));
 }
 
 #[test]

@@ -126,7 +126,7 @@ impl<'a> BasicContext for TickCtx<'a> {
 	}
 
 	fn request_from(&self, peer: PeerId, requests: Requests) -> Result<ReqId, Error> {
-		self.proto.request_from(self.io, &peer, requests)
+		self.proto.request_from(self.io, peer, requests)
 	}
 
 	fn make_announcement(&self, announcement: Announcement) {
@@ -159,7 +159,7 @@ impl<'a> BasicContext for Ctx<'a> {
 	}
 
 	fn request_from(&self, peer: PeerId, requests: Requests) -> Result<ReqId, Error> {
-		self.proto.request_from(self.io, &peer, requests)
+		self.proto.request_from(self.io, peer, requests)
 	}
 
 	fn make_announcement(&self, announcement: Announcement) {
