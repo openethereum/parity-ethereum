@@ -1809,10 +1809,6 @@ impl BlockChainClient for Client {
 		self.state_db.read().journal_db().state(hash)
 	}
 
-	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		self.block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).into_vec())
-	}
-
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		self.chain.read().block_receipts(hash)
 	}

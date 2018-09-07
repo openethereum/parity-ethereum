@@ -368,7 +368,7 @@ impl Service {
 			let next_available_from = next_chain_info.first_block_number?;
 			let cur_available_to = cur_chain_info.ancient_block_number.unwrap_or(cur_chain_info.best_block_number);
 
-			let target_block_num = cmp::min(next_available_from - 1, cur_available_to);
+			let target_block_num = cmp::min(next_available_from.saturating_sub(1), cur_available_to);
 
 			if target_block_num == 0 {
 				return None;
@@ -383,7 +383,7 @@ impl Service {
 		};
 
 		let (start_hash, target_hash) = match find_range() {
-			Some((start_hash, target_hash)) => (start_hash, target_hash),
+			Some(x) => x,
 			None => return Ok(0),
 		};
 
