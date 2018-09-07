@@ -124,9 +124,9 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				let address = H256::from(stack.peek(0));
 				let newval = stack.peek(1);
 				let val = U256::from(&*ext.storage_at(&address)?);
-				let orig = U256::from(&*ext.initial_storage_at(&address)?);
 
 				let gas = if schedule.eip1283 {
+					let orig = U256::from(&*ext.initial_storage_at(&address)?);
 					calculate_eip1283_sstore_gas(schedule, &orig, &val, &newval)
 				} else {
 					if val.is_zero() && !newval.is_zero() {
