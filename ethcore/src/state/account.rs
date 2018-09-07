@@ -553,7 +553,6 @@ impl Account {
 	pub fn overwrite_with(&mut self, other: Account) {
 		self.balance = other.balance;
 		self.nonce = other.nonce;
-		self.storage_root = other.storage_root;
 		self.code_hash = other.code_hash;
 		self.code_filth = other.code_filth;
 		self.code_cache = other.code_cache;
@@ -568,6 +567,7 @@ impl Account {
 			self.storage_cache = other.storage_cache;
 		}
 		self.original_storage_cache = other.original_storage_cache;
+		self.storage_root = other.storage_root;
 		self.storage_changes = other.storage_changes;
 	}
 }

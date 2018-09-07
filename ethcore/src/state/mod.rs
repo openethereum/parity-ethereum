@@ -1112,7 +1112,7 @@ impl<B: Backend> State<B> {
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	fn require<'a>(&'a self, a: &Address, require_code: bool) -> TrieResult<RefMut<'a, Account>> {
-		self.require_or_from(a, require_code, || Account::new_basic(0u8.into(), self.account_start_nonce), |_|{})
+		self.require_or_from(a, require_code, || Account::new_basic(0u8.into(), self.account_start_nonce), |_| {})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
