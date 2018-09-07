@@ -407,7 +407,7 @@ usage! {
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
 
-			ARG arg_interface: (String)  = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
+			ARG arg_interface: (String) = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
 			"--interface=[IP]",
 			"Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want parity to listen to.",
 
@@ -471,7 +471,7 @@ usage! {
 			"--jsonrpc-port=[PORT]",
 			"Specify the port portion of the HTTP JSON-RPC API server.",
 
-			ARG arg_jsonrpc_interface: (String)  = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
+			ARG arg_jsonrpc_interface: (String) = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
 			"--jsonrpc-interface=[IP]",
 			"Specify the hostname portion of the HTTP JSON-RPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
@@ -508,7 +508,7 @@ usage! {
 			"--ws-port=[PORT]",
 			"Specify the port portion of the WebSockets JSON-RPC server.",
 
-			ARG arg_ws_interface: (String)  = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
+			ARG arg_ws_interface: (String) = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
 			"--ws-interface=[IP]",
 			"Specify the hostname portion of the WebSockets JSON-RPC server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
@@ -563,13 +563,13 @@ usage! {
 			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
 
 		["Light Client Options"]
-			ARG arg_on_demand_nb_retry: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_nb_retry,
-			"--on_demand_nb_retry=[RETRIES]",
-			"Specify maximum number of retry query to send to other node for a query.",
+			ARG arg_on_demand_retry_count: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_retry_count,
+			"--on-demand-retry-count=[RETRIES]",
+			"Specify the query retry count.",
 
 			ARG arg_on_demand_inactive_time_limit: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_inactive_time_limit,
-			"--on_demand_inactive_time_limit=[MS]",
-			"Specify maximum total time limit for a light client query to stay inactive. O for no limit.",
+			"--on-demand-inactive-time-limit=[MS]",
+			"Specify light client query inactive time limit. O for no limit.",
 
 		["Secret Store Options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
@@ -1377,7 +1377,7 @@ struct Whisper {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Light {
-	on_demand_nb_retry: Option<usize>,
+	on_demand_retry_count: Option<usize>,
 	on_demand_inactive_time_limit: Option<u64>,
 }
 
@@ -1790,7 +1790,7 @@ mod tests {
 			flag_no_periodic_snapshot: false,
 
 			// -- Light options.
-			arg_on_demand_nb_retry: Some(15),
+			arg_on_demand_retry_count: Some(15),
 			arg_on_demand_inactive_time_limit: Some(15000),
 
 			// -- Whisper options.
@@ -2041,7 +2041,7 @@ mod tests {
 				num_verifiers: None,
 			}),
 			light: Some(Light {
-				on_demand_nb_retry: Some(12),
+				on_demand_retry_count: Some(12),
 				on_demand_inactive_time_limit: Some(20000),
 			}),
 			snapshots: Some(Snapshots {

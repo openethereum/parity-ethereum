@@ -51,10 +51,12 @@ pub mod request;
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
 /// The default number of retries for OnDemand queries to send to the other nodes
-pub const DEFAULT_NB_RETRY: usize = 10;
+pub const DEFAULT_RETRY_COUNT: usize = 10;
 
 /// The default time limit in milliseconds for inactive (no new peer to connect to) OnDemand queries (0 for unlimited)
 pub const DEFAULT_QUERY_TIME_LIMIT: Duration = Duration::from_millis(10000);
+
+const NULL_DURATION: Duration = Duration::from_secs(0);
 
 /// OnDemand related errors
 pub mod error {
@@ -67,16 +69,16 @@ pub mod error {
 		}
 
 		errors {
-			#[doc = "Max number of on demand attempt reached without results for a query."]
+			#[doc = "Max number of on-demand query attempts reached without result."]
 			MaxAttemptReach(query_index: usize) {
-				description("On demand query limit reached")
-				display("On demand query limit reached on query #{}", query_index)
+				description("On-demand query limit reached")
+				display("On-demand query limit reached on query #{}", query_index)
 			}
 
 			#[doc = "No reply with current peer set, time out occured while waiting for new peers for additional query attempt."]
 			TimeoutOnNewPeers(query_index: usize, remaining_attempts: usize) {
-				description("Timeout for On demand query")
-				display("Timeout for On demand query, remaining {} query attempts on query #{}", remaining_attempts, query_index)
+				description("Timeout for On-demand query")
+				display("Timeout for On-demand query; {} query attempts remain for query #{}", remaining_attempts, query_index)
 			}
 
 		}
@@ -112,8 +114,7 @@ impl Peer {
 }
 
 
-/// Either an array of response or a single error
-/// Currently fails globally.
+/// Either an array of responses or a single error.
 type PendingResponse = self::error::Result<Vec<Response>>;
 
 // Attempted request info and sender to put received value.
@@ -189,7 +190,7 @@ impl Pending {
 	fn try_complete(self) -> Option<Self> {
 		if self.requests.is_complete() {
 			if self.sender.send(Ok(self.responses)).is_err() {
-				debug!(target: "on_demand", "Dropped oneshot channel receiver on complete request");
+				debug!(target: "on_demand", "Dropped oneshot channel receiver on complete request at query #{}", self.query_id_history.len());
 			}
 			None
 		} else {
@@ -229,19 +230,19 @@ impl Pending {
 	// returning no reponse, it will result in an error.
 	// self is consumed on purpose.
 	fn no_response(self) {
-		trace!(target: "on_demand", "Dropping a pending query (no reply)");
+		trace!(target: "on_demand", "Dropping a pending query (no reply) at query #{}", self.query_id_history.len());
 		let err = self::error::ErrorKind::MaxAttemptReach(self.requests.num_answered());
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
 		}
 	}
 
-	// returning a peer discovery timeout during queries attempts
+	// returning a peer discovery timeout during query attempts
 	fn time_out(self) {
-		trace!(target: "on_demand", "Dropping a pending query (no new peer time out)");
+		trace!(target: "on_demand", "Dropping a pending query (no new peer time out) at query #{}", self.query_id_history.len());
 		let err = self::error::ErrorKind::TimeoutOnNewPeers(self.requests.num_answered(), self.query_id_history.len());
 		if self.sender.send(Err(err.into())).is_err() {
-			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
+			debug!(target: "on_demand", "Dropped oneshot channel receiver on time out");
 		}
 	}
 }
@@ -325,7 +326,7 @@ pub struct OnDemand {
 	in_transit: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
 	no_immediate_dispatch: bool,
-	base_retry_number: usize,
+	base_retry_count: usize,
 	query_inactive_time_limit: Option<Duration>,
 }
 
@@ -339,7 +340,7 @@ impl OnDemand {
 			in_transit: RwLock::new(HashMap::new()),
 			cache,
 			no_immediate_dispatch: false,
-			base_retry_number: DEFAULT_NB_RETRY,
+			base_retry_count: DEFAULT_RETRY_COUNT,
 			query_inactive_time_limit: Some(DEFAULT_QUERY_TIME_LIMIT),
 		}
 	}
@@ -448,8 +449,8 @@ impl OnDemand {
 				// the peer we dispatch to is chosen randomly
 				let num_peers = peers.len();
 				let history_len = pending.query_id_history.len();
-				let start = if history_len == 0 {
-					pending.remaining_query_count = self.base_retry_number;
+				let offset = if history_len == 0 {
+					pending.remaining_query_count = self.base_retry_count;
 					let rand = rand::random::<usize>();
 					pending.base_query_index = rand;
 					rand
@@ -458,7 +459,7 @@ impl OnDemand {
 				} % cmp::max(num_peers, 1);
 				let init_remaining_query_count = pending.remaining_query_count; // to fail in case of big reduction of nb of peers
 				for (peer_id, peer) in peers.iter().chain(peers.iter())
-					.skip(start).take(num_peers) {
+					.skip(offset).take(num_peers) {
 					// TODO: see which requests can be answered by the cache?
 					if pending.remaining_query_count == 0 {
 						break
@@ -498,7 +499,7 @@ impl OnDemand {
 								return None
 							}
 						} else {
-							debug!(target: "on_demand", "No more peer to query, waiting for {} seconds until dropping query", query_inactive_time_limit.as_secs());
+							debug!(target: "on_demand", "No more peers to query, waiting for {} seconds until dropping query", query_inactive_time_limit.as_secs());
 							pending.inactive_time_limit = Some(now + query_inactive_time_limit);
 						}
 					}
@@ -526,14 +527,14 @@ impl OnDemand {
 		}
 	}
 
-	/// Changes default number of retry for query.
+	/// Set the retry count for a query.
 	pub fn default_retry_number(&mut self, nb_retry: usize) {
-		self.base_retry_number = nb_retry;
+		self.base_retry_count = nb_retry;
 	}
 
-	/// Changes default time limit for query.
+	/// Set the time limit for a query.
 	pub fn query_inactive_time_limit(&mut self, inactive_time_limit: Duration) {
-		self.query_inactive_time_limit = if inactive_time_limit == Duration::new(0,0) {
+		self.query_inactive_time_limit = if inactive_time_limit == NULL_DURATION {
 			None
 		} else {
 			Some(inactive_time_limit)

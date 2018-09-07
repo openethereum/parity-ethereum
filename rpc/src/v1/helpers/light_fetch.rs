@@ -50,9 +50,9 @@ use transaction::{Action, Transaction as EthTransaction, SignedTransaction, Loca
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
-const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
+const NO_INVALID_BACK_REFS_PROOF: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
-const WRONG_RESPONSE_AMOUNT_TYPE: &str = "responses correspond directly with requests in amount and type; qed";
+const WRONG_RESPONSE_AMOUNT_TYPE_PROOF: &str = "responses correspond directly with requests in amount and type; qed";
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
@@ -150,7 +150,8 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |res|
 			extract_header(&res, header_ref)
-				.expect(WRONG_RESPONSE_AMOUNT_TYPE)
+				.expect("these responses correspond to requests that header_ref belongs to \
+					therefore it will not fail; qed")
 		))
 	}
 
@@ -168,7 +169,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Code(code)) => code,
-			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE),
+			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE_PROOF),
 		}))
 	}
 
@@ -185,7 +186,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |mut res|match res.pop() {
 			Some(OnDemandResponse::Account(acc)) => acc,
-			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE),
+			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE_PROOF),
 		}))
 	}
 
@@ -278,7 +279,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Body(b)) => b,
-			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE),
+			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE_PROOF),
 		}))
 	}
 
@@ -294,7 +295,7 @@ impl LightFetch {
 
 		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Receipts(b)) => b,
-			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE),
+			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE_PROOF),
 		}))
 	}
 
@@ -324,7 +325,7 @@ impl LightFetch {
 							bit_combos.iter().any(|bloom| hdr_bloom.contains_bloom(bloom))
 						})
 						.map(|hdr| (hdr.number(), hdr.hash(), request::BlockReceipts(hdr.into())))
-						.map(|(num, hash, req)| on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, hash, x)))
+						.map(|(num, hash, req)| on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS_PROOF).map(move |x| (num, hash, x)))
 						.collect();
 
 					// as the receipts come in, find logs within them which match the filter.
@@ -381,7 +382,7 @@ impl LightFetch {
 			});
 
 			let eventual_index = match maybe_future {
-				Some(e) => e.expect(NO_INVALID_BACK_REFS).map_err(errors::on_demand_error),
+				Some(e) => e.expect(NO_INVALID_BACK_REFS_PROOF).map_err(errors::on_demand_error),
 				None => return Either::A(future::err(errors::network_disabled())),
 			};
 
@@ -431,7 +432,7 @@ impl LightFetch {
 	{
 		let maybe_future = self.sync.with_context(move |ctx| {
 			Box::new(self.on_demand.request_raw(ctx, reqs)
-					 .expect(NO_INVALID_BACK_REFS)
+					 .expect(NO_INVALID_BACK_REFS_PROOF)
 					 .map_err(errors::on_demand_cancel)
 					 .and_then(|responses| {
 						 match responses {

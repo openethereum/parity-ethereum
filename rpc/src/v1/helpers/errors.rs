@@ -448,7 +448,7 @@ pub fn filter_block_not_found(id: BlockId) -> Error {
 pub fn on_demand_error(err: OnDemandError) -> Error {
 	match err {
 		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
-		OnDemandError(OnDemandErrorKind::MaxAttemptReach(_), _) => max_attempt_reach(&err),
+		OnDemandError(OnDemandErrorKind::MaxAttemptReach(_), _) => max_attempts_reached(&err),
 		OnDemandError(OnDemandErrorKind::TimeoutOnNewPeers(_,_), _) => timeout_new_peer(&err),
 		_ => on_demand_others(&err),
 	}
@@ -459,7 +459,7 @@ pub fn on_demand_cancel(_cancel: futures::sync::oneshot::Canceled) -> Error {
 	internal("on-demand sender cancelled", "")
 }
 
-pub fn max_attempt_reach(err: &OnDemandError) -> Error {
+pub fn max_attempts_reached(err: &OnDemandError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::REQUEST_NOT_FOUND),
 		message: err.to_string(),
