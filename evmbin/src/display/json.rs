@@ -61,7 +61,7 @@ impl vm::Informant for Informant {
 
 				let success_msg = json!({
 					"output": format!("0x{}", success.output.to_hex()),
-					"gasUsed": format!("0x{:x}", success.gas_used),
+					"gasUsed": format!("{:#x}", success.gas_used),
 					"time": display::as_micros(&success.time),
 				});
 
@@ -74,7 +74,7 @@ impl vm::Informant for Informant {
 
 				let failure_msg = json!({
 					"error": display::escape_newlines(&failure.error),
-					"gasUsed": format!("0x{:x}", failure.gas_used),
+					"gasUsed": format!("{:#x}", failure.gas_used),
 					"time": display::as_micros(&failure.time),
 				});
 
@@ -107,8 +107,8 @@ impl trace::VMTracer for Informant {
 			"pc": self.pc,
 			"op": self.instruction,
 			"opName": info.map(|i| i.name).unwrap_or(""),
-			"gas": format!("0x{:x}", gas_used.saturating_add(self.gas_cost)),
-			"gasCost": format!("0x{:x}", self.gas_cost),
+			"gas": format!("{:#x}", gas_used.saturating_add(self.gas_cost)),
+			"gasCost": format!("{:#x}", self.gas_cost),
 			"memory": format!("0x{}", self.memory.to_hex()),
 			"stack": self.stack,
 			"storage": self.storage,

@@ -106,7 +106,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 				let out_data = json!({
 					"output": format!("0x{}", success.output.to_hex()),
-					"gasUsed": format!("0x{:x}", success.gas_used),
+					"gasUsed": format!("{:#x}", success.gas_used),
 					"time": display::as_micros(&success.time),
 				});
 
@@ -116,7 +116,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 			Err(failure) => {
 				let out_data = json!({
 					"error": display::escape_newlines(&failure.error),
-					"gasUsed": format!("0x{:x}", failure.gas_used),
+					"gasUsed": format!("{:#x}", failure.gas_used),
 					"time": display::as_micros(&failure.time),
 				});
 
@@ -137,7 +137,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 			"pc": pc,
 			"op": instruction,
 			"opName": info.map(|i| i.name).unwrap_or(""),
-			"gas": format!("0x{:x}", current_gas),
+			"gas": format!("{:#x}", current_gas),
 			"stack": self.stack,
 			"storage": self.storage,
 			"depth": self.depth,
