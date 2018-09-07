@@ -32,6 +32,7 @@ use test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data
 use parking_lot::Mutex;
 use io::IoChannel;
 use kvdb_rocksdb::DatabaseConfig;
+use verification::queue::kind::blocks::Unverified;
 
 #[test]
 fn restored_is_equivalent() {
@@ -212,7 +213,7 @@ fn keep_ancient_blocks() {
 	for block_number in 1..50 {
 		let block_hash = bc.block_hash(block_number).unwrap();
 		let block = bc.block(&block_hash).unwrap();
-		client2.import_block(block.into_inner()).unwrap();
+		client2.import_block(Unverified::from_rlp(block.into_inner()).unwrap()).unwrap();
 	}
 
 	client2.import_verified_blocks();
