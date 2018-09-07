@@ -100,7 +100,11 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
-			block_reward_contract: p.block_reward_contract_address.map(BlockRewardContract::new),
+			block_reward_contract: match (p.block_reward_contract_code, p.block_reward_contract_address) {
+				(Some(code), _) => Some(BlockRewardContract::new_from_code(Arc::new(code.into()))),
+				(_, Some(address)) => Some(BlockRewardContract::new_from_address(address.into())),
+				(None, None) => None,
+			},
 			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
@@ -984,8 +988,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					self.clear_empty_steps(parent_step);
 
 					// report any skipped primaries between the parent block and
-					// the block we're sealing
-					self.report_skipped(header, step, u64::from(parent_step) as usize, &*validators, set_number);
+					// the block we're sealing, unless we have empty steps enabled
+					if header.number() < self.empty_steps_transition {
+						self.report_skipped(header, step, u64::from(parent_step) as usize, &*validators, set_number);
+					}
 
 					let mut fields = vec![
 						encode(&step).into_vec(),
@@ -1043,7 +1049,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		let mut benefactors = Vec::new();
+		let mut beneficiaries = Vec::new();
 		if block.header().number() >= self.empty_steps_transition {
 			let empty_steps = if block.header().seal().is_empty() {
 				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
@@ -1069,32 +1075,22 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 			for empty_step in empty_steps {
 				let author = empty_step.author()?;
-				benefactors.push((author, RewardKind::EmptyStep));
+				beneficiaries.push((author, RewardKind::EmptyStep));
 			}
 		}
 
 		let author = *block.header().author();
-		benefactors.push((author, RewardKind::Author));
+		beneficiaries.push((author, RewardKind::Author));
 
 		let rewards: Vec<_> = match self.block_reward_contract {
 			Some(ref c) if block.header().number() >= self.block_reward_contract_transition => {
-				// NOTE: this logic should be moved to a function when another
-				//       engine needs support for block reward contract.
-				let mut call = |to, data| {
-					let result = self.machine.execute_as_system(
-						block,
-						to,
-						U256::max_value(), // unbounded gas? maybe make configurable.
-						Some(data),
-					);
-					result.map_err(|e| format!("{}", e))
-				};
+				let mut call = super::default_system_or_code_call(&self.machine, block);
 
-				let rewards = c.reward(&benefactors, &mut call)?;
+				let rewards = c.reward(&beneficiaries, &mut call)?;
 				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
 			},
 			_ => {
-				benefactors.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
+				beneficiaries.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
 			},
 		};
 
@@ -1925,7 +1921,7 @@ mod tests {
 		let b2 = b2.close_and_lock().unwrap();
 
 		// the spec sets the block reward to 10
-		assert_eq!(b2.block().state().balance(&addr1).unwrap(), addr1_balance + (10 * 2).into())
+		assert_eq!(b2.block().state().balance(&addr1).unwrap(), addr1_balance + (10 * 2))
 	}
 
 	#[test]
@@ -2073,7 +2069,7 @@ mod tests {
 		// the contract rewards (1000 + kind) for each benefactor/reward kind
 		assert_eq!(
 			b2.block().state().balance(&addr1).unwrap(),
-			addr1_balance + (1000 + 0).into() + (1000 + 2).into(),
+			addr1_balance + (1000 + 0) + (1000 + 2),
 		)
 	}
 }

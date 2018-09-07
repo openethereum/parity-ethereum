@@ -21,6 +21,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use ansi_term::Colour;
+use ethereum_types::H256;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use stop_guard::StopGuard;
 
@@ -54,12 +55,24 @@ impl PrivateTxService {
 }
 
 impl PrivateTxHandler for PrivateTxService {
-	fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), String> {
-		self.provider.import_private_transaction(rlp).map_err(|e| e.to_string())
+	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
+		match self.provider.import_private_transaction(rlp) {
+			Ok(import_result) => Ok(import_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to import private transaction packet: {}", err);
+				bail!(err.to_string())
+			}
+		}
 	}
 
-	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<(), String> {
-		self.provider.import_signed_private_transaction(rlp).map_err(|e| e.to_string())
+	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
+		match self.provider.import_signed_private_transaction(rlp) {
+			Ok(import_result) => Ok(import_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to import signed private transaction packet: {}", err);
+				bail!(err.to_string())
+			}
+		}
 	}
 }
 

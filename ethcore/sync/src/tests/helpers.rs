@@ -33,7 +33,7 @@ use ethcore::test_helpers;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
-use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
+use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3, PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET};
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
 
@@ -230,8 +230,10 @@ impl<C> EthPeer<C> where C: FlushingBlockChainClient {
 		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None);
 		match message {
 			ChainMessageType::Consensus(data) => self.sync.write().propagate_consensus_packet(&mut io, data),
-			ChainMessageType::PrivateTransaction(data) => self.sync.write().propagate_private_transaction(&mut io, data),
-			ChainMessageType::SignedPrivateTransaction(data) => self.sync.write().propagate_signed_private_transaction(&mut io, data),
+			ChainMessageType::PrivateTransaction(transaction_hash, data) =>
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, PRIVATE_TRANSACTION_PACKET, data),
+			ChainMessageType::SignedPrivateTransaction(transaction_hash, data) =>
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, SIGNED_PRIVATE_TRANSACTION_PACKET, data),
 		}
 	}
 

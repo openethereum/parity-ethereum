@@ -57,7 +57,6 @@ fn snap_and_restore() {
 	for part in 0..SNAPSHOT_SUBPARTS {
 		let mut hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), Some(part)).unwrap();
 		state_hashes.append(&mut hashes);
-
 	}
 
 	writer.into_inner().finish(::snapshot::ManifestData {

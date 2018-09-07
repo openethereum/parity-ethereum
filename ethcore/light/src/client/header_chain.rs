@@ -51,10 +51,10 @@ use smallvec::SmallVec;
 const HISTORY: u64 = 2048;
 
 /// The best block key. Maps to an RLP list: [best_era, last_era]
-const CURRENT_KEY: &'static [u8] = &*b"best_and_latest";
+const CURRENT_KEY: &[u8] = &*b"best_and_latest";
 
 /// Key storing the last canonical epoch transition.
-const LAST_CANONICAL_TRANSITION: &'static [u8] = &*b"canonical_transition";
+const LAST_CANONICAL_TRANSITION: &[u8] = &*b"canonical_transition";
 
 /// Information about a block.
 #[derive(Debug, Clone)]
@@ -97,9 +97,10 @@ struct Entry {
 
 impl HeapSizeOf for Entry {
 	fn heap_size_of_children(&self) -> usize {
-		match self.candidates.spilled() {
-			false => 0,
-			true => self.candidates.capacity() * ::std::mem::size_of::<Candidate>(),
+		if self.candidates.spilled() {
+			self.candidates.capacity() * ::std::mem::size_of::<Candidate>()
+		} else {
+			0
 		}
 	}
 }
@@ -134,7 +135,7 @@ impl Decodable for Entry {
 		// rely on the invariant that the canonical entry is always first.
 		let canon_hash = candidates[0].hash;
 		Ok(Entry {
-			candidates: candidates,
+			candidates,
 			canonical_hash: canon_hash,
 		})
 	}
@@ -269,9 +270,9 @@ impl HeaderChain {
 				best_block: RwLock::new(best_block),
 				candidates: RwLock::new(candidates),
 				live_epoch_proofs: RwLock::new(live_epoch_proofs),
-				db: db,
-				col: col,
-				cache: cache,
+				db,
+				col,
+				cache,
 			}
 
 		} else {
@@ -285,8 +286,8 @@ impl HeaderChain {
 				candidates: RwLock::new(BTreeMap::new()),
 				live_epoch_proofs: RwLock::new(live_epoch_proofs),
 				db: db.clone(),
-				col: col,
-				cache: cache,
+				col,
+				cache,
 			};
 
 			// insert the hardcoded sync into the database.
@@ -302,9 +303,8 @@ impl HeaderChain {
 				let decoded_header_num = decoded_header.number();
 
 				// write the block in the DB.
-				info!(target: "chain", "Inserting hardcoded block #{} in chain",
-					  decoded_header_num);
-				let pending = chain.insert_with_td(&mut batch, decoded_header,
+				info!(target: "chain", "Inserting hardcoded block #{} in chain", decoded_header_num);
+				let pending = chain.insert_with_td(&mut batch, &decoded_header,
 												hardcoded_sync.total_difficulty, None)?;
 
 				// check that we have enough hardcoded CHT roots. avoids panicking later.
@@ -324,7 +324,7 @@ impl HeaderChain {
 		};
 
 		// instantiate genesis epoch data if it doesn't exist.
-		if let None = chain.db.get(col, LAST_CANONICAL_TRANSITION)? {
+		if chain.db.get(col, LAST_CANONICAL_TRANSITION)?.is_none() {
 			let genesis_data = spec.genesis_epoch_data()?;
 
 			{
@@ -349,7 +349,7 @@ impl HeaderChain {
 	pub fn insert(
 		&self,
 		transaction: &mut DBTransaction,
-		header: Header,
+		header: &Header,
 		transition_proof: Option<Vec<u8>>,
 	) -> Result<PendingChanges, BlockImportError> {
 		self.insert_inner(transaction, header, None, transition_proof)
@@ -361,7 +361,7 @@ impl HeaderChain {
 	pub fn insert_with_td(
 		&self,
 		transaction: &mut DBTransaction,
-		header: Header,
+		header: &Header,
 		total_difficulty: U256,
 		transition_proof: Option<Vec<u8>>,
 	) -> Result<PendingChanges, BlockImportError> {
@@ -371,7 +371,7 @@ impl HeaderChain {
 	fn insert_inner(
 		&self,
 		transaction: &mut DBTransaction,
-		header: Header,
+		header: &Header,
 		total_difficulty: Option<U256>,
 		transition_proof: Option<Vec<u8>>,
 	) -> Result<PendingChanges, BlockImportError> {
@@ -381,7 +381,7 @@ impl HeaderChain {
 		let transition = transition_proof.map(|proof| EpochTransition {
 			block_hash: hash,
 			block_number: number,
-			proof: proof,
+			proof,
 		});
 
 		let mut pending = PendingChanges {
@@ -415,9 +415,9 @@ impl HeaderChain {
 			let cur_era = candidates.entry(number)
 				.or_insert_with(|| Entry { candidates: SmallVec::new(), canonical_hash: hash });
 			cur_era.candidates.push(Candidate {
-				hash: hash,
-				parent_hash: parent_hash,
-				total_difficulty: total_difficulty,
+				hash,
+				parent_hash,
+				total_difficulty,
 			});
 
 			// fix ordering of era before writing.
@@ -479,9 +479,9 @@ impl HeaderChain {
 
 			trace!(target: "chain", "New best block: ({}, {}), TD {}", number, hash, total_difficulty);
 			pending.best_block = Some(BlockDescriptor {
-				hash: hash,
-				number: number,
-				total_difficulty: total_difficulty,
+				hash,
+				number,
+				total_difficulty,
 			});
 
 			// produce next CHT root if it's time.
@@ -651,7 +651,7 @@ impl HeaderChain {
 						Ok(db_value) => {
 							db_value.map(|x| x.into_vec()).map(encoded::Header::new)
 								.and_then(|header| {
-									cache.insert_block_header(hash.clone(), header.clone());
+									cache.insert_block_header(hash, header.clone());
 									Some(header)
 								 })
 						},
@@ -772,16 +772,17 @@ impl HeaderChain {
 
 	/// Get block status.
 	pub fn status(&self, hash: &H256) -> BlockStatus {
-		match self.db.get(self.col, &*hash).ok().map_or(false, |x| x.is_some()) {
-			true => BlockStatus::InChain,
-			false => BlockStatus::Unknown,
+		if self.db.get(self.col, hash).ok().map_or(false, |x| x.is_some()) {
+			BlockStatus::InChain
+		} else {
+			BlockStatus::Unknown
 		}
 	}
 
 	/// Insert a pending transition.
-	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingEpochTransition) {
+	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: &PendingEpochTransition) {
 		let key = pending_transition_key(hash);
-		batch.put(self.col, &*key, &*::rlp::encode(&t));
+		batch.put(self.col, &*key, &*::rlp::encode(t));
 	}
 
 	/// Get pending transition for a specific block hash.
@@ -865,7 +866,7 @@ mod tests {
 	use ethcore::ids::BlockId;
 	use ethcore::header::Header;
 	use ethcore::spec::Spec;
-  	use cache::Cache;
+	use cache::Cache;
 	use kvdb::KeyValueDB;
 	use kvdb_memorydb;
 
@@ -897,7 +898,7 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			let pending = chain.insert(&mut tx, header, None).unwrap();
+			let pending = chain.insert(&mut tx, &header, None).unwrap();
 			db.write(tx).unwrap();
 			chain.apply_pending(pending);
 
@@ -930,7 +931,7 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			let pending = chain.insert(&mut tx, header, None).unwrap();
+			let pending = chain.insert(&mut tx, &header, None).unwrap();
 			db.write(tx).unwrap();
 			chain.apply_pending(pending);
 
@@ -949,7 +950,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header, None).unwrap();
+				let pending = chain.insert(&mut tx, &header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -973,7 +974,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header, None).unwrap();
+				let pending = chain.insert(&mut tx, &header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -1026,7 +1027,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header, None).unwrap();
+				let pending = chain.insert(&mut tx, &header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -1066,7 +1067,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header, None).unwrap();
+				let pending = chain.insert(&mut tx, &header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -1083,7 +1084,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header, None).unwrap();
+				let pending = chain.insert(&mut tx, &header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -1141,7 +1142,7 @@ mod tests {
 				None
 			};
 
-			let pending = chain.insert(&mut tx, header, epoch_proof).unwrap();
+			let pending = chain.insert(&mut tx, &header, epoch_proof).unwrap();
 			db.write(tx).unwrap();
 			chain.apply_pending(pending);
 
@@ -1169,7 +1170,7 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			let pending = chain.insert(&mut tx, header, None).unwrap();
+			let pending = chain.insert(&mut tx, &header, None).unwrap();
 			db.write(tx).unwrap();
 			chain.apply_pending(pending);
 
@@ -1208,7 +1209,7 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			let pending = chain.insert(&mut tx, header, None).expect("failed inserting a transaction");
+			let pending = chain.insert(&mut tx, &header, None).expect("failed inserting a transaction");
 			db.write(tx).unwrap();
 			chain.apply_pending(pending);
 

@@ -44,6 +44,7 @@ extern crate jsonrpc_pubsub;
 
 extern crate ethash;
 extern crate ethcore;
+extern crate fastmap;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
 extern crate ethcore_devtools as devtools;

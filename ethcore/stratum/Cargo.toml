@@ -6,8 +6,8 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = "0.3"
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.4"
+keccak-hash = "0.1"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }

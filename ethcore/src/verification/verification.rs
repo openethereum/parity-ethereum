@@ -60,14 +60,19 @@ impl HeapSizeOf for PreverifiedBlock {
 }
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
-pub fn verify_block_basic(block: &Unverified, engine: &EthEngine) -> Result<(), Error> {
+pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bool) -> Result<(), Error> {
 	verify_header_params(&block.header, engine, true)?;
 	verify_block_integrity(block)?;
-	engine.verify_block_basic(&block.header)?;
+
+	if check_seal {
+		engine.verify_block_basic(&block.header)?;
+	}
 
 	for uncle in &block.uncles {
 		verify_header_params(uncle, engine, false)?;
-		engine.verify_block_basic(uncle)?;
+		if check_seal {
+			engine.verify_block_basic(uncle)?;
+		}
 	}
 
 	for t in &block.transactions {
@@ -376,7 +381,6 @@ mod tests {
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
 	use rlp;
 	use triehash::ordered_trie_root;
-	use views::BlockView;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -420,10 +424,10 @@ mod tests {
 		}
 
 		pub fn insert(&mut self, bytes: Bytes) {
-			let number = view!(BlockView, &bytes).header_view().number();
-			let hash = view!(BlockView, &bytes).header_view().hash();
-			self.blocks.insert(hash.clone(), bytes);
-			self.numbers.insert(number, hash.clone());
+			let header = Unverified::from_rlp(bytes.clone()).unwrap().header;
+			let hash = header.hash();
+			self.blocks.insert(hash, bytes);
+			self.numbers.insert(header.number(), hash);
 		}
 	}
 
@@ -460,11 +464,11 @@ mod tests {
 		/// Get the familial details concerning a block.
 		fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 			self.blocks.get(hash).map(|bytes| {
-				let header = view!(BlockView, bytes).header();
+				let header = Unverified::from_rlp(bytes.to_vec()).unwrap().header;
 				BlockDetails {
 					number: header.number(),
-					total_difficulty: header.difficulty().clone(),
-					parent: header.parent_hash().clone(),
+					total_difficulty: *header.difficulty(),
+					parent: *header.parent_hash(),
 					children: Vec::new(),
 					is_finalized: false,
 				}
@@ -497,13 +501,13 @@ mod tests {
 
 	fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
 		let unverified = Unverified::from_rlp(bytes.to_vec())?;
-		verify_block_basic(&unverified, engine)
+		verify_block_basic(&unverified, engine, true)
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
-		let view = view!(BlockView, bytes);
-		let header = view.header();
-		let transactions: Vec<_> = view.transactions()
+		let block = Unverified::from_rlp(bytes.to_vec()).unwrap();
+		let header = block.header;
+		let transactions: Vec<_> = block.transactions
 			.into_iter()
 			.map(SignedTransaction::new)
 			.collect::<Result<_,_>>()?;
@@ -520,7 +524,7 @@ mod tests {
 		let block = PreverifiedBlock {
 			header,
 			transactions,
-			uncles: view.uncles(),
+			uncles: block.uncles,
 			bytes: bytes.to_vec(),
 		};
 
@@ -533,7 +537,6 @@ mod tests {
 	}
 
 	fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
-		use verification::queue::kind::blocks::Unverified;
 		let un = Unverified::from_rlp(bytes.to_vec())?;
 		verify_block_unordered(un, engine, false)?;
 		Ok(())
@@ -674,7 +677,7 @@ mod tests {
 		header.set_uncles_hash(good_uncles_hash.clone());
 		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
-		header.set_gas_limit(min_gas_limit - From::from(1));
+		header.set_gas_limit(min_gas_limit - 1);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit().clone() }));
 
@@ -684,7 +687,7 @@ mod tests {
 			RidiculousNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number() }));
 
 		header = good.clone();
-		let gas_used = header.gas_limit().clone() + 1.into();
+		let gas_used = header.gas_limit().clone() + 1;
 		header.set_gas_used(gas_used);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit().clone()), min: None, found: header.gas_used().clone() }));

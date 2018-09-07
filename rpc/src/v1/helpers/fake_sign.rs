@@ -24,7 +24,7 @@ pub fn sign_call(request: CallRequest) -> Result<SignedTransaction, Error> {
 	let max_gas = U256::from(50_000_000);
 	let gas = match request.gas {
 		Some(gas) => gas,
-		None => max_gas * 10,
+		None => max_gas * 10u32,
 	};
 	let from = request.from.unwrap_or(0.into());
 

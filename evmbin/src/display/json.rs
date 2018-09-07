@@ -95,7 +95,7 @@ impl vm::Informant for Informant {
 
 				println!(
 					"{{\"error\":\"{error}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
-					error = failure.error,
+					error = display::escape_newlines(&failure.error),
 					gas = failure.gas_used,
 					time = display::as_micros(&failure.time),
 				)

@@ -16,6 +16,7 @@
 
 //! Request types, verification, and verification errors.
 
+use std::cmp;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -47,6 +48,8 @@ pub enum Request {
 	HeaderProof(HeaderProof),
 	/// A request for a header by hash.
 	HeaderByHash(HeaderByHash),
+	/// A request for a header by hash with a range of its ancestors.
+	HeaderWithAncestors(HeaderWithAncestors),
 	/// A request for the index of a transaction.
 	TransactionIndex(TransactionIndex),
 	/// A request for block receipts.
@@ -136,6 +139,7 @@ macro_rules! impl_single {
 // implement traits for each kind of request.
 impl_single!(HeaderProof, HeaderProof, (H256, U256));
 impl_single!(HeaderByHash, HeaderByHash, encoded::Header);
+impl_single!(HeaderWithAncestors, HeaderWithAncestors, Vec<encoded::Header>);
 impl_single!(TransactionIndex, TransactionIndex, net_request::TransactionIndexResponse);
 impl_single!(Receipts, BlockReceipts, Vec<Receipt>);
 impl_single!(Body, Body, encoded::Block);
@@ -220,7 +224,7 @@ impl HeaderRef {
 	fn field(&self) -> Field<H256> {
 		match *self {
 			HeaderRef::Stored(ref hdr) => Field::Scalar(hdr.hash()),
-			HeaderRef::Unresolved(_, ref field) => field.clone(),
+			HeaderRef::Unresolved(_, field) => field,
 		}
 	}
 
@@ -228,7 +232,7 @@ impl HeaderRef {
 	fn needs_header(&self) -> Option<(usize, Field<H256>)> {
 		match *self {
 			HeaderRef::Stored(_) => None,
-			HeaderRef::Unresolved(idx, ref field) => Some((idx, field.clone())),
+			HeaderRef::Unresolved(idx, field) => Some((idx, field)),
 		}
 	}
 }
@@ -246,6 +250,7 @@ impl From<encoded::Header> for HeaderRef {
 pub enum CheckedRequest {
 	HeaderProof(HeaderProof, net_request::IncompleteHeaderProofRequest),
 	HeaderByHash(HeaderByHash, net_request::IncompleteHeadersRequest),
+	HeaderWithAncestors(HeaderWithAncestors, net_request::IncompleteHeadersRequest),
 	TransactionIndex(TransactionIndex, net_request::IncompleteTransactionIndexRequest),
 	Receipts(BlockReceipts, net_request::IncompleteReceiptsRequest),
 	Body(Body, net_request::IncompleteBodyRequest),
@@ -268,6 +273,16 @@ impl From<Request> for CheckedRequest {
 				trace!(target: "on_demand", "HeaderByHash Request, {:?}", net_req);
 				CheckedRequest::HeaderByHash(req, net_req)
 			}
+			Request::HeaderWithAncestors(req) => {
+				let net_req = net_request::IncompleteHeadersRequest {
+					start: req.block_hash.map(Into::into),
+					skip: 0,
+					max: req.ancestor_count + 1,
+					reverse: true,
+				};
+				trace!(target: "on_demand", "HeaderWithAncestors Request, {:?}", net_req);
+				CheckedRequest::HeaderWithAncestors(req, net_req)
+			}
 			Request::HeaderProof(req) => {
 				let net_req = net_request::IncompleteHeaderProofRequest {
 					num: req.num().into(),
@@ -277,7 +292,7 @@ impl From<Request> for CheckedRequest {
 			}
 			Request::TransactionIndex(req) => {
 				let net_req = net_request::IncompleteTransactionIndexRequest {
-					hash: req.0.clone(),
+					hash: req.0,
 				};
 				trace!(target: "on_demand", "TransactionIndex Request, {:?}", net_req);
 				CheckedRequest::TransactionIndex(req, net_req)
@@ -307,7 +322,7 @@ impl From<Request> for CheckedRequest {
 			Request::Code(req) => {
 				let net_req = net_request::IncompleteCodeRequest {
 					block_hash: req.header.field(),
-					code_hash: req.code_hash.into(),
+					code_hash: req.code_hash,
 				};
 				trace!(target: "on_demand", "Code Request, {:?}", net_req);
 				CheckedRequest::Code(req, net_req)
@@ -344,6 +359,7 @@ impl CheckedRequest {
 		match self {
 			CheckedRequest::HeaderProof(_, req) => NetRequest::HeaderProof(req),
 			CheckedRequest::HeaderByHash(_, req) => NetRequest::Headers(req),
+			CheckedRequest::HeaderWithAncestors(_, req) => NetRequest::Headers(req),
 			CheckedRequest::TransactionIndex(_, req) => NetRequest::TransactionIndex(req),
 			CheckedRequest::Receipts(_, req) => NetRequest::Receipts(req),
 			CheckedRequest::Body(_, req) => NetRequest::Body(req),
@@ -388,7 +404,7 @@ impl CheckedRequest {
 		match *self {
 			CheckedRequest::HeaderProof(ref check, _) => {
 				let mut cache = cache.lock();
-				cache.block_hash(&check.num)
+				cache.block_hash(check.num)
 					.and_then(|h| cache.chain_score(&h).map(|s| (h, s)))
 					.map(|(h, s)| Response::HeaderProof((h, s)))
 			}
@@ -398,6 +414,27 @@ impl CheckedRequest {
 				}
 
 				None
+			}
+			CheckedRequest::HeaderWithAncestors(_, ref req) => {
+				if req.skip != 1 || !req.reverse {
+					return None;
+				}
+
+				if let Some(&net_request::HashOrNumber::Hash(start)) = req.start.as_ref() {
+					let mut result = Vec::with_capacity(req.max as usize);
+					let mut hash = start;
+					let mut cache = cache.lock();
+					for _ in 0..req.max {
+						match cache.block_header(&hash) {
+							Some(header) => {
+								hash = header.parent_hash();
+								result.push(header);
+							}
+							None => return None,
+						}
+					}
+					Some(Response::HeaderWithAncestors(result))
+				} else { None }
 			}
 			CheckedRequest::Receipts(ref check, ref req) => {
 				// empty transactions -> no receipts
@@ -411,7 +448,7 @@ impl CheckedRequest {
 			}
 			CheckedRequest::Body(ref check, ref req) => {
 				// check for empty body.
-				if let Some(hdr) = check.0.as_ref().ok() {
+				if let Ok(hdr) = check.0.as_ref() {
 					if hdr.transactions_root() == KECCAK_NULL_RLP && hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
 						let mut stream = RlpStream::new_list(3);
 						stream.append_raw(hdr.rlp().as_raw(), 1);
@@ -467,6 +504,7 @@ macro_rules! match_me {
 		match $me {
 			CheckedRequest::HeaderProof($check, $req) => $e,
 			CheckedRequest::HeaderByHash($check, $req) => $e,
+			CheckedRequest::HeaderWithAncestors($check, $req) => $e,
 			CheckedRequest::TransactionIndex($check, $req) => $e,
 			CheckedRequest::Receipts($check, $req) => $e,
 			CheckedRequest::Body($check, $req) => $e,
@@ -492,6 +530,15 @@ impl IncompleteRequest for CheckedRequest {
 
 				// make sure the output given is definitively a hash.
 				match check.0 {
+					Field::BackReference(r, idx) => f(r, idx, OutputKind::Hash),
+					_ => Ok(()),
+				}
+			}
+			CheckedRequest::HeaderWithAncestors(ref check, ref req) => {
+				req.check_outputs(&mut f)?;
+
+				// make sure the output given is definitively a hash.
+				match check.block_hash {
 					Field::BackReference(r, idx) => f(r, idx, OutputKind::Hash),
 					_ => Ok(()),
 				}
@@ -522,6 +569,10 @@ impl IncompleteRequest for CheckedRequest {
 			}
 			CheckedRequest::HeaderByHash(_, req) => {
 				trace!(target: "on_demand", "HeaderByHash request completed {:?}", req);
+				req.complete().map(CompleteRequest::Headers)
+			}
+			CheckedRequest::HeaderWithAncestors(_, req) => {
+				trace!(target: "on_demand", "HeaderWithAncestors request completed {:?}", req);
 				req.complete().map(CompleteRequest::Headers)
 			}
 			CheckedRequest::TransactionIndex(_, req) => {
@@ -587,6 +638,9 @@ impl net_request::CheckedRequest for CheckedRequest {
 			CheckedRequest::HeaderByHash(ref prover, _) =>
 				expect!((&NetResponse::Headers(ref res), &CompleteRequest::Headers(ref req)) =>
 					prover.check_response(cache, &req.start, &res.headers).map(Response::HeaderByHash)),
+			CheckedRequest::HeaderWithAncestors(ref prover, _) =>
+				expect!((&NetResponse::Headers(ref res), &CompleteRequest::Headers(ref req)) =>
+					prover.check_response(cache, &req.start, &res.headers).map(Response::HeaderWithAncestors)),
 			CheckedRequest::TransactionIndex(ref prover, _) =>
 				expect!((&NetResponse::TransactionIndex(ref res), _) =>
 					prover.check_response(cache, res).map(Response::TransactionIndex)),
@@ -620,6 +674,8 @@ pub enum Response {
 	HeaderProof((H256, U256)),
 	/// Response to a header-by-hash request.
 	HeaderByHash(encoded::Header),
+	/// Response to a header-by-hash with ancestors request.
+	HeaderWithAncestors(Vec<encoded::Header>),
 	/// Response to a transaction-index request.
 	TransactionIndex(net_request::TransactionIndexResponse),
 	/// Response to a receipts request.
@@ -661,6 +717,10 @@ pub enum Error {
 	Decoder(::rlp::DecoderError),
 	/// Empty response.
 	Empty,
+	/// Response data length exceeds request max.
+	TooManyResults(u64, u64),
+	/// Response data is incomplete.
+	TooFewResults(u64, u64),
 	/// Trie lookup error (result of bad proof)
 	Trie(TrieError),
 	/// Bad inclusion proof
@@ -677,6 +737,8 @@ pub enum Error {
 	WrongTrieRoot(H256, H256),
 	/// Wrong response kind.
 	WrongKind,
+	/// Wrong sequence of headers.
+	WrongHeaderSequence,
 }
 
 impl From<::rlp::DecoderError> for Error {
@@ -707,9 +769,9 @@ impl HeaderProof {
 	/// Provide the expected CHT root to compare against.
 	pub fn new(num: u64, cht_root: H256) -> Option<Self> {
 		::cht::block_to_cht_number(num).map(|cht_num| HeaderProof {
-			num: num,
-			cht_num: cht_num,
-			cht_root: cht_root,
+			num,
+			cht_num,
+			cht_root,
 		})
 	}
 
@@ -737,6 +799,65 @@ impl HeaderProof {
 	}
 }
 
+/// Request for a header by hash with a range of ancestors.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeaderWithAncestors {
+	/// Hash of the last block in the range to fetch.
+	pub block_hash: Field<H256>,
+	/// Number of headers before the last block to fetch in addition.
+	pub ancestor_count: u64,
+}
+
+impl HeaderWithAncestors {
+	/// Check a response for the headers.
+	pub fn check_response(
+		&self,
+		cache: &Mutex<::cache::Cache>,
+		start: &net_request::HashOrNumber,
+		headers: &[encoded::Header]
+	) -> Result<Vec<encoded::Header>, Error> {
+		let expected_hash = match (self.block_hash, start) {
+			(Field::Scalar(h), &net_request::HashOrNumber::Hash(h2)) => {
+				if h != h2 { return Err(Error::WrongHash(h, h2)) }
+				h
+			}
+			(_, &net_request::HashOrNumber::Hash(h2)) => h2,
+			_ => return Err(Error::HeaderByNumber),
+		};
+
+		let start_header = headers.first().ok_or(Error::Empty)?;
+		let start_hash = start_header.hash();
+		if start_hash != expected_hash {
+			return Err(Error::WrongHash(expected_hash, start_hash));
+		}
+
+		let expected_len = 1 + cmp::min(self.ancestor_count, start_header.number());
+		let actual_len = headers.len() as u64;
+		match actual_len.cmp(&expected_len) {
+			cmp::Ordering::Less =>
+				return Err(Error::TooFewResults(expected_len, actual_len)),
+			cmp::Ordering::Greater =>
+				return Err(Error::TooManyResults(expected_len, actual_len)),
+			cmp::Ordering::Equal => (),
+		};
+
+		for (header, prev_header) in headers.iter().zip(headers[1..].iter()) {
+			if header.number() != prev_header.number() + 1 ||
+				header.parent_hash() != prev_header.hash()
+			{
+				return Err(Error::WrongHeaderSequence)
+			}
+		}
+
+		let mut cache = cache.lock();
+		for header in headers {
+			cache.insert_block_header(header.hash(), header.clone());
+		}
+
+		Ok(headers.to_vec())
+	}
+}
+
 /// Request for a header by hash.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeaderByHash(pub Field<H256>);
@@ -750,9 +871,9 @@ impl HeaderByHash {
 		headers: &[encoded::Header]
 	) -> Result<encoded::Header, Error> {
 		let expected_hash = match (self.0, start) {
-			(Field::Scalar(ref h), &net_request::HashOrNumber::Hash(ref h2)) => {
-				if h != h2 { return Err(Error::WrongHash(*h, *h2)) }
-				*h
+			(Field::Scalar(h), &net_request::HashOrNumber::Hash(h2)) => {
+				if h != h2 { return Err(Error::WrongHash(h, h2)) }
+				h
 			}
 			(_, &net_request::HashOrNumber::Hash(h2)) => h2,
 			_ => return Err(Error::HeaderByNumber),
@@ -760,12 +881,11 @@ impl HeaderByHash {
 
 		let header = headers.get(0).ok_or(Error::Empty)?;
 		let hash = header.hash();
-		match hash == expected_hash {
-			true => {
-				cache.lock().insert_block_header(hash, header.clone());
-				Ok(header.clone())
-			}
-			false => Err(Error::WrongHash(expected_hash, hash)),
+		if hash == expected_hash {
+			cache.lock().insert_block_header(hash, header.clone());
+			Ok(header.clone())
+		} else {
+			Err(Error::WrongHash(expected_hash, hash))
 		}
 	}
 }
@@ -836,15 +956,12 @@ impl BlockReceipts {
 		let receipts_root = self.0.as_ref()?.receipts_root();
 		let found_root = ::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r)));
 
-		match receipts_root == found_root {
-			true => {
-				cache.lock().insert_block_receipts(receipts_root, receipts.to_vec());
-				Ok(receipts.to_vec())
-			}
-			false => {
-				trace!(target: "on_demand", "Receipt Reponse: \"WrongTrieRoot\" receipts_root: {:?} found_root: {:?}", receipts_root, found_root);
-				Err(Error::WrongTrieRoot(receipts_root, found_root))
-			}
+		if receipts_root == found_root {
+			cache.lock().insert_block_receipts(receipts_root, receipts.to_vec());
+			Ok(receipts.to_vec())
+		} else {
+			trace!(target: "on_demand", "Receipt Reponse: \"WrongTrieRoot\" receipts_root: {:?} found_root: {:?}", receipts_root, found_root);
+			Err(Error::WrongTrieRoot(receipts_root, found_root))
 		}
 	}
 }
@@ -931,7 +1048,7 @@ impl TransactionProof {
 		let root = self.header.as_ref()?.state_root();
 
 		let mut env_info = self.env_info.clone();
-		env_info.gas_limit = self.tx.gas.clone();
+		env_info.gas_limit = self.tx.gas;
 
 		let proved_execution = state::check_proof(
 			state_items,
@@ -1043,6 +1160,83 @@ mod tests {
 
 		let cache = Mutex::new(make_cache());
 		assert!(HeaderByHash(hash.into()).check_response(&cache, &hash.into(), &[raw_header]).is_ok())
+	}
+
+	#[test]
+	fn check_header_with_ancestors() {
+		let mut last_header_hash = H256::default();
+		let mut headers = (0..11).map(|num| {
+			let mut header = Header::new();
+			header.set_number(num);
+			header.set_parent_hash(last_header_hash);
+
+			last_header_hash = header.hash();
+			header
+		}).collect::<Vec<_>>();
+
+		headers.reverse();  // because responses are in reverse order
+
+		let raw_headers = headers.iter()
+			.map(|hdr| encoded::Header::new(::rlp::encode(hdr).into_vec()))
+			.collect::<Vec<_>>();
+
+		let mut invalid_successor = Header::new();
+		invalid_successor.set_number(11);
+		invalid_successor.set_parent_hash(headers[1].hash());
+
+		let raw_invalid_successor = encoded::Header::new(::rlp::encode(&invalid_successor).into_vec());
+
+		let cache = Mutex::new(make_cache());
+
+		let header_with_ancestors = |hash, count| {
+			HeaderWithAncestors {
+				block_hash: hash,
+				ancestor_count: count
+			}
+		};
+
+		// Correct responses
+		assert!(header_with_ancestors(headers[0].hash().into(), 0)
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..1]).is_ok());
+		assert!(header_with_ancestors(headers[0].hash().into(), 2)
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..3]).is_ok());
+		assert!(header_with_ancestors(headers[0].hash().into(), 10)
+				.check_response(&cache, &headers[0].hash().into(), &raw_headers[0..11]).is_ok());
+		assert!(header_with_ancestors(headers[2].hash().into(), 2)
+				.check_response(&cache, &headers[2].hash().into(), &raw_headers[2..5]).is_ok());
+		assert!(header_with_ancestors(headers[2].hash().into(), 10)
+				.check_response(&cache, &headers[2].hash().into(), &raw_headers[2..11]).is_ok());
+		assert!(header_with_ancestors(invalid_successor.hash().into(), 0)
+				.check_response(&cache, &invalid_successor.hash().into(), &[raw_invalid_successor.clone()]).is_ok());
+
+		// Incorrect responses
+		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 0)
+				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..1]),
+				   Err(Error::WrongHash(invalid_successor.hash(), headers[0].hash())));
+		assert_eq!(header_with_ancestors(headers[0].hash().into(), 0)
+				   .check_response(&cache, &headers[0].hash().into(), &[]),
+				   Err(Error::Empty));
+		assert_eq!(header_with_ancestors(headers[0].hash().into(), 10)
+				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..10]),
+				   Err(Error::TooFewResults(11, 10)));
+		assert_eq!(header_with_ancestors(headers[0].hash().into(), 9)
+				   .check_response(&cache, &headers[0].hash().into(), &raw_headers[0..11]),
+				   Err(Error::TooManyResults(10, 11)));
+
+		let response = &[raw_headers[0].clone(), raw_headers[2].clone()];
+		assert_eq!(header_with_ancestors(headers[0].hash().into(), 1)
+				   .check_response(&cache, &headers[0].hash().into(), response),
+				   Err(Error::WrongHeaderSequence));
+
+		let response = &[raw_invalid_successor.clone(), raw_headers[0].clone()];
+		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 1)
+				   .check_response(&cache, &invalid_successor.hash().into(), response),
+				   Err(Error::WrongHeaderSequence));
+
+		let response = &[raw_invalid_successor.clone(), raw_headers[1].clone()];
+		assert_eq!(header_with_ancestors(invalid_successor.hash().into(), 1)
+				   .check_response(&cache, &invalid_successor.hash().into(), response),
+				   Err(Error::WrongHeaderSequence));
 	}
 
 	#[test]

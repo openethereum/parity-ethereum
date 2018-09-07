@@ -38,7 +38,8 @@ use std::net::{SocketAddr, AddrParseError};
 use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
-	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3};
+	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3,
+	PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET};
 use light::client::AsLightClient;
 use light::Provider;
 use light::net::{
@@ -361,7 +362,7 @@ impl SyncProvider for EthSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: eth_sync.peer_info(&peer_id),
-					pip_info: light_proto.as_ref().and_then(|lp| lp.peer_status(&peer_id)).map(Into::into),
+					pip_info: light_proto.as_ref().and_then(|lp| lp.peer_status(peer_id)).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)
@@ -522,8 +523,10 @@ impl ChainNotify for EthSync {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			match message_type {
 				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
-				ChainMessageType::PrivateTransaction(message) => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message),
-				ChainMessageType::SignedPrivateTransaction(message) => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message),
+				ChainMessageType::PrivateTransaction(transaction_hash, message) =>
+					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, PRIVATE_TRANSACTION_PACKET, message),
+				ChainMessageType::SignedPrivateTransaction(transaction_hash, message) =>
+					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, SIGNED_PRIVATE_TRANSACTION_PACKET, message),
 			}
 		});
 	}
@@ -919,7 +922,7 @@ impl LightSyncProvider for LightSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: None,
-					pip_info: self.proto.peer_status(&peer_id).map(Into::into),
+					pip_info: self.proto.peer_status(peer_id).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)

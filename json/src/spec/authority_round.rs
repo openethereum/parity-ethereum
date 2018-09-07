@@ -16,8 +16,9 @@
 
 //! Authority params deserialization.
 
-use ethereum_types::Address;
+use hash::Address;
 use uint::Uint;
+use bytes::Bytes;
 use super::ValidatorSet;
 
 /// Authority params deserialization.
@@ -51,6 +52,9 @@ pub struct AuthorityRoundParams {
 	/// overrides the static block reward definition).
 	#[serde(rename="blockRewardContractAddress")]
 	pub block_reward_contract_address: Option<Address>,
+	/// Block reward code. This overrides the block reward contract address.
+	#[serde(rename="blockRewardContractCode")]
+	pub block_reward_contract_code: Option<Bytes>,
 	/// Block at which maximum uncle count should be considered.
 	#[serde(rename="maximumUncleCountTransition")]
 	pub maximum_uncle_count_transition: Option<Uint>,
