@@ -90,9 +90,9 @@ const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
 // current state chunk version.
 const STATE_CHUNK_VERSION: u64 = 2;
 /// number of snapshot subparts, must be a power of 2 in [1; 256]
-pub const SNAPSHOT_SUBPARTS: usize = 16;
+const SNAPSHOT_SUBPARTS: usize = 16;
 /// Maximum number of snapshot subparts (must be a multiple of `SNAPSHOT_SUBPARTS`)
-pub const MAX_SNAPSHOT_SUBPARTS: usize = 256;
+const MAX_SNAPSHOT_SUBPARTS: usize = 256;
 
 /// Configuration for the Snapshot service
 #[derive(Debug, Clone, PartialEq)]
@@ -358,10 +358,8 @@ pub fn chunk_state<'a>(db: &HashDB<KeccakHasher>, root: &H256, writer: &Mutex<Sn
 		let (account_key, account_data) = item?;
 		let account_key_hash = H256::from_slice(&account_key);
 
-		if let Some(seek_to) = seek_to {
-			if account_key[0] >= seek_to {
-				break;
-			}
+		if seek_to.map_or(false, |seek_to| account_key[0] >= seek_to) {
+			break;
 		}
 
 		let account = ::rlp::decode(&*account_data)?;
