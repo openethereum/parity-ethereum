@@ -28,6 +28,7 @@ use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKi
 use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError};
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
+use chain::BlockSet;
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
 const MAX_BODIES_TO_REQUEST: usize = 32;
@@ -35,6 +36,17 @@ const MAX_RECEPITS_TO_REQUEST: usize = 128;
 const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 16;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
+
+macro_rules! trace_sync {
+    ($self:ident, target: $target:expr, $($arg:tt)*) => {
+        trace!(target: $target, $($arg)+, $self.block_set);
+	}
+}
+macro_rules! debug_sync {
+    ($self:ident, target: $target:expr, $($arg:tt)*) => {
+        debug!(target: $target, $($arg)+, $self.block_set);
+	}
+}
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Downloader state
@@ -89,6 +101,8 @@ impl From<rlp::DecoderError> for BlockDownloaderImportError {
 /// Block downloader strategy.
 /// Manages state and block data for a block download process.
 pub struct BlockDownloader {
+	/// Which set of blocks to download
+	block_set: BlockSet,
 	/// Downloader state
 	state: State,
 	/// Highest block number seen
@@ -117,10 +131,15 @@ pub struct BlockDownloader {
 }
 
 impl BlockDownloader {
-	/// Create a new instance of syncing strategy. This won't reorganize to before the
-	/// last kept state.
-	pub fn new(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber) -> Self {
+	/// Create a new instance of syncing strategy.
+	/// For BlockSet::NewBlocks this won't reorganize to before the last kept state.
+	pub fn new(block_set: BlockSet, start_hash: &H256, start_number: BlockNumber) -> Self {
+		let (limit_reorg, sync_receipts) = match block_set {
+			BlockSet::NewBlocks => (true, false),
+			BlockSet::OldBlocks => (false, true)
+		};
 		BlockDownloader {
+			block_set: block_set,
 			state: State::Idle,
 			highest_block: None,
 			last_imported_block: start_number,
@@ -133,26 +152,7 @@ impl BlockDownloader {
 			download_receipts: sync_receipts,
 			target_hash: None,
 			retract_step: 1,
-			limit_reorg: true,
-		}
-	}
-
-	/// Create a new instance of sync with unlimited reorg allowed.
-	pub fn with_unlimited_reorg(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber) -> Self {
-		BlockDownloader {
-			state: State::Idle,
-			highest_block: None,
-			last_imported_block: start_number,
-			last_imported_hash: start_hash.clone(),
-			last_round_start: start_number,
-			last_round_start_hash: start_hash.clone(),
-			blocks: BlockCollection::new(sync_receipts),
-			imported_this_round: None,
-			round_parents: VecDeque::new(),
-			download_receipts: sync_receipts,
-			target_hash: None,
-			retract_step: 1,
-			limit_reorg: false,
+			limit_reorg: limit_reorg,
 		}
 	}
 
