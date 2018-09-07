@@ -85,7 +85,6 @@ test-coverage-kcov:
   stage:                           test
   only:
     - master
-    - pr-9319
   script:
     - scripts/gitlab/coverage.sh
   tags:
