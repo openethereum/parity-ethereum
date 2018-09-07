@@ -115,7 +115,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 			},
 			Err(failure) => {
 				let out_data = json!({
-					"error": display::escape_newlines(&failure.error),
+					"error": &failure.error.to_string(),
 					"gasUsed": format!("{:#x}", failure.gas_used),
 					"time": display::as_micros(&failure.time),
 				});

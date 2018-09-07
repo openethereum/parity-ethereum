@@ -73,7 +73,7 @@ impl vm::Informant for Informant {
 				}
 
 				let failure_msg = json!({
-					"error": display::escape_newlines(&failure.error),
+					"error": &failure.error.to_string(),
 					"gasUsed": format!("{:#x}", failure.gas_used),
 					"time": display::as_micros(&failure.time),
 				});
