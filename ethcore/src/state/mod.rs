@@ -588,8 +588,7 @@ impl<B: Backend> State<B> {
 					} else {
 						// This account has checkpoint entry, but the key is not in the entry's cache. We can use
 						// original_storage_at if current account's original storage root is the same as checkpoint
-						// account's original storage root. Otherwise, we need to populate the checkpoint account. Note
-						// that the later case is not possible under current Ethereum consensus rules.
+						// account's original storage root. Otherwise, the account must be a newly created contract.
 						if account.base_storage_root() == self.original_storage_root(address)? {
 							ReturnKind::OriginalAt
 						} else {
