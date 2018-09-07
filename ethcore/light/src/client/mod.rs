@@ -176,7 +176,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		io_channel: IoChannel<ClientIoMessage>,
 		cache: Arc<Mutex<Cache>>
 	) -> Result<Self, Error> {
-		Ok(Client {
+		Ok(Self {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),
 			chain: {
@@ -185,9 +185,9 @@ impl<T: ChainDataFetcher> Client<T> {
 			},
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
-			db: db,
+			db,
 			listeners: RwLock::new(vec![]),
-			fetcher: fetcher,
+			fetcher,
 			verify_full: config.verify_full,
 		})
 	}
@@ -229,7 +229,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		BlockChainInfo {
 			total_difficulty: best_td,
 			pending_total_difficulty: best_td + self.queue.total_difficulty(),
-			genesis_hash: genesis_hash,
+			genesis_hash,
 			best_block_hash: best_hdr.hash(),
 			best_block_number: best_hdr.number(),
 			best_block_timestamp: best_hdr.timestamp(),
@@ -313,14 +313,14 @@ impl<T: ChainDataFetcher> Client<T> {
 					The node may not be able to synchronize further.", e);
 			}
 
-			let epoch_proof =  self.engine.is_epoch_end(
+			let epoch_proof = self.engine.is_epoch_end(
 				&verified_header,
 				&|h| self.chain.block_header(BlockId::Hash(h)).and_then(|hdr| hdr.decode().ok()),
 				&|h| self.chain.pending_transition(h),
 			);
 
 			let mut tx = self.db.transaction();
-			let pending = match self.chain.insert(&mut tx, verified_header, epoch_proof) {
+			let pending = match self.chain.insert(&mut tx, &verified_header, epoch_proof) {
 				Ok(pending) => {
 					good.push(hash);
 					self.report.write().blocks_imported += 1;
@@ -511,8 +511,8 @@ impl<T: ChainDataFetcher> Client<T> {
 		};
 
 		let mut batch = self.db.transaction();
-		self.chain.insert_pending_transition(&mut batch, header.hash(), epoch::PendingTransition {
-			proof: proof,
+		self.chain.insert_pending_transition(&mut batch, header.hash(), &epoch::PendingTransition {
+			proof,
 		});
 		self.db.write_buffered(batch);
 		Ok(())
@@ -602,7 +602,7 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 		self.chain.epoch_transition_for(parent_hash).map(|(hdr, proof)| EpochTransition {
 			block_hash: hdr.hash(),
 			block_number: hdr.number(),
-			proof: proof,
+			proof,
 		})
 	}
 

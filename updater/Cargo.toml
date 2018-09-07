@@ -6,22 +6,22 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+keccak-hash = "0.1"
 lazy_static = "1.0"
 log = "0.4"
-ethabi = "5.1"
-ethabi-derive = "5.0"
-ethabi-contract = "5.0"
+ethabi = "5.1.2"
+ethabi-derive = "5.1.3"
+ethabi-contract = "5.1.1"
 target_info = "0.1"
 semver = "0.9"
 ethcore = { path = "../ethcore" }
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+parity-bytes = "0.1"
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 parking_lot = "0.6"
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-version = { path = "../util/version" }
-path = { git = "https://github.com/paritytech/parity-common" }
+parity-path = "0.1"
 rand = "0.4"
 
 [dev-dependencies]

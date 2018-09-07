@@ -454,8 +454,8 @@ impl Engine<EthereumMachine> for Tendermint {
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - view
 		let new_difficulty = U256::from(U128::max_value())
-			+ consensus_view(parent).expect("Header has been verified; qed").into()
-			- self.view.load(AtomicOrdering::SeqCst).into();
+			+ consensus_view(parent).expect("Header has been verified; qed")
+			- self.view.load(AtomicOrdering::SeqCst);
 
 		header.set_difficulty(new_difficulty);
 	}
