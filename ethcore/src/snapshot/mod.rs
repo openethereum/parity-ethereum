@@ -44,6 +44,7 @@ use trie::{Trie, TrieMut};
 use ethtrie::{TrieDB, TrieDBMut};
 use rlp::{RlpStream, Rlp};
 use bloom_journal::Bloom;
+use num_cpus;
 
 use self::io::SnapshotWriter;
 
@@ -107,7 +108,7 @@ impl Default for SnapshotConfiguration {
 	fn default() -> Self {
 		SnapshotConfiguration {
 			no_periodic: false,
-			processing_threads: 1,
+			processing_threads: num_cpus::get() / 2,
 		}
 	}
 }
