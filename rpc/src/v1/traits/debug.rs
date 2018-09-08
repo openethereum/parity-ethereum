@@ -14,22 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
-//! method calls properly.
+//! Debug RPC interface.
 
-mod debug;
-mod eth;
-mod eth_pubsub;
-mod manage_network;
-mod net;
-mod parity;
-mod parity_accounts;
-mod parity_set;
-mod personal;
-mod pubsub;
-mod rpc;
-mod secretstore;
-mod signer;
-mod signing;
-mod traces;
-mod web3;
+use jsonrpc_core::Result;
+
+use v1::types::RichBlock;
+
+build_rpc_trait! {
+	/// Debug RPC interface.
+	pub trait Debug {
+		/// Returns recently seen bad blocks.
+		#[rpc(name = "debug_getBadBlocks")]
+		fn bad_blocks(&self) -> Result<Vec<RichBlock>>;
+	}
+}

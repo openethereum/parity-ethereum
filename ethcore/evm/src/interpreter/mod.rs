@@ -629,8 +629,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let current_val = U256::from(&*ext.storage_at(&address)?);
 				// Increase refund for clear
-				if !current_val.is_zero() && val.is_zero() {
-					ext.inc_sstore_clears();
+				if ext.schedule().eip1283 {
+					let original_val = U256::from(&*ext.initial_storage_at(&address)?);
+					gasometer::handle_eip1283_sstore_clears_refund(ext, &original_val, &current_val, &val);
+				} else {
+					if !current_val.is_zero() && val.is_zero() {
+						let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
+						ext.add_sstore_refund(sstore_clears_schedule);
+					}
 				}
 				ext.set_storage(address, H256::from(&val))?;
 			},
