@@ -8,15 +8,19 @@
 				"difficultyBoundDivisor": "0x0800",
 				"difficultyIncrementDivisor": "0x3C",
 				"durationLimit": "0x3C",
-				"blockReward": "0x6f05b59d3b200000",
+				"blockReward": {
+					"0x0": "0x6f05b59d3b200000",
+					"0xC3500": "0x3782DACE9D900000"
+				},
 				"homesteadTransition": "0x30d40",
 				"difficultyHardforkTransition": "0x59d9",
 				"difficultyHardforkBoundDivisor": "0x0200",
 				"bombDefuseTransition": "0x30d40",
 				"eip100bTransition": "0xC3500",
 				"metropolisDifficultyIncrementDivisor": "0x1E",
-				"eip649Transition": "0xC3500",
-				"eip649Reward": "0x3782DACE9D900000",
+				"difficultyBombDelays": {
+					"0xC3500": 3000000
+				},
 				"expip2Transition": "0xC3500",
 				"expip2DurationLimit": "0x1E"
 			}
