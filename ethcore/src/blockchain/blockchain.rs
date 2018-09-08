@@ -213,6 +213,7 @@ pub struct BlockChain {
 	block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
+	bad_blocks: RwLock<HashMap<H256, BlockInfo>>,
 
 	db: Arc<BlockChainDB>,
 
@@ -525,6 +526,7 @@ impl BlockChain {
 			block_hashes: RwLock::new(HashMap::new()),
 			transaction_addresses: RwLock::new(HashMap::new()),
 			block_receipts: RwLock::new(HashMap::new()),
+			bad_blocks: RwLock::new(HashMap::new()),
 			db: db.clone(),
 			cache_man: Mutex::new(cache_man),
 			pending_best_block: RwLock::new(None),
@@ -986,6 +988,11 @@ impl BlockChain {
 
 		let info = self.block_info(&block.header_view(), route, &extras);
 
+		if self.is_blacklisted_hash(hash) {
+			self.bad_blocks.write().insert(hash, info);
+			return ImportRoute::none();
+		}
+
 		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
 			info!(target: "reorg", "Reorg to {} ({} {} {})",
 				Colour::Yellow.bold().paint(format!("#{} {}", info.number, info.hash)),
@@ -1349,6 +1356,26 @@ impl BlockChain {
 				Some((start_number, blooms))
 			}
 		}
+	}
+
+	/// Determine if a hash is blacklisted (part of a hard fork)
+	fn is_blacklisted_hash(&self, hash: H256) -> bool {
+		if self.blacklisted_hashes().contains_key(&hash) {
+			return true
+		}
+		false
+	}
+
+	/// Get all blacklisted hashes
+	fn blacklisted_hashes(&self) -> HashMap<H256, bool> {
+		let mut blacklist = HashMap::new();
+		blacklist.insert("05bef30ef572270f654746da22639a7a0c97dd97a7050b9e252391996aaeb689".into(), true);
+		blacklist.insert("7d05d08cbc596a2e5e4f13b80a743e53e09221b5323c3a61946b20873e58583f".into(), true);
+		blacklist
+	}
+
+	pub fn bad_blocks(&self) -> Vec<H256> {
+		self.bad_blocks.read().iter().map(|(hash, _)| *hash).collect::<Vec<H256>>()
 	}
 
 	/// Get best block hash.

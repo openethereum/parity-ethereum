@@ -335,6 +335,12 @@ impl TestBlockChainClient {
 		}
 	}
 
+	fn bad_blocks(&self) -> Option<Vec<H256>> {
+		let mut bad_block = Vec::new();
+		bad_block.push("05bef30ef572270f654746da22639a7a0c97dd97a7050b9e252391996aaeb689".into());
+		Some(bad_block)
+	}
+
 	/// Inserts a transaction with given gas price to miners transactions queue.
 	pub fn insert_transaction_with_gas_price_to_queue(&self, gas_price: U256) -> H256 {
 		let keypair = Random.generate().unwrap();
@@ -644,6 +650,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		Self::block_hash(self, id)
+	}
+
+	fn bad_blocks(&self) -> Option<Vec<H256>> {
+		Self::bad_blocks(self)
 	}
 
 	fn storage_root(&self, _address: &Address, _id: BlockId) -> Option<H256> {

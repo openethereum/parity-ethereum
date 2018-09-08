@@ -240,6 +240,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get block hash.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
+	/// Get all known bad blocks in chain.
+	fn bad_blocks(&self) -> Option<Vec<H256>>;
+
 	/// Get address code at given block's state.
 	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>>;
 

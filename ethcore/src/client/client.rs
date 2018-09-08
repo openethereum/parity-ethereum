@@ -1671,6 +1671,16 @@ impl BlockChainClient for Client {
 		Self::block_hash(&chain, id)
 	}
 
+	fn bad_blocks(&self) -> Option<Vec<H256>> {
+		let blocks = self.chain.read().bad_blocks();
+
+		if blocks.len() > 0 {
+			Some(blocks)
+		} else {
+			None
+		}
+	}
+
 	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>> {
 		let result = match state {
 			StateOrBlock::State(s) => s.code(address).ok(),

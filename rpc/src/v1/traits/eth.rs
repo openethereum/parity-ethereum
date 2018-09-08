@@ -174,6 +174,10 @@ build_rpc_trait! {
 		/// Used for submitting mining hashrate.
 		#[rpc(name = "eth_submitHashrate")]
 		fn submit_hashrate(&self, U256, H256) -> Result<bool>;
+
+		/// Used for finding bad blocks in current chain.
+		#[rpc(name = "debug_getBadBlocks")]
+		fn bad_blocks(&self, bool) -> BoxFuture<Vec<RichBlock>>;
 	}
 }
 

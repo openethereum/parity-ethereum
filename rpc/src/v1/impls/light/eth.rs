@@ -524,6 +524,10 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	fn submit_hashrate(&self, _rate: RpcU256, _id: RpcH256) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
+
+	fn bad_blocks(&self, _include_txs: bool) -> BoxFuture<Vec<RichBlock>> {
+		Box::new(future::done(Ok(<Vec<RichBlock>>::new())))
+	}
 }
 
 // This trait implementation triggers a blanked impl of `EthFilter`.
