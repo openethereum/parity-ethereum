@@ -27,7 +27,6 @@ use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
 use ethcore::ids::BlockId;
-use futures::future;
 
 use light::client::LightChainClient;
 
@@ -323,12 +322,7 @@ impl Parity for ParityClient {
 	}
 
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256> {
-		let addr = address.into();
-		if let Ok(nonce) = self.light_dispatch.cached_next_nonce(&addr) {
-			Box::new(future::ok(nonce.into()))
-		} else {
-			Box::new(self.light_dispatch.next_nonce(&addr).map(Into::into))
-		}
+		Box::new(self.light_dispatch.next_nonce(&address.into()).map(Into::into))
 	}
 
 	fn mode(&self) -> Result<String> {

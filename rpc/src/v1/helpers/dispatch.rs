@@ -317,7 +317,6 @@ impl LightDispatcher {
 	}
 
 	/// Get an account's next nonce.
-	/// If the account is not found in the `state trie` then provide the `local start nonce`
 	pub fn next_nonce(&self, addr: &Address) -> BoxFuture<U256> {
 		let account_start_nonce = self.client.engine().account_start_nonce(self.client.best_block_header().number());
 		Box::new(self.account(addr.clone())
@@ -326,26 +325,19 @@ impl LightDispatcher {
 			})
 		)
 	}
-
-	/// Try fetching the next nonce from the cache
-	pub fn cached_next_nonce(&self, addr: &Address) -> Result<U256> {
-		if let Some(nonce) = self.transaction_queue.read().next_nonce(&addr) {
-			Ok(nonce)
-		} else {
-			Err(errors::internal("the next nonce is not in the cache need to ask the network", ""))
-		}
-	}
 }
 
 impl Dispatcher for LightDispatcher {
-	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
+	// Ignore the `force_nonce` flag in order to always query the network when to fetch nonce and
+	// account state. If the nonce is specified in the transaction use that nonce but do the
+	// network request anyway to the account state (balance)
+	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, _force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest>
 	{
 		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
 		let gas_limit = self.client.best_block_header().gas_limit();
 		let request_gas_price = request.gas_price.clone();
-		let request_nonce = request.nonce.clone();
 		let from = request.from.unwrap_or(default_sender);
 
 		let with_gas_price = move |gas_price| {
@@ -378,25 +370,29 @@ impl Dispatcher for LightDispatcher {
 			}).map(with_gas_price))
 		};
 
-		match (request_nonce, force_nonce) {
-			(_, false) | (Some(_), true) => Box::new(gas_price),
-			(None, true) => {
-				let next_nonce = {
-					if let Ok(nonce) = self.cached_next_nonce(&from) {
-						Box::new(future::ok(nonce))
-					} else {
-						self.next_nonce(&from)
+		let future_account = self.account(from);
+
+		Box::new(gas_price.and_then(move |mut filled| {
+			future_account
+				.and_then(move |maybe_account| {
+					let cost = filled.value + filled.gas_price * filled.gas;
+					match maybe_account {
+						Some(ref account) if cost > account.balance => {
+							Err(errors::transaction(TransactionError::InsufficientBalance {
+								balance: account.balance,
+								cost,
+							}))
+						}
+						Some(account) => {
+							if filled.nonce.is_none() {
+								filled.nonce = Some(account.nonce);
+							}
+							Ok(filled)
+						}
+						None => Err(errors::account("Account not found", "")),
 					}
-				};
-				Box::new(gas_price.and_then(move |mut filled| next_nonce
-					.map_err(|_| errors::no_light_peers())
-					.map(move |nonce| {
-						filled.nonce = Some(nonce);
-						filled
-					})
-				))
-			},
-		}
+				})
+		}))
 	}
 
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
@@ -404,30 +400,8 @@ impl Dispatcher for LightDispatcher {
 	{
 		let chain_id = self.client.signing_chain_id();
 		let nonces = self.nonces.clone();
-		let cost = filled.value + filled.gas_price * filled.gas;
-
-		// Go to the network and get the state of the account that created the transaction
-		//
-		// Note, we must do this every time even if the next_nonce is cached
-		// because if the account hasn't sufficient funds we should not add it to the
-		// transaction queue!
-		Box::new(self.account(filled.from)
-			.and_then(move |maybe_account| {
-				match maybe_account {
-					Some(ref account) if cost > account.balance => {
-						Err(errors::transaction(TransactionError::InsufficientBalance {
-							balance: account.balance,
-							cost,
-						}))
-					}
-					Some(account) => Ok(account),
-					None => Err(errors::account("Account not found", "")),
-				}
-			})
-			.and_then(move |account| {
-				let reserved = nonces.lock().reserve(filled.from, account.nonce);
-				ProspectiveSigner::new(accounts, filled, chain_id, reserved, password)
-			}))
+		let reserved = nonces.lock().reserve(filled.from, filled.nonce.expect("nonce is always provided"));
+		Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password))
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
