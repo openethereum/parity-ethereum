@@ -37,6 +37,16 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
+
+////****  Imports for mod eip1024   *****/////
+extern crate sodiumoxide;
+// extern crate serde;
+extern crate serde_json;
+
+
+
+/////***  End imports for mod eip1024  ***//////
+
 mod brain;
 mod brain_prefix;
 mod error;

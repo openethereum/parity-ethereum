@@ -18,6 +18,8 @@ use secp256k1;
 use std::io;
 use parity_crypto::error::SymmError;
 
+
+
 quick_error! {
 	#[derive(Debug)]
 	pub enum Error {
@@ -166,10 +168,121 @@ pub mod ecies {
 	}
 }
 
+pub mod eip1024{
+
+////****  Imports for mod eip1024   *****////
+use sodiumoxide;
+use serde_json;
+use sodiumoxide::crypto::box_;
+use serde_json::Error as serdeError;
+/////***  End imports for mod eip1024  ***//////
+
+
+
+	static VERSION: &'static str = "x25519-xsalsa20-poly1305";
+
+	type JsonStr = String;
+
+	#[derive(Serialize)]
+	struct Digest <'a>{
+	    version: &'a str,
+	    ciphertext: &'a[u8],
+	    ephemPublicKey: &'a[u8],
+	    nonce: &'a[u8]
+	}
+
+	#[derive(Deserialize, Debug)]
+	struct Undigest{
+	    version: String,
+	    ciphertext: Vec<u8>,
+	    ephemPublicKey: Vec<u8>,
+	    nonce: Vec<u8>
+	}
+
+
+
+	pub fn encrypt(receiver_public_key: &[u8], msg: &[u8]) -> Result<JsonStr, serdeError>{
+
+	    //generate my Ephemeral key pair
+	    let ( ephem_pub_key ,ephem_priv_key ) = box_::gen_keypair();
+
+
+
+	    //convert received public key to sodiumoxide type
+	    let rpubk = box_::PublicKey::from_slice(receiver_public_key)
+	            .expect("receiver_public_key has  invalid length");
+
+
+	    //generate a nonce
+	    let nonce = box_::gen_nonce();
+
+
+	    let ciphertext = box_::seal(msg, &nonce, &rpubk, &ephem_priv_key);
+
+	    
+	    //serialized output
+	    //{ version, ciphertext, nonce, ephemPublicKey }
+	    let ephem_pub_key = ephem_pub_key.as_ref();
+	    let nonce = nonce.as_ref();
+	    let encrypted = Digest {
+	                    version: VERSION,
+	                    ciphertext: &ciphertext,
+	                    ephemPublicKey: ephem_pub_key,
+	                    //signature: &signature
+	                    nonce: nonce
+	    };
+
+
+	    let serialized = serde_json::to_string(&encrypted)?; 
+	    
+	    
+
+	    Ok(serialized)
+
+	}
+
+
+
+	pub fn decrypt(encrypted_blob: &JsonStr, my_private_key: &[u8] ) -> Result<Vec<u8>, ()>{
+
+	    
+	    let private_key = box_::SecretKey::from_slice(my_private_key)
+	                        .expect("my_private_key has invalid length");
+	            
+
+
+
+	    //Assuming encrypted_blob: json string   { version, ciphertext, nonce, ephemPublicKey }
+	    let deserialized: Undigest = match serde_json::from_str(encrypted_blob){
+	                    Ok(i) => i,
+	                    Err(e) => return Err(())
+	    };
+
+
+	    let sender_public_key = box_::PublicKey::from_slice(&deserialized.ephemPublicKey)
+	            .expect("ephemPublicKey appears to be invalid length");
+
+	    let nonce = box_::Nonce::from_slice(&deserialized.nonce).unwrap();
+
+
+	    match box_::open(&deserialized.ciphertext, &nonce, &sender_public_key,&private_key) {
+	        Ok(i) => Ok(i),
+	        _ => Err(())
+	    }
+
+	    
+
+	}
+
+
+}
+
 #[cfg(test)]
 mod tests {
 	use super::ecies;
 	use {Random, Generator};
+	use super::eip1024;
+	use sodiumoxide::crypto::box_;
 
 	#[test]
 	fn ecies_shared() {
@@ -186,4 +299,19 @@ mod tests {
 		let decrypted = ecies::decrypt(kp.secret(), shared, &encrypted).unwrap();
 		assert_eq!(decrypted[..message.len()], message[..]);
 	}
+
+	#[test]
+    fn encrypt_decrypt_eip1024(){
+      let plaintext = b"E pluribus unum";
+      let (senderpubk, senderprivk) = box_::gen_keypair();
+
+      let senderpubk = &senderpubk[..];
+      let senderprivk = &senderprivk[..];
+      
+      let encr_json = eip1024::encrypt(senderpubk, plaintext).unwrap();
+      
+      let decr_plaintext = eip1024::decrypt(&encr_json, senderprivk).unwrap();
+
+      assert_eq!(plaintext, decr_plaintext.as_slice()); 
+    }
 }
