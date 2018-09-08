@@ -328,8 +328,8 @@ impl LightDispatcher {
 }
 
 impl Dispatcher for LightDispatcher {
-	// Ignore the `force_nonce` flag in order to always query the network when to fetch nonce and
-	// account state. If the nonce is specified in the transaction use that nonce but do the
+	// Ignore the `force_nonce` flag in order to always query the network when fetching the nonce and
+	// the account state. If the nonce is specified in the transaction use that nonce instead but do the
 	// network request anyway to the account state (balance)
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, _force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest>
