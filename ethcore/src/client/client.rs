@@ -39,14 +39,15 @@ use client::{
 	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	ClientIoMessage
+	ClientIoMessage,
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient,
+	IoClient, BadBlocks,
 };
+use client::bad_blocks;
 use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
 use error::{
@@ -163,6 +164,9 @@ struct Importer {
 
 	/// Ethereum engine to be used during import
 	pub engine: Arc<EthEngine>,
+
+	/// A lru cache of recently detected bad blocks
+	pub bad_blocks: bad_blocks::BadBlocks,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
@@ -254,6 +258,7 @@ impl Importer {
 			miner,
 			ancient_verifier: AncientVerifier::new(engine.clone()),
 			engine,
+			bad_blocks: Default::default(),
 		})
 	}
 
@@ -291,22 +296,27 @@ impl Importer {
 					continue;
 				}
 
-				if let Ok(closed_block) = self.check_and_lock_block(block, client) {
-					if self.engine.is_proposal(&header) {
-						self.block_queue.mark_as_good(&[hash]);
-						proposed_blocks.push(bytes);
-					} else {
-						imported_blocks.push(hash);
+				let raw = block.bytes.clone();
+				match self.check_and_lock_block(block, client) {
+					Ok(closed_block) => {
+						if self.engine.is_proposal(&header) {
+							self.block_queue.mark_as_good(&[hash]);
+							proposed_blocks.push(bytes);
+						} else {
+							imported_blocks.push(hash);
 
-						let transactions_len = closed_block.transactions().len();
+							let transactions_len = closed_block.transactions().len();
 
-						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
-						import_results.push(route);
+							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
+							import_results.push(route);
 
-						client.report.write().accrue_block(&header, transactions_len);
-					}
-				} else {
-					invalid_blocks.insert(header.hash());
+							client.report.write().accrue_block(&header, transactions_len);
+						}
+					},
+					Err(err) => {
+						self.bad_blocks.report(raw, format!("{:?}", err));
+						invalid_blocks.insert(header.hash());
+					},
 				}
 			}
 
@@ -1390,12 +1400,22 @@ impl ImportBlock for Client {
 		if self.chain.read().is_known(&unverified.hash()) {
 			bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
+
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
 		if status == BlockStatus::Unknown {
 			bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
-		Ok(self.importer.block_queue.import(unverified)?)
+		let raw = unverified.bytes.clone();
+		match self.importer.block_queue.import(unverified).map_err(Into::into) {
+			Ok(res) => Ok(res),
+			// we only care about block errors (not import errors)
+			Err(BlockImportError(BlockImportErrorKind::Block(err), _))=> {
+				self.importer.bad_blocks.report(raw, format!("{:?}", err));
+				bail!(BlockImportErrorKind::Block(err))
+			},
+			Err(e) => Err(e),
+		}
 	}
 }
 
@@ -1529,6 +1549,12 @@ impl Call for Client {
 impl EngineInfo for Client {
 	fn engine(&self) -> &EthEngine {
 		Client::engine(self)
+	}
+}
+
+impl BadBlocks for Client {
+	fn bad_blocks(&self) -> Vec<(Unverified, String)> {
+		self.importer.bad_blocks.bad_blocks()
 	}
 }
 
