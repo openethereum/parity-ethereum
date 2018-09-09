@@ -317,9 +317,9 @@ impl LightDispatcher {
 	}
 
 	/// Get an account's next nonce.
-	pub fn next_nonce(&self, addr: &Address) -> BoxFuture<U256> {
+	pub fn next_nonce(&self, addr: Address) -> BoxFuture<U256> {
 		let account_start_nonce = self.client.engine().account_start_nonce(self.client.best_block_header().number());
-		Box::new(self.account(addr.clone())
+		Box::new(self.account(addr)
 			.and_then(move |maybe_account| {
 				future::ok(maybe_account.map_or(account_start_nonce, |account| account.nonce))
 			})

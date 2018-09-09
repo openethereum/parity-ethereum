@@ -322,7 +322,7 @@ impl Parity for ParityClient {
 	}
 
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256> {
-		Box::new(self.light_dispatch.next_nonce(&address.into()).map(Into::into))
+		Box::new(self.light_dispatch.next_nonce(address.into()).map(Into::into))
 	}
 
 	fn mode(&self) -> Result<String> {
