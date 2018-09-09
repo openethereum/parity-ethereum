@@ -41,7 +41,7 @@ pub use self::spec::Spec;
 pub use self::seal::{Seal, Ethereum, AuthorityRoundSeal, TendermintSeal};
 pub use self::engine::Engine;
 pub use self::state::State;
-pub use self::ethash::{Ethash, EthashParams};
+pub use self::ethash::{Ethash, EthashParams, BlockReward};
 pub use self::validator_set::ValidatorSet;
 pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};
 pub use self::authority_round::{AuthorityRound, AuthorityRoundParams};

@@ -131,9 +131,9 @@ impl Directories {
 	}
 
 	/// Get the keys path
-	pub fn keys_path(&self, spec_name: &str) -> PathBuf {
+	pub fn keys_path(&self, data_dir: &str) -> PathBuf {
 		let mut dir = PathBuf::from(&self.keys);
-		dir.push(spec_name);
+		dir.push(data_dir);
 		dir
 	}
 }
