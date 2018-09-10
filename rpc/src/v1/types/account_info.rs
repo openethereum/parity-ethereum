@@ -15,6 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 use v1::types::{H160, H256, U256, Bytes};
 
+use ethereum_types::{Public, Address};
+use v1::types::Rich;
+
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct AccountInfo {
@@ -64,3 +67,13 @@ pub struct HwAccountInfo {
 	/// Device manufacturer.
 	pub manufacturer: String,
 }
+
+/// account containing public key & address
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all="camelCase")]
+pub struct BasicAccount {
+	pub address: Address,
+	pub public_key: Public
+}
+
+pub type RichBasicAccount = Rich<BasicAccount>;

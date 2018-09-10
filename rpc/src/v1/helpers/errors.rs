@@ -296,6 +296,14 @@ pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	}
 }
 
+pub fn verification_error<T: fmt::Display>(data: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: format!("{}", data).into(),
+		data: None,
+	}
+}
+
 pub fn password(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
