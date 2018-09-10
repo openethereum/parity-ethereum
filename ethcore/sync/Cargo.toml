@@ -9,22 +9,22 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 common-types = { path = "../types" }
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+parity-bytes = "0.1"
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
 ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
-ethereum-types = "0.3"
-hashdb = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.4"
+hashdb = "0.2.1"
 fastmap = { path = "../../util/fastmap" }
-rlp = { git = "https://github.com/paritytech/parity-common" }
+rlp = { version = "0.2.4", features = ["ethereum"] }
 rustc-hex = "1.0"
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+keccak-hash = "0.1"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
-kvdb = "0.1.0"
+kvdb = "0.1"
 macros = { path = "../../util/macros" }
 log = "0.4"
 env_logger = "0.5"
@@ -33,12 +33,12 @@ heapsize = "0.4"
 semver = "0.9"
 smallvec = { version = "0.4", features = ["heapsizeof"] }
 parking_lot = "0.6"
-trace-time = { path = "../../util/trace-time" }
+trace-time = "0.1"
 ipnetwork = "0.12.6"
 
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethkey = { path = "../../ethkey" }
-kvdb-memorydb = "0.1.0"
+kvdb-memorydb = "0.1"
 ethcore-private-tx = { path = "../private-tx" }
 ethcore = { path = "..", features = ["test-helpers"] }

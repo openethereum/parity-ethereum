@@ -49,7 +49,8 @@ impl Registrar {
 			Err(e) => return Box::new(future::err(e)),
 		};
 
-		let id = registrar::functions::get_address::encode_input(keccak(key), DNS_A_RECORD);
+		let hashed_key: [u8; 32] = keccak(key).into();
+		let id = registrar::functions::get_address::encode_input(hashed_key, DNS_A_RECORD);
 
 		let future = self.client.call_contract(registrar_address, id)
 			.and_then(move |address| registrar::functions::get_address::decode_output(&address).map_err(|e| e.to_string()));

@@ -8,15 +8,14 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 error-chain = { version = "0.12", default-features = false }
-parity-crypto = { git = "https://github.com/paritytech/parity-common" }
+parity-crypto = "0.1"
 ethcore-io = { path = "../io" }
-ethereum-types = "0.3"
+ethereum-types = "0.4"
 ethkey = { path = "../../ethkey" }
 ipnetwork = "0.12.6"
-rlp = { git = "https://github.com/paritytech/parity-common" }
+rlp = { version = "0.2.4", features = ["ethereum"] }
 libc = "0.2"
-parity-snappy = "0.1.0"
-
+parity-snappy = "0.1"
 
 [dev-dependencies]
 assert_matches = "1.2"

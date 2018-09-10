@@ -346,7 +346,7 @@ impl Dispatcher for LightDispatcher {
 				to: request.to,
 				nonce: request.nonce,
 				gas_price: gas_price,
-				gas: request.gas.unwrap_or_else(|| gas_limit / 3.into()),
+				gas: request.gas.unwrap_or_else(|| gas_limit / 3),
 				value: request.value.unwrap_or_else(|| 0.into()),
 				data: request.data.unwrap_or_else(Vec::new),
 				condition: request.condition,
