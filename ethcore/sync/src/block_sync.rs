@@ -98,6 +98,8 @@ pub enum BlockDownloaderImportError {
 	Invalid,
 	/// Imported data is valid but rejected cause the downloader does not need it.
 	Useless,
+	/// Block import queue is full, and some blocks were rejected
+	QueueFull
 }
 
 impl From<rlp::DecoderError> for BlockDownloaderImportError {
@@ -472,7 +474,7 @@ impl BlockDownloader {
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
 	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), BlockDownloaderImportError> {
-		let mut bad = false;
+		let mut import_err: Option<BlockDownloaderImportError> = None;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
 		let count = blocks.len();
@@ -523,11 +525,13 @@ impl BlockDownloader {
 				},
 				Err(BlockImportError(BlockImportErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
 					debug_sync!(self, target: "sync", "Block import queue full ({}), restarting sync", limit);
+					import_err = Some(BlockDownloaderImportError::Invalid); // todo: change handler in mod // Some(BlockDownloaderImportError::QueueFull);
+					// need to prevent race condition of peer requests coming back after reset -> NewBlockParent
 					break;
 				},
 				Err(e) => {
 					debug_sync!(self, target: "sync", "Bad block {:?} : {:?}", h, e);
-					bad = true;
+					import_err = Some(BlockDownloaderImportError::Invalid);
 					break;
 				}
 			}
@@ -535,8 +539,8 @@ impl BlockDownloader {
 		trace_sync!(self, target: "sync", "Imported {} of {}", imported.len(), count);
 		self.imported_this_round = Some(self.imported_this_round.unwrap_or(0) + imported.len());
 
-		if bad {
-			return Err(BlockDownloaderImportError::Invalid);
+		if let Some(err) = import_err {
+			return Err(err);
 		}
 
 		if self.blocks.is_empty() {
