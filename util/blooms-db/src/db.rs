@@ -68,7 +68,6 @@ struct DatabaseFiles {
 impl DatabaseFiles {
 	/// Open the blooms db files
 	pub fn open(path: &PathBuf) -> io::Result<DatabaseFiles> {
-		// let path = path.as_ref();
 		Ok(DatabaseFiles {
 			top: File::open(path.join("top.bdb"))?,
 			mid: File::open(path.join("mid.bdb"))?,
@@ -91,11 +90,18 @@ impl DatabaseFiles {
 		})
 	}
 
-	pub fn flush(&mut self) -> io::Result<()> {
+	fn flush(&mut self) -> io::Result<()> {
 		self.top.flush()?;
 		self.mid.flush()?;
 		self.bot.flush()?;
 		Ok(())
+	}
+}
+
+impl Drop for DatabaseFiles {
+	/// Flush the database files on drop
+	fn drop(&mut self) {
+		self.flush().ok();
 	}
 }
 
@@ -121,9 +127,6 @@ impl Database {
 
 	/// Close the inner-files
 	pub fn close(&mut self) -> io::Result<()> {
-		if let Some(ref mut db_files) = self.db_files {
-			db_files.flush()?;
-		}
 		self.db_files = None;
 		Ok(())
 	}
@@ -134,7 +137,7 @@ impl Database {
 		Ok(())
 	}
 
-	/// Insert consecutive blooms into database starting with positon from.
+	/// Insert consecutive blooms into database starting at the given positon.
 	pub fn insert_blooms<'a, I, B>(&mut self, from: u64, blooms: I) -> io::Result<()>
 	where ethbloom::BloomRef<'a>: From<B>, I: Iterator<Item = B> {
 		match self.db_files {
@@ -142,9 +145,9 @@ impl Database {
 				for (index, bloom) in (from..).into_iter().zip(blooms.map(Into::into)) {
 					let pos = Positions::from_index(index);
 
-					// constant forks make lead to increased ration of false positives in bloom filters
+					// Constant forks may lead to increased ratio of false positives in bloom filters
 					// since we do not rebuild top or mid level, but we should not be worried about that
-					// most of the time events at block n(a) occur also on block n(b) or n+1(b)
+					// because most of the time events at block n(a) occur also on block n(b) or n+1(b)
 					db_files.accrue_bloom(pos, bloom)?;
 				}
 				db_files.flush()?;

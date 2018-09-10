@@ -68,7 +68,7 @@ pub trait BlockChainDB: Send + Sync {
 		self.blooms().close()?;
 		self.trace_blooms().close()?;
 
-		// Restore the key_value BD
+		// Restore the key_value DB
 		self.key_value().restore(new_db)?;
 
 		// Re-open the Blooms databases
