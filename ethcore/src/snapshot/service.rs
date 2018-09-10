@@ -584,7 +584,7 @@ impl Service {
 		Ok(())
 	}
 
-	/// Feed a chunk of either kind. no-op if no restoration or status is wrong.
+	/// Feed a chunk of either kind (block or state). no-op if no restoration or status is wrong.
 	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) {
 		// TODO: be able to process block chunks and state chunks at same time?
 		let mut restoration = self.restoration.lock();
