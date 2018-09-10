@@ -1349,27 +1349,14 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			return Some(change)
 		}
 
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				warn!(target: "engine", "Unable to check for epoch end: missing client ref.");
-				return None;
-			}
-		};
-
 		// check transition store for pending transitions against recently finalized blocks
-		let mut epoch_manager = self.epoch_manager.lock();
-		if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, chain_head) {
-			return None;
-		}
-
 		for finalized_hash in finalized {
 			if let Some(pending) = transition_store(*finalized_hash) {
 				// walk the chain backwards from current head until finalized_hash
 				// to construct transition proof. author == ec_recover(sig) known
 				// since the blocks are in the DB.
-				let mut hash = *chain_head.parent_hash();
-				let finality_proof = itertools::repeat_call(move || {
+				let mut hash = chain_head.hash();
+				let mut finality_proof: Vec<_> = itertools::repeat_call(move || {
 					chain(hash).and_then(|header| {
 						hash = *header.parent_hash();
 						if header.number() == 0 { return None }
@@ -1377,7 +1364,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					})
 				})
 					.while_some()
-					.take_while(|h| h.hash() != *finalized_hash);
+					.take_while(|h| h.hash() != *finalized_hash)
+					.collect();
 
 				let finalized_header = chain(*finalized_hash)
 					.expect("header is finalized; finalized headers must exist in the chain; qed");
@@ -1385,16 +1373,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				let signal_number = finalized_header.number();
 				info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
 
-				let mut finality_proof: Vec<_> = ::std::iter::once(chain_head.clone())
-					.chain(finality_proof)
-					.chain(::std::iter::once(finalized_header))
-					.collect();
-
+				finality_proof.push(finalized_header);
 				finality_proof.reverse();
 
 				let finality_proof = ::rlp::encode_list(&finality_proof);
-				epoch_manager.note_new_epoch();
 
+				self.epoch_manager.lock().note_new_epoch();
 
 				// We turn off can_propose here because upon validator set change there can
 				// be two valid proposers for a single step: one from the old set and
