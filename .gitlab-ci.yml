@@ -41,9 +41,17 @@ cache:
     paths:
     - artifacts/
 
-.determine_version: &determine_version |
-  export VERSION=$(grep -m 1 "version =" Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-  echo "Version" $VERSION
+.determine_version:
+  before_script:                   &determine_version
+    - >
+      VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' < Cargo.toml)";
+      if [ "${CI_COMMIT_REF_NAME}" = "nightly" ]; then
+        COMMIT_REF_SHORT="echo ${CI_COMMIT_REF} | grep -oE '^.{7}')";
+        DATE_STRING="$(date +%Y%m%d)";
+        export VERSION="${VERSION}-${COMMIT_REF_SHORT}-${DATE_STRING}";
+      fi;
+      export VERSION;
+      echo "Version: $VERSION"
 
 
 #### stage:                        test
@@ -169,11 +177,10 @@ build-windows-msvc-x86_64:
 #### stage:                        package
 
 package-linux-snap-amd64:          &package_snap
-  stage: package
-  only: *releaseable_branches
+  stage:                           package
+  only:                            *releaseable_branches
   cache: {}
-  before_script:
-    - *determine_version
+  before_script:                   *determine_version
   variables:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
   dependencies:
@@ -216,8 +223,7 @@ publish-linux-snap-amd64:          &publish_snap
   only:                            *publishable_branches
   image:                           snapcore/snapcraft:stable
   cache: {}
-  before_script:
-    - *determine_version
+  before_script:                   *determine_version
   variables:
     BUILD_ARCH:                    amd64
   dependencies:
@@ -229,8 +235,6 @@ publish-linux-snap-amd64:          &publish_snap
 
 publish-linux-snap-i386:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    i386
   dependencies:
@@ -238,8 +242,6 @@ publish-linux-snap-i386:
 
 publish-linux-snap-arm64:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    arm64
   dependencies:
@@ -247,8 +249,6 @@ publish-linux-snap-arm64:
 
 publish-linux-snap-armhf:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    armhf
   dependencies:
@@ -282,8 +282,7 @@ publish-github-and-s3:
     - build-linux-ubuntu-arm64
     - build-darwin-macos-x86_64
     - build-windows-msvc-x86_64
-  before_script:
-    - *determine_version
+  before_script:                   *determine_version
   script:
     - scripts/gitlab/push.sh
   tags:
