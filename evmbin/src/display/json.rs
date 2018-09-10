@@ -280,7 +280,20 @@ mod tests {
 {"pc":5,"op":88,"opName":"PC","gas":"0x2102","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
 {"pc":6,"op":48,"opName":"ADDRESS","gas":"0x2100","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
 {"pc":7,"op":241,"opName":"CALL","gas":"0x20fe","gasCost":"0x0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
-			"#,
+"#,
+		);
+
+		run_test(
+			Informant::default(),
+			&compare_json,
+			"3260D85554",
+			0xffff,
+			r#"
+{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":1}
+{"pc":1,"op":96,"opName":"PUSH1","gas":"0xfffd","gasCost":"0x3","memory":"0x","stack":["0x0"],"storage":{},"depth":1}
+{"pc":3,"op":85,"opName":"SSTORE","gas":"0xfffa","gasCost":"0x1388","memory":"0x","stack":["0x0","0xd8"],"storage":{},"depth":1}
+{"pc":4,"op":84,"opName":"SLOAD","gas":"0xec72","gasCost":"0x0","memory":"0x","stack":[],"storage":{"0x00000000000000000000000000000000000000000000000000000000000000d8":"0x0000000000000000000000000000000000000000000000000000000000000000"},"depth":1}
+"#,
 		)
 	}
 }
