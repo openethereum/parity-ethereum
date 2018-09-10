@@ -83,7 +83,7 @@ impl DatabaseFiles {
 	}
 
 	pub fn iterator_from(&mut self, pos: Positions) -> io::Result<DatabaseFilesIterator> {
-		Ok(DatabaseFilesIterator{
+		Ok(DatabaseFilesIterator {
 			top: self.top.iterator_from(pos.top)?,
 			mid: self.mid.iterator_from(pos.mid)?,
 			bot: self.bot.iterator_from(pos.bot)?,
