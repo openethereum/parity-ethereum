@@ -45,7 +45,7 @@ pub struct Informant {
 
 impl vm::Informant for Informant {
 	fn before_test(&mut self, name: &str, action: &str) {
-		println!("{}", json!({"action": action, "test": name}).to_string());
+		println!("{}", json!({"action": action, "test": name}));
 	}
 
 	fn set_gas(&mut self, gas: U256) {
@@ -65,7 +65,7 @@ impl vm::Informant for Informant {
 					"time": display::as_micros(&success.time),
 				});
 
-				println!("{}", success_msg.to_string())
+				println!("{}", success_msg)
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
@@ -78,7 +78,7 @@ impl vm::Informant for Informant {
 					"time": display::as_micros(&failure.time),
 				});
 
-				println!("{}", failure_msg.to_string())
+				println!("{}", failure_msg)
 			},
 		}
 	}

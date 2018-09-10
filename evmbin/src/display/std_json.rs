@@ -88,8 +88,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 			"test": name,
 		});
 
-		writeln!(&mut self.out_sink, "{}", out_data.to_string())
-			.expect("The sink must be writeable.");
+		writeln!(&mut self.out_sink, "{}", out_data).expect("The sink must be writeable.");
 	}
 
 	fn set_gas(&mut self, _gas: U256) {}
@@ -101,7 +100,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 		match result {
 			Ok(success) => {
 				let trace_data = json!({"stateRoot": success.state_root});
-				writeln!(&mut trace_sink, "{}", trace_data.to_string())
+				writeln!(&mut trace_sink, "{}", trace_data)
 					.expect("The sink must be writeable.");
 
 				let out_data = json!({
@@ -110,8 +109,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					"time": display::as_micros(&success.time),
 				});
 
-				writeln!(&mut out_sink, "{}", out_data.to_string())
-					.expect("The sink must be writeable.");
+				writeln!(&mut out_sink, "{}", out_data).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
 				let out_data = json!({
@@ -120,8 +118,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					"time": display::as_micros(&failure.time),
 				});
 
-				writeln!(&mut out_sink, "{}", out_data.to_string())
-					.expect("The sink must be writeable.");
+				writeln!(&mut out_sink, "{}", out_data).expect("The sink must be writeable.");
 			},
 		}
 	}
@@ -143,8 +140,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 			"depth": self.depth,
 		});
 
-		writeln!(&mut self.trace_sink, "{}", trace_data.to_string())
-			.expect("The sink must be writeable.");
+		writeln!(&mut self.trace_sink, "{}", trace_data).expect("The sink must be writeable.");
 
 		true
 	}
