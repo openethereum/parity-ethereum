@@ -67,7 +67,7 @@ struct DatabaseFiles {
 
 impl DatabaseFiles {
 	/// Open the blooms db files
-	pub fn open(path: &PathBuf) -> io::Result<DatabaseFiles> {
+	pub fn open(path: &Path) -> io::Result<DatabaseFiles> {
 		Ok(DatabaseFiles {
 			top: File::open(path.join("top.bdb"))?,
 			mid: File::open(path.join("mid.bdb"))?,
@@ -116,7 +116,7 @@ pub struct Database {
 impl Database {
 	/// Opens blooms database.
 	pub fn open<P>(path: P) -> io::Result<Database> where P: AsRef<Path> {
-		let path: PathBuf = path.as_ref().to_owned();
+		let path: PathBuf = path.as_ref().to_path_buf();
 		let database = Database {
 			db_files: Some(DatabaseFiles::open(&path)?),
 			path: path,
