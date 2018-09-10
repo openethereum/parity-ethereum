@@ -10,7 +10,7 @@
 				"homesteadTransition": "0x0",
 				"eip100bTransition": "0x0",
 				"difficultyBombDelays": {
-					"0": 3000000
+					"0": 8000000
 				}
 			}
 		}
@@ -35,6 +35,9 @@
 		"eip214Transition": "0x0",
 		"eip155Transition": "0x0",
 		"eip658Transition": "0x0",
+		"eip145Transition": "0x0",
+		"eip1014Transition": "0x0",
+		"eip1052Transition": "0x0",
 		"eip1283Transition": "0x0"
 	},
 	"genesis": {
