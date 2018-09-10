@@ -29,7 +29,8 @@ use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
 use client::{Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
-use error::Error;
+use error::{Error, ErrorKind as SnapshotErrorKind};
+use snapshot::{Error as SnapshotError};
 use hash::keccak;
 use ids::BlockId;
 
@@ -583,11 +584,20 @@ impl Service {
 		Ok(())
 	}
 
-	/// Feed a chunk of either kind. no-op if no restoration or status is wrong.
-	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
+	/// Feed a chunk of either kind (block or state). no-op if no restoration or status is wrong.
+	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) {
 		// TODO: be able to process block chunks and state chunks at same time?
 		let mut restoration = self.restoration.lock();
-		self.feed_chunk_with_restoration(&mut restoration, hash, chunk, is_state)
+		match self.feed_chunk_with_restoration(&mut restoration, hash, chunk, is_state) {
+			Ok(()) |
+			Err(Error(SnapshotErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => (),
+			Err(e) => {
+				warn!("Encountered error during snapshot restoration: {}", e);
+				*self.restoration.lock() = None;
+				*self.status.lock() = RestorationStatus::Failed;
+				let _ = fs::remove_dir_all(self.restoration_dir());
+			}
+		}
 	}
 
 	/// Feed a chunk with the Restoration
@@ -641,28 +651,12 @@ impl Service {
 
 	/// Feed a state chunk to be processed synchronously.
 	pub fn feed_state_chunk(&self, hash: H256, chunk: &[u8]) {
-		match self.feed_chunk(hash, chunk, true) {
-			Ok(()) => (),
-			Err(e) => {
-				warn!("Encountered error during state restoration: {}", e);
-				*self.restoration.lock() = None;
-				*self.status.lock() = RestorationStatus::Failed;
-				let _ = fs::remove_dir_all(self.restoration_dir());
-			}
-		}
+		self.feed_chunk(hash, chunk, true);
 	}
 
 	/// Feed a block chunk to be processed synchronously.
 	pub fn feed_block_chunk(&self, hash: H256, chunk: &[u8]) {
-		match self.feed_chunk(hash, chunk, false) {
-			Ok(()) => (),
-			Err(e) => {
-				warn!("Encountered error during block restoration: {}", e);
-				*self.restoration.lock() = None;
-				*self.status.lock() = RestorationStatus::Failed;
-				let _ = fs::remove_dir_all(self.restoration_dir());
-			}
-		}
+		self.feed_chunk(hash, chunk, false);
 	}
 }
 
