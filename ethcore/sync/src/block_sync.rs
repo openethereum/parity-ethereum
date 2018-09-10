@@ -97,9 +97,7 @@ pub enum BlockDownloaderImportError {
 	/// Imported data is rejected as invalid. Peer should be dropped.
 	Invalid,
 	/// Imported data is valid but rejected cause the downloader does not need it.
-	Useless,
-	/// Block import queue is full, and some blocks were rejected
-	QueueFull
+	Useless
 }
 
 impl From<rlp::DecoderError> for BlockDownloaderImportError {
