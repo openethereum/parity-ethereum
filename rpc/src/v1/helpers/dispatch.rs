@@ -375,7 +375,7 @@ impl Dispatcher for LightDispatcher {
 		Box::new(gas_price.and_then(move |mut filled| {
 			future_account
 				.and_then(move |maybe_account| {
-					let cost = filled.value + filled.gas_price * filled.gas;
+					let cost = filled.value.saturating_add(filled.gas.saturating_mul(filled.gas_price));
 					match maybe_account {
 						Some(ref account) if cost > account.balance => {
 							Err(errors::transaction(TransactionError::InsufficientBalance {
