@@ -37,7 +37,7 @@ pub use self::account::Account;
 pub use self::builtin::{Builtin, Pricing, Linear};
 pub use self::genesis::Genesis;
 pub use self::params::Params;
-pub use self::spec::Spec;
+pub use self::spec::{Spec, ForkSpec};
 pub use self::seal::{Seal, Ethereum, AuthorityRoundSeal, TendermintSeal};
 pub use self::engine::Engine;
 pub use self::state::State;

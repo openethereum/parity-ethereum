@@ -93,7 +93,7 @@ pub fn run_action<T: Informant>(
 pub fn run_transaction<T: Informant>(
 	name: &str,
 	idx: usize,
-	spec: &ethjson::state::test::ForkSpec,
+	spec: &ethjson::spec::ForkSpec,
 	pre_state: &pod_state::PodState,
 	post_root: H256,
 	env_info: &client::EnvInfo,
