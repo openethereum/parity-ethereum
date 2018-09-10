@@ -112,6 +112,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.storage_at(key)
 	}
 
+	fn initial_storage_at(&self, key: &H256) -> vm::Result<H256> {
+		self.ext.initial_storage_at(key)
+	}
+
 	fn set_storage(&mut self, key: H256, value: H256) -> vm::Result<()> {
 		self.ext.set_storage(key, value)
 	}
@@ -205,8 +209,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		false
 	}
 
-	fn inc_sstore_clears(&mut self) {
-		self.ext.inc_sstore_clears()
+	fn add_sstore_refund(&mut self, value: U256) {
+		self.ext.add_sstore_refund(value)
+	}
+
+	fn sub_sstore_refund(&mut self, value: U256) {
+		self.ext.sub_sstore_refund(value)
 	}
 }
 

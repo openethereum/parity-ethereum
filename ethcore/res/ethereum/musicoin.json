@@ -9,14 +9,16 @@
 				"durationLimit":"0x0d",
 				"homesteadTransition":"0x118c30",
 				"eip100bTransition":"0x21e88e",
-				"eip649Transition":"0x21e88e",
 				"blockReward":"0x1105a0185b50a80000",
 				"mcip3Transition":"0x124f81",
 				"mcip3MinerReward":"0xd8d726b7177a80000",
 				"mcip3UbiReward":"0x2b5e3af16b1880000",
 				"mcip3UbiContract":"0x00efdd5883ec628983e9063c7d969fe268bbf310",
 				"mcip3DevReward":"0xc249fdd327780000",
-				"mcip3DevContract":"0x00756cf8159095948496617f5fb17ed95059f536"
+				"mcip3DevContract":"0x00756cf8159095948496617f5fb17ed95059f536",
+				"difficultyBombDelays": {
+					"0x21e88e": 3000000
+				}
 			}
 		}
 	},

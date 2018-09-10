@@ -108,9 +108,9 @@ impl LoadDistribution {
 
 		LoadTimer {
 			start: Instant::now(),
-			n: n,
+			n,
 			dist: self,
-			kind: kind,
+			kind,
 		}
 	}
 

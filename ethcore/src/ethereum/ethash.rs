@@ -37,8 +37,6 @@ const SNAPSHOT_BLOCKS: u64 = 5000;
 /// Maximum number of blocks allowed in an ethash snapshot.
 const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
 
-const DEFAULT_EIP649_DELAY: u64 = 3_000_000;
-
 /// Ethash specific seal
 #[derive(Debug, PartialEq)]
 pub struct Seal {
@@ -113,13 +111,7 @@ pub struct EthashParams {
 	/// MCIP-3 contract address for the developer funds.
 	pub mcip3_dev_contract: Address,
 	/// Block reward in base units.
-	pub block_reward: U256,
-	/// EIP-649 transition block.
-	pub eip649_transition: u64,
-	/// EIP-649 bomb delay.
-	pub eip649_delay: u64,
-	/// EIP-649 base reward.
-	pub eip649_reward: Option<U256>,
+	pub block_reward: BTreeMap<BlockNumber, U256>,
 	/// EXPIP-2 block height
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
@@ -128,6 +120,8 @@ pub struct EthashParams {
 	pub block_reward_contract_transition: u64,
 	/// Block reward contract.
 	pub block_reward_contract: Option<BlockRewardContract>,
+	/// Difficulty bomb delays.
+	pub difficulty_bomb_delays: BTreeMap<BlockNumber, BlockNumber>,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -152,10 +146,26 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			mcip3_ubi_contract: p.mcip3_ubi_contract.map_or_else(Address::new, Into::into),
 			mcip3_dev_reward: p.mcip3_dev_reward.map_or(U256::from(0), Into::into),
 			mcip3_dev_contract: p.mcip3_dev_contract.map_or_else(Address::new, Into::into),
-			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
-			eip649_transition: p.eip649_transition.map_or(u64::max_value(), Into::into),
-			eip649_delay: p.eip649_delay.map_or(DEFAULT_EIP649_DELAY, Into::into),
-			eip649_reward: p.eip649_reward.map(Into::into),
+			block_reward: p.block_reward.map_or_else(
+				|| {
+					let mut ret = BTreeMap::new();
+					ret.insert(0, U256::zero());
+					ret
+				},
+				|reward| {
+					match reward {
+						ethjson::spec::BlockReward::Single(reward) => {
+							let mut ret = BTreeMap::new();
+							ret.insert(0, reward.into());
+							ret
+						},
+						ethjson::spec::BlockReward::Multi(multi) => {
+							multi.into_iter()
+								.map(|(block, reward)| (block.into(), reward.into()))
+								.collect()
+						},
+					}
+				}),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
 			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
@@ -164,6 +174,9 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 				(_, Some(address)) => Some(BlockRewardContract::new_from_address(address.into())),
 				(None, None) => None,
 			},
+			difficulty_bomb_delays: p.difficulty_bomb_delays.unwrap_or_default().into_iter()
+				.map(|(block, delay)| (block.into(), delay.into()))
+				.collect()
 		}
 	}
 }
@@ -259,12 +272,11 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			_ => {
 				let mut rewards = Vec::new();
 
-				// Applies EIP-649 reward.
-				let reward = if number >= self.ethash_params.eip649_transition {
-					self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
-				} else {
-					self.ethash_params.block_reward
-				};
+				let (_, reward) = self.ethash_params.block_reward.iter()
+					.rev()
+					.find(|&(block, _)| *block <= number)
+					.expect("Current block's reward is not found; this indicates a chain config error; qed");
+				let reward = *reward;
 
 				// Applies ECIP-1017 eras.
 				let eras_rounds = self.ethash_params.ecip1017_era_rounds;
@@ -457,19 +469,20 @@ impl Ethash {
 		if header.number() < self.ethash_params.bomb_defuse_transition {
 			if header.number() < self.ethash_params.ecip1010_pause_transition {
 				let mut number = header.number();
-				if number >= self.ethash_params.eip649_transition {
-					number = number.saturating_sub(self.ethash_params.eip649_delay);
+				let original_number = number;
+				for (block, delay) in &self.ethash_params.difficulty_bomb_delays {
+					if original_number >= *block {
+						number = number.saturating_sub(*delay);
+					}
 				}
 				let period = (number / EXP_DIFF_PERIOD) as usize;
 				if period > 1 {
 					target = cmp::max(min_difficulty, target + (U256::from(1) << (period - 2)));
 				}
-			}
-			else if header.number() < self.ethash_params.ecip1010_continue_transition {
+			} else if header.number() < self.ethash_params.ecip1010_continue_transition {
 				let fixed_difficulty = ((self.ethash_params.ecip1010_pause_transition / EXP_DIFF_PERIOD) - 2) as usize;
 				target = cmp::max(min_difficulty, target + (U256::from(1) << fixed_difficulty));
-			}
-			else {
+			} else {
 				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
 				let delay = ((self.ethash_params.ecip1010_continue_transition - self.ethash_params.ecip1010_pause_transition) / EXP_DIFF_PERIOD) as usize;
 				target = cmp::max(min_difficulty, target + (U256::from(1) << (period - delay - 2)));
@@ -498,6 +511,7 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 mod tests {
 	use std::str::FromStr;
 	use std::sync::Arc;
+	use std::collections::BTreeMap;
 	use ethereum_types::{H64, H256, U256, Address};
 	use block::*;
 	use test_helpers::get_temp_state_db;
@@ -523,7 +537,11 @@ mod tests {
 			metropolis_difficulty_increment_divisor: 9,
 			homestead_transition: 1150000,
 			duration_limit: 13,
-			block_reward: 0.into(),
+			block_reward: {
+				let mut ret = BTreeMap::new();
+				ret.insert(0, 0.into());
+				ret
+			},
 			difficulty_hardfork_transition: u64::max_value(),
 			difficulty_hardfork_bound_divisor: U256::from(0),
 			bomb_defuse_transition: u64::max_value(),
@@ -537,13 +555,11 @@ mod tests {
 			mcip3_ubi_contract: "0000000000000000000000000000000000000001".into(),
 			mcip3_dev_reward: 0.into(),
 			mcip3_dev_contract: "0000000000000000000000000000000000000001".into(),
-			eip649_transition: u64::max_value(),
-			eip649_delay: 3_000_000,
-			eip649_reward: None,
 			expip2_transition: u64::max_value(),
 			expip2_duration_limit: 30,
 			block_reward_contract: None,
 			block_reward_contract_transition: 0,
+			difficulty_bomb_delays: BTreeMap::new(),
 		}
 	}
 
