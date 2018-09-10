@@ -709,7 +709,7 @@ impl LightProtocol {
 
 		let capabilities = self.capabilities.read();
 		let cost_local_flow = self.flow_params.read();
-		let local_flow = if io.is_reserved_peer(*peer) {
+		let local_flow = if io.is_reserved_peer(peer) {
 			&*self.free_flow_params
 		} else {
 			&**cost_local_flow
@@ -825,7 +825,7 @@ impl LightProtocol {
 		}
 
 		let remote_flow = flow_params.map(|params| (params.create_credits(), params));
-		let local_flow = if io.is_reserved_peer(*peer) {
+		let local_flow = if io.is_reserved_peer(peer) {
 			self.free_flow_params.clone()
 		} else {
 			self.flow_params.read().clone()
