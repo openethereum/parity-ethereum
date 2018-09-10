@@ -37,16 +37,23 @@ const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 16;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
 
-// logging macros append BlockSet context for log filtering
+// logging macros prepend BlockSet context for log filtering
 macro_rules! trace_sync {
-    ($self:ident, target: $target:expr, $fmt:expr, $($arg:tt)*) => {
-        trace!(self, target: $target, concat!($fmt, ", set = {:?}"), $($arg)*, $self.block_set);
-	}
+	($self:ident, target: $target:expr, $fmt:expr, $($arg:tt)+) => {
+		trace!(target: $target, concat!("{:?}: ", $fmt), $self.block_set, $($arg)+);
+	};
+	($self:ident, target: $target:expr, $fmt:expr) => {
+		trace!(target: $target, concat!("{:?}: ", $fmt), $self.block_set);
+	};
 }
+
 macro_rules! debug_sync {
-    ($self:ident, target: $target:expr, $fmt:expr, $($arg:tt)*) => {
-	debug!(self, target: $target, concat!($fmt, ", set = {:?}"), $($arg)*, $self.block_set);
-	}
+	($self:ident, target: $target:expr, $fmt:expr, $($arg:tt)+) => {
+		debug!(target: $target, concat!("{:?}: ", $fmt), $self.block_set, $($arg)+);
+	};
+	($self:ident, target: $target:expr, $fmt:expr) => {
+		debug!(target: $target, concat!("{:?}: ", $fmt), $self.block_set);
+	};
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -511,7 +518,7 @@ impl BlockDownloader {
 					break;
 				},
 				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) => {
-					debug_sync!(self, target: "sync", "Block temporarily invalid, restarting sync");
+					debug_sync!(self, target: "sync", "Block temporarily invalid: {:?}, restarting sync", h);
 					break;
 				},
 				Err(BlockImportError(BlockImportErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
