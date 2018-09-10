@@ -399,9 +399,8 @@ impl Dispatcher for LightDispatcher {
 		-> BoxFuture<WithToken<SignedTransaction>>
 	{
 		let chain_id = self.client.signing_chain_id();
-		let nonces = self.nonces.clone();
-		let reserved = nonces.lock().reserve(filled.from, filled.nonce.expect("nonce is always provided"));
-		Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password))
+		let nonce = filled.nonce.expect("nonce is always provided; qed");
+		Box::new(future::done(sign_transaction(&*accounts, filled, chain_id, nonce, password)))
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
