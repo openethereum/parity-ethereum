@@ -248,11 +248,9 @@ impl BlockDownloader {
 			let info = SyncHeader::from_rlp(r.at(i)?.as_raw().to_vec())?;
 			let number = BlockNumber::from(info.header.number());
 			let hash = info.header.hash();
-			// Check if any of the headers matches the hash we requested
-			if !valid_response {
-				if let Some(expected) = expected_hash {
-					valid_response = expected == hash;
-				}
+			// Check if the first of the headers matches the hash we requested
+			if i == 0 {
+				valid_response = expected_hash.map_or(false, |eh| eh == hash);
 			}
 			any_known = any_known || self.blocks.contains_head(&hash);
 			if self.blocks.contains(&hash) {
