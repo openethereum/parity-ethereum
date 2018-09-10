@@ -14,12 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{io, fmt};
+use std::{error, io, fmt};
 use std::path::{Path, PathBuf};
 
 use ethbloom;
 
 use file::{File, FileIterator};
+
+fn other_io_err<E>(e: E) -> io::Error where E: Into<Box<error::Error + Send + Sync>> {
+	io::Error::new(io::ErrorKind::Other, e)
+}
 
 /// Bloom positions in database files.
 #[derive(Debug)]
@@ -39,8 +43,14 @@ impl Positions {
 	}
 }
 
-/// Blooms database.
-pub struct Database {
+struct DatabaseFilesIterator<'a> {
+	pub top: FileIterator<'a>,
+	pub mid: FileIterator<'a>,
+	pub bot: FileIterator<'a>,
+}
+
+/// Blooms database files.
+struct DatabaseFiles {
 	/// Top level bloom file
 	///
 	/// Every bloom represents 16 blooms on mid level
@@ -53,6 +63,52 @@ pub struct Database {
 	///
 	/// Every bloom is an ethereum header bloom
 	bot: File,
+}
+
+impl DatabaseFiles {
+	/// Open the blooms db files
+	pub fn open(path: &Path) -> io::Result<DatabaseFiles> {
+		Ok(DatabaseFiles {
+			top: File::open(path.join("top.bdb"))?,
+			mid: File::open(path.join("mid.bdb"))?,
+			bot: File::open(path.join("bot.bdb"))?,
+		})
+	}
+
+	pub fn accrue_bloom(&mut self, pos: Positions, bloom: ethbloom::BloomRef) -> io::Result<()> {
+		self.top.accrue_bloom::<ethbloom::BloomRef>(pos.top, bloom)?;
+		self.mid.accrue_bloom::<ethbloom::BloomRef>(pos.mid, bloom)?;
+		self.bot.replace_bloom::<ethbloom::BloomRef>(pos.bot, bloom)?;
+		Ok(())
+	}
+
+	pub fn iterator_from(&mut self, pos: Positions) -> io::Result<DatabaseFilesIterator> {
+		Ok(DatabaseFilesIterator {
+			top: self.top.iterator_from(pos.top)?,
+			mid: self.mid.iterator_from(pos.mid)?,
+			bot: self.bot.iterator_from(pos.bot)?,
+		})
+	}
+
+	fn flush(&mut self) -> io::Result<()> {
+		self.top.flush()?;
+		self.mid.flush()?;
+		self.bot.flush()?;
+		Ok(())
+	}
+}
+
+impl Drop for DatabaseFiles {
+	/// Flush the database files on drop
+	fn drop(&mut self) {
+		self.flush().ok();
+	}
+}
+
+/// Blooms database.
+pub struct Database {
+	/// Database files
+	db_files: Option<DatabaseFiles>,
 	/// Database path
 	path: PathBuf,
 }
@@ -60,61 +116,71 @@ pub struct Database {
 impl Database {
 	/// Opens blooms database.
 	pub fn open<P>(path: P) -> io::Result<Database> where P: AsRef<Path> {
-		let path = path.as_ref();
+		let path: PathBuf = path.as_ref().to_path_buf();
 		let database = Database {
-			top: File::open(path.join("top.bdb"))?,
-			mid: File::open(path.join("mid.bdb"))?,
-			bot: File::open(path.join("bot.bdb"))?,
-			path: path.to_owned(),
+			db_files: Some(DatabaseFiles::open(&path)?),
+			path: path,
 		};
 
 		Ok(database)
 	}
 
-	/// Reopens the database at the same location.
-	pub fn reopen(&mut self) -> io::Result<()> {
-		self.top = File::open(self.path.join("top.bdb"))?;
-		self.mid = File::open(self.path.join("mid.bdb"))?;
-		self.bot = File::open(self.path.join("bot.bdb"))?;
+	/// Close the inner-files
+	pub fn close(&mut self) -> io::Result<()> {
+		self.db_files = None;
 		Ok(())
 	}
 
-	/// Insert consecutive blooms into database starting with positon from.
+	/// Reopens the database at the same location.
+	pub fn reopen(&mut self) -> io::Result<()> {
+		self.db_files = Some(DatabaseFiles::open(&self.path)?);
+		Ok(())
+	}
+
+	/// Insert consecutive blooms into database starting at the given positon.
 	pub fn insert_blooms<'a, I, B>(&mut self, from: u64, blooms: I) -> io::Result<()>
 	where ethbloom::BloomRef<'a>: From<B>, I: Iterator<Item = B> {
-		for (index, bloom) in (from..).into_iter().zip(blooms.map(Into::into)) {
-			let pos = Positions::from_index(index);
+		match self.db_files {
+			Some(ref mut db_files) => {
+				for (index, bloom) in (from..).into_iter().zip(blooms.map(Into::into)) {
+					let pos = Positions::from_index(index);
 
-			// constant forks make lead to increased ration of false positives in bloom filters
-			// since we do not rebuild top or mid level, but we should not be worried about that
-			// most of the time events at block n(a) occur also on block n(b) or n+1(b)
-			self.top.accrue_bloom::<ethbloom::BloomRef>(pos.top, bloom)?;
-			self.mid.accrue_bloom::<ethbloom::BloomRef>(pos.mid, bloom)?;
-			self.bot.replace_bloom::<ethbloom::BloomRef>(pos.bot, bloom)?;
+					// Constant forks may lead to increased ratio of false positives in bloom filters
+					// since we do not rebuild top or mid level, but we should not be worried about that
+					// because most of the time events at block n(a) occur also on block n(b) or n+1(b)
+					db_files.accrue_bloom(pos, bloom)?;
+				}
+				db_files.flush()?;
+				Ok(())
+			},
+			None => Err(other_io_err("Database is closed")),
 		}
-		self.top.flush()?;
-		self.mid.flush()?;
-		self.bot.flush()
 	}
 
 	/// Returns an iterator yielding all indexes containing given bloom.
 	pub fn iterate_matching<'a, 'b, B, I, II>(&'a mut self, from: u64, to: u64, blooms: II) -> io::Result<DatabaseIterator<'a, II>>
 	where ethbloom::BloomRef<'b>: From<B>, 'b: 'a, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B> {
-		let index = from / 256 * 256;
-		let pos = Positions::from_index(index);
+		match self.db_files {
+			Some(ref mut db_files) => {
+				let index = from / 256 * 256;
+				let pos = Positions::from_index(index);
+				let files_iter = db_files.iterator_from(pos)?;
 
-		let iter = DatabaseIterator {
-			top: self.top.iterator_from(pos.top)?,
-			mid: self.mid.iterator_from(pos.mid)?,
-			bot: self.bot.iterator_from(pos.bot)?,
-			state: IteratorState::Top,
-			from,
-			to,
-			index,
-			blooms,
-		};
+				let iter = DatabaseIterator {
+					top: files_iter.top,
+					mid: files_iter.mid,
+					bot: files_iter.bot,
+					state: IteratorState::Top,
+					from,
+					to,
+					index,
+					blooms,
+				};
 
-		Ok(iter)
+				Ok(iter)
+			},
+			None => Err(other_io_err("Database is closed")),
+		}
 	}
 }
 
@@ -284,5 +350,20 @@ mod tests {
 
 		let matches = database.iterate_matching(256, 257, Some(&Bloom::from(0x10))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![256, 257]);
+	}
+
+	#[test]
+	fn test_db_close() {
+		let tempdir = TempDir::new("").unwrap();
+		let blooms = vec![Bloom::from(0x100), Bloom::from(0x01), Bloom::from(0x10), Bloom::from(0x11)];
+		let mut database = Database::open(tempdir.path()).unwrap();
+
+		// Close the DB and ensure inserting blooms errors
+		database.close().unwrap();
+		assert!(database.insert_blooms(254, blooms.iter()).is_err());
+
+		// Reopen it and ensure inserting blooms is OK
+		database.reopen().unwrap();
+		assert!(database.insert_blooms(254, blooms.iter()).is_ok());
 	}
 }

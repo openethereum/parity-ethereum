@@ -54,6 +54,11 @@ impl Database {
 		Ok(result)
 	}
 
+	/// Closes the inner database
+	pub fn close(&self) -> io::Result<()> {
+		self.database.lock().close()
+	}
+
 	/// Reopens database at the same location.
 	pub fn reopen(&self) -> io::Result<()> {
 		self.database.lock().reopen()
