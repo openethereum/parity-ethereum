@@ -23,7 +23,7 @@ use serde_json::Error;
 use transaction::TransactionTest;
 
 /// TransactionTest test deserializer.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Test(BTreeMap<String, TransactionTest>);
 
 impl IntoIterator for Test {

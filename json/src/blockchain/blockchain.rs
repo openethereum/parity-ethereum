@@ -21,8 +21,7 @@ use hash::H256;
 use blockchain::state::State;
 use blockchain::header::Header;
 use blockchain::block::Block;
-use state::test::ForkSpec;
-use spec::{Genesis, Seal, Ethereum};
+use spec::{ForkSpec, Genesis, Seal, Ethereum};
 
 /// Blockchain deserialization.
 #[derive(Debug, PartialEq, Deserialize)]

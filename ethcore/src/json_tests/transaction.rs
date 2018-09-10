@@ -16,10 +16,11 @@
 
 use std::path::Path;
 use super::test_common::*;
-use evm;
+use client::EvmTestClient;
+use header::Header;
 use ethjson;
 use rlp::Rlp;
-use transaction::{Action, UnverifiedTransaction, SignedTransaction};
+use transaction::UnverifiedTransaction;
 
 /// Run transaction jsontests on a given folder.
 pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
@@ -31,55 +32,61 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
 	::json_tests::test_common::run_test_file(p, do_json_test, h)
 }
 
+// Block number used to run the tests.
+// Make sure that all the specified features are activated.
+const BLOCK_NUMBER: u64 = 0x6ffffffffffffe;
+
 fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
-	let frontier_schedule = evm::Schedule::new_frontier();
-	let homestead_schedule = evm::Schedule::new_homestead();
-	let byzantium_schedule = evm::Schedule::new_byzantium();
 	for (name, test) in tests.into_iter() {
 		start_stop_hook(&name, HookType::OnStart);
 
-		let mut fail_unless = |cond: bool, title: &str| if !cond { failed.push(name.clone()); println!("Transaction failed: {:?}: {:?}", name, title); };
-
-		let number: Option<u64> = test.block_number.map(Into::into);
-		let schedule = match number {
-			None => &frontier_schedule,
-			Some(x) if x < 1_150_000 => &frontier_schedule,
-			Some(x) if x < 3_000_000 => &homestead_schedule,
-			Some(_) => &byzantium_schedule
-		};
-		let allow_chain_id_of_one = number.map_or(false, |n| n >= 2_675_000);
-		let allow_unsigned = number.map_or(false, |n| n >= 3_000_000);
-
-		let rlp: Vec<u8> = test.rlp.into();
-		let res = Rlp::new(&rlp)
-			.as_val()
-			.map_err(::error::Error::from)
-			.and_then(|t: UnverifiedTransaction| {
-				t.validate(schedule, schedule.have_delegate_call, allow_chain_id_of_one, allow_unsigned).map_err(Into::into)
-			});
-
-		fail_unless(test.transaction.is_none() == res.is_err(), "Validity different");
-		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
-			let t = res.unwrap();
-			fail_unless(SignedTransaction::new(t.clone()).unwrap().sender() == sender.into(), "sender mismatch");
-			let is_acceptable_chain_id = match t.chain_id() {
-				None => true,
-				Some(1) if allow_chain_id_of_one => true,
-				_ => false,
+		for (spec_name, result) in test.post_state {
+			let spec = match EvmTestClient::spec_from_json(&spec_name) {
+				Some(spec) => spec,
+				None => {
+					println!("   - {} | {:?} Ignoring tests because of missing spec", name, spec_name);
+					continue;
+				}
 			};
-			fail_unless(is_acceptable_chain_id, "Network ID unacceptable");
-			let data: Vec<u8> = tx.data.into();
-			fail_unless(t.data == data, "data mismatch");
-			fail_unless(t.gas_price == tx.gas_price.into(), "gas_price mismatch");
-			fail_unless(t.nonce == tx.nonce.into(), "nonce mismatch");
-			fail_unless(t.value == tx.value.into(), "value mismatch");
-			let to: Option<ethjson::hash::Address> = tx.to.into();
-			let to: Option<Address> = to.map(Into::into);
-			match t.action {
-				Action::Call(dest) => fail_unless(Some(dest) == to, "call/destination mismatch"),
-				Action::Create => fail_unless(None == to, "create mismatch"),
+
+			let mut fail_unless = |cond: bool, title: &str| if !cond {
+				failed.push(format!("{}-{:?}", name, spec_name));
+				println!("Transaction failed: {:?}-{:?}: {:?}", name, spec_name, title);
+			};
+
+			let rlp: Vec<u8> = test.rlp.clone().into();
+			let res = Rlp::new(&rlp)
+				.as_val()
+				.map_err(::error::Error::from)
+				.and_then(|t: UnverifiedTransaction| {
+					let mut header: Header = Default::default();
+					// Use high enough number to activate all required features.
+					header.set_number(BLOCK_NUMBER);
+
+					let minimal = t.gas_required(&spec.engine.schedule(header.number())).into();
+					if t.gas < minimal {
+						return Err(::transaction::Error::InsufficientGas {
+							minimal, got: t.gas,
+						}.into());
+					}
+					spec.engine.verify_transaction_basic(&t, &header)?;
+					Ok(spec.engine.verify_transaction_unordered(t, &header)?)
+				});
+
+			match (res, result.hash, result.sender) {
+				(Ok(t), Some(hash), Some(sender)) => {
+					fail_unless(t.sender() == sender.into(), "sender mismatch");
+					fail_unless(t.hash() == hash.into(), "hash mismatch");
+				},
+				(Err(_), None, None) => {},
+				data => {
+					fail_unless(
+						false,
+						&format!("Validity different: {:?}", data)
+					);
+				}
 			}
 		}
 
@@ -92,13 +99,14 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 	failed
 }
 
-declare_test!{TransactionTests_ttEip155VitaliksHomesead, "TransactionTests/ttEip155VitaliksHomesead"}
-declare_test!{TransactionTests_ttEip155VitaliksEip158, "TransactionTests/ttEip155VitaliksEip158"}
-declare_test!{TransactionTests_ttEip158, "TransactionTests/ttEip158"}
-declare_test!{TransactionTests_ttFrontier, "TransactionTests/ttFrontier"}
-declare_test!{TransactionTests_ttHomestead, "TransactionTests/ttHomestead"}
-declare_test!{TransactionTests_ttVRuleEip158, "TransactionTests/ttVRuleEip158"}
-declare_test!{TransactionTests_ttWrongRLPFrontier, "TransactionTests/ttWrongRLPFrontier"}
-declare_test!{TransactionTests_ttWrongRLPHomestead, "TransactionTests/ttWrongRLPHomestead"}
-declare_test!{TransactionTests_ttConstantinople, "TransactionTests/ttConstantinople"}
-declare_test!{TransactionTests_ttSpecConstantinople, "TransactionTests/ttSpecConstantinople"}
+declare_test!{TransactionTests_ttAddress, "TransactionTests/ttAddress"}
+declare_test!{TransactionTests_ttData, "TransactionTests/ttData"}
+declare_test!{TransactionTests_ttGasLimit, "TransactionTests/ttGasLimit"}
+declare_test!{TransactionTests_ttGasPrice, "TransactionTests/ttGasPrice"}
+declare_test!{TransactionTests_ttNonce, "TransactionTests/ttNonce"}
+declare_test!{TransactionTests_ttRSValue, "TransactionTests/ttRSValue"}
+declare_test!{TransactionTests_ttSignature, "TransactionTests/ttSignature"}
+declare_test!{TransactionTests_ttValue, "TransactionTests/ttValue"}
+declare_test!{TransactionTests_ttVValue, "TransactionTests/ttVValue"}
+declare_test!{TransactionTests_ttWrongRLP, "TransactionTests/ttWrongRLP"}
+
