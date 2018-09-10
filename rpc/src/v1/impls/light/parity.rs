@@ -427,6 +427,6 @@ impl Parity for ParityClient {
 		}
 	}
 	fn verify_signature(&self, is_prefixed: bool, message: Bytes, signature: H520) -> Result<RichBasicAccount> {
-		verify_signature(is_prefixed, message, signature)
+		verify_signature(is_prefixed, message, signature, self.client.signing_chain_id())
 	}
 }

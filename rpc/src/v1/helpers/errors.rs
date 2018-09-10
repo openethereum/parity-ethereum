@@ -21,7 +21,7 @@ use std::fmt;
 use ethcore::account_provider::SignError as AccountError;
 use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use ethcore::client::BlockId;
-use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
+use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
@@ -211,53 +211,6 @@ pub fn cannot_submit_work(err: EthcoreError) -> Error {
 	}
 }
 
-pub fn unavailable_block() -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Block is unavailable".into(),
-		data: None,
-	}
-}
-
-pub fn check_block_number_existence<'a, T, C>(client: &'a C, num: BlockNumber) ->
-	impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
-	where C: BlockChainClient,
-{
-	move |response| {
-		if response.is_none() {
-			if let BlockNumber::Num(block_number) = num {
-				// tried to fetch block number and got nothing even though the block number is
-				// less than the latest block number
-				if block_number < client.chain_info().best_block_number {
-					return Err(unavailable_block());
-				}
-			}
-		}
-		Ok(response)
-	}
-}
-
-pub fn check_block_gap<'a, T, C>(client: &'a C) -> impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
-	where C: BlockChainClient,
-{
-	move |response| {
-		if response.is_none() {
-			let BlockChainInfo { ancient_block_hash, first_block_hash, .. } = client.chain_info();
-			// block information was requested, but unfortunately we couldn't find it and there
-			// are gaps in the database ethcore/src/blockchain/blockchain.rs:202
-			if ancient_block_hash.is_some() && first_block_hash.is_some() {
-				return Err(Error {
-					code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-					// this error message feels pretty straightforward to me. ¯\_(ツ)_/¯
-					message: "We cannot tell for sure if the thing you requested is not available or we just don't have it".into(),
-					data: None,
-				})
-			}
-		}
-		Ok(response)
-	}
-}
-
 pub fn not_enough_data() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
@@ -343,14 +296,6 @@ pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
 		message: format!("{}", error),
 		data: None
-	}
-}
-
-pub fn verification_error<T: fmt::Display>(data: T) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: format!("{}", data),
-		data: None,
 	}
 }
 

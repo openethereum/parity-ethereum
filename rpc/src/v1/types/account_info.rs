@@ -73,7 +73,8 @@ pub struct HwAccountInfo {
 #[serde(rename_all="camelCase")]
 pub struct BasicAccount {
 	pub address: Address,
-	pub public_key: Public
+	pub public_key: Public,
+	pub is_valid_for_current_chain: Option<bool>
 }
 
 pub type RichBasicAccount = Rich<BasicAccount>;
