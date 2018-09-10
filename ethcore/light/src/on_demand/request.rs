@@ -224,7 +224,7 @@ impl HeaderRef {
 	fn field(&self) -> Field<H256> {
 		match *self {
 			HeaderRef::Stored(ref hdr) => Field::Scalar(hdr.hash()),
-			HeaderRef::Unresolved(_, ref field) => field.clone(),
+			HeaderRef::Unresolved(_, field) => field,
 		}
 	}
 
@@ -232,7 +232,7 @@ impl HeaderRef {
 	fn needs_header(&self) -> Option<(usize, Field<H256>)> {
 		match *self {
 			HeaderRef::Stored(_) => None,
-			HeaderRef::Unresolved(idx, ref field) => Some((idx, field.clone())),
+			HeaderRef::Unresolved(idx, field) => Some((idx, field)),
 		}
 	}
 }
@@ -292,7 +292,7 @@ impl From<Request> for CheckedRequest {
 			}
 			Request::TransactionIndex(req) => {
 				let net_req = net_request::IncompleteTransactionIndexRequest {
-					hash: req.0.clone(),
+					hash: req.0,
 				};
 				trace!(target: "on_demand", "TransactionIndex Request, {:?}", net_req);
 				CheckedRequest::TransactionIndex(req, net_req)
@@ -322,7 +322,7 @@ impl From<Request> for CheckedRequest {
 			Request::Code(req) => {
 				let net_req = net_request::IncompleteCodeRequest {
 					block_hash: req.header.field(),
-					code_hash: req.code_hash.into(),
+					code_hash: req.code_hash,
 				};
 				trace!(target: "on_demand", "Code Request, {:?}", net_req);
 				CheckedRequest::Code(req, net_req)
@@ -404,7 +404,7 @@ impl CheckedRequest {
 		match *self {
 			CheckedRequest::HeaderProof(ref check, _) => {
 				let mut cache = cache.lock();
-				cache.block_hash(&check.num)
+				cache.block_hash(check.num)
 					.and_then(|h| cache.chain_score(&h).map(|s| (h, s)))
 					.map(|(h, s)| Response::HeaderProof((h, s)))
 			}
@@ -448,7 +448,7 @@ impl CheckedRequest {
 			}
 			CheckedRequest::Body(ref check, ref req) => {
 				// check for empty body.
-				if let Some(hdr) = check.0.as_ref().ok() {
+				if let Ok(hdr) = check.0.as_ref() {
 					if hdr.transactions_root() == KECCAK_NULL_RLP && hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
 						let mut stream = RlpStream::new_list(3);
 						stream.append_raw(hdr.rlp().as_raw(), 1);
@@ -769,9 +769,9 @@ impl HeaderProof {
 	/// Provide the expected CHT root to compare against.
 	pub fn new(num: u64, cht_root: H256) -> Option<Self> {
 		::cht::block_to_cht_number(num).map(|cht_num| HeaderProof {
-			num: num,
-			cht_num: cht_num,
-			cht_root: cht_root,
+			num,
+			cht_num,
+			cht_root,
 		})
 	}
 
@@ -817,9 +817,9 @@ impl HeaderWithAncestors {
 		headers: &[encoded::Header]
 	) -> Result<Vec<encoded::Header>, Error> {
 		let expected_hash = match (self.block_hash, start) {
-			(Field::Scalar(ref h), &net_request::HashOrNumber::Hash(ref h2)) => {
-				if h != h2 { return Err(Error::WrongHash(*h, *h2)) }
-				*h
+			(Field::Scalar(h), &net_request::HashOrNumber::Hash(h2)) => {
+				if h != h2 { return Err(Error::WrongHash(h, h2)) }
+				h
 			}
 			(_, &net_request::HashOrNumber::Hash(h2)) => h2,
 			_ => return Err(Error::HeaderByNumber),
@@ -871,9 +871,9 @@ impl HeaderByHash {
 		headers: &[encoded::Header]
 	) -> Result<encoded::Header, Error> {
 		let expected_hash = match (self.0, start) {
-			(Field::Scalar(ref h), &net_request::HashOrNumber::Hash(ref h2)) => {
-				if h != h2 { return Err(Error::WrongHash(*h, *h2)) }
-				*h
+			(Field::Scalar(h), &net_request::HashOrNumber::Hash(h2)) => {
+				if h != h2 { return Err(Error::WrongHash(h, h2)) }
+				h
 			}
 			(_, &net_request::HashOrNumber::Hash(h2)) => h2,
 			_ => return Err(Error::HeaderByNumber),
@@ -881,12 +881,11 @@ impl HeaderByHash {
 
 		let header = headers.get(0).ok_or(Error::Empty)?;
 		let hash = header.hash();
-		match hash == expected_hash {
-			true => {
-				cache.lock().insert_block_header(hash, header.clone());
-				Ok(header.clone())
-			}
-			false => Err(Error::WrongHash(expected_hash, hash)),
+		if hash == expected_hash {
+			cache.lock().insert_block_header(hash, header.clone());
+			Ok(header.clone())
+		} else {
+			Err(Error::WrongHash(expected_hash, hash))
 		}
 	}
 }
@@ -957,15 +956,12 @@ impl BlockReceipts {
 		let receipts_root = self.0.as_ref()?.receipts_root();
 		let found_root = ::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r)));
 
-		match receipts_root == found_root {
-			true => {
-				cache.lock().insert_block_receipts(receipts_root, receipts.to_vec());
-				Ok(receipts.to_vec())
-			}
-			false => {
-				trace!(target: "on_demand", "Receipt Reponse: \"WrongTrieRoot\" receipts_root: {:?} found_root: {:?}", receipts_root, found_root);
-				Err(Error::WrongTrieRoot(receipts_root, found_root))
-			}
+		if receipts_root == found_root {
+			cache.lock().insert_block_receipts(receipts_root, receipts.to_vec());
+			Ok(receipts.to_vec())
+		} else {
+			trace!(target: "on_demand", "Receipt Reponse: \"WrongTrieRoot\" receipts_root: {:?} found_root: {:?}", receipts_root, found_root);
+			Err(Error::WrongTrieRoot(receipts_root, found_root))
 		}
 	}
 }
@@ -1052,7 +1048,7 @@ impl TransactionProof {
 		let root = self.header.as_ref()?.state_root();
 
 		let mut env_info = self.env_info.clone();
-		env_info.gas_limit = self.tx.gas.clone();
+		env_info.gas_limit = self.tx.gas;
 
 		let proved_execution = state::check_proof(
 			state_items,

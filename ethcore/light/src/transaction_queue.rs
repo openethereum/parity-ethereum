@@ -74,7 +74,7 @@ impl<'a> From<&'a PendingTransaction> for TransactionInfo {
 	fn from(tx: &'a PendingTransaction) -> Self {
 		TransactionInfo {
 			hash: tx.hash(),
-			nonce: tx.nonce.clone(),
+			nonce: tx.nonce,
 			condition: tx.condition.clone(),
 		}
 	}
@@ -95,7 +95,7 @@ impl AccountTransactions {
 	}
 
 	fn next_nonce(&self) -> U256 {
-		self.current.last().map(|last| last.nonce + 1.into())
+		self.current.last().map(|last| last.nonce + 1)
 			.unwrap_or_else(|| *self.cur_nonce.value())
 	}
 
@@ -104,16 +104,10 @@ impl AccountTransactions {
 		let mut promoted = Vec::new();
 		let mut next_nonce = self.next_nonce();
 
-		loop {
-			match self.future.remove(&next_nonce) {
-				Some(tx) => {
-					promoted.push(tx.hash);
-					self.current.push(tx)
-				},
-				None => break,
-			}
-
-			next_nonce = next_nonce + 1.into();
+		while let Some(tx) = self.future.remove(&next_nonce) {
+			promoted.push(tx.hash);
+			self.current.push(tx);
+			next_nonce = next_nonce + 1;
 		}
 
 		promoted
@@ -154,7 +148,7 @@ impl fmt::Debug for TransactionQueue {
 
 impl TransactionQueue {
 	/// Import a pending transaction to be queued.
-	pub fn import(&mut self, tx: PendingTransaction) -> Result<ImportDestination, transaction::Error>  {
+	pub fn import(&mut self, tx: PendingTransaction) -> Result<ImportDestination, transaction::Error> {
 		let sender = tx.sender();
 		let hash = tx.hash();
 		let nonce = tx.nonce;
@@ -174,7 +168,7 @@ impl TransactionQueue {
 			}
 			Entry::Occupied(mut entry) => {
 				let acct_txs = entry.get_mut();
-				if &nonce < acct_txs.cur_nonce.value() {
+				if nonce < *acct_txs.cur_nonce.value() {
 					// don't accept txs from before known current nonce.
 					if acct_txs.cur_nonce.is_known() {
 						return Err(transaction::Error::Old)
@@ -196,7 +190,7 @@ impl TransactionQueue {
 					}
 					Err(idx) => {
 						let cur_len = acct_txs.current.len();
-						let incr_nonce = nonce + 1.into();
+						let incr_nonce = nonce + 1;
 
 						// current is sorted with one tx per nonce,
 						// so if a tx with given nonce wasn't found that means it is either
@@ -215,7 +209,7 @@ impl TransactionQueue {
 							}
 
 							(ImportDestination::Current, vec![hash])
-						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1.into() != nonce) {
+						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1 != nonce) {
 							trace!(target: "txqueue", "Queued future transaction for {}, nonce={}", sender, nonce);
 							let future_nonce = nonce;
 							acct_txs.future.insert(future_nonce, tx_info);
@@ -535,7 +529,7 @@ mod tests {
 		let tx_b: PendingTransaction = Transaction::default().fake_sign(sender).into();
 		let tx_a: PendingTransaction = {
 			let mut tx_a = Transaction::default();
-			tx_a.gas_price = tx_b.gas_price + 1.into();
+			tx_a.gas_price = tx_b.gas_price + 1;
 			tx_a.fake_sign(sender).into()
 		};
 

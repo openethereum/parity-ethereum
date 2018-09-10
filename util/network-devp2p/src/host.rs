@@ -43,7 +43,7 @@ use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
 use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
 use discovery::{Discovery, TableUpdates, NodeEntry, MAX_DATAGRAM_SIZE};
 use ip_utils::{map_external_address, select_public_address};
-use path::restrict_permissions_owner;
+use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use network::{ConnectionFilter, ConnectionDirection};
 

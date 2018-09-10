@@ -60,14 +60,19 @@ impl HeapSizeOf for PreverifiedBlock {
 }
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
-pub fn verify_block_basic(block: &Unverified, engine: &EthEngine) -> Result<(), Error> {
+pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bool) -> Result<(), Error> {
 	verify_header_params(&block.header, engine, true)?;
 	verify_block_integrity(block)?;
-	engine.verify_block_basic(&block.header)?;
+
+	if check_seal {
+		engine.verify_block_basic(&block.header)?;
+	}
 
 	for uncle in &block.uncles {
 		verify_header_params(uncle, engine, false)?;
-		engine.verify_block_basic(uncle)?;
+		if check_seal {
+			engine.verify_block_basic(uncle)?;
+		}
 	}
 
 	for t in &block.transactions {
@@ -496,7 +501,7 @@ mod tests {
 
 	fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
 		let unverified = Unverified::from_rlp(bytes.to_vec())?;
-		verify_block_basic(&unverified, engine)
+		verify_block_basic(&unverified, engine, true)
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
@@ -672,7 +677,7 @@ mod tests {
 		header.set_uncles_hash(good_uncles_hash.clone());
 		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
-		header.set_gas_limit(min_gas_limit - From::from(1));
+		header.set_gas_limit(min_gas_limit - 1);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit().clone() }));
 
@@ -682,7 +687,7 @@ mod tests {
 			RidiculousNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number() }));
 
 		header = good.clone();
-		let gas_used = header.gas_limit().clone() + 1.into();
+		let gas_used = header.gas_limit().clone() + 1;
 		header.set_gas_used(gas_used);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit().clone()), min: None, found: header.gas_used().clone() }));

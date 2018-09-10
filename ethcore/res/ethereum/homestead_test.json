@@ -19,7 +19,6 @@
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
 		"eip98Transition": "0x7fffffffffffff",
-		"eip86Transition": "0x7fffffffffffff",
 		"eip155Transition": "0x7fffffffffffffff",
 		"eip150Transition": "0x7fffffffffffffff",
 		"eip160Transition": "0x7fffffffffffffff",

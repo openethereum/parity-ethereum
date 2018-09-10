@@ -6,8 +6,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 crunchy = "0.1.0"
 either = "1.0.0"
-ethereum-types = "0.3"
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.4"
+keccak-hash = "0.1"
 log = "0.4"
 memmap = "0.6"
 parking_lot = "0.6"
