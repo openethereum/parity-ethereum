@@ -36,14 +36,6 @@ pub fn is_major_importing(sync_state: Option<SyncState>, queue_info: BlockQueueI
 	is_major_importing_or_waiting(sync_state, queue_info, true)
 }
 
-/// Check if client is doing warp sync.
-pub fn is_warp_syncing(sync_state: Option<SyncState>) -> bool {
-	sync_state.map_or(false, |s| match s {
-		SyncState::SnapshotManifest | SyncState::SnapshotData | SyncState::SnapshotWaiting => true,
-		_ => false
-	})
-}
-
 #[cfg(test)]
 mod tests {
 	use ethcore::client::BlockQueueInfo;
