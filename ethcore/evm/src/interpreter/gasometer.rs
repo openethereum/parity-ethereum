@@ -233,11 +233,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let gas = Gas::from(schedule.create_gas);
-				let mem = match instruction {
-					instructions::CREATE => mem_needed(stack.peek(1), stack.peek(2))?,
-					instructions::CREATE2 => mem_needed(stack.peek(2), stack.peek(3))?,
-					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
-				};
+				let mem = mem_needed(stack.peek(1), stack.peek(2))?;
 
 				Request::GasMemProvide(gas, mem, None)
 			},
