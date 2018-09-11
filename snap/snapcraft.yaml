@@ -22,7 +22,7 @@ parts:
   desktop-icon:
     source: ./snap
     plugin: nil
-    prepare: |
+    override-build: |
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/applications
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/pixmaps
       cp -v gui/parity.desktop $SNAPCRAFT_PART_INSTALL/usr/share/applications/
@@ -30,8 +30,6 @@ parts:
   parity:
     source: .
     plugin: rust
-  # rust-channel: stable  # @TODO enable after https://bugs.launchpad.net/snapcraft/+bug/1778530
-    rust-revision: 1.26.2 # @TODO remove after https://bugs.launchpad.net/snapcraft/+bug/1778530
     build-attributes: [no-system-libraries]
     build-packages: [g++, libudev-dev, make, pkg-config, cmake]
     stage-packages: [libc6, libudev1, libstdc++6]
