@@ -15,13 +15,11 @@ pub fn verify_signature(is_prefixed: bool, message: Bytes, signature: H520, chai
 	let signature = Signature::from(signature.0);
 	let is_valid_for_current_chain = chain_id.map(|chain_id| {
 		let v = signature.v() as u64;
-		if v <= 1  {
-			return false
-		}
-
-		let decoded_v = (v - 35) - (chain_id * 2);
-		if decoded_v == 0 || decoded_v == 1 {
-			return true
+		if v > 36  {
+			let decoded_v = (v - 35) - (chain_id * 2);
+			if decoded_v == 0 || decoded_v == 1 {
+				return true
+			}
 		}
 		false
 	});
