@@ -128,6 +128,7 @@ pub struct Discovery<'a> {
 	id_hash: H256,
 	secret: Secret,
 	public_endpoint: NodeEndpoint,
+	started_discovering: bool,
 	discovering: bool,
 	discovery_round: u16,
 	discovery_id: NodeId,
@@ -154,6 +155,7 @@ impl<'a> Discovery<'a> {
 			id_hash: keccak(key.public()),
 			secret: key.secret().clone(),
 			public_endpoint: public,
+			started_discovering: false,
 			discovering: false,
 			discovery_round: 0,
 			discovery_id: NodeId::new(),
@@ -500,7 +502,7 @@ impl<'a> Discovery<'a> {
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
 
-		let expected_node = match self.in_flight_pings.entry(*node_id) {
+		let mut expected_node = match self.in_flight_pings.entry(*node_id) {
 			Entry::Occupied(entry) => {
 				let expected_node = {
 					let request = entry.get();
@@ -509,7 +511,7 @@ impl<'a> Discovery<'a> {
 						None
 					} else {
 						if request.deprecated_echo_hash == echo_hash {
-							info!(target: "discovery", "Got a Pong from old Parity version.");
+							trace!(target: "discovery", "Got Pong from an old parity-ethereum version.");
 						}
 						// Get the UDP port from the saved request, and
 						// the address from the incoming connection
@@ -529,38 +531,40 @@ impl<'a> Discovery<'a> {
 				expected_node
 			},
 			Entry::Vacant(_) => {
-				debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
 				None
 			},
 		};
 
 		// If the Node couldn't be found from its ID,
 		// Try to find it in from the hash that was sent back
-		// if expected_node.is_none() {
-		// 	self.in_flight_pings.retain(|_, ping_request| {
-		// 		if ping_request.echo_hash == echo_hash || ping_request.deprecated_echo_hash == echo_hash {
-		// 			debug!(target: "discovery",
-		// 				"Found corresponding request expected={:x}@{} ; found={:x}@{}",
-		// 				node_id, from,
-		// 				ping_request.node.id, ping_request.node.endpoint.address
-		// 			);
-		// 			expected_node = Some(NodeEntry {
-		// 				id: *node_id,
-		// 				endpoint: NodeEndpoint {
-		// 					udp_port: ping_request.node.endpoint.udp_port,
-		// 					address: from.clone(),
-		// 				}
-		// 			});
-		// 			false
-		// 		} else {
-		// 			true
-		// 		}
-		// 	});
-		// }
+		if expected_node.is_none() {
+			let mut found = false;
+			self.in_flight_pings.retain(|_, ping_request| {
+				if !found && ping_request.echo_hash == echo_hash || ping_request.deprecated_echo_hash == echo_hash {
+					debug!(target: "discovery",
+						"Found corresponding request expected={:x}@{} ; found={:x}@{}",
+						node_id, from,
+						ping_request.node.id, ping_request.node.endpoint.address
+					);
+					found = true;
+					expected_node = Some(NodeEntry {
+						id: *node_id,
+						endpoint: NodeEndpoint {
+							udp_port: ping_request.node.endpoint.udp_port,
+							address: from.clone(),
+						}
+					});
+					false
+				} else {
+					true
+				}
+			});
+		}
 
 		if let Some(node) = expected_node {
 			Ok(self.update_node(node))
 		} else {
+			debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
 			Ok(None)
 		}
 	}
@@ -711,6 +715,10 @@ impl<'a> Discovery<'a> {
 
 		if self.discovering {
 			self.discover();
+		// Start discovering if the first pings have been sent (or timed out)
+		} else if self.in_flight_pings.len() == 0 && !self.started_discovering {
+			self.started_discovering = true;
+			self.start();
 		}
 	}
 
