@@ -6,15 +6,21 @@ use v1::helpers::dispatch::eth_data_hash;
 use hash::keccak;
 
 pub fn verify_signature(is_prefixed: bool, message: Bytes, signature: H520, chain_id: Option<u64>) -> Result<RichBasicAccount> {
-	let mut hash = keccak(message.0.clone());
-	if is_prefixed {
-		hash = eth_data_hash(message.0);
-	}
+	let hash = if is_prefixed {
+		eth_data_hash(message.0)
+	} else {
+		keccak(message.0.clone())
+	};
 
 	let signature = Signature::from(signature.0);
-	let is_valid_for_current_chain = chain_id.map(|chain| {
-		let v = signature.v();
-		if v > 1 && (v as u64) == chain {
+	let is_valid_for_current_chain = chain_id.map(|chain_id| {
+		let v = signature.v() as u64;
+		if v <= 1  {
+			return false
+		}
+
+		let decoded_v = (v - 35) - (chain_id * 2);
+		if decoded_v == 0 || decoded_v == 1 {
 			return true
 		}
 		false
