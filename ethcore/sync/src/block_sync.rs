@@ -286,10 +286,11 @@ impl BlockDownloader {
 					// with gaps to be filled. However if the round is reset
 					// while in State::Blocks then its possible to receive
 					// stale responses for the subchain heads in the gap. In
-					// this case the headers will have consecutive numbers so can be ignored here.
+					// this case the headers will have consecutive numbers
+					// so can be ignored here.
 					let is_subchain_heads = headers.len() == 1
 						|| headers.len() > 1
-						&& headers[0].header.number() - headers[1].header.number() > 1;
+						&& headers[1].header.number() - headers[0].header.number() > 1;
 
 					if is_subchain_heads {
 						trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
@@ -297,7 +298,7 @@ impl BlockDownloader {
 						self.state = State::Blocks;
 						return Ok(DownloadAction::Reset);
 					} else {
-						debug!(target: "sync", "Ignoring consecutive headers. Expected subchains with gap.");
+						debug!(target: "sync", "Ignoring consecutive headers: expected subchain headers with gap");
 					}
 				} else {
 					let best = io.chain().chain_info().best_block_number;
