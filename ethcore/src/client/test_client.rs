@@ -687,8 +687,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn block_receipts(&self, _id: BlockId) -> Option<Box<Iterator<Item = LocalizedReceipt>>> {
-		Some(Box::new(self.receipts.read().values().cloned().collect::<Vec<_>>().into_iter()))
+	fn block_receipts(&self, _id: BlockId) -> Option<Vec<LocalizedReceipt>> {
+		Some(self.receipts.read().values().cloned().collect())
 	}
 
 	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {

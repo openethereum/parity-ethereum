@@ -1785,12 +1785,25 @@ impl BlockChainClient for Client {
 	}
 
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
+		// NOTE Don't use block_receipts here for performance reasons
 		let address = self.transaction_address(id)?;
-		let mut receipts = self.block_receipts(BlockId::Hash(address.block_hash))?;
-		receipts.nth(address.index)
+		let hash = address.block_hash;
+		let chain = self.chain.read();
+		let number = chain.block_number(&hash)?;
+		let body = chain.block_body(&hash)?;
+		let mut receipts = chain.block_receipts(&hash)?.receipts;
+		receipts.truncate(address.index + 1);
+
+		let transaction = body.view().localized_transaction_at(&hash, number, address.index)?;
+		let receipt = receipts.pop()?;
+		let gas_used = receipts.last().map_or_else(|| 0.into(), |r| r.gas_used);
+		let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
+
+		let receipt = transaction_receipt(self.engine().machine(), transaction, receipt, gas_used, no_of_logs);
+		Some(receipt)
 	}
 
-	fn block_receipts(&self, id: BlockId) -> Option<Box<Iterator<Item = LocalizedReceipt>>> {
+	fn block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>> {
 		let hash = self.block_hash(id)?;
 
 		let chain = self.chain.read();
@@ -1802,21 +1815,19 @@ impl BlockChainClient for Client {
 		let mut gas_used = 0.into();
 		let mut no_of_logs = 0;
 
-		// NOTE We use iterators here, for performance reasons of transaction_receipt function.
-		// producing LocalizedTransaction and LocalizedReceipt is expensive (ecrecover & hashing)
-		Some(Box::new(
-			(0 .. body.view().transactions_count())
-				.filter_map(move |index| {
-					body.view().localized_transaction_at(&hash, number, index)
-				})
-				.zip(receipts.receipts)
-				.map(move |(transaction, receipt)| {
-					let result = transaction_receipt(engine.machine(), transaction, receipt, gas_used, no_of_logs);
-					gas_used = result.cumulative_gas_used;
-					no_of_logs += result.logs.len();
-					result
-				})
-		))
+		Some(body
+			.view()
+			.localized_transactions(&hash, number)
+			.into_iter()
+			.zip(receipts.receipts)
+			.map(move |(transaction, receipt)| {
+				let result = transaction_receipt(engine.machine(), transaction, receipt, gas_used, no_of_logs);
+				gas_used = result.cumulative_gas_used;
+				no_of_logs += result.logs.len();
+				result
+			})
+			.collect()
+		)
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
