@@ -256,7 +256,7 @@ publish-linux-snap-armhf:
 
 publish-docker-parity-amd64: &publish_docker
   stage:                           publish
-  only:                            *publishable_branches
+  only:                            *releaseable_branches
   cache: {}
   dependencies:
     - build-linux-ubuntu-amd64
