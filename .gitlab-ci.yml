@@ -46,7 +46,7 @@ cache:
     - >
       VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' < Cargo.toml)";
       if [ "${CI_COMMIT_REF_NAME}" = "nightly" ]; then
-        COMMIT_REF_SHORT="echo ${CI_COMMIT_REF} | grep -oE '^.{7}')";
+        COMMIT_REF_SHORT="$(echo ${CI_COMMIT_REF} | grep -oE '^.{7}')";
         DATE_STRING="$(date +%Y%m%d)";
         export VERSION="${VERSION}-${COMMIT_REF_SHORT}-${DATE_STRING}";
       fi;
