@@ -281,8 +281,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get transaction receipt with given hash.
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
 
-	/// Get receipts for all transaction in given block.
-	fn block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>>;
+	/// Get localized receipts for all transaction in given block.
+	fn block_receipts(&self, id: BlockId) -> Option<Box<Iterator<Item = LocalizedReceipt>>>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
