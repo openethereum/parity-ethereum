@@ -1014,16 +1014,11 @@ impl IoHandler<NetworkIoMessage> for Host {
 			IDLE => self.maintain_network(io),
 			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
-				if let Some(d) = self.discovery.lock().as_mut() {
-					d.refresh();
-                                }
+				self.discovery.lock().as_mut().map(|d| d.refresh());
 				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			DISCOVERY_ROUND => {
-				let node_changes = { self.discovery.lock().as_mut().and_then(|d| d.round()) };
-				if let Some(node_changes) = node_changes {
-					self.update_nodes(io, node_changes);
-				}
+				self.discovery.lock().as_mut().map(|d| d.round());
 				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			NODE_TABLE => {

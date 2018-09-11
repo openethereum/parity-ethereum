@@ -428,7 +428,7 @@ impl NodeTable {
 				table.nodes.into_iter()
 					.filter_map(|n| n.into_node())
 					.map(|n| (n.id, n))
-					.collect()target: "network",
+					.collect()
 			},
 			Err(e) => {
 				warn!(target: "network", "Error reading node table file: {:?}", e);

@@ -591,26 +591,24 @@ impl<'a> Discovery<'a> {
 		Ok(None)
 	}
 
-	fn check_expired(&mut self, time: Instant) -> HashSet<NodeId> {
-		let mut removed: HashSet<NodeId> = HashSet::new();
+	fn check_expired(&mut self, time: Instant) {
 		while let Some((node_id, sent_at)) = self.expiring_pings.pop_front() {
 			if time.duration_since(sent_at) <= PING_TIMEOUT {
 				self.expiring_pings.push_front((node_id, sent_at));
 				break;
 			}
-			self.expire_in_flight_request(node_id, sent_at, &mut removed);
+			self.expire_in_flight_request(node_id, sent_at);
 		}
 		while let Some((node_id, sent_at)) = self.expiring_finds.pop_front() {
 			if time.duration_since(sent_at) <= FIND_NODE_TIMEOUT {
 				self.expiring_finds.push_front((node_id, sent_at));
 				break;
 			}
-			self.expire_in_flight_request(node_id, sent_at, &mut removed);
+			self.expire_in_flight_request(node_id, sent_at);
 		}
-		removed
 	}
 
-	fn expire_in_flight_request(&mut self, node_id: NodeId, sent_at: Instant, removed: &mut HashSet<NodeId>) {
+	fn expire_in_flight_request(&mut self, node_id: NodeId, sent_at: Instant) {
 		if let Entry::Occupied(entry) = self.in_flight_requests.entry(node_id) {
 			if entry.get().sent_at == sent_at {
 				entry.remove();
@@ -631,7 +629,6 @@ impl<'a> Discovery<'a> {
 							&node.address, node.fail_count
 						);
 					} else {
-						removed.insert(node_id);
 						let node = bucket.nodes.remove(index).expect("index was located in if condition");
 						debug!(target: "discovery", "Removed expired node {:?}", &node.address);
 					}
@@ -640,12 +637,9 @@ impl<'a> Discovery<'a> {
 		}
 	}
 
-	pub fn round(&mut self) -> Option<TableUpdates> {
-		let removed = self.check_expired(Instant::now());
+	pub fn round(&mut self) {
+		self.check_expired(Instant::now());
 		self.discover();
-		if !removed.is_empty() {
-			Some(TableUpdates { added: HashMap::new(), removed })
-		} else { None }
 	}
 
 	pub fn refresh(&mut self) {
