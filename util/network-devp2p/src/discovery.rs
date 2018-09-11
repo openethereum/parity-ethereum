@@ -42,9 +42,9 @@ const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 
-const PING_TIMEOUT: Duration = Duration::from_millis(300);
+const PING_TIMEOUT: Duration = Duration::from_millis(500);
 const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
-const EXPIRY_TIME: Duration = Duration::from_secs(60);
+const EXPIRY_TIME: Duration = Duration::from_secs(20);
 const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
 const REQUEST_BACKOFF: [Duration; 4] = [
 	Duration::from_secs(1),
@@ -80,15 +80,28 @@ impl BucketEntry {
 	}
 }
 
-pub struct NodeBucket {
-	nodes: VecDeque<BucketEntry>, //sorted by last active
+struct FindNodeRequest {
+	// Time when the request was sent
+	sent_at: Instant,
+	// Number of items sent by the node
+	response_count: usize,
+	// Whether the request have been answered yet
+	answered: bool,
 }
 
-struct PendingRequest {
-	packet_id: u8,
+struct PingRequest {
+	// Time when the request was sent
 	sent_at: Instant,
-	packet_hash: H256,
-	response_count: usize, // Some requests (eg. FIND_NODE) have multi-packet responses
+	// The node to which the request was sent
+	node: NodeEntry,
+	// The hash sent in the Ping request
+	echo_hash: H256,
+	// The hash Parity used to respond with
+	deprecated_echo_hash: H256,
+}
+
+pub struct NodeBucket {
+	nodes: VecDeque<BucketEntry>, //sorted by last active
 }
 
 impl Default for NodeBucket {
@@ -120,9 +133,8 @@ pub struct Discovery<'a> {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
-	in_flight_requests: HashMap<NodeId, PendingRequest>,
-	expiring_pings: VecDeque<(NodeId, Instant)>,
-	expiring_finds: VecDeque<(NodeId, Instant)>,
+	in_flight_pings: HashMap<NodeId, PingRequest>,
+	in_flight_find_nodes: HashMap<NodeId, FindNodeRequest>,
 	send_queue: VecDeque<Datagram>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
@@ -147,9 +159,8 @@ impl<'a> Discovery<'a> {
 			discovery_id: NodeId::new(),
 			discovery_nodes: HashSet::new(),
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
-			in_flight_requests: HashMap::new(),
-			expiring_pings: VecDeque::new(),
-			expiring_finds: VecDeque::new(),
+			in_flight_pings: HashMap::new(),
+			in_flight_find_nodes: HashMap::new(),
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
 			adding_nodes: Vec::new(),
@@ -241,7 +252,7 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn update_new_nodes(&mut self) {
-		while self.in_flight_requests.len() < MAX_NODES_PING {
+		while self.in_flight_pings.len() < MAX_NODES_PING {
 			match self.adding_nodes.pop() {
 				Some(next) => self.try_ping(next),
 				None => break,
@@ -294,14 +305,20 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn try_ping(&mut self, node: NodeEntry) {
-		if !self.is_allowed(&node) ||
-			self.in_flight_requests.contains_key(&node.id) ||
-			self.adding_nodes.iter().any(|n| n.id == node.id)
-		{
+		if !self.is_allowed(&node) {
+			trace!(target: "discovery", "Node {:?} not allowed", node);
+			return;
+		}
+		if self.in_flight_pings.contains_key(&node.id) {
+			trace!(target: "discovery", "Node {:?} in flight requests", node);
+			return;
+		}
+		if self.adding_nodes.iter().any(|n| n.id == node.id) {
+			trace!(target: "discovery", "Node {:?} in adding nodes", node);
 			return;
 		}
 
-		if self.in_flight_requests.len() < MAX_NODES_PING {
+		if self.in_flight_pings.len() < MAX_NODES_PING {
 			self.ping(&node)
 				.unwrap_or_else(|e| {
 					warn!(target: "discovery", "Error sending Ping packet: {:?}", e);
@@ -317,18 +334,18 @@ impl<'a> Discovery<'a> {
 		self.public_endpoint.to_rlp_list(&mut rlp);
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
+		let old_parity_hash = keccak(rlp.as_raw());
 		let hash = self.send_packet(PACKET_PING, &node.endpoint.udp_address(), &rlp.drain())?;
 
-		let request_info = PendingRequest {
-			packet_id: PACKET_PING,
+		// Add the request to inflight pings
+		self.in_flight_pings.insert(node.id, PingRequest {
 			sent_at: Instant::now(),
-			packet_hash: hash,
-			response_count: 0,
-		};
-		self.expiring_pings.push_back((node.id, request_info.sent_at));
-		self.in_flight_requests.insert(node.id, request_info);
+			node: node.clone(),
+			echo_hash: hash,
+			deprecated_echo_hash: old_parity_hash,
+		});
 
-		trace!(target: "discovery", "Sent Ping to {:?}", &node.endpoint);
+		trace!(target: "discovery", "Sent Ping to {:?} ; node_id=0x{:x}", &node.endpoint, node.id);
 		Ok(())
 	}
 
@@ -336,16 +353,13 @@ impl<'a> Discovery<'a> {
 		let mut rlp = RlpStream::new_list(2);
 		rlp.append(target);
 		append_expiration(&mut rlp);
-		let hash = self.send_packet(PACKET_FIND_NODE, &node.endpoint.udp_address(), &rlp.drain())?;
+		self.send_packet(PACKET_FIND_NODE, &node.endpoint.udp_address(), &rlp.drain())?;
 
-		let request_info = PendingRequest {
-			packet_id: PACKET_FIND_NODE,
+		self.in_flight_find_nodes.insert(node.id, FindNodeRequest {
 			sent_at: Instant::now(),
-			packet_hash: hash,
 			response_count: 0,
-		};
-		self.expiring_finds.push_back((node.id, request_info.sent_at));
-		self.in_flight_requests.insert(node.id, request_info);
+			answered: false,
+		});
 
 		trace!(target: "discovery", "Sent FindNode to {:?}", &node.endpoint);
 		Ok(())
@@ -457,61 +471,105 @@ impl<'a> Discovery<'a> {
 		entry.endpoint.is_allowed(&self.ip_filter) && entry.id != self.id
 	}
 
-	fn on_ping(&mut self, rlp: &Rlp, node: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
+	fn on_ping(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
-		let source = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
-		let dest = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
+		let ping_from = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
+		let ping_to = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
 		self.check_timestamp(timestamp)?;
 
 		let mut response = RlpStream::new_list(3);
-		dest.to_rlp_list(&mut response);
+		let pong_to = NodeEndpoint {
+			address: from.clone(),
+			udp_port: ping_from.udp_port
+		};
+		// Here the PONG's `To` field should be the node we are
+		// sending the request to
+		ping_to.to_rlp_list(&mut response);
+		// pong_to.to_rlp_list(&mut response);
 		response.append(&echo_hash);
 		append_expiration(&mut response);
 		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
-		let entry = NodeEntry { id: *node, endpoint: source.clone() };
+		let entry = NodeEntry { id: *node_id, endpoint: pong_to.clone() };
 		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
+			return Ok(None);
 		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
-		} else {
-			self.add_node(entry.clone());
+			return Ok(None);
 		}
-
-		Ok(None)
+		Ok(self.update_node(entry.clone()))
 	}
 
 	fn on_pong(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
-		trace!(target: "discovery", "Got Pong from {:?}", &from);
-		let dest = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
+		trace!(target: "discovery", "Got Pong from {:?} ; node_id=0x{:x}", &from, node_id);
+		let _pong_to = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
 		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
-		let mut node = NodeEntry { id: *node_id, endpoint: dest };
-		if !node.endpoint.is_valid() {
-			debug!(target: "discovery", "Bad address: {:?}", node);
-			node.endpoint.address = *from;
-		}
 
-		let is_expected = match self.in_flight_requests.entry(*node_id) {
+		let expected_node = match self.in_flight_pings.entry(*node_id) {
 			Entry::Occupied(entry) => {
-				let is_expected = {
+				let expected_node = {
 					let request = entry.get();
-					request.packet_id == PACKET_PING && request.packet_hash == echo_hash
+					if request.echo_hash != echo_hash && request.deprecated_echo_hash != echo_hash {
+						debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash=0x{:x} ; expected_hash=0x{:x}", &from, request.echo_hash, echo_hash);
+						None
+					} else {
+						if request.deprecated_echo_hash == echo_hash {
+							info!(target: "discovery", "Got a Pong from old Parity version.");
+						}
+						// Get the UDP port from the saved request, and
+						// the address from the incoming connection
+						Some(NodeEntry {
+							id: *node_id,
+							endpoint: NodeEndpoint {
+								udp_port: request.node.endpoint.udp_port,
+								address: from.clone(),
+							}
+						})
+					}
 				};
-				if is_expected {
+
+				if expected_node.is_some() {
 					entry.remove();
 				}
-				is_expected
+				expected_node
 			},
-			Entry::Vacant(_) => false
+			Entry::Vacant(_) => {
+				debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
+				None
+			},
 		};
 
-		if is_expected {
+		// If the Node couldn't be found from its ID,
+		// Try to find it in from the hash that was sent back
+		// if expected_node.is_none() {
+		// 	self.in_flight_pings.retain(|_, ping_request| {
+		// 		if ping_request.echo_hash == echo_hash || ping_request.deprecated_echo_hash == echo_hash {
+		// 			debug!(target: "discovery",
+		// 				"Found corresponding request expected={:x}@{} ; found={:x}@{}",
+		// 				node_id, from,
+		// 				ping_request.node.id, ping_request.node.endpoint.address
+		// 			);
+		// 			expected_node = Some(NodeEntry {
+		// 				id: *node_id,
+		// 				endpoint: NodeEndpoint {
+		// 					udp_port: ping_request.node.endpoint.udp_port,
+		// 					address: from.clone(),
+		// 				}
+		// 			});
+		// 			false
+		// 		} else {
+		// 			true
+		// 		}
+		// 	});
+		// }
+
+		if let Some(node) = expected_node {
 			Ok(self.update_node(node))
 		} else {
-			debug!(target: "discovery", "Got unexpected Pong from {:?}", &from);
 			Ok(None)
 		}
 	}
@@ -553,29 +611,34 @@ impl<'a> Discovery<'a> {
 	fn on_neighbours(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		let results_count = rlp.at(0)?.item_count()?;
 
-		let is_expected = match self.in_flight_requests.entry(*node_id) {
+		let is_expected = match self.in_flight_find_nodes.entry(*node_id) {
 			Entry::Occupied(mut entry) => {
-				let result = {
+				let expected = {
 					let request = entry.get_mut();
-					if request.packet_id == PACKET_FIND_NODE &&
-						request.response_count + results_count <= BUCKET_SIZE
-					{
+					// Mark the request as answered
+					if !request.answered {
+						request.answered = true;
+					}
+					if request.response_count + results_count <= BUCKET_SIZE {
 						request.response_count += results_count;
 						true
 					} else {
+						debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; oversized packet ({} + {}) node_id=0x{:x}", &from, request.response_count, results_count, node_id);
 						false
 					}
 				};
 				if entry.get().response_count == BUCKET_SIZE {
 					entry.remove();
 				}
-				result
+				expected
 			}
-			Entry::Vacant(_) => false,
+			Entry::Vacant(_) => {
+				debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; couldn't find node_id=0x{:x}", &from, node_id);
+				false
+			},
 		};
 
 		if !is_expected {
-			debug!(target: "discovery", "Got unexpected Neighbors from {:?}", &from);
 			return Ok(None);
 		}
 
@@ -601,50 +664,55 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn check_expired(&mut self, time: Instant) {
-		while let Some((node_id, sent_at)) = self.expiring_pings.pop_front() {
-			if time.duration_since(sent_at) <= PING_TIMEOUT {
-				self.expiring_pings.push_front((node_id, sent_at));
-				break;
+		let mut nodes_to_expire = Vec::new();
+		self.in_flight_pings.retain(|node_id, ping_request| {
+			if time.duration_since(ping_request.sent_at) > PING_TIMEOUT {
+				debug!(target: "discovery", "Removing expired PING request for node_id=0x{:x}", node_id);
+				nodes_to_expire.push(*node_id);
+				false
+			} else {
+				true
 			}
-			self.expire_in_flight_request(node_id, sent_at);
-		}
-		while let Some((node_id, sent_at)) = self.expiring_finds.pop_front() {
-			if time.duration_since(sent_at) <= FIND_NODE_TIMEOUT {
-				self.expiring_finds.push_front((node_id, sent_at));
-				break;
-			}
-			self.expire_in_flight_request(node_id, sent_at);
-		}
-	}
-
-	fn expire_in_flight_request(&mut self, node_id: NodeId, sent_at: Instant) {
-		if let Entry::Occupied(entry) = self.in_flight_requests.entry(node_id) {
-			if entry.get().sent_at == sent_at {
-				entry.remove();
-
-				// Attempt to remove from bucket if in one.
-				let id_hash = keccak(&node_id);
-				let dist = Discovery::distance(&self.id_hash, &id_hash)
-					.expect("distance is None only if id hashes are equal; will never send request to self; qed");
-				let bucket = &mut self.node_buckets[dist];
-				if let Some(index) = bucket.nodes.iter().position(|n| n.id_hash == id_hash) {
-					if bucket.nodes[index].fail_count < self.request_backoff.len() {
-						let node = &mut bucket.nodes[index];
-						node.backoff_until = Instant::now() + self.request_backoff[node.fail_count];
-						node.fail_count += 1;
-						trace!(
-							target: "discovery",
-							"Requests to node {:?} timed out {} consecutive time(s)",
-							&node.address, node.fail_count
-						);
-					} else {
-						let node = bucket.nodes.remove(index).expect("index was located in if condition");
-						debug!(target: "discovery", "Removed expired node {:?}", &node.address);
-					}
+		});
+		self.in_flight_find_nodes.retain(|node_id, find_node_request| {
+			if time.duration_since(find_node_request.sent_at) > FIND_NODE_TIMEOUT {
+				if !find_node_request.answered {
+					debug!(target: "discovery", "Removing expired FIND NODE request for node_id=0x{:x}", node_id);
+					nodes_to_expire.push(*node_id);
 				}
+				false
+			} else {
+				true
+			}
+		});
+		for node_id in nodes_to_expire {
+			self.expire_node_request(node_id);
+		}
+	}
+
+	fn expire_node_request(&mut self, node_id: NodeId) {
+		// Attempt to remove from bucket if in one.
+		let id_hash = keccak(&node_id);
+		let dist = Discovery::distance(&self.id_hash, &id_hash)
+			.expect("distance is None only if id hashes are equal; will never send request to self; qed");
+		let bucket = &mut self.node_buckets[dist];
+		if let Some(index) = bucket.nodes.iter().position(|n| n.id_hash == id_hash) {
+			if bucket.nodes[index].fail_count < self.request_backoff.len() {
+				let node = &mut bucket.nodes[index];
+				node.backoff_until = Instant::now() + self.request_backoff[node.fail_count];
+				node.fail_count += 1;
+				trace!(
+					target: "discovery",
+					"Requests to node {:?} timed out {} consecutive time(s)",
+					&node.address, node.fail_count
+				);
+			} else {
+				let node = bucket.nodes.remove(index).expect("index was located in if condition");
+				debug!(target: "discovery", "Removed expired node {:?}", &node.address);
 			}
 		}
 	}
+
 
 	pub fn round(&mut self) {
 		self.check_expired(Instant::now());
