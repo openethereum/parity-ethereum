@@ -282,11 +282,21 @@ impl BlockDownloader {
 		match self.state {
 			State::ChainHead => {
 				if !headers.is_empty() {
-					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
-					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
-					self.blocks.reset_to(hashes);
-					self.state = State::Blocks;
-					return Ok(DownloadAction::Reset);
+					let mut is_subchain_heads = headers.len() == 1;
+					if headers.len() > 1 {
+						let n0 = BlockNumber::from(headers[0].header.number());
+						let n1 = BlockNumber::from(headers[1].header.number());
+						is_subchain_heads = n1 - n0 > 1
+					}
+
+					if is_subchain_heads {
+						trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
+						self.blocks.reset_to(hashes);
+						self.state = State::Blocks;
+						return Ok(DownloadAction::Reset);
+					} else {
+						debug!(target: "sync", "Ignoring consecutive headers. Expected subchains with gap.");
+					}
 				} else {
 					let best = io.chain().chain_info().best_block_number;
 					let oldest_reorg = io.chain().pruning_info().earliest_state;
