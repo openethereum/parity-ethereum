@@ -421,16 +421,7 @@ impl<B: Backend> State<B> {
 					**prev = checkpoint;
 				} else {
 					for (k, v) in checkpoint.drain() {
-						match prev.entry(k) {
-							Entry::Occupied(mut e) => {
-								if e.get().is_none() {
-									e.insert(v);
-								}
-							},
-							Entry::Vacant(e) => {
-								e.insert(v);
-							}
-						}
+						prev.entry(k).or_insert(v);
 					}
 				}
 			}
@@ -2460,6 +2451,25 @@ mod tests {
 		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0)));
 		state.revert_to_checkpoint();
 		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(1)));
+	}
+
+	#[test]
+	fn create_contract_fail() {
+		let mut state = get_temp_state();
+		let orig_root = state.root().clone();
+		let a: Address = 1000.into();
+
+		state.checkpoint(); // c1
+		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.add_balance(&a, &U256::from(1), CleanupMode::ForceCreate).unwrap();
+		state.checkpoint(); // c2
+		state.add_balance(&a, &U256::from(1), CleanupMode::ForceCreate).unwrap();
+		state.discard_checkpoint(); // discard c2
+		state.revert_to_checkpoint(); // revert to c1
+		assert_eq!(state.exists(&a).unwrap(), false);
+
+		state.commit().unwrap();
+		assert_eq!(orig_root, state.root().clone());
 	}
 
 	#[test]
