@@ -739,6 +739,16 @@ impl<'a> Discovery<'a> {
 	pub fn requeue_send(&mut self, datagram: Datagram) {
 		self.send_queue.push_front(datagram)
 	}
+
+	/// Add a list of known nodes to the table.
+	#[cfg(test)]
+	pub fn init_node_list(&mut self, nodes: Vec<NodeEntry>) {
+		for n in nodes {
+			if self.is_allowed(&n) {
+				self.update_node(n);
+			}
+		}
+	}
 }
 
 fn append_expiration(rlp: &mut RlpStream) {
@@ -814,13 +824,13 @@ mod tests {
 
 		for i in 1..(MAX_NODES_PING+1) {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
-			assert_eq!(discovery.in_flight_requests.len(), i);
+			assert_eq!(discovery.in_flight_pings.len(), i);
 			assert_eq!(discovery.send_queue.len(), i);
 			assert_eq!(discovery.adding_nodes.len(), 0);
 		}
 		for i in 1..20 {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
-			assert_eq!(discovery.in_flight_requests.len(), MAX_NODES_PING);
+			assert_eq!(discovery.in_flight_pings.len(), MAX_NODES_PING);
 			assert_eq!(discovery.send_queue.len(), MAX_NODES_PING);
 			assert_eq!(discovery.adding_nodes.len(), i);
 		}
@@ -897,23 +907,29 @@ mod tests {
 		assert_eq!(total_bucket_nodes(&discovery.node_buckets), 1200);
 
 		// Requests have not expired yet.
-		let removed = discovery.check_expired(Instant::now()).len();
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now());
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
 		assert_eq!(removed, 0);
 
 		// Expiring pings to bucket nodes removes them from bucket.
-		let removed = discovery.check_expired(Instant::now() + PING_TIMEOUT).len();
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + PING_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
 		assert!(removed > 0);
 		assert_eq!(total_bucket_nodes(&discovery.node_buckets), 1200 - removed);
 
 		for _ in 0..100 {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
 		}
-		assert!(discovery.in_flight_requests.len() > 0);
+		assert!(discovery.in_flight_pings.len() > 0);
 
 		// Expire pings to nodes that are not in buckets.
-		let removed = discovery.check_expired(Instant::now() + PING_TIMEOUT).len();
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + PING_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
 		assert_eq!(removed, 0);
-		assert_eq!(discovery.in_flight_requests.len(), 0);
+		assert_eq!(discovery.in_flight_pings.len(), 0);
 
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
 
@@ -925,7 +941,9 @@ mod tests {
 			discovery.on_packet(&packet, from.clone()).unwrap();
 		}
 
-		let removed = discovery.check_expired(Instant::now() + FIND_NODE_TIMEOUT).len();
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + FIND_NODE_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
 		assert!(removed > 0);
 
 		// FIND_NODE does not time out because it receives k results.
@@ -935,7 +953,9 @@ mod tests {
 			discovery.on_packet(&packet, from.clone()).unwrap();
 		}
 
-		let removed = discovery.check_expired(Instant::now() + FIND_NODE_TIMEOUT).len();
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + FIND_NODE_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
 		assert_eq!(removed, 0);
 
 		// Test bucket evictions with retries.
@@ -944,12 +964,16 @@ mod tests {
 
 		for _ in 0..2 {
 			discovery.ping(&node_entries[101]).unwrap();
-			let removed = discovery.check_expired(Instant::now() + PING_TIMEOUT).len();
+			let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+			discovery.check_expired(Instant::now() + PING_TIMEOUT);
+			let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
 			assert_eq!(removed, 0);
 		}
 
 		discovery.ping(&node_entries[101]).unwrap();
-		let removed = discovery.check_expired(Instant::now() + PING_TIMEOUT).len();
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + PING_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
 		assert_eq!(removed, 1);
 	}
 
