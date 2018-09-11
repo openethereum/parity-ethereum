@@ -92,7 +92,7 @@ pub struct BlockInfo {
 /// Build an in-memory CHT from a closure which provides necessary information
 /// about blocks. If the fetcher ever fails to provide the info, the CHT
 /// will not be generated.
-pub fn build<F>(cht_num: u64, mut fetcher: F) ->  Option<CHT<MemoryDB<KeccakHasher>>>
+pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHasher>>>
 	where F: FnMut(BlockId) -> Option<BlockInfo>
 {
 	let mut db = MemoryDB::<KeccakHasher>::new();
@@ -118,8 +118,8 @@ pub fn build<F>(cht_num: u64, mut fetcher: F) ->  Option<CHT<MemoryDB<KeccakHash
 	}
 
 	Some(CHT {
-		db: db,
-		root: root,
+		db,
+		root,
 		number: cht_num,
 	})
 }

@@ -17,6 +17,7 @@
 //! Blockchain database client.
 
 mod ancient_import;
+mod bad_blocks;
 mod client;
 mod config;
 #[cfg(any(test, feature = "test-helpers"))]
@@ -36,7 +37,7 @@ pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::{ChainNotify, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, CallContract, TransactionInfo, RegistryInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-    StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
+    StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
 };
 pub use state::StateInfo;
 pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};

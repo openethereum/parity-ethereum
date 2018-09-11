@@ -73,7 +73,7 @@ impl RequestSet {
 	}
 
 	/// Remove a set of requests from the stack.
-	pub fn remove(&mut self, req_id: &ReqId, now: Instant) -> Option<Requests> {
+	pub fn remove(&mut self, req_id: ReqId, now: Instant) -> Option<Requests> {
 		let id = match self.ids.remove(&req_id) {
 			Some(id) => id,
 			None => return None,
@@ -165,7 +165,7 @@ mod tests {
 		let test_end = test_begin + req_time;
 		assert!(req_set.check_timeout(test_end));
 
-		req_set.remove(&ReqId(0), test_begin + Duration::from_secs(1)).unwrap();
+		req_set.remove(ReqId(0), test_begin + Duration::from_secs(1)).unwrap();
 		assert!(!req_set.check_timeout(test_end));
 		assert!(req_set.check_timeout(test_end + Duration::from_secs(1)));
 	}
@@ -183,7 +183,7 @@ mod tests {
 		}
 
 		for i in (0..5).rev() {
-			assert!(req_set.remove(&ReqId(i), test_end).is_some());
+			assert!(req_set.remove(ReqId(i), test_end).is_some());
 			assert_eq!(req_set.cumulative_cost, i.into());
 		}
 	}

@@ -60,14 +60,19 @@ impl HeapSizeOf for PreverifiedBlock {
 }
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
-pub fn verify_block_basic(block: &Unverified, engine: &EthEngine) -> Result<(), Error> {
+pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bool) -> Result<(), Error> {
 	verify_header_params(&block.header, engine, true)?;
 	verify_block_integrity(block)?;
-	engine.verify_block_basic(&block.header)?;
+
+	if check_seal {
+		engine.verify_block_basic(&block.header)?;
+	}
 
 	for uncle in &block.uncles {
 		verify_header_params(uncle, engine, false)?;
-		engine.verify_block_basic(uncle)?;
+		if check_seal {
+			engine.verify_block_basic(uncle)?;
+		}
 	}
 
 	for t in &block.transactions {
@@ -496,7 +501,7 @@ mod tests {
 
 	fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
 		let unverified = Unverified::from_rlp(bytes.to_vec())?;
-		verify_block_basic(&unverified, engine)
+		verify_block_basic(&unverified, engine, true)
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {

@@ -14,30 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! TransactionTest test deserializer.
+//! Instant seal engine params deserialization.
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use serde_json;
-use serde_json::Error;
-use transaction::TransactionTest;
-
-/// TransactionTest test deserializer.
-#[derive(Debug, Deserialize)]
-pub struct Test(BTreeMap<String, TransactionTest>);
-
-impl IntoIterator for Test {
-	type Item = <BTreeMap<String, TransactionTest> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, TransactionTest> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
+/// Instant seal engine params deserialization.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct InstantSealParams {
+	/// Whether to enable millisecond timestamp.
+	#[serde(rename="millisecondTimestamp")]
+	#[serde(default)]
+	pub millisecond_timestamp: bool,
 }
 
-impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
-	}
+/// Instant seal engine descriptor.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct InstantSeal {
+	/// Instant seal parameters.
+	pub params: InstantSealParams,
 }

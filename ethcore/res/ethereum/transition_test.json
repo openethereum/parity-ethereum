@@ -6,11 +6,15 @@
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x4563918244F40000",
+				"blockReward": {
+					"0x0": "0x4563918244F40000",
+					"0x5": "0x29A2241AF62C0000"
+				},
 				"homesteadTransition": "0",
-				"eip649Reward": "0x29A2241AF62C0000",
 				"eip100bTransition": "5",
-				"eip649Transition": "5"
+				"difficultyBombDelays": {
+					"5": 3000000
+				}
 			}
 		}
 	},
