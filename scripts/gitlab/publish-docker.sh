@@ -3,7 +3,7 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-if [ "$CI_COMMIT_REF_NAME" == "beta" ];
+if [ "$CI_COMMIT_REF_NAME" == "master" ];
 then export DOCKER_BUILD_TAG="latest";
 else export DOCKER_BUILD_TAG=$CI_COMMIT_REF_NAME;
 fi
