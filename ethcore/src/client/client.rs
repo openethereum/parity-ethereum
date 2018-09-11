@@ -1785,26 +1785,35 @@ impl BlockChainClient for Client {
 	}
 
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
-		let chain = self.chain.read();
-		self.transaction_address(id)
-			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
-				let transaction = chain.block_body(&address.block_hash)
-					.and_then(|body| body.view().localized_transaction_at(&address.block_hash, block_number, address.index));
+		let address = self.transaction_address(id)?;
+		let receipts = self.block_receipts(BlockId::Hash(address.block_hash))?;
+		receipts.get(address.index).cloned()
+	}
 
-				let previous_receipts = (0..address.index + 1)
-					.map(|index| {
-						let mut address = address.clone();
-						address.index = index;
-						chain.transaction_receipt(&address)
-					})
-					.collect();
-				match (transaction, previous_receipts) {
-					(Some(transaction), Some(previous_receipts)) => {
-						Some(transaction_receipt(self.engine().machine(), transaction, previous_receipts))
-					},
-					_ => None,
-				}
-			}))
+	fn block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>> {
+		let hash = self.block_hash(id)?;
+
+		let chain = self.chain.read();
+		let receipts = chain.block_receipts(&hash)?;
+		let number = chain.block_number(&hash)?;
+		let body = chain.block_body(&hash)?;
+		let machine = self.engine().machine();
+
+		let mut gas_used = 0.into();
+		let mut no_of_logs = 0;
+
+		Some(
+			body.view().localized_transactions(&hash, number)
+				.into_iter()
+				.zip(receipts.receipts)
+				.map(|(transaction, receipt)| {
+					let result = transaction_receipt(machine, transaction, receipt, gas_used, no_of_logs);
+					gas_used = result.cumulative_gas_used;
+					no_of_logs += result.logs.len();
+					result
+				})
+				.collect()
+		)
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
@@ -1823,7 +1832,7 @@ impl BlockChainClient for Client {
 		self.state_db.read().journal_db().state(hash)
 	}
 
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes> {
 		self.chain.read().block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).into_vec())
 	}
 
@@ -2378,16 +2387,14 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(machine: &::machine::EthereumMachine, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
-	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
-
+fn transaction_receipt(
+	machine: &::machine::EthereumMachine,
+	mut tx: LocalizedTransaction,
+	receipt: Receipt,
+	prior_gas_used: U256,
+	prior_no_of_logs: usize,
+) -> LocalizedReceipt {
 	let sender = tx.sender();
-	let receipt = receipts.pop().expect("Current receipt is provided; qed");
-	let prior_gas_used = match tx.transaction_index {
-		0 => 0.into(),
-		i => receipts.get(i - 1).expect("All previous receipts are provided; qed").gas_used,
-	};
-	let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
 	let transaction_hash = tx.hash();
 	let block_hash = tx.block_hash;
 	let block_number = tx.block_number;
@@ -2416,7 +2423,7 @@ fn transaction_receipt(machine: &::machine::EthereumMachine, mut tx: LocalizedTr
 			transaction_hash: transaction_hash,
 			transaction_index: transaction_index,
 			transaction_log_index: i,
-			log_index: no_of_logs + i,
+			log_index: prior_no_of_logs + i,
 		}).collect(),
 		log_bloom: receipt.log_bloom,
 		outcome: receipt.outcome,
@@ -2507,20 +2514,15 @@ mod tests {
 			topics: vec![],
 			data: vec![],
 		}];
-		let receipts = vec![Receipt {
-			outcome: TransactionOutcome::StateRoot(state_root),
-			gas_used: 5.into(),
-			log_bloom: Default::default(),
-			logs: vec![logs[0].clone()],
-		}, Receipt {
+		let receipt = Receipt {
 			outcome: TransactionOutcome::StateRoot(state_root),
 			gas_used: gas_used,
 			log_bloom: Default::default(),
 			logs: logs.clone(),
-		}];
+		};
 
 		// when
-		let receipt = transaction_receipt(&machine, transaction, receipts);
+		let receipt = transaction_receipt(&machine, transaction, receipt, 5.into(), 1);
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {

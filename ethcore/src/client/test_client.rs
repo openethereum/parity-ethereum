@@ -687,6 +687,10 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
+	fn block_receipts(&self, _id: BlockId) -> Option<Vec<LocalizedReceipt>> {
+		Some(self.receipts.read().values().cloned().collect())
+	}
+
 	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
 		match self.error_on_logs.read().as_ref() {
 			Some(id) => return Err(id.clone()),
@@ -786,7 +790,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes> {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(

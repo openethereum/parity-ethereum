@@ -29,7 +29,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
-use ethcore::log_entry::LogEntry;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
@@ -419,11 +418,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
 	let receipts = miner.pending_receipts(best_block).unwrap_or_default();
 
-	let pending_logs = receipts.into_iter()
-		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
-		.collect::<Vec<(H256, LogEntry)>>();
-
-	pending_logs.into_iter()
+	receipts.into_iter()
+		.flat_map(|r| {
+			let hash = r.transaction_hash;
+			r.logs.into_iter().map(move |l| (hash.clone(), l))
+		})
 		.filter(|pair| filter.matches(&pair.1))
 		.map(|pair| {
 			let mut log = Log::from(pair.1);
