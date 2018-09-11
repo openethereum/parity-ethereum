@@ -73,7 +73,7 @@ const MAINTENANCE_TIMEOUT: Duration = Duration::from_secs(1);
 // for DISCOVERY_REFRESH TimerToken
 const DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(30);
 // for FAST_DISCOVERY_REFRESH TimerToken
-const FAST_DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
+const FAST_DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
 // for DISCOVERY_ROUND TimerToken
 const DISCOVERY_ROUND_TIMEOUT: Duration = Duration::from_millis(300);
 // for NODE_TABLE TimerToken
