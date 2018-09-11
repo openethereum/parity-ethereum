@@ -115,6 +115,7 @@ pub struct Discovery<'a> {
 	id_hash: H256,
 	secret: Secret,
 	public_endpoint: NodeEndpoint,
+	discovering: bool,
 	discovery_round: u16,
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
@@ -141,6 +142,7 @@ impl<'a> Discovery<'a> {
 			id_hash: keccak(key.public()),
 			secret: key.secret().clone(),
 			public_endpoint: public,
+			discovering: false,
 			discovery_round: 0,
 			discovery_id: NodeId::new(),
 			discovery_nodes: HashSet::new(),
@@ -224,8 +226,17 @@ impl<'a> Discovery<'a> {
 	/// Starts the discovery process at round 0
 	fn start(&mut self) {
 		trace!(target: "discovery", "Starting discovery");
+		self.discovering = true;
 		self.discovery_round = 0;
 		self.discovery_id.randomize(); //TODO: use cryptographic nonce
+		self.discovery_nodes.clear();
+	}
+
+	/// Complete the discovery process
+	fn stop(&mut self) {
+		trace!(target: "discovery", "Completing discovery");
+		self.discovering = false;
+		self.discovery_round = DISCOVERY_MAX_STEPS;
 		self.discovery_nodes.clear();
 	}
 
@@ -239,8 +250,8 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn discover(&mut self) {
-		self.update_new_nodes();
 		if self.discovery_round == DISCOVERY_MAX_STEPS {
+			self.stop();
 			return;
 		}
 		trace!(target: "discovery", "Starting round {:?}", self.discovery_round);
@@ -263,9 +274,7 @@ impl<'a> Discovery<'a> {
 		}
 
 		if tried_count == 0 {
-			trace!(target: "discovery", "Completing discovery");
-			self.discovery_round = DISCOVERY_MAX_STEPS;
-			self.discovery_nodes.clear();
+			self.stop();
 			return;
 		}
 		self.discovery_round += 1;
@@ -639,11 +648,16 @@ impl<'a> Discovery<'a> {
 
 	pub fn round(&mut self) {
 		self.check_expired(Instant::now());
-		self.discover();
+		self.update_new_nodes();
+		if self.discovering {
+			self.discover();
+		}
 	}
 
 	pub fn refresh(&mut self) {
-		self.start();
+		if !self.discovering {
+			self.start();
+		}
 	}
 
 	pub fn any_sends_queued(&self) -> bool {
