@@ -525,6 +525,7 @@ impl BlockDownloader {
 				},
 				Err(BlockImportError(BlockImportErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
 					debug!(target: "sync", "Block import queue full ({}), restarting sync", limit);
+					bad = true;
 					break;
 				},
 				Err(e) => {
