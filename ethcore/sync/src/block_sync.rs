@@ -289,10 +289,34 @@ impl BlockDownloader {
 			State::ChainHead => {
 				if !headers.is_empty() {
 					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
-					trace_sync!(self, target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
-					self.blocks.reset_to(hashes);
-					self.state = State::Blocks;
-					return Ok(DownloadAction::Reset);
+					let mut distances = Vec::new();
+					let mut last_distance = 0;
+
+					if headers.len() > 1 {
+						for i in 0..headers.len() - 2 {
+							let n1 = BlockNumber::from(headers[i].header.number());
+							let n2 = BlockNumber::from(headers[i+1].header.number());
+							let d = n2 - n1;
+							if d != last_distance {
+								distances.push(n2 - n1);
+							}
+							last_distance = d;
+						}
+					}
+					trace_sync!(self, target: "sync", "subchain heads starting #{:?}, {:?}, distances {:?}",
+						BlockNumber::from(headers[0].header.number()),
+						headers[0].header.hash(),
+						distances
+					);
+
+					if distances.len() == 0 || distances == [127] {
+						trace_sync!(self, target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
+						self.blocks.reset_to(hashes);
+						self.state = State::Blocks;
+						return Ok(DownloadAction::Reset);
+					} else {
+						trace_sync!(self, target: "sync", "not subchain heads, distances {:?}", distances);
+					}
 				} else {
 					let best = io.chain().chain_info().best_block_number;
 					let oldest_reorg = io.chain().pruning_info().earliest_state;

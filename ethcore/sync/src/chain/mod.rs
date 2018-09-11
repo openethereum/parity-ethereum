@@ -511,9 +511,10 @@ impl ChainSync {
 	fn reset(&mut self, io: &mut SyncIo) {
 		self.new_blocks.reset();
 		let chain_info = io.chain().chain_info();
-		for (_, ref mut p) in &mut self.peers {
+		for (pid, ref mut p) in &mut self.peers {
 			if p.block_set != Some(BlockSet::OldBlocks) {
 				p.reset_asking();
+				trace!(target: "sync", "OldBlocks: Peer {:?} reset", pid);
 				if p.difficulty.is_none() {
 					// assume peer has up to date difficulty
 					p.difficulty = Some(chain_info.pending_total_difficulty);
