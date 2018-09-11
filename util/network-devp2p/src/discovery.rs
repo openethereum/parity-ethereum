@@ -188,15 +188,6 @@ impl<'a> Discovery<'a> {
 		}
 	}
 
-	/// Add a list of known nodes to the table.
-	pub fn init_node_list(&mut self, nodes: Vec<NodeEntry>) {
-		for n in nodes {
-			if self.is_allowed(&n) {
-				self.update_node(n);
-			}
-		}
-	}
-
 	fn update_node(&mut self, e: NodeEntry) -> Option<TableUpdates> {
 		trace!(target: "discovery", "Inserting {:?}", &e);
 		let id_hash = keccak(e.id);
@@ -717,6 +708,7 @@ impl<'a> Discovery<'a> {
 	pub fn round(&mut self) {
 		self.check_expired(Instant::now());
 		self.update_new_nodes();
+
 		if self.discovering {
 			self.discover();
 		}
