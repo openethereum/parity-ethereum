@@ -293,7 +293,7 @@ impl BlockDownloader {
 					let mut last_distance = 0;
 
 					if headers.len() > 1 {
-						for i in 0..headers.len() - 2 {
+						for i in 0..headers.len() - 1 {
 							let n1 = BlockNumber::from(headers[i].header.number());
 							let n2 = BlockNumber::from(headers[i+1].header.number());
 							let d = n2 - n1;
