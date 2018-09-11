@@ -116,6 +116,28 @@ pub struct EthashParams {
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: u64,
+	/// EOS Classic transition block
+	pub eosc_transition: u64,
+	/// EOS Classic Treasury Address
+	pub eosc_treasury_address: Address,
+	/// EOS Classic Treasury reward
+	pub eosc_treasury_reward: U256,
+	/// EOS Classic Stake Address
+	pub eosc_stake_address: Address,
+	/// EOS Classic Stake reward
+	pub eosc_stake_reward: U256,
+	/// NewEOSC transition block
+	pub neweosc_transition: u64,
+	/// NewEOSC Fund Address
+	pub neweosc_fund_address: Address,
+	/// NewEOSC Fund reward
+	pub neweosc_fund_reward: U256,
+	/// NewEOSC POS Address
+	pub neweosc_pos_address: Address,
+	/// NewEOSC POS reward
+	pub neweosc_pos_reward: U256,
+	/// Total block number for one EOSC-1017 era.
+	pub eosc1017_era_rounds: u64,
 	/// Block reward contract transition block.
 	pub block_reward_contract_transition: u64,
 	/// Block reward contract.
@@ -168,6 +190,17 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 				}),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
+			eosc_transition: p.eosc_transition.map_or(u64::max_value(), Into::into),
+			eosc_treasury_address: p.eosc_treasury_address.map_or_else(Address::new, Into::into),
+			eosc_treasury_reward: p.eosc_treasury_reward.map_or_else(Default::default, Into::into),
+			eosc_stake_address: p.eosc_stake_address.map_or_else(Address::new, Into::into),
+			eosc_stake_reward: p.eosc_stake_reward.map_or_else(Default::default, Into::into),
+			neweosc_transition: p.neweosc_transition.map_or(u64::max_value(), Into::into),
+			neweosc_fund_address: p.neweosc_fund_address.map_or_else(Address::new, Into::into),
+			neweosc_fund_reward: p.neweosc_fund_reward.map_or_else(Default::default, Into::into),
+			neweosc_pos_address: p.neweosc_pos_address.map_or_else(Address::new, Into::into),
+			neweosc_pos_reward: p.neweosc_pos_reward.map_or_else(Default::default, Into::into),
+			eosc1017_era_rounds: p.eosc1017_era_rounds.map_or(u64::max_value(), Into::into),
 			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
 			block_reward_contract: match (p.block_reward_contract_code, p.block_reward_contract_address) {
 				(Some(code), _) => Some(BlockRewardContract::new_from_code(Arc::new(code.into()))),
@@ -298,6 +331,40 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 					rewards.push((author, RewardKind::Author, result_block_reward));
 					rewards.push((ubi_contract, RewardKind::External, ubi_reward));
 					rewards.push((dev_contract, RewardKind::External, dev_reward));
+
+				} else if number >= self.ethash_params.eosc1017_era_rounds {
+					let fund_address = self.ethash_params.neweosc_fund_address;
+					let fund_reward = self.ethash_params.neweosc_fund_reward;
+					let pos_address = self.ethash_params.neweosc_pos_address;
+					let pos_reward = self.ethash_params.neweosc_pos_reward;
+
+					let eras_rounds = self.ethash_params.eosc1017_era_rounds;
+					let (eras, fund_reward) = eosc1017_eras_fund_reward(eras_rounds, fund_reward, number);
+					let (eras, pos_reward) = eosc1017_eras_pos_reward(eras_rounds, pos_reward, number);
+
+					rewards.push((author, RewardKind::Author, result_block_reward));
+					rewards.push((fund_address, RewardKind::External, fund_reward));
+					rewards.push((pos_address, RewardKind::External, pos_reward));
+
+				} else if number >= self.ethash_params.neweosc_transition {
+					let fund_address = self.ethash_params.neweosc_fund_address;
+					let fund_reward = self.ethash_params.neweosc_fund_reward;
+					let pos_address = self.ethash_params.neweosc_pos_address;
+					let pos_reward = self.ethash_params.neweosc_pos_reward;
+
+					rewards.push((author, RewardKind::Author, result_block_reward));
+					rewards.push((fund_address, RewardKind::External, fund_reward));
+					rewards.push((pos_address, RewardKind::External, pos_reward));
+
+				} else if number >= self.ethash_params.eosc_transition {
+					let treasury_address = self.ethash_params.eosc_treasury_address;
+					let treasury_reward = self.ethash_params.eosc_treasury_reward;
+					let stake_address = self.ethash_params.eosc_stake_address;
+					let stake_reward = self.ethash_params.eosc_stake_reward;
+
+					rewards.push((author, RewardKind::Author, result_block_reward));
+					rewards.push((treasury_address, RewardKind::External, treasury_reward));
+					rewards.push((stake_address, RewardKind::External, stake_reward));
 
 				} else {
 					rewards.push((author, RewardKind::Author, result_block_reward));
@@ -507,6 +574,36 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 	(eras, reward)
 }
 
+fn eosc1017_eras_fund_reward(eosc_era_rounds: u64, mut fund_reward: U256, block_number:u64) -> (u64, U256) {
+	let eras = if block_number != 0 && block_number % eosc_era_rounds == 0 {
+		block_number / eosc_era_rounds - 1
+	} else {
+		block_number / eosc_era_rounds
+	};
+	let mut divi = U256::from(1);
+	for _ in 0..eras {
+		fund_reward = fund_reward * U256::from(4);
+		divi = divi * U256::from(5);
+	}
+	fund_reward = fund_reward / divi;
+	(eras, fund_reward)
+}
+
+fn eosc1017_eras_pos_reward(eosc_era_rounds: u64, mut pos_reward: U256, block_number:u64) -> (u64, U256) {
+	let eras = if block_number != 0 && block_number % eosc_era_rounds == 0 {
+		block_number / eosc_era_rounds - 1
+	} else {
+		block_number / eosc_era_rounds
+	};
+	let mut divi = U256::from(1);
+	for _ in 0..eras {
+		pos_reward = pos_reward * U256::from(4);
+		divi = divi * U256::from(5);
+	}
+	pos_reward = pos_reward / divi;
+	(eras, pos_reward)
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
@@ -557,6 +654,17 @@ mod tests {
 			mcip3_dev_contract: "0000000000000000000000000000000000000001".into(),
 			expip2_transition: u64::max_value(),
 			expip2_duration_limit: 30,
+			eosc_transition: u64::max_value(),
+			eosc_treasury_address: "0000000000000000000000000000000000000001".into(),
+			eosc_treasury_reward: 0.into(),
+			eosc_stake_address: "0000000000000000000000000000000000000001".into(),
+			eosc_stake_reward: 0.into(),
+			neweosc_transition: u64::max_value(),
+			neweosc_fund_address: "0000000000000000000000000000000000000001".into(),
+			neweosc_fund_reward: 0.into(),
+			neweosc_pos_address: "0000000000000000000000000000000000000001".into(),
+			neweosc_pos_reward: 0.into(),
+			eosc1017_era_rounds: u64::max_value(),
 			block_reward_contract: None,
 			block_reward_contract_transition: 0,
 			difficulty_bomb_delays: BTreeMap::new(),
