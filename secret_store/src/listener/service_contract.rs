@@ -573,7 +573,7 @@ impl DocumentKeyStoreService {
 	/// Check if response from key server is required.
 	pub fn is_response_required(client: &Client, contract_address: &Address, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
-		let (encoded, decoder) = service::functions::is_server_key_generation_response_required::call(*server_key_id, *key_server);
+		let (encoded, decoder) = service::functions::is_document_key_store_response_required::call(*server_key_id, *key_server);
 		match client.call_contract(BlockId::Latest, *contract_address, encoded) {
 			Err(_) => true,
 			Ok(data) => decoder.decode(&data).unwrap_or(true)

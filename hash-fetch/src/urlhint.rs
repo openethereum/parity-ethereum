@@ -106,7 +106,7 @@ pub struct URLHintContract {
 
 impl URLHintContract {
 	/// Creates new `URLHintContract`
-		pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
+	pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
 		URLHintContract {
 			registrar: Registrar::new(client.clone()),
 			client: client,
