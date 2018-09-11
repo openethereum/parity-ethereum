@@ -57,6 +57,8 @@ no_serve_light = false
 reserved_only = false
 reserved_peers = "./path_to_file"
 
+https_proxy = "http://localhost:8080"
+
 [rpc]
 disable = false
 port = 8545
