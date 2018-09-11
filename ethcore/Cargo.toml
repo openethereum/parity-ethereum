@@ -18,7 +18,7 @@ ethcore-bloom-journal = { path = "../util/bloom" }
 parity-bytes = "0.1"
 hashdb = "0.2.1"
 memorydb = "0.2.1"
-patricia-trie = "0.2.1"
+patricia-trie = "0.2"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 parity-crypto = "0.1"
 error-chain = { version = "0.12", default-features = false }
