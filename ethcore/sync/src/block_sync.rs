@@ -282,12 +282,8 @@ impl BlockDownloader {
 		match self.state {
 			State::ChainHead => {
 				if !headers.is_empty() {
-					let mut is_subchain_heads = headers.len() == 1;
-					if headers.len() > 1 {
-						let n0 = BlockNumber::from(headers[0].header.number());
-						let n1 = BlockNumber::from(headers[1].header.number());
-						is_subchain_heads = n1 - n0 > 1
-					}
+					let is_subchain_heads = headers.len() == 1 ||
+						headers.len() > 1 && headers[0].header.number() - headers[1].header.number() > 1;
 
 					if is_subchain_heads {
 						trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
