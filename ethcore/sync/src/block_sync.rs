@@ -299,6 +299,7 @@ impl BlockDownloader {
 						return Ok(DownloadAction::Reset);
 					} else {
 						debug!(target: "sync", "Ignoring consecutive headers: expected subchain headers with gap");
+						return Err(BlockDownloaderImportError::Useless);
 					}
 				} else {
 					let best = io.chain().chain_info().best_block_number;
