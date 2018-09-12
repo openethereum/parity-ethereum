@@ -700,6 +700,7 @@ impl ChainSync {
 	fn complete_sync(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Sync complete");
 		self.reset(io);
+		self.state = SyncState::Idle;
 	}
 
 	/// Enter waiting state
