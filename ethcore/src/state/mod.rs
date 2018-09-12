@@ -2473,6 +2473,33 @@ mod tests {
 	}
 
 	#[test]
+	fn create_contract_fail_previous_storage() {
+		let mut state = get_temp_state();
+		let a: Address = 1000.into();
+		let k = H256::from(U256::from(0));
+
+		state.set_storage(&a, k, H256::from(U256::from(0xffff))).unwrap();
+		state.commit().unwrap();
+		state.clear();
+
+		let orig_root = state.root().clone();
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0xffff)));
+		state.clear();
+
+		state.checkpoint(); // c1
+		state.new_contract(&a, U256::zero(), U256::zero()).unwrap();
+		state.checkpoint(); // c2
+		state.set_storage(&a, k, H256::from(U256::from(2))).unwrap();
+		state.revert_to_checkpoint(); // revert to c2
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0)));
+		state.revert_to_checkpoint(); // revert to c1
+		assert_eq!(state.storage_at(&a, &k).unwrap(), H256::from(U256::from(0xffff)));
+
+		state.commit().unwrap();
+		assert_eq!(orig_root, state.root().clone());
+	}
+
+	#[test]
 	fn create_empty() {
 		let mut state = get_temp_state();
 		state.commit().unwrap();
