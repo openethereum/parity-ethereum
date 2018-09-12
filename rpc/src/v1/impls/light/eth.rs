@@ -216,7 +216,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 								};
 
 								fill_rich(block, score)
-							}).map_err(errors::on_demand_cancel)),
+							}).map_err(errors::on_demand_error)),
 						None => Either::A(future::err(errors::network_disabled())),
 					}
 				}
@@ -316,7 +316,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.map(|x| Either::B(x.map_err(errors::on_demand_error)))
 					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
 		}))
@@ -332,7 +332,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.map(|x| Either::B(x.map_err(errors::on_demand_error)))
 					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
 		}))
@@ -348,7 +348,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.map(|x| Either::B(x.map_err(errors::on_demand_error)))
 					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
 		}))
@@ -364,7 +364,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| Either::A(x.map_err(errors::on_demand_cancel)))
+					.map(|x| Either::A(x.map_err(errors::on_demand_error)))
 					.unwrap_or_else(|| Either::B(future::err(errors::network_disabled())))
 			}
 		}))
