@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, Address};
 use types::transaction::UnverifiedTransaction;
 use blockchain::ImportRoute;
 use std::time::Duration;
@@ -29,6 +29,8 @@ pub enum ChainMessageType {
 	PrivateTransaction(H256, Vec<u8>),
 	/// Message with signed private transaction
 	SignedPrivateTransaction(H256, Vec<u8>),
+	/// Private state request for the particular private contract
+	PrivateStateRequest(Address),
 }
 
 /// Route type to indicate whether it is enacted or retracted.

@@ -600,6 +600,7 @@ impl ChainNotify for EthSync {
 					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, PrivateTransactionPacket, message),
 				ChainMessageType::SignedPrivateTransaction(transaction_hash, message) =>
 					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, SignedPrivateTransactionPacket, message),
+				ChainMessageType::PrivateStateRequest(address) => {}
 			}
 		});
 	}

@@ -280,8 +280,9 @@ impl Provider {
 		let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction);
 		if let Err(err) = private_state {
 			match err {
-				Error(ErrorKind::PrivateTransactionNotFound, _) => {
-
+				Error(ErrorKind::PrivateStateNotFound, _) => {
+					trace!(target: "privatetx", "Private state for the contract not found, requesting from peers");
+					self.request_private_state(&contract);
 				}
 				_ => {}
 			}
@@ -501,6 +502,10 @@ impl Provider {
 	/// Broadcast signed private transaction message to the chain
 	fn broadcast_signed_private_transaction(&self, transaction_hash: H256, message: Bytes) {
 		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction(transaction_hash, message.clone())));
+	}
+
+	fn request_private_state(&self, address: &Address) {
+		self.notify(|notify| notify.broadcast(ChainMessageType::PrivateStateRequest(*address)))
 	}
 
 	fn iv_from_transaction(transaction: &SignedTransaction) -> H128 {
