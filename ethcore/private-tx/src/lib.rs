@@ -198,6 +198,8 @@ pub struct Provider {
 	channel: IoChannel<ClientIoMessage>,
 	keys_provider: Arc<KeyProvider>,
 	logging: Option<Logging>,
+	use_offchain_storage: bool,
+	temp_offchain_storage: RwLock<HashMap<Address, Bytes>>,
 }
 
 #[derive(Debug)]
@@ -233,6 +235,8 @@ impl Provider {
 			channel,
 			keys_provider,
 			logging: config.logs_path.map(|path| Logging::new(Arc::new(FileLogsSerializer::with_path(path)))),
+			use_offchain_storage: false,
+			temp_offchain_storage: RwLock::default(),
 		}
 	}
 
@@ -273,7 +277,17 @@ impl Provider {
 		// best would be to change the API and only allow H256 instead of BlockID
 		// in private-tx to avoid such mistakes.
 		let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
-		let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction)?;
+		let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction);
+		if let Err(err) = private_state {
+			match err {
+				Error(ErrorKind::PrivateTransactionNotFound, _) => {
+
+				}
+				_ => {}
+			}
+			bail!(err);
+		}
+		let private_state = private_state.expect("Valid state since this");
 		trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
 		let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
 		trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
@@ -512,6 +526,27 @@ impl Provider {
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
+		match self.use_offchain_storage {
+			true => self.get_decrypted_state_from_storage(address),
+			false => self.get_decrypted_state_from_contract(address, block),
+		}
+	}
+
+	fn get_decrypted_state_from_storage(&self, address: &Address) -> Result<Bytes, Error> {
+		let offchain_storage = self.temp_offchain_storage.read();
+		match offchain_storage.get(address) {
+			Some(state) => Ok(state.to_vec()),
+			None => bail!(ErrorKind::PrivateStateNotFound),
+		}
+	}
+
+	fn save_state_to_storage(&self, address: &Address, storage: &HashMap<H256, H256>) -> Result<(), Error> {
+		let mut offchain_storage = self.temp_offchain_storage.write();
+		offchain_storage.insert(*address, Self::snapshot_from_storage(storage));
+		Ok(())
+	}
+
+	fn get_decrypted_state_from_contract(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
 		let (data, decoder) = private_contract::functions::state::call();
 		let value = self.client.call_contract(block, *address, data)?;
 		let state = decoder.decode(&value).map_err(|e| Error::Call(format!("Contract call failed {:?}", e)))?;
@@ -608,6 +643,7 @@ impl Provider {
 				Some(c) => Some(self.encrypt(&contract_address, &Self::iv_from_address(&contract_address), &c)?),
 				None => None,
 			};
+			self.save_state_to_storage(&address, &storage)?;
 			(enc_code, self.encrypt(&contract_address, &Self::iv_from_transaction(transaction), &Self::snapshot_from_storage(&storage))?)
 		};
 		Ok(PrivateExecutionResult {
