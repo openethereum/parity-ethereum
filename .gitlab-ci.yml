@@ -141,19 +141,23 @@ build-linux-ubuntu-armhf:
     - rust-arm
 
 build-linux-android-armhf:
-  <<:                              *build
+  stage:                           build
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
 
 build-darwin-macos-x86_64:
-  <<:                              *build
+  stage:                           build
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
     CXX:                           g++
+  script:
+    - scripts/gitlab/build-unix.sh
   tags:
     - osx
   <<:                              *collect_artifacts
