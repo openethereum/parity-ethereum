@@ -14,7 +14,6 @@
 				"callistoTreasuryReward": "0x68155a43676e00000",
 				"callistoStakeAddress": "0x3c06f218Ce6dD8E2c535a8925A2eDF81674984D9",
 				"callistoStakeReward": "0x340aad21b3b700000",
-				"eip649Reward": "0x16c4abbebea0100000",
 				"eip100bTransition": 20,
 				"difficultyBombDelays": {
 					"20": 100000000
