@@ -104,7 +104,6 @@ test-coverage-kcov:
 
 build-linux-ubuntu-amd64:          &build
   stage:                           build
-  only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
   script:
@@ -116,6 +115,7 @@ build-linux-ubuntu-amd64:          &build
 
 build-linux-ubuntu-i386:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-i686:gitlab-ci
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
@@ -124,6 +124,7 @@ build-linux-ubuntu-i386:
 
 build-linux-ubuntu-arm64:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-arm64:gitlab-ci
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
@@ -132,6 +133,7 @@ build-linux-ubuntu-arm64:
 
 build-linux-ubuntu-armhf:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-armv7:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
@@ -140,6 +142,7 @@ build-linux-ubuntu-armhf:
 
 build-linux-android-armhf:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
