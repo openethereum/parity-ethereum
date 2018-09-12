@@ -14,14 +14,14 @@ pub fn verify_signature(is_prefixed: bool, message: Bytes, signature: H520, chai
 
 	let signature = Signature::from(signature.0);
 	let is_valid_for_current_chain = chain_id.map(|chain_id| {
-		let v = signature.v() as u64;
-		if v > 36  {
-			match (v - 35).checked_sub(chain_id * 2) {
-				Some(1) | Some(0) => return true,
-				_ => {}
-			}
+		let  result = (signature.v() as u64)
+			.checked_sub(35)
+			.and_then(|v| v.checked_sub(chain_id.saturating_mul(2)));
+
+		match result {
+			Some(1) | Some(0) => true,
+			_ => false
 		}
-		false
 	});
 
 	let public = recover(&signature, &hash).map_err(errors::encryption)?;
