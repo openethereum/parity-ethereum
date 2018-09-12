@@ -111,7 +111,6 @@ build-linux-ubuntu-amd64:          &build
   <<:                              *collect_artifacts
   tags:
     - rust-stable
-  allow_failure: true
 
 build-linux-ubuntu-i386:
   <<:                              *build
@@ -263,7 +262,6 @@ publish-docker-parity-amd64: &publish_docker
     - build-linux-ubuntu-amd64
   tags:
     - shell
-  allow_failure:                   true
   script:
     - scripts/gitlab/publish-docker.sh parity
 
@@ -288,7 +286,6 @@ publish-github-and-s3:
     - scripts/gitlab/push.sh
   tags:
     - shell
-  allow_failure:                   true
 
 
 ####stage:                          docs
