@@ -261,15 +261,12 @@ mod tests {
 				ecip1017_era_rounds: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
-<<<<<<< HEAD
 				difficulty_bomb_delays: None,
-=======
 				callisto_transition: None,
 				callisto_treasury_address: None,
 				callisto_treasury_reward: None,
 				callisto_stake_address: None,
 				callisto_stake_reward: None,
->>>>>>> Add Callisto Mainnet support
 			}
 		});
 	}
