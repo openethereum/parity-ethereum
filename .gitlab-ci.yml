@@ -142,7 +142,6 @@ build-linux-ubuntu-armhf:
 
 build-linux-android-armhf:
   <<:                              *build
-  only:                            *releaseable_branches
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
@@ -161,7 +160,6 @@ build-darwin-macos-x86_64:
 
 build-windows-msvc-x86_64:
   stage:                           build
-  only:                            *releaseable_branches
   cache:
     key:                           "%CI_JOB_NAME%"
     paths:
