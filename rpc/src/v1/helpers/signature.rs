@@ -9,16 +9,16 @@ pub fn verify_signature(is_prefixed: bool, message: Bytes, signature: H520, chai
 	let hash = if is_prefixed {
 		eth_data_hash(message.0)
 	} else {
-		keccak(message.0.clone())
+		keccak(message.0)
 	};
 
 	let signature = Signature::from(signature.0);
 	let is_valid_for_current_chain = chain_id.map(|chain_id| {
 		let v = signature.v() as u64;
 		if v > 36  {
-			let decoded_v = (v - 35) - (chain_id * 2);
-			if decoded_v == 0 || decoded_v == 1 {
-				return true
+			match (v - 35).checked_sub(chain_id * 2) {
+				Some(1) | Some(0) => return true,
+				_ => {}
 			}
 		}
 		false
