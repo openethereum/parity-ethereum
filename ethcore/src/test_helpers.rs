@@ -514,6 +514,7 @@ impl ChainNotify for TestNotify {
 			ChainMessageType::Consensus(data) => data,
 			ChainMessageType::SignedPrivateTransaction(_, data) => data,
 			ChainMessageType::PrivateTransaction(_, data) => data,
+			ChainMessageType::PrivateStateRequest(_) => Vec::new(),
 		};
 		self.messages.write().push(data);
 	}
