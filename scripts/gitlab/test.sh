@@ -6,7 +6,7 @@ set -u # treat unset variables as error
 
 rustup default $1
 
-if [[ "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" ]]; then
+if [[ "$CI_COMMIT_REF_NAME" = "master" || "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" ]]; then
   export GIT_COMPARE=$CI_COMMIT_REF_NAME~;
 else
   export GIT_COMPARE=master;
