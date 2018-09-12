@@ -41,17 +41,14 @@ cache:
     paths:
     - artifacts/
 
-.determine_version:
-  before_script:                   &determine_version
-    - >
-      VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' < Cargo.toml)";
-      if [ "${CI_COMMIT_REF_NAME}" = "nightly" ]; then
-        COMMIT_REF_SHORT="$(echo ${CI_COMMIT_REF} | grep -oE '^.{7}')";
-        DATE_STRING="$(date +%Y%m%d)";
-        export VERSION="${VERSION}-${COMMIT_REF_SHORT}-${DATE_STRING}";
-      fi;
-      export VERSION;
-      echo "Version: $VERSION"
+.determine_version:                &determine_version
+  - VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
+  - DATE_STR="$(date +%Y%m%d)"
+  - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
+  - test "${CI_COMMIT_REF_NAME}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
+  - export VERSION
+  - echo "Version = ${VERSION}"
+
 
 
 #### stage:                        test
