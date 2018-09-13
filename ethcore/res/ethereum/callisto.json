@@ -16,7 +16,7 @@
 				"callistoStakeReward": "0x340aad21b3b700000",
 				"eip100bTransition": 20,
 				"difficultyBombDelays": {
-					"20": 100000000
+					"20": 3000000
 				}
 			}
 		}
