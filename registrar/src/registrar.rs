@@ -19,7 +19,7 @@ use ethabi::{Address, Bytes};
 use std::sync::Arc;
 use keccak_hash::keccak;
 
-use_contract!(registry, "Registry", "res/registrar.json");
+use_contract!(registrar, "res/registrar.json");
 
 // Maps a domain name to an Ethereum address
 const DNS_A_RECORD: &'static str = "A";
@@ -30,7 +30,6 @@ pub type Synchronous = Result<Bytes, String>;
 /// Registrar is dedicated interface to access the registrar contract
 /// which in turn generates an address when a client requests one
 pub struct Registrar {
-	registrar: registry::Registry,
 	client: Arc<RegistrarClient<Call=Asynchronous>>,
 }
 
@@ -38,7 +37,6 @@ impl Registrar {
 	/// Registrar constructor
 	pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
 		Self {
-			registrar: registry::Registry::default(),
 			client: client,
 		}
 	}
@@ -51,14 +49,11 @@ impl Registrar {
 			Err(e) => return Box::new(future::err(e)),
 		};
 
-		let address_fetcher = self.registrar.functions().get_address();
 		let hashed_key: [u8; 32] = keccak(key).into();
-		let id = address_fetcher.input(hashed_key, DNS_A_RECORD);
+		let id = registrar::functions::get_address::encode_input(hashed_key, DNS_A_RECORD);
 
-		let future = self.client.call_contract(registrar_address, id).and_then(move |address| {
-			address_fetcher.output(&address)
-		}
-		.map_err(|e| e.to_string()));
+		let future = self.client.call_contract(registrar_address, id)
+			.and_then(move |address| registrar::functions::get_address::decode_output(&address).map_err(|e| e.to_string()));
 
 		Box::new(future)
 	}
