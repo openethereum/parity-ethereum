@@ -96,7 +96,7 @@ struct PingRequest {
 	node: NodeEntry,
 	// The hash sent in the Ping request
 	echo_hash: H256,
-	// The hash Parity used to respond with
+	// The hash Parity used to respond with (until rev 01f825b0e1f1c4c420197b51fc801cbe89284b29)
 	deprecated_echo_hash: H256,
 }
 
@@ -128,9 +128,8 @@ pub struct Discovery<'a> {
 	id_hash: H256,
 	secret: Secret,
 	public_endpoint: NodeEndpoint,
-	started_discovering: bool,
-	discovering: bool,
-	discovery_round: u16,
+	discovery_initiated: bool,
+	discovery_round: Option<u16>,
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
@@ -155,9 +154,8 @@ impl<'a> Discovery<'a> {
 			id_hash: keccak(key.public()),
 			secret: key.secret().clone(),
 			public_endpoint: public,
-			started_discovering: false,
-			discovering: false,
-			discovery_round: 0,
+			discovery_initiated: false,
+			discovery_round: None,
 			discovery_id: NodeId::new(),
 			discovery_nodes: HashSet::new(),
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
@@ -230,8 +228,7 @@ impl<'a> Discovery<'a> {
 	/// Starts the discovery process at round 0
 	fn start(&mut self) {
 		trace!(target: "discovery", "Starting discovery");
-		self.discovering = true;
-		self.discovery_round = 0;
+		self.discovery_round = Some(0);
 		self.discovery_id.randomize(); //TODO: use cryptographic nonce
 		self.discovery_nodes.clear();
 	}
@@ -239,8 +236,7 @@ impl<'a> Discovery<'a> {
 	/// Complete the discovery process
 	fn stop(&mut self) {
 		trace!(target: "discovery", "Completing discovery");
-		self.discovering = false;
-		self.discovery_round = DISCOVERY_MAX_STEPS;
+		self.discovery_round = None;
 		self.discovery_nodes.clear();
 	}
 
@@ -254,7 +250,11 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn discover(&mut self) {
-		if self.discovery_round == DISCOVERY_MAX_STEPS {
+		if self.discovery_round.is_none() {
+			return;
+		}
+		let discovery_round = self.discovery_round.expect("discovery_round is not None ; qed");
+		if discovery_round == DISCOVERY_MAX_STEPS {
 			self.stop();
 			return;
 		}
@@ -281,7 +281,7 @@ impl<'a> Discovery<'a> {
 			self.stop();
 			return;
 		}
-		self.discovery_round += 1;
+		self.discovery_round = Some(discovery_round + 1);
 	}
 
 	/// The base 2 log of the distance between a and b using the XOR metric.
@@ -330,7 +330,6 @@ impl<'a> Discovery<'a> {
 		let old_parity_hash = keccak(rlp.as_raw());
 		let hash = self.send_packet(PACKET_PING, &node.endpoint.udp_address(), &rlp.drain())?;
 
-		// Add the request to inflight pings
 		self.in_flight_pings.insert(node.id, PingRequest {
 			sent_at: Instant::now(),
 			node: node.clone(),
@@ -338,7 +337,7 @@ impl<'a> Discovery<'a> {
 			deprecated_echo_hash: old_parity_hash,
 		});
 
-		trace!(target: "discovery", "Sent Ping to {:?} ; node_id=0x{:x}", &node.endpoint, node.id);
+		trace!(target: "discovery", "Sent Ping to {:?} ; node_id={:#x}", &node.endpoint, node.id);
 		Ok(())
 	}
 
@@ -478,8 +477,12 @@ impl<'a> Discovery<'a> {
 		};
 		// Here the PONG's `To` field should be the node we are
 		// sending the request to
+		// WARNING: this field _should not be used_, but old Parity versions
+		// use it in order to get the node's address.
+		// So this is a temporary fix so that older Parity versions don't brake completely.
 		ping_to.to_rlp_list(&mut response);
 		// pong_to.to_rlp_list(&mut response);
+
 		response.append(&echo_hash);
 		append_expiration(&mut response);
 		self.send_packet(PACKET_PONG, from, &response.drain())?;
@@ -487,41 +490,33 @@ impl<'a> Discovery<'a> {
 		let entry = NodeEntry { id: *node_id, endpoint: pong_to.clone() };
 		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
-			return Ok(None);
 		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
-			return Ok(None);
+		} else {
+			self.add_node(entry.clone());
 		}
-		Ok(self.update_node(entry.clone()))
+		Ok(None)
 	}
 
 	fn on_pong(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
-		trace!(target: "discovery", "Got Pong from {:?} ; node_id=0x{:x}", &from, node_id);
+		trace!(target: "discovery", "Got Pong from {:?} ; node_id={:#x}", &from, node_id);
 		let _pong_to = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
 		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
 
-		let mut expected_node = match self.in_flight_pings.entry(*node_id) {
+		let expected_node = match self.in_flight_pings.entry(*node_id) {
 			Entry::Occupied(entry) => {
 				let expected_node = {
 					let request = entry.get();
 					if request.echo_hash != echo_hash && request.deprecated_echo_hash != echo_hash {
-						debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash=0x{:x} ; expected_hash=0x{:x}", &from, request.echo_hash, echo_hash);
+						debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash={:#x} ; expected_hash={:#x}", &from, request.echo_hash, echo_hash);
 						None
 					} else {
 						if request.deprecated_echo_hash == echo_hash {
 							trace!(target: "discovery", "Got Pong from an old parity-ethereum version.");
 						}
-						// Get the UDP port from the saved request, and
-						// the address from the incoming connection
-						Some(NodeEntry {
-							id: *node_id,
-							endpoint: NodeEndpoint {
-								udp_port: request.node.endpoint.udp_port,
-								address: from.clone(),
-							}
-						})
+						Some(request.node.clone())
 					}
 				};
 
@@ -534,32 +529,6 @@ impl<'a> Discovery<'a> {
 				None
 			},
 		};
-
-		// If the Node couldn't be found from its ID,
-		// Try to find it in from the hash that was sent back
-		if expected_node.is_none() {
-			let mut found = false;
-			self.in_flight_pings.retain(|_, ping_request| {
-				if !found && ping_request.echo_hash == echo_hash || ping_request.deprecated_echo_hash == echo_hash {
-					debug!(target: "discovery",
-						"Found corresponding request expected={:x}@{} ; found={:x}@{}",
-						node_id, from,
-						ping_request.node.id, ping_request.node.endpoint.address
-					);
-					found = true;
-					expected_node = Some(NodeEntry {
-						id: *node_id,
-						endpoint: NodeEndpoint {
-							udp_port: ping_request.node.endpoint.udp_port,
-							address: from.clone(),
-						}
-					});
-					false
-				} else {
-					true
-				}
-			});
-		}
 
 		if let Some(node) = expected_node {
 			Ok(self.update_node(node))
@@ -618,7 +587,7 @@ impl<'a> Discovery<'a> {
 						request.response_count += results_count;
 						true
 					} else {
-						debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; oversized packet ({} + {}) node_id=0x{:x}", &from, request.response_count, results_count, node_id);
+						debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; oversized packet ({} + {}) node_id={:#x}", &from, request.response_count, results_count, node_id);
 						false
 					}
 				};
@@ -628,7 +597,7 @@ impl<'a> Discovery<'a> {
 				expected
 			}
 			Entry::Vacant(_) => {
-				debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; couldn't find node_id=0x{:x}", &from, node_id);
+				debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; couldn't find node_id={:#x}", &from, node_id);
 				false
 			},
 		};
@@ -662,7 +631,7 @@ impl<'a> Discovery<'a> {
 		let mut nodes_to_expire = Vec::new();
 		self.in_flight_pings.retain(|node_id, ping_request| {
 			if time.duration_since(ping_request.sent_at) > PING_TIMEOUT {
-				debug!(target: "discovery", "Removing expired PING request for node_id=0x{:x}", node_id);
+				debug!(target: "discovery", "Removing expired PING request for node_id={:#x}", node_id);
 				nodes_to_expire.push(*node_id);
 				false
 			} else {
@@ -672,7 +641,7 @@ impl<'a> Discovery<'a> {
 		self.in_flight_find_nodes.retain(|node_id, find_node_request| {
 			if time.duration_since(find_node_request.sent_at) > FIND_NODE_TIMEOUT {
 				if !find_node_request.answered {
-					debug!(target: "discovery", "Removing expired FIND NODE request for node_id=0x{:x}", node_id);
+					debug!(target: "discovery", "Removing expired FIND NODE request for node_id={:#x}", node_id);
 					nodes_to_expire.push(*node_id);
 				}
 				false
@@ -713,17 +682,17 @@ impl<'a> Discovery<'a> {
 		self.check_expired(Instant::now());
 		self.update_new_nodes();
 
-		if self.discovering {
+		if self.discovery_round.is_some() {
 			self.discover();
 		// Start discovering if the first pings have been sent (or timed out)
-		} else if self.in_flight_pings.len() == 0 && !self.started_discovering {
-			self.started_discovering = true;
-			self.start();
+		} else if self.in_flight_pings.len() == 0 && !self.discovery_initiated {
+			self.discovery_initiated = true;
+			self.refresh();
 		}
 	}
 
 	pub fn refresh(&mut self) {
-		if !self.discovering {
+		if self.discovery_round.is_none() {
 			self.start();
 		}
 	}
