@@ -19,7 +19,7 @@ git submodule update --init --recursive
 rustup show
 if [[ "${RUST_FILES_MODIFIED}" == "0" ]];
 then echo "__________Skipping Rust tests since no Rust files modified__________";
-else ./test.sh --no-release || exit $?;
+else ./test.sh || exit $?;
 fi
 
 # if [[ "$CI_COMMIT_REF_NAME" == "nightly" ]];
