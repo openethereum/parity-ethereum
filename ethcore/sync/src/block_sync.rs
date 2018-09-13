@@ -282,25 +282,11 @@ impl BlockDownloader {
 		match self.state {
 			State::ChainHead => {
 				if !headers.is_empty() {
-					// When the round starts, subchain headers are requested
-					// with gaps to be filled. However if the round is reset
-					// while in State::Blocks then its possible to receive
-					// stale responses for the subchain heads in the gap. In
-					// this case the headers will have consecutive numbers
-					// so can be ignored here.
-					let is_subchain_heads = headers.len() == 1
-						|| headers.len() > 1
-						&& headers[1].header.number() - headers[0].header.number() > 1;
-
-					if is_subchain_heads {
-						trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
-						self.blocks.reset_to(hashes);
-						self.state = State::Blocks;
-						return Ok(DownloadAction::Reset);
-					} else {
-						debug!(target: "sync", "Ignoring consecutive headers: expected subchain headers with gap");
-						return Err(BlockDownloaderImportError::Useless);
-					}
+					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
+					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
+					self.blocks.reset_to(hashes);
+					self.state = State::Blocks;
+					return Ok(DownloadAction::Reset);
 				} else {
 					let best = io.chain().chain_info().best_block_number;
 					let oldest_reorg = io.chain().pruning_info().earliest_state;
