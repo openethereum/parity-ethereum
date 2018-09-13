@@ -30,14 +30,15 @@ use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 
+use crypto::DEFAULT_MAC;
+use ethcore::account_provider::AccountProvider;
+use ethcore::basic_account::BasicAccount;
+use ethcore::client::BlockChainClient;
+use ethcore::ids::BlockId;
+use ethcore::miner::{self, MinerService};
 use ethkey::{Password, Signature};
 use sync::LightSync;
-use ethcore::ids::BlockId;
-use ethcore::client::BlockChainClient;
-use ethcore::miner::{self, MinerService};
-use ethcore::account_provider::AccountProvider;
-use crypto::DEFAULT_MAC;
-use transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
+use transaction::{Action, SignedTransaction, PendingTransaction, Transaction, Error as TransactionError};
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};
@@ -218,7 +219,6 @@ pub fn fetch_gas_price_corpus(
 					for t in block.transaction_views().iter() {
 						v.push(t.gas_price())
 					}
-
 					v
 				})
 			})
@@ -302,40 +302,42 @@ impl LightDispatcher {
 		)
 	}
 
-	/// Get an account's next nonce.
-	pub fn next_nonce(&self, addr: Address) -> BoxFuture<U256> {
-		// fast path where we don't go to network; nonce provided or can be gotten from queue.
-		let maybe_nonce = self.transaction_queue.read().next_nonce(&addr);
-		if let Some(nonce) = maybe_nonce {
-			return Box::new(future::ok(nonce))
-		}
-
+	/// Get an account's state
+	fn account(&self, addr: Address) -> BoxFuture<Option<BasicAccount>> {
 		let best_header = self.client.best_block_header();
-		let account_start_nonce = self.client.engine().account_start_nonce(best_header.number());
-		let nonce_future = self.sync.with_context(|ctx| self.on_demand.request(ctx, request::Account {
+		let account_future = self.sync.with_context(|ctx| self.on_demand.request(ctx, request::Account {
 			header: best_header.into(),
 			address: addr,
 		}).expect("no back-references; therefore all back-references valid; qed"));
 
-		match nonce_future {
-			Some(x) => Box::new(
-				x.map(move |acc| acc.map_or(account_start_nonce, |acc| acc.nonce))
-					.map_err(|_| errors::no_light_peers())
-			),
-			None => Box::new(future::err(errors::network_disabled()))
+		match account_future {
+			Some(response) => Box::new(response.map_err(|_| errors::no_light_peers())),
+			None => Box::new(future::err(errors::network_disabled())),
 		}
+	}
+
+	/// Get an account's next nonce.
+	pub fn next_nonce(&self, addr: Address) -> BoxFuture<U256> {
+		let account_start_nonce = self.client.engine().account_start_nonce(self.client.best_block_header().number());
+		Box::new(self.account(addr)
+			.and_then(move |maybe_account| {
+				future::ok(maybe_account.map_or(account_start_nonce, |account| account.nonce))
+			})
+		)
 	}
 }
 
 impl Dispatcher for LightDispatcher {
-	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
+	// Ignore the `force_nonce` flag in order to always query the network when fetching the nonce and
+	// the account state. If the nonce is specified in the transaction use that nonce instead but do the
+	// network request anyway to the account state (balance)
+	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, _force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest>
 	{
 		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
 		let gas_limit = self.client.best_block_header().gas_limit();
 		let request_gas_price = request.gas_price.clone();
-		let request_nonce = request.nonce.clone();
 		let from = request.from.unwrap_or(default_sender);
 
 		let with_gas_price = move |gas_price| {
@@ -368,39 +370,37 @@ impl Dispatcher for LightDispatcher {
 			}).map(with_gas_price))
 		};
 
-		match (request_nonce, force_nonce) {
-			(_, false) | (Some(_), true) => Box::new(gas_price),
-			(None, true) => {
-				let next_nonce = self.next_nonce(from);
-				Box::new(gas_price.and_then(move |mut filled| next_nonce
-					.map_err(|_| errors::no_light_peers())
-					.map(move |nonce| {
-						filled.nonce = Some(nonce);
-						filled
-					})
-				))
-			},
-		}
+		let future_account = self.account(from);
+
+		Box::new(gas_price.and_then(move |mut filled| {
+			future_account
+				.and_then(move |maybe_account| {
+					let cost = filled.value.saturating_add(filled.gas.saturating_mul(filled.gas_price));
+					match maybe_account {
+						Some(ref account) if cost > account.balance => {
+							Err(errors::transaction(TransactionError::InsufficientBalance {
+								balance: account.balance,
+								cost,
+							}))
+						}
+						Some(account) => {
+							if filled.nonce.is_none() {
+								filled.nonce = Some(account.nonce);
+							}
+							Ok(filled)
+						}
+						None => Err(errors::account("Account not found", "")),
+					}
+				})
+		}))
 	}
 
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>>
 	{
 		let chain_id = self.client.signing_chain_id();
-
-		// fast path for pre-filled nonce.
-		if let Some(nonce) = filled.nonce {
-			return Box::new(future::done(sign_transaction(&*accounts, filled, chain_id, nonce, password)))
-		}
-
-		let nonces = self.nonces.clone();
-		Box::new(self.next_nonce(filled.from)
-			.map_err(|_| errors::no_light_peers())
-			.and_then(move |nonce| {
-				let reserved = nonces.lock().reserve(filled.from, nonce);
-
-				ProspectiveSigner::new(accounts, filled, chain_id, reserved, password)
-			}))
+		let nonce = filled.nonce.expect("nonce is always provided; qed");
+		Box::new(future::done(sign_transaction(&*accounts, filled, chain_id, nonce, password)))
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {

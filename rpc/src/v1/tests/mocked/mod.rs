@@ -17,6 +17,7 @@
 //! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
 //! method calls properly.
 
+mod debug;
 mod eth;
 mod eth_pubsub;
 mod manage_network;

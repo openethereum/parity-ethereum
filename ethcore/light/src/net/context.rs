@@ -44,6 +44,9 @@ pub trait IoContext {
 
 	/// Persistent peer id
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
+
+	/// Whether given peer id is reserved peer
+	fn is_reserved_peer(&self, peer: PeerId) -> bool;
 }
 
 impl<T> IoContext for T where T: ?Sized + NetworkContext {
@@ -75,6 +78,10 @@ impl<T> IoContext for T where T: ?Sized + NetworkContext {
 
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId> {
 		self.session_info(peer).and_then(|info| info.id)
+	}
+
+	fn is_reserved_peer(&self, peer: PeerId) -> bool {
+		NetworkContext::is_reserved_peer(self, peer)
 	}
 }
 

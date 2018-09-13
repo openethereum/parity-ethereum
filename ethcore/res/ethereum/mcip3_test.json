@@ -9,7 +9,6 @@
 				"durationLimit":"0x0d",
 				"homesteadTransition":"0x118c30",
 				"eip100bTransition":"0x7fffffffffffff",
-				"eip649Transition":"0x7fffffffffffff",
 				"blockReward":"0x1105a0185b50a80000",
 				"mcip3Transition":"0x00",
 				"mcip3MinerReward":"0xd8d726b7177a80000",
