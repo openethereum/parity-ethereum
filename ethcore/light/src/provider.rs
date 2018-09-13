@@ -87,9 +87,9 @@ pub trait Provider: Send + Sync {
 
 		let max = ::std::cmp::min(MAX_HEADERS_PER_REQUEST, req.max);
 
-		let headers: Vec<_> = (0u64..max)
+		let headers: Vec<_> = (0_u64..max)
 			.map(|x: u64| x.saturating_mul(req.skip.saturating_add(1)))
-			.take_while(|x| if req.reverse { x < &start_num } else { best_num.saturating_sub(start_num) >= *x })
+			.take_while(|&x| if req.reverse { x < start_num } else { best_num.saturating_sub(start_num) >= x })
 			.map(|x| if req.reverse { start_num.saturating_sub(x) } else { start_num.saturating_add(x) })
 			.map(|x| self.block_header(BlockId::Number(x)))
 			.take_while(|x| x.is_some())
@@ -99,7 +99,7 @@ pub trait Provider: Send + Sync {
 		if headers.is_empty() {
 			None
 		} else {
-			Some(::request::HeadersResponse { headers: headers })
+			Some(::request::HeadersResponse { headers })
 		}
 	}
 
@@ -172,7 +172,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
 		BlockChainClient::block_body(self, BlockId::Hash(req.hash))
-			.map(|body| ::request::BodyResponse { body: body })
+			.map(|body| ::request::BodyResponse { body })
 	}
 
 	fn block_receipts(&self, req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse> {
@@ -183,7 +183,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn account_proof(&self, req: request::CompleteAccountRequest) -> Option<request::AccountResponse> {
 		self.prove_account(req.address_hash, BlockId::Hash(req.block_hash)).map(|(proof, acc)| {
 			::request::AccountResponse {
-				proof: proof,
+				proof,
 				nonce: acc.nonce,
 				balance: acc.balance,
 				code_hash: acc.code_hash,
@@ -195,7 +195,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn storage_proof(&self, req: request::CompleteStorageRequest) -> Option<request::StorageResponse> {
 		self.prove_storage(req.address_hash, req.key_hash, BlockId::Hash(req.block_hash)).map(|(proof, item) | {
 			::request::StorageResponse {
-				proof: proof,
+				proof,
 				value: item,
 			}
 		})
@@ -203,7 +203,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 	fn contract_code(&self, req: request::CompleteCodeRequest) -> Option<request::CodeResponse> {
 		self.state_data(&req.code_hash)
-			.map(|code| ::request::CodeResponse { code: code })
+			.map(|code| ::request::CodeResponse { code })
 	}
 
 	fn header_proof(&self, req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse> {
@@ -252,7 +252,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		// prove our result.
 		match cht.prove(req.num, 0) {
 			Ok(Some(proof)) => Some(::request::HeaderProofResponse {
-				proof: proof,
+				proof,
 				hash: needed_hdr.hash(),
 				td: needed_td,
 			}),
@@ -268,12 +268,12 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		use transaction::Transaction;
 
 		let id = BlockId::Hash(req.block_hash);
-		let nonce = match self.nonce(&req.from, id.clone()) {
+		let nonce = match self.nonce(&req.from, id) {
 			Some(nonce) => nonce,
 			None => return None,
 		};
 		let transaction = Transaction {
-			nonce: nonce,
+			nonce,
 			gas: req.gas,
 			gas_price: req.gas_price,
 			action: req.action,
@@ -294,7 +294,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 	fn epoch_signal(&self, req: request::CompleteSignalRequest) -> Option<request::SignalResponse> {
 		self.epoch_signal(req.block_hash).map(|signal| request::SignalResponse {
-			signal: signal,
+			signal,
 		})
 	}
 }
@@ -310,8 +310,8 @@ impl<L> LightProvider<L> {
 	/// Create a new `LightProvider` from the given client and transaction queue.
 	pub fn new(client: Arc<L>, txqueue: Arc<RwLock<TransactionQueue>>) -> Self {
 		LightProvider {
-			client: client,
-			txqueue: txqueue,
+			client,
+			txqueue,
 		}
 	}
 }

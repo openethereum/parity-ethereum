@@ -32,7 +32,7 @@ use tempdir::TempDir;
 use ethereum_types::Address;
 use test_helpers;
 
-use_contract!(test_validator_set, "ValidatorSet", "res/contracts/test_validator_set.json");
+use_contract!(test_validator_set, "res/contracts/test_validator_set.json");
 
 const PASS: &'static str = "";
 const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes activated.
@@ -131,11 +131,9 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 				data: Vec::new(),
 			}.sign(&*RICH_SECRET, client.signing_chain_id());
 
-			*nonce = *nonce + 1.into();
+			*nonce = *nonce + 1;
 			vec![transaction]
 		};
-
-		let contract = test_validator_set::ValidatorSet::default();
 
 		// apply all transitions.
 		for transition in transitions {
@@ -163,7 +161,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 					false => &CONTRACT_ADDR_1 as &Address,
 				};
 
-				let data = contract.functions().set_validators().input(new_set.clone());
+				let data = test_validator_set::functions::set_validators::encode_input(new_set.clone());
 				let mut nonce = nonce.borrow_mut();
 				let transaction = Transaction {
 					nonce: *nonce,
@@ -174,7 +172,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 					data,
 				}.sign(&*RICH_SECRET, client.signing_chain_id());
 
-				*nonce = *nonce + 1.into();
+				*nonce = *nonce + 1;
 				vec![transaction]
 			} else {
 				make_useless_transactions()

@@ -23,8 +23,6 @@ pub enum BlockStatus {
 	Queued,
 	/// Known as bad.
 	Bad,
-	/// Pending block.
-	Pending,
 	/// Unknown.
 	Unknown,
 }

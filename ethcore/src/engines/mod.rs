@@ -297,9 +297,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn verify_local_seal(&self, header: &M::Header) -> Result<(), M::Error>;
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
+	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
 	fn verify_block_basic(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
+	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
 	fn verify_block_unordered(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.

@@ -52,7 +52,7 @@ use v1::types::{
 };
 use v1::metadata::Metadata;
 
-const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
+const NO_INVALID_BACK_REFS: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Light client `ETH` (and filter) RPC.
 pub struct EthClient<T> {
@@ -168,7 +168,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 					seal_fields: header.seal().into_iter().cloned().map(Into::into).collect(),
 					uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
 					transactions: match include_txs {
-						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t)).collect()),
+						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(Transaction::from_localized).collect()),
 						_ => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
 					extra_data: Bytes::new(header.extra_data().clone()),
@@ -216,7 +216,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 								};
 
 								fill_rich(block, score)
-							}).map_err(errors::on_demand_cancel)),
+							}).map_err(errors::on_demand_error)),
 						None => Either::A(future::err(errors::network_disabled())),
 					}
 				}
@@ -237,7 +237,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 			let chain_info = self.client.chain_info();
 			let current_block = U256::from(chain_info.best_block_number);
 			let highest_block = self.sync.highest_block().map(U256::from)
-				.unwrap_or_else(|| current_block.clone());
+				.unwrap_or_else(|| current_block);
 
 			Ok(SyncStatus::Info(SyncInfo {
 				starting_block: U256::from(self.sync.start_block()).into(),
@@ -252,7 +252,11 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn author(&self) -> Result<RpcH160> {
-		Ok(Default::default())
+		self.accounts.accounts()
+			.ok()
+			.and_then(|a| a.first().cloned())
+			.map(From::from)
+			.ok_or_else(|| errors::account("No accounts were found", ""))
 	}
 
 	fn is_mining(&self) -> Result<bool> {
@@ -312,7 +316,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.map(|x| Either::B(x.map_err(errors::on_demand_error)))
 					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
 		}))
@@ -328,7 +332,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.map(|x| Either::B(x.map_err(errors::on_demand_error)))
 					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
 		}))
@@ -344,7 +348,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.map(|x| Either::B(x.map_err(errors::on_demand_error)))
 					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
 		}))
@@ -360,7 +364,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| Either::A(x.map_err(errors::on_demand_cancel)))
+					.map(|x| Either::A(x.map_err(errors::on_demand_error)))
 					.unwrap_or_else(|| Either::B(future::err(errors::network_disabled())))
 			}
 		}))

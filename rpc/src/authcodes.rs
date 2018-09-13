@@ -50,8 +50,6 @@ impl TimeProvider for DefaultTimeProvider {
 const TIME_THRESHOLD: u64 = 7;
 /// minimal length of hash
 const TOKEN_LENGTH: usize = 16;
-/// special "initial" token used for authorization when there are no tokens yet.
-const INITIAL_TOKEN: &'static str = "initial";
 /// Separator between fields in serialized tokens file.
 const SEPARATOR: &'static str = ";";
 /// Number of seconds to keep unused tokens.
@@ -163,16 +161,6 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 		let as_token = |code| keccak(format!("{}:{}", code, time));
 
-		// Check if it's the initial token.
-		if self.is_empty() {
-			let initial = &as_token(INITIAL_TOKEN) == hash;
-			// Initial token can be used only once.
-			if initial {
-				let _ = self.generate_new();
-			}
-			return initial;
-		}
-
 		// look for code
 		for code in &mut self.codes {
 			if &as_token(&code.code) == hash {
@@ -239,7 +227,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_return_true_if_code_is_initial_and_store_is_empty() {
+	fn should_return_false_even_if_code_is_initial_and_store_is_empty() {
 		// given
 		let code = "initial";
 		let time = 99;
@@ -250,7 +238,7 @@ mod tests {
 		let res2 = codes.is_valid(&generate_hash(code, time), time);
 
 		// then
-		assert_eq!(res1, true);
+		assert_eq!(res1, false);
 		assert_eq!(res2, false);
 	}
 

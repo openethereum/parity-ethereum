@@ -211,9 +211,15 @@ pub trait IoClient: Sync + Send {
 	fn queue_consensus_message(&self, message: Bytes);
 }
 
+/// Provides recently seen bad blocks.
+pub trait BadBlocks {
+	/// Returns a list of blocks that were recently not imported because they were invalid.
+	fn bad_blocks(&self) -> Vec<(Unverified, String)>;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock
-+ IoClient {
++ IoClient + BadBlocks {
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
@@ -378,9 +384,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
-
-	/// Get the EIP-86 transition block number.
-	fn eip86_transition(&self) -> u64;
 }
 
 /// Provides `reopen_block` method

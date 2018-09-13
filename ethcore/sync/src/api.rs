@@ -362,7 +362,7 @@ impl SyncProvider for EthSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: eth_sync.peer_info(&peer_id),
-					pip_info: light_proto.as_ref().and_then(|lp| lp.peer_status(&peer_id)).map(Into::into),
+					pip_info: light_proto.as_ref().and_then(|lp| lp.peer_status(peer_id)).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)
@@ -922,7 +922,7 @@ impl LightSyncProvider for LightSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: None,
-					pip_info: self.proto.peer_status(&peer_id).map(Into::into),
+					pip_info: self.proto.peer_status(peer_id).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)

@@ -16,9 +16,18 @@
 
 //! Ethash params deserialization.
 
+use std::collections::BTreeMap;
 use uint::{self, Uint};
 use bytes::Bytes;
 use hash::Address;
+
+/// Deserializable doppelganger of block rewards for EthashParams
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum BlockReward {
+	Single(Uint),
+	Multi(BTreeMap<Uint, Uint>),
+}
 
 /// Deserializable doppelganger of EthashParams.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -48,7 +57,7 @@ pub struct EthashParams {
 	pub homestead_transition: Option<Uint>,
 	/// Reward per block in wei.
 	#[serde(rename="blockReward")]
-	pub block_reward: Option<Uint>,
+	pub block_reward: Option<BlockReward>,
 	/// Block at which the block reward contract should start being used.
 	#[serde(rename="blockRewardContractTransition")]
 	pub block_reward_contract_transition: Option<Uint>,
@@ -115,22 +124,13 @@ pub struct EthashParams {
 	#[serde(rename="mcip3DevContract")]
 	pub mcip3_dev_contract: Option<Address>,
 
-	/// EIP-649 transition block.
-	#[serde(rename="eip649Transition")]
-	pub eip649_transition: Option<Uint>,
-
-	/// EIP-649 bomb delay.
-	#[serde(rename="eip649Delay")]
-	pub eip649_delay: Option<Uint>,
-
-	/// EIP-649 base reward.
-	#[serde(rename="eip649Reward")]
-	pub eip649_reward: Option<Uint>,
+	/// Delays of difficulty bombs.
+	#[serde(rename="difficultyBombDelays")]
+	pub difficulty_bomb_delays: Option<BTreeMap<Uint, Uint>>,
 
 	/// EXPIP-2 block height
 	#[serde(rename="expip2Transition")]
 	pub expip2_transition: Option<Uint>,
-
 	/// EXPIP-2 duration limit
 	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
@@ -149,7 +149,7 @@ mod tests {
 	use uint::Uint;
 	use ethereum_types::{H160, U256};
 	use hash::Address;
-	use spec::ethash::{Ethash, EthashParams};
+	use spec::ethash::{Ethash, EthashParams, BlockReward};
 
 	#[test]
 	fn ethash_deserialization() {
@@ -201,7 +201,7 @@ mod tests {
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: Some(Uint(U256::from(0x0d))),
 				homestead_transition: Some(Uint(U256::from(0x42))),
-				block_reward: Some(Uint(U256::from(0x100))),
+				block_reward: Some(BlockReward::Single(Uint(U256::from(0x100)))),
 				block_reward_contract_address: None,
 				block_reward_contract_code: None,
 				block_reward_contract_transition: None,
@@ -242,11 +242,9 @@ mod tests {
 				mcip3_ubi_contract: None,
 				mcip3_dev_reward: None,
 				mcip3_dev_contract: None,
-				eip649_transition: None,
-				eip649_delay: None,
-				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				difficulty_bomb_delays: None,
 			}
 		});
 	}
@@ -289,11 +287,9 @@ mod tests {
 				mcip3_ubi_contract: None,
 				mcip3_dev_reward: None,
 				mcip3_dev_contract: None,
-				eip649_transition: None,
-				eip649_delay: None,
-				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				difficulty_bomb_delays: None,
 			}
 		});
 	}

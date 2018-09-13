@@ -261,7 +261,7 @@ impl SyncHandler {
 				BlockStatus::Queued => {
 					trace!(target: "sync", "New hash block already queued {:?}", hash);
 				},
-				BlockStatus::Unknown | BlockStatus::Pending => {
+				BlockStatus::Unknown => {
 					new_hashes.push(hash.clone());
 					if number > max_height {
 						trace!(target: "sync", "New unknown block hash {:?}", hash);

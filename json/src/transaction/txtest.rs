@@ -16,23 +16,29 @@
 
 //! Transaction test deserialization.
 
-use uint::Uint;
+use std::collections::BTreeMap;
 use bytes::Bytes;
 use hash::Address;
-use transaction::Transaction;
+use hash::H256;
+use spec::ForkSpec;
 
 /// Transaction test deserialization.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct TransactionTest {
-	/// Block number.
-	#[serde(rename="blocknumber")]
-	pub block_number: Option<Uint>,
-	/// Transaction rlp.
 	pub rlp: Bytes,
+	pub _info: ::serde::de::IgnoredAny,
+	#[serde(flatten)]
+	pub post_state: BTreeMap<ForkSpec, PostState>,
+}
+
+/// TransactionTest post state.
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PostState {
 	/// Transaction sender.
 	pub sender: Option<Address>,
-	/// Transaction
-	pub transaction: Option<Transaction>,
+	/// Transaction hash.
+	pub hash: Option<H256>,
 }
 
 #[cfg(test)]
@@ -43,21 +49,34 @@ mod tests {
 	#[test]
 	fn transaction_deserialization() {
 		let s = r#"{
-			"blocknumber" : "0",
-			"rlp" : "0xf83f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870b801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a3664935301",
-			"sender" : "e115cf6bb5656786569dd273705242ca72d84bc0",
-			"transaction" : {
-				"data" : "",
-				"gasLimit" : "0x5208",
-				"gasPrice" : "0x01",
-				"nonce" : "0x00",
-				"r" : "0x48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353",
-				"s" : "0x01",
-				"to" : "095e7baea6a6c7c4c2dfeb977efac326af552d87",
-				"v" : "0x1b",
-				"value" : "0x0b"
-			}
+			"Byzantium" : {
+				"hash" : "4782cb5edcaeda1f0aef204b161214f124cefade9e146245183abbb9ca01bca5",
+				"sender" : "2ea991808ba979ba103147edfd72304ebd95c028"
+			},
+			"Constantinople" : {
+				"hash" : "4782cb5edcaeda1f0aef204b161214f124cefade9e146245183abbb9ca01bca5",
+				"sender" : "2ea991808ba979ba103147edfd72304ebd95c028"
+			},
+			"EIP150" : {
+			},
+			"EIP158" : {
+				"hash" : "4782cb5edcaeda1f0aef204b161214f124cefade9e146245183abbb9ca01bca5",
+				"sender" : "2ea991808ba979ba103147edfd72304ebd95c028"
+			},
+			"Frontier" : {
+			},
+			"Homestead" : {
+			},
+			"_info" : {
+				"comment" : "",
+				"filledwith" : "cpp-1.3.0+commit.1829957d.Linux.g++",
+				"lllcversion" : "Version: 0.4.18-develop.2017.10.11+commit.81f9f86c.Linux.g++",
+				"source" : "src/TransactionTestsFiller/ttVValue/V_equals37Filler.json",
+				"sourceHash" : "89ef69312d4c0b4e3742da501263d23d2a64f180258ac93940997ac6a17b9b19"
+			},
+			"rlp" : "0xf865808698852840a46f82d6d894095e7baea6a6c7c4c2dfeb977efac326af552d87808025a098ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4aa01887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a3"
 		}"#;
+
 		let _deserialized: TransactionTest = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields
 	}
