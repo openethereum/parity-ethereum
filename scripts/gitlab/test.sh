@@ -12,7 +12,7 @@ else
   export GIT_COMPARE=master;
 fi
 
-export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
+export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^\\. -e ^LICENSE -e ^README.md -e ^CHANGELOG.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ -e ^docs/ | wc -l)"
 echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"
 
 git submodule update --init --recursive
