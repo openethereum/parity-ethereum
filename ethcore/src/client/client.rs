@@ -2486,6 +2486,33 @@ mod tests {
 	}
 
 	#[test]
+	fn should_return_block_receipts() {
+		use client::{BlockChainClient, BlockId, TransactionId};
+		use test_helpers::{generate_dummy_client_with_data};
+
+		let client = generate_dummy_client_with_data(2, 2, &[1.into(), 1.into()]);
+		let receipts = client.block_receipts(BlockId::Latest).unwrap();
+
+		assert_eq!(receipts.len(), 2);
+		assert_eq!(receipts[0].transaction_index, 0);
+		assert_eq!(receipts[0].block_number, 2);
+		assert_eq!(receipts[0].cumulative_gas_used, 53_000.into());
+		assert_eq!(receipts[0].gas_used, 53_000.into());
+
+		assert_eq!(receipts[1].transaction_index, 1);
+		assert_eq!(receipts[1].block_number, 2);
+		assert_eq!(receipts[1].cumulative_gas_used, 106_000.into());
+		assert_eq!(receipts[1].gas_used, 53_000.into());
+
+
+		let receipt = client.transaction_receipt(TransactionId::Hash(receipts[0].transaction_hash));
+		assert_eq!(receipt, Some(receipts[0].clone()));
+
+		let receipt = client.transaction_receipt(TransactionId::Hash(receipts[1].transaction_hash));
+		assert_eq!(receipt, Some(receipts[1].clone()));
+	}
+
+	#[test]
 	fn should_return_correct_log_index() {
 		use hash::keccak;
 		use super::transaction_receipt;
