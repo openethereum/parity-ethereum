@@ -59,6 +59,7 @@ check-changes-in-rust:
     - scripts/gitlab/check-changes.sh
   tags:
     - shell
+  allow_failure:                   true
 
 
 
