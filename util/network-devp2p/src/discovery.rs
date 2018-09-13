@@ -1136,12 +1136,8 @@ mod tests {
 		assert_eq!(ep2, NodeEndpoint::from_rlp(&rlp.at(2).unwrap()).unwrap());
 
 		// `discovery1` should be added to node table on ping received
-		if let Some(table_updates) = discovery2.on_packet(&ping_data.payload, ep1.address.clone()).unwrap() {
-			assert_eq!(table_updates.added.len(), 1);
-			assert_eq!(table_updates.removed.len(), 0);
-			assert!(table_updates.added.contains_key(&discovery1.id));
-		} else {
-			panic!("Expected changes to discovery2's table");
+		if let Some(_) = discovery2.on_packet(&ping_data.payload, ep1.address.clone()).unwrap() {
+			panic!("Expected no changes to discovery2's table");
 		}
 
 		let pong_data = discovery2.dequeue_send().unwrap();
@@ -1170,6 +1166,14 @@ mod tests {
 		} else {
 			panic!("Expected discovery1 to be added to discovery1's table");
 		}
+
+		let ping_back = discovery2.dequeue_send().unwrap();
+		assert!(!discovery2.any_sends_queued());
+		let data = &ping_back.payload[(32 + 65)..];
+		assert_eq!(data[0], PACKET_PING);
+		let rlp = Rlp::new(&data[1..]);
+		assert_eq!(ep2, NodeEndpoint::from_rlp(&rlp.at(1).unwrap()).unwrap());
+		assert_eq!(ep1, NodeEndpoint::from_rlp(&rlp.at(2).unwrap()).unwrap());
 
 		// Deliver an unexpected PONG message to discover1.
 		let mut unexpected_pong_rlp = RlpStream::new_list(3);
