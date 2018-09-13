@@ -1,3 +1,18 @@
+## Parity-Ethereum [v2.0.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.5) (2018-09-17)
+
+Parity-Ethereum 2.0.5-stable is a bug-fix release to improve performance and stability.
+
+Please, note:
+
+- This release marks the 2.0 track of Parity-Ethereum as stable.
+- This release contains a low-severity issue with the web-sockets ports. [#9545](https://github.com/paritytech/parity-ethereum/pull/9545)
+- This release resolves a potential network fragmentation issue. [#9526](https://github.com/paritytech/parity-ethereum/pull/9526)
+- Users are urged to upgrade to 2.0.5-stable or 2.1.0-beta.
+
+The full list of included changes:
+
+- @TBA
+
 ## Parity-Ethereum [v2.0.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.4) (2018-09-11)
 
 Parity-Ethereum 2.0.4-beta is a bug-fix release to improve performance and stability:
