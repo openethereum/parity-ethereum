@@ -861,6 +861,12 @@ impl ChainSync {
 			},
 			BlockSet::OldBlocks => {
 				if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
+					// reset stale requests from last sync round
+					for (_, ref mut p) in &mut self.peers {
+						if p.block_set == Some(BlockSet::OldBlocks) {
+							p.reset_asking();
+						}
+					}
 					self.restart(io);
 				} else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
 					trace!(target: "sync", "Background block download is complete");
