@@ -25,7 +25,7 @@ use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
 use ethcore::ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
-use ethcore::snapshot;
+use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
@@ -119,7 +119,7 @@ pub struct RunCmd {
 	pub name: String,
 	pub custom_bootnodes: bool,
 	pub stratum: Option<stratum::Options>,
-	pub no_periodic_snapshot: bool,
+	pub snapshot_conf: SnapshotConfiguration,
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
 	pub verifier_settings: VerifierSettings,
@@ -539,6 +539,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 	client_config.transaction_verification_queue_size = ::std::cmp::max(2048, txpool_size / 4);
+	client_config.snapshot = cmd.snapshot_conf.clone();
 
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;
@@ -786,7 +787,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	});
 
 	// the watcher must be kept alive.
-	let watcher = match cmd.no_periodic_snapshot {
+	let watcher = match cmd.snapshot_conf.no_periodic {
 		true => None,
 		false => {
 			let sync = sync_provider.clone();

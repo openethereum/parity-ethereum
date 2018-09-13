@@ -28,7 +28,7 @@ use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use engines::EthEngine;
-use snapshot::{Error, ManifestData};
+use snapshot::{Error, ManifestData, Progress};
 use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
 use kvdb::KeyValueDB;
@@ -65,6 +65,7 @@ impl SnapshotComponents for PowSnapshot {
 		chain: &BlockChain,
 		block_at: H256,
 		chunk_sink: &mut ChunkSink,
+		progress: &Progress,
 		preferred_size: usize,
 	) -> Result<(), Error> {
 		PowWorker {
@@ -72,6 +73,7 @@ impl SnapshotComponents for PowSnapshot {
 			rlps: VecDeque::new(),
 			current_hash: block_at,
 			writer: chunk_sink,
+			progress: progress,
 			preferred_size: preferred_size,
 		}.chunk_all(self.blocks)
 	}
@@ -96,6 +98,7 @@ struct PowWorker<'a> {
 	rlps: VecDeque<Bytes>,
 	current_hash: H256,
 	writer: &'a mut ChunkSink<'a>,
+	progress: &'a Progress,
 	preferred_size: usize,
 }
 
@@ -138,6 +141,7 @@ impl<'a> PowWorker<'a> {
 
 			last = self.current_hash;
 			self.current_hash = block.header_view().parent_hash();
+			self.progress.blocks.fetch_add(1, Ordering::SeqCst);
 		}
 
 		if loaded_size != 0 {
