@@ -46,7 +46,7 @@ impl<S: ?Sized> Net for NetClient<S> where S: SyncProvider + 'static {
 	}
 
 	fn peer_count(&self) -> Result<String> {
-		Ok(format!("0x{:x}", self.sync.status().num_peers as u64))
+		Ok(format!("{:#x}", self.sync.status().num_peers as u64))
 	}
 
 	fn is_listening(&self) -> Result<bool> {
