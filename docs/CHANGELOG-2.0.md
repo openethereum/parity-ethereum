@@ -1,3 +1,136 @@
+## Parity-Ethereum [v2.0.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.4) (2018-09-11)
+
+Parity-Ethereum 2.0.4-beta is a bug-fix release to improve performance and stability:
+
+- `eth_coinbase` now provides an actual account for light clients
+- don't report skipped primaries when empty steps are enabled in proof-of-authority networks
+- fix snapshot restoration failure on windows
+- check warp sync status for `eth_getWorks`
+
+The full list of included changes:
+
+- Beta backports to 2.0.4 ([#9452](https://github.com/paritytech/parity-ethereum/pull/9452))
+  - Parity-version: bump beta to 2.0.4
+  - [Light/jsonrpc] Provide the actual account for `eth_coinbase` RPC and unify error handeling for light and full client ([#9383](https://github.com/paritytech/parity-ethereum/pull/9383))
+    - Provide the actual `account` for eth_coinbase
+    - The previous implementation always provided the `zero address` on `eth_coinbase` RPC. Now, instead the actual address is returned on success or an error when no account(s) is found!
+    - Full client `eth_coinbase` return err
+    - In the full-client return an error when no account is found instead of returning the `zero address`
+    - Remove needless blocks on single import
+    - Remove needless `static` lifetime on const
+    - Fix `rpc_eth_author` test
+  - Parity: print correct keys path on startup ([#9501](https://github.com/paritytech/parity-ethereum/pull/9501))
+  - Aura: don't report skipped primaries when empty steps are enabled ([#9435](https://github.com/paritytech/parity-ethereum/pull/9435))
+  - Only check warp syncing for eth_getWorks ([#9484](https://github.com/paritytech/parity-ethereum/pull/9484))
+    - Only check warp syncing for eth_getWorks
+    - Use SyncStatus::is_snapshot_syncing
+  - Fix Snapshot restoration failure on Windows ([#9491](https://github.com/paritytech/parity-ethereum/pull/9491))
+    - Close Blooms DB files before DB restoration
+    - Address Grumbles
+
+## Parity-Ethereum [v2.0.3](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.3) (2018-09-01)
+
+Parity-Ethereum 2.0.3-beta is a bug-fix release to improve performance and stability. Hopefully. ;)
+
+The full list of included changes:
+
+- Beta backports for 2.0.3 ([#9229](https://github.com/paritytech/parity-ethereum/pull/9229))
+  - parity-version: bump beta to 2.0.2
+  - remove ssl from dockerfiles, closes [#8880](https://github.com/paritytech/parity-ethereum/issues/8880) ([#9195](https://github.com/paritytech/parity-ethereum/pull/9195))
+  - snap: remove ssl dependencies from snapcraft definition ([#9222](https://github.com/paritytech/parity-ethereum/pull/9222))
+  - parity-version: bump beta to 2.0.3
+  - Remove all dapp permissions related settings ([#9120](https://github.com/paritytech/parity-ethereum/pull/9120))
+    - Completely remove all dapps struct from rpc
+    - Remove unused pub use
+    - Remove dapp policy/permission func in ethcore
+    - Remove all dapps settings from rpc
+    - Fix rpc tests
+    - Use both origin and user_agent
+    - Address grumbles
+    - Address grumbles
+    - Fix tests
+  - Check if synced when using eth_getWork ([#9193](https://github.com/paritytech/parity-ethereum/issues/9193)) ([#9210](https://github.com/paritytech/parity-ethereum/pull/9210))
+    - Check if synced when using eth_getWork ([#9193](https://github.com/paritytech/parity-ethereum/issues/9193))
+    - Don't use fn syncing
+    - Fix identation
+    - Fix typo
+    - Don't check for warping
+    - rpc: avoid calling queue_info twice on eth_getWork
+    - Fix potential as_usize overflow when casting from U256 in miner ([#9221](https://github.com/paritytech/parity-ethereum/pull/9221))
+    - Allow old blocks from peers with lower difficulty ([#9226](https://github.com/paritytech/parity-ethereum/pull/9226))
+    - Previously we only allow downloading of old blocks if the peer difficulty was greater than our syncing difficulty. This change allows downloading of blocks from peers where the difficulty is greater then the last downloaded old block.
+  - Update Dockerfile ([#9242](https://github.com/paritytech/parity-ethereum/pull/9242))
+    - Update Dockerfile
+    - fix Docker build
+  - fix dockerfile paths: parity -> parity-ethereum ([#9248](https://github.com/paritytech/parity-ethereum/pull/9248))
+  - Propagate transactions for next 4 blocks. ([#9265](https://github.com/paritytech/parity-ethereum/pull/9265))
+    - Closes [#9255](https://github.com/paritytech/parity-ethereum/issues/9255)
+    - This PR also removes the limit of max 64 transactions per packet, currently we only attempt to prevent the packet size to go over 8MB. This will only be the case for super-large transactions or high-block-gas-limit chains.
+    - Patching this is important only for chains that have blocks that can fit more than 4k transactions (over 86M block gas limit)
+    - For mainnet, we should actually see a tiny bit faster propagation since instead of computing 4k pending set, we only need `4 * 8M / 21k = 1523` transactions.
+  - Update tobalaba.json ([#9313](https://github.com/paritytech/parity-ethereum/pull/9313))
+  - Fix load share ([#9321](https://github.com/paritytech/parity-ethereum/pull/9321))
+    - fix(light_sync): calculate `load_share` properly
+    - refactor(api.rs): extract `light_params` fn, add test
+    - style(api.rs): add trailing commas
+  - ethcore: fix pow difficulty validation ([#9328](https://github.com/paritytech/parity-ethereum/pull/9328))
+    - ethcore: fix pow difficulty validation
+    - ethcore: validate difficulty is not zero
+    - ethcore: add issue link to regression test
+    - ethcore: fix tests
+    - ethcore: move difficulty_to_boundary to ethash crate
+    - ethcore: reuse difficulty_to_boundary and boundary_to_difficulty
+    - ethcore: fix grumbles in difficulty_to_boundary_aux
+  - Light client `Provide default nonce in transactions when it´s missing` ([#9370](https://github.com/paritytech/parity-ethereum/pull/9370))
+    - Provide `default_nonce` in tx's when it's missing
+    - When `nonce` is missing in a `EthTransaction` will cause it to fall in these cases provide `default_nonce` value instead!
+    - Changed http:// to https:// on Yasm link ([#9369](https://github.com/paritytech/parity-ethereum/pull/9369))
+    - Changed http:// to https:// on Yasm link in README.md
+    - Address grumbles
+  - ethcore: kovan: delay activation of strict score validation ([#9406](https://github.com/paritytech/parity-ethereum/pull/9406))
+  - Better support for eth_getLogs in light mode ([#9186](https://github.com/paritytech/parity-ethereum/pull/9186))
+    - Light client on-demand request for headers range.
+    - Cache headers in HeaderWithAncestors response.
+    - Also fulfills request locally if all headers are in cache.
+    - LightFetch::logs fetches missing headers on demand.
+    - LightFetch::logs limit the number of headers requested at a time.
+    - LightFetch::logs refactor header fetching logic.
+    - Enforce limit on header range length in light client logs request.
+    - Fix light request tests after struct change.
+    - Respond to review comments.
+  - Add update docs script to CI ([#9219](https://github.com/paritytech/parity-ethereum/pull/9219))
+    - Add update docs script to CI
+    - Added a script to CI that will use the jsonrpc tool to update rpc documentation then commit and push those to the wiki repo.
+    - fix gitlab ci lint
+    - Only apply jsonrpc docs update on tags
+    - Update gitlab-rpc-docs.sh
+    - Copy correct parity repo to jsonrpc folder
+    - Copy correct parity repo to jsonrpc folder before attempting to build docs since the CI runner clones the repo as parity and not parity-ethereum.
+    - Fix JSONRPC docs CI job
+    - Update remote config in wiki repo before pushing changes using a github token for authentication. Add message to wiki tag when pushing changes. Use project directory to correctly copy parity code base into the jsonrpc repo for doc generation.
+    - Fix set_remote_wiki function call in CI
+  - Prevent blockchain & miner racing when accessing pending block. ([#9310](https://github.com/paritytech/parity-ethereum/pull/9310))
+    - Prevent blockchain & miner racing when accessing pending block.
+    - Fix unavailability of pending block during reseal.
+  - Prevent sync restart if import queue full ([#9381](https://github.com/paritytech/parity-ethereum/pull/9381))
+  - Add POA Networks: Core and Sokol ([#9413](https://github.com/paritytech/parity-ethereum/pull/9413))
+    - ethcore: add poa network and sokol chainspecs
+    - rpc: simplify chain spec docs
+    - cli: rearrange networks by main/test and size/range
+    - parity: don't blacklist 0x00a328 on sokol testnet
+    - parity: add sokol and poanet to params and clean up a bit, add tests
+    - ethcore: add the poa networks and clean up a bit
+    - ethcore: fix path to poacore chain spec
+    - parity: rename poa networks to poacore and poasokol
+    - parity: fix configuration tests
+    - parity: fix parameter tests
+    - ethcore: rename POA Core and POA Sokol
+  - Update tobalaba.json ([#9419](https://github.com/paritytech/parity-ethereum/pull/9419))
+  - Update hardcoded sync ([#9421](https://github.com/paritytech/parity-ethereum/pull/9421))
+    - Update foundation hardcoded header to block 6219777
+    - Update ropsten hardcoded header to block 3917825
+    - Update kovan hardcoded header to block 8511489
+
 ## Parity-Ethereum [v2.0.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.1) (2018-07-27)
 
 Parity-Ethereum 2.0.1-beta is a bug-fix release to improve performance and stability.
