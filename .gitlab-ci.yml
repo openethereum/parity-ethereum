@@ -1,4 +1,5 @@
 stages:
+  - check
   - test
   - build
   - package
@@ -48,6 +49,16 @@ cache:
   - test "${CI_COMMIT_REF_NAME}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
   - export VERSION
   - echo "Version = ${VERSION}"
+
+
+
+#### stage:                        check-changes
+check-changes-in-rust:
+  stage:                           check
+  script:
+    - scripts/gitlab/check-changes.sh
+  tags:
+    - shell
 
 
 
