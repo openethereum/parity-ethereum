@@ -136,7 +136,7 @@ mod testing {
 	}
 
 	#[test]
-	fn should_allow_initial_connection_but_only_once() {
+	fn should_not_allow_initial_connection_even_once() {
 		// given
 		let (server, port, authcodes) = serve();
 		let code = "initial";
@@ -160,26 +160,9 @@ mod testing {
 			timestamp,
 			)
 		);
-		let response2 = http_client::request(server.addr(),
-			&format!("\
-				GET / HTTP/1.1\r\n\
-				Host: 127.0.0.1:{}\r\n\
-				Connection: Close\r\n\
-				Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n\
-				Sec-WebSocket-Protocol:{:?}_{}\r\n\
-				Sec-WebSocket-Version: 13\r\n\
-				\r\n\
-				{{}}
-			",
-			port,
-			keccak(format!("{}:{}", code, timestamp)),
-			timestamp,
-			)
-		);
 
 		// then
-		assert_eq!(response1.status, "HTTP/1.1 101 Switching Protocols".to_owned());
-		assert_eq!(response2.status, "HTTP/1.1 403 Forbidden".to_owned());
-		http_client::assert_security_headers_present(&response2.headers, None);
+		assert_eq!(response1.status, "HTTP/1.1 403 Forbidden".to_owned());
+		http_client::assert_security_headers_present(&response1.headers, None);
 	}
 }
