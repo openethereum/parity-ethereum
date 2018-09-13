@@ -47,6 +47,16 @@ pub struct Informant {
 	unmatched: bool,
 }
 
+impl Informant {
+	fn with_informant_in_depth<F: Fn(&mut Informant)>(informant: &mut Informant, depth: usize, f: F) {
+		if depth == 0 {
+			f(informant);
+		} else {
+			Self::with_informant_in_depth(informant.subinfos.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
+		}
+	}
+}
+
 impl vm::Informant for Informant {
 	fn before_test(&mut self, name: &str, action: &str) {
 		println!("{}", json!({"action": action, "test": name}));
@@ -120,15 +130,15 @@ impl trace::VMTracer for Informant {
 			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
 			let trace = json!({
-				"pc": self.pc,
-				"op": self.instruction,
+				"pc": informant.pc,
+				"op": informant.instruction,
 				"opName": info.map(|i| i.name).unwrap_or(""),
-				"gas": format!("{:#x}", gas_used.saturating_add(self.gas_cost)),
-				"gasCost": format!("{:#x}", self.gas_cost),
-				"memory": format!("0x{}", self.memory.to_hex()),
-				"stack": self.stack,
-				"storage": self.storage,
-				"depth": self.depth,
+				"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
+				"gasCost": format!("{:#x}", informant.gas_cost),
+				"memory": format!("0x{}", informant.memory.to_hex()),
+				"stack": informant.stack,
+				"storage": informant.storage,
+				"depth": informant.depth,
 			});
 			informant.traces.push(trace.to_string());
 

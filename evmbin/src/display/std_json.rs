@@ -149,12 +149,12 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 				"op": instruction,
 				"opName": info.map(|i| i.name).unwrap_or(""),
 				"gas": format!("{:#x}", current_gas),
-				"stack": self.stack,
-				"storage": self.storage,
-				"depth": self.depth,
+				"stack": informant.stack,
+				"storage": informant.storage,
+				"depth": informant.depth,
 			});
 
-			writeln!(&mut self.trace_sink, "{}", trace_data).expect("The sink must be writeable.");
+			writeln!(&mut informant.trace_sink, "{}", trace_data).expect("The sink must be writeable.");
 		});
 		true
 	}
