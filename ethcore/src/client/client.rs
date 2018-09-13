@@ -1150,7 +1150,8 @@ impl Client {
 			},
 		};
 
-		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p)?;
+		let processing_threads = self.config.snapshot.processing_threads;
+		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p, processing_threads)?;
 
 		Ok(())
 	}
