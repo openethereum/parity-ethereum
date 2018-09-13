@@ -4,6 +4,7 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
+
 rustup default $1
 
 git submodule update --init --recursive

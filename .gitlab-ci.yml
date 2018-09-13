@@ -104,7 +104,7 @@ test-windows-msvc-x86_64:
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
   script:
-    - scripts/gitlab/test.sh stable
+    - sh scripts/gitlab/test.sh stable
   tags:
    - rust-windows
 
