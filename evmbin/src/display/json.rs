@@ -130,7 +130,7 @@ impl trace::VMTracer for Informant {
 				"storage": self.storage,
 				"depth": self.depth,
 			});
-			informant.traces.push(trace);
+			informant.traces.push(trace.to_string());
 
 			informant.unmatched = false;
 			informant.gas_used = gas_used;

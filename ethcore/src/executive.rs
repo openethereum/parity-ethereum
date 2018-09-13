@@ -311,9 +311,9 @@ impl<'a> CallCreateExecutive<'a> {
 		let prev_bal = state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
 			state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
-			state.new_contract(&params.address, val + prev_bal, nonce_offset);
+			state.new_contract(&params.address, val + prev_bal, nonce_offset)?;
 		} else {
-			state.new_contract(&params.address, prev_bal, nonce_offset);
+			state.new_contract(&params.address, prev_bal, nonce_offset)?;
 		}
 
 		Ok(())
