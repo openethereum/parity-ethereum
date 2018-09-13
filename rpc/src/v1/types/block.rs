@@ -202,6 +202,13 @@ impl<T: Serialize> Serialize for Rich<T> {
 	}
 }
 
+
+
+pub fn to_rich_struct<T>(inner: T) -> Rich<T> {
+	Rich { inner, extra_info: Default::default() }
+}
+
+
 #[cfg(test)]
 mod tests {
 	use std::collections::BTreeMap;
