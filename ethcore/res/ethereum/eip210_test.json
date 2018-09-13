@@ -1,17 +1,13 @@
 {
-	"name": "Constantinople (test)",
+	"name": "EIP210 (test)",
 	"engine": {
 		"Ethash": {
 			"params": {
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x1BC16D674EC80000",
-				"homesteadTransition": "0x0",
-				"eip100bTransition": "0x0",
-				"difficultyBombDelays": {
-					"0": 5000000
-				}
+				"blockReward": "0x4563918244F40000",
+				"homesteadTransition": "0x0"
 			}
 		}
 	},
@@ -29,15 +25,7 @@
 		"eip160Transition": "0x0",
 		"eip161abcTransition": "0x0",
 		"eip161dTransition": "0x0",
-		"eip140Transition": "0x0",
-		"eip211Transition": "0x0",
-		"eip214Transition": "0x0",
-		"eip155Transition": "0x0",
-		"eip658Transition": "0x0",
-		"eip145Transition": "0x0",
-		"eip1014Transition": "0x0",
-		"eip1052Transition": "0x0",
-		"eip1283Transition": "0x0"
+		"eip210Transition": "0x0"
 	},
 	"genesis": {
 		"seal": {

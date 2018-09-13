@@ -19,15 +19,16 @@ use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 use parking_lot::Mutex;
+use ethabi::FunctionOutputDecoder;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, ChainRoute, CallContract};
-use ethkey::public_to_address;
 use ethereum_types::{H256, Address};
+use ethkey::public_to_address;
 use bytes::Bytes;
 use types::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
 use {NodeKeyPair, ContractAddress};
 
-use_contract!(key_server, "KeyServerSet", "res/key_server_set.json");
+use_contract!(key_server, "res/key_server_set.json");
 
 /// Name of KeyServerSet contract in registry.
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";
@@ -104,8 +105,6 @@ struct CachedContract {
 	contract_address_source: Option<ContractAddress>,
 	/// Current contract address.
 	contract_address: Option<Address>,
-	/// Contract interface.
-	contract: key_server::KeyServerSet,
 	/// Is auto-migrate enabled?
 	auto_migrate_enabled: bool,
 	/// Current contract state.
@@ -169,66 +168,60 @@ trait KeyServerSubset<F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> {
 	fn read_address(&self, address: Address, f: &F) -> Result<String, String>;
 }
 
-#[derive(Default)]
-struct CurrentKeyServerSubset {
-	read_list: key_server::functions::GetCurrentKeyServers,
-	read_public: key_server::functions::GetCurrentKeyServerPublic,
-	read_address: key_server::functions::GetCurrentKeyServerAddress,
-}
+struct CurrentKeyServerSubset;
 
 impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for CurrentKeyServerSubset {
 	fn read_list(&self, f: &F) -> Result<Vec<Address>, String> {
-		self.read_list.call(f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_current_key_servers::call();
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 
 	fn read_public(&self, address: Address, f: &F) -> Result<Bytes, String> {
-		self.read_public.call(address, f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_current_key_server_public::call(address);
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 
 	fn read_address(&self, address: Address, f: &F) -> Result<String, String> {
-		self.read_address.call(address, f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_current_key_server_address::call(address);
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 }
 
-#[derive(Default)]
-struct MigrationKeyServerSubset {
-	read_list: key_server::functions::GetMigrationKeyServers,
-	read_public: key_server::functions::GetMigrationKeyServerPublic,
-	read_address: key_server::functions::GetMigrationKeyServerAddress,
-}
+struct MigrationKeyServerSubset;
 
 impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for MigrationKeyServerSubset {
 	fn read_list(&self, f: &F) -> Result<Vec<Address>, String> {
-		self.read_list.call(f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_migration_key_servers::call();
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 
 	fn read_public(&self, address: Address, f: &F) -> Result<Bytes, String> {
-		self.read_public.call(address, f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_migration_key_server_public::call(address);
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 
 	fn read_address(&self, address: Address, f: &F) -> Result<String, String> {
-		self.read_address.call(address, f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_migration_key_server_address::call(address);
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 }
 
-#[derive(Default)]
-struct NewKeyServerSubset {
-	read_list: key_server::functions::GetNewKeyServers,
-	read_public: key_server::functions::GetNewKeyServerPublic,
-	read_address: key_server::functions::GetNewKeyServerAddress,
-}
+struct NewKeyServerSubset;
 
 impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for NewKeyServerSubset {
 	fn read_list(&self, f: &F) -> Result<Vec<Address>, String> {
-		self.read_list.call(f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_new_key_servers::call();
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 
 	fn read_public(&self, address: Address, f: &F) -> Result<Bytes, String> {
-		self.read_public.call(address, f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_new_key_server_public::call(address);
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 
 	fn read_address(&self, address: Address, f: &F) -> Result<String, String> {
-		self.read_address.call(address, f).map_err(|e| e.to_string())
+		let (encoded, decoder) = key_server::functions::get_new_key_server_address::call(address);
+		decoder.decode(&f(encoded)?).map_err(|e| e.to_string())
 	}
 }
 
@@ -249,7 +242,6 @@ impl CachedContract {
 			client: client,
 			contract_address_source: contract_address_source,
 			contract_address: None,
-			contract: key_server::KeyServerSet::default(),
 			auto_migrate_enabled: auto_migrate_enabled,
 			future_new_set: None,
 			confirm_migration_tx: None,
@@ -313,7 +305,7 @@ impl CachedContract {
 			}
 
 			// prepare transaction data
-			let transaction_data = self.contract.functions().start_migration().input(migration_id);
+			let transaction_data = key_server::functions::start_migration::encode_input(migration_id);
 
 			// send transaction
 			match self.client.transact_contract(*contract_address, transaction_data) {
@@ -334,7 +326,7 @@ impl CachedContract {
 			}
 
 			// prepare transaction data
-			let transaction_data = self.contract.functions().confirm_migration().input(migration_id);
+			let transaction_data = key_server::functions::confirm_migration::encode_input(migration_id);
 
 			// send transaction
 			match self.client.transact_contract(contract_address, transaction_data) {
@@ -362,36 +354,50 @@ impl CachedContract {
 
 		let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
 
-		let current_set = Self::read_key_server_set(CurrentKeyServerSubset::default(), &do_call);
+		let current_set = Self::read_key_server_set(CurrentKeyServerSubset, &do_call);
 
 		// read migration-related data if auto migration is enabled
 		let (new_set, migration) = match self.auto_migrate_enabled {
 			true => {
-				let new_set = Self::read_key_server_set(NewKeyServerSubset::default(), &do_call);
-				let migration_set = Self::read_key_server_set(MigrationKeyServerSubset::default(), &do_call);
+				let new_set = Self::read_key_server_set(NewKeyServerSubset, &do_call);
+				let migration_set = Self::read_key_server_set(MigrationKeyServerSubset, &do_call);
 
 				let migration_id = match migration_set.is_empty() {
-					false => self.contract.functions().get_migration_id().call(&do_call)
-						.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration id from contract", err); err })
-						.ok(),
+					false => {
+						let (encoded, decoder) = key_server::functions::get_migration_id::call();
+						do_call(encoded)
+							.map_err(|e| e.to_string())
+							.and_then(|data| decoder.decode(&data).map_err(|e| e.to_string()))
+							.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration id from contract", err); err })
+							.ok()
+					},
 					true => None,
 				};
 
 				let migration_master = match migration_set.is_empty() {
-					false => self.contract.functions().get_migration_master().call(&do_call)
-						.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration master from contract", err); err })
-						.ok()
-						.and_then(|address| current_set.keys().chain(migration_set.keys())
-							.find(|public| public_to_address(public) == address)
-							.cloned()),
+					false => {
+						let (encoded, decoder) = key_server::functions::get_migration_master::call();
+						do_call(encoded)
+							.map_err(|e| e.to_string())
+							.and_then(|data| decoder.decode(&data).map_err(|e| e.to_string()))
+							.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration master from contract", err); err })
+							.ok()
+							.and_then(|address| current_set.keys().chain(migration_set.keys())
+								.find(|public| public_to_address(public) == address)
+								.cloned())
+					},
 					true => None,
 				};
 
 				let is_migration_confirmed = match migration_set.is_empty() {
-					false if current_set.contains_key(self.self_key_pair.public()) || migration_set.contains_key(self.self_key_pair.public()) =>
-						self.contract.functions().is_migration_confirmed().call(self.self_key_pair.address(), &do_call)
+					false if current_set.contains_key(self.self_key_pair.public()) || migration_set.contains_key(self.self_key_pair.public()) => {
+						let (encoded, decoder) = key_server::functions::is_migration_confirmed::call(self.self_key_pair.address());
+						do_call(encoded)
+							.map_err(|e| e.to_string())
+							.and_then(|data| decoder.decode(&data).map_err(|e| e.to_string()))
 							.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration confirmation from contract", err); err })
-							.ok(),
+							.ok()
+					},
 					_ => None,
 				};
 

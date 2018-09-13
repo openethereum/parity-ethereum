@@ -20,11 +20,12 @@ use std::time::Duration;
 use parking_lot::{Mutex, RwLock};
 use ethcore::client::{BlockId, ChainNotify, ChainRoute, CallContract};
 use ethereum_types::{H256, Address};
+use ethabi::FunctionOutputDecoder;
 use bytes::Bytes;
 use trusted_client::TrustedClient;
 use types::{Error, ServerKeyId, ContractAddress};
 
-use_contract!(acl_storage, "AclStorage", "res/acl_storage.json");
+use_contract!(acl_storage, "res/acl_storage.json");
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
 
@@ -48,8 +49,6 @@ struct CachedContract {
 	address_source: ContractAddress,
 	/// Current contract address.
 	contract_address: Option<Address>,
-	/// Contract at given address.
-	contract: acl_storage::AclStorage,
 }
 
 /// Dummy ACL storage implementation (check always passed).
@@ -91,7 +90,6 @@ impl CachedContract {
 			client,
 			address_source,
 			contract_address: None,
-			contract: acl_storage::AclStorage::default(),
 		};
 		contract.update_contract_address();
 		contract
@@ -112,10 +110,10 @@ impl CachedContract {
 			// call contract to check accesss
 			match self.contract_address {
 				Some(contract_address) => {
-					let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
-					self.contract.functions()
-						.check_permissions()
-						.call(requester, document.clone(), &do_call)
+					let (encoded, decoder) = acl_storage::functions::check_permissions::call(requester, document.clone());
+					let d = client.call_contract(BlockId::Latest, contract_address, encoded)
+						.map_err(|e| Error::Internal(format!("ACL checker call error: {}", e.to_string())))?;
+					decoder.decode(&d)
 						.map_err(|e| Error::Internal(format!("ACL checker call error: {}", e.to_string())))
 				},
 				None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
