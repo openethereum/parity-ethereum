@@ -421,7 +421,7 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 	receipts.into_iter()
 		.flat_map(|r| {
 			let hash = r.transaction_hash;
-			r.logs.into_iter().map(move |l| (hash.clone(), l))
+			r.logs.into_iter().map(move |l| (hash, l))
 		})
 		.filter(|pair| filter.matches(&pair.1))
 		.map(|pair| {

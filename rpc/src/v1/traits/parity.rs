@@ -213,6 +213,7 @@ build_rpc_trait! {
 
 		/// Get block receipts.
 		/// Allows you to fetch receipts from the entire block at once.
+		/// If no parameter is provided defaults to `latest`.
 		#[rpc(name = "parity_getBlockReceipts")]
 		fn block_receipts(&self, Trailing<BlockNumber>) -> BoxFuture<Vec<Receipt>>;
 

@@ -52,6 +52,22 @@ impl BlockNumber {
 			_ => None,
 		}
 	}
+
+	/// Convert block number to block id.
+	pub fn to_block_id(self) -> BlockId {
+		// NOTE Here we treat `Pending` as `Latest`.
+		// Since light clients don't produce pending blocks
+		// (they don't have state) we can safely fallback to `Latest`.
+		match self {
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending => {
+				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+				BlockId::Latest
+			}
+		}
+	}
 }
 
 impl Serialize for BlockNumber {
