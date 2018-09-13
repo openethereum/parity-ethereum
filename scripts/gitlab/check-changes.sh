@@ -7,15 +7,18 @@ set -e # fail on any error
 set -u # treat unset variables as error
 
 set -x # full command output for development
+git log --graph --oneline --all --decorate=short -n 10
 
-git log --graph --oneline --all -n 20
 
-if [ "$CI_COMMIT_REF_NAME" = "master" -o "$CI_COMMIT_REF_NAME" = "beta" -o "$CI_COMMIT_REF_NAME" = "stable" ]
-then
-  export GIT_COMPARE=$CI_COMMIT_REF_NAME~
-else
-  export GIT_COMPARE=master
-fi
+case $CI_COMMIT_REF_NAME in
+  (master|beta|stable)
+    export GIT_COMPARE=$CI_COMMIT_REF_NAME~
+    ;;
+  (*)
+    export GIT_COMPARE=master
+  ;;
+esac
+
 
 export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
 echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"

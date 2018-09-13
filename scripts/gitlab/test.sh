@@ -9,8 +9,6 @@ rustup default $1
 git submodule update --init --recursive
 rustup show
 
-# don't run test during ci development
-return 1 
 ./test.sh || exit $?
 
 # if [[ "$CI_COMMIT_REF_NAME" == "nightly" ]];
