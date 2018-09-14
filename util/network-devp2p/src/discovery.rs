@@ -97,6 +97,7 @@ struct PingRequest {
 	// The hash sent in the Ping request
 	echo_hash: H256,
 	// The hash Parity used to respond with (until rev 01f825b0e1f1c4c420197b51fc801cbe89284b29)
+	#[deprecated()]
 	deprecated_echo_hash: H256,
 }
 
