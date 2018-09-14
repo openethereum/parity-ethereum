@@ -863,10 +863,12 @@ impl ChainSync {
 				let mut is_complete = false;
 				if let Some(downloader) = self.old_blocks.as_mut() {
 					if downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) {
+						trace!(target: "sync", "Restarting OldBlocks download");
 						// reset in flight requests in order to prevent them being handled in the next round
-						for (_, ref mut p) in &mut self.peers {
+						for (pid, ref mut p) in &mut self.peers {
 							if p.block_set == Some(BlockSet::OldBlocks) {
 								p.reset_asking();
+								debug!(target: "sync", "Reset peer asking OldBlocks {:?}", pid);
 							}
 						}
 						downloader.reset();
