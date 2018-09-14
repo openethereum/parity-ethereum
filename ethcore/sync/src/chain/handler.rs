@@ -292,7 +292,9 @@ impl SyncHandler {
 		let block_set = sync.peers.get(&peer_id)
 			.and_then(|p| p.block_set)
 			.unwrap_or(BlockSet::NewBlocks);
-		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockBodies) {
+		let allowed = sync.peers.get(&peer_id).map(|p| p.is_allowed()).unwrap_or(false);
+
+		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockBodies) || !allowed {
 			trace!(target: "sync", "{}: Ignored unexpected bodies", peer_id);
 			return Ok(());
 		}
@@ -415,7 +417,8 @@ impl SyncHandler {
 	fn on_peer_block_receipts(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		sync.clear_peer_download(peer_id);
 		let block_set = sync.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
-		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockReceipts) {
+		let allowed = sync.peers.get(&peer_id).map(|p| p.is_allowed()).unwrap_or(false);
+		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockReceipts) || !allowed {
 			trace!(target: "sync", "{}: Ignored unexpected receipts", peer_id);
 			return Ok(());
 		}
