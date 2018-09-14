@@ -302,7 +302,7 @@ impl<'a> Discovery<'a> {
 			trace!(target: "discovery", "Node {:?} not allowed", node);
 			return;
 		}
-		if self.in_flight_pings.contains_key(&node.id) {
+		if self.in_flight_pings.contains_key(&node.id) || self.in_flight_find_nodes.contains_key(&node.id) {
 			trace!(target: "discovery", "Node {:?} in flight requests", node);
 			return;
 		}
@@ -580,9 +580,7 @@ impl<'a> Discovery<'a> {
 				let expected = {
 					let request = entry.get_mut();
 					// Mark the request as answered
-					if !request.answered {
-						request.answered = true;
-					}
+					request.answered = true;
 					if request.response_count + results_count <= BUCKET_SIZE {
 						request.response_count += results_count;
 						true

@@ -71,7 +71,7 @@ const SYS_TIMER: TimerToken = LAST_SESSION + 1;
 // for IDLE TimerToken
 const MAINTENANCE_TIMEOUT: Duration = Duration::from_secs(1);
 // for DISCOVERY_REFRESH TimerToken
-const DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(30);
+const DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(60);
 // for FAST_DISCOVERY_REFRESH TimerToken
 const FAST_DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
 // for DISCOVERY_ROUND TimerToken
