@@ -200,7 +200,7 @@ impl SyncPropagator {
 								let appended = packet.append_raw_checked(&transaction.drain(), 1, MAX_TRANSACTION_PACKET_SIZE);
 								if !appended {
 									// Maximal packet size reached just proceed with sending
-									debug!("Transaction packet size limit reached. Sending incomplete set of {}/{} transactions.", pushed, to_send.len());
+									debug!(target: "sync", "Transaction packet size limit reached. Sending incomplete set of {}/{} transactions.", pushed, to_send.len());
 									to_send = to_send.into_iter().take(pushed).collect();
 									break;
 								}
