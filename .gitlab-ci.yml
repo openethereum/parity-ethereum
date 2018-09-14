@@ -70,6 +70,7 @@ test-darwin-macos-x86_64:
     - scripts/gitlab/test.sh stable
   tags:
     - osx
+  allow_failure:                   true
 
 test-linux-android-armhf:
   stage:                           test
@@ -80,6 +81,7 @@ test-linux-android-armhf:
     - scripts/gitlab/test.sh stable
   tags:
     - rust-arm
+  allow_failure:                   true
 
 test-windows-msvc-x86_64:
   stage:                           test
@@ -95,6 +97,7 @@ test-windows-msvc-x86_64:
     - sh scripts/gitlab/test.sh stable
   tags:
    - rust-windows
+  allow_failure:                   true
 
 
 
