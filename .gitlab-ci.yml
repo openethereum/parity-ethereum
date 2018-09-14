@@ -60,6 +60,46 @@ test-rust-stable:                  &test
   tags:
     - rust-stable
 
+test-darwin-macos-x86_64:
+  stage:                           test
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+  script:
+    - scripts/gitlab/test.sh stable
+  tags:
+    - osx
+
+test-linux-android-armhf:
+  stage:                           test
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/test.sh stable
+  tags:
+    - rust-arm
+
+test-windows-msvc-x86_64:
+  stage:                           test
+  cache:
+    key:                           "%CI_JOB_NAME%"
+    paths:
+      - "%CI_PROJECT_DIR%/target/"
+      - "%CI_PROJECT_DIR%/cargo/"
+      # No cargo caching, since fetch-locking on Windows gets stuck
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+  script:
+    - sh scripts/gitlab/test.sh stable
+  tags:
+   - rust-windows
+
+
+
+
+
 .optional_test:                    &optional_test
   <<:                              *test
   allow_failure:                   true
@@ -139,6 +179,7 @@ build-linux-ubuntu-armhf:
 
 build-linux-android-armhf:
   stage:                           build
+  only:                            *releaseable_branches
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
@@ -149,6 +190,7 @@ build-linux-android-armhf:
 
 build-darwin-macos-x86_64:
   stage:                           build
+  only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
@@ -161,6 +203,7 @@ build-darwin-macos-x86_64:
 
 build-windows-msvc-x86_64:
   stage:                           build
+  only:                            *releaseable_branches
   cache:
     key:                           "%CI_JOB_NAME%"
     paths:
