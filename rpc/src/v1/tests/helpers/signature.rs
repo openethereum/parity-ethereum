@@ -35,7 +35,7 @@ fn test_verify_signature_not_prefixed_mainnet() {
 #[test]
 fn test_verify_signature_incompatible_chain_id() {
 	setup(false, Some(65), Some(1), false);
-	setup(false, Some(65), Some(1), false);
+	setup(true, Some(65), Some(1), false);
 }
 
 #[test]
@@ -52,6 +52,6 @@ fn test_verify_signature_no_rpc_chain_id() {
 
 #[test]
 fn test_verify_signature_no_chain_replay_protection() {
-	setup(false, Some(1), None, false);
-	setup(true, Some(1), None, false);
+	setup(false, None, None, true);
+	setup(true, None, None, true);
 }
