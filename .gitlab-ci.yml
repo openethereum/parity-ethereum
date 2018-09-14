@@ -129,6 +129,7 @@ test-lint-clippy:
 
 test-coverage-kcov:
   <<:                             *optional_test
+  script:
     - scripts/gitlab/coverage.sh
   tags:
     - shell
