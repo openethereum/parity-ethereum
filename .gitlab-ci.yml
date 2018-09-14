@@ -109,10 +109,10 @@ build-linux-ubuntu-amd64:          &build
   <<:                              *collect_artifacts
   tags:
     - rust-stable
-  allow_failure: true
 
 build-linux-ubuntu-i386:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-i686:gitlab-ci
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
@@ -121,6 +121,7 @@ build-linux-ubuntu-i386:
 
 build-linux-ubuntu-arm64:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-arm64:gitlab-ci
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
@@ -129,6 +130,7 @@ build-linux-ubuntu-arm64:
 
 build-linux-ubuntu-armhf:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-armv7:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
@@ -136,26 +138,29 @@ build-linux-ubuntu-armhf:
     - rust-arm
 
 build-linux-android-armhf:
-  <<:                              *build
+  stage:                           build
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
 
 build-darwin-macos-x86_64:
-  <<:                              *build
+  stage:                           build
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
     CXX:                           g++
+  script:
+    - scripts/gitlab/build-unix.sh
   tags:
     - osx
   <<:                              *collect_artifacts
 
 build-windows-msvc-x86_64:
   stage:                           build
-  only:                            *releaseable_branches
   cache:
     key:                           "%CI_JOB_NAME%"
     paths:
@@ -259,7 +264,6 @@ publish-docker-parity-amd64: &publish_docker
     - build-linux-ubuntu-amd64
   tags:
     - shell
-  allow_failure:                   true
   script:
     - scripts/gitlab/publish-docker.sh parity
 
@@ -284,7 +288,6 @@ publish-github-and-s3:
     - scripts/gitlab/push.sh
   tags:
     - shell
-  allow_failure:                   true
 
 
 ####stage:                          docs
