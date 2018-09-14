@@ -251,10 +251,10 @@ impl<'a> Discovery<'a> {
 	}
 
 	fn discover(&mut self) {
-		if self.discovery_round.is_none() {
-			return;
-		}
-		let discovery_round = self.discovery_round.expect("discovery_round is not None ; qed");
+		let discovery_round = match self.discovery_round {
+			Some(r) => r,
+			None => return,
+		};
 		if discovery_round == DISCOVERY_MAX_STEPS {
 			self.stop();
 			return;
