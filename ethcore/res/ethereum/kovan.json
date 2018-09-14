@@ -43,7 +43,11 @@
 		"eip211Transition": 5067000,
 		"eip214Transition": 5067000,
 		"eip658Transition": 5067000,
-		"wasmActivationTransition": 6600000
+		"wasmActivationTransition": 6600000,
+		"eip145Transition": 9000000,
+		"eip1014Transition": 9000000,
+		"eip1052Transition": 9000000,
+		"eip1283Transition": 9000000
 	},
 	"genesis": {
 		"seal": {
