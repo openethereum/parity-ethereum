@@ -207,7 +207,6 @@ impl<'a> EvmTestClient<'a> {
 		).map_err(EvmTestError::Evm)
 	}
 
-
 	/// Executes a SignedTransaction within context of the provided state and `EnvInfo`.
 	/// Returns the state root, gas left and the output.
 	pub fn transact<T: trace::Tracer, V: trace::VMTracer>(
