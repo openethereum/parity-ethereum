@@ -64,6 +64,7 @@ test-linux-rust-beta:
     - scripts/gitlab/test.sh beta
   tags:
     - rust-stable
+  allow_failure:                   true
 
 test-linux-rust-nightly:
   stage:                           test
@@ -71,6 +72,7 @@ test-linux-rust-nightly:
     - scripts/gitlab/test.sh nightly
   tags:
     - rust-stable
+  allow_failure:                   true
 
 test-darwin-rust-stable:
   stage:                           test
