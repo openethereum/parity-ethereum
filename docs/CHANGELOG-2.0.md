@@ -37,11 +37,11 @@ The full list of included changes:
       - Check in flight FindNode before pings
     - Add `deprecated` to deprecated_echo_hash
     - Refactor `discovery_round` branching
-  - Net_version caches network_id to avoid redundant aquire of sync read lock ([#9544](https://github.com/paritytech/parity-ethereum/pull/9544))
-    - Net_version caches network_id to avoid redundant aquire of sync read lock, [#8746](https://github.com/paritytech/parity-ethereum/issues/8746)
-    - Use lower_hex display formatting for net_peerCount rpc method
+  - Net_version caches network_id to avoid redundant acquire of sync read lock ([#9544](https://github.com/paritytech/parity-ethereum/pull/9544))
+    - Net_version caches network_id to avoid redundant acquire of sync read lock, [#8746](https://github.com/paritytech/parity-ethereum/issues/8746)
+    - Use lower_hex display formatting for `net_peerCount` RPC method
 - Update snapcraft.yaml ([#9530](https://github.com/paritytech/parity-ethereum/pull/9530))
-  - Fix DEPRICATED `prepare `
+  - Fix DEPRECATED `prepare`
   - Fix TODO https://bugs.launchpad.net/snapcraft/+bug/1778530
 
 ## Parity-Ethereum [v2.0.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.4) (2018-09-11)
