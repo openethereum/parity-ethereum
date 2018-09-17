@@ -26,7 +26,7 @@ heapsize = "0.4"
 keccak-hash = "0.1.2"
 log = "0.4"
 parking_lot = "0.6"
-patricia-trie = "0.2.1"
+patricia-trie = "0.2"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
 rlp = { version = "0.2.4", features = ["ethereum"] }

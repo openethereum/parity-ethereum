@@ -152,6 +152,9 @@ pub fn new_frontier_test_machine() -> EthereumMachine { load_machine(include_byt
 /// Create a new Foundation Homestead-era chain spec as though it never changed from Frontier.
 pub fn new_homestead_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/homestead_test.json")) }
 
+/// Create a new Foundation Homestead-EIP210-era chain spec as though it never changed from Homestead/Frontier.
+pub fn new_eip210_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/eip210_test.json")) }
+
 /// Create a new Foundation Byzantium era spec.
 pub fn new_byzantium_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/byzantium_test.json")) }
 
