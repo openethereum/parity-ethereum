@@ -485,7 +485,7 @@ usage! {
 
 			ARG arg_jsonrpc_threads: (usize) = 4usize, or |c: &Config| c.rpc.as_ref()?.processing_threads,
 			"--jsonrpc-threads=[THREADS]",
-			"Turn on additional processing threads in all HTTP JSON-RPC servers. Setting this to non-zero value allows parallel execution of cpu-heavy queries.",
+			"Turn on additional processing threads for JSON-RPC servers (all transports). Setting this to a non-zero value allows parallel execution of cpu-heavy queries.",
 
 			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| c.rpc.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-cors=[URL]",
