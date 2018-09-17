@@ -286,7 +286,7 @@ impl Default for MinerExtras {
 			author: Default::default(),
 			engine_signer: Default::default(),
 			extra_data: version_data(),
-			gas_range_target: (4_700_000.into(), 6_283_184.into()),
+			gas_range_target: (8_000_000.into(), 10_000_000.into()),
 			work_notify: Default::default(),
 		}
 	}
