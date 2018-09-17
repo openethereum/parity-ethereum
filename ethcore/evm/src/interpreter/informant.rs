@@ -42,7 +42,7 @@ mod inner {
 	use ethereum_types::U256;
 
 	use interpreter::stack::Stack;
-	use instructions::{Instruction, InstructionInfo, INSTRUCTIONS};
+	use instructions::{Instruction, InstructionInfo};
 	use CostType;
 
 	macro_rules! evm_debug {
@@ -97,7 +97,7 @@ mod inner {
 				&self.spacing,
 				pc,
 				Self::color(instruction, info.name),
-				instruction,
+				instruction as u8,
 				current_gas,
 				Self::as_micro(&time),
 			));
@@ -117,18 +117,16 @@ mod inner {
 
 		pub fn done(&mut self) {
 			// Print out stats
-			let infos = &*INSTRUCTIONS;
-
 			let mut stats: Vec<(_,_)> = self.stats.drain().collect();
 			stats.sort_by(|ref a, ref b| b.1.avg().cmp(&a.1.avg()));
 
 			print(format!("\n{}-------OPCODE STATS:", self.spacing));
 			for (instruction, stats) in stats.into_iter() {
-				let info = infos[instruction as usize];
+				let info = instruction.info();
 				print(format!("{}-------{:>19}(0x{:<2x}) count: {:4}, avg: {:10}μs",
 					self.spacing,
 					Self::color(instruction, info.name),
-					instruction,
+					instruction as u8,
 					stats.count,
 					stats.avg(),
 				));
