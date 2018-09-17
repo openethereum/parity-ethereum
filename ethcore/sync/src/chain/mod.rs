@@ -762,12 +762,10 @@ impl ChainSync {
 						}
 					}
 
-					// Only ask for old blocks if the peer has a higher difficulty than the last imported old block
-					let last_imported_old_block_difficulty = self.old_blocks.as_mut().and_then(|d| {
-						io.chain().block_total_difficulty(BlockId::Number(d.last_imported_block_number()))
-					});
+					// Only ask for old blocks if the peer has an equal or higher difficulty
+					let equal_or_higher_difficulty = peer_difficulty.map_or(false, |pd| pd >= syncing_difficulty);
 
-					if force || last_imported_old_block_difficulty.map_or(true, |ld| peer_difficulty.map_or(true, |pd| pd > ld)) {
+					if force || equal_or_higher_difficulty {
 						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
 							return;
@@ -775,9 +773,9 @@ impl ChainSync {
 					} else {
 						trace!(
 							target: "sync",
-							"peer {:?} is not suitable for requesting old blocks, last_imported_old_block_difficulty={:?}, peer_difficulty={:?}",
+							"peer {:?} is not suitable for requesting old blocks, syncing_difficulty={:?}, peer_difficulty={:?}",
 							peer_id,
-							last_imported_old_block_difficulty,
+							syncing_difficulty,
 							peer_difficulty
 						);
 						self.deactivate_peer(io, peer_id);
