@@ -18,12 +18,18 @@
 
 use ethjson;
 
+
+#[cfg(feature="ci-skip-issue")]
 lazy_static!{
-
-
 	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
 		let skip_data = include_bytes!("../../res/ethereum/tests-issues/currents.json");
 		ethjson::test::SkipStates::load(&skip_data[..]).expect("No invalid json allowed")
 	};
+}
 
+#[cfg(not(feature="ci-skip-issue"))]
+lazy_static!{
+	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
+		ethjson::test::SkipStates::empty()
+	};
 }
