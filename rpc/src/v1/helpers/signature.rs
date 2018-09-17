@@ -1,17 +1,33 @@
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use ethkey::{recover, public_to_address, Signature};
 use jsonrpc_core::Result;
-use v1::types::{Bytes, RichBasicAccount, BasicAccount, H256, to_rich_struct};
+use v1::types::{Bytes, BasicAccount, H256, U64};
 use v1::helpers::errors;
 use v1::helpers::dispatch::eth_data_hash;
 use hash::keccak;
 
-pub fn verify_signature(is_prefixed: bool, message: Bytes, v: u64, r: H256, s: H256, chain_id: Option<u64>) -> Result<RichBasicAccount> {
+pub fn verify_signature(is_prefixed: bool, message: Bytes, v: U64, r: H256, s: H256, chain_id: Option<u64>) -> Result<BasicAccount> {
 	let hash = if is_prefixed {
 		eth_data_hash(message.0)
 	} else {
 		keccak(message.0)
 	};
-
+	let v: u64 = v.into();
 	let is_valid_for_current_chain = match (chain_id, v) {
 		(None, v) if v == 0 || v == 1 => true,
 		(Some(chain_id), v) if v > 36 => (v - 35) / 2 == chain_id,
@@ -25,6 +41,136 @@ pub fn verify_signature(is_prefixed: bool, message: Bytes, v: u64, r: H256, s: H
 	let signature = Signature::from_rsv(&r.into(), &s.into(), v as u8);
 	let public = recover(&signature, &hash).map_err(errors::encryption)?;
 	let address = public_to_address(&public);
-	let account = BasicAccount { address, public_key: public, is_valid_for_current_chain };
-	Ok(to_rich_struct(account))
+	Ok(BasicAccount { address, public_key: public, is_valid_for_current_chain })
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::sync::Arc;
+	use ethcore::account_provider::AccountProvider;
+	use v1::types::H160;
+
+	pub fn add_chain_replay_protection(v: u64, chain_id: Option<u64>) -> u64 {
+		v + if let Some(n) = chain_id { 35 + n * 2 } else { 0 }
+	}
+
+	struct TestCase {
+		should_prefix: bool,
+		signing_chain_id: Option<u64>,
+		rpc_chain_id: Option<u64>,
+		is_valid_for_current_chain: bool,
+	}
+
+	/// mocked signer
+	fn sign(should_prefix: bool, data: Vec<u8>, signing_chain_id: Option<u64>) -> (H160, u64, [u8; 32], [u8; 32]) {
+		let hash = if should_prefix { eth_data_hash(data) } else { keccak(data) };
+		let accounts = Arc::new(AccountProvider::transient_provider());
+		let address = accounts.new_account(&"password123".into()).unwrap();
+		let sig = accounts.sign(address, Some("password123".into()), hash).unwrap();
+		let (v, r, s) = (sig.v(), sig.r(), sig.s());
+		let v = add_chain_replay_protection(v as u64, signing_chain_id);
+		let (r_buf, s_buf) = {
+			let (mut r_buf, mut s_buf) = ([0u8; 32], [0u8; 32]);
+			r_buf.copy_from_slice(r);
+			s_buf.copy_from_slice(s);
+			(r_buf, s_buf)
+		};
+		(address.into(), v, r_buf, s_buf)
+	}
+
+	fn run_test(test_case: TestCase) {
+		let TestCase { should_prefix, signing_chain_id, rpc_chain_id, is_valid_for_current_chain } = test_case;
+		let data = vec![5u8];
+
+		let (address, v, r, s) = sign(should_prefix, data.clone(), signing_chain_id);
+		let account = verify_signature(should_prefix, data.into(), v.into(), r.into(), s.into(), rpc_chain_id).unwrap();
+
+		assert_eq!(account.address, address.into());
+		assert_eq!(account.is_valid_for_current_chain, is_valid_for_current_chain)
+	}
+
+	#[test]
+	fn test_verify_signature_prefixed_mainnet() {
+		run_test(TestCase {
+			should_prefix: true,
+			signing_chain_id: Some(1),
+			rpc_chain_id: Some(1),
+			is_valid_for_current_chain: true,
+		})
+	}
+
+	#[test]
+	fn test_verify_signature_not_prefixed_mainnet() {
+		run_test(TestCase {
+			should_prefix: false,
+			signing_chain_id: Some(1),
+			rpc_chain_id: Some(1),
+			is_valid_for_current_chain: true,
+		})
+	}
+
+	#[test]
+	fn test_verify_signature_incompatible_chain_id() {
+		run_test(TestCase {
+			should_prefix: false,
+			signing_chain_id: Some(65),
+			rpc_chain_id: Some(1),
+			is_valid_for_current_chain: false,
+		});
+		run_test(TestCase {
+			should_prefix: true,
+			signing_chain_id: Some(65),
+			rpc_chain_id: Some(1),
+			is_valid_for_current_chain: false,
+		});
+	}
+
+	#[test]
+	fn test_verify_signature_no_signing_chain_id() {
+		run_test(TestCase {
+			should_prefix: false,
+			signing_chain_id: None,
+			rpc_chain_id: Some(1),
+			is_valid_for_current_chain: false,
+		});
+		run_test(TestCase {
+			should_prefix: true,
+			signing_chain_id: None,
+			rpc_chain_id: Some(1),
+			is_valid_for_current_chain: false,
+		});
+	}
+
+	#[test]
+	fn test_verify_signature_no_rpc_chain_id() {
+		run_test(TestCase {
+			should_prefix: false,
+			signing_chain_id: Some(1),
+			rpc_chain_id: None,
+			is_valid_for_current_chain: false,
+		});
+		run_test(TestCase {
+			should_prefix: true,
+			signing_chain_id: Some(1),
+			rpc_chain_id: None,
+			is_valid_for_current_chain: false,
+		});
+	}
+
+	#[test]
+	fn test_verify_signature_no_chain_replay_protection() {
+		run_test(TestCase {
+			should_prefix: false,
+			signing_chain_id: None,
+			rpc_chain_id: None,
+			is_valid_for_current_chain: true,
+		});
+		run_test(TestCase {
+			should_prefix: true,
+			signing_chain_id: None,
+			rpc_chain_id: None,
+			is_valid_for_current_chain: true,
+		});
+	}
 }

@@ -50,7 +50,7 @@ pub mod pubsub;
 pub use self::eip191::{EIP191Version, PresignedTransaction};
 pub use self::account_info::{AccountInfo, ExtAccountInfo, HwAccountInfo, EthAccount, StorageProof};
 pub use self::bytes::Bytes;
-pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich, to_rich_struct};
+pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
 pub use self::block_number::{BlockNumber, LightBlockNumber, block_number_to_id};
 pub use self::call_request::CallRequest;
 pub use self::confirmations::{

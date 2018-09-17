@@ -36,12 +36,12 @@ use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H64, H160, H256, H512, CallRequest,
+	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber, LightBlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus, Receipt,
-	AccountInfo, HwAccountInfo, Header, RichHeader, RichBasicAccount,
+	LightBlockNumber, ChainStatus, Receipt,
+	BlockNumber, ConsensusCapability, VersionInfo,
+	OperationsInfo, AccountInfo, HwAccountInfo, Header, RichHeader, BasicAccount
 };
 use Host;
 
@@ -425,7 +425,7 @@ impl Parity for ParityClient {
 			Err(errors::status_error(has_peers))
 		}
 	}
-	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: u64) -> Result<RichBasicAccount> {
+	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<BasicAccount> {
 		verify_signature(is_prefixed, message, v, r, s, self.client.signing_chain_id())
 	}
 }

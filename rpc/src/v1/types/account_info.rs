@@ -16,7 +16,6 @@
 use v1::types::{H160, H256, U256, Bytes};
 
 use ethereum_types::{Public, Address};
-use v1::types::Rich;
 
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -83,5 +82,3 @@ pub struct BasicAccount {
 	/// this would be true, otherwise false.
 	pub is_valid_for_current_chain: bool
 }
-
-pub type RichBasicAccount = Rich<BasicAccount>;

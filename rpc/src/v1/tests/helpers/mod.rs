@@ -20,7 +20,6 @@ mod miner_service;
 mod snapshot_service;
 mod sync_provider;
 mod update_service;
-mod signature;
 
 pub use self::miner_service::TestMinerService;
 pub use self::snapshot_service::TestSnapshotService;
