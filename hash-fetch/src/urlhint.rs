@@ -26,7 +26,7 @@ use futures::future::Either;
 use ethereum_types::{H256, Address};
 use registrar::{Registrar, RegistrarClient, Asynchronous};
 
-use_contract!(urlhint, "Urlhint", "res/urlhint.json");
+use_contract!(urlhint, "res/urlhint.json");
 
 const COMMIT_LEN: usize = 20;
 const GITHUB_HINT: &'static str = "githubhint";
@@ -100,16 +100,14 @@ pub trait URLHint: Send + Sync {
 
 /// `URLHintContract` API
 pub struct URLHintContract {
-	urlhint: urlhint::Urlhint,
 	registrar: Registrar,
 	client: Arc<RegistrarClient<Call=Asynchronous>>,
 }
 
 impl URLHintContract {
 	/// Creates new `URLHintContract`
-		pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
+	pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
 		URLHintContract {
-			urlhint: urlhint::Urlhint::default(),
 			registrar: Registrar::new(client.clone()),
 			client: client,
 		}
@@ -162,14 +160,13 @@ fn decode_urlhint_output(output: (String, [u8; 20], Address)) -> Option<URLHintR
 
 impl URLHint for URLHintContract {
 	fn resolve(&self, id: H256) -> Box<Future<Item = Option<URLHintResult>, Error = String> + Send> {
-		let entries = self.urlhint.functions().entries();
 		let client = self.client.clone();
 
 		let future = self.registrar.get_address(GITHUB_HINT)
 			.and_then(move |addr| if !addr.is_zero() {
-				let data = entries.input(id);
+				let data = urlhint::functions::entries::encode_input(id);
 				let result = client.call_contract(addr, data)
-					.and_then(move |output| entries.output(&output).map_err(|e| e.to_string()))
+					.and_then(move |output| urlhint::functions::entries::decode_output(&output).map_err(|e| e.to_string()))
 					.map(decode_urlhint_output);
 				Either::B(result)
 			} else {

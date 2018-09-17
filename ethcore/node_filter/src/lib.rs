@@ -44,16 +44,16 @@ use parking_lot::Mutex;
 
 use ethcore::client::{BlockChainClient, BlockId};
 use ethereum_types::{H256, Address};
+use ethabi::FunctionOutputDecoder;
 use network::{ConnectionFilter, ConnectionDirection};
 use devp2p::NodeId;
 
-use_contract!(peer_set, "PeerSet", "res/peer_set.json");
+use_contract!(peer_set, "res/peer_set.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
 
 /// Connection filter that uses a contract to manage permissions.
 pub struct NodeFilter {
-	contract: peer_set::PeerSet,
 	client: Weak<BlockChainClient>,
 	contract_address: Address,
 	permission_cache: Mutex<LruCache<(H256, NodeId), bool>>,
@@ -63,7 +63,6 @@ impl NodeFilter {
 	/// Create a new instance. Accepts a contract address.
 	pub fn new(client: Weak<BlockChainClient>, contract_address: Address) -> NodeFilter {
 		NodeFilter {
-			contract: peer_set::PeerSet::default(),
 			client,
 			contract_address,
 			permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
@@ -96,9 +95,9 @@ impl ConnectionFilter for NodeFilter {
 		let id_low = H256::from_slice(&connecting_id[0..32]);
 		let id_high = H256::from_slice(&connecting_id[32..64]);
 
-		let allowed = self.contract.functions()
-			.connection_allowed()
-			.call(own_low, own_high, id_low, id_high, &|data| client.call_contract(BlockId::Latest, address, data))
+		let (data, decoder) = peer_set::functions::connection_allowed::call(own_low, own_high, id_low, id_high);
+		let allowed = client.call_contract(BlockId::Latest, address, data)
+			.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
 			.unwrap_or_else(|e| {
 				debug!("Error callling peer set contract: {:?}", e);
 				false

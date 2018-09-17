@@ -30,7 +30,7 @@ use machine::EthereumMachine;
 use ids::BlockId;
 use header::Header;
 use receipt::Receipt;
-use snapshot::{Error, ManifestData};
+use snapshot::{Error, ManifestData, Progress};
 
 use itertools::{Position, Itertools};
 use rlp::{RlpStream, Rlp};
@@ -59,6 +59,7 @@ impl SnapshotComponents for PoaSnapshot {
 		chain: &BlockChain,
 		block_at: H256,
 		sink: &mut ChunkSink,
+		_progress: &Progress,
 		preferred_size: usize,
 	) -> Result<(), Error> {
 		let number = chain.block_number(&block_at)
