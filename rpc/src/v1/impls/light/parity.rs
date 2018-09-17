@@ -41,7 +41,7 @@ use v1::types::{
 	Bytes, U256, U64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber, ConsensusCapability, VersionInfo,
+	BlockNumber, LightBlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, Header, RichHeader, Receipt,
 };

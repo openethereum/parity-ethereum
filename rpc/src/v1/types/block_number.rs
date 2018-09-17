@@ -52,9 +52,18 @@ impl BlockNumber {
 			_ => None,
 		}
 	}
+}
 
+/// BlockNumber to BlockId conversion
+///
+/// NOTE use only for light clients.
+pub trait LightBlockNumber {
 	/// Convert block number to block id.
-	pub fn to_block_id(self) -> BlockId {
+	fn to_block_id(self) -> BlockId;
+}
+
+impl LightBlockNumber for BlockNumber {
+	fn to_block_id(self) -> BlockId {
 		// NOTE Here we treat `Pending` as `Latest`.
 		// Since light clients don't produce pending blocks
 		// (they don't have state) we can safely fallback to `Latest`.
