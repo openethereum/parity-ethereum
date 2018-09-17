@@ -49,18 +49,32 @@ cache:
   - export VERSION
   - echo "Version = ${VERSION}"
 
-
-
 #### stage:                        test
 
-test-rust-stable:                  &test
+test-linux-rust-stable:            &test
   stage:                           test
   script:
     - scripts/gitlab/test.sh stable
   tags:
     - rust-stable
 
-test-darwin-macos-x86_64:
+test-linux-rust-beta:
+  stage:                           test
+  script:
+    - scripts/gitlab/test.sh beta
+  tags:
+    - rust-stable
+  allow_failure:                   true
+
+test-linux-rust-nightly:
+  stage:                           test
+  script:
+    - scripts/gitlab/test.sh nightly
+  tags:
+    - rust-stable
+  allow_failure:                   true
+
+test-darwin-rust-stable:
   stage:                           test
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
@@ -70,8 +84,9 @@ test-darwin-macos-x86_64:
     - scripts/gitlab/test.sh stable
   tags:
     - osx
+  allow_failure:                   true
 
-test-linux-android-armhf:
+test-android-rust-stable:
   stage:                           test
   image:                           parity/rust-android:gitlab-ci
   variables:
@@ -80,8 +95,9 @@ test-linux-android-armhf:
     - scripts/gitlab/test.sh stable
   tags:
     - rust-arm
+  allow_failure:                   true
 
-test-windows-msvc-x86_64:
+test-windows-rust-stable:
   stage:                           test
   cache:
     key:                           "%CI_JOB_NAME%"
@@ -95,26 +111,13 @@ test-windows-msvc-x86_64:
     - sh scripts/gitlab/test.sh stable
   tags:
    - rust-windows
-
-
-
-
+  allow_failure:                   true
 
 .optional_test:                    &optional_test
   <<:                              *test
   allow_failure:                   true
   only:
     - master
-
-test-rust-beta:
-  <<:                              *optional_test
-  script:
-    - scripts/gitlab/test.sh beta
-
-test-rust-nightly:
-  <<:                              *optional_test
-  script:
-    - scripts/gitlab/test.sh nightly
 
 test-lint-rustfmt:
   <<:                             *optional_test
@@ -127,15 +130,11 @@ test-lint-clippy:
     - scripts/gitlab/clippy.sh
 
 test-coverage-kcov:
-  stage:                           test
-  only:
-    - master
+  <<:                             *optional_test
   script:
     - scripts/gitlab/coverage.sh
   tags:
     - shell
-  allow_failure:                   true
-
 
 #### stage:                        build
 
@@ -158,6 +157,7 @@ build-linux-ubuntu-i386:
     CARGO_TARGET:                  i686-unknown-linux-gnu
   tags:
     - rust-i686
+  allow_failure:                   true
 
 build-linux-ubuntu-arm64:
   <<:                              *build
@@ -167,6 +167,7 @@ build-linux-ubuntu-arm64:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
   tags:
     - rust-arm
+  allow_failure:                   true
 
 build-linux-ubuntu-armhf:
   <<:                              *build
@@ -176,6 +177,7 @@ build-linux-ubuntu-armhf:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
   tags:
     - rust-arm
+  allow_failure:                   true
 
 build-linux-android-armhf:
   stage:                           build
@@ -187,6 +189,7 @@ build-linux-android-armhf:
     - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
+  allow_failure:                   true
 
 build-darwin-macos-x86_64:
   stage:                           build
@@ -217,7 +220,6 @@ build-windows-msvc-x86_64:
   tags:
    - rust-windows
   <<:                              *collect_artifacts
-
 
 #### stage:                        package
 
@@ -259,7 +261,6 @@ package-linux-snap-armhf:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
   dependencies:
     - build-linux-ubuntu-armhf
-
 
 #### stage:                        publish
 
@@ -331,7 +332,6 @@ publish-github-and-s3:
     - scripts/gitlab/push.sh
   tags:
     - shell
-
 
 ####stage:                          docs
 
