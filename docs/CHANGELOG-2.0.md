@@ -7,11 +7,42 @@ Please, note:
 - This release marks the 2.0 track of Parity-Ethereum as stable.
 - This release contains a low-severity issue with the web-sockets ports. [#9545](https://github.com/paritytech/parity-ethereum/pull/9545)
 - This release resolves a potential network fragmentation issue. [#9526](https://github.com/paritytech/parity-ethereum/pull/9526)
+- The default `gas_floor_target` was increased to `8_000_000`, the default `gas_cap` to `10_000_000`.
+- With this release, all versions of Parity Ethereum 1.x prior to 2.0 reached end of life.
 - Users are urged to upgrade to 2.0.5-stable or 2.1.0-beta.
 
 The full list of included changes:
 
-- @TBA
+- Backports for 2.0.5 stable ([#9519](https://github.com/paritytech/parity-ethereum/pull/9519))
+  - Parity-version: mark 2.0.5 track stable
+  - Deps: bump fs-swap to 0.2.4
+  - Remove initial token for WS. ([#9545](https://github.com/paritytech/parity-ethereum/pull/9545))
+  - Version: mark release critical
+  - Increase Gas-floor-target and Gas Cap ([#9564](https://github.com/paritytech/parity-ethereum/pull/9564))
+    - Gas-floor-target increased to 8M by default
+    - Gas-cap increased to 10M by default
+  - Improve P2P discovery ([#9526](https://github.com/paritytech/parity-ethereum/pull/9526))
+    - Add `target` to Rust traces
+    - Network-devp2p: Don't remove discovery peer in main sync
+    - Network-p2p: Refresh discovery more often
+    - Update Peer discovery protocol
+    - Run discovery more often when not enough nodes connected
+    - Start the first discovery early
+    - Update fast discovery rate
+    - Fix tests
+    - Fix `ping` tests
+    - Fixing remote Node address ; adding PingPong round
+    - Fix tests: update new +1 PingPong round
+    - Increase slow Discovery rate
+      - Check in flight FindNode before pings
+    - Add `deprecated` to deprecated_echo_hash
+    - Refactor `discovery_round` branching
+  - Net_version caches network_id to avoid redundant aquire of sync read lock ([#9544](https://github.com/paritytech/parity-ethereum/pull/9544))
+    - Net_version caches network_id to avoid redundant aquire of sync read lock, [#8746](https://github.com/paritytech/parity-ethereum/issues/8746)
+    - Use lower_hex display formatting for net_peerCount rpc method
+- Update snapcraft.yaml ([#9530](https://github.com/paritytech/parity-ethereum/pull/9530))
+  - Fix DEPRICATED `prepare `
+  - Fix TODO https://bugs.launchpad.net/snapcraft/+bug/1778530
 
 ## Parity-Ethereum [v2.0.4](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.4) (2018-09-11)
 
