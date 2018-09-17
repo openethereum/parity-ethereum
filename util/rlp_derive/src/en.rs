@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use {syn, quote};
+use syn;
+use proc_macro2::{TokenStream, Span};
 
-pub fn impl_encodable(ast: &syn::DeriveInput) -> quote::Tokens {
+pub fn impl_encodable(ast: &syn::DeriveInput) -> TokenStream {
 	let body = match ast.data {
 		syn::Data::Struct(ref s) => s,
 		_ => panic!("#[derive(RlpEncodable)] is only defined for structs."),
@@ -27,7 +28,7 @@ pub fn impl_encodable(ast: &syn::DeriveInput) -> quote::Tokens {
 
 	let stmts_len = stmts.len();
 	let stmts_len = quote! { #stmts_len };
-	let dummy_const: syn::Ident = format!("_IMPL_RLP_ENCODABLE_FOR_{}", name).into();
+	let dummy_const = syn::Ident::new(&format!("_IMPL_RLP_ENCODABLE_FOR_{}", name), Span::call_site());
 	let impl_block = quote! {
 		impl rlp::Encodable for #name {
 			fn rlp_append(&self, stream: &mut rlp::RlpStream) {
@@ -46,7 +47,7 @@ pub fn impl_encodable(ast: &syn::DeriveInput) -> quote::Tokens {
 	}
 }
 
-pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> quote::Tokens {
+pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> TokenStream {
 	let body = match ast.data {
 		syn::Data::Struct(ref s) => s,
 		_ => panic!("#[derive(RlpEncodableWrapper)] is only defined for structs."),
@@ -64,7 +65,7 @@ pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> quote::Tokens {
 
 	let name = &ast.ident;
 
-	let dummy_const: syn::Ident = format!("_IMPL_RLP_ENCODABLE_FOR_{}", name).into();
+	let dummy_const = syn::Ident::new(&format!("_IMPL_RLP_ENCODABLE_FOR_{}", name), Span::call_site());
 	let impl_block = quote! {
 		impl rlp::Encodable for #name {
 			fn rlp_append(&self, stream: &mut rlp::RlpStream) {
@@ -82,11 +83,11 @@ pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> quote::Tokens {
 	}
 }
 
-fn encodable_field_map(tuple: (usize, &syn::Field)) -> quote::Tokens {
+fn encodable_field_map(tuple: (usize, &syn::Field)) -> TokenStream {
 	encodable_field(tuple.0, tuple.1)
 }
 
-fn encodable_field(index: usize, field: &syn::Field) -> quote::Tokens {
+fn encodable_field(index: usize, field: &syn::Field) -> TokenStream {
 	let ident = match field.ident {
 		Some(ref ident) => quote! { #ident },
 		None => {
