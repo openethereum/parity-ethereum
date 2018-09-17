@@ -22,7 +22,7 @@ use client::{EvmTestClient, EvmTestError, TransactResult};
 use ethjson;
 use transaction::SignedTransaction;
 use vm::EnvInfo;
-
+use super::SKIP_TEST_STATE;
 use super::HookType;
 
 /// Run state jsontests on a given folder.
@@ -33,6 +33,18 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], 
 /// Run state jsontests on a given file.
 pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
 	::json_tests::test_common::run_test_file(p, json_chain_test, h)
+}
+
+fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
+	SKIP_TEST_STATE.state.iter().any(|state_test|{
+		if let Some(subtest) = state_test.subtests.get(subname) {
+			chain == &subtest.chain &&
+			(subtest.subnumbers[0] == "*"
+				 || subtest.subnumbers.contains(&number.to_string()))
+		} else {
+			false
+		}
+	})
 }
 
 pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
@@ -60,6 +72,10 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 
 				for (i, state) in states.into_iter().enumerate() {
 					let info = format!("   - {} | {:?} ({}/{}) ...", name, spec_name, i + 1, total);
+					if skip_test(&name, &spec.name, i + 1) {
+						println!("{} in skip list : SKIPPED", info);
+						continue;
+					}
 
 					let post_root: H256 = state.hash.into();
 					let transaction: SignedTransaction = multitransaction.select(&state.indexes).into();

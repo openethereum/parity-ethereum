@@ -23,6 +23,7 @@ use miner::Miner;
 use io::IoChannel;
 use test_helpers;
 use verification::queue::kind::blocks::Unverified;
+use super::SKIP_TEST_STATE;
 
 use super::HookType;
 
@@ -36,12 +37,20 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
 	::json_tests::test_common::run_test_file(p, json_chain_test, h)
 }
 
+fn skip_test(name: &String) -> bool {
+	SKIP_TEST_STATE.block.iter().any(|block_test|block_test.subtests.contains(name))
+}
+
 pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	::ethcore_logger::init_log();
 	let tests = ethjson::blockchain::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
 	for (name, blockchain) in tests.into_iter() {
+		if skip_test(&name) {
+			println!("   - {} | {:?} Ignoring tests because in skip list", name, blockchain.network);
+			continue;
+		}
 		start_stop_hook(&name, HookType::OnStart);
 
 		let mut fail = false;
