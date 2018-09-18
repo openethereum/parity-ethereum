@@ -1,4 +1,4 @@
-Note: Parity 1.11 reached End-of-Life on 2018-09-17 (EOL).
+Note: Parity 1.11 reached End-of-Life on 2018-09-19 (EOL).
 
 ## Parity-Ethereum [v1.11.11](https://github.com/paritytech/parity-ethereum/releases/tag/v1.11.11) (2018-09-11)
 

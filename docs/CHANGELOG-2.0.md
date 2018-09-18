@@ -1,4 +1,4 @@
-## Parity-Ethereum [v2.0.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.5) (2018-09-17)
+## Parity-Ethereum [v2.0.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.5) (2018-09-18)
 
 Parity-Ethereum 2.0.5-stable is a bug-fix release to improve performance and stability.
 
