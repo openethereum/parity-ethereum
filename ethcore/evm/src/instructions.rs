@@ -45,7 +45,7 @@ macro_rules! enum_with_from_u8 {
 enum_with_from_u8! {
 	#[doc = "Virtual machine bytecode instruction."]
 	#[repr(u8)]
-	#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
+	#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug, Hash)]
 	pub enum Instruction {
 		#[doc = "halts execution"]
 		STOP = 0x00,
@@ -328,7 +328,7 @@ enum_with_from_u8! {
 		#[doc = "like CALLCODE but keeps caller's value and sender"]
 		DELEGATECALL = 0xf4,
 		#[doc = "create a new account and set creation address to sha3(sender + sha3(init code)) % 2**160"]
-		CREATE2 = 0xfb,
+		CREATE2 = 0xf5,
 		#[doc = "stop execution and revert state changes. Return output data."]
 		REVERT = 0xfd,
 		#[doc = "like CALL but it does not take value, nor modify the state"]

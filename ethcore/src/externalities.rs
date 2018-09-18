@@ -113,6 +113,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
+	fn initial_storage_at(&self, key: &H256) -> vm::Result<H256> {
+		self.state.checkpoint_storage_at(0, &self.origin_info.address, key).map(|v| v.unwrap_or(H256::zero())).map_err(Into::into)
+	}
+
 	fn storage_at(&self, key: &H256) -> vm::Result<H256> {
 		self.state.storage_at(&self.origin_info.address, key).map_err(Into::into)
 	}
@@ -230,7 +234,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		};
 
 		if !self.static_flag {
-			if !self.schedule.eip86 || params.sender != UNSIGNED_SENDER {
+			if !self.schedule.keep_unsigned_nonce || params.sender != UNSIGNED_SENDER {
 				if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
 					debug!(target: "ext", "Database corruption encountered: {:?}", e);
 					return ContractCreateResult::Failed
@@ -390,8 +394,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		self.depth
 	}
 
-	fn inc_sstore_clears(&mut self) {
-		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
+	fn add_sstore_refund(&mut self, value: U256) {
+		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund.saturating_add(value);
+	}
+
+	fn sub_sstore_refund(&mut self, value: U256) {
+		self.substate.sstore_clears_refund = self.substate.sstore_clears_refund.saturating_sub(value);
 	}
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
@@ -611,6 +619,6 @@ mod tests {
 			}
 		};
 
-		assert_eq!(address, Address::from_str("b7c227636666831278bacdb8d7f52933b8698ab9").unwrap());
+		assert_eq!(address, Address::from_str("e33c0c7f7df4809055c3eba6c09cfe4baf1bd9e0").unwrap());
 	}
 }

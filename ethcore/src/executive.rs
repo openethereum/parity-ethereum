@@ -63,10 +63,11 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 		},
 		CreateContractAddress::FromSenderSaltAndCodeHash(salt) => {
 			let code_hash = keccak(code);
-			let mut buffer = [0u8; 20 + 32 + 32];
-			&mut buffer[0..20].copy_from_slice(&sender[..]);
-			&mut buffer[20..(20+32)].copy_from_slice(&salt[..]);
-			&mut buffer[(20+32)..].copy_from_slice(&code_hash[..]);
+			let mut buffer = [0u8; 1 + 20 + 32 + 32];
+			buffer[0] = 0xff;
+			&mut buffer[1..(1+20)].copy_from_slice(&sender[..]);
+			&mut buffer[(1+20)..(1+20+32)].copy_from_slice(&salt[..]);
+			&mut buffer[(1+20+32)..].copy_from_slice(&code_hash[..]);
 			(From::from(keccak(&buffer[..])), Some(code_hash))
 		},
 		CreateContractAddress::FromSenderAndCodeHash => {
@@ -290,7 +291,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let mut substate = Substate::new();
 
 		// NOTE: there can be no invalid transactions from this point.
-		if !schedule.eip86 || !t.is_unsigned() {
+		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
 		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;
@@ -573,9 +574,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let prev_bal = self.state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
-			self.state.new_contract(&params.address, val + prev_bal, nonce_offset);
+			self.state.new_contract(&params.address, val + prev_bal, nonce_offset)?;
 		} else {
-			self.state.new_contract(&params.address, prev_bal, nonce_offset);
+			self.state.new_contract(&params.address, prev_bal, nonce_offset)?;
 		}
 
 		let trace_info = tracer.prepare_trace_create(&params);
@@ -626,7 +627,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let schedule = self.schedule;
 
 		// refunds from SSTORE nonzero -> zero
-		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.sstore_clears_count;
+		let sstore_refunds = substate.sstore_clears_refund;
 		// refunds from contract suicides
 		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
 		let refunds_bound = sstore_refunds + suicide_refunds;
@@ -1611,6 +1612,66 @@ mod tests {
 		assert_eq!(result, U256::from(1));
 		assert_eq!(output[..], returns[..]);
 		assert_eq!(state.storage_at(&contract_address, &H256::from(&U256::zero())).unwrap(), H256::from(&U256::from(0)));
+	}
+
+	evm_test!{test_eip1283: test_eip1283_int}
+	fn test_eip1283(factory: Factory) {
+		let x1 = Address::from(0x1000);
+		let x2 = Address::from(0x1001);
+		let y1 = Address::from(0x2001);
+		let y2 = Address::from(0x2002);
+		let operating_address = Address::from(0);
+		let k = H256::new();
+
+		let mut state = get_temp_state_with_factory(factory.clone());
+		state.new_contract(&x1, U256::zero(), U256::from(1)).unwrap();
+		state.init_code(&x1, "600160005560006000556001600055".from_hex().unwrap()).unwrap();
+		state.new_contract(&x2, U256::zero(), U256::from(1)).unwrap();
+		state.init_code(&x2, "600060005560016000556000600055".from_hex().unwrap()).unwrap();
+		state.new_contract(&y1, U256::zero(), U256::from(1)).unwrap();
+		state.init_code(&y1, "600060006000600061100062fffffff4".from_hex().unwrap()).unwrap();
+		state.new_contract(&y2, U256::zero(), U256::from(1)).unwrap();
+		state.init_code(&y2, "600060006000600061100162fffffff4".from_hex().unwrap()).unwrap();
+
+		let info = EnvInfo::default();
+		let machine = ::ethereum::new_constantinople_test_machine();
+		let schedule = machine.schedule(info.number);
+
+		assert_eq!(state.storage_at(&operating_address, &k).unwrap(), H256::from(U256::from(0)));
+		// Test a call via top-level -> y1 -> x1
+		let (FinalizationResult { gas_left, .. }, refund, gas) = {
+			let gas = U256::from(0xffffffffffu64);
+			let mut params = ActionParams::default();
+			params.code = Some(Arc::new("6001600055600060006000600061200163fffffffff4".from_hex().unwrap()));
+			params.gas = gas;
+			let mut substate = Substate::new();
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
+			let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
+
+			(res, substate.sstore_clears_refund, gas)
+		};
+		let gas_used = gas - gas_left;
+		// sstore: 0 -> (1) -> () -> (1 -> 0 -> 1)
+		assert_eq!(gas_used, U256::from(41860));
+		assert_eq!(refund, U256::from(19800));
+
+		assert_eq!(state.storage_at(&operating_address, &k).unwrap(), H256::from(U256::from(1)));
+		// Test a call via top-level -> y2 -> x2
+		let (FinalizationResult { gas_left, .. }, refund, gas) = {
+			let gas = U256::from(0xffffffffffu64);
+			let mut params = ActionParams::default();
+			params.code = Some(Arc::new("6001600055600060006000600061200263fffffffff4".from_hex().unwrap()));
+			params.gas = gas;
+			let mut substate = Substate::new();
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
+			let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
+
+			(res, substate.sstore_clears_refund, gas)
+		};
+		let gas_used = gas - gas_left;
+		// sstore: 1 -> (1) -> () -> (0 -> 1 -> 0)
+		assert_eq!(gas_used, U256::from(11860));
+		assert_eq!(refund, U256::from(19800));
 	}
 
 	fn wasm_sample_code() -> Arc<Vec<u8>> {

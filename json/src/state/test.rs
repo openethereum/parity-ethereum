@@ -21,6 +21,7 @@ use std::collections::BTreeMap;
 use uint::Uint;
 use bytes::Bytes;
 use hash::{Address, H256};
+use spec::ForkSpec;
 use state::{Env, AccountState, Transaction};
 use maybe::MaybeEmpty;
 use serde_json::{self, Error};
@@ -95,21 +96,6 @@ impl MultiTransaction {
 			value: self.value[indexes.value as usize].clone(),
 		}
 	}
-}
-
-/// State test transaction deserialization.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
-pub enum ForkSpec {
-	EIP150,
-	EIP158,
-	Frontier,
-	Homestead,
-	Byzantium,
-	Constantinople,
-	EIP158ToByzantiumAt5,
-	FrontierToHomesteadAt5,
-	HomesteadToDaoAt5,
-	HomesteadToEIP150At5,
 }
 
 /// State test indexes deserialization.

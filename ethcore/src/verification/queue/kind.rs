@@ -58,7 +58,7 @@ pub trait Kind: 'static + Sized + Send + Sync {
 	type Verified: Sized + Send + BlockLike + HeapSizeOf;
 
 	/// Attempt to create the `Unverified` item from the input.
-	fn create(input: Self::Input, engine: &EthEngine) -> Result<Self::Unverified, Error>;
+	fn create(input: Self::Input, engine: &EthEngine, check_seal: bool) -> Result<Self::Unverified, Error>;
 
 	/// Attempt to verify the `Unverified` item using the given engine.
 	fn verify(unverified: Self::Unverified, engine: &EthEngine, check_seal: bool) -> Result<Self::Verified, Error>;
@@ -86,8 +86,8 @@ pub mod blocks {
 		type Unverified = Unverified;
 		type Verified = PreverifiedBlock;
 
-		fn create(input: Self::Input, engine: &EthEngine) -> Result<Self::Unverified, Error> {
-			match verify_block_basic(&input, engine) {
+		fn create(input: Self::Input, engine: &EthEngine, check_seal: bool) -> Result<Self::Unverified, Error> {
+			match verify_block_basic(&input, engine, check_seal) {
 				Ok(()) => Ok(input),
 				Err(Error(ErrorKind::Block(BlockError::TemporarilyInvalid(oob)), _)) => {
 					debug!(target: "client", "Block received too early {}: {:?}", input.hash(), oob);
@@ -209,7 +209,7 @@ pub mod headers {
 		type Unverified = Header;
 		type Verified = Header;
 
-		fn create(input: Self::Input, engine: &EthEngine) -> Result<Self::Unverified, Error> {
+		fn create(input: Self::Input, engine: &EthEngine, _check_seal: bool) -> Result<Self::Unverified, Error> {
 			verify_header_params(&input, engine, true).map(|_| input)
 		}
 

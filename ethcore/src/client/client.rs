@@ -39,14 +39,15 @@ use client::{
 	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	ClientIoMessage
+	ClientIoMessage,
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient,
+	IoClient, BadBlocks,
 };
+use client::bad_blocks;
 use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
 use error::{
@@ -85,7 +86,7 @@ pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
 
-use_contract!(registry, "Registry", "res/contracts/registrar.json");
+use_contract!(registry, "res/contracts/registrar.json");
 
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
@@ -163,6 +164,9 @@ struct Importer {
 
 	/// Ethereum engine to be used during import
 	pub engine: Arc<EthEngine>,
+
+	/// A lru cache of recently detected bad blocks
+	pub bad_blocks: bad_blocks::BadBlocks,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
@@ -228,8 +232,6 @@ pub struct Client {
 	/// An action to be done if a mode/spec_name change happens
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 
-	/// Link to a registry object useful for looking up names
-	registrar: registry::Registry,
 	registrar_address: Option<Address>,
 
 	/// A closure to call when we want to restart the client
@@ -254,6 +256,7 @@ impl Importer {
 			miner,
 			ancient_verifier: AncientVerifier::new(engine.clone()),
 			engine,
+			bad_blocks: Default::default(),
 		})
 	}
 
@@ -290,22 +293,27 @@ impl Importer {
 					continue;
 				}
 
-				if let Ok(closed_block) = self.check_and_lock_block(block, client) {
-					if self.engine.is_proposal(&header) {
-						self.block_queue.mark_as_good(&[hash]);
-						proposed_blocks.push(bytes);
-					} else {
-						imported_blocks.push(hash);
+				let raw = block.bytes.clone();
+				match self.check_and_lock_block(block, client) {
+					Ok(closed_block) => {
+						if self.engine.is_proposal(&header) {
+							self.block_queue.mark_as_good(&[hash]);
+							proposed_blocks.push(bytes);
+						} else {
+							imported_blocks.push(hash);
 
-						let transactions_len = closed_block.transactions().len();
+							let transactions_len = closed_block.transactions().len();
 
-						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
-						import_results.push(route);
+							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
+							import_results.push(route);
 
-						client.report.write().accrue_block(&header, transactions_len);
-					}
-				} else {
-					invalid_blocks.insert(header.hash());
+							client.report.write().accrue_block(&header, transactions_len);
+						}
+					},
+					Err(err) => {
+						self.bad_blocks.report(raw, format!("{:?}", err));
+						invalid_blocks.insert(header.hash());
+					},
 				}
 			}
 
@@ -765,7 +773,6 @@ impl Client {
 			factories: factories,
 			history: history,
 			on_user_defaults_change: Mutex::new(None),
-			registrar: registry::Registry::default(),
 			registrar_address,
 			exit_handler: Mutex::new(None),
 			importer,
@@ -1142,7 +1149,8 @@ impl Client {
 			},
 		};
 
-		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p)?;
+		let processing_threads = self.config.snapshot.processing_threads;
+		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p, processing_threads)?;
 
 		Ok(())
 	}
@@ -1287,9 +1295,7 @@ impl snapshot::DatabaseRestore for Client {
 		let mut tracedb = self.tracedb.write();
 		self.importer.miner.clear();
 		let db = self.db.write();
-		db.key_value().restore(new_db)?;
-		db.blooms().reopen()?;
-		db.trace_blooms().reopen()?;
+		db.restore(new_db)?;
 
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
@@ -1356,17 +1362,17 @@ impl BlockChainTrait for Client {}
 
 impl RegistryInfo for Client {
 	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
+		use ethabi::FunctionOutputDecoder;
+
 		let address = self.registrar_address?;
 
-		self.registrar.functions()
-			.get_address()
-			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
-			.ok()
-			.and_then(|a| if a.is_zero() {
-				None
-			} else {
-				Some(a)
-			})
+		let (data, decoder) = registry::functions::get_address::call(keccak(name.as_bytes()), "A");
+		let value = decoder.decode(&self.call_contract(block, address, data).ok()?).ok()?;
+		if value.is_zero() {
+			None
+		} else {
+			Some(value)
+		}
 	}
 }
 
@@ -1389,12 +1395,22 @@ impl ImportBlock for Client {
 		if self.chain.read().is_known(&unverified.hash()) {
 			bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
+
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
-		if status == BlockStatus::Unknown || status == BlockStatus::Pending {
+		if status == BlockStatus::Unknown {
 			bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
-		Ok(self.importer.block_queue.import(unverified)?)
+		let raw = unverified.bytes.clone();
+		match self.importer.block_queue.import(unverified).map_err(Into::into) {
+			Ok(res) => Ok(res),
+			// we only care about block errors (not import errors)
+			Err(BlockImportError(BlockImportErrorKind::Block(err), _))=> {
+				self.importer.bad_blocks.report(raw, format!("{:?}", err));
+				bail!(BlockImportErrorKind::Block(err))
+			},
+			Err(e) => Err(e),
+		}
 	}
 }
 
@@ -1507,7 +1523,7 @@ impl Call for Client {
 			where F: FnMut(U256) -> Result<bool, E>
 		{
 			while upper - lower > 1.into() {
-				let mid = (lower + upper) / 2.into();
+				let mid = (lower + upper) / 2;
 				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
 				let c = cond(mid)?;
 				match c {
@@ -1528,6 +1544,12 @@ impl Call for Client {
 impl EngineInfo for Client {
 	fn engine(&self) -> &EthEngine {
 		Client::engine(self)
+	}
+}
+
+impl BadBlocks for Client {
+	fn bad_blocks(&self) -> Vec<(Unverified, String)> {
+		self.importer.bad_blocks.bad_blocks()
 	}
 }
 
@@ -2038,10 +2060,6 @@ impl BlockChainClient for Client {
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar_address.clone()
 	}
-
-	fn eip86_transition(&self) -> u64 {
-		self.engine().params().eip86_transition
-	}
 }
 
 impl IoClient for Client {
@@ -2081,7 +2099,7 @@ impl IoClient for Client {
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending {
 				let status = self.block_status(BlockId::Hash(parent_hash));
-				if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				if  status == BlockStatus::Unknown {
 					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 				}
 			}
@@ -2513,7 +2531,7 @@ mod tests {
 			block_hash: block_hash,
 			block_number: block_number,
 			cumulative_gas_used: gas_used,
-			gas_used: gas_used - 5.into(),
+			gas_used: gas_used - 5,
 			contract_address: None,
 			logs: vec![LocalizedLogEntry {
 				entry: logs[0].clone(),

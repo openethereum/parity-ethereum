@@ -39,7 +39,8 @@ use client::{
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient
+	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
+	BadBlocks,
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -615,6 +616,19 @@ impl EngineInfo for TestBlockChainClient {
 	}
 }
 
+impl BadBlocks for TestBlockChainClient {
+	fn bad_blocks(&self) -> Vec<(Unverified, String)> {
+		vec![
+			(Unverified {
+				header: Default::default(),
+				transactions: vec![],
+				uncles: vec![],
+				bytes: vec![1, 2, 3],
+			}, "Invalid block".into())
+		]
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn replay(&self, _id: TransactionId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -860,8 +874,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn registrar_address(&self) -> Option<Address> { None }
-
-	fn eip86_transition(&self) -> u64 { u64::max_value() }
 }
 
 impl IoClient for TestBlockChainClient {

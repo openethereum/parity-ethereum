@@ -274,7 +274,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		self.gasometer.as_mut().expect(GASOMETER_PROOF).current_mem_gas = requirements.memory_total_gas;
 		self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas - requirements.gas_cost;
 
-		evm_debug!({ informant.before_instruction(reader.position, instruction, info, &self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, &stack) });
+		evm_debug!({ self.informant.before_instruction(self.reader.position, instruction, info, &self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, &self.stack) });
 
 		let (mem_written, store_written) = match self.do_trace {
 			true => (Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack)),
@@ -287,7 +287,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			current_gas, ext, instruction, requirements.provide_gas
 		)?;
 
-		evm_debug!({ informant.after_instruction(instruction) });
+		evm_debug!({ self.informant.after_instruction(instruction) });
 
 		if let InstructionResult::UnusedGas(ref gas) = result {
 			self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + *gas;
@@ -426,13 +426,13 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let endowment = self.stack.pop_back();
+				let init_off = self.stack.pop_back();
+				let init_size = self.stack.pop_back();
 				let address_scheme = match instruction {
 					instructions::CREATE => CreateContractAddress::FromSenderAndNonce,
 					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(self.stack.pop_back().into()),
 					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
 				};
-				let init_off = self.stack.pop_back();
-				let init_size = self.stack.pop_back();
 
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
@@ -629,8 +629,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let current_val = U256::from(&*ext.storage_at(&address)?);
 				// Increase refund for clear
-				if !current_val.is_zero() && val.is_zero() {
-					ext.inc_sstore_clears();
+				if ext.schedule().eip1283 {
+					let original_val = U256::from(&*ext.initial_storage_at(&address)?);
+					gasometer::handle_eip1283_sstore_clears_refund(ext, &original_val, &current_val, &val);
+				} else {
+					if !current_val.is_zero() && val.is_zero() {
+						let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
+						ext.add_sstore_refund(sstore_clears_schedule);
+					}
 				}
 				ext.set_storage(address, H256::from(&val))?;
 			},
@@ -795,7 +801,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 						TWO_POW_96 => a >> 96,
 						TWO_POW_224 => a >> 224,
 						TWO_POW_248 => a >> 248,
-						_ => a.overflowing_div(b).0,
+						_ => a / b,
 					}
 				} else {
 					U256::zero()
@@ -805,7 +811,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let a = self.stack.pop_back();
 				let b = self.stack.pop_back();
 				self.stack.push(if !b.is_zero() {
-					a.overflowing_rem(b).0
+					a % b
 				} else {
 					U256::zero()
 				});
@@ -821,7 +827,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				} else if a == min && b == !U256::zero() {
 					min
 				} else {
-					let c = a.overflowing_div(b).0;
+					let c = a / b;
 					set_sign(c, sign_a ^ sign_b)
 				});
 			},
@@ -832,7 +838,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let b = get_and_reset_sign(ub).0;
 
 				self.stack.push(if !b.is_zero() {
-					let c = a.overflowing_rem(b).0;
+					let c = a % b;
 					set_sign(c, sign_a)
 				} else {
 					U256::zero()
@@ -920,7 +926,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					// upcast to 512
 					let a5 = U512::from(a);
 					let res = a5.overflowing_add(U512::from(b)).0;
-					let x = res.overflowing_rem(U512::from(c)).0;
+					let x = res % U512::from(c);
 					U256::from(x)
 				} else {
 					U256::zero()
@@ -934,7 +940,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				self.stack.push(if !c.is_zero() {
 					let a5 = U512::from(a);
 					let res = a5.overflowing_mul(U512::from(b)).0;
-					let x = res.overflowing_rem(U512::from(c)).0;
+					let x = res % U512::from(c);
 					U256::from(x)
 				} else {
 					U256::zero()

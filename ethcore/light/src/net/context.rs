@@ -44,6 +44,9 @@ pub trait IoContext {
 
 	/// Persistent peer id
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
+
+	/// Whether given peer id is reserved peer
+	fn is_reserved_peer(&self, peer: PeerId) -> bool;
 }
 
 impl<T> IoContext for T where T: ?Sized + NetworkContext {
@@ -75,6 +78,10 @@ impl<T> IoContext for T where T: ?Sized + NetworkContext {
 
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId> {
 		self.session_info(peer).and_then(|info| info.id)
+	}
+
+	fn is_reserved_peer(&self, peer: PeerId) -> bool {
+		NetworkContext::is_reserved_peer(self, peer)
 	}
 }
 
@@ -126,7 +133,7 @@ impl<'a> BasicContext for TickCtx<'a> {
 	}
 
 	fn request_from(&self, peer: PeerId, requests: Requests) -> Result<ReqId, Error> {
-		self.proto.request_from(self.io, &peer, requests)
+		self.proto.request_from(self.io, peer, requests)
 	}
 
 	fn make_announcement(&self, announcement: Announcement) {
@@ -159,7 +166,7 @@ impl<'a> BasicContext for Ctx<'a> {
 	}
 
 	fn request_from(&self, peer: PeerId, requests: Requests) -> Result<ReqId, Error> {
-		self.proto.request_from(self.io, &peer, requests)
+		self.proto.request_from(self.io, peer, requests)
 	}
 
 	fn make_announcement(&self, announcement: Announcement) {

@@ -27,7 +27,7 @@ extern crate keccak_hash as hash;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_version as version;
 extern crate parking_lot;
-extern crate path;
+extern crate parity_path;
 extern crate rand;
 extern crate semver;
 extern crate target_info;

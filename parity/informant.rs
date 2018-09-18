@@ -184,7 +184,7 @@ impl InformantData for LightNodeInformantData {
 	fn executes_transactions(&self) -> bool { false }
 
 	fn is_major_importing(&self) -> bool {
-		self.sync.is_major_importing()
+		self.sync.is_major_importing_no_sync()
 	}
 
 	fn report(&self) -> Report {
@@ -306,7 +306,7 @@ impl<T: InformantData> Informant<T> {
 							format!("{} blk/s {} tx/s {} Mgas/s",
 								paint(Yellow.bold(), format!("{:7.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
 								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_milliseconds() as f64)),
-								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
+								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / (elapsed.as_milliseconds() * 1000)).low_u64()))
 							)
 						} else {
 							format!("{} hdr/s",
@@ -422,15 +422,15 @@ impl LightChainNotify for Informant<LightNodeInformantData> {
 		if ripe {
 			if let Some(header) = good.last().and_then(|h| client.block_header(BlockId::Hash(*h))) {
 				info!(target: "import", "Imported {} {} ({} Mgas){}",
-					  Colour::White.bold().paint(format!("#{}", header.number())),
-					  Colour::White.bold().paint(format!("{}", header.hash())),
-					  Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32  / 1000000f32)),
-					  if good.len() > 1 {
-						  format!(" + another {} header(s)",
-								  Colour::Red.bold().paint(format!("{}", good.len() - 1)))
-					  } else {
-						  String::new()
-					  }
+					Colour::White.bold().paint(format!("#{}", header.number())),
+					Colour::White.bold().paint(format!("{}", header.hash())),
+					Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32 / 1000000f32)),
+					if good.len() > 1 {
+						format!(" + another {} header(s)",
+								Colour::Red.bold().paint(format!("{}", good.len() - 1)))
+					} else {
+						String::new()
+					}
 				);
 				*last_import = Instant::now();
 			}

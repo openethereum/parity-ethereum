@@ -14,23 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Transaction Pool options.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Options {
-	/// Maximal number of transactions in the pool.
-	pub max_count: usize,
-	/// Maximal number of transactions from single sender.
-	pub max_per_sender: usize,
-	/// Maximal memory usage.
-	pub max_mem_usage: usize,
-}
+//! Debug RPC interface.
 
-impl Default for Options {
-	fn default() -> Self {
-		Options {
-			max_count: 1024,
-			max_per_sender: 16,
-			max_mem_usage: 8 * 1024 * 1024,
-		}
+use jsonrpc_core::Result;
+
+use v1::types::RichBlock;
+
+build_rpc_trait! {
+	/// Debug RPC interface.
+	pub trait Debug {
+		/// Returns recently seen bad blocks.
+		#[rpc(name = "debug_getBadBlocks")]
+		fn bad_blocks(&self) -> Result<Vec<RichBlock>>;
 	}
 }
