@@ -214,7 +214,7 @@ pub fn cannot_submit_work(err: EthcoreError) -> Error {
 pub fn unavailable_block() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Block is unavailable".into(),
+		message: "Ancient block sync is still in progress".into(),
 		data: None,
 	}
 }
@@ -245,13 +245,8 @@ pub fn check_block_gap<'a, T, C>(client: &'a C) -> impl Fn(Option<T>) -> RpcResu
 			let BlockChainInfo { ancient_block_hash, first_block_hash, .. } = client.chain_info();
 			// block information was requested, but unfortunately we couldn't find it and there
 			// are gaps in the database ethcore/src/blockchain/blockchain.rs:202
-			if ancient_block_hash.is_some() && first_block_hash.is_some() {
-				return Err(Error {
-					code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-					// this error message feels pretty straightforward to me. ¯\_(ツ)_/¯
-					message: "We cannot tell for sure if the thing you requested is not available or we just don't have it".into(),
-					data: None,
-				})
+			if ancient_block_hash.is_some()  {
+				return Err(unavailable_block())
 			}
 		}
 		Ok(response)
