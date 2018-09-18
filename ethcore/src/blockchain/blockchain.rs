@@ -1459,7 +1459,7 @@ impl BlockChain {
 		let first_block_number = self.first_block_number().into();
 		let genesis_hash = self.genesis_hash();
 
-		// ensure data consistencly by locking everything first
+		// ensure data consistency by locking everything first
 		let best_block = self.best_block.read();
 		let best_ancient_block = self.best_ancient_block.read();
 		BlockChainInfo {

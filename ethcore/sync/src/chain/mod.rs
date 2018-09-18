@@ -853,21 +853,28 @@ impl ChainSync {
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
 	fn collect_blocks(&mut self, io: &mut SyncIo, block_set: BlockSet) {
-		match block_set {
-			BlockSet::NewBlocks => {
-				if self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) == Err(DownloaderImportError::Invalid) {
-					self.restart(io);
+		let result = match block_set {
+			BlockSet::NewBlocks =>
+				self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks),
+			BlockSet::OldBlocks =>
+				self.old_blocks.as_mut().map_or(Ok(false), |downloader| downloader.collect_blocks(io, false)),
+		};
+		match result {
+			Ok(true) => {
+				// mark all outstanding requests as expired
+				trace!("Resetting downloads for {:?}", block_set);
+				for (_, ref mut p) in self.peers.iter_mut().filter(|&(_, ref p)| p.block_set == Some(block_set)) {
+					p.reset_asking();
 				}
-			},
-			BlockSet::OldBlocks => {
-				if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
-					self.restart(io);
-				} else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
+				if block_set == BlockSet::OldBlocks &&
+					self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
 					trace!(target: "sync", "Background block download is complete");
 					self.old_blocks = None;
 				}
 			}
-		}
+			Err(DownloaderImportError::Invalid) => self.restart(io),
+			_ => {}
+		};
 	}
 
 	/// Reset peer status after request is complete.
