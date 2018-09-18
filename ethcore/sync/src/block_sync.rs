@@ -292,6 +292,10 @@ impl BlockDownloader {
 				if !headers.is_empty() {
 					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
 					trace_sync!(self, target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
+					match self.block_set {
+						BlockSet::NewBlocks => (),
+						BlockSet::OldBlocks => trace_sync!(self, target: "sync", "ChainHead: reset_to {:?}", hashes),
+					}
 					self.blocks.reset_to(hashes);
 					self.state = State::Blocks;
 					return Ok(DownloadAction::Reset);
