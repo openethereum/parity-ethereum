@@ -39,15 +39,16 @@ commit_files() {
 
 upload_files() {
     echo "__________Upload files__________"
+    git push origin HEAD
     git push --tags
 }
 
-RPC_TRAITS_DIR="rpc/src/v1/traits/"
+RPC_TRAITS_DIR="rpc/src/v1/traits"
 
 setup_git
 clone_repos
 mkdir -p "jsonrpc/.parity/$RPC_TRAITS_DIR"
-cp -r "$RPC_TRAITS_DIR" "jsonrpc/.parity/$RPC_TRAITS_DIR"
+cp $RPC_TRAITS_DIR/*.rs "jsonrpc/.parity/$RPC_TRAITS_DIR"
 cd jsonrpc
 build_docs
 cd ..
