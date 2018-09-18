@@ -27,9 +27,6 @@ use transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
-use ethcore::client::BlockChainClient;
-use ethcore::blockchain_info::BlockChainInfo;
-use v1::types::BlockNumber;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
