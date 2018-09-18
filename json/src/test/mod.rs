@@ -79,8 +79,8 @@ pub struct SkipStates {
 /// Block test to skip.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct BlockSkipStates {
-	/// Issue number.
-	pub reference: usize,
+	/// Issue reference.
+	pub reference: String,
 	/// Test failing name.
 	pub failing: String,
 	/// Items failing for the test.
@@ -90,8 +90,8 @@ pub struct BlockSkipStates {
 /// State test to skip.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct StateSkipStates {
-	/// Issue number.
-	pub reference: usize,
+	/// Issue reference.
+	pub reference: String,
 	/// Test failing name.
 	pub failing: String,
 	/// Items failing for the test.
