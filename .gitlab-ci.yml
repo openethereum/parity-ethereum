@@ -178,6 +178,7 @@ package-linux-snap-amd64:          &package_snap
   only:                            *releaseable_branches
   cache: {}
   before_script:                   *determine_version
+  image:                           parity/snapcraft:gitlab-ci
   variables:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
   dependencies:
@@ -218,7 +219,7 @@ package-linux-snap-armhf:
 publish-linux-snap-amd64:          &publish_snap
   stage:                           publish
   only:                            *publishable_branches
-  image:                           snapcore/snapcraft:stable
+  image:                           parity/snapcraft:gitlab-ci
   cache: {}
   before_script:                   *determine_version
   variables:
