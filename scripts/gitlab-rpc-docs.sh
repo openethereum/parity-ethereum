@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+set -e # fail on errors
+
+
+
 clone_repos() {
     git clone https://github.com/parity-js/jsonrpc.git jsonrpc
     git clone https://github.com/paritytech/wiki.git wiki
