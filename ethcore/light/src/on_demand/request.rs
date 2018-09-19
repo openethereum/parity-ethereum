@@ -61,7 +61,7 @@ pub enum Request {
 	/// A request for a contract's code.
 	Code(Code),
 	/// A request for proof of execution.
-	Execution(TransactionProof),
+	Execution(ReadOnlyTransactionProof),
 	/// A request for epoch change signal.
 	Signal(Signal),
 }
@@ -145,7 +145,7 @@ impl_single!(Receipts, BlockReceipts, Vec<Receipt>);
 impl_single!(Body, Body, encoded::Block);
 impl_single!(Account, Account, Option<BasicAccount>);
 impl_single!(Code, Code, Bytes);
-impl_single!(Execution, TransactionProof, super::ExecutionResult);
+impl_single!(Execution, ReadOnlyTransactionProof, super::ExecutionResult);
 impl_single!(Signal, Signal, Vec<u8>);
 
 macro_rules! impl_args {
@@ -256,7 +256,7 @@ pub enum CheckedRequest {
 	Body(Body, net_request::IncompleteBodyRequest),
 	Account(Account, net_request::IncompleteAccountRequest),
 	Code(Code, net_request::IncompleteCodeRequest),
-	Execution(TransactionProof, net_request::IncompleteExecutionRequest),
+	Execution(ReadOnlyTransactionProof, net_request::IncompleteExecutionRequest),
 	Signal(Signal, net_request::IncompleteSignalRequest)
 }
 
@@ -1030,7 +1030,7 @@ impl Code {
 
 /// Request for transaction execution, along with the parts necessary to verify the proof.
 #[derive(Clone)]
-pub struct TransactionProof {
+pub struct ReadOnlyTransactionProof {
 	/// The transaction to request proof of.
 	pub tx: SignedTransaction,
 	/// Block header.
@@ -1042,7 +1042,7 @@ pub struct TransactionProof {
 	pub engine: Arc<EthEngine>,
 }
 
-impl TransactionProof {
+impl ReadOnlyTransactionProof {
 	/// Check the proof, returning the proved execution or indicate that the proof was bad.
 	pub fn check_response(&self, _: &Mutex<::cache::Cache>, state_items: &[DBValue]) -> Result<super::ExecutionResult, Error> {
 		let root = self.header.as_ref()?.state_root();

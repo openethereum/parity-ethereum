@@ -2374,6 +2374,7 @@ impl ProvingBlockChainClient for Client {
 	}
 
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
+		trace!(target: "pip_provider", "prove_transaction: {:?}", transaction);
 		let (header, mut env_info) = match (self.block_header(id), self.env_info(id)) {
 			(Some(s), Some(e)) => (s, e),
 			_ => return None,
@@ -2389,7 +2390,7 @@ impl ProvingBlockChainClient for Client {
 			self.engine.machine(),
 			&env_info,
 			self.factories.clone(),
-			false,
+			true,
 		)
 	}
 
