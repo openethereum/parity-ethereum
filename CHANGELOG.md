@@ -1,3 +1,14 @@
+## Parity-Ethereum [v2.1.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.1) (2018-09-20)
+
+Parity-Ethereum 2.1.1-beta is a release that does not improve performance and stability; no changes were made.
+
+The full list of included changes:
+
+- Backports for 2.1.1 beta ([#9599](https://github.com/paritytech/parity-ethereum/pull/9599))
+  - Parity: bump version to 2.1.1 beta
+  - Ci: fix regex roll_eyes
+  - Docs(rpc): annotate tag with the provided message
+
 ## Parity-Ethereum [v2.1.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.0) (2018-09-19)
 
 Parity-Ethereum 2.1.0-beta is released! Look at this!

@@ -1,3 +1,12 @@
+## Parity-Ethereum [v2.0.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.6) (2018-09-20)
+
+Parity-Ethereum 2.0.6-stable is a release that does not improve performance and stability; no changes were made.
+
+The full list of included changes:
+
+- Backports to 2.0.6 stable ([#9600](https://github.com/paritytech/parity-ethereum/pull/9600))
+- Ci: disable build cache for json-rpc-docs ([#9587](https://github.com/paritytech/parity-ethereum/pull/9587))
+
 ## Parity-Ethereum [v2.0.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.5) (2018-09-18)
 
 Parity-Ethereum 2.0.5-stable is a bug-fix release to improve performance and stability.
