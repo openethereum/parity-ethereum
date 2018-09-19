@@ -23,6 +23,10 @@ Further changes worth highlighting:
 
 The full list of included changes:
 
+- Add snapcraft package image ([#9583](https://github.com/paritytech/parity-ethereum/pull/9583))
+  - Add snapcraft package image
+  - Update .gitlab-ci.yml
+  - Remove snapcraft clean
 - Backports for 2.1.0 beta ([#9518](https://github.com/paritytech/parity-ethereum/pull/9518))
   - Parity-version: mark 2.1.0 track beta
   - Ci: update branch version references
