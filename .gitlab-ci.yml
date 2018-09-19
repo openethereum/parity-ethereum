@@ -230,6 +230,7 @@ json-rpc-docs:
     - scripts/gitlab-rpc-docs.sh
   tags:
     - docs
+  cache: {}
 push-release:
   stage: push-release
   only:
