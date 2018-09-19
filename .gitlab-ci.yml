@@ -31,7 +31,7 @@ cache:
 .publishable_branches:             # list of git refs for publishing builds to the "production" locations
   only:                            &publishable_branches
     - nightly # Our nightly builds from schedule, on `master`
-    - "v2*" # Our version tags
+    - /^v2.*$/ # Our version tags
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
