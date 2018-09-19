@@ -117,9 +117,9 @@ pub struct BlockDownloader {
 	highest_block: Option<BlockNumber>,
 	/// Downloaded blocks, holds `H`, `B` and `S`
 	blocks: BlockCollection,
-	/// Last impoted block number
+	/// Last imported block number
 	last_imported_block: BlockNumber,
-	/// Last impoted block hash
+	/// Last imported block hash
 	last_imported_hash: H256,
 	/// Number of blocks imported this round
 	imported_this_round: Option<usize>,
@@ -136,6 +136,8 @@ pub struct BlockDownloader {
 	retract_step: u64,
 	/// Whether reorg should be limited.
 	limit_reorg: bool,
+	/// TODO
+	useless_requested_hashes: HashSet<H256>,
 }
 
 impl BlockDownloader {
@@ -161,6 +163,7 @@ impl BlockDownloader {
 			target_hash: None,
 			retract_step: 1,
 			limit_reorg: limit_reorg,
+			useless_requested_hashes: HashSet::new(),
 		}
 	}
 
@@ -307,10 +310,25 @@ impl BlockDownloader {
 			},
 			State::Blocks => {
 				let count = headers.len();
+
 				// At least one of the heades must advance the subchain. Otherwise they are all useless.
 				if count == 0 || !any_known {
 					trace_sync!(self, target: "sync", "No useful headers");
+					if let Some(eh) = expected_hash {
+						if self.useless_requested_hashes.contains(&eh) {
+							trace_sync!(self, target: "sync",
+								"Received consecutive sets of useless headers from requested header {:?}. Resetting sync and disabling peer", eh);
+							self.reset();
+							self.useless_requested_hashes.clear();
+							return Err(BlockDownloaderImportError::Invalid);
+						} else {
+							self.useless_requested_hashes.insert(eh);
+						}
+					}
 					return Err(BlockDownloaderImportError::Useless);
+				}
+				if let Some(eh) = expected_hash {
+					self.useless_requested_hashes.remove(&eh);
 				}
 				self.blocks.insert_headers(headers);
 				trace_sync!(self, target: "sync", "Inserted {} headers", count);
