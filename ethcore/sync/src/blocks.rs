@@ -387,15 +387,6 @@ impl BlockCollection {
 		}
 
 		trace!(target: "sync", "Drained {} blocks, new head :{:?}", drained.len(), self.head);
-
-		// reset if head stuck, not downloading any block bodies or receipts
-		// for now a crude heuristic that may not cover all cases
-		// assumes that at least some bodies will be downloaded before all headers
-		// 256 = subchain heads length and 128 = subchain length. This limit could be an argument.
-		if drained.len() == 0 && self.blocks.len() > 128 * 256 {
-			info!(target: "sync", "Resetting blocks. Current head {:?}, blocks length {:?}, heads {:?}", self.head, self.blocks.len(), self.heads);
-		}
-
 		drained
 	}
 
@@ -577,9 +568,6 @@ impl BlockCollection {
 					}
 				}
 			}
-		}
-		if self.need_receipts {
-			trace!(target: "sync", "update_heads: {:?}", new_heads);
 		}
 		self.heads = new_heads;
 	}
