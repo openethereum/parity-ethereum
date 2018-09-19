@@ -34,7 +34,7 @@ commit_files() {
     git checkout -b rpcdoc-update-${CI_COMMIT_REF_NAME}
     git add .
     git commit -m "Update docs to ${CI_COMMIT_REF_NAME}"
-    git tag -a "${CI_COMMIT_REF_NAME}"
+    git tag -a "${CI_COMMIT_REF_NAME}" -m "Update RPC docs to ${CI_COMMIT_REF_NAME}"
 }
 
 upload_files() {
