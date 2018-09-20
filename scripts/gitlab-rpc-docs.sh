@@ -41,12 +41,13 @@ upload_files() {
     git push --tags
 }
 
-PROJECT_DIR=$(pwd)
+RPC_TRAITS_DIR="rpc/src/v1/traits"
 
 setup_git
 cd ..
 clone_repos
-cp -r $PROJECT_DIR jsonrpc/.parity
+mkdir -p "jsonrpc/.parity/$RPC_TRAITS_DIR"
+cp $RPC_TRAITS_DIR/*.rs "jsonrpc/.parity/$RPC_TRAITS_DIR"
 cd jsonrpc
 build_docs
 cd ..
