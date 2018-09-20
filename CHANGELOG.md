@@ -99,8 +99,8 @@ The full list of included changes:
       - Check in flight FindNode before pings
     - Add `deprecated` to deprecated_echo_hash
     - Refactor `discovery_round` branching
-    - Net_version caches network_id to avoid redundant aquire of sync read lock ([#9544](https://github.com/paritytech/parity-ethereum/pull/9544))
-    - Net_version caches network_id to avoid redundant aquire of sync read lock, [#8746](https://github.com/paritytech/parity-ethereum/issues/8746)
+    - Net_version caches network_id to avoid redundant acquire of sync read lock ([#9544](https://github.com/paritytech/parity-ethereum/pull/9544))
+    - Net_version caches network_id to avoid redundant acquire of sync read lock, [#8746](https://github.com/paritytech/parity-ethereum/issues/8746)
     - Use lower_hex display formatting for net_peerCount rpc method
   - Increase Gas-floor-target and Gas Cap ([#9564](https://github.com/paritytech/parity-ethereum/pull/9564))
     - Gas-floor-target increased to 8M by default
@@ -207,7 +207,7 @@ The full list of included changes:
   - Ethcore: don't validate difficulty when ignoring seal check
   - Ethcore: fix block verification test
   - Ethcore: document skipped verifications when check_seal is disabled
-- [light/jsonrpc] Provide the actual account for `eth_coinbase` RPC and unify error handeling for light and full client ([#9383](https://github.com/paritytech/parity-ethereum/pull/9383))
+- [light/jsonrpc] Provide the actual account for `eth_coinbase` RPC and unify error handling for light and full client ([#9383](https://github.com/paritytech/parity-ethereum/pull/9383))
   - Provide the actual `account` for eth_coinbase
     - The previous implementation always provided the `zero address` on `eth_coinbase` RPC. Now, instead the actual address is returned on success or an error when no account(s) is found!
   - Full client `eth_coinbase` return err
