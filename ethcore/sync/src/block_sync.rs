@@ -136,8 +136,8 @@ pub struct BlockDownloader {
 	retract_step: u64,
 	/// Whether reorg should be limited.
 	limit_reorg: bool,
-	/// TODO
-	useless_requested_hashes: HashSet<H256>,
+	/// Hashes of header requests which return no useful headers
+	useless_expected_hashes: HashSet<H256>,
 }
 
 impl BlockDownloader {
@@ -163,13 +163,14 @@ impl BlockDownloader {
 			target_hash: None,
 			retract_step: 1,
 			limit_reorg: limit_reorg,
-			useless_requested_hashes: HashSet::new(),
+			useless_expected_hashes: HashSet::new(),
 		}
 	}
 
 	/// Reset sync. Clear all local downloaded data.
 	pub fn reset(&mut self) {
 		self.blocks.clear();
+		self.useless_expected_hashes.clear();
 		self.state = State::Idle;
 	}
 
@@ -311,21 +312,19 @@ impl BlockDownloader {
 			State::Blocks => {
 				let count = headers.len();
 
-				let reset_consecutive_useless =
 				// At least one of the heades must advance the subchain. Otherwise they are all useless.
 				if count == 0 || !any_known {
 					trace_sync!(self, "No useful headers, expected hash {:?}", expected_hash);
 					if let Some(eh) = expected_hash {
-						if !self.useless_requested_hashes.insert(eh) {
+						if !self.useless_expected_hashes.insert(eh) {
 							trace_sync!(self, "Received consecutive sets of useless headers from requested header {:?}. Resetting sync", eh);
 							self.reset();
-							self.useless_requested_hashes.clear();
 						}
 					}
 					return Err(BlockDownloaderImportError::Useless);
 				}
 				if let Some(eh) = expected_hash {
-					self.useless_requested_hashes.remove(&eh);
+					self.useless_expected_hashes.remove(&eh);
 				}
 				self.blocks.insert_headers(headers);
 				trace_sync!(self, "Inserted {} headers", count);
