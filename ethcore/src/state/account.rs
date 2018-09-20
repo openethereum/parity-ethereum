@@ -59,6 +59,10 @@ pub struct Account {
 	// LRU Cache of the trie-backed storage.
 	// This is limited to `STORAGE_CACHE_ITEMS` recent queries
 	storage_cache: RefCell<LruCache<H256, H256>>,
+	// LRU Cache of the trie-backed storage for original value.
+	// This is only used when the initial storage root is different compared to
+	// what is in the database. That is, it is only used for new contracts.
+	original_storage_cache: Option<(H256, RefCell<LruCache<H256, H256>>)>,
 	// Modified storage. Accumulates changes to storage made in `set_storage`
 	// Takes precedence over `storage_cache`.
 	storage_changes: HashMap<H256, H256>,
@@ -81,6 +85,7 @@ impl From<BasicAccount> for Account {
 			nonce: basic.nonce,
 			storage_root: basic.storage_root,
 			storage_cache: Self::empty_storage_cache(),
+			original_storage_cache: None,
 			storage_changes: HashMap::new(),
 			code_hash: basic.code_hash,
 			code_size: None,
@@ -100,6 +105,7 @@ impl Account {
 			nonce: nonce,
 			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
+			original_storage_cache: None,
 			storage_changes: storage,
 			code_hash: keccak(&code),
 			code_size: Some(code.len()),
@@ -120,6 +126,7 @@ impl Account {
 			nonce: pod.nonce,
 			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
+			original_storage_cache: None,
 			storage_changes: pod.storage.into_iter().collect(),
 			code_hash: pod.code.as_ref().map_or(KECCAK_EMPTY, |c| keccak(c)),
 			code_filth: Filth::Dirty,
@@ -136,6 +143,7 @@ impl Account {
 			nonce: nonce,
 			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
+			original_storage_cache: None,
 			storage_changes: HashMap::new(),
 			code_hash: KECCAK_EMPTY,
 			code_cache: Arc::new(vec![]),
@@ -154,12 +162,17 @@ impl Account {
 
 	/// Create a new contract account.
 	/// NOTE: make sure you use `init_code` on this before `commit`ing.
-	pub fn new_contract(balance: U256, nonce: U256) -> Account {
+	pub fn new_contract(balance: U256, nonce: U256, original_storage_root: H256) -> Account {
 		Account {
 			balance: balance,
 			nonce: nonce,
 			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
+			original_storage_cache: if original_storage_root == KECCAK_NULL_RLP {
+				None
+			} else {
+				Some((original_storage_root, Self::empty_storage_cache()))
+			},
 			storage_changes: HashMap::new(),
 			code_hash: KECCAK_EMPTY,
 			code_cache: Arc::new(vec![]),
@@ -204,11 +217,43 @@ impl Account {
 		if let Some(value) = self.cached_storage_at(key) {
 			return Ok(value);
 		}
-		let db = SecTrieDB::new(db, &self.storage_root)?;
+		Self::get_and_cache_storage(
+			&self.storage_root,
+			&mut self.storage_cache.borrow_mut(),
+			db,
+			key)
+	}
+
+	/// Get (and cache) the contents of the trie's storage at `key`.
+	/// Does not take modified storage into account.
+	pub fn original_storage_at(&self, db: &HashDB<KeccakHasher>, key: &H256) -> TrieResult<H256> {
+		if let Some(value) = self.cached_original_storage_at(key) {
+			return Ok(value);
+		}
+		match &self.original_storage_cache {
+			Some((ref original_storage_root, ref original_storage_cache)) =>
+				Self::get_and_cache_storage(
+					original_storage_root,
+					&mut original_storage_cache.borrow_mut(),
+					db,
+					key
+				),
+			None =>
+				Self::get_and_cache_storage(
+					&self.storage_root,
+					&mut self.storage_cache.borrow_mut(),
+					db,
+					key
+				),
+		}
+	}
+
+	fn get_and_cache_storage(storage_root: &H256, storage_cache: &mut LruCache<H256, H256>, db: &HashDB<KeccakHasher>, key: &H256) -> TrieResult<H256> {
+		let db = SecTrieDB::new(db, storage_root)?;
 		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
 		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
-		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
+		storage_cache.insert(key.clone(), value.clone());
 		Ok(value)
 	}
 
@@ -218,10 +263,38 @@ impl Account {
 		if let Some(value) = self.storage_changes.get(key) {
 			return Some(value.clone())
 		}
-		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
-			return Some(value.clone())
+		self.cached_moved_original_storage_at(key)
+	}
+
+	/// Get cached original storage value after last state commitment. Returns `None` if the key is not in the cache.
+	pub fn cached_original_storage_at(&self, key: &H256) -> Option<H256> {
+		match &self.original_storage_cache {
+			Some((_, ref original_storage_cache)) => {
+				if let Some(value) = original_storage_cache.borrow_mut().get_mut(key) {
+					Some(value.clone())
+				} else {
+					None
+				}
+			},
+			None => {
+				self.cached_moved_original_storage_at(key)
+			},
 		}
-		None
+	}
+
+	/// Get cached original storage value since last contract creation on this address. Returns `None` if the key is not in the cache.
+	fn cached_moved_original_storage_at(&self, key: &H256) -> Option<H256> {
+		// If storage root is empty RLP, then early return zero value. Practically, this makes it so that if
+		// `original_storage_cache` is used, then `storage_cache` will always remain empty.
+		if self.storage_root == KECCAK_NULL_RLP {
+			return Some(H256::new());
+		}
+
+		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
+			Some(value.clone())
+		} else {
+			None
+		}
 	}
 
 	/// return the balance associated with this account.
@@ -357,7 +430,27 @@ impl Account {
 	}
 
 	/// Return the storage root associated with this account or None if it has been altered via the overlay.
-	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
+	pub fn storage_root(&self) -> Option<H256> {
+		if self.storage_is_clean() {
+			Some(self.storage_root)
+		} else {
+			None
+		}
+	}
+
+	/// Return the original storage root of this account.
+	pub fn original_storage_root(&self) -> H256 {
+		if let Some((original_storage_root, _)) = self.original_storage_cache {
+			original_storage_root
+		} else {
+			self.storage_root
+		}
+	}
+
+	/// Storage root where the account changes are based upon.
+	pub fn base_storage_root(&self) -> H256 {
+		self.storage_root
+	}
 
 	/// Return the storage overlay.
 	pub fn storage_changes(&self) -> &HashMap<H256, H256> { &self.storage_changes }
@@ -392,6 +485,7 @@ impl Account {
 
 			self.storage_cache.borrow_mut().insert(k, v);
 		}
+		self.original_storage_cache = None;
 		Ok(())
 	}
 
@@ -429,6 +523,7 @@ impl Account {
 			nonce: self.nonce.clone(),
 			storage_root: self.storage_root.clone(),
 			storage_cache: Self::empty_storage_cache(),
+			original_storage_cache: self.original_storage_cache.as_ref().map(|(r, _)| (*r, Self::empty_storage_cache())),
 			storage_changes: HashMap::new(),
 			code_hash: self.code_hash.clone(),
 			code_size: self.code_size.clone(),
@@ -449,6 +544,7 @@ impl Account {
 	pub fn clone_all(&self) -> Account {
 		let mut account = self.clone_dirty();
 		account.storage_cache = self.storage_cache.clone();
+		account.original_storage_cache = self.original_storage_cache.clone();
 		account
 	}
 
@@ -458,16 +554,21 @@ impl Account {
 	pub fn overwrite_with(&mut self, other: Account) {
 		self.balance = other.balance;
 		self.nonce = other.nonce;
-		self.storage_root = other.storage_root;
 		self.code_hash = other.code_hash;
 		self.code_filth = other.code_filth;
 		self.code_cache = other.code_cache;
 		self.code_size = other.code_size;
 		self.address_hash = other.address_hash;
-		let mut cache = self.storage_cache.borrow_mut();
-		for (k, v) in other.storage_cache.into_inner() {
-			cache.insert(k, v);
+		if self.storage_root == other.storage_root {
+			let mut cache = self.storage_cache.borrow_mut();
+			for (k, v) in other.storage_cache.into_inner() {
+				cache.insert(k, v);
+			}
+		} else {
+			self.storage_cache = other.storage_cache;
 		}
+		self.original_storage_cache = other.original_storage_cache;
+		self.storage_root = other.storage_root;
 		self.storage_changes = other.storage_changes;
 	}
 }
@@ -526,7 +627,7 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		let rlp = {
-			let mut a = Account::new_contract(69.into(), 0.into());
+			let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 			a.set_storage(0x00u64.into(), 0x1234u64.into());
 			a.commit_storage(&Default::default(), &mut db).unwrap();
 			a.init_code(vec![]);
@@ -535,7 +636,7 @@ mod tests {
 		};
 
 		let a = Account::from_rlp(&rlp).expect("decoding db value failed");
-		assert_eq!(*a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
+		assert_eq!(a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
 		assert_eq!(a.storage_at(&db.immutable(), &0x00u64.into()).unwrap(), 0x1234u64.into());
 		assert_eq!(a.storage_at(&db.immutable(), &0x01u64.into()).unwrap(), H256::default());
 	}
@@ -546,7 +647,7 @@ mod tests {
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 
 		let rlp = {
-			let mut a = Account::new_contract(69.into(), 0.into());
+			let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 			a.init_code(vec![0x55, 0x44, 0xffu8]);
 			a.commit_code(&mut db);
 			a.rlp()
@@ -561,18 +662,18 @@ mod tests {
 
 	#[test]
 	fn commit_storage() {
-		let mut a = Account::new_contract(69.into(), 0.into());
+		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		assert_eq!(a.storage_root(), None);
 		a.commit_storage(&Default::default(), &mut db).unwrap();
-		assert_eq!(*a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
+		assert_eq!(a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
 	}
 
 	#[test]
 	fn commit_remove_commit_storage() {
-		let mut a = Account::new_contract(69.into(), 0.into());
+		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
@@ -581,12 +682,12 @@ mod tests {
 		a.commit_storage(&Default::default(), &mut db).unwrap();
 		a.set_storage(1.into(), 0.into());
 		a.commit_storage(&Default::default(), &mut db).unwrap();
-		assert_eq!(*a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
+		assert_eq!(a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
 	}
 
 	#[test]
 	fn commit_code() {
-		let mut a = Account::new_contract(69.into(), 0.into());
+		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
@@ -598,7 +699,7 @@ mod tests {
 
 	#[test]
 	fn reset_code() {
-		let mut a = Account::new_contract(69.into(), 0.into());
+		let mut a = Account::new_contract(69.into(), 0.into(), KECCAK_NULL_RLP);
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
@@ -629,7 +730,7 @@ mod tests {
 		assert_eq!(*a.balance(), 69u8.into());
 		assert_eq!(*a.nonce(), 0u8.into());
 		assert_eq!(a.code_hash(), KECCAK_EMPTY);
-		assert_eq!(a.storage_root().unwrap(), &KECCAK_NULL_RLP);
+		assert_eq!(a.storage_root().unwrap(), KECCAK_NULL_RLP);
 	}
 
 	#[test]

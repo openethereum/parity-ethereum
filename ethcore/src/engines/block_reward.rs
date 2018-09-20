@@ -30,7 +30,7 @@ use trace;
 use types::BlockNumber;
 use super::{SystemOrCodeCall, SystemOrCodeCallKind};
 
-use_contract!(block_reward_contract, "BlockReward", "res/contracts/block_reward.json");
+use_contract!(block_reward_contract, "res/contracts/block_reward.json");
 
 /// The kind of block reward.
 /// Depending on the consensus engine the allocated block reward might have
@@ -81,7 +81,6 @@ impl Into<trace::RewardType> for RewardKind {
 #[derive(PartialEq, Debug)]
 pub struct BlockRewardContract {
 	kind: SystemOrCodeCallKind,
-	block_reward_contract: block_reward_contract::BlockReward,
 }
 
 impl BlockRewardContract {
@@ -89,7 +88,6 @@ impl BlockRewardContract {
 	pub fn new(kind: SystemOrCodeCallKind) -> BlockRewardContract {
 		BlockRewardContract {
 			kind,
-			block_reward_contract: block_reward_contract::BlockReward::default(),
 		}
 	}
 
@@ -114,9 +112,7 @@ impl BlockRewardContract {
 		beneficiaries: &[(Address, RewardKind)],
 		caller: &mut SystemOrCodeCall,
 	) -> Result<Vec<(Address, U256)>, Error> {
-		let reward = self.block_reward_contract.functions().reward();
-
-		let input = reward.input(
+		let input = block_reward_contract::functions::reward::encode_input(
 			beneficiaries.iter().map(|&(address, _)| H160::from(address)),
 			beneficiaries.iter().map(|&(_, ref reward_kind)| u16::from(*reward_kind)),
 		);

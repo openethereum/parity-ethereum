@@ -393,23 +393,6 @@ impl UnverifiedTransaction {
 		Ok(recover(&self.signature(), &self.unsigned.hash(self.chain_id()))?)
 	}
 
-	/// Do basic validation, checking for valid signature and minimum gas,
-	// TODO: consider use in block validation.
-	#[cfg(feature = "json-tests")]
-	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_chain_id_of_one: bool, allow_empty_signature: bool)
-		-> Result<UnverifiedTransaction, error::Error>
-	{
-		let chain_id = if allow_chain_id_of_one { Some(1) } else { None };
-		self.verify_basic(require_low, chain_id, allow_empty_signature)?;
-		if !allow_empty_signature || !self.is_unsigned() {
-			self.recover_public()?;
-		}
-		if self.gas < U256::from(self.gas_required(&schedule)) {
-			return Err(error::Error::InvalidGasLimit(::unexpected::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
-		}
-		Ok(self)
-	}
-
 	/// Verify basic signature params. Does not attempt sender recovery.
 	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>, allow_empty_signature: bool) -> Result<(), error::Error> {
 		if check_low_s && !(allow_empty_signature && self.is_unsigned()) {

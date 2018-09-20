@@ -31,7 +31,7 @@ cache:
 .publishable_branches:             # list of git refs for publishing builds to the "production" locations
   only:                            &publishable_branches
     - nightly # Our nightly builds from schedule, on `master`
-    - "v2*" # Our version tags
+    - /^v2.*$/ # Our version tags
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
@@ -41,35 +41,83 @@ cache:
     paths:
     - artifacts/
 
-.determine_version: &determine_version |
-  export VERSION=$(grep -m 1 "version =" Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-  echo "Version" $VERSION
-
+.determine_version:                &determine_version
+  - VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
+  - DATE_STR="$(date +%Y%m%d)"
+  - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
+  - test "${CI_COMMIT_REF_NAME}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
+  - export VERSION
+  - echo "Version = ${VERSION}"
 
 #### stage:                        test
 
-test-rust-stable:                  &test
+test-linux-rust-stable:            &test
   stage:                           test
   script:
     - scripts/gitlab/test.sh stable
   tags:
     - rust-stable
 
+test-linux-rust-beta:
+  stage:                           test
+  script:
+    - scripts/gitlab/test.sh beta
+  tags:
+    - rust-stable
+  allow_failure:                   true
+
+test-linux-rust-nightly:
+  stage:                           test
+  script:
+    - scripts/gitlab/test.sh nightly
+  tags:
+    - rust-stable
+  allow_failure:                   true
+
+test-darwin-rust-stable:
+  stage:                           test
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+  script:
+    - scripts/gitlab/test.sh stable
+  tags:
+    - osx
+  allow_failure:                   true
+
+test-android-rust-stable:
+  stage:                           test
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/test.sh stable
+  tags:
+    - rust-arm
+  allow_failure:                   true
+
+test-windows-rust-stable:
+  stage:                           test
+  cache:
+    key:                           "%CI_JOB_NAME%"
+    paths:
+      - "%CI_PROJECT_DIR%/target/"
+      - "%CI_PROJECT_DIR%/cargo/"
+      # No cargo caching, since fetch-locking on Windows gets stuck
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+  script:
+    - sh scripts/gitlab/test.sh stable
+  tags:
+   - rust-windows
+  allow_failure:                   true
+
 .optional_test:                    &optional_test
   <<:                              *test
   allow_failure:                   true
   only:
     - master
-
-test-rust-beta:
-  <<:                              *optional_test
-  script:
-    - scripts/gitlab/test.sh beta
-
-test-rust-nightly:
-  <<:                              *optional_test
-  script:
-    - scripts/gitlab/test.sh nightly
 
 test-lint-rustfmt:
   <<:                             *optional_test
@@ -82,15 +130,11 @@ test-lint-clippy:
     - scripts/gitlab/clippy.sh
 
 test-coverage-kcov:
-  stage:                           test
-  only:
-    - master
+  <<:                             *optional_test
   script:
     - scripts/gitlab/coverage.sh
   tags:
     - shell
-  allow_failure:                   true
-
 
 #### stage:                        build
 
@@ -104,46 +148,58 @@ build-linux-ubuntu-amd64:          &build
   <<:                              *collect_artifacts
   tags:
     - rust-stable
-  allow_failure: true
 
 build-linux-ubuntu-i386:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-i686:gitlab-ci
   variables:
     CARGO_TARGET:                  i686-unknown-linux-gnu
   tags:
     - rust-i686
+  allow_failure:                   true
 
 build-linux-ubuntu-arm64:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-arm64:gitlab-ci
   variables:
     CARGO_TARGET:                  aarch64-unknown-linux-gnu
   tags:
     - rust-arm
+  allow_failure:                   true
 
 build-linux-ubuntu-armhf:
   <<:                              *build
+  only:                            *releaseable_branches
   image:                           parity/rust-armv7:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
   tags:
     - rust-arm
+  allow_failure:                   true
 
 build-linux-android-armhf:
-  <<:                              *build
+  stage:                           build
+  only:                            *releaseable_branches
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
+  allow_failure:                   true
 
 build-darwin-macos-x86_64:
-  <<:                              *build
+  stage:                           build
+  only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
     CXX:                           g++
+  script:
+    - scripts/gitlab/build-unix.sh
   tags:
     - osx
   <<:                              *collect_artifacts
@@ -165,15 +221,14 @@ build-windows-msvc-x86_64:
    - rust-windows
   <<:                              *collect_artifacts
 
-
 #### stage:                        package
 
 package-linux-snap-amd64:          &package_snap
-  stage: package
-  only: *releaseable_branches
+  stage:                           package
+  only:                            *releaseable_branches
+  image:                           parity/snapcraft:gitlab-ci
   cache: {}
-  before_script:
-    - *determine_version
+  before_script:                   *determine_version
   variables:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
   dependencies:
@@ -208,16 +263,14 @@ package-linux-snap-armhf:
   dependencies:
     - build-linux-ubuntu-armhf
 
-
 #### stage:                        publish
 
 publish-linux-snap-amd64:          &publish_snap
   stage:                           publish
   only:                            *publishable_branches
-  image:                           snapcore/snapcraft:stable
+  image:                           parity/snapcraft:gitlab-ci
   cache: {}
-  before_script:
-    - *determine_version
+  before_script:                   *determine_version
   variables:
     BUILD_ARCH:                    amd64
   dependencies:
@@ -229,8 +282,6 @@ publish-linux-snap-amd64:          &publish_snap
 
 publish-linux-snap-i386:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    i386
   dependencies:
@@ -238,8 +289,6 @@ publish-linux-snap-i386:
 
 publish-linux-snap-arm64:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    arm64
   dependencies:
@@ -247,8 +296,6 @@ publish-linux-snap-arm64:
 
 publish-linux-snap-armhf:
   <<:                              *publish_snap
-  before_script:
-    - *determine_version
   variables:
     BUILD_ARCH:                    armhf
   dependencies:
@@ -256,13 +303,12 @@ publish-linux-snap-armhf:
 
 publish-docker-parity-amd64: &publish_docker
   stage:                           publish
-  only:                            *publishable_branches
+  only:                            *releaseable_branches
   cache: {}
   dependencies:
     - build-linux-ubuntu-amd64
   tags:
     - shell
-  allow_failure:                   true
   script:
     - scripts/gitlab/publish-docker.sh parity
 
@@ -282,14 +328,11 @@ publish-github-and-s3:
     - build-linux-ubuntu-arm64
     - build-darwin-macos-x86_64
     - build-windows-msvc-x86_64
-  before_script:
-    - *determine_version
+  before_script:                   *determine_version
   script:
     - scripts/gitlab/push.sh
   tags:
     - shell
-  allow_failure:                   true
-
 
 ####stage:                          docs
 
