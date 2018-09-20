@@ -37,8 +37,9 @@ use sync::{SyncProvider};
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
 use version;
 use semver::Version;
+use ethabi::FunctionOutputDecoder;
 
-use_contract!(operations_contract, "Operations", "res/operations.json");
+use_contract!(operations, "res/operations.json");
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -192,41 +193,35 @@ pub trait OperationsClient: Send + Sync + 'static {
 
 /// `OperationsClient` that delegates calls to the operations contract.
 pub struct OperationsContractClient {
-	operations_contract: operations_contract::Operations,
 	client: Weak<BlockChainClient>,
 }
 
 impl OperationsContractClient {
-	fn new(
-		operations_contract: operations_contract::Operations,
-		client: Weak<BlockChainClient>,
-	) -> OperationsContractClient {
-		OperationsContractClient { operations_contract, client }
+	fn new(client: Weak<BlockChainClient>) -> Self {
+		OperationsContractClient {
+			client
+		}
 	}
 
 	/// Get the hash of the latest release for the given track
 	fn latest_hash<F>(&self, track: ReleaseTrack, do_call: &F) -> Result<H256, String>
 	where F: Fn(Vec<u8>) -> Result<Vec<u8>, String> {
-		self.operations_contract.functions()
-			.latest_in_track()
-			.call(*CLIENT_ID_HASH, u8::from(track), do_call)
-			.map_err(|e| format!("{:?}", e))
+		let (data, decoder) = operations::functions::latest_in_track::call(*CLIENT_ID_HASH, u8::from(track));
+		let value = do_call(data)?;
+		decoder.decode(&value).map_err(|e| e.to_string())
 	}
 
 	/// Get release info for the given release
 	fn release_info<F>(&self, release_id: H256, do_call: &F) -> Result<ReleaseInfo, String>
 	where F: Fn(Vec<u8>) -> Result<Vec<u8>, String> {
-		let (fork, track, semver, is_critical) = self.operations_contract.functions()
-			.release()
-			.call(*CLIENT_ID_HASH, release_id, &do_call)
-			.map_err(|e| format!("{:?}", e))?;
+		let (data, decoder) = operations::functions::release::call(*CLIENT_ID_HASH, release_id);
+
+		let (fork, track, semver, is_critical) = decoder.decode(&do_call(data)?).map_err(|e| e.to_string())?;
 
 		let (fork, track, semver) = (fork.low_u64(), track.low_u32(), semver.low_u32());
 
-		let latest_binary = self.operations_contract.functions()
-			.checksum()
-			.call(*CLIENT_ID_HASH, release_id, *PLATFORM_ID_HASH, &do_call)
-			.map_err(|e| format!("{:?}", e))?;
+		let (data, decoder) = operations::functions::checksum::call(*CLIENT_ID_HASH, release_id, *PLATFORM_ID_HASH);
+		let latest_binary = decoder.decode(&do_call(data)?).map_err(|e| e.to_string())?;
 
 		Ok(ReleaseInfo {
 			version: VersionInfo::from_raw(semver, track as u8, release_id.into()),
@@ -250,9 +245,9 @@ impl OperationsClient for OperationsContractClient {
 		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, this.hash);
 
 		// get the fork number of this release
-		let this_fork = self.operations_contract.functions()
-			.release()
-			.call(*CLIENT_ID_HASH, this.hash, &do_call)
+		let (data, decoder) = operations::functions::release::call(*CLIENT_ID_HASH, this.hash);
+		let this_fork = do_call(data)
+			.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
 			.ok()
 			.and_then(|(fork, track, _, _)| {
 				let this_track: ReleaseTrack = (track.low_u64() as u8).into();
@@ -282,10 +277,10 @@ impl OperationsClient for OperationsContractClient {
 			in_minor = Some(self.release_info(latest_in_track, &do_call)?);
 		}
 
-		let fork = self.operations_contract.functions()
-			.latest_fork()
-			.call(&do_call)
-			.map_err(|e| format!("{:?}", e))?.low_u64();
+		let (data, decoder) = operations::functions::latest_fork::call();
+		let fork = do_call(data)
+			.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))?
+			.low_u64();
 
 		Ok(OperationsInfo {
 			fork,
@@ -299,9 +294,7 @@ impl OperationsClient for OperationsContractClient {
 		let client = self.client.upgrade()?;
 		let address = client.registry_address("operations".into(), BlockId::Latest)?;
 
-		let event = self.operations_contract.events().release_added();
-
-		let topics = event.create_filter(Some(*CLIENT_ID_HASH), Some(release.fork.into()), Some(release.is_critical));
+		let topics = operations::events::release_added::filter(Some(*CLIENT_ID_HASH), Some(release.fork.into()), Some(release.is_critical));
 		let topics = vec![topics.topic0, topics.topic1, topics.topic2, topics.topic3];
 		let topics = topics.into_iter().map(Into::into).map(Some).collect();
 
@@ -317,7 +310,7 @@ impl OperationsClient for OperationsContractClient {
 			.unwrap_or_default()
 			.iter()
 			.filter_map(|log| {
-				let event = event.parse_log((log.topics.clone(), log.data.clone()).into()).ok()?;
+				let event = operations::events::release_added::parse_log((log.topics.clone(), log.data.clone()).into()).ok()?;
 				let version_info = VersionInfo::from_raw(event.semver.low_u32(), event.track.low_u32() as u8, event.release.into());
 				if version_info == release.version {
 					Some(log.block_number)
@@ -375,7 +368,6 @@ impl Updater {
 			sync: Some(sync.clone()),
 			fetcher,
 			operations_client: OperationsContractClient::new(
-				operations_contract::Operations::default(),
 				client.clone()),
 			exit_handler: Mutex::new(None),
 			this: if cfg!(feature = "test-updater") {

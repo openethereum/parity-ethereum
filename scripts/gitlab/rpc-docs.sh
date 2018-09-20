@@ -34,17 +34,21 @@ commit_files() {
     git checkout -b rpcdoc-update-${CI_COMMIT_REF_NAME}
     git add .
     git commit -m "Update docs to ${CI_COMMIT_REF_NAME}"
-    git tag -a "${CI_COMMIT_REF_NAME}"
+    git tag -a "${CI_COMMIT_REF_NAME}" -m "Update RPC docs to ${CI_COMMIT_REF_NAME}"
 }
 
 upload_files() {
     echo "__________Upload files__________"
+    git push origin HEAD
     git push --tags
 }
 
+RPC_TRAITS_DIR="rpc/src/v1/traits"
+
 setup_git
 clone_repos
-cp -r parity/ jsonrpc/.parity/
+mkdir -p "jsonrpc/.parity/$RPC_TRAITS_DIR"
+cp $RPC_TRAITS_DIR/*.rs "jsonrpc/.parity/$RPC_TRAITS_DIR"
 cd jsonrpc
 build_docs
 cd ..

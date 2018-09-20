@@ -274,7 +274,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		self.gasometer.as_mut().expect(GASOMETER_PROOF).current_mem_gas = requirements.memory_total_gas;
 		self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas - requirements.gas_cost;
 
-		evm_debug!({ informant.before_instruction(reader.position, instruction, info, &self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, &stack) });
+		evm_debug!({ self.informant.before_instruction(self.reader.position, instruction, info, &self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, &self.stack) });
 
 		let (mem_written, store_written) = match self.do_trace {
 			true => (Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack)),
@@ -287,7 +287,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			current_gas, ext, instruction, requirements.provide_gas
 		)?;
 
-		evm_debug!({ informant.after_instruction(instruction) });
+		evm_debug!({ self.informant.after_instruction(instruction) });
 
 		if let InstructionResult::UnusedGas(ref gas) = result {
 			self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + *gas;
@@ -629,8 +629,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let current_val = U256::from(&*ext.storage_at(&address)?);
 				// Increase refund for clear
-				if !current_val.is_zero() && val.is_zero() {
-					ext.inc_sstore_clears();
+				if ext.schedule().eip1283 {
+					let original_val = U256::from(&*ext.initial_storage_at(&address)?);
+					gasometer::handle_eip1283_sstore_clears_refund(ext, &original_val, &current_val, &val);
+				} else {
+					if !current_val.is_zero() && val.is_zero() {
+						let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
+						ext.add_sstore_refund(sstore_clears_schedule);
+					}
 				}
 				ext.set_storage(address, H256::from(&val))?;
 			},

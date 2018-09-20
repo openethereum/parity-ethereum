@@ -716,7 +716,7 @@ fn test_jumps(factory: super::Factory) {
 		test_finalize(vm.exec(&mut ext)).unwrap()
 	};
 
-	assert_eq!(ext.sstore_clears, 1);
+	assert_eq!(ext.sstore_clears, U256::from(ext.schedule().sstore_refund_gas));
 	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000000"); // 5!
 	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000078"); // 5!
 	assert_eq!(gas_left, U256::from(54_117));

@@ -14,30 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! TransactionTest test deserializer.
+//! Debug RPC interface.
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use serde_json;
-use serde_json::Error;
-use transaction::TransactionTest;
+use jsonrpc_core::Result;
 
-/// TransactionTest test deserializer.
-#[derive(Debug, Deserialize)]
-pub struct Test(BTreeMap<String, TransactionTest>);
+use v1::types::RichBlock;
 
-impl IntoIterator for Test {
-	type Item = <BTreeMap<String, TransactionTest> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, TransactionTest> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
-}
-
-impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
+build_rpc_trait! {
+	/// Debug RPC interface.
+	pub trait Debug {
+		/// Returns recently seen bad blocks.
+		#[rpc(name = "debug_getBadBlocks")]
+		fn bad_blocks(&self) -> Result<Vec<RichBlock>>;
 	}
 }

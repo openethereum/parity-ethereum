@@ -26,6 +26,7 @@ use rlp::DecoderError;
 use transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
+use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -444,7 +445,41 @@ pub fn filter_block_not_found(id: BlockId) -> Error {
 	}
 }
 
+pub fn on_demand_error(err: OnDemandError) -> Error {
+	match err {
+		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
+		OnDemandError(OnDemandErrorKind::MaxAttemptReach(_), _) => max_attempts_reached(&err),
+		OnDemandError(OnDemandErrorKind::TimeoutOnNewPeers(_,_), _) => timeout_new_peer(&err),
+		_ => on_demand_others(&err),
+	}
+}
+
 // on-demand sender cancelled.
 pub fn on_demand_cancel(_cancel: futures::sync::oneshot::Canceled) -> Error {
 	internal("on-demand sender cancelled", "")
 }
+
+pub fn max_attempts_reached(err: &OnDemandError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::REQUEST_NOT_FOUND),
+		message: err.to_string(),
+		data: None,
+	}
+}
+
+pub fn timeout_new_peer(err: &OnDemandError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
+		message: err.to_string(),
+		data: None,
+	}
+}
+
+pub fn on_demand_others(err: &OnDemandError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
+		message: err.to_string(),
+		data: None,
+	}
+}
+

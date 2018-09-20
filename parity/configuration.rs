@@ -30,8 +30,10 @@ use sync::{NetworkConfiguration, validate_node_url, self};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
+use ethcore::snapshot::SnapshotConfiguration;
 use ethcore::verification::queue::VerifierSettings;
 use miner::pool;
+use num_cpus;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
@@ -125,6 +127,7 @@ impl Configuration {
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
 		let ws_conf = self.ws_config()?;
+		let snapshot_conf = self.snapshot_config()?;
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
 		let net_conf = self.net_config()?;
@@ -156,13 +159,13 @@ impl Configuration {
 					port: ws_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_signer_reject  {
+			} else if self.args.cmd_signer_reject {
 				Cmd::SignerReject {
 					id: self.args.arg_signer_reject_id,
 					port: ws_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_signer_list  {
+			} else if self.args.cmd_signer_list {
 				Cmd::SignerList {
 					port: ws_conf.port,
 					authfile: authfile,
@@ -205,7 +208,7 @@ impl Configuration {
 			};
 			Cmd::Account(account_cmd)
 		} else if self.args.flag_import_geth_keys {
-        	let account_cmd = AccountCmd::ImportFromGeth(
+				let account_cmd = AccountCmd::ImportFromGeth(
 				ImportFromGethAccounts {
 					spec: spec,
 					to: dirs.keys,
@@ -298,6 +301,7 @@ impl Configuration {
 				file_path: self.args.arg_snapshot_file.clone(),
 				kind: snapshot::Kind::Take,
 				block_at: to_block_id(&self.args.arg_snapshot_at)?,
+				snapshot_conf: snapshot_conf,
 			};
 			Cmd::Snapshot(snapshot_cmd)
 		} else if self.args.cmd_restore {
@@ -314,6 +318,7 @@ impl Configuration {
 				file_path: self.args.arg_restore_file.clone(),
 				kind: snapshot::Kind::Restore,
 				block_at: to_block_id("latest")?, // unimportant.
+				snapshot_conf: snapshot_conf,
 			};
 			Cmd::Snapshot(restore_cmd)
 		} else if self.args.cmd_export_hardcoded_sync {
@@ -349,6 +354,7 @@ impl Configuration {
 				gas_price_percentile: self.args.arg_gas_price_percentile,
 				poll_lifetime: self.args.arg_poll_lifetime,
 				ws_conf: ws_conf,
+				snapshot_conf: snapshot_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
@@ -374,7 +380,6 @@ impl Configuration {
 				private_tx_enabled,
 				name: self.args.arg_identity,
 				custom_bootnodes: self.args.arg_bootnodes.is_some(),
-				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				verifier_settings: verifier_settings,
@@ -383,6 +388,8 @@ impl Configuration {
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 				whisper: whisper_config,
 				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
+				on_demand_retry_count: self.args.arg_on_demand_retry_count,
+				on_demand_inactive_time_limit: self.args.arg_on_demand_inactive_time_limit,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -890,6 +897,18 @@ impl Configuration {
 		Ok((provider_conf, encryptor_conf, self.args.flag_private_enabled))
 	}
 
+	fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
+		let conf = SnapshotConfiguration {
+			no_periodic: self.args.flag_no_periodic_snapshot,
+			processing_threads: match self.args.arg_snapshot_threads {
+				Some(threads) if threads > 0 => threads,
+				_ => ::std::cmp::max(1, num_cpus::get() / 2),
+			},
+		};
+
+		Ok(conf)
+	}
+
 	fn network_settings(&self) -> Result<NetworkSettings, String> {
 		let http_conf = self.http_config()?;
 		let net_addresses = self.net_addresses()?;
@@ -1331,10 +1350,10 @@ mod tests {
 			support_token_api: true,
 			max_connections: 100,
 		}, LogConfig {
-            color: true,
-            mode: None,
-            file: None,
-        } ));
+			color: true,
+			mode: None,
+			file: None,
+		} ));
 	}
 
 	#[test]
@@ -1398,7 +1417,7 @@ mod tests {
 			name: "".into(),
 			custom_bootnodes: false,
 			fat_db: Default::default(),
-			no_periodic_snapshot: false,
+			snapshot_conf: Default::default(),
 			stratum: None,
 			check_seal: true,
 			download_old_blocks: true,
@@ -1408,6 +1427,8 @@ mod tests {
 			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
+			on_demand_retry_count: None,
+			on_demand_inactive_time_limit: None,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
@@ -1516,11 +1537,11 @@ mod tests {
 						 "--jsonrpc-apis", "web3,eth"
 						 ]);
 		let conf2 = parse(&["parity", "--rpc",
-						  "--rpcport", "8000",
-						  "--rpcaddr", "all",
-						  "--rpccorsdomain", "*",
-						  "--rpcapi", "web3,eth"
-						  ]);
+							"--rpcport", "8000",
+							"--rpcaddr", "all",
+							"--rpccorsdomain", "*",
+							"--rpcapi", "web3,eth"
+							]);
 
 		// then
 		assert(conf1);
