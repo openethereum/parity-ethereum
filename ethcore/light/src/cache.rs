@@ -177,6 +177,7 @@ mod tests {
 	use super::Cache;
 	use std::time::Duration;
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn corpus_inaccessible() {
 		let mut cache = Cache::new(Default::default(), Duration::from_secs(5 * 3600));
