@@ -313,16 +313,14 @@ impl BlockDownloader {
 
 				// At least one of the heades must advance the subchain. Otherwise they are all useless.
 				if count == 0 || !any_known {
-					trace_sync!(self, target: "sync", "No useful headers");
+					trace_sync!(self, target: "sync", "No useful headers, expected hash {:?}", expected_hash);
 					if let Some(eh) = expected_hash {
-						if self.useless_requested_hashes.contains(&eh) {
+						if !self.useless_requested_hashes.insert(eh) {
 							trace_sync!(self, target: "sync",
-								"Received consecutive sets of useless headers from requested header {:?}. Resetting sync and disabling peer", eh);
+								"Received consecutive sets of useless headers from requested header {:?}. Resetting sync", eh);
 							self.reset();
 							self.useless_requested_hashes.clear();
 							return Err(BlockDownloaderImportError::Invalid);
-						} else {
-							self.useless_requested_hashes.insert(eh);
 						}
 					}
 					return Err(BlockDownloaderImportError::Useless);
