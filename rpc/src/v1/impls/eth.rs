@@ -26,7 +26,7 @@ use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
+use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::miner::{self, MinerService};
