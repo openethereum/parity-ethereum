@@ -20,8 +20,8 @@ use std::thread;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
-use rlp::Rlp;
-use ethereum_types::{U256, H256, Address};
+use rlp::{self, Rlp};
+use ethereum_types::{U256, H64, H256, H160, Address};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
