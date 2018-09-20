@@ -48,11 +48,11 @@ macro_rules! trace_sync {
 }
 
 macro_rules! debug_sync {
-	($self:ident, target: $target:expr, $fmt:expr, $($arg:tt)+) => {
-		debug!(target: $target, concat!("{:?}: ", $fmt), $self.block_set, $($arg)+);
+	($self:ident, $fmt:expr, $($arg:tt)+) => {
+		debug!(target: "sync", concat!("{:?}: ", $fmt), $self.block_set, $($arg)+);
 	};
-	($self:ident, target: $target:expr, $fmt:expr) => {
-		debug!(target: $target, concat!("{:?}: ", $fmt), $self.block_set);
+	($self:ident, $fmt:expr) => {
+		debug!(target: "sync", concat!("{:?}: ", $fmt), $self.block_set);
 	};
 }
 
@@ -311,6 +311,7 @@ impl BlockDownloader {
 			State::Blocks => {
 				let count = headers.len();
 
+				let reset_consecutive_useless =
 				// At least one of the heades must advance the subchain. Otherwise they are all useless.
 				if count == 0 || !any_known {
 					trace_sync!(self, "No useful headers, expected hash {:?}", expected_hash);
@@ -319,7 +320,6 @@ impl BlockDownloader {
 							trace_sync!(self, "Received consecutive sets of useless headers from requested header {:?}. Resetting sync", eh);
 							self.reset();
 							self.useless_requested_hashes.clear();
-							return Err(BlockDownloaderImportError::Invalid);
 						}
 					}
 					return Err(BlockDownloaderImportError::Useless);
