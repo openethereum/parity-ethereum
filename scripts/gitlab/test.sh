@@ -19,7 +19,7 @@ case $CI_COMMIT_REF_NAME in
 esac
 
 
-export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^scripts/ | wc -l | tr -d ' ')"
+export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^\\. -e ^LICENSE -e ^README.md -e ^CHANGELOG.md -e ^test.sh -e ^scripts/ -e ^docs/ | wc -l | tr -d ' ')"
 echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"
 
 
