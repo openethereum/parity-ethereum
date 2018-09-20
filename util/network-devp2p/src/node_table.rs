@@ -588,7 +588,7 @@ mod tests {
 		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
 	}
 
-	#[cfg(target_os = "windows")]
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn table_last_contact_order() {
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
