@@ -35,7 +35,7 @@ mod tests {
 
 	#[cfg(not(target_os = "windows"))]
 	#[test]
-	#[should_panic(expected="View rlp is trusted and should be valid. Constructed in ethcore/src/views/mod.rs on line 39: RlpExpectedToBeList")]
+	#[should_panic(expected="View rlp is trusted and should be valid. Constructed in ethcore/src/views/mod.rs on line 40: RlpExpectedToBeList")]
 	fn should_include_file_line_number_in_panic_for_invalid_rlp() {
 		let _ = view!(HeaderView, &[]).parent_hash();
 	}
