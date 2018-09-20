@@ -398,11 +398,6 @@ impl BlockCollection {
 		self.blocks.contains_key(hash)
 	}
 
-	/// Check if collection contains a block header.
-	pub fn contains_head(&self, hash: &H256) -> bool {
-		self.heads.contains(hash)
-	}
-
 	/// Return used heap size.
 	pub fn heap_size(&self) -> usize {
 		self.heads.heap_size_of_children()
