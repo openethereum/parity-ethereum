@@ -232,12 +232,20 @@ impl<K: Kind> VerificationQueue<K> {
 		let scale_verifiers = config.verifier_settings.scale_verifiers;
 
 		let num_cpus = ::num_cpus::get();
-		let max_verifiers = cmp::min(num_cpus, MAX_VERIFIERS);
-		let default_amount = cmp::max(1, cmp::min(max_verifiers, config.verifier_settings.num_verifiers));
-		let state = Arc::new((Mutex::new(State::Work(default_amount)), Condvar::new()));
+		let cli_max_verifiers = cmp::max(1, config.verifier_settings.num_verifiers);
+
+		// if `auto-scaling` is enabled spawn up extra threads as they might be needed
+		// otherwise just spawn the number of threads specified by the config
+		let max_verifiers = if scale_verifiers {
+			cmp::min(num_cpus, MAX_VERIFIERS)
+		} else {
+			cmp::min(cli_max_verifiers, cmp::min(num_cpus, MAX_VERIFIERS))
+		};
+
+		let state = Arc::new((Mutex::new(State::Work(cli_max_verifiers)), Condvar::new()));
 		let mut verifier_handles = Vec::with_capacity(max_verifiers);
 
-		debug!(target: "verification", "Allocating {} verifiers, {} initially active", max_verifiers, default_amount);
+		debug!(target: "verification", "Allocating {} verifiers, {} initially active", max_verifiers, cli_max_verifiers);
 		debug!(target: "verification", "Verifier auto-scaling {}", if scale_verifiers { "enabled" } else { "disabled" });
 
 		for i in 0..max_verifiers {
