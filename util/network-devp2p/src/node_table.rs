@@ -588,6 +588,8 @@ mod tests {
 		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
 	}
 
+
+	// note this test also fails sometime for osx target.
 	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn table_last_contact_order() {
