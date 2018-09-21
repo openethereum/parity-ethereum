@@ -1418,7 +1418,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-core"
 version = "8.0.1"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#811b0204cadd9c9ffb5c0e205f1694d57f550a7d"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#6b972b5fd34ada4a7de6aed1a8c92475a907732d"
 dependencies = [
  "futures 0.1.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1430,7 +1430,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#811b0204cadd9c9ffb5c0e205f1694d57f550a7d"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#6b972b5fd34ada4a7de6aed1a8c92475a907732d"
 dependencies = [
  "hyper 0.11.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
@@ -1443,19 +1443,19 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#811b0204cadd9c9ffb5c0e205f1694d57f550a7d"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#6b972b5fd34ada4a7de6aed1a8c92475a907732d"
 dependencies = [
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc?rev=7c9bbe3bc45d8e72a92b0951acc877da228abd50)",
+ "parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)",
  "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "jsonrpc-macros"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#811b0204cadd9c9ffb5c0e205f1694d57f550a7d"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#6b972b5fd34ada4a7de6aed1a8c92475a907732d"
 dependencies = [
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
@@ -1465,7 +1465,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-pubsub"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#811b0204cadd9c9ffb5c0e205f1694d57f550a7d"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#6b972b5fd34ada4a7de6aed1a8c92475a907732d"
 dependencies = [
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1475,7 +1475,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-server-utils"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#811b0204cadd9c9ffb5c0e205f1694d57f550a7d"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#6b972b5fd34ada4a7de6aed1a8c92475a907732d"
 dependencies = [
  "bytes 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "globset 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1488,7 +1488,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#811b0204cadd9c9ffb5c0e205f1694d57f550a7d"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#6b972b5fd34ada4a7de6aed1a8c92475a907732d"
 dependencies = [
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
@@ -1500,7 +1500,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ws-server"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#811b0204cadd9c9ffb5c0e205f1694d57f550a7d"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#6b972b5fd34ada4a7de6aed1a8c92475a907732d"
 dependencies = [
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
@@ -1792,13 +1792,14 @@ dependencies = [
 
 [[package]]
 name = "mio-named-pipes"
-version = "0.1.6"
-source = "git+https://github.com/alexcrichton/mio-named-pipes#2072ae0de5b3632dbb065fcd9c8be6c6a2fc39ae"
+version = "0.1.5"
+source = "git+https://github.com/alexcrichton/mio-named-pipes#ad261ecb69e6bd6cf5f4ba839524160027a5cb97"
 dependencies = [
- "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.6.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "miow 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "miow 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1820,15 +1821,6 @@ dependencies = [
  "net2 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "miow"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "socket2 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2298,17 +2290,17 @@ dependencies = [
 [[package]]
 name = "parity-tokio-ipc"
 version = "0.1.5"
-source = "git+https://github.com/nikvolf/parity-tokio-ipc?rev=7c9bbe3bc45d8e72a92b0951acc877da228abd50#7c9bbe3bc45d8e72a92b0951acc877da228abd50"
+source = "git+https://github.com/nikvolf/parity-tokio-ipc#c0f80b40399d7f08ef1e6869569640eb28645f56"
 dependencies = [
  "bytes 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.24 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio-named-pipes 0.1.6 (git+https://github.com/alexcrichton/mio-named-pipes)",
- "miow 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio-named-pipes 0.1.5 (git+https://github.com/alexcrichton/mio-named-pipes)",
+ "miow 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio-named-pipes 0.2.0 (git+https://github.com/nikvolf/tokio-named-pipes)",
+ "tokio-named-pipes 0.1.0 (git+https://github.com/nikvolf/tokio-named-pipes)",
  "tokio-uds 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3041,17 +3033,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "socket2"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "cfg-if 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "stable_deref_trait"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3301,14 +3282,14 @@ dependencies = [
 
 [[package]]
 name = "tokio-named-pipes"
-version = "0.2.0"
-source = "git+https://github.com/nikvolf/tokio-named-pipes#0afa6247222a7aa6e8b370e949a0f4007f0018b6"
+version = "0.1.0"
+source = "git+https://github.com/nikvolf/tokio-named-pipes#0b9b728eaeb0a6673c287ac7692be398fd651752"
 dependencies = [
  "bytes 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.24 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.6.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio-named-pipes 0.1.6 (git+https://github.com/alexcrichton/mio-named-pipes)",
- "tokio 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio-named-pipes 0.1.5 (git+https://github.com/alexcrichton/mio-named-pipes)",
+ "tokio-core 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-io 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3982,10 +3963,9 @@ dependencies = [
 "checksum mime 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "4b082692d3f6cf41b453af73839ce3dfc212c4411cbb2441dff80a716e38bd79"
 "checksum mime_guess 2.0.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)" = "30de2e4613efcba1ec63d8133f344076952090c122992a903359be5a4f99c3ed"
 "checksum mio 0.6.16 (registry+https://github.com/rust-lang/crates.io-index)" = "71646331f2619b1026cc302f87a2b8b648d5c6dd6937846a16cc8ce0f347f432"
-"checksum mio-named-pipes 0.1.6 (git+https://github.com/alexcrichton/mio-named-pipes)" = "<none>"
+"checksum mio-named-pipes 0.1.5 (git+https://github.com/alexcrichton/mio-named-pipes)" = "<none>"
 "checksum mio-uds 0.6.7 (registry+https://github.com/rust-lang/crates.io-index)" = "966257a94e196b11bb43aca423754d87429960a768de9414f3691d6957abf125"
 "checksum miow 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8c1f2f3b1cf331de6896aabf6e9d55dca90356cc9960cca7eaaf408a355ae919"
-"checksum miow 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "396aa0f2003d7df8395cb93e09871561ccc3e785f0acb369170e8cc74ddf9226"
 "checksum multibase 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b9c35dac080fd6e16a99924c8dfdef0af89d797dd851adab25feaffacf7850d6"
 "checksum multihash 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7d49add5f49eb08bfc4d01ff286b84a48f53d45314f165c2d6efe477222d24f3"
 "checksum nan-preserving-float 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "34d4f00fcc2f4c9efa8cc971db0da9e28290e28e97af47585e48691ef10ff31f"
@@ -4011,7 +3991,7 @@ dependencies = [
 "checksum parity-rocksdb-sys 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9ae07d4bfb2759541957c19f471996b807fc09ef3a5bdce14409b57f038de49f"
 "checksum parity-snappy 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2c5f9d149b13134b8b354d93a92830efcbee6fe5b73a2e6e540fe70d4dd8a63"
 "checksum parity-snappy-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c2086caac40c79289cb70d7e1c64f5888e1c53f5d38399d3e95101493739f423"
-"checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc?rev=7c9bbe3bc45d8e72a92b0951acc877da228abd50)" = "<none>"
+"checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
 "checksum parity-wasm 0.31.3 (registry+https://github.com/rust-lang/crates.io-index)" = "511379a8194230c2395d2f5fa627a5a7e108a9f976656ce723ae68fca4097bfc"
 "checksum parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d0dec124478845b142f68b446cbee953d14d4b41f1bc0425024417720dce693"
 "checksum parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)" = "f0802bff09003b291ba756dc7e79313e51cc31667e94afbe847def490424cde5"
@@ -4084,7 +4064,6 @@ dependencies = [
 "checksum smallvec 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4c8cbcd6df1e117c2210e13ab5109635ad68a929fcbb8964dc965b76cb5ee013"
 "checksum smallvec 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "f90c5e5fe535e48807ab94fc611d323935f39d4660c52b26b96446a7b33aef10"
 "checksum smallvec 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)" = "153ffa32fd170e9944f7e0838edf824a754ec4c1fc64746fcc9fe1f8fa602e5d"
-"checksum socket2 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "c4d11a52082057d87cb5caa31ad812f4504b97ab44732cd8359df2e9ff9f48e7"
 "checksum stable_deref_trait 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "dba1a27d3efae4351c8051072d619e3ade2820635c3958d826bfea39d59b54c8"
 "checksum strsim 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b4d15c810519a91cf877e7e36e63fe068815c678181439f2f29e2562147c3694"
 "checksum strsim 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bb4f380125926a99e52bc279241539c018323fab05ad6368b56f93d9369ff550"
@@ -4111,7 +4090,7 @@ dependencies = [
 "checksum tokio-executor 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "84823b932d566bc3c6aa644df4ca36cb38593c50b7db06011fd4e12e31e4047e"
 "checksum tokio-fs 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "b5cbe4ca6e71cb0b62a66e4e6f53a8c06a6eefe46cc5f665ad6f274c9906f135"
 "checksum tokio-io 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "8d6cc2de7725863c86ac71b0b9068476fec50834f055a243558ef1655bbd34cb"
-"checksum tokio-named-pipes 0.2.0 (git+https://github.com/nikvolf/tokio-named-pipes)" = "<none>"
+"checksum tokio-named-pipes 0.1.0 (git+https://github.com/nikvolf/tokio-named-pipes)" = "<none>"
 "checksum tokio-proto 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8fbb47ae81353c63c487030659494b295f6cb6576242f907f203473b191b0389"
 "checksum tokio-reactor 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "4bfbaf9f260635649ec26b6fb4aded03887295ffcd999f6e43fd2c4758f758ea"
 "checksum tokio-retry 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f05746ae87dca83a2016b4f5dba5b237b897dd12fd324f60afe282112f16969a"
