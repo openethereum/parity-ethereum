@@ -56,4 +56,4 @@ cd parity-clib-examples/cpp && \
 # Running tests
 echo "________Running Parity Full Test Suite________"
 git submodule update --init --recursive
-time cargo test  $OPTIONS --features "$FEATURES" --all $1 -- --test-threads 8
+time cargo test  $OPTIONS --features "$FEATURES" --all $1 
