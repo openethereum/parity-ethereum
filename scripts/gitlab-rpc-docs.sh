@@ -34,6 +34,7 @@ commit_files() {
 }
 
 upload_files() {
+    git push origin HEAD
     git push --tags
 }
 
