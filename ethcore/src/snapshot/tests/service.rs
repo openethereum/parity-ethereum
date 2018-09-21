@@ -37,6 +37,7 @@ impl snapshot::DatabaseRestore for NoopDBRestore {
 	}
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn restored_is_equivalent() {
 	use ::ethcore_logger::init_log;
