@@ -770,6 +770,7 @@ mod tests {
 		}
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn sends_async_messages() {
 		let service = IoService::<ClientIoMessage>::start().unwrap();
@@ -809,6 +810,7 @@ mod tests {
 		service.restore_block_chunk(Default::default(), vec![]);
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn cannot_finish_with_invalid_chunks() {
 		use ethereum_types::H256;
