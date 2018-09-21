@@ -100,6 +100,14 @@ pub enum BlockDownloaderImportError {
 	Useless,
 }
 
+#[derive(Eq, PartialEq, Debug)]
+pub enum CollectBlocksError {
+	/// One of the downloaded blocks was bad.
+	BadBlock,
+	/// The import queue is full so not all blocks were imported.
+	QueueFull,
+}
+
 impl From<rlp::DecoderError> for BlockDownloaderImportError {
 	fn from(_: rlp::DecoderError) -> BlockDownloaderImportError {
 		BlockDownloaderImportError::Invalid
@@ -312,7 +320,7 @@ impl BlockDownloader {
 			State::Blocks => {
 				let count = headers.len();
 
-				// At least one of the heades must advance the subchain. Otherwise they are all useless.
+				// At least one of the headers must advance the subchain. Otherwise they are all useless.
 				if count == 0 || !any_known {
 					trace_sync!(self, "No useful headers, expected hash {:?}", expected_hash);
 					if let Some(eh) = expected_hash {
@@ -485,8 +493,8 @@ impl BlockDownloader {
 	}
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
-	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), BlockDownloaderImportError> {
-		let mut bad = false;
+	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), CollectBlocksError> {
+		let mut err: Option<CollectBlocksError> = None;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
 		let count = blocks.len();
@@ -537,12 +545,12 @@ impl BlockDownloader {
 				},
 				Err(BlockImportError(BlockImportErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
 					debug_sync!(self, "Block import queue full ({}), restarting sync", limit);
-					bad = true;
+					err = Some(CollectBlocksError::QueueFull);
 					break;
 				},
 				Err(e) => {
 					debug_sync!(self, "Bad block {:?} : {:?}", h, e);
-					bad = true;
+					err = Some(CollectBlocksError::BadBlock);
 					break;
 				}
 			}
@@ -550,8 +558,8 @@ impl BlockDownloader {
 		trace_sync!(self, "Imported {} of {}", imported.len(), count);
 		self.imported_this_round = Some(self.imported_this_round.unwrap_or(0) + imported.len());
 
-		if bad {
-			return Err(BlockDownloaderImportError::Invalid);
+		if let Some(e) = err {
+			return Err(e);
 		}
 
 		if self.blocks.is_empty() {

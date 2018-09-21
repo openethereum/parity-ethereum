@@ -109,7 +109,7 @@ use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, Bl
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
-use block_sync::{BlockDownloader, BlockDownloaderImportError as DownloaderImportError};
+use block_sync::BlockDownloader;
 use rand::Rng;
 use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
@@ -853,15 +853,16 @@ impl ChainSync {
 	fn collect_blocks(&mut self, io: &mut SyncIo, block_set: BlockSet) {
 		match block_set {
 			BlockSet::NewBlocks => {
-				if self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) == Err(DownloaderImportError::Invalid) {
+				if let Err(err) = self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) {
+					trace!(target: "sync", "Error collecting blocks {:?}. Restarting NewBlocks download", err);
 					self.restart(io);
 				}
 			},
 			BlockSet::OldBlocks => {
 				let mut is_complete = false;
 				if let Some(downloader) = self.old_blocks.as_mut() {
-					if downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) {
-						trace!(target: "sync", "Restarting OldBlocks download");
+					if let Err(err) = downloader.collect_blocks(io, false) {
+						trace!(target: "sync", "Error collecting blocks {:?}. Restarting OldBlocks download", err);
 						// reset in flight requests in order to prevent them being handled in the next round
 						for (pid, ref mut p) in &mut self.peers {
 							if p.block_set == Some(BlockSet::OldBlocks) {
