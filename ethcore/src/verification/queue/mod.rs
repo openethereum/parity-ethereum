@@ -232,23 +232,25 @@ impl<K: Kind> VerificationQueue<K> {
 		let scale_verifiers = config.verifier_settings.scale_verifiers;
 
 		let num_cpus = ::num_cpus::get();
-		let cli_max_verifiers = cmp::max(1, config.verifier_settings.num_verifiers);
+
+		let max_verifiers = cmp::max(num_cpus, MAX_VERIFIERS);
+		let default_amount = cmp::max(1, cmp::min(max_verifiers, config.verifier_settings.num_verifiers));
 
 		// if `auto-scaling` is enabled spawn up extra threads as they might be needed
 		// otherwise just spawn the number of threads specified by the config
-		let max_verifiers = if scale_verifiers {
-			cmp::min(num_cpus, MAX_VERIFIERS)
+		let number_of_threads = if scale_verifiers {
+			max_verifiers
 		} else {
-			cmp::min(cli_max_verifiers, cmp::min(num_cpus, MAX_VERIFIERS))
+			cmp::min(default_amount, max_verifiers)
 		};
 
-		let state = Arc::new((Mutex::new(State::Work(cli_max_verifiers)), Condvar::new()));
-		let mut verifier_handles = Vec::with_capacity(max_verifiers);
+		let state = Arc::new((Mutex::new(State::Work(default_amount)), Condvar::new()));
+		let mut verifier_handles = Vec::with_capacity(number_of_threads);
 
-		debug!(target: "verification", "Allocating {} verifiers, {} initially active", max_verifiers, cli_max_verifiers);
+		debug!(target: "verification", "Allocating {} verifiers, {} initially active", number_of_threads, default_amount);
 		debug!(target: "verification", "Verifier auto-scaling {}", if scale_verifiers { "enabled" } else { "disabled" });
 
-		for i in 0..max_verifiers {
+		for i in 0..number_of_threads {
 			debug!(target: "verification", "Adding verification thread #{}", i);
 
 			let verification = verification.clone();
@@ -885,4 +887,57 @@ mod tests {
 		queue.collect_garbage();
 		assert_eq!(queue.num_verifiers(), 1);
 	}
+
+		#[test]
+		fn worker_threads_honor_specified_num_without_scaling() {
+			let spec = Spec::new_test();
+			let engine = spec.engine;
+			let mut config = Config::default();
+			config.verifier_settings.num_verifiers = 3;
+			config.verifier_settings.scale_verifiers = false;
+
+			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
+
+			assert_eq!(queue.num_verifiers(), 3);
+		}
+
+		#[test]
+		fn worker_threads_specifyed_to_zero_should_set_to_one() {
+			let spec = Spec::new_test();
+			let engine = spec.engine;
+			let mut config = Config::default();
+			config.verifier_settings.num_verifiers = 1;
+			config.verifier_settings.scale_verifiers = false;
+
+			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
+
+			assert_eq!(queue.num_verifiers(), 1);
+		}
+
+		#[test]
+		fn worker_threads_should_accept_max_eight() {
+			let spec = Spec::new_test();
+			let engine = spec.engine;
+			let mut config = Config::default();
+			config.verifier_settings.num_verifiers = 10000;
+			config.verifier_settings.scale_verifiers = false;
+
+			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
+
+			assert_eq!(queue.num_verifiers(), 8);
+		}
+
+		#[test]
+		fn worker_threads_scaling_with_specifed_num_of_workers() {
+			let spec = Spec::new_test();
+			let engine = spec.engine;
+			let mut config = Config::default();
+			config.verifier_settings.num_verifiers = 5;
+			config.verifier_settings.scale_verifiers = true;
+
+			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
+			queue.scale_verifiers(8);
+
+			assert_eq!(queue.num_verifiers(), 8);
+		}
 }
