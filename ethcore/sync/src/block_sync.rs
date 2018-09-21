@@ -319,7 +319,6 @@ impl BlockDownloader {
 			},
 			State::Blocks => {
 				let count = headers.len();
-
 				// At least one of the headers must advance the subchain. Otherwise they are all useless.
 				if count == 0 || !any_known {
 					trace_sync!(self, "No useful headers, expected hash {:?}", expected_hash);
