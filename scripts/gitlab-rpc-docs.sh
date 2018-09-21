@@ -44,7 +44,6 @@ upload_files() {
 RPC_TRAITS_DIR="rpc/src/v1/traits"
 
 setup_git
-cd ..
 clone_repos
 mkdir -p "jsonrpc/.parity/$RPC_TRAITS_DIR"
 cp $RPC_TRAITS_DIR/*.rs "jsonrpc/.parity/$RPC_TRAITS_DIR"
