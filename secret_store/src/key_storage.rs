@@ -406,6 +406,7 @@ impl From<SerializableDocumentKeyShareV3> for DocumentKeyShare {
 	}
 }
 
+#[cfg(not(target_os = "windows"))]
 #[cfg(test)]
 pub mod tests {
 	extern crate tempdir;
