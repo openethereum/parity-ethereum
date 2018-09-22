@@ -406,7 +406,6 @@ impl From<SerializableDocumentKeyShareV3> for DocumentKeyShare {
 	}
 }
 
-#[cfg(not(target_os = "windows"))]
 #[cfg(test)]
 pub mod tests {
 	extern crate tempdir;
@@ -464,6 +463,7 @@ pub mod tests {
 		}
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn persistent_key_storage() {
 		let tempdir = TempDir::new("").unwrap();
@@ -517,6 +517,7 @@ pub mod tests {
 		assert_eq!(key_storage.get(&key3), Ok(None));
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn upgrade_db_from_0() {
 		let tempdir = TempDir::new("").unwrap();
@@ -558,6 +559,7 @@ pub mod tests {
 		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.versions[0].secret_share.clone().into());
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn upgrade_db_from_1() {
 		let tempdir = TempDir::new("").unwrap();
@@ -602,6 +604,7 @@ pub mod tests {
 		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.versions[0].secret_share.clone().into());
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn upgrade_db_from_2() {
 		let tempdir = TempDir::new("").unwrap();
