@@ -43,7 +43,7 @@ use client::{
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-	TraceFilter, CallAnalytics, BlockImportError, Mode,
+	TraceFilter, CallAnalytics, Mode,
 	ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
 	IoClient, BadBlocks,
 };
@@ -51,8 +51,8 @@ use client::bad_blocks;
 use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
 use error::{
-	ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult,
-	QueueError, QueueErrorKind, Error as EthcoreError
+	ImportErrorKind, ExecutionError, CallError, BlockError,
+	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
 };
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
@@ -1392,23 +1392,23 @@ impl CallContract for Client {
 }
 
 impl ImportBlock for Client {
-	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
+	fn import_block(&self, unverified: Unverified) -> EthcoreResult<H256> {
 		if self.chain.read().is_known(&unverified.hash()) {
-			bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
+			bail!(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
 
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
 		if status == BlockStatus::Unknown {
-			bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
+			bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
 		let raw = unverified.bytes.clone();
-		match self.importer.block_queue.import(unverified).map_err(Into::into) {
+		match self.importer.block_queue.import(unverified) {
 			Ok(res) => Ok(res),
 			// we only care about block errors (not import errors)
-			Err(BlockImportError(BlockImportErrorKind::Block(err), _))=> {
+			Err(EthcoreError(EthcoreErrorKind::Block(err), _))=> {
 				self.importer.bad_blocks.report(raw, format!("{:?}", err));
-				bail!(BlockImportErrorKind::Block(err))
+				bail!(EthcoreErrorKind::Block(err))
 			},
 			Err(e) => Err(e),
 		}
@@ -2085,14 +2085,14 @@ impl IoClient for Client {
 		});
 	}
 
-	fn queue_ancient_block(&self, unverified: Unverified, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+	fn queue_ancient_block(&self, unverified: Unverified, receipts_bytes: Bytes) -> EthcoreResult<H256> {
 		trace_time!("queue_ancient_block");
 
 		let hash = unverified.hash();
 		{
 			// check block order
 			if self.chain.read().is_known(&hash) {
-				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
+				bail!(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
 			let parent_hash = unverified.parent_hash();
 			// NOTE To prevent race condition with import, make sure to check queued blocks first
@@ -2101,7 +2101,7 @@ impl IoClient for Client {
 			if !is_parent_pending {
 				let status = self.block_status(BlockId::Hash(parent_hash));
 				if  status == BlockStatus::Unknown {
-					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
+					bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 				}
 			}
 		}
@@ -2237,7 +2237,7 @@ impl ScheduleInfo for Client {
 }
 
 impl ImportSealedBlock for Client {
-	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
+	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
 		let h = block.header().hash();
 		let start = Instant::now();
 		let route = {
