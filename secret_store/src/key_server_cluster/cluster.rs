@@ -1432,6 +1432,7 @@ pub mod tests {
 	}
 
 	#[test]
+	#[ignore]
 	fn schnorr_signing_session_completes_if_node_does_not_have_a_share() {
 		//::logger::init_log();
 		let mut core = Core::new().unwrap();
@@ -1481,6 +1482,7 @@ pub mod tests {
 	}
 
 	#[test]
+	#[ignore]
 	fn ecdsa_signing_session_completes_if_node_does_not_have_a_share() {
 		//::logger::init_log();
 		let mut core = Core::new().unwrap();
