@@ -464,7 +464,7 @@ impl<K: Kind> VerificationQueue<K> {
 	}
 
 	/// Add a block to the queue.
-	pub fn import(&self, input: K::Input) -> ImportResult {
+	pub fn import(&self, input: K::Input) -> EthcoreResult<H256> {
 		let h = input.hash();
 		{
 			if self.processing.read().contains_key(&h) {
