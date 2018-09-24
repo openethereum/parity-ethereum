@@ -22,7 +22,7 @@ use ethcore::block_status::BlockStatus;
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
-use ethcore::error::{Error, BlockImportError};
+use ethcore::error::{Error, EthcoreResult};
 use ethcore::ids::BlockId;
 use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
@@ -85,7 +85,7 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Queue header to be verified. Required that all headers queued have their
 	/// parent queued prior.
-	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError>;
+	fn queue_header(&self, header: Header) -> EthcoreResult<H256>;
 
 	/// Attempt to get a block hash by block id.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
@@ -206,7 +206,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	/// Import a header to the queue for additional verification.
-	pub fn import_header(&self, header: Header) -> Result<H256, BlockImportError> {
+	pub fn import_header(&self, header: Header) -> EthcoreResult<H256> {
 		self.queue.import(header).map_err(Into::into)
 	}
 
@@ -526,7 +526,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 
 	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
 
-	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError> {
+	fn queue_header(&self, header: Header) -> EthcoreResult<H256> {
 		self.import_header(header)
 	}
 
