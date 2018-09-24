@@ -29,6 +29,10 @@ setup_git() {
     git config user.name "Devops Parity"
 }
 
+set_remote_wiki() {
+    git config remote.origin.url "https://${GITHUB_TOKEN}@github.com/paritytech/wiki.git"
+}
+
 commit_files() {
     echo "__________Commit files__________"
     git checkout -b rpcdoc-update-${CI_COMMIT_REF_NAME}
@@ -54,5 +58,6 @@ build_docs
 cd ..
 update_wiki_docs
 cd wiki
+set_remote_wiki
 commit_files
 upload_files
