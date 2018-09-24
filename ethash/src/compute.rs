@@ -30,7 +30,7 @@ use std::path::Path;
 
 const MIX_WORDS: usize = ETHASH_MIX_BYTES / 4;
 const MIX_NODES: usize = MIX_WORDS / NODE_WORDS;
-const FNV_PRIME: u32 = 0x01000193;
+pub const FNV_PRIME: u32 = 0x01000193;
 
 /// Computation result
 pub struct ProofOfWork {
@@ -272,7 +272,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 		// We overwrite the second half since `keccak_256` has an internal buffer and so allows
 		// overlapping arrays as input.
 		let write_ptr: *mut u8 = &mut buf.compress_bytes as *mut [u8; 32] as *mut u8;
-		unsafe { 
+		unsafe {
 			keccak_256::unchecked(
 				write_ptr,
 				buf.compress_bytes.len(),
@@ -287,7 +287,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 }
 
 // TODO: Use the `simd` crate
-fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
+pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	let num_parent_nodes = cache.len();
 	let mut ret = cache[node_index as usize % num_parent_nodes].clone();
 	ret.as_words_mut()[0] ^= node_index;

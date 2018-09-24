@@ -16,6 +16,7 @@
 
 #![cfg_attr(feature = "benches", feature(test))]
 
+extern crate byteorder;
 extern crate either;
 extern crate ethereum_types;
 extern crate memmap;
@@ -35,6 +36,7 @@ mod seed_compute;
 mod cache;
 mod keccak;
 mod shared;
+mod progpow;
 
 pub use cache::{NodeCacheBuilder, OptimizeFor};
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
