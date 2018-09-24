@@ -37,7 +37,7 @@ use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
-	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
+	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks,
@@ -47,7 +47,7 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use error::{Error, ImportResult};
+use error::{Error, EthcoreResult};
 use vm::Schedule;
 use miner::{self, Miner, MinerService};
 use spec::Spec;
@@ -416,7 +416,7 @@ impl ScheduleInfo for TestBlockChainClient {
 }
 
 impl ImportSealedBlock for TestBlockChainClient {
-	fn import_sealed_block(&self, _block: SealedBlock) -> ImportResult {
+	fn import_sealed_block(&self, _block: SealedBlock) -> EthcoreResult<H256> {
 		Ok(H256::default())
 	}
 }
@@ -523,7 +523,7 @@ impl RegistryInfo for TestBlockChainClient {
 }
 
 impl ImportBlock for TestBlockChainClient {
-	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
+	fn import_block(&self, unverified: Unverified) -> EthcoreResult<H256> {
 		let header = unverified.header;
 		let h = header.hash();
 		let number: usize = header.number() as usize;
@@ -883,7 +883,7 @@ impl IoClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> Result<H256, BlockImportError> {
+	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> EthcoreResult<H256> {
 		self.import_block(unverified)
 	}
 
