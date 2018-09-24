@@ -579,4 +579,91 @@ impl BlockDownloader {
 	}
 }
 
-//TODO: module tests
+#[cfg(test)]
+mod tests {
+	use ethcore::header::*;
+	use ethcore::client::{TestBlockChainClient};
+	use parking_lot::RwLock;
+	use rlp::*;
+	use std::collections::{VecDeque};
+	use tests::helpers::{TestIo};
+	use tests::snapshot::TestSnapshotService;
+
+	use super::*;
+	// use chain::tests::{
+	// 	dummy_sync_with_peer,
+	// 	get_dummy_block,
+	// 	get_dummy_blocks,
+	// 	get_dummy_hashes,
+	// };
+
+	fn get_dummy_headers(count: u32) -> Vec<Header> {
+		let mut parent_hash = H256::new();
+		let mut tx_root = H256::new();
+		let mut headers = Vec::new();
+		for i in 0..count {
+			let mut header = Header::new();
+			header.set_difficulty((i * 100).into());
+			header.set_timestamp((i * 10) as u64);
+			header.set_number(i as u64);
+			header.set_parent_hash(parent_hash);
+			header.set_transactions_root(tx_root);
+			parent_hash = header.hash();
+			tx_root = H256::random();
+			headers.push(header);
+		}
+		headers
+	}
+
+	fn import_headers(headers: &[Header], downloader: &mut BlockDownloader, io: &mut SyncIo) -> Result<DownloadAction, BlockDownloaderImportError> {
+		let mut stream = RlpStream::new();
+		stream.append_list(headers);
+		let bytes = stream.out();
+		let rlp = Rlp::new(&bytes);
+		let expected_hash = headers.first().map(|h| h.hash());
+		downloader.import_headers(io, &rlp, expected_hash)
+	}
+
+	fn import_headers_ok(headers: &[Header], downloader: &mut BlockDownloader, io: &mut SyncIo) {
+		let res = import_headers(headers, downloader, io);
+		assert!(res.is_ok());
+	}
+
+	#[test]
+	fn reset_after_consecutive_sets_of_useless_headers() {
+		::env_logger::try_init().ok();
+		let headers1 = get_dummy_headers(20);
+		let short_subchain = get_dummy_headers(5);
+
+		let mut client = TestBlockChainClient::new();
+		let queue = RwLock::new(VecDeque::new());
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let heads : Vec<_> = headers1.iter()
+			.enumerate().filter_map(|(i, h)| if i % 10 == 0 { Some(h.clone()) } else { None }).collect();
+		let start_hash = heads[0].hash();
+
+		let mut downloader = BlockDownloader::new(BlockSet::OldBlocks, &start_hash, 0);
+
+		downloader.request_blocks(&mut io, 1);
+
+		import_headers_ok(&heads, &mut downloader, &mut io);
+		import_headers_ok(&short_subchain, &mut downloader, &mut io);
+
+		assert_eq!(downloader.state, State::Blocks);
+		assert!(!downloader.blocks.is_empty());
+
+		// simulate receiving useless headers
+		let head = vec![short_subchain.last().unwrap().clone()];
+		let res1 = import_headers(&head, &mut downloader, &mut io);
+		let res2 = import_headers(&head, &mut downloader, &mut io);
+
+		assert!(res1.is_err());
+		assert!(res2.is_err());
+		assert_eq!(downloader.state, State::Idle);
+		assert!(downloader.blocks.is_empty());
+	}
+
+	// todo: test that it doesnt reset if there is only a single header
+}
