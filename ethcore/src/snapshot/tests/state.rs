@@ -36,6 +36,7 @@ use memorydb::MemoryDB;
 use parking_lot::Mutex;
 use tempdir::TempDir;
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn snap_and_restore() {
 	let mut producer = StateProducer::new();
@@ -95,6 +96,7 @@ fn snap_and_restore() {
 	compare_dbs(&old_db, new_db.as_hashdb());
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn get_code_from_prev_chunk() {
 	use std::collections::HashSet;
@@ -151,6 +153,7 @@ fn get_code_from_prev_chunk() {
 	assert_eq!(state_db.earliest_era(), Some(1000));
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn checks_flag() {
 	let mut producer = StateProducer::new();

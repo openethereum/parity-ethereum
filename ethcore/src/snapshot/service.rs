@@ -750,6 +750,7 @@ impl Drop for Service {
 	}
 }
 
+#[cfg(not(target_os = "windows"))]
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;

@@ -411,6 +411,13 @@ mod tests {
 		assert_eq!(costs, new_costs);
 	}
 
+	/// additional time delay to avoid non deterministic CI breakage on some systems
+	#[cfg(target_os = "windows")]
+	const ACCURATE_SYSTEM_TIME : bool = false;
+	#[cfg(not(target_os = "windows"))]
+	const ACCURATE_SYSTEM_TIME : bool = true;
+
+
 	#[test]
 	fn credits_mechanism() {
 		use std::thread;
@@ -422,7 +429,11 @@ mod tests {
 		assert!(credits.deduct_cost(101.into()).is_err());
 		assert!(credits.deduct_cost(10.into()).is_ok());
 
-		thread::sleep(Duration::from_secs(1));
+		if ACCURATE_SYSTEM_TIME {
+			thread::sleep(Duration::from_secs(1));
+		} else {
+			thread::sleep(Duration::from_secs(2));
+		}
 
 		flow_params.recharge(&mut credits);
 

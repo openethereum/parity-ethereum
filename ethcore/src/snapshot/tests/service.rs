@@ -37,6 +37,7 @@ impl snapshot::DatabaseRestore for NoopDBRestore {
 	}
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn restored_is_equivalent() {
 	use ::ethcore_logger::init_log;
@@ -104,6 +105,7 @@ fn restored_is_equivalent() {
 	}
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn guards_delete_folders() {
 	let spec = Spec::new_null();

@@ -1334,6 +1334,7 @@ mod tests {
 		})));
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn test_command_signer_new_token() {
 		let args = vec!["parity", "signer", "new-token"];
@@ -1860,13 +1861,15 @@ mod tests {
 
 	#[test]
 	fn should_use_correct_cache_path_if_base_is_set() {
+		use std::path;
+
 		let std = parse(&["parity"]);
 		let base = parse(&["parity", "--base-path", "/test"]);
 
 		let base_path = ::dir::default_data_path();
 		let local_path = ::dir::default_local_path();
 		assert_eq!(std.directories().cache, dir::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
-		assert_eq!(base.directories().cache, "/test/cache");
+		assert_eq!(path::Path::new(&base.directories().cache), path::Path::new("/test/cache"));
 	}
 
 	#[test]
