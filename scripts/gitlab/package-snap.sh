@@ -11,7 +11,6 @@ esac
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
 echo "__________Create snap package__________"
 echo "Release channel :" $GRADE " Branch/tag: " $CI_COMMIT_REF_NAME
-snapcraft clean
 echo $VERSION:$GRADE:$BUILD_ARCH
 cat scripts/gitlab/templates/snapcraft.template.yaml | envsubst '$VERSION:$GRADE:$BUILD_ARCH:$CARGO_TARGET' > snapcraft.yaml
 cat snapcraft.yaml
