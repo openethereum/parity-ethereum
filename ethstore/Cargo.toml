@@ -19,7 +19,7 @@ parking_lot = "0.6"
 parity-crypto = "0.1"
 ethereum-types = "0.4"
 dir = { path = "../util/dir" }
-smallvec = "0.4"
+smallvec = "0.6"
 parity-wordlist = "1.0"
 tempdir = "0.3"
 

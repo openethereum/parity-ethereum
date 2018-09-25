@@ -23,7 +23,7 @@ vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
 rlp = { version = "0.2.4", features = ["ethereum"] }
 rlp_derive = { path = "../../util/rlp_derive" }
-smallvec = "0.4"
+smallvec = "0.6"
 futures = "0.1"
 rand = "0.4"
 itertools = "0.5"
