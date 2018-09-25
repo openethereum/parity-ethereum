@@ -323,7 +323,7 @@ impl BlockDownloader {
 				if count == 0 || !any_known {
 					trace_sync!(self, "No useful headers, expected hash {:?}", expected_hash);
 					if let Some(eh) = expected_hash {
-						if !self.useless_expected_hashes.insert(eh) {
+						if self.blocks.heads_len() > 1 && !self.useless_expected_hashes.insert(eh) {
 							trace_sync!(self, "Received consecutive sets of useless headers from requested header {:?}. Resetting sync", eh);
 							self.reset();
 						}
@@ -665,5 +665,41 @@ mod tests {
 		assert!(downloader.blocks.is_empty());
 	}
 
-	// todo: test that it doesnt reset if there is only a single header
+	#[test]
+	fn dont_reset_after_consecutive_sets_of_useless_headers_for_chain_head() {
+		::env_logger::try_init().ok();
+		let headers = get_dummy_headers(10);
+		let short_subchain = get_dummy_headers(5);
+
+		let mut client = TestBlockChainClient::new();
+		let queue = RwLock::new(VecDeque::new());
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let heads : Vec<_> = headers.iter()
+			.enumerate().filter_map(|(i, h)| if i % 10 == 0 { Some(h.clone()) } else { None }).collect();
+		let start_hash = heads[0].hash();
+
+		let mut downloader = BlockDownloader::new(BlockSet::OldBlocks, &start_hash, 0);
+
+		downloader.request_blocks(&mut io, 1);
+
+		import_headers_ok(&heads, &mut downloader, &mut io);
+		import_headers_ok(&short_subchain, &mut downloader, &mut io);
+
+		assert_eq!(downloader.state, State::Blocks);
+		assert!(!downloader.blocks.is_empty());
+
+		// simulate receiving useless headers
+		let head = vec![short_subchain.last().unwrap().clone()];
+		let res1 = import_headers(&head, &mut downloader, &mut io);
+		let res2 = import_headers(&head, &mut downloader, &mut io);
+
+		assert!(res1.is_err());
+		assert!(res2.is_err());
+		// download shouldn't be reset since this is the chain head for a single subchain.
+		// this state usually occurs for NewBlocks when it has reached the chain head.
+		assert_eq!(downloader.state, State::Blocks);
+		assert!(!downloader.blocks.is_empty());
+	}
 }
