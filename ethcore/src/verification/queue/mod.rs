@@ -39,9 +39,6 @@ pub mod kind;
 const MIN_MEM_LIMIT: usize = 16384;
 const MIN_QUEUE_LIMIT: usize = 512;
 
-// maximum possible number of verification threads.
-const MAX_VERIFIERS: usize = 8;
-
 /// Type alias for block queue convenience.
 pub type BlockQueue = VerificationQueue<self::kind::Blocks>;
 
@@ -85,7 +82,7 @@ impl Default for VerifierSettings {
 	fn default() -> Self {
 		VerifierSettings {
 			scale_verifiers: false,
-			num_verifiers: MAX_VERIFIERS,
+			num_verifiers: ::num_cpus::get(),
 		}
 	}
 }
@@ -231,9 +228,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let empty = Arc::new(Condvar::new());
 		let scale_verifiers = config.verifier_settings.scale_verifiers;
 
-		let num_cpus = ::num_cpus::get();
-
-		let max_verifiers = cmp::max(num_cpus, MAX_VERIFIERS);
+		let max_verifiers = ::num_cpus::get();
 		let default_amount = cmp::max(1, cmp::min(max_verifiers, config.verifier_settings.num_verifiers));
 
 		// if `auto-scaling` is enabled spawn up extra threads as they might be needed
@@ -753,6 +748,13 @@ mod tests {
 		BlockQueue::new(config, engine, IoChannel::disconnected(), true)
 	}
 
+	fn get_test_config(num_verifiers: usize, is_auto_scale: bool) -> Config {
+		let mut config = Config::default();
+		config.verifier_settings.num_verifiers = num_verifiers;
+		config.verifier_settings.scale_verifiers = is_auto_scale;
+		config
+	}
+
 	fn new_unverified(bytes: Bytes) -> Unverified {
 		Unverified::from_rlp(bytes).expect("Should be valid rlp")
 	}
@@ -853,12 +855,11 @@ mod tests {
 
 	#[test]
 	fn scaling_limits() {
-		use super::MAX_VERIFIERS;
-
+		let max_verifiers = ::num_cpus::get();
 		let queue = get_test_queue(true);
-		queue.scale_verifiers(MAX_VERIFIERS + 1);
+		queue.scale_verifiers(max_verifiers + 1);
 
-		assert!(queue.num_verifiers() < MAX_VERIFIERS + 1);
+		assert!(queue.num_verifiers() < max_verifiers + 1);
 
 		queue.scale_verifiers(0);
 
@@ -889,55 +890,48 @@ mod tests {
 	}
 
 		#[test]
-		fn worker_threads_honor_specified_num_without_scaling() {
+		fn worker_threads_honor_specified_number_without_scaling() {
 			let spec = Spec::new_test();
 			let engine = spec.engine;
-			let mut config = Config::default();
-			config.verifier_settings.num_verifiers = 3;
-			config.verifier_settings.scale_verifiers = false;
-
-			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
-
-			assert_eq!(queue.num_verifiers(), 3);
-		}
-
-		#[test]
-		fn worker_threads_specifyed_to_zero_should_set_to_one() {
-			let spec = Spec::new_test();
-			let engine = spec.engine;
-			let mut config = Config::default();
-			config.verifier_settings.num_verifiers = 1;
-			config.verifier_settings.scale_verifiers = false;
-
+			let config = get_test_config(1, false);
 			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
 
 			assert_eq!(queue.num_verifiers(), 1);
 		}
 
 		#[test]
-		fn worker_threads_should_accept_max_eight() {
+		fn worker_threads_specified_to_zero_should_set_to_one() {
 			let spec = Spec::new_test();
 			let engine = spec.engine;
-			let mut config = Config::default();
-			config.verifier_settings.num_verifiers = 10000;
-			config.verifier_settings.scale_verifiers = false;
-
+			let config = get_test_config(0, false);
 			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
 
-			assert_eq!(queue.num_verifiers(), 8);
+			assert_eq!(queue.num_verifiers(), 1);
+		}
+
+		#[test]
+		fn worker_threads_should_only_accept_max_number_cpus() {
+			let spec = Spec::new_test();
+			let engine = spec.engine;
+			let config = get_test_config(10_000, false);
+			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
+			let num_cpus = ::num_cpus::get();
+
+			assert_eq!(queue.num_verifiers(), num_cpus);
 		}
 
 		#[test]
 		fn worker_threads_scaling_with_specifed_num_of_workers() {
-			let spec = Spec::new_test();
-			let engine = spec.engine;
-			let mut config = Config::default();
-			config.verifier_settings.num_verifiers = 5;
-			config.verifier_settings.scale_verifiers = true;
+			let num_cpus = ::num_cpus::get();
+			// only run the test with at least 2 CPUs
+			if num_cpus > 1 {
+				let spec = Spec::new_test();
+				let engine = spec.engine;
+				let config = get_test_config(num_cpus - 1, true);
+				let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
+				queue.scale_verifiers(num_cpus);
 
-			let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
-			queue.scale_verifiers(8);
-
-			assert_eq!(queue.num_verifiers(), 8);
+				assert_eq!(queue.num_verifiers(), num_cpus);
+			}
 		}
 }
