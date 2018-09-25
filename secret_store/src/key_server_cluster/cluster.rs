@@ -1431,6 +1431,9 @@ pub mod tests {
 		}
 	}
 
+	// test ignored because of
+	//
+	// https://github.com/paritytech/parity-ethereum/issues/9635
 	#[test]
 	#[ignore]
 	fn schnorr_signing_session_completes_if_node_does_not_have_a_share() {
@@ -1481,6 +1484,9 @@ pub mod tests {
 		session1.wait().unwrap_err();
 	}
 
+	// test ignored because of
+	//
+	// https://github.com/paritytech/parity-ethereum/issues/9635
 	#[test]
 	#[ignore]
 	fn ecdsa_signing_session_completes_if_node_does_not_have_a_share() {
