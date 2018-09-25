@@ -26,7 +26,6 @@ log = "0.4"
 env_logger = "0.5"
 rand = "0.4"
 heapsize = "0.4"
-smallvec = { version = "0.4", features = ["heapsizeof"] }
 parking_lot = "0.6"
 trace-time = "0.1"
 

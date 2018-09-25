@@ -33,7 +33,6 @@ extern crate env_logger;
 extern crate fastmap;
 extern crate rand;
 extern crate parking_lot;
-extern crate smallvec;
 extern crate rlp;
 extern crate keccak_hash as hash;
 extern crate triehash_ethereum;
