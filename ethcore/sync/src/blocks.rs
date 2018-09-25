@@ -481,14 +481,15 @@ impl BlockCollection {
 
 	fn insert_header(&mut self, info: SyncHeader) -> Result<H256, DecoderError> {
 		let hash = info.header.hash();
-		if self.blocks.contains_key(&hash) {
+		if self.contains(&hash) {
 			return Ok(hash);
 		}
 
+		let parent_hash = *info.header.parent_hash();
 		match self.head {
 			None if hash == self.heads[0] => {
-				trace!(target: "sync", "New head {}", hash);
-				self.head = Some(info.header.parent_hash().clone());
+				trace!(target: "sync", "New head {}", parent_hash);
+				self.head = Some(parent_hash);
 			},
 			_ => ()
 		}
@@ -526,7 +527,7 @@ impl BlockCollection {
 			(None, H256::new())
 		};
 
-		self.parents.insert(*info.header.parent_hash(), hash);
+		self.parents.insert(parent_hash, hash);
 
 		let block = SyncBlock {
 			header: info,

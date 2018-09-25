@@ -245,8 +245,9 @@ impl BlockDownloader {
 			return Err(BlockDownloaderImportError::Invalid);
 		}
 
-		let mut headers = Vec::new();
-		let mut hashes = Vec::new();
+		let mut headers = Vec::with_capacity(max_count);
+		let mut hashes = Vec::with_capacity(max_count);
+		let mut last_in_chain = None;
 		let mut last_header = None;
 		for i in 0..item_count {
 			let info = SyncHeader::from_rlp(r.at(i)?.as_raw().to_vec())?;
@@ -272,10 +273,6 @@ impl BlockDownloader {
 			}
 
 			last_header = Some((number, hash));
-			if self.blocks.contains(&hash) {
-				trace!(target: "sync", "Skipping existing block header {} ({:?})", number, hash);
-				continue;
-			}
 
 			// Do not queue blocks or subchain heads past the target number.
 			match self.target {
@@ -288,6 +285,9 @@ impl BlockDownloader {
 					match self.state {
 						State::Blocks => trace!(target: "sync", "Header already in chain {} ({})", number, hash),
 						_ => trace!(target: "sync", "Header already in chain {} ({}), state = {:?}", number, hash, self.state),
+					}
+					if hash != expected_hash {
+						last_in_chain = Some(info.header.clone());
 					}
 					headers.push(info);
 					hashes.push(hash);
@@ -310,8 +310,13 @@ impl BlockDownloader {
 
 		match self.state {
 			State::ChainHead => {
-				if !headers.is_empty() {
-					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
+				if let Some(new_head) = last_in_chain {
+					let hash = new_head.hash();
+					trace!(target: "sync", "Subchain head is skipping ahead to {}, already in chain", hash);
+					self.block_imported(&hash, new_head.number().into(), new_head.parent_hash());
+					self.retract_step = 0;
+				} else if !hashes.is_empty() {
+					trace!(target: "sync", "Received {} subchain heads, proceeding to download", hashes.len());
 					self.blocks.reset_to(hashes);
 					self.state = State::Blocks;
 				} else {
