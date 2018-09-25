@@ -89,6 +89,7 @@ daemonize = { git = "https://github.com/paritytech/daemonize" }
 [features]
 miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
+ci-skip-issue = ["ethcore/ci-skip-issue"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
