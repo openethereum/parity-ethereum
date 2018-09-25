@@ -427,7 +427,7 @@ impl<L: AsLightClient> LightSync<L> {
 
 	// handles request dispatch, block import, state machine transitions, and timeouts.
 	fn maintain_sync(&self, ctx: &BasicContext) {
-		use ethcore::error::{BlockImportError, BlockImportErrorKind, ImportErrorKind};
+		use ethcore::error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind};
 
 		const DRAIN_AMOUNT: usize = 128;
 
@@ -457,10 +457,10 @@ impl<L: AsLightClient> LightSync<L> {
 				for header in sink.drain(..) {
 					match client.queue_header(header) {
 						Ok(_) => {}
-						Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 							trace!(target: "sync", "Block already in chain. Continuing.");
 						},
-						Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
+						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
 							trace!(target: "sync", "Block already queued. Continuing.");
 						},
 						Err(e) => {

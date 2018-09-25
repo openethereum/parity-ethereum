@@ -751,11 +751,14 @@ impl Host {
 							let max_ingress = max(max_peers - min_peers, min_peers / 2);
 							if reserved_only ||
 								(s.info.originated && egress_count > min_peers) ||
-								(!s.info.originated && ingress_count > max_ingress) && !self.reserved_nodes.read().contains(&id) {
-								// only proceed if the connecting peer is reserved.
-								s.disconnect(io, DisconnectReason::TooManyPeers);
-								kill = true;
-								break;
+								(!s.info.originated && ingress_count > max_ingress) {
+								if !self.reserved_nodes.read().contains(&id) {
+									// only proceed if the connecting peer is reserved.
+									trace!(target: "network", "Disconnecting non-reserved peer {:?}", id);
+									s.disconnect(io, DisconnectReason::TooManyPeers);
+									kill = true;
+									break;
+								}
 							}
 
 							if !self.filter.as_ref().map_or(true, |f| f.connection_allowed(&self_id, &id, ConnectionDirection::Inbound)) {
