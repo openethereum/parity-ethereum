@@ -590,12 +590,6 @@ mod tests {
 	use tests::snapshot::TestSnapshotService;
 
 	use super::*;
-	// use chain::tests::{
-	// 	dummy_sync_with_peer,
-	// 	get_dummy_block,
-	// 	get_dummy_blocks,
-	// 	get_dummy_hashes,
-	// };
 
 	fn get_dummy_headers(count: u32) -> Vec<Header> {
 		let mut parent_hash = H256::new();
