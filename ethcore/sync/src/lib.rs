@@ -35,7 +35,6 @@ extern crate fastmap;
 extern crate rand;
 extern crate semver;
 extern crate parking_lot;
-extern crate smallvec;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate keccak_hash as hash;
