@@ -108,8 +108,8 @@ pub struct BlockDownloader {
 	round_parents: VecDeque<(H256, H256)>,
 	/// Do we need to download block recetips.
 	download_receipts: bool,
-	/// Sync up to the block with this hash.
-	target_hash: Option<H256>,
+	/// Sync up to the block with this hash and number.
+	target: Option<(H256, BlockNumber)>,
 	/// Probing range for seeking common best block.
 	retract_step: u64,
 	/// Whether reorg should be limited.
@@ -131,7 +131,7 @@ impl BlockDownloader {
 			imported_this_round: None,
 			round_parents: VecDeque::new(),
 			download_receipts: sync_receipts,
-			target_hash: None,
+			target: None,
 			retract_step: 1,
 			limit_reorg: true,
 		}
@@ -150,7 +150,7 @@ impl BlockDownloader {
 			imported_this_round: None,
 			round_parents: VecDeque::new(),
 			download_receipts: sync_receipts,
-			target_hash: None,
+			target: None,
 			retract_step: 1,
 			limit_reorg: false,
 		}
@@ -184,8 +184,8 @@ impl BlockDownloader {
 	}
 
 	/// Set starting sync block
-	pub fn set_target(&mut self, hash: &H256) {
-		self.target_hash = Some(hash.clone());
+	pub fn set_target(&mut self, hash: &H256, number: BlockNumber) {
+		self.target = Some((hash.clone(), number));
 	}
 
 	/// Unmark header as being downloaded.
@@ -276,6 +276,12 @@ impl BlockDownloader {
 				trace!(target: "sync", "Skipping existing block header {} ({:?})", number, hash);
 				continue;
 			}
+
+			// Do not queue blocks or subchain heads past the target number.
+			match self.target {
+				Some((_, target_number)) if number > target_number => break,
+				_ => (),
+			};
 
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain | BlockStatus::Queued => {
@@ -516,7 +522,7 @@ impl BlockDownloader {
 			let number = block.header.number();
 			let parent = *block.header.parent_hash();
 
-			if self.target_hash.as_ref().map_or(false, |t| t == &h) {
+			if self.target.as_ref().map_or(false, |(t, _)| t == &h) {
 				self.reset();
 				self.state = State::Complete;
 				trace!(target: "sync", "Sync target reached");

@@ -644,9 +644,9 @@ impl ChainSync {
 
 				trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
 				let mut downloader = BlockDownloader::with_unlimited_reorg(true, &ancient_block_hash, ancient_block_number);
-				if let Some(hash) = chain.first_block_hash {
-					trace!(target: "sync", "Downloader target set to {:?}", hash);
-					downloader.set_target(&hash);
+				if let (Some(hash), Some(number)) = (chain.first_block_hash, chain.first_block_number) {
+					trace!(target: "sync", "Downloader target set to {:?} (#{})", hash, number);
+					downloader.set_target(&hash, number);
 				}
 				self.old_blocks = Some(downloader);
 			}
