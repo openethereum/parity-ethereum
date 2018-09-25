@@ -465,19 +465,19 @@ impl<K: Kind> VerificationQueue<K> {
 
 	/// Add a block to the queue.
 	pub fn import(&self, input: K::Input) -> EthcoreResult<H256> {
-		let h = input.hash();
+		let hash = input.hash();
 		{
-			if self.processing.read().contains_key(&h) {
+			if self.processing.read().contains_key(&hash) {
 				bail!(ErrorKind::Import(ImportErrorKind::AlreadyQueued));
 			}
 
 			let mut bad = self.verification.bad.lock();
-			if bad.contains(&h) {
+			if bad.contains(&hash) {
 				bail!(ErrorKind::Import(ImportErrorKind::KnownBad));
 			}
 
 			if bad.contains(&input.parent_hash()) {
-				bad.insert(h.clone());
+				bad.insert(hash);
 				bail!(ErrorKind::Import(ImportErrorKind::KnownBad));
 			}
 		}
@@ -486,21 +486,21 @@ impl<K: Kind> VerificationQueue<K> {
 			Ok(item) => {
 				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
 
-				self.processing.write().insert(h.clone(), item.difficulty());
+				self.processing.write().insert(hash, item.difficulty());
 				{
 					let mut td = self.total_difficulty.write();
 					*td = *td + item.difficulty();
 				}
 				self.verification.unverified.lock().push_back(item);
 				self.more_to_verify.notify_all();
-				Ok(h)
+				Ok(hash)
 			},
 			Err(err) => {
 				match err {
 					// Don't mark future blocks as bad.
 					Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _) => {},
 					_ => {
-						self.verification.bad.lock().insert(h.clone());
+						self.verification.bad.lock().insert(hash);
 					}
 				}
 				Err(err)

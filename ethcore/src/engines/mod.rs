@@ -44,7 +44,7 @@ use self::epoch::PendingTransition;
 
 use account_provider::AccountProvider;
 use builtin::Builtin;
-use vm::{EnvInfo, Schedule, CreateContractAddress};
+use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
 use header::{Header, BlockNumber};
 use snapshot::SnapshotComponents;
@@ -163,8 +163,10 @@ pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, 
 					None,
 					Some(code),
 					Some(code_hash),
+					Some(ActionValue::Apparent(U256::zero())),
 					U256::max_value(),
 					Some(data),
+					Some(CallType::StaticCall),
 				)
 			},
 		};
