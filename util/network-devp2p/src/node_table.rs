@@ -624,19 +624,29 @@ mod tests {
 
 		// unknown - node 6
 
+		// nodes are also ordered according to their addition time
+		//
+		// nanosecond precision lost since mac os x high sierra update so let's not compare their order
+		// https://github.com/paritytech/parity-ethereum/issues/9632
 		let r = table.nodes(&IpFilter::default());
 
-		assert_eq!(r[0][..], id4[..]); // most recent success
-		assert_eq!(r[1][..], id3[..]);
+		// most recent success
+		assert!(
+			(r[0] == id4 && r[1] == id3) ||
+			(r[0] == id3 && r[1] == id4)
+		);
 
 		// unknown (old contacts and new nodes), randomly shuffled
 		assert!(
-			r[2][..] == id5[..] && r[3][..] == id6[..] ||
-			r[2][..] == id6[..] && r[3][..] == id5[..]
+			(r[2] == id5 && r[3] == id6) ||
+			(r[2] == id6 && r[3] == id5)
 		);
 
-		assert_eq!(r[4][..], id1[..]); // oldest failure
-		assert_eq!(r[5][..], id2[..]);
+		// oldest failure
+		assert!(
+			(r[4] == id1 && r[5] == id2) ||
+			(r[4] == id2 && r[5] == id1)
+		);
 	}
 
 	#[test]
