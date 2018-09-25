@@ -31,22 +31,33 @@ esac
 set -e
 
 
+validate () {
+  if [ "$VALIDATE" -eq "1" ]
+  then
+    echo "________Validate build________"
+    time cargo check $@ --no-default-features
+    time cargo check $@ --manifest-path util/io/Cargo.toml --no-default-features
+    time cargo check $@ --manifest-path util/io/Cargo.toml --features "mio"
+  
+    # Validate chainspecs
+    echo "________Validate chainspecs________"
+    time ./scripts/validate_chainspecs.sh
+  else
+    echo "# not validating due to \$VALIDATE!=1"
+  fi
+}
+
+cargo_test () {
+  echo "________Running Parity Full Test Suite________"
+  git submodule update --init --recursive
+  time cargo test $OPTIONS --features "$FEATURES" --all $@ -- --test-threads $THREADS
+}
+
 
 case $CARGO_TARGET in
+  # native builds
   (x86_64-unknown-linux-gnu|x86_64-apple-darwin|x86_64-pc-windows-msvc|'')
-    # native builds
-    if [ "$VALIDATE" -eq "1" ]
-    then
-      echo "________Validate build________"
-      time cargo check --no-default-features
-      time cargo check --manifest-path util/io/Cargo.toml --no-default-features
-      time cargo check --manifest-path util/io/Cargo.toml --features "mio"
-    
-      # Validate chainspecs
-      echo "________Validate chainspecs________"
-      time ./scripts/validate_chainspecs.sh
-    fi
-
+    validate
 
     # Running the C++ example
     echo "________Running the C++ example________"
@@ -61,27 +72,14 @@ case $CARGO_TARGET in
       cd ../..
 
     # Running tests
-    echo "________Running Parity Full Test Suite________"
-    git submodule update --init --recursive
-    time cargo test  $OPTIONS --features "$FEATURES" --all $@ -- --test-threads $THREADS
+    cargo_test $@
     ;;
+  # cross-compilation
   (*)
-    if [ "$VALIDATE" -eq "1" ]
-    then
-      echo "________Validate build________"
-      time cargo check --target $CARGO_TARGET --no-default-features
-      time cargo check --target $CARGO_TARGET --manifest-path util/io/Cargo.toml --no-default-features
-      time cargo check --target $CARGO_TARGET --manifest-path util/io/Cargo.toml --features "mio"
-    
-      # Validate chainspecs
-      echo "________Validate chainspecs________"
-      time ./scripts/validate_chainspecs.sh
-    fi
+    validate --target $CARGO_TARGET 
 
     # Per default only build but not run the tests
-    echo "________Building Parity Full Test Suite________"
-    git submodule update --init --recursive
-    time cargo test  --no-run --target $CARGO_TARGET $OPTIONS --features "$FEATURES" --all $@ -- --test-threads $THREADS
+    cargo_test --no-run --target $CARGO_TARGET $@
     ;;
 esac
 
