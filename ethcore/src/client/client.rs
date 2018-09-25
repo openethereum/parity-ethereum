@@ -1492,7 +1492,7 @@ impl Call for Client {
 		let sender = t.sender();
 		let options = || TransactOptions::with_tracing().dont_check_nonce();
 
-		let cond = |gas| {
+		let exec = |gas| {
 			let mut tx = t.as_unsigned().clone();
 			tx.gas = gas;
 			let tx = tx.fake_sign(sender);
@@ -1500,22 +1500,28 @@ impl Call for Client {
 			let mut clone = state.clone();
 			let machine = self.engine.machine();
 			let schedule = machine.schedule(env_info.number);
-			Ok(Executive::new(&mut clone, &env_info, &machine, &schedule)
+			Executive::new(&mut clone, &env_info, &machine, &schedule)
 				.transact_virtual(&tx, options())
+				.ok()
 				.map(|r| r.exception.is_none())
-				.unwrap_or(false))
 		};
 
-		if !cond(upper)? {
+		let cond = |gas| exec(gas).unwrap_or(false);
+
+		if !cond(upper) {
 			upper = max_upper;
-			if !cond(upper)? {
-				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
-				let err = ExecutionError::Internal(format!("Requires higher than upper limit of {}", upper));
-				return Err(err.into())
+			match exec(upper) {
+				Some(false) => return Err(CallError::Exceptional),
+				None => {
+					trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
+					let err = ExecutionError::Internal(format!("Requires higher than upper limit of {}", upper));
+					return Err(err.into())
+				},
+				_ => {},
 			}
 		}
 		let lower = t.gas_required(&self.engine.schedule(env_info.number)).into();
-		if cond(lower)? {
+		if cond(lower) {
 			trace!(target: "estimate_gas", "estimate_gas succeeded with {}", lower);
 			return Ok(lower)
 		}
@@ -1524,12 +1530,12 @@ impl Call for Client {
 		/// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
 		/// We assert: `cond(lower) = false`, `cond(upper) = true`
 		fn binary_chop<F, E>(mut lower: U256, mut upper: U256, mut cond: F) -> Result<U256, E>
-			where F: FnMut(U256) -> Result<bool, E>
+			where F: FnMut(U256) -> bool
 		{
 			while upper - lower > 1.into() {
 				let mid = (lower + upper) / 2;
 				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
-				let c = cond(mid)?;
+				let c = cond(mid);
 				match c {
 					true => upper = mid,
 					false => lower = mid,
