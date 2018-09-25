@@ -172,6 +172,7 @@ impl HeapSizeOf for Cache {
 	}
 }
 
+#[cfg(not(target_os = "windows"))]
 #[cfg(test)]
 mod tests {
 	use super::Cache;
