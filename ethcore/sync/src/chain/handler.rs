@@ -28,6 +28,7 @@ use network::PeerId;
 use rlp::Rlp;
 use snapshot::ChunkType;
 use std::cmp;
+use std::mem;
 use std::collections::HashSet;
 use std::time::Instant;
 use sync_io::SyncIo;
@@ -296,6 +297,13 @@ impl SyncHandler {
 			trace!(target: "sync", "{}: Ignored unexpected bodies", peer_id);
 			return Ok(());
 		}
+		let expected_blocks = match sync.peers.get_mut(&peer_id) {
+			Some(peer) => mem::replace(&mut peer.asking_blocks, Vec::new()),
+			None => {
+				trace!(target: "sync", "{}: Ignored unexpected bodies (peer not found)", peer_id);
+				return Ok(());
+			}
+		};
 		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockBodies ({} entries), set = {:?}", peer_id, item_count, block_set);
 		if item_count == 0 {
@@ -315,7 +323,7 @@ impl SyncHandler {
 						Some(ref mut blocks) => blocks,
 					}
 				};
-				downloader.import_bodies(r)?;
+				downloader.import_bodies(r, expected_blocks.as_slice())?;
 			}
 			sync.collect_blocks(io, block_set);
 			Ok(())
@@ -432,6 +440,13 @@ impl SyncHandler {
 			trace!(target: "sync", "{}: Ignored unexpected receipts", peer_id);
 			return Ok(());
 		}
+		let expected_blocks = match sync.peers.get_mut(&peer_id) {
+			Some(peer) => mem::replace(&mut peer.asking_blocks, Vec::new()),
+			None => {
+				trace!(target: "sync", "{}: Ignored unexpected bodies (peer not found)", peer_id);
+				return Ok(());
+			}
+		};
 		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockReceipts ({} entries)", peer_id, item_count);
 		if item_count == 0 {
@@ -451,7 +466,7 @@ impl SyncHandler {
 						Some(ref mut blocks) => blocks,
 					}
 				};
-				downloader.import_receipts(io, r)?;
+				downloader.import_receipts(r, expected_blocks.as_slice())?;
 			}
 			sync.collect_blocks(io, block_set);
 			Ok(())

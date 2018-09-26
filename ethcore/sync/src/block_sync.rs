@@ -339,7 +339,7 @@ impl BlockDownloader {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn import_bodies(&mut self, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_bodies(&mut self, r: &Rlp, expected_hashes: &[H256]) -> Result<(), BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
@@ -352,8 +352,13 @@ impl BlockDownloader {
 				bodies.push(body);
 			}
 
-			if self.blocks.insert_bodies(bodies) != item_count {
+			let hashes = self.blocks.insert_bodies(bodies);
+			if hashes.len() != item_count {
 				trace!(target: "sync", "Deactivating peer for giving invalid block bodies");
+				return Err(BlockDownloaderImportError::Invalid);
+			}
+			if !all_expected(hashes.as_slice(), expected_hashes, |&a, &b| a == b) {
+				trace!(target: "sync", "Deactivating peer for giving unexpected block bodies");
 				return Err(BlockDownloaderImportError::Invalid);
 			}
 		}
@@ -361,7 +366,7 @@ impl BlockDownloader {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn import_receipts(&mut self, _io: &mut SyncIo, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_receipts(&mut self, r: &Rlp, expected_hashes: &[H256]) -> Result<(), BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
@@ -378,8 +383,13 @@ impl BlockDownloader {
 				})?;
 				receipts.push(receipt.as_raw().to_vec());
 			}
-			if self.blocks.insert_receipts(receipts) != item_count {
+			let hashes = self.blocks.insert_receipts(receipts);
+			if hashes.len() != item_count {
 				trace!(target: "sync", "Deactivating peer for giving invalid block receipts");
+				return Err(BlockDownloaderImportError::Invalid);
+			}
+			if !all_expected(hashes.as_slice(), expected_hashes, |a, b| a.contains(b)) {
+				trace!(target: "sync", "Deactivating peer for giving unexpected block receipts");
 				return Err(BlockDownloaderImportError::Invalid);
 			}
 		}
@@ -580,6 +590,21 @@ impl BlockDownloader {
 			self.round_parents.pop_front();
 		}
 	}
+}
+
+// Determines if the first argument matches an ordered subset of the second, according to some predicate.
+fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) -> bool
+	where F: Fn(&A, &B) -> bool
+{
+	let mut expected_iter = expected_values.iter();
+	values.iter().all(|val1| {
+		while let Some(val2) = expected_iter.next() {
+			if is_expected(val1, val2) {
+				return true;
+			}
+		}
+		false
+	})
 }
 
 //TODO: module tests
