@@ -555,7 +555,6 @@ impl BlockDownloader {
 			// complete sync round
 			trace_sync!(self, "Sync round complete");
 			self.reset();
-			download_action = DownloadAction::Reset;
 		}
 		download_action
 	}
