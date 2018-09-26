@@ -85,6 +85,7 @@ pub enum BlockRequest {
 }
 
 /// Indicates sync action
+#[derive(Eq, PartialEq, Debug)]
 pub enum DownloadAction {
 	/// Do nothing
 	None,
@@ -98,14 +99,6 @@ pub enum BlockDownloaderImportError {
 	Invalid,
 	/// Imported data is valid but rejected cause the downloader does not need it.
 	Useless,
-}
-
-#[derive(Eq, PartialEq, Debug)]
-pub enum CollectBlocksError {
-	/// One of the downloaded blocks was bad.
-	BadBlock,
-	/// The import queue is full so not all blocks were imported.
-	QueueFull,
 }
 
 impl From<rlp::DecoderError> for BlockDownloaderImportError {
@@ -492,8 +485,9 @@ impl BlockDownloader {
 	}
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
-	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), CollectBlocksError> {
-		let mut err: Option<CollectBlocksError> = None;
+	/// Returns DownloadAction::Reset if it is imported all the the blocks it can and all downloading peers should be reset
+	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> DownloadAction {
+		let mut download_action = DownloadAction::None;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
 		let count = blocks.len();
@@ -508,7 +502,7 @@ impl BlockDownloader {
 			if self.target_hash.as_ref().map_or(false, |t| t == &h) {
 				self.state = State::Complete;
 				trace_sync!(self, "Sync target reached");
-				return Ok(());
+				return download_action;
 			}
 
 			let result = if let Some(receipts) = receipts {
@@ -544,12 +538,12 @@ impl BlockDownloader {
 				},
 				Err(EthcoreError(EthcoreErrorKind::Queue(QueueErrorKind::Full(limit)), _)) => {
 					debug_sync!(self, "Block import queue full ({}), restarting sync", limit);
-					err = Some(CollectBlocksError::QueueFull);
+					download_action = DownloadAction::Reset;
 					break;
 				},
 				Err(e) => {
 					debug_sync!(self, "Bad block {:?} : {:?}", h, e);
-					err = Some(CollectBlocksError::BadBlock);
+					download_action = DownloadAction::Reset;
 					break;
 				}
 			}
@@ -557,16 +551,13 @@ impl BlockDownloader {
 		trace_sync!(self, "Imported {} of {}", imported.len(), count);
 		self.imported_this_round = Some(self.imported_this_round.unwrap_or(0) + imported.len());
 
-		if let Some(e) = err {
-			return Err(e);
-		}
-
 		if self.blocks.is_empty() {
 			// complete sync round
 			trace_sync!(self, "Sync round complete");
 			self.reset();
+			download_action = DownloadAction::Reset;
 		}
-		Ok(())
+		download_action
 	}
 
 	fn block_imported(&mut self, hash: &H256, number: BlockNumber, parent: &H256) {
