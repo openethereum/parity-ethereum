@@ -23,7 +23,6 @@ cache:
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
-    - master
     - stable
     - beta
     - tags
