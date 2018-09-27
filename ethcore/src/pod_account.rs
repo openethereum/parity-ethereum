@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Account system expressed in Plain Old Data.
+
 use std::fmt;
 use std::collections::BTreeMap;
 use itertools::Itertools;

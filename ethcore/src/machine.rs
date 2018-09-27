@@ -135,8 +135,10 @@ impl EthereumMachine {
 			Some(contract_address),
 			code,
 			code_hash,
+			None,
 			gas,
-			data
+			data,
+			None,
 		)
 	}
 
@@ -149,8 +151,10 @@ impl EthereumMachine {
 		contract_address: Option<Address>,
 		code: Option<Arc<Vec<u8>>>,
 		code_hash: Option<H256>,
+		value: Option<ActionValue>,
 		gas: U256,
-		data: Option<Vec<u8>>
+		data: Option<Vec<u8>>,
+		call_type: Option<CallType>,
 	) -> Result<Vec<u8>, Error> {
 		let env_info = {
 			let mut env_info = block.env_info();
@@ -167,11 +171,11 @@ impl EthereumMachine {
 			origin: SYSTEM_ADDRESS,
 			gas,
 			gas_price: 0.into(),
-			value: ActionValue::Transfer(0.into()),
+			value: value.unwrap_or(ActionValue::Transfer(0.into())),
 			code,
 			code_hash,
 			data,
-			call_type: CallType::Call,
+			call_type: call_type.unwrap_or(CallType::Call),
 			params_type: ParamsType::Separate,
 		};
 		let schedule = self.schedule(env_info.number);

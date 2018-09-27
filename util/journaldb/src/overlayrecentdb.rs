@@ -468,7 +468,6 @@ impl HashDB<KeccakHasher, DBValue> for OverlayRecentDB {
 			let journal_overlay = self.journal_overlay.read();
 			let key = to_short_key(key);
 			journal_overlay.backing_overlay.get(&key)
-				// .or_else(move || journal_overlay.pending_overlay.get(&key))
 				.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
 		};
 		v.or_else(|| self.payload(key))

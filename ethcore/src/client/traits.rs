@@ -281,6 +281,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get transaction receipt with given hash.
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
 
+	/// Get localized receipts for all transaction in given block.
+	fn block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>>;
+
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute>;
@@ -292,7 +295,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn state_data(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Get raw block receipts data by block header hash.
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
+	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
