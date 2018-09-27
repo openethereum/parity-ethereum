@@ -230,7 +230,7 @@ pub struct BlockChain {
 	cache_man: Mutex<CacheManager<CacheId>>,
 
 	pending_best_block: RwLock<Option<BestBlock>>,
-	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
+	pending_block_hashes: RwLock<HashMap<BlockNumber, Option<H256>>>,
 	pending_block_details: RwLock<HashMap<H256, BlockDetails>>,
 	pending_transaction_addresses: RwLock<HashMap<H256, Option<TransactionAddress>>>,
 }
@@ -1105,7 +1105,7 @@ impl BlockChain {
 			let mut write_txs = self.pending_transaction_addresses.write();
 
 			batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
-			batch.extend_with_cache(db::COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_option_cache(db::COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Overwrite);
 			batch.extend_with_option_cache(db::COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Overwrite);
 		}
 	}
@@ -1127,22 +1127,30 @@ impl BlockChain {
 		}
 
 		let pending_txs = mem::replace(&mut *pending_write_txs, HashMap::new());
-		let (retracted_txs, enacted_txs) = pending_txs.into_iter().partition::<HashMap<_, _>, _>(|&(_, ref value)| value.is_none());
+		let (retracted_txs, enacted_txs) = pending_txs.into_iter()
+			.partition::<HashMap<_, _>, _>(|&(_, ref value)| value.is_none());
 
-		let pending_hashes_keys: Vec<_> = pending_write_hashes.keys().cloned().collect();
+		let pending_hashes = mem::replace(&mut *pending_write_hashes, HashMap::new());
+		let (retracted_hashes, enacted_hashes) = pending_hashes.into_iter()
+			.partition::<HashMap<_, _>, _>(|&(_, ref value)| value.is_none());
+
+		let enacted_hashes_keys: Vec<_> = enacted_hashes.keys().cloned().collect();
 		let enacted_txs_keys: Vec<_> = enacted_txs.keys().cloned().collect();
 		let pending_block_hashes: Vec<_> = pending_block_details.keys().cloned().collect();
 
-		write_hashes.extend(mem::replace(&mut *pending_write_hashes, HashMap::new()));
+		write_hashes.extend(enacted_hashes.into_iter().map(|(k, v)| (k, v.expect("Hashes were partitioned; qed"))));
 		write_txs.extend(enacted_txs.into_iter().map(|(k, v)| (k, v.expect("Transactions were partitioned; qed"))));
 		write_block_details.extend(mem::replace(&mut *pending_block_details, HashMap::new()));
 
 		for hash in retracted_txs.keys() {
 			write_txs.remove(hash);
 		}
+		for number in retracted_hashes.keys() {
+			write_hashes.remove(number);
+		}
 
 		let mut cache_man = self.cache_man.lock();
-		for n in pending_hashes_keys {
+		for n in enacted_hashes_keys {
 			cache_man.note_used(CacheId::BlockHashes(n));
 		}
 
@@ -1216,23 +1224,26 @@ impl BlockChain {
 	}
 
 	/// This function returns modified block hashes.
-	fn prepare_block_hashes_update(&self, info: &BlockInfo) -> HashMap<BlockNumber, H256> {
+	fn prepare_block_hashes_update(&self, info: &BlockInfo) -> HashMap<BlockNumber, Option<H256>> {
 		let mut block_hashes = HashMap::new();
 
 		match info.location {
 			BlockLocation::Branch => (),
 			BlockLocation::CanonChain => {
-				block_hashes.insert(info.number, info.hash);
+				block_hashes.insert(info.number, Some(info.hash));
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let ancestor_number = self.block_number(&data.ancestor).expect("Block number of ancestor is always in DB");
 				let start_number = ancestor_number + 1;
 
-				for (index, hash) in data.enacted.iter().cloned().enumerate() {
-					block_hashes.insert(start_number + index as BlockNumber, hash);
+				for (index, hash) in data.enacted.iter().enumerate() {
+					block_hashes.insert(start_number + index as BlockNumber, Some(*hash));
 				}
+				block_hashes.insert(info.number, Some(info.hash));
 
-				block_hashes.insert(info.number, info.hash);
+				for index in (data.enacted.len() + 1)..data.retracted.len() {
+					block_hashes.insert(start_number + index as BlockNumber, None);
+				}
 			}
 		}
 
@@ -1454,7 +1465,7 @@ impl BlockChain {
 		let first_block_number = self.first_block_number().into();
 		let genesis_hash = self.genesis_hash();
 
-		// ensure data consistencly by locking everything first
+		// ensure data consistency by locking everything first
 		let best_block = self.best_block.read();
 		let best_ancient_block = self.best_ancient_block.read();
 		BlockChainInfo {

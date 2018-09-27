@@ -28,7 +28,7 @@ pub struct ExtrasUpdate {
 	/// Current block uncompressed rlp bytes
 	pub block: Block,
 	/// Modified block hashes.
-	pub block_hashes: HashMap<BlockNumber, H256>,
+	pub block_hashes: HashMap<BlockNumber, Option<H256>>,
 	/// Modified block details.
 	pub block_details: HashMap<H256, BlockDetails>,
 	/// Modified block receipts.

@@ -31,7 +31,7 @@ use blocks::{BlockCollection, SyncBody, SyncHeader};
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
 const MAX_BODIES_TO_REQUEST: usize = 32;
-const MAX_RECEPITS_TO_REQUEST: usize = 128;
+const MAX_RECEIPTS_TO_REQUEST: usize = 128;
 const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 16;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
@@ -108,8 +108,8 @@ pub struct BlockDownloader {
 	round_parents: VecDeque<(H256, H256)>,
 	/// Do we need to download block recetips.
 	download_receipts: bool,
-	/// Sync up to the block with this hash.
-	target_hash: Option<H256>,
+	/// Sync up to the block with this hash and number.
+	target: Option<(H256, BlockNumber)>,
 	/// Probing range for seeking common best block.
 	retract_step: u64,
 	/// Whether reorg should be limited.
@@ -131,7 +131,7 @@ impl BlockDownloader {
 			imported_this_round: None,
 			round_parents: VecDeque::new(),
 			download_receipts: sync_receipts,
-			target_hash: None,
+			target: None,
 			retract_step: 1,
 			limit_reorg: true,
 		}
@@ -150,7 +150,7 @@ impl BlockDownloader {
 			imported_this_round: None,
 			round_parents: VecDeque::new(),
 			download_receipts: sync_receipts,
-			target_hash: None,
+			target: None,
 			retract_step: 1,
 			limit_reorg: false,
 		}
@@ -184,8 +184,8 @@ impl BlockDownloader {
 	}
 
 	/// Set starting sync block
-	pub fn set_target(&mut self, hash: &H256) {
-		self.target_hash = Some(hash.clone());
+	pub fn set_target(&mut self, hash: &H256, number: BlockNumber) {
+		self.target = Some((hash.clone(), number));
 	}
 
 	/// Unmark header as being downloaded.
@@ -220,45 +220,74 @@ impl BlockDownloader {
 	}
 
 	/// Add new block headers.
-	pub fn import_headers(&mut self, io: &mut SyncIo, r: &Rlp, expected_hash: Option<H256>) -> Result<DownloadAction, BlockDownloaderImportError> {
+	pub fn import_headers(&mut self, io: &mut SyncIo, r: &Rlp, expected_hash: H256) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
-		if self.state == State::Idle {
-			trace!(target: "sync", "Ignored unexpected block headers");
-			return Ok(DownloadAction::None)
-		}
-		if item_count == 0 && (self.state == State::Blocks) {
+		match self.state {
+			State::Idle => {
+				trace!(target: "sync", "Ignored unexpected block headers");
+				return Ok(DownloadAction::None)
+			}
+			State::Blocks if item_count == 0 => {
+				return Err(BlockDownloaderImportError::Invalid);
+			}
+			_ => {}
+		};
+
+		// The request is generated in ::request_blocks.
+		let (max_count, skip) = if self.state == State::ChainHead {
+			(SUBCHAIN_SIZE as usize, (MAX_HEADERS_TO_REQUEST - 2) as u64)
+		} else {
+			(MAX_HEADERS_TO_REQUEST, 0)
+		};
+
+		if item_count > max_count {
+			debug!(target: "sync", "Headers response is larger than expected");
 			return Err(BlockDownloaderImportError::Invalid);
 		}
 
-		let mut headers = Vec::new();
-		let mut hashes = Vec::new();
-		let mut valid_response = item_count == 0; //empty response is valid
-		let mut any_known = false;
+		let mut headers = Vec::with_capacity(max_count);
+		let mut hashes = Vec::with_capacity(max_count);
+		let mut last_in_chain = None;
+		let mut last_header = None;
 		for i in 0..item_count {
 			let info = SyncHeader::from_rlp(r.at(i)?.as_raw().to_vec())?;
 			let number = BlockNumber::from(info.header.number());
 			let hash = info.header.hash();
-			// Check if any of the headers matches the hash we requested
-			if !valid_response {
-				if let Some(expected) = expected_hash {
-					valid_response = expected == hash;
+
+			let valid_response = match last_header {
+				// First header must match expected hash.
+				None => expected_hash == hash,
+				Some((last_number, last_hash)) => {
+					// Subsequent headers must be spaced by skip interval.
+					let skip_valid = number == last_number + skip + 1;
+					// Consecutive headers must be linked by parent hash.
+					let parent_valid = (number != last_number + 1) || *info.header.parent_hash() == last_hash;
+					skip_valid && parent_valid
 				}
-			}
-			any_known = any_known || self.blocks.contains_head(&hash);
-			if self.blocks.contains(&hash) {
-				trace!(target: "sync", "Skipping existing block header {} ({:?})", number, hash);
-				continue;
+			};
+
+			// Disable the peer for this syncing round if it gives invalid chain
+			if !valid_response {
+				debug!(target: "sync", "Invalid headers response");
+				return Err(BlockDownloaderImportError::Invalid);
 			}
 
-			if self.highest_block.as_ref().map_or(true, |n| number > *n) {
-				self.highest_block = Some(number);
-			}
+			last_header = Some((number, hash));
+
+			// Do not queue blocks or subchain heads past the target number.
+			match self.target {
+				Some((_, target_number)) if number > target_number => break,
+				_ => (),
+			};
 
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain | BlockStatus::Queued => {
 					match self.state {
 						State::Blocks => trace!(target: "sync", "Header already in chain {} ({})", number, hash),
 						_ => trace!(target: "sync", "Header already in chain {} ({}), state = {:?}", number, hash, self.state),
+					}
+					if hash != expected_hash {
+						last_in_chain = Some(info.header.clone());
 					}
 					headers.push(info);
 					hashes.push(hash);
@@ -273,20 +302,23 @@ impl BlockDownloader {
 			}
 		}
 
-		// Disable the peer for this syncing round if it gives invalid chain
-		if !valid_response {
-			trace!(target: "sync", "Invalid headers response");
-			return Err(BlockDownloaderImportError::Invalid);
+		if let Some((number, _)) = last_header {
+			if self.highest_block.as_ref().map_or(true, |n| number > *n) {
+				self.highest_block = Some(number);
+			}
 		}
 
 		match self.state {
 			State::ChainHead => {
-				if !headers.is_empty() {
-					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
-					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
+				if let Some(new_head) = last_in_chain {
+					let hash = new_head.hash();
+					trace!(target: "sync", "Subchain head is skipping ahead to {}, already in chain", hash);
+					self.block_imported(&hash, new_head.number().into(), new_head.parent_hash());
+					self.retract_step = 0;
+				} else if !hashes.is_empty() {
+					trace!(target: "sync", "Received {} subchain heads, proceeding to download", hashes.len());
 					self.blocks.reset_to(hashes);
 					self.state = State::Blocks;
-					return Ok(DownloadAction::Reset);
 				} else {
 					let best = io.chain().chain_info().best_block_number;
 					let oldest_reorg = io.chain().pruning_info().earliest_state;
@@ -295,12 +327,16 @@ impl BlockDownloader {
 						trace!(target: "sync", "No common block, disabling peer");
 						return Err(BlockDownloaderImportError::Invalid);
 					}
+
+					trace!(target: "sync", "Sync round failed to find any subchain heads");
+					self.reset();
+					self.imported_this_round = Some(0);
 				}
+				return Ok(DownloadAction::Reset);
 			},
 			State::Blocks => {
 				let count = headers.len();
-				// At least one of the heades must advance the subchain. Otherwise they are all useless.
-				if count == 0 || !any_known {
+				if count == 0 {
 					trace!(target: "sync", "No useful headers");
 					return Err(BlockDownloaderImportError::Useless);
 				}
@@ -314,7 +350,7 @@ impl BlockDownloader {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn import_bodies(&mut self, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_bodies(&mut self, r: &Rlp, expected_hashes: &[H256]) -> Result<(), BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
@@ -327,8 +363,13 @@ impl BlockDownloader {
 				bodies.push(body);
 			}
 
-			if self.blocks.insert_bodies(bodies) != item_count {
+			let hashes = self.blocks.insert_bodies(bodies);
+			if hashes.len() != item_count {
 				trace!(target: "sync", "Deactivating peer for giving invalid block bodies");
+				return Err(BlockDownloaderImportError::Invalid);
+			}
+			if !all_expected(hashes.as_slice(), expected_hashes, |&a, &b| a == b) {
+				trace!(target: "sync", "Deactivating peer for giving unexpected block bodies");
 				return Err(BlockDownloaderImportError::Invalid);
 			}
 		}
@@ -336,7 +377,7 @@ impl BlockDownloader {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn import_receipts(&mut self, _io: &mut SyncIo, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_receipts(&mut self, r: &Rlp, expected_hashes: &[H256]) -> Result<(), BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
@@ -353,8 +394,13 @@ impl BlockDownloader {
 				})?;
 				receipts.push(receipt.as_raw().to_vec());
 			}
-			if self.blocks.insert_receipts(receipts) != item_count {
+			let hashes = self.blocks.insert_receipts(receipts);
+			if hashes.len() != item_count {
 				trace!(target: "sync", "Deactivating peer for giving invalid block receipts");
+				return Err(BlockDownloaderImportError::Invalid);
+			}
+			if !all_expected(hashes.as_slice(), expected_hashes, |a, b| a.contains(b)) {
+				trace!(target: "sync", "Deactivating peer for giving unexpected block receipts");
 				return Err(BlockDownloaderImportError::Invalid);
 			}
 		}
@@ -389,10 +435,10 @@ impl BlockDownloader {
 							Some(h) => {
 								self.last_imported_block = n;
 								self.last_imported_hash = h;
-								trace!(target: "sync", "Searching common header in the blockchain {} ({})", start, self.last_imported_hash);
+								trace!(target: "sync", "Searching common header in the blockchain {} ({})", self.last_imported_block, self.last_imported_hash);
 							}
 							None => {
-								debug!(target: "sync", "Could not revert to previous block, last: {} ({})", start, self.last_imported_hash);
+								debug!(target: "sync", "Could not revert to previous block, last: {} ({})", start, start_hash);
 								self.reset();
 							}
 						}
@@ -440,7 +486,7 @@ impl BlockDownloader {
 				}
 
 				if self.download_receipts {
-					let needed_receipts = self.blocks.needed_receipts(MAX_RECEPITS_TO_REQUEST, false);
+					let needed_receipts = self.blocks.needed_receipts(MAX_RECEIPTS_TO_REQUEST, false);
 					if !needed_receipts.is_empty() {
 						return Some(BlockRequest::Receipts {
 							hashes: needed_receipts,
@@ -463,7 +509,12 @@ impl BlockDownloader {
 	}
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
-	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<(), BlockDownloaderImportError> {
+	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> Result<bool, BlockDownloaderImportError> {
+		if self.state != State::Blocks {
+			trace!(target: "sync", "Skipping collect_blocks in {:?} state", self.state);
+			return Ok(false);
+		}
+
 		let mut bad = false;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
@@ -476,10 +527,11 @@ impl BlockDownloader {
 			let number = block.header.number();
 			let parent = *block.header.parent_hash();
 
-			if self.target_hash.as_ref().map_or(false, |t| t == &h) {
+			if self.target.as_ref().map_or(false, |(t, _)| t == &h) {
+				self.reset();
 				self.state = State::Complete;
 				trace!(target: "sync", "Sync target reached");
-				return Ok(());
+				return Ok(true);
 			}
 
 			let result = if let Some(receipts) = receipts {
@@ -535,8 +587,10 @@ impl BlockDownloader {
 			// complete sync round
 			trace!(target: "sync", "Sync round complete");
 			self.reset();
+			Ok(true)
+		} else {
+			Ok(false)
 		}
-		Ok(())
 	}
 
 	fn block_imported(&mut self, hash: &H256, number: BlockNumber, parent: &H256) {
@@ -547,6 +601,21 @@ impl BlockDownloader {
 			self.round_parents.pop_front();
 		}
 	}
+}
+
+// Determines if the first argument matches an ordered subset of the second, according to some predicate.
+fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) -> bool
+	where F: Fn(&A, &B) -> bool
+{
+	let mut expected_iter = expected_values.iter();
+	values.iter().all(|val1| {
+		while let Some(val2) = expected_iter.next() {
+			if is_expected(val1, val2) {
+				return true;
+			}
+		}
+		false
+	})
 }
 
 //TODO: module tests

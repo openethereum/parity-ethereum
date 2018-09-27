@@ -212,32 +212,28 @@ impl BlockCollection {
 	}
 
 	/// Insert a collection of block bodies for previously downloaded headers.
-	pub fn insert_bodies(&mut self, bodies: Vec<SyncBody>) -> usize {
-		let mut inserted = 0;
-		for b in bodies {
-			if let Err(e) =  self.insert_body(b) {
-				trace!(target: "sync", "Ignored invalid body: {:?}", e);
-			} else {
-				inserted += 1;
-			}
-		}
-		inserted
+	pub fn insert_bodies(&mut self, bodies: Vec<SyncBody>) -> Vec<H256> {
+		bodies.into_iter()
+			.filter_map(|b| {
+				self.insert_body(b)
+					.map_err(|e| trace!(target: "sync", "Ignored invalid body: {:?}", e))
+					.ok()
+			})
+			.collect()
 	}
 
 	/// Insert a collection of block receipts for previously downloaded headers.
-	pub fn insert_receipts(&mut self, receipts: Vec<Bytes>) -> usize {
+	pub fn insert_receipts(&mut self, receipts: Vec<Bytes>) -> Vec<SmallHashVec> {
 		if !self.need_receipts {
-			return 0;
+			return Vec::new();
 		}
-		let mut inserted = 0;
-		for r in receipts {
-			if let Err(e) =  self.insert_receipt(r) {
-				trace!(target: "sync", "Ignored invalid receipt: {:?}", e);
-			} else {
-				inserted += 1;
-			}
-		}
-		inserted
+		receipts.into_iter()
+			.filter_map(|r| {
+				self.insert_receipt(r)
+					.map_err(|e| trace!(target: "sync", "Ignored invalid receipt: {:?}", e))
+					.ok()
+			})
+			.collect()
 	}
 
 	/// Returns a set of block hashes that require a body download. The returned set is marked as being downloaded.
@@ -418,7 +414,7 @@ impl BlockCollection {
 		self.downloading_headers.contains(hash) || self.downloading_bodies.contains(hash)
 	}
 
-	fn insert_body(&mut self, body: SyncBody) -> Result<(), network::Error> {
+	fn insert_body(&mut self, body: SyncBody) -> Result<H256, network::Error> {
 		let header_id = {
 			let tx_root = ordered_trie_root(Rlp::new(&body.transactions_bytes).iter().map(|r| r.as_raw()));
 			let uncles = keccak(&body.uncles_bytes);
@@ -435,7 +431,7 @@ impl BlockCollection {
 					Some(ref mut block) => {
 						trace!(target: "sync", "Got body {}", h);
 						block.body = Some(body);
-						Ok(())
+						Ok(h)
 					},
 					None => {
 						warn!("Got body with no header {}", h);
@@ -450,7 +446,7 @@ impl BlockCollection {
 		}
 	}
 
-	fn insert_receipt(&mut self, r: Bytes) -> Result<(), network::Error> {
+	fn insert_receipt(&mut self, r: Bytes) -> Result<SmallHashVec, network::Error> {
 		let receipt_root = {
 			let receipts = Rlp::new(&r);
 			ordered_trie_root(receipts.iter().map(|r| r.as_raw()))
@@ -458,7 +454,8 @@ impl BlockCollection {
 		self.downloading_receipts.remove(&receipt_root);
 		match self.receipt_ids.entry(receipt_root) {
 			hash_map::Entry::Occupied(entry) => {
-				for h in entry.remove() {
+				let block_hashes = entry.remove();
+				for h in block_hashes.iter() {
 					match self.blocks.get_mut(&h) {
 						Some(ref mut block) => {
 							trace!(target: "sync", "Got receipt {}", h);
@@ -470,7 +467,7 @@ impl BlockCollection {
 						}
 					}
 				}
-				Ok(())
+				Ok(block_hashes)
 			},
 			hash_map::Entry::Vacant(_) => {
 				trace!(target: "sync", "Ignored unknown/stale block receipt {:?}", receipt_root);
@@ -481,14 +478,15 @@ impl BlockCollection {
 
 	fn insert_header(&mut self, info: SyncHeader) -> Result<H256, DecoderError> {
 		let hash = info.header.hash();
-		if self.blocks.contains_key(&hash) {
+		if self.contains(&hash) {
 			return Ok(hash);
 		}
 
+		let parent_hash = *info.header.parent_hash();
 		match self.head {
 			None if hash == self.heads[0] => {
-				trace!(target: "sync", "New head {}", hash);
-				self.head = Some(info.header.parent_hash().clone());
+				trace!(target: "sync", "New head {}", parent_hash);
+				self.head = Some(parent_hash);
 			},
 			_ => ()
 		}
@@ -526,7 +524,7 @@ impl BlockCollection {
 			(None, H256::new())
 		};
 
-		self.parents.insert(*info.header.parent_hash(), hash);
+		self.parents.insert(parent_hash, hash);
 
 		let block = SyncBlock {
 			header: info,
