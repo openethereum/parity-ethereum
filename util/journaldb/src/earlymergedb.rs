@@ -26,7 +26,7 @@ use ethereum_types::H256;
 use hashdb::*;
 use heapsize::HeapSizeOf;
 use keccak_hasher::KeccakHasher;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::*;
 use parking_lot::RwLock;
 use rlp::{encode, decode};
@@ -107,7 +107,7 @@ enum RemoveFrom {
 ///
 /// TODO: `store_reclaim_period`
 pub struct EarlyMergeDB {
-	overlay: MemoryDB<KeccakHasher>,
+	overlay: MemoryDB<KeccakHasher, DBValue>,
 	backing: Arc<KeyValueDB>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
 	latest_era: Option<u64>,
@@ -260,6 +260,9 @@ impl EarlyMergeDB {
 	fn payload(&self, key: &H256) -> Option<DBValue> {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
+	// fn payload(&self, key: &H256) -> Option<&DBValue> {
+	// 	self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| &v)
+	// }
 
 	fn read_refs(db: &KeyValueDB, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
 		let mut refs = HashMap::new();
@@ -287,7 +290,7 @@ impl EarlyMergeDB {
 	}
 }
 
-impl HashDB<KeccakHasher> for EarlyMergeDB {
+impl HashDB<KeccakHasher, DBValue> for EarlyMergeDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -514,7 +517,7 @@ impl JournalDB for EarlyMergeDB {
 		Ok(ops)
 	}
 
-	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher, DBValue>) {
 		self.overlay.consolidate(with);
 	}
 }
@@ -523,7 +526,7 @@ impl JournalDB for EarlyMergeDB {
 mod tests {
 
 	use keccak::keccak;
-	use hashdb::{HashDB, DBValue};
+	use hashdb::HashDB;
 	use super::*;
 	use super::super::traits::JournalDB;
 	use ethcore_logger::init_log;

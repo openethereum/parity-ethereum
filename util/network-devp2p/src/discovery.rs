@@ -435,7 +435,6 @@ impl<'a> Discovery<'a> {
 		let signed = &packet[(32 + 65)..];
 		let signature = H520::from_slice(&packet[32..(32 + 65)]);
 		let node_id = recover(&signature.into(), &keccak(signed))?;
-
 		let packet_id = signed[0];
 		let rlp = Rlp::new(&signed[1..]);
 		match packet_id {
@@ -470,7 +469,6 @@ impl<'a> Discovery<'a> {
 		let ping_to = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
 		self.check_timestamp(timestamp)?;
-
 		let mut response = RlpStream::new_list(3);
 		let pong_to = NodeEndpoint {
 			address: from.clone(),

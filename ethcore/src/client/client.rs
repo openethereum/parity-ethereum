@@ -1822,7 +1822,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.read().block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).into_vec())
+		self.chain.read().block_receipts(hash).map(|receipts| ::rlp::encode(&receipts))
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {

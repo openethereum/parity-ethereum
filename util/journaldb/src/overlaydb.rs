@@ -26,8 +26,8 @@ use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
 use hashdb::*;
 use keccak_hasher::KeccakHasher;
 use memorydb::*;
-use kvdb::{KeyValueDB, DBTransaction};
-use super::error_negatively_reference_hash;
+use kvdb::{KeyValueDB, DBTransaction, DBValue};
+use super::{error_negatively_reference_hash};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
@@ -39,7 +39,7 @@ use super::error_negatively_reference_hash;
 /// queries have an immediate effect in terms of these functions.
 #[derive(Clone)]
 pub struct OverlayDB {
-	overlay: MemoryDB<KeccakHasher>,
+	overlay: MemoryDB<KeccakHasher, DBValue>,
 	backing: Arc<KeyValueDB>,
 	column: Option<u32>,
 }
@@ -112,6 +112,7 @@ impl OverlayDB {
 							return Err(error_negatively_reference_hash(&key));
 						}
 						let payload = Payload::new(total_rc as u32, x.value);
+						// let payload = Payload::new(total_rc as u32, x.value.clone());
 						deletes += if self.put_payload_in_batch(batch, &key, &payload) {1} else {0};
 					}
 					None => {
@@ -140,8 +141,29 @@ impl OverlayDB {
 	fn payload(&self, key: &H256) -> Option<Payload> {
 		self.backing.get(self.column, key)
 			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|d| decode(&d).expect("decoding db value failed"))
+			.map(|ref d| decode(d).expect("decoding db value failed") )
 	}
+	// fn payload(&self, key: &H256) -> Option<&Payload> {
+	// 	let x = self.backing.get(self.column, key)
+	// 		.expect("Low-level database error. Some issue with your hard disk?")
+	// 		.as_ref().map(|d| {
+	// 			let rlp = Rlp::new(d);
+	// 			Payload::decode(&rlp).expect("decoding db value failed")
+	// 			// rlp.as_val().expect("decoding db value failed")
+	// 			// // decode(d).expect("decoding db value failed")
+	// 		});
+	// 	// Some(&x)
+	// 	x.map(|v| &v)
+	// }
+// pub fn decode<T>(bytes: &[u8]) -> Result<T, DecoderError> where T: Decodable {
+// 	let rlp = Rlp::new(bytes);
+// 	rlp.as_val()
+// }
+// pub fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable {
+// 		T::decode(self)
+// 	}
+
+
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.
 	fn put_payload_in_batch(&self, batch: &mut DBTransaction, key: &H256, payload: &Payload) -> bool {
@@ -155,7 +177,7 @@ impl OverlayDB {
 	}
 }
 
-impl HashDB<KeccakHasher> for OverlayDB {
+impl HashDB<KeccakHasher, DBValue> for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| {

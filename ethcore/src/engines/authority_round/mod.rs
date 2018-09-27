@@ -972,7 +972,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 			let empty_steps_rlp = if header.number() >= self.empty_steps_transition {
 				let empty_steps: Vec<_> = empty_steps.iter().map(|e| e.sealed()).collect();
-				Some(::rlp::encode_list(&empty_steps).into_vec())
+				Some(::rlp::encode_list(&empty_steps))
 			} else {
 				None
 			};
@@ -994,8 +994,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					}
 
 					let mut fields = vec![
-						encode(&step).into_vec(),
-						encode(&(&H520::from(signature) as &[u8])).into_vec(),
+						encode(&step),
+						encode(&(&H520::from(signature) as &[u8])),
 					];
 
 					if let Some(empty_steps_rlp) = empty_steps_rlp {
@@ -1440,7 +1440,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = Spec::new_test_round().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![encode(&H520::default()).into_vec()]);
+		header.set_seal(vec![encode(&H520::default())]);
 
 		let verify_result = engine.verify_block_external(&header);
 		assert!(verify_result.is_err());
@@ -1517,7 +1517,7 @@ mod tests {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1530,12 +1530,12 @@ mod tests {
 		// Spec starts with step 2.
 		header.set_difficulty(calculate_score(U256::from(0), U256::from(2), U256::zero()));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&2usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&2usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_err());
 		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&1usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
 	}
@@ -1546,7 +1546,7 @@ mod tests {
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1559,10 +1559,10 @@ mod tests {
 		// Spec starts with step 2.
 		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&1usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
-		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&5usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_basic(&header).is_err());
 	}
 
@@ -1572,7 +1572,7 @@ mod tests {
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&4usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&4usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1584,10 +1584,10 @@ mod tests {
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
-		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&5usize), encode(&(&*signature as &[u8]))]);
 		header.set_difficulty(calculate_score(U256::from(4), U256::from(5), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
-		header.set_seal(vec![encode(&3usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&3usize), encode(&(&*signature as &[u8]))]);
 		header.set_difficulty(calculate_score(U256::from(4), U256::from(3), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_err());
 	}
@@ -1619,12 +1619,12 @@ mod tests {
 		};
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&1usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_difficulty(calculate_score(U256::from(1), U256::from(3), U256::zero()));
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
-		header.set_seal(vec![encode(&3usize).into_vec()]);
+		header.set_seal(vec![encode(&3usize)]);
 
 		// Do not report when signer not present.
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
@@ -1775,7 +1775,7 @@ mod tests {
 		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
 
 		// spec starts with step 2
-		let empty_step_rlp = encode(&empty_step(engine, 2, &genesis_header.hash())).into_vec();
+		let empty_step_rlp = encode(&empty_step(engine, 2, &genesis_header.hash()));
 
 		// we've received the message
 		assert!(notify.messages.read().contains(&empty_step_rlp));
@@ -1828,8 +1828,8 @@ mod tests {
 			let empty_step2 = sealed_empty_step(engine, 2, &genesis_header.hash());
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2]);
 
-			assert_eq!(seal[0], encode(&3usize).into_vec());
-			assert_eq!(seal[2], empty_steps.into_vec());
+			assert_eq!(seal[0], encode(&3usize));
+			assert_eq!(seal[2], empty_steps);
 		}
 	}
 
@@ -1882,8 +1882,8 @@ mod tests {
 
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2, empty_step3]);
 
-			assert_eq!(seal[0], encode(&4usize).into_vec());
-			assert_eq!(seal[2], empty_steps.into_vec());
+			assert_eq!(seal[0], encode(&4usize));
+			assert_eq!(seal[2], empty_steps);
 		}
 	}
 
@@ -1932,7 +1932,7 @@ mod tests {
 		let engine = &*spec.engine;
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 
 		let mut header: Header = Header::default();
@@ -1946,9 +1946,9 @@ mod tests {
 		// empty step with invalid step
 		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 2 }];
 		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
+			encode(&2usize),
+			encode(&(&*signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
@@ -1960,9 +1960,9 @@ mod tests {
 		// empty step with invalid signature
 		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 1 }];
 		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
+			encode(&2usize),
+			encode(&(&*signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
@@ -1975,9 +1975,9 @@ mod tests {
 		engine.set_signer(tap.clone(), addr1, "1".into());
 		let empty_steps = vec![sealed_empty_step(engine, 1, &parent_header.hash())];
 		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
+			encode(&2usize),
+			encode(&(&*signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
@@ -1996,9 +1996,9 @@ mod tests {
 		header.set_difficulty(calculate_score(U256::from(0), U256::from(4), U256::from(2)));
 		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![
-			encode(&4usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
+			encode(&4usize),
+			encode(&(&*signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
 		]);
 
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
