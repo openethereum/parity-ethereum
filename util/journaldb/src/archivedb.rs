@@ -62,9 +62,6 @@ impl ArchiveDB {
 	fn payload(&self, key: &H256) -> Option<DBValue> {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
-	// fn payload(&self, key: &H256) -> Option<&DBValue> {
-	// 	self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| &v)
-	// }
 }
 
 impl HashDB<KeccakHasher, DBValue> for ArchiveDB {

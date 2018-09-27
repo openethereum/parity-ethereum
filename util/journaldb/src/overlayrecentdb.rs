@@ -178,9 +178,6 @@ impl OverlayRecentDB {
 	fn payload(&self, key: &H256) -> Option<DBValue> {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
-	// fn payload(&self, key: &H256) -> Option<&DBValue> {
-	// 	self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| &v)
-	// }
 
 	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
 		let mut journal = HashMap::new();
