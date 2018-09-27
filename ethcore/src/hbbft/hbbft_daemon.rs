@@ -82,7 +82,7 @@ impl HbbftDaemon {
 	/// Returns a new `HbbftDaemon`.
 	pub fn new(client: Arc<Client>, cfg: &HbbftConfig) -> Result<HbbftDaemon, Error> {
 		// Hydrabadger
-		let hdb = Hydrabadger::new(cfg.bind_address, cfg.to_hydrabadger());
+		let hdb = Hydrabadger::<u8>::new(cfg.bind_address, cfg.to_hydrabadger());
 		let hdb_peers = cfg.remote_addresses.clone();
 
 		let (shutdown, shutdown_rx) = Shutdown::new();
@@ -111,7 +111,7 @@ impl HbbftDaemon {
 				// Call experimental methods:
 				client.a_specialized_method();
 				client.change_me_into_something_useful();
-				client.import_a_bad_block_and_panic();
+				// client.import_a_bad_block_and_panic();
 
 				thread::sleep(Duration::from_millis(5000));
 			}
