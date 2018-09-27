@@ -226,6 +226,8 @@ build-windows-msvc-x86_64:
 package-linux-snap-amd64:          &package_snap
   stage:                           package
   only:                            *releaseable_branches
+  except:
+    - master
   image:                           parity/snapcraft:gitlab-ci
   cache: {}
   before_script:                   *determine_version
