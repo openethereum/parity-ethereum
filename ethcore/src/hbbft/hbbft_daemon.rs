@@ -1,6 +1,6 @@
 //! An hbbft <-> Parity link which relays events and acts as an intermediary.
 
-#![allow(dead_code, unused_imports, unused_variables, missing_docs)]
+#![allow(dead_code, unused_imports, unused_variables, unused_mut, missing_docs)]
 
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::thread;
@@ -25,6 +25,7 @@ use verification::queue::kind::blocks::{Unverified};
 use transaction::{Transaction, Action};
 use block::{OpenBlock, ClosedBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
+use account_provider::AccountProvider;
 
 type Txn = Vec<u8>;
 
@@ -51,57 +52,169 @@ pub trait HbbftClientExt {
 	fn a_specialized_method(&self);
 	fn change_me_into_something_useful(&self);
 	fn import_a_bad_block_and_panic(&self);
+	fn set_hbbft_daemon(&self, hbbft_daemon: HbbftDaemon);
 }
 
-/// Coordinates shutdown between the tokio runtime and the experimentation
-/// thread (below).
-#[derive(Debug)]
-struct Shutdown {
-	tx: Option<oneshot::Sender<()>>,
-	sig: Arc<AtomicBool>,
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// EXPERIMENTS //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+/// Experiments and other junk.
+//
+// Add anything at all to this!
+//
+struct Laboratory {
+	client: Arc<Client>,
+	hydrabadger: Hydrabadger<Txn>,
+	hdb_cfg: HbbftConfig,
+	account_provider: Arc<AccountProvider>,
 }
 
-impl Shutdown {
-	/// Returns a new `Shutdown`.
-	fn new() -> (Shutdown, oneshot::Receiver<()>) {
-		let (tx, rx) = oneshot::channel();
-		let sd = Shutdown {
-			tx: Some(tx),
-			sig: Arc::new(AtomicBool::new(false)),
-		};
-		(sd, rx )
+impl Laboratory {
+	/// Generates random transactions.
+	//
+	// TODO: Make this more randomy. Add some args.
+	fn gen_random_txns(&self) -> Vec<Vec<u8>> {
+		(0..self.hdb_cfg.txn_gen_count).map(|_| {
+			let data = rand::thread_rng().gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
+
+			let key = Random.generate().unwrap();
+
+			let t = Transaction {
+				action: Action::Create,
+				nonce: U256::from(42),
+				gas_price: U256::from(3000),
+				gas: U256::from(50_000),
+				value: U256::from(1),
+				data,
+			}.sign(&key.secret(), None);
+
+			t.rlp_bytes().into_vec()
+		}).collect::<Vec<Txn>>()
 	}
 
-	/// Sends shutdown signals.
-	fn shutdown(&mut self) {
-		self.sig.store(true, Ordering::Release);
-		self.tx.take().map(|tx| tx.send(()));
+	fn push_random_transactions_to_hydrabadger(&mut self) {
+		let random_txns = self.gen_random_txns();
+
+		match self.hydrabadger.push_user_transactions(random_txns) {
+			Err(HydrabadgerError::PushUserTransactionNotValidator) => {
+				info!("Unable to push random transactions: this node is not a validator");
+			},
+			Err(err) => unreachable!(),
+			Ok(()) => {},
+		}
+	}
+
+	fn play_with_blocks(&self) {
+		// let author = Address::from_slice(b"0xe8ddc5c7a2d2f0d7a9798459c0104fdf5e987aca");
+		let author = Address::random();
+		let gas_range_target = (3141562.into(), 31415620.into());
+		let extra_data = vec![];
+
+		let key = Random.generate().unwrap();
+		let txn = Transaction {
+			action: Action::Call(Address::default()),
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 1000000.into(),
+			value: 5.into(),
+			data: vec![],
+		}.sign(&key.secret(), None);
+
+		// Import some blocks:
+		for _ in 0..20 {
+			let mut open_block: OpenBlock = self.client
+				.prepare_open_block(author, gas_range_target, extra_data.clone())
+				.unwrap();
+
+			for _ in 0..5 {
+				open_block.push_transaction(txn.clone(), None).unwrap();
+			}
+
+			let closed_block: ClosedBlock = open_block.close().unwrap();
+			let reopened_block: OpenBlock = closed_block.reopen(self.client.engine());
+			let reclosed_block: ClosedBlock = reopened_block.close().unwrap();
+			let locked_block: LockedBlock = reclosed_block.lock();
+			let sealed_block: SealedBlock = locked_block.seal(self.client.engine(), vec![]).unwrap();
+
+			self.client.import_sealed_block(sealed_block).unwrap();
+		}
+
+		// Import some blocks:
+		for _ in 0..20 {
+			let mut open_block: OpenBlock = self.client
+				.prepare_open_block(author, gas_range_target, extra_data.clone())
+				.unwrap();
+
+			for _ in 0..5 {
+				open_block.push_transaction(txn.clone(), None).unwrap();
+			}
+
+			let sealed_block: SealedBlock = open_block
+				.close_and_lock()
+				.unwrap()
+				.seal(self.client.engine(), vec![])
+				.unwrap();
+
+			self.client.import_sealed_block(sealed_block).unwrap();
+		}
+	}
+
+	fn demonstrate_client_extension_methods(&self) {
+		self.client.a_specialized_method();
+		self.client.change_me_into_something_useful();
+	}
+
+	/// Runs all experiments.
+	//
+	// Call your experiments here.
+	fn run_experiments(&mut self) {
+		self.push_random_transactions_to_hydrabadger();
+		// self.play_with_blocks();
+		self.demonstrate_client_extension_methods();
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+
+pub struct Inner {
+	client: Arc<Client>,
+	runtime_th: thread::JoinHandle<()>,
+	hydrabadger: Hydrabadger<Txn>,
+	/// Shuts down the runtime (temporary).
+	shutdown_tx: Option<oneshot::Sender<()>>,
+}
 
 /// An hbbft <-> Parity link which relays events and acts as an intermediary.
 pub struct HbbftDaemon {
-	client: Arc<Client>,
-	runtime_th: thread::JoinHandle<()>,
-	shutdown: Shutdown,
-	hydrabadger: Hydrabadger<Txn>,
+	inner: Arc<Inner>,
 }
 
 impl HbbftDaemon {
 	/// Returns a new `HbbftDaemon`.
-	pub fn new(client: Arc<Client>, cfg: &HbbftConfig) -> Result<HbbftDaemon, Error> {
+	pub fn new(
+		client: Arc<Client>,
+		cfg: &HbbftConfig,
+		account_provider: Arc<AccountProvider>
+	) -> Result<HbbftDaemon, Error> {
 		// Hydrabadger
 		let hydrabadger = Hydrabadger::<Txn>::new(cfg.bind_address, cfg.to_hydrabadger());
-		let hdb_peers = cfg.remote_addresses.clone();
 
-		let (shutdown, shutdown_rx) = Shutdown::new();
+		let (shutdown_tx, shutdown_rx) = oneshot::channel();
 
 		// Create Tokio runtime:
 		let mut runtime = Runtime::new().map_err(ErrorKind::RuntimeStart)?;
 		let executor = runtime.executor();
 
 		let hdb_clone = hydrabadger.clone();
+		let hdb_peers = cfg.remote_addresses.clone();
 
 		// Spawn runtime on its own thread:
 		let runtime_th = thread::Builder::new().name("tokio-runtime".to_string()).spawn(move || {
@@ -113,118 +226,40 @@ impl HbbftDaemon {
 		info!("Starting HbbftDaemon...");
 
 		let client_clone = client.clone();
-		let shutdown_sig = shutdown.sig.clone();
 		let hdb_clone = hydrabadger.clone();
 		let cfg_clone = cfg.clone();
 
+		let lab = Laboratory {
+			client: client.clone(),
+			hydrabadger: hydrabadger.clone(),
+			hdb_cfg: cfg.clone(),
+			account_provider,
+		};
+
 		// Spawn experimentation loop:
-		executor.spawn(future::loop_fn((client_clone, hdb_clone, cfg_clone), move |(client, hydrabadger, cfg)| {
-			// Generate random transactions:
-			let txns = (0..cfg.txn_gen_count).map(|_| {
-				// rand::thread_rng().gen_iter().take(cfg.txn_gen_bytes).collect()
-				let key = Random.generate().unwrap();
-
-				let t = Transaction {
-					action: Action::Create,
-					nonce: U256::from(42),
-					gas_price: U256::from(3000),
-					gas: U256::from(50_000),
-					value: U256::from(1),
-					data: b"Hello!".to_vec()
-				}.sign(&key.secret(), None);
-
-				t.rlp_bytes().into_vec()
-			}).collect::<Vec<Txn>>();
-
-
-			{ // Push transactions:
-				match hydrabadger.push_user_transactions(txns.clone()) {
-					Err(HydrabadgerError::PushUserTransactionNotValidator) => {
-						info!("Unable to push random transactions: this node is not a validator");
-					},
-					Err(err) => unreachable!(),
-					Ok(()) => {},
-				}
-			}
-
-			{ // Play with blocks:
-				// let author = Address::from_slice(b"0xe8ddc5c7a2d2f0d7a9798459c0104fdf5e987aca");
-				let author = Address::random();
-				let gas_range_target = (3141562.into(), 31415620.into());
-				let extra_data = vec![];
-
-				let key = Random.generate().unwrap();
-				let txn = Transaction {
-					action: Action::Call(Address::default()),
-					nonce: 0.into(),
-					gas_price: 0.into(),
-					gas: 1000000.into(),
-					value: 5.into(),
-					data: vec![],
-				}.sign(&key.secret(), None);
-
-				// Import some blocks:
-				for _ in 0..20 {
-					let mut open_block: OpenBlock = client
-						.prepare_open_block(author, gas_range_target, extra_data.clone())
-						.unwrap();
-
-					for _ in 0..5 {
-						open_block.push_transaction(txn.clone(), None).unwrap();
-					}
-
-					let closed_block: ClosedBlock = open_block.close().unwrap();
-					let reopened_block: OpenBlock = closed_block.reopen(client.engine());
-					let reclosed_block: ClosedBlock = reopened_block.close().unwrap();
-					let locked_block: LockedBlock = reclosed_block.lock();
-					let sealed_block: SealedBlock = locked_block.seal(client.engine(), vec![]).unwrap();
-
-					client.import_sealed_block(sealed_block).unwrap();
-				}
-
-				// Import some blocks:
-				for _ in 0..20 {
-					let mut open_block: OpenBlock = client
-						.prepare_open_block(author, gas_range_target, extra_data.clone())
-						.unwrap();
-
-					for _ in 0..5 {
-						open_block.push_transaction(txn.clone(), None).unwrap();
-					}
-
-					let sealed_block: SealedBlock = open_block
-						.close_and_lock()
-						.unwrap()
-						.seal(client.engine(), vec![])
-						.unwrap();
-
-					client.import_sealed_block(sealed_block).unwrap();
-				}
-			}
-
-			{ // Call experimental methods:
-				client.a_specialized_method();
-				client.change_me_into_something_useful();
-				// client.import_a_bad_block_and_panic();
-			}
+		executor.spawn(future::loop_fn(lab, move |mut lab| {
+			// Entry point for experiments:
+			lab.run_experiments();
 
 			Delay::new(Instant::now() + Duration::from_millis(5000))
-				.map(|_| Loop::Continue((client, hydrabadger, cfg)))
+				.map(|_| Loop::Continue(lab))
 				.map_err(|err| panic!("{:?}", err))
 		}));
 
 		Ok(HbbftDaemon {
-			client,
-			runtime_th,
-			shutdown,
-			hydrabadger,
+			inner: Arc::new(Inner {
+				client,
+				runtime_th,
+				hydrabadger,
+				shutdown_tx: Some(shutdown_tx),
+			})
 		})
 	}
 }
 
-impl Drop for HbbftDaemon {
+impl Drop for Inner {
 	fn drop(&mut self) {
-		self.shutdown.shutdown();
+		self.shutdown_tx.take().map(|tx| tx.send(()));
 	}
 }
 
@@ -472,7 +507,7 @@ mod ref_000 {
 *******************************************************************************
 *******************************************************************************
 
-### Importing a block
+
 
 
 

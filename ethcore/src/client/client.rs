@@ -80,7 +80,7 @@ use verification::{PreverifiedBlock, Verifier, BlockQueue};
 use verification::queue::kind::blocks::Unverified;
 use verification::queue::kind::BlockLike;
 
-use hbbft::HbbftClientExt;
+use hbbft::{HbbftDaemon, HbbftClientExt};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -240,6 +240,8 @@ pub struct Client {
 	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 
 	importer: Importer,
+
+	hbbft_daemon: Mutex<Option<HbbftDaemon>>,
 }
 
 impl Importer {
@@ -791,6 +793,7 @@ impl Client {
 			exit_handler: Mutex::new(None),
 			importer,
 			config,
+			hbbft_daemon: Mutex::new(None),
 		});
 
 		// prune old states.
@@ -1348,6 +1351,11 @@ impl HbbftClientExt for Client {
 
 		info!("HbbftDaemon: Importing a bad block...");
 		self.import_block(bad_block).expect("\n\nBlock import error");
+	}
+
+	/// Sets the hbbft daemon.
+	fn set_hbbft_daemon(&self, hbbftd: HbbftDaemon) {
+		*self.hbbft_daemon.lock() = Some(hbbftd);
 	}
 }
 

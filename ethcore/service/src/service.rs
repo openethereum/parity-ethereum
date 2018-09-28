@@ -85,7 +85,7 @@ pub struct ClientService {
 	private_tx: Arc<PrivateTxService>,
 	database: Arc<BlockChainDB>,
 	_stop_guard: StopGuard,
-	_hbbftd: Option<HbbftDaemon>,
+	_hbbftd: Option<Arc<HbbftDaemon>>,
 }
 
 impl ClientService {
@@ -133,7 +133,7 @@ impl ClientService {
 		let provider = Arc::new(ethcore_private_tx::Provider::new(
 				client.clone(),
 				miner,
-				account_provider,
+				account_provider.clone(),
 				encryptor,
 				private_tx_conf,
 				io_service.channel(),
@@ -150,10 +150,18 @@ impl ClientService {
 
 		let stop_guard = StopGuard::new();
 
-		let _hbbftd = match hbbft_conf {
-			Some(cfg) => Some(HbbftDaemon::new(client.clone(), cfg).map_err(|err| err.to_string())?),
+		let hbbftd = match hbbft_conf {
+			Some(cfg) => {
+				Some(HbbftDaemon::new(
+					client.clone(),
+					cfg,
+					account_provider.clone(),
+				).map_err(|err| err.to_string())?)
+			},
 			None => None,
 		};
+
+		client.set_hbbft_daemon(hbbftd.clone());
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
@@ -162,7 +170,7 @@ impl ClientService {
 			private_tx,
 			database: blockchain_db,
 			_stop_guard: stop_guard,
-			_hbbftd,
+			_hbbftd: hbbftd,
 		})
 	}
 
