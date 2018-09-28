@@ -4,19 +4,26 @@
 
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::thread;
-use std::time::Duration;
+use std::time::{Instant, Duration};
+use rand::{self, ThreadRng, Rng};
 use futures::{
 	Future,
 	future,
 	sync::mpsc::Receiver,
 	sync::oneshot,
 };
-use client::{Client, ImportBlock};
+use hydrabadger::{Hydrabadger, Error as HydrabadgerError};
 use parity_reactor::{tokio, Runtime};
-use verification::queue::kind::blocks::{Unverified};
-use header::Header;
 use hbbft::HbbftConfig;
-use hydrabadger::{Hydrabadger};
+use rlp::Encodable;
+use ethkey::{Random, Generator};
+use ethereum_types::U256;
+use header::Header;
+use client::{Client, ImportBlock};
+use verification::queue::kind::blocks::{Unverified};
+use transaction::{Transaction, Action};
+
+type Txn = Vec<u8>;
 
 // TODO: Replace error_chain (deprecated) with failure.
 error_chain! {
@@ -74,25 +81,29 @@ impl Shutdown {
 pub struct HbbftDaemon {
 	client: Arc<Client>,
 	runtime_th: thread::JoinHandle<()>,
-	th: thread::JoinHandle<()>,
+	exp_th: thread::JoinHandle<()>,
 	shutdown: Shutdown,
+	hydrabadger: Hydrabadger<Txn>,
 }
 
 impl HbbftDaemon {
 	/// Returns a new `HbbftDaemon`.
 	pub fn new(client: Arc<Client>, cfg: &HbbftConfig) -> Result<HbbftDaemon, Error> {
 		// Hydrabadger
-		let hdb = Hydrabadger::<u8>::new(cfg.bind_address, cfg.to_hydrabadger());
+		let hydrabadger = Hydrabadger::<Txn>::new(cfg.bind_address, cfg.to_hydrabadger());
 		let hdb_peers = cfg.remote_addresses.clone();
 
 		let (shutdown, shutdown_rx) = Shutdown::new();
 
 		// Create Tokio runtime:
 		let mut runtime = Runtime::new().map_err(ErrorKind::RuntimeStart)?;
+		let executor = runtime.executor();
+
+		let hdb_clone = hydrabadger.clone();
 
 		// Spawn runtime on its own thread:
 		let runtime_th = thread::Builder::new().name("tokio-runtime".to_string()).spawn(move || {
-			runtime.spawn(future::lazy(move || hdb.clone().node(Some(hdb_peers)) ));
+			runtime.spawn(future::lazy(move || hdb_clone.node(Some(hdb_peers), None)));
 			runtime.block_on(shutdown_rx).expect("Tokio runtime error");
 			runtime.shutdown_now().wait().expect("Error shutting down tokio runtime");
 		}).map_err(|err| format!("Error creating thread: {:?}", err))?;
@@ -101,12 +112,42 @@ impl HbbftDaemon {
 
 		let client_clone = client.clone();
 		let shutdown_sig = shutdown.sig.clone();
+		let hdb_clone = hydrabadger.clone();
+		let cfg_clone = cfg.clone();
 
-		// Spawn experemintation thread:
-		let th = thread::Builder::new().name("hbbft-daemon".to_string()).spawn(move || {
+		// Spawn experimentation thread:
+		let exp_th = thread::Builder::new().name("hbbft-daemon".to_string()).spawn(move || {
 			let client = client_clone;
+			let hydrabadger = hdb_clone;
+			let cfg = cfg_clone;
 
+			// Experiment:
 			while !shutdown_sig.load(Ordering::Acquire) {
+
+				// Generate random transactions:
+				let txns = (0..cfg.txn_gen_count).map(|_| {
+					// rand::thread_rng().gen_iter().take(cfg.txn_gen_bytes).collect()
+					let key = Random.generate().unwrap();
+
+					let t = Transaction {
+						action: Action::Create,
+						nonce: U256::from(42),
+						gas_price: U256::from(3000),
+						gas: U256::from(50_000),
+						value: U256::from(1),
+						data: b"Hello!".to_vec()
+					}.sign(&key.secret(), None);
+
+					t.rlp_bytes().into_vec()
+				}).collect::<Vec<Txn>>();
+
+				match hydrabadger.push_user_transactions(txns) {
+					Err(HydrabadgerError::PushUserTransactionNotValidator) => {
+						info!("Unable to push random transactions: this node is not a validator");
+					},
+					Err(err) => panic!("Unknown error: {:?}", err),
+					Ok(()) => {},
+				}
 
 				// Call experimental methods:
 				client.a_specialized_method();
@@ -120,8 +161,9 @@ impl HbbftDaemon {
 		Ok(HbbftDaemon {
 			client,
 			runtime_th,
-			th,
+			exp_th,
 			shutdown,
+			hydrabadger,
 		})
 	}
 }

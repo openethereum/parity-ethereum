@@ -74,7 +74,7 @@ len-caching-mutex = { path = "../util/len-caching-mutex" }
 failure = "0.1"
 futures = "0.1"
 parity-reactor = { path = "../util/reactor" }
-# hydrabadger = { path = "../hydrabadger"}
+# hydrabadger = { path = "../../hydrabadger"}
 hydrabadger = { git = "https://github.com/poanetwork/hydrabadger"}
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
