@@ -31,6 +31,7 @@ use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
+	Sparrow,
 	Foundation,
 	Classic,
 	Poanet,
@@ -51,7 +52,7 @@ pub enum SpecType {
 
 impl Default for SpecType {
 	fn default() -> Self {
-		SpecType::Foundation
+		SpecType::Sparrow
 	}
 }
 
@@ -60,6 +61,7 @@ impl str::FromStr for SpecType {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let spec = match s {
+			"sparrow" => SpecType::Sparrow,
 			"ethereum" | "frontier" | "homestead" | "byzantium" | "foundation" | "mainnet" => SpecType::Foundation,
 			"classic" | "frontier-dogmatic" | "homestead-dogmatic" => SpecType::Classic,
 			"poanet" | "poacore" => SpecType::Poanet,
@@ -84,6 +86,7 @@ impl str::FromStr for SpecType {
 impl fmt::Display for SpecType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match *self {
+			SpecType::Sparrow => "sparrow",
 			SpecType::Foundation => "foundation",
 			SpecType::Classic => "classic",
 			SpecType::Poanet => "poanet",
@@ -108,6 +111,7 @@ impl SpecType {
 	pub fn spec<'a, T: Into<SpecParams<'a>>>(&self, params: T) -> Result<Spec, String> {
 		let params = params.into();
 		match *self {
+			SpecType::Sparrow => Ok(Spec::sparrow_poa()),
 			SpecType::Foundation => Ok(ethereum::new_foundation(params)),
 			SpecType::Classic => Ok(ethereum::new_classic(params)),
 			SpecType::Poanet => Ok(ethereum::new_poanet(params)),
@@ -244,10 +248,7 @@ pub enum GasPricerConfig {
 
 impl Default for GasPricerConfig {
 	fn default() -> Self {
-		GasPricerConfig::Calibrated {
-			usd_per_tx: 0.0001f32,
-			recalibration_period: Duration::from_secs(3600),
-		}
+		GasPricerConfig::Fixed(0.into())
 	}
 }
 
@@ -353,6 +354,7 @@ mod tests {
 
 	#[test]
 	fn test_spec_type_parsing() {
+		assert_eq!(SpecType::Sparrow, "sparrow".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "foundation".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "frontier".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "homestead".parse().unwrap());
@@ -382,11 +384,12 @@ mod tests {
 
 	#[test]
 	fn test_spec_type_default() {
-		assert_eq!(SpecType::Foundation, SpecType::default());
+		assert_eq!(SpecType::Sparrow, SpecType::default());
 	}
 
 	#[test]
 	fn test_spec_type_display() {
+		assert_eq!(format!("{}", SpecType::Sparrow), "sparrow");
 		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Poanet), "poanet");

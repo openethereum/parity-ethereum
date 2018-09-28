@@ -1,0 +1,47 @@
+{
+ 	"name": "Sparrow PoA Chain",
+ 	"engine": {
+ 		"authorityRound": {
+ 			"params": {
+ 				"stepDuration": 1,
+ 				"validators": {
+ 					"list": [
+ 						"0x1f0caee6181d002415010832bb9a685f4d242a63",
+ 						"0xf98639f4e62c95b6e3177a2cf325475a4d316f6f"
+ 					]
+ 				}
+ 			}
+ 		}
+ 	},
+ 	"params": {
+ 		"gasLimitBoundDivisor": "0x0400",
+ 		"accountStartNonce": "0x0",
+ 		"maximumExtraDataSize": "0x20",
+ 		"minGasLimit": "0x1388",
+ 		"networkID" : "0x69",
+ 		"eip155Transition": 0,
+ 		"validateChainIdTransition": 0,
+ 		"eip140Transition": 0,
+ 		"eip211Transition": 0,
+ 		"eip214Transition": 0,
+ 		"eip658Transition": 0
+ 	},
+ 	"genesis": {
+ 		"seal": {
+ 			"authorityRound": {
+ 				"step": "0x0",
+ 				"signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+ 			}
+ 		},
+ 		"difficulty": "0x20000",
+ 		"gasLimit": "0x3B9ACA00"
+ 	},
+ 	"accounts": {
+ 		"0000000000000000000000000000000000000001": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+ 		"0000000000000000000000000000000000000002": { "balance": "1", "nonce": "1048576", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+ 		"0000000000000000000000000000000000000003": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+ 		"0000000000000000000000000000000000000004": { "balance": "1", "nonce": "1048576", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+ 		"0x1f0caee6181d002415010832bb9a685f4d242a63": { "balance": "13424123423413", "nonce": "0" },
+ 		"0xf98639f4e62c95b6e3177a2cf325475a4d316f6f": { "balance": "13424123423413", "nonce": "0" }
+ 	}
+ }

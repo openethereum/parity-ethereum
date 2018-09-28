@@ -949,6 +949,11 @@ impl Spec {
 		load_bundled!("authority_round_block_reward_contract")
 	}
 
+	/// Create a new Spec with default Authority Round(Aura) consensus
+ 	pub fn sparrow_poa() -> Self {
+ 		load_bundled!("sparrow_poa")
+ 	}
+
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.
