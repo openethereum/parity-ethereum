@@ -595,16 +595,19 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use bytes::Bytes;
 	use ethcore::client::TestBlockChainClient;
 	use ethcore::header::Header as BlockHeader;
-	use parking_lot::RwLock;
 	use ethcore::spec::Spec;
-	use rlp::RlpStream;
+	use ethkey::{Generator,Random};
+	use hash::keccak;
+	use parking_lot::RwLock;
+	use rlp::{encode_list,RlpStream};
 	use tests::helpers::TestIo;
 	use tests::snapshot::TestSnapshotService;
+	use transaction::{Transaction,SignedTransaction};
+	use triehash_ethereum::ordered_trie_root;
 
-	fn get_dummy_block(number: u64, parent_hash: H256) -> BlockHeader {
+	fn dummy_header(number: u64, parent_hash: H256) -> BlockHeader {
 		let mut header = BlockHeader::new();
 		header.set_gas_limit(0.into());
 		header.set_difficulty((number * 100).into());
@@ -615,12 +618,9 @@ mod tests {
 		header
 	}
 
-	fn headers_to_rlp(headers: &[BlockHeader]) -> Bytes {
-		let mut rlp = RlpStream::new_list(headers.len());
-		for header in headers {
-			rlp.append(header);
-		}
-		rlp.out()
+	fn dummy_signed_tx() -> SignedTransaction {
+		let keypair = Random.generate().unwrap();
+		Transaction::default().sign(keypair.secret(), None)
 	}
 
 	#[test]
@@ -641,10 +641,10 @@ mod tests {
 		// Valid headers sequence.
 		let valid_headers = [
 			spec.genesis_header(),
-			get_dummy_block(127, H256::random()),
-			get_dummy_block(254, H256::random()),
+			dummy_header(127, H256::random()),
+			dummy_header(254, H256::random()),
 		];
-		let rlp_data = &headers_to_rlp(&valid_headers);
+		let rlp_data = encode_list(&valid_headers);
 		let valid_rlp = Rlp::new(&rlp_data);
 
 		match downloader.import_headers(&mut io, &valid_rlp, genesis_hash) {
@@ -654,11 +654,11 @@ mod tests {
 
 		// Headers are rejected because the expected hash does not match.
 		let invalid_start_block_headers = [
-			get_dummy_block(0, H256::random()),
-			get_dummy_block(127, H256::random()),
-			get_dummy_block(254, H256::random()),
+			dummy_header(0, H256::random()),
+			dummy_header(127, H256::random()),
+			dummy_header(254, H256::random()),
 		];
-		let rlp_data = &headers_to_rlp(&invalid_start_block_headers);
+		let rlp_data = encode_list(&invalid_start_block_headers);
 		let invalid_start_block_rlp = Rlp::new(&rlp_data);
 
 		match downloader.import_headers(&mut io, &invalid_start_block_rlp, genesis_hash) {
@@ -669,10 +669,10 @@ mod tests {
 		// Headers are rejected because they are not spaced as expected.
 		let invalid_skip_headers = [
 			spec.genesis_header(),
-			get_dummy_block(128, H256::random()),
-			get_dummy_block(256, H256::random()),
+			dummy_header(128, H256::random()),
+			dummy_header(256, H256::random()),
 		];
-		let rlp_data = &headers_to_rlp(&invalid_skip_headers);
+		let rlp_data = encode_list(&invalid_skip_headers);
 		let invalid_skip_rlp = Rlp::new(&rlp_data);
 
 		match downloader.import_headers(&mut io, &invalid_skip_rlp, genesis_hash) {
@@ -684,9 +684,9 @@ mod tests {
 		let mut too_many_headers = Vec::with_capacity((SUBCHAIN_SIZE + 1) as usize);
 		too_many_headers.push(spec.genesis_header());
 		for i in 1..(SUBCHAIN_SIZE + 1) {
-			too_many_headers.push(get_dummy_block((MAX_HEADERS_TO_REQUEST as u64 - 1) * i, H256::random()));
+			too_many_headers.push(dummy_header((MAX_HEADERS_TO_REQUEST as u64 - 1) * i, H256::random()));
 		}
-		let rlp_data = &headers_to_rlp(&too_many_headers);
+		let rlp_data = encode_list(&too_many_headers);
 
 		let too_many_rlp = Rlp::new(&rlp_data);
 		match downloader.import_headers(&mut io, &too_many_rlp, genesis_hash) {
@@ -699,9 +699,6 @@ mod tests {
 	fn import_headers_in_blocks_state() {
 		::env_logger::try_init().ok();
 
-		let spec = Spec::new_test();
-		let genesis_hash = spec.genesis_header().hash();
-
 		let mut chain = TestBlockChainClient::new();
 		let snapshot_service = TestSnapshotService::new();
 		let queue = RwLock::new(VecDeque::new());
@@ -709,17 +706,17 @@ mod tests {
 
 		let mut headers = Vec::with_capacity(3);
 		let parent_hash = H256::random();
-		headers.push(get_dummy_block(127, parent_hash));
+		headers.push(dummy_header(127, parent_hash));
 		let parent_hash = headers[0].hash();
-		headers.push(get_dummy_block(128, parent_hash));
+		headers.push(dummy_header(128, parent_hash));
 		let parent_hash = headers[1].hash();
-		headers.push(get_dummy_block(129, parent_hash));
+		headers.push(dummy_header(129, parent_hash));
 
-		let mut downloader = BlockDownloader::new(false, &genesis_hash, 0);
+		let mut downloader = BlockDownloader::new(false, &H256::random(), 0);
 		downloader.state = State::Blocks;
 		downloader.blocks.reset_to(vec![headers[0].hash()]);
 
-		let rlp_data = &headers_to_rlp(&headers);
+		let rlp_data = encode_list(&headers);
 		let headers_rlp = Rlp::new(&rlp_data);
 
 		match downloader.import_headers(&mut io, &headers_rlp, headers[0].hash()) {
@@ -728,21 +725,148 @@ mod tests {
 		};
 
 		// Invalidate parent_hash link.
-		headers[2] = get_dummy_block(129, H256::random());
-		let rlp_data = &headers_to_rlp(&headers);
+		headers[2] = dummy_header(129, H256::random());
+		let rlp_data = encode_list(&headers);
 		let headers_rlp = Rlp::new(&rlp_data);
 
-		match downloader.import_headers(&mut io, &headers_rlp, genesis_hash) {
+		match downloader.import_headers(&mut io, &headers_rlp, headers[0].hash()) {
 			Err(BlockDownloaderImportError::Invalid) => (),
 			_ => panic!("expected BlockDownloaderImportError"),
 		};
 
 		// Invalidate header sequence by skipping a header.
-		headers[2] = get_dummy_block(130, headers[1].hash());
-		let rlp_data = &headers_to_rlp(&headers);
+		headers[2] = dummy_header(130, headers[1].hash());
+		let rlp_data = encode_list(&headers);
 		let headers_rlp = Rlp::new(&rlp_data);
 
-		match downloader.import_headers(&mut io, &headers_rlp, genesis_hash) {
+		match downloader.import_headers(&mut io, &headers_rlp, headers[0].hash()) {
+			Err(BlockDownloaderImportError::Invalid) => (),
+			_ => panic!("expected BlockDownloaderImportError"),
+		};
+	}
+
+	#[test]
+	fn import_bodies() {
+		::env_logger::try_init().ok();
+
+		let mut chain = TestBlockChainClient::new();
+		let snapshot_service = TestSnapshotService::new();
+		let queue = RwLock::new(VecDeque::new());
+		let mut io = TestIo::new(&mut chain, &snapshot_service, &queue, None);
+
+		// Import block headers.
+		let mut headers = Vec::with_capacity(4);
+		let mut bodies = Vec::with_capacity(4);
+		let mut parent_hash = H256::zero();
+		for i in 0..4 {
+			// Construct the block body
+			let mut uncles = if i > 0 {
+				encode_list(&[dummy_header(i - 1, H256::random())]).into_vec()
+			} else {
+				::rlp::EMPTY_LIST_RLP.to_vec()
+			};
+
+			let mut txs = encode_list(&[dummy_signed_tx()]);
+			let tx_root = ordered_trie_root(Rlp::new(&txs).iter().map(|r| r.as_raw()));
+
+			let mut rlp = RlpStream::new_list(2);
+			rlp.append_raw(&txs, 1);
+			rlp.append_raw(&uncles, 1);
+			bodies.push(rlp.out());
+
+			// Construct the block header
+			let mut header = dummy_header(i, parent_hash);
+			header.set_transactions_root(tx_root);
+			header.set_uncles_hash(keccak(&uncles));
+			parent_hash = header.hash();
+			headers.push(header);
+		}
+
+		let mut downloader = BlockDownloader::new(false, &headers[0].hash(), 0);
+		downloader.state = State::Blocks;
+		downloader.blocks.reset_to(vec![headers[0].hash()]);
+
+		// Only import the first three block headers.
+		let rlp_data = encode_list(&headers[0..3]);
+		let headers_rlp = Rlp::new(&rlp_data);
+		assert!(downloader.import_headers(&mut io, &headers_rlp, headers[0].hash()).is_ok());
+
+		// Import first body successfully.
+		let mut rlp_data = RlpStream::new_list(1);
+		rlp_data.append_raw(&bodies[0], 1);
+		let bodies_rlp = Rlp::new(rlp_data.as_raw());
+		assert!(downloader.import_bodies(&bodies_rlp, &[headers[0].hash(), headers[1].hash()]).is_ok());
+
+		// Import second body successfully.
+		let mut rlp_data = RlpStream::new_list(1);
+		rlp_data.append_raw(&bodies[1], 1);
+		let bodies_rlp = Rlp::new(rlp_data.as_raw());
+		assert!(downloader.import_bodies(&bodies_rlp, &[headers[0].hash(), headers[1].hash()]).is_ok());
+
+		// Import unexpected third body.
+		let mut rlp_data = RlpStream::new_list(1);
+		rlp_data.append_raw(&bodies[2], 1);
+		let bodies_rlp = Rlp::new(rlp_data.as_raw());
+		match downloader.import_bodies(&bodies_rlp, &[headers[0].hash(), headers[1].hash()]) {
+			Err(BlockDownloaderImportError::Invalid) => (),
+			_ => panic!("expected BlockDownloaderImportError"),
+		};
+	}
+
+	#[test]
+	fn import_receipts() {
+		::env_logger::try_init().ok();
+
+		let mut chain = TestBlockChainClient::new();
+		let snapshot_service = TestSnapshotService::new();
+		let queue = RwLock::new(VecDeque::new());
+		let mut io = TestIo::new(&mut chain, &snapshot_service, &queue, None);
+
+		// Import block headers.
+		let mut headers = Vec::with_capacity(4);
+		let mut receipts = Vec::with_capacity(4);
+		let mut parent_hash = H256::zero();
+		for i in 0..4 {
+			// Construct the receipts. Receipt root for the first two blocks is the same.
+			//
+			// The RLP-encoded integers are clearly not receipts, but the BlockDownloader treats
+			// all receipts as byte blobs, so it does not matter.
+			let mut receipts_rlp = if i < 2 {
+				encode_list(&[0u32])
+			} else {
+				encode_list(&[i as u32])
+			};
+			let receipts_root = ordered_trie_root(Rlp::new(&receipts_rlp).iter().map(|r| r.as_raw()));
+			receipts.push(receipts_rlp);
+
+			// Construct the block header.
+			let mut header = dummy_header(i, parent_hash);
+			header.set_receipts_root(receipts_root);
+			parent_hash = header.hash();
+			headers.push(header);
+		}
+
+		let mut downloader = BlockDownloader::new(true, &headers[0].hash(), 0);
+		downloader.state = State::Blocks;
+		downloader.blocks.reset_to(vec![headers[0].hash()]);
+
+		// Only import the first three block headers.
+		let rlp_data = encode_list(&headers[0..3]);
+		let headers_rlp = Rlp::new(&rlp_data);
+		assert!(downloader.import_headers(&mut io, &headers_rlp, headers[0].hash()).is_ok());
+
+		// Import second and third receipts successfully.
+		let mut rlp_data = RlpStream::new_list(2);
+		rlp_data.append_raw(&receipts[1], 1);
+		rlp_data.append_raw(&receipts[2], 1);
+		let receipts_rlp = Rlp::new(rlp_data.as_raw());
+		assert!(downloader.import_receipts(&receipts_rlp, &[headers[1].hash(), headers[2].hash()]).is_ok());
+
+		// Import unexpected fourth receipt.
+		let mut rlp_data = RlpStream::new_list(1);
+		rlp_data.append_raw(&receipts[3], 1);
+		let bodies_rlp = Rlp::new(rlp_data.as_raw());
+		match downloader.import_bodies(&bodies_rlp, &[headers[1].hash(), headers[2].hash()]) {
 			Err(BlockDownloaderImportError::Invalid) => (),
 			_ => panic!("expected BlockDownloaderImportError"),
 		};
