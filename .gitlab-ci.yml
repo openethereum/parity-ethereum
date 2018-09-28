@@ -100,7 +100,7 @@ test-android-rust-stable:
 test-windows-rust-stable:
   stage:                           test
   cache:
-    key:                           "%CI_JOB_NAME%"
+    key:                           "${CI_JOB_NAME}"
     paths:
       - "%CI_PROJECT_DIR%/target/"
       - "%CI_PROJECT_DIR%/cargo/"
@@ -208,7 +208,7 @@ build-windows-msvc-x86_64:
   stage:                           build
   only:                            *releaseable_branches
   cache:
-    key:                           "%CI_JOB_NAME%"
+    key:                           "${CI_JOB_NAME}"
     paths:
       - "%CI_PROJECT_DIR%/target/"
       - "%CI_PROJECT_DIR%/cargo/"
