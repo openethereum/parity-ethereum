@@ -224,17 +224,16 @@ pub fn check_proof(
 	}
 }
 
-/// Prove a transaction on the given state.
+/// Prove a `virtual` transaction on the given state.
 /// Returns `None` when the transacion could not be proved,
 /// and a proof otherwise.
-pub fn prove_transaction<H: AsHashDB<KeccakHasher> + Send + Sync>(
+pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher> + Send + Sync>(
 	db: H,
 	root: H256,
 	transaction: &SignedTransaction,
 	machine: &Machine,
 	env_info: &EnvInfo,
 	factories: Factories,
-	virt: bool,
 ) -> Option<(Bytes, Vec<DBValue>)> {
 	use self::backend::Proving;
 
@@ -252,7 +251,7 @@ pub fn prove_transaction<H: AsHashDB<KeccakHasher> + Send + Sync>(
 	};
 
 	let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
-	match state.execute(env_info, machine, transaction, options, virt) {
+	match state.execute(env_info, machine, transaction, options, true) {
 		Err(ExecutionError::Internal(_)) => None,
 		Err(e) => {
 			trace!(target: "state", "Proved call failed: {}", e);
