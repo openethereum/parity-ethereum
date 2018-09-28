@@ -17,11 +17,14 @@ use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
 use hbbft::HbbftConfig;
 use rlp::Encodable;
 use ethkey::{Random, Generator};
-use ethereum_types::U256;
+use ethereum_types::{U256, Address};
 use header::Header;
-use client::{Client, ImportBlock};
+use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock,
+	ImportSealedBlock, ImportBlock};
 use verification::queue::kind::blocks::{Unverified};
 use transaction::{Transaction, Action};
+use block::{OpenBlock, ClosedBlock, LockedBlock, SealedBlock};
+use state::{self, State, CleanupMode};
 
 type Txn = Vec<u8>;
 
@@ -133,22 +136,77 @@ impl HbbftDaemon {
 				t.rlp_bytes().into_vec()
 			}).collect::<Vec<Txn>>();
 
-			// Push transactions:
-			match hydrabadger.push_user_transactions(txns) {
-				Err(HydrabadgerError::PushUserTransactionNotValidator) => {
-					info!("Unable to push random transactions: this node is not a validator");
-				},
-				Err(err) => panic!("Unknown error: {:?}", err),
-				Ok(()) => {},
+
+			{ // Push transactions:
+				match hydrabadger.push_user_transactions(txns.clone()) {
+					Err(HydrabadgerError::PushUserTransactionNotValidator) => {
+						info!("Unable to push random transactions: this node is not a validator");
+					},
+					Err(err) => unreachable!(),
+					Ok(()) => {},
+				}
 			}
 
-			// Generate a valid block:
+			{ // Play with blocks:
+				// let author = Address::from_slice(b"0xe8ddc5c7a2d2f0d7a9798459c0104fdf5e987aca");
+				let author = Address::random();
+				let gas_range_target = (3141562.into(), 31415620.into());
+				let extra_data = vec![];
 
+				let key = Random.generate().unwrap();
+				let txn = Transaction {
+					action: Action::Call(Address::default()),
+					nonce: 0.into(),
+					gas_price: 0.into(),
+					gas: 1000000.into(),
+					value: 5.into(),
+					data: vec![],
+				}.sign(&key.secret(), None);
 
-			// Call experimental methods:
-			client.a_specialized_method();
-			client.change_me_into_something_useful();
-			// client.import_a_bad_block_and_panic();
+				// Import some blocks:
+				for _ in 0..20 {
+					let mut open_block: OpenBlock = client
+						.prepare_open_block(author, gas_range_target, extra_data.clone())
+						.unwrap();
+
+					for _ in 0..5 {
+						open_block.push_transaction(txn.clone(), None).unwrap();
+					}
+
+					let closed_block: ClosedBlock = open_block.close().unwrap();
+					let reopened_block: OpenBlock = closed_block.reopen(client.engine());
+					let reclosed_block: ClosedBlock = reopened_block.close().unwrap();
+					let locked_block: LockedBlock = reclosed_block.lock();
+					let sealed_block: SealedBlock = locked_block.seal(client.engine(), vec![]).unwrap();
+
+					client.import_sealed_block(sealed_block).unwrap();
+				}
+
+				// Import some blocks:
+				for _ in 0..20 {
+					let mut open_block: OpenBlock = client
+						.prepare_open_block(author, gas_range_target, extra_data.clone())
+						.unwrap();
+
+					for _ in 0..5 {
+						open_block.push_transaction(txn.clone(), None).unwrap();
+					}
+
+					let sealed_block: SealedBlock = open_block
+						.close_and_lock()
+						.unwrap()
+						.seal(client.engine(), vec![])
+						.unwrap();
+
+					client.import_sealed_block(sealed_block).unwrap();
+				}
+			}
+
+			{ // Call experimental methods:
+				client.a_specialized_method();
+				client.change_me_into_something_useful();
+				// client.import_a_bad_block_and_panic();
+			}
 
 			Delay::new(Instant::now() + Duration::from_millis(5000))
 				.map(|_| Loop::Continue((client, hydrabadger, cfg)))
@@ -244,6 +302,27 @@ mod ref_000 {
 		s: U256,
 		/// Hash of the transaction
 		hash: H256,
+	}
+
+	// miner/src/pool/verifier.rs
+	//
+	/// Transaction to verify.
+	#[cfg_attr(test, derive(Clone))]
+	pub enum Transaction {
+		/// Fresh, never verified transaction.
+		///
+		/// We need to do full verification of such transactions
+		Unverified(transaction::UnverifiedTransaction),
+
+		/// Transaction from retracted block.
+		///
+		/// We could skip some parts of verification of such transactions
+		Retracted(transaction::UnverifiedTransaction),
+
+		/// Locally signed or retracted transaction.
+		///
+		/// We can skip consistency verifications and just verify readiness.
+		Local(transaction::PendingTransaction),
 	}
 
 	// ethcore/src/header.rs
