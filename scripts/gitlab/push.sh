@@ -35,9 +35,10 @@ do
   for binary in $(ls parity.sha256)
   do
     sha256=$(cat $binary | awk '{ print $1}' )
+    sha3=$(cat ${binary/sha256/sha3} | awk '{ print $1}' )
     case $DIR in
       x86_64* )
-        DATA="commit=$CI_BUILD_REF&sha3=$sha256&filename=parity$WIN&secret=$RELEASES_SECRET"
+        DATA="commit=$CI_BUILD_REF&sha3=$sha3&filename=parity$WIN&secret=$RELEASES_SECRET"
         ../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$DIR"
         # Kovan
         ../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$DIR"
