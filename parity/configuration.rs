@@ -1334,7 +1334,6 @@ mod tests {
 		})));
 	}
 
-	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn test_command_signer_new_token() {
 		let args = vec!["parity", "signer", "new-token"];
@@ -1351,7 +1350,7 @@ mod tests {
 			support_token_api: true,
 			max_connections: 100,
 		}, LogConfig {
-			color: true,
+			color: !cfg!(windows),
 			mode: None,
 			file: None,
 		} ));
