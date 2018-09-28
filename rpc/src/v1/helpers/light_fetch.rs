@@ -636,7 +636,7 @@ fn execute_read_only_tx(gas_known: bool, params: ExecuteParams) -> impl Future<I
 		trace!(target: "light_fetch", "Placing execution request for {} gas in on_demand",
 			params.tx.gas);
 
-		let request = request::ReadOnlyTransactionProof {
+		let request = request::TransactionProof {
 			tx: params.tx.fake_sign(params.from),
 			header: params.hdr.into(),
 			env_info: params.env_info,
