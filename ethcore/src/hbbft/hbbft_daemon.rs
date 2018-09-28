@@ -8,12 +8,12 @@ use std::time::{Instant, Duration};
 use rand::{self, ThreadRng, Rng};
 use futures::{
 	Future,
-	future,
+	future::{self, Loop},
 	sync::mpsc::Receiver,
 	sync::oneshot,
 };
 use hydrabadger::{Hydrabadger, Error as HydrabadgerError};
-use parity_reactor::{tokio, Runtime};
+use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
 use hbbft::HbbftConfig;
 use rlp::Encodable;
 use ethkey::{Random, Generator};
@@ -81,7 +81,6 @@ impl Shutdown {
 pub struct HbbftDaemon {
 	client: Arc<Client>,
 	runtime_th: thread::JoinHandle<()>,
-	exp_th: thread::JoinHandle<()>,
 	shutdown: Shutdown,
 	hydrabadger: Hydrabadger<Txn>,
 }
@@ -115,53 +114,50 @@ impl HbbftDaemon {
 		let hdb_clone = hydrabadger.clone();
 		let cfg_clone = cfg.clone();
 
-		// Spawn experimentation thread:
-		let exp_th = thread::Builder::new().name("hbbft-daemon".to_string()).spawn(move || {
-			let client = client_clone;
-			let hydrabadger = hdb_clone;
-			let cfg = cfg_clone;
+		// Spawn experimentation loop:
+		executor.spawn(future::loop_fn((client_clone, hdb_clone, cfg_clone), move |(client, hydrabadger, cfg)| {
+			// Generate random transactions:
+			let txns = (0..cfg.txn_gen_count).map(|_| {
+				// rand::thread_rng().gen_iter().take(cfg.txn_gen_bytes).collect()
+				let key = Random.generate().unwrap();
 
-			// Experiment:
-			while !shutdown_sig.load(Ordering::Acquire) {
+				let t = Transaction {
+					action: Action::Create,
+					nonce: U256::from(42),
+					gas_price: U256::from(3000),
+					gas: U256::from(50_000),
+					value: U256::from(1),
+					data: b"Hello!".to_vec()
+				}.sign(&key.secret(), None);
 
-				// Generate random transactions:
-				let txns = (0..cfg.txn_gen_count).map(|_| {
-					// rand::thread_rng().gen_iter().take(cfg.txn_gen_bytes).collect()
-					let key = Random.generate().unwrap();
+				t.rlp_bytes().into_vec()
+			}).collect::<Vec<Txn>>();
 
-					let t = Transaction {
-						action: Action::Create,
-						nonce: U256::from(42),
-						gas_price: U256::from(3000),
-						gas: U256::from(50_000),
-						value: U256::from(1),
-						data: b"Hello!".to_vec()
-					}.sign(&key.secret(), None);
-
-					t.rlp_bytes().into_vec()
-				}).collect::<Vec<Txn>>();
-
-				match hydrabadger.push_user_transactions(txns) {
-					Err(HydrabadgerError::PushUserTransactionNotValidator) => {
-						info!("Unable to push random transactions: this node is not a validator");
-					},
-					Err(err) => panic!("Unknown error: {:?}", err),
-					Ok(()) => {},
-				}
-
-				// Call experimental methods:
-				client.a_specialized_method();
-				client.change_me_into_something_useful();
-				// client.import_a_bad_block_and_panic();
-
-				thread::sleep(Duration::from_millis(5000));
+			// Push transactions:
+			match hydrabadger.push_user_transactions(txns) {
+				Err(HydrabadgerError::PushUserTransactionNotValidator) => {
+					info!("Unable to push random transactions: this node is not a validator");
+				},
+				Err(err) => panic!("Unknown error: {:?}", err),
+				Ok(()) => {},
 			}
-		}).unwrap();
+
+			// Generate a valid block:
+
+
+			// Call experimental methods:
+			client.a_specialized_method();
+			client.change_me_into_something_useful();
+			// client.import_a_bad_block_and_panic();
+
+			Delay::new(Instant::now() + Duration::from_millis(5000))
+				.map(|_| Loop::Continue((client, hydrabadger, cfg)))
+				.map_err(|err| panic!("{:?}", err))
+		}));
 
 		Ok(HbbftDaemon {
 			client,
 			runtime_th,
-			exp_th,
 			shutdown,
 			hydrabadger,
 		})
@@ -324,4 +320,88 @@ mod ref_000 {
 		/// Block bytes
 		pub bytes: Bytes,
 	}
+
+	/// A block, encoded as it is on the block chain.
+	#[derive(Default, Debug, Clone, PartialEq)]
+	pub struct Block {
+		/// The header of this block.
+		pub header: Header,
+		/// The transactions in this block.
+		pub transactions: Vec<UnverifiedTransaction>,
+		/// The uncles of this block.
+		pub uncles: Vec<Header>,
+	}
+
+	/// An internal type for a block's common elements.
+	#[derive(Clone)]
+	pub struct ExecutedBlock {
+		/// Executed block header.
+		pub header: Header,
+		/// Executed transactions.
+		pub transactions: Vec<SignedTransaction>,
+		/// Uncles.
+		pub uncles: Vec<Header>,
+		/// Transaction receipts.
+		pub receipts: Vec<Receipt>,
+		/// Hashes of already executed transactions.
+		pub transactions_set: HashSet<H256>,
+		/// Underlaying state.
+		pub state: State<StateDB>,
+		/// Transaction traces.
+		pub traces: Tracing,
+		/// Hashes of last 256 blocks.
+		pub last_hashes: Arc<LastHashes>,
+	}
+
+	/// Block that is ready for transactions to be added.
+	///
+	/// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and
+	/// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
+	pub struct OpenBlock<'x> {
+		block: ExecutedBlock,
+		engine: &'x EthEngine,
+	}
+
+	/// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
+	/// and collected the uncles.
+	///
+	/// There is no function available to push a transaction.
+	#[derive(Clone)]
+	pub struct ClosedBlock {
+		block: ExecutedBlock,
+		unclosed_state: State<StateDB>,
+	}
+
+	/// Just like `ClosedBlock` except that we can't reopen it and it's faster.
+	///
+	/// We actually store the post-`Engine::on_close_block` state, unlike in `ClosedBlock` where it's the pre.
+	#[derive(Clone)]
+	pub struct LockedBlock {
+		block: ExecutedBlock,
+	}
+
+	/// A block that has a valid seal.
+	///
+	/// The block's header has valid seal arguments. The block cannot be reversed into a `ClosedBlock` or `OpenBlock`.
+	pub struct SealedBlock {
+		block: ExecutedBlock,
+	}
 }
+
+
+/*********************************** NOTES ************************************
+*******************************************************************************
+*******************************************************************************
+
+### Importing a block
+
+
+
+
+
+
+
+
+*******************************************************************************
+*******************************************************************************
+******************************************************************************/
