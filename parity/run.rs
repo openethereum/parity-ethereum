@@ -77,7 +77,13 @@ const SNAPSHOT_HISTORY: u64 = 100;
 const GAS_CORPUS_EXPIRATION_MINUTES: u64 = 60 * 6;
 
 // Pops along with error messages when a password is missing or invalid.
-const VERIFY_PASSWORD_HINT: &'static str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
+const VERIFY_PASSWORD_HINT: &str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
+
+// Full client number of DNS threads
+const FETCH_FULL_NUM_DNS_THREADS: usize = 4;
+
+// Light client number of DNS threads
+const FETCH_LIGHT_NUM_DNS_THREADS: usize = 1;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -283,7 +289,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let cpu_pool = CpuPool::new(4);
 
 	// fetch service
-	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
+	let fetch = fetch::Client::new(FETCH_LIGHT_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
@@ -477,7 +483,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let event_loop = EventLoop::spawn();
 
 	// fetch service
-	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
+	let fetch = fetch::Client::new(FETCH_FULL_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
 	// create miner
