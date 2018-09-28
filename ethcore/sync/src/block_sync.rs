@@ -592,4 +592,159 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 	})
 }
 
-//TODO: module tests
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use bytes::Bytes;
+	use ethcore::client::TestBlockChainClient;
+	use ethcore::header::Header as BlockHeader;
+	use parking_lot::RwLock;
+	use ethcore::spec::Spec;
+	use rlp::RlpStream;
+	use tests::helpers::TestIo;
+	use tests::snapshot::TestSnapshotService;
+
+	fn get_dummy_block(number: u64, parent_hash: H256) -> BlockHeader {
+		let mut header = BlockHeader::new();
+		header.set_gas_limit(0.into());
+		header.set_difficulty((number * 100).into());
+		header.set_timestamp(number * 10);
+		header.set_number(number);
+		header.set_parent_hash(parent_hash);
+		header.set_state_root(H256::zero());
+		header
+	}
+
+	fn headers_to_rlp(headers: &[BlockHeader]) -> Bytes {
+		let mut rlp = RlpStream::new_list(headers.len());
+		for header in headers {
+			rlp.append(header);
+		}
+		rlp.out()
+	}
+
+	#[test]
+	fn import_headers_in_chain_head_state() {
+		::env_logger::try_init().ok();
+
+		let spec = Spec::new_test();
+		let genesis_hash = spec.genesis_header().hash();
+
+		let mut downloader = BlockDownloader::new(false, &genesis_hash, 0);
+		downloader.state = State::ChainHead;
+
+		let mut chain = TestBlockChainClient::new();
+		let snapshot_service = TestSnapshotService::new();
+		let queue = RwLock::new(VecDeque::new());
+		let mut io = TestIo::new(&mut chain, &snapshot_service, &queue, None);
+
+		// Valid headers sequence.
+		let valid_headers = [
+			spec.genesis_header(),
+			get_dummy_block(127, H256::random()),
+			get_dummy_block(254, H256::random()),
+		];
+		let rlp_data = &headers_to_rlp(&valid_headers);
+		let valid_rlp = Rlp::new(&rlp_data);
+
+		match downloader.import_headers(&mut io, &valid_rlp, genesis_hash) {
+			Ok(DownloadAction::Reset) => assert_eq!(downloader.state, State::Blocks),
+			_ => panic!("expected transition to Blocks state"),
+		};
+
+		// Headers are rejected because the expected hash does not match.
+		let invalid_start_block_headers = [
+			get_dummy_block(0, H256::random()),
+			get_dummy_block(127, H256::random()),
+			get_dummy_block(254, H256::random()),
+		];
+		let rlp_data = &headers_to_rlp(&invalid_start_block_headers);
+		let invalid_start_block_rlp = Rlp::new(&rlp_data);
+
+		match downloader.import_headers(&mut io, &invalid_start_block_rlp, genesis_hash) {
+			Err(BlockDownloaderImportError::Invalid) => (),
+			_ => panic!("expected BlockDownloaderImportError"),
+		};
+
+		// Headers are rejected because they are not spaced as expected.
+		let invalid_skip_headers = [
+			spec.genesis_header(),
+			get_dummy_block(128, H256::random()),
+			get_dummy_block(256, H256::random()),
+		];
+		let rlp_data = &headers_to_rlp(&invalid_skip_headers);
+		let invalid_skip_rlp = Rlp::new(&rlp_data);
+
+		match downloader.import_headers(&mut io, &invalid_skip_rlp, genesis_hash) {
+			Err(BlockDownloaderImportError::Invalid) => (),
+			_ => panic!("expected BlockDownloaderImportError"),
+		};
+
+		// Invalid because the packet size is too large.
+		let mut too_many_headers = Vec::with_capacity((SUBCHAIN_SIZE + 1) as usize);
+		too_many_headers.push(spec.genesis_header());
+		for i in 1..(SUBCHAIN_SIZE + 1) {
+			too_many_headers.push(get_dummy_block((MAX_HEADERS_TO_REQUEST as u64 - 1) * i, H256::random()));
+		}
+		let rlp_data = &headers_to_rlp(&too_many_headers);
+
+		let too_many_rlp = Rlp::new(&rlp_data);
+		match downloader.import_headers(&mut io, &too_many_rlp, genesis_hash) {
+			Err(BlockDownloaderImportError::Invalid) => (),
+			_ => panic!("expected BlockDownloaderImportError"),
+		};
+	}
+
+	#[test]
+	fn import_headers_in_blocks_state() {
+		::env_logger::try_init().ok();
+
+		let spec = Spec::new_test();
+		let genesis_hash = spec.genesis_header().hash();
+
+		let mut chain = TestBlockChainClient::new();
+		let snapshot_service = TestSnapshotService::new();
+		let queue = RwLock::new(VecDeque::new());
+		let mut io = TestIo::new(&mut chain, &snapshot_service, &queue, None);
+
+		let mut headers = Vec::with_capacity(3);
+		let parent_hash = H256::random();
+		headers.push(get_dummy_block(127, parent_hash));
+		let parent_hash = headers[0].hash();
+		headers.push(get_dummy_block(128, parent_hash));
+		let parent_hash = headers[1].hash();
+		headers.push(get_dummy_block(129, parent_hash));
+
+		let mut downloader = BlockDownloader::new(false, &genesis_hash, 0);
+		downloader.state = State::Blocks;
+		downloader.blocks.reset_to(vec![headers[0].hash()]);
+
+		let rlp_data = &headers_to_rlp(&headers);
+		let headers_rlp = Rlp::new(&rlp_data);
+
+		match downloader.import_headers(&mut io, &headers_rlp, headers[0].hash()) {
+			Ok(DownloadAction::None) => (),
+			_ => panic!("expected successful import"),
+		};
+
+		// Invalidate parent_hash link.
+		headers[2] = get_dummy_block(129, H256::random());
+		let rlp_data = &headers_to_rlp(&headers);
+		let headers_rlp = Rlp::new(&rlp_data);
+
+		match downloader.import_headers(&mut io, &headers_rlp, genesis_hash) {
+			Err(BlockDownloaderImportError::Invalid) => (),
+			_ => panic!("expected BlockDownloaderImportError"),
+		};
+
+		// Invalidate header sequence by skipping a header.
+		headers[2] = get_dummy_block(130, headers[1].hash());
+		let rlp_data = &headers_to_rlp(&headers);
+		let headers_rlp = Rlp::new(&rlp_data);
+
+		match downloader.import_headers(&mut io, &headers_rlp, genesis_hash) {
+			Err(BlockDownloaderImportError::Invalid) => (),
+			_ => panic!("expected BlockDownloaderImportError"),
+		};
+	}
+}
