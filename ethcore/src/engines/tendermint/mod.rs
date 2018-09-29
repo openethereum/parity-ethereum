@@ -693,7 +693,6 @@ impl Engine<EthereumMachine> for Tendermint {
 	}
 
 	fn stop(&self) {
-		self.step_service.stop()
 	}
 
 	fn is_proposal(&self, header: &Header) -> bool {
