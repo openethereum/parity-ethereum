@@ -33,7 +33,7 @@ use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as Sn
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
-use ethcore::hbbft::{HbbftConfig, HbbftDaemon};
+use ethcore::hbbft::{HbbftConfig, HbbftDaemon, HbbftClientExt};
 
 use ethcore_private_tx::{self, Importer};
 use Error;
@@ -84,8 +84,8 @@ pub struct ClientService {
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
 	database: Arc<BlockChainDB>,
+	hbbftd: Option<Arc<HbbftDaemon>>,
 	_stop_guard: StopGuard,
-	_hbbftd: Option<Arc<HbbftDaemon>>,
 }
 
 impl ClientService {
@@ -152,16 +152,16 @@ impl ClientService {
 
 		let hbbftd = match hbbft_conf {
 			Some(cfg) => {
-				Some(HbbftDaemon::new(
+				let hbbftd = Arc::new(HbbftDaemon::new(
 					client.clone(),
 					cfg,
 					account_provider.clone(),
-				).map_err(|err| err.to_string())?)
+				).map_err(|err| err.to_string())?);
+				client.set_hbbft_daemon(hbbftd.clone());
+				Some(hbbftd)
 			},
 			None => None,
 		};
-
-		client.set_hbbft_daemon(hbbftd.clone());
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
@@ -169,8 +169,8 @@ impl ClientService {
 			snapshot: snapshot,
 			private_tx,
 			database: blockchain_db,
+			hbbftd: hbbftd,
 			_stop_guard: stop_guard,
-			_hbbftd: hbbftd,
 		})
 	}
 
@@ -210,6 +210,7 @@ impl ClientService {
 	/// Shutdown the Client Service
 	pub fn shutdown(&self) {
 		self.snapshot.shutdown();
+		self.hbbftd.as_ref().map(|h| h.shutdown());
 	}
 }
 

@@ -2,7 +2,7 @@
 
 #![allow(dead_code, unused_imports, unused_variables, unused_mut, missing_docs)]
 
-use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
+use std::sync::{Arc, Weak, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use std::time::{Instant, Duration};
 use rand::{self, ThreadRng, Rng};
@@ -12,6 +12,7 @@ use futures::{
 	sync::mpsc::Receiver,
 	sync::oneshot,
 };
+use parking_lot::Mutex;
 use hydrabadger::{Hydrabadger, Error as HydrabadgerError};
 use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
 use hbbft::HbbftConfig;
@@ -45,14 +46,15 @@ error_chain! {
 }
 
 /// Methods for use by hbbft.
-///
-/// The purpose of this trait is to keep our own experimental methods
-/// organized.
+//
+// The purpose of this trait is to keep our own experimental methods
+// organized.
 pub trait HbbftClientExt {
 	fn a_specialized_method(&self);
 	fn change_me_into_something_useful(&self);
 	fn import_a_bad_block_and_panic(&self);
-	fn set_hbbft_daemon(&self, hbbft_daemon: HbbftDaemon);
+
+	fn set_hbbft_daemon(&self, hbbft_daemon: Arc<HbbftDaemon>);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -75,7 +77,7 @@ struct Laboratory {
 impl Laboratory {
 	/// Generates random transactions.
 	//
-	// TODO: Make this more randomy. Add some args.
+	// TODO: Make this more random-y. Add some args.
 	fn gen_random_txns(&self) -> Vec<Vec<u8>> {
 		(0..self.hdb_cfg.txn_gen_count).map(|_| {
 			let data = rand::thread_rng().gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
@@ -95,7 +97,7 @@ impl Laboratory {
 		}).collect::<Vec<Txn>>()
 	}
 
-	fn push_random_transactions_to_hydrabadger(&mut self) {
+	fn push_random_transactions_to_hydrabadger(&self) {
 		let random_txns = self.gen_random_txns();
 
 		match self.hydrabadger.push_user_transactions(random_txns) {
@@ -183,18 +185,16 @@ impl Laboratory {
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-
-pub struct Inner {
-	client: Arc<Client>,
-	runtime_th: thread::JoinHandle<()>,
-	hydrabadger: Hydrabadger<Txn>,
-	/// Shuts down the runtime (temporary).
-	shutdown_tx: Option<oneshot::Sender<()>>,
-}
-
 /// An hbbft <-> Parity link which relays events and acts as an intermediary.
 pub struct HbbftDaemon {
-	inner: Arc<Inner>,
+	// Unused:
+	client: Weak<Client>,
+
+	hydrabadger: Hydrabadger<Txn>,
+
+	// Temporary until tokio changes are merged upstream:
+	shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
+	runtime_th: thread::JoinHandle<()>,
 }
 
 impl HbbftDaemon {
@@ -247,22 +247,26 @@ impl HbbftDaemon {
 		}));
 
 		Ok(HbbftDaemon {
-			inner: Arc::new(Inner {
-				client,
-				runtime_th,
-				hydrabadger,
-				shutdown_tx: Some(shutdown_tx),
-			})
+			client: Arc::downgrade(&client),
+			hydrabadger,
+			shutdown_tx: Mutex::new(Some(shutdown_tx)),
+			runtime_th,
 		})
 	}
-}
 
-impl Drop for Inner {
-	fn drop(&mut self) {
-		self.shutdown_tx.take().map(|tx| tx.send(()));
+	/// Sends a shutdown single to the associated tokio runtime.
+	//
+	// Only needed until a proper global runtime is used.
+	pub fn shutdown(&self) {
+		self.shutdown_tx.lock().take().map(|tx| tx.send(()));
 	}
 }
 
+impl Drop for HbbftDaemon {
+	fn drop(&mut self) {
+		self.shutdown();
+	}
+}
 
 #[cfg(test)]
 mod tests {
