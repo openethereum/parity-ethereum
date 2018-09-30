@@ -104,16 +104,6 @@ pub struct EthashParams {
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: u64,
-	/// Callisto transition block
-	pub callisto_transition: u64,
-	/// Callisto Treasury Address
-	pub callisto_treasury_address: Address,
-	/// Callisto Treasury reward
-	pub callisto_treasury_reward: U256,
-	/// Callisto Stake Address
-	pub callisto_stake_address: Address,
-	/// Callisto Stake reward
-	pub callisto_stake_reward: U256,
 	/// Block reward contract transition block.
 	pub block_reward_contract_transition: u64,
 	/// Block reward contract.
@@ -160,11 +150,6 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 				}),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
-			callisto_transition: p.callisto_transition.map_or(u64::max_value(), Into::into),
-			callisto_treasury_address: p.callisto_treasury_address.map_or_else(Address::new, Into::into),
-			callisto_treasury_reward: p.callisto_treasury_reward.map_or_else(Default::default, Into::into),
-			callisto_stake_address: p.callisto_stake_address.map_or_else(Address::new, Into::into),
-			callisto_stake_reward: p.callisto_stake_reward.map_or_else(Default::default, Into::into),
 			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
 			block_reward_contract: match (p.block_reward_contract_code, p.block_reward_contract_address) {
 				(Some(code), _) => Some(BlockRewardContract::new_from_code(Arc::new(code.into()))),
@@ -284,7 +269,25 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				// Bestow block rewards.
 				let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
 
+<<<<<<< HEAD
 				rewards.push((author, RewardKind::Author, result_block_reward));
+=======
+				if number >= self.ethash_params.mcip3_transition {
+					result_block_reward = self.ethash_params.mcip3_miner_reward;
+
+					let ubi_contract = self.ethash_params.mcip3_ubi_contract;
+					let ubi_reward = self.ethash_params.mcip3_ubi_reward;
+					let dev_contract = self.ethash_params.mcip3_dev_contract;
+					let dev_reward = self.ethash_params.mcip3_dev_reward;
+
+					rewards.push((author, RewardKind::Author, result_block_reward));
+					rewards.push((ubi_contract, RewardKind::External, ubi_reward));
+					rewards.push((dev_contract, RewardKind::External, dev_reward));
+
+				} else {
+					rewards.push((author, RewardKind::Author, result_block_reward));
+				}
+>>>>>>> Remove ethash params
 
 				// Bestow uncle rewards.
 				for u in LiveBlock::uncles(&*block) {
