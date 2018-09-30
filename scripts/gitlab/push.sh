@@ -2,11 +2,17 @@
 
 set -e # fail on any error
 set -u # treat unset variables as error
-updater_push_release () {
-  echo "push release"
-  # Mainnet
 
-}
+
+echo "__________Register Release__________"
+DATA="secret=$RELEASES_SECRET"
+
+echo "Pushing release to Mainnet"
+../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
+
+echo "Pushing release to Kovan"
+../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
+
 echo "__________Set ENVIROMENT__________"
 DESCRIPTION="$(cat CHANGELOG.md)"
 RELEASE_TABLE="$(cat scripts/gitlab/templates/release-table.md)"
@@ -35,9 +41,10 @@ do
   for binary in $(ls parity.sha256)
   do
     sha256=$(cat $binary | awk '{ print $1}' )
+    sha3=$(cat ${binary/sha256/sha3} | awk '{ print $1}' )
     case $DIR in
       x86_64* )
-        DATA="commit=$CI_BUILD_REF&sha3=$sha256&filename=parity$WIN&secret=$RELEASES_SECRET"
+        DATA="commit=$CI_BUILD_REF&sha3=$sha3&filename=parity$WIN&secret=$RELEASES_SECRET"
         ../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$DIR"
         # Kovan
         ../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$DIR"
