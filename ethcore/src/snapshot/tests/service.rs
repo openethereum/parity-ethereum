@@ -104,6 +104,10 @@ fn restored_is_equivalent() {
 	}
 }
 
+
+// on windows the guards deletion (remove_dir_all)
+// is not happening (error directory is not empty).
+// So the test is disabled until windows api behave.
 #[cfg(not(target_os = "windows"))]
 #[test]
 fn guards_delete_folders() {

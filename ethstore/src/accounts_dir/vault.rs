@@ -310,7 +310,7 @@ mod test {
 
 	#[test]
 	fn make_vault_dir_path_succeeds() {
-    use std::path::Path;
+		use std::path::Path;
 
 		assert_eq!(&make_vault_dir_path("/home/user/parity", "vault", true).unwrap(), &Path::new("/home/user/parity/vault"));
 		assert_eq!(&make_vault_dir_path("/home/user/parity", "*bad-name*", false).unwrap(), &Path::new("/home/user/parity/*bad-name*"));
