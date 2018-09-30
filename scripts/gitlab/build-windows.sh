@@ -31,5 +31,7 @@ echo "_____ Calculating checksums _____"
 for binary in $(ls)
 do
   rhash --sha256 $binary -o $binary.sha256
+  parity.exe tools hash $binary > $binary.sha3
 done
 cp parity.exe.sha256 parity.sha256
+cp parity.exe.sha3 parity.sha3
