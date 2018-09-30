@@ -54,7 +54,7 @@ cache:
 test-linux-rust-stable:            &test
   stage:                           test
   variables:
-    RUN_TESTS:                     true
+    RUN_TESTS:                     "true"
   script:
     - scripts/gitlab/test.sh stable
   tags:
@@ -63,7 +63,7 @@ test-linux-rust-stable:            &test
 test-linux-rust-beta:
   stage:                           test
   variables:
-    RUN_TESTS:                     true
+    RUN_TESTS:                     "true"
   script:
     - scripts/gitlab/test.sh beta
   tags:
@@ -73,7 +73,7 @@ test-linux-rust-beta:
 test-linux-rust-nightly:
   stage:                           test
   variables:
-    RUN_TESTS:                     true
+    RUN_TESTS:                     "true"
   script:
     - scripts/gitlab/test.sh nightly
   tags:
@@ -86,7 +86,7 @@ test-darwin-rust-stable:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
     CXX:                           g++
-    RUN_TESTS:                     true
+    RUN_TESTS:                     "true"
   script:
     - scripts/gitlab/test.sh stable
   tags:
@@ -114,7 +114,7 @@ test-windows-rust-stable:
       # No cargo caching, since fetch-locking on Windows gets stuck
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
-    RUN_TESTS:                     true
+    RUN_TESTS:                     "true"
   script:
     - sh scripts/gitlab/test.sh stable
   tags:
