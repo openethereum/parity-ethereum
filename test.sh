@@ -47,6 +47,20 @@ validate () {
   fi
 }
 
+cpp_test () {
+  # Running the C++ example
+  echo "________Running the C++ example________"
+  cd parity-clib-examples/cpp && \
+    mkdir -p build && \
+    cd build && \
+    cmake .. && \
+    make -j $THREADS && \
+    ./parity-example && \
+    cd .. && \
+    rm -rf build && \
+    cd ../..
+}
+
 cargo_test () {
   echo "________Running Parity Full Test Suite________"
   git submodule update --init --recursive
@@ -54,32 +68,25 @@ cargo_test () {
 }
 
 
-case $CARGO_TARGET in
-  # native builds
-  (x86_64-unknown-linux-gnu|x86_64-apple-darwin|x86_64-pc-windows-msvc|'')
-    validate
+if [ "$CARGO_TARGET" ]
+then
+  validate --target $CARGO_TARGET
+else
+  validate
+fi
 
-    # Running the C++ example
-    echo "________Running the C++ example________"
-    cd parity-clib-examples/cpp && \
-      mkdir -p build && \
-      cd build && \
-      cmake .. && \
-      make -j $THREADS && \
-      ./parity-example && \
-      cd .. && \
-      rm -rf build && \
-      cd ../..
+test "${RUN_TESTS}" = "true" && cpp_test
 
-    # Running tests
-    cargo_test $@
-    ;;
-  # cross-compilation
-  (*)
-    validate --target $CARGO_TARGET 
+if [ "$CARGO_TARGET" ]
+then
 
-    # Per default only build but not run the tests
+  if [ "${RUN_TESTS}" = "true" ]
+  then
+    cargo_test --target $CARGO_TARGET $@
+  else
     cargo_test --no-run --target $CARGO_TARGET $@
-    ;;
-esac
+  fi
+else
+  cargo_test $@
+fi
 
