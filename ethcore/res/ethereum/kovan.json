@@ -47,7 +47,9 @@
 		"eip145Transition": 9000000,
 		"eip1014Transition": 9000000,
 		"eip1052Transition": 9000000,
-		"eip1283Transition": 9000000
+		"eip1283Transition": 9000000,
+		"kip4Transition": 9000000,
+		"kip6Transition": 9000000
 	},
 	"genesis": {
 		"seal": {
