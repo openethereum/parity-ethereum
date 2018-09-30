@@ -44,7 +44,7 @@ use client::{
 };
 use error::Error;
 use header::{BlockNumber, Header};
-use receipt::{RichReceipt, Receipt};
+use receipt::RichReceipt;
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use state::StateInfo;
 use ethkey::Password;
@@ -95,10 +95,13 @@ pub trait MinerService : Send + Sync {
 	// Pending block
 
 	/// Get a list of all pending receipts from pending block.
-	fn pending_receipts(&self, best_block: BlockNumber) -> Option<BTreeMap<H256, Receipt>>;
+	fn pending_receipts(&self, best_block: BlockNumber) -> Option<Vec<RichReceipt>>;
 
 	/// Get a particular receipt from pending block.
-	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt>;
+	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
+		let receipts = self.pending_receipts(best_block)?;
+		receipts.into_iter().find(|r| &r.transaction_hash == hash)
+	}
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
 	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State>;

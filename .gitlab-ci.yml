@@ -31,7 +31,7 @@ cache:
 .publishable_branches:             # list of git refs for publishing builds to the "production" locations
   only:                            &publishable_branches
     - nightly # Our nightly builds from schedule, on `master`
-    - "v2*" # Our version tags
+    - /^v2.*$/ # Our version tags
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
@@ -100,7 +100,7 @@ test-android-rust-stable:
 test-windows-rust-stable:
   stage:                           test
   cache:
-    key:                           "%CI_JOB_NAME%"
+    key:                           "${CI_JOB_NAME}"
     paths:
       - "%CI_PROJECT_DIR%/target/"
       - "%CI_PROJECT_DIR%/cargo/"
@@ -208,7 +208,7 @@ build-windows-msvc-x86_64:
   stage:                           build
   only:                            *releaseable_branches
   cache:
-    key:                           "%CI_JOB_NAME%"
+    key:                           "${CI_JOB_NAME}"
     paths:
       - "%CI_PROJECT_DIR%/target/"
       - "%CI_PROJECT_DIR%/cargo/"
@@ -226,6 +226,9 @@ build-windows-msvc-x86_64:
 package-linux-snap-amd64:          &package_snap
   stage:                           package
   only:                            *releaseable_branches
+  except:
+    - master
+  image:                           parity/snapcraft:gitlab-ci
   cache: {}
   before_script:                   *determine_version
   variables:
@@ -267,7 +270,7 @@ package-linux-snap-armhf:
 publish-linux-snap-amd64:          &publish_snap
   stage:                           publish
   only:                            *publishable_branches
-  image:                           snapcore/snapcraft:stable
+  image:                           parity/snapcraft:gitlab-ci
   cache: {}
   before_script:                   *determine_version
   variables:

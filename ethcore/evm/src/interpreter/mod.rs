@@ -274,7 +274,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		self.gasometer.as_mut().expect(GASOMETER_PROOF).current_mem_gas = requirements.memory_total_gas;
 		self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas - requirements.gas_cost;
 
-		evm_debug!({ informant.before_instruction(reader.position, instruction, info, &self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, &stack) });
+		evm_debug!({ self.informant.before_instruction(self.reader.position, instruction, info, &self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas, &self.stack) });
 
 		let (mem_written, store_written) = match self.do_trace {
 			true => (Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack)),
@@ -287,7 +287,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			current_gas, ext, instruction, requirements.provide_gas
 		)?;
 
-		evm_debug!({ informant.after_instruction(instruction) });
+		evm_debug!({ self.informant.after_instruction(instruction) });
 
 		if let InstructionResult::UnusedGas(ref gas) = result {
 			self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas = self.gasometer.as_mut().expect(GASOMETER_PROOF).current_gas + *gas;

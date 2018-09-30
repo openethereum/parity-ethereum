@@ -102,6 +102,8 @@ evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = []
 # Run JSON consensus tests.
 json-tests = ["ethcore-transaction/json-tests", "test-helpers", "tempdir"]
+# Skip JSON consensus tests with pending issues.
+ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile benches

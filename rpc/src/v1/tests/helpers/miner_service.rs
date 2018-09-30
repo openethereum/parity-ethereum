@@ -28,7 +28,7 @@ use ethcore::error::Error;
 use ethcore::header::{BlockNumber, Header};
 use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService, AuthoringParams};
-use ethcore::receipt::{Receipt, RichReceipt};
+use ethcore::receipt::RichReceipt;
 use ethereum_types::{H256, U256, Address};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
@@ -46,7 +46,7 @@ pub struct TestMinerService {
 	/// Pre-existed local transactions
 	pub local_transactions: Mutex<BTreeMap<H256, LocalTransactionStatus>>,
 	/// Pre-existed pending receipts
-	pub pending_receipts: Mutex<BTreeMap<H256, Receipt>>,
+	pub pending_receipts: Mutex<Vec<RichReceipt>>,
 	/// Next nonces.
 	pub next_nonces: RwLock<HashMap<Address, U256>>,
 	/// Password held by Engine.
@@ -58,11 +58,11 @@ pub struct TestMinerService {
 impl Default for TestMinerService {
 	fn default() -> TestMinerService {
 		TestMinerService {
-			imported_transactions: Mutex::new(Vec::new()),
-			pending_transactions: Mutex::new(HashMap::new()),
-			local_transactions: Mutex::new(BTreeMap::new()),
-			pending_receipts: Mutex::new(BTreeMap::new()),
-			next_nonces: RwLock::new(HashMap::new()),
+			imported_transactions: Default::default(),
+			pending_transactions: Default::default(),
+			local_transactions: Default::default(),
+			pending_receipts: Default::default(),
+			next_nonces: Default::default(),
 			password: RwLock::new("".into()),
 			authoring_params: RwLock::new(AuthoringParams {
 				author: Address::zero(),
@@ -230,23 +230,7 @@ impl MinerService for TestMinerService {
 		}).collect()
 	}
 
-	fn pending_receipt(&self, _best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
-		// Not much point implementing this since the logic is complex and the only thing it relies on is pending_receipts, which is already tested.
-		self.pending_receipts(0).unwrap().get(hash).map(|r|
-			RichReceipt {
-				transaction_hash: Default::default(),
-				transaction_index: Default::default(),
-				cumulative_gas_used: r.gas_used.clone(),
-				gas_used: r.gas_used.clone(),
-				contract_address: None,
-				logs: r.logs.clone(),
-				log_bloom: r.log_bloom,
-				outcome: r.outcome.clone(),
-			}
-		)
-	}
-
-	fn pending_receipts(&self, _best_block: BlockNumber) -> Option<BTreeMap<H256, Receipt>> {
+	fn pending_receipts(&self, _best_block: BlockNumber) -> Option<Vec<RichReceipt>> {
 		Some(self.pending_receipts.lock().clone())
 	}
 

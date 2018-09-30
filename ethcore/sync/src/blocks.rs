@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, HashMap, hash_map};
-use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
@@ -28,8 +27,6 @@ use ethcore::verification::queue::kind::blocks::Unverified;
 use transaction::UnverifiedTransaction;
 
 known_heap_size!(0, HeaderId);
-
-type SmallHashVec = SmallVec<[H256; 1]>;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct SyncHeader {
@@ -157,7 +154,7 @@ pub struct BlockCollection {
 	/// Used to map body to header.
 	header_ids: HashMap<HeaderId, H256>,
 	/// Used to map receipts root to headers.
-	receipt_ids: HashMap<H256, SmallHashVec>,
+	receipt_ids: HashMap<H256, Vec<H256>>,
 	/// First block in `blocks`.
 	head: Option<H256>,
 	/// Set of block header hashes being downloaded
@@ -522,7 +519,7 @@ impl BlockCollection {
 				let receipts_stream = RlpStream::new_list(0);
 				(Some(receipts_stream.out()), receipt_root)
 			} else {
-				self.receipt_ids.entry(receipt_root).or_insert_with(|| SmallHashVec::new()).push(hash);
+				self.receipt_ids.entry(receipt_root).or_insert_with(Vec::new).push(hash);
 				(None, receipt_root)
 			}
 		} else {

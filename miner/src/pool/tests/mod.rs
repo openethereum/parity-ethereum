@@ -76,6 +76,7 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 	// when
 	let tx1 = Tx::gas_price(2).signed();
 	let tx2 = Tx::gas_price(2).signed();
+	let sender = tx2.sender();
 	let tx3 = Tx::gas_price(1).signed();
 	let tx4 = Tx::gas_price(3).signed();
 	let res = txq.import(TestClient::new(), vec![tx1, tx2].retracted());
@@ -90,7 +91,8 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 			   Ok(())
 	]);
 	assert_eq!(txq.status().status.transaction_count, 3);
-	// First inserted transacton got dropped because of limit
+	// tx2 transacton got dropped because of limit
+	// tx1 and tx1' are kept, because they have lower insertion_ids so they are preferred.
 	assert_eq!(txq.next_nonce(TestClient::new(), &sender), None);
 }
 

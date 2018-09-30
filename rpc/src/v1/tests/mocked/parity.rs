@@ -16,7 +16,8 @@
 
 use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{TestBlockChainClient, Executed};
+use ethcore::client::{TestBlockChainClient, Executed, TransactionId};
+use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256};
 use ethstore::ethkey::{Generator, Random};
@@ -528,6 +529,37 @@ fn rpc_parity_call() {
 		"id": 1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x1234ff"],"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_block_receipts() {
+	let deps = Dependencies::new();
+	deps.client.receipts.write()
+		.insert(TransactionId::Hash(1.into()), LocalizedReceipt {
+			transaction_hash: 1.into(),
+			transaction_index: 0,
+			block_hash: 3.into(),
+			block_number: 0,
+			cumulative_gas_used: 21_000.into(),
+			gas_used: 21_000.into(),
+			contract_address: None,
+			logs: vec![],
+			log_bloom: 1.into(),
+			outcome: TransactionOutcome::Unknown,
+			to: None,
+			from: 9.into(),
+		});
+	let io = deps.default_client();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "parity_getBlockReceipts",
+		"params": [],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000003","blockNumber":"0x0","contractAddress":null,"cumulativeGasUsed":"0x5208","from":"0x0000000000000000000000000000000000000009","gasUsed":"0x5208","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001","root":null,"status":null,"to":null,"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000001","transactionIndex":"0x0"}],"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
