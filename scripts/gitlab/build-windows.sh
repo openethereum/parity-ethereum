@@ -25,7 +25,11 @@ mkdir -p artifacts
 cd artifacts
 mkdir -p $CARGO_TARGET
 cd $CARGO_TARGET
-cp --verbose ../../target/$CARGO_TARGET/release/{parity.exe,parity-evm.exe,ethstore.exe,ethkey.exe,whisper.exe} .
+cp --verbose ../../target/$CARGO_TARGET/release/parity.exe ./parity.exe
+cp --verbose ../../target/$CARGO_TARGET/release/parity-evm.exe ./parity-evm.exe
+cp --verbose ../../target/$CARGO_TARGET/release/ethstore.exe ./ethstore.exe
+cp --verbose ../../target/$CARGO_TARGET/release/ethkey.exe ./ethkey.exe
+cp --verbose ../../target/$CARGO_TARGET/release/whisper.exe ./whisper.exe
 
 echo "_____ Calculating checksums _____"
 for binary in $(ls)
