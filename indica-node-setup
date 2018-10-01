@@ -1,0 +1,9 @@
+
+let HOST_ID=$1
+let JSONRPC_PORT=8500+$HOST_ID
+
+curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["richie", "richie"],"id":0}' -H "Content-Type: application/json" -X POST localhost:$JSONRPC_PORT
+
+curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node0", "node0"],"id":0}' -H "Content-Type: application/json" -X POST localhost:$JSONRPC_PORT
+
+curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node'$HOST_ID'", "node'$HOST_ID'"],"id":0}' -H "Content-Type: application/json" -X POST localhost:$JSONRPC_PORT

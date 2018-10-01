@@ -19,12 +19,14 @@
 let HOST_ID=$1
 let PEER_0_ID=$HOST_ID==0?$HOST_ID+2:$HOST_ID-1
 let PEER_1_ID=$HOST_ID+1
+let NETWORK_PORT=30400+$HOST_ID
 let JSONRPC_PORT=8500+$HOST_ID
 let WS_PORT=8600+$HOST_ID
 
-printf -v HOST_PORT "59%02d" $HOST_ID
-printf -v PEER_0_PORT "59%02d" $PEER_0_ID
-printf -v PEER_1_PORT "59%02d" $PEER_1_ID
+printf -v HOST_HYDRABADGER_PORT "59%02d" $HOST_ID
+printf -v PEER_0_HYDRABADGER_PORT "59%02d" $PEER_0_ID
+printf -v PEER_1_HYDRABADGER_PORT "59%02d" $PEER_1_ID
+printf -v PEER_1_HYDRABADGER_PORT "59%02d" $PEER_1_ID
 
 if [[ $PARITY_RELEASE ]]
 then
@@ -43,29 +45,40 @@ PARITY_LOG=peer_node::hydrabadger=error,warn,info,$PARITY_LOG_ADDTL
 
 set -x
 
-curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node0", "node0"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
+# Adding the following accounts only needs to occur once per network/node:
 
-curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node'$HOST_ID'", "node'$HOST_ID'"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
+# curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["richie", "richie"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
 
-bash -c "\
-RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
-    --chain indica \
-    --base-path $HOME/.poanetwork/indica/node_$HOST_ID \
-    --db-path $HOME/.poanetwork/indica/node_$HOST_ID/chains \
-    --keys-path $HOME/.poanetwork/indica/node_$HOST_ID/keys \
-    --ports-shift $HOST_ID \
-    --jsonrpc-port $JSONRPC_PORT \
-    --ws-port $WS_PORT \
-    --hbbft-port $HOST_PORT \
-    --hbbft-remote-addresses 127.0.0.1:5900 \
-    --jsonrpc-apis web3,eth,pubsub,net,parity,private,parity_pubsub,parity_set,traces,rpc,shh,shh_pubsub,personal,parity_accounts
+# curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node0", "node0"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
 
-    $2 $3 $4 $5 $6 $7 $8 \
-"
+# curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node'$HOST_ID'", "node'$HOST_ID'"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
+
+# Launches node.
+run_node() {
+    bash -c "\
+    RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
+        --chain indica \
+        --base-path $HOME/.poanetwork/indica/node_$HOST_ID \
+        --db-path $HOME/.poanetwork/indica/node_$HOST_ID/chains \
+        --keys-path $HOME/.poanetwork/indica/node_$HOST_ID/keys \
+        --port $NETWORK_PORT \
+        --jsonrpc-port $JSONRPC_PORT \
+        --ws-port $WS_PORT \
+        --hbbft-port $HOST_HYDRABADGER_PORT \
+        --hbbft-remote-addresses 127.0.0.1:5900 \
+        --jsonrpc-apis web3,eth,pubsub,net,parity,private,parity_pubsub,parity_set,traces,rpc,shh,shh_pubsub,personal,parity_accounts \
+        --bootnodes=enode://14cf80e6b99b74d3fdc68f7bd7ddd629210b858bd396f6539edca07cb9e05d78b85cfb70561cf0374053dcb5cc0df11d526a86376685ac71a04f75f2d1a6acbc@10.0.0.101:30303 \
+        --password=node.pwds \
+        --reseal-on-txs="none" \
+        $2 $3 $4 $5 $6 $7 $8 \
+    "
+}
+
+run_node
 
 ### --reserved-peers $HOME/.poanetwork/indica/bootnodes.txt \
-###  hbbft-remote-addresses 127.0.0.1:$PEER_0_PORT,127.0.0.1:$PEER_1_PORT \
 ###  chain $HOME/.poanetwork/indica/spec.json \
 
-###
-### --jsonrpc-apis web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts
+### --ports-shift $HOST_ID \
+### --engine-signer=$NODE_ACCOUNT \
+

@@ -11,13 +11,11 @@
 				"validators": {
 					"multi": {
 						"0": {
-							"safeContract": "0x8bf38d4764929064f2d4d3a56520a76ab3df415b"
-						},
-						"362296": {
-							"safeContract": "0xf5cE3f5D0366D6ec551C74CCb1F67e91c56F2e34"
-						},
-						"509355": {
-							"safeContract": "0x03048F666359CFD3C74a1A5b9a97848BF71d5038"
+							"list": [
+				                "0x00bd138abd70e2f00903268f3db08f2d25677c9e",
+				                "0x00aa39d30f0d20ff03a22ccfc30b7efbfca597c2",
+				                "0x002e28950558fbede1a9675cb113f0bd20912019"
+				            ]
 						}
 					}
 				}
@@ -28,11 +26,12 @@
 		"gasLimitBoundDivisor": "0x400",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0xF0",
-		"eip140Transition": "0x0",
-		"eip211Transition": "0x0",
-		"eip214Transition": "0x0",
-		"eip658Transition": "0x0"
+		"networkID" : "0x4BBF7",
+		"eip140Transition": 0,
+		"eip211Transition": 0,
+		"eip214Transition": 0,
+		"eip658Transition": 0,
+		"validateChainIdTransition": 0
 	},
     "genesis": {
 		"seal": {
