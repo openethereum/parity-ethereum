@@ -3,7 +3,5 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-export CARGO_TARGET_DIR=$CARGO_HOME
-
-cargo +stable install cargo-audit
+CARGO_TARGET_DIR=./target cargo +stable install cargo-audit
 cargo +stable audit
