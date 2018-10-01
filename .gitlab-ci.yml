@@ -103,9 +103,7 @@ publish-docker:
 
 publish-awss3:
   stage:                           publish
-  only:
-    - nightly
-    - /^v2.*$/
+  only:                            *releaseable_branches
   cache: {}
   dependencies:
     - build-linux
