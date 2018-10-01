@@ -50,33 +50,6 @@ test-linux:
   tags:
     - rust-stable
 
-test-darwin:
-  stage:                           test
-  variables:
-    CARGO_TARGET:                  x86_64-apple-darwin
-    CC:                            gcc
-    CXX:                           g++
-    RUN_TESTS:                     "true"
-  script:
-    - scripts/gitlab/test.sh stable
-  tags:
-    - rust-osx
-
-test-windows:
-  stage:                           test
-  cache:
-    key:                           "${CI_JOB_NAME}"
-    paths:
-      - "%CI_PROJECT_DIR%/target/"
-      - "%CI_PROJECT_DIR%/cargo/"
-  variables:
-    CARGO_TARGET:                  x86_64-pc-windows-msvc
-    RUN_TESTS:                     "true"
-  script:
-    - sh scripts/gitlab/test.sh stable
-  tags:
-   - rust-windows
-
 build-linux:
   stage:                           build
   only:                            *releaseable_branches
@@ -163,6 +136,33 @@ misc-android:
     - scripts/gitlab/test.sh stable
   tags:
     - rust-arm
+
+misc-darwin:
+  stage:                           misc
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+    RUN_TESTS:                     "true"
+  script:
+    - scripts/gitlab/test.sh stable
+  tags:
+    - rust-osx
+
+misc-windows:
+  stage:                           misc
+  cache:
+    key:                           "${CI_JOB_NAME}"
+    paths:
+      - "%CI_PROJECT_DIR%/target/"
+      - "%CI_PROJECT_DIR%/cargo/"
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+    RUN_TESTS:                     "true"
+  script:
+    - sh scripts/gitlab/test.sh stable
+  tags:
+   - rust-windows
 
 misc-beta:
   stage:                           misc
