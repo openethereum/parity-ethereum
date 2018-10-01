@@ -19,7 +19,7 @@ echo ${filetest[*]}
 for DIR in "${filetest[@]}";
 do
   cd $DIR
-  if [[ $DIR =~ "*windows*" ]];
+  if [[ $DIR =~ "windows" ]];
     then
       WIN=".exe";
     else
