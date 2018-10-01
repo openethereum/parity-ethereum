@@ -82,17 +82,19 @@ else
   validate
 fi
 
-test "${RUN_TESTS}" = "true" && cpp_test
+test "${RUN_TESTS}" = "all" && cpp_test
 
 if [ "$CARGO_TARGET" ]
 then
 
-  if [ "${RUN_TESTS}" = "true" ]
-  then
-    cargo_test --target $CARGO_TARGET $@
-  else
-    cargo_test --no-run --target $CARGO_TARGET $@
-  fi
+  case "${RUN_TESTS}" in
+    (cargo|all)
+      cargo_test --target $CARGO_TARGET $@
+      ;;
+    ('')
+      cargo_test --no-run --target $CARGO_TARGET $@
+      ;;
+  esac
 else
   cargo_test $@
 fi

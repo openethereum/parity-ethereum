@@ -44,7 +44,7 @@ cache:
 test-linux:
   stage:                           test
   variables:
-    RUN_TESTS:                     "true"
+    RUN_TESTS:                     all
   script:
     - scripts/gitlab/test-all.sh stable
   tags:
@@ -143,7 +143,7 @@ test-darwin:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
     CXX:                           g++
-    RUN_TESTS:                     "true"
+    RUN_TESTS:                     cargo
   script:
     - scripts/gitlab/test-all.sh stable
   tags:
@@ -153,7 +153,7 @@ test-windows:
   stage:                           optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
-    RUN_TESTS:                     "true"
+    RUN_TESTS:                     cargo
   script:
     - sh scripts/gitlab/test-all.sh stable
   tags:
@@ -162,7 +162,7 @@ test-windows:
 test-beta:
   stage:                           optional
   variables:
-    RUN_TESTS:                     "true"
+    RUN_TESTS:                     cargo
   script:
     - scripts/gitlab/test-all.sh beta
   tags:
@@ -171,7 +171,7 @@ test-beta:
 test-nightly:
   stage:                           optional
   variables:
-    RUN_TESTS:                     "true"
+    RUN_TESTS:                     all
   script:
     - scripts/gitlab/test-all.sh nightly
   tags:
