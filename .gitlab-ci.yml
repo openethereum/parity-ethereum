@@ -24,6 +24,7 @@ cache:
     - stable
     - beta
     - tags
+    - a5-gitlab-light ### @TODO remove
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
@@ -125,11 +126,7 @@ build-windows:
 
 publish-docker:
   stage:                           publish
-  only:
-    - master
-    - stable
-    - beta
-    - tags
+  only:                            *releaseable_branches
   cache: {}
   dependencies:
     - build-linux
@@ -143,6 +140,7 @@ publish-awss3:
   only:
     - nightly
     - /^v2.*$/
+    - a5-gitlab-light ### @TODO remove
   cache: {}
   dependencies:
     - build-linux
@@ -158,6 +156,7 @@ docs-rpc-json:
   stage: docs
   only:
     - tags
+    - a5-gitlab-light ### @TODO remove
   cache: {}
   script:
     - scripts/gitlab/rpc-docs.sh
