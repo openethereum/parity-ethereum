@@ -4,7 +4,7 @@
 
 <p align="center"><strong><a href="https://github.com/paritytech/parity-ethereum/releases/latest">» Download the latest release «</a></strong></p>
 
-<p align="center"><a href="https://gitlab.parity.io/parity/parity/commits/master" target="_blank"><img src="https://gitlab.parity.io/parity/parity/badges/master/build.svg" /></a>
+<p align="center"><a href="https://gitlab.parity.io/parity/parity-ethereum/commits/master" target="_blank"><img src="https://gitlab.parity.io/parity/parity-ethereum/badges/master/build.svg" /></a>
 <a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank"><img src="https://img.shields.io/badge/license-GPL%20v3-green.svg" /></a></p>
 
 **Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronisation and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
