@@ -19,8 +19,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 
-use rlp::{self};
-use ethereum_types::{Address, H64 as EthcoreH64, H256 as EthcoreH256};
+use ethereum_types::Address;
 use version::version_data;
 
 use crypto::DEFAULT_MAC;
@@ -452,24 +451,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn submit_work_detail(&self, nonce: H64, pow_hash: H256, mix_hash: H256) -> Result<H256> {
-		// TODO [ToDr] Should disallow submissions in case of PoA?
-		let nonce: EthcoreH64 = nonce.into();
-		let pow_hash: EthcoreH256 = pow_hash.into();
-		let mix_hash: EthcoreH256 = mix_hash.into();
-		trace!(target: "miner", "submit_work_detail: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
-
-		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
-		let import = self.miner.submit_seal(pow_hash, seal)
-			.and_then(|block| self.client.import_sealed_block(block));
-
-		match import {
-			Ok(hash) => {
-				Ok(hash.into())
-			},
-			Err(err) => {
-				warn!(target: "miner", "Cannot submit work - {:?}.", err);
-				Err(errors::cannot_submit_work(err))
-			},
-		}
+		helpers::submit_work_detail(&self.client, &self.miner, nonce, pow_hash, mix_hash)
 	}
 }
