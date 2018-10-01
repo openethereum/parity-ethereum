@@ -127,6 +127,13 @@ docs-jsonrpc:
   tags:
     - shell
 
+cargo-audit:
+  stage:                           misc
+  script:
+    - scripts/gitlab/audit.sh
+  tags:
+    - rust-stable
+
 test-android:
   stage:                           misc
   image:                           parity/rust-android:gitlab-ci
