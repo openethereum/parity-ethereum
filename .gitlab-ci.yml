@@ -1,243 +1,178 @@
 stages:
   - test
-  - push-release
   - build
-  - docs
+  - publish
+  - optional
+
+image:                             parity/rust:gitlab-ci
+
 variables:
-  RUST_BACKTRACE: "1"
-  RUSTFLAGS: ""
-  CARGOFLAGS: ""
-  CI_SERVER_NAME: "GitLab CI"
+  CI_SERVER_NAME:                  "GitLab CI"
+  CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
+  BUILD_TARGET:                    ubuntu
+  BUILD_ARCH:                      amd64
+  CARGO_TARGET:                    x86_64-unknown-linux-gnu
+
 cache:
-  key: "$CI_BUILD_STAGE-$CI_BUILD_REF_NAME"
+  key:                             "${CI_JOB_NAME}"
   paths:
-    - target/
-  untracked: true
-linux-amd64:
-  stage: build
-  image: parity/rust:gitlab-ci
-  only:
+    - ./target
+    - ./.cargo
+
+.releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
+  only:                            &releaseable_branches
+    - stable
     - beta
     - tags
-    - stable
-    - triggers
+
+.collect_artifacts:                &collect_artifacts
+  artifacts:
+    name:                          "${CI_JOB_NAME}_${CI_COMMIT_REF_NAME}"
+    when:                          on_success
+    expire_in:                     1 mos
+    paths:
+    - artifacts/
+
+.determine_version:                &determine_version
+  - VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
+  - DATE_STR="$(date +%Y%m%d)"
+  - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
+  - test "${CI_COMMIT_REF_NAME}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
+  - export VERSION
+  - echo "Version = ${VERSION}"
+
+test-linux:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
   script:
-    - rustup default stable
-    # ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags 6. binary identifier
-    - scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 gcc g++ linux
+    - scripts/gitlab/test-all.sh stable
   tags:
     - rust-stable
-  artifacts:
-    paths:
-    - parity.zip
-    name: "stable-x86_64-unknown-linux-gnu_parity"
-linux-i686:
-  stage: build
-  image: parity/rust-i686:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
+
+build-linux:
+  stage:                           build
+  only:                            *releaseable_branches
+  variables:
+    CARGO_TARGET:                  x86_64-unknown-linux-gnu
   script:
-    - scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 gcc g++ linux
-  tags:
-    - rust-i686
-  artifacts:
-    paths:
-      - parity.zip
-    name: "i686-unknown-linux-gnu"
-  allow_failure: true
-linux-armv7:
-  stage: build
-  image: parity/rust-armv7:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh armv7-unknown-linux-gnueabihf armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ linux
-  tags:
-    - rust-arm
-  artifacts:
-    paths:
-    - parity.zip
-    name: "armv7_unknown_linux_gnueabihf_parity"
-  allow_failure: true
-linux-armhf:
-  stage: build
-  image: parity/rust-arm:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh arm-unknown-linux-gnueabihf arm-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ linux
-  tags:
-    - rust-arm
-  artifacts:
-    paths:
-    - parity.zip
-    name: "arm-unknown-linux-gnueabihf_parity"
-  allow_failure: true
-linux-aarch64:
-  stage: build
-  image: parity/rust-arm64:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh aarch64-unknown-linux-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++ linux
-  tags:
-    - rust-arm
-  artifacts:
-    paths:
-    - parity.zip
-    name: "aarch64-unknown-linux-gnu_parity"
-linux-snap:
-  stage: build
-  image: parity/snapcraft:gitlab-ci
-  only:
-    - stable
-    - beta
-    - tags
-    - triggers
-  script:
-    - scripts/gitlab-build.sh x86_64-unknown-snap-gnu x86_64-unknown-linux-gnu amd64 gcc g++ snap
+    - scripts/gitlab/build-unix.sh
+  <<:                              *collect_artifacts
   tags:
     - rust-stable
-  artifacts:
-    paths:
-    - parity.zip
-    name: "stable-x86_64-unknown-snap-gnu_parity"
-darwin:
-  stage: build
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
+
+build-darwin:
+  stage:                           build
+  only:                            *releaseable_branches
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
   script:
-    - scripts/gitlab-build.sh x86_64-apple-darwin x86_64-apple-darwin macos gcc g++ macos
+    - scripts/gitlab/build-unix.sh
   tags:
-    - osx
-  artifacts:
-    paths:
-    - parity.zip
-    name: "x86_64-apple-darwin_parity"
-windows:
-  cache:
-    key: "%CI_BUILD_STAGE%-%CI_BUILD_REF_NAME%"
-    untracked: true
-  stage: build
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
+    - rust-osx
+  <<:                              *collect_artifacts
+
+build-windows:
+  stage:                           build
+  only:                            *releaseable_branches
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
   script:
-    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc amd64 "" "" windows
+    - sh scripts/gitlab/build-windows.sh
   tags:
    - rust-windows
-  artifacts:
-    paths:
-    - parity.zip
-    name: "x86_64-pc-windows-msvc_parity"
-android-armv7:
-  stage: build
-  image: parity/parity-android:latest
+  <<:                              *collect_artifacts
+
+publish-docker:
+  stage:                           publish
+  only:                            *releaseable_branches
+  cache: {}
+  dependencies:
+    - build-linux
+  tags:
+    - shell
+  script:
+    - scripts/gitlab/publish-docker.sh parity
+
+publish-awss3:
+  stage:                           publish
+  only:                            *releaseable_branches
+  cache: {}
+  dependencies:
+    - build-linux
+    - build-darwin
+    - build-windows
+  before_script:                   *determine_version
+  script:
+    - scripts/gitlab/publish-awss3.sh
+  tags:
+    - shell
+
+docs-jsonrpc:
+  stage:                            optional
   only:
-    - beta
     - tags
-    - stable
-    - triggers
+  cache: {}
   script:
-    - cargo build --target=armv7-linux-androideabi
+    - scripts/gitlab/docs-jsonrpc.sh
   tags:
-    - rust-arm
-  allow_failure: true
-  artifacts:
-    paths:
-    - parity.zip
-    name: "armv7-linux-androideabi_parity"
-docker-build:
-  stage: build
-  only:
-    - tags
-    - master
-    - beta
-    - stable
-    - triggers
-  before_script:
-    - docker info
+    - shell
+
+cargo-audit:
+  stage:                           optional
   script:
-    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
-    - echo "Tag:" $DOCKER_TAG
-    - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
-    - scripts/docker-build.sh $DOCKER_TAG
-    - docker logout
-  tags:
-    - docker
-test-coverage:
-  stage: test
-  only:
-    - master
-  script:
-    - scripts/gitlab-test.sh test-coverage
-  tags:
-    - kcov
-  allow_failure: true
-test-rust-stable:
-  stage: test
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab-test.sh stable
+    - scripts/gitlab/cargo-audit.sh
   tags:
     - rust-stable
-test-rust-beta:
-  stage: test
-  only:
-    - triggers
-    - master
-  image: parity/rust:gitlab-ci
+
+test-android:
+  stage:                           optional
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
   script:
-    - scripts/gitlab-test.sh beta
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    - rust-arm
+
+test-darwin:
+  stage:                           optional
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+    RUN_TESTS:                     cargo
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    - rust-osx
+
+test-windows:
+  stage:                           optional
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+    RUN_TESTS:                     cargo
+  script:
+    - sh scripts/gitlab/test-all.sh stable
+  tags:
+   - rust-windows
+
+test-beta:
+  stage:                           optional
+  variables:
+    RUN_TESTS:                     cargo
+  script:
+    - scripts/gitlab/test-all.sh beta
   tags:
     - rust-beta
-  allow_failure: true
-test-rust-nightly:
-  stage: test
-  only:
-    - triggers
-    - master
-  image: parity/rust:gitlab-ci
+
+test-nightly:
+  stage:                           optional
+  variables:
+    RUN_TESTS:                     all
   script:
-    - scripts/gitlab-test.sh nightly
+    - scripts/gitlab/test-all.sh nightly
   tags:
-    - rust
     - rust-nightly
-  allow_failure: true
-json-rpc-docs:
-  stage: docs
-  only:
-    - tags
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab-rpc-docs.sh
-  tags:
-    - docs
-  cache: {}
-push-release:
-  stage: push-release
-  only:
-    - tags
-    - triggers
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab-push-release.sh
-  tags:
-    - curl
