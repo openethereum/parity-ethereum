@@ -74,7 +74,7 @@ extern crate mio;
 #[macro_use]
 extern crate log as rlog;
 extern crate slab;
-extern crate crossbeam;
+extern crate crossbeam_deque as deque;
 extern crate parking_lot;
 extern crate num_cpus;
 extern crate timer;

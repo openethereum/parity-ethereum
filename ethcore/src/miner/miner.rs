@@ -50,7 +50,7 @@ use executive::contract_address;
 use header::{Header, BlockNumber};
 use miner;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use receipt::{Receipt, RichReceipt};
+use receipt::RichReceipt;
 use spec::Spec;
 use state::State;
 use ethkey::Password;
@@ -1039,19 +1039,17 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.status()
 	}
 
-	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
+	fn pending_receipts(&self, best_block: BlockNumber) -> Option<Vec<RichReceipt>> {
 		self.map_existing_pending_block(|pending| {
-			let txs = pending.transactions();
-			txs.iter()
-				.map(|t| t.hash())
-				.position(|t| t == *hash)
-				.map(|index| {
-					let receipts = pending.receipts();
+			let receipts = pending.receipts();
+			pending.transactions()
+				.into_iter()
+				.enumerate()
+				.map(|(index, tx)| {
 					let prev_gas = if index == 0 { Default::default() } else { receipts[index - 1].gas_used };
-					let tx = &txs[index];
 					let receipt = &receipts[index];
 					RichReceipt {
-						transaction_hash: hash.clone(),
+						transaction_hash: tx.hash(),
 						transaction_index: index,
 						cumulative_gas_used: receipt.gas_used,
 						gas_used: receipt.gas_used - prev_gas,
@@ -1067,15 +1065,7 @@ impl miner::MinerService for Miner {
 						outcome: receipt.outcome.clone(),
 					}
 				})
-		}, best_block).and_then(|x| x)
-	}
-
-	fn pending_receipts(&self, best_block: BlockNumber) -> Option<BTreeMap<H256, Receipt>> {
-		self.map_existing_pending_block(|pending| {
-			let hashes = pending.transactions().iter().map(|t| t.hash());
-			let receipts = pending.receipts().iter().cloned();
-
-			hashes.zip(receipts).collect()
+				.collect()
 		}, best_block)
 	}
 

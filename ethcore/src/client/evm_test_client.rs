@@ -182,6 +182,19 @@ impl<'a> EvmTestClient<'a> {
 			gas_used: 0.into(),
 			gas_limit: *genesis.gas_limit(),
 		};
+		self.call_envinfo(params, tracer, vm_tracer, info)
+	}
+
+	/// Execute the VM given envinfo, ActionParams and tracer.
+	/// Returns amount of gas left and the output.
+	pub fn call_envinfo<T: trace::Tracer, V: trace::VMTracer>(
+		&mut self,
+		params: ActionParams,
+		tracer: &mut T,
+		vm_tracer: &mut V,
+		info: client::EnvInfo,
+	) -> Result<FinalizationResult, EvmTestError>
+	{
 		let mut substate = state::Substate::new();
 		let machine = self.spec.engine.machine();
 		let schedule = machine.schedule(info.number);

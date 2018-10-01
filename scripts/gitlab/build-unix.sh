@@ -26,10 +26,15 @@ mkdir -p artifacts
 cd artifacts
 mkdir -p $CARGO_TARGET
 cd $CARGO_TARGET
-cp ../../target/$CARGO_TARGET/release/{parity,parity-evm,ethstore,ethkey,whisper} .
+cp ../../target/$CARGO_TARGET/release/parity ./parity
+cp ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
+cp ../../target/$CARGO_TARGET/release/ethstore ./ethstore
+cp ../../target/$CARGO_TARGET/release/ethkey ./ethkey
+cp ../../target/$CARGO_TARGET/release/whisper ./whisper
 strip -v ./*
 echo "_____ Calculating checksums _____"
 for binary in $(ls)
 do
   rhash --sha256 $binary -o $binary.sha256
+  ./parity tools hash $binary > $binary.sha3
 done
