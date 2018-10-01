@@ -8,7 +8,7 @@ image:                             parity/rust:gitlab-ci
 
 variables:
   CI_SERVER_NAME:                  "GitLab CI"
-  CARGO_HOME:                      "${CI_PROJECT_DIR}/cargo"
+  CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   BUILD_TARGET:                    ubuntu
   BUILD_ARCH:                      amd64
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
@@ -16,8 +16,8 @@ variables:
 cache:
   key:                             "${CI_JOB_NAME}"
   paths:
-    - ${CI_PROJECT_DIR}/target/
-    - ${CI_PROJECT_DIR}/cargo/
+    - ./target
+    - ./.cargo
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
@@ -77,11 +77,6 @@ build-darwin:
 build-windows:
   stage:                           build
   only:                            *releaseable_branches
-  cache:
-    key:                           "${CI_JOB_NAME}"
-    paths:
-      - "%CI_PROJECT_DIR%/target/"
-      - "%CI_PROJECT_DIR%/cargo/"
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
   script:
@@ -156,11 +151,6 @@ test-darwin:
 
 test-windows:
   stage:                           optional
-  cache:
-    key:                           "${CI_JOB_NAME}"
-    paths:
-      - "%CI_PROJECT_DIR%/target/"
-      - "%CI_PROJECT_DIR%/cargo/"
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     "true"
