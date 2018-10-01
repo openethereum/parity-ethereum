@@ -76,6 +76,7 @@ test-linux-rust-nightly:
 
 test-darwin-rust-stable:
   stage:                           test
+  cache: {}
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
