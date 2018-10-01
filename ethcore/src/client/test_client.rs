@@ -242,6 +242,7 @@ impl TestBlockChainClient {
 		*self.error_on_logs.write() = val;
 	}
 
+	/// Add a block to test client.
 	pub fn add_block<F>(&self, with: EachBlockWith, hook: F)
 		where F: Fn(BlockHeader) -> BlockHeader
 	{
@@ -298,7 +299,7 @@ impl TestBlockChainClient {
 		self.import_block(unverified).unwrap();
 	}
 
-	/// Add blocks to test client.
+	/// Add a sequence of blocks to test client.
 	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
 		for _ in 0..count {
 			self.add_block(with, |header| header);
