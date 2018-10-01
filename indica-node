@@ -26,8 +26,6 @@ printf -v HOST_PORT "59%02d" $HOST_ID
 printf -v PEER_0_PORT "59%02d" $PEER_0_ID
 printf -v PEER_1_PORT "59%02d" $PEER_1_ID
 
-
-
 if [[ $PARITY_RELEASE ]]
 then
     case "$PARITY_RELEASE" in
@@ -45,6 +43,10 @@ PARITY_LOG=peer_node::hydrabadger=error,warn,info,$PARITY_LOG_ADDTL
 
 set -x
 
+curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node0", "node0"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
+
+curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node'$HOST_ID'", "node'$HOST_ID'"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
+
 bash -c "\
 RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
     --chain indica \
@@ -55,11 +57,15 @@ RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
     --jsonrpc-port $JSONRPC_PORT \
     --ws-port $WS_PORT \
     --hbbft-port $HOST_PORT \
-    --hbbft-remote-addresses localhost:5900 \
+    --hbbft-remote-addresses 127.0.0.1:5900 \
+    --jsonrpc-apis web3,eth,pubsub,net,parity,private,parity_pubsub,parity_set,traces,rpc,shh,shh_pubsub,personal,parity_accounts
+
     $2 $3 $4 $5 $6 $7 $8 \
 "
 
 ### --reserved-peers $HOME/.poanetwork/indica/bootnodes.txt \
-###  hbbft-remote-addresses localhost:$PEER_0_PORT,localhost:$PEER_1_PORT \
+###  hbbft-remote-addresses 127.0.0.1:$PEER_0_PORT,127.0.0.1:$PEER_1_PORT \
 ###  chain $HOME/.poanetwork/indica/spec.json \
 
+###
+### --jsonrpc-apis web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts
