@@ -2,7 +2,7 @@ stages:
   - test
   - build
   - publish
-  - docs
+  - misc
 
 image:                             parity/rust:gitlab-ci
 
@@ -24,7 +24,6 @@ cache:
     - stable
     - beta
     - tags
-    - a5-gitlab-light ### @TODO remove
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
@@ -41,8 +40,6 @@ cache:
   - test "${CI_COMMIT_REF_NAME}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
   - export VERSION
   - echo "Version = ${VERSION}"
-
-#### stage:                        test
 
 test-linux:
   stage:                           test
@@ -63,7 +60,7 @@ test-darwin:
   script:
     - scripts/gitlab/test.sh stable
   tags:
-    - osx
+    - rust-osx
 
 test-windows:
   stage:                           test
@@ -79,8 +76,6 @@ test-windows:
     - sh scripts/gitlab/test.sh stable
   tags:
    - rust-windows
-
-#### stage:                        build
 
 build-linux:
   stage:                           build
@@ -103,7 +98,7 @@ build-darwin:
   script:
     - scripts/gitlab/build-unix.sh
   tags:
-    - osx
+    - rust-osx
   <<:                              *collect_artifacts
 
 build-windows:
@@ -122,8 +117,6 @@ build-windows:
    - rust-windows
   <<:                              *collect_artifacts
 
-#### stage:                        publish
-
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
@@ -140,7 +133,6 @@ publish-awss3:
   only:
     - nightly
     - /^v2.*$/
-    - a5-gitlab-light ### @TODO remove
   cache: {}
   dependencies:
     - build-linux
@@ -152,13 +144,40 @@ publish-awss3:
   tags:
     - shell
 
-docs-jsonrpc:
-  stage: docs
+misc-docs:
+  stage:                            misc
   only:
     - tags
-    - a5-gitlab-light ### @TODO remove
   cache: {}
   script:
     - scripts/gitlab/docs-jsonrpc.sh
   tags:
     - shell
+
+misc-android:
+  stage:                           misc
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/test.sh stable
+  tags:
+    - rust-arm
+
+misc-beta:
+  stage:                           misc
+  variables:
+    RUN_TESTS:                     "true"
+  script:
+    - scripts/gitlab/test.sh beta
+  tags:
+    - rust-beta
+
+misc-nightly:
+  stage:                           misc
+  variables:
+    RUN_TESTS:                     "true"
+  script:
+    - scripts/gitlab/test.sh nightly
+  tags:
+    - rust-nightly
