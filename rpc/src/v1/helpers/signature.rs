@@ -21,6 +21,7 @@ use v1::helpers::errors;
 use v1::helpers::dispatch::eth_data_hash;
 use hash::keccak;
 
+/// helper method for parity_verifySignature
 pub fn verify_signature(is_prefixed: bool, message: Bytes, v: U64, r: H256, s: H256, chain_id: Option<u64>) -> Result<BasicAccount> {
 	let hash = if is_prefixed {
 		eth_data_hash(message.0)
@@ -34,9 +35,7 @@ pub fn verify_signature(is_prefixed: bool, message: Bytes, v: U64, r: H256, s: H
 		_ => false,
 	};
 
-	let v = if v > 36 {
-		(v - 1) % 2
-	} else { v };
+	let v = if v > 36 { (v - 1) % 2 } else { v };
 
 	let signature = Signature::from_rsv(&r.into(), &s.into(), v as u8);
 	let public = recover(&signature, &hash).map_err(errors::encryption)?;
@@ -63,7 +62,7 @@ mod tests {
 	}
 
 	/// mocked signer
-	fn sign(should_prefix: bool, data: Vec<u8>, signing_chain_id: Option<u64>) -> (H160, u64, [u8; 32], [u8; 32]) {
+	fn sign(should_prefix: bool, data: Vec<u8>, signing_chain_id: Option<u64>) -> (H160, [u8; 32], [u8; 32], u64) {
 		let hash = if should_prefix { eth_data_hash(data) } else { keccak(data) };
 		let accounts = Arc::new(AccountProvider::transient_provider());
 		let address = accounts.new_account(&"password123".into()).unwrap();
@@ -76,14 +75,14 @@ mod tests {
 			s_buf.copy_from_slice(s);
 			(r_buf, s_buf)
 		};
-		(address.into(), v, r_buf, s_buf)
+		(address.into(), r_buf, s_buf, v)
 	}
 
 	fn run_test(test_case: TestCase) {
 		let TestCase { should_prefix, signing_chain_id, rpc_chain_id, is_valid_for_current_chain } = test_case;
 		let data = vec![5u8];
 
-		let (address, v, r, s) = sign(should_prefix, data.clone(), signing_chain_id);
+		let (address, r, s, v) = sign(should_prefix, data.clone(), signing_chain_id);
 		let account = verify_signature(should_prefix, data.into(), v.into(), r.into(), s.into(), rpc_chain_id).unwrap();
 
 		assert_eq!(account.address, address.into());

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 use v1::types::{H160, H256, U256, Bytes};
 
+//! Return types for RPC calls
 use ethereum_types::{Public, Address};
 
 /// Account information.
@@ -70,15 +71,15 @@ pub struct HwAccountInfo {
 /// account derived from a signature
 /// as well as information that tells if it is valid for
 /// the current chain
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all="camelCase")]
 pub struct BasicAccount {
 	/// address of the recovered account
 	pub address: Address,
 	/// public key of the recovered account
 	pub public_key: Public,
-	/// if the signature contains chain replay protection
-	/// and the chain_id encoded within the signature matches the current chain
-	/// this would be true, otherwise false.
+	/// If the signature contains chain replay protection,
+	/// And the chain_id encoded within the signature
+	/// matches the current chain this would be true, otherwise false.
 	pub is_valid_for_current_chain: bool
 }
