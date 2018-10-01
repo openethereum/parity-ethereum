@@ -19,24 +19,21 @@ echo ${filetest[*]}
 for DIR in "${filetest[@]}";
 do
   cd $DIR
-  if [[ $DIR == "*windows*" ]];
+  if [[ $DIR =~ "*windows*" ]];
     then
       WIN=".exe";
     else
       WIN="";
   fi
-  for binary in $(ls parity.sha3)
-  do
-    sha3=$(cat ${binary/sha3} | awk '{ print $1}' )
-    case $DIR in
-      x86_64* )
-        DATA="commit=$CI_BUILD_REF&sha3=$sha3&filename=parity$WIN&secret=$RELEASES_SECRET"
-        ../../scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$DIR"
-        # Kovan
-        ../../scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$DIR"
-        ;;
-    esac
-  done
+  sha3=$(cat parity.sha3 | awk '{print $1}')
+  case $DIR in
+    x86_64* )
+      DATA="commit=$CI_BUILD_REF&sha3=$sha3&filename=parity$WIN&secret=$RELEASES_SECRET"
+      ../../scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$DIR"
+      # Kovan
+      ../../scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$DIR"
+      ;;
+  esac
   cd ..
 done
 
