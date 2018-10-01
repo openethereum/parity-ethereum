@@ -117,7 +117,7 @@ publish-awss3:
   tags:
     - shell
 
-misc-docs:
+docs-jsonrpc:
   stage:                            misc
   only:
     - tags
@@ -127,7 +127,7 @@ misc-docs:
   tags:
     - shell
 
-misc-android:
+test-android:
   stage:                           misc
   image:                           parity/rust-android:gitlab-ci
   variables:
@@ -137,7 +137,7 @@ misc-android:
   tags:
     - rust-arm
 
-misc-darwin:
+test-darwin:
   stage:                           misc
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
@@ -149,7 +149,7 @@ misc-darwin:
   tags:
     - rust-osx
 
-misc-windows:
+test-windows:
   stage:                           misc
   cache:
     key:                           "${CI_JOB_NAME}"
@@ -164,7 +164,7 @@ misc-windows:
   tags:
    - rust-windows
 
-misc-beta:
+test-beta:
   stage:                           misc
   variables:
     RUN_TESTS:                     "true"
@@ -173,7 +173,7 @@ misc-beta:
   tags:
     - rust-beta
 
-misc-nightly:
+test-nightly:
   stage:                           misc
   variables:
     RUN_TESTS:                     "true"
