@@ -2,7 +2,7 @@ stages:
   - test
   - build
   - publish
-  - misc
+  - optional
 
 image:                             parity/rust:gitlab-ci
 
@@ -118,7 +118,7 @@ publish-awss3:
     - shell
 
 docs-jsonrpc:
-  stage:                            misc
+  stage:                            optional
   only:
     - tags
   cache: {}
@@ -128,14 +128,14 @@ docs-jsonrpc:
     - shell
 
 cargo-audit:
-  stage:                           misc
+  stage:                           optional
   script:
     - scripts/gitlab/audit.sh
   tags:
     - rust-stable
 
 test-android:
-  stage:                           misc
+  stage:                           optional
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
@@ -145,7 +145,7 @@ test-android:
     - rust-arm
 
 test-darwin:
-  stage:                           misc
+  stage:                           optional
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
@@ -157,7 +157,7 @@ test-darwin:
     - rust-osx
 
 test-windows:
-  stage:                           misc
+  stage:                           optional
   cache:
     key:                           "${CI_JOB_NAME}"
     paths:
@@ -172,7 +172,7 @@ test-windows:
    - rust-windows
 
 test-beta:
-  stage:                           misc
+  stage:                           optional
   variables:
     RUN_TESTS:                     "true"
   script:
@@ -181,7 +181,7 @@ test-beta:
     - rust-beta
 
 test-nightly:
-  stage:                           misc
+  stage:                           optional
   variables:
     RUN_TESTS:                     "true"
   script:
