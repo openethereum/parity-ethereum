@@ -316,6 +316,8 @@ impl BlockDownloader {
 				if count == 0 || !any_known {
 					trace_sync!(self, "No useful headers, expected hash {:?}", expected_hash);
 					if let Some(eh) = expected_hash {
+						// only reset download if we have multiple subchain heads, to avoid unnecessary resets
+						// when we are at the head of the chain when we may legitimately receive no useful headers
 						if self.blocks.heads_len() > 1 && !self.useless_expected_hashes.insert(eh) {
 							trace_sync!(self, "Received consecutive sets of useless headers from requested header {:?}. Resetting sync", eh);
 							self.reset();
