@@ -5,4 +5,7 @@ case $1 in
     2) NODE_ACCOUNT="0x002e28950558fbede1a9675cb113f0bd20912019";;
 esac
 
-./indica-node $1 --engine-signer=$NODE_ACCOUNT $2 $3 $4 $5 $6 $7
+./indica-node $1 \
+	--engine-signer=$NODE_ACCOUNT \
+	--bootnodes=enode://14cf80e6b99b74d3fdc68f7bd7ddd629210b858bd396f6539edca07cb9e05d78b85cfb70561cf0374053dcb5cc0df11d526a86376685ac71a04f75f2d1a6acbc@10.0.0.101:30400 \
+	$2 $3 $4 $5 $6 $7

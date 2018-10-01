@@ -67,9 +67,9 @@ run_node() {
         --hbbft-port $HOST_HYDRABADGER_PORT \
         --hbbft-remote-addresses 127.0.0.1:5900 \
         --jsonrpc-apis web3,eth,pubsub,net,parity,private,parity_pubsub,parity_set,traces,rpc,shh,shh_pubsub,personal,parity_accounts \
-        --bootnodes=enode://14cf80e6b99b74d3fdc68f7bd7ddd629210b858bd396f6539edca07cb9e05d78b85cfb70561cf0374053dcb5cc0df11d526a86376685ac71a04f75f2d1a6acbc@10.0.0.101:30303 \
         --password=node.pwds \
         --reseal-on-txs="none" \
+        --usd-per-tx=0 \
         $2 $3 $4 $5 $6 $7 $8 \
     "
 }
