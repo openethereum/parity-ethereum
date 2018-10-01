@@ -10,7 +10,6 @@ rustup default stable-x86_64-pc-windows-msvc
 echo "__________Show ENVIROMENT__________"
 echo "CI_SERVER_NAME:   " $CI_SERVER_NAME
 echo "CARGO_HOME:       " $CARGO_HOME
-echo "CARGO_TARGET_DIR: " $CARGO_TARGET_DIR
 echo "BUILD_TARGET:     " $BUILD_TARGET
 echo "BUILD_ARCH:       " $BUILD_ARCH
 echo "CARGO_TARGET:     " $CARGO_TARGET
