@@ -22,7 +22,14 @@ use v1::helpers::dispatch::eth_data_hash;
 use hash::keccak;
 
 /// helper method for parity_verifySignature
-pub fn verify_signature(is_prefixed: bool, message: Bytes, v: U64, r: H256, s: H256, chain_id: Option<u64>) -> Result<BasicAccount> {
+pub fn verify_signature(
+	is_prefixed: bool,
+	message: Bytes,
+	r: H256,
+	s: H256,
+	v: U64,
+	chain_id: Option<u64>
+) -> Result<BasicAccount> {
 	let hash = if is_prefixed {
 		eth_data_hash(message.0)
 	} else {

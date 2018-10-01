@@ -506,6 +506,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<BasicAccount> {
-		verify_signature(is_prefixed, message, v, r, s, self.client.signing_chain_id())
+		verify_signature(is_prefixed, message, r, s, v, self.client.signing_chain_id())
 	}
 }
