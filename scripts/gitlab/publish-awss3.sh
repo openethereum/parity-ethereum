@@ -8,10 +8,10 @@ echo "__________Register Release__________"
 DATA="secret=$RELEASES_SECRET"
 
 echo "Pushing release to Mainnet"
-./scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
+./scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
 
 echo "Pushing release to Kovan"
-./scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
+./scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
 
 echo "__________Set ENVIROMENT__________"
 DESCRIPTION="$(cat CHANGELOG.md)"
@@ -45,9 +45,9 @@ do
     case $DIR in
       x86_64* )
         DATA="commit=$CI_BUILD_REF&sha3=$sha3&filename=parity$WIN&secret=$RELEASES_SECRET"
-        ../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$DIR"
+        ../../scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$DIR"
         # Kovan
-        ../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$DIR"
+        ../../scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$DIR"
         ;;
     esac
     RELEASE_TABLE="$(echo "${RELEASE_TABLE/sha$DIR/${sha256}}")"

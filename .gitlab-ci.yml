@@ -148,17 +148,17 @@ publish-awss3:
     - build-windows
   before_script:                   *determine_version
   script:
-    - scripts/gitlab/push.sh
+    - scripts/gitlab/publish-awss3.sh
   tags:
     - shell
 
-docs-rpc-json:
+docs-jsonrpc:
   stage: docs
   only:
     - tags
     - a5-gitlab-light ### @TODO remove
   cache: {}
   script:
-    - scripts/gitlab/rpc-docs.sh
+    - scripts/gitlab/docs-jsonrpc.sh
   tags:
     - shell
