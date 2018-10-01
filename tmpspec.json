@@ -2,36 +2,29 @@
 	"name": "POA Hbbft Indica",
 	"dataDir": "poaindica",
 	"engine": {
-		"hbbft": {
-			"params": {
-				"stepDuration": 5,
-				"blockReward": "0xDE0B6B3A7640000",
-				"maximumUncleCountTransition": 0,
-				"maximumUncleCount": 0,
-				"validators": {
-					"multi": {
-						"0": {
-							"list": [
-				                "0x00bd138abd70e2f00903268f3db08f2d25677c9e",
-				                "0x00aa39d30f0d20ff03a22ccfc30b7efbfca597c2",
-				                "0x002e28950558fbede1a9675cb113f0bd20912019"
-				            ]
-						}
-					}
-				}
-			}
-		}
-	},
+        "authorityRound": {
+            "params": {
+                "stepDuration": "5",
+                "validators" : {
+                    "list": [
+                    	"0x00bd138abd70e2f00903268f3db08f2d25677c9e",
+				    	"0x00aa39d30f0d20ff03a22ccfc30b7efbfca597c2",
+				    	"0x002e28950558fbede1a9675cb113f0bd20912019"
+                    ]
+                }
+            }
+        }
+    },
     "genesis": {
-		"seal": {
-			"authorityRound": {
-				"step": "0x0",
-				"signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-			}
-		},
-		"difficulty": "0x20000",
-		"gasLimit": "0x663BE0"
-	},
+        "seal": {
+            "authorityRound": {
+                "step": "0x0",
+                "signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            }
+        },
+        "difficulty": "0x20000",
+        "gasLimit": "0x5B8D80"
+    },
 	"params": {
 		"gasLimitBoundDivisor": "0x400",
 		"maximumExtraDataSize": "0x20",

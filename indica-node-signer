@@ -1,3 +1,6 @@
+#/bin/bash
+
+# Starts a parity-hhbft-indica node using the `--engine-signer` option.
 
 case $1 in
     0) NODE_ACCOUNT="0x00bd138abd70e2f00903268f3db08f2d25677c9e";;
@@ -7,5 +10,5 @@ esac
 
 ./indica-node $1 \
 	--engine-signer=$NODE_ACCOUNT \
-	--bootnodes=enode://14cf80e6b99b74d3fdc68f7bd7ddd629210b858bd396f6539edca07cb9e05d78b85cfb70561cf0374053dcb5cc0df11d526a86376685ac71a04f75f2d1a6acbc@10.0.0.101:30400 \
+	--bootnodes=enode://a5e2432bc7d052a6c5af3228e758751dcce5cba7e21cc5fa5dd040d3aeba1cf52123701601a68cf58586b6e9c00b021887a40b08c80c0270a41b1ef04d0860f2@127.0.0.1:30400 \
 	$2 $3 $4 $5 $6 $7

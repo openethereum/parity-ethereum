@@ -27,13 +27,11 @@ Each peer will generate a number of random transactions at regular intervals,
 process them accordingly, and output complete batches. If your terminal is
 spammed with batch outputs, consensus is working.
 
-Type `./indica-node 0 --help` or `cargo run -- --help` for command line options.
+### Signer Nodes
 
-See the
-[`run-node`](https://github.com/poanetwork/hydrabadger/blob/master/run-node)
-script for additional optional environment variables that can be set. To turn
-on debug log output: `export HYDRABADGER_LOG_ADDTL=debug` and/or `echo "export
-HYDRABADGER_LOG_ADDTL=debug" >> ~/.profile`.
+FIXME: Complete me
+
+`curl --data '{"jsonrpc":"2.0","method":"personal_sendTransaction","params":[{"from":"0x002eb83d1d04ca12fe1956e67ccaa195848e437f","to":"0x00Bd138aBD70e2F00903268F3Db08f2D25677C9e","value":"0x10000"}, "richie"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500`
 
 ### Status
 

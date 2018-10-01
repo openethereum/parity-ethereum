@@ -1334,11 +1334,11 @@ impl snapshot::DatabaseRestore for Client {
 
 impl HbbftClientExt for Client {
 	fn a_specialized_method(&self) {
-		info!("Client: A specialized method has been called!");
+		debug!("Client: A specialized method has been called!");
 	}
 
 	fn change_me_into_something_useful(&self) {
-		info!("Client: Something useful should be done here!");
+		debug!("Client: Something useful should be done here!");
 	}
 
 	fn import_a_bad_block_and_panic(&self) {
