@@ -67,7 +67,7 @@ mod tests {
 		let accounts = Arc::new(AccountProvider::transient_provider());
 		let address = accounts.new_account(&"password123".into()).unwrap();
 		let sig = accounts.sign(address, Some("password123".into()), hash).unwrap();
-		let (v, r, s) = (sig.v(), sig.r(), sig.s());
+		let (r, s, v) = (sig.r(), sig.s(), sig.v());
 		let v = add_chain_replay_protection(v as u64, signing_chain_id);
 		let (r_buf, s_buf) = {
 			let (mut r_buf, mut s_buf) = ([0u8; 32], [0u8; 32]);
