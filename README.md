@@ -4,9 +4,7 @@
 
 <p align="center"><strong><a href="https://github.com/paritytech/parity-ethereum/releases/latest">» Download the latest release «</a></strong></p>
 
-<p align="center"><a href="https://gitlab.parity.io/parity/parity/commits/master" target="_blank"><img src="https://gitlab.parity.io/parity/parity/badges/master/build.svg" /></a>
-<a href="https://codecov.io/gh/paritytech/parity-ethereum" target="_blank"><img src="https://codecov.io/gh/paritytech/parity-ethereum/branch/master/graph/badge.svg" /></a>
-<a href="https://build.snapcraft.io/user/paritytech/parity" target="_blank"><img src="https://build.snapcraft.io/badge/paritytech/parity.svg" /></a>
+<p align="center"><a href="https://gitlab.parity.io/parity/parity-ethereum/commits/master" target="_blank"><img src="https://gitlab.parity.io/parity/parity-ethereum/badges/master/build.svg" /></a>
 <a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank"><img src="https://img.shields.io/badge/license-GPL%20v3-green.svg" /></a></p>
 
 **Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronisation and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
@@ -59,26 +57,6 @@ Once you have `rustup` installed, then you need to install:
 * [Yasm](https://yasm.tortall.net)
 
 Make sure that these binaries are in your `PATH`. After that, you should be able to build Parity Ethereum from source.
-
-## Install from the Snapcraft Store
-
-In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
-
-```bash
-sudo snap install parity
-```
-
-Alternatively, if you want to contribute testing the upcoming release:
-
-```bash
-sudo snap install parity --beta
-```
-
-Moreover, to test the latest code from the master branch:
-
-```bash
-sudo snap install parity --edge
-```
 
 ## Build from Source Code
 
