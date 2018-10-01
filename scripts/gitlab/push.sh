@@ -8,10 +8,10 @@ echo "__________Register Release__________"
 DATA="secret=$RELEASES_SECRET"
 
 echo "Pushing release to Mainnet"
-../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
+./scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
 
 echo "Pushing release to Kovan"
-../../scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
+./scripts/gitlab/safe_curl.sh $DATA "http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF"
 
 echo "__________Set ENVIROMENT__________"
 DESCRIPTION="$(cat CHANGELOG.md)"
