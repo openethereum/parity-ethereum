@@ -1,16 +1,14 @@
 stages:
   - test
   - build
-  - package
   - publish
-  - docs
+  - optional
 
 image:                             parity/rust:gitlab-ci
 
 variables:
   CI_SERVER_NAME:                  "GitLab CI"
-  CARGO_HOME:                      "${CI_PROJECT_DIR}/cargo"
-
+  CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   BUILD_TARGET:                    ubuntu
   BUILD_ARCH:                      amd64
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
@@ -18,20 +16,14 @@ variables:
 cache:
   key:                             "${CI_JOB_NAME}"
   paths:
-    - ${CI_PROJECT_DIR}/target/
-    - ${CI_PROJECT_DIR}/cargo/
+    - ./target
+    - ./.cargo
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
-    - master
     - stable
     - beta
     - tags
-
-.publishable_branches:             # list of git refs for publishing builds to the "production" locations
-  only:                            &publishable_branches
-    - nightly # Our nightly builds from schedule, on `master`
-    - /^v2.*$/ # Our version tags
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
@@ -49,104 +41,16 @@ cache:
   - export VERSION
   - echo "Version = ${VERSION}"
 
-#### stage:                        test
-
-test-linux-rust-stable:            &test
+test-linux:
   stage:                           test
   variables:
-    RUN_TESTS:                     "true"
+    RUN_TESTS:                     all
   script:
-    - scripts/gitlab/test.sh stable
+    - scripts/gitlab/test-all.sh stable
   tags:
     - rust-stable
 
-test-linux-rust-beta:
-  stage:                           test
-  variables:
-    RUN_TESTS:                     "true"
-  script:
-    - scripts/gitlab/test.sh beta
-  tags:
-    - rust-stable
-  allow_failure:                   true
-
-test-linux-rust-nightly:
-  stage:                           test
-  variables:
-    RUN_TESTS:                     "true"
-  script:
-    - scripts/gitlab/test.sh nightly
-  tags:
-    - rust-stable
-  allow_failure:                   true
-
-test-darwin-rust-stable:
-  stage:                           test
-  variables:
-    CARGO_TARGET:                  x86_64-apple-darwin
-    CC:                            gcc
-    CXX:                           g++
-    RUN_TESTS:                     "true"
-  script:
-    - scripts/gitlab/test.sh stable
-  tags:
-    - osx
-  allow_failure:                   true
-
-test-android-rust-stable:
-  stage:                           test
-  image:                           parity/rust-android:gitlab-ci
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
-  script:
-    - scripts/gitlab/test.sh stable
-  tags:
-    - rust-arm
-  allow_failure:                   true
-
-test-windows-rust-stable:
-  stage:                           test
-  cache:
-    key:                           "${CI_JOB_NAME}"
-    paths:
-      - "%CI_PROJECT_DIR%/target/"
-      - "%CI_PROJECT_DIR%/cargo/"
-      # No cargo caching, since fetch-locking on Windows gets stuck
-  variables:
-    CARGO_TARGET:                  x86_64-pc-windows-msvc
-    RUN_TESTS:                     "true"
-  script:
-    - sh scripts/gitlab/test.sh stable
-  tags:
-   - rust-windows
-  allow_failure:                   true
-
-.optional_test:                    &optional_test
-  <<:                              *test
-  allow_failure:                   true
-  only:
-    - master
-
-test-lint-rustfmt:
-  <<:                             *optional_test
-  script:
-    - scripts/gitlab/rustfmt.sh
-
-test-lint-clippy:
-  <<:                             *optional_test
-  script:
-    - scripts/gitlab/clippy.sh
-
-test-coverage-kcov:
-  <<:                             *optional_test
-  script:
-    - scripts/gitlab/coverage.sh
-  tags:
-    - shell
-
-#### stage:                        build
-
-build-linux-ubuntu-amd64:          &build
+build-linux:
   stage:                           build
   only:                            *releaseable_branches
   variables:
@@ -157,49 +61,7 @@ build-linux-ubuntu-amd64:          &build
   tags:
     - rust-stable
 
-build-linux-ubuntu-i386:
-  <<:                              *build
-  only:                            *releaseable_branches
-  image:                           parity/rust-i686:gitlab-ci
-  variables:
-    CARGO_TARGET:                  i686-unknown-linux-gnu
-  tags:
-    - rust-i686
-  allow_failure:                   true
-
-build-linux-ubuntu-arm64:
-  <<:                              *build
-  only:                            *releaseable_branches
-  image:                           parity/rust-arm64:gitlab-ci
-  variables:
-    CARGO_TARGET:                  aarch64-unknown-linux-gnu
-  tags:
-    - rust-arm
-  allow_failure:                   true
-
-build-linux-ubuntu-armhf:
-  <<:                              *build
-  only:                            *releaseable_branches
-  image:                           parity/rust-armv7:gitlab-ci
-  variables:
-    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
-  tags:
-    - rust-arm
-  allow_failure:                   true
-
-build-linux-android-armhf:
-  stage:                           build
-  only:                            *releaseable_branches
-  image:                           parity/rust-android:gitlab-ci
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
-  script:
-    - scripts/gitlab/build-unix.sh
-  tags:
-    - rust-arm
-  allow_failure:                   true
-
-build-darwin-macos-x86_64:
+build-darwin:
   stage:                           build
   only:                            *releaseable_branches
   variables:
@@ -209,18 +71,12 @@ build-darwin-macos-x86_64:
   script:
     - scripts/gitlab/build-unix.sh
   tags:
-    - osx
+    - rust-osx
   <<:                              *collect_artifacts
 
-build-windows-msvc-x86_64:
+build-windows:
   stage:                           build
   only:                            *releaseable_branches
-  cache:
-    key:                           "${CI_JOB_NAME}"
-    paths:
-      - "%CI_PROJECT_DIR%/target/"
-      - "%CI_PROJECT_DIR%/cargo/"
-      # No cargo caching, since fetch-locking on Windows gets stuck
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
   script:
@@ -229,129 +85,94 @@ build-windows-msvc-x86_64:
    - rust-windows
   <<:                              *collect_artifacts
 
-#### stage:                        package
-
-package-linux-snap-amd64:          &package_snap
-  stage:                           package
-  only:                            *releaseable_branches
-  except:
-    - master
-  image:                           parity/snapcraft:gitlab-ci
-  cache: {}
-  before_script:                   *determine_version
-  variables:
-    CARGO_TARGET:                  x86_64-unknown-linux-gnu
-  dependencies:
-    - build-linux-ubuntu-amd64
-  script:
-    - scripts/gitlab/package-snap.sh
-  tags:
-    - rust-stable
-  <<:                              *collect_artifacts
-
-package-linux-snap-i386:
-  <<:                              *package_snap
-  variables:
-    BUILD_ARCH: i386
-    CARGO_TARGET:                  i686-unknown-linux-gnu
-  dependencies:
-    - build-linux-ubuntu-i386
-
-package-linux-snap-arm64:
-  <<:                              *package_snap
-  variables:
-    BUILD_ARCH: arm64
-    CARGO_TARGET:                  aarch64-unknown-linux-gnu
-  dependencies:
-    - build-linux-ubuntu-arm64
-
-package-linux-snap-armhf:
-  <<:                              *package_snap
-  variables:
-    BUILD_ARCH: armhf
-    CARGO_TARGET:                  armv7-unknown-linux-gnueabihf
-  dependencies:
-    - build-linux-ubuntu-armhf
-
-#### stage:                        publish
-
-publish-linux-snap-amd64:          &publish_snap
-  stage:                           publish
-  only:                            *publishable_branches
-  image:                           parity/snapcraft:gitlab-ci
-  cache: {}
-  before_script:                   *determine_version
-  variables:
-    BUILD_ARCH:                    amd64
-  dependencies:
-    - package-linux-snap-amd64
-  script:
-    - scripts/gitlab/publish-snap.sh
-  tags:
-    - rust-stable
-
-publish-linux-snap-i386:
-  <<:                              *publish_snap
-  variables:
-    BUILD_ARCH:                    i386
-  dependencies:
-    - package-linux-snap-i386
-
-publish-linux-snap-arm64:
-  <<:                              *publish_snap
-  variables:
-    BUILD_ARCH:                    arm64
-  dependencies:
-    - package-linux-snap-arm64
-
-publish-linux-snap-armhf:
-  <<:                              *publish_snap
-  variables:
-    BUILD_ARCH:                    armhf
-  dependencies:
-    - package-linux-snap-armhf
-
-publish-docker-parity-amd64: &publish_docker
+publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
   cache: {}
   dependencies:
-    - build-linux-ubuntu-amd64
+    - build-linux
   tags:
     - shell
   script:
     - scripts/gitlab/publish-docker.sh parity
 
-publish-docker-parityevm-amd64:
-  <<:                              *publish_docker
-  script:
-    - scripts/gitlab/publish-docker.sh parity-evm
-
-publish-github-and-s3:
+publish-awss3:
   stage:                           publish
-  only:                            *publishable_branches
+  only:                            *releaseable_branches
   cache: {}
   dependencies:
-    - build-linux-ubuntu-amd64
-    - build-linux-ubuntu-i386
-    - build-linux-ubuntu-armhf
-    - build-linux-ubuntu-arm64
-    - build-darwin-macos-x86_64
-    - build-windows-msvc-x86_64
+    - build-linux
+    - build-darwin
+    - build-windows
   before_script:                   *determine_version
   script:
-    - scripts/gitlab/push.sh
+    - scripts/gitlab/publish-awss3.sh
   tags:
     - shell
 
-####stage:                          docs
-
-docs-rpc-json:
-  stage: docs
+docs-jsonrpc:
+  stage:                            optional
   only:
     - tags
   cache: {}
   script:
-    - scripts/gitlab/rpc-docs.sh
+    - scripts/gitlab/docs-jsonrpc.sh
   tags:
     - shell
+
+cargo-audit:
+  stage:                           optional
+  script:
+    - scripts/gitlab/cargo-audit.sh
+  tags:
+    - rust-stable
+
+test-android:
+  stage:                           optional
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    - rust-arm
+
+test-darwin:
+  stage:                           optional
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+    RUN_TESTS:                     cargo
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    - rust-osx
+
+test-windows:
+  stage:                           optional
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+    RUN_TESTS:                     cargo
+  script:
+    - sh scripts/gitlab/test-all.sh stable
+  tags:
+   - rust-windows
+
+test-beta:
+  stage:                           optional
+  variables:
+    RUN_TESTS:                     cargo
+  script:
+    - scripts/gitlab/test-all.sh beta
+  tags:
+    - rust-beta
+
+test-nightly:
+  stage:                           optional
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh nightly
+  tags:
+    - rust-nightly

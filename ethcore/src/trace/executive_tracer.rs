@@ -17,159 +17,175 @@
 //! Simple executive tracer.
 
 use ethereum_types::{U256, Address};
-use vm::ActionParams;
+use vm::{Error as VmError, ActionParams};
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
-use trace::{Tracer, VMTracer, FlatTrace, TraceError};
+use trace::{Tracer, VMTracer, FlatTrace};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]
 pub struct ExecutiveTracer {
 	traces: Vec<FlatTrace>,
-}
-
-fn top_level_subtraces(traces: &[FlatTrace]) -> usize {
-	traces.iter().filter(|t| t.trace_address.is_empty()).count()
-}
-
-fn prefix_subtrace_addresses(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
-	// input traces are expected to be ordered like
-	// []
-	// [0]
-	// [0, 0]
-	// [0, 1]
-	// []
-	// [0]
-	//
-	// so they can be transformed to
-	//
-	// [0]
-	// [0, 0]
-	// [0, 0, 0]
-	// [0, 0, 1]
-	// [1]
-	// [1, 0]
-	let mut current_subtrace_index = 0;
-	let mut first = true;
-	for trace in &mut traces {
-		match (first, trace.trace_address.is_empty()) {
-			(true, _) => first = false,
-			(_, true) => current_subtrace_index += 1,
-			_ => {}
-		}
-		trace.trace_address.push_front(current_subtrace_index);
-	}
-	traces
-}
-
-#[test]
-fn should_prefix_address_properly() {
-	use super::trace::{Action, Res, Suicide};
-
-	let f = |v: Vec<usize>| FlatTrace {
-		action: Action::Suicide(Suicide {
-			address: Default::default(),
-			balance: Default::default(),
-			refund_address: Default::default(),
-		}),
-		result: Res::None,
-		subtraces: 0,
-		trace_address: v.into_iter().collect(),
-	};
-	let t = vec![vec![], vec![0], vec![0, 0], vec![0], vec![], vec![], vec![0], vec![]].into_iter().map(&f).collect();
-	let t = prefix_subtrace_addresses(t);
-	assert_eq!(t, vec![vec![0], vec![0, 0], vec![0, 0, 0], vec![0, 0], vec![1], vec![2], vec![2, 0], vec![3]].into_iter().map(&f).collect::<Vec<_>>());
+	index_stack: Vec<usize>,
+	vecindex_stack: Vec<usize>,
+	sublen_stack: Vec<usize>,
+	skip_one: bool,
 }
 
 impl Tracer for ExecutiveTracer {
 	type Output = FlatTrace;
 
-	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call> {
-		Some(Call::from(params.clone()))
-	}
+	fn prepare_trace_call(&mut self, params: &ActionParams, depth: usize, is_builtin: bool) {
+		assert!(!self.skip_one, "skip_one is used only for builtin contracts that do not have subsequent calls; in prepare_trace_call it cannot be true; qed");
 
-	fn prepare_trace_create(&self, params: &ActionParams) -> Option<Create> {
-		Some(Create::from(params.clone()))
-	}
+		if depth != 0 && is_builtin && params.value.value() == U256::zero() {
+			self.skip_one = true;
+			return;
+		}
 
-	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: &[u8], subs: Vec<FlatTrace>) {
+		if let Some(parentlen) = self.sublen_stack.last_mut() {
+			*parentlen += 1;
+		}
+
 		let trace = FlatTrace {
-			trace_address: Default::default(),
-			subtraces: top_level_subtraces(&subs),
-			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
+			trace_address: self.index_stack.clone(),
+			subtraces: self.sublen_stack.last().cloned().unwrap_or(0),
+			action: Action::Call(Call::from(params.clone())),
 			result: Res::Call(CallResult {
-				gas_used: gas_used,
-				output: output.into()
+				gas_used: U256::zero(),
+				output: Vec::new()
 			}),
 		};
-		debug!(target: "trace", "Traced call {:?}", trace);
+		self.vecindex_stack.push(self.traces.len());
 		self.traces.push(trace);
-		self.traces.extend(prefix_subtrace_addresses(subs));
+		self.index_stack.push(0);
+		self.sublen_stack.push(0);
 	}
 
-	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: &[u8], address: Address, subs: Vec<FlatTrace>) {
+	fn prepare_trace_create(&mut self, params: &ActionParams) {
+		assert!(!self.skip_one, "skip_one is used only for builtin contracts that do not have subsequent calls; in prepare_trace_create it cannot be true; qed");
+
+		if let Some(parentlen) = self.sublen_stack.last_mut() {
+			*parentlen += 1;
+		}
+
 		let trace = FlatTrace {
-			subtraces: top_level_subtraces(&subs),
-			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
+			trace_address: self.index_stack.clone(),
+			subtraces: self.sublen_stack.last().cloned().unwrap_or(0),
+			action: Action::Create(Create::from(params.clone())),
 			result: Res::Create(CreateResult {
-				gas_used: gas_used,
-				code: code.into(),
-				address: address
+				gas_used: U256::zero(),
+				code: Vec::new(),
+				address: Address::default(),
 			}),
-			trace_address: Default::default(),
 		};
-		debug!(target: "trace", "Traced create {:?}", trace);
+		self.vecindex_stack.push(self.traces.len());
 		self.traces.push(trace);
-		self.traces.extend(prefix_subtrace_addresses(subs));
+		self.index_stack.push(0);
+		self.sublen_stack.push(0);
 	}
 
-	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>, error: TraceError) {
-		let trace = FlatTrace {
-			trace_address: Default::default(),
-			subtraces: top_level_subtraces(&subs),
-			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
-			result: Res::FailedCall(error),
-		};
-		debug!(target: "trace", "Traced failed call {:?}", trace);
-		self.traces.push(trace);
-		self.traces.extend(prefix_subtrace_addresses(subs));
+	fn done_trace_call(&mut self, gas_used: U256, output: &[u8]) {
+		if self.skip_one {
+			self.skip_one = false;
+			return;
+		}
+
+		let vecindex = self.vecindex_stack.pop().expect("Executive invoked prepare_trace_call before this function; vecindex_stack is never empty; qed");
+		let sublen = self.sublen_stack.pop().expect("Executive invoked prepare_trace_call before this function; sublen_stack is never empty; qed");
+		self.index_stack.pop();
+
+		self.traces[vecindex].result = Res::Call(CallResult {
+			gas_used,
+			output: output.into(),
+		});
+		self.traces[vecindex].subtraces = sublen;
+
+		if let Some(index) = self.index_stack.last_mut() {
+			*index += 1;
+		}
 	}
 
-	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>, error: TraceError) {
-		let trace = FlatTrace {
-			subtraces: top_level_subtraces(&subs),
-			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
-			result: Res::FailedCreate(error),
-			trace_address: Default::default(),
+	fn done_trace_create(&mut self, gas_used: U256, code: &[u8], address: Address) {
+		assert!(!self.skip_one, "skip_one is only set with prepare_trace_call for builtin contracts with no subsequent calls; skip_one cannot be true after the same level prepare_trace_create; qed");
+
+		let vecindex = self.vecindex_stack.pop().expect("Executive invoked prepare_trace_create before this function; vecindex_stack is never empty; qed");
+		let sublen = self.sublen_stack.pop().expect("Executive invoked prepare_trace_create before this function; sublen_stack is never empty; qed");
+		self.index_stack.pop();
+
+		self.traces[vecindex].result = Res::Create(CreateResult {
+			gas_used, address,
+			code: code.into(),
+		});
+		self.traces[vecindex].subtraces = sublen;
+
+		if let Some(index) = self.index_stack.last_mut() {
+			*index += 1;
+		}
+	}
+
+	fn done_trace_failed(&mut self, error: &VmError) {
+		if self.skip_one {
+			self.skip_one = false;
+			return;
+		}
+
+		let vecindex = self.vecindex_stack.pop().expect("Executive invoked prepare_trace_create/call before this function; vecindex_stack is never empty; qed");
+		let sublen = self.sublen_stack.pop().expect("Executive invoked prepare_trace_create/call before this function; vecindex_stack is never empty; qed");
+		self.index_stack.pop();
+
+		let is_create = match self.traces[vecindex].action {
+			Action::Create(_) => true,
+			_ => false,
 		};
-		debug!(target: "trace", "Traced failed create {:?}", trace);
-		self.traces.push(trace);
-		self.traces.extend(prefix_subtrace_addresses(subs));
+
+		if is_create {
+			self.traces[vecindex].result = Res::FailedCreate(error.into());
+		} else {
+			self.traces[vecindex].result = Res::FailedCall(error.into());
+		}
+		self.traces[vecindex].subtraces = sublen;
+
+		if let Some(index) = self.index_stack.last_mut() {
+			*index += 1;
+		}
 	}
 
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address) {
+		if let Some(parentlen) = self.sublen_stack.last_mut() {
+			*parentlen += 1;
+		}
+
 		let trace = FlatTrace {
 			subtraces: 0,
 			action: Action::Suicide(Suicide { address, refund_address, balance } ),
 			result: Res::None,
-			trace_address: Default::default(),
+			trace_address: self.index_stack.clone(),
 		};
 		debug!(target: "trace", "Traced suicide {:?}", trace);
 		self.traces.push(trace);
+
+		if let Some(index) = self.index_stack.last_mut() {
+			*index += 1;
+		}
 	}
 
 	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType) {
+		if let Some(parentlen) = self.sublen_stack.last_mut() {
+			*parentlen += 1;
+		}
+
 		let trace = FlatTrace {
 			subtraces: 0,
 			action: Action::Reward(Reward { author, value, reward_type } ),
 			result: Res::None,
-			trace_address: Default::default(),
+			trace_address: self.index_stack.clone(),
 		};
 		debug!(target: "trace", "Traced reward {:?}", trace);
 		self.traces.push(trace);
-	}
 
-	fn subtracer(&self) -> Self {
-		ExecutiveTracer::default()
+		if let Some(index) = self.index_stack.last_mut() {
+			*index += 1;
+		}
 	}
 
 	fn drain(self) -> Vec<FlatTrace> {
@@ -180,6 +196,9 @@ impl Tracer for ExecutiveTracer {
 /// Simple VM tracer. Traces all operations.
 pub struct ExecutiveVMTracer {
 	data: VMTrace,
+	depth: usize,
+	last_mem_written: Option<(usize, usize)>,
+	last_store_written: Option<(U256, U256)>,
 }
 
 impl ExecutiveVMTracer {
@@ -191,7 +210,18 @@ impl ExecutiveVMTracer {
 				code: vec![],
 				operations: vec![Default::default()],	// prefill with a single entry so that prepare_subtrace can get the parent_step
 				subs: vec![],
-			}
+			},
+			depth: 0,
+			last_mem_written: None,
+			last_store_written: None,
+		}
+	}
+
+	fn with_trace_in_depth<F: Fn(&mut VMTrace)>(trace: &mut VMTrace, depth: usize, f: F) {
+		if depth == 0 {
+			f(trace);
+		} else {
+			Self::with_trace_in_depth(trace.subs.last_mut().expect("self.depth is incremented with prepare_subtrace; a subtrace is always pushed; self.depth cannot be greater than subtrace stack; qed"), depth - 1, f);
 		}
 	}
 }
@@ -201,37 +231,77 @@ impl VMTracer for ExecutiveVMTracer {
 
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { true }
 
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
-		self.data.operations.push(VMOperation {
-			pc: pc,
-			instruction: instruction,
-			gas_cost: gas_cost,
-			executed: None,
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256, mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
+		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
+			trace.operations.push(VMOperation {
+				pc: pc,
+				instruction: instruction,
+				gas_cost: gas_cost,
+				executed: None,
+			});
+		});
+		self.last_mem_written = mem_written;
+		self.last_store_written = store_written;
+	}
+
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
+		let mem_diff = self.last_mem_written.take().map(|(o, s)| (o, &(mem[o..o+s])));
+		let store_diff = self.last_store_written.take();
+		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
+			let ex = VMExecutedOperation {
+				gas_used: gas_used,
+				stack_push: stack_push.iter().cloned().collect(),
+				mem_diff: mem_diff.map(|(s, r)| MemoryDiff { offset: s, data: r.iter().cloned().collect() }),
+				store_diff: store_diff.map(|(l, v)| StorageDiff { location: l, value: v }),
+			};
+			trace.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute; trace.operations cannot be empty; qed").executed = Some(ex);
 		});
 	}
 
-	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
-		let ex = VMExecutedOperation {
-			gas_used: gas_used,
-			stack_push: stack_push.iter().cloned().collect(),
-			mem_diff: mem_diff.map(|(s, r)| MemoryDiff{ offset: s, data: r.iter().cloned().collect() }),
-			store_diff: store_diff.map(|(l, v)| StorageDiff{ location: l, value: v }),
-		};
-		self.data.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute").executed = Some(ex);
+	fn prepare_subtrace(&mut self, code: &[u8]) {
+		Self::with_trace_in_depth(&mut self.data, self.depth, move |trace| {
+			let parent_step = trace.operations.len() - 1; // won't overflow since we must already have pushed an operation in trace_prepare_execute.
+			trace.subs.push(VMTrace {
+				parent_step,
+				code: code.to_vec(),
+				operations: vec![],
+				subs: vec![],
+			});
+		});
+		self.depth += 1;
 	}
 
-	fn prepare_subtrace(&self, code: &[u8]) -> Self {
-		ExecutiveVMTracer { data: VMTrace {
-			parent_step: self.data.operations.len() - 1,	// won't overflow since we must already have pushed an operation in trace_prepare_execute.
-			code: code.to_vec(),
-			operations: vec![],
-			subs: vec![],
-		}}
-	}
-
-	fn done_subtrace(&mut self, sub: Self) {
-		self.data.subs.push(sub.data);
+	fn done_subtrace(&mut self) {
+		self.depth -= 1;
 	}
 
 	fn drain(mut self) -> Option<VMTrace> { self.data.subs.pop() }
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn should_prefix_address_properly() {
+		let mut tracer = ExecutiveTracer::default();
+
+		tracer.prepare_trace_call(&ActionParams::default(), 0, false);
+		tracer.prepare_trace_call(&ActionParams::default(), 1, false);
+		tracer.prepare_trace_call(&ActionParams::default(), 2, false);
+		tracer.done_trace_call(U256::zero(), &[]);
+		tracer.prepare_trace_call(&ActionParams::default(), 2, false);
+		tracer.done_trace_call(U256::zero(), &[]);
+		tracer.prepare_trace_call(&ActionParams::default(), 2, false);
+		tracer.done_trace_call(U256::zero(), &[]);
+		tracer.done_trace_call(U256::zero(), &[]);
+		tracer.done_trace_call(U256::zero(), &[]);
+
+		let drained = tracer.drain();
+		assert!(drained[0].trace_address.len() == 0);
+		assert_eq!(&drained[1].trace_address, &[0]);
+		assert_eq!(&drained[2].trace_address, &[0, 0]);
+		assert_eq!(&drained[3].trace_address, &[0, 1]);
+		assert_eq!(&drained[4].trace_address, &[0, 2]);
+	}
 }

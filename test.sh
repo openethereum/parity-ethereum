@@ -38,7 +38,7 @@ validate () {
     time cargo check $@ --no-default-features
     time cargo check $@ --manifest-path util/io/Cargo.toml --no-default-features
     time cargo check $@ --manifest-path util/io/Cargo.toml --features "mio"
-  
+
     # Validate chainspecs
     echo "________Validate chainspecs________"
     time ./scripts/validate_chainspecs.sh
@@ -48,17 +48,24 @@ validate () {
 }
 
 cpp_test () {
-  # Running the C++ example
-  echo "________Running the C++ example________"
-  cd parity-clib-examples/cpp && \
-    mkdir -p build && \
-    cd build && \
-    cmake .. && \
-    make -j $THREADS && \
-    ./parity-example && \
-    cd .. && \
-    rm -rf build && \
-    cd ../..
+  case $CARGO_TARGET in
+    (x86_64-unknown-linux-gnu)
+      # Running the C++ example
+      echo "________Running the C++ example________"
+      cd parity-clib-examples/cpp && \
+        mkdir -p build && \
+        cd build && \
+        cmake .. && \
+        make -j $THREADS && \
+        ./parity-example && \
+        cd .. && \
+        rm -rf build && \
+        cd ../..
+      ;;
+    (*)
+      echo "________Skipping the C++ example________"
+      ;;
+  esac
 }
 
 cargo_test () {
@@ -75,17 +82,19 @@ else
   validate
 fi
 
-test "${RUN_TESTS}" = "true" && cpp_test
+test "${RUN_TESTS}" = "all" && cpp_test
 
 if [ "$CARGO_TARGET" ]
 then
 
-  if [ "${RUN_TESTS}" = "true" ]
-  then
-    cargo_test --target $CARGO_TARGET $@
-  else
-    cargo_test --no-run --target $CARGO_TARGET $@
-  fi
+  case "${RUN_TESTS}" in
+    (cargo|all)
+      cargo_test --target $CARGO_TARGET $@
+      ;;
+    ('')
+      cargo_test --no-run --target $CARGO_TARGET $@
+      ;;
+  esac
 else
   cargo_test $@
 fi

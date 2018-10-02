@@ -2,13 +2,19 @@
 
 set -e # fail on any error
 set -u # treat unset variables as error
+
 echo "__________Show ENVIROMENT__________"
-echo "CC:       " $CC
-echo "CXX:      " $CXX
+echo "CI_SERVER_NAME:   " $CI_SERVER_NAME
+echo "CARGO_HOME:       " $CARGO_HOME
+echo "BUILD_TARGET:     " $BUILD_TARGET
+echo "BUILD_ARCH:       " $BUILD_ARCH
+echo "CARGO_TARGET:     " $CARGO_TARGET
+echo "CC:               " $CC
+echo "CXX:              " $CXX
 
 echo "__________CARGO CONFIG__________"
-rm -rf .cargo
 mkdir -p .cargo
+rm -f .cargo/config
 echo "[target.$CARGO_TARGET]" >> .cargo/config
 echo "linker= \"$CC\"" >> .cargo/config
 cat .cargo/config
