@@ -883,7 +883,7 @@ impl ChainSync {
 
 	/// Mark all outstanding requests as expired
 	fn reset_downloads(&mut self, block_set: BlockSet) {
-		trace!("Resetting downloads for {:?}", block_set);
+		trace!(target: "sync", "Resetting downloads for {:?}", block_set);
 		for (_, ref mut p) in self.peers.iter_mut().filter(|&(_, ref p)| p.block_set == Some(block_set)) {
 			p.reset_asking();
 		}
