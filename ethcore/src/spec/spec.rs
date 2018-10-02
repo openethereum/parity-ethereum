@@ -607,8 +607,7 @@ impl Spec {
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
-			ethjson::spec::Engine::Hbbft(hbbft) => Hbbft::new(hbbft.params.into(), machine)
-				.expect("Failed to start the hbbft consensus engine."),
+			ethjson::spec::Engine::Hbbft(hbbft) => Arc::new(Hbbft::new(hbbft.params.into(), machine)),
 		}
 	}
 
