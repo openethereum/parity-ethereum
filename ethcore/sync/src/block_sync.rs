@@ -36,6 +36,7 @@ const MAX_RECEPITS_TO_REQUEST: usize = 128;
 const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 16;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
+const MAX_USELESS_HEADERS_PER_ROUND: usize = 3;
 
 // logging macros prepend BlockSet context for log filtering
 macro_rules! trace_sync {
@@ -137,8 +138,8 @@ pub struct BlockDownloader {
 	retract_step: u64,
 	/// Whether reorg should be limited.
 	limit_reorg: bool,
-	/// Hashes of header requests which return no useful headers
-	useless_expected_hashes: HashSet<H256>,
+	/// consecutive useless headers this round
+	useless_headers_count: usize,
 }
 
 impl BlockDownloader {
@@ -164,14 +165,14 @@ impl BlockDownloader {
 			target_hash: None,
 			retract_step: 1,
 			limit_reorg: limit_reorg,
-			useless_expected_hashes: HashSet::new(),
+			useless_headers_count: 0,
 		}
 	}
 
 	/// Reset sync. Clear all local downloaded data.
 	pub fn reset(&mut self) {
 		self.blocks.clear();
-		self.useless_expected_hashes.clear();
+		self.useless_headers_count = 0;
 		self.state = State::Idle;
 	}
 
@@ -315,18 +316,14 @@ impl BlockDownloader {
 				// At least one of the headers must advance the subchain. Otherwise they are all useless.
 				if count == 0 || !any_known {
 					trace_sync!(self, "No useful headers, expected hash {:?}", expected_hash);
-					if let Some(eh) = expected_hash {
-						// only reset download if we have multiple subchain heads, to avoid unnecessary resets
-						// when we are at the head of the chain when we may legitimately receive no useful headers
-						if self.blocks.heads_len() > 1 && !self.useless_expected_hashes.insert(eh) {
-							trace_sync!(self, "Received consecutive sets of useless headers from requested header {:?}. Resetting sync", eh);
-							self.reset();
-						}
+					self.useless_headers_count += 1;
+					// only reset download if we have multiple subchain heads, to avoid unnecessary resets
+					// when we are at the head of the chain when we may legitimately receive no useful headers
+					if self.blocks.heads_len() > 1 && self.useless_headers_count >= MAX_USELESS_HEADERS_PER_ROUND {
+						trace_sync!(self, "Received {:?} useless responses this round. Resetting sync", MAX_USELESS_HEADERS_PER_ROUND);
+						self.reset();
 					}
 					return Err(BlockDownloaderImportError::Useless);
-				}
-				if let Some(eh) = expected_hash {
-					self.useless_expected_hashes.remove(&eh);
 				}
 				self.blocks.insert_headers(headers);
 				trace_sync!(self, "Inserted {} headers", count);
@@ -616,7 +613,7 @@ mod tests {
 	}
 
 	#[test]
-	fn reset_after_consecutive_sets_of_useless_headers() {
+	fn reset_after_multiple_sets_of_useless_headers() {
 		::env_logger::try_init().ok();
 		let headers1 = get_dummy_headers(20);
 		let short_subchain = get_dummy_headers(5);
@@ -642,17 +639,17 @@ mod tests {
 
 		// simulate receiving useless headers
 		let head = vec![short_subchain.last().unwrap().clone()];
-		let res1 = import_headers(&head, &mut downloader, &mut io);
-		let res2 = import_headers(&head, &mut downloader, &mut io);
+		for _ in 0..MAX_USELESS_HEADERS_PER_ROUND {
+			let res = import_headers(&head, &mut downloader, &mut io);
+			assert!(res.is_err());
+		}
 
-		assert!(res1.is_err());
-		assert!(res2.is_err());
 		assert_eq!(downloader.state, State::Idle);
 		assert!(downloader.blocks.is_empty());
 	}
 
 	#[test]
-	fn dont_reset_after_consecutive_sets_of_useless_headers_for_chain_head() {
+	fn dont_reset_after_multiple_sets_of_useless_headers_for_chain_head() {
 		::env_logger::try_init().ok();
 		let headers = get_dummy_headers(10);
 		let short_subchain = get_dummy_headers(5);
@@ -678,11 +675,12 @@ mod tests {
 
 		// simulate receiving useless headers
 		let head = vec![short_subchain.last().unwrap().clone()];
-		let res1 = import_headers(&head, &mut downloader, &mut io);
-		let res2 = import_headers(&head, &mut downloader, &mut io);
 
-		assert!(res1.is_err());
-		assert!(res2.is_err());
+		for _ in 0..MAX_USELESS_HEADERS_PER_ROUND {
+			let res = import_headers(&head, &mut downloader, &mut io);
+			assert!(res.is_err());
+		}
+
 		// download shouldn't be reset since this is the chain head for a single subchain.
 		// this state usually occurs for NewBlocks when it has reached the chain head.
 		assert_eq!(downloader.state, State::Blocks);
