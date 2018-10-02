@@ -35,6 +35,8 @@ impl Tracer for ExecutiveTracer {
 	type Output = FlatTrace;
 
 	fn prepare_trace_call(&mut self, params: &ActionParams, depth: usize, is_builtin: bool) {
+		assert!(!self.skip_one, "skip_one is used only for builtin contracts that do not have subsequent calls; in prepare_trace_call it cannot be true; qed");
+
 		if depth != 0 && is_builtin && params.value.value() == U256::zero() {
 			self.skip_one = true;
 			return;
@@ -60,6 +62,8 @@ impl Tracer for ExecutiveTracer {
 	}
 
 	fn prepare_trace_create(&mut self, params: &ActionParams) {
+		assert!(!self.skip_one, "skip_one is used only for builtin contracts that do not have subsequent calls; in prepare_trace_create it cannot be true; qed");
+
 		if let Some(parentlen) = self.sublen_stack.last_mut() {
 			*parentlen += 1;
 		}
@@ -86,8 +90,8 @@ impl Tracer for ExecutiveTracer {
 			return;
 		}
 
-		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
-		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
+		let vecindex = self.vecindex_stack.pop().expect("Executive invoked prepare_trace_call before this function; vecindex_stack is never empty; qed");
+		let sublen = self.sublen_stack.pop().expect("Executive invoked prepare_trace_call before this function; sublen_stack is never empty; qed");
 		self.index_stack.pop();
 
 		self.traces[vecindex].result = Res::Call(CallResult {
@@ -102,10 +106,10 @@ impl Tracer for ExecutiveTracer {
 	}
 
 	fn done_trace_create(&mut self, gas_used: U256, code: &[u8], address: Address) {
-		assert!(!self.skip_one, "Skip one is only set for prepare_trace_call");
+		assert!(!self.skip_one, "skip_one is only set with prepare_trace_call for builtin contracts with no subsequent calls; skip_one cannot be true after the same level prepare_trace_create; qed");
 
-		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
-		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
+		let vecindex = self.vecindex_stack.pop().expect("Executive invoked prepare_trace_create before this function; vecindex_stack is never empty; qed");
+		let sublen = self.sublen_stack.pop().expect("Executive invoked prepare_trace_create before this function; sublen_stack is never empty; qed");
 		self.index_stack.pop();
 
 		self.traces[vecindex].result = Res::Create(CreateResult {
@@ -120,8 +124,13 @@ impl Tracer for ExecutiveTracer {
 	}
 
 	fn done_trace_failed(&mut self, error: &VmError) {
-		let vecindex = self.vecindex_stack.pop().expect("prepare/done_trace are not balanced");
-		let sublen = self.sublen_stack.pop().expect("prepare/done_trace are not balanced");
+		if self.skip_one {
+			self.skip_one = false;
+			return;
+		}
+
+		let vecindex = self.vecindex_stack.pop().expect("Executive invoked prepare_trace_create/call before this function; vecindex_stack is never empty; qed");
+		let sublen = self.sublen_stack.pop().expect("Executive invoked prepare_trace_create/call before this function; vecindex_stack is never empty; qed");
 		self.index_stack.pop();
 
 		let is_create = match self.traces[vecindex].action {
@@ -212,7 +221,7 @@ impl ExecutiveVMTracer {
 		if depth == 0 {
 			f(trace);
 		} else {
-			Self::with_trace_in_depth(trace.subs.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
+			Self::with_trace_in_depth(trace.subs.last_mut().expect("self.depth is incremented with prepare_subtrace; a subtrace is always pushed; self.depth cannot be greater than subtrace stack; qed"), depth - 1, f);
 		}
 	}
 }
@@ -245,7 +254,7 @@ impl VMTracer for ExecutiveVMTracer {
 				mem_diff: mem_diff.map(|(s, r)| MemoryDiff { offset: s, data: r.iter().cloned().collect() }),
 				store_diff: store_diff.map(|(l, v)| StorageDiff { location: l, value: v }),
 			};
-			trace.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute").executed = Some(ex);
+			trace.operations.last_mut().expect("trace_executed is always called after a trace_prepare_execute; trace.operations cannot be empty; qed").executed = Some(ex);
 		});
 	}
 
