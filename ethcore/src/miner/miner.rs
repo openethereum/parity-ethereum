@@ -41,7 +41,7 @@ use transaction::{
 use using_queue::{UsingQueue, GetAction};
 
 use account_provider::{AccountProvider, SignError as AccountError};
-use block::{ClosedBlock, IsBlock, Block, SealedBlock};
+use block::{ClosedBlock, IsBlock, Block, OpenBlock, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
@@ -368,7 +368,7 @@ impl Miner {
 		let chain_info = chain.chain_info();
 
 		// Open block
-		let (mut open_block, original_work_hash) = {
+		let (open_block, original_work_hash) = {
 			let mut sealing = self.sealing.lock();
 			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().header().hash());
 			let best_hash = chain_info.best_block_hash;
@@ -411,14 +411,6 @@ impl Miner {
 			(open_block, last_work_hash)
 		};
 
-		let mut invalid_transactions = HashSet::new();
-		let mut not_allowed_transactions = HashSet::new();
-		let mut senders_to_penalize = HashSet::new();
-		let block_number = open_block.block().header().number();
-
-		let mut tx_count = 0usize;
-		let mut skipped_transactions = 0usize;
-
 		let client = self.pool_client(chain);
 		let engine_params = self.engine.params();
 		let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
@@ -444,6 +436,26 @@ impl Miner {
 				ordering: miner::PendingOrdering::Priority,
 			}
 		);
+
+		let opt_block = self.prepare_block_from(open_block, pending, client, min_tx_gas);
+		opt_block.map(|block| (block, original_work_hash))
+	}
+
+	/// Prepares new block for sealing including the given transactions.
+	fn prepare_block_from<'a, C: 'a>(&self,
+									 mut open_block: OpenBlock,
+									 pending: Vec<Arc<VerifiedTransaction>>,
+									 client: PoolClient<'a, C>,
+									 min_tx_gas: U256) -> Option<ClosedBlock>
+		where C: BlockChain + CallContract,
+	{
+		let mut invalid_transactions = HashSet::new();
+		let mut not_allowed_transactions = HashSet::new();
+		let mut senders_to_penalize = HashSet::new();
+		let mut tx_count = 0usize;
+		let mut skipped_transactions = 0usize;
+
+		let block_number = open_block.block().header().number();
 
 		let took_ms = |elapsed: &Duration| {
 			elapsed.as_secs() * 1000 + elapsed.subsec_nanos() as u64 / 1_000_000
@@ -535,13 +547,11 @@ impl Miner {
 			}
 		};
 
-		{
-			self.transaction_queue.remove(invalid_transactions.iter(), true);
-			self.transaction_queue.remove(not_allowed_transactions.iter(), false);
-			self.transaction_queue.penalize(senders_to_penalize.iter());
-		}
+		self.transaction_queue.remove(invalid_transactions.iter(), true);
+		self.transaction_queue.remove(not_allowed_transactions.iter(), false);
+		self.transaction_queue.penalize(senders_to_penalize.iter());
 
-		Some((block, original_work_hash))
+		Some(block)
 	}
 
 	/// Returns `true` if we should create pending block even if some other conditions are not met.

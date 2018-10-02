@@ -260,6 +260,26 @@ impl HbbftDaemon {
 	pub fn shutdown(&self) {
 		self.shutdown_tx.lock().take().map(|tx| tx.send(()));
 	}
+
+	/// Handles a batch of transactions output by the Honey Badger BFT.
+	fn handle_batch(&self, batch: Vec<Transaction>, epoch: u64) {
+		// TODO: Call this method when Hydrabadger outputs.
+		// TODO: Implement the following pseudocode.
+		// TODO: Replace instant sealing with a threshold signature.
+		// // Create a block from the agreed transactions. Seal it instantly and import it.
+		// let block = miner.prepare_block_from(batch);
+		// miner.remove_transactions_from_queue(&block);
+		// miner.seal_and_import_block_internally(&chain, block);
+		// // Select new transactions and propose them for the next block.
+		// let pending = miner.transaction_queue.pending(client.clone(), pending_settings);
+		// pending.truncate(batch_size);
+		// let txns = if pending.len() <= contrib_size {
+		// 	pending.clone()
+		// } else {
+		// 	rand::seq::sample_slice(rng, &pending, contrib_size)
+		// };
+		// self.hydrabadger.push_user_transactions(txns);
+	}
 }
 
 impl Drop for HbbftDaemon {
