@@ -44,7 +44,7 @@ cache:
 test-linux:
   stage:                           test
   variables:
-    RUN_TESTS:                     all
+    RUN_TESTS:                     cargo
   script:
     - scripts/gitlab/test-all.sh stable
   tags:
