@@ -13,7 +13,7 @@ parity-bytes = "0.1"
 ethcore-transaction = { path = "../transaction" }
 ethereum-types = "0.4"
 memorydb = "0.2.1"
-patricia-trie = "0.2.1"
+patricia-trie = "0.2"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
@@ -23,7 +23,7 @@ vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
 rlp = { version = "0.2.4", features = ["ethereum"] }
 rlp_derive = { path = "../../util/rlp_derive" }
-smallvec = "0.4"
+smallvec = "0.6"
 futures = "0.1"
 rand = "0.4"
 itertools = "0.5"

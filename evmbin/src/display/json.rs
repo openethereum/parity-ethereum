@@ -43,31 +43,9 @@ pub struct Informant {
 	unmatched: bool,
 }
 
-impl Informant {
-	fn memory(&self) -> String {
-		format!("\"0x{}\"", self.memory.to_hex())
-	}
-
-	fn stack(&self) -> String {
-		let items = self.stack.iter().map(|i| format!("\"0x{:x}\"", i)).collect::<Vec<_>>();
-		format!("[{}]", items.join(","))
-	}
-
-	fn storage(&self) -> String {
-		let vals = self.storage.iter()
-			.map(|(k, v)| format!("\"0x{:?}\": \"0x{:?}\"", k, v))
-			.collect::<Vec<_>>();
-		format!("{{{}}}", vals.join(","))
-	}
-}
-
 impl vm::Informant for Informant {
 	fn before_test(&mut self, name: &str, action: &str) {
-		println!(
-			"{{\"test\":\"{name}\",\"action\":\"{action}\"}}",
-			name = name,
-			action = action,
-		);
+		println!("{}", json!({"action": action, "test": name}));
 	}
 
 	fn set_gas(&mut self, gas: U256) {
@@ -81,24 +59,26 @@ impl vm::Informant for Informant {
 					println!("{}", trace);
 				}
 
-				println!(
-					"{{\"output\":\"0x{output}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
-					output = success.output.to_hex(),
-					gas = success.gas_used,
-					time = display::as_micros(&success.time),
-				)
+				let success_msg = json!({
+					"output": format!("0x{}", success.output.to_hex()),
+					"gasUsed": format!("{:#x}", success.gas_used),
+					"time": display::as_micros(&success.time),
+				});
+
+				println!("{}", success_msg)
 			},
 			Err(failure) => {
 				for trace in failure.traces.unwrap_or_else(Vec::new) {
 					println!("{}", trace);
 				}
 
-				println!(
-					"{{\"error\":\"{error}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
-					error = display::escape_newlines(&failure.error),
-					gas = failure.gas_used,
-					time = display::as_micros(&failure.time),
-				)
+				let failure_msg = json!({
+					"error": &failure.error.to_string(),
+					"gasUsed": format!("{:#x}", failure.gas_used),
+					"time": display::as_micros(&failure.time),
+				});
+
+				println!("{}", failure_msg)
 			},
 		}
 	}
@@ -123,19 +103,19 @@ impl trace::VMTracer for Informant {
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
 		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
 
-		let trace = format!(
-			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"gasCost\":\"0x{gas_cost:x}\",\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
-			pc = self.pc,
-			op = self.instruction,
-			name = info.map(|i| i.name).unwrap_or(""),
-			gas = gas_used.saturating_add(self.gas_cost),
-			gas_cost = self.gas_cost,
-			memory = self.memory(),
-			stack = self.stack(),
-			storage = self.storage(),
-			depth = self.depth,
-		);
-		self.traces.push(trace);
+		let trace = json!({
+			"pc": self.pc,
+			"op": self.instruction,
+			"opName": info.map(|i| i.name).unwrap_or(""),
+			"gas": format!("{:#x}", gas_used.saturating_add(self.gas_cost)),
+			"gasCost": format!("{:#x}", self.gas_cost),
+			"memory": format!("0x{}", self.memory.to_hex()),
+			"stack": self.stack,
+			"storage": self.storage,
+			"depth": self.depth,
+		});
+
+		self.traces.push(trace.to_string());
 
 		self.unmatched = false;
 		self.gas_used = gas_used;
@@ -193,6 +173,23 @@ impl trace::VMTracer for Informant {
 mod tests {
 	use super::*;
 	use info::tests::run_test;
+	use serde_json;
+
+	#[derive(Serialize, Deserialize, Debug, PartialEq)]
+	#[serde(rename_all = "camelCase")]
+	struct TestTrace {
+		pc: usize,
+		#[serde(rename = "op")]
+		instruction: u8,
+		op_name: String,
+		#[serde(rename = "gas")]
+		gas_used: U256,
+		gas_cost: U256,
+		memory: String,
+		stack: Vec<U256>,
+		storage: HashMap<H256, H256>,
+		depth: usize,
+	}
 
 	fn assert_traces_eq(
 		a: &[String],
@@ -204,7 +201,10 @@ mod tests {
 		loop {
 			match (ita.next(), itb.next()) {
 				(Some(a), Some(b)) => {
-					assert_eq!(a, b);
+					// Compare both without worrying about the order of the fields
+					let actual: TestTrace = serde_json::from_str(a).unwrap();
+					let expected: TestTrace = serde_json::from_str(b).unwrap();
+					assert_eq!(actual, expected);
 					println!("{}", a);
 				},
 				(None, None) => return,
@@ -280,7 +280,20 @@ mod tests {
 {"pc":5,"op":88,"opName":"PC","gas":"0x2102","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
 {"pc":6,"op":48,"opName":"ADDRESS","gas":"0x2100","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
 {"pc":7,"op":241,"opName":"CALL","gas":"0x20fe","gasCost":"0x0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
-			"#,
+"#,
+		);
+
+		run_test(
+			Informant::default(),
+			&compare_json,
+			"3260D85554",
+			0xffff,
+			r#"
+{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":1}
+{"pc":1,"op":96,"opName":"PUSH1","gas":"0xfffd","gasCost":"0x3","memory":"0x","stack":["0x0"],"storage":{},"depth":1}
+{"pc":3,"op":85,"opName":"SSTORE","gas":"0xfffa","gasCost":"0x1388","memory":"0x","stack":["0x0","0xd8"],"storage":{},"depth":1}
+{"pc":4,"op":84,"opName":"SLOAD","gas":"0xec72","gasCost":"0x0","memory":"0x","stack":[],"storage":{"0x00000000000000000000000000000000000000000000000000000000000000d8":"0x0000000000000000000000000000000000000000000000000000000000000000"},"depth":1}
+"#,
 		)
 	}
 }

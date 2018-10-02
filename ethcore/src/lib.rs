@@ -162,6 +162,7 @@ pub mod header;
 pub mod machine;
 pub mod miner;
 pub mod pod_state;
+pub mod pod_account;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
@@ -170,7 +171,6 @@ pub mod trace;
 pub mod verification;
 
 mod cache_manager;
-mod pod_account;
 mod account_db;
 mod externalities;
 mod blockchain;

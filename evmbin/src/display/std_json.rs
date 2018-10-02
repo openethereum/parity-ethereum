@@ -81,28 +81,14 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 	}
 }
 
-impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
-	fn stack(&self) -> String {
-		let items = self.stack.iter().map(|i| format!("\"0x{:x}\"", i)).collect::<Vec<_>>();
-		format!("[{}]", items.join(","))
-	}
-
-	fn storage(&self) -> String {
-		let vals = self.storage.iter()
-			.map(|(k, v)| format!("\"0x{:?}\": \"0x{:?}\"", k, v))
-			.collect::<Vec<_>>();
-		format!("{{{}}}", vals.join(","))
-	}
-}
-
 impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 	fn before_test(&mut self, name: &str, action: &str) {
-		writeln!(
-			&mut self.out_sink,
-			"{{\"test\":\"{name}\",\"action\":\"{action}\"}}",
-			name = name,
-			action = action,
-		).expect("The sink must be writeable.");
+		let out_data = json!({
+			"action": action,
+			"test": name,
+		});
+
+		writeln!(&mut self.out_sink, "{}", out_data).expect("The sink must be writeable.");
 	}
 
 	fn set_gas(&mut self, _gas: U256) {}
@@ -113,26 +99,26 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 		match result {
 			Ok(success) => {
-				writeln!(
-					&mut trace_sink,
-					"{{\"stateRoot\":\"{:?}\"}}", success.state_root
-				).expect("The sink must be writeable.");
-				writeln!(
-					&mut out_sink,
-					"{{\"output\":\"0x{output}\",\"gasUsed\":\"0x{gas:x}\",\"time\":{time}}}",
-					output = success.output.to_hex(),
-					gas = success.gas_used,
-					time = display::as_micros(&success.time),
-				).expect("The sink must be writeable.");
+				let trace_data = json!({"stateRoot": success.state_root});
+				writeln!(&mut trace_sink, "{}", trace_data)
+					.expect("The sink must be writeable.");
+
+				let out_data = json!({
+					"output": format!("0x{}", success.output.to_hex()),
+					"gasUsed": format!("{:#x}", success.gas_used),
+					"time": display::as_micros(&success.time),
+				});
+
+				writeln!(&mut out_sink, "{}", out_data).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
-				writeln!(
-					&mut out_sink,
-					"{{\"error\":\"{error}\",\"gasUsed\":\"0x{gas:x}\",\"time\":{time}}}",
-					error = display::escape_newlines(&failure.error),
-					gas = failure.gas_used,
-					time = display::as_micros(&failure.time),
-				).expect("The sink must be writeable.");
+				let out_data = json!({
+					"error": &failure.error.to_string(),
+					"gasUsed": format!("{:#x}", failure.gas_used),
+					"time": display::as_micros(&failure.time),
+				});
+
+				writeln!(&mut out_sink, "{}", out_data).expect("The sink must be writeable.");
 			},
 		}
 	}
@@ -144,20 +130,17 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
 		let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
 		self.instruction = instruction;
-		let storage = self.storage();
-		let stack = self.stack();
+		let trace_data = json!({
+			"pc": pc,
+			"op": instruction,
+			"opName": info.map(|i| i.name).unwrap_or(""),
+			"gas": format!("{:#x}", current_gas),
+			"stack": self.stack,
+			"storage": self.storage,
+			"depth": self.depth,
+		});
 
-		writeln!(
-			&mut self.trace_sink,
-			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
-			pc = pc,
-			op = instruction,
-			name = info.map(|i| i.name).unwrap_or(""),
-			gas = current_gas,
-			stack = stack,
-			storage = storage,
-			depth = self.depth,
-		).expect("The sink must be writeable.");
+		writeln!(&mut self.trace_sink, "{}", trace_data).expect("The sink must be writeable.");
 
 		true
 	}
@@ -232,8 +215,8 @@ pub mod tests {
 			},
 			"60F8d6",
 			0xffff,
-			r#"{"pc":0,"op":96,"opName":"PUSH1","gas":"0xffff","stack":[],"storage":{},"depth":1}
-{"pc":2,"op":214,"opName":"","gas":"0xfffc","stack":["0xf8"],"storage":{},"depth":1}
+			r#"{"depth":1,"gas":"0xffff","op":96,"opName":"PUSH1","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xfffc","op":214,"opName":"","pc":2,"stack":["0xf8"],"storage":{}}
 "#,
 		);
 
@@ -246,7 +229,7 @@ pub mod tests {
 			},
 			"F8d6",
 			0xffff,
-			r#"{"pc":0,"op":248,"opName":"","gas":"0xffff","stack":[],"storage":{},"depth":1}
+			r#"{"depth":1,"gas":"0xffff","op":248,"opName":"","pc":0,"stack":[],"storage":{}}
 "#,
 		);
 	}
@@ -262,30 +245,30 @@ pub mod tests {
 			},
 			"32343434345830f138343438323439f0",
 			0xffff,
-			r#"{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","stack":[],"storage":{},"depth":1}
-{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0xfffd","stack":["0x0"],"storage":{},"depth":1}
-{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0xfffb","stack":["0x0","0x0"],"storage":{},"depth":1}
-{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0xfff9","stack":["0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0xfff7","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":5,"op":88,"opName":"PC","gas":"0xfff5","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":6,"op":48,"opName":"ADDRESS","gas":"0xfff3","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":1}
-{"pc":7,"op":241,"opName":"CALL","gas":"0xfff1","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{},"depth":1}
-{"pc":8,"op":56,"opName":"CODESIZE","gas":"0x9e21","stack":["0x1"],"storage":{},"depth":1}
-{"pc":9,"op":52,"opName":"CALLVALUE","gas":"0x9e1f","stack":["0x1","0x10"],"storage":{},"depth":1}
-{"pc":10,"op":52,"opName":"CALLVALUE","gas":"0x9e1d","stack":["0x1","0x10","0x0"],"storage":{},"depth":1}
-{"pc":11,"op":56,"opName":"CODESIZE","gas":"0x9e1b","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":12,"op":50,"opName":"ORIGIN","gas":"0x9e19","stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{},"depth":1}
-{"pc":13,"op":52,"opName":"CALLVALUE","gas":"0x9e17","stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{},"depth":1}
-{"pc":14,"op":57,"opName":"CODECOPY","gas":"0x9e15","stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":15,"op":240,"opName":"CREATE","gas":"0x9e0c","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":0,"op":50,"opName":"ORIGIN","gas":"0x210c","stack":[],"storage":{},"depth":2}
-{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0x210a","stack":["0x0"],"storage":{},"depth":2}
-{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0x2108","stack":["0x0","0x0"],"storage":{},"depth":2}
-{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0x2106","stack":["0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0x2104","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":5,"op":88,"opName":"PC","gas":"0x2102","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":6,"op":48,"opName":"ADDRESS","gas":"0x2100","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
-{"pc":7,"op":241,"opName":"CALL","gas":"0x20fe","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
+			r#"{"depth":1,"gas":"0xffff","op":50,"opName":"ORIGIN","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xfffd","op":52,"opName":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
+{"depth":1,"gas":"0xfffb","op":52,"opName":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0xfff9","op":52,"opName":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0xfff7","op":52,"opName":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0xfff5","op":88,"opName":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0xfff3","op":48,"opName":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
+{"depth":1,"gas":"0xfff1","op":241,"opName":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e21","op":56,"opName":"CODESIZE","pc":8,"stack":["0x1"],"storage":{}}
+{"depth":1,"gas":"0x9e1f","op":52,"opName":"CALLVALUE","pc":9,"stack":["0x1","0x10"],"storage":{}}
+{"depth":1,"gas":"0x9e1d","op":52,"opName":"CALLVALUE","pc":10,"stack":["0x1","0x10","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e1b","op":56,"opName":"CODESIZE","pc":11,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e19","op":50,"opName":"ORIGIN","pc":12,"stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{}}
+{"depth":1,"gas":"0x9e17","op":52,"opName":"CALLVALUE","pc":13,"stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e15","op":57,"opName":"CODECOPY","pc":14,"stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{}}
+{"depth":1,"gas":"0x9e0c","op":240,"opName":"CREATE","pc":15,"stack":["0x1","0x10","0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x210c","op":50,"opName":"ORIGIN","pc":0,"stack":[],"storage":{}}
+{"depth":2,"gas":"0x210a","op":52,"opName":"CALLVALUE","pc":1,"stack":["0x0"],"storage":{}}
+{"depth":2,"gas":"0x2108","op":52,"opName":"CALLVALUE","pc":2,"stack":["0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x2106","op":52,"opName":"CALLVALUE","pc":3,"stack":["0x0","0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x2104","op":52,"opName":"CALLVALUE","pc":4,"stack":["0x0","0x0","0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x2102","op":88,"opName":"PC","pc":5,"stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{}}
+{"depth":2,"gas":"0x2100","op":48,"opName":"ADDRESS","pc":6,"stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{}}
+{"depth":2,"gas":"0x20fe","op":241,"opName":"CALL","pc":7,"stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{}}
 "#,
 		)
 	}

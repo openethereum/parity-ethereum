@@ -184,7 +184,8 @@ fn keep_ancient_blocks() {
 		state_db.as_hashdb(),
 		&state_root,
 		&writer,
-		&Progress::default()
+		&Progress::default(),
+		None
 	).unwrap();
 
 	let manifest = ::snapshot::ManifestData {

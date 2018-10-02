@@ -89,11 +89,12 @@ use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
 use ethkey::Password;
+use ethabi::FunctionOutputDecoder;
 
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
 
-use_contract!(private, "PrivateContract", "res/private.json");
+use_contract!(private_contract, "res/private.json");
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -425,31 +426,23 @@ impl Provider where {
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
-		let contract = private::PrivateContract::default();
-		let state = contract.functions()
-			.state()
-			.call(&|data| self.client.call_contract(block, *address, data))
-			.map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?;
-
+		let (data, decoder) = private_contract::functions::state::call();
+		let value = self.client.call_contract(block, *address, data)?;
+		let state = decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?;
 		self.decrypt(address, &state)
 	}
 
 	fn get_decrypted_code(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
-		let contract = private::PrivateContract::default();
-		let code = contract.functions()
-			.code()
-			.call(&|data| self.client.call_contract(block, *address, data))
-			.map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?;
-
-		self.decrypt(address, &code)
+		let (data, decoder) = private_contract::functions::code::call();
+		let value = self.client.call_contract(block, *address, data)?;
+		let state = decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?;
+		self.decrypt(address, &state)
 	}
 
 	pub fn get_contract_nonce(&self, address: &Address, block: BlockId) -> Result<U256, Error> {
-		let contract = private::PrivateContract::default();
-		Ok(contract.functions()
-			.nonce()
-			.call(&|data| self.client.call_contract(block, *address, data))
-			.map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?)
+		let (data, decoder) = private_contract::functions::nonce::call();
+		let value = self.client.call_contract(block, *address, data)?;
+		decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)).into())
 	}
 
 	fn snapshot_to_storage(raw: Bytes) -> HashMap<H256, H256> {
@@ -524,13 +517,11 @@ impl Provider where {
 
 	fn generate_constructor(validators: &[Address], code: Bytes, storage: Bytes) -> Bytes {
 		let constructor_code = DEFAULT_STUB_CONTRACT.from_hex().expect("Default contract code is valid");
-		let private = private::PrivateContract::default();
-		private.constructor(constructor_code, validators.iter().map(|a| *a).collect::<Vec<Address>>(), code, storage)
+		private_contract::constructor(constructor_code, validators.iter().map(|a| *a).collect::<Vec<Address>>(), code, storage)
 	}
 
 	fn generate_set_state_call(signatures: &[Signature], storage: Bytes) -> Bytes {
-		let private = private::PrivateContract::default();
-		private.functions().set_state().input(
+		private_contract::functions::set_state::encode_input(
 			storage,
 			signatures.iter().map(|s| {
 				let mut v: [u8; 32] = [0; 32];
@@ -604,11 +595,9 @@ impl Provider where {
 
 	/// Returns private validators for a contract.
 	pub fn get_validators(&self, block: BlockId, address: &Address) -> Result<Vec<Address>, Error> {
-		let contract = private::PrivateContract::default();
-		Ok(contract.functions()
-			.get_validators()
-			.call(&|data| self.client.call_contract(block, *address, data))
-			.map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?)
+		let (data, decoder) = private_contract::functions::get_validators::call();
+		let value = self.client.call_contract(block, *address, data)?;
+		decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)).into())
 	}
 }
 

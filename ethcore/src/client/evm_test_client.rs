@@ -60,7 +60,7 @@ impl fmt::Display for EvmTestError {
 }
 
 use ethereum;
-use ethjson::state::test::ForkSpec;
+use ethjson::spec::ForkSpec;
 
 /// Simplified, single-block EVM test client.
 pub struct EvmTestClient<'a> {
@@ -69,12 +69,12 @@ pub struct EvmTestClient<'a> {
 }
 
 impl<'a> fmt::Debug for EvmTestClient<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("EvmTestClient")
-            .field("state", &self.state)
-            .field("spec", &self.spec.name)
-            .finish()
-    }
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.debug_struct("EvmTestClient")
+			.field("state", &self.state)
+			.field("spec", &self.spec.name)
+			.finish()
+	}
 }
 
 impl<'a> EvmTestClient<'a> {
@@ -86,9 +86,9 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::EIP150 => Some(ethereum::new_eip150_test()),
 			ForkSpec::EIP158 => Some(ethereum::new_eip161_test()),
 			ForkSpec::Byzantium => Some(ethereum::new_byzantium_test()),
+			ForkSpec::Constantinople => Some(ethereum::new_constantinople_test()),
 			ForkSpec::EIP158ToByzantiumAt5 => Some(ethereum::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
-			_ => None,
 		}
 	}
 
@@ -182,6 +182,19 @@ impl<'a> EvmTestClient<'a> {
 			gas_used: 0.into(),
 			gas_limit: *genesis.gas_limit(),
 		};
+		self.call_envinfo(params, tracer, vm_tracer, info)
+	}
+
+	/// Execute the VM given envinfo, ActionParams and tracer.
+	/// Returns amount of gas left and the output.
+	pub fn call_envinfo<T: trace::Tracer, V: trace::VMTracer>(
+		&mut self,
+		params: ActionParams,
+		tracer: &mut T,
+		vm_tracer: &mut V,
+		info: client::EnvInfo,
+	) -> Result<FinalizationResult, EvmTestError>
+	{
 		let mut substate = state::Substate::new();
 		let machine = self.spec.engine.machine();
 		let schedule = machine.schedule(info.number);
@@ -217,9 +230,27 @@ impl<'a> EvmTestClient<'a> {
 		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
 		let scheme = self.spec.engine.machine().create_address_scheme(env_info.number);
 
+		// Touch the coinbase at the end of the test to simulate
+		// miner reward.
+		// Details: https://github.com/paritytech/parity-ethereum/issues/9431
+		let schedule = self.spec.engine.machine().schedule(env_info.number);
+		self.state.add_balance(&env_info.author, &0.into(), if schedule.no_empty {
+			state::CleanupMode::NoEmpty
+		} else {
+			state::CleanupMode::ForceCreate
+		}).ok();
+		// Touching also means that we should remove the account if it's within eip161
+		// conditions.
+		self.state.kill_garbage(
+			&vec![env_info.author].into_iter().collect(),
+			schedule.kill_empty,
+			&None,
+			false
+		).ok();
+		self.state.commit().ok();
+
 		match result {
 			Ok(result) => {
-				self.state.commit().ok();
 				TransactResult::Ok {
 					state_root: *self.state.root(),
 					gas_left: initial_gas - result.receipt.gas_used,

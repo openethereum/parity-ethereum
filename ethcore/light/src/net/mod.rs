@@ -354,6 +354,7 @@ pub struct LightProtocol {
 	peers: RwLock<PeerMap>,
 	capabilities: RwLock<Capabilities>,
 	flow_params: RwLock<Arc<FlowParams>>,
+	free_flow_params: Arc<FlowParams>,
 	handlers: Vec<Arc<Handler>>,
 	req_id: AtomicUsize,
 	sample_store: Box<SampleStore>,
@@ -383,6 +384,7 @@ impl LightProtocol {
 			peers: RwLock::new(HashMap::new()),
 			capabilities: RwLock::new(params.capabilities),
 			flow_params: RwLock::new(Arc::new(flow_params)),
+			free_flow_params: Arc::new(FlowParams::free()),
 			handlers: Vec::new(),
 			req_id: AtomicUsize::new(0),
 			sample_store,
@@ -706,8 +708,13 @@ impl LightProtocol {
 		};
 
 		let capabilities = self.capabilities.read();
-		let local_flow = self.flow_params.read();
-		let status_packet = status::write_handshake(&status, &capabilities, Some(&**local_flow));
+		let cost_local_flow = self.flow_params.read();
+		let local_flow = if io.is_reserved_peer(peer) {
+			&*self.free_flow_params
+		} else {
+			&**cost_local_flow
+		};
+		let status_packet = status::write_handshake(&status, &capabilities, Some(local_flow));
 
 		self.pending_peers.write().insert(peer, PendingPeer {
 			sent_head: chain_info.best_block_hash,
@@ -818,7 +825,11 @@ impl LightProtocol {
 		}
 
 		let remote_flow = flow_params.map(|params| (params.create_credits(), params));
-		let local_flow = self.flow_params.read().clone();
+		let local_flow = if io.is_reserved_peer(peer) {
+			self.free_flow_params.clone()
+		} else {
+			self.flow_params.read().clone()
+		};
 
 		self.peers.write().insert(peer, Mutex::new(Peer {
 			local_credits: local_flow.create_credits(),

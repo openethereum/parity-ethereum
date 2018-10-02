@@ -18,7 +18,7 @@ ethcore-bloom-journal = { path = "../util/bloom" }
 parity-bytes = "0.1"
 hashdb = "0.2.1"
 memorydb = "0.2.1"
-patricia-trie = "0.2.1"
+patricia-trie = "0.2"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 parity-crypto = "0.1"
 error-chain = { version = "0.12", default-features = false }
@@ -29,9 +29,9 @@ ethcore-stratum = { path = "./stratum", optional = true }
 ethcore-transaction = { path = "./transaction" }
 ethereum-types = "0.4"
 memory-cache = { path = "../util/memory_cache" }
-ethabi = "5.1.2"
-ethabi-derive = "5.1.3"
-ethabi-contract = "5.1.1"
+ethabi = "6.0"
+ethabi-derive = "6.0"
+ethabi-contract = "6.0"
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
@@ -103,6 +103,8 @@ evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = []
 # Run JSON consensus tests.
 json-tests = ["ethcore-transaction/json-tests", "test-helpers", "tempdir"]
+# Skip JSON consensus tests with pending issues.
+ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile benches

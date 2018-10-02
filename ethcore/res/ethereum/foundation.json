@@ -7,7 +7,10 @@
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x4563918244F40000",
+				"blockReward": {
+					"0": "0x4563918244F40000",
+					"4370000": "0x29A2241AF62C0000"
+				},
 				"homesteadTransition": "0x118c30",
 				"daoHardforkTransition": "0x1d4c00",
 				"daoHardforkBeneficiary": "0xbf4ed7b27f1d666546e30d74d50d173d20bca754",
@@ -129,9 +132,10 @@
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
-				"eip649Reward": "0x29A2241AF62C0000",
 				"eip100bTransition": 4370000,
-				"eip649Transition": 4370000
+				"difficultyBombDelays": {
+					"4370000": 3000000
+				}
 			}
 		}
 	},

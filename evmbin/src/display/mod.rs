@@ -31,7 +31,3 @@ pub fn format_time(time: &Duration) -> String {
 pub fn as_micros(time: &Duration) -> u64 {
 	time.as_secs() * 1_000_000 + time.subsec_nanos() as u64 / 1_000
 }
-
-fn escape_newlines<D: ::std::fmt::Display>(s: D) -> String {
-	format!("{}", s).replace("\r\n", "\n").replace('\n', "\\n")
-}

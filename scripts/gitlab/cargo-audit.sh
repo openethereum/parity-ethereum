@@ -3,5 +3,5 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-cargo install rustfmt-nightly
-cargo fmt -- --write-mode=diff
+CARGO_TARGET_DIR=./target cargo +stable install cargo-audit
+cargo +stable audit
