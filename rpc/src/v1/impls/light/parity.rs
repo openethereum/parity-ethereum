@@ -26,7 +26,6 @@ use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
-use ethcore::ids::BlockId;
 
 use light::client::LightChainClient;
 
@@ -42,9 +41,9 @@ use v1::types::{
 	Bytes, U256, U64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber, ConsensusCapability, VersionInfo,
+	BlockNumber, LightBlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
-	AccountInfo, HwAccountInfo, Header, RichHeader,
+	AccountInfo, HwAccountInfo, Header, RichHeader, Receipt,
 };
 use Host;
 
@@ -403,16 +402,13 @@ impl Parity for ParityClient {
 				extra_info: extra_info,
 			})
 		};
-		// Note: Here we treat `Pending` as `Latest`.
-		//       Since light clients don't produce pending blocks
-		//       (they don't have state) we can safely fallback to `Latest`.
-		let id = match number.unwrap_or_default() {
-			BlockNumber::Num(n) => BlockId::Number(n),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
-		};
-
+		let id = number.unwrap_or_default().to_block_id();
 		Box::new(self.fetcher().header(id).and_then(from_encoded))
+	}
+
+	fn block_receipts(&self, number: Trailing<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
+		let id = number.unwrap_or_default().to_block_id();
+		Box::new(self.fetcher().receipts(id).and_then(|receipts| Ok(receipts.into_iter().map(Into::into).collect())))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
