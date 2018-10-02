@@ -18,7 +18,7 @@ use trie::TrieFactory;
 use ethtrie::RlpCodec;
 use account_db::Factory as AccountFactory;
 use evm::{Factory as EvmFactory, VMType};
-use vm::{Vm, ActionParams, Schedule};
+use vm::{Exec, ActionParams, Schedule};
 use wasm::WasmInterpreter;
 use keccak_hasher::KeccakHasher;
 
@@ -31,7 +31,7 @@ pub struct VmFactory {
 }
 
 impl VmFactory {
-	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<Vm> {
+	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<Exec> {
 		if schedule.wasm.is_some() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
 			Box::new(WasmInterpreter::new(params))
 		} else {

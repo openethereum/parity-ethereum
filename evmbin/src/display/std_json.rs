@@ -58,6 +58,8 @@ pub struct Informant<Trace = io::Stderr, Out = io::Stdout> {
 	depth: usize,
 	stack: Vec<U256>,
 	storage: HashMap<H256, H256>,
+	subinfos: Vec<Informant<Trace, Out>>,
+	subdepth: usize,
 	trace_sink: Trace,
 	out_sink: Out,
 }
@@ -76,7 +78,17 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 			depth: Default::default(),
 			stack: Default::default(),
 			storage: Default::default(),
+			subinfos: Default::default(),
+			subdepth: 0,
 			trace_sink, out_sink
+		}
+	}
+
+	fn with_informant_in_depth<F: Fn(&mut Informant<Trace, Out>)>(informant: &mut Informant<Trace, Out>, depth: usize, f: F) {
+		if depth == 0 {
+			f(informant);
+		} else {
+			Self::with_informant_in_depth(informant.subinfos.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
 		}
 	}
 }
@@ -128,47 +140,64 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 	type Output = ();
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
-		let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
-		self.instruction = instruction;
-		let trace_data = json!({
-			"pc": pc,
-			"op": instruction,
-			"opName": info.map(|i| i.name).unwrap_or(""),
-			"gas": format!("{:#x}", current_gas),
-			"stack": self.stack,
-			"storage": self.storage,
-			"depth": self.depth,
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
+			let info = ::evm::Instruction::from_u8(instruction).map(|i| i.info());
+			informant.instruction = instruction;
+			let trace_data = json!({
+				"pc": pc,
+				"op": instruction,
+				"opName": info.map(|i| i.name).unwrap_or(""),
+				"gas": format!("{:#x}", current_gas),
+				"stack": informant.stack,
+				"storage": informant.storage,
+				"depth": informant.depth,
+			});
+
+			writeln!(&mut informant.trace_sink, "{}", trace_data).expect("The sink must be writeable.");
 		});
-
-		writeln!(&mut self.trace_sink, "{}", trace_data).expect("The sink must be writeable.");
-
 		true
 	}
 
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
+			if let Some((pos, val)) = store_written {
+				informant.storage.insert(pos.into(), val.into());
+			}
+		});
 	}
 
-	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
-		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
+	fn trace_executed(&mut self, _gas_used: U256, stack_push: &[U256], _mem: &[u8]) {
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
+			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-		let len = self.stack.len();
-		let info_args = info.map(|i| i.args).unwrap_or(0);
-		self.stack.truncate(if len > info_args { len - info_args } else { 0 });
-		self.stack.extend_from_slice(stack_push);
-
-		if let Some((pos, val)) = store_diff {
-			self.storage.insert(pos.into(), val.into());
-		}
+			let len = informant.stack.len();
+			let info_args = info.map(|i| i.args).unwrap_or(0);
+			informant.stack.truncate(if len > info_args { len - info_args } else { 0 });
+			informant.stack.extend_from_slice(stack_push);
+		});
 	}
 
-	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized {
-		let mut vm = Informant::new(self.trace_sink.clone(), self.out_sink.clone());
-		vm.depth = self.depth + 1;
-		vm.code = code.to_vec();
-		vm
+	fn prepare_subtrace(&mut self, code: &[u8]) {
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
+			let mut vm = Informant::new(informant.trace_sink.clone(), informant.out_sink.clone());
+			vm.depth = informant.depth + 1;
+			vm.code = code.to_vec();
+			informant.subinfos.push(vm);
+		});
+		self.subdepth += 1;
 	}
 
-	fn done_subtrace(&mut self, _sub: Self) {}
+	fn done_subtrace(&mut self) {
+		self.subdepth -= 1;
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant<Trace, Out>| {
+			informant.subinfos.pop();
+		});
+	}
 
 	fn drain(self) -> Option<Self::Output> { None }
 }
