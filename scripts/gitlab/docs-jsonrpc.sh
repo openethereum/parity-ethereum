@@ -29,9 +29,9 @@ setup_git() {
     git config user.name "Devops Parity"
 }
 
-set_remote_wiki() {                                                                                                                                   
-    git config remote.origin.url "https://${GITHUB_TOKEN}@github.com/paritytech/wiki.git"                                                             
-}                                                                                                                                                     
+set_remote_wiki() {
+    git config remote.origin.url "https://${GITHUB_TOKEN}@github.com/paritytech/wiki.git"
+}
 
 commit_files() {
     echo "__________Commit files__________"
