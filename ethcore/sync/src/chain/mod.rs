@@ -854,25 +854,23 @@ impl ChainSync {
 		match block_set {
 			BlockSet::NewBlocks => {
 				if self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) == DownloadAction::Reset {
-					trace!(target: "sync", "Restarting NewBlocks download");
-					self.restart(io);
+					self.reset_downloads(block_set);
+					self.new_blocks.reset();
 				}
 			},
 			BlockSet::OldBlocks => {
 				let mut is_complete = false;
+				let mut download_action = DownloadAction::None;
 				if let Some(downloader) = self.old_blocks.as_mut() {
-					if downloader.collect_blocks(io, false) == DownloadAction::Reset {
-						trace!(target: "sync", "Restarting OldBlocks download");
-						// reset in flight requests in order to prevent them being handled in the next round
-						for (pid, ref mut p) in &mut self.peers {
-							if p.block_set == Some(BlockSet::OldBlocks) {
-								p.reset_asking();
-								debug!(target: "sync", "Reset peer asking OldBlocks {:?}", pid);
-							}
-						}
+					download_action = downloader.collect_blocks(io, false);
+					is_complete = downloader.is_complete();
+				}
+
+				if download_action == DownloadAction::Reset {
+					self.reset_downloads(block_set);
+					if let Some(downloader) = self.old_blocks.as_mut() {
 						downloader.reset();
 					}
-					is_complete = downloader.is_complete();
 				}
 
 				if is_complete {
@@ -880,6 +878,14 @@ impl ChainSync {
 					self.old_blocks = None;
 				}
 			}
+		};
+	}
+
+	/// Mark all outstanding requests as expired
+	fn reset_downloads(&mut self, block_set: BlockSet) {
+		trace!("Resetting downloads for {:?}", block_set);
+		for (_, ref mut p) in self.peers.iter_mut().filter(|&(_, ref p)| p.block_set == Some(block_set)) {
+			p.reset_asking();
 		}
 	}
 

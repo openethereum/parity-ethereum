@@ -401,12 +401,8 @@ impl SyncHandler {
 			downloader.import_headers(io, r, expected_hash)?
 		};
 
-		if let DownloadAction::Reset = result {
-			// mark all outstanding requests as expired
-			trace!("Resetting downloads for {:?}", block_set);
-			for (_, ref mut p) in sync.peers.iter_mut().filter(|&(_, ref p)| p.block_set == Some(block_set)) {
-				p.reset_asking();
-			}
+		if result == DownloadAction::Reset {
+			sync.reset_downloads(block_set);
 		}
 
 		sync.collect_blocks(io, block_set);
