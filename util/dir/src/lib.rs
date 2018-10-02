@@ -20,9 +20,10 @@
 extern crate app_dirs;
 extern crate ethereum_types;
 extern crate journaldb;
+extern crate home;
 
 pub mod helpers;
-use std::{env, fs};
+use std::fs;
 use std::path::{PathBuf, Path};
 use ethereum_types::{H64, H256};
 use journaldb::Algorithm;
@@ -30,6 +31,8 @@ use helpers::{replace_home, replace_home_and_local};
 use app_dirs::{AppInfo, get_app_root, AppDataType};
 // re-export platform-specific functions
 use platform::*;
+
+pub use home::home_dir;
 
 /// Platform-specific chains path for standard client - Windows only
 #[cfg(target_os = "windows")] pub const CHAINS_PATH: &str = "$LOCAL/chains";
@@ -128,9 +131,9 @@ impl Directories {
 	}
 
 	/// Get the keys path
-	pub fn keys_path(&self, spec_name: &str) -> PathBuf {
+	pub fn keys_path(&self, data_dir: &str) -> PathBuf {
 		let mut dir = PathBuf::from(&self.keys);
-		dir.push(spec_name);
+		dir.push(data_dir);
 		dir
 	}
 }
@@ -237,7 +240,7 @@ pub fn default_hypervisor_path() -> PathBuf {
 
 /// Get home directory.
 fn home() -> PathBuf {
-	env::home_dir().expect("Failed to get home dir")
+	home_dir().expect("Failed to get home dir")
 }
 
 /// Geth path

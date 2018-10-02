@@ -71,11 +71,12 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 	assert_eq!(txq.status().status.transaction_count, 1);
 
 	// then
-	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 1.into()));
+	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 1));
 
 	// when
 	let tx1 = Tx::gas_price(2).signed();
 	let tx2 = Tx::gas_price(2).signed();
+	let sender = tx2.sender();
 	let tx3 = Tx::gas_price(1).signed();
 	let tx4 = Tx::gas_price(3).signed();
 	let res = txq.import(TestClient::new(), vec![tx1, tx2].retracted());
@@ -90,7 +91,8 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 			   Ok(())
 	]);
 	assert_eq!(txq.status().status.transaction_count, 3);
-	// First inserted transacton got dropped because of limit
+	// tx2 transacton got dropped because of limit
+	// tx1 and tx1' are kept, because they have lower insertion_ids so they are preferred.
 	assert_eq!(txq.next_nonce(TestClient::new(), &sender), None);
 }
 
@@ -123,7 +125,7 @@ fn should_never_drop_local_transactions_from_different_senders() {
 	assert_eq!(txq.status().status.transaction_count, 2);
 
 	// then
-	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 2.into()));
+	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 2));
 
 	// when
 	let tx1 = Tx::gas_price(2).signed();
@@ -137,7 +139,7 @@ fn should_never_drop_local_transactions_from_different_senders() {
 	assert_eq!(res, vec![Ok(()), Ok(())]);
 	assert_eq!(res2, vec![Ok(()), Ok(())]);
 	assert_eq!(txq.status().status.transaction_count, 6);
-	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 2.into()));
+	assert_eq!(txq.next_nonce(TestClient::new(), &sender), Some(nonce + 2));
 }
 
 #[test]
@@ -604,7 +606,7 @@ fn should_return_correct_nonce_when_transactions_from_given_address_exist() {
 	txq.import(TestClient::new(), vec![tx.local()]);
 
 	// then
-	assert_eq!(txq.next_nonce(TestClient::new(), &from), Some(nonce + 1.into()));
+	assert_eq!(txq.next_nonce(TestClient::new(), &from), Some(nonce + 1 ));
 }
 
 #[test]

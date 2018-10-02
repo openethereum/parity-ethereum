@@ -23,8 +23,9 @@ use call_type::CallType;
 use env_info::EnvInfo;
 use schedule::Schedule;
 use return_data::ReturnData;
-use error::Result;
+use error::{Result, TrapKind};
 
+#[derive(Debug)]
 /// Result of externalities create function.
 pub enum ContractCreateResult {
 	/// Returned when creation was successfull.
@@ -37,6 +38,7 @@ pub enum ContractCreateResult {
 	Reverted(U256, ReturnData),
 }
 
+#[derive(Debug)]
 /// Result of externalities call function.
 pub enum MessageCallResult {
 	/// Returned when message call was successfull.
@@ -53,9 +55,9 @@ pub enum MessageCallResult {
 /// Specifies how an address is calculated for a new contract.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum CreateContractAddress {
-	/// Address is calculated from sender and nonce. Pre EIP-86 (Metropolis)
+	/// Address is calculated from sender and nonce. pWASM `create` scheme.
 	FromSenderAndNonce,
-	/// Address is calculated from sender, salt and code hash. EIP-86 CREATE2 scheme.
+	/// Address is calculated from sender, salt and code hash. pWASM `create2` scheme and EIP-1014 CREATE2 scheme.
 	FromSenderSaltAndCodeHash(H256),
 	/// Address is calculated from code hash and sender. Used by pwasm create ext.
 	FromSenderAndCodeHash,
@@ -63,6 +65,9 @@ pub enum CreateContractAddress {
 
 /// Externalities interface for EVMs
 pub trait Ext {
+	/// Returns the storage value for a given key if reversion happens on the current transaction.
+	fn initial_storage_at(&self, key: &H256) -> Result<H256>;
+
 	/// Returns a value for given key.
 	fn storage_at(&self, key: &H256) -> Result<H256>;
 
@@ -87,23 +92,31 @@ pub trait Ext {
 	/// Creates new contract.
 	///
 	/// Returns gas_left and contract address if contract creation was succesfull.
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult;
+	fn create(
+		&mut self,
+		gas: &U256,
+		value: &U256,
+		code: &[u8],
+		address: CreateContractAddress,
+		trap: bool,
+	) -> ::std::result::Result<ContractCreateResult, TrapKind>;
 
 	/// Message call.
 	///
 	/// Returns Err, if we run out of gas.
 	/// Otherwise returns call_result which contains gas left
 	/// and true if subcall was successfull.
-	fn call(&mut self,
+	fn call(
+		&mut self,
 		gas: &U256,
 		sender_address: &Address,
 		receive_address: &Address,
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		output: &mut [u8],
-		call_type: CallType
-	) -> MessageCallResult;
+		call_type: CallType,
+		trap: bool
+	) -> ::std::result::Result<MessageCallResult, TrapKind>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>>;
@@ -137,17 +150,20 @@ pub trait Ext {
 	/// then A depth is 0, B is 1, C is 2 and so on.
 	fn depth(&self) -> usize;
 
-	/// Increments sstore refunds count by 1.
-	fn inc_sstore_clears(&mut self);
+	/// Increments sstore refunds counter.
+	fn add_sstore_refund(&mut self, value: U256);
+
+	/// Decrements sstore refunds counter.
+	fn sub_sstore_refund(&mut self, value: U256);
 
 	/// Decide if any more operations should be traced. Passthrough for the VM trace.
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
 
 	/// Prepare to trace an operation. Passthrough for the VM trace.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, _store_written: Option<(U256, U256)>) {}
 
 	/// Trace the finalised execution of a single instruction.
-	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
+	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem: &[u8]) {}
 
 	/// Check if running in static context.
 	fn is_static(&self) -> bool;

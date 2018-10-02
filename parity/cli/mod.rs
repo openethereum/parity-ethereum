@@ -288,7 +288,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, tobalaba, musicoin, ellaism, easthub, social, testnet, kovan or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, tobalaba, expanse, musicoin, ellaism, easthub, social, olympic, morden, ropsten, kovan, poasokol, testnet, or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| c.parity.as_ref()?.keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -338,7 +338,7 @@ usage! {
 
 			ARG arg_unlock: (Option<String>) = None, or |c: &Config| c.account.as_ref()?.unlock.as_ref().map(|vec| vec.join(",")),
 			"--unlock=[ACCOUNTS]",
-			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses. Implies --no-ui.",
+			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses.",
 
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| c.account.as_ref()?.password.clone(),
 			"--password=[FILE]...",
@@ -407,7 +407,7 @@ usage! {
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
 
-			ARG arg_interface: (String)  = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
+			ARG arg_interface: (String) = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
 			"--interface=[IP]",
 			"Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want parity to listen to.",
 
@@ -471,13 +471,13 @@ usage! {
 			"--jsonrpc-port=[PORT]",
 			"Specify the port portion of the HTTP JSON-RPC API server.",
 
-			ARG arg_jsonrpc_interface: (String)  = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
+			ARG arg_jsonrpc_interface: (String) = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
 			"--jsonrpc-interface=[IP]",
 			"Specify the hostname portion of the HTTP JSON-RPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
 			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-apis=[APIS]",
-			"Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
+			"Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, debug, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
 			ARG arg_jsonrpc_hosts: (String) = "none", or |c: &Config| c.rpc.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-hosts=[HOSTS]",
@@ -485,7 +485,7 @@ usage! {
 
 			ARG arg_jsonrpc_threads: (usize) = 4usize, or |c: &Config| c.rpc.as_ref()?.processing_threads,
 			"--jsonrpc-threads=[THREADS]",
-			"Turn on additional processing threads in all HTTP JSON-RPC servers. Setting this to non-zero value allows parallel execution of cpu-heavy queries.",
+			"Turn on additional processing threads for JSON-RPC servers (all transports). Setting this to a non-zero value allows parallel execution of cpu-heavy queries.",
 
 			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| c.rpc.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-cors=[URL]",
@@ -508,7 +508,7 @@ usage! {
 			"--ws-port=[PORT]",
 			"Specify the port portion of the WebSockets JSON-RPC server.",
 
-			ARG arg_ws_interface: (String)  = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
+			ARG arg_ws_interface: (String) = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
 			"--ws-interface=[IP]",
 			"Specify the hostname portion of the WebSockets JSON-RPC server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
@@ -561,6 +561,15 @@ usage! {
 			ARG arg_ipfs_api_cors: (String) = "none", or |c: &Config| c.ipfs.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
 			"--ipfs-api-cors=[URL]",
 			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
+
+		["Light Client Options"]
+			ARG arg_on_demand_retry_count: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_retry_count,
+			"--on-demand-retry-count=[RETRIES]",
+			"Specify the query retry count.",
+
+			ARG arg_on_demand_inactive_time_limit: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_inactive_time_limit,
+			"--on-demand-inactive-time-limit=[MS]",
+			"Specify light client query inactive time limit. O for no limit.",
 
 		["Secret Store Options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
@@ -704,11 +713,11 @@ usage! {
 			"--price-update-period=[T]",
 			"T will be allowed to pass between each gas price update. T may be daily, hourly, a number of seconds, or a time string of the form \"2 days\", \"30 minutes\" etc..",
 
-			ARG arg_gas_floor_target: (String) = "4700000", or |c: &Config| c.mining.as_ref()?.gas_floor_target.clone(),
+			ARG arg_gas_floor_target: (String) = "8000000", or |c: &Config| c.mining.as_ref()?.gas_floor_target.clone(),
 			"--gas-floor-target=[GAS]",
 			"Amount of gas per block to target when sealing a new block.",
 
-			ARG arg_gas_cap: (String) = "6283184", or |c: &Config| c.mining.as_ref()?.gas_cap.clone(),
+			ARG arg_gas_cap: (String) = "10000000", or |c: &Config| c.mining.as_ref()?.gas_cap.clone(),
 			"--gas-cap=[GAS]",
 			"A cap on how large we will raise the gas limit per block due to transaction volume.",
 
@@ -865,6 +874,10 @@ usage! {
 			"--no-periodic-snapshot",
 			"Disable automated snapshots which usually occur once every 10000 blocks.",
 
+			ARG arg_snapshot_threads: (Option<usize>) = None, or |c: &Config| c.snapshots.as_ref()?.processing_threads,
+			"--snapshot-threads=[NUM]",
+			"Enables multiple threads for snapshots creation.",
+
 		["Whisper Options"]
 			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
 			"--whisper",
@@ -875,7 +888,7 @@ usage! {
 			"Target size of the whisper message pool in megabytes.",
 
 		["Legacy Options"]
-		    // Options that are hidden from config, but are still unique for its functionality.
+			// Options that are hidden from config, but are still unique for its functionality.
 
 			FLAG flag_geth: (bool) = false, or |_| None,
 			"--geth",
@@ -1100,6 +1113,7 @@ struct Config {
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
 	whisper: Option<Whisper>,
+	light: Option<Light>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1345,6 +1359,7 @@ struct Footprint {
 #[serde(deny_unknown_fields)]
 struct Snapshots {
 	disable_periodic: Option<bool>,
+	processing_threads: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1364,12 +1379,19 @@ struct Whisper {
 	pool_size: Option<usize>,
 }
 
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Light {
+	on_demand_retry_count: Option<usize>,
+	on_demand_inactive_time_limit: Option<u64>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, Misc, Whisper, SecretStore,
+		Snapshots, Misc, Whisper, SecretStore, Light,
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
@@ -1712,7 +1734,7 @@ mod tests {
 			arg_reseal_max_period: 60000u64,
 			flag_reseal_on_uncle: false,
 			arg_work_queue_size: 20usize,
-			arg_tx_gas_limit: Some("6283184".into()),
+			arg_tx_gas_limit: Some("10000000".into()),
 			arg_tx_time_limit: Some(100u64),
 			arg_relay_set: "cheap".into(),
 			arg_min_gas_price: Some(0u64),
@@ -1721,8 +1743,8 @@ mod tests {
 			arg_poll_lifetime: 60u32,
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
-			arg_gas_floor_target: "4700000".into(),
-			arg_gas_cap: "6283184".into(),
+			arg_gas_floor_target: "8000000".into(),
+			arg_gas_cap: "10000000".into(),
 			arg_extra_data: Some("Parity".into()),
 			flag_tx_queue_no_unfamiliar_locals: false,
 			flag_tx_queue_no_early_reject: false,
@@ -1771,6 +1793,11 @@ mod tests {
 			arg_export_state_at: "latest".into(),
 			arg_snapshot_at: "latest".into(),
 			flag_no_periodic_snapshot: false,
+			arg_snapshot_threads: None,
+
+			// -- Light options.
+			arg_on_demand_retry_count: Some(15),
+			arg_on_demand_inactive_time_limit: Some(15000),
 
 			// -- Whisper options.
 			flag_whisper: false,
@@ -2019,8 +2046,13 @@ mod tests {
 				scale_verifiers: Some(false),
 				num_verifiers: None,
 			}),
+			light: Some(Light {
+				on_demand_retry_count: Some(12),
+				on_demand_inactive_time_limit: Some(20000),
+			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
+				processing_threads: None,
 			}),
 			misc: Some(Misc {
 				logging: Some("own_tx=trace".into()),

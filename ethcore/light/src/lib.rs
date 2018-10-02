@@ -43,7 +43,7 @@ pub mod provider;
 mod types;
 
 pub use self::cache::Cache;
-pub use self::provider::Provider;
+pub use self::provider::{Provider, MAX_HEADERS_PER_REQUEST};
 pub use self::transaction_queue::TransactionQueue;
 pub use types::request as request;
 
@@ -68,7 +68,7 @@ extern crate keccak_hasher;
 extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate patricia_trie_ethereum as ethtrie;
-extern crate plain_hasher;
+extern crate fastmap;
 extern crate rand;
 extern crate rlp;
 extern crate parking_lot;

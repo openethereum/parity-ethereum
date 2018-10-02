@@ -68,15 +68,24 @@ pub type RunResult<T> = Result<Success<T>, Failure<T>>;
 /// Execute given `ActionParams` and return the result.
 pub fn run_action<T: Informant>(
 	spec: &spec::Spec,
-	params: ActionParams,
+	mut params: ActionParams,
 	mut informant: T,
 ) -> RunResult<T::Output> {
 	informant.set_gas(params.gas);
-	run(spec, params.gas, None, |mut client| {
-		let result = client
-			.call(params, &mut trace::NoopTracer, &mut informant)
-			.map(|r| (0.into(), r.gas_left, r.return_data.to_vec()));
-		(result, informant.drain())
+
+	// if the code is not overwritten from CLI, use code from spec file.
+	if params.code.is_none() {
+		if let Some(acc) = spec.genesis_state().get().get(&params.code_address) {
+			params.code = acc.code.clone().map(::std::sync::Arc::new);
+			params.code_hash = None;
+		}
+	}
+	run(spec, params.gas, spec.genesis_state(), |mut client| {
+		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
+			Ok(r) => (Ok((0.into(), r.return_data.to_vec())), Some(r.gas_left)),
+			Err(err) => (Err(err), None),
+		};
+		(result.0, result.1, informant.drain())
 	})
 }
 
@@ -84,7 +93,7 @@ pub fn run_action<T: Informant>(
 pub fn run_transaction<T: Informant>(
 	name: &str,
 	idx: usize,
-	spec: &ethjson::state::test::ForkSpec,
+	spec: &ethjson::spec::ForkSpec,
 	pre_state: &pod_state::PodState,
 	post_root: H256,
 	env_info: &client::EnvInfo,
@@ -105,23 +114,23 @@ pub fn run_transaction<T: Informant>(
 
 	informant.set_gas(env_info.gas_limit);
 
-	let result = run(&spec, env_info.gas_limit, pre_state, |mut client| {
+	let result = run(&spec, transaction.gas, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
-			TransactResult::Ok { state_root, .. } if state_root != post_root => {
+			TransactResult::Ok { state_root, gas_left, .. } if state_root != post_root => {
 				(Err(EvmTestError::PostCondition(format!(
-					"State root mismatch (got: {}, expected: {})",
+					"State root mismatch (got: 0x{:x}, expected: 0x{:x})",
 					state_root,
 					post_root,
-				))), None)
+				))), Some(gas_left), None)
 			},
 			TransactResult::Ok { state_root, gas_left, output, vm_trace, .. } => {
-				(Ok((state_root, gas_left, output)), vm_trace)
+				(Ok((state_root, output)), Some(gas_left), vm_trace)
 			},
 			TransactResult::Err { error, .. } => {
 				(Err(EvmTestError::PostCondition(format!(
 					"Unexpected execution error: {:?}", error
-				))), None)
+				))), None, None)
 			},
 		}
 	});
@@ -130,39 +139,36 @@ pub fn run_transaction<T: Informant>(
 }
 
 /// Execute VM with given `ActionParams`
-pub fn run<'a, F, T, X>(
+pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
 	initial_gas: U256,
-	pre_state: T,
+	pre_state: &'a pod_state::PodState,
 	run: F,
 ) -> RunResult<X> where
-	F: FnOnce(EvmTestClient) -> (Result<(H256, U256, Vec<u8>), EvmTestError>, Option<X>),
-	T: Into<Option<&'a pod_state::PodState>>,
+	F: FnOnce(EvmTestClient) -> (Result<(H256, Vec<u8>), EvmTestError>, Option<U256>, Option<X>),
 {
-	let test_client = match pre_state.into() {
-		Some(pre_state) => EvmTestClient::from_pod_state(spec, pre_state.clone()),
-		None => EvmTestClient::new(spec),
-	}.map_err(|error| Failure {
-		gas_used: 0.into(),
-		error,
-		time: Duration::from_secs(0),
-		traces: None,
-	})?;
+	let test_client = EvmTestClient::from_pod_state(spec, pre_state.clone())
+		.map_err(|error| Failure {
+			gas_used: 0.into(),
+			error,
+			time: Duration::from_secs(0),
+			traces: None,
+		})?;
 
 	let start = Instant::now();
 	let result = run(test_client);
 	let time = start.elapsed();
 
 	match result {
-		(Ok((state_root, gas_left, output)), traces) => Ok(Success {
+		(Ok((state_root, output)), gas_left, traces) => Ok(Success {
 			state_root,
-			gas_used: initial_gas - gas_left,
+			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
 			output,
 			time,
 			traces,
 		}),
-		(Err(error), traces) => Err(Failure {
-			gas_used: initial_gas,
+		(Err(error), gas_left, traces) => Err(Failure {
+			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
 			error,
 			time,
 			traces,
@@ -203,5 +209,32 @@ pub mod tests {
 				compare(traces, expected)
 			},
 		}
+	}
+
+	#[test]
+	fn should_call_account_from_spec() {
+		use display::std_json::tests::informant;
+
+		let (inf, res) = informant();
+		let mut params = ActionParams::default();
+		params.code_address = 0x20.into();
+		params.gas = 0xffff.into();
+
+		let spec = ::ethcore::ethereum::load(None, include_bytes!("../res/testchain.json"));
+		let _result = run_action(&spec, params, inf);
+
+		assert_eq!(
+			&String::from_utf8_lossy(&**res.lock().unwrap()),
+r#"{"depth":1,"gas":"0xffff","op":98,"opName":"PUSH3","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xfffc","op":96,"opName":"PUSH1","pc":4,"stack":["0xaaaaaa"],"storage":{}}
+{"depth":1,"gas":"0xfff9","op":96,"opName":"PUSH1","pc":6,"stack":["0xaaaaaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xfff6","op":80,"opName":"POP","pc":8,"stack":["0xaaaaaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xfff4","op":96,"opName":"PUSH1","pc":9,"stack":["0xaaaaaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xfff1","op":96,"opName":"PUSH1","pc":11,"stack":["0xaaaaaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xffee","op":96,"opName":"PUSH1","pc":13,"stack":["0xaaaaaa","0xaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xffeb","op":96,"opName":"PUSH1","pc":15,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xffe8","op":96,"opName":"PUSH1","pc":17,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
+{"depth":1,"gas":"0xffe5","op":96,"opName":"PUSH1","pc":19,"stack":["0xaaaaaa","0xaa","0xaa","0xaa","0xaa","0xaa","0xaa"],"storage":{}}
+"#);
 	}
 }

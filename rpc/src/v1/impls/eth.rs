@@ -24,17 +24,15 @@ use rlp::Rlp;
 use ethereum_types::{U256, H256, Address};
 use parking_lot::Mutex;
 
-use ethash::SeedHashCompute;
+use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
-use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
-use ethcore::log_entry::LogEntry;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
-use sync::{SyncProvider};
+use sync::SyncProvider;
 use miner::external::ExternalMinerService;
 use transaction::{SignedTransaction, LocalizedTransaction};
 
@@ -53,7 +51,7 @@ use v1::types::{
 };
 use v1::metadata::Metadata;
 
-const EXTRA_INFO_PROOF: &'static str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+const EXTRA_INFO_PROOF: &str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 
 /// Eth RPC options
 pub struct EthClientOptions {
@@ -420,20 +418,18 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
 	let receipts = miner.pending_receipts(best_block).unwrap_or_default();
 
-	let pending_logs = receipts.into_iter()
-		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
-		.collect::<Vec<(H256, LogEntry)>>();
-
-	let result = pending_logs.into_iter()
+	receipts.into_iter()
+		.flat_map(|r| {
+			let hash = r.transaction_hash;
+			r.logs.into_iter().map(move |l| (hash, l))
+		})
 		.filter(|pair| filter.matches(&pair.1))
 		.map(|pair| {
 			let mut log = Log::from(pair.1);
 			log.transaction_hash = Some(pair.0.into());
 			log
 		})
-		.collect();
-
-	result
+		.collect()
 }
 
 fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockChainClient {
@@ -501,12 +497,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn author(&self) -> Result<RpcH160> {
-		let mut miner = self.miner.authoring_params().author;
+		let miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
-			miner = self.accounts.accounts().ok().and_then(|a| a.get(0).cloned()).unwrap_or_default();
+			self.accounts.accounts()
+				.ok()
+				.and_then(|a| a.first().cloned())
+				.map(From::from)
+				.ok_or_else(|| errors::account("No accounts were found", ""))
+		} else {
+			Ok(RpcH160::from(miner))
 		}
-
-		Ok(RpcH160::from(miner))
 	}
 
 	fn is_mining(&self) -> Result<bool> {
@@ -672,16 +672,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>> {
-		let best_block = self.client.chain_info().best_block_number;
 		let hash: H256 = hash.into();
 
-		match (self.miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
-			(Some(receipt), true) => Box::new(future::ok(Some(receipt.into()))),
-			_ => {
-				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-				Box::new(future::ok(receipt.map(Into::into)))
+		if self.options.allow_pending_receipt_query {
+			let best_block = self.client.chain_info().best_block_number;
+			if let Some(receipt) = self.miner.pending_receipt(best_block, &hash) {
+				return Box::new(future::ok(Some(receipt.into())));
 			}
 		}
+
+		let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
+		Box::new(future::ok(receipt.map(Into::into)))
 	}
 
 	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>> {
@@ -709,11 +710,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
 		let include_pending = filter.to_block == Some(BlockNumber::Pending);
-		let filter: EthcoreFilter = filter.into();
-		let mut logs = self.client.logs(filter.clone())
-			.into_iter()
-			.map(From::from)
-			.collect::<Vec<Log>>();
+		let filter: EthcoreFilter = match filter.try_into() {
+			Ok(value) => value,
+			Err(err) => return Box::new(future::err(err)),
+		};
+		let mut logs = match self.client.logs(filter.clone()) {
+			Ok(logs) => logs
+				.into_iter()
+				.map(From::from)
+				.collect::<Vec<Log>>(),
+			Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
+		};
 
 		if include_pending {
 			let best_block = self.client.chain_info().best_block_number;
@@ -735,7 +742,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			let queue_info = self.client.queue_info();
 			let total_queue_size = queue_info.total_queue_size();
 
-			if is_major_importing(Some(sync_status.state), queue_info) || total_queue_size > MAX_QUEUE_SIZE_TO_MINE_ON {
+			if sync_status.is_snapshot_syncing() || total_queue_size > MAX_QUEUE_SIZE_TO_MINE_ON {
 				trace!(target: "miner", "Syncing. Cannot give any work.");
 				return Err(errors::no_work());
 			}
@@ -758,7 +765,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		})?;
 
 		let (pow_hash, number, timestamp, difficulty) = work;
-		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let target = ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = self.seed_compute.lock().hash_block_number(number);
 
 		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();

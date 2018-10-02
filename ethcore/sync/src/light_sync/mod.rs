@@ -427,7 +427,7 @@ impl<L: AsLightClient> LightSync<L> {
 
 	// handles request dispatch, block import, state machine transitions, and timeouts.
 	fn maintain_sync(&self, ctx: &BasicContext) {
-		use ethcore::error::{BlockImportError, BlockImportErrorKind, ImportErrorKind};
+		use ethcore::error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind};
 
 		const DRAIN_AMOUNT: usize = 128;
 
@@ -457,10 +457,10 @@ impl<L: AsLightClient> LightSync<L> {
 				for header in sink.drain(..) {
 					match client.queue_header(header) {
 						Ok(_) => {}
-						Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 							trace!(target: "sync", "Block already in chain. Continuing.");
 						},
-						Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
+						Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
 							trace!(target: "sync", "Block already queued. Continuing.");
 						},
 						Err(e) => {
@@ -614,6 +614,27 @@ impl<L: AsLightClient> LightSync<L> {
 			};
 		}
 	}
+
+	fn is_major_importing_do_wait(&self, wait: bool) -> bool {
+		const EMPTY_QUEUE: usize = 3;
+
+		if self.client.as_light_client().queue_info().unverified_queue_size > EMPTY_QUEUE {
+			return true;
+		}
+		let mg_state = if wait {
+			self.state.lock()
+		} else {
+			if let Some(mg_state) = self.state.try_lock() {
+				mg_state
+			} else {
+				return false;
+			}
+		};
+		match *mg_state {
+			SyncState::Idle => false,
+			_ => true,
+		}
+	}
 }
 
 // public API
@@ -645,6 +666,9 @@ pub trait SyncInfo {
 
 	/// Whether major sync is underway.
 	fn is_major_importing(&self) -> bool;
+
+	/// Whether major sync is underway, skipping some synchronization.
+	fn is_major_importing_no_sync(&self) -> bool;
 }
 
 impl<L: AsLightClient> SyncInfo for LightSync<L> {
@@ -657,15 +681,11 @@ impl<L: AsLightClient> SyncInfo for LightSync<L> {
 	}
 
 	fn is_major_importing(&self) -> bool {
-		const EMPTY_QUEUE: usize = 3;
-
-		if self.client.as_light_client().queue_info().unverified_queue_size > EMPTY_QUEUE {
-			return true;
-		}
-
-		match *self.state.lock() {
-			SyncState::Idle => false,
-			_ => true,
-		}
+		self.is_major_importing_do_wait(true)
 	}
+
+	fn is_major_importing_no_sync(&self) -> bool {
+		self.is_major_importing_do_wait(false)
+	}
+
 }

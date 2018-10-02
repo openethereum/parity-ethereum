@@ -37,16 +37,17 @@ use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
-	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
+	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient
+	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
+	BadBlocks,
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use error::{Error, ImportResult};
+use error::{Error, EthcoreResult};
 use vm::Schedule;
 use miner::{self, Miner, MinerService};
 use spec::Spec;
@@ -94,6 +95,8 @@ pub struct TestBlockChainClient {
 	pub receipts: RwLock<HashMap<TransactionId, LocalizedReceipt>>,
 	/// Logs
 	pub logs: RwLock<Vec<LocalizedLogEntry>>,
+	/// Should return errors on logs.
+	pub error_on_logs: RwLock<Option<BlockId>>,
 	/// Block queue size.
 	pub queue_size: AtomicUsize,
 	/// Miner
@@ -178,6 +181,7 @@ impl TestBlockChainClient {
 			traces: RwLock::new(None),
 			history: RwLock::new(None),
 			disabled: AtomicBool::new(false),
+			error_on_logs: RwLock::new(None),
 		};
 
 		// insert genesis hash.
@@ -231,6 +235,11 @@ impl TestBlockChainClient {
 	/// Set logs to return for each logs call.
 	pub fn set_logs(&self, logs: Vec<LocalizedLogEntry>) {
 		*self.logs.write() = logs;
+	}
+
+	/// Set return errors on logs.
+	pub fn set_error_on_logs(&self, val: Option<BlockId>) {
+		*self.error_on_logs.write() = val;
 	}
 
 	/// Add blocks to test client.
@@ -407,7 +416,7 @@ impl ScheduleInfo for TestBlockChainClient {
 }
 
 impl ImportSealedBlock for TestBlockChainClient {
-	fn import_sealed_block(&self, _block: SealedBlock) -> ImportResult {
+	fn import_sealed_block(&self, _block: SealedBlock) -> EthcoreResult<H256> {
 		Ok(H256::default())
 	}
 }
@@ -514,7 +523,7 @@ impl RegistryInfo for TestBlockChainClient {
 }
 
 impl ImportBlock for TestBlockChainClient {
-	fn import_block(&self, unverified: Unverified) -> Result<H256, BlockImportError> {
+	fn import_block(&self, unverified: Unverified) -> EthcoreResult<H256> {
 		let header = unverified.header;
 		let h = header.hash();
 		let number: usize = header.number() as usize;
@@ -607,6 +616,19 @@ impl EngineInfo for TestBlockChainClient {
 	}
 }
 
+impl BadBlocks for TestBlockChainClient {
+	fn bad_blocks(&self) -> Vec<(Unverified, String)> {
+		vec![
+			(Unverified {
+				header: Default::default(),
+				transactions: vec![],
+				uncles: vec![],
+				bytes: vec![1, 2, 3],
+			}, "Invalid block".into())
+		]
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn replay(&self, _id: TransactionId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -665,13 +687,22 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+	fn block_receipts(&self, _id: BlockId) -> Option<Vec<LocalizedReceipt>> {
+		Some(self.receipts.read().values().cloned().collect())
+	}
+
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId> {
+		match self.error_on_logs.read().as_ref() {
+			Some(id) => return Err(id.clone()),
+			None => (),
+		}
+
 		let mut logs = self.logs.read().clone();
 		let len = logs.len();
-		match filter.limit {
+		Ok(match filter.limit {
 			Some(limit) if limit <= len => logs.split_off(len - limit),
 			_ => logs,
-		}
+		})
 	}
 
 	fn last_hashes(&self) -> LastHashes {
@@ -759,7 +790,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes> {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
@@ -847,8 +878,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn registrar_address(&self) -> Option<Address> { None }
-
-	fn eip86_transition(&self) -> u64 { u64::max_value() }
 }
 
 impl IoClient for TestBlockChainClient {
@@ -858,7 +887,7 @@ impl IoClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> Result<H256, BlockImportError> {
+	fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> EthcoreResult<H256> {
 		self.import_block(unverified)
 	}
 

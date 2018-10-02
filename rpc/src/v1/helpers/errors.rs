@@ -20,11 +20,13 @@ use std::fmt;
 
 use ethcore::account_provider::{SignError as AccountError};
 use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
+use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
+use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -97,6 +99,14 @@ pub fn request_rejected_limit() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::REQUEST_REJECTED_LIMIT),
 		message: "Request has been rejected because of queue limit.".into(),
+		data: None,
+	}
+}
+
+pub fn request_rejected_param_limit(limit: u64, items_desc: &str) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::REQUEST_REJECTED_LIMIT),
+		message: format!("Requested data size exceeds limit of {} {}.", limit, items_desc),
 		data: None,
 	}
 }
@@ -431,7 +441,54 @@ pub fn filter_not_found() -> Error {
 	}
 }
 
+pub fn filter_block_not_found(id: BlockId) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST), // Specified in EIP-234.
+		message: "One of the blocks specified in filter (fromBlock, toBlock or blockHash) cannot be found".into(),
+		data: Some(Value::String(match id {
+			BlockId::Hash(hash) => format!("0x{:x}", hash),
+			BlockId::Number(number) => format!("0x{:x}", number),
+			BlockId::Earliest => "earliest".to_string(),
+			BlockId::Latest => "latest".to_string(),
+		})),
+	}
+}
+
+pub fn on_demand_error(err: OnDemandError) -> Error {
+	match err {
+		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
+		OnDemandError(OnDemandErrorKind::MaxAttemptReach(_), _) => max_attempts_reached(&err),
+		OnDemandError(OnDemandErrorKind::TimeoutOnNewPeers(_,_), _) => timeout_new_peer(&err),
+		_ => on_demand_others(&err),
+	}
+}
+
 // on-demand sender cancelled.
 pub fn on_demand_cancel(_cancel: futures::sync::oneshot::Canceled) -> Error {
 	internal("on-demand sender cancelled", "")
 }
+
+pub fn max_attempts_reached(err: &OnDemandError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::REQUEST_NOT_FOUND),
+		message: err.to_string(),
+		data: None,
+	}
+}
+
+pub fn timeout_new_peer(err: &OnDemandError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
+		message: err.to_string(),
+		data: None,
+	}
+}
+
+pub fn on_demand_others(err: &OnDemandError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
+		message: err.to_string(),
+		data: None,
+	}
+}
+

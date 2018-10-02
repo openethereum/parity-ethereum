@@ -28,7 +28,7 @@ use ethcore::spec::{Genesis, Spec};
 use ethcore::test_helpers;
 use ethcore::verification::queue::kind::blocks::Unverified;
 use ethjson::blockchain::BlockChain;
-use ethjson::state::test::ForkSpec;
+use ethjson::spec::ForkSpec;
 use io::IoChannel;
 use miner::external::ExternalMiner;
 use parking_lot::Mutex;

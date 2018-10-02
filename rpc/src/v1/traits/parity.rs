@@ -27,7 +27,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
-	AccountInfo, HwAccountInfo, RichHeader,
+	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 };
 
 build_rpc_trait! {
@@ -178,7 +178,7 @@ build_rpc_trait! {
 		#[rpc(name = "parity_chainId")]
 		fn chain_id(&self) -> Result<Option<U64>>;
 
-		/// Get the chain name. Returns one of: "foundation", "kovan", &c. of a filename.
+		/// Get the chain name. Returns one of the pre-configured chain names or a filename.
 		#[rpc(name = "parity_chain")]
 		fn chain(&self) -> Result<String>;
 
@@ -210,6 +210,12 @@ build_rpc_trait! {
 		/// Same as `eth_getBlockByNumber` but without uncles and transactions.
 		#[rpc(name = "parity_getBlockHeaderByNumber")]
 		fn block_header(&self, Trailing<BlockNumber>) -> BoxFuture<RichHeader>;
+
+		/// Get block receipts.
+		/// Allows you to fetch receipts from the entire block at once.
+		/// If no parameter is provided defaults to `latest`.
+		#[rpc(name = "parity_getBlockReceipts")]
+		fn block_receipts(&self, Trailing<BlockNumber>) -> BoxFuture<Vec<Receipt>>;
 
 		/// Get IPFS CIDv0 given protobuf encoded bytes.
 		#[rpc(name = "parity_cidV0")]

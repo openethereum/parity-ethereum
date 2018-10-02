@@ -38,9 +38,9 @@ impl<'a> BodyView<'a> {
 	/// ```
 	/// #[macro_use]
 	/// extern crate ethcore;
-	/// 
+	///
 	/// use ethcore::views::{BodyView};
-	/// 
+	///
 	/// fn main() {
 	/// let bytes : &[u8] = &[];
 	/// let body_view = view!(BodyView, bytes);

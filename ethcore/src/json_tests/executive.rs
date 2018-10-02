@@ -30,7 +30,7 @@ use test_helpers::get_temp_state;
 use ethjson;
 use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};
-use bytes::{Bytes, BytesRef};
+use bytes::Bytes;
 use ethtrie;
 use rlp::RlpStream;
 use hash::keccak;
@@ -88,9 +88,9 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		machine: &'a Machine,
 		schedule: &'a Schedule,
 		depth: usize,
-		origin_info: OriginInfo,
+		origin_info: &'a OriginInfo,
 		substate: &'a mut Substate,
-		output: OutputPolicy<'a, 'a>,
+		output: OutputPolicy,
 		address: Address,
 		tracer: &'a mut T,
 		vm_tracer: &'a mut V,
@@ -98,7 +98,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		let static_call = false;
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,
-			ext: Externalities::new(state, info, machine, schedule, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
+			ext: Externalities::new(state, info, machine, schedule, depth, 0, origin_info, substate, output, tracer, vm_tracer, static_call),
 			callcreates: vec![],
 			sender: address,
 		})
@@ -110,6 +110,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 {
 	fn storage_at(&self, key: &H256) -> vm::Result<H256> {
 		self.ext.storage_at(key)
+	}
+
+	fn initial_storage_at(&self, key: &H256) -> vm::Result<H256> {
+		self.ext.initial_storage_at(key)
 	}
 
 	fn set_storage(&mut self, key: H256, value: H256) -> vm::Result<()> {
@@ -136,7 +140,14 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.blockhash(number)
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult {
+	fn create(
+		&mut self,
+		gas: &U256,
+		value: &U256,
+		code: &[u8],
+		address: CreateContractAddress,
+		_trap: bool
+	) -> Result<ContractCreateResult, vm::TrapKind> {
 		self.callcreates.push(CallCreate {
 			data: code.to_vec(),
 			destination: None,
@@ -144,26 +155,27 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 			value: *value
 		});
 		let contract_address = contract_address(address, &self.sender, &self.nonce, &code).0;
-		ContractCreateResult::Created(contract_address, *gas)
+		Ok(ContractCreateResult::Created(contract_address, *gas))
 	}
 
-	fn call(&mut self,
+	fn call(
+		&mut self,
 		gas: &U256,
 		_sender_address: &Address,
 		receive_address: &Address,
 		value: Option<U256>,
 		data: &[u8],
 		_code_address: &Address,
-		_output: &mut [u8],
-		_call_type: CallType
-	) -> MessageCallResult {
+		_call_type: CallType,
+		_trap: bool
+	) -> Result<MessageCallResult, vm::TrapKind> {
 		self.callcreates.push(CallCreate {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),
 			gas_limit: *gas,
 			value: value.unwrap()
 		});
-		MessageCallResult::Success(*gas, ReturnData::empty())
+		Ok(MessageCallResult::Success(*gas, ReturnData::empty()))
 	}
 
 	fn extcode(&self, address: &Address) -> vm::Result<Option<Arc<Bytes>>>  {
@@ -206,8 +218,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		false
 	}
 
-	fn inc_sstore_clears(&mut self) {
-		self.ext.inc_sstore_clears()
+	fn add_sstore_refund(&mut self, value: U256) {
+		self.ext.add_sstore_refund(value)
+	}
+
+	fn sub_sstore_refund(&mut self, value: U256) {
+		self.ext.sub_sstore_refund(value)
 	}
 }
 
@@ -262,8 +278,8 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 		let mut substate = Substate::new();
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
-		let mut output = vec![];
 		let vm_factory = state.vm_factory();
+		let origin_info = OriginInfo::from(&params);
 
 		// execute
 		let (res, callcreates) = {
@@ -274,18 +290,23 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(vm_type: &VMType, json_data: &[u8]
 				&machine,
 				&schedule,
 				0,
-				OriginInfo::from(&params),
+				&origin_info,
 				&mut substate,
-				OutputPolicy::Return(BytesRef::Flexible(&mut output), None),
+				OutputPolicy::Return,
 				params.address.clone(),
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(&params, schedule.wasm.is_some());
-			let res = evm.exec(params, &mut ex);
+			let mut evm = vm_factory.create(params, &schedule, 0);
+			let res = evm.exec(&mut ex).ok().expect("TestExt never trap; resume error never happens; qed");
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();
 			(res.finalize(ex), callcreates)
+		};
+
+		let output = match &res {
+			Ok(res) => res.return_data.to_vec(),
+			Err(_) => Vec::new(),
 		};
 
 		let log_hash = {

@@ -1,19 +1,12 @@
-# ethkey
+## ethkey-cli
 
-[![Build Status][travis-image]][travis-url]
-
-[travis-image]: https://travis-ci.org/paritytech/ethkey.svg?branch=master
-[travis-url]: https://travis-ci.org/paritytech/ethkey
-
-Ethereum keys generator.
-
-[Documentation](http://paritytech.github.io/ethkey/ethkey/index.html)
+Parity Ethereum keys generator.
 
 ### Usage
 
 ```
-Ethereum keys generator.
-  Copyright 2016, 2017 Parity Technologies (UK) Ltd
+Parity Ethereum keys generator.
+  Copyright 2015-2018 Parity Technologies (UK) Ltd.
 
 Usage:
     ethkey info <secret-or-phrase> [options]
@@ -27,17 +20,17 @@ Usage:
 
 Options:
     -h, --help         Display this message and exit.
-    -s, --secret       Display only the secret.
-    -p, --public       Display only the public.
+    -s, --secret       Display only the secret key.
+    -p, --public       Display only the public key.
     -a, --address      Display only the address.
-    -b, --brain        Use parity brain wallet algorithm.
+    -b, --brain        Use parity brain wallet algorithm. Not recommended.
 
 Commands:
-    info               Display public and address of the secret.
-    generate random    Generates new random ethereum key.
-    generate prefix    Random generation, but address must start with a prefix.
-    sign               Sign message using secret.
-    verify             Verify signer of the signature.
+    info               Display public key and address of the secret.
+    generate random    Generates new random Ethereum key.
+    generate prefix    Random generation, but address must start with a prefix ("vanity address").
+    sign               Sign message using a secret key.
+    verify             Verify signer of the signature by public key or address.
     recover            Try to find brain phrase matching given address from partial phrase.
 ```
 
@@ -218,10 +211,11 @@ public:  4e19a5fdae82596e1485c69b687c9cc52b5078e5b0668ef3ce8543cd90e712cb00df822
 address: 00cf3711cbd3a1512570639280758118ba0b2bcb
 ```
 
+## Parity Ethereum toolchain
+_This project is a part of the Parity Ethereum toolchain._
 
-# Parity toolchain
-*this project is a part of the parity toolchain*
-
-- [**ethkey**](https://github.com/paritytech/ethkey) - Ethereum keys generator and signer.
-- [**ethstore**](https://github.com/paritytech/ethstore) - Ethereum key management.
-- [**ethabi**](https://github.com/paritytech/ethabi) - Ethereum function calls encoding.
+- [evmbin](https://github.com/paritytech/parity-ethereum/blob/master/evmbin/) - EVM implementation for Parity Ethereum.
+- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum function calls encoding.
+- [ethstore](https://github.com/paritytech/parity-ethereum/blob/master/ethstore/) - Parity Ethereum key management.
+- [ethkey](https://github.com/paritytech/parity-ethereum/blob/master/ethkey/) - Parity Ethereum keys generator.
+- [whisper](https://github.com/paritytech/parity-ethereum/blob/master/whisper/) - Implementation of Whisper-v2 PoC.

@@ -24,7 +24,7 @@ use blockchain::TreeRoute;
 use client::Mode;
 use encoded;
 use vm::LastHashes;
-use error::{Error, ImportResult, CallError, BlockImportError};
+use error::{Error, CallError, EthcoreResult};
 use evm::Schedule;
 use executive::Executed;
 use filter::Filter;
@@ -168,7 +168,7 @@ pub trait RegistryInfo {
 /// Provides methods to import block into blockchain
 pub trait ImportBlock {
 	/// Import a block into the blockchain.
-	fn import_block(&self, block: Unverified) -> Result<H256, BlockImportError>;
+	fn import_block(&self, block: Unverified) -> EthcoreResult<H256>;
 }
 
 /// Provides `call_contract` method
@@ -205,15 +205,21 @@ pub trait IoClient: Sync + Send {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
-	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
+	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> EthcoreResult<H256>;
 
 	/// Queue conensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
 }
 
+/// Provides recently seen bad blocks.
+pub trait BadBlocks {
+	/// Returns a list of blocks that were recently not imported because they were invalid.
+	fn bad_blocks(&self) -> Vec<(Unverified, String)>;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock
-+ IoClient {
++ IoClient + BadBlocks {
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
@@ -275,6 +281,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get transaction receipt with given hash.
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
 
+	/// Get localized receipts for all transaction in given block.
+	fn block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>>;
+
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute>;
@@ -286,7 +295,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn state_data(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Get raw block receipts data by block header hash.
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
+	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
@@ -297,8 +306,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get the registrar address, if it exists.
 	fn additional_params(&self) -> BTreeMap<String, String>;
 
-	/// Returns logs matching given filter.
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
+	/// Returns logs matching given filter. If one of the filtering block cannot be found, returns the block id that caused the error.
+	fn logs(&self, filter: Filter) -> Result<Vec<LocalizedLogEntry>, BlockId>;
 
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
@@ -378,9 +387,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
-
-	/// Get the EIP-86 transition block number.
-	fn eip86_transition(&self) -> u64;
 }
 
 /// Provides `reopen_block` method
@@ -411,7 +417,7 @@ pub trait ScheduleInfo {
 ///Provides `import_sealed_block` method
 pub trait ImportSealedBlock {
 	/// Import sealed block. Skips all verifications.
-	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
+	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256>;
 }
 
 /// Provides `broadcast_proposal_block` method

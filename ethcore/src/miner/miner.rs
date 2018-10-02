@@ -43,14 +43,14 @@ use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use block::{ClosedBlock, IsBlock, Block, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce
+	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
 use executive::contract_address;
 use header::{Header, BlockNumber};
 use miner;
 use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use receipt::{Receipt, RichReceipt};
+use receipt::RichReceipt;
 use spec::Spec;
 use state::State;
 use ethkey::Password;
@@ -296,6 +296,19 @@ impl Miner {
 		*self.io_channel.write() = Some(io_channel);
 	}
 
+	/// Sets in-blockchain checker for transactions.
+	pub fn set_in_chain_checker<C>(&self, chain: &Arc<C>) where
+		C: TransactionInfo + Send + Sync + 'static,
+	{
+		let client = Arc::downgrade(chain);
+		self.transaction_queue.set_in_chain_checker(move |hash| {
+			match client.upgrade() {
+				Some(info) => info.transaction_block(TransactionId::Hash(*hash)).is_some(),
+				None => false,
+			}
+		});
+	}
+
 	/// Clear all pending block states
 	pub fn clear(&self) {
 		self.sealing.lock().queue.reset();
@@ -319,14 +332,15 @@ impl Miner {
 	/// Retrieves an existing pending block iff it's not older than given block number.
 	///
 	/// NOTE: This will not prepare a new pending block if it's not existing.
-	/// See `map_pending_block` for alternative behaviour.
 	fn map_existing_pending_block<F, T>(&self, f: F, latest_block_number: BlockNumber) -> Option<T> where
 		F: FnOnce(&ClosedBlock) -> T,
 	{
 		self.sealing.lock().queue
 			.peek_last_ref()
 			.and_then(|b| {
-				if b.block().header().number() > latest_block_number {
+				// to prevent a data race between block import and updating pending block
+				// we allow the number to be equal.
+				if b.block().header().number() >= latest_block_number {
 					Some(f(b))
 				} else {
 					None
@@ -365,7 +379,7 @@ impl Miner {
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-			let mut open_block = match sealing.queue.pop_if(|b| b.block().header().parent_hash() == &best_hash) {
+			let mut open_block = match sealing.queue.get_pending_if(|b| b.block().header().parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
@@ -628,7 +642,7 @@ impl Miner {
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
-					sealing.queue.push(block.clone());
+					sealing.queue.set_pending(block.clone());
 					sealing.queue.use_last_ref();
 				}
 
@@ -690,7 +704,7 @@ impl Miner {
 				);
 				let is_new = original_work_hash.map_or(true, |h| h != block_hash);
 
-				sealing.queue.push(block);
+				sealing.queue.set_pending(block);
 
 				#[cfg(feature = "work-notify")]
 				{
@@ -838,11 +852,11 @@ impl miner::MinerService for Miner {
 
 	fn sensible_gas_price(&self) -> U256 {
 		// 10% above our minimum.
-		self.transaction_queue.current_worst_gas_price() * 110u32 / 100.into()
+		self.transaction_queue.current_worst_gas_price() * 110u32 / 100
 	}
 
 	fn sensible_gas_limit(&self) -> U256 {
-		self.params.read().gas_range_target.0 / 5.into()
+		self.params.read().gas_range_target.0 / 5
 	}
 
 	fn import_external_transactions<C: miner::BlockChainClient>(
@@ -1025,19 +1039,17 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.status()
 	}
 
-	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
+	fn pending_receipts(&self, best_block: BlockNumber) -> Option<Vec<RichReceipt>> {
 		self.map_existing_pending_block(|pending| {
-			let txs = pending.transactions();
-			txs.iter()
-				.map(|t| t.hash())
-				.position(|t| t == *hash)
-				.map(|index| {
-					let receipts = pending.receipts();
+			let receipts = pending.receipts();
+			pending.transactions()
+				.into_iter()
+				.enumerate()
+				.map(|(index, tx)| {
 					let prev_gas = if index == 0 { Default::default() } else { receipts[index - 1].gas_used };
-					let tx = &txs[index];
 					let receipt = &receipts[index];
 					RichReceipt {
-						transaction_hash: hash.clone(),
+						transaction_hash: tx.hash(),
 						transaction_index: index,
 						cumulative_gas_used: receipt.gas_used,
 						gas_used: receipt.gas_used - prev_gas,
@@ -1053,15 +1065,7 @@ impl miner::MinerService for Miner {
 						outcome: receipt.outcome.clone(),
 					}
 				})
-		}, best_block).and_then(|x| x)
-	}
-
-	fn pending_receipts(&self, best_block: BlockNumber) -> Option<BTreeMap<H256, Receipt>> {
-		self.map_existing_pending_block(|pending| {
-			let hashes = pending.transactions().iter().map(|t| t.hash());
-			let receipts = pending.receipts().iter().cloned();
-
-			hashes.zip(receipts).collect()
+				.collect()
 		}, best_block)
 	}
 
@@ -1108,7 +1112,7 @@ impl miner::MinerService for Miner {
 			Some(false) => {
 				trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now");
 				// anyway, save the block for later use
-				self.sealing.lock().queue.push(block);
+				self.sealing.lock().queue.set_pending(block);
 			},
 			None => {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");

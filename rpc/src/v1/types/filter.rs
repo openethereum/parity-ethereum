@@ -17,9 +17,11 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, DeserializeOwned};
 use serde_json::{Value, from_value};
+use jsonrpc_core::{Error as RpcError};
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockId;
 use v1::types::{BlockNumber, H160, H256, Log};
+use v1::helpers::errors::invalid_params;
 
 /// Variadic value
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -62,6 +64,9 @@ pub struct Filter {
 	/// To Block
 	#[serde(rename="toBlock")]
 	pub to_block: Option<BlockNumber>,
+	/// Block hash
+	#[serde(rename="blockHash")]
+	pub block_hash: Option<H256>,
 	/// Address
 	pub address: Option<FilterAddress>,
 	/// Topics
@@ -70,17 +75,30 @@ pub struct Filter {
 	pub limit: Option<usize>,
 }
 
-impl Into<EthFilter> for Filter {
-	fn into(self) -> EthFilter {
+impl Filter {
+	pub fn try_into(self) -> Result<EthFilter, RpcError> {
+		if self.block_hash.is_some() && (self.from_block.is_some() || self.to_block.is_some()) {
+			return Err(invalid_params("blockHash", "blockHash is mutually exclusive with fromBlock/toBlock"));
+		}
+
 		let num_to_id = |num| match num {
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
 		};
 
-		EthFilter {
-			from_block: self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
-			to_block: self.to_block.map_or_else(|| BlockId::Latest, &num_to_id),
+		let (from_block, to_block) = match self.block_hash {
+			Some(hash) => {
+				let hash = hash.into();
+				(BlockId::Hash(hash), BlockId::Hash(hash))
+			},
+			None =>
+				(self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
+				 self.to_block.map_or_else(|| BlockId::Latest, &num_to_id)),
+		};
+
+		Ok(EthFilter {
+			from_block, to_block,
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
 				VariadicValue::Single(a) => Some(vec![a.into()]),
@@ -101,7 +119,7 @@ impl Into<EthFilter> for Filter {
 				]
 			},
 			limit: self.limit,
-		}
+		})
 	}
 }
 
@@ -157,6 +175,7 @@ mod tests {
 		assert_eq!(deserialized, Filter {
 			from_block: Some(BlockNumber::Earliest),
 			to_block: Some(BlockNumber::Latest),
+			block_hash: None,
 			address: None,
 			topics: None,
 			limit: None,
@@ -168,6 +187,7 @@ mod tests {
 		let filter = Filter {
 			from_block: Some(BlockNumber::Earliest),
 			to_block: Some(BlockNumber::Latest),
+			block_hash: None,
 			address: Some(VariadicValue::Multiple(vec![])),
 			topics: Some(vec![
 				VariadicValue::Null,
@@ -177,7 +197,7 @@ mod tests {
 			limit: None,
 		};
 
-		let eth_filter: EthFilter = filter.into();
+		let eth_filter: EthFilter = filter.try_into().unwrap();
 		assert_eq!(eth_filter, EthFilter {
 			from_block: BlockId::Earliest,
 			to_block: BlockId::Latest,

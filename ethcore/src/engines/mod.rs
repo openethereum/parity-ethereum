@@ -44,7 +44,7 @@ use self::epoch::PendingTransition;
 
 use account_provider::AccountProvider;
 use builtin::Builtin;
-use vm::{EnvInfo, Schedule, CreateContractAddress};
+use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
 use header::{Header, BlockNumber};
 use snapshot::SnapshotComponents;
@@ -132,6 +132,48 @@ pub enum Seal {
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
+
+/// A system-calling closure. Enacts calls on a block's state with code either from an on-chain contract, or hard-coded EVM or WASM (if enabled on-chain) codes.
+pub type SystemOrCodeCall<'a> = FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
+
+/// Kind of SystemOrCodeCall, this is either an on-chain address, or code.
+#[derive(PartialEq, Debug, Clone)]
+pub enum SystemOrCodeCallKind {
+	/// On-chain address.
+	Address(Address),
+	/// Hard-coded code.
+	Code(Arc<Vec<u8>>, H256),
+}
+
+/// Default SystemOrCodeCall implementation.
+pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, block: &'a mut ::block::ExecutedBlock) -> impl FnMut(SystemOrCodeCallKind, Vec<u8>) -> Result<Vec<u8>, String> + 'a {
+	move |to, data| {
+		let result = match to {
+			SystemOrCodeCallKind::Address(address) => {
+				machine.execute_as_system(
+					block,
+					address,
+					U256::max_value(),
+					Some(data),
+				)
+			},
+			SystemOrCodeCallKind::Code(code, code_hash) => {
+				machine.execute_code_as_system(
+					block,
+					None,
+					Some(code),
+					Some(code_hash),
+					Some(ActionValue::Apparent(U256::zero())),
+					U256::max_value(),
+					Some(data),
+					Some(CallType::StaticCall),
+				)
+			},
+		};
+
+		result.map_err(|e| format!("{}", e))
+	}
+}
 
 /// Type alias for a function we can get headers by hash through.
 pub type Headers<'a, H> = Fn(H256) -> Option<H> + 'a;
@@ -257,9 +299,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn verify_local_seal(&self, header: &M::Header) -> Result<(), M::Error>;
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
+	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
 	fn verify_block_basic(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
+	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
 	fn verify_block_unordered(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.

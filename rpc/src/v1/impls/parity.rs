@@ -45,7 +45,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
-	AccountInfo, HwAccountInfo, RichHeader,
+	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 	block_number_to_id
 };
 use Host;
@@ -332,7 +332,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn ws_url(&self) -> Result<String> {
 		helpers::to_url(&self.ws_address)
-			.ok_or_else(|| errors::ws_disabled())
+			.ok_or_else(errors::ws_disabled)
 	}
 
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256> {
@@ -387,7 +387,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 		let (header, extra) = if number == BlockNumber::Pending {
 			let info = self.client.chain_info();
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::unknown_block()));
+			let header =
+				try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or_else(errors::unknown_block));
 
 			(header.encoded(), None)
 		} else {
@@ -398,7 +399,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 				BlockNumber::Pending => unreachable!(), // Already covered
 			};
 
-			let header = try_bf!(self.client.block_header(id.clone()).ok_or(errors::unknown_block()));
+			let header = try_bf!(self.client.block_header(id.clone()).ok_or_else(errors::unknown_block));
 			let info = self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF);
 
 			(header, Some(info))
@@ -408,6 +409,27 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			inner: header.into(),
 			extra_info: extra.unwrap_or_default(),
 		}))
+	}
+
+	fn block_receipts(&self, number: Trailing<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
+		let number = number.unwrap_or_default();
+
+		let id = match number {
+			BlockNumber::Pending => {
+				let info = self.client.chain_info();
+				let receipts = try_bf!(self.miner.pending_receipts(info.best_block_number).ok_or_else(errors::unknown_block));
+				return Box::new(future::ok(receipts
+					.into_iter()
+					.map(Into::into)
+					.collect()
+				))
+			},
+			BlockNumber::Num(num) => BlockId::Number(num),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+		};
+		let receipts = try_bf!(self.client.block_receipts(id).ok_or_else(errors::unknown_block));
+		Box::new(future::ok(receipts.into_iter().map(Into::into).collect()))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
@@ -427,8 +449,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 		let (mut state, header) = if num == BlockNumber::Pending {
 			let info = self.client.chain_info();
-			let state = self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned())?;
-			let header = self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned())?;
+			let state = self.miner.pending_state(info.best_block_number).ok_or_else(errors::state_pruned)?;
+			let header = self.miner.pending_block_header(info.best_block_number).ok_or_else(errors::state_pruned)?;
 
 			(state, header)
 		} else {
@@ -439,8 +461,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 				BlockNumber::Pending => unreachable!(), // Already covered
 			};
 
-			let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
-			let header = self.client.block_header(id).ok_or(errors::state_pruned())?.decode().map_err(errors::decode)?;
+			let state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
+			let header = self.client.block_header(id).ok_or_else(errors::state_pruned)?.decode().map_err(errors::decode)?;
 
 			(state, header)
 		};

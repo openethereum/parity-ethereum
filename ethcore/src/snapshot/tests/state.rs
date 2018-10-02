@@ -22,7 +22,7 @@ use hash::{KECCAK_NULL_RLP, keccak};
 
 use basic_account::BasicAccount;
 use snapshot::account;
-use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder};
+use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::{compare_dbs, StateProducer};
 
@@ -53,7 +53,11 @@ fn snap_and_restore() {
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
-	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default()).unwrap();
+	let mut state_hashes = Vec::new();
+	for part in 0..SNAPSHOT_SUBPARTS {
+		let mut hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), Some(part)).unwrap();
+		state_hashes.append(&mut hashes);
+	}
 
 	writer.into_inner().finish(::snapshot::ManifestData {
 		version: 2,
@@ -164,7 +168,7 @@ fn checks_flag() {
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
 
-	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default()).unwrap();
+	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default(), None).unwrap();
 
 	writer.into_inner().finish(::snapshot::ManifestData {
 		version: 2,

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
 use ethereum_types::{U256, H256, Address};
 use vm::{self, CallType};
 use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError, Trap, TrapKind};
@@ -284,7 +285,8 @@ impl<'a> Runtime<'a> {
 		self.ext.set_storage(key, val).map_err(|_| Error::StorageUpdateError)?;
 
 		if former_val != H256::zero() && val == H256::zero() {
-			self.ext.inc_sstore_clears();
+			let sstore_clears_schedule = U256::from(self.schedule().sstore_refund_gas);
+			self.ext.add_sstore_refund(sstore_clears_schedule);
 		}
 
 		Ok(())
@@ -447,12 +449,15 @@ impl<'a> Runtime<'a> {
 			val,
 			&payload,
 			&address,
-			&mut result[..],
 			call_type,
-		);
+			false
+		).ok().expect("Trap is false; trap error will not happen; qed");
 
 		match call_result {
-			vm::MessageCallResult::Success(gas_left, _) => {
+			vm::MessageCallResult::Success(gas_left, data) => {
+				let len = cmp::min(result.len(), data.len());
+				(&mut result[..len]).copy_from_slice(&data[..len]);
+
 				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
 				self.gas_counter = self.gas_counter -
 					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
@@ -461,7 +466,10 @@ impl<'a> Runtime<'a> {
 				self.memory.set(result_ptr, &result)?;
 				Ok(0i32.into())
 			},
-			vm::MessageCallResult::Reverted(gas_left, _) => {
+			vm::MessageCallResult::Reverted(gas_left, data) => {
+				let len = cmp::min(result.len(), data.len());
+				(&mut result[..len]).copy_from_slice(&data[..len]);
+
 				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
 				self.gas_counter = self.gas_counter -
 					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
@@ -521,7 +529,7 @@ impl<'a> Runtime<'a> {
 			* U256::from(self.ext.schedule().wasm().opcodes_mul)
 			/ U256::from(self.ext.schedule().wasm().opcodes_div);
 
-		match self.ext.create(&gas_left, &endowment, &code, scheme) {
+		match self.ext.create(&gas_left, &endowment, &code, scheme, false).ok().expect("Trap is false; trap error will not happen; qed") {
 			vm::ContractCreateResult::Created(address, gas_left) => {
 				self.memory.set(result_ptr, &*address)?;
 				self.gas_counter = self.gas_limit -
@@ -660,6 +668,15 @@ impl<'a> Runtime<'a> {
 		self.return_u256_ptr(args.nth_checked(0)?, difficulty)
 	}
 
+	///	Signature: `fn gasleft() -> i64`
+	pub fn gasleft(&mut self) -> Result<RuntimeValue> {
+		Ok(RuntimeValue::from(
+			self.gas_left()? * self.ext.schedule().wasm().opcodes_mul as u64
+				/ self.ext.schedule().wasm().opcodes_div as u64
+			)
+		)
+	}
+
 	///	Signature: `fn gaslimit(dest: *mut u8)`
 	pub fn gaslimit(&mut self, args: RuntimeArgs) -> Result<()> {
 		let gas_limit = self.ext.env_info().gas_limit;
@@ -776,6 +793,7 @@ mod ext_impl {
 				ORIGIN_FUNC => void!(self.origin(args)),
 				ELOG_FUNC => void!(self.elog(args)),
 				CREATE2_FUNC => some!(self.create2(args)),
+				GASLEFT_FUNC => some!(self.gasleft()),
 				_ => panic!("env module doesn't provide function at index {}", index),
 			}
 		}

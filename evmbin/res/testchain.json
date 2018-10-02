@@ -1,0 +1,38 @@
+{
+    "name": "lab",
+    "engine": {
+        "Ethash": {
+			"params": {
+				"minimumDifficulty": "0x1",
+				"difficultyBoundDivisor": "0x800"
+			}
+		}
+    },
+    "accounts": {
+        "0000000000000000000000000000000000000020": {
+            "nonce": "0x0",
+            "balance": "0x64",
+            "code": "0x62aaaaaa60aa60aa5060aa60aa60aa60aa60aa60aa"
+        }
+    },
+	"params":{
+		"networkID": "0x42",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1",
+		"gasLimitBoundDivisor": "0x400"
+	},
+	"genesis": {
+		"gasLimit": "0x8000000",
+		"seal": {
+			"ethereum": {
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+				"nonce": "0x0000000000000042"
+			}
+		},
+		"difficulty": "0x400",
+		"extraData": "0x0",
+		"author": "0x3333333333333333333333333333333333333333",
+		"timestamp": "0x0",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+	}
+}

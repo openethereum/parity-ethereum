@@ -43,7 +43,7 @@ use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
 use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
 use discovery::{Discovery, TableUpdates, NodeEntry, MAX_DATAGRAM_SIZE};
 use ip_utils::{map_external_address, select_public_address};
-use path::restrict_permissions_owner;
+use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use network::{ConnectionFilter, ConnectionDirection};
 
@@ -59,8 +59,9 @@ const TCP_ACCEPT: StreamToken = SYS_TIMER + 1;
 const IDLE: TimerToken = SYS_TIMER + 2;
 const DISCOVERY: StreamToken = SYS_TIMER + 3;
 const DISCOVERY_REFRESH: TimerToken = SYS_TIMER + 4;
-const DISCOVERY_ROUND: TimerToken = SYS_TIMER + 5;
-const NODE_TABLE: TimerToken = SYS_TIMER + 6;
+const FAST_DISCOVERY_REFRESH: TimerToken = SYS_TIMER + 5;
+const DISCOVERY_ROUND: TimerToken = SYS_TIMER + 6;
+const NODE_TABLE: TimerToken = SYS_TIMER + 7;
 const FIRST_SESSION: StreamToken = 0;
 const LAST_SESSION: StreamToken = FIRST_SESSION + MAX_SESSIONS - 1;
 const USER_TIMER: TimerToken = LAST_SESSION + 256;
@@ -71,6 +72,8 @@ const SYS_TIMER: TimerToken = LAST_SESSION + 1;
 const MAINTENANCE_TIMEOUT: Duration = Duration::from_secs(1);
 // for DISCOVERY_REFRESH TimerToken
 const DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(60);
+// for FAST_DISCOVERY_REFRESH TimerToken
+const FAST_DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
 // for DISCOVERY_ROUND TimerToken
 const DISCOVERY_ROUND_TIMEOUT: Duration = Duration::from_millis(300);
 // for NODE_TABLE TimerToken
@@ -102,7 +105,7 @@ pub struct NetworkContext<'s> {
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	session: Option<SharedSession>,
 	session_id: Option<StreamToken>,
-	_reserved_peers: &'s HashSet<NodeId>,
+	reserved_peers: &'s HashSet<NodeId>,
 }
 
 impl<'s> NetworkContext<'s> {
@@ -121,7 +124,7 @@ impl<'s> NetworkContext<'s> {
 			session_id: id,
 			session,
 			sessions,
-			_reserved_peers: reserved_peers,
+			reserved_peers: reserved_peers,
 		}
 	}
 
@@ -190,6 +193,13 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 	}
 
 	fn subprotocol_name(&self) -> ProtocolId { self.protocol }
+
+	fn is_reserved_peer(&self, peer: PeerId) -> bool {
+		self.session_info(peer)
+			.and_then(|info| info.id)
+			.map(|node| self.reserved_peers.contains(&node))
+			.unwrap_or(false)
+	}
 }
 
 /// Shared host information
@@ -280,7 +290,7 @@ impl Host {
 		listen_address = SocketAddr::new(listen_address.ip(), tcp_listener.local_addr()?.port());
 		debug!(target: "network", "Listening at {:?}", listen_address);
 		let udp_port = config.udp_port.unwrap_or_else(|| listen_address.port());
-		let local_endpoint = NodeEndpoint { address: listen_address, udp_port: udp_port };
+		let local_endpoint = NodeEndpoint { address: listen_address, udp_port };
 
 		let boot_nodes = config.boot_nodes.clone();
 		let reserved_nodes = config.reserved_nodes.clone();
@@ -288,13 +298,13 @@ impl Host {
 
 		let mut host = Host {
 			info: RwLock::new(HostInfo {
-				keys: keys,
-				config: config,
+				keys,
+				config,
 				nonce: H256::random(),
 				protocol_version: PROTOCOL_VERSION,
 				capabilities: Vec::new(),
 				public_endpoint: None,
-				local_endpoint: local_endpoint,
+				local_endpoint,
 			}),
 			discovery: Mutex::new(None),
 			udp_socket: Mutex::new(None),
@@ -306,7 +316,7 @@ impl Host {
 			timer_counter: RwLock::new(USER_TIMER),
 			reserved_nodes: RwLock::new(HashSet::new()),
 			stopping: AtomicBool::new(false),
-			filter: filter,
+			filter,
 		};
 
 		for n in boot_nodes {
@@ -349,11 +359,11 @@ impl Host {
 		Ok(())
 	}
 
-	pub fn set_non_reserved_mode(&self, mode: &NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
+	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
 		let mut info = self.info.write();
 
-		if &info.config.non_reserved_mode != mode {
-			info.config.non_reserved_mode = mode.clone();
+		if info.config.non_reserved_mode != mode {
+			info.config.non_reserved_mode = mode;
 			drop(info);
 			if let NonReservedPeerMode::Deny = mode {
 				// disconnect all non-reserved peers here.
@@ -430,7 +440,7 @@ impl Host {
 			return Ok(());
 		}
 		let local_endpoint = self.info.read().local_endpoint.clone();
-		let public_address = self.info.read().config.public_address.clone();
+		let public_address = self.info.read().config.public_address;
 		let allow_ips = self.info.read().config.ip_filter.clone();
 		let public_endpoint = match public_address {
 			None => {
@@ -471,10 +481,10 @@ impl Host {
 			let socket = UdpSocket::bind(&udp_addr).expect("Error binding UDP socket");
 			*self.udp_socket.lock() = Some(socket);
 
-			discovery.init_node_list(self.nodes.read().entries());
 			discovery.add_node_list(self.nodes.read().entries());
 			*self.discovery.lock() = Some(discovery);
 			io.register_stream(DISCOVERY)?;
+			io.register_timer(FAST_DISCOVERY_REFRESH, FAST_DISCOVERY_REFRESH_TIMEOUT)?;
 			io.register_timer(DISCOVERY_REFRESH, DISCOVERY_REFRESH_TIMEOUT)?;
 			io.register_timer(DISCOVERY_ROUND, DISCOVERY_ROUND_TIMEOUT)?;
 		}
@@ -489,7 +499,7 @@ impl Host {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.sessions.read().iter().any(|e| e.lock().info.id == Some(id.clone()))
+		self.sessions.read().iter().any(|e| e.lock().info.id == Some(*id))
 	}
 
 	// returns (handshakes, egress, ingress)
@@ -526,6 +536,18 @@ impl Host {
 		}
 	}
 
+	fn has_enough_peers(&self) -> bool {
+		let min_peers = {
+			let info = self.info.read();
+			let config = &info.config;
+
+			config.min_peers
+		};
+		let (_, egress_count, ingress_count) = self.session_count();
+
+		return egress_count + ingress_count >= min_peers as usize;
+	}
+
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage>) {
 		let (min_peers, mut pin, max_handshakes, allow_ips, self_id) = {
 			let info = self.info.read();
@@ -534,7 +556,7 @@ impl Host {
 			}
 			let config = &info.config;
 
-			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.ip_filter.clone(), info.id().clone())
+			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.ip_filter.clone(), *info.id())
 		};
 
 		let (handshake_count, egress_count, ingress_count) = self.session_count();
@@ -710,18 +732,18 @@ impl Host {
 							let (min_peers, mut max_peers, reserved_only, self_id) = {
 								let info = self.info.read();
 								let mut max_peers = info.config.max_peers;
-								for cap in s.info.capabilities.iter() {
+								for cap in &s.info.capabilities {
 									if let Some(num) = info.config.reserved_protocols.get(&cap.protocol) {
 										max_peers += *num;
 										break;
 									}
 								}
-								(info.config.min_peers as usize, max_peers as usize, info.config.non_reserved_mode == NonReservedPeerMode::Deny, info.id().clone())
+								(info.config.min_peers as usize, max_peers as usize, info.config.non_reserved_mode == NonReservedPeerMode::Deny, *info.id())
 							};
 
 							max_peers = max(max_peers, min_peers);
 
-							let id = s.id().expect("Ready session always has id").clone();
+							let id = *s.id().expect("Ready session always has id");
 
 							// Check for the session limit.
 							// Outgoing connections are allowed as long as their count is <= min_peers
@@ -730,8 +752,9 @@ impl Host {
 							if reserved_only ||
 								(s.info.originated && egress_count > min_peers) ||
 								(!s.info.originated && ingress_count > max_ingress) {
-								// only proceed if the connecting peer is reserved.
 								if !self.reserved_nodes.read().contains(&id) {
+									// only proceed if the connecting peer is reserved.
+									trace!(target: "network", "Disconnecting non-reserved peer {:?}", id);
 									s.disconnect(io, DisconnectReason::TooManyPeers);
 									kill = true;
 									break;
@@ -752,7 +775,7 @@ impl Host {
 								if let Ok(address) = s.remote_addr() {
 									// We can't know remote listening ports, so just assume defaults and hope for the best.
 									let endpoint = NodeEndpoint { address: SocketAddr::new(address.ip(), DEFAULT_PORT), udp_port: DEFAULT_PORT };
-									let entry = NodeEntry { id: id, endpoint: endpoint };
+									let entry = NodeEntry { id, endpoint };
 									let mut nodes = self.nodes.write();
 									if !nodes.contains(&entry.id) {
 										nodes.add_node(Node::new(entry.id, entry.endpoint.clone()));
@@ -807,7 +830,7 @@ impl Host {
 				}
 				for p in ready_data {
 					let reserved = self.reserved_nodes.read();
-					if let Some(h) = handlers.get(&p).clone() {
+					if let Some(h) = handlers.get(&p) {
 						h.connected(&NetworkContext::new(io, p, Some(session.clone()), self.sessions.clone(), &reserved), &token);
 						// accumulate pending packets.
 						let mut session = session.lock();
@@ -818,7 +841,7 @@ impl Host {
 
 			for (p, packet_id, data) in packet_data {
 				let reserved = self.reserved_nodes.read();
-				if let Some(h) = handlers.get(&p).clone() {
+				if let Some(h) = handlers.get(&p) {
 					h.read(&NetworkContext::new(io, p, Some(session.clone()), self.sessions.clone(), &reserved), &token, packet_id, &data);
 				}
 			}
@@ -858,31 +881,28 @@ impl Host {
 	}
 
 	fn discovery_writable(&self, io: &IoContext<NetworkIoMessage>) {
-		match (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
-			(Some(udp_socket), Some(discovery)) => {
-				while let Some(data) = discovery.dequeue_send() {
-					match udp_socket.send_to(&data.payload, &data.address) {
-						Ok(Some(size)) if size == data.payload.len() => {
-						},
-						Ok(Some(_)) => {
-							warn!(target: "network", "UDP sent incomplete datagram");
-						},
-						Ok(None) => {
-							discovery.requeue_send(data);
-							return;
-						}
-						Err(e) => {
-							debug!(target: "network", "UDP send error: {:?}, address: {:?}", e, &data.address);
-							return;
-						}
+		if let (Some(udp_socket), Some(discovery)) = (self.udp_socket.lock().as_ref(), self.discovery.lock().as_mut()) {
+			while let Some(data) = discovery.dequeue_send() {
+				match udp_socket.send_to(&data.payload, &data.address) {
+					Ok(Some(size)) if size == data.payload.len() => {
+					},
+					Ok(Some(_)) => {
+						warn!(target: "network", "UDP sent incomplete datagram");
+					},
+					Ok(None) => {
+						discovery.requeue_send(data);
+						return;
+					}
+					Err(e) => {
+						debug!(target: "network", "UDP send error: {:?}, address: {:?}", e, &data.address);
+						return;
 					}
 				}
-				io.update_registration(DISCOVERY)
-					.unwrap_or_else(|e| {
-						debug!(target: "network", "Error updating discovery registration: {:?}", e)
-					});
-			},
-			_ => (),
+			}
+			io.update_registration(DISCOVERY)
+				.unwrap_or_else(|e| {
+					debug!(target: "network", "Error updating discovery registration: {:?}", e)
+				});
 		}
 	}
 
@@ -922,7 +942,7 @@ impl Host {
 		}
 		for p in to_disconnect {
 			let reserved = self.reserved_nodes.read();
-			if let Some(h) = self.handlers.read().get(&p).clone() {
+			if let Some(h) = self.handlers.read().get(&p) {
 				h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone(), &reserved), &token);
 			}
 		}
@@ -1012,14 +1032,23 @@ impl IoHandler<NetworkIoMessage> for Host {
 			IDLE => self.maintain_network(io),
 			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
+				// Run the _slow_ discovery if enough peers are connected
+				if !self.has_enough_peers() {
+					return;
+				}
+				self.discovery.lock().as_mut().map(|d| d.refresh());
+				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
+			},
+			FAST_DISCOVERY_REFRESH => {
+				// Run the fast discovery if not enough peers are connected
+				if self.has_enough_peers() {
+					return;
+				}
 				self.discovery.lock().as_mut().map(|d| d.refresh());
 				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			DISCOVERY_ROUND => {
-				let node_changes = { self.discovery.lock().as_mut().map_or(None, |d| d.round()) };
-				if let Some(node_changes) = node_changes {
-					self.update_nodes(io, node_changes);
-				}
+				self.discovery.lock().as_mut().map(|d| d.round());
 				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			NODE_TABLE => {

@@ -30,13 +30,12 @@ use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
 
-use_contract!(validator_report, "ValidatorReport", "res/contracts/validator_report.json");
+use_contract!(validator_report, "res/contracts/validator_report.json");
 
 /// A validator contract with reporting.
 pub struct ValidatorContract {
 	contract_address: Address,
 	validators: ValidatorSafeContract,
-	provider: validator_report::ValidatorReport,
 	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
 }
 
@@ -45,7 +44,6 @@ impl ValidatorContract {
 		ValidatorContract {
 			contract_address,
 			validators: ValidatorSafeContract::new(contract_address),
-			provider: validator_report::ValidatorReport::default(),
 			client: RwLock::new(None),
 		}
 	}
@@ -111,7 +109,7 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
-		let data = self.provider.functions().report_malicious().input(*address, block, proof);
+		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
 		match self.transact(data) {
 			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
@@ -119,7 +117,7 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
-		let data = self.provider.functions().report_benign().input(*address, block);
+		let data = validator_report::functions::report_benign::encode_input(*address, block);
 		match self.transact(data) {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
