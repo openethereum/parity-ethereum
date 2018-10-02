@@ -14,9 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Weak;
+
+use block::ExecutedBlock;
+use client::EngineClient;
 use engines::{Engine, Seal};
 use ethjson;
-use parity_machine::{Machine, Transactions, TotalScoredHeader};
+use error::Error;
+use header::{Header, ExtendedHeader};
+use machine::EthereumMachine;
+use parity_machine::Transactions;
+use parking_lot::RwLock;
 
 /// `Hbbft` params.
 #[derive(Debug, PartialEq)]
@@ -35,38 +43,37 @@ impl From<ethjson::spec::HbbftParams> for HbbftParams {
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 /// Only seals blocks which have transactions.
-pub struct Hbbft<M> {
+pub struct Hbbft {
 	params: HbbftParams,
-	machine: M,
+	machine: EthereumMachine,
+	client: RwLock<Option<Weak<EngineClient>>>,
 }
 
-impl<M> Hbbft<M> {
+impl Hbbft {
 	/// Returns new instance of Hbbft over the given state machine.
-	pub fn new(params: HbbftParams, machine: M) -> Self {
+	pub fn new(params: HbbftParams, machine: EthereumMachine) -> Self {
 		Hbbft {
-			params, machine,
+			params,
+			machine,
+			client: RwLock::new(None),
 		}
 	}
 }
 
-impl<M: Machine> Engine<M> for Hbbft<M>
-  where M::LiveBlock: Transactions,
-        M::ExtendedHeader: TotalScoredHeader,
-        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
-{
+impl Engine<EthereumMachine> for Hbbft {
 	fn name(&self) -> &str {
 		"Hbbft"
 	}
 
-	fn machine(&self) -> &M { &self.machine }
+	fn machine(&self) -> &EthereumMachine { &self.machine }
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn generate_seal(&self, block: &M::LiveBlock, _parent: &M::Header) -> Seal {
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		if block.transactions().is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
 	}
 
-	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 
@@ -85,8 +92,12 @@ impl<M: Machine> Engine<M> for Hbbft<M>
 		header_timestamp >= parent_timestamp
 	}
 
-	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
+	}
+
+	fn register_client(&self, client: Weak<EngineClient>) {
+		*self.client.write() = Some(client.clone());
 	}
 }
 
