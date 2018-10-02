@@ -34,8 +34,8 @@ participate in proof-of-authority-style consensus algorithms. The
 `indica-node-signer` script works exactly like the  `indica-node` script but
 requires a bit of set up to add the associated test accounts.
 
-NOTE: This information is somewhat out of date due to recent and ongoing
-changes to the engine but has been left here for future reference.
+NOTE: This information may be out of date due to ongoing changes to the
+engine.
 
 1. Run `setup-indica-signers clear`. This will clear all existing blockchain
    data.
@@ -44,7 +44,16 @@ changes to the engine but has been left here for future reference.
 4. Close all nodes and restart as described above, replacing `indica-node`
    with `indica-node-signer`.
 5. Attempt to push a transaction:
-`curl --data '{"jsonrpc":"2.0","method":"personal_sendTransaction","params":[{"from":"0x002eb83d1d04ca12fe1956e67ccaa195848e437f","to":"0x00Bd138aBD70e2F00903268F3Db08f2D25677C9e","value":"0x10000"}, "richie"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500`
+```
+curl --data '{"jsonrpc":"2.0","method":"personal_sendTransaction","params":[{"from":"0x002eb83d1d04ca12fe1956e67ccaa195848e437f","to":"0x00Bd138aBD70e2F00903268F3Db08f2D25677C9e","value":"0x10000"}, "richie"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
+```
+6. Verify that the transaction was successfully imported to a block and synced (you may have to wait a few seconds):
+```
+curl --data '{"jsonrpc":"2.0","method":"eth_getBalance","params":["0x00Bd138aBD70e2F00903268F3Db08f2D25677C9e", "latest"],"id":1}' -H "Content-Type: application/json" -X POST localhost:8501
+```
+   The balance should be `0x1bc16d674ec90000`.
+
+
 
 ### Status
 
