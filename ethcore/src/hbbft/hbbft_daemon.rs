@@ -102,7 +102,7 @@ impl Laboratory {
 
 		match self.hydrabadger.push_user_transactions(random_txns) {
 			Err(HydrabadgerError::PushUserTransactionNotValidator) => {
-				info!("Unable to push random transactions: this node is not a validator");
+				debug!("Unable to push random transactions: this node is not a validator");
 			},
 			Err(err) => unreachable!(),
 			Ok(()) => {},

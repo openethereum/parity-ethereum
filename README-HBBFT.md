@@ -29,8 +29,21 @@ spammed with batch outputs, consensus is working.
 
 ### Signer Nodes
 
-FIXME: Complete me
+Running a node with an associated engine signer account allows the node to
+participate in proof-of-authority-style consensus algorithms. The
+`indica-node-signer` script works exactly like the  `indica-node` script but
+requires a bit of set up to add the associated test accounts.
 
+NOTE: This information is somewhat out of date due to recent and ongoing
+changes to the engine but has been left here for future reference.
+
+1. Run `setup-indica-signers clear`. This will clear all existing blockchain
+   data.
+2. Start all 3 nodes as described above.
+3. Run `setup-indica-signers` (without `clear` argument).
+4. Close all nodes and restart as described above, replacing `indica-node`
+   with `indica-node-signer`.
+5. Attempt to push a transaction:
 `curl --data '{"jsonrpc":"2.0","method":"personal_sendTransaction","params":[{"from":"0x002eb83d1d04ca12fe1956e67ccaa195848e437f","to":"0x00Bd138aBD70e2F00903268F3Db08f2D25677C9e","value":"0x10000"}, "richie"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500`
 
 ### Status

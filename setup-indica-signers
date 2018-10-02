@@ -30,7 +30,7 @@ then
 	then
 		backup_node_data
 		echo
-		echo Please launch all 3 indica nodes using \'indica-node {id}\' then run \'setup-indica-signers\' without the \'clear\' argument.
+		echo Please launch all 3 indica nodes using \'indica-node {id}\' then run \'setup-indica-signers\' again (without the \'clear\' argument).
 		echo
 	fi
 else
