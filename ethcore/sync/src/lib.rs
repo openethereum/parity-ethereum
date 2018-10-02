@@ -30,17 +30,12 @@ extern crate ethcore_transaction as transaction;
 extern crate ethcore;
 extern crate ethereum_types;
 extern crate env_logger;
-extern crate hashdb;
 extern crate fastmap;
 extern crate rand;
-extern crate semver;
 extern crate parking_lot;
 extern crate rlp;
-extern crate ipnetwork;
 extern crate keccak_hash as hash;
-extern crate keccak_hasher;
 extern crate triehash_ethereum;
-extern crate kvdb;
 
 extern crate ethcore_light as light;
 

@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use crossbeam::sync::chase_lev;
+use deque;
 use service_mio::{HandlerId, IoChannel, IoContext};
 use IoHandler;
 use LOCAL_STACK_SIZE;
@@ -53,7 +53,7 @@ pub struct Worker {
 impl Worker {
 	/// Creates a new worker instance.
 	pub fn new<Message>(index: usize,
-						stealer: chase_lev::Stealer<Work<Message>>,
+						stealer: deque::Stealer<Work<Message>>,
 						channel: IoChannel<Message>,
 						wait: Arc<Condvar>,
 						wait_mutex: Arc<Mutex<()>>,
@@ -75,8 +75,9 @@ impl Worker {
 		worker
 	}
 
-	fn work_loop<Message>(stealer: chase_lev::Stealer<Work<Message>>,
-						channel: IoChannel<Message>, wait: Arc<Condvar>,
+	fn work_loop<Message>(stealer: deque::Stealer<Work<Message>>,
+						channel: IoChannel<Message>,
+						wait: Arc<Condvar>,
 						wait_mutex: Arc<Mutex<()>>,
 						deleting: Arc<AtomicBool>)
 						where Message: Send + Sync + 'static {
@@ -91,8 +92,9 @@ impl Worker {
 
 			while !deleting.load(AtomicOrdering::Acquire) {
 				match stealer.steal() {
-					chase_lev::Steal::Data(work) => Worker::do_work(work, channel.clone()),
-					_ => break,
+					deque::Steal::Data(work) => Worker::do_work(work, channel.clone()),
+					deque::Steal::Retry => {},
+					deque::Steal::Empty => break,
 				}
 			}
 		}

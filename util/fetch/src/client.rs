@@ -170,11 +170,11 @@ impl Drop for Client {
 
 impl Client {
 	/// Create a new fetch client.
-	pub fn new() -> Result<Self, Error> {
+	pub fn new(num_dns_threads: usize) -> Result<Self, Error> {
 		let (tx_start, rx_start) = std::sync::mpsc::sync_channel(1);
 		let (tx_proto, rx_proto) = mpsc::channel(64);
 
-		Client::background_thread(tx_start, rx_proto)?;
+		Client::background_thread(tx_start, rx_proto, num_dns_threads)?;
 
 		match rx_start.recv_timeout(Duration::from_secs(10)) {
 			Err(RecvTimeoutError::Timeout) => {
@@ -199,7 +199,7 @@ impl Client {
 		})
 	}
 
-	fn background_thread(tx_start: TxStartup, rx_proto: mpsc::Receiver<ChanItem>) -> io::Result<thread::JoinHandle<()>> {
+	fn background_thread(tx_start: TxStartup, rx_proto: mpsc::Receiver<ChanItem>, num_dns_threads: usize) -> io::Result<thread::JoinHandle<()>> {
 		thread::Builder::new().name("fetch".into()).spawn(move || {
 			let mut core = match reactor::Core::new() {
 				Ok(c) => c,
@@ -208,7 +208,7 @@ impl Client {
 
 			let handle = core.handle();
 			let hyper = hyper::Client::configure()
-				.connector(hyper_rustls::HttpsConnector::new(4, &core.handle()))
+				.connector(hyper_rustls::HttpsConnector::new(num_dns_threads, &core.handle()))
 				.build(&core.handle());
 
 			let future = rx_proto.take_while(|item| Ok(item.is_some()))
@@ -640,7 +640,18 @@ mod test {
 	#[test]
 	fn it_should_fetch() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(4).unwrap();
+		let future = client.get(&format!("http://{}?123", server.addr()), Default::default());
+		let resp = future.wait().unwrap();
+		assert!(resp.is_success());
+		let body = resp.concat2().wait().unwrap();
+		assert_eq!(&body[..], b"123")
+	}
+
+	#[test]
+	fn it_should_fetch_in_light_mode() {
+		let server = TestServer::run();
+		let client = Client::new(1).unwrap();
 		let future = client.get(&format!("http://{}?123", server.addr()), Default::default());
 		let resp = future.wait().unwrap();
 		assert!(resp.is_success());
@@ -651,7 +662,7 @@ mod test {
 	#[test]
 	fn it_should_timeout() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(4).unwrap();
 		let abort = Abort::default().with_max_duration(Duration::from_secs(1));
 		match client.get(&format!("http://{}/delay?3", server.addr()), abort).wait() {
 			Err(Error::Timeout) => {}
@@ -662,7 +673,7 @@ mod test {
 	#[test]
 	fn it_should_follow_redirects() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(4).unwrap();
 		let abort = Abort::default();
 		let future = client.get(&format!("http://{}/redirect?http://{}/", server.addr(), server.addr()), abort);
 		assert!(future.wait().unwrap().is_success())
@@ -671,7 +682,7 @@ mod test {
 	#[test]
 	fn it_should_follow_relative_redirects() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(4).unwrap();
 		let abort = Abort::default().with_max_redirects(4);
 		let future = client.get(&format!("http://{}/redirect?/", server.addr()), abort);
 		assert!(future.wait().unwrap().is_success())
@@ -680,7 +691,7 @@ mod test {
 	#[test]
 	fn it_should_not_follow_too_many_redirects() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(4).unwrap();
 		let abort = Abort::default().with_max_redirects(3);
 		match client.get(&format!("http://{}/loop", server.addr()), abort).wait() {
 			Err(Error::TooManyRedirects) => {}
@@ -691,7 +702,7 @@ mod test {
 	#[test]
 	fn it_should_read_data() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(4).unwrap();
 		let abort = Abort::default();
 		let future = client.get(&format!("http://{}?abcdefghijklmnopqrstuvwxyz", server.addr()), abort);
 		let resp = future.wait().unwrap();
@@ -702,7 +713,7 @@ mod test {
 	#[test]
 	fn it_should_not_read_too_much_data() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(4).unwrap();
 		let abort = Abort::default().with_max_size(3);
 		let resp = client.get(&format!("http://{}/?1234", server.addr()), abort).wait().unwrap();
 		assert!(resp.is_success());
@@ -715,7 +726,7 @@ mod test {
 	#[test]
 	fn it_should_not_read_too_much_data_sync() {
 		let server = TestServer::run();
-		let client = Client::new().unwrap();
+		let client = Client::new(4).unwrap();
 		let abort = Abort::default().with_max_size(3);
 		let resp = client.get(&format!("http://{}/?1234", server.addr()), abort).wait().unwrap();
 		assert!(resp.is_success());
