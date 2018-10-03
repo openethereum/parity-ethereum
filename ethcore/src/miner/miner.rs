@@ -371,6 +371,29 @@ impl Miner {
 		)
 	}
 
+	/// Returns at most `max_len` pending transactions.
+	pub fn pending_transactions_from_queue<C>(&self, chain: &C, max_len: usize) -> Vec<Arc<VerifiedTransaction>>
+		where C: BlockChain + CallContract + BlockProducer + Nonce + Sync,
+	{
+		let chain_info = chain.chain_info();
+		let engine_params = self.engine.params();
+		let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= engine_params.dust_protection_transition {
+			Some((engine_params.nonce_cap_increment * (chain_info.best_block_number + 1)).into())
+		} else {
+			None
+		};
+		self.transaction_queue.pending(
+			self.pool_client(chain),
+			pool::PendingSettings {
+				block_number: chain_info.best_block_number,
+				current_timestamp: chain_info.best_block_timestamp,
+				nonce_cap,
+				max_len,
+				ordering: miner::PendingOrdering::Priority,
+			}
+		)
+	}
+
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block<C>(&self, chain: &C) -> Option<(ClosedBlock, Option<H256>)> where
 		C: BlockChain + CallContract + BlockProducer + Nonce + Sync,
@@ -416,13 +439,7 @@ impl Miner {
 			(open_block, last_work_hash)
 		};
 
-		let engine_params = self.engine.params();
 		let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
-		let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= engine_params.dust_protection_transition {
-			Some((engine_params.nonce_cap_increment * (chain_info.best_block_number + 1)).into())
-		} else {
-			None
-		};
 		// we will never need more transactions than limit divided by min gas
 		let max_transactions = if min_tx_gas.is_zero() {
 			usize::max_value()
@@ -430,16 +447,7 @@ impl Miner {
 			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.block().header().gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
 		};
 
-		let pending = self.transaction_queue.pending(
-			self.pool_client(chain),
-			pool::PendingSettings {
-				block_number: chain_info.best_block_number,
-				current_timestamp: chain_info.best_block_timestamp,
-				nonce_cap,
-				max_len: max_transactions,
-				ordering: miner::PendingOrdering::Priority,
-			}
-		);
+		let pending = self.pending_transactions_from_queue(chain, max_transactions);
 		debug!(target: "miner", "Attempting to push {} transactions.", pending.len());
 
 		let txns = pending.into_iter().map(|tx| tx.signed().clone());

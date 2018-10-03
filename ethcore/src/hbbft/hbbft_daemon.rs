@@ -205,48 +205,57 @@ impl Laboratory {
 // from being streamed into hydrabadger and manipulate its state from here.
 struct BatchHandler {
 	batch_rx: BatchRx<Txn>,
-	client: Arc<Client>,
+	client: Weak<Client>,
+	hydrabadger: Hydrabadger<Txn>,
 }
 
 impl BatchHandler {
-	fn new(batch_rx: BatchRx<Txn>, client: Arc<Client>) -> BatchHandler {
-		BatchHandler { batch_rx, client }
+	fn new(batch_rx: BatchRx<Txn>, client: Weak<Client>, hydrabadger: Hydrabadger<Txn>) -> BatchHandler {
+		BatchHandler { batch_rx, client, hydrabadger }
 	}
 
 	/// Handles a batch of transactions output by the Honey Badger BFT.
 	fn handle_batch(&mut self, batch: Batch<Vec<Vec<Txn>>, NodeId>) {
 		let epoch = batch.epoch();
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return, // TODO: Does this mean Parity is shutting down?
+		};
 
 		info!("YOU WERE HIT BY THE STREAM AND NOW HAVE HONEY BADGER ALL OVER YOU. EWWW.\n{:?}", batch);
 
 		// FIXME: Another `flatten()` after `batch.iter()` shouldn't be necessary.
+		//        Does Hydrabadger have a surplus `Vec` in the `QueueingHoneyBadger` type argument?
 		let batch_txns: Vec<_> = batch.iter().flatten().filter_map(|ser_txn| {
 			Decodable::decode(&Rlp::new(&ser_txn[..])).ok() // TODO: Report proposers of malformed transactions.
 		}).filter_map(|txn| {
 			SignedTransaction::new(txn).ok() // TODO: Report proposers of invalidly signed transactions.
 		}).collect();
-		let miner = self.client.miner();
+		let miner = client.miner();
 		// TODO: Make sure this produces identical blocks in all validators.
 		//       (Probably at least `params.author` needs to be changed.)
-		let open_block = miner.prepare_new_block(&*self.client).expect("TODO");
+		let open_block = miner.prepare_new_block(&*client).expect("TODO");
 		let min_tx_gas = u64::max_value().into(); // TODO
-		let block = miner.prepare_block_from(open_block, batch_txns, &*self.client, min_tx_gas).expect("TODO");
+		// Create a block from the agreed transactions. Seal it instantly and import it.
+		let block = miner.prepare_block_from(open_block, batch_txns, &*client, min_tx_gas).expect("TODO");
 		// TODO: Does this remove the block's transactions from the queue? If not, we need to do so.
 		// TODO: Replace instant sealing with a threshold signature.
-		if !miner.seal_and_import_block_internally(&*self.client, block) {
-			warn!("Failed to seal and import block.");
+		if !miner.seal_and_import_block_internally(&*client, block) {
+			warn!("Failed to seal and import block."); // TODO: This always fails at the moment.
 		}
-		// TODO: Implement the following pseudocode.
-		// // Create a block from the agreed transactions. Seal it instantly and import it.
-		// // Select new transactions and propose them for the next block.
-		// let pending = miner.transaction_queue.pending(client.clone(), pending_settings);
-		// pending.truncate(batch_size);
-		// let txns = if pending.len() <= contrib_size {
-		// 	pending.clone()
-		// } else {
-		// 	rand::seq::sample_slice(rng, &pending, contrib_size)
-		// };
-		// self.hydrabadger.push_user_transactions(txns);
+
+		// Select new transactions and propose them for the next block.
+		let batch_size = 50; // TODO
+		let contrib_size = batch_size / 5; // TODO: `batch_size / num_validators`
+		let pending = miner.pending_transactions_from_queue(&*client, batch_size);
+		let mut rng = rand::thread_rng();
+		let txns = if pending.len() <= contrib_size {
+			pending
+		} else {
+			rand::seq::sample_slice(&mut rng, &pending, contrib_size)
+		};
+		let ser_txns = txns.into_iter().map(|txn| txn.signed().rlp_bytes().into_vec()).collect();
+		self.hydrabadger.push_user_transactions(ser_txns).expect("TODO");
 	}
 }
 
@@ -308,7 +317,8 @@ impl HbbftDaemon {
 			hydrabadger.batch_rx()
 				.expect("The Hydrabadger batch receiver can not be `None` immediately after creation; qed \
 					These proofs are bullshit and prove nothing; qed"),
-			client.clone(),
+			Arc::downgrade(&client),
+			hydrabadger.clone(),
 		);
 
 		let (shutdown_tx, shutdown_rx) = oneshot::channel();
