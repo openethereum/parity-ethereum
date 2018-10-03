@@ -348,7 +348,8 @@ impl Miner {
 			})
 	}
 
-	fn pool_client<'a, C: 'a>(&'a self, chain: &'a C) -> PoolClient<'a, C> where
+	/// Returns a new `PoolClient` using the given `chain` and this miner's engine, accounts, options and nonce cache.
+	pub fn pool_client<'a, C: 'a>(&'a self, chain: &'a C) -> PoolClient<'a, C> where
 		C: BlockChain + CallContract,
 	{
 		PoolClient::new(
@@ -357,6 +358,16 @@ impl Miner {
 			&*self.engine,
 			self.accounts.as_ref().map(|x| &**x),
 			self.options.refuse_service_transactions,
+		)
+	}
+
+	/// Returns a new, empty open block.
+	pub fn prepare_new_block<'a, C: 'a>(&self, chain: &'a C) -> Result<OpenBlock<'a>, Error> where C: BlockProducer {
+		let params = self.params.read().clone();
+		chain.prepare_open_block(
+			params.author,
+			params.gas_range_target,
+			params.extra_data,
 		)
 	}
 
@@ -388,13 +399,7 @@ impl Miner {
 				None => {
 					// block not found - create it.
 					trace!(target: "miner", "prepare_block: No existing work - making new block");
-					let params = self.params.read().clone();
-
-					match chain.prepare_open_block(
-						params.author,
-						params.gas_range_target,
-						params.extra_data,
-					) {
+					match self.prepare_new_block(chain) {
 						Ok(block) => block,
 						Err(err) => {
 							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in chain specificiations or on-chain consensus smart contracts.", err);
@@ -411,7 +416,6 @@ impl Miner {
 			(open_block, last_work_hash)
 		};
 
-		let client = self.pool_client(chain);
 		let engine_params = self.engine.params();
 		let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
 		let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= engine_params.dust_protection_transition {
@@ -426,8 +430,8 @@ impl Miner {
 			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.block().header().gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
 		};
 
-		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
-			client.clone(),
+		let pending = self.transaction_queue.pending(
+			self.pool_client(chain),
 			pool::PendingSettings {
 				block_number: chain_info.best_block_number,
 				current_timestamp: chain_info.best_block_timestamp,
@@ -436,19 +440,23 @@ impl Miner {
 				ordering: miner::PendingOrdering::Priority,
 			}
 		);
+		debug!(target: "miner", "Attempting to push {} transactions.", pending.len());
 
-		let opt_block = self.prepare_block_from(open_block, pending, client, min_tx_gas);
+		let txns = pending.into_iter().map(|tx| tx.signed().clone());
+		let opt_block = self.prepare_block_from(open_block, txns, chain, min_tx_gas);
 		opt_block.map(|block| (block, original_work_hash))
 	}
 
 	/// Prepares new block for sealing including the given transactions.
-	fn prepare_block_from<'a, C: 'a>(&self,
-									 mut open_block: OpenBlock,
-									 pending: Vec<Arc<VerifiedTransaction>>,
-									 client: PoolClient<'a, C>,
-									 min_tx_gas: U256) -> Option<ClosedBlock>
-		where C: BlockChain + CallContract,
+	pub fn prepare_block_from<'a, C: 'a, I>(&self,
+		mut open_block: OpenBlock,
+		pending: I,
+		chain: &C,
+		min_tx_gas: U256
+	) -> Option<ClosedBlock>
+		where C: BlockChain + CallContract, I: IntoIterator<Item = SignedTransaction>
 	{
+		let client = self.pool_client(chain);
 		let mut invalid_transactions = HashSet::new();
 		let mut not_allowed_transactions = HashSet::new();
 		let mut senders_to_penalize = HashSet::new();
@@ -462,12 +470,10 @@ impl Miner {
 		};
 
 		let block_start = Instant::now();
-		debug!(target: "miner", "Attempting to push {} transactions.", pending.len());
 
-		for tx in pending {
+		for transaction in pending {
 			let start = Instant::now();
 
-			let transaction = tx.signed().clone();
 			let hash = transaction.hash();
 			let sender = transaction.sender();
 
@@ -619,7 +625,7 @@ impl Miner {
 	}
 
 	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
-	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
+	pub fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
 		where C: BlockChain + SealedBlockImporter,
 	{
 		{
