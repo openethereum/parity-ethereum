@@ -34,6 +34,7 @@ mod signer;
 mod signing_queue;
 mod subscribers;
 mod subscription_manager;
+mod work;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher};
 pub use self::network_settings::NetworkSettings;
@@ -50,6 +51,7 @@ pub use self::signing_queue::{
 pub use self::signer::SignerService;
 pub use self::subscribers::Subscribers;
 pub use self::subscription_manager::GenericPollManager;
+pub use self::work::submit_work_detail;
 
 pub fn to_url(address: &Option<::Host>) -> Option<String> {
 	address.as_ref().map(|host| (**host).to_owned())

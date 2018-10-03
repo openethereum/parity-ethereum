@@ -16,7 +16,7 @@
 
 use fixture::{Fixture, Assert, CallLocator, Source};
 use wasm::WasmInterpreter;
-use vm::{self, Vm, GasLeft, ActionParams, ActionValue, ParamsType};
+use vm::{self, Exec, GasLeft, ActionParams, ActionValue, ParamsType};
 use vm::tests::FakeExt;
 use std::io::{self, Read};
 use std::{fs, path, fmt};
@@ -31,8 +31,8 @@ fn load_code<P: AsRef<path::Path>>(p: P) -> io::Result<Vec<u8>> {
 	Ok(result)
 }
 
-fn wasm_interpreter(params: ActionParams) -> WasmInterpreter {
-	WasmInterpreter::new(params)
+fn wasm_interpreter(params: ActionParams) -> Box<WasmInterpreter> {
+	Box::new(WasmInterpreter::new(params))
 }
 
 #[derive(Debug)]
@@ -131,7 +131,7 @@ pub fn construct(
 	params.params_type = ParamsType::Separate;
 
 	Ok(
-		match wasm_interpreter(params).exec(ext)? {
+		match wasm_interpreter(params).exec(ext).ok().expect("Wasm interpreter always calls with trap=false; trap never happens; qed")? {
 			GasLeft::Known(_) => Vec::new(),
 			GasLeft::NeedsReturn { data, .. } => data.to_vec(),
 		}
@@ -192,9 +192,9 @@ pub fn run_fixture(fixture: &Fixture) -> Vec<Fail> {
 		}
 	}
 
-	let mut interpreter = wasm_interpreter(params);
+	let interpreter = wasm_interpreter(params);
 
-	let interpreter_return = match interpreter.exec(&mut ext) {
+	let interpreter_return = match interpreter.exec(&mut ext).ok().expect("Wasm interpreter always calls with trap=false; trap never happens; qed") {
 		Ok(ret) => ret,
 		Err(e) => { return Fail::runtime(e); }
 	};

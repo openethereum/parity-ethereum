@@ -25,6 +25,7 @@ use {
 	CreateContractAddress, Result, GasLeft,
 };
 use hash::keccak;
+use error::TrapKind;
 
 pub struct FakeLogEntry {
 	pub topics: Vec<H256>,
@@ -138,7 +139,14 @@ impl Ext for FakeExt {
 		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult {
+	fn create(
+		&mut self,
+		gas: &U256,
+		value: &U256,
+		code: &[u8],
+		address: CreateContractAddress,
+		_trap: bool,
+	) -> ::std::result::Result<ContractCreateResult, TrapKind> {
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::Create,
 			create_scheme: Some(address),
@@ -149,19 +157,21 @@ impl Ext for FakeExt {
 			data: code.to_vec(),
 			code_address: None
 		});
-		ContractCreateResult::Failed
+		// TODO: support traps in testing.
+		Ok(ContractCreateResult::Failed)
 	}
 
-	fn call(&mut self,
-			gas: &U256,
-			sender_address: &Address,
-			receive_address: &Address,
-			value: Option<U256>,
-			data: &[u8],
-			code_address: &Address,
-			_call_type: CallType
-		) -> MessageCallResult {
-
+	fn call(
+		&mut self,
+		gas: &U256,
+		sender_address: &Address,
+		receive_address: &Address,
+		value: Option<U256>,
+		data: &[u8],
+		code_address: &Address,
+		_call_type: CallType,
+		_trap: bool,
+	) -> ::std::result::Result<MessageCallResult, TrapKind> {
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::Call,
 			create_scheme: None,
@@ -172,7 +182,8 @@ impl Ext for FakeExt {
 			data: data.to_vec(),
 			code_address: Some(code_address.clone())
 		});
-		MessageCallResult::Success(*gas, ReturnData::empty())
+		// TODO: support traps in testing.
+		Ok(MessageCallResult::Success(*gas, ReturnData::empty()))
 	}
 
 	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>> {

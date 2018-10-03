@@ -35,12 +35,26 @@ pub struct Informant {
 	instruction: u8,
 	gas_cost: U256,
 	gas_used: U256,
+	mem_written: Option<(usize, usize)>,
+	store_written: Option<(U256, U256)>,
 	stack: Vec<U256>,
 	memory: Vec<u8>,
 	storage: HashMap<H256, H256>,
 	traces: Vec<String>,
 	subtraces: Vec<String>,
+	subinfos: Vec<Informant>,
+	subdepth: usize,
 	unmatched: bool,
+}
+
+impl Informant {
+	fn with_informant_in_depth<F: Fn(&mut Informant)>(informant: &mut Informant, depth: usize, f: F) {
+		if depth == 0 {
+			f(informant);
+		} else {
+			Self::with_informant_in_depth(informant.subinfos.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
+		}
+	}
 }
 
 impl vm::Informant for Informant {
@@ -88,72 +102,92 @@ impl trace::VMTracer for Informant {
 	type Output = Vec<String>;
 
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, _current_gas: U256) -> bool {
-		self.pc = pc;
-		self.instruction = instruction;
-		self.unmatched = true;
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			informant.pc = pc;
+			informant.instruction = instruction;
+			informant.unmatched = true;
+		});
 		true
 	}
 
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
-		self.pc = pc;
-		self.instruction = instruction;
-		self.gas_cost = gas_cost;
-	}
-
-	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
-		let info = ::evm::Instruction::from_u8(self.instruction).map(|i| i.info());
-
-		let trace = json!({
-			"pc": self.pc,
-			"op": self.instruction,
-			"opName": info.map(|i| i.name).unwrap_or(""),
-			"gas": format!("{:#x}", gas_used.saturating_add(self.gas_cost)),
-			"gasCost": format!("{:#x}", self.gas_cost),
-			"memory": format!("0x{}", self.memory.to_hex()),
-			"stack": self.stack,
-			"storage": self.storage,
-			"depth": self.depth,
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256, mem_written: Option<(usize, usize)>, store_written: Option<(U256, U256)>) {
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			informant.pc = pc;
+			informant.instruction = instruction;
+			informant.gas_cost = gas_cost;
+			informant.mem_written = mem_written;
+			informant.store_written = store_written;
 		});
+	}
 
-		self.traces.push(trace.to_string());
+	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			let mem_diff = informant.mem_written.clone().map(|(o, s)| (o, &(mem[o..o+s])));
+			let store_diff = informant.store_written.clone();
+			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-		self.unmatched = false;
-		self.gas_used = gas_used;
+			let trace = json!({
+				"pc": informant.pc,
+				"op": informant.instruction,
+				"opName": info.map(|i| i.name).unwrap_or(""),
+				"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
+				"gasCost": format!("{:#x}", informant.gas_cost),
+				"memory": format!("0x{}", informant.memory.to_hex()),
+				"stack": informant.stack,
+				"storage": informant.storage,
+				"depth": informant.depth,
+			});
+			informant.traces.push(trace.to_string());
 
-		let len = self.stack.len();
-		let info_args = info.map(|i| i.args).unwrap_or(0);
-		self.stack.truncate(if len > info_args { len - info_args } else { 0 });
-		self.stack.extend_from_slice(stack_push);
+			informant.unmatched = false;
+			informant.gas_used = gas_used;
 
-		// TODO [ToDr] Align memory?
-		if let Some((pos, data)) = mem_diff {
-			if self.memory.len() < (pos + data.len()) {
-				self.memory.resize(pos + data.len(), 0);
+			let len = informant.stack.len();
+			let info_args = info.map(|i| i.args).unwrap_or(0);
+			informant.stack.truncate(if len > info_args { len - info_args } else { 0 });
+			informant.stack.extend_from_slice(stack_push);
+
+			// TODO [ToDr] Align memory?
+			if let Some((pos, data)) = mem_diff {
+				if informant.memory.len() < (pos + data.len()) {
+					informant.memory.resize(pos + data.len(), 0);
+				}
+				informant.memory[pos..pos + data.len()].copy_from_slice(data);
 			}
-			self.memory[pos..pos + data.len()].copy_from_slice(data);
-		}
 
-		if let Some((pos, val)) = store_diff {
-			self.storage.insert(pos.into(), val.into());
-		}
+			if let Some((pos, val)) = store_diff {
+				informant.storage.insert(pos.into(), val.into());
+			}
 
-		if !self.subtraces.is_empty() {
-			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
-		}
+			if !informant.subtraces.is_empty() {
+				informant.traces.extend(mem::replace(&mut informant.subtraces, vec![]));
+			}
+		});
 	}
 
-	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized {
-		let mut vm = Informant::default();
-		vm.depth = self.depth + 1;
-		vm.code = code.to_vec();
-		vm.gas_used = self.gas_used;
-		vm
+	fn prepare_subtrace(&mut self, code: &[u8]) {
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			let mut vm = Informant::default();
+			vm.depth = informant.depth + 1;
+			vm.code = code.to_vec();
+			vm.gas_used = informant.gas_used;
+			informant.subinfos.push(vm);
+		});
+		self.subdepth += 1;
 	}
 
-	fn done_subtrace(&mut self, sub: Self) {
-		if let Some(subtraces) = sub.drain() {
-			self.subtraces.extend(subtraces);
-		}
+	fn done_subtrace(&mut self) {
+		self.subdepth -= 1;
+		let subdepth = self.subdepth;
+		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
+			if let Some(subtraces) = informant.subinfos.pop().expect("prepare/done_subtrace are not balanced").drain() {
+				informant.subtraces.extend(subtraces);
+			}
+		});
 	}
 
 	fn drain(mut self) -> Option<Self::Output> {
@@ -161,7 +195,7 @@ impl trace::VMTracer for Informant {
 			// print last line with final state:
 			self.gas_cost = 0.into();
 			let gas_used = self.gas_used;
-			self.trace_executed(gas_used, &[], None, None);
+			self.trace_executed(gas_used, &[], &[]);
 		} else if !self.subtraces.is_empty() {
 			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
 		}
