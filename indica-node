@@ -45,14 +45,6 @@ PARITY_LOG=peer_node::hydrabadger=error,warn,info,$PARITY_LOG_ADDTL
 
 set -x
 
-# Adding the following accounts only needs to occur once per network/node:
-
-# curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["richie", "richie"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
-
-# curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node0", "node0"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
-
-# curl --data '{"jsonrpc":"2.0","method":"parity_newAccountFromPhrase","params":["node'$HOST_ID'", "node'$HOST_ID'"],"id":0}' -H "Content-Type: application/json" -X POST localhost:8500
-
 # Launches node.
 bash -c "\
 RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
@@ -64,18 +56,10 @@ RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
     --jsonrpc-port $JSONRPC_PORT \
     --ws-port $WS_PORT \
     --hbbft-port $HOST_HYDRABADGER_PORT \
+    --hbbft-remote-addresses 127.0.0.1:5900 \
     --jsonrpc-apis web3,eth,pubsub,net,parity,private,parity_pubsub,parity_set,traces,rpc,shh,shh_pubsub,personal,parity_accounts \
     --password=node.pwds \
     --reseal-on-txs="none" \
     --usd-per-tx=0 \
     $2 $3 $4 $5 $6 $7 $8 \
 "
-
-### --reserved-peers $HOME/.poanetwork/indica/bootnodes.txt \
-###  chain $HOME/.poanetwork/indica/spec.json \
-
-### --ports-shift $HOST_ID \
-### --engine-signer=$NODE_ACCOUNT \
-
-### --hbbft-remote-addresses 127.0.0.1:5900 \
-
