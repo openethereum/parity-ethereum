@@ -178,7 +178,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			instructions::SHA3 => {
 				let w = overflowing!(add_gas_usize(Gas::from_u256(*stack.peek(1))?, 31));
 				let words = w >> 5;
-				let gas = Gas::from(schedule.sha3_gas) + (Gas::from(schedule.sha3_word_gas) * words);
+				let gas = overflowing!(Gas::from(schedule.sha3_gas).overflow_add(overflowing!(Gas::from(schedule.sha3_word_gas).overflow_mul(words))));
 				Request::GasMem(gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => {
@@ -232,8 +232,20 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				Request::GasMemProvide(gas, mem, Some(requested))
 			},
 			instructions::CREATE | instructions::CREATE2 => {
-				let gas = Gas::from(schedule.create_gas);
-				let mem = mem_needed(stack.peek(1), stack.peek(2))?;
+				let start = stack.peek(1);
+				let len = stack.peek(2);
+
+				let gas = match instruction {
+					instructions::CREATE => Gas::from(schedule.create_gas),
+					instructions::CREATE2 => {
+						let base = Gas::from(schedule.create_gas);
+						let word = overflowing!(add_gas_usize(Gas::from_u256(*len)?, 31)) >> 5;
+						let word_gas = overflowing!(Gas::from(schedule.sha3_word_gas).overflow_mul(word));
+						overflowing!(base.overflow_add(word_gas))
+					},
+					_ => unreachable!("CREATE/CREATE2 branch is checked above; qed"),
+				};
+				let mem = mem_needed(start, len)?;
 
 				Request::GasMemProvide(gas, mem, None)
 			},
@@ -284,7 +296,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			Request::GasMemCopy(gas, mem_size, copy) => {
 				let (mem_gas_cost, new_mem_gas, new_mem_size) = self.mem_gas_cost(schedule, current_mem_size, &mem_size)?;
 				let copy = overflowing!(add_gas_usize(copy, 31)) >> 5;
-				let copy_gas = Gas::from(schedule.copy_gas) * copy;
+				let copy_gas = overflowing!(Gas::from(schedule.copy_gas).overflow_mul(copy));
 				let gas = overflowing!(gas.overflow_add(copy_gas));
 				let gas = overflowing!(gas.overflow_add(mem_gas_cost));
 
