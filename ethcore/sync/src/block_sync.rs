@@ -316,7 +316,7 @@ impl BlockDownloader {
 		match self.state {
 			State::ChainHead => {
 				if !headers.is_empty() {
-					trace_sync!("Received {} subchain heads, proceeding to download", headers.len());
+					trace_sync!(self, "Received {} subchain heads, proceeding to download", headers.len());
 					self.blocks.reset_to(hashes);
 					self.state = State::Blocks;
 					return Ok(DownloadAction::Reset);
@@ -334,8 +334,8 @@ impl BlockDownloader {
 				let count = headers.len();
 				// At least one of the headers must advance the subchain. Otherwise they are all useless.
 				if count == 0 {
-					trace_sync!(self, "No useful headers, expected hash {:?}", expected_hash);
 					self.useless_headers_count += 1;
+					trace_sync!(self, "No useful headers ({:?} this round), expected hash {:?}", self.useless_headers_count, expected_hash);
 					// only reset download if we have multiple subchain heads, to avoid unnecessary resets
 					// when we are at the head of the chain when we may legitimately receive no useful headers
 					if self.blocks.heads_len() > 1 && self.useless_headers_count >= MAX_USELESS_HEADERS_PER_ROUND {
@@ -369,11 +369,11 @@ impl BlockDownloader {
 
 			let hashes = self.blocks.insert_bodies(bodies);
 			if hashes.len() != item_count {
-				trace_sync!("Deactivating peer for giving invalid block bodies");
+				trace_sync!(self, "Deactivating peer for giving invalid block bodies");
 				return Err(BlockDownloaderImportError::Invalid);
 			}
 			if !all_expected(hashes.as_slice(), expected_hashes, |&a, &b| a == b) {
-				trace_sync!("Deactivating peer for giving unexpected block bodies");
+				trace_sync!(self, "Deactivating peer for giving unexpected block bodies");
 				return Err(BlockDownloaderImportError::Invalid);
 			}
 		}
@@ -400,11 +400,11 @@ impl BlockDownloader {
 			}
 			let hashes = self.blocks.insert_receipts(receipts);
 			if hashes.len() != item_count {
-				trace_sync!("Deactivating peer for giving invalid block receipts");
+				trace_sync!(self, "Deactivating peer for giving invalid block receipts");
 				return Err(BlockDownloaderImportError::Invalid);
 			}
 			if !all_expected(hashes.as_slice(), expected_hashes, |a, b| a.contains(b)) {
-				trace_sync!("Deactivating peer for giving unexpected block receipts");
+				trace_sync!(self, "Deactivating peer for giving unexpected block receipts");
 				return Err(BlockDownloaderImportError::Invalid);
 			}
 		}
@@ -638,35 +638,21 @@ mod tests {
 		header
 	}
 
-	fn get_dummy_headers(count: u32) -> Vec<Header> {
-		let mut parent_hash = H256::new();
-		let mut tx_root = H256::new();
-		let mut headers = Vec::new();
-		for i in 0..count {
-			let mut header = dummy_header(i as u64, parent_hash);
-			header.set_transactions_root(tx_root);
-			parent_hash = header.hash();
-			tx_root = H256::random();
-			headers.push(header);
-		}
-		headers
-	}
-
 	fn dummy_signed_tx() -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction::default().sign(keypair.secret(), None)
 	}
 
-	fn import_headers(headers: &[Header], downloader: &mut BlockDownloader, io: &mut SyncIo) -> Result<DownloadAction, BlockDownloaderImportError> {
+	fn import_headers(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut SyncIo) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let mut stream = RlpStream::new();
 		stream.append_list(headers);
 		let bytes = stream.out();
 		let rlp = Rlp::new(&bytes);
-		let expected_hash = headers.first().map(|h| h.hash());
+		let expected_hash = headers.first().unwrap().hash();
 		downloader.import_headers(io, &rlp, expected_hash)
 	}
 
-	fn import_headers_ok(headers: &[Header], downloader: &mut BlockDownloader, io: &mut SyncIo) {
+	fn import_headers_ok(headers: &[BlockHeader], downloader: &mut BlockDownloader, io: &mut SyncIo) {
 		let res = import_headers(headers, downloader, io);
 		assert!(res.is_ok());
 	}
@@ -678,7 +664,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_hash = spec.genesis_header().hash();
 
-		let mut downloader = BlockDownloader::new(false, &genesis_hash, 0);
+		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);
 		downloader.state = State::ChainHead;
 
 		let mut chain = TestBlockChainClient::new();
@@ -760,7 +746,7 @@ mod tests {
 		let parent_hash = headers[1].hash();
 		headers.push(dummy_header(129, parent_hash));
 
-		let mut downloader = BlockDownloader::new(false, &H256::random(), 0);
+		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &H256::random(), 0);
 		downloader.state = State::Blocks;
 		downloader.blocks.reset_to(vec![headers[0].hash()]);
 
@@ -830,7 +816,7 @@ mod tests {
 			headers.push(header);
 		}
 
-		let mut downloader = BlockDownloader::new(false, &headers[0].hash(), 0);
+		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &headers[0].hash(), 0);
 		downloader.state = State::Blocks;
 		downloader.blocks.reset_to(vec![headers[0].hash()]);
 
@@ -894,7 +880,7 @@ mod tests {
 			headers.push(header);
 		}
 
-		let mut downloader = BlockDownloader::new(true, &headers[0].hash(), 0);
+		let mut downloader = BlockDownloader::new(BlockSet::OldBlocks, &headers[0].hash(), 0);
 		downloader.state = State::Blocks;
 		downloader.blocks.reset_to(vec![headers[0].hash()]);
 
@@ -923,21 +909,25 @@ mod tests {
 	#[test]
 	fn reset_after_multiple_sets_of_useless_headers() {
 		::env_logger::try_init().ok();
-		let headers1 = get_dummy_headers(20);
-		let short_subchain = get_dummy_headers(5);
 
-		let mut client = TestBlockChainClient::new();
+		let spec = Spec::new_test();
+		let genesis_hash = spec.genesis_header().hash();
+
+		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);
+		downloader.state = State::ChainHead;
+
+		let mut chain = TestBlockChainClient::new();
+		let snapshot_service = TestSnapshotService::new();
 		let queue = RwLock::new(VecDeque::new());
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut chain, &snapshot_service, &queue, None);
 
-		let heads : Vec<_> = headers1.iter()
-			.enumerate().filter_map(|(i, h)| if i % 10 == 0 { Some(h.clone()) } else { None }).collect();
-		let start_hash = heads[0].hash();
+		let heads = [
+			spec.genesis_header(),
+			dummy_header(127, H256::random()),
+			dummy_header(254, H256::random()),
+		];
 
-		let mut downloader = BlockDownloader::new(BlockSet::OldBlocks, &start_hash, 0);
-
-		downloader.request_blocks(&mut io, 1);
+		let short_subchain = [dummy_header(1, genesis_hash)];
 
 		import_headers_ok(&heads, &mut downloader, &mut io);
 		import_headers_ok(&short_subchain, &mut downloader, &mut io);
@@ -959,21 +949,23 @@ mod tests {
 	#[test]
 	fn dont_reset_after_multiple_sets_of_useless_headers_for_chain_head() {
 		::env_logger::try_init().ok();
-		let headers = get_dummy_headers(10);
-		let short_subchain = get_dummy_headers(5);
 
-		let mut client = TestBlockChainClient::new();
+		let spec = Spec::new_test();
+		let genesis_hash = spec.genesis_header().hash();
+
+		let mut downloader = BlockDownloader::new(BlockSet::NewBlocks, &genesis_hash, 0);
+		downloader.state = State::ChainHead;
+
+		let mut chain = TestBlockChainClient::new();
+		let snapshot_service = TestSnapshotService::new();
 		let queue = RwLock::new(VecDeque::new());
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let mut io = TestIo::new(&mut chain, &snapshot_service, &queue, None);
 
-		let heads : Vec<_> = headers.iter()
-			.enumerate().filter_map(|(i, h)| if i % 10 == 0 { Some(h.clone()) } else { None }).collect();
-		let start_hash = heads[0].hash();
+		let heads = [
+			spec.genesis_header()
+		];
 
-		let mut downloader = BlockDownloader::new(BlockSet::OldBlocks, &start_hash, 0);
-
-		downloader.request_blocks(&mut io, 1);
+		let short_subchain = [dummy_header(1, genesis_hash)];
 
 		import_headers_ok(&heads, &mut downloader, &mut io);
 		import_headers_ok(&short_subchain, &mut downloader, &mut io);
@@ -983,7 +975,6 @@ mod tests {
 
 		// simulate receiving useless headers
 		let head = vec![short_subchain.last().unwrap().clone()];
-
 		for _ in 0..MAX_USELESS_HEADERS_PER_ROUND {
 			let res = import_headers(&head, &mut downloader, &mut io);
 			assert!(res.is_err());
