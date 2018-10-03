@@ -656,3 +656,4 @@ fn alt_bn128_pairing_ten_point_match_3(b: &mut Bencher) {
 		b,
 	);
 }
+

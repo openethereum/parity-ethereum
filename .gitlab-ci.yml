@@ -150,11 +150,12 @@ test-darwin:
     - rust-osx
 
 test-windows:
-  stage:                           optional
+  stage:                           test 
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
   script:
+    - env
     - sh scripts/gitlab/test-all.sh stable
   tags:
    - rust-windows
