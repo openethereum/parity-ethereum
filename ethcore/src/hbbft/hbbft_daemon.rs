@@ -241,7 +241,7 @@ impl BatchHandler {
 		// TODO: Does this remove the block's transactions from the queue? If not, we need to do so.
 		// TODO: Replace instant sealing with a threshold signature.
 		if !miner.seal_and_import_block_internally(&*client, block) {
-			warn!("Failed to seal and import block."); // TODO: This always fails at the moment.
+			warn!("Failed to seal and import block.");
 		}
 
 		// Select new transactions and propose them for the next block.
