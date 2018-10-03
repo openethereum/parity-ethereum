@@ -20,8 +20,8 @@ use std::thread;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
-use rlp::{self, Rlp};
-use ethereum_types::{U256, H64, H256, Address};
+use rlp::Rlp;
+use ethereum_types::{U256, H256, Address};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
@@ -40,7 +40,7 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 
-use v1::helpers::{errors, limit_logs, fake_sign};
+use v1::helpers::{self, errors, limit_logs, fake_sign};
 use v1::helpers::dispatch::{FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
@@ -789,22 +789,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn submit_work(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<bool> {
-		// TODO [ToDr] Should disallow submissions in case of PoA?
-		let nonce: H64 = nonce.into();
-		let pow_hash: H256 = pow_hash.into();
-		let mix_hash: H256 = mix_hash.into();
-		trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
-
-		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
-		let import = self.miner.submit_seal(pow_hash, seal)
-			.and_then(|block| self.client.import_sealed_block(block));
-
-		match import {
-			Ok(_) => Ok(true),
-			Err(err) => {
-				warn!(target: "miner", "Cannot submit work - {:?}.", err);
-				Ok(false)
-			},
+		match helpers::submit_work_detail(&self.client, &self.miner, nonce, pow_hash, mix_hash) {
+			Ok(_)  => Ok(true),
+			Err(_) => Ok(false),
 		}
 	}
 

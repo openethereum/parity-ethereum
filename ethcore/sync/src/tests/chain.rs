@@ -225,32 +225,28 @@ fn propagate_blocks() {
 
 #[test]
 fn restart_on_malformed_block() {
+	::env_logger::try_init().ok();
 	let mut net = TestNet::new(2);
-	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle);
-	net.peer(1).chain.corrupt_block(6);
+	net.peer(1).chain.add_blocks(5, EachBlockWith::Nothing);
+	net.peer(1).chain.add_block(EachBlockWith::Nothing, |mut header| {
+		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
+		header
+	});
 	net.sync_steps(20);
 
-	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
+	// This gets accepted just fine since the TestBlockChainClient performs no validation.
+	// Probably remove this test?
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 6);
 }
 
 #[test]
-fn restart_on_broken_chain() {
+fn reject_on_broken_chain() {
 	let mut net = TestNet::new(2);
-	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Nothing);
 	net.peer(1).chain.corrupt_block_parent(6);
 	net.sync_steps(20);
 
-	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
-}
-
-#[test]
-fn high_td_attach() {
-	let mut net = TestNet::new(2);
-	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle);
-	net.peer(1).chain.corrupt_block_parent(6);
-	net.sync_steps(20);
-
-	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 0);
 }
 
 #[test]
