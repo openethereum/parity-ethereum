@@ -7,13 +7,13 @@ use std::thread;
 use std::time::{Instant, Duration};
 use rand::{self, ThreadRng, Rng};
 use futures::{
-	Future,
+	task, Future, Poll, Stream, Async,
 	future::{self, Loop},
 	sync::mpsc::Receiver,
 	sync::oneshot,
 };
 use parking_lot::Mutex;
-use hydrabadger::{Hydrabadger, Error as HydrabadgerError};
+use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid};
 use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
 use hbbft::HbbftConfig;
 use rlp::Encodable;
@@ -29,26 +29,38 @@ use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
 
 type Txn = Vec<u8>;
+type NodeId = Uid;
 
-// TODO: Replace error_chain (deprecated) with failure.
+// TODO: Replace error_chain with failure.
 error_chain! {
 	types {
 		Error, ErrorKind, ErrorResultExt, HbbftDaemonResult;
 	}
 
 	errors {
-		#[doc = "Tokio runtime start error."]
+		#[doc = "A tokio runtime start error."]
 		RuntimeStart(err: tokio::io::Error) {
-			description("Snapshot error.")
+			description("Tokio runtime failed to start")
 			display("Tokio runtime failed to start: {:?}", err)
 		}
+		#[doc = "An unhandled hydrabadger error."]
+		Hydrabadger(err: HydrabadgerError) {
+			description("Unhandled hydrabadger error")
+			display("Unhandled hydrabadger error: {:?}", err)
+		}
+		#[doc = "A hydrabadger batch receiver error."]
+		HydrabadgerBatchRxPoll {
+			description("Error polling hydrabadger internal receiver")
+			display("Error polling hydrabadger internal receiver")
+		}
+
 	}
 }
 
 /// Methods for use by hbbft.
 //
-// The purpose of this trait is to keep our own experimental methods
-// organized.
+// The purpose of this trait is to keep experimental methods separate and
+// organized. TODO: Consider this trait's future...
 pub trait HbbftClientExt {
 	fn a_specialized_method(&self);
 	fn change_me_into_something_useful(&self);
@@ -185,6 +197,77 @@ impl Laboratory {
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
+
+/// Handles honey badger batch outputs.
+//
+// TODO: Create a transaction queue semaphore to allow/disallow transactions
+// from being streamed into hydrabadger and manipulate its state from here.
+struct BatchHandler {
+	batch_rx: BatchRx<Txn>,
+}
+
+impl BatchHandler {
+	fn new(batch_rx: BatchRx<Txn>) -> BatchHandler {
+		BatchHandler { batch_rx }
+	}
+
+	/// Handles a batch of transactions output by the Honey Badger BFT.
+	fn handle_batch(&mut self, batch: Batch<Vec<Vec<Txn>>, NodeId>) {
+		let epoch = batch.epoch();
+
+		info!("YOU WERE HIT BY THE STREAM AND NOW HAVE HONEY BADGER ALL OVER YOU. EWWW.\n{:?}", batch);
+
+		// TODO: Implement the following pseudocode.
+		// TODO: Replace instant sealing with a threshold signature.
+		// // Create a block from the agreed transactions. Seal it instantly and import it.
+		// let block = miner.prepare_block_from(batch);
+		// miner.remove_transactions_from_queue(&block);
+		// miner.seal_and_import_block_internally(&chain, block);
+		// // Select new transactions and propose them for the next block.
+		// let pending = miner.transaction_queue.pending(client.clone(), pending_settings);
+		// pending.truncate(batch_size);
+		// let txns = if pending.len() <= contrib_size {
+		// 	pending.clone()
+		// } else {
+		// 	rand::seq::sample_slice(rng, &pending, contrib_size)
+		// };
+		// self.hydrabadger.push_user_transactions(txns);
+	}
+}
+
+impl Future for BatchHandler {
+	type Item = ();
+	type Error = Error;
+
+	/// Polls the batch receiver until the hydrabadger handler batch
+	/// transmitter (e.g. handler) is dropped.
+	fn poll(&mut self) -> Poll<(), Error> {
+		const BATCHES_PER_TICK: usize = 3;
+
+		for i in 0..BATCHES_PER_TICK {
+			match self.batch_rx.poll() {
+				Ok(Async::Ready(Some(batch))) => {
+
+					self.handle_batch(batch);
+
+					// Exceeded max batches per tick, schedule notification:
+					if i + 1 == BATCHES_PER_TICK {
+						task::current().notify();
+					}
+				}
+				Ok(Async::Ready(None)) => {
+					// Hydrabadger handler has dropped.
+					return Ok(Async::Ready(()));
+				}
+				Ok(Async::NotReady) => {}
+				Err(()) => return Err(ErrorKind::HydrabadgerBatchRxPoll.into()),
+			};
+		}
+
+		Ok(Async::NotReady)
+	}
+}
+
 /// An hbbft <-> Parity link which relays events and acts as an intermediary.
 pub struct HbbftDaemon {
 	// Unused:
@@ -204,8 +287,13 @@ impl HbbftDaemon {
 		cfg: &HbbftConfig,
 		account_provider: Arc<AccountProvider>
 	) -> Result<HbbftDaemon, Error> {
-		// Hydrabadger
 		let hydrabadger = Hydrabadger::<Txn>::new(cfg.bind_address, cfg.to_hydrabadger());
+
+		let batch_handler = BatchHandler::new(
+			hydrabadger.batch_rx()
+				.expect("The Hydrabadger batch receiver can not be `None` immediately after creation; qed \
+					These proofs are bullshit and prove nothing; qed")
+		);
 
 		let (shutdown_tx, shutdown_rx) = oneshot::channel();
 
@@ -223,7 +311,9 @@ impl HbbftDaemon {
 			runtime.shutdown_now().wait().expect("Error shutting down tokio runtime");
 		}).map_err(|err| format!("Error creating thread: {:?}", err))?;
 
-		info!("Starting HbbftDaemon...");
+		executor.spawn(batch_handler.map_err(|err| panic!("Unhandled batch handler error: {:?}", err)));
+
+		info!("HbbftDaemon has been spawned.");
 
 		let client_clone = client.clone();
 		let hdb_clone = hydrabadger.clone();
@@ -259,26 +349,6 @@ impl HbbftDaemon {
 	// Only needed until a proper global runtime is used.
 	pub fn shutdown(&self) {
 		self.shutdown_tx.lock().take().map(|tx| tx.send(()));
-	}
-
-	/// Handles a batch of transactions output by the Honey Badger BFT.
-	fn handle_batch(&self, batch: Vec<Transaction>, epoch: u64) {
-		// TODO: Call this method when Hydrabadger outputs.
-		// TODO: Implement the following pseudocode.
-		// TODO: Replace instant sealing with a threshold signature.
-		// // Create a block from the agreed transactions. Seal it instantly and import it.
-		// let block = miner.prepare_block_from(batch);
-		// miner.remove_transactions_from_queue(&block);
-		// miner.seal_and_import_block_internally(&chain, block);
-		// // Select new transactions and propose them for the next block.
-		// let pending = miner.transaction_queue.pending(client.clone(), pending_settings);
-		// pending.truncate(batch_size);
-		// let txns = if pending.len() <= contrib_size {
-		// 	pending.clone()
-		// } else {
-		// 	rand::seq::sample_slice(rng, &pending, contrib_size)
-		// };
-		// self.hydrabadger.push_user_transactions(txns);
 	}
 }
 

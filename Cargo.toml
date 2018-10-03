@@ -70,8 +70,6 @@ ethcore-secretstore = { path = "secret_store", optional = true }
 
 registrar = { path = "registrar" }
 
-# # hydrabadger = { path = "../hydrabadger"}
-# hydrabadger = { git = "https://github.com/poanetwork/hydrabadger"}
 
 [build-dependencies]
 rustc_version = "0.2"
