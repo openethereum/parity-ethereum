@@ -61,5 +61,6 @@ RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
     --password=node.pwds \
     --reseal-on-txs="none" \
     --usd-per-tx=0 \
+	--force-sealing \
     $2 $3 $4 $5 $6 $7 $8 \
 "

@@ -23,7 +23,6 @@ use ethjson;
 use error::Error;
 use header::{Header, ExtendedHeader};
 use machine::EthereumMachine;
-use parity_machine::Transactions;
 use parking_lot::RwLock;
 
 /// `Hbbft` params.
@@ -69,8 +68,8 @@ impl Engine<EthereumMachine> for Hbbft {
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
-		if block.transactions().is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
+	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal {
+		Seal::Regular(Vec::new())
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
