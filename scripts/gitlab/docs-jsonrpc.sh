@@ -49,15 +49,23 @@ upload_files() {
 
 RPC_TRAITS_DIR="rpc/src/v1/traits"
 
-setup_git
-clone_repos
-mkdir -p "jsonrpc/.parity/$RPC_TRAITS_DIR"
-cp $RPC_TRAITS_DIR/*.rs "jsonrpc/.parity/$RPC_TRAITS_DIR"
-cd jsonrpc
-build_docs
-cd ..
-update_wiki_docs
-cd wiki
-set_remote_wiki
-commit_files
-upload_files
+case $CI_COMMIT_REF_NAME in
+  (master|nightly)
+    echo "_______Skipping docs stage for ${CI_COMMIT_REF_NAME}_______"
+    exit 0
+    ;;
+  (*)
+    setup_git
+    clone_repos
+    mkdir -p "jsonrpc/.parity/$RPC_TRAITS_DIR"
+    cp $RPC_TRAITS_DIR/*.rs "jsonrpc/.parity/$RPC_TRAITS_DIR"
+    cd jsonrpc
+    build_docs
+    cd ..
+    update_wiki_docs
+    cd wiki
+    set_remote_wiki
+    commit_files
+    upload_files
+    ;;
+esac
