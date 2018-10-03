@@ -1405,15 +1405,14 @@ impl ImportBlock for Client {
 			bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
-		let raw = unverified.bytes.clone();
 		match self.importer.block_queue.import(unverified) {
 			Ok(res) => Ok(res),
 			// we only care about block errors (not import errors)
-			Err(EthcoreError(EthcoreErrorKind::Block(err), _))=> {
-				self.importer.bad_blocks.report(raw, format!("{:?}", err));
+			Err((block, EthcoreError(EthcoreErrorKind::Block(err), _))) => {
+				self.importer.bad_blocks.report(block.bytes, format!("{:?}", err));
 				bail!(EthcoreErrorKind::Block(err))
 			},
-			Err(e) => Err(e),
+			Err((_, e)) => Err(e),
 		}
 	}
 }
