@@ -25,7 +25,7 @@ use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockIn
 use miner::Miner;
 use verification::queue::kind::blocks::{Unverified};
 use transaction::{Transaction, Action, SignedTransaction};
-use block::{OpenBlock, ClosedBlock, LockedBlock, SealedBlock};
+use block::{OpenBlock, ClosedBlock, IsBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
 
@@ -222,8 +222,6 @@ impl BatchHandler {
 			None => return, // TODO: Does this mean Parity is shutting down?
 		};
 
-		info!("YOU WERE HIT BY THE STREAM AND NOW HAVE HONEY BADGER ALL OVER YOU. EWWW.\n{:?}", batch);
-
 		// FIXME: Another `flatten()` after `batch.iter()` shouldn't be necessary.
 		//        Does Hydrabadger have a surplus `Vec` in the `QueueingHoneyBadger` type argument?
 		let batch_txns: Vec<_> = batch.iter().flatten().filter_map(|ser_txn| {
@@ -234,12 +232,14 @@ impl BatchHandler {
 		let miner = client.miner();
 		// TODO: Make sure this produces identical blocks in all validators.
 		//       (Probably at least `params.author` needs to be changed.)
+		// TODO: The block number should equal the batch epoch.
 		let open_block = miner.prepare_new_block(&*client).expect("TODO");
 		let min_tx_gas = u64::max_value().into(); // TODO
 		// Create a block from the agreed transactions. Seal it instantly and import it.
 		let block = miner.prepare_block_from(open_block, batch_txns, &*client, min_tx_gas).expect("TODO");
 		// TODO: Does this remove the block's transactions from the queue? If not, we need to do so.
 		// TODO: Replace instant sealing with a threshold signature.
+		info!("Importing block {} (#{}, epoch {})", block.hash(), block.block().header.number(), batch.epoch());
 		if !miner.seal_and_import_block_internally(&*client, block) {
 			warn!("Failed to seal and import block.");
 		}
@@ -254,7 +254,10 @@ impl BatchHandler {
 		} else {
 			rand::seq::sample_slice(&mut rng, &pending, contrib_size)
 		};
-		let ser_txns = txns.into_iter().map(|txn| txn.signed().rlp_bytes().into_vec()).collect();
+		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes().into_vec()).collect();
+		info!("Proposing {} transactions for epoch {}.", ser_txns.len(), batch.epoch() + 1);
+		// TODO: Hydrabadger should use `DynamicHoneyBadger` (not `Queueing`), and these transactions should be proposed
+		//       as the next contribution.
 		self.hydrabadger.push_user_transactions(ser_txns).expect("TODO");
 	}
 }
