@@ -44,7 +44,7 @@ commit_files() {
 upload_files() {
     echo "__________Upload files__________"
     git push origin HEAD
-    git push --tags
+    git push -f --tags
 }
 
 RPC_TRAITS_DIR="rpc/src/v1/traits"
