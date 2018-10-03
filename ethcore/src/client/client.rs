@@ -1408,7 +1408,7 @@ impl ImportBlock for Client {
 		match self.importer.block_queue.import(unverified) {
 			Ok(res) => Ok(res),
 			// we only care about block errors (not import errors)
-			Err((block, EthcoreError(EthcoreErrorKind::Block(err), _)))=> {
+			Err((block, EthcoreError(EthcoreErrorKind::Block(err), _))) => {
 				self.importer.bad_blocks.report(block.bytes, format!("{:?}", err));
 				bail!(EthcoreErrorKind::Block(err))
 			},
