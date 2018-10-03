@@ -86,9 +86,9 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::EIP150 => Some(ethereum::new_eip150_test()),
 			ForkSpec::EIP158 => Some(ethereum::new_eip161_test()),
 			ForkSpec::Byzantium => Some(ethereum::new_byzantium_test()),
+			ForkSpec::Constantinople => Some(ethereum::new_constantinople_test()),
 			ForkSpec::EIP158ToByzantiumAt5 => Some(ethereum::new_transition_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
-			_ => None,
 		}
 	}
 
@@ -182,6 +182,19 @@ impl<'a> EvmTestClient<'a> {
 			gas_used: 0.into(),
 			gas_limit: *genesis.gas_limit(),
 		};
+		self.call_envinfo(params, tracer, vm_tracer, info)
+	}
+
+	/// Execute the VM given envinfo, ActionParams and tracer.
+	/// Returns amount of gas left and the output.
+	pub fn call_envinfo<T: trace::Tracer, V: trace::VMTracer>(
+		&mut self,
+		params: ActionParams,
+		tracer: &mut T,
+		vm_tracer: &mut V,
+		info: client::EnvInfo,
+	) -> Result<FinalizationResult, EvmTestError>
+	{
 		let mut substate = state::Substate::new();
 		let machine = self.spec.engine.machine();
 		let schedule = machine.schedule(info.number);

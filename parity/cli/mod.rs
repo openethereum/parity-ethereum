@@ -338,7 +338,7 @@ usage! {
 
 			ARG arg_unlock: (Option<String>) = None, or |c: &Config| c.account.as_ref()?.unlock.as_ref().map(|vec| vec.join(",")),
 			"--unlock=[ACCOUNTS]",
-			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses. Implies --no-ui.",
+			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses.",
 
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| c.account.as_ref()?.password.clone(),
 			"--password=[FILE]...",
