@@ -231,20 +231,23 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 
 				Request::GasMemProvide(gas, mem, Some(requested))
 			},
-			instructions::CREATE | instructions::CREATE2 => {
+			instructions::CREATE {
 				let start = stack.peek(1);
 				let len = stack.peek(2);
 
-				let gas = match instruction {
-					instructions::CREATE => Gas::from(schedule.create_gas),
-					instructions::CREATE2 => {
-						let base = Gas::from(schedule.create_gas);
-						let word = overflowing!(add_gas_usize(Gas::from_u256(*len)?, 31)) >> 5;
-						let word_gas = overflowing!(Gas::from(schedule.sha3_word_gas).overflow_mul(word));
-						overflowing!(base.overflow_add(word_gas))
-					},
-					_ => unreachable!("CREATE/CREATE2 branch is checked above; qed"),
-				};
+				let gas = Gas::from(schedule.create_gas);
+				let mem = mem_needed(start, len)?;
+
+				Request::GasMemProvide(gas, mem, None)
+			},
+			instructions::CREATE2 => {
+				let start = stack.peek(1);
+				let len = stack.peek(2);
+
+				let base = Gas::from(schedule.create_gas);
+				let word = overflowing!(add_gas_usize(Gas::from_u256(*len)?, 31)) >> 5;
+				let word_gas = overflowing!(Gas::from(schedule.sha3_word_gas).overflow_mul(word));
+				let gas = overflowing!(base.overflow_add(word_gas));
 				let mem = mem_needed(start, len)?;
 
 				Request::GasMemProvide(gas, mem, None)
