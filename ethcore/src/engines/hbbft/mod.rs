@@ -14,12 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 use block::ExecutedBlock;
 use client::EngineClient;
-use engines::{Engine, Seal};
+use engines::{Engine, Seal, signer::EngineSigner};
 use ethjson;
+use ethkey::Password;
+use account_provider::AccountProvider;
+use ethereum_types::Address;
 use error::Error;
 use header::{Header, ExtendedHeader};
 use machine::EthereumMachine;
@@ -46,6 +49,7 @@ pub struct Hbbft {
 	params: HbbftParams,
 	machine: EthereumMachine,
 	client: RwLock<Option<Weak<EngineClient>>>,
+	signer: RwLock<EngineSigner>,
 }
 
 impl Hbbft {
@@ -55,6 +59,7 @@ impl Hbbft {
 			params,
 			machine,
 			client: RwLock::new(None),
+			signer: Default::default(),
 		}
 	}
 }
@@ -97,6 +102,10 @@ impl Engine<EthereumMachine> for Hbbft {
 
 	fn register_client(&self, client: Weak<EngineClient>) {
 		*self.client.write() = Some(client.clone());
+	}
+
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
+		self.signer.write().set(ap, address, password);
 	}
 }
 
