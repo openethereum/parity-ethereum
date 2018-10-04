@@ -6,7 +6,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use std::time::{Instant, Duration};
-use rand::{self, ThreadRng, Rng};
+use std::ops::Range;
+// TODO (someday): Update rand crate wide.
+use rand::{self, OsRng, Rng, distributions::{Sample, Range as RandRange}};
 use futures::{
 	task, Future, Poll, Stream, Async,
 	future::{self, Loop},
@@ -18,6 +20,7 @@ use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid};
 use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
 use hbbft::HbbftConfig;
 use rlp::{Decodable, Encodable, Rlp};
+use ethstore;
 use ethjson::misc::AccountMeta;
 use ethkey::{Brain, Generator, Password, Random};
 use ethereum_types::{U256, Address};
@@ -30,6 +33,11 @@ use transaction::{Transaction, Action, SignedTransaction};
 use block::{OpenBlock, ClosedBlock, IsBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
+
+const RICHIE_ACCT: &'static str = "0x002eb83d1d04ca12fe1956e67ccaa195848e437f";
+const RICHIE_PWD: &'static str =  "richie";
+const NODE0_ACCT: &'static str = "0x00bd138abd70e2f00903268f3db08f2d25677c9e";
+const NODE0_PWD: &'static str =  "node0";
 
 type Contribution = Vec<Vec<u8>>;
 type NodeId = Uid;
@@ -90,30 +98,84 @@ struct Laboratory {
 }
 
 impl Laboratory {
-	/// Generates random transactions.
+    /// You can use this to create an account within Parity. This method does the exact same
+    /// thing as using the JSON-RPC to create an account. The password and passphrase will be
+    /// set to the account name e.g. "richie" or "node0".
+    fn create_account(&self, name: &str) -> Address {
+        let passphrase = name.to_string();
+        let password = Password::from(name);
+        let key_pair = Brain::new(passphrase).generate().unwrap();
+        let sk = key_pair.secret().clone();
+        self.account_provider.insert_account(sk, &password).unwrap()
+    }
+
+    /// Returns each Parity account's address and metadata.
+    fn get_accounts(&self) -> HashMap<Address, AccountMeta> {
+        self.account_provider.accounts_info().unwrap()
+    }
+
+    /// Converts an unsigned `Transaction` to a `SignedTransaction`.
+    fn sign_txn(&self, sender: Address, password: Password, txn: Transaction) -> SignedTransaction {
+        let chain_id = self.client.signing_chain_id();
+        let txn_hash = txn.hash(chain_id);
+        let sig = self.account_provider.sign(sender, Some(password), txn_hash)
+            .unwrap_or_else(|e| panic!("[hbbft-lab] failed to sign txn: {:?}", e));
+        let unverified_txn = txn.with_signature(sig, chain_id);
+        SignedTransaction::new(unverified_txn).unwrap()
+    }
+
+    /// Generates a random-ish transaction.
+    fn gen_random_txn(&self, sender: Address, sender_pwd: Password, receiver: Address,
+    	value_range: &mut RandRange<usize>, rng: &mut OsRng) -> SignedTransaction
+    {
+    	let data = rng.gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
+		let key = Random.generate().unwrap();
+		let nonce = /*U256::from(1) + */self.client.state().nonce(&sender)
+			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender));
+
+		let txn = Transaction {
+			action: Action::Call(receiver),
+			nonce,
+			gas_price: 0.into(),
+			gas: 1000000.into(),
+			value: value_range.sample(rng).into(),
+			data,
+		};
+
+		self.sign_txn(sender, sender_pwd, txn)
+    }
+
+	/// Generates a set of random-ish transactions.
 	//
 	// TODO: Make this more random-y. Add some args.
-	fn gen_random_txns(&self) -> Contribution {
+	fn gen_random_contribution(&self, sender: Address, sender_pwd: Password, receiver: Address,
+		value_range: &mut RandRange<usize>) -> Contribution
+	{
+		let mut rng = OsRng::new().expect("Error creating OS Rng");
+
 		(0..self.hdb_cfg.txn_gen_count).map(|_| {
-			let data = rand::thread_rng().gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
-
-			let key = Random.generate().unwrap();
-
-			let t = Transaction {
-				action: Action::Create,
-				nonce: U256::from(42),
-				gas_price: U256::from(3000),
-				gas: U256::from(50_000),
-				value: U256::from(1),
-				data,
-			}.sign(&key.secret(), None);
-
-			t.rlp_bytes().into_vec()
+			self.gen_random_txn(sender, sender_pwd.clone(), receiver, value_range, &mut rng)
+				.rlp_bytes().into_vec()
 		}).collect::<Contribution>()
 	}
 
 	fn push_random_transactions_to_hydrabadger(&self) {
-		let random_txns = self.gen_random_txns();
+		let sender_addr = Address::from(RICHIE_ACCT);
+		let sender_pwd = Password::from("richie");
+		let receiver_addr = Address::from(NODE0_ACCT);
+
+		match self.account_provider.test_password(&sender_addr, &sender_pwd) {
+			Ok(false) => panic!("Bad password while pushing random transactions to Hydrabadger."),
+			Ok(true) => {},
+			Err(ethstore::Error::InvalidAccount) => {
+				error!("Transaction sender account does not exist. Skipping hydrabadger contribution push.");
+				return;
+			},
+			err => panic!("{:?}", err),
+		}
+
+		let random_txns = self.gen_random_contribution(sender_addr, sender_pwd, receiver_addr,
+			&mut RandRange::new(100, 1000));
 
 		match self.hydrabadger.push_user_contribution(random_txns) {
 			Err(HydrabadgerError::PushUserContributionNotValidator) => {
@@ -125,40 +187,35 @@ impl Laboratory {
 	}
 
 	fn play_with_blocks(&self) {
-                // TODO: use `self.sign_txn()` here instead.
-                // let sender_addr = Address::from("002eb83d1d04ca12fe1956e67ccaa195848e437f");
-                // or
-                // let sender_addr = self.get_accounts()
-                //     .keys()
-                //     .take(1)
-                //     .unwrap_or_else(|| panic!("No Parity accounts"));
-                // let unsigned_txn = Transaction { ... };
-                // let signed_txn = self.sign_txn(sender_addr, "sender's password", unsigned_txn);
+        let mut rng = OsRng::new().expect("Error creating OS Rng");
+        let mut value_range = RandRange::new(100, 1000);
 
-                // let author = Address::from_slice(b"0xe8ddc5c7a2d2f0d7a9798459c0104fdf5e987aca");
-		let author = Address::random();
+        let sender_addr = Address::from(RICHIE_ACCT);
+        let sender_pwd = Password::from(RICHIE_PWD);
+        let receiver_addr = Address::from(NODE0_ACCT);
+
+        match self.account_provider.test_password(&sender_addr, &sender_pwd) {
+			Ok(false) => panic!("Bad password while playing with blocks."),
+			Ok(true) => {},
+			Err(ethstore::Error::InvalidAccount) => {
+				error!("Transaction sender account does not exist. Skipping playing with blocks.");
+				return;
+			},
+			err => panic!("{:?}", err),
+		}
+
+		let block_author = Address::default();
 		let gas_range_target = (3141562.into(), 31415620.into());
 		let extra_data = vec![];
 
-		let key = Random.generate().unwrap();
-		let txn = Transaction {
-			action: Action::Call(Address::default()),
-			nonce: 0.into(),
-			gas_price: 0.into(),
-			gas: 1000000.into(),
-			value: 5.into(),
-			data: vec![],
-		}.sign(&key.secret(), None);
-
 		// Import some blocks:
-		for _ in 0..20 {
+		for _ in 0..1 {
 			let mut open_block: OpenBlock = self.client
-				.prepare_open_block(author, gas_range_target, extra_data.clone())
+				.prepare_open_block(block_author, gas_range_target, extra_data.clone())
 				.unwrap();
 
-			for _ in 0..5 {
-				open_block.push_transaction(txn.clone(), None).unwrap();
-			}
+			let txn = self.gen_random_txn(sender_addr, sender_pwd.clone(), receiver_addr, &mut value_range, &mut rng);
+			open_block.push_transaction(txn, None).unwrap();
 
 			let closed_block: ClosedBlock = open_block.close().unwrap();
 			let reopened_block: OpenBlock = closed_block.reopen(self.client.engine());
@@ -170,22 +227,20 @@ impl Laboratory {
 		}
 
 		// Import some blocks:
-		for _ in 0..20 {
-			let mut open_block: OpenBlock = self.client
-				.prepare_open_block(author, gas_range_target, extra_data.clone())
-				.unwrap();
+		for _ in 0..1 {
+			let miner = self.client.miner();
+			let mut open_block: OpenBlock = miner.prepare_new_block(&*self.client).unwrap();
 
-			for _ in 0..5 {
-				open_block.push_transaction(txn.clone(), None).unwrap();
+			let txn: SignedTransaction = self.gen_random_txn(sender_addr, sender_pwd.clone(),
+				receiver_addr, &mut value_range, &mut rng);
+
+			let min_tx_gas = u64::max_value().into();
+			let block: ClosedBlock = miner.prepare_block_from(open_block, vec![txn], &*self.client, min_tx_gas).unwrap();
+
+			info!("Importing block {} (#{}, experimentally generated)", block.hash(), block.block().header.number());
+			if !miner.seal_and_import_block_internally(&*self.client, block) {
+				warn!("Failed to seal and import block.");
 			}
-
-			let sealed_block: SealedBlock = open_block
-				.close_and_lock()
-				.unwrap()
-				.seal(self.client.engine(), vec![])
-				.unwrap();
-
-			self.client.import_sealed_block(sealed_block).unwrap();
 		}
 	}
 
@@ -202,33 +257,6 @@ impl Laboratory {
 		// self.play_with_blocks();
 		self.demonstrate_client_extension_methods();
 	}
-
-        /// You can use this to create an account within Parity. This method does the exact same
-        /// thing as using the JSON-RPC to create an account. The password and passphrase will be
-        /// set to the account name e.g. "richie" or "node0".
-        fn create_account(&self, name: &str) -> Address {
-            let passphrase = name.to_string();
-            let password = Password::from(name);
-            let key_pair = Brain::new(passphrase).generate().unwrap();
-            let sk = key_pair.secret().clone();
-            self.account_provider.insert_account(sk, &password).unwrap()
-        }
-
-        /// Returns each Parity account's address and metadata.
-        fn get_accounts(&self) -> HashMap<Address, AccountMeta> {
-            self.account_provider.accounts_info().unwrap()
-        }
-
-        /// Converts an unsigned `Transaction` to a `SignedTransaction`.
-        fn sign_txn(&self, sender: Address, password: &str, txn: Transaction) -> SignedTransaction {
-            let chain_id = self.client.signing_chain_id();
-            let txn_hash = txn.hash(chain_id);
-            let password = Password::from(password);
-            let sig = self.account_provider.sign(sender, Some(password), txn_hash)
-                .unwrap_or_else(|e| panic!("[hbbft-lab] failed to sign txn:: {:?}", e));
-            let unverified_txn = txn.with_signature(sig, chain_id);
-            SignedTransaction::new(unverified_txn).unwrap()
-        }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -261,8 +289,6 @@ impl BatchHandler {
 			None => return, // TODO: Does this mean Parity is shutting down?
 		};
 
-		// FIXME: Another `flatten()` after `batch.iter()` shouldn't be necessary.
-		//        Does Hydrabadger have a surplus `Vec` in the `QueueingHoneyBadger` type argument?
 		let batch_txns: Vec<_> = batch.iter().filter_map(|ser_txn| {
 			Decodable::decode(&Rlp::new(ser_txn)).ok() // TODO: Report proposers of malformed transactions.
 		}).filter_map(|txn| {
@@ -315,7 +341,6 @@ impl Future for BatchHandler {
 		for i in 0..BATCHES_PER_TICK {
 			match self.batch_rx.poll() {
 				Ok(Async::Ready(Some(batch))) => {
-
 					self.handle_batch(batch);
 
 					// Exceeded max batches per tick, schedule notification:
@@ -324,7 +349,7 @@ impl Future for BatchHandler {
 					}
 				}
 				Ok(Async::Ready(None)) => {
-					// Hydrabadger handler has dropped.
+					// Batch handler has dropped.
 					return Ok(Async::Ready(()));
 				}
 				Ok(Async::NotReady) => {}
@@ -501,6 +526,14 @@ mod ref_000 {
 		s: U256,
 		/// Hash of the transaction
 		hash: H256,
+	}
+
+	/// A `UnverifiedTransaction` with successfully recovered `sender`.
+	#[derive(Debug, Clone, Eq, PartialEq)]
+	pub struct SignedTransaction {
+		transaction: UnverifiedTransaction,
+		sender: Address,
+		public: Option<Public>,
 	}
 
 	// miner/src/pool/verifier.rs

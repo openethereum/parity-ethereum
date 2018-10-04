@@ -16,6 +16,8 @@
 #
 #
 
+BOOTNODE="enode://b21ad0c808eaac7af2e45b8468bb1616675cdb91ae81c8f2cf5c95761b1776a2a00b85c76c4f9adc8047bdfe58bf09d247ef07b539b7541655c0c37b81423e33@127.0.0.1:30400"
+
 let HOST_ID=$1
 let PEER_0_ID=$HOST_ID==0?$HOST_ID+2:$HOST_ID-1
 let PEER_1_ID=$HOST_ID+1
@@ -62,5 +64,6 @@ RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
     --reseal-on-txs="none" \
     --usd-per-tx=0 \
 	--force-sealing \
+    --bootnodes=$BOOTNODE \
     $2 $3 $4 $5 $6 $7 $8 \
 "

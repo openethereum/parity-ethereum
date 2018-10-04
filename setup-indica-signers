@@ -29,9 +29,8 @@ then
 	if [[ $REPLY =~ ^[Yy]$ ]]
 	then
 		backup_node_data
-		echo
-		echo Please launch all 3 indica nodes using \'indica-node {id}\' then run \'setup-indica-signers\' again (without the \'clear\' argument).
-		echo
+		echo Clearing complete.
+		echo Please launch all 3 indica nodes using \'indica-node {id}\' then run \'setup-indica-signers\' again \(without the \'clear\' argument\).
 	fi
 else
 	setup_node 0

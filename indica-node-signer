@@ -10,5 +10,4 @@ esac
 
 ./indica-node $1 \
 	--engine-signer=$NODE_ACCOUNT \
-	--bootnodes=enode://a5e2432bc7d052a6c5af3228e758751dcce5cba7e21cc5fa5dd040d3aeba1cf52123701601a68cf58586b6e9c00b021887a40b08c80c0270a41b1ef04d0860f2@127.0.0.1:30400 \
 	$2 $3 $4 $5 $6 $7
