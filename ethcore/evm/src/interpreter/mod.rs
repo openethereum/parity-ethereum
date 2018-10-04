@@ -186,8 +186,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			match result {
 				InstructionResult::JumpToPosition(position) => {
 					if valid_jump_destinations.is_none() {
-						let code_hash = params.code_hash.clone().unwrap_or_else(|| keccak(code.as_ref()));
-						valid_jump_destinations = Some(self.cache.jump_destinations(&code_hash, code));
+						valid_jump_destinations = Some(self.cache.jump_destinations(&params.code_hash, code));
 					}
 					let jump_destinations = valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
 					let pos = self.verify_jump(position, jump_destinations)?;
