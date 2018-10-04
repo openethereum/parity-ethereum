@@ -10,13 +10,13 @@
 				"blockReward": {
 					"0": "0x4563918244F40000",
 					"1700000": "0x29A2241AF62C0000",
-					"4200000": "0x1BC16D674EC80000"
+					"4230000": "0x1BC16D674EC80000"
 				},
 				"homesteadTransition": 0,
 				"eip100bTransition": 1700000,
 				"difficultyBombDelays": {
 					"1700000": 3000000,
-					"4200000": 2000000
+					"4230000": 2000000
 				}
 			}
 		}
@@ -42,10 +42,10 @@
 		"eip211Transition": 1700000,
 		"eip214Transition": 1700000,
 		"eip658Transition": 1700000,
-		"eip145Transition": 4200000,
-		"eip1014Transition": 4200000,
-		"eip1052Transition": 4200000,
-		"eip1283Transition": 4200000
+		"eip145Transition": 4230000,
+		"eip1014Transition": 4230000,
+		"eip1052Transition": 4230000,
+		"eip1283Transition": 4230000
 	},
 	"genesis": {
 		"seal": {
