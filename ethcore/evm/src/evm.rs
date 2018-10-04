@@ -57,7 +57,7 @@ impl Finalize for Result<GasLeft> {
 
 /// Cost calculation type. For low-gas usage we calculate costs using usize instead of U256
 pub trait CostType: Sized + From<usize> + Copy
-	+ ops::Mul<Output=Self> + ops::Div<Output=Self> + ops::Add<Output=Self> +ops::Sub<Output=Self>
+	+ ops::Mul<Output=Self> + ops::Div<Output=Self> + ops::Add<Output=Self> + ops::Sub<Output=Self>
 	+ ops::Shr<usize, Output=Self> + ops::Shl<usize, Output=Self>
 	+ cmp::Ord + fmt::Debug {
 	/// Converts this cost into `U256`
