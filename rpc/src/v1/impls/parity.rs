@@ -40,7 +40,7 @@ use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, Ne
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H160, H256, H512, CallRequest,
+	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -470,5 +470,9 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		self.client.call_many(&requests, &mut state, &header)
 				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
 				.map_err(errors::call)
+	}
+
+	fn submit_work_detail(&self, nonce: H64, pow_hash: H256, mix_hash: H256) -> Result<H256> {
+		helpers::submit_work_detail(&self.client, &self.miner, nonce, pow_hash, mix_hash)
 	}
 }

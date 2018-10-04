@@ -16,7 +16,6 @@
 
 //! Flat trace module
 
-use std::collections::VecDeque;
 use rlp::{Rlp, RlpStream, Decodable, Encodable, DecoderError};
 use heapsize::HeapSizeOf;
 use ethereum_types::Bloom;
@@ -36,7 +35,7 @@ pub struct FlatTrace {
 	/// Exact location of trace.
 	///
 	/// [index in root, index in first CALL, index in second CALL, ...]
-	pub trace_address: VecDeque<usize>,
+	pub trace_address: Vec<usize>,
 }
 
 impl FlatTrace {

@@ -38,8 +38,7 @@ pub use self::types::filter::{Filter, AddressesFilter};
 
 use ethereum_types::{H256, U256, Address};
 use kvdb::DBTransaction;
-use self::trace::{Call, Create};
-use vm::ActionParams;
+use vm::{Error as VmError, ActionParams};
 use header::BlockNumber;
 
 /// This trait is used by executive to build traces.
@@ -47,57 +46,26 @@ pub trait Tracer: Send {
 	/// Data returned when draining the Tracer.
 	type Output;
 
-	/// Prepares call trace for given params. Noop tracer should return None.
-	///
-	/// This is called before a call has been executed.
-	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call>;
+	/// Prepares call trace for given params. Would panic if prepare/done_trace are not balanced.
+	fn prepare_trace_call(&mut self, params: &ActionParams, depth: usize, is_builtin: bool);
 
-	/// Prepares create trace for given params. Noop tracer should return None.
-	///
-	/// This is called before a create has been executed.
-	fn prepare_trace_create(&self, params: &ActionParams) -> Option<Create>;
+	/// Prepares create trace for given params. Would panic if prepare/done_trace are not balanced.
+	fn prepare_trace_create(&mut self, params: &ActionParams);
 
-	/// Stores trace call info.
-	///
-	/// This is called after a call has completed successfully.
-	fn trace_call(
-		&mut self,
-		call: Option<Call>,
-		gas_used: U256,
-		output: &[u8],
-		subs: Vec<Self::Output>,
-	);
+	/// Finishes a successful call trace. Would panic if prepare/done_trace are not balanced.
+	fn done_trace_call(&mut self, gas_used: U256, output: &[u8]);
 
-	/// Stores trace create info.
-	///
-	/// This is called after a create has completed successfully.
-	fn trace_create(
-		&mut self,
-		create: Option<Create>,
-		gas_used: U256,
-		code: &[u8],
-		address: Address,
-		subs: Vec<Self::Output>
-	);
+	/// Finishes a successful create trace. Would panic if prepare/done_trace are not balanced.
+	fn done_trace_create(&mut self, gas_used: U256, code: &[u8], address: Address);
 
-	/// Stores failed call trace.
-	///
-	/// This is called after a call has completed erroneously.
-	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<Self::Output>, error: TraceError);
-
-	/// Stores failed create trace.
-	///
-	/// This is called after a create has completed erroneously.
-	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<Self::Output>, error: TraceError);
+	/// Finishes a failed trace. Would panic if prepare/done_trace are not balanced.
+	fn done_trace_failed(&mut self, error: &VmError);
 
 	/// Stores suicide info.
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address);
 
 	/// Stores reward info.
 	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType);
-
-	/// Spawn subtracer which will be used to trace deeper levels of execution.
-	fn subtracer(&self) -> Self where Self: Sized;
 
 	/// Consumes self and returns all traces.
 	fn drain(self) -> Vec<Self::Output>;
@@ -115,16 +83,16 @@ pub trait VMTracer: Send {
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
 
 	/// Trace the preparation to execute a single valid instruction.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, _store_written: Option<(U256, U256)>) {}
 
 	/// Trace the finalised execution of a single valid instruction.
-	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
+	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem: &[u8]) {}
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
-	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized;
+	fn prepare_subtrace(&mut self, _code: &[u8]) {}
 
 	/// Finalize subtracer.
-	fn done_subtrace(&mut self, sub: Self) where Self: Sized;
+	fn done_subtrace(&mut self) {}
 
 	/// Consumes self and returns the VM trace.
 	fn drain(self) -> Option<Self::Output>;

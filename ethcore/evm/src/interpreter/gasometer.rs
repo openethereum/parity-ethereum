@@ -176,9 +176,8 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				Request::GasMem(default_gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::SHA3 => {
-				let w = overflowing!(add_gas_usize(Gas::from_u256(*stack.peek(1))?, 31));
-				let words = w >> 5;
-				let gas = Gas::from(schedule.sha3_gas) + (Gas::from(schedule.sha3_word_gas) * words);
+				let words = overflowing!(to_word_size(Gas::from_u256(*stack.peek(1))?));
+				let gas = overflowing!(Gas::from(schedule.sha3_gas).overflow_add(overflowing!(Gas::from(schedule.sha3_word_gas).overflow_mul(words))));
 				Request::GasMem(gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => {
@@ -231,9 +230,24 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 
 				Request::GasMemProvide(gas, mem, Some(requested))
 			},
-			instructions::CREATE | instructions::CREATE2 => {
+			instructions::CREATE => {
+				let start = stack.peek(1);
+				let len = stack.peek(2);
+
 				let gas = Gas::from(schedule.create_gas);
-				let mem = mem_needed(stack.peek(1), stack.peek(2))?;
+				let mem = mem_needed(start, len)?;
+
+				Request::GasMemProvide(gas, mem, None)
+			},
+			instructions::CREATE2 => {
+				let start = stack.peek(1);
+				let len = stack.peek(2);
+
+				let base = Gas::from(schedule.create_gas);
+				let word = overflowing!(to_word_size(Gas::from_u256(*len)?));
+				let word_gas = overflowing!(Gas::from(schedule.sha3_word_gas).overflow_mul(word));
+				let gas = overflowing!(base.overflow_add(word_gas));
+				let mem = mem_needed(start, len)?;
 
 				Request::GasMemProvide(gas, mem, None)
 			},
@@ -283,8 +297,8 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			},
 			Request::GasMemCopy(gas, mem_size, copy) => {
 				let (mem_gas_cost, new_mem_gas, new_mem_size) = self.mem_gas_cost(schedule, current_mem_size, &mem_size)?;
-				let copy = overflowing!(add_gas_usize(copy, 31)) >> 5;
-				let copy_gas = Gas::from(schedule.copy_gas) * copy;
+				let copy = overflowing!(to_word_size(copy));
+				let copy_gas = overflowing!(Gas::from(schedule.copy_gas).overflow_mul(copy));
 				let gas = overflowing!(gas.overflow_add(copy_gas));
 				let gas = overflowing!(gas.overflow_add(mem_gas_cost));
 
@@ -311,7 +325,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 		};
 
 		let current_mem_size = Gas::from(current_mem_size);
-		let req_mem_size_rounded = (overflowing!(mem_size.overflow_add(Gas::from(31 as usize))) >> 5) << 5;
+		let req_mem_size_rounded = overflowing!(to_word_size(*mem_size)) << 5;
 
 		let (mem_gas_cost, new_mem_gas) = if req_mem_size_rounded > current_mem_size {
 			let new_mem_gas = gas_for_mem(req_mem_size_rounded)?;
@@ -341,6 +355,16 @@ fn mem_needed<Gas: evm::CostType>(offset: &U256, size: &U256) -> vm::Result<Gas>
 #[inline]
 fn add_gas_usize<Gas: evm::CostType>(value: Gas, num: usize) -> (Gas, bool) {
 	value.overflow_add(Gas::from(num))
+}
+
+#[inline]
+fn to_word_size<Gas: evm::CostType>(value: Gas) -> (Gas, bool) {
+	let (gas, overflow) = add_gas_usize(value, 31);
+	if overflow {
+		return (gas, overflow);
+	}
+
+	(gas >> 5, false)
 }
 
 #[inline]
