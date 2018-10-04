@@ -2,6 +2,7 @@
 
 #![allow(dead_code, unused_imports, unused_variables, unused_mut, missing_docs)]
 
+use std::collections::HashMap;
 use std::sync::{Arc, Weak, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use std::time::{Instant, Duration};
@@ -17,7 +18,8 @@ use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid};
 use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
 use hbbft::HbbftConfig;
 use rlp::{Decodable, Encodable, Rlp};
-use ethkey::{Random, Generator};
+use ethjson::misc::AccountMeta;
+use ethkey::{Brain, Generator, Password, Random};
 use ethereum_types::{U256, Address};
 use header::Header;
 use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock,
@@ -123,7 +125,17 @@ impl Laboratory {
 	}
 
 	fn play_with_blocks(&self) {
-		// let author = Address::from_slice(b"0xe8ddc5c7a2d2f0d7a9798459c0104fdf5e987aca");
+                // TODO: use `self.sign_txn()` here instead.
+                // let sender_addr = Address::from("002eb83d1d04ca12fe1956e67ccaa195848e437f");
+                // or
+                // let sender_addr = self.get_accounts()
+                //     .keys()
+                //     .take(1)
+                //     .unwrap_or_else(|| panic!("No Parity accounts"));
+                // let unsigned_txn = Transaction { ... };
+                // let signed_txn = self.sign_txn(sender_addr, "sender's password", unsigned_txn);
+            
+                // let author = Address::from_slice(b"0xe8ddc5c7a2d2f0d7a9798459c0104fdf5e987aca");
 		let author = Address::random();
 		let gas_range_target = (3141562.into(), 31415620.into());
 		let extra_data = vec![];
@@ -190,6 +202,33 @@ impl Laboratory {
 		// self.play_with_blocks();
 		self.demonstrate_client_extension_methods();
 	}
+
+        /// You can use this to create an account within Parity. This method does the exact same
+        /// thing as using the JSON-RPC to create an account. The password and passphrase will be
+        /// set to the account name e.g. "richie" or "node0".
+        fn create_account(&self, name: &str) -> Address {
+            let passphrase = name.to_string();
+            let password = Password::from(name);
+            let key_pair = Brain::new(passphrase).generate().unwrap();
+            let sk = key_pair.secret().clone();
+            self.account_provider.insert_account(sk, &password).unwrap()
+        }
+
+        /// Returns each Parity account's address and metadata.
+        fn get_accounts(&self) -> HashMap<Address, AccountMeta> {
+            self.account_provider.accounts_info().unwrap()
+        }
+
+        /// Converts an unsigned `Transaction` to a `SignedTransaction`.
+        fn sign_txn(&self, sender: Address, password: &str, txn: Transaction) -> SignedTransaction {
+            let chain_id = self.client.signing_chain_id();
+            let txn_hash = txn.hash(chain_id);
+            let password = Password::from(password);
+            let sig = self.account_provider.sign(sender, Some(password), txn_hash)
+                .unwrap_or_else(|e| panic!("[hbbft-lab] failed to sign txn:: {:?}", e));
+            let unverified_txn = txn.with_signature(sig, chain_id);
+            SignedTransaction::new(unverified_txn).unwrap()
+        }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
