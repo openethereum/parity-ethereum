@@ -31,7 +31,7 @@ use block::{OpenBlock, ClosedBlock, IsBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
 
-type Txn = Vec<u8>;
+type Contribution = Vec<Vec<u8>>;
 type NodeId = Uid;
 
 // TODO: Replace error_chain with failure.
@@ -84,7 +84,7 @@ pub trait HbbftClientExt {
 //
 struct Laboratory {
 	client: Arc<Client>,
-	hydrabadger: Hydrabadger<Txn>,
+	hydrabadger: Hydrabadger<Contribution>,
 	hdb_cfg: HbbftConfig,
 	account_provider: Arc<AccountProvider>,
 }
@@ -93,7 +93,7 @@ impl Laboratory {
 	/// Generates random transactions.
 	//
 	// TODO: Make this more random-y. Add some args.
-	fn gen_random_txns(&self) -> Vec<Vec<u8>> {
+	fn gen_random_txns(&self) -> Contribution {
 		(0..self.hdb_cfg.txn_gen_count).map(|_| {
 			let data = rand::thread_rng().gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
 
@@ -109,14 +109,14 @@ impl Laboratory {
 			}.sign(&key.secret(), None);
 
 			t.rlp_bytes().into_vec()
-		}).collect::<Vec<Txn>>()
+		}).collect::<Contribution>()
 	}
 
 	fn push_random_transactions_to_hydrabadger(&self) {
 		let random_txns = self.gen_random_txns();
 
-		match self.hydrabadger.push_user_transactions(random_txns) {
-			Err(HydrabadgerError::PushUserTransactionNotValidator) => {
+		match self.hydrabadger.push_user_contribution(random_txns) {
+			Err(HydrabadgerError::PushUserTransactionsNotValidator) => {
 				debug!("Unable to push random transactions: this node is not a validator");
 			},
 			Err(err) => unreachable!(),
@@ -243,18 +243,18 @@ impl Laboratory {
 // TODO: Create a transaction queue semaphore to allow/disallow transactions
 // from being streamed into hydrabadger and manipulate its state from here.
 struct BatchHandler {
-	batch_rx: BatchRx<Txn>,
+	batch_rx: BatchRx<Contribution>,
 	client: Weak<Client>,
-	hydrabadger: Hydrabadger<Txn>,
+	hydrabadger: Hydrabadger<Contribution>,
 }
 
 impl BatchHandler {
-	fn new(batch_rx: BatchRx<Txn>, client: Weak<Client>, hydrabadger: Hydrabadger<Txn>) -> BatchHandler {
+	fn new(batch_rx: BatchRx<Contribution>, client: Weak<Client>, hydrabadger: Hydrabadger<Contribution>) -> BatchHandler {
 		BatchHandler { batch_rx, client, hydrabadger }
 	}
 
 	/// Handles a batch of transactions output by the Honey Badger BFT.
-	fn handle_batch(&mut self, batch: Batch<Vec<Vec<Txn>>, NodeId>) {
+	fn handle_batch(&mut self, batch: Batch<Contribution, NodeId>) {
 		let epoch = batch.epoch();
 		let client = match self.client.upgrade() {
 			Some(client) => client,
@@ -263,11 +263,13 @@ impl BatchHandler {
 
 		// FIXME: Another `flatten()` after `batch.iter()` shouldn't be necessary.
 		//        Does Hydrabadger have a surplus `Vec` in the `QueueingHoneyBadger` type argument?
-		let batch_txns: Vec<_> = batch.iter().flatten().filter_map(|ser_txn| {
-			Decodable::decode(&Rlp::new(&ser_txn[..])).ok() // TODO: Report proposers of malformed transactions.
+		let batch_txns: Vec<_> = batch.iter().filter_map(|ser_txn| {
+			Decodable::decode(&Rlp::new(ser_txn)).ok() // TODO: Report proposers of malformed transactions.
 		}).filter_map(|txn| {
 			SignedTransaction::new(txn).ok() // TODO: Report proposers of invalidly signed transactions.
 		}).collect();
+
+
 		let miner = client.miner();
 		// TODO: Make sure this produces identical blocks in all validators.
 		//       (Probably at least `params.author` needs to be changed.)
@@ -295,9 +297,9 @@ impl BatchHandler {
 		};
 		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes().into_vec()).collect();
 		info!("Proposing {} transactions for epoch {}.", ser_txns.len(), batch.epoch() + 1);
-		// TODO: Hydrabadger should use `DynamicHoneyBadger` (not `Queueing`), and these transactions should be proposed
-		//       as the next contribution.
-		self.hydrabadger.push_user_transactions(ser_txns).expect("TODO");
+
+		self.hydrabadger.push_user_contribution(ser_txns).expect("TODO");
+		// TODO: PROPOSE THESE TRANSACTIONS
 	}
 }
 
@@ -339,7 +341,7 @@ pub struct HbbftDaemon {
 	// Unused:
 	client: Weak<Client>,
 
-	hydrabadger: Hydrabadger<Txn>,
+	hydrabadger: Hydrabadger<Contribution>,
 
 	// Temporary until tokio changes are merged upstream:
 	shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
@@ -353,7 +355,7 @@ impl HbbftDaemon {
 		cfg: &HbbftConfig,
 		account_provider: Arc<AccountProvider>
 	) -> Result<HbbftDaemon, Error> {
-		let hydrabadger = Hydrabadger::<Txn>::new(cfg.bind_address, cfg.to_hydrabadger());
+		let hydrabadger = Hydrabadger::<Contribution>::new(cfg.bind_address, cfg.to_hydrabadger());
 
 		let batch_handler = BatchHandler::new(
 			hydrabadger.batch_rx()
