@@ -116,7 +116,7 @@ impl Laboratory {
 		let random_txns = self.gen_random_txns();
 
 		match self.hydrabadger.push_user_contribution(random_txns) {
-			Err(HydrabadgerError::PushUserTransactionsNotValidator) => {
+			Err(HydrabadgerError::PushUserContributionNotValidator) => {
 				debug!("Unable to push random transactions: this node is not a validator");
 			},
 			Err(err) => unreachable!(),
@@ -134,7 +134,7 @@ impl Laboratory {
                 //     .unwrap_or_else(|| panic!("No Parity accounts"));
                 // let unsigned_txn = Transaction { ... };
                 // let signed_txn = self.sign_txn(sender_addr, "sender's password", unsigned_txn);
-            
+
                 // let author = Address::from_slice(b"0xe8ddc5c7a2d2f0d7a9798459c0104fdf5e987aca");
 		let author = Address::random();
 		let gas_range_target = (3141562.into(), 31415620.into());
