@@ -79,8 +79,7 @@ impl Crypto {
 
 	/// Encrypt custom plain data
 	pub fn with_plain(plain: &[u8], password: &Password, iterations: u32) -> Result<Self, crypto::Error> {
-		let salt_arr: [u8; 32] = Random::random();
-		let salt: Vec<u8> = salt_arr.to_vec();
+		let salt: [u8; 32] = Random::random();
 		let iv: [u8; 16] = Random::random();
 
 		// two parts of derived key
@@ -106,7 +105,7 @@ impl Crypto {
 			ciphertext: ciphertext.into_vec(),
 			kdf: Kdf::Pbkdf2(Pbkdf2 {
 				dklen: crypto::KEY_LENGTH as u32,
-				salt: salt,
+				salt: salt.to_vec(),
 				c: iterations,
 				prf: Prf::HmacSha256,
 			}),

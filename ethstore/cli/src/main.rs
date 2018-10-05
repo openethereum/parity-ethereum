@@ -16,6 +16,9 @@
 
 extern crate dir;
 extern crate docopt;
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 extern crate ethstore;
 extern crate num_cpus;
 extern crate panic_hook;
@@ -45,7 +48,7 @@ Usage:
     ethstore insert <secret> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore change-pwd <address> <old-pwd> <new-pwd> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore list [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
-    ethstore import [--src DIR] [--dir DIR]
+    ethstore import [<password>] [--src DIR] [--dir DIR]
     ethstore import-wallet <path> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore find-wallet-pass <path> <password>
     ethstore remove <address> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
@@ -145,12 +148,14 @@ impl fmt::Display for Error {
 }
 
 fn main() {
+	panic_hook::set_abort();
+	env_logger::try_init().expect("Logger initialized only once.");
 
 	match execute(env::args()) {
 		Ok(result) => println!("{}", result),
 		Err(Error::Docopt(ref e)) => e.exit(),
 		Err(err) => {
-			println!("{}", err);
+			error!("{}", err);
 			process::exit(1);
 		}
 	}
@@ -201,9 +206,9 @@ fn format_vaults(vaults: &[String]) -> String {
 }
 
 fn load_password(path: &str) -> Result<Password, Error> {
-	let mut file = fs::File::open(path).map_err(|e| ethstore::Error::Custom(format!("Error opening password file {}: {}", path, e)))?;
+	let mut file = fs::File::open(path).map_err(|e| ethstore::Error::Custom(format!("Error opening password file '{}': {}", path, e)))?;
 	let mut password = String::new();
-	file.read_to_string(&mut password).map_err(|e| ethstore::Error::Custom(format!("Error reading password file {}: {}", path, e)))?;
+	file.read_to_string(&mut password).map_err(|e| ethstore::Error::Custom(format!("Error reading password file '{}': {}", path, e)))?;
 	// drop EOF
 	let _ = password.pop();
 	Ok(password.into())
@@ -240,7 +245,8 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	} else if args.cmd_import {
 		let src = key_dir(&args.flag_src)?;
 		let dst = key_dir(&args.flag_dir)?;
-		let accounts = import_accounts(&*src, &*dst)?;
+		let password = load_password(&args.arg_password).ok();
+		let accounts = import_accounts(&*src, &*dst, &password)?;
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import_wallet {
 		let wallet = PresaleWallet::open(&args.arg_path)?;

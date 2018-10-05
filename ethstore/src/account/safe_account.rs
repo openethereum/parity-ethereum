@@ -45,7 +45,7 @@ impl Into<json::KeyFile> for SafeAccount {
 		json::KeyFile {
 			id: From::from(self.id),
 			version: self.version.into(),
-			address: self.address.into(),
+			address: Some(self.address.into()),
 			crypto: self.crypto.into(),
 			name: Some(self.name.into()),
 			meta: Some(self.meta.into()),
@@ -77,16 +77,27 @@ impl SafeAccount {
 	/// Create a new `SafeAccount` from the given `json`; if it was read from a
 	/// file, the `filename` should be `Some` name. If it is as yet anonymous, then it
 	/// can be left `None`.
-	pub fn from_file(json: json::KeyFile, filename: Option<String>) -> Self {
-		SafeAccount {
+	pub fn from_file(json: json::KeyFile, filename: Option<String>, password: &Option<Password>) -> Result<Self, Error> {
+		let crypto = Crypto::from(json.crypto);
+		let address = match json.address {
+			Some(address) => address.into(),
+			None => match password {
+                Some(password) =>
+					KeyPair::from_secret(crypto.secret(&password).map_err(|_| Error::InvalidPassword)?)?.address(),
+                None =>
+					return Err(Error::Custom("This keystore does not contain address. You need to provide password to import it".to_owned()))
+			}
+		};
+
+		Ok(SafeAccount {
 			id: json.id.into(),
 			version: json.version.into(),
-			address: json.address.into(),
-			crypto: json.crypto.into(),
-			filename: filename,
+			address,
+			crypto,
+			filename,
 			name: json.name.unwrap_or(String::new()),
 			meta: json.meta.unwrap_or("{}".to_owned()),
-		}
+		})
 	}
 
 	/// Create a new `SafeAccount` from the given vault `json`; if it was read from a
@@ -97,14 +108,14 @@ impl SafeAccount {
 		let meta_plain = meta_crypto.decrypt(password)?;
 		let meta_plain = json::VaultKeyMeta::load(&meta_plain).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
-		Ok(SafeAccount::from_file(json::KeyFile {
+		SafeAccount::from_file(json::KeyFile {
 			id: json.id,
 			version: json.version,
 			crypto: json.crypto,
-			address: meta_plain.address,
+			address: Some(meta_plain.address),
 			name: meta_plain.name,
 			meta: meta_plain.meta,
-		}, filename))
+		}, filename, &None)
 	}
 
 	/// Create a new `VaultKeyFile` from the given `self`

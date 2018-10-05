@@ -23,6 +23,7 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey};
 use super::vault::{VAULT_FILE_NAME, VaultDiskDirectory};
+use ethkey::Password;
 
 const IGNORED_FILES: &'static [&'static str] = &[
 	"thumbs.db",
@@ -104,8 +105,16 @@ pub type RootDiskDirectory = DiskDirectory<DiskKeyFileManager>;
 
 /// Disk directory key file manager
 pub trait KeyFileManager: Send + Sync {
+	/// Read `SafeAccount` from given key file stream with password
+	#[allow(unused_variables)]
+	fn read_with_password<T>(&self, filename: Option<String>, reader: T, password: &Option<Password>)
+		-> Result<SafeAccount, Error> where T: io::Read {
+		unimplemented!()
+	}
 	/// Read `SafeAccount` from given key file stream
-	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read;
+	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
+		self.read_with_password(filename, reader, &None)
+	}
 	/// Write `SafeAccount` to given key file stream
 	fn write<T>(&self, account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write;
 }
@@ -179,7 +188,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 	}
 
 	/// all accounts found in keys directory
-	fn files_content(&self) -> Result<HashMap<PathBuf, SafeAccount>, Error> {
+	fn files_content(&self, password: &Option<Password>) -> Result<HashMap<PathBuf, SafeAccount>, Error> {
 		// it's not done using one iterator cause
 		// there is an issue with rustc and it takes tooo much time to compile
 		let paths = self.files()?;
@@ -189,9 +198,9 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 				let filename = Some(path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned());
 				fs::File::open(path.clone())
 					.map_err(Into::into)
-					.and_then(|file| self.key_manager.read(filename, file))
+					.and_then(|file| self.key_manager.read_with_password(filename, file, password))
 					.map_err(|err| {
-						warn!("Invalid key file: {:?} ({})", path, err);
+						error!("Invalid key file: {:?} ({})", path, err);
 						err
 					})
 					.map(|account| (path, account))
@@ -241,8 +250,8 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 }
 
 impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
-	fn load(&self) -> Result<Vec<SafeAccount>, Error> {
-		let accounts = self.files_content()?
+	fn load_with_password(&self, password: &Option<Password>) -> Result<Vec<SafeAccount>, Error> {
+		let accounts = self.files_content(password)?
 			.into_iter()
 			.map(|(_, account)| account)
 			.collect();
@@ -263,7 +272,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
 		// enumerate all entries in keystore
 		// and find entry with given address
-		let to_remove = self.files_content()?
+		let to_remove = self.files_content(&None)?
 			.into_iter()
 			.find(|&(_, ref acc)| acc.id == account.id && acc.address == account.address);
 
@@ -317,9 +326,9 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 }
 
 impl KeyFileManager for DiskKeyFileManager {
-	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
+	fn read_with_password<T>(&self, filename: Option<String>, reader: T, password: &Option<Password>) -> Result<SafeAccount, Error> where T: io::Read {
 		let key_file = json::KeyFile::load(reader).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		Ok(SafeAccount::from_file(key_file, filename))
+		SafeAccount::from_file(key_file, filename, password)
 	}
 
 	fn write<T>(&self, mut account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {

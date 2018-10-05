@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::fs;
 
-use ethkey::Address;
+use ethkey::{Address, Password};
 use accounts_dir::{KeyDirectory, RootDiskDirectory, DiskKeyFileManager, KeyFileManager};
 use dir;
 use Error;
@@ -40,9 +40,11 @@ pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error>
 }
 
 /// Import all accounts from one directory to the other.
-pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Address>, Error> {
-	let accounts = src.load()?;
-	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
+pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory, password: &Option<Password>) -> Result<Vec<Address>, Error> {
+	let accounts = src.load_with_password(password)?;
+	let existing_accounts = dst.load()?.into_iter()
+		.map(|a| a.address)
+		.collect::<HashSet<_>>();
 
 	accounts.into_iter()
 		.filter(|a| !existing_accounts.contains(&a.address))
