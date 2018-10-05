@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::VecDeque;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, Shutdown};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
 use hash::{keccak, write_keccak};
@@ -42,9 +42,13 @@ const RECEIVE_PAYLOAD: Duration = Duration::from_secs(30);
 pub const MAX_PAYLOAD_SIZE: usize = (1 << 24) - 1;
 
 pub trait GenericSocket : Read + Write {
+	fn shutdown(&self) -> io::Result<()>;
 }
 
 impl GenericSocket for TcpStream {
+	fn shutdown(&self) -> io::Result<()> {
+		self.shutdown(Shutdown::Both)
+	}
 }
 
 pub struct GenericConnection<Socket: GenericSocket> {
@@ -62,6 +66,14 @@ pub struct GenericConnection<Socket: GenericSocket> {
 	interest: Ready,
 	/// Registered flag
 	registered: AtomicBool,
+}
+
+impl<Socket: GenericSocket> Drop for GenericConnection<Socket> {
+	fn drop(&mut self) {
+		if let Err(err) = self.socket.shutdown() {
+			warn!(target: "network", "Socket shutdown failed: {:?}", err);
+		}
+	}
 }
 
 impl<Socket: GenericSocket> GenericConnection<Socket> {
@@ -574,7 +586,11 @@ mod tests {
 		}
 	}
 
-	impl GenericSocket for TestSocket {}
+	impl GenericSocket for TestSocket {
+		fn shutdown(&self) -> io::Result<()> {
+			Ok(())
+		}
+	}
 
 	struct TestBrokenSocket {
 		error: String
@@ -596,7 +612,11 @@ mod tests {
 		}
 	}
 
-	impl GenericSocket for TestBrokenSocket {}
+	impl GenericSocket for TestBrokenSocket {
+		fn shutdown(&self) -> io::Result<()> {
+			Ok(())
+		}
+	}
 
 	type TestConnection = GenericConnection<TestSocket>;
 
