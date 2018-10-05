@@ -328,6 +328,7 @@ impl BlockDownloader {
 						trace_sync!(self, "No common block, disabling peer");
 						return Err(BlockDownloaderImportError::Invalid);
 					} else {
+						trace_sync!(self, "No subchain heads received, expected hash {:?}. Try a different peer.", expected_hash);
 						return Err(BlockDownloaderImportError::Useless);
 					}
 				}
