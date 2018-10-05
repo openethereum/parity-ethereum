@@ -76,7 +76,7 @@ impl SafeAccount {
 
 	/// Create a new `SafeAccount` from the given `json`; if it was read from a
 	/// file, the `filename` should be `Some` name. If it is as yet anonymous, then it
-	/// can be left `None`.
+	/// can be left `None`. `password` is used for reading keystore files w/o address.
 	pub fn from_file(json: json::KeyFile, filename: Option<String>, password: &Option<Password>) -> Result<Self, Error> {
 		let crypto = Crypto::from(json.crypto);
 		let address = match json.address {
