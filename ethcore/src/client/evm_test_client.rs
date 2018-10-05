@@ -93,9 +93,27 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Creates new EVM test client with in-memory DB initialized with genesis of given Spec.
-	pub fn new(spec: &'a spec::Spec) -> Result<Self, EvmTestError> {
-		let factories = Self::factories();
+	/// You can specify a specific trie kind.
+	pub fn new_with_trie(spec: &'a spec::Spec, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
+		let factories = Self::factories(trie_spec);
 		let state =	Self::state_from_spec(spec, &factories)?;
+
+		Ok(EvmTestClient {
+			state,
+			spec,
+		})
+	}
+
+	/// Creates new EVM test client with in-memory DB initialized with genesis of given Spec.
+	pub fn new(spec: &'a spec::Spec) -> Result<Self, EvmTestError> {
+		Self::new_with_trie(spec, trie::TrieSpec::Secure)
+	}
+
+	/// Creates new EVM test client with in-memory DB initialized with given PodState.
+	/// You can specify a specific trie kind.
+	pub fn from_pod_state_with_trie(spec: &'a spec::Spec, pod_state: pod_state::PodState, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
+		let factories = Self::factories(trie_spec);
+		let state =	Self::state_from_pod(spec, &factories, pod_state)?;
 
 		Ok(EvmTestClient {
 			state,
@@ -105,19 +123,13 @@ impl<'a> EvmTestClient<'a> {
 
 	/// Creates new EVM test client with in-memory DB initialized with given PodState.
 	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: pod_state::PodState) -> Result<Self, EvmTestError> {
-		let factories = Self::factories();
-		let state =	Self::state_from_pod(spec, &factories, pod_state)?;
-
-		Ok(EvmTestClient {
-			state,
-			spec,
-		})
+		Self::from_pod_state_with_trie(spec, pod_state, trie::TrieSpec::Secure)
 	}
 
-	fn factories() -> Factories {
+	fn factories(trie_spec: trie::TrieSpec) -> Factories {
 		Factories {
 			vm: factory::VmFactory::new(VMType::Interpreter, 5 * 1024),
-			trie: trie::TrieFactory::new(trie::TrieSpec::Secure),
+			trie: trie::TrieFactory::new(trie_spec),
 			accountdb: Default::default(),
 		}
 	}
@@ -224,7 +236,7 @@ impl<'a> EvmTestClient<'a> {
 				state_root: *self.state.root(),
 				error: error.into(),
 				end_state: if vm_tracer.dump_end_state() {
-					Some(self.state.to_pod())
+					Some(self.state.to_pod_slow())
 				} else {
 					None
 				},
@@ -253,10 +265,13 @@ impl<'a> EvmTestClient<'a> {
 			&None,
 			false
 		).ok();
+
 		self.state.commit().ok();
 
+		let state_root = *self.state.root();
+
 		let end_state = if do_dump_state {
-			Some(self.state.to_pod())
+			Some(self.state.to_pod_slow())
 		} else {
 			None
 		};
@@ -264,7 +279,7 @@ impl<'a> EvmTestClient<'a> {
 		match result {
 			Ok(result) => {
 				TransactResult::Ok {
-					state_root: *self.state.root(),
+					state_root,
 					gas_left: initial_gas - result.receipt.gas_used,
 					outcome: result.receipt.outcome,
 					output: result.output,
@@ -280,7 +295,7 @@ impl<'a> EvmTestClient<'a> {
 				}
 			},
 			Err(error) => TransactResult::Err {
-				state_root: *self.state.root(),
+				state_root,
 				error,
 				end_state,
 			},

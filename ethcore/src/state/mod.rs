@@ -939,8 +939,7 @@ impl<B: Backend> State<B> {
 		}
 	}
 
-	/// Populate a PodAccount map from this state.
-	pub fn to_pod(&self) -> PodState {
+	fn cache_to_pod(&self) -> PodState {
 		assert!(self.checkpoints.borrow().is_empty());
 		// TODO: handle database rather than just the cache.
 		// will need fat db.
@@ -952,8 +951,58 @@ impl<B: Backend> State<B> {
 		}))
 	}
 
+	#[cfg(feature="evmbin-only")]
+	/// Populate a PodAccount map from this state.
+	/// Warning this is not for real time use
+	pub fn to_pod_slow(&self) -> PodState {
+		use ethereum_types::H160;
+
+		assert!(self.checkpoints.borrow().is_empty());
+		assert!(self.factories.trie.is_fat());
+
+		let mut result = BTreeMap::new();
+
+		let trie = match self.factories.trie.readonly(self.db.as_hashdb(), &self.root) {
+			Ok(trie) => trie,
+			_ => {
+				trace!(target: "state", "to_pod_slow: Couldn't open the DB");
+				return PodState::from(result);
+			}
+		};
+
+		let iter = match trie.iter() {
+			Ok(iter) => iter,
+			_ => return PodState::from(result),
+		};
+
+		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+
+		for item in iter {
+			if let Ok((addr, dbval)) = item {
+				let mut account = from_rlp(&dbval[..]);
+				if account.code_size().is_none() {
+					let addr_hash = account.address_hash(&H160::from(&addr[..]));
+					let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+					let _ = account.cache_code(accountdb.as_hashdb());
+				}
+				result.insert(Address::from_slice(&addr), PodAccount::from_account(&account));
+			}
+		}
+
+		PodState::from(result)
+	}
+
+
+	/// Only for use with tests (to slow for real use),
+	/// panic if feature 'evmbin-only' is not activated.
+	#[cfg(not(feature="evmbin-only"))]
+	pub fn to_pod_slow(&self) -> PodState {
+		unreachable!("to_pod_slow must only be reachable if feature 'evmbin-only' is explicitly activated")
+	}
+
+
 	/// Populate a PodAccount map from this state, with another state as the account and storage query.
-	pub fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
+	fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
 		assert!(self.checkpoints.borrow().is_empty());
 
 		// Merge PodAccount::to_pod for cache of self and `query`.
@@ -1008,7 +1057,7 @@ impl<B: Backend> State<B> {
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
 	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> TrieResult<StateDiff> {
-		let pod_state_post = self.to_pod();
+		let pod_state_post = self.cache_to_pod();
 		let pod_state_pre = orig.to_pod_diff(self)?;
 		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
 	}
