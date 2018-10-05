@@ -327,6 +327,8 @@ impl BlockDownloader {
 					if self.limit_reorg && best > last && (last == 0 || last < oldest_reorg) {
 						trace_sync!(self, "No common block, disabling peer");
 						return Err(BlockDownloaderImportError::Invalid);
+					} else {
+						return Err(BlockDownloaderImportError::Useless);
 					}
 				}
 			},
