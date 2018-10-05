@@ -95,10 +95,11 @@ mod difficulty_test_foundation {
 	declare_test!{DifficultyTests_difficultyMainNetwork, "BasicTests/difficultyMainNetwork.json"}
 }
 
-mod difficulty_test_ropsten {
-	difficulty_json_test_nopath!(new_ropsten_test);
-	declare_test!{DifficultyTests_difficultyRopsten, "BasicTests/difficultyRopsten.json"}
-}
+// Disabling Ropsten diff tests; waiting for upstream ethereum/tests Constantinople update
+//mod difficulty_test_ropsten {
+//	difficulty_json_test_nopath!(new_ropsten_test);
+//	declare_test!{DifficultyTests_difficultyRopsten, "BasicTests/difficultyRopsten.json"}
+//}
 
 mod difficulty_test_frontier {
 	difficulty_json_test_nopath!(new_frontier_test);

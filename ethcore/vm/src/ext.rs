@@ -23,8 +23,9 @@ use call_type::CallType;
 use env_info::EnvInfo;
 use schedule::Schedule;
 use return_data::ReturnData;
-use error::Result;
+use error::{Result, TrapKind};
 
+#[derive(Debug)]
 /// Result of externalities create function.
 pub enum ContractCreateResult {
 	/// Returned when creation was successfull.
@@ -37,6 +38,7 @@ pub enum ContractCreateResult {
 	Reverted(U256, ReturnData),
 }
 
+#[derive(Debug)]
 /// Result of externalities call function.
 pub enum MessageCallResult {
 	/// Returned when message call was successfull.
@@ -90,22 +92,31 @@ pub trait Ext {
 	/// Creates new contract.
 	///
 	/// Returns gas_left and contract address if contract creation was succesfull.
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult;
+	fn create(
+		&mut self,
+		gas: &U256,
+		value: &U256,
+		code: &[u8],
+		address: CreateContractAddress,
+		trap: bool,
+	) -> ::std::result::Result<ContractCreateResult, TrapKind>;
 
 	/// Message call.
 	///
 	/// Returns Err, if we run out of gas.
 	/// Otherwise returns call_result which contains gas left
 	/// and true if subcall was successfull.
-	fn call(&mut self,
+	fn call(
+		&mut self,
 		gas: &U256,
 		sender_address: &Address,
 		receive_address: &Address,
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		call_type: CallType
-	) -> MessageCallResult;
+		call_type: CallType,
+		trap: bool
+	) -> ::std::result::Result<MessageCallResult, TrapKind>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>>;
@@ -149,10 +160,10 @@ pub trait Ext {
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
 
 	/// Prepare to trace an operation. Passthrough for the VM trace.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256, _mem_written: Option<(usize, usize)>, _store_written: Option<(U256, U256)>) {}
 
 	/// Trace the finalised execution of a single instruction.
-	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
+	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem: &[u8]) {}
 
 	/// Check if running in static context.
 	fn is_static(&self) -> bool;

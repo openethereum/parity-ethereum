@@ -32,7 +32,7 @@ pub mod epoch;
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
-pub use self::instant_seal::InstantSeal;
+pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 
@@ -44,7 +44,7 @@ use self::epoch::PendingTransition;
 
 use account_provider::AccountProvider;
 use builtin::Builtin;
-use vm::{EnvInfo, Schedule, CreateContractAddress};
+use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
 use header::{Header, BlockNumber};
 use snapshot::SnapshotComponents;
@@ -163,8 +163,10 @@ pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, 
 					None,
 					Some(code),
 					Some(code_hash),
+					Some(ActionValue::Apparent(U256::zero())),
 					U256::max_value(),
 					Some(data),
+					Some(CallType::StaticCall),
 				)
 			},
 		};

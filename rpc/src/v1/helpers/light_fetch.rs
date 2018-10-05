@@ -250,7 +250,8 @@ impl LightFetch {
 		}).join(header_fut).and_then(move |((gas_known, tx), hdr)| {
 			// then request proved execution.
 			// TODO: get last-hashes from network.
-			let env_info = match client.env_info(id) {
+			let hash = hdr.hash();
+			let env_info = match client.env_info(BlockId::Hash(hash)) {
 				Some(env_info) => env_info,
 				_ => return Either::A(future::err(errors::unknown_block())),
 			};
