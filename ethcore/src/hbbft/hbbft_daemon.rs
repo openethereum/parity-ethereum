@@ -7,7 +7,7 @@ use std::sync::{Arc, Weak, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use std::time::{Instant, Duration};
 use std::ops::Range;
-// TODO (someday): Update rand crate wide.
+// TODO (c0gent): Update rand crate wide.
 use rand::{self, OsRng, Rng, distributions::{Sample, Range as RandRange}};
 use futures::{
 	task, Future, Poll, Stream, Async,
@@ -42,7 +42,7 @@ const NODE0_PWD: &'static str =  "node0";
 type Contribution = Vec<Vec<u8>>;
 type NodeId = Uid;
 
-// TODO: Replace error_chain with failure.
+// TODO (c0gent): Replace error_chain with failure.
 error_chain! {
 	types {
 		Error, ErrorKind, ErrorResultExt, HbbftDaemonResult;
@@ -71,7 +71,7 @@ error_chain! {
 /// Methods for use by hbbft.
 //
 // The purpose of this trait is to keep experimental methods separate and
-// organized. TODO: Consider this trait's future...
+// organized. TODO (c0gent): Consider this trait's future...
 pub trait HbbftClientExt {
 	fn a_specialized_method(&self);
 	fn change_me_into_something_useful(&self);
@@ -130,7 +130,7 @@ impl Laboratory {
     {
     	let data = rng.gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
 		let key = Random.generate().unwrap();
-		let nonce = /*U256::from(1) + */self.client.state().nonce(&sender)
+		let nonce = self.client.state().nonce(&sender)
 			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender));
 
 		let txn = Transaction {
@@ -146,8 +146,6 @@ impl Laboratory {
     }
 
 	/// Generates a set of random-ish transactions.
-	//
-	// TODO: Make this more random-y. Add some args.
 	fn gen_random_contribution(&self, sender: Address, sender_pwd: Password, receiver: Address,
 		value_range: &mut RandRange<usize>) -> Contribution
 	{
@@ -281,39 +279,60 @@ impl BatchHandler {
 		BatchHandler { batch_rx, client, hydrabadger }
 	}
 
-	/// Handles a batch of transactions output by the Honey Badger BFT.
+	/// Handles a batch of transactions output by the Honey Badger BFT
+	/// algorithm.
 	fn handle_batch(&mut self, batch: Batch<Contribution, NodeId>) {
 		let epoch = batch.epoch();
+
 		let client = match self.client.upgrade() {
 			Some(client) => client,
-			None => return, // TODO: Does this mean Parity is shutting down?
+			// TODO: Does this mean Parity is shutting down?
+			//
+			// [Yes, or that it has already shut down. However, the `Client`
+			// ref here does not need to be a `Weak` (for reasons I'm happy to
+			// explain) and should be switched to a regular `Arc`.]
+			None => return,
 		};
 
 		let batch_txns: Vec<_> = batch.iter().filter_map(|ser_txn| {
-			Decodable::decode(&Rlp::new(ser_txn)).ok() // TODO: Report proposers of malformed transactions.
+			// TODO: Report proposers of malformed transactions.
+			Decodable::decode(&Rlp::new(ser_txn)).ok()
 		}).filter_map(|txn| {
-			SignedTransaction::new(txn).ok() // TODO: Report proposers of invalidly signed transactions.
+			// TODO: Report proposers of invalidly signed transactions.
+			SignedTransaction::new(txn).ok()
 		}).collect();
 
 
 		let miner = client.miner();
-		// TODO: Make sure this produces identical blocks in all validators.
-		//       (Probably at least `params.author` needs to be changed.)
+
+		// TODO (c0gent/drpete): Make sure this produces identical blocks in
+		// all validators. (Probably at least `params.author` needs to be
+		// changed.)
+		//
 		// TODO: The block number should equal the batch epoch.
 		let open_block = miner.prepare_new_block(&*client).expect("TODO");
 		let min_tx_gas = u64::max_value().into(); // TODO
-		// Create a block from the agreed transactions. Seal it instantly and import it.
+
+		// Create a block from the agreed transactions. Seal it instantly and
+		// import it.
 		let block = miner.prepare_block_from(open_block, batch_txns, &*client, min_tx_gas).expect("TODO");
-		// TODO: Does this remove the block's transactions from the queue? If not, we need to do so.
-		// TODO: Replace instant sealing with a threshold signature.
+
+		// TODO: Does this remove the block's transactions from the queue? If
+		// not, we need to do so.
+		//
+		// TODO (afck/drpete): Replace instant sealing with a threshold signature.
 		info!("Importing block {} (#{}, epoch {})", block.hash(), block.block().header.number(), batch.epoch());
 		if !miner.seal_and_import_block_internally(&*client, block) {
 			warn!("Failed to seal and import block.");
 		}
 
 		// Select new transactions and propose them for the next block.
-		let batch_size = 50; // TODO
-		let contrib_size = batch_size / 5; // TODO: `batch_size / num_validators`
+		//
+		// TODO (c0gent): Pull this from cfg.
+		let batch_size = 50;
+		// TODO (c0gent): `batch_size / num_validators`
+		let contrib_size = batch_size / 5;
+
 		let pending = miner.pending_transactions_from_queue(&*client, batch_size);
 		let mut rng = rand::thread_rng();
 		let txns = if pending.len() <= contrib_size {
@@ -325,7 +344,6 @@ impl BatchHandler {
 		info!("Proposing {} transactions for epoch {}.", ser_txns.len(), batch.epoch() + 1);
 
 		self.hydrabadger.push_user_contribution(ser_txns).expect("TODO");
-		// TODO: PROPOSE THESE TRANSACTIONS
 	}
 }
 
