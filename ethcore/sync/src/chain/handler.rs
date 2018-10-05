@@ -551,7 +551,7 @@ impl SyncHandler {
 			}
 			Err(()) => {
 				trace!(target: "sync", "{}: Got bad snapshot chunk", peer_id);
-				io.disconnect_peer(peer_id);
+				io.disable_peer(peer_id);
 				return Ok(());
 			}
 		}

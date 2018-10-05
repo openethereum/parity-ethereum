@@ -383,7 +383,7 @@ impl Host {
 				}
 				for p in to_kill {
 					trace!(target: "network", "Disconnecting on reserved-only mode: {}", p);
-					self.kill_connection(p, io, false);
+					self.kill_connection(p, io);
 				}
 			}
 		}
@@ -416,7 +416,7 @@ impl Host {
 		}
 		for p in to_kill {
 			trace!(target: "network", "Disconnecting on shutdown: {}", p);
-			self.kill_connection(p, io, true);
+			self.kill_connection(p, io);
 		}
 		io.unregister_handler();
 	}
@@ -532,7 +532,7 @@ impl Host {
 		}
 		for p in to_kill {
 			trace!(target: "network", "Ping timeout: {}", p);
-			self.kill_connection(p, io, true);
+			self.kill_connection(p, io);
 		}
 	}
 
@@ -692,11 +692,6 @@ impl Host {
 		}
 	}
 
-	fn connection_closed(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
-		trace!(target: "network", "Connection closed: {}", token);
-		self.kill_connection(token, io, true);
-	}
-
 	fn session_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Vec<(ProtocolId, PacketId, Vec<u8>)> = Vec::new();
@@ -813,7 +808,7 @@ impl Host {
 			}
 
 			if kill {
-				self.kill_connection(token, io, true);
+				self.kill_connection(token, io);
 			}
 
 			let handlers = self.handlers.read();
@@ -825,7 +820,7 @@ impl Host {
 				if duplicate {
 					trace!(target: "network", "Rejected duplicate connection: {}", token);
 					session.lock().disconnect(io, DisconnectReason::DuplicatePeer);
-					self.kill_connection(token, io, false);
+					self.kill_connection(token, io);
 					return;
 				}
 				for p in ready_data {
@@ -908,13 +903,11 @@ impl Host {
 
 	fn connection_timeout(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		trace!(target: "network", "Connection timeout: {}", token);
-		self.kill_connection(token, io, true)
+		self.kill_connection(token, io)
 	}
 
-	fn kill_connection(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>, remote: bool) {
+	fn kill_connection(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		let mut to_disconnect: Vec<ProtocolId> = Vec::new();
-		let mut failure_id = None;
-		let mut deregister = false;
 		let mut expired_session = None;
 		if let FIRST_SESSION ... LAST_SESSION = token {
 			let sessions = self.sessions.read();
@@ -930,25 +923,19 @@ impl Host {
 						}
 					}
 					s.set_expired();
-					failure_id = s.id().cloned();
 				}
-				deregister = remote || s.done();
 			}
 		}
-		if let Some(id) = failure_id {
-			if remote {
-				self.nodes.write().note_failure(&id);
-			}
-		}
+
 		for p in to_disconnect {
 			let reserved = self.reserved_nodes.read();
 			if let Some(h) = self.handlers.read().get(&p) {
 				h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone(), &reserved), &token);
 			}
 		}
-		if deregister {
-			io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
-		}
+
+		// deregister stream needs to be called to remove session
+		io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
 	}
 
 	fn update_nodes(&self, _io: &IoContext<NetworkIoMessage>, node_changes: TableUpdates) {
@@ -996,7 +983,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 	fn stream_hup(&self, io: &IoContext<NetworkIoMessage>, stream: StreamToken) {
 		trace!(target: "network", "Hup: {}", stream);
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.connection_closed(stream, io),
+			FIRST_SESSION ... LAST_SESSION => self.kill_connection(stream, io),
 			_ => warn!(target: "network", "Unexpected hup"),
 		};
 	}
@@ -1115,7 +1102,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 					session.lock().disconnect(io, DisconnectReason::DisconnectRequested);
 				}
 				trace!(target: "network", "Disconnect requested {}", peer);
-				self.kill_connection(*peer, io, false);
+				self.kill_connection(*peer, io);
 			},
 			NetworkIoMessage::DisablePeer(ref peer) => {
 				let session = { self.sessions.read().get(*peer).cloned() };
@@ -1128,7 +1115,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 					}
 				}
 				trace!(target: "network", "Disabling peer {}", peer);
-				self.kill_connection(*peer, io, false);
+				self.kill_connection(*peer, io);
 			},
 			NetworkIoMessage::InitPublicInterface =>
 				self.init_public_interface(io).unwrap_or_else(|e| warn!("Error initializing public interface: {:?}", e)),
@@ -1249,22 +1236,27 @@ fn load_key(path: &Path) -> Option<Secret> {
 	}
 }
 
-#[test]
-fn key_save_load() {
+#[cfg(test)]
+mod tests {
+	use ethereum_types::H256;
 	use tempdir::TempDir;
+	use super::{Host, NetworkConfiguration, load_key, save_key};
 
-	let tempdir = TempDir::new("").unwrap();
-	let key = H256::random().into();
-	save_key(tempdir.path(), &key);
-	let r = load_key(tempdir.path());
-	assert_eq!(key, r.unwrap());
-}
+	#[test]
+	fn key_save_load() {
+		let tempdir = TempDir::new("").unwrap();
+		let key = H256::random().into();
+		save_key(tempdir.path(), &key);
+		let r = load_key(tempdir.path());
+		assert_eq!(key, r.unwrap());
+	}
 
-#[test]
-fn host_client_url() {
-	let mut config = NetworkConfiguration::new_local();
-	let key = "6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".parse().unwrap();
-	config.use_secret = Some(key);
-	let host: Host = Host::new(config, None).unwrap();
-	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
+	#[test]
+	fn host_client_url() {
+		let mut config = NetworkConfiguration::new_local();
+		let key = "6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".parse().unwrap();
+		config.use_secret = Some(key);
+		let host: Host = Host::new(config, None).unwrap();
+		assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
+	}
 }
