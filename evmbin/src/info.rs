@@ -26,12 +26,16 @@ use vm::ActionParams;
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {
+	/// Sink to use with finish
+	type Sink;
 	/// Display a single run init message
 	fn before_test(&mut self, test: &str, action: &str);
 	/// Set initial gas.
 	fn set_gas(&mut self, _gas: U256) {}
+	/// Clone sink.
+	fn clone_sink(&self) -> Self::Sink;
 	/// Display final result.
-	fn finish(result: RunResult<Self::Output>);
+	fn finish(result: RunResult<Self::Output>, &mut Self::Sink);
 }
 
 /// Execution finished correctly
@@ -47,11 +51,15 @@ pub struct Success<T> {
 	pub time: Duration,
 	/// Traces
 	pub traces: Option<T>,
+	/// Optional end state dump
+	pub end_state: Option<pod_state::PodState>,
 }
 
 /// Execution failed
 #[derive(Debug)]
 pub struct Failure<T> {
+	/// State root
+	pub state_root: H256,
 	/// Used gas
 	pub gas_used: U256,
 	/// Internal error
@@ -60,6 +68,8 @@ pub struct Failure<T> {
 	pub time: Duration,
 	/// Traces
 	pub traces: Option<T>,
+	/// Optional end state dump
+	pub end_state: Option<pod_state::PodState>,
 }
 
 /// EVM Execution result
@@ -82,10 +92,10 @@ pub fn run_action<T: Informant>(
 	}
 	run(spec, params.gas, spec.genesis_state(), |mut client| {
 		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
-			Ok(r) => (Ok((0.into(), r.return_data.to_vec())), Some(r.gas_left)),
+			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
 		};
-		(result.0, result.1, informant.drain())
+		(result.0, 0.into(), None, result.1, informant.drain())
 	})
 }
 
@@ -114,28 +124,30 @@ pub fn run_transaction<T: Informant>(
 
 	informant.set_gas(env_info.gas_limit);
 
+	let mut sink = informant.clone_sink();
 	let result = run(&spec, transaction.gas, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
-			TransactResult::Ok { state_root, gas_left, .. } if state_root != post_root => {
-				(Err(EvmTestError::PostCondition(format!(
-					"State root mismatch (got: 0x{:x}, expected: 0x{:x})",
-					state_root,
-					post_root,
-				))), Some(gas_left), None)
+			TransactResult::Ok { state_root, gas_left, output, vm_trace, end_state, .. } => {
+				if state_root != post_root {
+					(Err(EvmTestError::PostCondition(format!(
+						"State root mismatch (got: 0x{:x}, expected: 0x{:x})",
+						state_root,
+						post_root,
+					))), state_root, end_state, Some(gas_left), None)
+				} else {
+					(Ok(output), state_root, end_state, Some(gas_left), vm_trace)
+				}
 			},
-			TransactResult::Ok { state_root, gas_left, output, vm_trace, .. } => {
-				(Ok((state_root, output)), Some(gas_left), vm_trace)
-			},
-			TransactResult::Err { error, .. } => {
+			TransactResult::Err { state_root, error, end_state } => {
 				(Err(EvmTestError::PostCondition(format!(
 					"Unexpected execution error: {:?}", error
-				))), None, None)
+				))), state_root, end_state, None, None)
 			},
 		}
 	});
 
-	T::finish(result)
+	T::finish(result, &mut sink)
 }
 
 /// Execute VM with given `ActionParams`
@@ -145,7 +157,7 @@ pub fn run<'a, F, X>(
 	pre_state: &'a pod_state::PodState,
 	run: F,
 ) -> RunResult<X> where
-	F: FnOnce(EvmTestClient) -> (Result<(H256, Vec<u8>), EvmTestError>, Option<U256>, Option<X>),
+	F: FnOnce(EvmTestClient) -> (Result<Vec<u8>, EvmTestError>, H256, Option<pod_state::PodState>, Option<U256>, Option<X>),
 {
 	let test_client = EvmTestClient::from_pod_state(spec, pre_state.clone())
 		.map_err(|error| Failure {
@@ -153,6 +165,8 @@ pub fn run<'a, F, X>(
 			error,
 			time: Duration::from_secs(0),
 			traces: None,
+			state_root: H256::default(),
+			end_state: None,
 		})?;
 
 	let start = Instant::now();
@@ -160,18 +174,21 @@ pub fn run<'a, F, X>(
 	let time = start.elapsed();
 
 	match result {
-		(Ok((state_root, output)), gas_left, traces) => Ok(Success {
+		(Ok(output), state_root, end_state, gas_left, traces) => Ok(Success {
 			state_root,
 			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
 			output,
 			time,
 			traces,
+			end_state,
 		}),
-		(Err(error), gas_left, traces) => Err(Failure {
+		(Err(error), state_root, end_state, gas_left, traces) => Err(Failure {
 			gas_used: gas_left.map(|gas_left| initial_gas - gas_left).unwrap_or(initial_gas),
 			error,
 			time,
 			traces,
+			state_root,
+			end_state,
 		}),
 	}
 }

@@ -223,9 +223,15 @@ impl<'a> EvmTestClient<'a> {
 			return TransactResult::Err {
 				state_root: *self.state.root(),
 				error: error.into(),
+				end_state: if vm_tracer.dump_end_state() {
+					Some(self.state.to_pod())
+				} else {
+					None
+				},
 			};
 		}
 
+		let do_dump_state = vm_tracer.dump_end_state();
 		// Apply transaction
 		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
 		let scheme = self.spec.engine.machine().create_address_scheme(env_info.number);
@@ -249,6 +255,12 @@ impl<'a> EvmTestClient<'a> {
 		).ok();
 		self.state.commit().ok();
 
+		let end_state = if do_dump_state {
+			Some(self.state.to_pod())
+		} else {
+			None
+		};
+
 		match result {
 			Ok(result) => {
 				TransactResult::Ok {
@@ -263,12 +275,14 @@ impl<'a> EvmTestClient<'a> {
 						Some(executive::contract_address(scheme, &transaction.sender(), &transaction.nonce, &transaction.data).0)
 					} else {
 						None
-					}
+					},
+					end_state,
 				}
 			},
 			Err(error) => TransactResult::Err {
 				state_root: *self.state.root(),
 				error,
+				end_state,
 			},
 		}
 	}
@@ -295,6 +309,8 @@ pub enum TransactResult<T, V> {
 		logs: Vec<log_entry::LogEntry>,
 		/// outcome
 		outcome: receipt::TransactionOutcome,
+		/// end state if needed
+		end_state: Option<pod_state::PodState>,
 	},
 	/// Transaction failed to run
 	Err {
@@ -302,5 +318,7 @@ pub enum TransactResult<T, V> {
 		state_root: H256,
 		/// Execution error
 		error: ::error::Error,
+		/// end state if needed
+		end_state: Option<pod_state::PodState>,
 	},
 }
