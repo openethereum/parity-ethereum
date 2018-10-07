@@ -271,25 +271,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				// Bestow block rewards.
 				let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
 
-<<<<<<< HEAD
 				rewards.push((author, RewardKind::Author, result_block_reward));
-=======
-				if number >= self.ethash_params.mcip3_transition {
-					result_block_reward = self.ethash_params.mcip3_miner_reward;
-
-					let ubi_contract = self.ethash_params.mcip3_ubi_contract;
-					let ubi_reward = self.ethash_params.mcip3_ubi_reward;
-					let dev_contract = self.ethash_params.mcip3_dev_contract;
-					let dev_reward = self.ethash_params.mcip3_dev_reward;
-
-					rewards.push((author, RewardKind::Author, result_block_reward));
-					rewards.push((ubi_contract, RewardKind::External, ubi_reward));
-					rewards.push((dev_contract, RewardKind::External, dev_reward));
-
-				} else {
-					rewards.push((author, RewardKind::Author, result_block_reward));
-				}
->>>>>>> Remove ethash params
 
 				// Bestow uncle rewards.
 				for u in LiveBlock::uncles(&*block) {
