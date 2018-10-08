@@ -507,8 +507,9 @@ impl ChainSync {
 		self.peers.clear();
 	}
 
-	/// Reset sync. Clear all downloaded data but keep the queue
-	fn reset(&mut self, io: &mut SyncIo) {
+	/// Reset sync. Clear all downloaded data but keep the queue.
+	/// Set sync state to the given state or to the initial state if `None` is provided.
+	fn reset(&mut self, io: &mut SyncIo, state: Option<SyncState>) {
 		self.new_blocks.reset();
 		let chain_info = io.chain().chain_info();
 		for (_, ref mut p) in &mut self.peers {
@@ -520,7 +521,7 @@ impl ChainSync {
 				}
 			}
 		}
-		self.state = ChainSync::get_init_state(self.warp_sync, io.chain());
+		self.state = state.unwrap_or_else(|| ChainSync::get_init_state(self.warp_sync, io.chain()));
 		// Reactivate peers only if some progress has been made
 		// since the last sync round of if starting fresh.
 		self.active_peers = self.peers.keys().cloned().collect();
@@ -534,7 +535,7 @@ impl ChainSync {
 			io.snapshot_service().abort_restore();
 		}
 		self.snapshot.clear();
-		self.reset(io);
+		self.reset(io, None);
 		self.continue_sync(io);
 	}
 
@@ -699,7 +700,7 @@ impl ChainSync {
 	/// Called after all blocks have been downloaded
 	fn complete_sync(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Sync complete");
-		self.reset(io);
+		self.reset(io, Some(SyncState::Idle));
 	}
 
 	/// Enter waiting state
