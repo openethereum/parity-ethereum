@@ -97,9 +97,6 @@ pub trait VMTracer: Send {
 	/// Consumes self and returns the VM trace.
 	fn drain(self) -> Option<Self::Output>;
 
-	/// Indicate if state dump is needed.
-	fn dump_end_state(&self) -> bool { false }
-
 }
 
 /// `DbExtras` provides an interface to query extra data which is not stored in tracesdb,

@@ -112,5 +112,5 @@ test-heavy = []
 benches = []
 # Compile test helpers
 test-helpers = ["tempdir"]
-# Slow functionalities for evmbin or test only.
-evmbin-only = []
+# Slow method to-pod-full for evmbin or test only.
+to-pod-full = []

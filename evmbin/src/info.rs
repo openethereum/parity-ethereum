@@ -19,7 +19,7 @@
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
-use ethcore::{trace, spec, pod_state, TrieSpec};
+use ethcore::{state, state_db, trace, spec, pod_state, TrieSpec};
 use ethjson;
 use transaction;
 use vm::ActionParams;
@@ -36,14 +36,6 @@ pub trait Informant: trace::VMTracer {
 	fn clone_sink(&self) -> Self::Sink;
 	/// Display final result.
 	fn finish(result: RunResult<Self::Output>, &mut Self::Sink);
-  /// Get trie spec to use.
-  fn get_trie_spec(&self) -> TrieSpec {
-    if self.dump_end_state() {
-      TrieSpec::Fat
-    } else {
-      TrieSpec::Secure
-    }
-  }
 }
 
 /// Execution finished correctly
@@ -88,6 +80,7 @@ pub fn run_action<T: Informant>(
 	spec: &spec::Spec,
 	mut params: ActionParams,
 	mut informant: T,
+	trie_spec: TrieSpec,
 ) -> RunResult<T::Output> {
 	informant.set_gas(params.gas);
 
@@ -98,7 +91,7 @@ pub fn run_action<T: Informant>(
 			params.code_hash = None;
 		}
 	}
-	run(spec, informant.get_trie_spec(), params.gas, spec.genesis_state(), |mut client| {
+	run(spec, trie_spec, params.gas, spec.genesis_state(), |mut client| {
 		let result = match client.call(params, &mut trace::NoopTracer, &mut informant) {
 			Ok(r) => (Ok(r.return_data.to_vec()), Some(r.gas_left)),
 			Err(err) => (Err(err), None),
@@ -117,6 +110,7 @@ pub fn run_transaction<T: Informant>(
 	env_info: &client::EnvInfo,
 	transaction: transaction::SignedTransaction,
 	mut informant: T,
+	trie_spec: TrieSpec,
 ) {
 	let spec_name = format!("{:?}", spec).to_lowercase();
 	let spec = match EvmTestClient::spec_from_json(spec) {
@@ -133,7 +127,7 @@ pub fn run_transaction<T: Informant>(
 	informant.set_gas(env_info.gas_limit);
 
 	let mut sink = informant.clone_sink();
-	let result = run(&spec, informant.get_trie_spec(), transaction.gas, pre_state, |mut client| {
+	let result = run(&spec, trie_spec, transaction.gas, pre_state, |mut client| {
 		let result = client.transact(env_info, transaction, trace::NoopTracer, informant);
 		match result {
 			TransactResult::Ok { state_root, gas_left, output, vm_trace, end_state, .. } => {
@@ -158,6 +152,10 @@ pub fn run_transaction<T: Informant>(
 	T::finish(result, &mut sink)
 }
 
+fn dump_state(state: &state::State<state_db::StateDB>) -> Option<pod_state::PodState> {
+	Some(state.to_pod_full())
+}
+
 /// Execute VM with given `ActionParams`
 pub fn run<'a, F, X>(
 	spec: &'a spec::Spec,
@@ -168,7 +166,9 @@ pub fn run<'a, F, X>(
 ) -> RunResult<X> where
 	F: FnOnce(EvmTestClient) -> (Result<Vec<u8>, EvmTestError>, H256, Option<pod_state::PodState>, Option<U256>, Option<X>),
 {
-	let test_client = EvmTestClient::from_pod_state_with_trie(spec, pre_state.clone(), trie_spec)
+	let do_dump = trie_spec == TrieSpec::Fat;
+
+	let mut test_client = EvmTestClient::from_pod_state_with_trie(spec, pre_state.clone(), trie_spec)
 		.map_err(|error| Failure {
 			gas_used: 0.into(),
 			error,
@@ -177,6 +177,10 @@ pub fn run<'a, F, X>(
 			state_root: H256::default(),
 			end_state: None,
 		})?;
+
+	if do_dump {
+		test_client.set_dump_state_fn(dump_state);
+	}
 
 	let start = Instant::now();
 	let result = run(test_client);

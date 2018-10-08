@@ -56,20 +56,12 @@ pub struct Informant<Trace, Out> {
 	code: Vec<u8>,
 	instruction: u8,
 	depth: usize,
-	dump_state: bool,
 	stack: Vec<U256>,
 	storage: HashMap<H256, H256>,
 	subinfos: Vec<Informant<Trace, Out>>,
 	subdepth: usize,
 	trace_sink: Trace,
 	out_sink: Out,
-}
-
-impl<Trace, Out> Informant<Trace, Out> {
-	/// Activate or deactivate final dump state
-	pub fn dump_state(&mut self, do_dump : bool) {
-		self.dump_state = do_dump;
-	}
 }
 
 impl Default for Informant<io::Stderr, io::Stdout> {
@@ -99,7 +91,6 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 			code: Default::default(),
 			instruction: Default::default(),
 			depth: Default::default(),
-			dump_state: false,
 			stack: Default::default(),
 			storage: Default::default(),
 			subinfos: Default::default(),
@@ -244,10 +235,6 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 	}
 
 	fn drain(self) -> Option<Self::Output> { None }
-
-	fn dump_end_state(&self) -> bool {
-		self.dump_state
-	}
 
 }
 

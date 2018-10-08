@@ -49,7 +49,7 @@ use docopt::Docopt;
 use rustc_hex::FromHex;
 use ethereum_types::{U256, Address};
 use bytes::Bytes;
-use ethcore::{spec, json_tests};
+use ethcore::{spec, json_tests, TrieSpec};
 use vm::{ActionParams, CallType};
 
 mod info;
@@ -110,17 +110,11 @@ fn main() {
 		run_call(args, display::json::Informant::default())
 	} else if args.flag_dump_json || args.flag_std_json {
 		if args.flag_err_only {
-			let mut informant = display::std_json::Informant::err_only();
-			informant.dump_state(args.flag_dump_json);
-			run_call(args, informant)
+			run_call(args, display::std_json::Informant::err_only())
 		} else if args.flag_out_only {
-			let mut informant = display::std_json::Informant::out_only();
-			informant.dump_state(args.flag_dump_json);
-			run_call(args, informant)
+			run_call(args, display::std_json::Informant::out_only())
 		} else {
-			let mut informant = display::std_json::Informant::default();
-			informant.dump_state(args.flag_dump_json);
-			run_call(args, informant)
+			run_call(args, display::std_json::Informant::default())
 		};
 	} else {
 		run_call(args, display::simple::Informant::default())
@@ -194,26 +188,23 @@ fn run_state_test(args: Args) {
 				let post_root = state.hash.into();
 				let transaction = multitransaction.select(&state.indexes).into();
 
+				let trie_spec = if args.flag_dump_json {
+					TrieSpec::Fat
+				} else {
+					TrieSpec::Secure
+				};
 				if args.flag_json {
-					let i = display::json::Informant::default();
-					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::json::Informant::default(), trie_spec)
 				} else if args.flag_dump_json || args.flag_std_json {
 					if args.flag_err_only {
-						let mut i = display::std_json::Informant::err_only();
-						i.dump_state(args.flag_dump_json);
-						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::err_only(), trie_spec)
 					} else if args.flag_out_only {
-						let mut i = display::std_json::Informant::out_only();
-						i.dump_state(args.flag_dump_json);
-						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::out_only(), trie_spec)
 					} else {
-						let mut i = display::std_json::Informant::default();
-						i.dump_state(args.flag_dump_json);
-						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::default(), trie_spec)
 					}
 				} else {
-					let i = display::simple::Informant::default();
-					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::simple::Informant::default(), trie_spec)
 				}
 			}
 		}
@@ -245,7 +236,11 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 	params.data = data;
 
 	let mut sink = informant.clone_sink();
-	let result = info::run_action(&spec, params, informant);
+	let result = if args.flag_dump_json {
+		info::run_action(&spec, params, informant, TrieSpec::Fat)
+	} else {
+		info::run_action(&spec, params, informant, TrieSpec::Secure)
+	};
 	T::finish(result, &mut sink);
 }
 

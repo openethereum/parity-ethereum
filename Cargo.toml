@@ -108,8 +108,6 @@ memory_profiling = []
 # in order to manually test that parity fall-over to the local version
 # in case of invalid or deprecated command line arguments are entered
 test-updater = ["parity-updater/test-updater"]
-# Allow functionalities for evmbin or test only.
-evmbin-only = ["ethcore/evmbin-only"]
 
 [lib]
 path = "parity/lib.rs"

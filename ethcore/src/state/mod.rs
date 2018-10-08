@@ -939,33 +939,42 @@ impl<B: Backend> State<B> {
 		}
 	}
 
-	fn cache_to_pod(&self) -> PodState {
+	/// Populate a PodAccount map from this state.
+	fn to_pod_cache(&self) -> PodState {
 		assert!(self.checkpoints.borrow().is_empty());
 		// TODO: handle database rather than just the cache.
 		// will need fat db.
-		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
+		PodState::from(self.to_pod_cache_inner())
+	}
+
+	#[inline]
+	fn to_pod_cache_inner(&self) -> BTreeMap<Address, PodAccount> {
+		self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = opt.account {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
 			m
-		}))
+		})
 	}
 
-	#[cfg(feature="evmbin-only")]
+
+	#[cfg(feature="to-pod-full")]
 	/// Populate a PodAccount map from this state.
-	/// Warning this is not for real time use
-	pub fn to_pod_slow(&self) -> PodState {
+	/// Warning this is not for real time use.
+	/// Use of this method requires FatDB mode to be able 
+	/// to iterate on accounts.
+	pub fn to_pod_full(&self) -> PodState {
 		use ethereum_types::H160;
 
 		assert!(self.checkpoints.borrow().is_empty());
 		assert!(self.factories.trie.is_fat());
 
-		let mut result = BTreeMap::new();
+		let mut result = self.to_pod_cache_inner();
 
 		let trie = match self.factories.trie.readonly(self.db.as_hashdb(), &self.root) {
 			Ok(trie) => trie,
 			_ => {
-				trace!(target: "state", "to_pod_slow: Couldn't open the DB");
+				trace!(target: "state", "to_pod_full: Couldn't open the DB");
 				return PodState::from(result);
 			}
 		};
@@ -979,27 +988,20 @@ impl<B: Backend> State<B> {
 
 		for item in iter {
 			if let Ok((addr, dbval)) = item {
-				let mut account = from_rlp(&dbval[..]);
-				if account.code_size().is_none() {
-					let addr_hash = account.address_hash(&H160::from(&addr[..]));
-					let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
-					let _ = account.cache_code(accountdb.as_hashdb());
-				}
-				result.insert(Address::from_slice(&addr), PodAccount::from_account(&account));
+				result.entry(Address::from_slice(&addr)).or_insert_with(|| {
+					let mut account = from_rlp(&dbval[..]);
+					if account.code_size().is_none() {
+						let addr_hash = account.address_hash(&H160::from(&addr[..]));
+						let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+						let _ = account.cache_code(accountdb.as_hashdb());
+					}
+					PodAccount::from_account(&account)
+				});
 			}
 		}
 
 		PodState::from(result)
 	}
-
-
-	/// Only for use with tests (to slow for real use),
-	/// panic if feature 'evmbin-only' is not activated.
-	#[cfg(not(feature="evmbin-only"))]
-	pub fn to_pod_slow(&self) -> PodState {
-		unreachable!("to_pod_slow must only be reachable if feature 'evmbin-only' is explicitly activated")
-	}
-
 
 	/// Populate a PodAccount map from this state, with another state as the account and storage query.
 	fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
@@ -1057,7 +1059,7 @@ impl<B: Backend> State<B> {
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
 	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> TrieResult<StateDiff> {
-		let pod_state_post = self.cache_to_pod();
+		let pod_state_post = self.to_pod_cache();
 		let pod_state_pre = orig.to_pod_diff(self)?;
 		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
 	}

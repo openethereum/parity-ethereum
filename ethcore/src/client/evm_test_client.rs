@@ -66,6 +66,11 @@ use ethjson::spec::ForkSpec;
 pub struct EvmTestClient<'a> {
 	state: state::State<state_db::StateDB>,
 	spec: &'a spec::Spec,
+	dump_state: fn(&state::State<state_db::StateDB>) -> Option<pod_state::PodState>,
+}
+
+fn no_dump_state(_: &state::State<state_db::StateDB>) -> Option<pod_state::PodState> {
+	None
 }
 
 impl<'a> fmt::Debug for EvmTestClient<'a> {
@@ -92,6 +97,11 @@ impl<'a> EvmTestClient<'a> {
 		}
 	}
 
+	/// Change default function for dump state (default does not dump)
+	pub fn set_dump_state_fn(&mut self, dump_state: fn(&state::State<state_db::StateDB>) -> Option<pod_state::PodState>) {
+		self.dump_state = dump_state;
+	}
+
 	/// Creates new EVM test client with in-memory DB initialized with genesis of given Spec.
 	/// You can specify a specific trie kind.
 	pub fn new_with_trie(spec: &'a spec::Spec, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
@@ -101,6 +111,7 @@ impl<'a> EvmTestClient<'a> {
 		Ok(EvmTestClient {
 			state,
 			spec,
+			dump_state: no_dump_state,
 		})
 	}
 
@@ -118,6 +129,7 @@ impl<'a> EvmTestClient<'a> {
 		Ok(EvmTestClient {
 			state,
 			spec,
+			dump_state: no_dump_state,
 		})
 	}
 
@@ -235,15 +247,10 @@ impl<'a> EvmTestClient<'a> {
 			return TransactResult::Err {
 				state_root: *self.state.root(),
 				error: error.into(),
-				end_state: if vm_tracer.dump_end_state() {
-					Some(self.state.to_pod_slow())
-				} else {
-					None
-				},
+				end_state: (self.dump_state)(&self.state),
 			};
 		}
 
-		let do_dump_state = vm_tracer.dump_end_state();
 		// Apply transaction
 		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
 		let scheme = self.spec.engine.machine().create_address_scheme(env_info.number);
@@ -270,11 +277,7 @@ impl<'a> EvmTestClient<'a> {
 
 		let state_root = *self.state.root();
 
-		let end_state = if do_dump_state {
-			Some(self.state.to_pod_slow())
-		} else {
-			None
-		};
+		let end_state = (self.dump_state)(&self.state);
 
 		match result {
 			Ok(result) => {
