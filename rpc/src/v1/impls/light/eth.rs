@@ -381,7 +381,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
-		Box::new(self.fetcher().proved_execution(req, num).and_then(|res| {
+		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.output.into()),
 				Err(e) => Err(errors::execution(e)),
@@ -391,7 +391,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
 		// TODO: binary chop for more accurate estimates.
-		Box::new(self.fetcher().proved_execution(req, num).and_then(|res| {
+		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
 			match res {
 				Ok(exec) => Ok((exec.refunded + exec.gas_used).into()),
 				Err(e) => Err(errors::execution(e)),

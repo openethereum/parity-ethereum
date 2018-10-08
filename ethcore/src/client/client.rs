@@ -2381,14 +2381,13 @@ impl ProvingBlockChainClient for Client {
 		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
-		state::prove_transaction(
+		state::prove_transaction_virtual(
 			jdb.as_hashdb_mut(),
 			header.state_root().clone(),
 			&transaction,
 			self.engine.machine(),
 			&env_info,
 			self.factories.clone(),
-			false,
 		)
 	}
 

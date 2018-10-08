@@ -877,14 +877,13 @@ impl Spec {
 				data: d,
 			}.fake_sign(from);
 
-			let res = ::state::prove_transaction(
+			let res = ::state::prove_transaction_virtual(
 				db.as_hashdb_mut(),
 				*genesis.state_root(),
 				&tx,
 				self.engine.machine(),
 				&env_info,
 				factories.clone(),
-				true,
 			);
 
 			res.map(|(out, proof)| {
