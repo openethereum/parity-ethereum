@@ -112,7 +112,6 @@ impl OverlayDB {
 							return Err(error_negatively_reference_hash(&key));
 						}
 						let payload = Payload::new(total_rc as u32, x.value);
-						// let payload = Payload::new(total_rc as u32, x.value.clone());
 						deletes += if self.put_payload_in_batch(batch, &key, &payload) {1} else {0};
 					}
 					None => {
