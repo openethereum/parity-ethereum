@@ -1,7 +1,7 @@
 stages:
   - test
   - build
-  - publish
+  # - publish
   - optional
 
 image:                             parity/rust:gitlab-ci
@@ -85,30 +85,30 @@ build-windows:
    - rust-windows
   <<:                              *collect_artifacts
 
-publish-docker:
-  stage:                           publish
-  only:                            *releaseable_branches
-  cache: {}
-  dependencies:
-    - build-linux
-  tags:
-    - shell
-  script:
-    - scripts/gitlab/publish-docker.sh parity
+# publish-docker:
+#   stage:                           publish
+#   only:                            *releaseable_branches
+#   cache: {}
+#   dependencies:
+#     - build-linux
+#   tags:
+#     - shell
+#   script:
+#     - scripts/gitlab/publish-docker.sh parity
 
-publish-awss3:
-  stage:                           publish
-  only:                            *releaseable_branches
-  cache: {}
-  dependencies:
-    - build-linux
-    - build-darwin
-    - build-windows
-  before_script:                   *determine_version
-  script:
-    - scripts/gitlab/publish-awss3.sh
-  tags:
-    - shell
+# publish-awss3:
+#   stage:                           publish
+#   only:                            *releaseable_branches
+#   cache: {}
+#   dependencies:
+#     - build-linux
+#     - build-darwin
+#     - build-windows
+#   before_script:                   *determine_version
+#   script:
+#     - scripts/gitlab/publish-awss3.sh
+#   tags:
+#     - shell
 
 docs-jsonrpc:
   stage:                            optional
