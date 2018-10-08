@@ -230,7 +230,7 @@ pub mod tests {
 
 		let tempdir = TempDir::new("").unwrap();
 		let spec = ::ethcore::ethereum::new_foundation(&tempdir.path());
-		let result = run_action(&spec, params, informant);
+		let result = run_action(&spec, params, informant, TrieSpec::Secure);
 		match result {
 			Ok(Success { traces, .. }) => {
 				compare(traces, expected)
@@ -251,7 +251,7 @@ pub mod tests {
 		params.gas = 0xffff.into();
 
 		let spec = ::ethcore::ethereum::load(None, include_bytes!("../res/testchain.json"));
-		let _result = run_action(&spec, params, inf);
+		let _result = run_action(&spec, params, inf, TrieSpec::Secure);
 
 		assert_eq!(
 			&String::from_utf8_lossy(&**res.lock().unwrap()),
