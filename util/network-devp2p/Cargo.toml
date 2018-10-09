@@ -26,7 +26,7 @@ ethcore-logger = { path ="../../logger" }
 ethcore-network = { path = "../network" }
 ethereum-types = "0.4"
 ethkey = { path = "../../ethkey" }
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 parity-path = "0.1"
 ipnetwork = "0.12.6"
 keccak-hash = "0.1"

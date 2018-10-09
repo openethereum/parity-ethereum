@@ -16,9 +16,9 @@ crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 parity-bytes = "0.1"
-hashdb = "0.2.1"
-memorydb = "0.2.1"
-patricia-trie = "0.2"
+hashdb = "0.3.0"
+memorydb = "0.3.0"
+patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 parity-crypto = "0.1"
 error-chain = { version = "0.12", default-features = false }
@@ -47,7 +47,7 @@ parity-machine = { path = "../machine" }
 parking_lot = "0.6"
 rayon = "1.0"
 rand = "0.4"
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = "0.1"

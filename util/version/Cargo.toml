@@ -22,7 +22,7 @@ kovan = { forkBlock = 6600000, critical = false }
 
 [dependencies]
 parity-bytes = "0.1"
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 target_info = "0.1"
 
 [build-dependencies]

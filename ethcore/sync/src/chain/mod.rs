@@ -1203,7 +1203,7 @@ pub mod tests {
 	}
 
 	pub fn get_dummy_blocks(order: u32, parent_hash: H256) -> Bytes {
-		let mut rlp = RlpStream::new_list(1);
+		let mut rlp = RlpStream::new_list(2);
 		rlp.append_raw(&get_dummy_block(order, parent_hash), 1);
 		let difficulty: U256 = (100 * order).into();
 		rlp.append(&difficulty);

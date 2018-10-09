@@ -49,7 +49,7 @@ where
     I: IntoIterator<Item = V>,
     V: AsRef<[u8]>,
 {
-    triehash::ordered_trie_root::<KeccakHasher, I, V>(input)
+    triehash::ordered_trie_root::<KeccakHasher, I>(input)
 }
 
 #[cfg(test)]
@@ -81,7 +81,7 @@ mod tests {
         let data = &["cake", "pie", "candy"];
 		assert_eq!(
             ordered_trie_root(data),
-            triehash::ordered_trie_root::<KeccakHasher, _, _>(data)
+            triehash::ordered_trie_root::<KeccakHasher, _>(data)
         );
 	}
 }

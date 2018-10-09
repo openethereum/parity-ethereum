@@ -27,7 +27,7 @@ linked-hash-map = "0.5"
 log = "0.4"
 parking_lot = "0.6"
 price-info = { path = "../price-info", optional = true }
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 trace-time = "0.1"
 transaction-pool = "1.13"
 

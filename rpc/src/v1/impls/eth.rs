@@ -795,7 +795,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let mix_hash: H256 = mix_hash.into();
 		trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 
-		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
+		let seal = vec![rlp::encode(&mix_hash).to_vec(), rlp::encode(&nonce).to_vec()];
 		let import = self.miner.submit_seal(pow_hash, seal)
 			.and_then(|block| self.client.import_sealed_block(block));
 
