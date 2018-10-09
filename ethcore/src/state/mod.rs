@@ -977,23 +977,19 @@ impl<B: Backend> State<B> {
 			_ => return PodState::from(result),
 		};
 
+		// put trie in cache 
+		for item in iter {
+			if let Ok((addr, _dbval)) = item {
+				let address = Address::from_slice(&addr);
+				let _ = self.require(&address, true);
+			}
+		}
 
-		// cache first
+		// Resolve missing part
 		for (add, opt) in self.cache.borrow_mut().iter_mut() {
 			if let Some(ref mut acc) = opt.account {
 				let pod_account = self.account_to_pod_account(acc, add);
 				result.insert(add.clone(), pod_account);
-			}
-		}
-
-		// trie second
-		for item in iter {
-			if let Ok((addr, dbval)) = item {
-				let address = Address::from_slice(&addr);
-				result.entry(address.clone()).or_insert_with(|| {
-					let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
-					self.account_to_pod_account(&mut from_rlp(&dbval[..]), &address)
-				});
 			}
 		}
 
@@ -1004,20 +1000,21 @@ impl<B: Backend> State<B> {
 		let mut pod_storage = BTreeMap::new();
 		let addr_hash = account.address_hash(address);
 		let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+
 		if account.code_size().is_none() {
 			let _ = account.cache_code(accountdb.as_hashdb());
 		}
-		if let Some(root) = account.storage_root() {
-			if let Ok(trie) = self.factories.trie.readonly(accountdb.as_hashdb(), &root) {
-				if let Ok(iter) = trie.iter() {
-					for i in iter {
-						if let Ok((key, val)) = i {
+
+		account.storage_root()
+			.map(|root| self.factories.trie.readonly(accountdb.as_hashdb(), &root)
+				.map(|trie|	trie.iter()
+					.map(|iter| iter.for_each(|o_kv|{
+						if let Ok((key, val)) = o_kv {
 							pod_storage.insert(H256::from(&key[..]), H256::from(&val[..]));
 						}
 					}
-				}
-			}
-		}
+					))));
+
 		let mut pod_account = PodAccount::from_account(&account);
 		// cached one first
 		pod_storage.append(&mut pod_account.storage);
