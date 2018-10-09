@@ -18,12 +18,12 @@ use std::sync::{Arc, Weak};
 
 use block::ExecutedBlock;
 use client::EngineClient;
-use engines::{Engine, Seal, signer::EngineSigner};
+use engines::{Engine, Seal, signer::EngineSigner, ForkChoice};
 use ethjson;
 use ethkey::Password;
 use account_provider::AccountProvider;
 use ethereum_types::Address;
-use error::Error;
+use error::{BlockError, Error};
 use header::{Header, ExtendedHeader};
 use machine::EthereumMachine;
 use parking_lot::RwLock;
@@ -63,6 +63,9 @@ impl Hbbft {
 		}
 	}
 }
+/// A temporary fixed seal code.
+// TODO: Use a threshold signature of the block.
+const SEAL: &[u8] = b"Don't care.";
 
 impl Engine<EthereumMachine> for Hbbft {
 	fn name(&self) -> &str {
@@ -73,12 +76,18 @@ impl Engine<EthereumMachine> for Hbbft {
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
+	fn seal_fields(&self, _header: &Header) -> usize { 1 }
+
 	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal {
-		Seal::Regular(Vec::new())
+		Seal::Regular(vec!(SEAL.to_vec()))
 	}
 
-	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
-		Ok(())
+	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
+		if header.seal() == &[SEAL] {
+			Ok(())
+		} else {
+			Err(BlockError::InvalidSeal.into())
+		}
 	}
 
 	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
@@ -96,8 +105,15 @@ impl Engine<EthereumMachine> for Hbbft {
 		header_timestamp >= parent_timestamp
 	}
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
+		if new.header.number() > current.header.number() {
+			ForkChoice::New
+		} else if new.header.number() < current.header.number() {
+			ForkChoice::Old
+		} else {
+			panic!("Consensus failure: blocks {:?} and {:?} have equal number {}.",
+				   new.header.hash(), current.header.hash(), new.header.number());
+		}
 	}
 
 	fn register_client(&self, client: Weak<EngineClient>) {

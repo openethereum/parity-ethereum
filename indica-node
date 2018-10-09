@@ -41,7 +41,7 @@ else
     DIRECTORY="release"
 fi
 
-cargo build $RELEASE
+cargo build $RELEASE || exit
 
 PARITY_LOG=peer_node::hydrabadger=error,warn,info,$PARITY_LOG_ADDTL
 

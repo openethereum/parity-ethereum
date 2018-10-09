@@ -24,7 +24,7 @@ use header::{Header, BlockNumber};
 /// For GHOST fork-choice rule it would typically describe the block with highest
 /// combined difficulty (usually the block with the highest block number).
 ///
-/// Sometimes refered as 'latest block'.
+/// Sometimes referred to as 'latest block'.
 pub struct BestBlock {
 	/// Best block decoded header.
 	pub header: Header,
