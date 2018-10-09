@@ -6,9 +6,9 @@ set -u # treat unset variables as error
 
 git log --graph --oneline --all --decorate=short -n 10
 
-case $CI_COMMIT_REF_NAME in
+case ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} in
   (beta|stable)
-    export GIT_COMPARE=$CI_COMMIT_REF_NAME~
+    export GIT_COMPARE=${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}~
     ;;
   (master|nightly)
     export GIT_COMPARE=master~
