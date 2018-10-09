@@ -38,34 +38,26 @@ commit_files() {
     git checkout -b rpcdoc-update-${CI_COMMIT_REF_NAME}
     git add .
     git commit -m "Update docs to ${CI_COMMIT_REF_NAME}"
-    git tag -a -f "${CI_COMMIT_REF_NAME}" -m "Update RPC docs to ${CI_COMMIT_REF_NAME}"
+    git tag -a "${CI_COMMIT_REF_NAME}" -m "Update RPC docs to ${CI_COMMIT_REF_NAME}"
 }
 
 upload_files() {
     echo "__________Upload files__________"
     git push origin HEAD
-    git push -f --tags
+    git push --tags
 }
 
 RPC_TRAITS_DIR="rpc/src/v1/traits"
 
-case $CI_COMMIT_REF_NAME in
-  (master|nightly)
-    echo "_______Skipping docs stage for ${CI_COMMIT_REF_NAME}_______"
-    exit 0
-    ;;
-  (*)
-    setup_git
-    clone_repos
-    mkdir -p "jsonrpc/.parity/$RPC_TRAITS_DIR"
-    cp $RPC_TRAITS_DIR/*.rs "jsonrpc/.parity/$RPC_TRAITS_DIR"
-    cd jsonrpc
-    build_docs
-    cd ..
-    update_wiki_docs
-    cd wiki
-    set_remote_wiki
-    commit_files
-    upload_files
-    ;;
-esac
+setup_git
+clone_repos
+mkdir -p "jsonrpc/.parity/$RPC_TRAITS_DIR"
+cp $RPC_TRAITS_DIR/*.rs "jsonrpc/.parity/$RPC_TRAITS_DIR"
+cd jsonrpc
+build_docs
+cd ..
+update_wiki_docs
+cd wiki
+set_remote_wiki
+commit_files
+upload_files
