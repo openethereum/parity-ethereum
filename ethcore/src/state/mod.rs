@@ -957,28 +957,17 @@ impl<B: Backend> State<B> {
 	/// Warning this is not for real time use.
 	/// Use of this method requires FatDB mode to be able 
 	/// to iterate on accounts.
-	pub fn to_pod_full(&self) -> PodState {
+	pub fn to_pod_full(&self) -> Result<PodState, Error> {
 
 		assert!(self.checkpoints.borrow().is_empty());
 		assert!(self.factories.trie.is_fat());
 
 		let mut result = BTreeMap::new();
 
-		let trie = match self.factories.trie.readonly(self.db.as_hashdb(), &self.root) {
-			Ok(trie) => trie,
-			_ => {
-				trace!(target: "state", "to_pod_full: Couldn't open the DB");
-				return PodState::from(result);
-			}
-		};
-
-		let iter = match trie.iter() {
-			Ok(iter) => iter,
-			_ => return PodState::from(result),
-		};
+		let trie = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
 
 		// put trie in cache 
-		for item in iter {
+		for item in trie.iter()? {
 			if let Ok((addr, _dbval)) = item {
 				let address = Address::from_slice(&addr);
 				let _ = self.require(&address, true);
@@ -986,41 +975,43 @@ impl<B: Backend> State<B> {
 		}
 
 		// Resolve missing part
-		for (add, opt) in self.cache.borrow_mut().iter_mut() {
-			if let Some(ref mut acc) = opt.account {
-				let pod_account = self.account_to_pod_account(acc, add);
+		for (add, opt) in self.cache.borrow().iter() {
+			if let Some(ref acc) = opt.account {
+				let pod_account = self.account_to_pod_account(acc, add)?;
 				result.insert(add.clone(), pod_account);
 			}
 		}
 
-		PodState::from(result)
+		Ok(PodState::from(result))
 	}
 
-	fn account_to_pod_account(&self, account: &mut Account, address: &Address) -> PodAccount {
+	/// Create a PodAccount from an account.
+	/// Differs from existing method by adding all storage
+	/// values of the account to the PodAccount.
+	/// This function shall therefore only be used for small
+	/// tests or tests on fresh accounts.
+	/// It requires FatDB.
+	#[cfg(feature="to-pod-full")]
+	fn account_to_pod_account(&self, account: &Account, address: &Address) -> Result<PodAccount, Error> {
 		let mut pod_storage = BTreeMap::new();
 		let addr_hash = account.address_hash(address);
 		let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+		let root = account.base_storage_root();
 
-		if account.code_size().is_none() {
-			let _ = account.cache_code(accountdb.as_hashdb());
+		let trie = self.factories.trie.readonly(accountdb.as_hashdb(), &root)?;
+		for o_kv in trie.iter()? {
+			if let Ok((key, val)) = o_kv {
+				pod_storage.insert(H256::from(&key[..]), H256::from(U256::from(&val[..])));
+			}
 		}
-
-		account.storage_root()
-			.map(|root| self.factories.trie.readonly(accountdb.as_hashdb(), &root)
-				.map(|trie|	trie.iter()
-					.map(|iter| iter.for_each(|o_kv|{
-						if let Ok((key, val)) = o_kv {
-							pod_storage.insert(H256::from(&key[..]), H256::from(&val[..]));
-						}
-					}
-					))));
 
 		let mut pod_account = PodAccount::from_account(&account);
 		// cached one first
 		pod_storage.append(&mut pod_account.storage);
 		pod_account.storage = pod_storage;
-		pod_account
+		Ok(pod_account)
 	}
+
 
 	/// Populate a PodAccount map from this state, with another state as the account and storage query.
 	fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
@@ -2654,12 +2645,12 @@ mod tests {
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
-				   pod_account::diff_pod(Some(&PodAccount {
-					   balance: U256::from(100),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: Default::default()
-				   }), None).as_ref());
+				pod_account::diff_pod(Some(&PodAccount {
+					balance: U256::from(100),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: Default::default()
+				}), None).as_ref());
 	}
 
 	#[test]
@@ -2685,18 +2676,64 @@ mod tests {
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
-				   pod_account::diff_pod(Some(&PodAccount {
-					   balance: U256::zero(),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64)))]
-						   .into_iter().collect(),
-				   }), Some(&PodAccount {
-					   balance: U256::zero(),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64)))]
-						   .into_iter().collect(),
-				   })).as_ref());
+				pod_account::diff_pod(Some(&PodAccount {
+					balance: U256::zero(),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64)))]
+						.into_iter().collect(),
+				}), Some(&PodAccount {
+					balance: U256::zero(),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64)))]
+						.into_iter().collect(),
+				})).as_ref());
 	}
+
+	#[cfg(feature="to-pod-full")]
+	#[test]
+	fn should_get_full_pod_storage_values() {
+		use trie::{TrieFactory, TrieSpec};
+
+		let a = 10.into();
+		let db = get_temp_state_db();
+
+		let factories = Factories {
+			vm: Default::default(),
+			trie: TrieFactory::new(TrieSpec::Fat),
+			accountdb: Default::default(),
+		};
+
+    let get_pod_state_val = |pod_state : &PodState, ak, k| {
+      pod_state.get().get(ak).unwrap().storage.get(&k).unwrap().clone()
+    };
+
+    let storage_address = H256::from(&U256::from(1u64));
+
+		let (root, db) = {
+			let mut state = State::new(db, U256::from(0), factories.clone());
+			state.set_storage(&a, storage_address.clone(), H256::from(&U256::from(20u64))).unwrap();
+			let dump = state.to_pod_full().unwrap();
+      assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(20u64)));
+			state.commit().unwrap();
+			let dump = state.to_pod_full().unwrap();
+      assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(20u64)));
+			state.drop()
+		};
+
+		let mut state = State::from_existing(db, root, U256::from(0u8), factories).unwrap();
+		let dump = state.to_pod_full().unwrap();
+    assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(20u64)));
+		state.set_storage(&a, storage_address.clone(), H256::from(&U256::from(21u64))).unwrap();
+		let dump = state.to_pod_full().unwrap();
+    assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(21u64)));
+		state.commit().unwrap();
+		state.set_storage(&a, storage_address.clone(), H256::from(&U256::from(0u64))).unwrap();
+		let dump = state.to_pod_full().unwrap();
+    assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(0u64)));
+
+
+	}
+
 }

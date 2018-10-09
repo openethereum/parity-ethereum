@@ -153,7 +153,7 @@ pub fn run_transaction<T: Informant>(
 }
 
 fn dump_state(state: &state::State<state_db::StateDB>) -> Option<pod_state::PodState> {
-	Some(state.to_pod_full())
+	state.to_pod_full().ok()
 }
 
 /// Execute VM with given `ActionParams`
