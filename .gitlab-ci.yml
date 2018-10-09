@@ -51,7 +51,87 @@ test-linux:
     # - rust-stable
     - ci2
 
-build-linux:
+test-linux1:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    # - rust-stable
+    - ci2
+
+test-linux2:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    # - rust-stable
+    - ci2
+
+test-linux3:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    # - rust-stable
+    - ci2
+
+test-linux4:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    # - rust-stable
+    - ci2
+
+test-linux5:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    # - rust-stable
+    - ci2
+
+test-linux6:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    # - rust-stable
+    - ci2
+
+test-linux7:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    # - rust-stable
+    - ci2
+
+test-linux8:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    # - rust-stable
+    - ci2
+
+build-linux9:
   stage:                           build
   only:                            *releaseable_branches
   variables:
@@ -118,6 +198,8 @@ docs-jsonrpc:
   stage:                            optional
   only:
     - tags
+  except:
+    - nightly
   cache: {}
   script:
     - scripts/gitlab/docs-jsonrpc.sh
