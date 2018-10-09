@@ -52,7 +52,7 @@ use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
 use error::{
 	ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult,
-	QueueError, QueueErrorKind, Error as EthcoreError
+	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult,
 };
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
@@ -296,7 +296,6 @@ impl Importer {
 					continue;
 				}
 
-				let raw = block.bytes.clone();
 				match self.check_and_lock_block(block, client) {
 					Ok(closed_block) => {
 						if self.engine.is_proposal(&header) {
@@ -314,8 +313,8 @@ impl Importer {
 						}
 					},
 					Err(err) => {
-						self.bad_blocks.report(raw, format!("{:?}", err));
-						invalid_blocks.insert(header.hash());
+						self.bad_blocks.report(bytes, format!("{:?}", err));
+						invalid_blocks.insert(hash);
 					},
 				}
 			}
@@ -356,7 +355,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> Result<LockedBlock, ()> {
+	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<LockedBlock> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -364,7 +363,7 @@ impl Importer {
 		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
-			return Err(());
+			bail!("Block is ancient");
 		}
 
 		// Check if parent is in chain
@@ -372,7 +371,7 @@ impl Importer {
 			Some(h) => h,
 			None => {
 				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
-				return Err(());
+				bail!("Parent not found");
 			}
 		};
 
@@ -391,13 +390,13 @@ impl Importer {
 
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(());
+			bail!(e);
 		};
 
 		let verify_external_result = self.verifier.verify_block_external(&header, engine);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(());
+			bail!(e);
 		};
 
 		// Enact Verified Block
@@ -417,9 +416,13 @@ impl Importer {
 			&mut chain.ancestry_with_metadata_iter(*header.parent_hash()),
 		);
 
-		let mut locked_block = enact_result.map_err(|e| {
-			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-		})?;
+		let mut locked_block = match enact_result {
+			Ok(b) => b,
+			Err(e) => {
+				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+				bail!(e);
+			}
+		};
 
 		// Strip receipts for blocks before validate_receipts_transition,
 		// if the expected receipts root header does not match.
@@ -433,7 +436,7 @@ impl Importer {
 		// Final Verification
 		if let Err(e) = self.verifier.verify_block_final(&header, locked_block.block().header()) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(());
+			bail!(e);
 		}
 
 		Ok(locked_block)
@@ -443,7 +446,7 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, unverified: Unverified, receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<(), ::error::Error> {
+	fn import_old_block(&self, unverified: Unverified, receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> EthcoreResult<()> {
 		let receipts = ::rlp::decode_list(receipts_bytes);
 		let _import_lock = self.import_lock.lock();
 
@@ -2353,14 +2356,13 @@ impl ProvingBlockChainClient for Client {
 		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
-		state::prove_transaction(
+		state::prove_transaction_virtual(
 			jdb.as_hashdb_mut(),
 			header.state_root().clone(),
 			&transaction,
 			self.engine.machine(),
 			&env_info,
 			self.factories.clone(),
-			false,
 		)
 	}
 

@@ -16,7 +16,7 @@
 
 use std::sync::{Arc, Weak};
 use std::thread;
-use crossbeam::sync::chase_lev;
+use deque;
 use slab::Slab;
 use fnv::FnvHashMap;
 use {IoError, IoHandler};
@@ -198,7 +198,7 @@ struct Shared<Message> where Message: Send + Sync + 'static {
 	// necessary.
 	timers: Mutex<FnvHashMap<TimerToken, TimerGuard>>,
 	// Channel used to send work to the worker threads.
-	channel: Mutex<Option<chase_lev::Worker<WorkTask<Message>>>>,
+	channel: Mutex<Option<deque::Worker<WorkTask<Message>>>>,
 }
 
 // Messages used to communicate with the event loop from other threads.
@@ -224,7 +224,7 @@ impl<Message> Clone for WorkTask<Message> where Message: Send + Sized {
 impl<Message> IoService<Message> where Message: Send + Sync + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, IoError> {
-		let (tx, rx) = chase_lev::deque();
+		let (tx, rx) = deque::fifo();
 
 		let shared = Arc::new(Shared {
 			handlers: RwLock::new(Slab::with_capacity(MAX_HANDLERS)),
@@ -251,7 +251,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + 'static {
 	}
 
 	/// Stops the IO service.
-	pub fn stop(&self) {
+	pub fn stop(&mut self) {
 		trace!(target: "shutdown", "[IoService] Closing...");
 		// Clear handlers so that shared pointers are not stuck on stack
 		// in Channel::send_sync
@@ -307,15 +307,15 @@ impl<Message> Drop for IoService<Message> where Message: Send + Sync {
 	}
 }
 
-fn do_work<Message>(shared: &Arc<Shared<Message>>, rx: chase_lev::Stealer<WorkTask<Message>>)
-	where Message: Send + Sync + 'static 
+fn do_work<Message>(shared: &Arc<Shared<Message>>, rx: deque::Stealer<WorkTask<Message>>)
+	where Message: Send + Sync + 'static
 {
 	loop {
 		match rx.steal() {
-			chase_lev::Steal::Abort => continue,
-			chase_lev::Steal::Empty => thread::park(),
-			chase_lev::Steal::Data(WorkTask::Shutdown) => break,
-			chase_lev::Steal::Data(WorkTask::UserMessage(message)) => {
+			deque::Steal::Retry => continue,
+			deque::Steal::Empty => thread::park(),
+			deque::Steal::Data(WorkTask::Shutdown) => break,
+			deque::Steal::Data(WorkTask::UserMessage(message)) => {
 				for id in 0 .. MAX_HANDLERS {
 					if let Some(handler) = shared.handlers.read().get(id) {
 						let ctxt = IoContext { handler: id, shared: shared.clone() };
@@ -323,7 +323,7 @@ fn do_work<Message>(shared: &Arc<Shared<Message>>, rx: chase_lev::Stealer<WorkTa
 					}
 				}
 			},
-			chase_lev::Steal::Data(WorkTask::TimerTrigger { handler_id, token }) => {
+			deque::Steal::Data(WorkTask::TimerTrigger { handler_id, token }) => {
 				if let Some(handler) = shared.handlers.read().get(handler_id) {
 					let ctxt = IoContext { handler: handler_id, shared: shared.clone() };
 					handler.timeout(&ctxt, token);

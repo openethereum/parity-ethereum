@@ -188,7 +188,7 @@ impl LightFetch {
 	}
 
 	/// Helper for getting proved execution.
-	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+	pub fn proved_read_only_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
 		const DEFAULT_GAS_PRICE: u64 = 21_000;
 		// starting gas when gas not provided.
 		const START_GAS: u64 = 50_000;
@@ -247,19 +247,20 @@ impl LightFetch {
 		}).join(header_fut).and_then(move |((gas_known, tx), hdr)| {
 			// then request proved execution.
 			// TODO: get last-hashes from network.
-			let env_info = match client.env_info(id) {
+			let hash = hdr.hash();
+			let env_info = match client.env_info(BlockId::Hash(hash)) {
 				Some(env_info) => env_info,
 				_ => return Either::A(future::err(errors::unknown_block())),
 			};
 
-			Either::B(execute_tx(gas_known, ExecuteParams {
-				from: from,
-				tx: tx,
-				hdr: hdr,
-				env_info: env_info,
+			Either::B(execute_read_only_tx(gas_known, ExecuteParams {
+				from,
+				tx,
+				hdr,
+				env_info,
 				engine: client.engine().clone(),
-				on_demand: on_demand,
-				sync: sync,
+				on_demand,
+				sync,
 			}))
 		}))
 	}
@@ -598,10 +599,10 @@ struct ExecuteParams {
 
 // has a peer execute the transaction with given params. If `gas_known` is false,
 // this will double the gas on each `OutOfGas` error.
-fn execute_tx(gas_known: bool, params: ExecuteParams) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+fn execute_read_only_tx(gas_known: bool, params: ExecuteParams) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
 	if !gas_known {
 		Box::new(future::loop_fn(params, |mut params| {
-			execute_tx(true, params.clone()).and_then(move |res| {
+			execute_read_only_tx(true, params.clone()).and_then(move |res| {
 				match res {
 					Ok(executed) => {
 						// TODO: how to distinguish between actual OOG and
