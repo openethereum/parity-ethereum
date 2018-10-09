@@ -114,6 +114,8 @@ docs-jsonrpc:
   stage:                            optional
   only:
     - tags
+  except:
+    - nightly
   cache: {}
   script:
     - scripts/gitlab/docs-jsonrpc.sh
