@@ -41,10 +41,11 @@ cp --verbose ../../target/$CARGO_TARGET/release/ethkey.exe ./ethkey.exe
 cp --verbose ../../target/$CARGO_TARGET/release/whisper.exe ./whisper.exe
 
 echo "_____ Calculating checksums _____"
-for binary in $(ls)
+for binary in $(ls *.exe)
 do
   rhash --sha256 $binary -o $binary.sha256
-  ./parity.exe tools hash $binary > $binary.sha3
+  rhash --sha3-256 $binary -o $binary.sha3
+  # ./parity.exe tools hash $binary > $binary.sha3
 done
 cp parity.exe.sha256 parity.sha256
 cp parity.exe.sha3 parity.sha3
