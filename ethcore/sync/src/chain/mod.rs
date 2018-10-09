@@ -109,7 +109,7 @@ use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, Bl
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
-use block_sync::{BlockDownloader, BlockDownloaderImportError as DownloaderImportError};
+use block_sync::{BlockDownloader, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
@@ -429,7 +429,7 @@ impl ChainSync {
 			peers: HashMap::new(),
 			handshaking_peers: HashMap::new(),
 			active_peers: HashSet::new(),
-			new_blocks: BlockDownloader::new(false, &chain_info.best_block_hash, chain_info.best_block_number),
+			new_blocks: BlockDownloader::new(BlockSet::NewBlocks, &chain_info.best_block_hash, chain_info.best_block_number),
 			old_blocks: None,
 			last_sent_block_number: 0,
 			network_id: config.network_id,
@@ -638,13 +638,13 @@ impl ChainSync {
 	pub fn update_targets(&mut self, chain: &BlockChainClient) {
 		// Do not assume that the block queue/chain still has our last_imported_block
 		let chain = chain.chain_info();
-		self.new_blocks = BlockDownloader::new(false, &chain.best_block_hash, chain.best_block_number);
+		self.new_blocks = BlockDownloader::new(BlockSet::NewBlocks, &chain.best_block_hash, chain.best_block_number);
 		self.old_blocks = None;
 		if self.download_old_blocks {
 			if let (Some(ancient_block_hash), Some(ancient_block_number)) = (chain.ancient_block_hash, chain.ancient_block_number) {
 
 				trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
-				let mut downloader = BlockDownloader::with_unlimited_reorg(true, &ancient_block_hash, ancient_block_number);
+				let mut downloader = BlockDownloader::new(BlockSet::OldBlocks, &ancient_block_hash, ancient_block_number);
 				if let Some(hash) = chain.first_block_hash {
 					trace!(target: "sync", "Downloader target set to {:?}", hash);
 					downloader.set_target(&hash);
@@ -763,12 +763,10 @@ impl ChainSync {
 						}
 					}
 
-					// Only ask for old blocks if the peer has a higher difficulty than the last imported old block
-					let last_imported_old_block_difficulty = self.old_blocks.as_mut().and_then(|d| {
-						io.chain().block_total_difficulty(BlockId::Number(d.last_imported_block_number()))
-					});
+					// Only ask for old blocks if the peer has an equal or higher difficulty
+					let equal_or_higher_difficulty = peer_difficulty.map_or(false, |pd| pd >= syncing_difficulty);
 
-					if force || last_imported_old_block_difficulty.map_or(true, |ld| peer_difficulty.map_or(true, |pd| pd > ld)) {
+					if force || equal_or_higher_difficulty {
 						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
 							return;
@@ -776,9 +774,9 @@ impl ChainSync {
 					} else {
 						trace!(
 							target: "sync",
-							"peer {:?} is not suitable for requesting old blocks, last_imported_old_block_difficulty={:?}, peer_difficulty={:?}",
+							"peer {:?} is not suitable for requesting old blocks, syncing_difficulty={:?}, peer_difficulty={:?}",
 							peer_id,
-							last_imported_old_block_difficulty,
+							syncing_difficulty,
 							peer_difficulty
 						);
 						self.deactivate_peer(io, peer_id);
@@ -856,18 +854,39 @@ impl ChainSync {
 	fn collect_blocks(&mut self, io: &mut SyncIo, block_set: BlockSet) {
 		match block_set {
 			BlockSet::NewBlocks => {
-				if self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) == Err(DownloaderImportError::Invalid) {
-					self.restart(io);
+				if self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) == DownloadAction::Reset {
+					self.reset_downloads(block_set);
+					self.new_blocks.reset();
 				}
 			},
 			BlockSet::OldBlocks => {
-				if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
-					self.restart(io);
-				} else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
+				let mut is_complete = false;
+				let mut download_action = DownloadAction::None;
+				if let Some(downloader) = self.old_blocks.as_mut() {
+					download_action = downloader.collect_blocks(io, false);
+					is_complete = downloader.is_complete();
+				}
+
+				if download_action == DownloadAction::Reset {
+					self.reset_downloads(block_set);
+					if let Some(downloader) = self.old_blocks.as_mut() {
+						downloader.reset();
+					}
+				}
+
+				if is_complete {
 					trace!(target: "sync", "Background block download is complete");
 					self.old_blocks = None;
 				}
 			}
+		};
+	}
+
+	/// Mark all outstanding requests as expired
+	fn reset_downloads(&mut self, block_set: BlockSet) {
+		trace!(target: "sync", "Resetting downloads for {:?}", block_set);
+		for (_, ref mut p) in self.peers.iter_mut().filter(|&(_, ref p)| p.block_set == Some(block_set)) {
+			p.reset_asking();
 		}
 	}
 
