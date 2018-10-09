@@ -795,7 +795,7 @@ mod tests {
 		for i in 0..4 {
 			// Construct the block body
 			let mut uncles = if i > 0 {
-				encode_list(&[dummy_header(i - 1, H256::random())]).into_vec()
+				encode_list(&[dummy_header(i - 1, H256::random())])
 			} else {
 				::rlp::EMPTY_LIST_RLP.to_vec()
 			};

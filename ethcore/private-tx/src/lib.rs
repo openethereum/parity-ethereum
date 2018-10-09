@@ -220,7 +220,7 @@ impl Provider where {
 				let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 				trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
 				self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, contract_validators, private_state, contract_nonce)?;
-				self.broadcast_private_transaction(private.hash(), private.rlp_bytes().into_vec());
+				self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
 				Ok(Receipt {
 					hash: tx_hash,
 					contract_address: Some(contract),
@@ -259,13 +259,13 @@ impl Provider where {
 			match transaction.validator_account {
 				None => {
 					trace!(target: "privatetx", "Propagating transaction further");
-					self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes().into_vec());
+					self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes());
 					return Ok(());
 				}
 				Some(validator_account) => {
 					if !self.validator_accounts.contains(&validator_account) {
 						trace!(target: "privatetx", "Propagating transaction further");
-						self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes().into_vec());
+						self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes());
 						return Ok(());
 					}
 					let tx_action = transaction.transaction.action.clone();
@@ -291,7 +291,7 @@ impl Provider where {
 						let signed_state = signed_state.expect("Error was checked before");
 						let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
 						trace!(target: "privatetx", "Sending signature for private transaction: {:?}", signed_private_transaction);
-						self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes().into_vec());
+						self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes());
 					} else {
 						bail!("Incorrect type of action for the transaction");
 					}
@@ -316,7 +316,7 @@ impl Provider where {
 		let desc = match self.transactions_for_signing.read().get(&private_hash) {
 			None => {
 				// Not our transaction, broadcast further to peers
-				self.broadcast_signed_private_transaction(signed_tx.hash(), signed_tx.rlp_bytes().into_vec());
+				self.broadcast_signed_private_transaction(signed_tx.hash(), signed_tx.rlp_bytes());
 				return Ok(());
 			},
 			Some(desc) => desc,

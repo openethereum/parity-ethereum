@@ -7,10 +7,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 byteorder = "1.0"
 parity-bytes = "0.1"
 ethereum-types = "0.4"
-patricia-trie = "0.2"
+patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 log = "0.4"
 common-types = { path = "../types" }
 ethjson = { path = "../../json" }
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 keccak-hash = "0.1"

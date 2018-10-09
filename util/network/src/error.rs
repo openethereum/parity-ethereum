@@ -85,6 +85,7 @@ error_chain! {
 	foreign_links {
 		SocketIo(IoError) #[doc = "Socket IO error."];
 		Decompression(snappy::InvalidInput) #[doc = "Decompression error."];
+		Rlp(rlp::DecoderError) #[doc = "Rlp decoder error."];
 	}
 
 	errors {
@@ -172,12 +173,6 @@ impl From<io::Error> for Error {
 	}
 }
 
-impl From<rlp::DecoderError> for Error {
-	fn from(_err: rlp::DecoderError) -> Self {
-		ErrorKind::Auth.into()
-	}
-}
-
 impl From<ethkey::Error> for Error {
 	fn from(_err: ethkey::Error) -> Self {
 		ErrorKind::Auth.into()
@@ -210,7 +205,7 @@ fn test_errors() {
 	assert_eq!(DisconnectReason::Unknown, r);
 
 	match *<Error as From<rlp::DecoderError>>::from(rlp::DecoderError::RlpIsTooBig).kind() {
-		ErrorKind::Auth => {},
+		ErrorKind::Rlp(_) => {},
 		_ => panic!("Unexpected error"),
 	}
 

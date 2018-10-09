@@ -29,7 +29,7 @@ use hashdb::HashDB;
 use keccak_hasher::KeccakHasher;
 use header::BlockNumber;
 use journaldb::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use lru_cache::LruCache;
 use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
@@ -312,12 +312,12 @@ impl StateDB {
 	}
 
 	/// Conversion method to interpret self as `HashDB` reference
-	pub fn as_hashdb(&self) -> &HashDB<KeccakHasher> {
+	pub fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> {
 		self.db.as_hashdb()
 	}
 
 	/// Conversion method to interpret self as mutable `HashDB` reference
-	pub fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
+	pub fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
 		self.db.as_hashdb_mut()
 	}
 
@@ -412,9 +412,9 @@ impl StateDB {
 }
 
 impl state::Backend for StateDB {
-	fn as_hashdb(&self) -> &HashDB<KeccakHasher> { self.db.as_hashdb() }
+	fn as_hashdb(&self) -> &HashDB<KeccakHasher, DBValue> { self.db.as_hashdb() }
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher> {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
 		self.db.as_hashdb_mut()
 	}
 

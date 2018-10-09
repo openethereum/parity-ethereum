@@ -58,8 +58,8 @@ keccak-hash = "0.1.2"
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-patricia-trie = "0.2"
-rlp = { version = "0.2.4", features = ["ethereum"] }
+patricia-trie = "0.3.0"
+rlp = { version = "0.3.0", features = ["ethereum"] }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 

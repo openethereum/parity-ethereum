@@ -32,7 +32,7 @@ pub fn submit_work_detail<C: BlockChainClient, M: MinerService>(client: &Arc<C>,
 	let pow_hash: EthcoreH256 = pow_hash.into();
 	let mix_hash: EthcoreH256 = mix_hash.into();
 	trace!(target: "miner", "submit_work_detail: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
-	let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
+	let seal = vec![rlp::encode(&mix_hash), rlp::encode(&nonce)];
 	let import = miner.submit_seal(pow_hash, seal)
 		.and_then(|block| client.import_sealed_block(block));
 	match import {

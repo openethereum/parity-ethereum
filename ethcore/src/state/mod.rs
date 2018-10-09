@@ -227,7 +227,7 @@ pub fn check_proof(
 /// Prove a `virtual` transaction on the given state.
 /// Returns `None` when the transacion could not be proved,
 /// and a proof otherwise.
-pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher> + Send + Sync>(
+pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync>(
 	db: H,
 	root: H256,
 	transaction: &SignedTransaction,
@@ -618,7 +618,7 @@ impl<B: Backend> State<B> {
 		&self, address: &Address, key: &H256, f_cached_at: FCachedStorageAt, f_at: FStorageAt,
 	) -> TrieResult<H256> where
 		FCachedStorageAt: Fn(&Account, &H256) -> Option<H256>,
-		FStorageAt: Fn(&Account, &HashDB<KeccakHasher>, &H256) -> TrieResult<H256>
+		FStorageAt: Fn(&Account, &HashDB<KeccakHasher, DBValue>, &H256) -> TrieResult<H256>
 	{
 		// Storage key search and update works like this:
 		// 1. If there's an entry for the account in the local cache check for the key and return it if found.
@@ -1014,7 +1014,7 @@ impl<B: Backend> State<B> {
 
 	/// Load required account data from the databases. Returns whether the cache succeeds.
 	#[must_use]
-	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &B, db: &HashDB<KeccakHasher>) -> bool {
+	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &B, db: &HashDB<KeccakHasher, DBValue>) -> bool {
 		if let RequireCache::None = require {
 			return true;
 		}
