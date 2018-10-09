@@ -16,9 +16,9 @@ crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 parity-bytes = "0.1"
-hashdb  = "0.3.0"
-memorydb  = "0.3.0"
-patricia-trie  = "0.3.0"
+hashdb = "0.3.0"
+memorydb = "0.3.0"
+patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 parity-crypto = "0.1"
 error-chain = { version = "0.12", default-features = false }
