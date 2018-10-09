@@ -293,7 +293,9 @@ impl SyncHandler {
 		let block_set = sync.peers.get(&peer_id)
 			.and_then(|p| p.block_set)
 			.unwrap_or(BlockSet::NewBlocks);
-		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockBodies) {
+		let allowed = sync.peers.get(&peer_id).map(|p| p.is_allowed()).unwrap_or(false);
+
+		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockBodies) || !allowed {
 			trace!(target: "sync", "{}: Ignored unexpected bodies", peer_id);
 			return Ok(());
 		}
@@ -420,12 +422,8 @@ impl SyncHandler {
 			downloader.import_headers(io, r, expected_hash)?
 		};
 
-		if let DownloadAction::Reset = result {
-			// mark all outstanding requests as expired
-			trace!("Resetting downloads for {:?}", block_set);
-			for (_, ref mut p) in sync.peers.iter_mut().filter(|&(_, ref p)| p.block_set == Some(block_set)) {
-				p.reset_asking();
-			}
+		if result == DownloadAction::Reset {
+			sync.reset_downloads(block_set);
 		}
 
 		sync.collect_blocks(io, block_set);
@@ -436,7 +434,8 @@ impl SyncHandler {
 	fn on_peer_block_receipts(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		sync.clear_peer_download(peer_id);
 		let block_set = sync.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
-		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockReceipts) {
+		let allowed = sync.peers.get(&peer_id).map(|p| p.is_allowed()).unwrap_or(false);
+		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockReceipts) || !allowed {
 			trace!(target: "sync", "{}: Ignored unexpected receipts", peer_id);
 			return Ok(());
 		}

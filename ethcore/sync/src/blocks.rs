@@ -397,6 +397,11 @@ impl BlockCollection {
 		self.blocks.contains_key(hash)
 	}
 
+	/// Check the number of heads
+	pub fn heads_len(&self) -> usize {
+		self.heads.len()
+	}
+
 	/// Return used heap size.
 	pub fn heap_size(&self) -> usize {
 		self.heads.heap_size_of_children()
