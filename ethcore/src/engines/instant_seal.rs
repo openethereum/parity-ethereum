@@ -18,7 +18,7 @@ use engines::{Engine, Seal};
 use parity_machine::{Machine, Transactions, TotalScoredHeader};
 
 /// `InstantSeal` params.
-#[derive(Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq)]
 pub struct InstantSealParams {
 	/// Whether to use millisecond timestamp
 	pub millisecond_timestamp: bool,

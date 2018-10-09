@@ -385,8 +385,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		match result {
 			InstructionResult::JumpToPosition(position) => {
 				if self.valid_jump_destinations.is_none() {
-					let code_hash = self.params.code_hash.clone().unwrap_or_else(|| keccak(self.reader.code.as_ref()));
-					self.valid_jump_destinations = Some(self.cache.jump_destinations(&code_hash, &self.reader.code));
+					self.valid_jump_destinations = Some(self.cache.jump_destinations(&self.params.code_hash, &self.reader.code));
 				}
 				let jump_destinations = self.valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
 				let pos = self.verify_jump(position, jump_destinations)?;

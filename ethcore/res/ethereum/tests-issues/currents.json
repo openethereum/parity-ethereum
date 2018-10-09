@@ -365,6 +365,104 @@
 					"chain": "Constantinople (test)"
 				}
 			}
+		},
+		{
+			"reference": "9590",
+			"failing": "stCreate2Test",
+			"subtests": {
+				"call_then_create2_successful_then_returndatasize": {
+					"subnumbers": ["1"],
+					"chain": "Constantinople (test)"
+				},
+				"returndatacopy_afterFailing_create": {
+					"subnumbers": ["1"],
+					"chain": "Constantinople (test)"
+				},
+				"create2checkFieldsInInitcode": {
+					"subnumbers": ["1","2","3","5","6","7"],
+					"chain": "Constantinople (test)"
+				},
+				"Create2Recursive": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"create2collisionBalance": {
+					"subnumbers": ["2","3"],
+					"chain": "Constantinople (test)"
+				},
+				"create2InitCodes": {
+					"subnumbers": ["1","5","6","7","8","9"],
+					"chain": "Constantinople (test)"
+				},
+				"Create2OOGafterInitCode": {
+					"subnumbers": ["2"],
+					"chain": "Constantinople (test)"
+				},
+				"CreateMessageRevertedOOGInInit": {
+					"subnumbers": ["2"],
+					"chain": "Constantinople (test)"
+				},
+				"returndatacopy_following_revert_in_create": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"create2collisionSelfdestructed": {
+					"subnumbers": ["2"],
+					"chain": "Constantinople (test)"
+				},
+				"returndatacopy_0_0_following_successful_create": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"Create2OnDepth1023": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"Create2OOGafterInitCodeReturndata2": {
+					"subnumbers": ["2"],
+					"chain": "Constantinople (test)"
+				},
+				"RevertOpcodeInCreateReturns": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"CREATE2_ContractSuicideDuringInit_ThenStoreThenReturn": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"returndatasize_following_successful_create": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"call_outsize_then_create2_successful_then_returndatasize": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"CreateMessageReverted": {
+					"subnumbers": ["2"],
+					"chain": "Constantinople (test)"
+				},
+				"CREATE2_Suicide": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"Create2OOGafterInitCodeRevert": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"Create2OnDepth1024": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				},
+				"create2collisionStorage": {
+					"subnumbers": ["2","3"],
+					"chain": "Constantinople (test)"
+				},
+				"create2callPrecompiles": {
+					"subnumbers": ["*"],
+					"chain": "Constantinople (test)"
+				}
+			}
 		}
 	]
 }

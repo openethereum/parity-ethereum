@@ -1405,15 +1405,14 @@ impl ImportBlock for Client {
 			bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
-		let raw = unverified.bytes.clone();
 		match self.importer.block_queue.import(unverified) {
 			Ok(res) => Ok(res),
 			// we only care about block errors (not import errors)
-			Err(EthcoreError(EthcoreErrorKind::Block(err), _))=> {
-				self.importer.bad_blocks.report(raw, format!("{:?}", err));
+			Err((block, EthcoreError(EthcoreErrorKind::Block(err), _))) => {
+				self.importer.bad_blocks.report(block.bytes, format!("{:?}", err));
 				bail!(EthcoreErrorKind::Block(err))
 			},
-			Err(e) => Err(e),
+			Err((_, e)) => Err(e),
 		}
 	}
 }
@@ -2382,14 +2381,13 @@ impl ProvingBlockChainClient for Client {
 		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
-		state::prove_transaction(
+		state::prove_transaction_virtual(
 			jdb.as_hashdb_mut(),
 			header.state_root().clone(),
 			&transaction,
 			self.engine.machine(),
 			&env_info,
 			self.factories.clone(),
-			false,
 		)
 	}
 
