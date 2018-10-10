@@ -65,16 +65,6 @@
 	[
 		{
 			"reference": "9590",
-			"failing": "stBadOpCodeTest",
-			"subtests": {
-				"badOpcodes": {
-					"subnumbers": ["116"],
-					"chain": "Constantinople (test)"
-				}
-			}
-		},
-		{
-			"reference": "9590",
 			"failing": "stCreate2Test",
 			"subtests": {
 				"RevertInCreateInInitCreate2": {
