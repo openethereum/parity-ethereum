@@ -21,12 +21,10 @@ cache:
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
-    refs:
-      - stable
-      - beta
-      - tags
-    variables:
-      - $SCHEDULE_TAG == "nightly"
+    - stable
+    - beta
+    - tags
+    - schedules
 
 
 .collect_artifacts:                &collect_artifacts
