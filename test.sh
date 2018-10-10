@@ -4,6 +4,7 @@
 FEATURES="json-tests"
 OPTIONS="--release"
 VALIDATE=1
+THREADS=8
 
 case $1 in
   --no-json)
@@ -29,32 +30,72 @@ esac
 
 set -e
 
-if [ "$VALIDATE" -eq "1" ]; then
-# Validate --no-default-features build
-echo "________Validate build________"
-cargo check --no-default-features
-cargo check --manifest-path util/io/Cargo.toml --no-default-features
-cargo check --manifest-path util/io/Cargo.toml --features "mio"
 
-# Validate chainspecs
-echo "________Validate chainspecs________"
-./scripts/validate_chainspecs.sh
+validate () {
+  if [ "$VALIDATE" -eq "1" ]
+  then
+    echo "________Validate build________"
+    time cargo check $@ --no-default-features
+    time cargo check $@ --manifest-path util/io/Cargo.toml --no-default-features
+    time cargo check $@ --manifest-path util/io/Cargo.toml --features "mio"
+
+    # Validate chainspecs
+    echo "________Validate chainspecs________"
+    time ./scripts/validate_chainspecs.sh
+  else
+    echo "# not validating due to \$VALIDATE!=1"
+  fi
+}
+
+cpp_test () {
+  case $CARGO_TARGET in
+    (x86_64-unknown-linux-gnu)
+      # Running the C++ example
+      echo "________Running the C++ example________"
+      cd parity-clib-examples/cpp && \
+        mkdir -p build && \
+        cd build && \
+        cmake .. && \
+        make -j $THREADS && \
+        ./parity-example && \
+        cd .. && \
+        rm -rf build && \
+        cd ../..
+      ;;
+    (*)
+      echo "________Skipping the C++ example________"
+      ;;
+  esac
+}
+
+cargo_test () {
+  echo "________Running Parity Full Test Suite________"
+  git submodule update --init --recursive
+  time cargo test $OPTIONS --features "$FEATURES" --all $@ -- --test-threads $THREADS
+}
+
+
+if [ "$CARGO_TARGET" ]
+then
+  validate --target $CARGO_TARGET
+else
+  validate
 fi
 
+test "${RUN_TESTS}" = "all" && cpp_test
 
-# Running the C++ example
-echo "________Running the C++ example________"
-cd parity-clib-examples/cpp && \
-  mkdir -p build && \
-  cd build && \
-  cmake .. && \
-  make && \
-  ./parity-example && \
-  cd .. && \
-  rm -rf build && \
-  cd ../..
+if [ "$CARGO_TARGET" ]
+then
 
-# Running tests
-echo "________Running Parity Full Test Suite________"
-git submodule update --init --recursive
-cargo test -j 8 $OPTIONS --features "$FEATURES" --all $1
+  case "${RUN_TESTS}" in
+    (cargo|all)
+      cargo_test --target $CARGO_TARGET $@
+      ;;
+    ('')
+      cargo_test --no-run --target $CARGO_TARGET $@
+      ;;
+  esac
+else
+  cargo_test $@
+fi
+

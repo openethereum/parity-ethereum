@@ -1,111 +1,75 @@
-# Parity - fast, light, and robust Ethereum client
+![Parity Ethereum](docs/logo-parity-ethereum.svg)
 
-## [» Download the latest release «](https://github.com/paritytech/parity/releases/latest)
+## The fastest and most advanced Ethereum client.
 
-[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
-[![codecov](https://codecov.io/gh/paritytech/parity/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity)
-[![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
-[![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
+<p align="center"><strong><a href="https://github.com/paritytech/parity-ethereum/releases/latest">» Download the latest release «</a></strong></p>
 
+<p align="center"><a href="https://gitlab.parity.io/parity/parity-ethereum/commits/master" target="_blank"><img src="https://gitlab.parity.io/parity/parity-ethereum/badges/master/build.svg" /></a>
+<a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank"><img src="https://img.shields.io/badge/license-GPL%20v3-green.svg" /></a></p>
 
-### Join the chat!
+**Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronisation and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
 
-Get in touch with us on Gitter:
-[![Gitter: Parity](https://img.shields.io/badge/gitter-parity-4AB495.svg)](https://gitter.im/paritytech/parity)
-[![Gitter: Parity.js](https://img.shields.io/badge/gitter-parity.js-4AB495.svg)](https://gitter.im/paritytech/parity.js)
-[![Gitter: Parity/Miners](https://img.shields.io/badge/gitter-parity/miners-4AB495.svg)](https://gitter.im/paritytech/parity/miners)
-[![Gitter: Parity-PoA](https://img.shields.io/badge/gitter-parity--poa-4AB495.svg)](https://gitter.im/paritytech/parity-poa)
+- Clean, modular codebase for easy customisation
+- Advanced CLI-based client
+- Minimal memory and storage footprint
+- Synchronise in hours, not days with Warp Sync
+- Modular for light integration into your service or product
 
-Or join our community on Matrix:
-[![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
+## Technical Overview
 
-Official website: https://parity.io | Be sure to check out [our wiki](https://wiki.parity.io) for more information.
+Parity Ethereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity Ethereum using the sophisticated and cutting-edge **Rust programming language**. Parity Ethereum is licensed under the GPLv3 and can be used for all your Ethereum needs.
 
-----
+By default, Parity Ethereum runs a JSON-RPC HTTP server on port `:8545` and a Web-Sockets server on port `:8546`. This is fully configurable and supports a number of APIs.
 
-## About Parity
+If you run into problems while using Parity Ethereum, check out the [wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/paritytech/parity-ethereum/issues/new), or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
-Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
+Parity Ethereum's current beta-release is 2.1. You can download it at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
-From Parity Ethereum client version 1.10.0, the User Interface (UI) is accessible in a separate application called Parity UI. To keep using the UI in the browser (deprecated), [follow these steps](https://wiki.parity.io/FAQ-Basic-Operations,-Configuration,-and-Synchronization#the-parity-ui-application-isnt-working-the-way-i-want).
+## Build Dependencies
 
-By default, Parity will also run a JSONRPC server on `127.0.0.1:8545` and a websockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
+Parity Ethereum requires **Rust version 1.29.x** to build.
 
-If you run into an issue while using Parity, feel free to file one in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.MD](SECURITY.md).
-
-Parity's current beta-release is 1.11. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
-
-----
-
-## Build dependencies
-
-**Parity requires Rust version 1.26.0 to build**
-
-We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
+We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have `rustup`, you can install it like this:
 
 - Linux:
-	```bash
-	$ curl https://sh.rustup.rs -sSf | sh
-	```
-
-	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev`, `pkg-config`, `file` and `make` packages to be installed.
-
-- OSX:
-	```bash
-	$ curl https://sh.rustup.rs -sSf | sh
-	```
-
-	`clang` is required. It comes with Xcode command line tools or can be installed with homebrew.
-
-- Windows
-  Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from
-	https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe, start "VS2015 x64 Native Tools Command Prompt", and use the following command to install and set up the msvc toolchain:
   ```bash
-	$ rustup default stable-x86_64-pc-windows-msvc
+  $ curl https://sh.rustup.rs -sSf | sh
   ```
 
-Once you have rustup installed, then you need to install:
+  Parity Ethereum also requires `gcc`, `g++`, `libudev-dev`, `pkg-config`, `file`, `make`, and `cmake` packages to be installed.
+
+- OSX:
+  ```bash
+  $ curl https://sh.rustup.rs -sSf | sh
+  ```
+
+  `clang` is required. It comes with Xcode command line tools or can be installed with homebrew.
+
+- Windows
+  Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the `rustup` installer from
+  https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe, start "VS2015 x64 Native Tools Command Prompt", and use the following command to install and set up the `msvc` toolchain:
+  ```bash
+  $ rustup default stable-x86_64-pc-windows-msvc
+  ```
+
+Once you have `rustup` installed, then you need to install:
 * [Perl](https://www.perl.org)
-* [Yasm](http://yasm.tortall.net)
+* [Yasm](https://yasm.tortall.net)
 
-Make sure that these binaries are in your `PATH`. After that you should be able to build parity from source.
+Make sure that these binaries are in your `PATH`. After that, you should be able to build Parity Ethereum from source.
 
-----
-
-## Install from the snap store
-
-In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
+## Build from Source Code
 
 ```bash
-sudo snap install parity
-```
-
-Or, if you want to contribute testing the upcoming release:
-
-```bash
-sudo snap install parity --beta
-```
-
-And to test the latest code landed into the master branch:
-
-```bash
-sudo snap install parity --edge
-```
-
-----
-
-## Build from source
-
-```bash
-# download Parity code
-$ git clone https://github.com/paritytech/parity
-$ cd parity
+# download Parity Ethereum code
+$ git clone https://github.com/paritytech/parity-ethereum
+$ cd parity-ethereum
 
 # build in release mode
-$ cargo build --release
+$ cargo build --release --features final
 ```
 
-This will produce an executable in the `./target/release` subdirectory.
+This produces an executable in the `./target/release` subdirectory.
 
 Note: if cargo fails to parse manifest try:
 
@@ -119,7 +83,7 @@ Note, when compiling a crate and you receive errors, it's in most cases your out
 $ cargo clean
 ```
 
-This will always compile the latest nightly builds. If you want to build stable or beta, do a
+This always compiles the latest nightly builds. If you want to build stable or beta, do a
 
 ```bash
 $ git checkout stable
@@ -131,11 +95,7 @@ or
 $ git checkout beta
 ```
 
-first.
-
-----
-
-## Simple one-line installer for Mac and Ubuntu
+## Simple One-Line Installer for Mac and Linux
 
 ```bash
 bash <(curl https://get.parity.io -L)
@@ -147,22 +107,49 @@ The one-line installer always defaults to the latest beta release. To install a 
 bash <(curl https://get.parity.io -L) -r stable
 ```
 
-## Start Parity
+## Start Parity Ethereum
 
 ### Manually
 
-To start Parity manually, just run
+To start Parity Ethereum manually, just run
 
 ```bash
 $ ./target/release/parity
 ```
 
-and Parity will begin syncing the Ethereum blockchain.
+so Parity Ethereum begins syncing the Ethereum blockchain.
 
-### Using systemd service file
+### Using `systemd` service file
 
-To start Parity as a regular user using systemd init:
+To start Parity Ethereum as a regular user using `systemd` init:
 
 1. Copy `./scripts/parity.service` to your
-systemd user directory (usually `~/.config/systemd/user`).
-2. To configure Parity, write a `/etc/parity/config.toml` config file, see [Configuring Parity](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+`systemd` user directory (usually `~/.config/systemd/user`).
+2. To configure Parity Ethereum, write a `/etc/parity/config.toml` config file, see [Configuring Parity Ethereum](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+
+## Parity Ethereum toolchain
+
+In addition to the Parity Ethereum client, there are additional tools in this repository available:
+
+- [evmbin](https://github.com/paritytech/parity-ethereum/blob/master/evmbin/) - EVM implementation for Parity Ethereum.
+- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum function calls encoding.
+- [ethstore](https://github.com/paritytech/parity-ethereum/blob/master/ethstore/) - Parity Ethereum key management.
+- [ethkey](https://github.com/paritytech/parity-ethereum/blob/master/ethkey/) - Parity Ethereum keys generator.
+- [whisper](https://github.com/paritytech/parity-ethereum/blob/master/whisper/) - Implementation of Whisper-v2 PoC.
+
+## Join the chat!
+
+Questions? Get in touch with us on Gitter:
+[![Gitter: Parity](https://img.shields.io/badge/gitter-parity-4AB495.svg)](https://gitter.im/paritytech/parity)
+[![Gitter: Parity.js](https://img.shields.io/badge/gitter-parity.js-4AB495.svg)](https://gitter.im/paritytech/parity.js)
+[![Gitter: Parity/Miners](https://img.shields.io/badge/gitter-parity/miners-4AB495.svg)](https://gitter.im/paritytech/parity/miners)
+[![Gitter: Parity-PoA](https://img.shields.io/badge/gitter-parity--poa-4AB495.svg)](https://gitter.im/paritytech/parity-poa)
+
+Alternatively, join our community on Matrix:
+[![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
+
+## Documentation
+
+Official website: https://parity.io
+
+Be sure to [check out our wiki](https://wiki.parity.io) for more information.
