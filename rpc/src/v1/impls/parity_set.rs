@@ -41,7 +41,6 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	net: Arc<ManageNetwork>,
 	fetch: F,
 	pool: CpuPool,
-	eip86_transition: u64,
 }
 
 impl<C, M, U, F> ParitySetClient<C, M, U, F>
@@ -63,7 +62,6 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 			net: net.clone(),
 			fetch: fetch,
 			pool: pool,
-			eip86_transition: client.eip86_transition(),
 		}
 	}
 }
@@ -191,11 +189,10 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>> {
-		let block_number = self.client.chain_info().best_block_number;
 		let hash = hash.into();
 
 		Ok(self.miner.remove_transaction(&hash)
-		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number + 1, self.eip86_transition))
+		   .map(|t| Transaction::from_pending(t.pending().clone()))
 		)
 	}
 }

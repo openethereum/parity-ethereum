@@ -24,6 +24,7 @@ cache:
     - stable
     - beta
     - tags
+    - schedules
 
 .collect_artifacts:                &collect_artifacts
   artifacts:

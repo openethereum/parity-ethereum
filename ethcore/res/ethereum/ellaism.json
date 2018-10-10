@@ -29,7 +29,6 @@
 		"eip161dTransition": "0x7fffffffffffffff",
 		"eip155Transition": "0x0",
 		"eip98Transition": "0x7fffffffffffff",
-		"eip86Transition": "0x7fffffffffffff",
 		"wasmActivationTransition": 2000000,
 		"eip140Transition": 2000000,
 		"eip211Transition": 2000000,

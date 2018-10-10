@@ -1349,7 +1349,7 @@ impl BlockInfo for Client {
 	}
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
-		self.state_at(id).and_then(|s| s.code_hash(address).ok())
+		self.state_at(id).and_then(|s| s.code_hash(address).unwrap_or(None))
 	}
 }
 
@@ -2019,10 +2019,6 @@ impl BlockChainClient for Client {
 
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar_address.clone()
-	}
-
-	fn eip86_transition(&self) -> u64 {
-		self.engine().params().eip86_transition
 	}
 }
 

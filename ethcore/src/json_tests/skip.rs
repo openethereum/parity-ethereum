@@ -14,30 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! TransactionTest test deserializer.
+//! State tests to skip.
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use serde_json;
-use serde_json::Error;
-use transaction::TransactionTest;
+use ethjson;
 
-/// TransactionTest test deserializer.
-#[derive(Debug, Deserialize)]
-pub struct Test(BTreeMap<String, TransactionTest>);
+#[cfg(all(not(test), feature = "ci-skip-tests"))]
+compile_error!("ci-skip-tests can only be enabled for testing builds.");
 
-impl IntoIterator for Test {
-	type Item = <BTreeMap<String, TransactionTest> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, TransactionTest> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
+#[cfg(feature="ci-skip-issue")]
+lazy_static!{
+	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
+		let skip_data = include_bytes!("../../res/ethereum/tests-issues/currents.json");
+		ethjson::test::SkipStates::load(&skip_data[..]).expect("No invalid json allowed")
+	};
 }
 
-impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
-	}
+#[cfg(not(feature="ci-skip-issue"))]
+lazy_static!{
+	pub static ref SKIP_TEST_STATE: ethjson::test::SkipStates = {
+		ethjson::test::SkipStates::empty()
+	};
 }

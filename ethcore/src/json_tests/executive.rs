@@ -111,6 +111,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.storage_at(key)
 	}
 
+	fn initial_storage_at(&self, key: &H256) -> vm::Result<H256> {
+		self.ext.initial_storage_at(key)
+	}
+
 	fn set_storage(&mut self, key: H256, value: H256) -> vm::Result<()> {
 		self.ext.set_storage(key, value)
 	}
@@ -165,12 +169,16 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> vm::Result<Arc<Bytes>>  {
+	fn extcode(&self, address: &Address) -> vm::Result<Option<Arc<Bytes>>>  {
 		self.ext.extcode(address)
 	}
 
-	fn extcodesize(&self, address: &Address) -> vm::Result<usize> {
+	fn extcodesize(&self, address: &Address) -> vm::Result<Option<usize>> {
 		self.ext.extcodesize(address)
+	}
+
+	fn extcodehash(&self, address: &Address) -> vm::Result<Option<H256>> {
+		self.ext.extcodehash(address)
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
@@ -201,8 +209,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		false
 	}
 
-	fn inc_sstore_clears(&mut self) {
-		self.ext.inc_sstore_clears()
+	fn add_sstore_refund(&mut self, value: U256) {
+		self.ext.add_sstore_refund(value)
+	}
+
+	fn sub_sstore_refund(&mut self, value: U256) {
+		self.ext.sub_sstore_refund(value)
 	}
 }
 

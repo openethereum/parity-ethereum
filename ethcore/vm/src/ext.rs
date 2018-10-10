@@ -51,18 +51,21 @@ pub enum MessageCallResult {
 }
 
 /// Specifies how an address is calculated for a new contract.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum CreateContractAddress {
-	/// Address is calculated from nonce and sender. Pre EIP-86 (Metropolis)
+	/// Address is calculated from sender and nonce. pWASM `create` scheme.
 	FromSenderAndNonce,
-	/// Address is calculated from code hash. Default since EIP-86
-	FromCodeHash,
-	/// Address is calculated from code hash and sender. Used by CREATE_P2SH instruction.
+	/// Address is calculated from sender, salt and code hash. pWASM `create2` scheme and EIP-1014 CREATE2 scheme.
+	FromSenderSaltAndCodeHash(H256),
+	/// Address is calculated from code hash and sender. Used by pwasm create ext.
 	FromSenderAndCodeHash,
 }
 
 /// Externalities interface for EVMs
 pub trait Ext {
+	/// Returns the storage value for a given key if reversion happens on the current transaction.
+	fn initial_storage_at(&self, key: &H256) -> Result<H256>;
+
 	/// Returns a value for given key.
 	fn storage_at(&self, key: &H256) -> Result<H256>;
 
@@ -106,10 +109,13 @@ pub trait Ext {
 	) -> MessageCallResult;
 
 	/// Returns code at given address
-	fn extcode(&self, address: &Address) -> Result<Arc<Bytes>>;
+	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>>;
+
+	/// Returns code hash at given address
+	fn extcodehash(&self, address: &Address) -> Result<Option<H256>>;
 
 	/// Returns code size at given address
-	fn extcodesize(&self, address: &Address) -> Result<usize>;
+	fn extcodesize(&self, address: &Address) -> Result<Option<usize>>;
 
 	/// Creates log entry with given topics and data
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> Result<()>;
@@ -134,8 +140,11 @@ pub trait Ext {
 	/// then A depth is 0, B is 1, C is 2 and so on.
 	fn depth(&self) -> usize;
 
-	/// Increments sstore refunds count by 1.
-	fn inc_sstore_clears(&mut self);
+	/// Increments sstore refunds counter.
+	fn add_sstore_refund(&mut self, value: U256);
+
+	/// Decrements sstore refunds counter.
+	fn sub_sstore_refund(&mut self, value: U256);
 
 	/// Decide if any more operations should be traced. Passthrough for the VM trace.
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }

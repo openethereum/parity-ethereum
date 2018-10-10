@@ -24,6 +24,7 @@ use {
 	ReturnData, Ext, ContractCreateResult, MessageCallResult,
 	CreateContractAddress, Result, GasLeft,
 };
+use hash::keccak;
 
 pub struct FakeLogEntry {
 	pub topics: Vec<H256>,
@@ -38,6 +39,7 @@ pub enum FakeCallType {
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct FakeCall {
 	pub call_type: FakeCallType,
+	pub create_scheme: Option<CreateContractAddress>,
 	pub gas: U256,
 	pub sender_address: Option<Address>,
 	pub receive_address: Option<Address>,
@@ -54,7 +56,7 @@ pub struct FakeExt {
 	pub store: HashMap<H256, H256>,
 	pub suicides: HashSet<Address>,
 	pub calls: HashSet<FakeCall>,
-	pub sstore_clears: usize,
+	pub sstore_clears: U256,
 	pub depth: usize,
 	pub blockhashes: HashMap<U256, H256>,
 	pub codes: HashMap<Address, Arc<Bytes>>,
@@ -103,6 +105,10 @@ impl FakeExt {
 }
 
 impl Ext for FakeExt {
+	fn initial_storage_at(&self, _key: &H256) -> Result<H256> {
+		Ok(H256::new())
+	}
+
 	fn storage_at(&self, key: &H256) -> Result<H256> {
 		Ok(self.store.get(key).unwrap_or(&H256::new()).clone())
 	}
@@ -132,9 +138,10 @@ impl Ext for FakeExt {
 		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], _address: CreateContractAddress) -> ContractCreateResult {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult {
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::Create,
+			create_scheme: Some(address),
 			gas: *gas,
 			sender_address: None,
 			receive_address: None,
@@ -158,6 +165,7 @@ impl Ext for FakeExt {
 
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::Call,
+			create_scheme: None,
 			gas: *gas,
 			sender_address: Some(sender_address.clone()),
 			receive_address: Some(receive_address.clone()),
@@ -168,12 +176,16 @@ impl Ext for FakeExt {
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> Result<Arc<Bytes>> {
-		Ok(self.codes.get(address).unwrap_or(&Arc::new(Bytes::new())).clone())
+	fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>> {
+		Ok(self.codes.get(address).cloned())
 	}
 
-	fn extcodesize(&self, address: &Address) -> Result<usize> {
-		Ok(self.codes.get(address).map_or(0, |c| c.len()))
+	fn extcodesize(&self, address: &Address) -> Result<Option<usize>> {
+		Ok(self.codes.get(address).map(|c| c.len()))
+	}
+
+	fn extcodehash(&self, address: &Address) -> Result<Option<H256>> {
+		Ok(self.codes.get(address).map(|c| keccak(c.as_ref())))
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> Result<()> {
@@ -209,8 +221,12 @@ impl Ext for FakeExt {
 		self.is_static
 	}
 
-	fn inc_sstore_clears(&mut self) {
-		self.sstore_clears += 1;
+	fn add_sstore_refund(&mut self, value: U256) {
+		self.sstore_clears = self.sstore_clears + value;
+	}
+
+	fn sub_sstore_refund(&mut self, value: U256) {
+		self.sstore_clears = self.sstore_clears - value;
 	}
 
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _gas: U256) -> bool {

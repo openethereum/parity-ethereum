@@ -186,8 +186,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			match result {
 				InstructionResult::JumpToPosition(position) => {
 					if valid_jump_destinations.is_none() {
-						let code_hash = params.code_hash.clone().unwrap_or_else(|| keccak(code.as_ref()));
-						valid_jump_destinations = Some(self.cache.jump_destinations(&code_hash, code));
+						valid_jump_destinations = Some(self.cache.jump_destinations(&params.code_hash, code));
 					}
 					let jump_destinations = valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
 					let pos = self.verify_jump(position, jump_destinations)?;
@@ -230,8 +229,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			(instruction == instructions::STATICCALL && !schedule.have_static_call) ||
 			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
 			(instruction == instructions::REVERT && !schedule.have_revert) ||
-			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) {
-
+			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) ||
+			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash)
+		{
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction as u8
 			});
@@ -318,6 +318,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let endowment = stack.pop_back();
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
+				let address_scheme = match instruction {
+					instructions::CREATE => CreateContractAddress::FromSenderAndNonce,
+					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(stack.pop_back().into()),
+					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
+				};
 
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
@@ -335,7 +340,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 				}
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
-				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 
 				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme);
 				return match create_result {
@@ -510,8 +514,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let current_val = U256::from(&*ext.storage_at(&address)?);
 				// Increase refund for clear
-				if !self.is_zero(&current_val) && self.is_zero(&val) {
-					ext.inc_sstore_clears();
+				if ext.schedule().eip1283 {
+					let original_val = U256::from(&*ext.initial_storage_at(&address)?);
+					gasometer::handle_eip1283_sstore_clears_refund(ext, &original_val, &current_val, &val);
+				} else {
+					if !current_val.is_zero() && val.is_zero() {
+						let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
+						ext.add_sstore_refund(sstore_clears_schedule);
+					}
 				}
 				ext.set_storage(address, H256::from(&val))?;
 			},
@@ -568,8 +578,13 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::EXTCODESIZE => {
 				let address = u256_to_address(&stack.pop_back());
-				let len = ext.extcodesize(&address)?;
+				let len = ext.extcodesize(&address)?.unwrap_or(0);
 				stack.push(U256::from(len));
+			},
+			instructions::EXTCODEHASH => {
+				let address = u256_to_address(&stack.pop_back());
+				let hash = ext.extcodehash(&address)?.unwrap_or_else(H256::zero);
+				stack.push(U256::from(hash));
 			},
 			instructions::CALLDATACOPY => {
 				Self::copy_data_to_memory(&mut self.mem, stack, params.data.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
@@ -591,7 +606,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
 				let code = ext.extcode(&address)?;
-				Self::copy_data_to_memory(&mut self.mem, stack, &code);
+				Self::copy_data_to_memory(
+					&mut self.mem,
+					stack,
+					code.as_ref().map(|c| &(*c)[..]).unwrap_or(&[])
+				);
 			},
 			instructions::GASPRICE => {
 				stack.push(params.gas_price.clone());

@@ -127,9 +127,6 @@ pub trait LightChainClient: Send + Sync {
 	/// Get the `i`th CHT root.
 	fn cht_root(&self, i: usize) -> Option<H256>;
 
-	/// Get the EIP-86 transition block number.
-	fn eip86_transition(&self) -> BlockNumber;
-
 	/// Get a report of import activity since the last call.
 	fn report(&self) -> ClientReport;
 }
@@ -583,10 +580,6 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 
 	fn cht_root(&self, i: usize) -> Option<H256> {
 		Client::cht_root(self, i)
-	}
-
-	fn eip86_transition(&self) -> BlockNumber {
-		self.engine().params().eip86_transition
 	}
 
 	fn report(&self) -> ClientReport {
