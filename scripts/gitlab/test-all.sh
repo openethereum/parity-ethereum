@@ -27,7 +27,11 @@ git log --graph --oneline --all --decorate=short -n 10
 #   exit 0
 # fi
 
+<<<<<<< HEAD
 # rustup target add $CARGO_TARGET
+=======
+rustup target add $CARGO_TARGET
+>>>>>>> 106c8256ddf8f43d34f132c038003a40bbb29d2e
 rustup default $1
 
 git submodule update --init --recursive
