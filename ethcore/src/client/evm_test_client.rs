@@ -103,7 +103,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	/// Creates new EVM test client with in-memory DB initialized with genesis of given Spec.
-	/// You can specify a specific trie kind.
+	/// Takes a `TrieSpec` to set the type of trie.
 	pub fn new_with_trie(spec: &'a spec::Spec, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
 		let factories = Self::factories(trie_spec);
 		let state =	Self::state_from_spec(spec, &factories)?;
@@ -115,13 +115,13 @@ impl<'a> EvmTestClient<'a> {
 		})
 	}
 
-	/// Creates new EVM test client with in-memory DB initialized with genesis of given Spec.
+	/// Creates new EVM test client with an in-memory DB initialized with genesis of given chain Spec.
 	pub fn new(spec: &'a spec::Spec) -> Result<Self, EvmTestError> {
 		Self::new_with_trie(spec, trie::TrieSpec::Secure)
 	}
 
-	/// Creates new EVM test client with in-memory DB initialized with given PodState.
-	/// You can specify a specific trie kind.
+	/// Creates new EVM test client with an in-memory DB initialized with given PodState.
+	/// Takes a `TrieSpec` to set the type of trie.
 	pub fn from_pod_state_with_trie(spec: &'a spec::Spec, pod_state: pod_state::PodState, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
 		let factories = Self::factories(trie_spec);
 		let state =	Self::state_from_pod(spec, &factories, pod_state)?;
@@ -133,7 +133,7 @@ impl<'a> EvmTestClient<'a> {
 		})
 	}
 
-	/// Creates new EVM test client with in-memory DB initialized with given PodState.
+	/// Creates new EVM test client with an in-memory DB initialized with given PodState.
 	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: pod_state::PodState) -> Result<Self, EvmTestError> {
 		Self::from_pod_state_with_trie(spec, pod_state, trie::TrieSpec::Secure)
 	}

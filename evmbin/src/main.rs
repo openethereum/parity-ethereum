@@ -62,7 +62,7 @@ EVM implementation for Parity.
   Copyright 2015-2018 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--json --std-json --dump-json --only NAME --chain CHAIN --out-only --err-only]
+    parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
     parity-evm stats [options]
     parity-evm stats-jsontests-vm <file>
     parity-evm [options]
@@ -89,9 +89,11 @@ State test options:
 General options:
     --json             Display verbose results in JSON.
     --std-json         Display results in standardized JSON format.
-    --dump-json        Display result state dump in standardized JSON format.
-    --err-only         With --std-json redirect to err output only.
-    --out-only         With --std-json redirect to out output only.
+    --std-err-only     With --std-json redirect to err output only.
+    --std-out-only     With --std-json redirect to out output only.
+    --std-dump-json    Display results in standardized JSON format
+                       with additional state dump.
+Display result state dump in standardized JSON format.
     --chain CHAIN      Chain spec file path.
     -h, --help         Display this message and exit.
 "#;
@@ -108,10 +110,10 @@ fn main() {
 		run_stats_jsontests_vm(args)
 	} else if args.flag_json {
 		run_call(args, display::json::Informant::default())
-	} else if args.flag_dump_json || args.flag_std_json {
-		if args.flag_err_only {
+	} else if args.flag_std_dump_json || args.flag_std_json {
+		if args.flag_std_err_only {
 			run_call(args, display::std_json::Informant::err_only())
-		} else if args.flag_out_only {
+		} else if args.flag_std_out_only {
 			run_call(args, display::std_json::Informant::out_only())
 		} else {
 			run_call(args, display::std_json::Informant::default())
@@ -188,17 +190,17 @@ fn run_state_test(args: Args) {
 				let post_root = state.hash.into();
 				let transaction = multitransaction.select(&state.indexes).into();
 
-				let trie_spec = if args.flag_dump_json {
+				let trie_spec = if args.flag_std_dump_json {
 					TrieSpec::Fat
 				} else {
 					TrieSpec::Secure
 				};
 				if args.flag_json {
 					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::json::Informant::default(), trie_spec)
-				} else if args.flag_dump_json || args.flag_std_json {
-					if args.flag_err_only {
+				} else if args.flag_std_dump_json || args.flag_std_json {
+					if args.flag_std_err_only {
 						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::err_only(), trie_spec)
-					} else if args.flag_out_only {
+					} else if args.flag_std_out_only {
 						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::out_only(), trie_spec)
 					} else {
 						info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, display::std_json::Informant::default(), trie_spec)
@@ -236,7 +238,7 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 	params.data = data;
 
 	let mut sink = informant.clone_sink();
-	let result = if args.flag_dump_json {
+	let result = if args.flag_std_dump_json {
 		info::run_action(&spec, params, informant, TrieSpec::Fat)
 	} else {
 		info::run_action(&spec, params, informant, TrieSpec::Secure)
@@ -260,9 +262,9 @@ struct Args {
 	flag_chain: Option<String>,
 	flag_json: bool,
 	flag_std_json: bool,
-	flag_dump_json: bool,
-	flag_err_only: bool,
-	flag_out_only: bool,
+	flag_std_dump_json: bool,
+	flag_std_err_only: bool,
+	flag_std_out_only: bool,
 }
 
 impl Args {
@@ -349,21 +351,21 @@ mod tests {
 			"parity-evm",
 			"--json",
 			"--std-json",
-			"--dump-json",
+			"--std-dump-json",
 			"--gas", "1",
 			"--gas-price", "2",
 			"--from", "0000000000000000000000000000000000000003",
 			"--to", "0000000000000000000000000000000000000004",
 			"--code", "05",
 			"--input", "06",
-			"--chain", "./testfile", "--err-only", "--out-only"
+			"--chain", "./testfile", "--std-err-only", "--std-out-only"
 		]);
 
 		assert_eq!(args.flag_json, true);
 		assert_eq!(args.flag_std_json, true);
-		assert_eq!(args.flag_dump_json, true);
-		assert_eq!(args.flag_err_only, true);
-		assert_eq!(args.flag_out_only, true);
+		assert_eq!(args.flag_std_dump_json, true);
+		assert_eq!(args.flag_std_err_only, true);
+		assert_eq!(args.flag_std_out_only, true);
 		assert_eq!(args.gas(), Ok(1.into()));
 		assert_eq!(args.gas_price(), Ok(2.into()));
 		assert_eq!(args.from(), Ok(3.into()));

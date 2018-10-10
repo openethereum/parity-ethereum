@@ -133,7 +133,7 @@ pub fn run_transaction<T: Informant>(
 			TransactResult::Ok { state_root, gas_left, output, vm_trace, end_state, .. } => {
 				if state_root != post_root {
 					(Err(EvmTestError::PostCondition(format!(
-						"State root mismatch (got: 0x{:x}, expected: 0x{:x})",
+						"State root mismatch (got: {:#x}, expected: {:#x})",
 						state_root,
 						post_root,
 					))), state_root, end_state, Some(gas_left), None)
