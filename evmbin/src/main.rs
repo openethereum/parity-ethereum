@@ -385,14 +385,14 @@ mod tests {
 			"--only=add11",
 			"--json",
 			"--std-json",
-			"--dump-json"
+			"--std-dump-json"
 		]);
 
 		assert_eq!(args.cmd_state_test, true);
 		assert!(args.arg_file.is_some());
 		assert_eq!(args.flag_json, true);
 		assert_eq!(args.flag_std_json, true);
-		assert_eq!(args.flag_dump_json, true);
+		assert_eq!(args.flag_std_dump_json, true);
 		assert_eq!(args.flag_chain, Some("homestead".to_owned()));
 		assert_eq!(args.flag_only, Some("add11".to_owned()));
 	}
