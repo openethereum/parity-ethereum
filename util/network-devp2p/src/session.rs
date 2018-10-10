@@ -166,10 +166,7 @@ impl Session {
 
 	/// Check if this session is expired.
 	pub fn expired(&self) -> bool {
-		match self.state {
-			State::Handshake(ref h) => self.expired || h.expired(),
-			_ => self.expired,
-		}
+		self.expired
 	}
 
 	/// Check if this session is over and there is nothing to be sent.
