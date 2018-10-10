@@ -1,5 +1,6 @@
 stages:
   - test
+  - test-win
   - build
   # - publish
   - optional
@@ -148,7 +149,7 @@ test-darwin:
     - ci2
 
 test-windows:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -159,7 +160,7 @@ test-windows:
    - ci2
 
 test-windows-rust-stable:
-  stage:                           test
+  stage:                           test-win
   cache:
     key:                           "%CI_JOB_NAME%"
     paths:
@@ -175,7 +176,7 @@ test-windows-rust-stable:
   # allow_failure:                   true
 
 test-windows1:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -186,7 +187,7 @@ test-windows1:
    - ci2
 
 test-windows2:
-  stage:                           test # optional
+  stage:                           test-win # options
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -197,7 +198,7 @@ test-windows2:
    - ci2
 
 test-windows3:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -208,7 +209,7 @@ test-windows3:
    - ci2
 
 test-windows4:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -219,7 +220,7 @@ test-windows4:
    - ci2
 
 test-windows5:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -230,7 +231,7 @@ test-windows5:
    - ci2
 
 test-windows6:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -241,7 +242,7 @@ test-windows6:
    - ci2
 
 test-windows7:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -252,7 +253,7 @@ test-windows7:
    - ci2
 
 test-windows8:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
@@ -263,7 +264,7 @@ test-windows8:
    - ci2
 
 test-windows9:
-  stage:                           test # optional
+  stage:                           test-win # optional
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     RUN_TESTS:                     cargo
