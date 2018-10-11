@@ -84,7 +84,6 @@ build-windows:
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
-   - rust-windows
    - windows
   <<:                              *collect_artifacts
 
@@ -162,7 +161,6 @@ test-windows:
   script:
     - sh scripts/gitlab/test-all.sh stable
   tags:
-   - rust-windows
    - windows
 
 test-beta:
