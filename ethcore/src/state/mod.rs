@@ -944,7 +944,7 @@ impl<B: Backend> State<B> {
 		assert!(self.checkpoints.borrow().is_empty());
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = opt.account {
-				m.insert(add.clone(), PodAccount::from_account(acc));
+				m.insert(*add, PodAccount::from_account(acc));
 			}
 			m
 		}))
