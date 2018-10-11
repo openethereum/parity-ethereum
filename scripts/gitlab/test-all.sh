@@ -4,11 +4,11 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-git log --graph --oneline --all --decorate=short -n 10
+git log --graph --oneline --decorate=short -n 10
 
 case ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} in
   (beta|stable)
-    export GIT_COMPARE=${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}~
+    export GIT_COMPARE=origin/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}~
     ;;
   (master|nightly)
     export GIT_COMPARE=master~
