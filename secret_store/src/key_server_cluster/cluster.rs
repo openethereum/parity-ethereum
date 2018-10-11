@@ -1385,13 +1385,16 @@ pub mod tests {
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
 
-		// check that session is either removed from all nodes, or nonexistent (already removed)
+		// check that on non-master nodes session is either:
+		// already removed
+		// or it is removed right after completion
 		for i in 1..3 {
 			if let Some(session) = clusters[i].client().generation_session(&SessionId::default()) {
+				// run to completion if completion message is still on the way
+				// AND check that it is actually removed from cluster sessions
 				loop_until(&mut core, TIMEOUT, || (session.state() == GenerationSessionState::Finished
 					|| session.state() == GenerationSessionState::Failed)
 					&& clusters[i].client().generation_session(&SessionId::default()).is_none());
-				assert!(session.joint_public_and_secret().unwrap().is_err());
 			}
 		}
 	}
