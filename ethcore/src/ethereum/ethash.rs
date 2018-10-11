@@ -643,7 +643,7 @@ mod tests {
 	fn can_do_difficulty_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()), rlp::encode(&H64::zero())]);
 
 		let verify_result = engine.verify_block_basic(&header);
 
@@ -658,7 +658,7 @@ mod tests {
 	fn can_do_proof_of_work_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()), rlp::encode(&H64::zero())]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
 		let verify_result = engine.verify_block_basic(&header);
@@ -699,7 +699,7 @@ mod tests {
 	fn can_do_seal256_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()), rlp::encode(&H64::zero())]);
 		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
@@ -713,7 +713,7 @@ mod tests {
 	fn can_do_proof_of_work_unordered_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")), rlp::encode(&H64::zero())]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
 		let verify_result = engine.verify_block_unordered(&header);
@@ -906,7 +906,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 		let mut header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")), rlp::encode(&H64::zero())]);
 		let info = ethash.extra_info(&header);
 		assert_eq!(info["nonce"], "0x0000000000000000");
 		assert_eq!(info["mixHash"], "0xb251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d");

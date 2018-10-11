@@ -25,7 +25,7 @@ use bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::*;
 use keccak_hasher::KeccakHasher;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use rlp::{encode, decode};
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_key_already_exists, error_negatively_reference_hash};
 use super::memorydb::*;
@@ -39,7 +39,7 @@ use traits::JournalDB;
 /// immediately. As this is an "archive" database, nothing is ever removed. This means
 /// that the states of any block the node has ever processed will be accessible.
 pub struct ArchiveDB {
-	overlay: MemoryDB<KeccakHasher>,
+	overlay: MemoryDB<KeccakHasher, DBValue>,
 	backing: Arc<KeyValueDB>,
 	latest_era: Option<u64>,
 	column: Option<u32>,
@@ -64,7 +64,7 @@ impl ArchiveDB {
 	}
 }
 
-impl HashDB<KeccakHasher> for ArchiveDB {
+impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -193,7 +193,7 @@ impl JournalDB for ArchiveDB {
 		&self.backing
 	}
 
-	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher, DBValue>) {
 		self.overlay.consolidate(with);
 	}
 }
@@ -202,7 +202,7 @@ impl JournalDB for ArchiveDB {
 mod tests {
 
 	use keccak::keccak;
-	use hashdb::{HashDB, DBValue};
+	use hashdb::HashDB;
 	use super::*;
 	use {kvdb_memorydb, JournalDB};
 

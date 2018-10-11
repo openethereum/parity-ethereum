@@ -26,7 +26,7 @@ use ethereum_types::H256;
 use hashdb::*;
 use heapsize::HeapSizeOf;
 use keccak_hasher::KeccakHasher;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::*;
 use parking_lot::RwLock;
 use fastmap::H256FastMap;
@@ -66,7 +66,7 @@ use util::DatabaseKey;
 /// 7. Delete ancient record from memory and disk.
 
 pub struct OverlayRecentDB {
-	transaction_overlay: MemoryDB<KeccakHasher>,
+	transaction_overlay: MemoryDB<KeccakHasher, DBValue>,
 	backing: Arc<KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
@@ -120,7 +120,7 @@ impl<'a> Encodable for DatabaseValueRef<'a> {
 
 #[derive(PartialEq)]
 struct JournalOverlay {
-	backing_overlay: MemoryDB<KeccakHasher>, // Nodes added in the history period
+	backing_overlay: MemoryDB<KeccakHasher, DBValue>, // Nodes added in the history period
 	pending_overlay: H256FastMap<DBValue>, // Nodes being transfered from backing_overlay to backing db
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
@@ -323,10 +323,10 @@ impl JournalDB for OverlayRecentDB {
 			index,
 		};
 
-		batch.put_vec(self.column, &encode(&db_key), encoded_value.into_vec());
+		batch.put_vec(self.column, &encode(&db_key), encoded_value.to_vec());
 		if journal_overlay.latest_era.map_or(true, |e| now > e) {
 			trace!(target: "journaldb", "Set latest era to {}", now);
-			batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).into_vec());
+			batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec());
 			journal_overlay.latest_era = Some(now);
 		}
 
@@ -434,12 +434,12 @@ impl JournalDB for OverlayRecentDB {
 		Ok(ops)
 	}
 
-	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher, DBValue>) {
 		self.transaction_overlay.consolidate(with);
 	}
 }
 
-impl HashDB<KeccakHasher> for OverlayRecentDB {
+impl HashDB<KeccakHasher, DBValue> for OverlayRecentDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -493,7 +493,7 @@ mod tests {
 
 	use keccak::keccak;
 	use super::*;
-	use hashdb::{HashDB, DBValue};
+	use hashdb::HashDB;
 	use ethcore_logger::init_log;
 	use {kvdb_memorydb, JournalDB};
 

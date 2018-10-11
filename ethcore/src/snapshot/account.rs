@@ -123,7 +123,7 @@ pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB,
 						let stream = ::std::mem::replace(&mut account_stream, RlpStream::new_list(2));
 						chunks.push(stream.out());
 						target_chunk_size = max_chunk_size;
-						leftover = Some(pair.into_vec());
+						leftover = Some(pair);
 						break;
 					}
 				},

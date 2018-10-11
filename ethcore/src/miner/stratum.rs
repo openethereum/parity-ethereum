@@ -138,7 +138,7 @@ impl JobDispatcher for StratumJobDispatcher {
 		);
 
 		self.with_core_result(|client, miner| {
-			let seal = vec![encode(&payload.mix_hash).into_vec(), encode(&payload.nonce).into_vec()];
+			let seal = vec![encode(&payload.mix_hash), encode(&payload.nonce)];
 
 			let import = miner.submit_seal(payload.pow_hash, seal)
 				.and_then(|block| client.import_sealed_block(block));

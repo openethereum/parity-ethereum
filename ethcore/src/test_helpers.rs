@@ -90,7 +90,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	rlp.append(header);
 	rlp.begin_list(transactions.len());
 	for t in transactions {
-		rlp.append_raw(&rlp::encode(t).into_vec(), 1);
+		rlp.append_raw(&rlp::encode(t), 1);
 	}
 	rlp.append_list(&uncles);
 	rlp.out()
