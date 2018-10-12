@@ -86,13 +86,14 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
 		fnv1a_hash(&mut fnv_hash, seed as u32),
 		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
 	);
-    // Create a random sequence of mix destinations for merge()
-    // guaranteeing every location is touched once
-    // Uses Fisher–Yates shuffle
+
+    // Create a random sequence of mix destinations for merge() guaranteeing
+    // every location is touched once. Uses Fisher–Yates shuffle
 	let mut mix_seq = [0u32; PROGPOW_REGS];
     for i in 0..mix_seq.len() {
         mix_seq[i] = i as u32;
     }
+
     for i in (0..mix_seq.len()).rev() {
         let j = rnd.next_u32() as usize % (i + 1);
 		mix_seq.swap(i, j);
@@ -101,10 +102,8 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
     (rnd, mix_seq)
 }
 
-// Merge new data from b into the value in a
-// Assuming A has high entropy only do ops that retain entropy
-// even if B is low entropy
-// (IE don't do A&B)
+// Merge new data from b into the value in a. Assuming A has high entropy only
+// do ops that retain entropy even if B is low entropy (IE don't do A&B)
 fn merge(a: &mut u32, b: u32, r: u32) {
     match r % 4 {
 		0 => *a = a.wrapping_mul(33).wrapping_add(b),
@@ -144,10 +143,10 @@ fn progpow_loop<F>(
 	let offset_g = offset_g * PROGPOW_LANES;
 
 	for l in 0..mix.len() {
-		// global load to sequential locations
+		// Global load to sequential locations
 		// let data64 = lookup(2*(offset_g + l)); // FIXME: is this correct?
 		let data64 = (lookup(2 * (offset_g + l) + 1) as u64) << 32 | (lookup(2 * (offset_g + l)) as u64);
-		// initialize the seed and mix destination sequence
+		// Initialize the seed and mix destination sequence
 		let (mut rnd, mut mix_seq) = progpow_init(seed);
 		let mut mix_seq_cnt = 0;
 
@@ -160,20 +159,19 @@ fn progpow_loop<F>(
 
 		for i in 0..(PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH)) {
 			if i < PROGPOW_CNT_CACHE {
-                // Cached memory access
-                // lanes access random location
+                // Cached memory access lanes access random location
                 let offset = mix[l][mix_src(&mut rnd)] as usize % PROGPOW_CACHE_WORDS;
                 let data32 = c_dag[offset];
                 merge(&mut mix[l][mix_dst()], data32, rnd.next_u32());
             }
             if i < PROGPOW_CNT_MATH {
-                // Random Math
+                // Random math
                 let data32 = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
                 merge(&mut mix[l][mix_dst()], data32, rnd.next_u32());
             }
 		}
 
-		// Consume the global load data at the very end of the loop
+		// Consume the global load data at the very end of the loop.
         // Allows full latency hiding
         merge(&mut mix[l][0], data64 as u32, rnd.next_u32());
         merge(&mut mix[l][mix_dst()], (data64 >> 32) as u32, rnd.next_u32());
@@ -197,7 +195,7 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 		15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1
 	];
 
-	/* Theta*/
+	// Theta
 	let mut bc = [0u32; 5];
 	for i in 0..bc.len() {
 		bc[i] = st[i] ^ st[i + 5] ^ st[i + 10] ^ st[i + 15] ^ st[i + 20];
@@ -210,7 +208,7 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 		}
 	}
 
-	/*Rho Pi*/
+	// Rho Pi
 	let mut t = st[1];
 	for i in 0..keccakf_rotc.len() {
 		let j = keccakf_piln[i] as usize;
@@ -219,7 +217,7 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 		t = bc[0];
 	}
 
-	/* Chi*/
+	// Chi
 	for j in (0..st.len()).step_by(5) {
 		for i in 0..bc.len() {
 			bc[i] = st[j + i];
@@ -229,7 +227,7 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 		}
 	}
 
-	/* Iota*/
+	// Iota
 	st[0] ^= KECCAKF_RNDC[r];
 }
 
@@ -308,12 +306,13 @@ fn progpow_light(
 		c_dag[i + 1] = lookup(2 * i + 1);
 	}
 
-	// initialize mix for all lanes
+	// Initialize mix for all lanes
 	let seed = keccak_f800_short(header_hash, nonce, result);
 	for l in 0..mix.len() {
 		mix[l] = fill_mix(seed, l as u32);
 	}
-	// execute the randomly generated inner loop
+
+	// Execute the randomly generated inner loop
 	let block_number_rounded = (block_number / ETHASH_EPOCH_LENGTH) * ETHASH_EPOCH_LENGTH;
 	for i in 0..PROGPOW_CNT_MEM {
         progpow_loop(
@@ -325,6 +324,7 @@ fn progpow_light(
 			size as usize / PROGPOW_MIX_BYTES,
 		);
 	}
+
     // Reduce mix data to a single per-lane result
     for l in 0..lane_results.len() {
         lane_results[l] = FNV_HASH;
