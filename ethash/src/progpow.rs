@@ -239,19 +239,29 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
 
 fn progpow_loop<F>(
 	seed: u64,
-	loopp: usize,
+	loop_: usize,
 	mix: &mut [[u32; PROGPOW_REGS]; PROGPOW_LANES],
-	c_dag: &mut [u32; PROGPOW_CACHE_WORDS],
-	lookup: F,
+	c_dag: &[u32; PROGPOW_CACHE_WORDS],
+	lookup: &F,
 	data_size: usize,
-) where F: Fn(usize) -> u32 {
-    let offset_g = mix[loopp % PROGPOW_LANES][0] as usize % data_size;
-	let offset_g = offset_g * PROGPOW_LANES;
+) where F: Fn(usize) -> Node {
+    let g_offset = mix[loop_ % PROGPOW_LANES][0] as usize % data_size;
+	let g_offset = g_offset * PROGPOW_LANES;
 
+	let mut node = lookup(2 * g_offset);
+
+	// Lanes can execute in parallel and will be convergent
 	for l in 0..mix.len() {
+		let index = 2 * (g_offset + l);
+
+		if l != 0 && index % 8 == 0 {
+			node = lookup(index);
+		}
+
 		// Global load to sequential locations
-		// let data64 = lookup(2*(offset_g + l)); // FIXME: is this correct?
-		let data64 = (lookup(2 * (offset_g + l) + 1) as u64) << 32 | (lookup(2 * (offset_g + l)) as u64);
+		// FIXME: check this
+		let data64 = node.as_dwords()[index % 8];
+
 		// Initialize the seed and mix destination sequence
 		let (mut rnd, mut mix_seq) = progpow_init(seed);
 		let mut mix_seq_cnt = 0;
@@ -284,28 +294,19 @@ fn progpow_loop<F>(
 	}
 }
 
-fn progpow_light(
+fn progpow<F>(
 	header_hash: H256,
 	nonce: u64,
 	size: u64,
 	block_number: u64,
-	cache: &[Node],
-) -> (H256, H256) {
+	c_dag: &[u32; PROGPOW_CACHE_WORDS],
+	lookup: F,
+) -> (H256, H256)
+	where F: Fn(usize) -> Node
+{
 	let mut mix = [[0u32; PROGPOW_REGS]; PROGPOW_LANES];
 	let mut lane_results = [0u32; PROGPOW_LANES];
-
-	let mut c_dag = [0u32; PROGPOW_CACHE_WORDS];
 	let mut result = [0u32; 8];
-
-	let lookup = |index: usize| {
-		let item = calculate_dag_item((index / 16) as u32, cache);
-		LittleEndian::read_u32(&item.as_bytes()[(index % 16) * 4..])
-	};
-
-	for i in (0..PROGPOW_CACHE_WORDS).step_by(2) {
-		c_dag[i] = lookup(2 * i);
-		c_dag[i + 1] = lookup(2 * i + 1);
-	}
 
 	// Initialize mix for all lanes
 	let seed = keccak_f800_short(header_hash, nonce, result);
@@ -316,28 +317,28 @@ fn progpow_light(
 	// Execute the randomly generated inner loop
 	let block_number_rounded = (block_number / ETHASH_EPOCH_LENGTH) * ETHASH_EPOCH_LENGTH;
 	for i in 0..PROGPOW_CNT_MEM {
-        progpow_loop(
+	    progpow_loop(
 			block_number_rounded,
 			i,
 			&mut mix,
-			&mut c_dag,
-			lookup,
+			c_dag,
+			&lookup,
 			size as usize / PROGPOW_MIX_BYTES,
 		);
 	}
 
-    // Reduce mix data to a single per-lane result
-    for l in 0..lane_results.len() {
-        lane_results[l] = FNV_HASH;
-        for i in 0..PROGPOW_REGS {
-            fnv1a_hash(&mut lane_results[l], mix[l][i]);
+	// Reduce mix data to a single per-lane result
+	for l in 0..lane_results.len() {
+	    lane_results[l] = FNV_HASH;
+	    for i in 0..PROGPOW_REGS {
+	        fnv1a_hash(&mut lane_results[l], mix[l][i]);
 		}
 	}
 
-    // Reduce all lanes to a single 128-bit result
+	// Reduce all lanes to a single 128-bit result
 	result = [FNV_HASH; 8];
 	for l in 0..PROGPOW_LANES {
-        fnv1a_hash(&mut result[l % 8], lane_results[l]);
+	    fnv1a_hash(&mut result[l % 8], lane_results[l]);
 	}
 
 	let digest = keccak_f800_long(header_hash, seed, result);
@@ -345,6 +346,38 @@ fn progpow_light(
 	let result = unsafe { ::std::mem::transmute(result) };
 
 	(digest, result)
+}
+
+fn progpow_light(
+	header_hash: H256,
+	nonce: u64,
+	size: u64,
+	block_number: u64,
+	cache: &[Node],
+) -> (H256, H256) {
+	let lookup = |index: usize| {
+		calculate_dag_item((index / 16) as u32, cache)
+	};
+
+	let mut node = lookup(0);
+	let mut c_dag = [0u32; PROGPOW_CACHE_WORDS];
+	for i in (0..PROGPOW_CACHE_WORDS).step_by(2) {
+		if i != 0 && 2 * i / 16 != 2 * (i - 1) / 16 {
+			node = lookup(2 * i);
+		}
+
+		c_dag[i] = node.as_words()[(2 * i) % 16];
+		c_dag[i + 1] = node.as_words()[(2 * i + 1) % 16];
+	}
+
+	progpow(
+		header_hash,
+		nonce,
+		size,
+		block_number,
+		&c_dag,
+		lookup,
+	)
 }
 
 #[cfg(test)]
