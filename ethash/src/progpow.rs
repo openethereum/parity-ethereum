@@ -185,16 +185,17 @@ const KECCAKF_RNDC: [u32; 24] = [
 	0x0000800a, 0x8000000a, 0x80008081, 0x00008080, 0x80000001, 0x80008008
 ];
 
-fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
-	let keccakf_rotc: [u32; 24] = [
-		1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
-		27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
-	];
-	let keccakf_piln: [u32; 24] = [
-		10, 7,  11, 17, 18, 3, 5,  16, 8,  21, 24, 4,
-		15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1
-	];
+const KECCAKF_ROTC: [u32; 24] = [
+	1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
+	27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
+];
 
+const KECCAKF_PILN: [usize; 24] = [
+	10, 7,  11, 17, 18, 3, 5,  16, 8,  21, 24, 4,
+	15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1
+];
+
+fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 	// Theta
 	let mut bc = [0u32; 5];
 	for i in 0..bc.len() {
@@ -210,10 +211,10 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 
 	// Rho Pi
 	let mut t = st[1];
-	for i in 0..keccakf_rotc.len() {
-		let j = keccakf_piln[i] as usize;
+	for i in 0..KECCAKF_ROTC.len() {
+		let j = KECCAKF_PILN[i];
 		bc[0] = st[j];
-		st[j] = t.rotate_left(keccakf_rotc[i]);
+		st[j] = t.rotate_left(KECCAKF_ROTC[i]);
 		t = bc[0];
 	}
 
@@ -244,7 +245,7 @@ fn keccak_f800_short(header_hash: H256, nonce: u64, result: [u32; 8]) -> u64 {
 	st[8] = nonce as u32;
 	st[9] = (nonce >> 32) as u32;
 
-	for i in 0..4 { // FIXME: check this
+	for i in 0..8 {
 		st[10 + i] = result[i];
 	}
 
@@ -269,7 +270,7 @@ fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256 {
 	st[8] = nonce as u32;
 	st[9] = (nonce >> 32) as u32;
 
-	for i in 0..4 { // FIXME: check this
+	for i in 0..8 {
 		st[10 + i] = result[i];
 	}
 
