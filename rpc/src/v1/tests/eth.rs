@@ -152,13 +152,13 @@ impl EthTester {
 
 #[test]
 fn harness_works() {
-	let chain: BlockChain = extract_chain!("BlockchainTests/bcWalletTest/wallet2outOf3txs");
+	let chain: BlockChain = extract_chain_old!("BlockchainTests/bcWalletTest/wallet2outOf3txs");
 	let _ = EthTester::from_chain(&chain);
 }
 
 #[test]
 fn eth_get_balance() {
-	let chain = extract_chain!("BlockchainTests/bcWalletTest/wallet2outOf3txs");
+	let chain = extract_chain_old!("BlockchainTests/bcWalletTest/wallet2outOf3txs");
 	let tester = EthTester::from_chain(&chain);
 	// final account state
 	let req_latest = r#"{
@@ -209,7 +209,7 @@ fn eth_get_block() {
 
 #[test]
 fn eth_get_block_by_hash() {
-	let chain = extract_chain!("BlockchainTests/bcGasPricerTest/RPC_API_Test");
+	let chain = extract_chain_old!("BlockchainTests/bcGasPricerTest/RPC_API_Test");
 	let tester = EthTester::from_chain(&chain);
 
 	// We're looking for block number 4 from "RPC_API_Test_Frontier"
@@ -461,6 +461,6 @@ fn starting_nonce_test() {
 	assert_eq!(r#"{"jsonrpc":"2.0","result":"0x100","id":15}"#, &sample);
 }
 
-register_test!(eth_transaction_count_1, verify_transaction_counts, "BlockchainTests/bcWalletTest/wallet2outOf3txs");
+register_test_old!(eth_transaction_count_1, verify_transaction_counts, "BlockchainTests/bcWalletTest/wallet2outOf3txs");
 register_test!(eth_transaction_count_2, verify_transaction_counts, "BlockchainTests/bcTotalDifficultyTest/sideChainWithMoreTransactions");
 register_test!(eth_transaction_count_3, verify_transaction_counts, "BlockchainTests/bcGasPricerTest/RPC_API_Test");

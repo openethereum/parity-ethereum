@@ -40,6 +40,19 @@ macro_rules! extract_chain {
 	}};
 }
 
+// same as `extract_chain` but pointing to deprecated ethereum/tests resources.
+macro_rules! extract_chain_old {
+	(iter $file:expr) => {{
+		const RAW_DATA: &'static [u8] =
+			include_bytes!(concat!("../../../../ethcore/res/ethereum/old_tests/", $file, ".json"));
+		::ethjson::blockchain::Test::load(RAW_DATA).unwrap().into_iter()
+	}};
+
+	($file:expr) => {{
+		extract_chain_old!(iter $file).filter(|&(_, ref t)| t.network == ForkSpec::Frontier).next().unwrap().1
+	}};
+}
+
 macro_rules! register_test {
 	($name:ident, $cb:expr, $file:expr) => {
 		#[test]
@@ -50,6 +63,19 @@ macro_rules! register_test {
 		}
 	};
 }
+
+// same as `register_test` but pointing to deprecated ethereum/tests resources.
+macro_rules! register_test_old {
+	($name:ident, $cb:expr, $file:expr) => {
+		#[test]
+		fn $name() {
+			for (name, chain) in extract_chain_old!(iter $file).filter(|&(_, ref t)| t.network == ForkSpec::Frontier) {
+				$cb(name, chain);
+			}
+		}
+	};
+}
+
 
 #[cfg(test)]
 mod mocked;
