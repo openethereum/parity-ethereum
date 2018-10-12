@@ -41,11 +41,11 @@ else
     DIRECTORY="release"
 fi
 
+set -ex
+
 cargo build $RELEASE || exit
 
 PARITY_LOG=peer_node::hydrabadger=error,warn,info,$PARITY_LOG_ADDTL
-
-set -x
 
 # Launches node.
 bash -c "\

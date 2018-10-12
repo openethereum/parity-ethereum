@@ -153,7 +153,7 @@ impl Laboratory {
 
 		(0..self.hdb_cfg.txn_gen_count).map(|_| {
 			self.gen_random_txn(sender, sender_pwd.clone(), receiver, value_range, &mut rng)
-				.rlp_bytes().into_vec()
+				.rlp_bytes()
 		}).collect::<Contribution>()
 	}
 
@@ -207,7 +207,7 @@ impl Laboratory {
 		let extra_data = vec![];
 
 		// Import some blocks:
-		for _ in 0..1 {
+		for _ in 0..0 {
 			let mut open_block: OpenBlock = self.client
 				.prepare_open_block(block_author, gas_range_target, extra_data.clone())
 				.unwrap();
@@ -340,7 +340,7 @@ impl BatchHandler {
 		} else {
 			rand::seq::sample_slice(&mut rng, &pending, contrib_size)
 		};
-		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes().into_vec()).collect();
+		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes()).collect();
 		info!("Proposing {} transactions for epoch {}.", ser_txns.len(), batch.epoch() + 1);
 
 		self.hydrabadger.push_user_contribution(ser_txns).expect("TODO");

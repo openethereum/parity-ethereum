@@ -76,7 +76,7 @@ impl Engine<EthereumMachine> for Hbbft {
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn seal_fields(&self, _header: &Header) -> usize { 1 }
+	fn seal_fields(&self, _header: &Header) -> usize { SEAL.len() }
 
 	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal {
 		Seal::Regular(vec!(SEAL.to_vec()))

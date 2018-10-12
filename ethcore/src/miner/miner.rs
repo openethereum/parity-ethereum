@@ -661,7 +661,8 @@ impl Miner {
 		match self.engine.generate_seal(block.block(), &parent_header) {
 			// Save proposal for later seal submission and broadcast it.
 			Seal::Proposal(seal) => {
-				trace!(target: "miner", "Received a Proposal seal.");
+				// trace!(target: "miner", "Received a Proposal seal.");
+				info!(target: "miner", "Received a Proposal seal.");
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
@@ -683,7 +684,9 @@ impl Miner {
 			},
 			// Directly import a regular sealed block.
 			Seal::Regular(seal) => {
-				trace!(target: "miner", "Received a Regular seal.");
+				info!("####### SEAL: {:?}", seal);
+				// trace!(target: "miner", "Received a Regular seal.");
+				info!(target: "miner", "Received a Regular seal.");
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
@@ -693,6 +696,13 @@ impl Miner {
 					.lock()
 					.seal(&*self.engine, seal)
 					.map(|sealed| {
+						info!("###### IMPORTING SEALED BLOCK: \n\
+							header: {:?} \n\
+							state: {:?} \n\
+							transactions: {:?}\n",
+							sealed.block().header(),
+							sealed.block().state(),
+							sealed.block().transactions());
 						chain.import_sealed_block(sealed).is_ok()
 					})
 					.unwrap_or_else(|e| {
