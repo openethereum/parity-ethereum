@@ -29,155 +29,6 @@ const PROGPOW_MIX_BYTES: usize = 2 * ETHASH_MIX_BYTES;
 
 const FNV_HASH: u32 = 0x811c9dc5;
 
-fn fnv1a_hash(h: &mut u32, d: u32) -> u32 {
-    *h = (*h ^ d).wrapping_mul(FNV_PRIME);
-	*h
-}
-
-struct Kiss99 {
-	z: u32,
-	w: u32,
-	jsr: u32,
-	jcong: u32,
-}
-
-impl Kiss99 {
-	fn new(z: u32, w: u32, jsr: u32, jcong: u32) -> Kiss99 {
-		Kiss99 { z, w, jsr, jcong }
-	}
-
-	fn next_u32(&mut self) -> u32 {
-		self.z = 36969u32.wrapping_mul(self.z & 65535).wrapping_add(self.z >> 16);
-		self.w = 18000u32.wrapping_mul(self.w & 65535).wrapping_add(self.w >> 16);
-		let mwc = (self.z << 16).wrapping_add(self.w);
-		self.jsr ^= self.jsr << 17;
-		self.jsr ^= self.jsr >> 13;
-		self.jsr ^= self.jsr << 5;
-		self.jcong = 69069u32.wrapping_mul(self.jcong).wrapping_add(1234567);
-
-		(mwc ^ self.jcong).wrapping_add(self.jsr)
-	}
-}
-
-fn fill_mix(seed: u64, lane_id: u32) -> [u32; PROGPOW_REGS] {
-    // Use FNV to expand the per-warp seed to per-lane
-    // Use KISS to expand the per-lane seed to fill mix
-	let mut fnv_hash = FNV_HASH;
-    let mut rnd = Kiss99::new(
-		fnv1a_hash(&mut fnv_hash, seed as u32),
-		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
-		fnv1a_hash(&mut fnv_hash, lane_id),
-		fnv1a_hash(&mut fnv_hash, lane_id),
-	);
-
-	let mut mix = [0; PROGPOW_REGS];
-    for i in 0..mix.len() {
-        mix[i] = rnd.next_u32();
-    }
-
-	mix
-}
-
-fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
-	let mut fnv_hash = FNV_HASH;
-    let mut rnd = Kiss99::new(
-		fnv1a_hash(&mut fnv_hash, seed as u32),
-		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
-		fnv1a_hash(&mut fnv_hash, seed as u32),
-		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
-	);
-
-    // Create a random sequence of mix destinations for merge() guaranteeing
-    // every location is touched once. Uses Fisher–Yates shuffle
-	let mut mix_seq = [0u32; PROGPOW_REGS];
-    for i in 0..mix_seq.len() {
-        mix_seq[i] = i as u32;
-    }
-
-    for i in (0..mix_seq.len()).rev() {
-        let j = rnd.next_u32() as usize % (i + 1);
-		mix_seq.swap(i, j);
-    }
-
-    (rnd, mix_seq)
-}
-
-// Merge new data from b into the value in a. Assuming A has high entropy only
-// do ops that retain entropy even if B is low entropy (IE don't do A&B)
-fn merge(a: &mut u32, b: u32, r: u32) {
-    match r % 4 {
-		0 => *a = a.wrapping_mul(33).wrapping_add(b),
-		1 => *a = (*a ^ b).wrapping_mul(33),
-		2 => *a = a.rotate_left((r >> 16) % 32) ^ b,
-		3 => *a = a.rotate_right((r >> 16) % 32) ^ b,
-		_ => unreachable!(),
-    }
-}
-
-fn math(a: u32, b: u32, r: u32) -> u32 {
-	match r % 11 {
-		0 => a.wrapping_add(b),
-		1 => a.wrapping_mul(b),
-		2 => ((a as u64).wrapping_mul(b as u64) >> 32) as u32,
-		3 => a.min(b),
-		4 => a.rotate_left(b),
-		5 => a.rotate_right(b),
-		6 => a & b,
-		7 => a | b,
-		8 => a ^ b,
-		9 => a.leading_zeros() + b.leading_zeros(),
-		10 => a.count_ones() + b.count_ones(),
-		_ => unreachable!(),
-	}
-}
-
-fn progpow_loop<F>(
-	seed: u64,
-	loopp: usize,
-	mix: &mut [[u32; PROGPOW_REGS]; PROGPOW_LANES],
-	c_dag: &mut [u32; PROGPOW_CACHE_WORDS],
-	lookup: F,
-	data_size: usize,
-) where F: Fn(usize) -> u32 {
-    let offset_g = mix[loopp % PROGPOW_LANES][0] as usize % data_size;
-	let offset_g = offset_g * PROGPOW_LANES;
-
-	for l in 0..mix.len() {
-		// Global load to sequential locations
-		// let data64 = lookup(2*(offset_g + l)); // FIXME: is this correct?
-		let data64 = (lookup(2 * (offset_g + l) + 1) as u64) << 32 | (lookup(2 * (offset_g + l)) as u64);
-		// Initialize the seed and mix destination sequence
-		let (mut rnd, mut mix_seq) = progpow_init(seed);
-		let mut mix_seq_cnt = 0;
-
-		let mix_src = |rnd: &mut Kiss99| rnd.next_u32() as usize % PROGPOW_REGS;
-		let mut mix_dst = || {
-			let ret = mix_seq[mix_seq_cnt % PROGPOW_REGS];
-			mix_seq_cnt += 1;
-			ret as usize
-		};
-
-		for i in 0..(PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH)) {
-			if i < PROGPOW_CNT_CACHE {
-                // Cached memory access lanes access random location
-                let offset = mix[l][mix_src(&mut rnd)] as usize % PROGPOW_CACHE_WORDS;
-                let data32 = c_dag[offset];
-                merge(&mut mix[l][mix_dst()], data32, rnd.next_u32());
-            }
-            if i < PROGPOW_CNT_MATH {
-                // Random math
-                let data32 = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
-                merge(&mut mix[l][mix_dst()], data32, rnd.next_u32());
-            }
-		}
-
-		// Consume the global load data at the very end of the loop.
-        // Allows full latency hiding
-        merge(&mut mix[l][0], data64 as u32, rnd.next_u32());
-        merge(&mut mix[l][mix_dst()], (data64 >> 32) as u32, rnd.next_u32());
-	}
-}
-
 const KECCAKF_RNDC: [u32; 24] = [
 	0x00000001, 0x00008082, 0x0000808a, 0x80008000, 0x0000808b, 0x80000001,
 	0x80008081, 0x00008009, 0x0000008a, 0x00000088, 0x80008009, 0x8000000a,
@@ -282,6 +133,155 @@ fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256 {
 	let res: [u32; 8] = [st[0], st[1], st[2], st[3], st[4], st[5], st[6], st[7]];
 	// transmute to little endian bytes
 	unsafe { ::std::mem::transmute(res) }
+}
+
+fn fnv1a_hash(h: &mut u32, d: u32) -> u32 {
+    *h = (*h ^ d).wrapping_mul(FNV_PRIME);
+	*h
+}
+
+struct Kiss99 {
+	z: u32,
+	w: u32,
+	jsr: u32,
+	jcong: u32,
+}
+
+impl Kiss99 {
+	fn new(z: u32, w: u32, jsr: u32, jcong: u32) -> Kiss99 {
+		Kiss99 { z, w, jsr, jcong }
+	}
+
+	fn next_u32(&mut self) -> u32 {
+		self.z = 36969u32.wrapping_mul(self.z & 65535).wrapping_add(self.z >> 16);
+		self.w = 18000u32.wrapping_mul(self.w & 65535).wrapping_add(self.w >> 16);
+		let mwc = (self.z << 16).wrapping_add(self.w);
+		self.jsr ^= self.jsr << 17;
+		self.jsr ^= self.jsr >> 13;
+		self.jsr ^= self.jsr << 5;
+		self.jcong = 69069u32.wrapping_mul(self.jcong).wrapping_add(1234567);
+
+		(mwc ^ self.jcong).wrapping_add(self.jsr)
+	}
+}
+
+fn fill_mix(seed: u64, lane_id: u32) -> [u32; PROGPOW_REGS] {
+    // Use FNV to expand the per-warp seed to per-lane
+    // Use KISS to expand the per-lane seed to fill mix
+	let mut fnv_hash = FNV_HASH;
+    let mut rnd = Kiss99::new(
+		fnv1a_hash(&mut fnv_hash, seed as u32),
+		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
+		fnv1a_hash(&mut fnv_hash, lane_id),
+		fnv1a_hash(&mut fnv_hash, lane_id),
+	);
+
+	let mut mix = [0; PROGPOW_REGS];
+    for i in 0..mix.len() {
+        mix[i] = rnd.next_u32();
+    }
+
+	mix
+}
+
+// Merge new data from b into the value in a. Assuming A has high entropy only
+// do ops that retain entropy even if B is low entropy (IE don't do A&B)
+fn merge(a: &mut u32, b: u32, r: u32) {
+    match r % 4 {
+		0 => *a = a.wrapping_mul(33).wrapping_add(b),
+		1 => *a = (*a ^ b).wrapping_mul(33),
+		2 => *a = a.rotate_left((r >> 16) % 32) ^ b,
+		3 => *a = a.rotate_right((r >> 16) % 32) ^ b,
+		_ => unreachable!(),
+    }
+}
+
+fn math(a: u32, b: u32, r: u32) -> u32 {
+	match r % 11 {
+		0 => a.wrapping_add(b),
+		1 => a.wrapping_mul(b),
+		2 => ((a as u64).wrapping_mul(b as u64) >> 32) as u32,
+		3 => a.min(b),
+		4 => a.rotate_left(b),
+		5 => a.rotate_right(b),
+		6 => a & b,
+		7 => a | b,
+		8 => a ^ b,
+		9 => a.leading_zeros() + b.leading_zeros(),
+		10 => a.count_ones() + b.count_ones(),
+		_ => unreachable!(),
+	}
+}
+
+fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
+	let mut fnv_hash = FNV_HASH;
+    let mut rnd = Kiss99::new(
+		fnv1a_hash(&mut fnv_hash, seed as u32),
+		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
+		fnv1a_hash(&mut fnv_hash, seed as u32),
+		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
+	);
+
+    // Create a random sequence of mix destinations for merge() guaranteeing
+    // every location is touched once. Uses Fisher–Yates shuffle
+	let mut mix_seq = [0u32; PROGPOW_REGS];
+    for i in 0..mix_seq.len() {
+        mix_seq[i] = i as u32;
+    }
+
+    for i in (0..mix_seq.len()).rev() {
+        let j = rnd.next_u32() as usize % (i + 1);
+		mix_seq.swap(i, j);
+    }
+
+    (rnd, mix_seq)
+}
+
+fn progpow_loop<F>(
+	seed: u64,
+	loopp: usize,
+	mix: &mut [[u32; PROGPOW_REGS]; PROGPOW_LANES],
+	c_dag: &mut [u32; PROGPOW_CACHE_WORDS],
+	lookup: F,
+	data_size: usize,
+) where F: Fn(usize) -> u32 {
+    let offset_g = mix[loopp % PROGPOW_LANES][0] as usize % data_size;
+	let offset_g = offset_g * PROGPOW_LANES;
+
+	for l in 0..mix.len() {
+		// Global load to sequential locations
+		// let data64 = lookup(2*(offset_g + l)); // FIXME: is this correct?
+		let data64 = (lookup(2 * (offset_g + l) + 1) as u64) << 32 | (lookup(2 * (offset_g + l)) as u64);
+		// Initialize the seed and mix destination sequence
+		let (mut rnd, mut mix_seq) = progpow_init(seed);
+		let mut mix_seq_cnt = 0;
+
+		let mix_src = |rnd: &mut Kiss99| rnd.next_u32() as usize % PROGPOW_REGS;
+		let mut mix_dst = || {
+			let ret = mix_seq[mix_seq_cnt % PROGPOW_REGS];
+			mix_seq_cnt += 1;
+			ret as usize
+		};
+
+		for i in 0..(PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH)) {
+			if i < PROGPOW_CNT_CACHE {
+                // Cached memory access lanes access random location
+                let offset = mix[l][mix_src(&mut rnd)] as usize % PROGPOW_CACHE_WORDS;
+                let data32 = c_dag[offset];
+                merge(&mut mix[l][mix_dst()], data32, rnd.next_u32());
+            }
+            if i < PROGPOW_CNT_MATH {
+                // Random math
+                let data32 = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
+                merge(&mut mix[l][mix_dst()], data32, rnd.next_u32());
+            }
+		}
+
+		// Consume the global load data at the very end of the loop.
+        // Allows full latency hiding
+        merge(&mut mix[l][0], data64 as u32, rnd.next_u32());
+        merge(&mut mix[l][mix_dst()], (data64 >> 32) as u32, rnd.next_u32());
+	}
 }
 
 fn progpow_light(
