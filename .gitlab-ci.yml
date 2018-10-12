@@ -137,7 +137,8 @@ build-android:
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
   script:
-    - scripts/gitlab/build-unix.sh
+    - test -f /root/.cargo/config && tee /root/.cargo/config > ${CARGO_HOME}/config
+    - scripts/gitlab/test-all.sh stable
   tags:
     - rust-arm
 
