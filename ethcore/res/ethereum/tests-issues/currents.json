@@ -1,70 +1,23 @@
 { "block":
 	[
 		{
-			"reference": "9590",
-			"failing": "bcBlockGasLimitTest",
-			"subtests": ["GasUsedHigherThanBlockGasLimitButNotWithRefundsSuicideFirst_Constantinople", "BlockGasLimit2p63m1_Constantinople", "TransactionGasHigherThanLimit2p63m1_Constantinople", "TransactionGasHigherThanLimit2p63m1_2_Constantinople", "SuicideTransaction_Constantinople"]
+			"reference": "None",
+      "comment": "This failing test is deemed skippable. Could not happen on a mainnet.",
+			"failing": "GeneralStateTest_stCreate2",
+			"subtests": ["RevertInCreateInInitCreate2_d0g0v0_Constantinople"]
 		},
 		{
-			"reference": "9590",
-			"failing": "bcExploitTest",
-			"subtests": ["SuicideIssue_Constantinople", "ShanghaiLove_Constantinople", "DelegateCallSpam_Constantinople", "StrangeContractCreation_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcForkStressTest",
-			"subtests": ["AmIOnEIP150_Constantinople", "ForkStressTest_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcGasPricerTest",
-			"subtests": ["RPC_API_Test_Constantinople", "notxs_Constantinople", "highGasUsage_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcMultiChainTest",
-			"subtests": ["UncleFromSideChain_Constantinople", "ChainAtoChainB_blockorder1_Constantinople", "CallContractFromNotBestBlock_Constantinople", "ChainAtoChainB_BlockHash_Constantinople", "ChainAtoChainB_difficultyB_Constantinople", "ChainAtoChainBtoChainAtoChainB_Constantinople", "ChainAtoChainB_blockorder2_Constantinople", "ChainAtoChainBCallContractFormA_Constantinople", "ChainAtoChainB_Constantinople", "ChainAtoChainBtoChainA_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcRandomBlockhashTest",
-      "subtests": ["randomStatetest240BC_Constantinople", "randomStatetest557BC_Constantinople", "randomStatetest453BC_Constantinople", "randomStatetest262BC_Constantinople", "randomStatetest530BC_Constantinople", "randomStatetest113BC_Constantinople", "randomStatetest40BC_Constantinople", "randomStatetest235BC_Constantinople", "randomStatetest186BC_Constantinople", "randomStatetest56BC_Constantinople", "randomStatetest568BC_Constantinople", "randomStatetest390BC_Constantinople", "randomStatetest344BC_Constantinople", "randomStatetest289BC_Constantinople", "randomStatetest634BC_Constantinople", "randomStatetest331BC_Constantinople", "randomStatetest317BC_Constantinople", "randomStatetest591BC_Constantinople", "randomStatetest181BC_Constantinople", "randomStatetest258BC_Constantinople", "randomStatetest540BC_Constantinople", "randomStatetest239BC_Constantinople", "randomStatetest109BC_Constantinople", "randomStatetest253BC_Constantinople", "randomStatetest141BC_Constantinople", "randomStatetest76BC_Constantinople", "randomStatetest529BC_Constantinople", "randomStatetest492BC_Constantinople", "randomStatetest272BC_Constantinople", "randomStatetest522BC_Constantinople", "randomStatetest44BC_Constantinople", "randomStatetest34BC_Constantinople", "randomStatetest8BC_Constantinople", "randomStatetest168BC_Constantinople", "randomStatetest255BC_Constantinople", "randomStatetest182BC_Constantinople", "randomStatetest463BC_Constantinople", "randomStatetest91BC_Constantinople", "randomStatetest427BC_Constantinople", "randomStatetest68BC_Constantinople", "randomStatetest551BC_Constantinople", "randomStatetest127BC_Constantinople", "randomStatetest593BC_Constantinople", "randomStatetest132BC_Constantinople", "randomStatetest21BC_Constantinople", "randomStatetest622BC_Constantinople", "randomStatetest613BC_Constantinople", "randomStatetest561BC_Constantinople", "randomStatetest590BC_Constantinople", "randomStatetest614BC_Constantinople", "randomStatetest606BC_Constantinople", "randomStatetest234BC_Constantinople", "randomStatetest373BC_Constantinople", "randomStatetest35BC_Constantinople", "randomStatetest71BC_Constantinople", "randomStatetest598BC_Constantinople", "randomStatetest152BC_Constantinople", "randomStatetest490BC_Constantinople", "randomStatetest459BC_Constantinople", "randomStatetest403BC_Constantinople", "randomStatetest193BC_Constantinople", "randomStatetest400BC_Constantinople", "randomStatetest392BC_Constantinople", "randomStatetest479BC_Constantinople", "randomStatetest314BC_Constantinople", "randomStatetest330BC_Constantinople", "randomStatetest140BC_Constantinople", "randomStatetest203BC_Constantinople", "randomStatetest86BC_Constantinople", "randomStatetest617BC_Constantinople", "randomStatetest218BC_Constantinople", "randomStatetest374BC_Constantinople", "randomStatetest99BC_Constantinople", "randomStatetest319BC_Constantinople", "randomStatetest631BC_Constantinople", "randomStatetest486BC_Constantinople", "randomStatetest570BC_Constantinople", "randomStatetest79BC_Constantinople", "randomStatetest256BC_Constantinople", "randomStatetest165BC_Constantinople", "randomStatetest93BC_Constantinople", "randomStatetest623BC_Constantinople", "randomStatetest61BC_Constantinople", "randomStatetest431BC_Constantinople", "randomStatetest515BC_Constantinople", "randomStatetest128BC_Constantinople", "randomStatetest277BC_Constantinople", "randomStatetest70BC_Constantinople", "randomStatetest213BC_Constantinople", "randomStatetest434BC_Constantinople", "randomStatetest65BC_Constantinople", "randomStatetest394BC_Constantinople", "randomStatetest595BC_Constantinople", "randomStatetest432BC_Constantinople", "randomStatetest224BC_Constantinople", "randomStatetest284BC_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcStateTest",
-			"subtests": ["suicideStorageCheck_Constantinople", "BLOCKHASH_Bounds_Constantinople", "suicideStorageCheckVCreate2_Constantinople", "create2collisionwithSelfdestructSameBlock_Constantinople", "blockhashNonConstArg_Constantinople", "blockhashTests_Constantinople", "transactionFromNotExistingAccount_Constantinople", "simpleSuicide_Constantinople", "BadStateRootTxBC_Constantinople", "suicideCoinbase_Constantinople", "OOGStateCopyContainingDeletedContract_Constantinople", "multimpleBalanceInstruction_Constantinople", "suicideThenCheckBalance_Constantinople", "suicideStorageCheckVCreate_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcTotalDifficultyTest",
-			"subtests": ["uncleBlockAtBlock3AfterBlock3_Constantinople", "sideChainWithMoreTransactions_Constantinople", "newChainFrom4Block_Constantinople", "lotsOfBranches_Constantinople", "newChainFrom5Block_Constantinople", "lotsOfLeafs_Constantinople", "uncleBlockAtBlock3afterBlock4_Constantinople", "lotsOfBranchesOverrideAtTheMiddle_Constantinople", "sideChainWithNewMaxDifficultyStartingFromBlock3AfterBlock4_Constantinople", "newChainFrom6Block_Constantinople", "lotsOfBranchesOverrideAtTheEnd_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcUncleHeaderValidity",
-			"subtests": ["nonceWrong_Constantinople", "wrongParentHash_Constantinople", "timestampTooLow_Constantinople", "futureUncleTimestampDifficultyDrop3_Constantinople", "timestampTooHigh_Constantinople", "gasLimitTooLow_Constantinople", "incorrectUncleNumber500_Constantinople", "wrongMixHash_Constantinople", "incorrectUncleNumber1_Constantinople", "unknownUncleParentHash_Constantinople", "pastUncleTimestamp_Constantinople", "diffTooLow2_Constantinople", "incorrectUncleTimestamp2_Constantinople", "diffTooLow_Constantinople", "correct_Constantinople", "incorrectUncleNumber0_Constantinople", "wrongStateRoot_Constantinople", "gasLimitTooHighExactBound_Constantinople", "incorrectUncleTimestamp_Constantinople", "gasLimitLTGasUsageUncle_Constantinople", "uncleBloomNot0_2_Constantinople", "gasLimitTooHigh_Constantinople", "gasLimitTooLowExactBound_Constantinople", "diffTooHigh_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcUncleTest",
-			"subtests": ["twoUncle_Constantinople", "InChainUncleGrandPa_Constantinople", "UncleIsBrother_Constantinople", "oneUncleGeneration7_Constantinople", "oneUncleGeneration6_Constantinople", "oneUncleGeneration2_Constantinople", "InChainUncleGreatGreatGreatGrandPa_Constantinople", "uncleHeaderWithGeneration0_Constantinople", "InChainUncleFather_Constantinople", "InChainUncleGreatGreatGrandPa_Constantinople", "uncleWithSameBlockNumber_Constantinople", "oneUncle_Constantinople", "InChainUncleGreatGrandPa_Constantinople", "uncleHeaderAtBlock2Constantinople_Constantinople", "threeUncle_Constantinople", "twoEqualUncle_Constantinople", "oneUncleGeneration5_Constantinople", "oneUncleGeneration3_Constantinople", "oneUncleGeneration4_Constantinople", "InChainUncle_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcValidBlockTest",
-			"subtests": ["dataTx_Constantinople", "diff1024_Constantinople", "SimpleTx_Constantinople", "RecallSuicidedContract_Constantinople", "txEqualValue_Constantinople", "SimpleTx3_Constantinople", "txOrder_Constantinople", "gasPrice0_Constantinople", "dataTx2_Constantinople", "createRevert_Constantinople", "RecallSuicidedContractInOneBlock_Constantinople", "timeDiff14_Constantinople", "timeDiff13_Constantinople", "callRevert_Constantinople", "SimpleTx3LowS_Constantinople", "timeDiff12_Constantinople", "ExtraData32_Constantinople", "gasLimitTooHigh_Constantinople", "timeDiff0_Constantinople", "log1_correct_Constantinople", "gasLimitTooHigh2_Constantinople"]
-		},
-		{
-			"reference": "9590",
-			"failing": "bcWalletTest",
-			"subtests": ["walletReorganizeOwners_Constantinople"]
+			"reference": "None",
+      "comment": "This failing test is deemed skippable. Could not happen on a mainnet.",
+			"failing": "GeneralStateTest_stRevertTest",
+			"subtests": ["RevertInCreateInInit_d0g0v0_Constantinople"]
 		}
 	],
 	"state":
 	[
 		{
-			"reference": "9590",
+			"reference": "None",
+      "comment": "This failing test is deemed skippable. Could not happen on a mainnet.",
 			"failing": "stCreate2Test",
 			"subtests": {
 				"RevertInCreateInInitCreate2": {
@@ -74,7 +27,8 @@
 			}
 		},
 		{
-			"reference": "9590",
+			"reference": "None",
+      "comment": "This failing test is deemed skippable. Could not happen on a mainnet.",
 			"failing": "stRevertTest",
 			"subtests": {
 				"RevertInCreateInInit": {
