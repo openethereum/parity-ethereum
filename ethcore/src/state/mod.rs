@@ -592,7 +592,7 @@ impl<B: Backend> State<B> {
 								// commit, then it can only be created from a new contract, where the base storage root
 								// would always be empty. Note that this branch is actually never called, because
 								// `cached_storage_at` handled this case.
-								warn!("Trying to get an account's cached storage value, but base storage root does not equal to original storage root! Assuming the value is empty.");
+								warn!(target: "state", "Trying to get an account's cached storage value, but base storage root does not equal to original storage root! Assuming the value is empty.");
 								return Ok(Some(H256::new()));
 							}
 						}
