@@ -150,7 +150,7 @@ mod no_proof_engine {
 			Ok(())
 		}
 
-		// Dummy methods derivation.
+		// Dumb composition derive.
 
 		fn name(&self) -> &str { self.0.name() }
 		fn machine(&self) -> &EthereumMachine { self.0.machine() }
@@ -206,7 +206,7 @@ mod block_tests {
 	declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
 	declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
 	declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
-/*
+
 	declare_test!{BlockchainTests_GeneralStateTest_stArgsZeroOneBalance, "BlockchainTests/GeneralStateTests/stArgsZeroOneBalance/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stAttackTest, "BlockchainTests/GeneralStateTests/stAttackTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stBadOpcodeTest, "BlockchainTests/GeneralStateTests/stBadOpcode/"}
@@ -253,7 +253,7 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stZeroCallsTest, "BlockchainTests/GeneralStateTests/stZeroCallsTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stZeroKnowledge, "BlockchainTests/GeneralStateTests/stZeroKnowledge/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stZeroKnowledge2, "BlockchainTests/GeneralStateTests/stZeroKnowledge2/"}
-*/
+
 	declare_test!{BlockchainTests_TransitionTests_bcEIP158ToByzantium, "BlockchainTests/TransitionTests/bcEIP158ToByzantium/"}
 	declare_test!{BlockchainTests_TransitionTests_bcFrontierToHomestead, "BlockchainTests/TransitionTests/bcFrontierToHomestead/"}
 	declare_test!{BlockchainTests_TransitionTests_bcHomesteadToDao, "BlockchainTests/TransitionTests/bcHomesteadToDao/"}
