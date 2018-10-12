@@ -24,7 +24,6 @@ use io::IoChannel;
 use test_helpers;
 use verification::queue::kind::blocks::Unverified;
 use super::SKIP_TEST_STATE;
-
 use super::HookType;
 
 /// Run chain jsontests on a given folder.
@@ -73,6 +72,10 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					}
 				};
 
+				spec.engine = match blockchain.engine {
+					ethjson::blockchain::Engine::NoProof => Arc::new(no_proof_engine::NoProofEthashEngine(spec.engine)),
+					ethjson::blockchain::Engine::Ethash => spec.engine,
+				};
 				let genesis = Genesis::from(blockchain.genesis());
 				let state = From::from(blockchain.pre_state.clone());
 				spec.set_genesis_state(state).expect("Failed to overwrite genesis state");
@@ -112,6 +115,72 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 
 	println!("!!! {:?} tests from failed.", failed.len());
 	failed
+}
+
+mod no_proof_engine {
+	use ethereum::ethash::{Seal};
+	use engines::{self, Engine, EthEngine};
+	use machine::EthereumMachine;
+	use header::{Header, BlockNumber, ExtendedHeader};
+	use error::{BlockError, Error};
+	use unexpected::OutOfBounds;
+	use std::collections::BTreeMap;
+	use std::sync::Arc;
+	use block::ExecutedBlock;
+
+	/// Run engine but skip some validation for 'NoProof' configuration of json tests.
+	#[derive(Clone)]
+	pub struct NoProofEthashEngine(pub Arc<EthEngine>);
+
+	impl Engine<EthereumMachine> for NoProofEthashEngine {
+		/// No difficulty handle, skip some test.
+		fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
+			// check the seal fields.
+			let _ = Seal::parse_seal(header.seal())?;
+
+			if header.gas_limit() > &0x7fffffffffffffffu64.into() {
+				return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
+			}
+
+			Ok(())
+		}
+
+		/// No nonce handle, skip test.
+		fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
+			Ok(())
+		}
+
+		// Dummy methods derivation.
+
+		fn name(&self) -> &str { self.0.name() }
+		fn machine(&self) -> &EthereumMachine { self.0.machine() }
+		fn seal_fields(&self, header: &Header) -> usize { self.0.seal_fields(header) }
+		fn extra_info(&self, header: &Header) -> BTreeMap<String, String> { self.0.extra_info(header) }
+		fn maximum_uncle_count(&self, block: BlockNumber) -> usize { self.0.maximum_uncle_count(block) }
+		fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+			self.0.populate_from_parent(header, parent)
+		}
+		fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+			self.0.on_close_block(block)
+		}
+		fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
+			self.0.verify_local_seal(header)
+		}
+		fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+			self.0.verify_block_family(header, parent)
+		}
+		fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> engines::ConstructedVerifier<'a, EthereumMachine> {
+			self.0.epoch_verifier(header, proof)
+		}
+		fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+			self.0.snapshot_components()
+		}
+		fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
+			self.0.fork_choice(new, current)
+		}
+}
+
+
 }
 
 #[cfg(test)]
