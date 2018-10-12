@@ -29,7 +29,6 @@ const PROGPOW_MIX_BYTES: usize = 2 * ETHASH_MIX_BYTES;
 
 const FNV_HASH: u32 = 0x811c9dc5;
 
-// TODO: rewrite without side effect
 fn fnv1a_hash(h: &mut u32, d: u32) -> u32 {
     *h = (*h ^ d).wrapping_mul(FNV_PRIME);
 	*h
@@ -48,13 +47,13 @@ impl Kiss99 {
 	}
 
 	fn next_u32(&mut self) -> u32 {
-		self.z = 36969u32.wrapping_mul(self.z & 65535u32).wrapping_add(self.z >> 16);
-		self.w = 18000u32.wrapping_mul(self.w & 65535u32).wrapping_add(self.w >> 16);
+		self.z = 36969u32.wrapping_mul(self.z & 65535).wrapping_add(self.z >> 16);
+		self.w = 18000u32.wrapping_mul(self.w & 65535).wrapping_add(self.w >> 16);
 		let mwc = (self.z << 16).wrapping_add(self.w);
 		self.jsr ^= self.jsr << 17;
 		self.jsr ^= self.jsr >> 13;
 		self.jsr ^= self.jsr << 5;
-		self.jcong = 69069u32.wrapping_mul(self.jcong).wrapping_add(1234567u32);
+		self.jcong = 69069u32.wrapping_mul(self.jcong).wrapping_add(1234567);
 
 		(mwc ^ self.jcong).wrapping_add(self.jsr)
 	}
@@ -108,8 +107,8 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
 // (IE don't do A&B)
 fn merge(a: &mut u32, b: u32, r: u32) {
     match r % 4 {
-		0 => *a = a.wrapping_mul(33u32).wrapping_add(b),
-		1 => *a = (*a ^ b).wrapping_mul(33u32),
+		0 => *a = a.wrapping_mul(33).wrapping_add(b),
+		1 => *a = (*a ^ b).wrapping_mul(33),
 		2 => *a = a.rotate_left((r >> 16) % 32) ^ b,
 		3 => *a = a.rotate_right((r >> 16) % 32) ^ b,
 		_ => unreachable!(),
