@@ -21,7 +21,7 @@ use ethcore::client::Mode;
 use ethcore::ethereum;
 use ethcore::spec::{Spec, SpecParams};
 use ethereum_types::{U256, Address};
-use futures_cpupool::CpuPool;
+use parity_runtime::Executor;
 use hash_fetch::fetch::Client as FetchClient;
 use journaldb::Algorithm;
 use miner::gas_pricer::GasPricer;
@@ -256,7 +256,7 @@ impl Default for GasPricerConfig {
 }
 
 impl GasPricerConfig {
-	pub fn to_gas_pricer(&self, fetch: FetchClient, p: CpuPool) -> GasPricer {
+	pub fn to_gas_pricer(&self, fetch: FetchClient, p: Executor) -> GasPricer {
 		match *self {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
 			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {

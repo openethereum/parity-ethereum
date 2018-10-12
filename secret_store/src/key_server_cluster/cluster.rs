@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::collections::btree_map::Entry;
 use std::net::{SocketAddr, IpAddr};
 use futures::{future, Future, Stream};
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use tokio_io::IoFuture;
 use tokio::runtime::TaskExecutor;
 use tokio::timer::{Interval, timeout::Error as TimeoutError};
@@ -193,7 +193,7 @@ pub struct ClusterConnections {
 	/// All known other key servers.
 	pub key_server_set: Arc<KeyServerSet>,
 	/// Connections trigger.
-	pub trigger: RwLock<Box<ConnectionTrigger>>,
+	pub trigger: Mutex<Box<ConnectionTrigger>>,
 	/// Servers set change session creator connector.
 	pub connector: Arc<ServersSetChangeSessionCreatorConnector>,
 	/// Connections data.
@@ -675,7 +675,7 @@ impl ClusterConnections {
 		Ok(ClusterConnections {
 			self_node_id: config.self_key_pair.public().clone(),
 			key_server_set: config.key_server_set.clone(),
-			trigger: RwLock::new(trigger),
+			trigger: Mutex::new(trigger),
 			connector: connector,
 			data: RwLock::new(ClusterConnectionsData {
 				is_isolated: is_isolated,
@@ -720,7 +720,7 @@ impl ClusterConnections {
 			data.connections.insert(node.clone(), connection.clone());
 		}
 
-		let maintain_action = self.trigger.write().on_connection_established(connection.node_id());
+		let maintain_action = self.trigger.lock().on_connection_established(connection.node_id());
 		self.maintain_connection_trigger(maintain_action, data);
 
 		true
@@ -741,7 +741,7 @@ impl ClusterConnections {
 			}
 		}
 
-		let maintain_action = self.trigger.write().on_connection_closed(node);
+		let maintain_action = self.trigger.lock().on_connection_closed(node);
 		self.maintain_connection_trigger(maintain_action, data);
 	}
 
@@ -771,7 +771,7 @@ impl ClusterConnections {
 	}
 
 	pub fn update_nodes_set(&self, data: Arc<ClusterData>) -> Option<BoxedEmptyFuture> {
-		let maintain_action = self.trigger.write().on_maintain();
+		let maintain_action = self.trigger.lock().on_maintain();
 		self.maintain_connection_trigger(maintain_action, data);
 		None
 	}
@@ -779,10 +779,10 @@ impl ClusterConnections {
 	fn maintain_connection_trigger(&self, maintain_action: Option<Maintain>, data: Arc<ClusterData>) {
 		if maintain_action == Some(Maintain::SessionAndConnections) || maintain_action == Some(Maintain::Session) {
 			let client = ClusterClientImpl::new(data);
-			self.trigger.write().maintain_session(&client);
+			self.trigger.lock().maintain_session(&client);
 		}
 		if maintain_action == Some(Maintain::SessionAndConnections) || maintain_action == Some(Maintain::Connections) {
-			let mut trigger = self.trigger.write();
+			let mut trigger = self.trigger.lock();
 			let mut data = self.data.write();
 			trigger.maintain_connections(&mut *data);
 		}
@@ -1272,7 +1272,7 @@ pub mod tests {
 
 		let start = Instant::now();
 
-		runtime.block_on(Interval::new_interval(Duration::new(0, 1_000_000))
+		runtime.block_on(Interval::new_interval(Duration::from_millis(1))
 			.and_then(move |_| {
 				if Instant::now() - start > timeout {
 					panic!("no result in {:?}", timeout);

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tokio Core Reactor wrapper.
+//! Tokio Runtime wrapper.
 
 extern crate futures;
 extern crate tokio;
@@ -24,58 +24,74 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use futures::{future, Future, IntoFuture};
 pub use tokio::timer::Delay;
-pub use tokio::runtime::{Runtime, Builder as RuntimeBuilder, TaskExecutor};
+pub use tokio::runtime::{Runtime as TokioRuntime, Builder as TokioRuntimeBuilder, TaskExecutor};
 
-/// Event Loop for futures.
+/// Runtime for futures.
 ///
 /// Runs in a separate thread.
-pub struct EventLoop {
-	remote: Remote,
-	handle: EventLoopHandle,
+pub struct Runtime {
+	executor: Executor,
+	handle: RuntimeHandle,
 }
 
-impl EventLoop {
-	/// Spawns a new thread with `EventLoop` with given handler.
-	pub fn spawn() -> Self {
+impl Runtime {
+	fn new(runtime_bldr: &mut TokioRuntimeBuilder) -> Self {
+		let mut runtime = runtime_bldr
+			.build()
+			.expect("Building a Tokio runtime will only fail when mio components \
+				cannot be initialized (catastrophic)");
 		let (stop, stopped) = futures::oneshot();
 		let (tx, rx) = mpsc::channel();
 		let handle = thread::spawn(move || {
-			let mut runtime = RuntimeBuilder::new()
-				.core_threads(1)
-				.build()
-				.expect("Building a Tokio runtime will only fail when mio components \
-					cannot be initialized (catastrophic).");
 			tx.send(runtime.executor()).expect("Rx is blocking upper thread.");
 			runtime.block_on(futures::empty().select(stopped).map(|_| ()).map_err(|_| ()))
 				.expect("Tokio runtime should not have unhandled errors.");
 		});
-		let remote = rx.recv().expect("tx is transfered to a newly spawned thread.");
+		let executor = rx.recv().expect("tx is transfered to a newly spawned thread.");
 
-		EventLoop {
-			remote: Remote {
-				inner: Mode::Tokio(remote),
+		Runtime {
+			executor: Executor {
+				inner: Mode::Tokio(executor),
 			},
-			handle: EventLoopHandle {
+			handle: RuntimeHandle {
 				close: Some(stop),
 				handle: Some(handle),
 			},
 		}
 	}
 
-	/// Returns this event loop raw executor.
+	/// Spawns a new tokio runtime with a default thread count on a background
+	/// thread and returns a `Runtime` which can be used to spawn tasks via
+	/// its executor.
+	pub fn with_default_thread_count() -> Self {
+		let mut runtime_bldr = TokioRuntimeBuilder::new();
+		Self::new(&mut runtime_bldr)
+	}
+
+	/// Spawns a new tokio runtime with a the specified thread count on a
+	/// background thread and returns a `Runtime` which can be used to spawn
+	/// tasks via its executor.
+	pub fn with_thread_count(thread_count: usize) -> Self {
+		let mut runtime_bldr = TokioRuntimeBuilder::new();
+		runtime_bldr.core_threads(thread_count);
+
+		Self::new(&mut runtime_bldr)
+	}
+
+	/// Returns this runtime raw executor.
 	///
 	/// Deprecated: Exists only to connect with current JSONRPC implementation.
 	pub fn raw_executor(&self) -> TaskExecutor {
-		if let Mode::Tokio(ref executor) = self.remote.inner {
+		if let Mode::Tokio(ref executor) = self.executor.inner {
 			executor.clone()
 		} else {
-			panic!("Event loop is never initialized in other mode then Tokio.")
+			panic!("Runtime is not initialized in Tokio mode.")
 		}
 	}
 
-	/// Returns event loop remote.
-	pub fn remote(&self) -> Remote {
-		self.remote.clone()
+	/// Returns runtime executor.
+	pub fn executor(&self) -> Executor {
+		self.executor.clone()
 	}
 }
 
@@ -118,41 +134,41 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct Remote {
+pub struct Executor {
 	inner: Mode,
 }
 
-impl Remote {
-	/// Remote for existing event loop.
+impl Executor {
+	/// Executor for existing runtime.
 	///
 	/// Deprecated: Exists only to connect with current JSONRPC implementation.
-	pub fn new(remote: TaskExecutor) -> Self {
-		Remote {
-			inner: Mode::Tokio(remote),
+	pub fn new(executor: TaskExecutor) -> Self {
+		Executor {
+			inner: Mode::Tokio(executor),
 		}
 	}
 
-	/// Synchronous remote, used mostly for tests.
+	/// Synchronous executor, used mostly for tests.
 	pub fn new_sync() -> Self {
-		Remote {
+		Executor {
 			inner: Mode::Sync,
 		}
 	}
 
 	/// Spawns a new thread for each future (use only for tests).
 	pub fn new_thread_per_future() -> Self {
-		Remote {
+		Executor {
 			inner: Mode::ThreadPerFuture,
 		}
 	}
 
-	/// Spawn a future to this event loop
+	/// Spawn a future to this runtime
 	pub fn spawn<R>(&self, r: R) where
-        R: IntoFuture<Item=(), Error=()> + Send + 'static,
-        R::Future: Send + 'static,
+		R: IntoFuture<Item=(), Error=()> + Send + 'static,
+		R::Future: Send + 'static,
 	{
 		match self.inner {
-			Mode::Tokio(ref remote) => remote.spawn(r.into_future()),
+			Mode::Tokio(ref executor) => executor.spawn(r.into_future()),
 			Mode::Sync => {
 				let _= r.into_future().wait();
 			},
@@ -167,11 +183,11 @@ impl Remote {
 	/// Spawn a new future returned by given closure.
 	pub fn spawn_fn<F, R>(&self, f: F) where
 		F: FnOnce() -> R + Send + 'static,
-        R: IntoFuture<Item=(), Error=()> + Send + 'static,
-        R::Future: Send + 'static,
+		R: IntoFuture<Item=(), Error=()> + Send + 'static,
+		R::Future: Send + 'static,
 	{
 		match self.inner {
-			Mode::Tokio(ref remote) => remote.spawn(future::lazy(f)),
+			Mode::Tokio(ref executor) => executor.spawn(future::lazy(f)),
 			Mode::Sync => {
 				let _ = future::lazy(f).wait();
 			},
@@ -191,8 +207,8 @@ impl Remote {
 		R::Future: Send + 'static,
 	{
 		match self.inner {
-			Mode::Tokio(ref remote) => {
-				remote.spawn(timeout(f, duration, on_timeout))
+			Mode::Tokio(ref executor) => {
+				executor.spawn(timeout(f, duration, on_timeout))
 			},
 			Mode::Sync => {
 				let _ = timeout(f, duration, on_timeout).wait();
@@ -206,32 +222,32 @@ impl Remote {
 	}
 }
 
-/// A handle to running event loop. Dropping the handle will cause event loop to finish.
-pub struct EventLoopHandle {
+/// A handle to a runtime. Dropping the handle will cause runtime to shutdown.
+pub struct RuntimeHandle {
 	close: Option<futures::Complete<()>>,
 	handle: Option<thread::JoinHandle<()>>
 }
 
-impl From<EventLoop> for EventLoopHandle {
-	fn from(el: EventLoop) -> Self {
+impl From<Runtime> for RuntimeHandle {
+	fn from(el: Runtime) -> Self {
 		el.handle
 	}
 }
 
-impl Drop for EventLoopHandle {
+impl Drop for RuntimeHandle {
 	fn drop(&mut self) {
 		self.close.take().map(|v| v.send(()));
 	}
 }
 
-impl EventLoopHandle {
-	/// Blocks current thread and waits until the event loop is finished.
+impl RuntimeHandle {
+	/// Blocks current thread and waits until the runtime is finished.
 	pub fn wait(mut self) -> thread::Result<()> {
 		self.handle.take()
 			.expect("Handle is taken only in `wait`, `wait` is consuming; qed").join()
 	}
 
-	/// Finishes this event loop.
+	/// Finishes this runtime.
 	pub fn close(mut self) {
 		let _ = self.close.take()
 			.expect("Close is taken only in `close` and `drop`. `close` is consuming; qed")

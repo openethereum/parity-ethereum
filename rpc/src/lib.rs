@@ -23,7 +23,6 @@ extern crate futures;
 
 extern crate ansi_term;
 extern crate cid;
-extern crate futures_cpupool;
 extern crate itertools;
 extern crate multihash;
 extern crate order_stat;
@@ -60,7 +59,7 @@ extern crate ethkey;
 extern crate ethstore;
 extern crate fetch;
 extern crate keccak_hash as hash;
-extern crate parity_reactor;
+extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate patricia_trie as trie;

@@ -18,12 +18,12 @@
 
 extern crate ethash;
 extern crate fetch;
-extern crate parity_reactor;
+extern crate parity_runtime;
 extern crate url;
 extern crate hyper;
 
 use self::fetch::{Fetch, Request, Client as FetchClient, Method};
-use self::parity_reactor::Remote;
+use self::parity_runtime::Executor;
 use self::ethash::SeedHashCompute;
 use self::url::Url;
 use self::hyper::header::{self, HeaderValue};
@@ -43,13 +43,13 @@ pub trait NotifyWork : Send + Sync {
 pub struct WorkPoster {
 	urls: Vec<Url>,
 	client: FetchClient,
-	remote: Remote,
+	executor: Executor,
 	seed_compute: Mutex<SeedHashCompute>,
 }
 
 impl WorkPoster {
 	/// Create new `WorkPoster`.
-	pub fn new(urls: &[String], fetch: FetchClient, remote: Remote) -> Self {
+	pub fn new(urls: &[String], fetch: FetchClient, executor: Executor) -> Self {
 		let urls = urls.into_iter().filter_map(|u| {
 			match Url::parse(u) {
 				Ok(url) => Some(url),
@@ -61,7 +61,7 @@ impl WorkPoster {
 		}).collect();
 		WorkPoster {
 			client: fetch,
-			remote: remote,
+			executor: executor,
 			urls: urls,
 			seed_compute: Mutex::new(SeedHashCompute::default()),
 		}
@@ -81,7 +81,7 @@ impl NotifyWork for WorkPoster {
 
 		for u in &self.urls {
 			let u = u.clone();
-			self.remote.spawn(self.client.fetch(
+			self.executor.spawn(self.client.fetch(
 				Request::new(u.clone(), Method::POST)
 					.with_header(header::CONTENT_TYPE, HeaderValue::from_static("application/json"))
 					.with_body(body.clone()), Default::default()

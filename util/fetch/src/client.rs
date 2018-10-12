@@ -608,7 +608,7 @@ impl fmt::Display for Error {
 
 impl ::std::error::Error for Error {
 	fn description(&self) -> &str { "Fetch client error" }
-    fn cause(&self) -> Option<&::std::error::Error> { None }
+	fn cause(&self) -> Option<&::std::error::Error> { None }
 }
 
 impl From<hyper::Error> for Error {

@@ -23,14 +23,13 @@ use dir::default_data_path;
 use dir::helpers::replace_home;
 use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
-use parity_reactor::Remote;
+use parity_runtime::Executor;
 use parity_rpc::informant::{RpcStats, Middleware};
 use parity_rpc::{self as rpc, Metadata, DomainsValidation};
 use rpc_apis::{self, ApiSet};
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::Server as WsServer;
-pub use parity_rpc::informant::CpuPool;
 
 pub const DAPPS_DOMAIN: &'static str = "web3.site";
 
@@ -134,9 +133,8 @@ fn address(enabled: bool, bind_iface: &str, bind_port: u16, hosts: &Option<Vec<S
 
 pub struct Dependencies<D: rpc_apis::Dependencies> {
 	pub apis: Arc<D>,
-	pub remote: Remote,
+	pub executor: Executor,
 	pub stats: Arc<RpcStats>,
-	pub pool: Option<CpuPool>,
 }
 
 pub fn new_ws<D: rpc_apis::Dependencies>(
@@ -155,7 +153,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let handler = {
 		let mut handler = MetaIoHandler::with_middleware((
 			rpc::WsDispatcher::new(full_handler),
-			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), deps.pool.clone())
+			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
 		));
 		let apis = conf.apis.list_apis();
 		deps.apis.extend_with_set(&mut handler, &apis);
@@ -289,7 +287,7 @@ pub fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Meta
 	where D: rpc_apis::Dependencies
 {
 	let mut handler = MetaIoHandler::with_middleware(
-		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), deps.pool.clone())
+		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
 	);
 	let apis = apis.list_apis();
 	deps.apis.extend_with_set(&mut handler, &apis);

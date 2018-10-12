@@ -20,13 +20,13 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
 use std::time;
-use futures_cpupool as pool;
+use parity_runtime;
 use jsonrpc_core as core;
 use jsonrpc_core::futures::future::Either;
 use order_stat;
 use parking_lot::RwLock;
 
-pub use self::pool::CpuPool;
+pub use self::parity_runtime::Executor;
 
 const RATE_SECONDS: usize = 10;
 const STATS_SAMPLES: usize = 60;
@@ -187,16 +187,14 @@ pub trait ActivityNotifier: Send + Sync + 'static {
 pub struct Middleware<T: ActivityNotifier = ClientNotifier> {
 	stats: Arc<RpcStats>,
 	notifier: T,
-	pool: Option<CpuPool>,
 }
 
 impl<T: ActivityNotifier> Middleware<T> {
 	/// Create new Middleware with stats counter and activity notifier.
-	pub fn new(stats: Arc<RpcStats>, notifier: T, pool: Option<CpuPool>) -> Self {
+	pub fn new(stats: Arc<RpcStats>, notifier: T) -> Self {
 		Middleware {
 			stats,
 			notifier,
-			pool,
 		}
 	}
 
@@ -206,10 +204,7 @@ impl<T: ActivityNotifier> Middleware<T> {
 }
 
 impl<M: core::Metadata, T: ActivityNotifier> core::Middleware<M> for Middleware<T> {
-	type Future = core::futures::future::Either<
-		pool::CpuFuture<Option<core::Response>, ()>,
-		core::FutureResponse,
-	>;
+	type Future = core::FutureResponse;
 
 	fn on_request<F, X>(&self, request: core::Request, meta: M, process: F) -> Either<Self::Future, X> where
 		F: FnOnce(core::Request, M) -> X,
@@ -235,10 +230,7 @@ impl<M: core::Metadata, T: ActivityNotifier> core::Middleware<M> for Middleware<
 			res
 		});
 
-		match self.pool {
-			Some(ref pool) => Either::A(Either::A(pool.spawn(future))),
-			None => Either::A(Either::B(Box::new(future))),
-		}
+		Either::A(Box::new(future))
 	}
 }
 

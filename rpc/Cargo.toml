@@ -11,7 +11,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ansi_term = "0.10"
 cid = "0.3"
 futures = "0.1.6"
-futures-cpupool = "0.1"
 log = "0.4"
 multihash = "0.8"
 order-stat = "0.1"
@@ -28,12 +27,12 @@ tokio-timer = "0.1"
 transient-hashmap = "0.4"
 itertools = "0.5"
 
-jsonrpc-core = { git = "https://github.com/c0gent/jsonrpc.git", branch = "c0gent-hyper" }
-jsonrpc-http-server = { git = "https://github.com/c0gent/jsonrpc.git", branch = "c0gent-hyper" }
-jsonrpc-ws-server = { git = "https://github.com/c0gent/jsonrpc.git", branch = "c0gent-hyper" }
-jsonrpc-ipc-server = { git = "https://github.com/c0gent/jsonrpc.git", branch = "c0gent-hyper" }
-jsonrpc-macros = { git = "https://github.com/c0gent/jsonrpc.git", branch = "c0gent-hyper" }
-jsonrpc-pubsub = { git = "https://github.com/c0gent/jsonrpc.git", branch = "c0gent-hyper" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
@@ -55,7 +54,7 @@ ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 fetch = { path = "../util/fetch" }
 keccak-hash = "0.1.2"
-parity-reactor = { path = "../util/reactor" }
+parity-runtime = { path = "../util/runtime" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 patricia-trie = "0.3.0"

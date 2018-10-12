@@ -28,13 +28,12 @@ use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
 use ethcore_logger::RotatingLogger;
 use sync::{ManageNetwork, SyncProvider, LightSync};
-use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use light::client::LightChainClient;
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use miner::external::ExternalMiner;
-use parity_reactor;
+use parity_runtime::Executor;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Metadata, NetworkSettings, Host};
@@ -231,8 +230,7 @@ pub struct FullDependencies {
 	pub geth_compatibility: bool,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
-	pub pool: CpuPool,
-	pub remote: parity_reactor::Remote,
+	pub executor: Executor,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
@@ -253,7 +251,7 @@ impl FullDependencies {
 					let deps = &$deps;
 					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), $nonces, deps.gas_price_percentile);
 					if deps.signer_service.is_enabled() {
-						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &deps.secret_store)))
+						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.executor.clone(), &deps.secret_store)))
 					} else {
 						$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(&deps.secret_store, dispatcher)))
 					}
@@ -261,7 +259,7 @@ impl FullDependencies {
 			}
 		}
 
-		let nonces = Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.pool.clone())));
+		let nonces = Arc::new(Mutex::new(dispatch::Reservations::new(self.executor.clone())));
 		let dispatcher = FullDispatcher::new(
 			self.client.clone(),
 			self.miner.clone(),
@@ -306,7 +304,7 @@ impl FullDependencies {
 				},
 				Api::EthPubSub => {
 					if !for_generic_pubsub {
-						let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
+						let client = EthPubSubClient::new(self.client.clone(), self.executor.clone());
 						let h = client.handler();
 						self.miner.add_transactions_listener(Box::new(move |hashes| if let Some(h) = h.upgrade() {
 							h.notify_new_transactions(hashes);
@@ -322,7 +320,7 @@ impl FullDependencies {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
-					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
+					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.executor.clone()).to_delegate());
 				},
 				Api::Parity => {
 					let signer = match self.signer_service.is_enabled() {
@@ -351,7 +349,7 @@ impl FullDependencies {
 						let mut rpc = MetaIoHandler::default();
 						let apis = ApiSet::List(apis.clone()).retain(ApiSet::PubSub).list_apis();
 						self.extend_api(&mut rpc, &apis, true);
-						handler.extend_with(PubSubClient::new(rpc, self.remote.clone()).to_delegate());
+						handler.extend_with(PubSubClient::new(rpc, self.executor.clone()).to_delegate());
 					}
 				},
 				Api::ParityAccounts => {
@@ -364,7 +362,6 @@ impl FullDependencies {
 						&self.updater,
 						&self.net_service,
 						self.fetch.clone(),
-						self.pool.clone(),
 					).to_delegate())
 				},
 				Api::Traces => {
@@ -440,9 +437,8 @@ pub struct LightDependencies<T> {
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
-	pub pool: CpuPool,
 	pub geth_compatibility: bool,
-	pub remote: parity_reactor::Remote,
+	pub executor: Executor,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub private_tx_service: Option<Arc<PrivateTransactionManager>>,
 	pub gas_price_percentile: usize,
@@ -464,7 +460,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 			self.on_demand.clone(),
 			self.cache.clone(),
 			self.transaction_queue.clone(),
-			Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.pool.clone()))),
+			Arc::new(Mutex::new(dispatch::Reservations::new(self.executor.clone()))),
 			self.gas_price_percentile,
 		);
 
@@ -476,7 +472,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					let secret_store = deps.secret_store.clone();
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(
-							SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &secret_store)
+							SigningQueueClient::new(&deps.signer_service, dispatcher, deps.executor.clone(), &secret_store)
 						))
 					} else {
 						$handler.extend_with(
@@ -522,7 +518,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.on_demand.clone(),
 						self.sync.clone(),
 						self.cache.clone(),
-						self.remote.clone(),
+						self.executor.clone(),
 						self.gas_price_percentile,
 					);
 					self.client.add_listener(client.handler() as Weak<_>);
@@ -538,7 +534,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
-					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
+					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.executor.clone()).to_delegate());
 				},
 				Api::Parity => {
 					let signer = match self.signer_service.is_enabled() {
@@ -565,7 +561,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						let mut rpc = MetaIoHandler::default();
 						let apis = ApiSet::List(apis.clone()).retain(ApiSet::PubSub).list_apis();
 						self.extend_api(&mut rpc, &apis, true);
-						handler.extend_with(PubSubClient::new(rpc, self.remote.clone()).to_delegate());
+						handler.extend_with(PubSubClient::new(rpc, self.executor.clone()).to_delegate());
 					}
 				},
 				Api::ParityAccounts => {
@@ -575,7 +571,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(light::ParitySetClient::new(
 						self.sync.clone(),
 						self.fetch.clone(),
-						self.pool.clone(),
 					).to_delegate())
 				},
 				Api::Traces => {

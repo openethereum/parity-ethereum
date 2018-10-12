@@ -30,6 +30,42 @@ pub enum ServerError {
 	InvalidInterface
 }
 
+
+/// Handle IO errors (ports taken when starting the server).
+impl From<::std::io::Error> for ServerError {
+	fn from(err: ::std::io::Error) -> ServerError {
+		ServerError::IoError(err)
+	}
+}
+
+impl From<http::hyper::error::Error> for ServerError {
+	fn from(err: http::hyper::error::Error) -> ServerError {
+		ServerError::Other(err)
+	}
+}
+
+impl From<ServerError> for String {
+	fn from(err: ServerError) -> String {
+		match err {
+			ServerError::IoError(err) => err.to_string(),
+			ServerError::Other(err) => err.to_string(),
+			ServerError::InvalidInterface => "Invalid --ipfs-api-interface parameter".into(),
+		}
+	}
+}
+
+impl ::std::fmt::Display for ServerError {
+	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match self {
+        	ServerError::IoError(err) => write!(f, "Io Error: {}", err),
+        	ServerError::Other(err) => write!(f, "Other error: {}", err),
+        	ServerError::InvalidInterface => write!(f, "Invalid interface"),
+        }
+    }
+}
+
+impl ::std::error::Error for ServerError {}
+
 #[derive(Debug, PartialEq)]
 pub enum Error {
 	CidParsingFailed,
@@ -72,34 +108,3 @@ impl From<multihash::Error> for Error {
 		Error::CidParsingFailed
 	}
 }
-
-/// Handle IO errors (ports taken when starting the server).
-impl From<::std::io::Error> for ServerError {
-	fn from(err: ::std::io::Error) -> ServerError {
-		ServerError::IoError(err)
-	}
-}
-
-impl From<http::hyper::error::Error> for ServerError {
-	fn from(err: http::hyper::error::Error) -> ServerError {
-		ServerError::Other(err)
-	}
-}
-
-impl From<ServerError> for String {
-	fn from(err: ServerError) -> String {
-		match err {
-			ServerError::IoError(err) => err.to_string(),
-			ServerError::Other(err) => err.to_string(),
-			ServerError::InvalidInterface => "Invalid --ipfs-api-interface parameter".into(),
-		}
-	}
-}
-
-impl ::std::fmt::Display for ServerError {
-	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl ::std::error::Error for ServerError {}
