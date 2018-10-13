@@ -148,6 +148,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_allTransactions")]
 		fn all_transactions(&self) -> Result<Vec<Transaction>>;
 
+		/// Same as parity_allTransactions, but return only transactions hashes.
+		#[rpc(name = "parity_allTransactionHashes")]
+		fn all_transaction_hashes(&self) -> Result<Vec<H256>>;
+
 		/// Returns all future transactions from transaction queue (deprecated)
 		#[rpc(name = "parity_futureTransactions")]
 		fn future_transactions(&self) -> Result<Vec<Transaction>>;
