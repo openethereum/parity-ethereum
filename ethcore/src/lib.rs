@@ -173,6 +173,7 @@ mod externalities;
 mod blockchain;
 mod factory;
 mod tx_filter;
+mod signed;
 
 #[cfg(test)]
 mod tests;
