@@ -1091,7 +1091,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let schedule = self.schedule;
 
 		// refunds from SSTORE nonzero -> zero
-		let sstore_refunds = substate.sstore_clears_refund;
+		assert!(substate.sstore_clears_refund.is_nonnegative(), "On transaction level, sstore clears refund cannot go below zero.");
+		let sstore_refunds = substate.sstore_clears_refund.abs();
 		// refunds from contract suicides
 		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
 		let refunds_bound = sstore_refunds + suicide_refunds;

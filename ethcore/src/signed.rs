@@ -20,7 +20,7 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 use ethereum_types::U256;
 
 /// Sign of a 256-bit integer.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Sign {
 	Positive,
 	Zero,
@@ -28,8 +28,31 @@ pub enum Sign {
 }
 
 /// Representation of a signed 256-bit integer.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct I256(Sign, U256);
+
+impl I256 {
+	/// Get the absolute value of the signed integer.
+	pub fn abs(&self) -> U256 {
+		self.1
+	}
+
+	/// Get the sign of the integer.
+	pub fn sign(&self) -> Sign {
+		self.0
+	}
+
+	/// Check whether the signed integer is non-negative.
+	pub fn is_nonnegative(&self) -> bool {
+		self.0 != Sign::Negative
+	}
+}
+
+impl Default for I256 {
+	fn default() -> Self {
+		I256(Sign::Zero, U256::zero())
+	}
+}
 
 impl From<U256> for I256 {
 	fn from(value: U256) -> Self {
