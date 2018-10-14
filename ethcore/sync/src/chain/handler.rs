@@ -144,6 +144,7 @@ impl SyncHandler {
 
 	/// Called by peer once it has new block bodies
 	pub fn on_peer_new_block(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+		info!("####### SYNCHANDLER::ON_PEER_NEW_BLOCK: Called.");
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
 			return Ok(());

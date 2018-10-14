@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(unused_imports)]
+
 use std::sync::{Arc, Weak};
 
 use block::ExecutedBlock;
@@ -22,11 +24,12 @@ use engines::{Engine, Seal, signer::EngineSigner, ForkChoice};
 use ethjson;
 use ethkey::Password;
 use account_provider::AccountProvider;
-use ethereum_types::Address;
 use error::{BlockError, Error};
 use header::{Header, ExtendedHeader};
 use machine::EthereumMachine;
 use parking_lot::RwLock;
+use ethereum_types::{H256, H520, Address, U128, U256};
+use rlp::{self, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 
 /// `Hbbft` params.
 #[derive(Debug, PartialEq)]
@@ -65,7 +68,7 @@ impl Hbbft {
 }
 /// A temporary fixed seal code. The seal has only a single field, containing this string.
 // TODO: Use a threshold signature of the block.
-const SEAL: &[u8] = b"Don't care.";
+const SEAL: &[u8] = b"00000";
 
 impl Engine<EthereumMachine> for Hbbft {
 	fn name(&self) -> &str {
@@ -79,7 +82,10 @@ impl Engine<EthereumMachine> for Hbbft {
 	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
 	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal {
-		Seal::Regular(vec!(SEAL.to_vec()))
+		Seal::Regular(vec![
+			rlp::encode(&SEAL),
+			// rlp::encode(&(&H520::from(&b"Another Field"[..]) as &[u8])),
+		])
 	}
 
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
@@ -106,13 +112,17 @@ impl Engine<EthereumMachine> for Hbbft {
 	}
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
+		// info!("######## ENGINE-HBBFT::FORK_CHOICE: \n    NEW: {:?}, \n    OLD: {:?}", new, current);
+		use ::parity_machine::TotalScoredHeader;
 		if new.header.number() > current.header.number() {
+			debug_assert!(new.total_score() > current.total_score());
 			ForkChoice::New
 		} else if new.header.number() < current.header.number() {
+			debug_assert!(new.total_score() < current.total_score());
 			ForkChoice::Old
 		} else {
-			panic!("Consensus failure: blocks {:?} and {:?} have equal number {}.",
-				   new.header.hash(), current.header.hash(), new.header.number());
+			debug_assert_eq!(new.total_score(), current.total_score());
+			ForkChoice::Old
 		}
 	}
 
@@ -156,7 +166,7 @@ mod tests {
 
 		assert!(engine.verify_block_basic(&header).is_ok());
 
-		header.set_seal(vec![::rlp::encode(&H520::default()).into_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default())]);
 
 		assert!(engine.verify_block_unordered(&header).is_ok());
 	}

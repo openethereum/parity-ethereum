@@ -87,6 +87,7 @@ pub mod blocks {
 		type Verified = PreverifiedBlock;
 
 		fn create(input: Self::Input, engine: &EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
+			info!("######## BLOCKS::CREATE: Calling `verify_block_basic`, block_header: {:?}", input.header);
 			match verify_block_basic(&input, engine, check_seal) {
 				Ok(()) => Ok(input),
 				Err(Error(ErrorKind::Block(BlockError::TemporarilyInvalid(oob)), _)) => {

@@ -734,6 +734,7 @@ fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountPr
 
 impl ChainNotify for Provider {
 	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
+		info!("####### PROVIDER::NEW_BLOCKS: Called.");
 		if !imported.is_empty() {
 			trace!(target: "privatetx", "New blocks imported, try to prune the queue");
 			if let Err(err) = self.process_verification_queue() {

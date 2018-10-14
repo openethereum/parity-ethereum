@@ -108,6 +108,7 @@ impl ChainNotify for Watcher {
 		_: Vec<Bytes>,
 		_duration: Duration)
 	{
+		info!("####### WATCHER::NEW_BLOCKS: Called");
 		if self.oracle.is_major_importing() { return }
 
 		trace!(target: "snapshot_watcher", "{} imported", imported.len());

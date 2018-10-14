@@ -1445,6 +1445,7 @@ impl CallContract for Client {
 
 impl ImportBlock for Client {
 	fn import_block(&self, unverified: Unverified) -> EthcoreResult<H256> {
+		info!("###### CLIENT::IMPORT_BLOCK: Called.");
 		if self.chain.read().is_known(&unverified.hash()) {
 			bail!(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain));
 		}
@@ -2388,6 +2389,7 @@ impl ImportSealedBlock for Client {
 
 impl BroadcastProposalBlock for Client {
 	fn broadcast_proposal_block(&self, block: SealedBlock) {
+		info!("######### CLIENT::BROADCAST_PROPOSAL_BLOCK: Called.");
 		const DURATION_ZERO: Duration = Duration::from_millis(0);
 		self.notify(|notify| {
 			notify.new_blocks(

@@ -480,6 +480,7 @@ impl Miner {
 		let block_start = Instant::now();
 
 		for transaction in pending {
+			info!("####### MINER::PREPARE_BLOCK_FROM: Processing pending transaction: {:?}.", transaction);
 			let start = Instant::now();
 
 			let hash = transaction.hash();
@@ -661,8 +662,8 @@ impl Miner {
 		match self.engine.generate_seal(block.block(), &parent_header) {
 			// Save proposal for later seal submission and broadcast it.
 			Seal::Proposal(seal) => {
-				// trace!(target: "miner", "Received a Proposal seal.");
-				info!(target: "miner", "Received a Proposal seal.");
+				trace!(target: "miner", "Received a Proposal seal.");
+				info!(target: "miner", "######## Received a Proposal seal.");
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
@@ -685,8 +686,8 @@ impl Miner {
 			// Directly import a regular sealed block.
 			Seal::Regular(seal) => {
 				info!("####### SEAL: {:?}", seal);
-				// trace!(target: "miner", "Received a Regular seal.");
-				info!(target: "miner", "Received a Regular seal.");
+				trace!(target: "miner", "Received a Regular seal.");
+				info!(target: "miner", "######## Received a Regular seal.");
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;

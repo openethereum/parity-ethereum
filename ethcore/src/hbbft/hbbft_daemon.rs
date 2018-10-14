@@ -327,18 +327,25 @@ impl BatchHandler {
 		open_block.set_timestamp(timestamps[timestamps.len() / 2]);
 		let min_tx_gas = u64::max_value().into(); // TODO
 
+		let txn_count = batch_txns.len();
+
 		// Create a block from the agreed transactions. Seal it instantly and
 		// import it.
 		let block = miner.prepare_block_from(open_block, batch_txns, &*client, min_tx_gas).expect("TODO");
+
+		info!("Importing block {} (#{}, epoch: {}, txns: {})",
+			block.hash(), block.block().header.number(), batch.epoch(), txn_count);
 
 		// TODO: Does this remove the block's transactions from the queue? If
 		// not, we need to do so.
 		//
 		// TODO (afck/drpete): Replace instant sealing with a threshold signature.
-		info!("Importing block {} (#{}, epoch {})", block.hash(), block.block().header.number(), batch.epoch());
 		if !miner.seal_and_import_block_internally(&*client, block) {
 			warn!("Failed to seal and import block.");
 		}
+
+		// client.clear_queue();
+		// client.flush_queue();
 
 		// Select new transactions and propose them for the next block.
 		//
@@ -348,6 +355,9 @@ impl BatchHandler {
 		let contrib_size = batch_size / 5;
 
 		let pending = miner.pending_transactions_from_queue(&*client, batch_size);
+
+		// miner.clear();
+
 		let mut rng = rand::thread_rng();
 		let txns = if pending.len() <= contrib_size {
 			pending

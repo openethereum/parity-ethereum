@@ -520,6 +520,7 @@ impl BlockDownloader {
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
 	/// Returns DownloadAction::Reset if it is imported all the the blocks it can and all downloading peers should be reset
 	pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> DownloadAction {
+		info!("####### BLOCKDOWNLOADER::COLLECT_BLOCKS: Called.");
 		let mut download_action = DownloadAction::None;
 		let mut imported = HashSet::new();
 		let blocks = self.blocks.drain();
