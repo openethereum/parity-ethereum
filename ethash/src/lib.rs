@@ -29,6 +29,9 @@ extern crate crunchy;
 extern crate log;
 
 #[cfg(test)]
+extern crate rustc_hex;
+
+#[cfg(test)]
 extern crate tempdir;
 
 mod compute;

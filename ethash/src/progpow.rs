@@ -383,10 +383,18 @@ fn progpow_light(
 #[cfg(test)]
 mod test {
 	use cache::{NodeCacheBuilder, OptimizeFor};
-	use ethereum_types::H256;
+	use keccak::H256;
+	use rustc_hex::FromHex;
 	use shared::get_data_size;
 	use std::env;
-	use super::progpow_light;
+	use super::*;
+
+	fn h256(hex: &str) -> H256 {
+		let bytes = FromHex::from_hex(hex).unwrap();
+		let mut res = [0; 32];
+		res.copy_from_slice(&bytes);
+		res
+	}
 
 	#[test]
 	fn it_works() {
@@ -424,5 +432,68 @@ mod test {
 			assert_eq!(digest, test.digest.0);
 			assert_eq!(result, test.result.0);
 		}
+	}
+
+	#[test]
+	fn test_random_merge() {
+		let tests = [
+			(1000000u32, 101u32, 33000101u32),
+			(2000000, 102, 66003366),
+			(3000000, 103, 2999975),
+			(4000000, 104, 4000104),
+			(1000000, 0, 33000000),
+			(2000000, 0, 66000000),
+			(3000000, 0, 3000000),
+			(4000000, 0, 4000000),
+		];
+
+		for (i, &(mut a, b, exp)) in tests.iter().enumerate() {
+			merge(&mut a, b, i as u32);
+			assert_eq!(a, exp);
+		}
+	}
+
+	#[test]
+	fn test_random_math() {
+		let tests = [
+			(20u32, 22u32, 42u32),
+			(70000, 80000, 1305032704),
+			(70000, 80000, 1),
+			(1, 2, 1),
+			(3, 10000, 196608),
+			(3, 0, 3),
+			(3, 6, 2),
+			(3, 6, 7),
+			(3, 6, 5),
+			(0, 0xffffffff, 32),
+			(3 << 13, 1 << 5, 3),
+			(22, 20, 42),
+			(80000, 70000, 1305032704),
+			(80000, 70000, 1),
+			(2, 1, 1),
+			(10000, 3, 80000),
+			(0, 3, 0),
+			(6, 3, 2),
+			(6, 3, 7),
+			(6, 3, 5),
+			(0, 0xffffffff, 32),
+			(3 << 13, 1 << 5, 3),
+		];
+
+		for (i, &(a, b, exp)) in tests.iter().enumerate() {
+			assert_eq!(
+				math(a, b, i as u32),
+				exp,
+			);
+		}
+	}
+
+	#[test]
+	fn test_keccak_256() {
+		let expected = "5dd431e5fbc604f499bfa0232f45f8f142d0ff5178f539e5a7800bf0643697af";
+		assert_eq!(
+			keccak_f800_long([0; 32], 0, [0; 8]),
+			h256(expected),
+		);
 	}
 }

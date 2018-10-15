@@ -15,6 +15,7 @@ parking_lot = "0.6"
 primal = "0.2.3"
 
 [dev-dependencies]
+rustc-hex = "1.0"
 tempdir = "0.3"
 
 [features]
