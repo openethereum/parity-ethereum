@@ -18,7 +18,6 @@
 
 use cache::Cache;
 use ethcore::header::Header;
-use ethcore::encoded::Header as EncodedHeader;
 use futures::Future;
 use network::{PeerId, NodeId};
 use net::*;
@@ -29,7 +28,7 @@ use ::request::{self as basic_request, Response};
 
 use std::sync::Arc;
 
-use super::{request, OnDemand, Peer, HeaderRef, ResponseError, ValidityError};
+use super::{request, OnDemand, Peer, HeaderRef};
 
 // useful contexts to give the service.
 enum Context {
@@ -307,10 +306,16 @@ fn part_bad_part_good() {
 	let peer_id = 111;
 	let req_ids = (ReqId(14426), ReqId(555));
 
-	harness.inject_peer(peer_id, Peer {
-		status: dummy_status(),
-		capabilities: dummy_capabilities(),
-	});
+	// Enough peers so that the requests don't get dropped
+	for peer in peer_id..=peer_id+5 {
+		harness.inject_peer(
+			peer,
+			Peer {
+				status: dummy_status(),
+				capabilities: dummy_capabilities(),
+			}
+		);
+	}
 
 	let make = |num| {
 		let mut hdr = Header::default();
@@ -467,13 +472,18 @@ fn faulty_by_response_minority_many_times() {
 fn wrong_kind() {
 	let harness = Harness::create();
 
-	let peer_id = 10101;
+	let peer_id = 3;
 	let req_id = ReqId(14426);
 
-	harness.inject_peer(peer_id, Peer {
-		status: dummy_status(),
-		capabilities: dummy_capabilities(),
-	});
+	for peer_id in 0..10 {
+		harness.inject_peer(
+			peer_id,
+			Peer {
+				status: dummy_status(),
+				capabilities: dummy_capabilities(),
+			}
+		);
+	}
 
 	let _recv = harness.service.request_raw(
 		&Context::NoOp,
