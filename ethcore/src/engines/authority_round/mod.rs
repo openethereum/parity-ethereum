@@ -321,7 +321,7 @@ impl EmptyStep {
 
 impl fmt::Display for EmptyStep {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		write!(f, "({}, {}, {})", self.signature, self.step, self.parent_hash)
+		write!(f, "({:x}, {}, {:x})", self.signature, self.step, self.parent_hash)
 	}
 }
 
@@ -829,6 +829,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		if header.seal().len() < header_expected_seal_fields(header, self.empty_steps_transition) {
+			return BTreeMap::default();
+		}
+
 		let step = header_step(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
 		let signature = header_signature(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
 
@@ -1403,10 +1407,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::BTreeMap;
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use hash::keccak;
 	use ethereum_types::{Address, H520, H256, U256};
+	use ethkey::Signature;
 	use header::Header;
 	use rlp::encode;
 	use block::*;
@@ -2071,5 +2077,41 @@ mod tests {
 			b2.block().state().balance(&addr1).unwrap(),
 			addr1_balance + (1000 + 0) + (1000 + 2),
 		)
+	}
+
+	#[test]
+	fn extra_info_from_seal() {
+		let (spec, tap, accounts) = setup_empty_steps();
+		let engine = &*spec.engine;
+
+		let addr1 = accounts[0];
+		engine.set_signer(tap.clone(), addr1, "1".into());
+
+		let mut header: Header = Header::default();
+		let empty_step = empty_step(engine, 1, &header.parent_hash());
+		let sealed_empty_step = empty_step.sealed();
+
+		header.set_number(2);
+		header.set_seal(vec![
+			encode(&2usize),
+			encode(&H520::default()),
+			::rlp::encode_list(&vec![sealed_empty_step]),
+		]);
+
+		let info = engine.extra_info(&header);
+
+		let mut expected = BTreeMap::default();
+		expected.insert("step".into(), "2".into());
+		expected.insert("signature".into(), Signature::from(H520::default()).to_string());
+		expected.insert("emptySteps".into(), format!("[{}]", empty_step));
+
+		assert_eq!(info, expected);
+
+		header.set_seal(vec![]);
+
+		assert_eq!(
+			engine.extra_info(&header),
+			BTreeMap::default(),
+		);
 	}
 }
