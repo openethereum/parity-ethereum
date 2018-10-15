@@ -45,8 +45,6 @@ set -ex
 
 cargo build $RELEASE || exit
 
-PARITY_LOG=peer_node::hydrabadger=error,warn,info,$PARITY_LOG_ADDTL
-
 # Launches node.
 bash -c "\
 RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
