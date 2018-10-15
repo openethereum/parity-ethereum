@@ -1,3 +1,56 @@
+## Parity-Ethereum [v2.0.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.7) (2018-10-11)
+
+Parity-Ethereum 2.0.7-stable is a release that introduces **Constantinople** to the Ethereum client. Upgrading is strongly recommended.
+
+The following hardforks are supported by this release:
+
+- Ropsten testnet block `4_230_000` on October 14, 2018 (Constantinople).
+- POA core mainnet block `5_329_160` on October 22, 2018 (CORE HF 2).
+- Kovan testnet block `9_200_000` on October 25, 2018 (Constantinople, KIP-{4,6}).
+
+Running one of these networks, an upgrade to 2.0.7 or 2.1.2 is mandatory. More details can be found in Changelog below.
+
+Please note, the following deprecations in our distribution of binaries:
+
+- `arm*` targets are no longer served by parity, please consider (cross-)compiling from source yourself.
+- `i*86` targets are no longer served by parity, please consider upgrading your operating system.
+- Snapcraft is no longer maintained. please use binaries directly or your distro's repositories.
+
+The full list of included changes:
+
+- Stable Constantinople changes ([#9723](https://github.com/paritytech/parity-ethereum/pull/9723))
+  - Ethash: implement EIP-1234 ([#9187](https://github.com/paritytech/parity-ethereum/pull/9187))
+  - Implement EIP-1052 (EXTCODEHASH) and fix several issues in state account cache ([#9234](https://github.com/paritytech/parity-ethereum/pull/9234))
+  - Comply EIP-86 with the new definition ([#9140](https://github.com/paritytech/parity-ethereum/pull/9140))
+  - Implement KIP4: create2 for wasm ([#9277](https://github.com/paritytech/parity-ethereum/pull/9277))
+  - `gasleft` extern implemented for WASM runtime (kip-6) ([#9357](https://github.com/paritytech/parity-ethereum/pull/9357))
+  - Add EIP-1014 transition config flag ([#9268](https://github.com/paritytech/parity-ethereum/pull/9268))
+  - Eip 1283: Net gas metering for SSTORE without dirty maps ([#9319](https://github.com/paritytech/parity-ethereum/pull/9319))
+  - Update state tests execution model ([#9440](https://github.com/paritytech/parity-ethereum/pull/9440))
+  - Fix checkpointing when creating contract failed ([#9514](https://github.com/paritytech/parity-ethereum/pull/9514))
+  - In create memory calculation is the same for create2 because the additional parameter was popped before. ([#9522](https://github.com/paritytech/parity-ethereum/pull/9522))
+  - Enable all Constantinople hard fork changes in constantinople_test.json ([#9505](https://github.com/paritytech/parity-ethereum/pull/9505))
+  - Add constantinople conf to EvmTestClient. ([#9570](https://github.com/paritytech/parity-ethereum/pull/9570))
+  - Hardfork the testnets ([#9562](https://github.com/paritytech/parity-ethereum/pull/9562))
+  - Don't hash the init_code of CREATE. ([#9688](https://github.com/paritytech/parity-ethereum/pull/9688))
+  - Implement CREATE2 gas changes and fix some potential overflowing ([#9694](https://github.com/paritytech/parity-ethereum/pull/9694))
+  - Ethcore: delay ropsten hardfork ([#9704](https://github.com/paritytech/parity-ethereum/pull/9704))
+  - Add hardcoded headers ([#9730](https://github.com/paritytech/parity-ethereum/pull/9730))
+  - Gitlab ci: releasable_branches: change variables condition to schedule ([#9729](https://github.com/paritytech/parity-ethereum/pull/9729))
+  - Hf in POA Core (2018-10-22) ([#9724](https://github.com/paritytech/parity-ethereum/pull/9724))
+- Backports for stable 2.0.7 ([#9648](https://github.com/paritytech/parity-ethereum/pull/9648))
+  - Parity-version: bump stable to 2.0.7
+  - Fix path to parity.h ([#9274](https://github.com/paritytech/parity-ethereum/pull/9274))
+  - Ethcore: fix detection of major import ([#9552](https://github.com/paritytech/parity-ethereum/pull/9552))
+  - Fix (light/provider) : Make `read_only executions` only read-only ([#9591](https://github.com/paritytech/parity-ethereum/pull/9591))
+  - Hf in POA Sokol (2018-09-19) ([#9607](https://github.com/paritytech/parity-ethereum/pull/9607))
+  - Fix failing node-table tests on mac os ([#9633](https://github.com/paritytech/parity-ethereum/pull/9633))
+  - Fix(light_fetch): avoid race with BlockNumber::Latest ([#9665](https://github.com/paritytech/parity-ethereum/pull/9665))
+  - Ci: Remove unnecessary pipes ([#9681](https://github.com/paritytech/parity-ethereum/pull/9681))
+  - Docker: run parity as normal user ([#9689](https://github.com/paritytech/parity-ethereum/pull/9689))
+  - Ci: Skip docs job for master and nightly ([#9693](https://github.com/paritytech/parity-ethereum/pull/9693))
+  - Ethcore-io retries failed work steal ([#9651](https://github.com/paritytech/parity-ethereum/pull/9651))
+
 ## Parity-Ethereum [v2.0.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.6) (2018-09-20)
 
 Parity-Ethereum 2.0.6-stable is a release that does not improve performance and stability; no changes were made.
