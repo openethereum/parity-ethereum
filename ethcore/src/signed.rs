@@ -54,6 +54,12 @@ impl Default for I256 {
 	}
 }
 
+impl From<u64> for I256 {
+	fn from(value: u64) -> Self {
+		I256::from(U256::from(value))
+	}
+}
+
 impl From<U256> for I256 {
 	fn from(value: U256) -> Self {
 		if value.is_zero() {

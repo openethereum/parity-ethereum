@@ -2096,7 +2096,8 @@ mod tests {
 		let gas_used = gas - gas_left;
 		// sstore: 0 -> (1) -> () -> (1 -> 0 -> 1)
 		assert_eq!(gas_used, U256::from(41860));
-		assert_eq!(refund, U256::from(19800));
+		assert!(refund.is_nonnegative());
+		assert_eq!(refund.abs(), U256::from(19800));
 
 		assert_eq!(state.storage_at(&operating_address, &k).unwrap(), H256::from(U256::from(1)));
 		// Test a call via top-level -> y2 -> x2
@@ -2114,7 +2115,8 @@ mod tests {
 		let gas_used = gas - gas_left;
 		// sstore: 1 -> (1) -> () -> (0 -> 1 -> 0)
 		assert_eq!(gas_used, U256::from(11860));
-		assert_eq!(refund, U256::from(19800));
+		assert!(refund.is_nonnegative());
+		assert_eq!(refund.abs(), U256::from(19800));
 	}
 
 	fn wasm_sample_code() -> Arc<Vec<u8>> {
