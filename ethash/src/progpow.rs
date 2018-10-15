@@ -380,6 +380,19 @@ fn progpow_light(
 	)
 }
 
+fn generate_cdag(cache: &[Node], epoch: u64) ->[u32; PROGPOW_CACHE_WORDS] {
+	let mut c_dag = [0u32; PROGPOW_CACHE_WORDS];
+
+	for i in 0..PROGPOW_CACHE_WORDS / 16 {
+		let node = ::compute::calculate_dag_item(i as u32, cache);
+		for j in 0..16 {
+			c_dag[i * 16 + j] = LittleEndian::read_u32(&node.as_bytes()[4 * j..]);
+		}
+	}
+
+	c_dag
+}
+
 #[cfg(test)]
 mod test {
 	use cache::{NodeCacheBuilder, OptimizeFor};
@@ -435,6 +448,26 @@ mod test {
 	}
 
 	#[test]
+	fn test_cdag() {
+		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+		let cache = builder.new_cache(env::temp_dir(), 0);
+
+		let c_dag = generate_cdag(cache.as_ref(), 0);
+
+		let expected = vec![
+			690150178u32, 1181503948, 2248155602, 2118233073, 2193871115,
+			1791778428, 1067701239, 724807309, 530799275, 3480325829, 3899029234,
+			1998124059, 2541974622, 1100859971, 1297211151, 3268320000, 2217813733,
+			2690422980, 3172863319, 2651064309
+		];
+
+		assert_eq!(
+			c_dag.iter().take(20).cloned().collect::<Vec<_>>(),
+			expected,
+		);
+	}
+
+	#[test]
 	fn test_random_merge() {
 		let tests = [
 			(1000000u32, 101u32, 33000101u32),
@@ -447,9 +480,9 @@ mod test {
 			(4000000, 0, 4000000),
 		];
 
-		for (i, &(mut a, b, exp)) in tests.iter().enumerate() {
+		for (i, &(mut a, b, expected)) in tests.iter().enumerate() {
 			merge(&mut a, b, i as u32);
-			assert_eq!(a, exp);
+			assert_eq!(a, expected);
 		}
 	}
 
@@ -480,10 +513,10 @@ mod test {
 			(3 << 13, 1 << 5, 3),
 		];
 
-		for (i, &(a, b, exp)) in tests.iter().enumerate() {
+		for (i, &(a, b, expected)) in tests.iter().enumerate() {
 			assert_eq!(
 				math(a, b, i as u32),
-				exp,
+				expected,
 			);
 		}
 	}
