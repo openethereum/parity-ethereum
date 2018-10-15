@@ -41,6 +41,17 @@ else
     DIRECTORY="release"
 fi
 
+if [[ $PARITY_LOG ]]
+then
+    # case "$PARITY_RELEASE" in
+    #     0|false) RELEASE=""; DIRECTORY="debug" ;;
+    #     *) RELEASE="--release"; DIRECTORY="release" ;;
+    # esac
+    PARITY_LOG=$PARITY_LOG
+else
+    PARITY_LOG="info"
+fi
+
 set -ex
 
 cargo build $RELEASE || exit
@@ -57,7 +68,7 @@ RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
     --ws-port $WS_PORT \
     --hbbft-port $HOST_HYDRABADGER_PORT \
     --hbbft-remote-addresses 127.0.0.1:5900 \
-    --hbbft-txn-gen-count 2 \
+    --hbbft-txn-gen-count 1 \
     --jsonrpc-apis web3,eth,pubsub,net,parity,private,parity_pubsub,parity_set,traces,rpc,shh,shh_pubsub,personal,parity_accounts \
     --password=node.pwds \
     --reseal-on-txs="none" \

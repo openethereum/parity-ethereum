@@ -25,7 +25,7 @@ pub mod localized;
 use self::flat::FlatTransactionTraces;
 
 /// Container for block traces.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Tracing {
 	/// This variant should be used when tracing is enabled.
 	Enabled(Vec<FlatTransactionTraces>),

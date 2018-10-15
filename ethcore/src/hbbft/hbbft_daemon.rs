@@ -16,7 +16,7 @@ use futures::{
 	sync::oneshot,
 };
 use parking_lot::Mutex;
-use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid};
+use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid, StateDsct};
 use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
 use hbbft::HbbftConfig;
 use itertools::Itertools;
@@ -155,7 +155,7 @@ impl Laboratory {
 	{
 		let mut rng = OsRng::new().expect("Error creating OS Rng");
 
-		let start_nonce = self.client.state().nonce(&sender)
+		let sender_start_nonce = self.client.state().nonce(&sender)
 			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender));
 
 		let receiver_start_nonce = self.client.state().nonce(&receiver)
@@ -164,13 +164,14 @@ impl Laboratory {
 		// Determine the psuedo node id:
 		let node_id = self.hdb_cfg.bind_address.port() % 100;
 
-		// This is total hackfoolery to ensure that each node's sender account has a balance:
+		// This is total hackfoolery to ensure that each node's sender account
+		// gets a starting balance:
 		let txns = if U256::from(node_id) == receiver_start_nonce {
 			debug!("######## LABORATORY: Sending funds to {:?}", sender);
 			// Add a contribution to initialize account:
 			vec![self.sign_txn(receiver, receiver_pwd.clone(), Transaction {
 				action: Action::Call(sender),
-				nonce: start_nonce,
+				nonce: receiver_start_nonce,
 				gas_price: 0.into(),
 				gas: 1000000.into(),
 				value: (1000000000000000000 as u64).into(),
@@ -181,7 +182,7 @@ impl Laboratory {
 			if self.client.state().balance(&sender).unwrap() > U256::from(TXN_AMOUNT_MAX * self.hdb_cfg.txn_gen_count) {
 				// Generate random txns normally:
 				(0..self.hdb_cfg.txn_gen_count).map(|i| {
-					self.gen_random_txn(start_nonce + i, sender, sender_pwd.clone(), receiver, value_range, &mut rng)
+					self.gen_random_txn(sender_start_nonce + i, sender, sender_pwd.clone(), receiver, value_range, &mut rng)
 						.rlp_bytes()
 				}).collect()
 			} else {
@@ -228,17 +229,20 @@ impl Laboratory {
 			return;
 		}
 
-		// add hydrabadger.state_info_stale() check -> (StateDsct, usize, usize)
+		let (state, _, _) = self.hydrabadger.state_info_stale();
+		if state == StateDsct::Validator {
+			let contribution = self.gen_random_contribution(sender_addr, sender_pwd, receiver_addr, receiver_pwd,
+				&mut RandRange::new(100, 1000));
 
-		let contribution = self.gen_random_contribution(sender_addr, sender_pwd, receiver_addr, receiver_pwd,
-			&mut RandRange::new(100, 1000));
-
-		match self.hydrabadger.push_user_contribution(contribution) {
-			Err(HydrabadgerError::PushUserContributionNotValidator) => {
-				debug!("Unable to push random transactions: this node is not a validator");
-			},
-			Err(err) => unreachable!(),
-			Ok(()) => {},
+			match self.hydrabadger.push_user_contribution(contribution) {
+				Err(HydrabadgerError::PushUserContributionNotValidator) => {
+					debug!("Unable to push contribution: this node is not a validator");
+				},
+				Err(err) => unreachable!(),
+				Ok(()) => {},
+			}
+		} else {
+			debug!("Unable to generate contribution: this node is not a validator");
 		}
 	}
 

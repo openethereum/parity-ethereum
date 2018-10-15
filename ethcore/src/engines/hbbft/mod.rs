@@ -19,7 +19,7 @@
 use std::sync::{Arc, Weak};
 
 use block::ExecutedBlock;
-use client::EngineClient;
+use client::{EngineClient, BlockInfo};
 use engines::{Engine, Seal, signer::EngineSigner, ForkChoice};
 use ethjson;
 use ethkey::Password;
@@ -81,11 +81,38 @@ impl Engine<EthereumMachine> for Hbbft {
 
 	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
-	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal {
-		Seal::Regular(vec![
-			rlp::encode(&SEAL),
-			// rlp::encode(&(&H520::from(&b"Another Field"[..]) as &[u8])),
-		])
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
+		debug!(target: "engine", "####### Hbbft::generate_seal: Called for block: {:?}.", block);
+		// match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+		// 	Some(client) => {
+		// 		let best_block_header_num = (*client).as_full_client().unwrap().best_block_header().number();
+
+		// 		debug!(target: "engine", "###### block.header.number(): {}, best_block_header_num: {}",
+		// 			block.header.number(), best_block_header_num);
+
+		// 		if block.header.number() > best_block_header_num {
+		// 			Seal::Regular(vec![
+		// 				rlp::encode(&SEAL),
+		// 				// rlp::encode(&(&H520::from(&b"Another Field"[..]) as &[u8])),
+		// 			])
+		// 		} else {
+		// 			debug!(target: "engine", "Hbbft::generate_seal: Returning `Seal::None`.");
+		// 			Seal::None
+		// 		}
+		// 	},
+		// 	None => {
+		// 		debug!(target: "engine", "No client ref available.");
+		// 		Seal::None
+		// 	},
+		// }
+
+		if block.transactions.is_empty() {
+			Seal::None
+		} else {
+			Seal::Regular(vec![
+				rlp::encode(&SEAL),
+			])
+		}
 	}
 
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {

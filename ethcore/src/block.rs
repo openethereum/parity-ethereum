@@ -34,6 +34,7 @@
 use std::cmp;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::fmt;
 
 use bytes::Bytes;
 use engines::EthEngine;
@@ -153,6 +154,23 @@ impl ExecutedBlock {
 	/// Get mutable reference to traces.
 	pub fn traces_mut(&mut self) -> &mut Tracing {
 		&mut self.traces
+	}
+}
+
+impl fmt::Debug for ExecutedBlock {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.debug_struct("ExecutedBlock")
+			.field("header", &self.header)
+			.field("transactions", &self.transactions)
+			.field("uncles", &self.uncles)
+			.field("receipts", &self.receipts)
+			.field("transactions_set", &self.transactions_set)
+			.field("state", &self.state)
+			// .field("traces", &self.traces)
+			// .field("last_hashes", &self.last_hashes)
+			.field("traces", &"NOT SHOWN")
+			.field("last_hashes", &"NOT SHOWN")
+			.finish()
 	}
 }
 
