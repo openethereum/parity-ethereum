@@ -1,0 +1,63 @@
+{
+	"name": "Rinkeby",
+	"dataDir": "test",
+	"engine": {
+		"Clique": {
+			"params": {
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"homesteadTransition": 0,
+				"eip100bTransition": 0,
+				"difficultyBombDelays": {
+					"1700000": 3000000,
+					"4230000": 2000000
+				},
+				"validators": {
+					"list": [
+					]
+				}
+			}
+		}
+	},
+	"params": {
+		"gasLimitBoundDivisor": "0x0400",
+		"registrar": "0x0000000000000000000000000000000000000420",
+		"accountStartNonce": "0x0",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID" : "0x67",
+		"forkBlock": 3383558,
+		"forkCanonHash": "0x6b4b80d65951375a70bc1ecf9a270d152dd355454d57869abbae2e42c213e0f3",
+		"maxCodeSize": 24576,
+		"maxCodeSizeTransition": 0,
+		"eip150Transition": 0,
+		"eip160Transition": 0,
+		"eip161abcTransition": 0,
+		"eip161dTransition": 0,
+		"eip155Transition": 0,
+		"eip98Transition": "0",
+		"eip140Transition": 0,
+		"eip211Transition": 0,
+		"eip214Transition": 0,
+		"eip658Transition": 0,
+		"eip145Transition": 0,
+		"eip1014Transition": 0,
+		"eip1052Transition": 0,
+		"eip1283Transition": 0
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x0000000000000042",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x100000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x3636363636363636363636363636363636363636363636363636363636363636",
+		"gasLimit": "0x1000000"
+	}
+}

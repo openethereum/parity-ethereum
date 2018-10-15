@@ -35,6 +35,7 @@ pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
+pub use self::clique::Clique;
 
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};

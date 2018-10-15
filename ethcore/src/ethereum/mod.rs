@@ -21,7 +21,7 @@
 
 /// Export the ethash module.
 pub mod ethash;
-/// Export the denominations module.
+/// Erinkebyxport the denominations module.
 pub mod denominations;
 
 pub use self::ethash::{Ethash};
@@ -107,6 +107,11 @@ pub fn new_ropsten<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 /// Create a new Kovan testnet chain spec.
 pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/kovan.json"))
+}
+
+/// Create a new Rinkeby testnet chain spec.
+pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/rinkeby.json"))
 }
 
 /// Create a new POA Sokol testnet chain spec.

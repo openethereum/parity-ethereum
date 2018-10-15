@@ -7,8 +7,18 @@ impl Engine<EthereumMachine> for Clique {
 		/* ? */
 	}
 
+    /// None means that it requires external input (e.g. PoW) to seal a block.
+    /// /// Some(true) means the engine is currently prime for seal generation (i.e. node
+    ///     is the current validator).
+    /// /// Some(false) means that the node might seal internally but is not qualified
+    ///     now.
+    ///
     fn seals_internally(&self) -> Option<bool> {
-        /* ? */
+        if (isTurnToValidate) {
+            Some(true)
+        } else {
+            Some(false)
+        }
     }
 
     /// Attempt to seal generate a proposal seal.
