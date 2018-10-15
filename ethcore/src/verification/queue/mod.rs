@@ -471,7 +471,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 	/// Add a block to the queue.
 	pub fn import(&self, input: K::Input) -> Result<H256, (K::Input, Error)> {
-		info!("####### VERIFICATIONQUEUE::IMPORT: Called.");
+		debug!("####### VERIFICATIONQUEUE::IMPORT: Called.");
 		let hash = input.hash();
 		{
 			if self.processing.read().contains_key(&hash) {

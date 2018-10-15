@@ -506,7 +506,7 @@ impl ChainNotify for EthSync {
 		proposed: Vec<Bytes>,
 		_duration: Duration)
 	{
-		info!("####### ETHSYNC::NEW_BLOCKS: Called.");
+		debug!("####### ETHSYNC::NEW_BLOCKS: Called.");
 		use light::net::Announcement;
 
 		self.network.with_context(self.subprotocol_name, |context| {

@@ -432,6 +432,10 @@ impl Configuration {
 				.unwrap_or(hbbft.bind_address));
 		}
 
+		if let Some(count) = self.args.arg_hbbft_txn_gen_count {
+			hbbft.txn_gen_count = count;
+		}
+
 		Ok(hbbft)
 	}
 

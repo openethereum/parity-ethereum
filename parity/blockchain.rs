@@ -307,7 +307,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
-	info!("####### EXECUTE_IMPORT: Called.");
+	debug!("####### EXECUTE_IMPORT: Called.");
 	let timer = Instant::now();
 
 	// load spec file

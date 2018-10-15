@@ -1123,12 +1123,12 @@ usage! {
 
 			ARG arg_hbbft_port: (Option<u16>) = None, or |c: &Config| c.hbbft.as_ref()?.port.clone(),
 			"--hbbft-port=[PORT]",
-			"Specifies the port upon which the hydrabadger hbbft node will listen.",
+			"Specify the port upon which the hydrabadger hbbft node will listen.",
 
 			ARG arg_hbbft_interface: (String) = "local", or |c: &Config| c.hbbft.as_ref()?.interface.clone(),
 			"--hbbft-interface=[HOST]",
 			// "Specifies the local address for the hydrabadger hbbft node to listen on.",
-			"Specifies the IP address upon which the hydrabadger hbbft node will listen. Use 'local' for localhost.",
+			"Specify the IP address upon which the hydrabadger hbbft node will listen. Use 'local' for localhost.",
 
 			// ARG arg_hbbft_bind_address: (Option<String>) = None, or |c: &Config| c.hbbft.as_ref()?.bind_address.clone(),
 			// "--hbbft-bind-address=[HOST:PORT]",
@@ -1137,6 +1137,10 @@ usage! {
 			ARG arg_hbbft_remote_addresses: (Option<String>) = None, or |c: &Config| c.hbbft.as_ref()?.remote_addresses.as_ref().map(|vec| vec.join(",")),
 			"--hbbft-remote-addresses=[NODES]",
 			"Specify remote addresses to connect to upon startup. This is equivalent to bootnodes. NODES should be comma-delimited socket addresses.",
+
+			ARG arg_hbbft_txn_gen_count: (Option<usize>) = None, or |_| None,
+			"--hbbft-txn-gen-count=[COUNT]",
+			"Specify the number of transactions to randomly generate (used for testing).",
 
 			// // TODO: Add these:
 			// batch_size: usize,
@@ -1456,6 +1460,7 @@ struct Hbbft {
 	interface: Option<String>,
 	bind_address: Option<String>,
 	remote_addresses: Option<Vec<String>>,
+	txn_gen_count: Option<usize>,
 }
 
 #[cfg(test)]
@@ -2161,6 +2166,7 @@ mod tests {
 				interface: Some("local".into()),
 				bind_address: None,
 				remote_addresses: Some(vec!["127.0.0.1:5911".to_owned()]),
+				txn_gen_count: 5,
 			})
 		});
 	}

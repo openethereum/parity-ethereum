@@ -131,14 +131,11 @@ impl Laboratory {
     }
 
     /// Generates a random-ish transaction.
-    fn gen_random_txn(&self, sender: Address, sender_pwd: Password, receiver: Address,
+    fn gen_random_txn(&self, nonce: U256, sender: Address, sender_pwd: Password, receiver: Address,
 		value_range: &mut RandRange<usize>, rng: &mut OsRng) -> SignedTransaction
     {
 		let data = rng.gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
 		let key = Random.generate().unwrap();
-		let nonce = self.client.state().nonce(&sender)
-			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender));
-
 		let txn = Transaction {
 			action: Action::Call(receiver),
 			nonce,
@@ -153,14 +150,22 @@ impl Laboratory {
 
 	/// Generates a set of random-ish transactions.
 	fn gen_random_contribution(&self, sender: Address, sender_pwd: Password, receiver: Address,
-		value_range: &mut RandRange<usize>) -> Vec<Vec<u8>>
+		value_range: &mut RandRange<usize>) -> Contribution
 	{
 		let mut rng = OsRng::new().expect("Error creating OS Rng");
 
-		(0..self.hdb_cfg.txn_gen_count).map(|_| {
-			self.gen_random_txn(sender, sender_pwd.clone(), receiver, value_range, &mut rng)
+		let start_nonce = self.client.state().nonce(&sender)
+			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender));
+
+		let random_txns = (0..self.hdb_cfg.txn_gen_count).map(|i| {
+			self.gen_random_txn(start_nonce + i, sender, sender_pwd.clone(), receiver, value_range, &mut rng)
 				.rlp_bytes()
-		}).collect()
+		}).collect();
+
+		Contribution {
+			transactions: random_txns,
+			timestamp: UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs(),
+		}
 	}
 
 	fn push_random_transactions_to_hydrabadger(&self) {
@@ -178,13 +183,8 @@ impl Laboratory {
 			err => panic!("{:?}", err),
 		}
 
-		let random_txns = self.gen_random_contribution(sender_addr, sender_pwd, receiver_addr,
+		let contribution = self.gen_random_contribution(sender_addr, sender_pwd, receiver_addr,
 			&mut RandRange::new(100, 1000));
-
-		let contribution = Contribution {
-			transactions: random_txns,
-			timestamp: UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs(),
-		};
 
 		match self.hydrabadger.push_user_contribution(contribution) {
 			Err(HydrabadgerError::PushUserContributionNotValidator) => {
@@ -217,13 +217,19 @@ impl Laboratory {
 		let gas_range_target = (3141562.into(), 31415620.into());
 		let extra_data = vec![];
 
+		let mut sender_acct_nonce: U256 = self.client.state().nonce(&sender_addr)
+			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender_addr));
+
 		// Import some blocks:
-		for _ in 0..0 {
+		for i in 0..0 {
 			let mut open_block: OpenBlock = self.client
 				.prepare_open_block(block_author, gas_range_target, extra_data.clone())
 				.unwrap();
 
-			let txn = self.gen_random_txn(sender_addr, sender_pwd.clone(), receiver_addr, &mut value_range, &mut rng);
+			let txn = self.gen_random_txn(sender_acct_nonce, sender_addr, sender_pwd.clone(), receiver_addr,
+				&mut value_range, &mut rng);
+			sender_acct_nonce += 1.into();
+
 			open_block.push_transaction(txn, None).unwrap();
 
 			let closed_block: ClosedBlock = open_block.close().unwrap();
@@ -240,8 +246,9 @@ impl Laboratory {
 			let miner = self.client.miner();
 			let mut open_block: OpenBlock = miner.prepare_new_block(&*self.client).unwrap();
 
-			let txn: SignedTransaction = self.gen_random_txn(sender_addr, sender_pwd.clone(),
+			let txn: SignedTransaction = self.gen_random_txn(sender_acct_nonce, sender_addr, sender_pwd.clone(),
 				receiver_addr, &mut value_range, &mut rng);
+			sender_acct_nonce += 1.into();
 
 			let min_tx_gas = u64::max_value().into();
 			let block: ClosedBlock = miner.prepare_block_from(open_block, vec![txn], &*self.client, min_tx_gas).unwrap();
@@ -472,7 +479,7 @@ impl HbbftDaemon {
 			// Entry point for experiments:
 			lab.run_experiments();
 
-			Delay::new(Instant::now() + Duration::from_millis(5000))
+			Delay::new(Instant::now() + Duration::from_millis(1000))
 				.map(|_| Loop::Continue(lab))
 				.map_err(|err| panic!("{:?}", err))
 		}));

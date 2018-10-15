@@ -112,7 +112,7 @@ impl Engine<EthereumMachine> for Hbbft {
 	}
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
-		// info!("######## ENGINE-HBBFT::FORK_CHOICE: \n    NEW: {:?}, \n    OLD: {:?}", new, current);
+		// debug!("######## ENGINE-HBBFT::FORK_CHOICE: \n    NEW: {:?}, \n    OLD: {:?}", new, current);
 		use ::parity_machine::TotalScoredHeader;
 		if new.header.number() > current.header.number() {
 			debug_assert!(new.total_score() > current.total_score());

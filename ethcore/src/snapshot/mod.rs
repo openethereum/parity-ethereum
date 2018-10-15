@@ -561,9 +561,9 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
 pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
-	info!("######### VERIFY_OLD_BLOCK: header: {:?}", header);
+	debug!("######### VERIFY_OLD_BLOCK: header: {:?}", header);
 	engine.verify_block_basic(header)?;
-	info!("######### VERIFY_OLD_BLOCK: header verified");
+	debug!("######### VERIFY_OLD_BLOCK: header verified");
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
 		engine.verify_block_unordered(header)?;
