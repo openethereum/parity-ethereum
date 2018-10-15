@@ -321,7 +321,7 @@ impl EmptyStep {
 
 impl fmt::Display for EmptyStep {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		write!(f, "({}, {}, {})", self.signature, self.step, self.parent_hash)
+		write!(f, "({:x}, {}, {:x})", self.signature, self.step, self.parent_hash)
 	}
 }
 
