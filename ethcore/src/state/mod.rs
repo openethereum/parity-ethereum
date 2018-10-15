@@ -572,9 +572,7 @@ impl<B: Backend> State<B> {
 
 			let mut kind = None;
 
-			for checkpoint_index in start_checkpoint_index..checkpoints.len() {
-				let checkpoint = &checkpoints[checkpoint_index];
-
+			for checkpoint in checkpoints.iter().skip(start_checkpoint_index) {
 				match checkpoint.get(address) {
 					// The account exists at this checkpoint.
 					Some(Some(AccountEntry { account: Some(ref account), .. })) => {
