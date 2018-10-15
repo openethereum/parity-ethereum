@@ -37,8 +37,10 @@ use account_provider::AccountProvider;
 
 const RICHIE_ACCT: &'static str = "0x002eb83d1d04ca12fe1956e67ccaa195848e437f";
 const RICHIE_PWD: &'static str =  "richie";
-const NODE0_ACCT: &'static str = "0x00bd138abd70e2f00903268f3db08f2d25677c9e";
-const NODE0_PWD: &'static str =  "node0";
+// const NODE0_ACCT: &'static str = "0x00bd138abd70e2f00903268f3db08f2d25677c9e";
+// const NODE0_PWD: &'static str =  "node0";
+
+const TXN_AMOUNT_MAX: usize = 1000;
 
 type NodeId = Uid;
 
@@ -70,7 +72,16 @@ error_chain! {
 			description("Error polling hydrabadger internal receiver")
 			display("Error polling hydrabadger internal receiver")
 		}
-
+		#[doc = "An ethstore account related error."]
+		EthstoreAccountInitNode(err: ethstore::Error) {
+			description("ethstore error (node)")
+			display("ethstore error (node): {:?}", err)
+		}
+		#[doc = "An ethstore account related error."]
+		EthstoreAccountInitRichie(err: ethstore::Error) {
+			description("ethstore error (richie)")
+			display("ethstore error (richie): {:?}", err)
+		}
 	}
 }
 
@@ -101,41 +112,31 @@ struct Laboratory {
 	hydrabadger: Hydrabadger<Contribution>,
 	hdb_cfg: HbbftConfig,
 	account_provider: Arc<AccountProvider>,
+	account_addr: Address,
+	account_pwd: Password,
 }
 
 impl Laboratory {
-    /// You can use this to create an account within Parity. This method does the exact same
-    /// thing as using the JSON-RPC to create an account. The password and passphrase will be
-    /// set to the account name e.g. "richie" or "node0".
-    fn create_account(&self, name: &str) -> Address {
-        let passphrase = name.to_string();
-        let password = Password::from(name);
-        let key_pair = Brain::new(passphrase).generate().unwrap();
-        let sk = key_pair.secret().clone();
-        self.account_provider.insert_account(sk, &password).unwrap()
-    }
+	/// Returns each Parity account's address and metadata.
+	fn get_accounts(&self) -> HashMap<Address, AccountMeta> {
+		self.account_provider.accounts_info().unwrap()
+	}
 
-    /// Returns each Parity account's address and metadata.
-    fn get_accounts(&self) -> HashMap<Address, AccountMeta> {
-        self.account_provider.accounts_info().unwrap()
-    }
+	/// Converts an unsigned `Transaction` to a `SignedTransaction`.
+	fn sign_txn(&self, sender: Address, password: Password, txn: Transaction) -> SignedTransaction {
+		let chain_id = self.client.signing_chain_id();
+		let txn_hash = txn.hash(chain_id);
+		let sig = self.account_provider.sign(sender, Some(password), txn_hash)
+			.unwrap_or_else(|e| panic!("[hbbft-lab] failed to sign txn: {:?}", e));
+		let unverified_txn = txn.with_signature(sig, chain_id);
+		SignedTransaction::new(unverified_txn).unwrap()
+	}
 
-    /// Converts an unsigned `Transaction` to a `SignedTransaction`.
-    fn sign_txn(&self, sender: Address, password: Password, txn: Transaction) -> SignedTransaction {
-        let chain_id = self.client.signing_chain_id();
-        let txn_hash = txn.hash(chain_id);
-        let sig = self.account_provider.sign(sender, Some(password), txn_hash)
-            .unwrap_or_else(|e| panic!("[hbbft-lab] failed to sign txn: {:?}", e));
-        let unverified_txn = txn.with_signature(sig, chain_id);
-        SignedTransaction::new(unverified_txn).unwrap()
-    }
-
-    /// Generates a random-ish transaction.
-    fn gen_random_txn(&self, nonce: U256, sender: Address, sender_pwd: Password, receiver: Address,
+	/// Generates a random-ish transaction.
+	fn gen_random_txn(&self, nonce: U256, sender: Address, sender_pwd: Password, receiver: Address,
 		value_range: &mut RandRange<usize>, rng: &mut OsRng) -> SignedTransaction
-    {
+	{
 		let data = rng.gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
-		let key = Random.generate().unwrap();
 		let txn = Transaction {
 			action: Action::Call(receiver),
 			nonce,
@@ -146,44 +147,90 @@ impl Laboratory {
 		};
 
 		self.sign_txn(sender, sender_pwd, txn)
-    }
+	}
 
 	/// Generates a set of random-ish transactions.
 	fn gen_random_contribution(&self, sender: Address, sender_pwd: Password, receiver: Address,
-		value_range: &mut RandRange<usize>) -> Contribution
+		receiver_pwd: Password, value_range: &mut RandRange<usize>) -> Contribution
 	{
 		let mut rng = OsRng::new().expect("Error creating OS Rng");
 
 		let start_nonce = self.client.state().nonce(&sender)
 			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender));
 
-		let random_txns = (0..self.hdb_cfg.txn_gen_count).map(|i| {
-			self.gen_random_txn(start_nonce + i, sender, sender_pwd.clone(), receiver, value_range, &mut rng)
-				.rlp_bytes()
-		}).collect();
+		let receiver_start_nonce = self.client.state().nonce(&receiver)
+			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender));
+
+		// Determine the psuedo node id:
+		let node_id = self.hdb_cfg.bind_address.port() % 100;
+
+		// This is total hackfoolery to ensure that each node's sender account has a balance:
+		let txns = if U256::from(node_id) == receiver_start_nonce {
+			debug!("######## LABORATORY: Sending funds to {:?}", sender);
+			// Add a contribution to initialize account:
+			vec![self.sign_txn(receiver, receiver_pwd.clone(), Transaction {
+				action: Action::Call(sender),
+				nonce: start_nonce,
+				gas_price: 0.into(),
+				gas: 1000000.into(),
+				value: (1000000000000000000 as u64).into(),
+				data: vec![],
+			}).rlp_bytes()]
+		} else {
+			// Ensure there is enough balance in the sender account:
+			if self.client.state().balance(&sender).unwrap() > U256::from(TXN_AMOUNT_MAX * self.hdb_cfg.txn_gen_count) {
+				// Generate random txns normally:
+				(0..self.hdb_cfg.txn_gen_count).map(|i| {
+					self.gen_random_txn(start_nonce + i, sender, sender_pwd.clone(), receiver, value_range, &mut rng)
+						.rlp_bytes()
+				}).collect()
+			} else {
+				// TEMPRORARY: This will break when nodes > 3:
+				if receiver_start_nonce > U256::from(3) {
+					panic!("LABORATORY: Error initializing sender account balance");
+				}
+				debug!("######## LABORATORY: receiver_start_nonce: {}", receiver_start_nonce);
+				vec![]
+			}
+		};
 
 		Contribution {
-			transactions: random_txns,
+			transactions: txns,
 			timestamp: UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs(),
 		}
 	}
 
-	fn push_random_transactions_to_hydrabadger(&self) {
-		let sender_addr = Address::from(RICHIE_ACCT);
-		let sender_pwd = Password::from("richie");
-		let receiver_addr = Address::from(NODE0_ACCT);
-
-		match self.account_provider.test_password(&sender_addr, &sender_pwd) {
+	/// Returns false if the account does not exist, true if the account
+	/// exists and the password is correct, and panics if the account exists
+	/// but the password is incorrect.
+	fn test_password(&self, addr: &Address, pwd: &Password) -> bool {
+		match self.account_provider.test_password(addr, pwd) {
 			Ok(false) => panic!("Bad password while pushing random transactions to Hydrabadger."),
 			Ok(true) => {},
 			Err(ethstore::Error::InvalidAccount) => {
 				error!("Transaction sender account does not exist. Skipping hydrabadger contribution push.");
-				return;
+				return false;
 			},
 			err => panic!("{:?}", err),
 		}
+		true
+	}
 
-		let contribution = self.gen_random_contribution(sender_addr, sender_pwd, receiver_addr,
+	fn push_random_transactions_to_hydrabadger(&self) {
+		let sender_addr = self.account_addr;
+		let sender_pwd = self.account_pwd.clone();
+		let receiver_addr = Address::from(RICHIE_ACCT);
+		let receiver_pwd = Password::from(RICHIE_PWD);
+
+		if !(self.test_password(&sender_addr, &sender_pwd)
+			&& self.test_password(&receiver_addr, &receiver_pwd))
+		{
+			return;
+		}
+
+		// add hydrabadger.state_info_stale() check -> (StateDsct, usize, usize)
+
+		let contribution = self.gen_random_contribution(sender_addr, sender_pwd, receiver_addr, receiver_pwd,
 			&mut RandRange::new(100, 1000));
 
 		match self.hydrabadger.push_user_contribution(contribution) {
@@ -196,14 +243,14 @@ impl Laboratory {
 	}
 
 	fn play_with_blocks(&self) {
-        let mut rng = OsRng::new().expect("Error creating OS Rng");
-        let mut value_range = RandRange::new(100, 1000);
+		let mut rng = OsRng::new().expect("Error creating OS Rng");
+		let mut value_range = RandRange::new(100, TXN_AMOUNT_MAX);
 
-        let sender_addr = Address::from(RICHIE_ACCT);
-        let sender_pwd = Password::from(RICHIE_PWD);
-        let receiver_addr = Address::from(NODE0_ACCT);
+		let sender_addr = Address::from(RICHIE_ACCT);
+		let sender_pwd = Password::from(RICHIE_PWD);
+		let receiver_addr = self.account_addr;
 
-        match self.account_provider.test_password(&sender_addr, &sender_pwd) {
+		match self.account_provider.test_password(&sender_addr, &sender_pwd) {
 			Ok(false) => panic!("Bad password while playing with blocks."),
 			Ok(true) => {},
 			Err(ethstore::Error::InvalidAccount) => {
@@ -304,11 +351,6 @@ impl BatchHandler {
 
 		let client = match self.client.upgrade() {
 			Some(client) => client,
-			// TODO: Does this mean Parity is shutting down?
-			//
-			// [Yes, or that it has already shut down. However, the `Client`
-			// ref here does not need to be a `Weak` (for reasons I'm happy to
-			// explain) and should be switched to a regular `Arc`.]
 			None => return,
 		};
 
@@ -414,6 +456,42 @@ impl Future for BatchHandler {
 	}
 }
 
+
+/// You can use this to create an account within Parity. This method does the exact same
+/// thing as using the JSON-RPC to create an account. The password and passphrase will be
+/// set to the account name e.g. "richie" or "node0".
+fn create_account(account_provider: &Arc<AccountProvider>, name: &str)
+	-> Result<(Address, Password), ethstore::Error>
+{
+	let passphrase = name.to_string();
+	let pwd = Password::from(name);
+	let key_pair = Brain::new(passphrase).generate().unwrap();
+	let sk = key_pair.secret().clone();
+	let addr = account_provider.insert_account(sk, &pwd)?;
+	Ok((addr, pwd))
+}
+
+
+/// Creates a node-specific account to use with generated transactions in
+/// addition to unlocking the "richie" account.
+fn initialize_accounts(account_provider: &Arc<AccountProvider>, name: &str)
+	-> Result<(Address, Password), Error>
+{
+	let (addr, pwd) = create_account(account_provider, name)
+		.map_err(|err| ErrorKind::EthstoreAccountInitNode(err))?;
+	account_provider.unlock_account_permanently(addr, pwd.clone())
+		.map_err(|err| ErrorKind::EthstoreAccountInitNode(err))?;
+
+	let (richie_addr, richie_pwd) = create_account(account_provider, RICHIE_PWD)
+		.map_err(|err| ErrorKind::EthstoreAccountInitRichie(err))?;
+	assert!(richie_addr == Address::from(RICHIE_ACCT) && richie_pwd == Password::from(RICHIE_PWD));
+	account_provider.unlock_account_permanently(richie_addr, richie_pwd)
+		.map_err(|err| ErrorKind::EthstoreAccountInitRichie(err))?;
+
+	Ok((addr, pwd))
+}
+
+
 /// An hbbft <-> Parity link which relays events and acts as an intermediary.
 pub struct HbbftDaemon {
 	// Unused:
@@ -463,6 +541,10 @@ impl HbbftDaemon {
 
 		info!("HbbftDaemon has been spawned.");
 
+		// Set up an account to use for txn gen.
+		let (account_addr, account_pwd) = initialize_accounts(&account_provider,
+			&cfg.bind_address.to_string())?;
+
 		let client_clone = client.clone();
 		let hdb_clone = hydrabadger.clone();
 		let cfg_clone = cfg.clone();
@@ -472,6 +554,8 @@ impl HbbftDaemon {
 			hydrabadger: hydrabadger.clone(),
 			hdb_cfg: cfg.clone(),
 			account_provider,
+			account_addr,
+			account_pwd,
 		};
 
 		// Spawn experimentation loop:
@@ -479,7 +563,7 @@ impl HbbftDaemon {
 			// Entry point for experiments:
 			lab.run_experiments();
 
-			Delay::new(Instant::now() + Duration::from_millis(1000))
+			Delay::new(Instant::now() + Duration::from_millis(7000))
 				.map(|_| Loop::Continue(lab))
 				.map_err(|err| panic!("{:?}", err))
 		}));
