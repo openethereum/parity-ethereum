@@ -23,8 +23,11 @@ use miner::Miner;
 use io::IoChannel;
 use test_helpers;
 use verification::queue::kind::blocks::Unverified;
+use verification::VerifierType;
 use super::SKIP_TEST_STATE;
 use super::HookType;
+use header::Header;
+use unexpected::OutOfBounds;
 
 /// Run chain jsontests on a given folder.
 pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
@@ -72,10 +75,6 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					}
 				};
 
-				spec.engine = match blockchain.engine {
-					ethjson::blockchain::Engine::NoProof => Arc::new(no_proof_engine::NoProofEthashEngine(spec.engine)),
-					ethjson::blockchain::Engine::Ethash => spec.engine,
-				};
 				let genesis = Genesis::from(blockchain.genesis());
 				let state = From::from(blockchain.pre_state.clone());
 				spec.set_genesis_state(state).expect("Failed to overwrite genesis state");
@@ -87,6 +86,10 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 			{
 				let db = test_helpers::new_db();
 				let mut config = ClientConfig::default();
+				if ethjson::blockchain::Engine::NoProof == blockchain.engine {
+					config.verifier_type = VerifierType::CanonNoSeal;
+					config.check_seal = false;
+				}
 				config.history = 8;
 				let client = Client::new(
 					config,
@@ -96,11 +99,21 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					IoChannel::disconnected(),
 				).unwrap();
 				for b in blockchain.blocks_rlp() {
+
 					if let Ok(block) = Unverified::from_rlp(b) {
+						if ethjson::blockchain::Engine::NoProof == blockchain.engine {
+							if let Err(e) = no_proof_additional_header_tests(&block.header) {
+								warn!(target: "client", "Stage 1 block verification failed in json tests: {:?}", e);
+								continue;
+							}
+						}
+
 						let _ = client.import_block(block);
 						client.flush_queue();
 						client.import_verified_blocks();
 					}
+
+
 				}
 				fail_unless(client.chain_info().best_block_hash == blockchain.best_block.into());
 			}
@@ -117,71 +130,19 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 	failed
 }
 
-mod no_proof_engine {
-	use ethereum::ethash::{Seal};
-	use engines::{self, Engine, EthEngine};
-	use machine::EthereumMachine;
-	use header::{Header, BlockNumber, ExtendedHeader};
-	use error::{BlockError, Error};
-	use unexpected::OutOfBounds;
-	use std::collections::BTreeMap;
-	use std::sync::Arc;
-	use block::ExecutedBlock;
+/// Some tests on blocks are still required in NoProof mode.
+fn no_proof_additional_header_tests(header: &Header) -> Result<(), ::error::Error> {
+	use ethereum::ethash::Seal;
 
-	/// Run engine but skip some validation for 'NoProof' configuration of json tests.
-	#[derive(Clone)]
-	pub struct NoProofEthashEngine(pub Arc<EthEngine>);
+	// check the seal fields.
+	let _ = Seal::parse_seal(header.seal())?;
 
-	impl Engine<EthereumMachine> for NoProofEthashEngine {
-		/// No difficulty handle, skip some test.
-		fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
-			// check the seal fields.
-			let _ = Seal::parse_seal(header.seal())?;
-
-			if header.gas_limit() > &0x7fffffffffffffffu64.into() {
-				return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
-			}
-
-			Ok(())
-		}
-
-		/// No nonce handle, skip test.
-		fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
-			Ok(())
-		}
-
-		// Dumb composition derive.
-
-		fn name(&self) -> &str { self.0.name() }
-		fn machine(&self) -> &EthereumMachine { self.0.machine() }
-		fn seal_fields(&self, header: &Header) -> usize { self.0.seal_fields(header) }
-		fn extra_info(&self, header: &Header) -> BTreeMap<String, String> { self.0.extra_info(header) }
-		fn maximum_uncle_count(&self, block: BlockNumber) -> usize { self.0.maximum_uncle_count(block) }
-		fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-			self.0.populate_from_parent(header, parent)
-		}
-		fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-			self.0.on_close_block(block)
-		}
-		fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
-			self.0.verify_local_seal(header)
-		}
-		fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-			self.0.verify_block_family(header, parent)
-		}
-		fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> engines::ConstructedVerifier<'a, EthereumMachine> {
-			self.0.epoch_verifier(header, proof)
-		}
-		fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
-			self.0.snapshot_components()
-		}
-		fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
-			self.0.fork_choice(new, current)
-		}
+	if header.gas_limit() > &0x7fffffffffffffffu64.into() {
+		return Err(From::from(::error::BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
+	}
+	Ok(())
 }
 
-
-}
 
 #[cfg(test)]
 mod block_tests {
