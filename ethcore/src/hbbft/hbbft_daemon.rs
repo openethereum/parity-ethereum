@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, atomic::{AtomicBool, Ordering}};
 use std::thread;
-use std::time::{Instant, Duration};
+use std::time::{Instant, Duration, UNIX_EPOCH};
 use std::ops::Range;
 // TODO (c0gent): Update rand crate wide.
 use rand::{self, OsRng, Rng, distributions::{Sample, Range as RandRange}};
@@ -19,6 +19,7 @@ use parking_lot::Mutex;
 use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid};
 use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
 use hbbft::HbbftConfig;
+use itertools::Itertools;
 use rlp::{Decodable, Encodable, Rlp};
 use ethstore;
 use ethjson::misc::AccountMeta;
@@ -39,8 +40,13 @@ const RICHIE_PWD: &'static str =  "richie";
 const NODE0_ACCT: &'static str = "0x00bd138abd70e2f00903268f3db08f2d25677c9e";
 const NODE0_PWD: &'static str =  "node0";
 
-type Contribution = Vec<Vec<u8>>;
 type NodeId = Uid;
+
+#[derive(Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
+struct Contribution {
+	transactions: Vec<Vec<u8>>,
+	timestamp: u64,
+}
 
 // TODO (c0gent): Replace error_chain with failure.
 error_chain! {
@@ -126,9 +132,9 @@ impl Laboratory {
 
     /// Generates a random-ish transaction.
     fn gen_random_txn(&self, sender: Address, sender_pwd: Password, receiver: Address,
-    	value_range: &mut RandRange<usize>, rng: &mut OsRng) -> SignedTransaction
+		value_range: &mut RandRange<usize>, rng: &mut OsRng) -> SignedTransaction
     {
-    	let data = rng.gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
+		let data = rng.gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
 		let key = Random.generate().unwrap();
 		let nonce = self.client.state().nonce(&sender)
 			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender));
@@ -147,14 +153,14 @@ impl Laboratory {
 
 	/// Generates a set of random-ish transactions.
 	fn gen_random_contribution(&self, sender: Address, sender_pwd: Password, receiver: Address,
-		value_range: &mut RandRange<usize>) -> Contribution
+		value_range: &mut RandRange<usize>) -> Vec<Vec<u8>>
 	{
 		let mut rng = OsRng::new().expect("Error creating OS Rng");
 
 		(0..self.hdb_cfg.txn_gen_count).map(|_| {
 			self.gen_random_txn(sender, sender_pwd.clone(), receiver, value_range, &mut rng)
 				.rlp_bytes()
-		}).collect::<Contribution>()
+		}).collect()
 	}
 
 	fn push_random_transactions_to_hydrabadger(&self) {
@@ -175,7 +181,12 @@ impl Laboratory {
 		let random_txns = self.gen_random_contribution(sender_addr, sender_pwd, receiver_addr,
 			&mut RandRange::new(100, 1000));
 
-		match self.hydrabadger.push_user_contribution(random_txns) {
+		let contribution = Contribution {
+			transactions: random_txns,
+			timestamp: UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs(),
+		};
+
+		match self.hydrabadger.push_user_contribution(contribution) {
 			Err(HydrabadgerError::PushUserContributionNotValidator) => {
 				debug!("Unable to push random transactions: this node is not a validator");
 			},
@@ -294,14 +305,14 @@ impl BatchHandler {
 			None => return,
 		};
 
-		let batch_txns: Vec<_> = batch.iter().filter_map(|ser_txn| {
+		let timestamps = batch.contributions().map(|(_, c)| c.timestamp).sorted();
+		let batch_txns: Vec<_> = batch.contributions().flat_map(|(_, c)| &c.transactions).filter_map(|ser_txn| {
 			// TODO: Report proposers of malformed transactions.
 			Decodable::decode(&Rlp::new(ser_txn)).ok()
 		}).filter_map(|txn| {
 			// TODO: Report proposers of invalidly signed transactions.
 			SignedTransaction::new(txn).ok()
 		}).collect();
-
 
 		let miner = client.miner();
 
@@ -310,7 +321,10 @@ impl BatchHandler {
 		// changed.)
 		//
 		// TODO: The block number should equal the batch epoch.
-		let open_block = miner.prepare_new_block(&*client).expect("TODO");
+		let mut open_block = miner.prepare_new_block(&*client).expect("TODO");
+		// The block's timestamp is the median of the proposed timestamps. This guarantees that at least one correct
+		// node's proposal was above it, and at least one was below it.
+		open_block.set_timestamp(timestamps[timestamps.len() / 2]);
 		let min_tx_gas = u64::max_value().into(); // TODO
 
 		// Create a block from the agreed transactions. Seal it instantly and
@@ -341,9 +355,13 @@ impl BatchHandler {
 			rand::seq::sample_slice(&mut rng, &pending, contrib_size)
 		};
 		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes()).collect();
-		info!("Proposing {} transactions for epoch {}.", ser_txns.len(), batch.epoch() + 1);
+		let contribution = Contribution {
+			transactions: ser_txns,
+			timestamp: UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs(),
+		};
+		info!("Proposing {} transactions for epoch {}.", contribution.transactions.len(), batch.epoch() + 1);
 
-		self.hydrabadger.push_user_contribution(ser_txns).expect("TODO");
+		self.hydrabadger.push_user_contribution(contribution).expect("TODO");
 	}
 }
 

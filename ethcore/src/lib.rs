@@ -90,6 +90,9 @@ extern crate rand;
 extern crate rayon;
 extern crate rlp;
 extern crate rlp_compress;
+extern crate serde;
+#[macro_use(Serialize, Deserialize)]
+extern crate serde_derive;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate heapsize;

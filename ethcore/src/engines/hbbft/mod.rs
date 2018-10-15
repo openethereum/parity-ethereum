@@ -63,7 +63,7 @@ impl Hbbft {
 		}
 	}
 }
-/// A temporary fixed seal code.
+/// A temporary fixed seal code. The seal has only a single field, containing this string.
 // TODO: Use a threshold signature of the block.
 const SEAL: &[u8] = b"Don't care.";
 
@@ -76,7 +76,7 @@ impl Engine<EthereumMachine> for Hbbft {
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn seal_fields(&self, _header: &Header) -> usize { SEAL.len() }
+	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
 	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal {
 		Seal::Regular(vec!(SEAL.to_vec()))
