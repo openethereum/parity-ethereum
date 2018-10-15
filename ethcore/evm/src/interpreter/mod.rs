@@ -720,7 +720,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					gasometer::handle_eip1283_sstore_clears_refund(ext, &original_val, &current_val, &val);
 				} else {
 					if !current_val.is_zero() && val.is_zero() {
-						let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
+						let sstore_clears_schedule = ext.schedule().sstore_refund_gas;
 						ext.add_sstore_refund(sstore_clears_schedule);
 					}
 				}

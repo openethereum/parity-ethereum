@@ -17,7 +17,6 @@
 //! Execution environment substate.
 use std::collections::HashSet;
 use ethereum_types::Address;
-use signed::I256;
 use log_entry::LogEntry;
 use evm::{Schedule, CleanDustMode};
 use super::CleanupMode;
@@ -36,7 +35,7 @@ pub struct Substate {
 	pub logs: Vec<LogEntry>,
 
 	/// Refund counter of SSTORE.
-	pub sstore_clears_refund: I256,
+	pub sstore_clears_refund: i128,
 
 	/// Created contracts.
 	pub contracts_created: Vec<Address>,
