@@ -18,6 +18,7 @@
 
 use cache::Cache;
 use ethcore::header::Header;
+use ethcore::encoded::Header as EncodedHeader;
 use futures::Future;
 use network::{PeerId, NodeId};
 use net::*;
@@ -28,7 +29,7 @@ use ::request::{self as basic_request, Response};
 
 use std::sync::Arc;
 
-use super::{request, OnDemand, Peer, HeaderRef};
+use super::{request, OnDemand, Peer, HeaderRef, ResponseError, ValidityError};
 
 // useful contexts to give the service.
 enum Context {
@@ -365,6 +366,101 @@ fn part_bad_part_good() {
 	);
 
 	assert!(recv.wait().is_ok());
+}
+
+#[test]
+fn determine_faulty_response_by_majority() {
+	let mut harness = Harness::create();
+
+	// peer[0]      - requester ("light")
+	// peer[1..9]   - responders ("providers"
+	let peers: Vec<PeerId> = (1..=10).map(|id| id).collect();
+
+	let req_id = ReqId(14426);
+
+	for peer in &peers {
+		harness.inject_peer(
+			*peer,
+			Peer {
+				status: dummy_status(),
+				capabilities: dummy_capabilities(),
+			}
+		);
+	}
+
+	// make sure query limit doesn't interfer
+	harness.service.base_retry_count = usize::max_value();
+
+	let _recv = harness.service.request_raw(
+		&Context::RequestFrom(peers[0], req_id),
+		vec![
+			request::HeaderByHash(Header::default().encoded().hash().into()).into(),
+		],
+	).unwrap();
+
+	harness.service.dispatch_pending(&Context::RequestFrom(peers[0], req_id));
+
+	for i in 1..=6 {
+		harness.service.on_responses(
+			&Context::RequestFrom(peers[i], req_id),
+			req_id,
+			&[]
+		);
+		// Until 6 bad responses have been received the pending will be refilled
+		if i < 6 {
+			assert_eq!(harness.service.pending.read().len(), 1, "The request should be pending");
+			let pend = harness.service.pending.write().remove(0);
+			harness.service.in_transit.write().insert(req_id, pend);
+		}
+	}
+
+	// the request has been dropped reached `bad_responses` > |peers| / 2`
+	assert_eq!(harness.service.pending.read().len(), 0);
+	assert!(harness.service.in_transit.read().get(&req_id).is_none());
+}
+
+#[test]
+fn faulty_by_response_minority_many_times() {
+	let mut harness = Harness::create();
+
+	let peers: Vec<PeerId> = (1..=10).map(|id| id).collect();
+
+	let req_id = ReqId(14426);
+
+	for peer in &peers {
+		harness.inject_peer(
+			*peer,
+			Peer {
+				status: dummy_status(),
+				capabilities: dummy_capabilities(),
+			}
+		);
+	}
+
+	// make sure query limit doesn't interfer
+	harness.service.base_retry_count = usize::max_value();
+
+	let _recv = harness.service.request_raw(
+		&Context::RequestFrom(peers[0], req_id),
+		vec![
+			request::HeaderByHash(Header::default().encoded().hash().into()).into(),
+		],
+	).unwrap();
+
+	harness.service.dispatch_pending(&Context::RequestFrom(peers[0], req_id));
+
+	for i in 1..=1000 {
+		harness.service.on_responses(
+			&Context::RequestFrom(peers[i % 2], req_id),
+			req_id,
+			&[]
+		);
+		assert_eq!(harness.service.pending.read().len(), 1, "The request should be pending");
+		let pend = harness.service.pending.write().remove(0);
+		harness.service.in_transit.write().insert(req_id, pend);
+	}
+
+	assert!(harness.service.in_transit.read().get(&req_id).is_some(), "The request should be pending");
 }
 
 #[test]

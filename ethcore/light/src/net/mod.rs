@@ -567,7 +567,12 @@ impl LightProtocol {
 			None => Err(Error::UnknownPeer), // probably only occurs in a race of some kind.
 		};
 
-		res.map(|_| IdGuard::new(peers, peer, req_id))
+		if let Err(err) = res {
+			trace!(target: "on_demand", "pre_verify_response_failed: {:?}", err);
+			Err(err)
+		} else {
+			Ok(IdGuard::new(peers, peer, req_id))
+		}
 	}
 
 	/// Handle a packet using the given io context.
