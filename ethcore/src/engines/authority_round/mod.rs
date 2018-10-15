@@ -829,6 +829,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		if header.seal().len() < header_expected_seal_fields(header, self.empty_steps_transition) {
+			return BTreeMap::default();
+		}
+
 		let step = header_step(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
 		let signature = header_signature(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
 
