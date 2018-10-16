@@ -40,7 +40,7 @@ else
 	# echo Your blockchain state for all nodes has been reset.
 	# echo Please copy the new node 0 enode id to the \'indica-node-signer\' script and change the IP address to \'127.0.0.1\'.
 	# echo You can now launch nodes using \'indica-node-signer\'.
-	echo Use with 'clear' argument to clear node data.
+	echo Use with \'clear\' argument to clear node data.
 fi
 
 
