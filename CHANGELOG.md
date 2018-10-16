@@ -1,3 +1,61 @@
+## Parity-Ethereum [v2.1.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.1) (2018-10-12)
+
+Parity-Ethereum 2.1.2-beta is a release that introduces **Constantinople** to the Ethereum client. Upgrading is strongly recommended.
+
+![europe-1803495_1280](https://user-images.githubusercontent.com/15729797/46785767-15f1e280-cd33-11e8-862a-458edfd73ecf.png)
+
+The following hardforks are supported by this release:
+
+- Ropsten testnet block `4_230_000` on October 14, 2018 (Constantinople)
+- POA core mainnet block `5_329_160` on October 22, 2018 (CORE HF 2)
+- Kovan testnet block `9_200_000` on October 25, 2018 (Constantinople, KIP-{4,6})
+
+Running one of these networks, an upgrade to 2.0.7 or 2.1.2 is mandatory. More details can be found in Changelog below.
+
+Please note, the following deprecations in our distribution of binaries:
+
+- `arm*` targets are no longer served by parity, please consider (cross-)compiling from source yourself.
+- `i*86` targets are no longer served by parity, please consider upgrading your operating system.
+- Snapcraft is no longer maintained. please use binaries directly or your distro's repositories.
+
+The full list of included changes:
+
+- More backports for 2.1.2 ([#9733](https://github.com/paritytech/parity-ethereum/pull/9733))
+  - Produce portable binaries ([#9725](https://github.com/paritytech/parity-ethereum/pull/9725))
+  - HF in POA Core (2018-10-22) ([#9724](https://github.com/paritytech/parity-ethereum/pull/9724))
+  - Use static call and apparent value transfer for block reward contract code ([#9603](https://github.com/paritytech/parity-ethereum/pull/9603))
+  - Verify block syncing responses against requests ([#9670](https://github.com/paritytech/parity-ethereum/pull/9670))
+  - Fix ancient blocks sync ([#9531](https://github.com/paritytech/parity-ethereum/pull/9531))
+  - Add hardcoded headers ([#9730](https://github.com/paritytech/parity-ethereum/pull/9730))
+  - Gitlab ci: releasable_branches: change variables condition to schedule ([#9729](https://github.com/paritytech/parity-ethereum/pull/9729))
+- Backports for beta 2.1.2 ([#9649](https://github.com/paritytech/parity-ethereum/pull/9649))
+  - Parity-version: bump beta to 2.1.2
+  - Ethcore: fix detection of major import ([#9552](https://github.com/paritytech/parity-ethereum/pull/9552))
+  - Hardfork the testnets ([#9562](https://github.com/paritytech/parity-ethereum/pull/9562))
+  - Docs(rpc): push the branch along with tags ([#9578](https://github.com/paritytech/parity-ethereum/pull/9578))
+  - Remove snapcraft clean ([#9585](https://github.com/paritytech/parity-ethereum/pull/9585))
+  - Fix (light/provider) : Make `read_only executions` only read-only ([#9591](https://github.com/paritytech/parity-ethereum/pull/9591))
+  - Ci: fix regex 🙄 ([#9597](https://github.com/paritytech/parity-ethereum/pull/9597))
+  - Docs(rpc): annotate tag with the provided message ([#9601](https://github.com/paritytech/parity-ethereum/pull/9601))
+  - Update ropsten bootnodes ([#9602](https://github.com/paritytech/parity-ethereum/pull/9602))
+  - HF in POA Sokol (2018-09-19) ([#9607](https://github.com/paritytech/parity-ethereum/pull/9607))
+  - Fix(network): don't disconnect reserved peers ([#9608](https://github.com/paritytech/parity-ethereum/pull/9608))
+  - Fix failing node-table tests on mac os ([#9633](https://github.com/paritytech/parity-ethereum/pull/9633))
+  - Fix bad-block reporting no reason ([#9638](https://github.com/paritytech/parity-ethereum/pull/9638))
+  - Ethcore-io retries failed work steal ([#9651](https://github.com/paritytech/parity-ethereum/pull/9651))
+  - Remove master from releasable branches ([#9655](https://github.com/paritytech/parity-ethereum/pull/9655))
+  - Test fix for windows cache name... ([#9658](https://github.com/paritytech/parity-ethereum/pull/9658))
+  - Fix(light_fetch): avoid race with BlockNumber::Latest ([#9665](https://github.com/paritytech/parity-ethereum/pull/9665))
+  - Calculate sha3 instead of sha256 for push-release. ([#9673](https://github.com/paritytech/parity-ethereum/pull/9673))
+  - Ci: fix push script ([#9679](https://github.com/paritytech/parity-ethereum/pull/9679))
+  - CI: Remove unnecessary pipes ([#9681](https://github.com/paritytech/parity-ethereum/pull/9681))
+  - Don't hash the init_code of CREATE. ([#9688](https://github.com/paritytech/parity-ethereum/pull/9688))
+  - Docker: run parity as normal user ([#9689](https://github.com/paritytech/parity-ethereum/pull/9689))
+  - CI: Skip docs job for master and nightly ([#9693](https://github.com/paritytech/parity-ethereum/pull/9693))
+  - Implement CREATE2 gas changes and fix some potential overflowing ([#9694](https://github.com/paritytech/parity-ethereum/pull/9694))
+  - Make instantSeal engine backwards compatible ([#9700](https://github.com/paritytech/parity-ethereum/pull/9700))
+  - Ethcore: delay ropsten hardfork ([#9704](https://github.com/paritytech/parity-ethereum/pull/9704))
+
 ## Parity-Ethereum [v2.1.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.1) (2018-09-20)
 
 Parity-Ethereum 2.1.1-beta is a release that does not improve performance and stability; no changes were made.

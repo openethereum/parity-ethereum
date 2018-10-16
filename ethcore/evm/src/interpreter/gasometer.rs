@@ -403,7 +403,7 @@ fn calculate_eip1283_sstore_gas<Gas: evm::CostType>(schedule: &Schedule, origina
 }
 
 pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, current: &U256, new: &U256) {
-	let sstore_clears_schedule = U256::from(ext.schedule().sstore_refund_gas);
+	let sstore_clears_schedule = ext.schedule().sstore_refund_gas;
 
 	if current == new {
 		// 1. If current value equals new value (this is a no-op), 200 gas is deducted.
@@ -438,11 +438,11 @@ pub fn handle_eip1283_sstore_clears_refund(ext: &mut vm::Ext, original: &U256, c
 				// 2.2.2. If original value equals new value (this storage slot is reset)
 				if original.is_zero() {
 					// 2.2.2.1. If original value is 0, add 19800 gas to refund counter.
-					let refund = U256::from(ext.schedule().sstore_set_gas - ext.schedule().sload_gas);
+					let refund = ext.schedule().sstore_set_gas - ext.schedule().sload_gas;
 					ext.add_sstore_refund(refund);
 				} else {
 					// 2.2.2.2. Otherwise, add 4800 gas to refund counter.
-					let refund = U256::from(ext.schedule().sstore_reset_gas - ext.schedule().sload_gas);
+					let refund = ext.schedule().sstore_reset_gas - ext.schedule().sload_gas;
 					ext.add_sstore_refund(refund);
 				}
 			}

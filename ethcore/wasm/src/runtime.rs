@@ -285,7 +285,7 @@ impl<'a> Runtime<'a> {
 		self.ext.set_storage(key, val).map_err(|_| Error::StorageUpdateError)?;
 
 		if former_val != H256::zero() && val == H256::zero() {
-			let sstore_clears_schedule = U256::from(self.schedule().sstore_refund_gas);
+			let sstore_clears_schedule = self.schedule().sstore_refund_gas;
 			self.ext.add_sstore_refund(sstore_clears_schedule);
 		}
 

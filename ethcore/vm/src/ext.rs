@@ -151,10 +151,10 @@ pub trait Ext {
 	fn depth(&self) -> usize;
 
 	/// Increments sstore refunds counter.
-	fn add_sstore_refund(&mut self, value: U256);
+	fn add_sstore_refund(&mut self, value: usize);
 
 	/// Decrements sstore refunds counter.
-	fn sub_sstore_refund(&mut self, value: U256);
+	fn sub_sstore_refund(&mut self, value: usize);
 
 	/// Decide if any more operations should be traced. Passthrough for the VM trace.
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
