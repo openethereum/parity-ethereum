@@ -36,7 +36,11 @@ mod subscribers;
 mod subscription_manager;
 mod work;
 
-pub use self::dispatch::{Dispatcher, FullDispatcher};
+use std::sync::Arc;
+
+use transaction::{PendingTransaction};
+
+pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, SyncPollFilter, limit_logs};
@@ -55,4 +59,13 @@ pub use self::work::submit_work_detail;
 
 pub fn to_url(address: &Option<::Host>) -> Option<String> {
 	address.as_ref().map(|host| (**host).to_owned())
+}
+
+pub fn light_all_transactions(dispatch: &Arc<LightDispatcher>) -> impl Iterator<Item=PendingTransaction> {
+	let txq = dispatch.transaction_queue.read();
+	let chain_info = dispatch.client.chain_info();
+
+	let current = txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+	let future = txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+	current.into_iter().chain(future.into_iter())
 }
