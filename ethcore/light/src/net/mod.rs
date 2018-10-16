@@ -248,7 +248,7 @@ pub trait Handler: Send + Sync {
 	fn tick(&self, _ctx: &BasicContext) { }
 	/// Called on abort. This signals to handlers that they should clean up
 	/// and ignore peers.
-	// TODO: coreresponding `on_activate`?
+	// TODO: corresponding `on_activate`?
 	fn on_abort(&self) { }
 }
 

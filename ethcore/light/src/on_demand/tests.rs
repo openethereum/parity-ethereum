@@ -374,11 +374,11 @@ fn part_bad_part_good() {
 }
 
 #[test]
-fn determine_faulty_response_by_majority() {
+fn determine_response_as_faulty_by_majority() {
 	let mut harness = Harness::create();
 
 	// peer[0]      - requester ("light")
-	// peer[1..9]   - responders ("providers"
+	// peer[1..9]   - responders ("providers")
 	let peers: Vec<PeerId> = (1..=10).map(|id| id).collect();
 
 	let req_id = ReqId(14426);
@@ -425,7 +425,7 @@ fn determine_faulty_response_by_majority() {
 }
 
 #[test]
-fn faulty_by_response_minority_many_times() {
+fn response_by_minority_many_times() {
 	let mut harness = Harness::create();
 
 	let peers: Vec<PeerId> = (1..=10).map(|id| id).collect();

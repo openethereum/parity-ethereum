@@ -84,7 +84,7 @@ pub mod error {
 				display("On-demand query limit reached on query #{}", query_index)
 			}
 
-			#[doc = "No reply with current peer set, time out occured while waiting for new peers for additional query attempt."]
+			#[doc = "No reply with current peer set, time out occurred while waiting for new peers for additional query attempt."]
 			TimeoutOnNewPeers(query_index: usize, remaining_attempts: usize) {
 				description("Timeout for On-demand query")
 				display("Timeout for On-demand query; {} query attempts remain for query #{}", remaining_attempts, query_index)
@@ -187,8 +187,6 @@ impl Pending {
 	// supply a response.
 	fn supply_response(&mut self, cache: &Mutex<Cache>, response: &basic_request::Response)
 		-> Result<(), basic_request::ResponseError<self::request::Error>> {
-
-		println!("{:?}", response);
 		match self.requests.supply_response(&cache, response) {
 			Ok(response) => {
 				let idx = self.responses.len();
@@ -271,7 +269,7 @@ impl Pending {
 	// The given request is determined as faulty and drop it accordingly
 	fn set_as_faulty_request(self, total_peers: usize, req_id: ReqId) {
 		let bad_peers = self.bad_responses.len();
-		warn!(target: "on_demand", "The request: {} was determined as faulty, {}/{} peer(s) gave bad response", req_id, bad_peers, total_peers);
+		trace!(target: "on_demand", "The request: {} was determined as faulty, {}/{} peer(s) gave bad response", req_id, bad_peers, total_peers);
 		let err = self::error::ErrorKind::FaultyRequest(req_id, bad_peers, total_peers);
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on time out");
@@ -649,7 +647,7 @@ impl Handler for OnDemand {
 				return;
 			}
 
-			// no remaning queries attempts left on the response
+			// no remaining queries attempts left on the response
 			if pending.remaining_query_count == 0 {
 				pending.no_response();
 				return;
