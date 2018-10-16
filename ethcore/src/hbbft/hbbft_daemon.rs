@@ -377,7 +377,8 @@ impl BatchHandler {
 		let mut open_block = miner.prepare_new_block(&*client).expect("TODO");
 		// The block's timestamp is the median of the proposed timestamps. This guarantees that at least one correct
 		// node's proposal was above it, and at least one was below it.
-		open_block.set_timestamp(timestamps[timestamps.len() / 2]);
+		let timestamp = open_block.header().timestamp().max(timestamps[timestamps.len() / 2]);
+		open_block.set_timestamp(timestamp);
 		let min_tx_gas = u64::max_value().into(); // TODO
 
 		let txn_count = batch_txns.len();
