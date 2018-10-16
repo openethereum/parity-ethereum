@@ -68,7 +68,7 @@ impl Hbbft {
 }
 /// A temporary fixed seal code. The seal has only a single field, containing this string.
 // TODO: Use a threshold signature of the block.
-const SEAL: &[u8] = b"00000";
+const SEAL: &str = "Honey Badger isn't afraid of seals!";
 
 impl Engine<EthereumMachine> for Hbbft {
 	fn name(&self) -> &str {
@@ -80,6 +80,8 @@ impl Engine<EthereumMachine> for Hbbft {
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
 	fn seal_fields(&self, _header: &Header) -> usize { 1 }
+
+	fn should_miner_prepare_blocks(&self) -> bool { false }
 
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		debug!(target: "engine", "####### Hbbft::generate_seal: Called for block: {:?}.", block);
@@ -106,17 +108,13 @@ impl Engine<EthereumMachine> for Hbbft {
 		// 	},
 		// }
 
-		if block.transactions.is_empty() {
-			Seal::None
-		} else {
-			Seal::Regular(vec![
-				rlp::encode(&SEAL),
-			])
-		}
+		Seal::Regular(vec![
+			rlp::encode(&SEAL),
+		])
 	}
 
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
-		if header.seal() == &[SEAL] {
+		if header.seal() == &[rlp::encode(&SEAL)] {
 			Ok(())
 		} else {
 			Err(BlockError::InvalidSeal.into())
@@ -173,8 +171,8 @@ mod tests {
 	use engines::Seal;
 
 	#[test]
-	fn instant_can_seal() {
-		let spec = Spec::new_instant();
+	fn hbbft_can_seal() {
+		let spec = Spec::new_hbbft();
 		let engine = &*spec.engine;
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
@@ -183,12 +181,14 @@ mod tests {
 		let b = b.close_and_lock().unwrap();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
+		} else {
+			panic!("Failed to seal block.");
 		}
 	}
 
 	#[test]
-	fn instant_cant_verify() {
-		let engine = Spec::new_instant().engine;
+	fn hbbft_cant_verify() {
+		let engine = Spec::new_hbbft().engine;
 		let mut header: Header = Header::default();
 
 		assert!(engine.verify_block_basic(&header).is_ok());

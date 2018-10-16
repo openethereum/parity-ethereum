@@ -902,6 +902,11 @@ impl Spec {
 		load_bundled!("instant_seal")
 	}
 
+	/// Create a new Spec with HBBFT consensus which does internal sealing (not requiring work).
+	pub fn new_hbbft() -> Spec {
+		load_bundled!("hbbft")
+	}
+
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a
 	/// NullEngine consensus.
 	#[cfg(any(test, feature = "test-helpers"))]

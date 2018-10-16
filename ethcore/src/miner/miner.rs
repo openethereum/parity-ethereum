@@ -398,6 +398,9 @@ impl Miner {
 	fn prepare_block<C>(&self, chain: &C) -> Option<(ClosedBlock, Option<H256>)> where
 		C: BlockChain + CallContract + BlockProducer + Nonce + Sync,
 	{
+		if !self.engine.should_miner_prepare_blocks() {
+			return None;
+		}
 		trace_time!("prepare_block");
 		let chain_info = chain.chain_info();
 

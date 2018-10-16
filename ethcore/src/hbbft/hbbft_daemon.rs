@@ -352,6 +352,7 @@ impl BatchHandler {
 	/// algorithm.
 	fn handle_batch(&mut self, batch: Batch<Contribution, NodeId>) {
 		let epoch = batch.epoch();
+		let block_num = epoch + 1;
 
 		let client = match self.client.upgrade() {
 			Some(client) => client,
@@ -372,30 +373,34 @@ impl BatchHandler {
 		// TODO (c0gent/drpete): Make sure this produces identical blocks in
 		// all validators. (Probably at least `params.author` needs to be
 		// changed.)
-		//
-		// TODO: The block number should equal the batch epoch.
 		let mut open_block = miner.prepare_new_block(&*client).expect("TODO");
-		// The block's timestamp is the median of the proposed timestamps. This guarantees that at least one correct
-		// node's proposal was above it, and at least one was below it.
-		let timestamp = open_block.header().timestamp().max(timestamps[timestamps.len() / 2]);
-		open_block.set_timestamp(timestamp);
-		let min_tx_gas = u64::max_value().into(); // TODO
+		if open_block.header().number() == block_num {
+			// The block's timestamp is the median of the proposed timestamps. This guarantees that at least one correct
+			// node's proposal was above it, and at least one was below it.
+			let timestamp = open_block.header().timestamp().max(timestamps[timestamps.len() / 2]);
+			open_block.set_timestamp(timestamp);
+			let min_tx_gas = u64::max_value().into(); // TODO
 
-		let txn_count = batch_txns.len();
+			let txn_count = batch_txns.len();
 
-		// Create a block from the agreed transactions. Seal it instantly and
-		// import it.
-		let block = miner.prepare_block_from(open_block, batch_txns, &*client, min_tx_gas).expect("TODO");
+			// Create a block from the agreed transactions. Seal it instantly and
+			// import it.
+			let block = miner.prepare_block_from(open_block, batch_txns, &*client, min_tx_gas).expect("TODO");
 
-		info!("Importing block {} (#{}, epoch: {}, txns: {})",
-			block.hash(), block.block().header.number(), batch.epoch(), txn_count);
+			info!("Importing block {} (#{}, epoch: {}, txns: {})",
+				block.hash(), block.block().header.number(), batch.epoch(), txn_count);
 
-		// TODO: Does this remove the block's transactions from the queue? If
-		// not, we need to do so.
-		//
-		// TODO (afck/drpete): Replace instant sealing with a threshold signature.
-		if !miner.seal_and_import_block_internally(&*client, block) {
-			warn!("Failed to seal and import block.");
+			// TODO: Does this remove the block's transactions from the queue? If
+			// not, we need to do so.
+			//
+			// TODO (afck/drpete): Replace instant sealing with a threshold signature.
+			if !miner.seal_and_import_block_internally(&*client, block) {
+				warn!("Failed to seal and import block.");
+			}
+		} else if open_block.header().number() < block_num {
+			println!("Can't produce block: missing parent.");
+		} else {
+			println!("Block {} already imported.", block_num);
 		}
 
 		// client.clear_queue();

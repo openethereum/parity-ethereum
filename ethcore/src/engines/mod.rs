@@ -246,6 +246,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
+	/// Whether the miner should prepare blocks for sealing for this engine.
+	fn should_miner_prepare_blocks(&self) -> bool { true }
+
 	/// Maximum number of uncles a block is allowed to declare.
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
