@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use byteorder::{ByteOrder, LittleEndian};
 use compute::{FNV_PRIME, calculate_dag_item};
 use keccak::H256;
 use shared::{ETHASH_ACCESSES, ETHASH_MIX_BYTES, Node};
@@ -260,8 +259,9 @@ fn progpow_loop<F>(
 		}
 
 		// Global load to sequential locations
-		// FIXME: check this
-		let data64 = LittleEndian::read_u64(&node.as_bytes()[(index % 16) * 4..]);
+		let data64 =
+			(node.as_words()[(index + 1) % 16] as u64) << 32 |
+			node.as_words()[index % 16] as u64;
 
 		// Initialize the seed and mix destination sequence
 		let (mut rnd, mut mix_seq) = progpow_init(seed);
@@ -377,7 +377,7 @@ pub fn generate_cdag(cache: &[Node]) -> [u32; PROGPOW_CACHE_WORDS] {
 	for i in 0..PROGPOW_CACHE_WORDS / 16 {
 		let node = ::compute::calculate_dag_item(i as u32, cache);
 		for j in 0..16 {
-			c_dag[i * 16 + j] = LittleEndian::read_u32(&node.as_bytes()[4 * j..]);
+			c_dag[i * 16 + j] = node.as_words()[j];
 		}
 	}
 

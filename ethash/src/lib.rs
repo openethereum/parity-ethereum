@@ -16,7 +16,6 @@
 
 #![cfg_attr(feature = "benches", feature(test))]
 
-extern crate byteorder;
 extern crate either;
 extern crate ethereum_types;
 extern crate memmap;
