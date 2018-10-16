@@ -270,7 +270,7 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, 
 			)));
 		}
 	}
-	
+
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}
