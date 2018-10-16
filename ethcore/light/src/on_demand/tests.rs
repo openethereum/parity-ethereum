@@ -23,10 +23,10 @@ use network::{PeerId, NodeId};
 use net::*;
 use ethereum_types::H256;
 use parking_lot::Mutex;
-use std::time::Duration;
 use ::request::{self as basic_request, Response};
 
 use std::sync::Arc;
+use std::time::{SystemTime, Duration};
 
 use super::{request, OnDemand, Peer, HeaderRef};
 
@@ -36,6 +36,7 @@ enum Context {
 	WithPeer(PeerId),
 	RequestFrom(PeerId, ReqId),
 	Punish(PeerId),
+	FaultyRequest,
 }
 
 impl EventContext for Context {
@@ -44,6 +45,7 @@ impl EventContext for Context {
 			Context::WithPeer(id)
 			| Context::RequestFrom(id, _)
 			| Context::Punish(id) => id,
+			| Context::FaultyRequest => 0,
 			_ => panic!("didn't expect to have peer queried."),
 		}
 	}
@@ -60,6 +62,7 @@ impl BasicContext for Context {
 	fn request_from(&self, peer_id: PeerId, _: ::request::NetworkRequests) -> Result<ReqId, Error> {
 		match *self {
 			Context::RequestFrom(id, req_id) => if peer_id == id { Ok(req_id) } else { Err(Error::NoCredits) },
+			Context::FaultyRequest => Err(Error::NoCredits),
 			_ => panic!("didn't expect to have requests dispatched."),
 		}
 	}
@@ -89,7 +92,12 @@ impl Harness {
 	fn create() -> Self {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(60))));
 		Harness {
-			service: OnDemand::new_test(cache),
+			service: OnDemand::new_test(
+				cache,
+				super::DEFAULT_QUERY_ATTEMPTS,
+				Duration::from_secs(5),
+				Duration::from_secs(20),
+			)
 		}
 	}
 
@@ -142,7 +150,7 @@ fn single_request() {
 	let req_id = ReqId(14426);
 
 	harness.inject_peer(peer_id, Peer {
-		status: dummy_status(),
+	 	status: dummy_status(),
 		capabilities: dummy_capabilities(),
 	});
 
@@ -494,4 +502,78 @@ fn fill_from_cache() {
 	);
 
 	assert!(recv.wait().is_ok());
+}
+
+#[test]
+fn request_exceeds_should_be_dropped() {
+	let harness = Harness::create();
+	let peer_id = 0;
+	let req_id = ReqId(13);
+
+	harness.inject_peer(
+		peer_id, 
+		Peer {
+			status: dummy_status(),
+			capabilities: dummy_capabilities(),
+		}
+	);
+
+        let binary_exp_backoff = vec![0_u64, 5, 10, 20, 20, 20, 20, 20, 20, 20];
+
+	let _recv = harness.service.request_raw(
+		&Context::RequestFrom(peer_id, req_id),
+		vec![request::HeaderByHash(Header::default().encoded().hash().into()).into()],
+	).unwrap();
+	assert_eq!(harness.service.pending.read().len(), 1);
+        
+        harness.service.dispatch_pending(&Context::FaultyRequest);
+	
+        for backoff in &binary_exp_backoff {
+            let now = SystemTime::now();
+            while now.elapsed().unwrap() < Duration::from_secs(backoff + 5) {}
+            harness.service.dispatch_pending(&Context::FaultyRequest);
+            println!("wait for ~{:?} seconds, backoff is: {}", now.elapsed().unwrap().as_secs(), backoff);
+        }
+    
+        assert_eq!(harness.service.pending.read().len(), 0, "Request exceeded the threshold should be dropped");
+}
+
+#[test]
+fn empty_responses_exceed_limit_should_be_dropped() {
+	let harness = Harness::create();
+	let peer_id = 0;
+	let req_id = ReqId(13);
+
+	harness.inject_peer(
+		peer_id, 
+		Peer {
+			status: dummy_status(),
+			capabilities: dummy_capabilities(),
+		}
+	);
+
+	let _recv = harness.service.request_raw(
+		&Context::RequestFrom(peer_id, req_id),
+		vec![request::HeaderByHash(Header::default().encoded().hash().into()).into()],
+	).unwrap();
+	
+	harness.service.dispatch_pending(&Context::RequestFrom(peer_id, req_id));
+
+	assert_eq!(harness.service.pending.read().len(), 0);
+	assert_eq!(harness.service.in_transit.read().len(), 1);
+	
+	while harness.service.in_transit.read().len() != 0 {
+		harness.service.on_responses(
+			&Context::RequestFrom(13, req_id),
+			req_id,
+			&[]
+		);
+		if harness.service.pending.read().len() != 0 {
+                    let pending = harness.service.pending.write().remove(0);
+		    harness.service.in_transit.write().insert(req_id, pending);
+                }
+	}
+	
+	assert_eq!(harness.service.in_transit.read().len(), 0);
+	assert_eq!(harness.service.pending.read().len(), 0);
 }

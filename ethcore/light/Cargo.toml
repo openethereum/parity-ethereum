@@ -21,6 +21,7 @@ hashdb = "0.3.0"
 heapsize = "0.4"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
+failsafe = "0.2.0"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 rlp_derive = { path = "../../util/rlp_derive" }
 smallvec = "0.6"

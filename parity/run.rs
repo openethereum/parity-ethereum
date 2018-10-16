@@ -216,12 +216,16 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	config.queue.verifier_settings = cmd.verifier_settings;
 
 	// start on_demand service.
+	// FIXME: CLI args
 	let on_demand = Arc::new({
-		let mut on_demand = ::light::on_demand::OnDemand::new(cache.clone());
-		on_demand.default_retry_number(cmd.on_demand_retry_count.unwrap_or(::light::on_demand::DEFAULT_RETRY_COUNT));
-		on_demand.query_inactive_time_limit(cmd.on_demand_inactive_time_limit.map(Duration::from_millis)
-																				.unwrap_or(::light::on_demand::DEFAULT_QUERY_TIME_LIMIT));
-		on_demand
+		::light::on_demand::OnDemand::new(
+			cache.clone(),
+			::light::on_demand::DEFAULT_SUCCESS_RATE,
+			::light::on_demand::DEFAULT_MIN_BACKOFF_DURATION,
+			::light::on_demand::DEFAULT_MIN_BACKOFF_DURATION,
+			::light::on_demand::DEFAULT_WINDOW_DURATION,
+			::light::on_demand::DEFAULT_MAX_BACKOFF_ROUNDS
+		)
 	});
 
 	let sync_handle = Arc::new(RwLock::new(Weak::new()));

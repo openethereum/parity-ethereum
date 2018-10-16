@@ -19,7 +19,7 @@
 //! will take the raw data received here and extract meaningful results from it.
 
 use std::cmp;
-use std::collections::{HashMap, BTreeSet};
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -30,33 +30,45 @@ use futures::sync::oneshot::{self, Receiver};
 use network::PeerId;
 use parking_lot::{RwLock, Mutex};
 use rand;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use net::{
-	self, Handler, PeerStatus, Status, Capabilities,
+	Handler, PeerStatus, Status, Capabilities,
 	Announcement, EventContext, BasicContext, ReqId,
 };
+
 use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest};
 use self::request::CheckedRequest;
 
-pub use self::request::{Request, Response, HeaderRef};
+pub use self::request::{Request, Response, HeaderRef, Error as ValidityError};
+pub use self::request_guard::{RequestGuard, Error as RequestError};
+pub use self::response_guard::{ResponseGuard, IncompleteError};
+
+pub use types::request::ResponseError;
 
 #[cfg(test)]
 mod tests;
 
 pub mod request;
+mod request_guard;
+mod response_guard;
 
 /// The result of execution
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
-/// The default number of retries for OnDemand queries to send to the other nodes
-pub const DEFAULT_RETRY_COUNT: usize = 10;
-
-/// The default time limit in milliseconds for inactive (no new peer to connect to) OnDemand queries (0 for unlimited)
-pub const DEFAULT_QUERY_TIME_LIMIT: Duration = Duration::from_millis(10000);
-
-const NULL_DURATION: Duration = Duration::from_secs(0);
+/// The default number of a request is ```expoentially backed off``` until it gets dropped
+pub const DEFAULT_REQUEST_BACKOFF_ATTEMPTS: usize = 10;
+/// The initial backoff interval for OnDemand queries
+pub const DEFAULT_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(10);
+/// The maximum request interval for OnDemand queries
+pub const DEFAULT_MAX_BACKOFF_DURATION: Duration = Duration::from_secs(100);
+/// The default success rate of a time window that must be met otherwise it is regarded as a failure
+pub const DEFAULT_SUCCESS_RATE: f64 = 0.8;
+/// The default window length when a requested is evaluated as successful or as a failure
+pub const DEFAULT_WINDOW_DURATION: Duration = Duration::from_secs(10);
+/// The default number of maximum backoff iterations
+pub const DEFAULT_MAX_BACKOFF_ROUNDS: usize = 10;
 
 /// OnDemand related errors
 pub mod error {
@@ -69,20 +81,18 @@ pub mod error {
 		}
 
 		errors {
-			#[doc = "Max number of on-demand query attempts reached without result."]
-			MaxAttemptReach(query_index: usize) {
-				description("On-demand query limit reached")
-				display("On-demand query limit reached on query #{}", query_index)
+			#[doc = "Maximum number of empty responses for the request have been exceeded"]
+			EmptyResponse {
+				description("Maximum number of empty responses limit reachedaxmum number of empty responses")
+				display("Maximum number of empty responses limit reached")
 			}
 
-			#[doc = "No reply with current peer set, time out occured while waiting for new peers for additional query attempt."]
-			TimeoutOnNewPeers(query_index: usize, remaining_attempts: usize) {
-				description("Timeout for On-demand query")
-				display("Timeout for On-demand query; {} query attempts remain for query #{}", remaining_attempts, query_index)
+			#[doc = "Maximum number of queries on the request have been exceeded"]
+			RequestLimit {
+				description("Max number of requests limit reached")
+				display("Max number of requests limit reached")
 			}
-
 		}
-
 	}
 
 }
@@ -113,7 +123,6 @@ impl Peer {
 	}
 }
 
-
 /// Either an array of responses or a single error.
 type PendingResponse = self::error::Result<Vec<Response>>;
 
@@ -124,10 +133,8 @@ struct Pending {
 	required_capabilities: Capabilities,
 	responses: Vec<Response>,
 	sender: oneshot::Sender<PendingResponse>,
-	base_query_index: usize,
-	remaining_query_count: usize,
-	query_id_history: BTreeSet<PeerId>,
-	inactive_time_limit: Option<SystemTime>,
+	request_guard: RequestGuard,
+	response_guard: ResponseGuard,
 }
 
 impl Pending {
@@ -188,14 +195,14 @@ impl Pending {
 
 	// if the requests are complete, send the result and consume self.
 	fn try_complete(self) -> Option<Self> {
-		if self.requests.is_complete() {
-			if self.sender.send(Ok(self.responses)).is_err() {
-				debug!(target: "on_demand", "Dropped oneshot channel receiver on complete request at query #{}", self.query_id_history.len());
+			if self.requests.is_complete() {
+					if self.sender.send(Ok(self.responses)).is_err() {
+							// debug!(target: "on_demand", "Dropped oneshot channel receiver on complete request at query #{}", self.query_id_history.len());
+					}
+					None
+			} else {
+					Some(self)
 			}
-			None
-		} else {
-			Some(self)
-		}
 	}
 
 	fn fill_unanswered(&mut self) {
@@ -227,20 +234,17 @@ impl Pending {
 		self.required_capabilities = capabilities;
 	}
 
-	// returning no reponse, it will result in an error.
-	// self is consumed on purpose.
-	fn no_response(self) {
-		trace!(target: "on_demand", "Dropping a pending query (no reply) at query #{}", self.query_id_history.len());
-		let err = self::error::ErrorKind::MaxAttemptReach(self.requests.num_answered());
+	// received too many empty responses, may be away to indicate a faulty request
+	fn bad_response(self, _err: IncompleteError) {
+		let err = self::error::ErrorKind::EmptyResponse;
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
 		}
 	}
 
 	// returning a peer discovery timeout during query attempts
-	fn time_out(self) {
-		trace!(target: "on_demand", "Dropping a pending query (no new peer time out) at query #{}", self.query_id_history.len());
-		let err = self::error::ErrorKind::TimeoutOnNewPeers(self.requests.num_answered(), self.query_id_history.len());
+	fn request_limit_reached(self) {
+		let err = self::error::ErrorKind::RequestLimit;
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on time out");
 		}
@@ -326,30 +330,50 @@ pub struct OnDemand {
 	in_transit: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
 	no_immediate_dispatch: bool,
-	base_retry_count: usize,
-	query_inactive_time_limit: Option<Duration>,
+	required_success_rate: f64,
+	time_window_dur: Duration,
+	start_backoff_dur: Duration,
+	max_backoff_dur: Duration,
+	max_backoff_rounds: usize,
 }
 
 impl OnDemand {
 
 	/// Create a new `OnDemand` service with the given cache.
-	pub fn new(cache: Arc<Mutex<Cache>>) -> Self {
+	pub fn new(
+		cache: Arc<Mutex<Cache>>,
+		required_success_rate: f64,
+		time_window_dur: Duration,
+		start_backoff_dur: Duration,
+		max_backoff_dur: Duration,
+		max_backoff_rounds: usize,
+	) -> Self {
 		OnDemand {
 			pending: RwLock::new(Vec::new()),
 			peers: RwLock::new(HashMap::new()),
 			in_transit: RwLock::new(HashMap::new()),
 			cache,
 			no_immediate_dispatch: false,
-			base_retry_count: DEFAULT_RETRY_COUNT,
-			query_inactive_time_limit: Some(DEFAULT_QUERY_TIME_LIMIT),
+			required_success_rate,
+			time_window_dur,
+			start_backoff_dur,
+			max_backoff_dur,
+			max_backoff_rounds,
 		}
 	}
 
 	// make a test version: this doesn't dispatch pending requests
 	// until you trigger it manually.
 	#[cfg(test)]
-	fn new_test(cache: Arc<Mutex<Cache>>) -> Self {
-		let mut me = OnDemand::new(cache);
+	fn new_test(
+		cache: Arc<Mutex<Cache>>,
+		required_success_rate: f64,
+		time_window_dur: Duration,
+		start_backoff_dur: Duration,
+		max_backoff_dur: Duration,
+		max_backoff_rounds: usize,
+	) -> Self {
+		let mut me = OnDemand::new(cache, required_success_rate, time_window_dur, start_backoff_dur, max_backoff_dur, max_backoff_rounds);
 		me.no_immediate_dispatch = true;
 
 		me
@@ -403,10 +427,19 @@ impl OnDemand {
 			required_capabilities: capabilities,
 			responses,
 			sender,
-			base_query_index: 0,
-			remaining_query_count: 0,
-			query_id_history: BTreeSet::new(),
-			inactive_time_limit: None,
+			request_guard: RequestGuard::new(
+                            self.required_success_rate,
+                            self.start_backoff_dur,
+                            self.max_backoff_dur, self.
+                            time_window_dur,
+                            self.max_backoff_rounds
+                        ),
+			response_guard: ResponseGuard::new(
+                            self.required_success_rate,
+                            self.start_backoff_dur,
+                            self.max_backoff_dur,
+                            self.time_window_dur
+                        ),
 		});
 
 		Ok(receiver)
@@ -435,82 +468,66 @@ impl OnDemand {
 	// dispatch pending requests, and discard those for which the corresponding
 	// receiver has been dropped.
 	fn dispatch_pending(&self, ctx: &BasicContext) {
-		if self.pending.read().is_empty() { return }
-		let mut pending = self.pending.write();
+		if self.pending.read().is_empty() {
+			return
+		}
 
-		debug!(target: "on_demand", "Attempting to dispatch {} pending requests", pending.len());
+		let mut pending = self.pending.write();
 
 		// iterate over all pending requests, and check them for hang-up.
 		// then, try and find a peer who can serve it.
 		let peers = self.peers.read();
-		*pending = ::std::mem::replace(&mut *pending, Vec::new()).into_iter()
+
+		*pending = ::std::mem::replace(&mut *pending, Vec::new())
+			.into_iter()
 			.filter(|pending| !pending.sender.is_canceled())
 			.filter_map(|mut pending| {
-				// the peer we dispatch to is chosen randomly
+
 				let num_peers = peers.len();
-				let history_len = pending.query_id_history.len();
-				let offset = if history_len == 0 {
-					pending.remaining_query_count = self.base_retry_count;
-					let rand = rand::random::<usize>();
-					pending.base_query_index = rand;
-					rand
-				} else {
-					pending.base_query_index + history_len
-				} % cmp::max(num_peers, 1);
-				let init_remaining_query_count = pending.remaining_query_count; // to fail in case of big reduction of nb of peers
-				for (peer_id, peer) in peers.iter().chain(peers.iter())
-					.skip(offset).take(num_peers) {
-					// TODO: see which requests can be answered by the cache?
-					if pending.remaining_query_count == 0 {
-						break
+				// The first peer to dispatch the request is chosen at random
+				let rand = rand::random::<usize>() % cmp::max(num_peers, 1);
+
+				for (peer_id, peer) in peers
+					.iter()
+					.cycle()
+					.skip(rand)
+					.take(num_peers)
+				{
+
+					if !peer.can_fulfill(&pending.required_capabilities) {
+						trace!(target: "on_demand", "Peer {} without required capabilities, skipping", peer_id);
+						continue
 					}
 
-					if pending.query_id_history.insert(peer_id.clone()) {
-
-						if !peer.can_fulfill(&pending.required_capabilities) {
-							trace!(target: "on_demand", "Peer {} without required capabilities, skipping, {} remaining attempts", peer_id, pending.remaining_query_count);
-							continue
-						}
-
-						pending.remaining_query_count -= 1;
-						pending.inactive_time_limit = None;
-
-						match ctx.request_from(*peer_id, pending.net_requests.clone()) {
-							Ok(req_id) => {
-								trace!(target: "on_demand", "Dispatched request {} to peer {}, {} remaining attempts", req_id, peer_id, pending.remaining_query_count);
-								self.in_transit.write().insert(req_id, pending);
-								return None
-							}
-							Err(net::Error::NoCredits) | Err(net::Error::NotServer) => {}
-							Err(e) => debug!(target: "on_demand", "Error dispatching request to peer: {}", e),
+					if pending.request_guard.is_call_permitted() {
+						if let Ok(req_id) = ctx.request_from(*peer_id, pending.net_requests.clone()) {
+							self.in_transit.write().insert(req_id, pending);
+							return None;
 						}
 					}
 				}
 
-				if pending.remaining_query_count == 0	{
-					pending.no_response();
-					None
-				} else if init_remaining_query_count == pending.remaining_query_count {
-					if let Some(query_inactive_time_limit) = self.query_inactive_time_limit {
-						let now = SystemTime::now();
-						if let Some(inactive_time_limit) = pending.inactive_time_limit {
-							if now > inactive_time_limit {
-								pending.time_out();
-								return None
-							}
-						} else {
-							debug!(target: "on_demand", "No more peers to query, waiting for {} seconds until dropping query", query_inactive_time_limit.as_secs());
-							pending.inactive_time_limit = Some(now + query_inactive_time_limit);
-						}
+				// Register that the request round failed
+				match pending.request_guard.register_error() {
+					// Drop the request
+					RequestError::ReachedLimit(_) => {
+						trace!(target: "on_demand", "RequestGuard rejected the request");
+						pending.request_limit_reached();
+						None
 					}
-					Some(pending)
-				} else {
-					Some(pending)
+					RequestError::Rejected => {
+						trace!(target: "on_demand", "RequestGuard rejected the request");
+						Some(pending)
+					}
+					RequestError::LetThrough => {
+						trace!(target: "on_demand", "RequestGuard let through");
+						Some(pending)
+					}
 				}
-			})
-			.collect(); // `pending` now contains all requests we couldn't dispatch.
+		})
+		.collect(); // `pending` now contains all requests we couldn't dispatch
 
-		debug!(target: "on_demand", "Was unable to dispatch {} requests.", pending.len());
+		trace!(target: "on_demand", "Was unable to dispatch {} requests.", pending.len());
 	}
 
 	// submit a pending request set. attempts to answer from cache before
@@ -521,26 +538,14 @@ impl OnDemand {
 
 		pending.answer_from_cache(&*self.cache);
 		if let Some(mut pending) = pending.try_complete() {
+			// update cached requests
 			pending.update_net_requests();
+			// push into `pending` buffer
 			self.pending.write().push(pending);
+			// try to dispatch
 			self.attempt_dispatch(ctx);
 		}
 	}
-
-	/// Set the retry count for a query.
-	pub fn default_retry_number(&mut self, nb_retry: usize) {
-		self.base_retry_count = nb_retry;
-	}
-
-	/// Set the time limit for a query.
-	pub fn query_inactive_time_limit(&mut self, inactive_time_limit: Duration) {
-		self.query_inactive_time_limit = if inactive_time_limit == NULL_DURATION {
-			None
-		} else {
-			Some(inactive_time_limit)
-		};
-	}
-
 }
 
 impl Handler for OnDemand {
@@ -594,13 +599,12 @@ impl Handler for OnDemand {
 		};
 
 		if responses.is_empty() {
-			if pending.remaining_query_count == 0 {
-				pending.no_response();
+			trace!(target: "on_demand", "received an empty response {:?}", pending.response_guard);
+			// Max number of empty responses reached, drop the request
+			if let Err(e) = pending.response_guard.register_error(&ResponseError::EmptyResponse) {
+				pending.bad_response(e);
 				return;
 			}
-		} else {
-			// do not keep query counter for others elements of this batch
-			pending.query_id_history.clear();
 		}
 
 		// for each incoming response
@@ -613,7 +617,11 @@ impl Handler for OnDemand {
 				debug!(target: "on_demand", "Peer {} gave bad response: {:?}", peer, e);
 				ctx.disable_peer(peer);
 
-				break;
+				// Max number of empty responses reached, drop the request
+				if let Err(err) = pending.response_guard.register_error(&e) {
+					pending.bad_response(err);
+				}
+				return;
 			}
 		}
 
