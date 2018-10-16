@@ -322,10 +322,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
 		}
 
-		if header.gas_limit() > &0x7fffffffffffffffu64.into() {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
-		}
-
 		Ok(())
 	}
 
