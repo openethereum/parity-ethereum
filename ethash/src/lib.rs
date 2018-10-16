@@ -32,6 +32,9 @@ extern crate log;
 extern crate rustc_hex;
 
 #[cfg(test)]
+extern crate serde_json;
+
+#[cfg(test)]
 extern crate tempdir;
 
 mod compute;

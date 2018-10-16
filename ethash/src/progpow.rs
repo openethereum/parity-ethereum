@@ -391,7 +391,9 @@ mod test {
 	use cache::{NodeCacheBuilder, OptimizeFor};
 	use keccak::H256;
 	use rustc_hex::FromHex;
+	use serde_json::{self, Value};
 	use shared::get_data_size;
+	use std::collections::VecDeque;
 	use std::env;
 	use super::*;
 
@@ -400,51 +402,6 @@ mod test {
 		let mut res = [0; 32];
 		res.copy_from_slice(&bytes);
 		res
-	}
-
-	#[test]
-	fn it_works() {
-		struct ProgPowTest {
-			block_number: u64,
-			nonce: u64,
-			header_hash: H256,
-			digest: H256,
-			result: H256,
-		}
-
-		let tests: &[ProgPowTest] = &[
-			ProgPowTest {
-				block_number: 0,
-				nonce: 0,
-				header_hash: h256("0000000000000000000000000000000000000000000000000000000000000000"),
-				digest: h256("7d5b1d047bfb2ebeff3f60d6cc935fc1eb882ece1732eb4708425d2f11965535"),
-				result: h256("8c091b4eebc51620ca41e2b90a167d378dbfe01c0a255f70ee7004d85a646e17"),
-			},
-		];
-
-		for test in tests {
-			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-			let tempdir = TempDir::new("").unwrap();
-			let cache = builder.new_cache(tempdir.into_path(), test.block_number);
-			let data_size = get_data_size(test.block_number) as u64;
-			let c_dag = generate_cdag(cache.as_ref());
-
-			let lookup = |index: usize| {
-				::compute::calculate_dag_item((index / 16) as u32, cache.as_ref())
-			};
-
-			let (digest, result) = progpow(
-				test.header_hash,
-				test.nonce,
-				data_size,
-				test.block_number,
-				&c_dag,
-				lookup,
-			);
-
-			assert_eq!(digest, test.digest);
-			assert_eq!(result, test.result);
-		}
 	}
 
 	#[test]
@@ -566,5 +523,59 @@ mod test {
 			result.to_vec(),
 			expected_result,
 		);
+	}
+
+	#[test]
+	fn test_progpow_testvectors() {
+		struct ProgpowTest {
+			block_number: u64,
+			header_hash: H256,
+			nonce: u64,
+			mix_hash: H256,
+			final_hash: H256,
+		}
+
+		let tests: Vec<VecDeque<Value>> =
+			serde_json::from_slice(include_bytes!("../res/progpow_testvectors.json")).unwrap();
+
+		let tests: Vec<ProgpowTest> = tests.into_iter().map(|mut test: VecDeque<Value>| {
+			let block_number: u64 = serde_json::from_value(test.pop_front().unwrap()).unwrap();
+			let header_hash: String = serde_json::from_value(test.pop_front().unwrap()).unwrap();
+			let nonce: String = serde_json::from_value(test.pop_front().unwrap()).unwrap();
+			let mix_hash: String = serde_json::from_value(test.pop_front().unwrap()).unwrap();
+			let final_hash: String = serde_json::from_value(test.pop_front().unwrap()).unwrap();
+
+			ProgpowTest {
+				block_number,
+				header_hash: h256(&header_hash),
+				nonce: u64::from_str_radix(&nonce, 16).unwrap(),
+				mix_hash: h256(&mix_hash),
+				final_hash: h256(&final_hash),
+			}
+		}).collect();
+
+		for test in tests {
+			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+			let tempdir = TempDir::new("").unwrap();
+			let cache = builder.new_cache(tempdir.path().to_owned(), test.block_number);
+			let data_size = get_data_size(test.block_number) as u64;
+			let c_dag = generate_cdag(cache.as_ref());
+
+			let lookup = |index: usize| {
+				::compute::calculate_dag_item((index / 16) as u32, cache.as_ref())
+			};
+
+			let (digest, result) = progpow(
+				test.header_hash,
+				test.nonce,
+				data_size,
+				test.block_number,
+				&c_dag,
+				lookup,
+			);
+
+			assert_eq!(digest, test.final_hash);
+			assert_eq!(result, test.mix_hash);
+		}
 	}
 }
