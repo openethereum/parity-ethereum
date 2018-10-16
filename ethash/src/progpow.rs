@@ -26,6 +26,7 @@ const PROGPOW_CNT_MEM: usize = ETHASH_ACCESSES;
 const PROGPOW_CNT_CACHE: usize = 8;
 const PROGPOW_CNT_MATH: usize = 8;
 const PROGPOW_MIX_BYTES: usize = 2 * ETHASH_MIX_BYTES;
+const PROGPOW_PERIOD_LENGTH: usize = 50; // blocks per progpow epoch (N)
 
 const FNV_HASH: u32 = 0x811c9dc5;
 
@@ -229,7 +230,7 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
         mix_seq[i] = i as u32;
     }
 
-    for i in (0..mix_seq.len()).rev() {
+    for i in (1..mix_seq.len()).rev() {
         let j = rnd.next_u32() as usize % (i + 1);
 		mix_seq.swap(i, j);
     }
@@ -254,13 +255,13 @@ fn progpow_loop<F>(
 	for l in 0..mix.len() {
 		let index = 2 * (g_offset + l);
 
-		if l != 0 && index % 8 == 0 {
+		if l != 0 && index % 16 == 0 {
 			node = lookup(index);
 		}
 
 		// Global load to sequential locations
 		// FIXME: check this
-		let data64 = node.as_dwords()[index % 8];
+		let data64 = LittleEndian::read_u64(&node.as_bytes()[(index % 16) * 4..]);
 
 		// Initialize the seed and mix destination sequence
 		let (mut rnd, mut mix_seq) = progpow_init(seed);
@@ -315,10 +316,10 @@ fn progpow<F>(
 	}
 
 	// Execute the randomly generated inner loop
-	let block_number_rounded = (block_number / ETHASH_EPOCH_LENGTH) * ETHASH_EPOCH_LENGTH;
+	let period = block_number / PROGPOW_PERIOD_LENGTH as u64;
 	for i in 0..PROGPOW_CNT_MEM {
 	    progpow_loop(
-			block_number_rounded,
+			period,
 			i,
 			&mut mix,
 			c_dag,
@@ -355,20 +356,10 @@ fn progpow_light(
 	block_number: u64,
 	cache: &[Node],
 ) -> (H256, H256) {
+	let c_dag = generate_cdag(cache);
 	let lookup = |index: usize| {
 		calculate_dag_item((index / 16) as u32, cache)
 	};
-
-	let mut node = lookup(0);
-	let mut c_dag = [0u32; PROGPOW_CACHE_WORDS];
-	for i in (0..PROGPOW_CACHE_WORDS).step_by(2) {
-		if i != 0 && 2 * i / 16 != 2 * (i - 1) / 16 {
-			node = lookup(2 * i);
-		}
-
-		c_dag[i] = node.as_words()[(2 * i) % 16];
-		c_dag[i + 1] = node.as_words()[(2 * i + 1) % 16];
-	}
 
 	progpow(
 		header_hash,
@@ -380,7 +371,7 @@ fn progpow_light(
 	)
 }
 
-fn generate_cdag(cache: &[Node], epoch: u64) ->[u32; PROGPOW_CACHE_WORDS] {
+fn generate_cdag(cache: &[Node]) -> [u32; PROGPOW_CACHE_WORDS] {
 	let mut c_dag = [0u32; PROGPOW_CACHE_WORDS];
 
 	for i in 0..PROGPOW_CACHE_WORDS / 16 {
