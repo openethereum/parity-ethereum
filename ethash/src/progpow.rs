@@ -17,7 +17,7 @@
 use byteorder::{ByteOrder, LittleEndian};
 use compute::{FNV_PRIME, calculate_dag_item};
 use keccak::H256;
-use shared::{ETHASH_ACCESSES, ETHASH_EPOCH_LENGTH, ETHASH_MIX_BYTES, Node};
+use shared::{ETHASH_ACCESSES, ETHASH_MIX_BYTES, Node};
 
 const PROGPOW_LANES: usize = 32;
 const PROGPOW_REGS: usize = 16;
@@ -295,7 +295,7 @@ fn progpow_loop<F>(
 	}
 }
 
-fn progpow<F>(
+pub fn progpow<F>(
 	header_hash: H256,
 	nonce: u64,
 	size: u64,
@@ -349,7 +349,7 @@ fn progpow<F>(
 	(digest, result)
 }
 
-fn progpow_light(
+pub fn progpow_light(
 	header_hash: H256,
 	nonce: u64,
 	size: u64,
@@ -371,7 +371,7 @@ fn progpow_light(
 	)
 }
 
-fn generate_cdag(cache: &[Node]) -> [u32; PROGPOW_CACHE_WORDS] {
+pub fn generate_cdag(cache: &[Node]) -> [u32; PROGPOW_CACHE_WORDS] {
 	let mut c_dag = [0u32; PROGPOW_CACHE_WORDS];
 
 	for i in 0..PROGPOW_CACHE_WORDS / 16 {
@@ -394,7 +394,6 @@ mod test {
 	use serde_json::{self, Value};
 	use shared::get_data_size;
 	use std::collections::VecDeque;
-	use std::env;
 	use super::*;
 
 	fn h256(hex: &str) -> H256 {
@@ -539,6 +538,8 @@ mod test {
 			serde_json::from_slice(include_bytes!("../res/progpow_testvectors.json")).unwrap();
 
 		let tests: Vec<ProgpowTest> = tests.into_iter().map(|mut test: VecDeque<Value>| {
+			assert!(test.len() == 5);
+
 			let block_number: u64 = serde_json::from_value(test.pop_front().unwrap()).unwrap();
 			let header_hash: String = serde_json::from_value(test.pop_front().unwrap()).unwrap();
 			let nonce: String = serde_json::from_value(test.pop_front().unwrap()).unwrap();
