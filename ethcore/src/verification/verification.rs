@@ -61,7 +61,7 @@ impl HeapSizeOf for PreverifiedBlock {
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bool) -> Result<(), Error> {
-	verify_header_params(&block.header, engine, true)?;
+	verify_header_params(&block.header, engine, true, check_seal)?;
 	verify_block_integrity(block)?;
 
 	if check_seal {
@@ -69,7 +69,7 @@ pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bo
 	}
 
 	for uncle in &block.uncles {
-		verify_header_params(uncle, engine, false)?;
+		verify_header_params(uncle, engine, false, check_seal)?;
 		if check_seal {
 			engine.verify_block_basic(uncle)?;
 		}
@@ -261,12 +261,14 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) -> Result<(), Error> {
-	let expected_seal_fields = engine.seal_fields(header);
-	if header.seal().len() != expected_seal_fields {
-		return Err(From::from(BlockError::InvalidSealArity(
-			Mismatch { expected: expected_seal_fields, found: header.seal().len() }
-		)));
+pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, check_seal: bool) -> Result<(), Error> {
+	if check_seal {
+		let expected_seal_fields = engine.seal_fields(header);
+		if header.seal().len() != expected_seal_fields {
+			return Err(From::from(BlockError::InvalidSealArity(
+				Mismatch { expected: expected_seal_fields, found: header.seal().len() }
+			)));
+		}
 	}
 
 	if header.number() >= From::from(BlockNumber::max_value()) {
