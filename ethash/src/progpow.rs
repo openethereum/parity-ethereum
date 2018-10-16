@@ -386,6 +386,8 @@ fn generate_cdag(cache: &[Node]) -> [u32; PROGPOW_CACHE_WORDS] {
 
 #[cfg(test)]
 mod test {
+	use tempdir::TempDir;
+
 	use cache::{NodeCacheBuilder, OptimizeFor};
 	use keccak::H256;
 	use rustc_hex::FromHex;
@@ -412,38 +414,46 @@ mod test {
 
 		let tests: &[ProgPowTest] = &[
 			ProgPowTest {
-				block_number: 568971,
-				nonce: 2698189332257848714,
-				header_hash: "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f".into(),
-				digest: "0xfb8dc4fa5ec9df003efea48e54d6e6b9ad14febf76461fcc17abf547c623c671".into(),
-				result: "0x4b9f8eea14bc2b7e60b128199a9b3a39cf531cdac098708a74a34dce7e155dfc".into(),
+				block_number: 0,
+				nonce: 0,
+				header_hash: h256("0000000000000000000000000000000000000000000000000000000000000000"),
+				digest: h256("7d5b1d047bfb2ebeff3f60d6cc935fc1eb882ece1732eb4708425d2f11965535"),
+				result: h256("8c091b4eebc51620ca41e2b90a167d378dbfe01c0a255f70ee7004d85a646e17"),
 			},
 		];
 
 		for test in tests {
 			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-			let cache = builder.new_cache(env::temp_dir(), test.block_number);
-			let size = get_data_size(test.block_number) as u64;
+			let tempdir = TempDir::new("").unwrap();
+			let cache = builder.new_cache(tempdir.into_path(), test.block_number);
+			let data_size = get_data_size(test.block_number) as u64;
+			let c_dag = generate_cdag(cache.as_ref());
 
-			let (digest, result) = progpow_light(
-				test.header_hash.0,
+			let lookup = |index: usize| {
+				::compute::calculate_dag_item((index / 16) as u32, cache.as_ref())
+			};
+
+			let (digest, result) = progpow(
+				test.header_hash,
 				test.nonce,
-				size,
+				data_size,
 				test.block_number,
-				cache.as_ref(),
+				&c_dag,
+				lookup,
 			);
 
-			assert_eq!(digest, test.digest.0);
-			assert_eq!(result, test.result.0);
+			assert_eq!(digest, test.digest);
+			assert_eq!(result, test.result);
 		}
 	}
 
 	#[test]
 	fn test_cdag() {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-		let cache = builder.new_cache(env::temp_dir(), 0);
+		let tempdir = TempDir::new("").unwrap();
+		let cache = builder.new_cache(tempdir.into_path(), 0);
 
-		let c_dag = generate_cdag(cache.as_ref(), 0);
+		let c_dag = generate_cdag(cache.as_ref());
 
 		let expected = vec![
 			690150178u32, 1181503948, 2248155602, 2118233073, 2193871115,
@@ -518,6 +528,43 @@ mod test {
 		assert_eq!(
 			keccak_f800_long([0; 32], 0, [0; 8]),
 			h256(expected),
+		);
+	}
+
+	#[test]
+	fn test_progpow_hash() {
+		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+		let tempdir = TempDir::new("").unwrap();
+		let cache = builder.new_cache(tempdir.into_path(), 0);
+		let data_size = get_data_size(0) as u64;
+		let c_dag = generate_cdag(cache.as_ref());
+
+		let lookup = |index: usize| {
+			::compute::calculate_dag_item((index / 16) as u32, cache.as_ref())
+		};
+
+		let header_hash = [0; 32];
+
+		let (digest, result) = progpow(
+			header_hash,
+			0,
+			data_size,
+			0,
+			&c_dag,
+			lookup,
+		);
+
+		let expected_digest = FromHex::from_hex("7d5b1d047bfb2ebeff3f60d6cc935fc1eb882ece1732eb4708425d2f11965535").unwrap();
+		let expected_result = FromHex::from_hex("8c091b4eebc51620ca41e2b90a167d378dbfe01c0a255f70ee7004d85a646e17").unwrap();
+
+		assert_eq!(
+			digest.to_vec(),
+			expected_digest,
+		);
+
+		assert_eq!(
+			result.to_vec(),
+			expected_result,
 		);
 	}
 }
