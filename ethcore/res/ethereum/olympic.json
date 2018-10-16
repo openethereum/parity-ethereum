@@ -17,7 +17,7 @@
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x0400",
 		"minGasLimit": "125000",
-		"networkID" : "0x0",
+		"networkID" : "0xf0",
 		"eip150Transition": "0x7fffffffffffffff",
 		"eip160Transition": "0x7fffffffffffffff",
 		"eip161abcTransition": "0x7fffffffffffffff",
