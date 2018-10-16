@@ -26,8 +26,6 @@ use verification::queue::kind::blocks::Unverified;
 use verification::VerifierType;
 use super::SKIP_TEST_STATE;
 use super::HookType;
-use header::Header;
-use unexpected::OutOfBounds;
 
 /// Run chain jsontests on a given folder.
 pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
@@ -101,13 +99,6 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 				for b in blockchain.blocks_rlp() {
 
 					if let Ok(block) = Unverified::from_rlp(b) {
-						if ethjson::blockchain::Engine::NoProof == blockchain.engine {
-							if let Err(e) = no_proof_additional_header_tests(&block.header) {
-								warn!(target: "client", "Stage 1 block verification failed in json tests: {:?}", e);
-								continue;
-							}
-						}
-
 						let _ = client.import_block(block);
 						client.flush_queue();
 						client.import_verified_blocks();
@@ -129,20 +120,6 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 	println!("!!! {:?} tests from failed.", failed.len());
 	failed
 }
-
-/// Some tests on blocks are still required in NoProof mode.
-fn no_proof_additional_header_tests(header: &Header) -> Result<(), ::error::Error> {
-	use ethereum::ethash::Seal;
-
-	// check the seal fields.
-	let _ = Seal::parse_seal(header.seal())?;
-
-	if header.gas_limit() > &0x7fffffffffffffffu64.into() {
-		return Err(From::from(::error::BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
-	}
-	Ok(())
-}
-
 
 #[cfg(test)]
 mod block_tests {

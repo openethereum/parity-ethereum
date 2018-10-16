@@ -279,6 +279,9 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 	if header.gas_limit() < &min_gas_limit {
 		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit().clone() })));
 	}
+	if header.gas_limit() > &0x7fffffffffffffffu64.into() {
+		return Err(From::from(::error::BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
+	}
 	let maximum_extra_data_size = engine.maximum_extra_data_size();
 	if header.number() != 0 && header.extra_data().len() > maximum_extra_data_size {
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data().len() })));
