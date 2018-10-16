@@ -327,7 +327,7 @@ impl BlockDownloader {
 					if self.limit_reorg && best > last && (last == 0 || last < oldest_reorg) {
 						trace_sync!(self, "No common block, disabling peer");
 						return Err(BlockDownloaderImportError::Invalid);
-					} else {
+					} else if !self.limit_reorg {
 						trace_sync!(self, "No subchain heads received, expected hash {:?}. Try a different peer.", expected_hash);
 						return Err(BlockDownloaderImportError::Useless);
 					}
