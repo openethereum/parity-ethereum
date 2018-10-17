@@ -184,12 +184,12 @@ fn fill_mix(seed: u64, lane_id: u32) -> [u32; PROGPOW_REGS] {
 
 // Merge new data from b into the value in a. Assuming A has high entropy only
 // do ops that retain entropy even if B is low entropy (IE don't do A&B)
-fn merge(a: &mut u32, b: u32, r: u32) {
+fn merge(a: u32, b: u32, r: u32) -> u32 {
 	match r % 4 {
-		0 => *a = a.wrapping_mul(33).wrapping_add(b),
-		1 => *a = (*a ^ b).wrapping_mul(33),
-		2 => *a = a.rotate_left((r >> 16) % 32) ^ b,
-		3 => *a = a.rotate_right((r >> 16) % 32) ^ b,
+		0 => a.wrapping_mul(33).wrapping_add(b),
+		1 => (a ^ b).wrapping_mul(33),
+		2 => a.rotate_left((r >> 16) % 32) ^ b,
+		3 => a.rotate_right((r >> 16) % 32) ^ b,
 		_ => unreachable!(),
 	}
 }
@@ -276,19 +276,25 @@ fn progpow_loop<F>(
 				// Cached memory access lanes access random location
 				let offset = mix[l][mix_src(&mut rnd)] as usize % PROGPOW_CACHE_WORDS;
 				let data32 = c_dag[offset];
-				merge(&mut mix[l][mix_dst()], data32, rnd.next_u32());
+
+				let dst = mix_dst();
+				mix[l][dst] = merge(mix[l][dst], data32, rnd.next_u32());
 			}
 			if i < PROGPOW_CNT_MATH {
 				// Random math
 				let data32 = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
-				merge(&mut mix[l][mix_dst()], data32, rnd.next_u32());
+
+				let dst = mix_dst();
+				mix[l][dst] = merge(mix[l][dst], data32, rnd.next_u32());
 			}
 		}
 
 		// Consume the global load data at the very end of the loop.
 		// Allows full latency hiding
-		merge(&mut mix[l][0], data64 as u32, rnd.next_u32());
-		merge(&mut mix[l][mix_dst()], (data64 >> 32) as u32, rnd.next_u32());
+		mix[l][0] = merge(mix[l][0], data64 as u32, rnd.next_u32());
+
+		let dst = mix_dst();
+		mix[l][dst] = merge(mix[l][dst], (data64 >> 32) as u32, rnd.next_u32());
 	}
 }
 
@@ -434,9 +440,11 @@ mod test {
 			(4000000, 0, 4000000),
 		];
 
-		for (i, &(mut a, b, expected)) in tests.iter().enumerate() {
-			merge(&mut a, b, i as u32);
-			assert_eq!(a, expected);
+		for (i, &(a, b, expected)) in tests.iter().enumerate() {
+			assert_eq!(
+				merge(a, b, i as u32),
+				expected,
+			);
 		}
 	}
 
