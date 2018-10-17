@@ -135,9 +135,8 @@ pub fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256
 	unsafe { ::std::mem::transmute(res) }
 }
 
-fn fnv1a_hash(h: &mut u32, d: u32) -> u32 {
-	*h = (*h ^ d).wrapping_mul(FNV_PRIME);
-	*h
+fn fnv1a_hash(h: u32, d: u32) -> u32 {
+	(h ^ d).wrapping_mul(FNV_PRIME)
 }
 
 struct Kiss99 {
@@ -168,13 +167,12 @@ impl Kiss99 {
 fn fill_mix(seed: u64, lane_id: u32) -> [u32; PROGPOW_REGS] {
 	// Use FNV to expand the per-warp seed to per-lane
 	// Use KISS to expand the per-lane seed to fill mix
-	let mut fnv_hash = FNV_HASH;
-	let mut rnd = Kiss99::new(
-		fnv1a_hash(&mut fnv_hash, seed as u32),
-		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
-		fnv1a_hash(&mut fnv_hash, lane_id),
-		fnv1a_hash(&mut fnv_hash, lane_id),
-	);
+	let z = fnv1a_hash(FNV_HASH, seed as u32);
+	let w = fnv1a_hash(z, (seed >> 32) as u32);
+	let jsr = fnv1a_hash(w, lane_id);
+	let jcong = fnv1a_hash(jsr, lane_id);
+
+	let mut rnd = Kiss99::new(z, w, jsr, jcong);
 
 	let mut mix = [0; PROGPOW_REGS];
 	for i in 0..mix.len() {
@@ -214,13 +212,12 @@ fn math(a: u32, b: u32, r: u32) -> u32 {
 }
 
 fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
-	let mut fnv_hash = FNV_HASH;
-	let mut rnd = Kiss99::new(
-		fnv1a_hash(&mut fnv_hash, seed as u32),
-		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
-		fnv1a_hash(&mut fnv_hash, seed as u32),
-		fnv1a_hash(&mut fnv_hash, (seed >> 32) as u32),
-	);
+	let z = fnv1a_hash(FNV_HASH, seed as u32);
+	let w = fnv1a_hash(z, (seed >> 32) as u32);
+	let jsr = fnv1a_hash(w, seed as u32);
+	let jcong = fnv1a_hash(jsr, (seed >> 32) as u32);
+
+	let mut rnd = Kiss99::new(z, w, jsr, jcong);
 
 	// Create a random sequence of mix destinations for merge() guaranteeing
 	// every location is touched once. Uses Fisher–Yates shuffle
@@ -332,14 +329,14 @@ pub fn progpow<F>(
 	for l in 0..lane_results.len() {
 		lane_results[l] = FNV_HASH;
 		for i in 0..PROGPOW_REGS {
-			fnv1a_hash(&mut lane_results[l], mix[l][i]);
+			lane_results[l] = fnv1a_hash(lane_results[l], mix[l][i]);
 		}
 	}
 
 	// Reduce all lanes to a single 128-bit result
 	result = [FNV_HASH; 8];
 	for l in 0..PROGPOW_LANES {
-		fnv1a_hash(&mut result[l % 8], lane_results[l]);
+		result[l % 8] = fnv1a_hash(result[l % 8], lane_results[l]);
 	}
 
 	let digest = keccak_f800_long(header_hash, seed, result);
