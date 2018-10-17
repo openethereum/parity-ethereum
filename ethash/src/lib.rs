@@ -36,12 +36,13 @@ extern crate serde_json;
 #[cfg(test)]
 extern crate tempdir;
 
-mod compute;
+// FIXME [andre]: should all be private
+pub mod compute;
 mod seed_compute;
 mod cache;
 mod keccak;
-mod shared;
-mod progpow;
+pub mod shared;
+pub mod progpow;
 
 pub use cache::{NodeCacheBuilder, OptimizeFor};
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
@@ -229,13 +230,8 @@ mod benchmarks {
 	extern crate test;
 
 	use self::test::Bencher;
-	use tempdir::TempDir;
-	use rustc_hex::FromHex;
-
 	use cache::{NodeCacheBuilder, OptimizeFor};
 	use compute::light_compute;
-	use progpow;
-	use shared;
 
 	const HASH: [u8; 32] = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe,
 	                        0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f,
@@ -322,73 +318,6 @@ mod benchmarks {
 			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 			let light = builder.light_from_file(&dir, 486382).unwrap();
 			light_compute(&light, &HASH, NONCE);
-		});
-	}
-
-	#[bench]
-	fn bench_hashimoto_light(b: &mut Bencher) {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-		let tempdir = TempDir::new("").unwrap();
-		let light = builder.light(&tempdir.path(), 1);
-		let h = FromHex::from_hex("c9149cc0386e689d789a1c2f3d5d169a61a6218ed30e74414dc736e442ef3d1f").unwrap();
-		let mut hash = [0; 32];
-		hash.copy_from_slice(&h);
-		b.iter(|| light_compute(&light, &hash, 0));
-	}
-
-	#[bench]
-	fn bench_progpow_light(b: &mut Bencher) {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-		let tempdir = TempDir::new("").unwrap();
-		let cache = builder.new_cache(tempdir.into_path(), 0);
-		let data_size = shared::get_data_size(0) as u64;
-
-		let lookup = |index: usize| {
-			::compute::calculate_dag_item((index / 16) as u32, cache.as_ref())
-		};
-
-		let h = FromHex::from_hex("c9149cc0386e689d789a1c2f3d5d169a61a6218ed30e74414dc736e442ef3d1f").unwrap();
-		let mut hash = [0; 32];
-		hash.copy_from_slice(&h);
-
-		b.iter(|| {
-			let c_dag = progpow::generate_cdag(cache.as_ref());
-			progpow::progpow(
-				hash,
-				0,
-				data_size,
-				0,
-				&c_dag,
-				lookup,
-			);
-		});
-	}
-
-	#[bench]
-	fn bench_progpow_optimal_light(b: &mut Bencher) {
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-		let tempdir = TempDir::new("").unwrap();
-		let cache = builder.new_cache(tempdir.into_path(), 0);
-		let data_size = shared::get_data_size(0) as u64;
-		let c_dag = progpow::generate_cdag(cache.as_ref());
-
-		let lookup = |index: usize| {
-			::compute::calculate_dag_item((index / 16) as u32, cache.as_ref())
-		};
-
-		let h = FromHex::from_hex("c9149cc0386e689d789a1c2f3d5d169a61a6218ed30e74414dc736e442ef3d1f").unwrap();
-		let mut hash = [0; 32];
-		hash.copy_from_slice(&h);
-
-		b.iter(|| {
-			progpow::progpow(
-				hash,
-				0,
-				data_size,
-				0,
-				&c_dag,
-				lookup,
-			);
 		});
 	}
 }

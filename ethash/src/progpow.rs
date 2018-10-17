@@ -108,7 +108,7 @@ fn keccak_f800_short(header_hash: H256, nonce: u64, result: [u32; 8]) -> u64 {
 	(st[0] as u64) << 32 | st[1] as u64
 }
 
-fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256 {
+pub fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256 {
 	let mut st = [0u32; 25];
 
 	for i in 0..8 {
