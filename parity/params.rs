@@ -40,6 +40,7 @@ pub enum SpecType {
 	Ellaism,
 	Easthub,
 	Social,
+	Mix,
 	Callisto,
 	Olympic,
 	Morden,
@@ -70,6 +71,7 @@ impl str::FromStr for SpecType {
 			"ellaism" => SpecType::Ellaism,
 			"easthub" => SpecType::Easthub,
 			"social" => SpecType::Social,
+			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
 			"olympic" => SpecType::Olympic,
 			"morden" | "classic-testnet" => SpecType::Morden,
@@ -95,6 +97,7 @@ impl fmt::Display for SpecType {
 			SpecType::Ellaism => "ellaism",
 			SpecType::Easthub => "easthub",
 			SpecType::Social => "social",
+			SpecType::Mix => "mix",
 			SpecType::Callisto => "callisto",
 			SpecType::Olympic => "olympic",
 			SpecType::Morden => "morden",
@@ -120,6 +123,7 @@ impl SpecType {
 			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
 			SpecType::Easthub => Ok(ethereum::new_easthub(params)),
 			SpecType::Social => Ok(ethereum::new_social(params)),
+			SpecType::Mix => Ok(ethereum::new_mix(params)),
 			SpecType::Callisto => Ok(ethereum::new_callisto(params)),
 			SpecType::Olympic => Ok(ethereum::new_olympic(params)),
 			SpecType::Morden => Ok(ethereum::new_morden(params)),
@@ -374,6 +378,7 @@ mod tests {
 		assert_eq!(SpecType::Ellaism, "ellaism".parse().unwrap());
 		assert_eq!(SpecType::Easthub, "easthub".parse().unwrap());
 		assert_eq!(SpecType::Social, "social".parse().unwrap());
+		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
@@ -401,6 +406,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Ellaism), "ellaism");
 		assert_eq!(format!("{}", SpecType::Easthub), "easthub");
 		assert_eq!(format!("{}", SpecType::Social), "social");
+		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
 		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
