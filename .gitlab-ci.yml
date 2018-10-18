@@ -84,7 +84,7 @@ build-windows:
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
-   - windows
+   - rust-windows
   <<:                              *collect_artifacts
 
 publish-docker:
@@ -161,7 +161,7 @@ test-windows:
   script:
     - sh scripts/gitlab/test-all.sh stable
   tags:
-   - windows
+   - rust-windows
 
 test-beta:
   stage:                           optional
