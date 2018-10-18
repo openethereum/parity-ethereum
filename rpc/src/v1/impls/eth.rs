@@ -21,7 +21,7 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
 use rlp::Rlp;
-use ethereum_types::{U256, H64, H256, H160, Address};
+use ethereum_types::{U256, H256, H160, Address};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
@@ -571,8 +571,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				 storage_hash : p.1.storage_root.into(),
 				 account_proof: Some(p.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()),
 				 storage_proof: Some(
-					 values.iter().map(|storageIndex| { 
-						 let key2 : H256 = storageIndex.clone().into();
+					 values.iter().map(|storage_index| { 
+						 let key2 : H256 = storage_index.clone().into();
 					   match self.client.prove_storage(key1, keccak(key2), id) {
 						  	Some(sp) =>  StorageProof {
 									key : key2.into(),
