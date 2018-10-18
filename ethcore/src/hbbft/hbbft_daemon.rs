@@ -506,7 +506,7 @@ impl BatchHandler {
 	/// algorithm.
 	fn handle_batch(&mut self, batch: Batch<Contribution, NodeId>) {
 		let epoch = batch.epoch();
-		let block_num = epoch + 1;
+		let block_num = epoch;
 
 		let client = match self.client.upgrade() {
 			Some(client) => client,

@@ -58,6 +58,7 @@ impl HbbftConfig {
     ///
     pub fn to_hydrabadger(&self) -> HydrabadgerConfig {
         HydrabadgerConfig {
+			start_epoch: 1,
             batch_size: self.batch_size,
             txn_gen_count: self.txn_gen_count,
             txn_gen_interval: self.txn_gen_interval,
@@ -86,6 +87,7 @@ impl Default for HbbftConfig {
 impl From<HbbftConfig> for HydrabadgerConfig {
     fn from(cfg: HbbftConfig) ->  HydrabadgerConfig {
         HydrabadgerConfig {
+			start_epoch: 1,
             batch_size: cfg.batch_size,
             txn_gen_count: cfg.txn_gen_count,
             txn_gen_interval: cfg.txn_gen_interval,
