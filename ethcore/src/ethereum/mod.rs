@@ -89,6 +89,11 @@ pub fn new_social<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/social.json"))
 }
 
+/// Create a new EOS Classic mainnet chain spec.
+pub fn new_eosc<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/eosc.json"))
+}
+
 /// Create a new Olympic testnet chain spec.
 pub fn new_olympic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/olympic.json"))
