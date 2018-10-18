@@ -346,14 +346,14 @@ pub trait StateInfo {
 	fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256>;
 
 	/// Get accounts' code.
-	fn code(&self, a: &Address) -> trie::Result<Option<Arc<Bytes>>>;
+	fn code(&self, a: &Address) -> TrieResult<Option<Arc<Bytes>>>;
 }
 
 impl<B: Backend> StateInfo for State<B> {
-	fn nonce(&self, a: &Address) -> trie::Result<U256> { State::nonce(self, a) }
-	fn balance(&self, a: &Address) -> trie::Result<U256> { State::balance(self, a) }
-	fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256> { State::storage_at(self, address, key) }
-	fn code(&self, address: &Address) -> trie::Result<Option<Arc<Bytes>>> { State::code(self, address) }
+	fn nonce(&self, a: &Address) -> TrieResult<U256> { State::nonce(self, a) }
+	fn balance(&self, a: &Address) -> TrieResult<U256> { State::balance(self, a) }
+	fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> { State::storage_at(self, address, key) }
+	fn code(&self, address: &Address) -> TrieResult<Option<Arc<Bytes>>> { State::code(self, address) }
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
