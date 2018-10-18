@@ -62,16 +62,20 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 
 	// Rho Pi
 	let mut t = st[1];
-	for i in 0..KECCAKF_ROTC.len() {
-		let j = KECCAKF_PILN[i];
-		unsafe {
-			// NOTE: `KECCAKF_PILN` only contains elements that are < 25,
-			// therefore this index is always within bounds (although rustc
-			// can't prove it).
-			bc[0] = *st.get_unchecked(j);
-			*st.get_unchecked_mut(j) = t.rotate_left(KECCAKF_ROTC[i]);
+
+	debug_assert_eq!(KECCAKF_ROTC.len(), 24);
+	unroll! {
+		for i in 0..24 {
+			let j = KECCAKF_PILN[i];
+			unsafe {
+				// NOTE: `KECCAKF_PILN` only contains elements that are < 25,
+				// therefore this index is always within bounds (although rustc
+				// can't prove it).
+				bc[0] = *st.get_unchecked(j);
+				*st.get_unchecked_mut(j) = t.rotate_left(KECCAKF_ROTC[i]);
+			}
+			t = bc[0];
 		}
-		t = bc[0];
 	}
 
 	// Chi
