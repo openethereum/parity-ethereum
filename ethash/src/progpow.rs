@@ -16,7 +16,7 @@
 
 use compute::{FNV_PRIME, calculate_dag_item};
 use keccak::H256;
-use shared::{ETHASH_ACCESSES, ETHASH_MIX_BYTES, Node};
+use shared::{ETHASH_ACCESSES, ETHASH_MIX_BYTES, Node, get_data_size};
 
 const PROGPOW_LANES: usize = 32;
 const PROGPOW_REGS: usize = 16;
@@ -230,7 +230,14 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
 
 	for i in (1..mix_seq.len()).rev() {
 		let j = rnd.next_u32() as usize % (i + 1);
-		mix_seq.swap(i, j);
+
+		unsafe {
+			// NOTE: `i` takes values from the range [1..15] and `j` takes
+			// values from the the range [0..i]. This way it is guaranteed that
+			// the indices are always within the range of `mix_seq` and we can
+			// skip the bounds checking.
+			std::ptr::swap(&mut mix_seq[i], mix_seq.get_unchecked_mut(j));
+		}
 	}
 
 	(rnd, mix_seq)
@@ -249,8 +256,8 @@ fn progpow_loop(
 
 	let mut node = unsafe {
 		// NOTE: `node` will always be initialized on the first iteration of the
-		// loop below. `g_offset` is multipled by `PROGPOW_LANES` (32) which
-		// will guarantee it is divisible by 8.
+		// loop below. `g_offset` is multiplied by `PROGPOW_LANES` (32) which
+		// guarantees it is divisible by 8.
 		::std::mem::uninitialized()
 	};
 
@@ -281,7 +288,14 @@ fn progpow_loop(
 				let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
 				mix_seq_cnt += 1;
 
-				mix[l][dst] = merge(mix[l][dst], data32, rnd.next_u32());
+				unsafe {
+					// NOTE: `dst` is taken from `mix_seq` whose values are
+					// always defined in the range [0..15] (they are initialised
+					// in `progpow_init` and we bind it as immutable). Thus, it
+					// is guaranteed that the index is always within range of
+					// `mix[l][dst]`.
+					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
+				}
 			}
 			if i < PROGPOW_CNT_MATH {
 				// Random math
@@ -292,7 +306,10 @@ fn progpow_loop(
 				let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
 				mix_seq_cnt += 1;
 
-				mix[l][dst] = merge(mix[l][dst], data32, rnd.next_u32());
+				unsafe {
+					// NOTE: same as above
+					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
+				}
 			}
 		}
 
@@ -301,14 +318,16 @@ fn progpow_loop(
 		mix[l][0] = merge(mix[l][0], data64 as u32, rnd.next_u32());
 
 		let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
-		mix[l][dst] = merge(mix[l][dst], (data64 >> 32) as u32, rnd.next_u32());
+		unsafe {
+			// NOTE: same as above
+			*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), (data64 >> 32) as u32, rnd.next_u32());
+		}
 	}
 }
 
 pub fn progpow(
 	header_hash: H256,
 	nonce: u64,
-	size: u64,
 	block_number: u64,
 	cache: &[Node],
 	c_dag: &[u32; PROGPOW_CACHE_WORDS],
@@ -316,6 +335,11 @@ pub fn progpow(
 	let mut mix = [[0u32; PROGPOW_REGS]; PROGPOW_LANES];
 	let mut lane_results = [0u32; PROGPOW_LANES];
 	let mut result = [0u32; 8];
+
+	let data_size = get_data_size(block_number) / PROGPOW_MIX_BYTES;
+
+	// NOTE: this assert is required to aid the optimizer elide the non-zero remainder check in progpow_loop
+	assert!(data_size > 0);
 
 	// Initialize mix for all lanes
 	let seed = keccak_f800_short(header_hash, nonce, result);
@@ -332,7 +356,7 @@ pub fn progpow(
 			&mut mix,
 			cache,
 			c_dag,
-			size as usize / PROGPOW_MIX_BYTES,
+			data_size,
 		);
 	}
 
@@ -360,7 +384,6 @@ pub fn progpow(
 pub fn progpow_light(
 	header_hash: H256,
 	nonce: u64,
-	size: u64,
 	block_number: u64,
 	cache: &[Node],
 ) -> (H256, H256) {
@@ -369,7 +392,6 @@ pub fn progpow_light(
 	progpow(
 		header_hash,
 		nonce,
-		size,
 		block_number,
 		cache,
 		&c_dag,
@@ -397,7 +419,6 @@ mod test {
 	use keccak::H256;
 	use rustc_hex::FromHex;
 	use serde_json::{self, Value};
-	use shared::get_data_size;
 	use std::collections::VecDeque;
 	use super::*;
 
@@ -499,7 +520,6 @@ mod test {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 		let tempdir = TempDir::new("").unwrap();
 		let cache = builder.new_cache(tempdir.into_path(), 0);
-		let data_size = get_data_size(0) as u64;
 		let c_dag = generate_cdag(cache.as_ref());
 
 		let header_hash = [0; 32];
@@ -507,7 +527,6 @@ mod test {
 		let (digest, result) = progpow(
 			header_hash,
 			0,
-			data_size,
 			0,
 			cache.as_ref(),
 			&c_dag,
@@ -562,13 +581,11 @@ mod test {
 			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 			let tempdir = TempDir::new("").unwrap();
 			let cache = builder.new_cache(tempdir.path().to_owned(), test.block_number);
-			let data_size = get_data_size(test.block_number) as u64;
 			let c_dag = generate_cdag(cache.as_ref());
 
 			let (digest, result) = progpow(
 				test.header_hash,
 				test.nonce,
-				data_size,
 				test.block_number,
 				cache.as_ref(),
 				&c_dag,

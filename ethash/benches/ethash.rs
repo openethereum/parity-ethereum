@@ -12,7 +12,6 @@ use tempdir::TempDir;
 use rustc_hex::FromHex;
 use ethash::{NodeCacheBuilder, OptimizeFor};
 use ethash::compute::light_compute;
-use ethash::shared;
 
 fn bench_hashimoto_light(c: &mut Criterion) {
 	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
@@ -31,7 +30,6 @@ fn bench_progpow_light(c: &mut Criterion) {
 	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 	let tempdir = TempDir::new("").unwrap();
 	let cache = builder.new_cache(tempdir.into_path(), 0);
-	let data_size = shared::get_data_size(0) as u64;
 
 	let h = FromHex::from_hex("c9149cc0386e689d789a1c2f3d5d169a61a6218ed30e74414dc736e442ef3d1f").unwrap();
 	let mut hash = [0; 32];
@@ -43,7 +41,6 @@ fn bench_progpow_light(c: &mut Criterion) {
 			progpow::progpow(
 				hash,
 				0,
-				data_size,
 				0,
 				cache.as_ref(),
 				&c_dag,
@@ -56,7 +53,6 @@ fn bench_progpow_optimal_light(c: &mut Criterion) {
 	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 	let tempdir = TempDir::new("").unwrap();
 	let cache = builder.new_cache(tempdir.into_path(), 0);
-	let data_size = shared::get_data_size(0) as u64;
 	let c_dag = progpow::generate_cdag(cache.as_ref());
 
 	let h = FromHex::from_hex("c9149cc0386e689d789a1c2f3d5d169a61a6218ed30e74414dc736e442ef3d1f").unwrap();
@@ -68,7 +64,6 @@ fn bench_progpow_optimal_light(c: &mut Criterion) {
 			progpow::progpow(
 				hash,
 				0,
-				data_size,
 				0,
 				cache.as_ref(),
 				&c_dag,
