@@ -11,7 +11,7 @@ use ethash::progpow;
 use tempdir::TempDir;
 use rustc_hex::FromHex;
 use ethash::{NodeCacheBuilder, OptimizeFor};
-use ethash::compute::{calculate_dag_item, light_compute};
+use ethash::compute::light_compute;
 use ethash::shared;
 
 fn bench_hashimoto_light(c: &mut Criterion) {

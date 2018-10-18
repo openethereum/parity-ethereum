@@ -245,20 +245,25 @@ fn progpow_loop(
 	let g_offset = mix[loop_ % PROGPOW_LANES][0] as usize % data_size;
 	let g_offset = g_offset * PROGPOW_LANES;
 
-	let mut node = calculate_dag_item((2 * g_offset / 16) as u32, cache);
+	let mut node = unsafe {
+		// NOTE: `node` will always be initialized on the first iteration of the
+		// loop below. `g_offset` is multipled by `PROGPOW_LANES` (32) which
+		// will guarantee it is divisible by 8.
+		::std::mem::uninitialized()
+	};
+
+	debug_assert_eq!(g_offset % 8, 0);
 
 	// Lanes can execute in parallel and will be convergent
 	for l in 0..mix.len() {
-		let index = 2 * (g_offset + l);
+		let index = g_offset + l;
 
-		if l != 0 && index % 16 == 0 {
-			node = calculate_dag_item((index / 16) as u32, cache);
+		if index % 8 == 0 {
+			node = calculate_dag_item((index / 8) as u32, cache);
 		}
 
 		// Global load to sequential locations
-		let data64 =
-			(node.as_words()[(index + 1) % 16] as u64) << 32 |
-			node.as_words()[index % 16] as u64;
+		let data64 = node.as_dwords()[index % 8];
 
 		// Initialize the seed and mix destination sequence
 		let (mut rnd, mut mix_seq) = progpow_init(seed);
@@ -373,7 +378,7 @@ pub fn generate_cdag(cache: &[Node]) -> [u32; PROGPOW_CACHE_WORDS] {
 	let mut c_dag = [0u32; PROGPOW_CACHE_WORDS];
 
 	for i in 0..PROGPOW_CACHE_WORDS / 16 {
-		let node = ::compute::calculate_dag_item(i as u32, cache);
+		let node = calculate_dag_item(i as u32, cache);
 		for j in 0..16 {
 			c_dag[i * 16 + j] = node.as_words()[j];
 		}
