@@ -38,10 +38,6 @@ fn bench_progpow_light(c: &mut Criterion) {
 	hash.copy_from_slice(&h);
 
     c.bench_function("progpow_light", move |b| {
-		let lookup = |index: usize| {
-			calculate_dag_item((index / 16) as u32, cache.as_ref())
-		};
-
 		b.iter(|| {
 			let c_dag = progpow::generate_cdag(cache.as_ref());
 			progpow::progpow(
@@ -49,8 +45,8 @@ fn bench_progpow_light(c: &mut Criterion) {
 				0,
 				data_size,
 				0,
+				cache.as_ref(),
 				&c_dag,
-				lookup,
 			);
 		})
 	});
@@ -68,18 +64,14 @@ fn bench_progpow_optimal_light(c: &mut Criterion) {
 	hash.copy_from_slice(&h);
 
     c.bench_function("progpow_optimal_light", move |b| {
-		let lookup = |index: usize| {
-			calculate_dag_item((index / 16) as u32, cache.as_ref())
-		};
-
 		b.iter(|| {
 			progpow::progpow(
 				hash,
 				0,
 				data_size,
 				0,
+				cache.as_ref(),
 				&c_dag,
-				lookup,
 			);
 		})
 	});

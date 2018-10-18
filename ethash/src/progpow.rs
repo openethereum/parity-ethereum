@@ -234,25 +234,25 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
 	(rnd, mix_seq)
 }
 
-fn progpow_loop<F>(
+fn progpow_loop(
 	seed: u64,
 	loop_: usize,
 	mix: &mut [[u32; PROGPOW_REGS]; PROGPOW_LANES],
+	cache: &[Node],
 	c_dag: &[u32; PROGPOW_CACHE_WORDS],
-	lookup: &F,
 	data_size: usize,
-) where F: Fn(usize) -> Node {
+) {
 	let g_offset = mix[loop_ % PROGPOW_LANES][0] as usize % data_size;
 	let g_offset = g_offset * PROGPOW_LANES;
 
-	let mut node = lookup(2 * g_offset);
+	let mut node = calculate_dag_item((2 * g_offset / 16) as u32, cache);
 
 	// Lanes can execute in parallel and will be convergent
 	for l in 0..mix.len() {
 		let index = 2 * (g_offset + l);
 
 		if l != 0 && index % 16 == 0 {
-			node = lookup(index);
+			node = calculate_dag_item((index / 16) as u32, cache);
 		}
 
 		// Global load to sequential locations
@@ -298,16 +298,14 @@ fn progpow_loop<F>(
 	}
 }
 
-pub fn progpow<F>(
+pub fn progpow(
 	header_hash: H256,
 	nonce: u64,
 	size: u64,
 	block_number: u64,
+	cache: &[Node],
 	c_dag: &[u32; PROGPOW_CACHE_WORDS],
-	lookup: F,
-) -> (H256, H256)
-	where F: Fn(usize) -> Node
-{
+) -> (H256, H256) {
 	let mut mix = [[0u32; PROGPOW_REGS]; PROGPOW_LANES];
 	let mut lane_results = [0u32; PROGPOW_LANES];
 	let mut result = [0u32; 8];
@@ -325,8 +323,8 @@ pub fn progpow<F>(
 			period,
 			i,
 			&mut mix,
+			cache,
 			c_dag,
-			&lookup,
 			size as usize / PROGPOW_MIX_BYTES,
 		);
 	}
@@ -360,17 +358,14 @@ pub fn progpow_light(
 	cache: &[Node],
 ) -> (H256, H256) {
 	let c_dag = generate_cdag(cache);
-	let lookup = |index: usize| {
-		calculate_dag_item((index / 16) as u32, cache)
-	};
 
 	progpow(
 		header_hash,
 		nonce,
 		size,
 		block_number,
+		cache,
 		&c_dag,
-		lookup,
 	)
 }
 
@@ -500,10 +495,6 @@ mod test {
 		let data_size = get_data_size(0) as u64;
 		let c_dag = generate_cdag(cache.as_ref());
 
-		let lookup = |index: usize| {
-			::compute::calculate_dag_item((index / 16) as u32, cache.as_ref())
-		};
-
 		let header_hash = [0; 32];
 
 		let (digest, result) = progpow(
@@ -511,8 +502,8 @@ mod test {
 			0,
 			data_size,
 			0,
+			cache.as_ref(),
 			&c_dag,
-			lookup,
 		);
 
 		let expected_digest = FromHex::from_hex("7d5b1d047bfb2ebeff3f60d6cc935fc1eb882ece1732eb4708425d2f11965535").unwrap();
@@ -567,17 +558,13 @@ mod test {
 			let data_size = get_data_size(test.block_number) as u64;
 			let c_dag = generate_cdag(cache.as_ref());
 
-			let lookup = |index: usize| {
-				::compute::calculate_dag_item((index / 16) as u32, cache.as_ref())
-			};
-
 			let (digest, result) = progpow(
 				test.header_hash,
 				test.nonce,
 				data_size,
 				test.block_number,
+				cache.as_ref(),
 				&c_dag,
-				lookup,
 			);
 
 			assert_eq!(digest, test.final_hash);
