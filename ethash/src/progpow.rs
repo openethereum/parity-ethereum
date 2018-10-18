@@ -135,6 +135,7 @@ pub fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256
 	unsafe { ::std::mem::transmute(res) }
 }
 
+#[inline]
 fn fnv1a_hash(h: u32, d: u32) -> u32 {
 	(h ^ d).wrapping_mul(FNV_PRIME)
 }
@@ -151,6 +152,7 @@ impl Kiss99 {
 		Kiss99 { z, w, jsr, jcong }
 	}
 
+	#[inline]
 	fn next_u32(&mut self) -> u32 {
 		self.z = 36969u32.wrapping_mul(self.z & 65535).wrapping_add(self.z >> 16);
 		self.w = 18000u32.wrapping_mul(self.w & 65535).wrapping_add(self.w >> 16);
@@ -266,30 +268,30 @@ fn progpow_loop(
 		let data64 = node.as_dwords()[index % 8];
 
 		// Initialize the seed and mix destination sequence
-		let (mut rnd, mut mix_seq) = progpow_init(seed);
+		let (mut rnd, mix_seq) = progpow_init(seed);
 		let mut mix_seq_cnt = 0;
-
-		let mix_src = |rnd: &mut Kiss99| rnd.next_u32() as usize % PROGPOW_REGS;
-		let mut mix_dst = || {
-			let ret = mix_seq[mix_seq_cnt % PROGPOW_REGS];
-			mix_seq_cnt += 1;
-			ret as usize
-		};
 
 		for i in 0..(PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH)) {
 			if i < PROGPOW_CNT_CACHE {
 				// Cached memory access lanes access random location
-				let offset = mix[l][mix_src(&mut rnd)] as usize % PROGPOW_CACHE_WORDS;
+				let src = rnd.next_u32() as usize % PROGPOW_REGS;
+				let offset = mix[l][src] as usize % PROGPOW_CACHE_WORDS;
 				let data32 = c_dag[offset];
 
-				let dst = mix_dst();
+				let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
+				mix_seq_cnt += 1;
+
 				mix[l][dst] = merge(mix[l][dst], data32, rnd.next_u32());
 			}
 			if i < PROGPOW_CNT_MATH {
 				// Random math
-				let data32 = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
+				let src1 = rnd.next_u32() as usize % PROGPOW_REGS;
+				let src2 = rnd.next_u32() as usize % PROGPOW_REGS;
+				let data32 = math(mix[l][src1], mix[l][src2], rnd.next_u32());
 
-				let dst = mix_dst();
+				let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
+				mix_seq_cnt += 1;
+
 				mix[l][dst] = merge(mix[l][dst], data32, rnd.next_u32());
 			}
 		}
@@ -298,7 +300,7 @@ fn progpow_loop(
 		// Allows full latency hiding
 		mix[l][0] = merge(mix[l][0], data64 as u32, rnd.next_u32());
 
-		let dst = mix_dst();
+		let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
 		mix[l][dst] = merge(mix[l][dst], (data64 >> 32) as u32, rnd.next_u32());
 	}
 }
