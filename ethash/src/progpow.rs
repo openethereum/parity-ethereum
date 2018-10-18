@@ -61,7 +61,7 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 	}
 
 	// Rho Pi
-	let mut t = st[1];
+	let mut _t = st[1];
 
 	debug_assert_eq!(KECCAKF_ROTC.len(), 24);
 	unroll! {
@@ -72,9 +72,11 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 				// therefore this index is always within bounds (although rustc
 				// can't prove it).
 				bc[0] = *st.get_unchecked(j);
-				*st.get_unchecked_mut(j) = t.rotate_left(KECCAKF_ROTC[i]);
+				*st.get_unchecked_mut(j) = _t.rotate_left(KECCAKF_ROTC[i]);
 			}
-			t = bc[0];
+			// This variable is declared with _ since rustc complains about the
+			// value assigned not being read, this is because of the unroll macro.
+			_t = bc[0];
 		}
 	}
 
