@@ -52,7 +52,6 @@ pub struct EthAccount{
 	
 }
 
-
 /// Extended account information (used by `parity_allAccountInfo`).
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct ExtAccountInfo {
