@@ -243,7 +243,7 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
 			// values from the the range [0..i]. This way it is guaranteed that
 			// the indices are always within the range of `mix_seq` and we can
 			// skip the bounds checking.
-			std::ptr::swap(&mut mix_seq[i], mix_seq.get_unchecked_mut(j));
+			::std::ptr::swap(&mut mix_seq[i], mix_seq.get_unchecked_mut(j));
 		}
 	}
 
