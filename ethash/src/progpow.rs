@@ -190,8 +190,12 @@ fn fill_mix(seed: u64, lane_id: u32) -> [u32; PROGPOW_REGS] {
 	let mut rnd = Kiss99::new(z, w, jsr, jcong);
 
 	let mut mix = [0; PROGPOW_REGS];
-	for i in 0..mix.len() {
-		mix[i] = rnd.next_u32();
+
+	debug_assert_eq!(PROGPOW_REGS, 16);
+	unroll! {
+		for i in 0..16 {
+			mix[i] = rnd.next_u32();
+		}
 	}
 
 	mix
