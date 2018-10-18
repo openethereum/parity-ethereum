@@ -146,7 +146,7 @@ impl Engine<EthereumMachine> for Hbbft {
 			debug_assert!(new.total_score() < current.total_score());
 			ForkChoice::Old
 		} else {
-			debug_assert_eq!(new.total_score(), current.total_score());
+			debug_assert_eq!(new, current);
 			ForkChoice::Old
 		}
 	}

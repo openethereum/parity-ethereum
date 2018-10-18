@@ -528,9 +528,7 @@ impl BatchHandler {
 
 		// TODO: Sync block num with epoch upon startup.
 		//
-		// if open_block.header().number() == block_num {
-		//
-		if true {
+		if open_block.header().number() == block_num {
 			// The block's timestamp is the median of the proposed timestamps. This guarantees that at least one correct
 			// node's proposal was above it, and at least one was below it.
 			let timestamp = open_block.header().timestamp().max(timestamps[timestamps.len() / 2]);
