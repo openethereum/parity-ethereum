@@ -289,38 +289,39 @@ fn progpow_loop(
 		let (mut rnd, mix_seq) = progpow_init(seed);
 		let mut mix_seq_cnt = 0;
 
-		for i in 0..(PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH)) {
-			if i < PROGPOW_CNT_CACHE {
-				// Cached memory access lanes access random location
-				let src = rnd.next_u32() as usize % PROGPOW_REGS;
-				let offset = mix[l][src] as usize % PROGPOW_CACHE_WORDS;
-				let data32 = c_dag[offset];
+		debug_assert_eq!(PROGPOW_CNT_CACHE, 8);
+		debug_assert_eq!(PROGPOW_CNT_MATH, 8);
+		for _ in 0..8 { // PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH)
+			// if i < PROGPOW_CNT_CACHE
+			// Cached memory access lanes access random location
+			let src = rnd.next_u32() as usize % PROGPOW_REGS;
+			let offset = mix[l][src] as usize % PROGPOW_CACHE_WORDS;
+			let data32 = c_dag[offset];
 
-				let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
-				mix_seq_cnt += 1;
+			let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
+			mix_seq_cnt += 1;
 
-				unsafe {
-					// NOTE: `dst` is taken from `mix_seq` whose values are
-					// always defined in the range [0..15] (they are initialised
-					// in `progpow_init` and we bind it as immutable). Thus, it
-					// is guaranteed that the index is always within range of
-					// `mix[l][dst]`.
-					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
-				}
+			unsafe {
+				// NOTE: `dst` is taken from `mix_seq` whose values are
+				// always defined in the range [0..15] (they are initialised
+				// in `progpow_init` and we bind it as immutable). Thus, it
+				// is guaranteed that the index is always within range of
+				// `mix[l][dst]`.
+				*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
 			}
-			if i < PROGPOW_CNT_MATH {
-				// Random math
-				let src1 = rnd.next_u32() as usize % PROGPOW_REGS;
-				let src2 = rnd.next_u32() as usize % PROGPOW_REGS;
-				let data32 = math(mix[l][src1], mix[l][src2], rnd.next_u32());
 
-				let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
-				mix_seq_cnt += 1;
+			// if i < PROGPOW_CNT_MATH
+			// Random math
+			let src1 = rnd.next_u32() as usize % PROGPOW_REGS;
+			let src2 = rnd.next_u32() as usize % PROGPOW_REGS;
+			let data32 = math(mix[l][src1], mix[l][src2], rnd.next_u32());
 
-				unsafe {
-					// NOTE: Same as above.
-					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
-				}
+			let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
+			mix_seq_cnt += 1;
+
+			unsafe {
+				// NOTE: Same as above.
+				*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
 			}
 		}
 
