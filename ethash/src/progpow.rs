@@ -191,8 +191,7 @@ fn merge(a: u32, b: u32, r: u32) -> u32 {
 		0 => a.wrapping_mul(33).wrapping_add(b),
 		1 => (a ^ b).wrapping_mul(33),
 		2 => a.rotate_left((r >> 16) % 32) ^ b,
-		3 => a.rotate_right((r >> 16) % 32) ^ b,
-		_ => unreachable!(),
+		_ => a.rotate_right((r >> 16) % 32) ^ b,
 	}
 }
 
@@ -208,8 +207,7 @@ fn math(a: u32, b: u32, r: u32) -> u32 {
 		7 => a | b,
 		8 => a ^ b,
 		9 => a.leading_zeros() + b.leading_zeros(),
-		10 => a.count_ones() + b.count_ones(),
-		_ => unreachable!(),
+		_ => a.count_ones() + b.count_ones(),
 	}
 }
 
