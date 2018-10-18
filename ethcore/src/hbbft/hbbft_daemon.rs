@@ -197,7 +197,7 @@ impl Laboratory {
 
 		Contribution {
 			transactions: txns,
-			timestamp: UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs(),
+			timestamp: unix_now(),
 		}
 	}
 
@@ -403,6 +403,16 @@ impl BatchHandler {
 			println!("Block {} already imported.", block_num);
 		}
 
+		self.push_contribution();
+	}
+
+	/// Inputs pending transactions as this node's contribution for the next batch into Honey Badger.
+	fn push_contribution(&mut self) {
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return,
+		};
+
 		// client.clear_queue();
 		// client.flush_queue();
 
@@ -413,7 +423,11 @@ impl BatchHandler {
 		// TODO (c0gent): `batch_size / num_validators`
 		let contrib_size = batch_size / 5;
 
-		let pending = miner.pending_transactions_from_queue(&*client, batch_size);
+		let pending = client.miner().pending_transactions_from_queue(&*client, batch_size);
+
+		// if pending.is_empty() && !self.hydrabadger.state().dhb().expect("DHB instance missing").should_propose() {
+		// 	return; // Postpone the next epoch.
+		// }
 
 		// miner.clear();
 
@@ -426,9 +440,9 @@ impl BatchHandler {
 		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes()).collect();
 		let contribution = Contribution {
 			transactions: ser_txns,
-			timestamp: UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs(),
+			timestamp: unix_now(),
 		};
-		info!("Proposing {} transactions for epoch {}.", contribution.transactions.len(), batch.epoch() + 1);
+		info!("Proposing {} transactions.", contribution.transactions.len());
 
 		self.hydrabadger.push_user_contribution(contribution).expect("TODO");
 	}
@@ -598,6 +612,11 @@ impl Drop for HbbftDaemon {
 	fn drop(&mut self) {
 		self.shutdown();
 	}
+}
+
+/// Returns the current time, in seconds since the epoch.
+fn unix_now() -> u64 {
+	UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs()
 }
 
 #[cfg(test)]
