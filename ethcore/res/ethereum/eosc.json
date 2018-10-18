@@ -1,0 +1,76 @@
+{
+	"name": "EOS Classic",
+	"dataDir": "eosc",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x1043561a8829300000",
+				"homesteadTransition": 0,
+				"bombDefuseTransition": 0,
+				"eip100bTransition": 0
+			}
+		}
+	},
+	"params": {
+		"gasLimitBoundDivisor": "0x0400",
+		"registrar": "0x0000000000000000000000000000000000000000",
+		"accountStartNonce": "0x00",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID": "0x7e2",
+		"chainID": "0x7e2",
+		"maxCodeSize": 24576,
+		"maxCodeSizeTransition": 0,
+		"eip150Transition": 0,
+		"eip160Transition": 0,
+		"eip161abcTransition": 0,
+		"eip161dTransition": 0,
+		"eip155Transition": 0,
+		"eip98Transition": "0x7fffffffffffff",
+		"eip140Transition": 0,
+		"eip211Transition": 0,
+		"eip214Transition": 0,
+		"eip658Transition": 0
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x0000000000000042",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x400000000",
+		"author": "0xd8431eaE48777d66c397eB9a38D39FA7767Bb1F7",
+		"timestamp": "0x5bc3d880",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x3230313820454f5320436c61737369632050726f6a656374",
+		"gasLimit": "0x5f5e100",
+		"stateRoot": "0xc5a8116211c32cc80aad60875e7bf14673c57814dfe35b67a4f269819efad098"
+	},
+	"nodes": [
+		"enode://9c6e47a883182b01bfe9379c3e363dfa6f3a52ca9778a3242ddbb742d3ef32eee3d9b00840cad8a28bba75b9585e2b6d8522477989469c37e1a1d8ec3a07ced6@54.215.193.121:30303",
+		"enode://23efe7dcd3e2662c0ffe0805e8c8b8a226ba1db50aa5f558dee4598298384294703380dd9eb12931f07bb1b2acca0429fdc7bffd0ffab24759fc78fc53ee5635@13.125.193.239:30303",
+		"enode://cc8fb11aae30d01732c7f8a8a835f2c5af312f90933077a959740f8d3b86804218a55e346e63b67244497446a1bcf845caee82fda71dce6e2bdd83addd108085@18.195.136.227:30303",
+		"enode://4e1b39f2c67beba17ea664a0b929c31675e17163b83ce1d9de27bdc9f4ff10a365bb702ca911273cd0eb1c1a85e15224cb824307b88f84b6555de6f5e52a9c5b@52.78.247.40:30303",
+		"enode://9f0d8a7298d23d36e5352d369f3bf389a1d3c98450a09908a623ebd6035e33e63aeda2716233443bfb23c0ca9c9279f18c61a17ed4384f913994abddd0a561ab@3.0.49.126:30303",
+		"enode://d74a8b13adf2051ae830effe58a3a379f53c857c5bbb48dbe9f869e7f2ca14144bf3e0bf8b5f232998f994e236d0cd2186aa116364af94d569731f7d3af03cbb@13.125.255.206:30303",
+		"enode://bdef8f16732c9ce9d09c5ffcbd6c18c587b1af505696a55d383d027e4a2aa9065798169c9c534ab241511f42da5bfae209beebe6a75a7c7c602555c4c5de5a13@54.180.91.159:30303",
+		"enode://d18bdbb539c7f753e89d06da9e68d7b999929c2a8bd925de1bd6c519907bc79a35d14c8e354801251a146a3c9de8ced28070479a320b87294f55ea91e8dd1cce@35.170.55.120:30303"
+	],
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "pricing": { "modexp": { "divisor": 20 } } } },
+		"0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
+		"d8431eaE48777d66c397eB9a38D39FA7767Bb1F7": {
+			"balance": "10400000000000000000000000000"
+		}
+	}
+}
