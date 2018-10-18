@@ -64,8 +64,13 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 	let mut t = st[1];
 	for i in 0..KECCAKF_ROTC.len() {
 		let j = KECCAKF_PILN[i];
-		bc[0] = st[j];
-		st[j] = t.rotate_left(KECCAKF_ROTC[i]);
+		unsafe {
+			// NOTE: `KECCAKF_PILN` only contains elements that are < 25,
+			// therefore this index is always within bounds (although rustc
+			// can't prove it).
+			bc[0] = *st.get_unchecked(j);
+			*st.get_unchecked_mut(j) = t.rotate_left(KECCAKF_ROTC[i]);
+		}
 		t = bc[0];
 	}
 
@@ -80,7 +85,11 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 	}
 
 	// Iota
-	st[0] ^= KECCAKF_RNDC[r];
+	debug_assert!(r < KECCAKF_RNDC.len());
+	unsafe {
+		// NOTE: This function is always called with `r` < `KECCAKF_RNDC.len()`.
+		st[0] ^= KECCAKF_RNDC.get_unchecked(r);
+	}
 }
 
 fn keccak_f800_short(header_hash: H256, nonce: u64, result: [u32; 8]) -> u64 {
@@ -131,7 +140,7 @@ pub fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256
 	keccak_f800_round(&mut st, 21);
 
 	let res: [u32; 8] = [st[0], st[1], st[2], st[3], st[4], st[5], st[6], st[7]];
-	// transmute to little endian bytes
+	// NOTE: transmute to little endian bytes
 	unsafe { ::std::mem::transmute(res) }
 }
 
@@ -305,7 +314,7 @@ fn progpow_loop(
 				mix_seq_cnt += 1;
 
 				unsafe {
-					// NOTE: same as above
+					// NOTE: Same as above.
 					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
 				}
 			}
@@ -317,7 +326,7 @@ fn progpow_loop(
 
 		let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
 		unsafe {
-			// NOTE: same as above
+			// NOTE: Same as above.
 			*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), (data64 >> 32) as u32, rnd.next_u32());
 		}
 	}
@@ -336,7 +345,8 @@ pub fn progpow(
 
 	let data_size = get_data_size(block_number) / PROGPOW_MIX_BYTES;
 
-	// NOTE: this assert is required to aid the optimizer elide the non-zero remainder check in progpow_loop
+	// NOTE: This assert is required to aid the optimizer elide the non-zero
+	// remainder check in `progpow_loop`.
 	assert!(data_size > 0);
 
 	// Initialize mix for all lanes
@@ -373,7 +383,8 @@ pub fn progpow(
 	}
 
 	let digest = keccak_f800_long(header_hash, seed, result);
-	// transmute to little endian bytes
+
+	// NOTE: transmute to little endian bytes
 	let result = unsafe { ::std::mem::transmute(result) };
 
 	(digest, result)
