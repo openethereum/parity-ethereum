@@ -179,6 +179,15 @@ fn rpc_eth_syncing() {
 }
 
 #[test]
+fn rpc_eth_chain_id() {
+	let tester = EthTester::default();
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_eth_hashrate() {
 	let tester = EthTester::default();
 	tester.hashrates.lock().insert(H256::from(0), (Instant::now() + Duration::from_secs(2), U256::from(0xfffa)));

@@ -49,6 +49,7 @@ use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, LightBlockNumber, Bytes, SyncStatus, SyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
+	U64 as RpcU64,
 };
 use v1::metadata::Metadata;
 
@@ -244,6 +245,10 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 	fn is_mining(&self) -> Result<bool> {
 		Ok(false)
+	}
+
+	fn chain_id(&self) -> Result<Option<RpcU64>> {
+		Ok(self.client.signing_chain_id().map(RpcU64::from))
 	}
 
 	fn hashrate(&self) -> Result<RpcU256> {
