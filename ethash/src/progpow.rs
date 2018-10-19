@@ -115,10 +115,9 @@ fn keccak_f800_short(header_hash: H256, nonce: u64, result: [u32; 8]) -> u64 {
 		st[10 + i] = result[i];
 	}
 
-	for r in 0..21 {
+	for r in 0..22 {
 		keccak_f800_round(&mut st, r);
 	}
-	keccak_f800_round(&mut st, 21);
 
 	(st[0] as u64) << 32 | st[1] as u64
 }
@@ -140,10 +139,9 @@ pub fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256
 		st[10 + i] = result[i];
 	}
 
-	for r in 0..21 {
+	for r in 0..22 {
 		keccak_f800_round(&mut st, r);
 	}
-	keccak_f800_round(&mut st, 21);
 
 	let res: [u32; 8] = [st[0], st[1], st[2], st[3], st[4], st[5], st[6], st[7]];
 	// NOTE: transmute to little endian bytes
