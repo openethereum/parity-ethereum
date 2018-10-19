@@ -17,6 +17,6 @@ export DOCKER_TARGET=$1
 echo $DOCKER_TARGET
 
 echo "__________Docker build and push__________"
-docker build --build-arg TARGET=$DOCKER_TARGET --no-cache=true --tag parity/$DOCKER_TARGET:$DOCKER_BUILD_TAG -f scripts/docker/hub/Dockerfile .
-docker push parity/$DOCKER_TARGET:$DOCKER_BUILD_TAG
+docker build --build-arg TARGET=$DOCKER_TARGET --no-cache=true --tag poanetwork/$DOCKER_TARGET:$DOCKER_BUILD_TAG -f scripts/docker/hub/Dockerfile .
+docker push poanetwork/$DOCKER_TARGET:$DOCKER_BUILD_TAG
 docker logout

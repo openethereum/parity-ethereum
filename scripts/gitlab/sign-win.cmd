@@ -1,1 +1,1 @@
-@signtool sign /f %1 /p %2 /tr http://timestamp.comodoca.com /du https://parity.io %3
+@signtool sign /f %1 /p %2 /tr http://timestamp.comodoca.com /du https://poa.network %3

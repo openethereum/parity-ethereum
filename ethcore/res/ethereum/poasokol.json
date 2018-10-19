@@ -34,6 +34,7 @@
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID": "0x4D",
+		"registrar" : "0xd56fb08281adf545d3af40614607d51284b014a2",
 		"eip140Transition": "0x0",
 		"eip211Transition": "0x0",
 		"eip214Transition": "0x0",

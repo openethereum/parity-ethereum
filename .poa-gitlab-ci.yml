@@ -1,0 +1,182 @@
+stages:
+- test
+- build
+- publish
+- optional
+
+image:                             parity/rust:gitlab-ci
+
+variables:
+  CI_SERVER_NAME:                  "GitLab CI"
+  CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
+  BUILD_TARGET:                    ubuntu
+  BUILD_ARCH:                      amd64
+  CARGO_TARGET:                    x86_64-unknown-linux-gnu
+
+cache:
+  key:                             "${CI_JOB_NAME}"
+  paths:
+  - ./target
+  - ./.cargo
+
+.releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
+  only:                            &releaseable_branches
+  - stable
+  - beta
+  - tags
+  - schedules
+
+
+.collect_artifacts:                &collect_artifacts
+  artifacts:
+    name:                          "${CI_JOB_NAME}_${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
+    when:                          on_success
+    expire_in:                     1 mos
+    paths:
+    - artifacts/
+
+.determine_version:                &determine_version
+- VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
+- DATE_STR="$(date +%Y%m%d)"
+- ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
+- test "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
+- export VERSION
+- echo "Version = ${VERSION}"
+
+test-linux:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+  - scripts/gitlab/test-all.sh stable
+  tags:
+  - rust-stable
+
+build-linux:
+  stage:                           build
+  only:                            *releaseable_branches
+  variables:
+    CARGO_TARGET:                  x86_64-unknown-linux-gnu
+  script:
+  - scripts/gitlab/build-unix.sh
+  <<:                              *collect_artifacts
+  tags:
+  - rust-stable
+
+build-darwin:
+  stage:                           build
+  only:                            *releaseable_branches
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+  script:
+  - scripts/gitlab/build-unix.sh
+  tags:
+  - rust-osx
+  <<:                              *collect_artifacts
+
+build-windows:
+  stage:                           build
+  only:                            *releaseable_branches
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+  script:
+  - sh scripts/gitlab/build-windows.sh
+  tags:
+  - rust-windows
+  <<:                              *collect_artifacts
+
+publish-docker:
+  stage:                           publish
+  only:                            *releaseable_branches
+  cache: {}
+  dependencies:
+  - build-linux
+  tags:
+  - docker
+  script:
+  - scripts/gitlab/publish-docker.sh parity
+
+publish-awss3:
+  stage:                           publish
+  only:                            *releaseable_branches
+  cache: {}
+  dependencies:
+  - build-linux
+  - build-darwin
+  - build-windows
+  before_script:                   *determine_version
+  script:
+  - scripts/gitlab/publish-awss3.sh
+  tags:
+  - shell
+
+docs-jsonrpc:
+  stage:                            optional
+  only:
+  - tags
+  except:
+  - nightly
+  cache: {}
+  script:
+  - scripts/gitlab/docs-jsonrpc.sh
+  tags:
+  - shell
+
+cargo-audit:
+  stage:                           optional
+  script:
+  - scripts/gitlab/cargo-audit.sh
+  tags:
+  - rust-stable
+
+test-android:
+  stage:                           optional
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+  - scripts/gitlab/test-all.sh stable
+  tags:
+  - rust-arm
+
+test-darwin:
+  stage:                           optional
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+    RUN_TESTS:                     cargo
+  script:
+  - scripts/gitlab/test-all.sh stable
+  tags:
+  - rust-osx
+
+test-windows:
+  stage:                           optional
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+    RUN_TESTS:                     cargo
+  script:
+  - sh scripts/gitlab/test-all.sh stable
+  tags:
+  - rust-windows
+
+test-beta:
+  stage:                           optional
+  variables:
+    RUN_TESTS:                     cargo
+  script:
+  - scripts/gitlab/test-all.sh beta
+  tags:
+  - rust-beta
+
+test-nightly:
+  stage:                           optional
+  variables:
+    RUN_TESTS:                     all
+  script:
+  - scripts/gitlab/test-all.sh nightly
+  tags:
+  - rust-nightly
