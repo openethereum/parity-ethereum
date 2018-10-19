@@ -84,6 +84,15 @@ usage! {
 			"Path to the file to import from",
 		}
 
+		CMD cmd_reset_blockchain
+		{
+			"Resets the blockchain db to the given number, where new_best_block = current_best_block - to",
+
+			ARG arg_to: (Option<u64>) = None,
+			"--to=[TO]",
+			"Number of blocks to revert",
+		}
+
 		CMD cmd_export
 		{
 			"Export blockchain",

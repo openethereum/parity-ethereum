@@ -83,6 +83,7 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
+use client::BlockChainReset;
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -1324,6 +1325,33 @@ impl snapshot::DatabaseRestore for Client {
 		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
+		Ok(())
+	}
+}
+
+impl BlockChainReset for Client {
+	fn reset(&self, to: u64) -> Result<(), String> {
+		if to > self.pruning_history() {
+			return Err("Attempting to reset to block with pruned state".into())
+		}
+
+		let blocks_to_delete = self.chain.read()
+			.block_hashes_from_best_block(to)
+			.ok_or(String::from("Error traversing block chain"))?;
+
+		let mut db_transaction = DBTransaction::with_capacity(to as usize);
+
+		for hash in blocks_to_delete {
+			db_transaction.delete(::db::COL_HEADERS, &*hash);
+			db_transaction.delete(::db::COL_BODIES, &*hash);
+			db_transaction.delete(::db::COL_EXTRA, &*hash);
+		}
+
+		self.db.read()
+			.key_value()
+			.write(db_transaction)
+			.map_err(|err| format!("could not complete reset operation; io error occured: {}", err))?;
+
 		Ok(())
 	}
 }
