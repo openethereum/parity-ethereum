@@ -77,6 +77,7 @@ use verification::queue::kind::BlockLike;
 use verification::queue::kind::blocks::Unverified;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
 use verification;
+use ansi_term::Colour;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -1330,22 +1331,29 @@ impl snapshot::DatabaseRestore for Client {
 }
 
 impl BlockChainReset for Client {
-	fn reset(&self, to: u64) -> Result<(), String> {
-		if to > self.pruning_history() {
+	fn reset(&self, num: u64) -> Result<(), String> {
+		if num > self.pruning_history() {
 			return Err("Attempting to reset to block with pruned state".into())
 		}
 
-		let blocks_to_delete = self.chain.read()
-			.block_hashes_from_best_block(to)
+		let (blocks_to_delete, best_block_hash) = self.chain.read()
+			.block_hashes_from_best_block(num)
 			.ok_or(String::from("Error traversing block chain"))?;
 
-		let mut db_transaction = DBTransaction::with_capacity(to as usize);
+		let mut db_transaction = DBTransaction::with_capacity(num as usize);
 
-		for hash in blocks_to_delete {
-			db_transaction.delete(::db::COL_HEADERS, &*hash);
-			db_transaction.delete(::db::COL_BODIES, &*hash);
-			db_transaction.delete(::db::COL_EXTRA, &*hash);
+		for hash in &blocks_to_delete {
+			db_transaction.delete(::db::COL_HEADERS, hash);
+			db_transaction.delete(::db::COL_BODIES, hash);
+			db_transaction.delete(::db::COL_EXTRA, hash);
 		}
+
+		info!("Deleting block hashes {}", Colour::Red.bold().paint(format!("{:#?}", blocks_to_delete)));
+
+		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
+
+		// update the new best block hash
+		db_transaction.put(::db::COL_EXTRA, b"best", &*best_block_hash);
 
 		self.db.read()
 			.key_value()

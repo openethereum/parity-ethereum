@@ -84,15 +84,6 @@ usage! {
 			"Path to the file to import from",
 		}
 
-		CMD cmd_reset_blockchain
-		{
-			"Resets the blockchain db to the given number, where new_best_block = current_best_block - to",
-
-			ARG arg_to: (Option<u64>) = None,
-			"--to=[TO]",
-			"Number of blocks to revert",
-		}
-
 		CMD cmd_export
 		{
 			"Export blockchain",
@@ -226,6 +217,15 @@ usage! {
 			CMD cmd_db_kill {
 				"Clean the database of the given --chain (default: mainnet)",
 			}
+
+			CMD cmd_db_reset {
+				"Resets the blocks in the blockchain db by the number given",
+
+				ARG arg_db_reset_num: (Option<u64>) = None,
+				"--num=[NUM]",
+				"Number of blocks to revert",
+			}
+
 		}
 
 		CMD cmd_export_hardcoded_sync
@@ -1621,6 +1621,7 @@ mod tests {
 			cmd_tools_hash: false,
 			cmd_db: false,
 			cmd_db_kill: false,
+			cmd_db_reset: false,
 			cmd_export_hardcoded_sync: false,
 
 			// Arguments
@@ -1640,6 +1641,7 @@ mod tests {
 			arg_dapp_path: None,
 			arg_account_import_path: None,
 			arg_wallet_import_path: None,
+			arg_db_reset_num: None,
 
 			// -- Operating Options
 			arg_mode: "last".into(),

@@ -668,19 +668,19 @@ impl BlockChain {
 		self.db.key_value().read_with_cache(db::COL_EXTRA, &self.block_details, parent).map_or(false, |d| d.children.contains(hash))
 	}
 
-	/// fetches the list of blocks from best block to n
-	pub fn block_hashes_from_best_block(&self, n: u64) -> Option<Vec<H256>> {
+	/// fetches the list of blocks from best block to n, and n's parent hash
+	pub fn block_hashes_from_best_block(&self, n: u64) -> Option<(Vec<H256>, H256)> {
 		let mut count = 0;
 		let mut blocks = vec![];
 		let mut current_hash = self.best_block_hash();
 
-		while count < n {
+		while count != n {
 			blocks.push(current_hash);
 			current_hash = self.block_details(&current_hash)?.parent;
 			count += 1;
 		}
 
-		Some(blocks)
+		Some((blocks, current_hash))
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:

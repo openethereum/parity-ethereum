@@ -176,7 +176,7 @@ impl Configuration {
 			}
 		} else if self.args.cmd_tools && self.args.cmd_tools_hash {
 			Cmd::Hash(self.args.arg_tools_hash_file)
-		} else if self.args.cmd_reset_blockchain {
+		} else if self.args.cmd_db && self.args.cmd_db_reset {
 			Cmd::Blockchain(BlockchainCmd::Reset(ResetBlockchain {
 				dirs,
 				spec,
@@ -187,7 +187,7 @@ impl Configuration {
 				fat_db,
 				compaction,
 				cache_config,
-				to: self.args.arg_to.expect("the 'to' argument is required"),
+				num: self.args.arg_db_reset_num.expect("the 'num' argument is required"),
 			}))
 		} else if self.args.cmd_db && self.args.cmd_db_kill {
 			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {

@@ -41,6 +41,7 @@ use dir::Directories;
 use user_defaults::UserDefaults;
 use ethcore_private_tx;
 use db;
+use ansi_term::Colour;
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
@@ -86,7 +87,7 @@ pub struct ResetBlockchain {
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub cache_config: CacheConfig,
-	pub to: u64,
+	pub num: u64,
 }
 
 #[derive(Debug, PartialEq)]
@@ -737,11 +738,14 @@ fn execute_reset(cmd: ResetBlockchain) -> Result<(), String> {
 		cmd.fat_db,
 		cmd.compaction,
 		cmd.cache_config,
-		true
+		false
 	)?;
 
 	let client = service.client();
-	client.reset(cmd.to)?;
+
+	client.reset(cmd.num)?;
+
+	info!("{}", Colour::Green.bold().paint("Successfully reset db!"));
 
 	Ok(())
 }
