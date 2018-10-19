@@ -119,7 +119,7 @@ fn keccak_f800_short(header_hash: H256, nonce: u64, result: [u32; 8]) -> u64 {
 		keccak_f800_round(&mut st, r);
 	}
 
-	(st[0] as u64) << 32 | st[1] as u64
+	(st[0].swap_bytes() as u64) << 32 | st[1].swap_bytes() as u64
 }
 
 pub fn keccak_f800_long(header_hash: H256, nonce: u64, result: [u32; 8]) -> H256 {
@@ -360,6 +360,7 @@ pub fn progpow(
 
 	// Initialize mix for all lanes
 	let seed = keccak_f800_short(header_hash, nonce, result);
+
 	for l in 0..mix.len() {
 		mix[l] = fill_mix(seed, l as u32);
 	}
@@ -534,6 +535,15 @@ mod test {
 	}
 
 	#[test]
+	fn test_keccak_64() {
+		let expected: u64 = 0x5dd431e5fbc604f4;
+		assert_eq!(
+			keccak_f800_short([0; 32], 0, [0; 8]),
+			expected,
+		);
+	}
+
+	#[test]
 	fn test_progpow_hash() {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 		let tempdir = TempDir::new("").unwrap();
@@ -550,8 +560,8 @@ mod test {
 			&c_dag,
 		);
 
-		let expected_digest = FromHex::from_hex("7d5b1d047bfb2ebeff3f60d6cc935fc1eb882ece1732eb4708425d2f11965535").unwrap();
-		let expected_result = FromHex::from_hex("8c091b4eebc51620ca41e2b90a167d378dbfe01c0a255f70ee7004d85a646e17").unwrap();
+		let expected_digest = FromHex::from_hex("5391770a00140cfab1202df86ab47fb86bb299fe4386e6d593d4416b9414df92").unwrap();
+		let expected_result = FromHex::from_hex("d46c7c0a927acead9f943bee6ed95bba40dfbe6c24b232af3e7764f6c8849d41").unwrap();
 
 		assert_eq!(
 			digest.to_vec(),
