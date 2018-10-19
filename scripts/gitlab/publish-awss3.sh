@@ -12,9 +12,6 @@ DATA="secret=$RELEASES_SECRET"
 #echo "Pushing release to Kovan"
 #./scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1338/push-release/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/$CI_COMMIT_SHA"
 
-echo "Pushing release to Sokol"
-./scripts/gitlab/safe-curl.sh $DATA "http://45.32.70.198:1339/push-release/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/$CI_COMMIT_SHA"
-
 cd artifacts
 ls -l | sort -k9
 filetest=( * )
@@ -35,8 +32,6 @@ do
      #../../scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1337/push-build/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/$DIR"
       # Kovan
      #../../scripts/gitlab/safe-curl.sh $DATA "http://update.parity.io:1338/push-build/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/$DIR"
-        # Sokol
-      ../../scripts/gitlab/safe-curl.sh $DATA "http://45.32.70.198:1339/push-build/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}/$DIR"
       ;;
   esac
   cd ..
