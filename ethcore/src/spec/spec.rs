@@ -34,7 +34,7 @@ use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 use builtin::Builtin;
 use encoded;
 use engines::{
-	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority,
+	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority, Clique,
 	AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT
 };
 use error::Error;

@@ -110,7 +110,7 @@ pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 }
 
 /// Create a new Rinkeby testnet chain spec.
-pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+pub fn new_rinkeby<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/rinkeby.json"))
 }
 
