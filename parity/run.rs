@@ -136,8 +136,11 @@ pub struct RunCmd {
 	pub whisper: ::whisper::Config,
 	pub no_hardcoded_sync: bool,
 	pub max_round_blocks_to_import: usize,
-	pub on_demand_retry_count: Option<usize>,
-	pub on_demand_inactive_time_limit: Option<u64>,
+	pub on_demand_time_window: Option<u64>,
+	pub on_demand_success_rate: Option<f64>,
+	pub on_demand_start_backoff: Option<u64>,
+	pub on_demand_end_backoff: Option<u64>,
+	pub on_demand_max_backoff_rounds: Option<usize>,
 }
 
 // node info fetcher for the local store.
@@ -216,15 +219,30 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	config.queue.verifier_settings = cmd.verifier_settings;
 
 	// start on_demand service.
-	// FIXME: CLI args
+
+	let time_window = cmd.on_demand_time_window.map_or(
+		::light::on_demand::DEFAULT_WINDOW_DURATION,
+		|ms| Duration::from_millis(ms)
+	);
+
+	let backoff_start = cmd.on_demand_time_window.map_or(
+		::light::on_demand::DEFAULT_MIN_BACKOFF_DURATION,
+		|ms| Duration::from_millis(ms)
+	);
+
+	let backoff_end = cmd.on_demand_time_window.map_or(
+		::light::on_demand::DEFAULT_MIN_BACKOFF_DURATION,
+		|ms| Duration::from_millis(ms)
+	);
+
 	let on_demand = Arc::new({
 		::light::on_demand::OnDemand::new(
 			cache.clone(),
-			::light::on_demand::DEFAULT_SUCCESS_RATE,
-			::light::on_demand::DEFAULT_MIN_BACKOFF_DURATION,
-			::light::on_demand::DEFAULT_MIN_BACKOFF_DURATION,
-			::light::on_demand::DEFAULT_WINDOW_DURATION,
-			::light::on_demand::DEFAULT_MAX_BACKOFF_ROUNDS
+			cmd.on_demand_success_rate.unwrap_or(::light::on_demand::DEFAULT_SUCCESS_RATE),
+			backoff_start,
+			backoff_end,
+			time_window,
+			cmd.on_demand_max_backoff_rounds.unwrap_or(::light::on_demand::DEFAULT_MAX_BACKOFF_ROUNDS)
 		)
 	});
 

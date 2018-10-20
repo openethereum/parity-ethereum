@@ -524,7 +524,7 @@ pub fn on_demand_error(err: OnDemandError) -> Error {
 	match err {
 		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
 		OnDemandError(OnDemandErrorKind::RequestLimit, _) => timeout_new_peer(&err),
-		OnDemandError(OnDemandErrorKind::EmptyResponse, _) => max_attempts_reached(&err),
+		OnDemandError(OnDemandErrorKind::BadResponse(_), _) => max_attempts_reached(&err),
 		_ => on_demand_others(&err),
 	}
 }

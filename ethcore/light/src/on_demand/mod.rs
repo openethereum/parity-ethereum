@@ -43,7 +43,7 @@ use self::request::CheckedRequest;
 
 pub use self::request::{Request, Response, HeaderRef, Error as ValidityError};
 pub use self::request_guard::{RequestGuard, Error as RequestError};
-pub use self::response_guard::{ResponseGuard, IncompleteError};
+pub use self::response_guard::{ResponseGuard, Error as ResponseGuardError, Inner as ResponseGuardInner};
 
 pub use types::request::ResponseError;
 
@@ -57,7 +57,7 @@ mod response_guard;
 /// The result of execution
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
-/// The default number of a request is ```expoentially backed off``` until it gets dropped
+/// The default number of a request is ```exponentially backed off``` until it gets dropped
 pub const DEFAULT_REQUEST_BACKOFF_ATTEMPTS: usize = 10;
 /// The initial backoff interval for OnDemand queries
 pub const DEFAULT_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(10);
@@ -81,16 +81,16 @@ pub mod error {
 		}
 
 		errors {
-			#[doc = "Maximum number of empty responses for the request have been exceeded"]
-			EmptyResponse {
-				description("Maximum number of empty responses limit reachedaxmum number of empty responses")
-				display("Maximum number of empty responses limit reached")
+			#[doc = "Failure rate of bad responses exceeded"]
+			BadResponse(err: super::ResponseGuardError) {
+				description("Failure rate of bad responses exceeded")
+				display("Failure rate of bad responses exceeded, determined failure was: {:?}", err)
 			}
 
-			#[doc = "Maximum number of queries on the request have been exceeded"]
+			#[doc = "Failure rate for OnDemand requests were exceeded"]
 			RequestLimit {
-				description("Max number of requests limit reached")
-				display("Max number of requests limit reached")
+				description("Failure rate for OnDemand requests were exceeded")
+				display("Failure rate for OnDemand requests were exceeded")
 			}
 		}
 	}
@@ -197,7 +197,7 @@ impl Pending {
 	fn try_complete(self) -> Option<Self> {
 			if self.requests.is_complete() {
 					if self.sender.send(Ok(self.responses)).is_err() {
-							// debug!(target: "on_demand", "Dropped oneshot channel receiver on complete request at query #{}", self.query_id_history.len());
+						debug!(target: "on_demand", "Dropped oneshot channel receiver on request");
 					}
 					None
 			} else {
@@ -235,8 +235,8 @@ impl Pending {
 	}
 
 	// received too many empty responses, may be away to indicate a faulty request
-	fn bad_response(self, _err: IncompleteError) {
-		let err = self::error::ErrorKind::EmptyResponse;
+	fn bad_response(self, err: ResponseGuardError) {
+		let err = self::error::ErrorKind::BadResponse(err);
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");
 		}
@@ -348,6 +348,14 @@ impl OnDemand {
 		max_backoff_dur: Duration,
 		max_backoff_rounds: usize,
 	) -> Self {
+
+		let required_success_rate = if required_success_rate > 1.00 || required_success_rate < 0.0 {
+			warn!(target: "on_demand", "success rate is illegal, falling back to default success rate {}", DEFAULT_SUCCESS_RATE);
+			DEFAULT_SUCCESS_RATE
+		} else {
+			required_success_rate
+		};
+
 		OnDemand {
 			pending: RwLock::new(Vec::new()),
 			peers: RwLock::new(HashMap::new()),
@@ -428,18 +436,13 @@ impl OnDemand {
 			responses,
 			sender,
 			request_guard: RequestGuard::new(
-                            self.required_success_rate,
-                            self.start_backoff_dur,
-                            self.max_backoff_dur, self.
-                            time_window_dur,
-                            self.max_backoff_rounds
-                        ),
-			response_guard: ResponseGuard::new(
-                            self.required_success_rate,
-                            self.start_backoff_dur,
-                            self.max_backoff_dur,
-                            self.time_window_dur
-                        ),
+				self.required_success_rate,
+				self.start_backoff_dur,
+				self.max_backoff_dur, self.
+				time_window_dur,
+				self.max_backoff_rounds
+			),
+			response_guard: ResponseGuard::new(self.required_success_rate, self.time_window_dur),
 		});
 
 		Ok(receiver)
@@ -510,17 +513,13 @@ impl OnDemand {
 				// Register that the request round failed
 				match pending.request_guard.register_error() {
 					// Drop the request
-					RequestError::ReachedLimit(_) => {
-						trace!(target: "on_demand", "RequestGuard rejected the request");
+					RequestError::ReachedLimit => {
+						trace!(target: "on_demand", "RequestGuard dropped the request");
 						pending.request_limit_reached();
 						None
 					}
-					RequestError::Rejected => {
+					RequestError::Rejected | RequestError::LetThrough => {
 						trace!(target: "on_demand", "RequestGuard rejected the request");
-						Some(pending)
-					}
-					RequestError::LetThrough => {
-						trace!(target: "on_demand", "RequestGuard let through");
 						Some(pending)
 					}
 				}
@@ -599,8 +598,7 @@ impl Handler for OnDemand {
 		};
 
 		if responses.is_empty() {
-			trace!(target: "on_demand", "received an empty response {:?}", pending.response_guard);
-			// Max number of empty responses reached, drop the request
+			// Max number of `bad` responses reached, drop the request
 			if let Err(e) = pending.response_guard.register_error(&ResponseError::EmptyResponse) {
 				pending.bad_response(e);
 				return;
@@ -617,11 +615,11 @@ impl Handler for OnDemand {
 				debug!(target: "on_demand", "Peer {} gave bad response: {:?}", peer, e);
 				ctx.disable_peer(peer);
 
-				// Max number of empty responses reached, drop the request
+				// Max number of `bad` responses reached, drop the request
 				if let Err(err) = pending.response_guard.register_error(&e) {
 					pending.bad_response(err);
+					return;
 				}
-				return;
 			}
 		}
 

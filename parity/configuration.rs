@@ -397,8 +397,11 @@ impl Configuration {
 				whisper: whisper_config,
 				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
 				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
-				on_demand_retry_count: self.args.arg_on_demand_retry_count,
-				on_demand_inactive_time_limit: self.args.arg_on_demand_inactive_time_limit,
+				on_demand_time_window: self.args.arg_on_demand_time_window,
+				on_demand_success_rate: self.args.arg_on_demand_success_rate,
+				on_demand_start_backoff: self.args.arg_on_demand_start_backoff,
+				on_demand_end_backoff: self.args.arg_on_demand_end_backoff,
+				on_demand_max_backoff_rounds: self.args.arg_on_demand_max_backoff_rounds,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1449,8 +1452,11 @@ mod tests {
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
 			max_round_blocks_to_import: 12,
-			on_demand_retry_count: None,
-			on_demand_inactive_time_limit: None,
+			on_demand_success_rate: None,
+			on_demand_time_window: None,
+			on_demand_start_backoff: None,
+			on_demand_end_backoff: None,
+			on_demand_max_backoff_rounds: None,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
