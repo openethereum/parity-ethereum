@@ -224,14 +224,14 @@ impl Laboratory {
 		// Determine the pseudo node id:
 		let node_id = self.hdb_cfg.bind_address.port() % 100;
 
-		const NODE_COUNT: u64 = 3;
+		let validator_count = self.hydrabadger.peers().count_validators() as u64;
 
 		// This is total hackfoolery to ensure that each node's sender account
 		// gets a starting balance (will break when nodes > 3):
 		let txns = match self.accounts.account_below(U256::from(TXN_AMOUNT_MAX)).cloned() {
 			// If an account is below the minimum and it's 'our turn' (sketchy):
 			Some(ref acct) => {
-				if U256::from(node_id) == (self.last_block as u64 % NODE_COUNT).into() {
+				if U256::from(node_id) == (self.last_block as u64 % validator_count).into() {
 					let receiver_nonce = self.client.state().nonce(&receiver)
 						.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", receiver));
 
