@@ -40,7 +40,7 @@ use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, Ne
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
+	Bytes, U256, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -171,10 +171,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn net_chain(&self) -> Result<String> {
 		Ok(self.settings.chain.clone())
-	}
-
-	fn chain_id(&self) -> Result<Option<U64>> {
-		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
 	fn chain(&self) -> Result<String> {
