@@ -52,9 +52,17 @@ else
     PARITY_LOG="info"
 fi
 
-set -ex
+set -e
 
 cargo build $RELEASE || exit
+
+if [ $HOST_ID -ne 0 ]
+then
+    echo Sleeping for 5 seconds to ensure node 0 has started...
+    sleep 5
+fi
+
+set -x
 
 # Launches node.
 bash -c "\

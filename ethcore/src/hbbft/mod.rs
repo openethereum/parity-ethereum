@@ -3,6 +3,7 @@
 #![allow(unused_imports, missing_docs)]
 
 mod hbbft_daemon;
+mod laboratory;
 
 use std::str::FromStr;
 use std::collections::HashSet;

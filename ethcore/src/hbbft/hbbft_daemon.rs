@@ -3,7 +3,7 @@
 #![allow(dead_code, unused_imports, unused_variables, unused_mut, missing_docs)]
 
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, atomic::{AtomicBool, AtomicUsize, Ordering}};
+use std::sync::{Arc, Weak, atomic::{AtomicBool, AtomicIsize, Ordering}};
 use std::thread;
 use std::time::{Instant, Duration, UNIX_EPOCH};
 use std::ops::Range;
@@ -28,12 +28,13 @@ use ethereum_types::{U256, Address};
 use header::Header;
 use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock,
 	ImportSealedBlock, ImportBlock};
-use miner::Miner;
+use miner::{Miner, MinerService};
 use verification::queue::kind::blocks::{Unverified};
 use transaction::{Transaction, Action, SignedTransaction};
 use block::{OpenBlock, ClosedBlock, IsBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
+use super::laboratory::{Laboratory, Accounts};
 
 const RICHIE_ACCT: &'static str = "0x002eb83d1d04ca12fe1956e67ccaa195848e437f";
 const RICHIE_PWD: &'static str =  "richie";
@@ -42,10 +43,12 @@ const RICHIE_PWD: &'static str =  "richie";
 
 const TXN_AMOUNT_MAX: usize = 1000;
 
+const CONTRIBUTION_PUSH_DELAY_MS: u64 = 1000;
+
 type NodeId = Uid;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
-struct Contribution {
+pub(super) struct Contribution {
 	transactions: Vec<Vec<u8>>,
 	timestamp: u64,
 }
@@ -97,391 +100,83 @@ pub trait HbbftClientExt {
 	fn set_hbbft_daemon(&self, hbbft_daemon: Arc<HbbftDaemon>);
 }
 
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// EXPERIMENTS //////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
 
-
-/// You can use this to create an account within Parity. This method does the exact same
-/// thing as using the JSON-RPC to create an account. The password and passphrase will be
-/// set to the account name e.g. "richie" or "node0".
-fn create_account(account_provider: &AccountProvider, name: &str)
-	-> Result<(Address, Password), ethstore::Error>
-{
-	let passphrase = name.to_string();
-	let pwd = Password::from(name);
-	let key_pair = Brain::new(passphrase).generate().unwrap();
-	let sk = key_pair.secret().clone();
-	let addr = account_provider.insert_account(sk, &pwd)?;
-	Ok((addr, pwd))
+/// Handles submission of transactions into Hydrabadger.
+struct ContributionPusher {
+	client: Weak<Client>,
+	hydrabadger: Hydrabadger<Contribution>,
+	block_counter: Arc<AtomicIsize>,
 }
 
-/// Account info.
-#[derive(Clone, Debug)]
-struct Account {
-	address: Address,
-	password: Password,
-	balance: U256,
-	nonce: U256,
-	/// The number of times this account has been out of sync.
-	//
-	// TODO (c0gent): Eliminate this field and ensure that transactions can
-	// not get lost.
-	retries: usize,
-}
-
-
-/// Node-specific accounts to be used in transaction generation.
-#[derive(Clone, Debug)]
-struct Accounts {
-	accounts: Vec<Account>,
-	stage_size: usize,
-	stage_count: usize,
-	next_stage: usize,
-}
-
-impl Accounts {
-	fn new(account_provider: &AccountProvider, client: &Client, node_id: &str, txn_gen_count: usize,
-		stage_count: usize) -> Result<Accounts, Error>
+impl ContributionPusher {
+	fn new(client: Weak<Client>, hydrabadger: Hydrabadger<Contribution>,
+		block_counter: Arc<AtomicIsize>) -> ContributionPusher
 	{
-		let (richie_addr, richie_pwd) = create_account(account_provider, RICHIE_PWD)
-			.map_err(|err| ErrorKind::EthstoreAccountInitRichie(err))?;
-		assert!(richie_addr == Address::from(RICHIE_ACCT) && richie_pwd == Password::from(RICHIE_PWD));
-		account_provider.unlock_account_permanently(richie_addr, richie_pwd)
-			.map_err(|err| ErrorKind::EthstoreAccountInitRichie(err))?;
+		ContributionPusher { client, hydrabadger, block_counter }
+	}
 
-		let accounts = (0..(txn_gen_count * stage_count)).map(|i| {
-			let name = format!("{}_{}", node_id, i);
-			let (address, password) = create_account(account_provider, &name)
-				.map_err(|err| ErrorKind::EthstoreAccountInitNode(err))?;
-			account_provider.unlock_account_permanently(address, password.clone())
-				.map_err(|err| ErrorKind::EthstoreAccountInitNode(err))?;
-			let balance = client.state().balance(&address).unwrap();
-			let nonce = client.state().nonce(&address).unwrap();
-			debug!("######## Accounts::new: Account created with name: {}", name);
-			Ok(Account { address, password, balance, nonce, retries: 0 })
-		}).collect::<Result<Vec<_>, Error>>()?;
+	/// Inputs pending transactions as this node's contribution for the next batch into Honey Badger.
+	///
+	/// Called every `CONTRIBUTION_PUSH_DELAY_MS`.
+	fn push_contribution(&mut self) {
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return,
+		};
 
-		Ok(Accounts {
-			accounts,
-			stage_size: txn_gen_count,
-			stage_count,
-			next_stage: 0,
+		// Select new transactions and propose them for the next block.
+		//
+		// TODO (c0gent): Pull this from cfg or adjust dynamically.
+		let batch_size = 50;
+
+		let pending = client.miner().pending_transactions_from_queue(&*client, batch_size);
+
+		if (pending.is_empty() || !self.hydrabadger.is_validator())
+			&& !self.hydrabadger.state().dhb().map(|dhb| dhb.should_propose()).unwrap_or(false)
+		{
+			// Postpone the next epoch.
+			return;
+		}
+
+		let validators = self.hydrabadger.peers().count_validators();
+
+		// Our contribution size.
+		let contrib_size = if validators > 0 {
+			batch_size / validators
+		} else {
+			// We've just disconnected.
+			return;
+		};
+
+		let mut rng = rand::thread_rng();
+		let txns = if pending.len() <= contrib_size {
+			pending
+		} else {
+			rand::seq::sample_slice(&mut rng, &pending, contrib_size)
+		};
+		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes()).collect();
+		let contribution = Contribution {
+			transactions: ser_txns,
+			timestamp: unix_now(),
+		};
+		info!("Proposing {} transactions.", contribution.transactions.len());
+
+		self.hydrabadger.push_user_contribution(contribution)
+			.expect("TODO: Add transactions back to miner txn queue");
+	}
+
+	/// Consumes this `ContributionPusher` and returns a `LoopFn` which calls
+	/// `::push_contribution` every `CONTRIBUTION_PUSH_DELAY_MS`.
+	fn into_loop(self) -> impl Future<Item = (), Error = ()> + Send {
+		future::loop_fn(self, |mut cp| {
+			cp.push_contribution();
+
+			Delay::new(Instant::now() + Duration::from_millis(CONTRIBUTION_PUSH_DELAY_MS))
+				.map(|_| Loop::Continue(cp))
+				.map_err(|err| panic!("{:?}", err))
 		})
 	}
-
-	fn account_mut(&mut self, address: &Address) -> Option<&mut Account> {
-		self.accounts.iter_mut().find(|acc| &acc.address == address)
-	}
-
-	/// Returns the first account with a balance below `balance`.
-	fn account_below(&self, balance: U256) -> Option<&Account> {
-		self.accounts.iter().find(|acc| acc.balance < balance)
-	}
-
-	fn accounts(&self) -> &[Account] {
-		&self.accounts
-	}
-
-	/// Returns a slice of the accounts in the 'stage' specified.
-	fn next_stage(&self) -> &[Account] {
-		let idz = self.next_stage * self.stage_size;
-		let idn = idz + self.stage_size;
-		&self.accounts[idz..idn]
-	}
-
-	/// Increments the stage counter.
-	fn incr_stage(&mut self) {
-		self.next_stage += 1;
-		if self.next_stage == self.stage_count { self.next_stage = 0 }
-	}
 }
-
-
-/// Experiments and other junk.
-//
-// Add anything at all to this!
-//
-struct Laboratory {
-	client: Arc<Client>,
-	hydrabadger: Hydrabadger<Contribution>,
-	hdb_cfg: HbbftConfig,
-	account_provider: Arc<AccountProvider>,
-	accounts: Accounts,
-	block_counter: Arc<AtomicUsize>,
-	last_block: usize,
-}
-
-impl Laboratory {
-	/// Returns each Parity account's address and metadata.
-	fn get_accounts(&self) -> HashMap<Address, AccountMeta> {
-		self.account_provider.accounts_info().unwrap()
-	}
-
-	/// Converts an unsigned `Transaction` to a `SignedTransaction`.
-	fn sign_txn(&self, sender: Address, password: Password, txn: Transaction) -> SignedTransaction {
-		let chain_id = self.client.signing_chain_id();
-		let txn_hash = txn.hash(chain_id);
-		let sig = self.account_provider.sign(sender, Some(password), txn_hash)
-			.unwrap_or_else(|e| panic!("[hbbft-lab] failed to sign txn: {:?}", e));
-		let unverified_txn = txn.with_signature(sig, chain_id);
-		SignedTransaction::new(unverified_txn).unwrap()
-	}
-
-	/// Generates a random-ish transaction.
-	fn gen_random_txn(&self, nonce: U256, sender: Address, sender_pwd: Password, receiver: Address,
-		value_range: &mut RandRange<usize>, rng: &mut OsRng) -> (Address, SignedTransaction)
-	{
-		let data = rng.gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
-		let txn = Transaction {
-			action: Action::Call(receiver),
-			nonce,
-			gas_price: 0.into(),
-			gas: 1000000.into(),
-			value: value_range.sample(rng).into(),
-			data,
-		};
-
-		debug!("######## LABORATORY: Transaction generated: {:?}", txn);
-
-		(sender, self.sign_txn(sender, sender_pwd, txn))
-	}
-
-	/// Generates a set of random-ish transactions.
-	///
-	/// If any account in `self.accounts` is below a minimum balance, this
-	/// will generate a transaction to send money to it. Currently this
-	/// process can fail.
-	fn gen_random_contribution(&mut self, receiver: Address, receiver_pwd: Password,
-		value_range: &mut RandRange<usize>) -> Contribution
-	{
-		let mut rng = OsRng::new().expect("Error creating OS Rng");
-
-		// Determine the pseudo node id:
-		let node_id = self.hdb_cfg.bind_address.port() % 100;
-
-		const NODE_COUNT: u64 = 3;
-
-		// This is total hackfoolery to ensure that each node's sender account
-		// gets a starting balance (will break when nodes > 3):
-		let txns = match self.accounts.account_below(U256::from(TXN_AMOUNT_MAX)).cloned() {
-			// If an account is below the minimum and it's 'our turn' (sketchy):
-			Some(ref acct) if U256::from(node_id) == (self.last_block as u64 % NODE_COUNT).into() => {
-				let receiver_nonce = self.client.state().nonce(&receiver)
-					.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", receiver));
-
-				debug!("\n\n######## LABORATORY: Sending funds to {:?}\n\n", acct.address);
-				// Add a contribution to initialize account:
-				let amt = (1000000000000000000 as u64).into();
-				self.accounts.account_mut(&acct.address).unwrap().balance += amt;
-
-				vec![self.sign_txn(receiver, receiver_pwd.clone(), Transaction {
-					action: Action::Call(acct.address),
-					nonce: receiver_nonce,
-					gas_price: 0.into(),
-					gas: 1000000.into(),
-					value: amt,
-					data: vec![],
-				}).rlp_bytes()]
-			},
-			_ => {
-				let mut txns = Vec::with_capacity(8);
-				let mut refresh_accts = Vec::with_capacity(4);
-
-				for sender in self.accounts.next_stage() {
-					let balance_state = self.client.state().balance(&sender.address).unwrap();
-					let nonce_state = self.client.state().nonce(&sender.address).unwrap();
-
-					if balance_state == sender.balance && nonce_state == sender.nonce {
-						// Ensure there is enough balance in the sender account:
-						if sender.balance >= U256::from(TXN_AMOUNT_MAX) {
-							let sender_nonce = self.client.state().nonce(&sender.address)
-								.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender.address));
-
-							// Generate random txns normally:
-							let txn = self.gen_random_txn(sender_nonce, sender.address, sender.password.clone(),
-								receiver, value_range, &mut rng);
-							txns.push(txn);
-						} else {
-							error!("######## LABORATORY: Account with insufficient balance: {}", sender.address);
-						}
-					} else {
-						debug!("######## LABORATORY: Account not yet synced with chain (retries: {}): {}",
-							sender.address, sender.retries);
-						refresh_accts.push(sender.address);
-					}
-				}
-				self.accounts.incr_stage();
-
-				let txns = txns.into_iter().map(|(sender, txn)| {
-					// Adjust cached account balance and nonce:
-					let acct = self.accounts.account_mut(&sender).unwrap();
-					acct.balance -= txn.value;
-					acct.nonce += 1.into();
-					txn.rlp_bytes()
-				}).collect::<Vec<_>>();
-
-				// Refresh accounts which have been out of sync for too long.
-				for acct_address in refresh_accts {
-					let acct = self.accounts.account_mut(&acct_address).unwrap();
-					acct.retries += 1;
-					if acct.retries == 5 {
-						acct.balance = self.client.state().balance(&acct_address).unwrap();
-						acct.nonce = self.client.state().nonce(&acct_address).unwrap();
-						acct.retries = 0;
-					}
-				}
-
-				debug!("\n\n######## LABORATORY: {} transactions generated\n\n", txns.len());
-				txns
-			}
-		};
-
-		Contribution {
-			transactions: txns,
-			timestamp: unix_now(),
-		}
-	}
-
-	/// Panics if the account does not exist, if the password is incorrect, or
-	/// on any other error.
-	fn test_password(&self, addr: &Address, pwd: &Password) {
-		match self.account_provider.test_password(addr, pwd) {
-			Ok(false) => panic!("Bad password while pushing random transactions to Hydrabadger."),
-			Ok(true) => {},
-			Err(ethstore::Error::InvalidAccount) => {
-				panic!("Transaction sender account does not exist. Skipping hydrabadger contribution push.");
-			},
-			err => panic!("{:?}", err),
-		}
-	}
-
-	fn push_contribution_to_hydrabadger(&mut self) {
-		// Don't do anything until the block progresses (ensures that we don't
-		// generate a new contribution until the previous one is imported by
-		// the miner).
-		let block_counter = self.block_counter.load(Ordering::Acquire);
-		if self.last_block == 0 || self.last_block < block_counter {
-			// Update our 'last_block' (it may skip blocks).
-			self.last_block = block_counter;
-		} else {
-			debug!("####### LABORATORY: Block state has not progressed. Cancelling contribution push.");
-			return
-		}
-
-		let receiver_addr = Address::from(RICHIE_ACCT);
-		let receiver_pwd = Password::from(RICHIE_PWD);
-
-		// Ensure all of our accounts are set up properly:
-		for acct in self.accounts.accounts().iter() {
-			self.test_password(&acct.address, &acct.password);
-		}
-		self.test_password(&receiver_addr, &receiver_pwd);
-
-		let (state, _, _) = self.hydrabadger.state_info_stale();
-		if state == StateDsct::Validator {
-			let contribution = self.gen_random_contribution(receiver_addr, receiver_pwd,
-				&mut RandRange::new(100, 1000));
-
-			match self.hydrabadger.push_user_contribution(contribution) {
-				Err(HydrabadgerError::PushUserContributionNotValidator) => {
-					debug!("Unable to push contribution: this node is not a validator");
-				},
-				Err(err) => unreachable!(),
-				Ok(()) => {},
-			}
-		} else {
-			debug!("Unable to generate contribution: this node is not a validator");
-		}
-	}
-
-	fn play_with_blocks(&self) {
-		let mut rng = OsRng::new().expect("Error creating OS Rng");
-		let mut value_range = RandRange::new(100, TXN_AMOUNT_MAX);
-
-		let sender_addr = Address::from(RICHIE_ACCT);
-		let sender_pwd = Password::from(RICHIE_PWD);
-		let receiver_addr = self.accounts.accounts()[0].address;
-
-		match self.account_provider.test_password(&sender_addr, &sender_pwd) {
-			Ok(false) => panic!("Bad password while playing with blocks."),
-			Ok(true) => {},
-			Err(ethstore::Error::InvalidAccount) => {
-				error!("Transaction sender account does not exist. Skipping playing with blocks.");
-				return;
-			},
-			err => panic!("{:?}", err),
-		}
-
-		let block_author = Address::default();
-		let gas_range_target = (3141562.into(), 31415620.into());
-		let extra_data = vec![];
-
-		let mut sender_acct_nonce: U256 = self.client.state().nonce(&sender_addr)
-			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender_addr));
-
-		// Import some blocks:
-		for i in 0..0 {
-			let mut open_block: OpenBlock = self.client
-				.prepare_open_block(block_author, gas_range_target, extra_data.clone())
-				.unwrap();
-
-			let (_, txn) = self.gen_random_txn(sender_acct_nonce, sender_addr, sender_pwd.clone(), receiver_addr,
-				&mut value_range, &mut rng);
-			sender_acct_nonce += 1.into();
-
-			open_block.push_transaction(txn, None).unwrap();
-
-			let closed_block: ClosedBlock = open_block.close().unwrap();
-			let reopened_block: OpenBlock = closed_block.reopen(self.client.engine());
-			let reclosed_block: ClosedBlock = reopened_block.close().unwrap();
-			let locked_block: LockedBlock = reclosed_block.lock();
-			let sealed_block: SealedBlock = locked_block.seal(self.client.engine(), vec![]).unwrap();
-
-			self.client.import_sealed_block(sealed_block).unwrap();
-		}
-
-		// Import some blocks:
-		for _ in 0..1 {
-			let miner = self.client.miner();
-			let mut open_block: OpenBlock = miner.prepare_new_block(&*self.client).unwrap();
-
-			let (_, txn) = self.gen_random_txn(sender_acct_nonce, sender_addr, sender_pwd.clone(),
-				receiver_addr, &mut value_range, &mut rng);
-			sender_acct_nonce += 1.into();
-
-			let min_tx_gas = u64::max_value().into();
-			let block: ClosedBlock = miner.prepare_block_from(open_block, vec![txn], &*self.client, min_tx_gas).unwrap();
-
-			info!("Importing block {} (#{}, experimentally generated)", block.hash(), block.block().header.number());
-			if !miner.seal_and_import_block_internally(&*self.client, block) {
-				warn!("Failed to seal and import block.");
-			}
-		}
-	}
-
-	fn demonstrate_client_extension_methods(&self) {
-		self.client.a_specialized_method();
-		self.client.change_me_into_something_useful();
-	}
-
-	/// Runs all experiments.
-	//
-	// Call your experiments here.
-	fn run_experiments(&mut self) {
-		self.push_contribution_to_hydrabadger();
-		// self.play_with_blocks();
-		self.demonstrate_client_extension_methods();
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
 
 
 /// Handles honey badger batch outputs.
@@ -492,12 +187,12 @@ struct BatchHandler {
 	batch_rx: BatchRx<Contribution>,
 	client: Weak<Client>,
 	hydrabadger: Hydrabadger<Contribution>,
-	block_counter: Arc<AtomicUsize>,
+	block_counter: Arc<AtomicIsize>,
 }
 
 impl BatchHandler {
 	fn new(batch_rx: BatchRx<Contribution>, client: Weak<Client>, hydrabadger: Hydrabadger<Contribution>,
-		block_counter: Arc<AtomicUsize>) -> BatchHandler
+		block_counter: Arc<AtomicIsize>) -> BatchHandler
 	{
 		BatchHandler { batch_rx, client, hydrabadger, block_counter }
 	}
@@ -506,7 +201,6 @@ impl BatchHandler {
 	/// algorithm.
 	fn handle_batch(&mut self, batch: Batch<Contribution, NodeId>) {
 		let epoch = batch.epoch();
-		let block_num = epoch;
 
 		let client = match self.client.upgrade() {
 			Some(client) => client,
@@ -528,7 +222,7 @@ impl BatchHandler {
 
 		// TODO: Sync block num with epoch upon startup.
 		//
-		if open_block.header().number() == block_num {
+		if open_block.header().number() == epoch {
 			// The block's timestamp is the median of the proposed timestamps. This guarantees that at least one correct
 			// node's proposal was above it, and at least one was below it.
 			let timestamp = open_block.header().timestamp().max(timestamps[timestamps.len() / 2]);
@@ -542,63 +236,20 @@ impl BatchHandler {
 			let block = miner.prepare_block_from(open_block, batch_txns, &*client, min_tx_gas).expect("TODO");
 
 			info!("Importing block {} (#{}, epoch: {}, txns: {})",
-				block.hash(), block.block().header.number(), batch.epoch(), txn_count);
+				block.hash(), block.block().header.number(), epoch, txn_count);
 
 			// TODO (afck/drpete): Replace instant sealing with a threshold signature.
 			if !miner.seal_and_import_block_internally(&*client, block) {
 				warn!("Failed to seal and import block.");
 			}
-		} else if open_block.header().number() < block_num {
+		} else if open_block.header().number() < epoch {
 			error!("Can't produce block: missing parent.");
 		} else {
-			error!("Block {} already imported.", block_num);
+			error!("Block {} already imported.", epoch);
 		}
 
-		self.push_contribution();
-	}
-
-	/// Inputs pending transactions as this node's contribution for the next batch into Honey Badger.
-	fn push_contribution(&mut self) {
-		let client = match self.client.upgrade() {
-			Some(client) => client,
-			None => return,
-		};
-
-		// client.clear_queue();
-		// client.flush_queue();
-
-		// Select new transactions and propose them for the next block.
-		//
-		// TODO (c0gent): Pull this from cfg.
-		let batch_size = 50;
-		// TODO (c0gent): `batch_size / num_validators`
-		let contrib_size = batch_size / 5;
-
-		let pending = client.miner().pending_transactions_from_queue(&*client, batch_size);
-
-		// if pending.is_empty() && !self.hydrabadger.state().dhb().expect("DHB instance missing").should_propose() {
-		// 	return; // Postpone the next epoch.
-		// }
-
-		// miner.clear();
-
-		let mut rng = rand::thread_rng();
-		let txns = if pending.len() <= contrib_size {
-			pending
-		} else {
-			rand::seq::sample_slice(&mut rng, &pending, contrib_size)
-		};
-		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes()).collect();
-		let contribution = Contribution {
-			transactions: ser_txns,
-			timestamp: unix_now(),
-		};
-		info!("Proposing {} transactions.", contribution.transactions.len());
-
-		self.hydrabadger.push_user_contribution(contribution).expect("TODO");
-
 		// Increment the counter used to sync the laboratory.
-		self.block_counter.fetch_add(1, Ordering::Release);
+		self.block_counter.store(epoch as isize, Ordering::Release);
 	}
 }
 
@@ -653,18 +304,12 @@ impl HbbftDaemon {
 		cfg: &HbbftConfig,
 		account_provider: Arc<AccountProvider>
 	) -> Result<HbbftDaemon, Error> {
-		let hydrabadger = Hydrabadger::<Contribution>::new(cfg.bind_address, cfg.to_hydrabadger());
+		let mut hdb_config = cfg.to_hydrabadger();
 
-		let block_counter = Arc::new(AtomicUsize::new(0));
+		// Set our starting epoch equal to the best block number in the chain.
+		hdb_config.start_epoch =  client.chain_info().best_block_number;
 
-		let batch_handler = BatchHandler::new(
-			hydrabadger.batch_rx()
-				.expect("The Hydrabadger batch receiver can not be `None` immediately after creation; qed \
-					These proofs are bullshit and prove nothing; qed"),
-			Arc::downgrade(&client),
-			hydrabadger.clone(),
-			block_counter.clone(),
-		);
+		let hydrabadger = Hydrabadger::<Contribution>::new(cfg.bind_address, hdb_config);
 
 		let (shutdown_tx, shutdown_rx) = oneshot::channel();
 
@@ -682,15 +327,38 @@ impl HbbftDaemon {
 			runtime.shutdown_now().wait().expect("Error shutting down tokio runtime");
 		}).map_err(|err| format!("Error creating thread: {:?}", err))?;
 
+		// Used by laboratory:
+		let block_counter = Arc::new(AtomicIsize::new(-1));
+
+		let batch_handler = BatchHandler::new(
+			hydrabadger.batch_rx()
+				.expect("The Hydrabadger batch receiver can not be `None` immediately after creation; qed \
+					These proofs are bullshit and prove nothing; qed"),
+			Arc::downgrade(&client),
+			hydrabadger.clone(),
+			block_counter.clone(),
+		);
+
+		// Spawn batch handler:
 		executor.spawn(batch_handler.map_err(|err| panic!("Unhandled batch handler error: {:?}", err)));
 
-		info!("HbbftDaemon has been spawned.");
+		info!("Hbbft batch handler has been started.");
 
-		// Set up an account to use for txn gen.
+		// Spawn contribution pusher:
+		executor.spawn(ContributionPusher::new(
+			Arc::downgrade(&client),
+			hydrabadger.clone(),
+			block_counter.clone(),
+		).into_loop());
+
+		info!("Hbbft contribution pusher has been started.");
+
+		// Set up an account to use for txn gen:
 		let accounts = Accounts::new(&*account_provider, &*client, &cfg.bind_address.to_string(),
 			cfg.txn_gen_count, 5)?;
 
-		let lab = Laboratory {
+		// Spawn experimentation loop:
+		executor.spawn(Laboratory {
 			client: client.clone(),
 			hydrabadger: hydrabadger.clone(),
 			hdb_cfg: cfg.clone(),
@@ -698,17 +366,7 @@ impl HbbftDaemon {
 			accounts,
 			block_counter,
 			last_block: 0,
-		};
-
-		// Spawn experimentation loop:
-		executor.spawn(future::loop_fn(lab, move |mut lab| {
-			// Entry point for experiments:
-			lab.run_experiments();
-
-			Delay::new(Instant::now() + Duration::from_millis(5000))
-				.map(|_| Loop::Continue(lab))
-				.map_err(|err| panic!("{:?}", err))
-		}));
+		}.into_loop());
 
 		Ok(HbbftDaemon {
 			client: Arc::downgrade(&client),

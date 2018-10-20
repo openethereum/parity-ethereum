@@ -666,7 +666,7 @@ impl Miner {
 			// Save proposal for later seal submission and broadcast it.
 			Seal::Proposal(seal) => {
 				trace!(target: "miner", "Received a Proposal seal.");
-				info!(target: "miner", "######## Received a Proposal seal.");
+				debug!(target: "miner", "######## Received a Proposal seal.");
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
@@ -688,9 +688,8 @@ impl Miner {
 			},
 			// Directly import a regular sealed block.
 			Seal::Regular(seal) => {
-				debug!("####### SEAL: {:?}", seal);
 				trace!(target: "miner", "Received a Regular seal.");
-				info!(target: "miner", "######## Received a Regular seal.");
+				debug!(target: "miner", "######## Received a Regular seal: {:?}.", seal);
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
