@@ -16,18 +16,34 @@
 
 use std::io;
 use std::time::Duration;
-use futures::{Future, Select, Poll, Async};
-use tokio_core::reactor::{Handle, Timeout};
+use futures::{Future, Poll};
+use tokio::timer::timeout::{Timeout, Error as TimeoutError};
 
-type DeadlineBox<F> = Box<Future<Item = DeadlineStatus<<F as Future>::Item>, Error = <F as Future>::Error> + Send>;
+type DeadlineBox<F> = Box<Future<
+	Item = DeadlineStatus<<F as Future>::Item>,
+	Error = TimeoutError<<F as Future>::Error>
+> + Send>;
 
 /// Complete a passed future or fail if it is not completed within timeout.
-pub fn deadline<F, T>(duration: Duration, handle: &Handle, future: F) -> Result<Deadline<F>, io::Error>
-	where F: Future<Item = T, Error = io::Error> + Send + 'static, T: 'static {
-	let timeout: DeadlineBox<F> = Box::new(Timeout::new(duration, handle)?.map(|_| DeadlineStatus::Timeout));
-	let future: DeadlineBox<F> = Box::new(future.map(DeadlineStatus::Meet));
+pub fn deadline<F, T>(duration: Duration, future: F) -> Result<Deadline<F>, io::Error>
+	where F: Future<Item = T, Error = io::Error> + Send + 'static, T: Send + 'static
+{
+	let timeout = Box::new(Timeout::new(future, duration)
+		.then(|res| {
+			match res {
+				Ok(fut) => Ok(DeadlineStatus::Meet(fut)),
+				Err(err) => {
+					if err.is_elapsed() {
+						Ok(DeadlineStatus::Timeout)
+					} else {
+						Err(err)
+					}
+				},
+			}
+		})
+	);
 	let deadline = Deadline {
-		future: timeout.select(future),
+		future: timeout,
 	};
 	Ok(deadline)
 }
@@ -43,19 +59,15 @@ pub enum DeadlineStatus<T> {
 
 /// Future, which waits for passed future completion within given period, or fails with timeout.
 pub struct Deadline<F> where F: Future {
-	future: Select<DeadlineBox<F>, DeadlineBox<F>>,
+	future: DeadlineBox<F>,
 }
 
 impl<F, T> Future for Deadline<F> where F: Future<Item = T, Error = io::Error> {
 	type Item = DeadlineStatus<T>;
-	type Error = io::Error;
+	type Error = TimeoutError<io::Error>;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		match self.future.poll() {
-			Ok(Async::Ready((result, _other))) => Ok(Async::Ready(result)),
-			Ok(Async::NotReady) => Ok(Async::NotReady),
-			Err((err, _other)) => Err(err),
-		}
+		self.future.poll()
 	}
 }
 
@@ -63,14 +75,14 @@ impl<F, T> Future for Deadline<F> where F: Future<Item = T, Error = io::Error> {
 mod tests {
 	use std::time::Duration;
 	use futures::{Future, done};
-	use tokio_core::reactor::Core;
+	use tokio::reactor::Reactor;
 	use super::{deadline, DeadlineStatus};
 
 	#[test]
 	fn deadline_result_works() {
-		let mut core = Core::new().unwrap();
-		let deadline = deadline(Duration::from_millis(1000), &core.handle(), done(Ok(()))).unwrap();
-		core.turn(Some(Duration::from_millis(3)));
+		let mut reactor = Reactor::new().unwrap();
+		let deadline = deadline(Duration::from_millis(1000), done(Ok(()))).unwrap();
+		reactor.turn(Some(Duration::from_millis(3))).unwrap();
 		assert_eq!(deadline.wait().unwrap(), DeadlineStatus::Meet(()));
 	}
 }

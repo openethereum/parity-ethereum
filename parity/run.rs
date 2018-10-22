@@ -34,14 +34,13 @@ use ethereum_types::Address;
 use sync::{self, SyncConfig};
 use miner::work_notify::WorkPoster;
 use futures::IntoFuture;
-use futures_cpupool::CpuPool;
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
 use miner::external::ExternalMiner;
 use node_filter::NodeFilter;
-use parity_reactor::EventLoop;
+use parity_runtime::Runtime;
 use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
@@ -270,7 +269,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	*sync_handle.write() = Arc::downgrade(&light_sync);
 
 	// spin up event loop
-	let event_loop = EventLoop::spawn();
+	let runtime = Runtime::with_default_thread_count();
 
 	// queue cull service.
 	let queue_cull = Arc::new(::light_helpers::QueueCull {
@@ -278,15 +277,13 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		sync: light_sync.clone(),
 		on_demand: on_demand.clone(),
 		txq: txq.clone(),
-		remote: event_loop.remote(),
+		executor: runtime.executor(),
 	});
 
 	service.register_handler(queue_cull).map_err(|e| format!("Error attaching service: {:?}", e))?;
 
 	// start the network.
 	light_sync.start_network();
-
-	let cpu_pool = CpuPool::new(4);
 
 	// fetch service
 	let fetch = fetch::Client::new(FETCH_LIGHT_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
@@ -313,9 +310,8 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		transaction_queue: txq,
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch,
-		pool: cpu_pool.clone(),
 		geth_compatibility: cmd.geth_compatibility,
-		remote: event_loop.remote(),
+		executor: runtime.executor(),
 		whisper_rpc: whisper_factory,
 		private_tx_service: None, //TODO: add this to client.
 		gas_price_percentile: cmd.gas_price_percentile,
@@ -324,13 +320,8 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 	let dependencies = rpc::Dependencies {
 		apis: deps_for_rpc_apis.clone(),
-		remote: event_loop.raw_remote(),
+		executor: runtime.executor(),
 		stats: rpc_stats.clone(),
-		pool: if cmd.http_conf.processing_threads > 0 {
-			Some(rpc::CpuPool::new(cmd.http_conf.processing_threads))
-		} else {
-			None
-		},
 	};
 
 	// start rpc servers
@@ -358,7 +349,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 			rpc: rpc_direct,
 			informant,
 			client,
-			keep_alive: Box::new((event_loop, service, ws_server, http_server, ipc_server)),
+			keep_alive: Box::new((runtime, service, ws_server, http_server, ipc_server)),
 		}
 	})
 }
@@ -477,10 +468,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
-	let cpu_pool = CpuPool::new(4);
-
 	// spin up event loop
-	let event_loop = EventLoop::spawn();
+	let runtime = Runtime::with_default_thread_count();
 
 	// fetch service
 	let fetch = fetch::Client::new(FETCH_FULL_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
@@ -489,7 +478,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,
-		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), cpu_pool.clone()),
+		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), runtime.executor()),
 		&spec,
 		Some(account_provider.clone()),
 
@@ -500,7 +489,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	if !cmd.miner_extras.work_notify.is_empty() {
 		miner.add_work_listener(Box::new(
-			WorkPoster::new(&cmd.miner_extras.work_notify, fetch.clone(), event_loop.remote())
+			WorkPoster::new(&cmd.miner_extras.work_notify, fetch.clone(), runtime.executor())
 		));
 	}
 
@@ -698,7 +687,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		&Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
 		&Arc::downgrade(&sync_provider),
 		update_policy,
-		hash_fetch::Client::with_fetch(contract_client.clone(), cpu_pool.clone(), updater_fetch, event_loop.remote())
+		hash_fetch::Client::with_fetch(contract_client.clone(), updater_fetch, runtime.executor())
 	);
 	service.add_notify(updater.clone());
 
@@ -723,8 +712,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		geth_compatibility: cmd.geth_compatibility,
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch.clone(),
-		pool: cpu_pool.clone(),
-		remote: event_loop.remote(),
+		executor: runtime.executor(),
 		whisper_rpc: whisper_factory,
 		private_tx_service: Some(private_tx_service.clone()),
 		gas_price_percentile: cmd.gas_price_percentile,
@@ -733,14 +721,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let dependencies = rpc::Dependencies {
 		apis: deps_for_rpc_apis.clone(),
-		remote: event_loop.raw_remote(),
+		executor: runtime.executor(),
 		stats: rpc_stats.clone(),
-		pool: if cmd.http_conf.processing_threads > 0 {
-			Some(rpc::CpuPool::new(cmd.http_conf.processing_threads))
-		} else {
-			None
-		},
-
 	};
 
 	// start rpc servers
@@ -820,7 +802,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			informant,
 			client,
 			client_service: Arc::new(service),
-			keep_alive: Box::new((watcher, updater, ws_server, http_server, ipc_server, secretstore_key_server, ipfs_server, event_loop)),
+			keep_alive: Box::new((watcher, updater, ws_server, http_server, ipc_server, secretstore_key_server, ipfs_server, runtime)),
 		}
 	})
 }

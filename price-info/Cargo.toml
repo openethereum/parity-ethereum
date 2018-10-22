@@ -9,11 +9,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 fetch = { path = "../util/fetch" }
 futures = "0.1"
-futures-cpupool = "0.1"
+parity-runtime = { path = "../util/runtime" }
 log = "0.4"
 serde_json = "1.0"
 
 [dev-dependencies]
-hyper = "0.11"
 parking_lot = "0.6"
 fake-fetch = { path = "../util/fake-fetch" }

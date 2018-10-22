@@ -22,7 +22,6 @@ use ethereum_types::{U256, Address};
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
 use sync::ManageNetwork;
-use futures_cpupool::CpuPool;
 
 use jsonrpc_core::IoHandler;
 use v1::{ParitySet, ParitySetClient};
@@ -55,8 +54,7 @@ fn parity_set_client(
 	updater: &Arc<TestUpdater>,
 	net: &Arc<TestManageNetwork>,
 ) -> TestParitySetClient {
-	let pool = CpuPool::new(1);
-	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), FakeFetch::new(Some(1)), pool)
+	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), FakeFetch::new(Some(1)))
 }
 
 #[test]

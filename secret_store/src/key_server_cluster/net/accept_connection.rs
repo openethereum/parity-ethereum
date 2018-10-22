@@ -19,20 +19,23 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::time::Duration;
 use futures::{Future, Poll};
-use tokio_core::reactor::Handle;
-use tokio_core::net::TcpStream;
+use tokio::net::TcpStream;
 use key_server_cluster::{Error, NodeKeyPair};
 use key_server_cluster::io::{accept_handshake, Handshake, Deadline, deadline};
 use key_server_cluster::net::Connection;
 
 /// Create future for accepting incoming connection.
-pub fn accept_connection(address: SocketAddr, stream: TcpStream, handle: &Handle, self_key_pair: Arc<NodeKeyPair>) -> Deadline<AcceptConnection> {
+pub fn accept_connection(stream: TcpStream, self_key_pair: Arc<NodeKeyPair>) -> Deadline<AcceptConnection> {
+	// TODO: This could fail so it would be better either to accept the
+	// address as a separate argument or return a result.
+	let address = stream.peer_addr().expect("Unable to determine tcp peer address");
+
 	let accept = AcceptConnection {
 		handshake: accept_handshake(stream, self_key_pair),
 		address: address,
 	};
 
-	deadline(Duration::new(5, 0), handle, accept).expect("Failed to create timeout")
+	deadline(Duration::new(5, 0), accept).expect("Failed to create timeout")
 }
 
 /// Future for accepting incoming connection.

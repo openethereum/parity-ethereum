@@ -1,11 +1,11 @@
 [package]
-description = "Parity Reactor"
+description = "Parity Runtime"
 homepage = "http://parity.io"
 license = "GPL-3.0"
-name = "parity-reactor"
+name = "parity-runtime"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 futures = "0.1"
-tokio-core = "0.1"
+tokio = "~0.1.9"

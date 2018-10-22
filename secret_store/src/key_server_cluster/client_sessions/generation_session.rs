@@ -701,7 +701,7 @@ impl SessionImpl {
 		let threshold = data.threshold.expect("threshold is filled in initialization phase; KV phase follows initialization phase; qed");
 		let is_zero = data.is_zero.expect("is_zero is filled in initialization phase; KV phase follows initialization phase; qed");
 		let self_public_share = {
-			if !is_zero { 
+			if !is_zero {
 				let derived_point = data.derived_point.clone().expect("derived point generated on initialization phase; KV phase follows initialization phase; qed");
 				let number_id = data.nodes[self.node()].id_number.clone();
 				for (_	, node_data) in data.nodes.iter_mut().filter(|&(node_id, _)| node_id != self.node()) {
@@ -942,12 +942,12 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use std::time::Duration;
-	use tokio_core::reactor::Core;
 	use ethereum_types::Address;
 	use ethkey::{Random, Generator, KeyPair};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage};
-	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, all_connections_established};
+	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until,
+		all_connections_established, new_runtime};
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::generation_session::{SessionImpl, SessionState, SessionParams};
 	use key_server_cluster::math;
@@ -1357,19 +1357,22 @@ pub mod tests {
 
 		let test_cases = [(1, 3)];
 		for &(threshold, num_nodes) in &test_cases {
-			let mut core = Core::new().unwrap();
+			let mut core = new_runtime();
 
 			// prepare cluster objects for each node
 			let clusters = make_clusters(&core, 6031, num_nodes);
 			run_clusters(&clusters);
 
+			// `clusters` contains `Arc<ClusterCore>` and clones will refer to the same cores.
+			let clusters_clone = clusters.clone();
+
 			// establish connections
-			loop_until(&mut core, CONN_TIMEOUT, || clusters.iter().all(all_connections_established));
+			loop_until(&mut core, CONN_TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 
 			// run session to completion
 			let session_id = SessionId::default();
 			let session = clusters[0].client().new_generation_session(session_id, Default::default(), Default::default(), threshold).unwrap();
-			loop_until(&mut core, SESSION_TIMEOUT, || session.joint_public_and_secret().is_some());
+			loop_until(&mut core, SESSION_TIMEOUT, move || session.joint_public_and_secret().is_some());
 		}
 	}
 

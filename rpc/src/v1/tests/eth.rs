@@ -32,6 +32,7 @@ use ethjson::spec::ForkSpec;
 use io::IoChannel;
 use miner::external::ExternalMiner;
 use parking_lot::Mutex;
+use parity_runtime::Runtime;
 
 use jsonrpc_core::IoHandler;
 use v1::helpers::dispatch::FullDispatcher;
@@ -73,6 +74,7 @@ fn make_spec(chain: &BlockChain) -> Spec {
 }
 
 struct EthTester {
+	_runtime: Runtime,
 	client: Arc<Client>,
 	_miner: Arc<Miner>,
 	_snapshot: Arc<TestSnapshotService>,
@@ -99,6 +101,7 @@ impl EthTester {
 	}
 
 	fn from_spec(spec: Spec) -> Self {
+		let runtime = Runtime::with_thread_count(1);
 		let account_provider = account_provider();
 		let opt_account_provider = account_provider.clone();
 		let miner_service = miner_service(&spec, account_provider.clone());
@@ -124,7 +127,7 @@ impl EthTester {
 			Default::default(),
 		);
 
-		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
+		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone(), reservations, 50);
 		let eth_sign = SigningUnsafeClient::new(
@@ -137,6 +140,7 @@ impl EthTester {
 		handler.extend_with(eth_sign.to_delegate());
 
 		EthTester {
+			_runtime: runtime,
 			_miner: miner_service,
 			_snapshot: snapshot_service,
 			client: client,

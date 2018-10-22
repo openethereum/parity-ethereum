@@ -23,7 +23,6 @@ use ethcore::client::{BlockChainClient, Mode};
 use ethcore::miner::MinerService;
 use sync::ManageNetwork;
 use fetch::{self, Fetch};
-use futures_cpupool::CpuPool;
 use hash::keccak_buffer;
 use updater::{Service as UpdateService};
 
@@ -40,7 +39,6 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	updater: Arc<U>,
 	net: Arc<ManageNetwork>,
 	fetch: F,
-	pool: CpuPool,
 }
 
 impl<C, M, U, F> ParitySetClient<C, M, U, F>
@@ -53,7 +51,6 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 		updater: &Arc<U>,
 		net: &Arc<ManageNetwork>,
 		fetch: F,
-		pool: CpuPool,
 	) -> Self {
 		ParitySetClient {
 			client: client.clone(),
@@ -61,7 +58,6 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 			updater: updater.clone(),
 			net: net.clone(),
 			fetch: fetch,
-			pool: pool,
 		}
 	}
 }
@@ -177,7 +173,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 				})
 				.map(Into::into)
 		});
-		Box::new(self.pool.spawn(future))
+		Box::new(future)
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>> {

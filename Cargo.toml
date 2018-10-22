@@ -28,10 +28,9 @@ serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 futures = "0.1"
-futures-cpupool = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = "0.1"
 ethcore-io = { path = "util/io" }
@@ -51,7 +50,7 @@ rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "local-store" }
-parity-reactor = { path = "util/reactor" }
+parity-runtime = { path = "util/runtime" }
 parity-rpc = { path = "rpc" }
 parity-rpc-client = { path = "rpc_client" }
 parity-updater = { path = "updater" }
@@ -138,6 +137,3 @@ members = [
 	"util/patricia-trie-ethereum",
 	"util/fastmap",
 ]
-
-[patch.crates-io]
-ring = { git = "https://github.com/paritytech/ring" }

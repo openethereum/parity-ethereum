@@ -23,9 +23,8 @@ use std::path::PathBuf;
 
 use hash::keccak_buffer;
 use fetch::{self, Fetch};
-use futures_cpupool::CpuPool;
 use futures::{Future, IntoFuture};
-use parity_reactor::Remote;
+use parity_runtime::Executor;
 use urlhint::{URLHintContract, URLHint, URLHintResult};
 use registrar::{RegistrarClient, Asynchronous};
 use ethereum_types::H256;
@@ -109,21 +108,19 @@ fn validate_hash(path: PathBuf, hash: H256, body: fetch::BodyReader) -> Result<P
 
 /// Default Hash-fetching client using on-chain contract to resolve hashes to URLs.
 pub struct Client<F: Fetch + 'static = fetch::Client> {
-	pool: CpuPool,
 	contract: URLHintContract,
 	fetch: F,
-	remote: Remote,
+	executor: Executor,
 	random_path: Arc<Fn() -> PathBuf + Sync + Send>,
 }
 
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
-	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, pool: CpuPool, fetch: F, remote: Remote) -> Self {
+	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, fetch: F, executor: Executor) -> Self {
 		Client {
-			pool,
 			contract: URLHintContract::new(contract),
 			fetch: fetch,
-			remote: remote,
+			executor: executor,
 			random_path: Arc::new(random_temp_path),
 		}
 	}
@@ -135,7 +132,6 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 
 		let random_path = self.random_path.clone();
 		let remote_fetch = self.fetch.clone();
-		let pool = self.pool.clone();
 		let future = self.contract.resolve(hash)
 			.map_err(|e| { warn!("Error resolving URL: {}", e); Error::NoResolution })
 			.and_then(|maybe_url| maybe_url.ok_or(Error::NoResolution))
@@ -162,7 +158,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 					Ok(response)
 				}
 			})
-			.and_then(move |response| pool.spawn_fn(move || {
+			.and_then(move |response| {
 				debug!(target: "fetch", "Content fetched, validating hash ({:?})", hash);
 				let path = random_path();
 				let res = validate_hash(path.clone(), hash, fetch::BodyReader::new(response));
@@ -172,10 +168,10 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 					let _ = fs::remove_file(&path);
 				}
 				res
-			}))
+			})
 			.then(move |res| { on_done(res); Ok(()) as Result<(), ()> });
 
-		self.remote.spawn(future);
+		self.executor.spawn(future);
 	}
 }
 
@@ -197,8 +193,7 @@ mod tests {
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
-	use futures_cpupool::CpuPool;
-	use parity_reactor::Remote;
+	use parity_runtime::Executor;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
 	use super::{Error, Client, HashFetch, random_temp_path};
 
@@ -216,7 +211,7 @@ mod tests {
 		// given
 		let contract = Arc::new(FakeRegistrar::new());
 		let fetch = FakeFetch::new(None::<usize>);
-		let client = Client::with_fetch(contract.clone(), CpuPool::new(1), fetch, Remote::new_sync());
+		let client = Client::with_fetch(contract.clone(), fetch, Executor::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
@@ -234,7 +229,7 @@ mod tests {
 		// given
 		let registrar = Arc::new(registrar());
 		let fetch = FakeFetch::new(None::<usize>);
-		let client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
+		let client = Client::with_fetch(registrar.clone(), fetch, Executor::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
@@ -252,7 +247,7 @@ mod tests {
 		// given
 		let registrar = Arc::new(registrar());
 		let fetch = FakeFetch::new(Some(1));
-		let mut client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
+		let mut client = Client::with_fetch(registrar.clone(), fetch, Executor::new_sync());
 		let path = random_temp_path();
 		let path2 = path.clone();
 		client.random_path = Arc::new(move || path2.clone());
@@ -275,7 +270,7 @@ mod tests {
 		// given
 		let registrar = Arc::new(registrar());
 		let fetch = FakeFetch::new(Some(1));
-		let client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
+		let client = Client::with_fetch(registrar.clone(), fetch, Executor::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
