@@ -1,3 +1,5 @@
+mod signer_snapshot;
+
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 
 use std::sync::{Weak, Arc};
@@ -28,13 +30,15 @@ use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use super::validator_set::{ValidatorSet, SimpleList};
 use super::signer::EngineSigner;
 use machine::{AuxiliaryData, EthereumMachine};
+use self::signer_snapshot::SignerSnapshot;
 
-static EPOCH_LENGTH: i32 = 10; // set low for testing (should be 30000 according to clique EIP)
+static EPOCH_LENGTH: u64 = 10; // set low for testing (should be 30000 according to clique EIP)
 
 pub struct Clique {
   client: RwLock<Option<Weak<EngineClient>>>,
   signer: RwLock<EngineSigner>,
-  validators: Box<ValidatorSet>,
+  validators: Box<SignerSnapshot>,
+  machine: EthereumMachine,
 }
 
 impl Clique {
@@ -42,7 +46,16 @@ impl Clique {
   fn is_signer_proposer(&self, bh: &H256) -> bool {
     //let proposer = self.view_proposer(bh, self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
     let proposer = self.validators.get(bh, 0);
-    self.signer.read().is_address(&proposer);
+    self.signer.read().is_address(&proposer)
+  }
+
+  pub fn new(machine: EthereumMachine) -> Self {
+    Clique {
+      client: RwLock::new(None),
+      signer: Default::default(),
+      machine: machine,
+      validators:  Box::new(SignerSnapshot::new())
+    }
   }
 }
 
@@ -73,12 +86,13 @@ impl Engine<EthereumMachine> for Clique {
   /// `Seal::None` will be returned.
   fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
     if !self.is_signer_proposer(block.header.parent_hash()) {
-      Seal::None
+      return Seal::None;
     }
 
     let header_seal = block.header().seal().clone();
     let extra_data = block.header().extra_data().clone();
 
+/*
     let seal = Seal::Regular(::rlp::encode_list(vec![
       block.header().parent_hash(),
       block.header().uncles_hash(),
@@ -96,14 +110,16 @@ impl Engine<EthereumMachine> for Clique {
       header_seal[0],
       header_seal[1],
       ]));
+*/
 
-    Seal::Regular(seal)
+ //   Seal::Regular(seal)
+      Seal::Regular(vec!())
   }
 
 
   fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
     // cast vote?
-
+    Ok(())
   }
 
   fn on_new_block(
@@ -112,7 +128,37 @@ impl Engine<EthereumMachine> for Clique {
     _epoch_begin: bool,
     _ancestry: &mut Iterator<Item=ExtendedHeader>,
   ) -> Result<(), Error> {
+
     Ok(())
+  }
+
+  fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { 
+    // don't allow blocks from the future
+
+    // Checkpoint blocks need to enforce zero beneficiary
+    if _header.number() % EPOCH_LENGTH == 0 {
+      if _header.author() != &[0; 20].into() {
+        return Err(Box::new("Checkpoint blocks need to enforce zero beneficiary").into());
+      }
+
+      if _header.seal()[1][0..32] != [0xff; 32] {
+        return Err(Box::new("Seal nonce zeros enforced on checkpoints").into());
+      }
+    }
+
+    // Nonces must be 0x00..0 or 0xff..f, zeroes enforced on checkpoints
+
+    // Check that the extra-data contains both the vanity and signature
+
+    // Ensure that the extra-data contains a signer list on checkpoint, but none otherwise
+
+    // Ensure that the mix digest is zero as we don't have fork protection currently
+
+    // Ensure that the block doesn't contain any uncles which are meaningless in PoA
+
+    // Ensure that the block's difficulty is meaningful
+    
+    Ok(()) 
   }
 
   fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
@@ -127,11 +173,12 @@ impl Engine<EthereumMachine> for Clique {
       _chain: &super::Headers<Header>,
       transition_store: &super::PendingTransitionStore,
   ) -> Option<Vec<u8>> {
-    if chain_head.header.get_block_number() % EPOCH_LENGTH - 1 == 0 {
+    if chain_head.number() % EPOCH_LENGTH - 1 == 0 {
       // epoch end
-      Some(vec!())
+      Some(vec!(0x0))
+    } else {
+      None
     }
-    None
   }
 
   fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
@@ -149,5 +196,11 @@ impl Engine<EthereumMachine> for Clique {
   fn stop(&self) { }
 
   fn register_client(&self, client: Weak<EngineClient>) {
+  }
+
+  fn verify_local_seal(&self, header: &Header) -> Result<(), Error> { Ok(()) }
+
+  fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
+    super::total_difficulty_fork_choice(new, current)
   }
 }
