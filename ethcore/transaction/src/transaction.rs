@@ -584,7 +584,7 @@ mod tests {
 	}
 
 	#[test]
-	fn signing_no_eip155() {
+	fn signing_eip155_zero_chainid() {
 		use ethkey::{Random, Generator};
 
 		let key = Random.generate().unwrap();
