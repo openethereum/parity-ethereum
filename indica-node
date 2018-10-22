@@ -76,7 +76,7 @@ RUST_LOG=$PARITY_LOG target/$DIRECTORY/parity \
     --ws-port $WS_PORT \
     --hbbft-port $HOST_HYDRABADGER_PORT \
     --hbbft-remote-addresses 127.0.0.1:5900 \
-    --hbbft-txn-gen-count 20 \
+    --hbbft-txn-gen-count 5 \
     --jsonrpc-apis web3,eth,pubsub,net,parity,private,parity_pubsub,parity_set,traces,rpc,shh,shh_pubsub,personal,parity_accounts \
     --password=node.pwds \
     --reseal-on-txs="none" \

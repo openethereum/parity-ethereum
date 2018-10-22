@@ -30,11 +30,11 @@ use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockIn
 	ImportSealedBlock, ImportBlock};
 use miner::{Miner, MinerService};
 use verification::queue::kind::blocks::{Unverified};
-use transaction::{Transaction, Action, SignedTransaction};
+use transaction::{Transaction, Action, SignedTransaction, Error as TransactionError};
 use block::{OpenBlock, ClosedBlock, IsBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
-use super::hbbft_daemon::{HbbftDaemon, Contribution, Error, ErrorKind, HbbftClientExt};
+use super::hbbft_daemon::{HbbftDaemon, Contribution, Error, ErrorKind, HbbftClientExt, CONTRIBUTION_PUSH_DELAY_MS};
 
 const RICHIE_ACCT: &'static str = "0x002eb83d1d04ca12fe1956e67ccaa195848e437f";
 const RICHIE_PWD: &'static str =  "richie";
@@ -42,8 +42,6 @@ const RICHIE_PWD: &'static str =  "richie";
 // const NODE0_PWD: &'static str =  "node0";
 
 const TXN_AMOUNT_MAX: usize = 1000;
-
-const LABORATORY_LOOP_DELAY_MS: u64 = 3000;
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -161,6 +159,7 @@ pub(super) struct Laboratory {
 	pub(super) accounts: Accounts,
 	pub(super) block_counter: Arc<AtomicIsize>,
 	pub(super) last_block: isize,
+	pub(super) gen_counter: usize,
 }
 
 impl Laboratory {
@@ -224,18 +223,20 @@ impl Laboratory {
 		// Determine the pseudo node id:
 		let node_id = self.hdb_cfg.bind_address.port() % 100;
 
-		let validator_count = self.hydrabadger.peers().count_validators() as u64;
+		// Add ourselves to the count.
+		let validator_count = 1 + self.hydrabadger.peers().count_validators() as u64;
 
 		// This is total hackfoolery to ensure that each node's sender account
 		// gets a starting balance (will break when nodes > 3):
 		let txns = match self.accounts.account_below(U256::from(TXN_AMOUNT_MAX)).cloned() {
 			// If an account is below the minimum and it's 'our turn' (sketchy):
 			Some(ref acct) => {
-				if U256::from(node_id) == (self.last_block as u64 % validator_count).into() {
+				debug!("######## LABORATORY: An account is below the minimum balance.");
+				if U256::from(node_id) == (self.gen_counter as u64 % validator_count).into() {
 					let receiver_nonce = self.client.state().nonce(&receiver)
 						.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", receiver));
 
-					debug!("\n\n######## LABORATORY: Sending funds to {:?}\n", acct.address);
+					info!("######## LABORATORY: Sending funds to {:?}", acct.address);
 					// Add a contribution to initialize account:
 					let amt = (1000000000000000000 as u64).into();
 					self.accounts.account_mut(&acct.address).unwrap().balance += amt;
@@ -249,24 +250,31 @@ impl Laboratory {
 						data: vec![],
 					})]
 				} else {
+					info!("########### LABORATORY: Not sending funds. \
+						(node_id: {}, gen_counter: {}, validator_count: {}, gen_counter % validator_count: {})",
+						node_id, self.gen_counter, validator_count, self.gen_counter as u64 % validator_count);
 					vec![]
 				}
 			},
 			_ => {
+				debug!("######## LABORATORY: All accounts above minimum balance.");
 				let mut txns = Vec::with_capacity(8);
 
 				for sender in self.accounts.next_stage() {
 					// Ensure there is enough balance in the sender account:
 					if sender.balance >= U256::from(TXN_AMOUNT_MAX) {
+						//  TODO: Use `miner.next_nonce<C>(&self, chain: &C,
+						//  address: &Address)` instead.
 						let sender_nonce = self.client.state().nonce(&sender.address)
-							.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender.address));
+							.unwrap_or_else(|err| panic!("Unable to determine nonce for account: {} ({:?})",
+								sender.address, err));
 
 						// Generate random txns normally:
 						let txn = self.gen_random_txn(sender_nonce, sender.address, sender.password.clone(),
 							receiver, value_range, &mut rng);
 						txns.push(txn);
 					} else {
-						error!("######## LABORATORY: Account with insufficient balance: {}", sender.address);
+						panic!("######## LABORATORY: Account with insufficient balance: {}", sender.address);
 					}
 				}
 				self.accounts.incr_stage();
@@ -279,7 +287,8 @@ impl Laboratory {
 					txn
 				}).collect::<Vec<_>>();
 
-				info!("\n\n######## LABORATORY: {} transactions generated\n", txns.len());
+				info!("######## LABORATORY: {} transactions generated", txns.len());
+
 				txns
 			}
 		};
@@ -297,13 +306,12 @@ impl Laboratory {
 			debug!("Unable to generate contribution: this node is not a validator");
 			return;
 		} else if !(self.last_block < block_counter || (self.last_block == 0 && block_counter == -1)) {
-			debug!("####### LABORATORY: Block state has not progressed. Cancelling contribution push. \
+			info!("####### LABORATORY: Block state has not progressed. Cancelling contribution push. \
 				(self.last_block: {}, block_counter: {})", self.last_block, block_counter);
 			return;
 		}
 
-		// Update our 'last_block' (it may skip blocks).
-		self.last_block = if block_counter == -1 { 0 } else { block_counter } ;
+		debug!("######## LABORATORY: Checking account data...");
 
 		// Keep account data up to date:
 		for acct in self.accounts.accounts.iter_mut() {
@@ -331,13 +339,27 @@ impl Laboratory {
 		}
 		self.test_password(&receiver_addr, &receiver_pwd);
 
+		debug!("######## LABORATORY: Generating transactions...");
+
 		let txns = self.gen_random_transactions(receiver_addr, receiver_pwd,
 			&mut RandRange::new(100, 1000));
 
-		for txn in txns {
-			self.client.miner().import_claimed_local_transaction(&*self.client, txn.into(), false)
-				.expect("Unable to import generated transaction");
+		if !txns.is_empty() {
+			// Update our 'last_block' (it may skip blocks).
+			self.last_block = if block_counter == -1 { 0 } else { block_counter };
 		}
+
+		for txn in txns {
+			match self.client.miner().import_claimed_local_transaction(&*self.client, txn.into(), false) {
+				Ok(()) => {},
+				Err(TransactionError::AlreadyImported) => {},
+				// TODO: Remove this at some point:
+				Err(TransactionError::Old) => {},
+				err => panic!("Unable to import generated transaction: {:?}", err),
+			}
+		}
+
+		self.gen_counter = self.gen_counter.wrapping_add(1);
 	}
 
 	fn play_with_blocks(&self) {
@@ -424,7 +446,9 @@ impl Laboratory {
 			// Entry point for experiments:
 			lab.run_experiments();
 
-			Delay::new(Instant::now() + Duration::from_millis(LABORATORY_LOOP_DELAY_MS))
+			let loop_delay = CONTRIBUTION_PUSH_DELAY_MS * 50;
+
+			Delay::new(Instant::now() + Duration::from_millis(loop_delay))
 				.map(|_| Loop::Continue(lab))
 				.map_err(|err| panic!("{:?}", err))
 		})

@@ -43,7 +43,9 @@ const RICHIE_PWD: &'static str =  "richie";
 
 const TXN_AMOUNT_MAX: usize = 1000;
 
-const CONTRIBUTION_PUSH_DELAY_MS: u64 = 1000;
+pub(super) const CONTRIBUTION_PUSH_DELAY_MS: u64 = 100;
+const CONTRIBUTION_PUSH_ATTEMPTS_LIMIT: usize = 20;
+const CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2: usize = 16;
 
 type NodeId = Uid;
 
@@ -100,19 +102,37 @@ pub trait HbbftClientExt {
 	fn set_hbbft_daemon(&self, hbbft_daemon: Arc<HbbftDaemon>);
 }
 
+/// Returns the current UNIX Epoch time, in seconds.
+fn unix_now_secs() -> u64 {
+	UNIX_EPOCH.elapsed().expect("Time not available").as_secs()
+}
 
 /// Handles submission of transactions into Hydrabadger.
 struct ContributionPusher {
 	client: Weak<Client>,
 	hydrabadger: Hydrabadger<Contribution>,
 	block_counter: Arc<AtomicIsize>,
+	push_attempts: usize,
 }
 
 impl ContributionPusher {
 	fn new(client: Weak<Client>, hydrabadger: Hydrabadger<Contribution>,
 		block_counter: Arc<AtomicIsize>) -> ContributionPusher
 	{
-		ContributionPusher { client, hydrabadger, block_counter }
+		ContributionPusher { client, hydrabadger, block_counter, push_attempts: 0 }
+	}
+
+	/// Returns the current number of transactions needed before a
+	/// contribution is pushed.
+	fn next_batch_threshold(&mut self) -> usize {
+		let threshold = if self.push_attempts < CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2 {
+			1 << (CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2 - self.push_attempts)
+		} else {
+			1
+		};
+
+		self.push_attempts += 1;
+		threshold
 	}
 
 	/// Inputs pending transactions as this node's contribution for the next batch into Honey Badger.
@@ -127,26 +147,23 @@ impl ContributionPusher {
 		// Select new transactions and propose them for the next block.
 		//
 		// TODO (c0gent): Pull this from cfg or adjust dynamically.
-		let batch_size = 50;
+		let batch_threshold = self.next_batch_threshold();
 
-		let pending = client.miner().pending_transactions_from_queue(&*client, batch_size);
+		let pending = client.miner().pending_transactions_from_queue(&*client, 1 << CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2);
 
-		if (pending.is_empty() || !self.hydrabadger.is_validator())
-			&& !self.hydrabadger.state().dhb().map(|dhb| dhb.should_propose()).unwrap_or(false)
+		let validator_count = self.hydrabadger.peers().count_validators() + 1;
+
+		if !self.hydrabadger.is_validator()
+			|| validator_count < 2
+			|| (pending.len() < batch_threshold
+				&& !self.hydrabadger.state().dhb().map(|dhb| dhb.should_propose()).unwrap_or(false))
 		{
 			// Postpone the next epoch.
 			return;
 		}
 
-		let validators = self.hydrabadger.peers().count_validators();
-
 		// Our contribution size.
-		let contrib_size = if validators > 0 {
-			batch_size / validators
-		} else {
-			// We've just disconnected.
-			return;
-		};
+		let contrib_size = batch_threshold / validator_count;
 
 		let mut rng = rand::thread_rng();
 		let txns = if pending.len() <= contrib_size {
@@ -157,12 +174,16 @@ impl ContributionPusher {
 		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes()).collect();
 		let contribution = Contribution {
 			transactions: ser_txns,
-			timestamp: unix_now(),
+			timestamp: unix_now_secs(),
 		};
-		info!("Proposing {} transactions.", contribution.transactions.len());
+		info!("Proposing {} transactions (after {} attempts).", contribution.transactions.len(),
+			self.push_attempts);
 
 		self.hydrabadger.push_user_contribution(contribution)
 			.expect("TODO: Add transactions back to miner txn queue");
+
+		// Reset push attempts counter:
+		self.push_attempts = 0;
 	}
 
 	/// Consumes this `ContributionPusher` and returns a `LoopFn` which calls
@@ -171,7 +192,10 @@ impl ContributionPusher {
 		future::loop_fn(self, |mut cp| {
 			cp.push_contribution();
 
-			Delay::new(Instant::now() + Duration::from_millis(CONTRIBUTION_PUSH_DELAY_MS))
+			// This can be adjusted dynamically if needed:
+			let loop_delay = CONTRIBUTION_PUSH_DELAY_MS;
+
+			Delay::new(Instant::now() + Duration::from_millis(loop_delay))
 				.map(|_| Loop::Continue(cp))
 				.map_err(|err| panic!("{:?}", err))
 		})
@@ -248,7 +272,7 @@ impl BatchHandler {
 			error!("Block {} already imported.", epoch);
 		}
 
-		// Increment the counter used to sync the laboratory.
+		// Increment the counter used to sync the contribution pusher.
 		self.block_counter.store(epoch as isize, Ordering::Release);
 	}
 }
@@ -366,6 +390,7 @@ impl HbbftDaemon {
 			accounts,
 			block_counter,
 			last_block: 0,
+			gen_counter: 0,
 		}.into_loop());
 
 		Ok(HbbftDaemon {
@@ -388,11 +413,6 @@ impl Drop for HbbftDaemon {
 	fn drop(&mut self) {
 		self.shutdown();
 	}
-}
-
-/// Returns the current time, in seconds since the epoch.
-fn unix_now() -> u64 {
-	UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.").as_secs()
 }
 
 #[cfg(test)]
