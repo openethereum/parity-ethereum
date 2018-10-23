@@ -5,7 +5,7 @@ ARG TARGET
 ENV TARGET ${TARGET}
 
 # install tools and dependencies
-RUN apt update && apt install -y --no-install-recommends openssl libudev-dev file
+RUN apt update && apt install -y --no-install-recommends openssl libudev-dev file curl jq
 
 # show backtraces
 ENV RUST_BACKTRACE 1
