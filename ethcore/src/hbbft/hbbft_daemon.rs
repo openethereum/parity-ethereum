@@ -125,12 +125,7 @@ impl ContributionPusher {
 	/// Returns the current number of transactions needed before a
 	/// contribution is pushed.
 	fn next_batch_threshold(&mut self) -> usize {
-		let threshold = if self.push_attempts < CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2 {
-			1 << (CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2 - self.push_attempts)
-		} else {
-			1
-		};
-
+		let threshold = 1 << (CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2.saturating_sub(self.push_attempts));
 		self.push_attempts += 1;
 		threshold
 	}
