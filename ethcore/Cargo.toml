@@ -75,7 +75,8 @@ tempdir = {version="0.3", optional = true}
 len-caching-mutex = { path = "../util/len-caching-mutex" }
 failure = "0.1"
 futures = "0.1"
-parity-reactor = { path = "../util/runtime" }
+parity-runtime = { path = "../util/runtime" }
+tokio = "0.1"
 # hydrabadger = { path = "../../hydrabadger"}
 hydrabadger = { git = "https://github.com/poanetwork/hydrabadger"}
 

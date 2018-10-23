@@ -17,7 +17,8 @@ use futures::{
 };
 use parking_lot::Mutex;
 use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid, StateDsct};
-use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
+use parity_runtime::Executor;
+use tokio::{self, timer::Delay};
 use hbbft::HbbftConfig;
 use itertools::Itertools;
 use rlp::{Decodable, Encodable, Rlp};
@@ -38,11 +39,10 @@ use super::laboratory::{Laboratory, Accounts};
 
 const RICHIE_ACCT: &'static str = "0x002eb83d1d04ca12fe1956e67ccaa195848e437f";
 const RICHIE_PWD: &'static str =  "richie";
-// const NODE0_ACCT: &'static str = "0x00bd138abd70e2f00903268f3db08f2d25677c9e";
-// const NODE0_PWD: &'static str =  "node0";
 
 const TXN_AMOUNT_MAX: usize = 1000;
 
+// TODO: Move to config.
 pub(super) const CONTRIBUTION_PUSH_DELAY_MS: u64 = 100;
 const CONTRIBUTION_PUSH_ATTEMPTS_LIMIT: usize = 20;
 const CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2: usize = 16;
@@ -308,12 +308,7 @@ impl Future for BatchHandler {
 pub struct HbbftDaemon {
 	// Unused:
 	client: Weak<Client>,
-
 	hydrabadger: Hydrabadger<Contribution>,
-
-	// Temporary until tokio changes are merged upstream:
-	shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
-	runtime_th: thread::JoinHandle<()>,
 }
 
 impl HbbftDaemon {
@@ -321,30 +316,18 @@ impl HbbftDaemon {
 	pub fn new(
 		client: Arc<Client>,
 		cfg: &HbbftConfig,
-		account_provider: Arc<AccountProvider>
+		account_provider: Arc<AccountProvider>,
+		executor: &Executor,
 	) -> Result<HbbftDaemon, Error> {
 		let mut hdb_config = cfg.to_hydrabadger();
 
-		// Set our starting epoch equal to the best block number in the chain.
+		// Set our starting epoch equal to the best block number in the chain:
 		hdb_config.start_epoch =  client.chain_info().best_block_number;
 
+		// Spawn Hydrabadger node:
 		let hydrabadger = Hydrabadger::<Contribution>::new(cfg.bind_address, hdb_config);
-
-		let (shutdown_tx, shutdown_rx) = oneshot::channel();
-
-		// Create Tokio runtime:
-		let mut runtime = Runtime::new().map_err(ErrorKind::RuntimeStart)?;
-		let executor = runtime.executor();
-
-		let hdb_clone = hydrabadger.clone();
 		let hdb_peers = cfg.remote_addresses.clone();
-
-		// Spawn runtime on its own thread:
-		let runtime_th = thread::Builder::new().name("tokio-runtime".to_string()).spawn(move || {
-			runtime.spawn(future::lazy(move || hdb_clone.node(Some(hdb_peers), None)));
-			runtime.block_on(shutdown_rx).expect("Tokio runtime error");
-			runtime.shutdown_now().wait().expect("Error shutting down tokio runtime");
-		}).map_err(|err| format!("Error creating thread: {:?}", err))?;
+		executor.spawn(hydrabadger.clone().node(Some(hdb_peers), None));
 
 		// Used by laboratory:
 		let block_counter = Arc::new(AtomicIsize::new(-1));
@@ -391,24 +374,10 @@ impl HbbftDaemon {
 		Ok(HbbftDaemon {
 			client: Arc::downgrade(&client),
 			hydrabadger,
-			shutdown_tx: Mutex::new(Some(shutdown_tx)),
-			runtime_th,
 		})
 	}
-
-	/// Sends a shutdown single to the associated tokio runtime.
-	//
-	// Only needed until a proper global runtime is used.
-	pub fn shutdown(&self) {
-		self.shutdown_tx.lock().take().map(|tx| tx.send(()));
-	}
 }
 
-impl Drop for HbbftDaemon {
-	fn drop(&mut self) {
-		self.shutdown();
-	}
-}
 
 #[cfg(test)]
 mod tests {

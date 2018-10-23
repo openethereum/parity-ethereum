@@ -33,7 +33,6 @@ use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as Sn
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
-use ethcore::hbbft::{HbbftConfig, HbbftDaemon, HbbftClientExt};
 
 use ethcore_private_tx::{self, Importer};
 use Error;
@@ -84,7 +83,6 @@ pub struct ClientService {
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
 	database: Arc<BlockChainDB>,
-	hbbftd: Option<Arc<HbbftDaemon>>,
 	_stop_guard: StopGuard,
 }
 
@@ -101,7 +99,6 @@ impl ClientService {
 		account_provider: Arc<AccountProvider>,
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
-		hbbft_conf: Option<&HbbftConfig>,
 		) -> Result<ClientService, Error>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
@@ -133,7 +130,7 @@ impl ClientService {
 		let provider = Arc::new(ethcore_private_tx::Provider::new(
 				client.clone(),
 				miner,
-				account_provider.clone(),
+				account_provider,
 				encryptor,
 				private_tx_conf,
 				io_service.channel(),
@@ -150,26 +147,12 @@ impl ClientService {
 
 		let stop_guard = StopGuard::new();
 
-		let hbbftd = match hbbft_conf {
-			Some(cfg) => {
-				let hbbftd = Arc::new(HbbftDaemon::new(
-					client.clone(),
-					cfg,
-					account_provider.clone(),
-				).map_err(|err| err.to_string())?);
-				client.set_hbbft_daemon(hbbftd.clone());
-				Some(hbbftd)
-			},
-			None => None,
-		};
-
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
 			snapshot: snapshot,
 			private_tx,
 			database: blockchain_db,
-			hbbftd: hbbftd,
 			_stop_guard: stop_guard,
 		})
 	}
@@ -210,7 +193,6 @@ impl ClientService {
 	/// Shutdown the Client Service
 	pub fn shutdown(&self) {
 		self.snapshot.shutdown();
-		self.hbbftd.as_ref().map(|h| h.shutdown());
 	}
 }
 
@@ -332,7 +314,6 @@ mod tests {
 			Arc::new(AccountProvider::transient_provider()),
 			Box::new(ethcore_private_tx::NoopEncryptor),
 			Default::default(),
-			None,
 		);
 		assert!(service.is_ok());
 		drop(service.unwrap());

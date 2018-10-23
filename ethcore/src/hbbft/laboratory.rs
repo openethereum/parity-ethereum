@@ -17,7 +17,8 @@ use futures::{
 };
 use parking_lot::Mutex;
 use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid, StateDsct};
-use parity_reactor::{tokio::{self, timer::Delay}, Runtime};
+use parity_runtime::Runtime;
+use tokio::{self, timer::Delay};
 use hbbft::HbbftConfig;
 use itertools::Itertools;
 use rlp::{Decodable, Encodable, Rlp};

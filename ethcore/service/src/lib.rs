@@ -22,6 +22,7 @@ extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate kvdb;
 extern crate stop_guard;
+extern crate parity_runtime;
 
 #[macro_use]
 extern crate error_chain;
