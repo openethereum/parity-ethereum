@@ -27,8 +27,6 @@ use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
 
-use light::client::LightChainClient;
-
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::Future;
 use jsonrpc_macros::Trailing;
@@ -49,7 +47,6 @@ use Host;
 
 /// Parity implementation for light client.
 pub struct ParityClient {
-	client: Arc<LightChainClient>,
 	light_dispatch: Arc<LightDispatcher>,
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
@@ -62,7 +59,6 @@ pub struct ParityClient {
 impl ParityClient {
 	/// Creates new `ParityClient`.
 	pub fn new(
-		client: Arc<LightChainClient>,
 		light_dispatch: Arc<LightDispatcher>,
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
@@ -78,7 +74,6 @@ impl ParityClient {
 			settings,
 			signer,
 			ws_address,
-			client,
 			gas_price_percentile,
 		}
 	}
