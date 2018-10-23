@@ -41,7 +41,6 @@ pub enum SpecType {
 	Easthub,
 	Social,
 	Callisto,
-	Olympic,
 	Morden,
 	Ropsten,
 	Kovan,
@@ -71,7 +70,6 @@ impl str::FromStr for SpecType {
 			"easthub" => SpecType::Easthub,
 			"social" => SpecType::Social,
 			"callisto" => SpecType::Callisto,
-			"olympic" => SpecType::Olympic,
 			"morden" | "classic-testnet" => SpecType::Morden,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
@@ -96,7 +94,6 @@ impl fmt::Display for SpecType {
 			SpecType::Easthub => "easthub",
 			SpecType::Social => "social",
 			SpecType::Callisto => "callisto",
-			SpecType::Olympic => "olympic",
 			SpecType::Morden => "morden",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
@@ -121,7 +118,6 @@ impl SpecType {
 			SpecType::Easthub => Ok(ethereum::new_easthub(params)),
 			SpecType::Social => Ok(ethereum::new_social(params)),
 			SpecType::Callisto => Ok(ethereum::new_callisto(params)),
-			SpecType::Olympic => Ok(ethereum::new_olympic(params)),
 			SpecType::Morden => Ok(ethereum::new_morden(params)),
 			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
@@ -375,7 +371,6 @@ mod tests {
 		assert_eq!(SpecType::Easthub, "easthub".parse().unwrap());
 		assert_eq!(SpecType::Social, "social".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
-		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Morden, "classic-testnet".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
@@ -402,7 +397,6 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Easthub), "easthub");
 		assert_eq!(format!("{}", SpecType::Social), "social");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
-		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
