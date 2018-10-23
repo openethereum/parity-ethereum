@@ -17,7 +17,7 @@ track = "nightly"
 # Indicates a critical release in this track (i.e. consensus issue).
 [package.metadata.networks]
 foundation = { forkBlock = 4370000, critical = false }
-ropsten = { forkBlock = 10, critical = false }
+ropsten = { forkBlock = 4230000, critical = false }
 kovan = { forkBlock = 6600000, critical = false }
 
 [dependencies]

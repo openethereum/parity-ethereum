@@ -9,7 +9,7 @@ bitflags = "0.9"
 byteorder = "1.0.0"
 ethereum-types = "0.4"
 ethcore-network = { path = "../util/network" }
-parity-crypto = "0.1"
+parity-crypto = "0.2"
 ethkey = { path = "../ethkey" }
 hex = "0.2"
 log = "0.4"
@@ -25,6 +25,6 @@ slab = "0.3"
 smallvec = "0.6"
 tiny-keccak = "1.4"
 
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }

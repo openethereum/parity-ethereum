@@ -27,7 +27,7 @@ use jsonrpc_macros::pubsub::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
 use tokio_timer;
 
-use parity_reactor::Remote;
+use parity_runtime::Executor;
 use v1::helpers::GenericPollManager;
 use v1::metadata::Metadata;
 use v1::traits::PubSub;
@@ -35,12 +35,12 @@ use v1::traits::PubSub;
 /// Parity PubSub implementation.
 pub struct PubSubClient<S: core::Middleware<Metadata>> {
 	poll_manager: Arc<RwLock<GenericPollManager<S>>>,
-	remote: Remote,
+	executor: Executor,
 }
 
 impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 	/// Creates new `PubSubClient`.
-	pub fn new(rpc: MetaIoHandler<Metadata, S>, remote: Remote) -> Self {
+	pub fn new(rpc: MetaIoHandler<Metadata, S>, executor: Executor) -> Self {
 		let poll_manager = Arc::new(RwLock::new(GenericPollManager::new(rpc)));
 		let pm2 = poll_manager.clone();
 
@@ -50,14 +50,14 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 
 		// Start ticking
 		let interval = timer.interval(Duration::from_millis(1000));
-		remote.spawn(interval
+		executor.spawn(interval
 			.map_err(|e| warn!("Polling timer error: {:?}", e))
 			.for_each(move |_| pm2.read().tick())
 		);
 
 		PubSubClient {
 			poll_manager,
-			remote,
+			executor,
 		}
 	}
 }
@@ -65,8 +65,8 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 impl PubSubClient<core::NoopMiddleware> {
 	/// Creates new `PubSubClient` with deterministic ids.
 	#[cfg(test)]
-	pub fn new_test(rpc: MetaIoHandler<Metadata, core::NoopMiddleware>, remote: Remote) -> Self {
-		let client = Self::new(MetaIoHandler::with_middleware(Default::default()), remote);
+	pub fn new_test(rpc: MetaIoHandler<Metadata, core::NoopMiddleware>, executor: Executor) -> Self {
+		let client = Self::new(MetaIoHandler::with_middleware(Default::default()), executor);
 		*client.poll_manager.write() = GenericPollManager::new_test(rpc);
 		client
 	}
@@ -84,7 +84,7 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 		let (id, receiver) = poll_manager.subscribe(meta, method, params);
 		match subscriber.assign_id(id.clone()) {
 			Ok(sink) => {
-				self.remote.spawn(receiver.forward(sink.sink_map_err(|e| {
+				self.executor.spawn(receiver.forward(sink.sink_map_err(|e| {
 					warn!("Cannot send notification: {:?}", e);
 				})).map(|_| ()));
 			},

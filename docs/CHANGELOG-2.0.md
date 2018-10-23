@@ -1,3 +1,17 @@
+## Parity-Ethereum [v2.0.8](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.8) (2018-10-16)
+
+Parity-Ethereum 2.0.8-stable is a release that fixes a consensus issue with the recent Constantinople release. Upgrading is mandatory whatever network you are connected to that plans enabling EIP-1283, e.g., Ropsten, Kovan, Ethereum.
+
+The full list of included changes:
+
+- Stable release 2.0.8 backports ([#9748](https://github.com/paritytech/parity-ethereum/pull/9748))
+  - Parity-version: mark 2.0.8 stable as critical
+  - Use signed 256-bit integer for sstore gas refund substate ([#9746](https://github.com/paritytech/parity-ethereum/pull/9746))
+  - Add --force to cargo audit install script ([#9735](https://github.com/paritytech/parity-ethereum/pull/9735))
+  - Heads ref not present for branches beta and stable ([#9741](https://github.com/paritytech/parity-ethereum/pull/9741))
+  - Aura: fix panic on extra_info with unsealed block ([#9755](https://github.com/paritytech/parity-ethereum/pull/9755))
+
+
 ## Parity-Ethereum [v2.0.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.7) (2018-10-11)
 
 Parity-Ethereum 2.0.7-stable is a release that introduces **Constantinople** to the Ethereum client. Upgrading is strongly recommended.
