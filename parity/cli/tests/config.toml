@@ -95,3 +95,6 @@ pool_size = 50
 port = 5910
 interface = "local"
 remote_addresses = ["127.0.0.1:5911"]
+txn_gen_count = 5
+contribution_delay_ms = 120
+contribution_size_max_log2 = 32

@@ -1138,13 +1138,23 @@ usage! {
 			"--hbbft-remote-addresses=[NODES]",
 			"Specify remote addresses to connect to upon startup. This is equivalent to bootnodes. NODES should be comma-delimited socket addresses.",
 
-			ARG arg_hbbft_txn_gen_count: (Option<usize>) = None, or |_| None,
+			ARG arg_hbbft_txn_gen_count: (Option<usize>) = None, or |c: &Config| c.hbbft.as_ref()?.txn_gen_count.clone(),
 			"--hbbft-txn-gen-count=[COUNT]",
 			"Specify the number of transactions to randomly generate (used for testing).",
 
+			ARG arg_hbbft_contribution_delay_ms: (Option<u64>) = None, or |c: &Config| c.hbbft.as_ref()?.contribution_delay_ms.clone(),
+			"--hbbft_contribution_delay_ms=[MILLISECONDS]",
+			"The time interval to wait between contribution proposal attempts.",
+
+			ARG arg_hbbft_contribution_size_max_log2: (Option<usize>) = None, or |c: &Config| c.hbbft.as_ref()?.contribution_size_max_log2.clone(),
+			"--hbbft_contribution_size_max_log2=[TRANSACTIONS]",
+			"The maximum batch size used as a starting point when determining \n
+			    whether or not it's time to propose a contribution of transactions. \n
+			    Each `contribution_delay_ms` interval, the minimum number of \n
+			    transactions required is reduced by half (until it reaches 1, where it \n
+			    remains indefinitely).",
+
 			// // TODO: Add these:
-			// batch_size: usize,
-			// txn_gen_count: usize,
 			// txn_gen_interval: u64,
 			// txn_gen_bytes: usize,
 			// keygen_peer_count: usize,
@@ -1461,6 +1471,8 @@ struct Hbbft {
 	bind_address: Option<String>,
 	remote_addresses: Option<Vec<String>>,
 	txn_gen_count: Option<usize>,
+	contribution_delay_ms: Option<u64>,
+	contribution_size_max_log2: Option<usize>,
 }
 
 #[cfg(test)]
@@ -1938,7 +1950,9 @@ mod tests {
 			arg_hbbft_port: Some(5910),
 			arg_hbbft_interface: "local".into(),
 			arg_hbbft_remote_addresses: None,
-			arg_hbbft_txn_gen_count: None,
+			arg_hbbft_txn_gen_count: Some(5),
+			arg_hbbft_contribution_delay_ms: Some(120),
+			arg_hbbft_contribution_size_max_log2: Some(32),
 		});
 	}
 
@@ -2167,7 +2181,9 @@ mod tests {
 				interface: Some("local".into()),
 				bind_address: None,
 				remote_addresses: Some(vec!["127.0.0.1:5911".to_owned()]),
-				txn_gen_count: None,
+				txn_gen_count: Some(5),
+				contribution_delay_ms: Some(120),
+				contribution_size_max_log2: Some(32),
 			})
 		});
 	}

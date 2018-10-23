@@ -18,8 +18,6 @@ pub use self::hbbft_daemon::{HbbftDaemon, HbbftClientExt};
 ///
 pub const DEFAULT_HBBFT_PORT: u16 = 5900;
 
-// The HoneyBadger batch size.
-const DEFAULT_BATCH_SIZE: usize = 200;
 // The number of random transactions to generate per interval.
 const DEFAULT_TXN_GEN_COUNT: usize = 5;
 // The interval between randomly generated transactions.
@@ -32,16 +30,21 @@ const DEFAULT_KEYGEN_PEER_COUNT: usize = 2;
 // debugging.
 const DEFAULT_OUTPUT_EXTRA_DELAY_MS: u64 = 0;
 
-
 ///
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HbbftConfig {
-    ///
+    /// Our bind address.
     pub bind_address: SocketAddr,
-    ///
+    /// Remote nodes to connect to upon startup.
     pub remote_addresses: HashSet<SocketAddr>,
-    ///
-    pub batch_size: usize,
+    /// The time interval to wait between contribution proposal attempts.
+    pub contribution_delay_ms: u64,
+    /// The maximum batch size used as a starting point when determining
+    /// whether or not it's time to propose a contribution of transactions.
+    /// Each `contribution_delay_ms` interval, the minimum number of
+    /// transactions required is reduced by half (until it reaches 1, where it
+    /// remains indefinitely).
+    pub contribution_size_max_log2: usize,
     ///
     pub txn_gen_count: usize,
     ///
@@ -49,7 +52,8 @@ pub struct HbbftConfig {
     ///
     // TODO: Make this a range:
     pub txn_gen_bytes: usize,
-    ///
+    /// The minimum number of peers needed to begin key generation and start
+    /// a hbbft network.
     pub keygen_peer_count: usize,
     ///
     pub output_extra_delay_ms: u64,
@@ -60,7 +64,6 @@ impl HbbftConfig {
     pub fn to_hydrabadger(&self) -> HydrabadgerConfig {
         HydrabadgerConfig {
 			start_epoch: 1,
-            batch_size: self.batch_size,
             txn_gen_count: self.txn_gen_count,
             txn_gen_interval: self.txn_gen_interval,
             txn_gen_bytes: self.txn_gen_bytes,
@@ -75,26 +78,13 @@ impl Default for HbbftConfig {
         HbbftConfig {
             bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), DEFAULT_HBBFT_PORT),
             remote_addresses: HashSet::new(),
-            batch_size: DEFAULT_BATCH_SIZE,
+            contribution_delay_ms: 100,
+            contribution_size_max_log2: 16,
             txn_gen_count: DEFAULT_TXN_GEN_COUNT,
             txn_gen_interval: DEFAULT_TXN_GEN_INTERVAL,
             txn_gen_bytes: DEFAULT_TXN_GEN_BYTES,
             keygen_peer_count: DEFAULT_KEYGEN_PEER_COUNT,
             output_extra_delay_ms: DEFAULT_OUTPUT_EXTRA_DELAY_MS,
-        }
-    }
-}
-
-impl From<HbbftConfig> for HydrabadgerConfig {
-    fn from(cfg: HbbftConfig) ->  HydrabadgerConfig {
-        HydrabadgerConfig {
-			start_epoch: 1,
-            batch_size: cfg.batch_size,
-            txn_gen_count: cfg.txn_gen_count,
-            txn_gen_interval: cfg.txn_gen_interval,
-            txn_gen_bytes: cfg.txn_gen_bytes,
-            keygen_peer_count: cfg.keygen_peer_count,
-            output_extra_delay_ms: cfg.output_extra_delay_ms,
         }
     }
 }

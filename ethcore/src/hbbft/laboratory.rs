@@ -35,7 +35,7 @@ use transaction::{Transaction, Action, SignedTransaction, Error as TransactionEr
 use block::{OpenBlock, ClosedBlock, IsBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
-use super::hbbft_daemon::{HbbftDaemon, Contribution, Error, ErrorKind, HbbftClientExt, CONTRIBUTION_PUSH_DELAY_MS};
+use super::hbbft_daemon::{HbbftDaemon, Contribution, Error, ErrorKind, HbbftClientExt};
 
 const RICHIE_ACCT: &'static str = "0x002eb83d1d04ca12fe1956e67ccaa195848e437f";
 const RICHIE_PWD: &'static str =  "richie";
@@ -447,7 +447,7 @@ impl Laboratory {
 			// Entry point for experiments:
 			lab.run_experiments();
 
-			let loop_delay = CONTRIBUTION_PUSH_DELAY_MS * 50;
+			let loop_delay = lab.hdb_cfg.contribution_delay_ms * 50;
 
 			Delay::new(Instant::now() + Duration::from_millis(loop_delay))
 				.map(|_| Loop::Continue(lab))

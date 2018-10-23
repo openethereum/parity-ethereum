@@ -16,7 +16,7 @@ use futures::{
 	sync::oneshot,
 };
 use parking_lot::Mutex;
-use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid, StateDsct};
+use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid, StateDsct, HydrabadgerWeak};
 use parity_runtime::Executor;
 use tokio::{self, timer::Delay};
 use hbbft::HbbftConfig;
@@ -36,16 +36,6 @@ use block::{OpenBlock, ClosedBlock, IsBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
 use super::laboratory::{Laboratory, Accounts};
-
-const RICHIE_ACCT: &'static str = "0x002eb83d1d04ca12fe1956e67ccaa195848e437f";
-const RICHIE_PWD: &'static str =  "richie";
-
-const TXN_AMOUNT_MAX: usize = 1000;
-
-// TODO: Move to config.
-pub(super) const CONTRIBUTION_PUSH_DELAY_MS: u64 = 100;
-const CONTRIBUTION_PUSH_ATTEMPTS_LIMIT: usize = 20;
-const CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2: usize = 16;
 
 type NodeId = Uid;
 
@@ -109,6 +99,7 @@ fn unix_now_secs() -> u64 {
 
 /// Handles submission of transactions into Hydrabadger.
 struct ContributionPusher {
+	cfg: HbbftConfig,
 	client: Weak<Client>,
 	hydrabadger: Hydrabadger<Contribution>,
 	block_counter: Arc<AtomicIsize>,
@@ -116,16 +107,16 @@ struct ContributionPusher {
 }
 
 impl ContributionPusher {
-	fn new(client: Weak<Client>, hydrabadger: Hydrabadger<Contribution>,
+	fn new(cfg: HbbftConfig, client: Weak<Client>, hydrabadger: Hydrabadger<Contribution>,
 		block_counter: Arc<AtomicIsize>) -> ContributionPusher
 	{
-		ContributionPusher { client, hydrabadger, block_counter, push_attempts: 0 }
+		ContributionPusher { cfg, client, hydrabadger, block_counter, push_attempts: 0 }
 	}
 
 	/// Returns the current number of transactions needed before a
 	/// contribution is pushed.
 	fn next_batch_threshold(&mut self) -> usize {
-		let threshold = 1 << (CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2.saturating_sub(self.push_attempts));
+		let threshold = 1 << (self.cfg.contribution_size_max_log2.saturating_sub(self.push_attempts));
 		self.push_attempts += 1;
 		threshold
 	}
@@ -140,13 +131,10 @@ impl ContributionPusher {
 		};
 
 		// Select new transactions and propose them for the next block.
-		//
-		// TODO (c0gent): Pull this from cfg or adjust dynamically.
 		let batch_threshold = self.next_batch_threshold();
-
-		let pending = client.miner().pending_transactions_from_queue(&*client, 1 << CONTRIBUTION_PUSH_BATCH_SIZE_MAX_LOG2);
-
 		let validator_count = self.hydrabadger.peers().count_validators() + 1;
+		let pending = client.miner().pending_transactions_from_queue(&*client,
+			1 << self.cfg.contribution_size_max_log2);
 
 		if !self.hydrabadger.is_validator()
 			|| validator_count < 2
@@ -188,7 +176,7 @@ impl ContributionPusher {
 			cp.push_contribution();
 
 			// This can be adjusted dynamically if needed:
-			let loop_delay = CONTRIBUTION_PUSH_DELAY_MS;
+			let loop_delay = cp.cfg.contribution_delay_ms;
 
 			Delay::new(Instant::now() + Duration::from_millis(loop_delay))
 				.map(|_| Loop::Continue(cp))
@@ -308,7 +296,7 @@ impl Future for BatchHandler {
 pub struct HbbftDaemon {
 	// Unused:
 	client: Weak<Client>,
-	hydrabadger: Hydrabadger<Contribution>,
+	hydrabadger: HydrabadgerWeak<Contribution>,
 }
 
 impl HbbftDaemon {
@@ -348,6 +336,7 @@ impl HbbftDaemon {
 
 		// Spawn contribution pusher:
 		executor.spawn(ContributionPusher::new(
+			cfg.clone(),
 			Arc::downgrade(&client),
 			hydrabadger.clone(),
 			block_counter.clone(),
@@ -373,7 +362,7 @@ impl HbbftDaemon {
 
 		Ok(HbbftDaemon {
 			client: Arc::downgrade(&client),
-			hydrabadger,
+			hydrabadger: hydrabadger.to_weak(),
 		})
 	}
 }

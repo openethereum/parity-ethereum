@@ -436,6 +436,14 @@ impl Configuration {
 			hbbft.txn_gen_count = count;
 		}
 
+		if let Some(delay) = self.args.arg_hbbft_contribution_delay_ms {
+			hbbft.contribution_delay_ms = delay;
+		}
+
+		if let Some(size) = self.args.arg_hbbft_contribution_size_max_log2 {
+			hbbft.contribution_size_max_log2 = size;
+		}
+
 		Ok(hbbft)
 	}
 

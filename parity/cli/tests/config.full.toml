@@ -178,3 +178,6 @@ pool_size = 20
 [hbbft]
 port = 5910
 interface = "local"
+txn_gen_count = 5
+contribution_delay_ms = 120
+contribution_size_max_log2 = 32
