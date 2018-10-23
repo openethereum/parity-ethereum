@@ -195,14 +195,14 @@ impl Pending {
 
 	// if the requests are complete, send the result and consume self.
 	fn try_complete(self) -> Option<Self> {
-			if self.requests.is_complete() {
-					if self.sender.send(Ok(self.responses)).is_err() {
-						debug!(target: "on_demand", "Dropped oneshot channel receiver on request");
-					}
-					None
-			} else {
-					Some(self)
+		if self.requests.is_complete() {
+			if self.sender.send(Ok(self.responses)).is_err() {
+				debug!(target: "on_demand", "Dropped oneshot channel receiver on request");
 			}
+			None
+		} else {
+			Some(self)
+		}
 	}
 
 	fn fill_unanswered(&mut self) {
@@ -514,15 +514,18 @@ impl OnDemand {
 				match pending.request_guard.register_error() {
 					// Drop the request
 					RequestError::ReachedLimit => {
-						trace!(target: "on_demand", "RequestGuard dropped the request");
+						trace!(target: "on_demand", "The RequestGuard dropped the request");
 						pending.request_limit_reached();
-						None
+						return None
 					}
-					RequestError::Rejected | RequestError::LetThrough => {
-						trace!(target: "on_demand", "RequestGuard rejected the request");
-						Some(pending)
+					RequestError::Rejected => {
+						trace!(target: "on_demand", "The RequestGuard rejected the request, waiting for backoff");
+					}
+					RequestError::LetThrough => {
+						trace!(target: "on_demand", "The RequestGuard registered a bad response");
 					}
 				}
+				Some(pending)
 		})
 		.collect(); // `pending` now contains all requests we couldn't dispatch
 
@@ -599,7 +602,7 @@ impl Handler for OnDemand {
 
 		if responses.is_empty() {
 			// Max number of `bad` responses reached, drop the request
-			if let Err(e) = pending.response_guard.register_error(&ResponseError::EmptyResponse) {
+			if let Err(e) = pending.response_guard.register_error(&ResponseError::Validity(ValidityError::Empty)) {
 				pending.bad_response(e);
 				return;
 			}

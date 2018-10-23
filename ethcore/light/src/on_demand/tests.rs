@@ -26,7 +26,7 @@ use parking_lot::Mutex;
 use ::request::{self as basic_request, Response};
 
 use std::sync::Arc;
-use std::time::{SystemTime, Duration};
+use std::time::{Duration, Instant};
 use std::thread;
 
 use super::{request, OnDemand, Peer, HeaderRef};
@@ -153,7 +153,7 @@ fn single_request() {
 	let req_id = ReqId(14426);
 
 	harness.inject_peer(peer_id, Peer {
-	 	status: dummy_status(),
+		status: dummy_status(),
 		capabilities: dummy_capabilities(),
 	});
 
@@ -533,11 +533,11 @@ fn request_without_response_should_backoff_and_then_be_dropped() {
 
 	for (i, &backoff) in binary_exp_backoff.iter().enumerate() {
 		harness.service.dispatch_pending(&Context::FaultyRequest);
-		let now = SystemTime::now();
-		while now.elapsed().unwrap() <= harness.service.time_window_dur {}
-		let now = SystemTime::now();
-		while now.elapsed().unwrap() < Duration::from_secs(backoff + 2) {}
-		if i < 9 {
+		let now = Instant::now();
+		while now.elapsed() <= harness.service.time_window_dur {}
+		let now = Instant::now();
+		while now.elapsed() < Duration::from_secs(backoff + 2) {}
+		if i < binary_exp_backoff.len() - 1 {
 			assert_eq!(harness.service.pending.read().len(), 1, "Request should not be dropped");
 		}
 	}
@@ -572,12 +572,12 @@ fn empty_responses_exceeds_limit_should_be_dropped() {
 	// Sleep to get a timestamp that is bigger that 0 to the ` EMA (Exponential moving average)` calculation
 	thread::sleep(Duration::from_secs(1));
 
-	let now = SystemTime::now();
+	let now = Instant::now();
 
 	// Send `empty responses` in the current time window
 	// Use only half of the `time_window` because we can't be sure exactly
 	// when the window started and the clock accurancy
-	while now.elapsed().unwrap() < harness.service.time_window_dur / 2 {
+	while now.elapsed() < harness.service.time_window_dur / 2 {
 		harness.service.on_responses(
 			&Context::RequestFrom(13, req_id),
 			req_id,

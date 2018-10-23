@@ -90,8 +90,6 @@ pub enum ResponseError<T> {
 	Validity(T),
 	/// No responses expected.
 	Unexpected,
-	/// Empty response
-	EmptyResponse,
 }
 
 /// An input to a request.

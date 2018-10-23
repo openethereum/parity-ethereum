@@ -86,7 +86,6 @@ impl ResponseGuard {
 	fn into_reason(&self, err: &ResponseError<super::request::Error>) -> Inner {
 		match err {
 			ResponseError::Unexpected => Inner::Unexpected,
-			ResponseError::EmptyResponse => Inner::EmptyResponse,
 			ResponseError::Validity(ValidityError::BadProof) => Inner::BadProof,
 			ResponseError::Validity(ValidityError::Decoder(_)) => Inner::Decoder,
 			ResponseError::Validity(ValidityError::Empty) => Inner::EmptyResponse,
@@ -143,7 +142,7 @@ mod tests {
 	#[test]
 	fn test_basic_by_majority() {
 		let mut guard = ResponseGuard::new(0.8, Duration::from_secs(5));
-		guard.register_error(&ResponseError::EmptyResponse).unwrap();
+		guard.register_error(&ResponseError::Validity(ValidityError::Empty)).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
@@ -156,7 +155,7 @@ mod tests {
 	#[test]
 	fn test_no_majority() {
 		let mut guard = ResponseGuard::new(0.8, Duration::from_secs(5));
-		guard.register_error(&ResponseError::EmptyResponse).unwrap();
+		guard.register_error(&ResponseError::Validity(ValidityError::Empty)).unwrap();
 		guard.register_error(&ResponseError::Validity(ValidityError::Empty)).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
