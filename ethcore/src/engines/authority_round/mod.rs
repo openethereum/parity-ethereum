@@ -215,7 +215,7 @@ impl EpochManager {
 
 	// zoom to epoch for given header. returns true if succeeded, false otherwise.
 	fn zoom_to(&mut self, client: &EngineClient, machine: &EthereumMachine, validators: &ValidatorSet, header: &Header) -> bool {
-		let last_was_parent = self.finality_checker.subchain_head() == Some(header.parent_hash().clone());
+		let last_was_parent = self.finality_checker.subchain_head() == Some(*header.parent_hash());
 
 		// early exit for current target == chain head, but only if the epochs are
 		// the same.
@@ -452,7 +452,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 					Some(header) => header_empty_steps_signers(header, self.empty_steps_transition).ok()?,
 					_ => Vec::new(),
 				};
-				signers.push(parent_header.author().clone());
+				signers.push(*parent_header.author());
 
 				let newly_finalized = finality_checker.push_hash(parent_header.hash(), signers).ok()?;
 				finalized.extend(newly_finalized);
@@ -578,7 +578,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 
 	if is_invalid_proposer {
 		trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
-		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
+		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: *header.author() }))?
 	} else {
 		Ok(())
 	}
@@ -799,7 +799,7 @@ impl AuthorityRound {
 			};
 
 			let ancestry_iter = ancestry.map(|header| {
-				let mut signers = vec![header.author().clone()];
+				let mut signers = vec![*header.author()];
 				signers.extend(parent_empty_steps_signers.drain(..));
 
 				if let Ok(empty_step_signers) = header_empty_steps_signers(&header, self.empty_steps_transition) {
@@ -823,7 +823,7 @@ impl AuthorityRound {
 			}
 		}
 
-		let finalized = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![chain_head.author().clone()]);
+		let finalized = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![*chain_head.author()]);
 		finalized.unwrap_or_default()
 	}
 }
@@ -1202,7 +1202,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 
 			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
-			Err(EngineError::DoubleVote(header.author().clone()))?;
+			Err(EngineError::DoubleVote(*header.author()))?;
 		}
 
 		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
@@ -1314,12 +1314,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			epoch_manager.epoch_transition_hash
 		};
 
-		let mut hash = chain_head.parent_hash().clone();
+		let mut hash = *chain_head.parent_hash();
 
 		let mut ancestry = itertools::repeat_call(move || {
 			chain(hash).and_then(|header| {
 				if header.number() == 0 { return None }
-				hash = header.parent_hash().clone();
+				hash = *header.parent_hash();
 				Some(header)
 			})
 		})
