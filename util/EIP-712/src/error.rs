@@ -56,7 +56,10 @@ pub enum ErrorKind {
 	/// the typed array defined in message types was declared with a fixed length
 	/// that is of unequal length with the items to be encoded
 	#[fail(display = "Expected {} items for array type {}, got {} items", _0, _1, _2)]
-	UnequalArrayItems(u64, String, u64)
+	UnequalArrayItems(u64, String, u64),
+	/// Typed array length doesn't fit into a u64
+	#[fail(display = "Attempted to declare fixed size with length {}", _0)]
+	InvalidArraySize(String)
 }
 
 pub(crate) fn serde_error(expected: &str, field: Option<&str>) -> ErrorKind {

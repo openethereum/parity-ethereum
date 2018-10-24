@@ -102,7 +102,13 @@ impl Parser {
 				Token::TypeString => Type::String,
 				Token::TypeAddress => Type::Address,
 				Token::LiteralInteger => {
-					current_array_length = Some(lexer.token_as_str().parse().unwrap());
+					let length = lexer.token_as_str();
+					current_array_length = Some(length
+						.parse()
+						.map_err(|_|
+							ErrorKind::InvalidArraySize(length.into())
+						)?
+					);
 					lexer.consume();
 					continue;
 				},
