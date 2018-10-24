@@ -22,6 +22,7 @@ use itertools::Itertools;
 use hash::{keccak};
 use ethereum_types::{H256, U256};
 use hashdb::HashDB;
+use kvdb::DBValue;
 use keccak_hasher::KeccakHasher;
 use triehash::sec_trie_root;
 use bytes::Bytes;
@@ -69,7 +70,7 @@ impl PodAccount {
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut HashDB<KeccakHasher>, factory: &TrieFactory<KeccakHasher, RlpCodec>) {
+	pub fn insert_additional(&self, db: &mut HashDB<KeccakHasher, DBValue>, factory: &TrieFactory<KeccakHasher, RlpCodec>) {
 		match self.code {
 			Some(ref c) if !c.is_empty() => { db.insert(c); }
 			_ => {}

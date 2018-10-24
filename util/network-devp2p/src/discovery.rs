@@ -435,7 +435,6 @@ impl<'a> Discovery<'a> {
 		let signed = &packet[(32 + 65)..];
 		let signature = H520::from_slice(&packet[32..(32 + 65)]);
 		let node_id = recover(&signature.into(), &keccak(signed))?;
-
 		let packet_id = signed[0];
 		let rlp = Rlp::new(&signed[1..]);
 		match packet_id {
@@ -470,7 +469,6 @@ impl<'a> Discovery<'a> {
 		let ping_to = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
 		self.check_timestamp(timestamp)?;
-
 		let mut response = RlpStream::new_list(3);
 		let pong_to = NodeEndpoint {
 			address: from.clone(),
@@ -1063,7 +1061,7 @@ mod tests {
 		4be2be5a685a80971ddcfa80cb422cdd0101ec04cb847f000001820cfa8215a8d790000000000000\
 		000000000000000000018208ae820d058443b9a3550102\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
 		let packet = "\
 		577be4349c4dd26768081f58de4c6f375a7a22f3f7adda654d1428637412c3d7fe917cadc56d4e5e\
@@ -1075,7 +1073,7 @@ mod tests {
 		7084a95398b6a21eac920fe3dd1345ec0a7ef39367ee69ddf092cbfe5b93e5e568ebc491983c09c7\
 		6d922dc3\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
 		let packet = "\
 		09b2428d83348d27cdf7064ad9024f526cebc19e4958f0fdad87c15eb598dd61d08423e0bf66b206\
@@ -1085,7 +1083,7 @@ mod tests {
 		a355c6010203c2040506a0c969a58f6f9095004c0177a6b47f451530cab38966a25cca5cb58f0555
 		42124e\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
 		let packet = "\
 		c7c44041b9f7c7e41934417ebac9a8e1a4c6298f74553f2fcfdcae6ed6fe53163eb3d2b52e39fe91\
@@ -1095,7 +1093,7 @@ mod tests {
 		7bf5ccd1fc7f8443b9a35582999983999999280dc62cc8255c73471e0a61da0c89acdc0e035e260a\
 		dd7fc0c04ad9ebf3919644c91cb247affc82b69bd2ca235c71eab8e49737c937a2c396\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
 		let packet = "\
 		c679fc8fe0b8b12f06577f2e802d34f6fa257e6137a995f6f4cbfc9ee50ed3710faf6e66f932c4c8\
@@ -1111,7 +1109,7 @@ mod tests {
 		197101a4b2b47dd2d47295286fc00cc081bb542d760717d1bdd6bec2c37cd72eca367d6dd3b9df73\
 		8443b9a355010203b525a138aa34383fec3d2719a0\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 	}
 
 	#[test]

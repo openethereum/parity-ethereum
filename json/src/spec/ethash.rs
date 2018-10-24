@@ -105,25 +105,6 @@ pub struct EthashParams {
 	#[serde(rename="ecip1017EraRounds")]
 	pub ecip1017_era_rounds: Option<Uint>,
 
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3Transition")]
-	pub mcip3_transition: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3MinerReward")]
-	pub mcip3_miner_reward: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3UbiReward")]
-	pub mcip3_ubi_reward: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3UbiContract")]
-	pub mcip3_ubi_contract: Option<Address>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3DevReward")]
-	pub mcip3_dev_reward: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3DevContract")]
-	pub mcip3_dev_contract: Option<Address>,
-
 	/// Delays of difficulty bombs.
 	#[serde(rename="difficultyBombDelays")]
 	pub difficulty_bomb_delays: Option<BTreeMap<Uint, Uint>>,
@@ -236,12 +217,6 @@ mod tests {
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
-				mcip3_transition: None,
-				mcip3_miner_reward: None,
-				mcip3_ubi_reward: None,
-				mcip3_ubi_contract: None,
-				mcip3_dev_reward: None,
-				mcip3_dev_contract: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
 				difficulty_bomb_delays: None,
@@ -281,12 +256,6 @@ mod tests {
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
-				mcip3_transition: None,
-				mcip3_miner_reward: None,
-				mcip3_ubi_reward: None,
-				mcip3_ubi_contract: None,
-				mcip3_dev_reward: None,
-				mcip3_dev_contract: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
 				difficulty_bomb_delays: None,

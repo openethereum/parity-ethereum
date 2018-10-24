@@ -175,7 +175,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			.and_then(|(pending_tx, dispatcher)| {
 				let chain_id = pending_tx.chain_id();
 				trace!(target: "miner", "send_transaction: dispatching tx: {} for chain ID {:?}",
-					::rlp::encode(&*pending_tx).into_vec().pretty(), chain_id);
+					::rlp::encode(&*pending_tx).pretty(), chain_id);
 
 				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
 			})

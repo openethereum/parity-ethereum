@@ -4,6 +4,6 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-rlp = "0.2.4"
+rlp = { version = "0.3.0", features = ["ethereum"] }
 elastic-array = "0.10"
 lazy_static = "1.0"

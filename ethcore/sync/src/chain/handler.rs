@@ -28,6 +28,7 @@ use network::PeerId;
 use rlp::Rlp;
 use snapshot::ChunkType;
 use std::cmp;
+use std::mem;
 use std::collections::HashSet;
 use std::time::Instant;
 use sync_io::SyncIo;
@@ -292,10 +293,19 @@ impl SyncHandler {
 		let block_set = sync.peers.get(&peer_id)
 			.and_then(|p| p.block_set)
 			.unwrap_or(BlockSet::NewBlocks);
-		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockBodies) {
+		let allowed = sync.peers.get(&peer_id).map(|p| p.is_allowed()).unwrap_or(false);
+
+		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockBodies) || !allowed {
 			trace!(target: "sync", "{}: Ignored unexpected bodies", peer_id);
 			return Ok(());
 		}
+		let expected_blocks = match sync.peers.get_mut(&peer_id) {
+			Some(peer) => mem::replace(&mut peer.asking_blocks, Vec::new()),
+			None => {
+				trace!(target: "sync", "{}: Ignored unexpected bodies (peer not found)", peer_id);
+				return Ok(());
+			}
+		};
 		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockBodies ({} entries), set = {:?}", peer_id, item_count, block_set);
 		if item_count == 0 {
@@ -315,7 +325,7 @@ impl SyncHandler {
 						Some(ref mut blocks) => blocks,
 					}
 				};
-				downloader.import_bodies(r)?;
+				downloader.import_bodies(r, expected_blocks.as_slice())?;
 			}
 			sync.collect_blocks(io, block_set);
 			Ok(())
@@ -368,10 +378,23 @@ impl SyncHandler {
 		let expected_hash = sync.peers.get(&peer_id).and_then(|p| p.asking_hash);
 		let allowed = sync.peers.get(&peer_id).map(|p| p.is_allowed()).unwrap_or(false);
 		let block_set = sync.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
-		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockHeaders) || expected_hash.is_none() || !allowed {
-			trace!(target: "sync", "{}: Ignored unexpected headers, expected_hash = {:?}", peer_id, expected_hash);
+
+		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockHeaders) {
+			debug!(target: "sync", "{}: Ignored unexpected headers", peer_id);
 			return Ok(());
 		}
+		let expected_hash = match expected_hash {
+			Some(hash) => hash,
+			None => {
+				debug!(target: "sync", "{}: Ignored unexpected headers (expected_hash is None)", peer_id);
+				return Ok(());
+			}
+		};
+		if !allowed {
+			debug!(target: "sync", "{}: Ignored unexpected headers (peer not allowed)", peer_id);
+			return Ok(());
+		}
+
 		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockHeaders ({} entries), state = {:?}, set = {:?}", peer_id, item_count, sync.state, block_set);
 		if (sync.state == SyncState::Idle || sync.state == SyncState::WaitingPeers) && sync.old_blocks.is_none() {
@@ -399,12 +422,8 @@ impl SyncHandler {
 			downloader.import_headers(io, r, expected_hash)?
 		};
 
-		if let DownloadAction::Reset = result {
-			// mark all outstanding requests as expired
-			trace!("Resetting downloads for {:?}", block_set);
-			for (_, ref mut p) in sync.peers.iter_mut().filter(|&(_, ref p)| p.block_set == Some(block_set)) {
-				p.reset_asking();
-			}
+		if result == DownloadAction::Reset {
+			sync.reset_downloads(block_set);
 		}
 
 		sync.collect_blocks(io, block_set);
@@ -415,10 +434,18 @@ impl SyncHandler {
 	fn on_peer_block_receipts(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		sync.clear_peer_download(peer_id);
 		let block_set = sync.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
-		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockReceipts) {
+		let allowed = sync.peers.get(&peer_id).map(|p| p.is_allowed()).unwrap_or(false);
+		if !sync.reset_peer_asking(peer_id, PeerAsking::BlockReceipts) || !allowed {
 			trace!(target: "sync", "{}: Ignored unexpected receipts", peer_id);
 			return Ok(());
 		}
+		let expected_blocks = match sync.peers.get_mut(&peer_id) {
+			Some(peer) => mem::replace(&mut peer.asking_blocks, Vec::new()),
+			None => {
+				trace!(target: "sync", "{}: Ignored unexpected bodies (peer not found)", peer_id);
+				return Ok(());
+			}
+		};
 		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockReceipts ({} entries)", peer_id, item_count);
 		if item_count == 0 {
@@ -438,7 +465,7 @@ impl SyncHandler {
 						Some(ref mut blocks) => blocks,
 					}
 				};
-				downloader.import_receipts(io, r)?;
+				downloader.import_receipts(r, expected_blocks.as_slice())?;
 			}
 			sync.collect_blocks(io, block_set);
 			Ok(())
@@ -745,9 +772,7 @@ mod tests {
 
 		let block = Rlp::new(&block_data);
 
-		let result = SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block);
-
-		assert!(result.is_ok());
+		SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block).expect("result to be ok");
 	}
 
 	#[test]

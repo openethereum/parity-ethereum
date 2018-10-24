@@ -27,6 +27,7 @@ use ethcore::ids::BlockId;
 use ethereum_types::{H256, U256};
 use hashdb::HashDB;
 use keccak_hasher::KeccakHasher;
+use kvdb::DBValue;
 use memorydb::MemoryDB;
 use bytes::Bytes;
 use trie::{TrieMut, Trie, Recorder};
@@ -52,13 +53,13 @@ pub const SIZE: u64 = 2048;
 /// A canonical hash trie. This is generic over any database it can query.
 /// See module docs for more details.
 #[derive(Debug, Clone)]
-pub struct CHT<DB: HashDB<KeccakHasher>> {
+pub struct CHT<DB: HashDB<KeccakHasher, DBValue>> {
 	db: DB,
 	root: H256, // the root of this CHT.
 	number: u64,
 }
 
-impl<DB: HashDB<KeccakHasher>> CHT<DB> {
+impl<DB: HashDB<KeccakHasher, DBValue>> CHT<DB> {
 	/// Query the root of the CHT.
 	pub fn root(&self) -> H256 { self.root }
 
@@ -92,10 +93,10 @@ pub struct BlockInfo {
 /// Build an in-memory CHT from a closure which provides necessary information
 /// about blocks. If the fetcher ever fails to provide the info, the CHT
 /// will not be generated.
-pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHasher>>>
+pub fn build<F>(cht_num: u64, mut fetcher: F) -> Option<CHT<MemoryDB<KeccakHasher, DBValue>>>
 	where F: FnMut(BlockId) -> Option<BlockInfo>
 {
-	let mut db = MemoryDB::<KeccakHasher>::new();
+	let mut db = MemoryDB::<KeccakHasher, DBValue>::new();
 
 	// start from the last block by number and work backwards.
 	let last_num = start_number(cht_num + 1) - 1;
@@ -134,7 +135,7 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 	let start_num = start_number(cht_num) as usize;
 
 	for (i, (h, td)) in iterable.into_iter().take(SIZE as usize).enumerate() {
-		v.push((key!(i + start_num).into_vec(), val!(h, td).into_vec()))
+		v.push((key!(i + start_num), val!(h, td)))
 	}
 
 	if v.len() == SIZE as usize {
@@ -149,7 +150,7 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 /// verify the given trie branch and extract the canonical hash and total difficulty.
 // TODO: better support for partially-checked queries.
 pub fn check_proof(proof: &[Bytes], num: u64, root: H256) -> Option<(H256, U256)> {
-	let mut db = MemoryDB::<KeccakHasher>::new();
+	let mut db = MemoryDB::<KeccakHasher, DBValue>::new();
 
 	for node in proof { db.insert(&node[..]); }
 	let res = match TrieDB::new(&db, &root) {

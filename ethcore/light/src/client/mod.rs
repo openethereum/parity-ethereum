@@ -207,7 +207,7 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Import a header to the queue for additional verification.
 	pub fn import_header(&self, header: Header) -> EthcoreResult<H256> {
-		self.queue.import(header).map_err(Into::into)
+		self.queue.import(header).map_err(|(_, e)| e)
 	}
 
 	/// Inquire about the status of a given header.

@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::sync::mpsc;
 use futures::{self, Future};
 use parking_lot::Mutex;
-use tokio_core::reactor::Core;
+use tokio::runtime;
 use crypto::DEFAULT_MAC;
 use ethkey::crypto;
 use super::acl_storage::AclStorage;
@@ -191,7 +191,11 @@ impl KeyServerCore {
 		let (stop, stopped) = futures::oneshot();
 		let (tx, rx) = mpsc::channel();
 		let handle = thread::Builder::new().name("KeyServerLoop".into()).spawn(move || {
-			let mut el = match Core::new() {
+			let runtime_res = runtime::Builder::new()
+				.core_threads(config.threads)
+				.build();
+
+			let mut el = match runtime_res {
 				Ok(el) => el,
 				Err(e) => {
 					tx.send(Err(Error::Internal(format!("error initializing event loop: {}", e)))).expect("Rx is blocking upper thread.");
@@ -199,10 +203,10 @@ impl KeyServerCore {
 				},
 			};
 
-			let cluster = ClusterCore::new(el.handle(), config);
+			let cluster = ClusterCore::new(el.executor(), config);
 			let cluster_client = cluster.and_then(|c| c.run().map(|_| c.client()));
 			tx.send(cluster_client.map_err(Into::into)).expect("Rx is blocking upper thread.");
-			let _ = el.run(futures::empty().select(stopped));
+			let _ = el.block_on(futures::empty().select(stopped));
 
 			trace!(target: "secretstore_net", "{}: KeyServerLoop thread stopped", self_key_pair.public());
 		}).map_err(|e| Error::Internal(format!("{}", e)))?;

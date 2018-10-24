@@ -25,7 +25,7 @@ use ethereum_types::H256;
 use hashdb::*;
 use heapsize::HeapSizeOf;
 use keccak_hasher::KeccakHasher;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::MemoryDB;
 use overlaydb::OverlayDB;
 use rlp::{encode, decode};
@@ -80,7 +80,7 @@ impl RefCountedDB {
 	}
 }
 
-impl HashDB<KeccakHasher> for RefCountedDB {
+impl HashDB<KeccakHasher, DBValue> for RefCountedDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
 	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
 	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
@@ -199,7 +199,7 @@ impl JournalDB for RefCountedDB {
 		self.forward.commit_to_batch(batch)
 	}
 
-	fn consolidate(&mut self, mut with: MemoryDB<KeccakHasher>) {
+	fn consolidate(&mut self, mut with: MemoryDB<KeccakHasher, DBValue>) {
 		for (key, (value, rc)) in with.drain() {
 			for _ in 0..rc {
 				self.emplace(key, value.clone());
@@ -216,7 +216,7 @@ impl JournalDB for RefCountedDB {
 mod tests {
 
 	use keccak::keccak;
-	use hashdb::{HashDB, DBValue};
+	use hashdb::HashDB;
 	use super::*;
 	use {JournalDB, kvdb_memorydb};
 

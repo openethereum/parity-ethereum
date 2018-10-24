@@ -21,7 +21,7 @@ use bytes::ToPretty;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use parity_reactor::EventLoop;
+use parity_runtime::Runtime;
 use parking_lot::Mutex;
 use rlp::encode;
 use transaction::{Transaction, Action, SignedTransaction};
@@ -36,6 +36,7 @@ use v1::helpers::{nonce, SigningQueue, SignerService, FilledTransactionRequest, 
 use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
 
 struct SignerTester {
+	_runtime: Runtime,
 	signer: Arc<SignerService>,
 	accounts: Arc<AccountProvider>,
 	io: IoHandler<Metadata>,
@@ -56,18 +57,19 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> SignerTester {
+	let runtime = Runtime::with_thread_count(1);
 	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
-	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
-	let event_loop = EventLoop::spawn();
+	let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
+	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer, runtime.executor()).to_delegate());
 
 	SignerTester {
+		_runtime: runtime,
 		signer: signer,
 		accounts: accounts,
 		io: io,

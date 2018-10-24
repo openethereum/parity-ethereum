@@ -19,8 +19,8 @@
 //! A simple client to get the current ETH price using an external API.
 
 extern crate futures;
-extern crate futures_cpupool;
 extern crate serde_json;
+extern crate parity_runtime;
 
 #[macro_use]
 extern crate log;
@@ -38,8 +38,8 @@ use std::str;
 use fetch::{Client as FetchClient, Fetch};
 use futures::{Future, Stream};
 use futures::future::{self, Either};
-use futures_cpupool::CpuPool;
 use serde_json::Value;
+use parity_runtime::Executor;
 
 /// Current ETH price information.
 #[derive(Debug)]
@@ -71,7 +71,7 @@ impl From<fetch::Error> for Error {
 
 /// A client to get the current ETH price using an external API.
 pub struct Client<F = FetchClient> {
-	pool: CpuPool,
+	pool: Executor,
 	api_endpoint: String,
 	fetch: F,
 }
@@ -92,7 +92,7 @@ impl<F> cmp::PartialEq for Client<F> {
 
 impl<F: Fetch> Client<F> {
 	/// Creates a new instance of the `Client` given a `fetch::Client`.
-	pub fn new(fetch: F, pool: CpuPool) -> Client<F> {
+	pub fn new(fetch: F, pool: Executor) -> Client<F> {
 		let api_endpoint = "https://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
 		Client { pool, api_endpoint, fetch }
 	}
@@ -108,7 +108,7 @@ impl<F: Fetch> Client<F> {
 				}
 				Either::B(response.concat2().from_err())
 			})
-			.map(move |body| {
+			.and_then(move |body| {
 				let body_str = str::from_utf8(&body).ok();
 				let value: Option<Value> = body_str.and_then(|s| serde_json::from_str(s).ok());
 
@@ -128,30 +128,31 @@ impl<F: Fetch> Client<F> {
 			})
 			.map_err(|err| {
 				warn!("Failed to auto-update latest ETH price: {:?}", err);
-				err
 			});
-		self.pool.spawn(future).forget()
+		self.pool.spawn(future)
 	}
 }
 
 #[cfg(test)]
 mod test {
 	use std::sync::Arc;
-	use futures_cpupool::CpuPool;
+	use parity_runtime::{Runtime, Executor};
 	use Client;
 	use std::sync::atomic::{AtomicBool, Ordering};
 	use fake_fetch::FakeFetch;
 
-	fn price_info_ok(response: &str) -> Client<FakeFetch<String>> {
-		Client::new(FakeFetch::new(Some(response.to_owned())), CpuPool::new(1))
+	fn price_info_ok(response: &str, executor: Executor) -> Client<FakeFetch<String>> {
+		Client::new(FakeFetch::new(Some(response.to_owned())), executor)
 	}
 
-	fn price_info_not_found() -> Client<FakeFetch<String>> {
-		Client::new(FakeFetch::new(None::<String>), CpuPool::new(1))
+	fn price_info_not_found(executor: Executor) -> Client<FakeFetch<String>> {
+		Client::new(FakeFetch::new(None::<String>), executor)
 	}
 
 	#[test]
 	fn should_get_price_info() {
+		let runtime = Runtime::with_thread_count(1);
+
 		// given
 		let response = r#"{
 			"status": "1",
@@ -164,7 +165,7 @@ mod test {
 			}
 		}"#;
 
-		let price_info = price_info_ok(response);
+		let price_info = price_info_ok(response, runtime.executor());
 
 		// when
 		price_info.get(|price| {
@@ -176,10 +177,12 @@ mod test {
 
 	#[test]
 	fn should_not_call_set_price_if_response_is_malformed() {
+		let runtime = Runtime::with_thread_count(1);
+
 		// given
 		let response = "{}";
 
-		let price_info = price_info_ok(response);
+		let price_info = price_info_ok(response, runtime.executor());
 		let b = Arc::new(AtomicBool::new(false));
 
 		// when
@@ -194,8 +197,10 @@ mod test {
 
 	#[test]
 	fn should_not_call_set_price_if_response_is_invalid() {
+		let runtime = Runtime::with_thread_count(1);
+
 		// given
-		let price_info = price_info_not_found();
+		let price_info = price_info_not_found(runtime.executor());
 		let b = Arc::new(AtomicBool::new(false));
 
 		// when

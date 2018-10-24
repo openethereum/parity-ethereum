@@ -22,7 +22,6 @@ use std::sync::Arc;
 
 use sync::ManageNetwork;
 use fetch::{self, Fetch};
-use futures_cpupool::CpuPool;
 use hash::keccak_buffer;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -35,16 +34,14 @@ use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 pub struct ParitySetClient<F> {
 	net: Arc<ManageNetwork>,
 	fetch: F,
-	pool: CpuPool,
 }
 
 impl<F: Fetch> ParitySetClient<F> {
 	/// Creates new `ParitySetClient` with given `Fetch`.
-	pub fn new(net: Arc<ManageNetwork>, fetch: F, p: CpuPool) -> Self {
+	pub fn new(net: Arc<ManageNetwork>, fetch: F) -> Self {
 		ParitySetClient {
 			net: net,
 			fetch: fetch,
-			pool: p,
 		}
 	}
 }
@@ -134,7 +131,7 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 				})
 				.map(Into::into)
 		});
-		Box::new(self.pool.spawn(future))
+		Box::new(future)
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>> {

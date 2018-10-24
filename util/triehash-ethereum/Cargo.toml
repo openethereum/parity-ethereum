@@ -6,6 +6,6 @@ description = "Trie-root helpers, ethereum style"
 license = "GPL-3.0"
 
 [dependencies]
-triehash = { version = "0.2.3", features = ["ethereum"] }
+triehash = { version = "0.3.0", features = ["ethereum"] }
 ethereum-types = "0.4"
 keccak-hasher = { path = "../keccak-hasher" }

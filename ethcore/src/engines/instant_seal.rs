@@ -18,7 +18,7 @@ use engines::{Engine, Seal};
 use parity_machine::{Machine, Transactions, TotalScoredHeader};
 
 /// `InstantSeal` params.
-#[derive(Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq)]
 pub struct InstantSealParams {
 	/// Whether to use millisecond timestamp
 	pub millisecond_timestamp: bool,
@@ -120,7 +120,7 @@ mod tests {
 
 		assert!(engine.verify_block_basic(&header).is_ok());
 
-		header.set_seal(vec![::rlp::encode(&H520::default()).into_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default())]);
 
 		assert!(engine.verify_block_unordered(&header).is_ok());
 	}

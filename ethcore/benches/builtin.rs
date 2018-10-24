@@ -25,12 +25,10 @@ extern crate ethereum_types;
 extern crate parity_bytes as bytes;
 extern crate rustc_hex;
 
-use std::collections::BTreeMap;
-
 use bytes::BytesRef;
 use ethcore::builtin::Builtin;
 use ethcore::machine::EthereumMachine;
-use ethereum_types::{Address, U256};
+use ethereum_types::U256;
 use ethcore::ethereum::new_byzantium_test_machine;
 use rustc_hex::FromHex;
 use self::test::Bencher;

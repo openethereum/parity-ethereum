@@ -21,7 +21,7 @@ use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use engines::block_reward::{self, BlockRewardContract, RewardKind};
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
-use ethereum_types::{H256, H64, U256, Address};
+use ethereum_types::{H256, H64, U256};
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
@@ -98,18 +98,6 @@ pub struct EthashParams {
 	pub ecip1010_continue_transition: u64,
 	/// Total block number for one ECIP-1017 era.
 	pub ecip1017_era_rounds: u64,
-	/// Number of first block where MCIP-3 begins.
-	pub mcip3_transition: u64,
-	/// MCIP-3 Block reward coin-base for miners.
-	pub mcip3_miner_reward: U256,
-	/// MCIP-3 Block reward ubi-base for basic income.
-	pub mcip3_ubi_reward: U256,
-	/// MCIP-3 contract address for universal basic income.
-	pub mcip3_ubi_contract: Address,
-	/// MCIP-3 Block reward dev-base for dev funds.
-	pub mcip3_dev_reward: U256,
-	/// MCIP-3 contract address for the developer funds.
-	pub mcip3_dev_contract: Address,
 	/// Block reward in base units.
 	pub block_reward: BTreeMap<BlockNumber, U256>,
 	/// EXPIP-2 block height
@@ -140,12 +128,6 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
-			mcip3_transition: p.mcip3_transition.map_or(u64::max_value(), Into::into),
-			mcip3_miner_reward: p.mcip3_miner_reward.map_or_else(Default::default, Into::into),
-			mcip3_ubi_reward: p.mcip3_ubi_reward.map_or(U256::from(0), Into::into),
-			mcip3_ubi_contract: p.mcip3_ubi_contract.map_or_else(Address::new, Into::into),
-			mcip3_dev_reward: p.mcip3_dev_reward.map_or(U256::from(0), Into::into),
-			mcip3_dev_contract: p.mcip3_dev_contract.map_or_else(Address::new, Into::into),
 			block_reward: p.block_reward.map_or_else(
 				|| {
 					let mut ret = BTreeMap::new();
@@ -287,21 +269,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				// Bestow block rewards.
 				let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
 
-				if number >= self.ethash_params.mcip3_transition {
-					result_block_reward = self.ethash_params.mcip3_miner_reward;
-
-					let ubi_contract = self.ethash_params.mcip3_ubi_contract;
-					let ubi_reward = self.ethash_params.mcip3_ubi_reward;
-					let dev_contract = self.ethash_params.mcip3_dev_contract;
-					let dev_reward = self.ethash_params.mcip3_dev_reward;
-
-					rewards.push((author, RewardKind::Author, result_block_reward));
-					rewards.push((ubi_contract, RewardKind::External, ubi_reward));
-					rewards.push((dev_contract, RewardKind::External, dev_reward));
-
-				} else {
-					rewards.push((author, RewardKind::Author, result_block_reward));
-				}
+				rewards.push((author, RewardKind::Author, result_block_reward));
 
 				// Bestow uncle rewards.
 				for u in LiveBlock::uncles(&*block) {
@@ -549,12 +517,6 @@ mod tests {
 			ecip1010_pause_transition: u64::max_value(),
 			ecip1010_continue_transition: u64::max_value(),
 			ecip1017_era_rounds: u64::max_value(),
-			mcip3_transition: u64::max_value(),
-			mcip3_miner_reward: 0.into(),
-			mcip3_ubi_reward: 0.into(),
-			mcip3_ubi_contract: "0000000000000000000000000000000000000001".into(),
-			mcip3_dev_reward: 0.into(),
-			mcip3_dev_contract: "0000000000000000000000000000000000000001".into(),
 			expip2_transition: u64::max_value(),
 			expip2_duration_limit: 30,
 			block_reward_contract: None,
@@ -681,7 +643,7 @@ mod tests {
 	fn can_do_difficulty_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()), rlp::encode(&H64::zero())]);
 
 		let verify_result = engine.verify_block_basic(&header);
 
@@ -696,7 +658,7 @@ mod tests {
 	fn can_do_proof_of_work_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()), rlp::encode(&H64::zero())]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
 		let verify_result = engine.verify_block_basic(&header);
@@ -737,7 +699,7 @@ mod tests {
 	fn can_do_seal256_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()), rlp::encode(&H64::zero())]);
 		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
@@ -751,7 +713,7 @@ mod tests {
 	fn can_do_proof_of_work_unordered_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")), rlp::encode(&H64::zero())]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
 		let verify_result = engine.verify_block_unordered(&header);
@@ -944,7 +906,7 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 		let mut header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")), rlp::encode(&H64::zero())]);
 		let info = ethash.extra_info(&header);
 		assert_eq!(info["nonce"], "0x0000000000000000");
 		assert_eq!(info["mixHash"], "0xb251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d");

@@ -35,10 +35,10 @@ set_remote_wiki() {
 
 commit_files() {
     echo "__________Commit files__________"
-    git checkout -b rpcdoc-update-${CI_COMMIT_REF_NAME}
+    git checkout -b rpcdoc-update-${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}
     git add .
-    git commit -m "Update docs to ${CI_COMMIT_REF_NAME}"
-    git tag -a "${CI_COMMIT_REF_NAME}" -m "Update RPC docs to ${CI_COMMIT_REF_NAME}"
+    git commit -m "Update docs to ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
+    git tag -a "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" -m "Update RPC docs to ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
 }
 
 upload_files() {

@@ -32,7 +32,7 @@ pub mod epoch;
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
-pub use self::instant_seal::InstantSeal;
+pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 

@@ -218,11 +218,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		false
 	}
 
-	fn add_sstore_refund(&mut self, value: U256) {
+	fn add_sstore_refund(&mut self, value: usize) {
 		self.ext.add_sstore_refund(value)
 	}
 
-	fn sub_sstore_refund(&mut self, value: U256) {
+	fn sub_sstore_refund(&mut self, value: usize) {
 		self.ext.sub_sstore_refund(value)
 	}
 }
