@@ -26,7 +26,7 @@ pub struct Error {
 	inner: Context<ErrorKind>,
 }
 /// Possible errors encountered while hashing/encoding an EIP-712 compliant data structure
-#[derive(Clone, Fail, Debug)]
+#[derive(Clone, Fail, Debug, PartialEq)]
 pub enum ErrorKind {
 	/// if we fail to deserialize from a serde::Value as a type specified in message types
 	/// fail with this error.

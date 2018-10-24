@@ -18,6 +18,7 @@
 use lunarity_lexer::{Lexer, Token};
 use error::*;
 use toolshed::Arena;
+use std::{fmt, result};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -58,6 +59,13 @@ impl From<Type> for String {
 				}
 			}
 		}
+	}
+}
+
+impl fmt::Display for Type {
+	fn fmt(&self, f: &mut fmt::Formatter) -> result::Result<(), fmt::Error> {
+		let item: String = self.clone().into();
+		write!(f, "{}", item)
 	}
 }
 
