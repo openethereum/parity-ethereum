@@ -1,6 +1,6 @@
 {
 	"name": "MIX",
-	"dataDir": "mix",
+	"dataDir": "MIX",
 	"engine": {
 		"Ethash": {
 			"params": {
