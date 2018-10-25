@@ -174,7 +174,7 @@ fn test_lru() {
 	use tempdir::TempDir;
 
 	let tempdir = TempDir::new("").unwrap();
-	let ethash = EthashManager::new(tempdir.path(), None);
+	let ethash = EthashManager::new(tempdir.path(), None, u64::max_value());
 	let hash = [0u8; 32];
 	ethash.compute_light(1, &hash, 1);
 	ethash.compute_light(50000, &hash, 1);

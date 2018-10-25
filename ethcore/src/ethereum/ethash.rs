@@ -527,6 +527,7 @@ mod tests {
 			block_reward_contract: None,
 			block_reward_contract_transition: 0,
 			difficulty_bomb_delays: BTreeMap::new(),
+			progpow_transition: u64::max_value(),
 		}
 	}
 

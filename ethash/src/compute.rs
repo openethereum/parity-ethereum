@@ -416,7 +416,7 @@ mod test {
 
 		let tempdir = TempDir::new("").unwrap();
 		// difficulty = 0x085657254bd9u64;
-		let light = NodeCacheBuilder::new(None).light(tempdir.path(), 486382);
+		let light = NodeCacheBuilder::new(None, u64::max_value()).light(tempdir.path(), 486382);
 		let result = light_compute(&light, &hash, nonce);
 		assert_eq!(result.mix_hash[..], mix_hash[..]);
 		assert_eq!(result.value[..], boundary[..]);
@@ -425,7 +425,7 @@ mod test {
 	#[test]
 	fn test_drop_old_data() {
 		let tempdir = TempDir::new("").unwrap();
-		let builder = NodeCacheBuilder::new(None);
+		let builder = NodeCacheBuilder::new(None, u64::max_value());
 		let first = builder.light(tempdir.path(), 0).to_file().unwrap().to_owned();
 
 		let second = builder.light(tempdir.path(), ETHASH_EPOCH_LENGTH).to_file().unwrap().to_owned();
