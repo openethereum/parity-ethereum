@@ -258,12 +258,14 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
 	(rnd, mix_seq)
 }
 
+pub type CDag = [u32; PROGPOW_CACHE_WORDS];
+
 fn progpow_loop(
 	seed: u64,
 	loop_: usize,
 	mix: &mut [[u32; PROGPOW_REGS]; PROGPOW_LANES],
 	cache: &[Node],
-	c_dag: &[u32; PROGPOW_CACHE_WORDS],
+	c_dag: &CDag,
 	data_size: usize,
 ) {
 	let g_offset = mix[loop_ % PROGPOW_LANES][0] as usize % data_size;
@@ -346,7 +348,7 @@ pub fn progpow(
 	nonce: u64,
 	block_number: u64,
 	cache: &[Node],
-	c_dag: &[u32; PROGPOW_CACHE_WORDS],
+	c_dag: &CDag,
 ) -> (H256, H256) {
 	let mut mix = [[0u32; PROGPOW_REGS]; PROGPOW_LANES];
 	let mut lane_results = [0u32; PROGPOW_LANES];
@@ -400,24 +402,7 @@ pub fn progpow(
 	(digest, result)
 }
 
-pub fn progpow_light(
-	header_hash: H256,
-	nonce: u64,
-	block_number: u64,
-	cache: &[Node],
-) -> (H256, H256) {
-	let c_dag = generate_cdag(cache);
-
-	progpow(
-		header_hash,
-		nonce,
-		block_number,
-		cache,
-		&c_dag,
-	)
-}
-
-pub fn generate_cdag(cache: &[Node]) -> [u32; PROGPOW_CACHE_WORDS] {
+pub fn generate_cdag(cache: &[Node]) -> CDag {
 	let mut c_dag = [0u32; PROGPOW_CACHE_WORDS];
 
 	for i in 0..PROGPOW_CACHE_WORDS / 16 {

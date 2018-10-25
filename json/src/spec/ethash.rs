@@ -115,6 +115,9 @@ pub struct EthashParams {
 	/// EXPIP-2 duration limit
 	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
+	/// Block to transition to progpow
+	#[serde(rename="progpowTransition")]
+	pub progpow_transition: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
