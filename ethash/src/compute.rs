@@ -53,11 +53,11 @@ impl Light {
 		builder: &NodeCacheBuilder,
 		cache_dir: &Path,
 		block_number: u64,
-		progpow_transtion: u64,
+		progpow_transition: u64,
 	) -> Self {
 		let cache = builder.new_cache(cache_dir.to_path_buf(), block_number);
 
-		let c_dag = if block_number >= progpow_transtion {
+		let c_dag = if block_number >= progpow_transition {
 			Some(generate_cdag(cache.as_ref()))
 		} else {
 			None
@@ -91,11 +91,11 @@ impl Light {
 		builder: &NodeCacheBuilder,
 		cache_dir: &Path,
 		block_number: u64,
-		progpow_transtion: u64,
+		progpow_transition: u64,
 	) -> io::Result<Self> {
 		let cache = builder.from_file(cache_dir.to_path_buf(), block_number)?;
 
-		let c_dag = if block_number >= progpow_transtion {
+		let c_dag = if block_number >= progpow_transition {
 			Some(generate_cdag(cache.as_ref()))
 		} else {
 			None
