@@ -25,6 +25,7 @@ mod shared_cache;
 
 use std::marker::PhantomData;
 use std::{cmp, mem};
+use std::collections::HashMap;
 use std::sync::Arc;
 use hash::keccak;
 use bytes::Bytes;
@@ -193,16 +194,19 @@ pub struct Interpreter<Cost: CostType> {
 
 impl<Cost: 'static + CostType> vm::Exec for Interpreter<Cost> {
 	fn exec(mut self: Box<Self>, ext: &mut vm::Ext) -> vm::ExecTrapResult<GasLeft> {
+		let mut gas_profile: HashMap<String, U256> = HashMap::new();
 		loop {
-			let result = self.step(ext);
+			let result = self.step(ext, &mut gas_profile);
 			match result {
 				InterpreterResult::Continue => {},
 				InterpreterResult::Done(value) => return Ok(value),
 				InterpreterResult::Trap(trap) => match trap {
 					TrapKind::Call(params) => {
+						info!("Transaction failed. Gas_profile: {:?}", gas_profile);
 						return Err(TrapError::Call(params, self));
 					},
 					TrapKind::Create(params, address) => {
+						info!("Transaction failed. Gas_profile: {:?}", gas_profile);
 						return Err(TrapError::Create(params, address, self));
 					},
 				},
@@ -294,7 +298,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 	/// Execute a single step on the VM.
 	#[inline(always)]
-	pub fn step(&mut self, ext: &mut vm::Ext) -> InterpreterResult {
+	pub fn step(&mut self, ext: &mut vm::Ext, gas_profile: &mut HashMap<String, U256>) -> InterpreterResult {
 		if self.done {
 			return InterpreterResult::Stopped;
 		}
@@ -304,7 +308,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		} else if self.reader.len() == 0 {
 			InterpreterResult::Done(Ok(GasLeft::Known(self.gasometer.as_ref().expect("Gasometer None case is checked above; qed").current_gas.as_u256())))
 		} else {
-			self.step_inner(ext).err().expect("step_inner never returns Ok(()); qed")
+			self.step_inner(ext, gas_profile).err().expect("step_inner never returns Ok(()); qed")
 		};
 
 		if let &InterpreterResult::Done(_) = &result {
@@ -316,7 +320,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 	/// Inner helper function for step.
 	#[inline(always)]
-	fn step_inner(&mut self, ext: &mut vm::Ext) -> Result<Never, InterpreterResult> {
+	fn step_inner(&mut self, ext: &mut vm::Ext, gas_profile: &mut HashMap<String, U256>) -> Result<Never, InterpreterResult> {
 		let result = match self.resume_result.take() {
 			Some(result) => result,
 			None => {
@@ -342,6 +346,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				// Calculate gas cost
 				let requirements = self.gasometer.as_mut().expect(GASOMETER_PROOF).requirements(ext, instruction, info, &self.stack, self.mem.size())?;
+				let total_op_cost = gas_profile.get(&info.name.to_string()).cloned();
+				match total_op_cost {
+					Some(op_cost) => gas_profile.insert(info.name.to_string(), op_cost + requirements.gas_cost.as_u256()),
+					None => gas_profile.insert(info.name.to_string(), requirements.gas_cost.as_u256()),
+				};
 				if self.do_trace {
 					ext.trace_prepare_execute(self.reader.position - 1, opcode, requirements.gas_cost.as_u256(), Self::mem_written(instruction, &self.stack), Self::store_written(instruction, &self.stack));
 				}
@@ -396,7 +405,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				return Err(InterpreterResult::Done(Ok(GasLeft::NeedsReturn {
 					gas_left: gas.as_u256(),
 					data: mem.into_return_data(init_off, init_size),
-					apply_state: apply
+					apply_state: apply,
 				})));
 			},
 			InstructionResult::StopExecution => {
