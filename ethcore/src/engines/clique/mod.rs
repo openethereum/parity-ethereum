@@ -5,6 +5,8 @@ use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
 use std::{fmt, error};
+use hash::{keccak};
+use self::params::{CliqueParams}
 
 use super::epoch::{PendingTransition,EpochVerifier,NoOp};
 
@@ -20,7 +22,7 @@ use client::EngineClient;
 use parking_lot::RwLock;
 use block::*;
 
-use ethkey::{Password, Signature};
+use ethkey::{Password, Signature, recover as ec_recover};
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
@@ -30,32 +32,103 @@ use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use super::validator_set::{ValidatorSet, SimpleList};
 use super::signer::EngineSigner;
 use machine::{AuxiliaryData, EthereumMachine};
-use self::signer_snapshot::SignerSnapshot;
+//use self::signer_snapshot::SignerSnapshot;
 
-static EPOCH_LENGTH: u64 = 10; // set low for testing (should be 30000 according to clique EIP)
+static EPOCH_LENGTH: u32 = 10; // set low for testing (should be 30000 according to clique EIP)
+static SIGNER_VANITY_LENGTH: u32 = 32;
+static SIGNER_SIG_LENGTH: u32 = 65;
+static NONCE_DROP_VOTE: [u8; 16] = [0x00; 16];
+static NONCE_AUTH_VOTE: [u8; 16] = [0xff; 16];
 
 pub struct Clique {
   client: RwLock<Option<Weak<EngineClient>>>,
   signer: RwLock<EngineSigner>,
-  validators: Box<SignerSnapshot>,
+  signers: Box<Vec<Address>>,
+  //validators: Box<SignerSnapshot>,
   machine: EthereumMachine,
 }
 
 impl Clique {
+  fn sig_hash(header: &Header) -> Result<H256, Error> {
+    if header.extra_data().len() != SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize {
+      return Err(Box::new("bad signer extra_data length").into());
+    } else {
+      let mut reduced_header = header.clone();
+
+      // only sign the "vanity" bytes
+      reduced_header.set_extra_data(reduced_header.extra_data()[0..SIGNER_VANITY_LENGTH as usize].to_vec());
+
+      Ok(keccak(::rlp::encode(&reduced_header)))
+    }
+  }
+
+/*
+  fn ecrecover(header: Header) -> Result<Address, Error> {
+    let sig = &header.extra_data()[0..SIGNER_VANITY_LENGTH];
+    let hash = Self::sig_hash(&header)?;
+
+    let r = H256::from_slice(&sig[0..32]);
+    let s = H256::from_slice(&sig[32..64]);
+    let v = sig[64];
+
+    let bit = match v {
+      27 | 28 if v == 0 => v - 27,
+      _ => { return Err(Box::new("v not correct").into()); },
+    };
+
+    let s = Signature::from_rsv(&r, &s, bit);
+    if s.is_valid() {
+      if let Ok(p) = ec_recover(&s, &hash) {
+        let r = keccak(p);
+        Ok(r[0..160].into())
+      } else {
+        Err(Box::new("ec_recover failed").into())
+      }
+    } else {
+      Err(Box::new("Invalid sig...").into())
+    }
+  }
+*/
+
   /// Check if current signer is the current proposer.
   fn is_signer_proposer(&self, bh: &H256) -> bool {
     //let proposer = self.view_proposer(bh, self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
-    let proposer = self.validators.get(bh, 0);
-    self.signer.read().is_address(&proposer)
+    //let proposer = self.validators.get(bh);
+    if let Some(_) = self.signers.iter().find(|x| self.signer.read().is_address(x)) {
+      true
+    } else {
+      false
+    }
   }
 
-  pub fn new(machine: EthereumMachine) -> Self {
+  pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Self {
+    // don't let there be any duplicate signers
+
+    //length of signers must be greater than 1
     Clique {
       client: RwLock::new(None),
       signer: Default::default(),
+      signers: our_params.signers,
       machine: machine,
-      validators:  Box::new(SignerSnapshot::new())
+      //validators:  Box::new(SignerSnapshot::new())
     }
+  }
+
+  //pub fn snapshot(self, bn: u64) -> AuthorizationSnapshot {
+    // if we are on a checkpoint block, build a snapshot
+  //}
+
+  fn sign_header(self, header: &Header) -> Result<Signature, Error> {
+    let digest = Self::sig_hash(header)?;
+    if let Some(sig) = self.signer.read().sign(digest) {
+      Ok(sig)
+    } else {
+      Err(Box::new("sign_header: signing failed").into())
+    }
+  }
+
+  fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
+    self.signer.write().set(ap, address, password);
   }
 }
 
@@ -69,6 +142,10 @@ impl Engine<EthereumMachine> for Clique {
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
     /* ? */
   }
+
+
+
+
 
   /// None means that it requires external input (e.g. PoW) to seal a block.
   /// /// Some(true) means the engine is currently prime for seal generation (i.e. node
@@ -85,35 +162,53 @@ impl Engine<EthereumMachine> for Clique {
   /// This operation is synchronous and may (quite reasonably) not be available, in which case
   /// `Seal::None` will be returned.
   fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
-    if !self.is_signer_proposer(block.header.parent_hash()) {
+    let header = block.header;
+
+    // don't seal the genesis block
+    if header.number() == 0 {
       return Seal::None;
     }
 
-    let header_seal = block.header().seal().clone();
-    let extra_data = block.header().extra_data().clone();
+    // if sealing period is 0, refuse to seal
 
-/*
-    let seal = Seal::Regular(::rlp::encode_list(vec![
-      block.header().parent_hash(),
-      block.header().uncles_hash(),
-      block.header().author(),
-      block.header().state_root(),
-      block.header().transactions_root(),
-      block.header().receipts_root(),
-      block.header().log_bloom(),
-      block.header().difficulty(),
-      block.header().number(),
-      block.header().gas_limit(),
-      block.header().gas_used(),
-      block.header().timestamp(),
-      extra_data[0..block.header().extra_data().len()-65],
-      header_seal[0],
-      header_seal[1],
-      ]));
-*/
+    // let vote_snapshot = self.snapshot.get(bh);
+
+    // if we are not authorized to sign, don't seal
+
+    // if we signed recently, don't seal
+
+    let authorized = if let Some(pos) = self.signers.iter().position(|x| self.signer.read().is_address(x)) {
+      block.header.number() % pos as u64 == 0 
+    } else {
+      false
+    };
+
+    // sign the digest of the seal
+    if authorized {
+      if let Some(sig) = self.sign_header(&header) {
+        Seal::Regular(self.sign_header(&header)?.into())
+      } else {
+        Seal::None
+      }
+    } else {
+      Seal::None
+    }
+
+    // if authorized {
+      // set difficulty to "in turn"
+    // } else {
+      // set difficulty to "not in turn"
+      // if we already delayed:
+      //   kick off delay
+      // else:
+      //   seal
+    // }
+
+    // let header_seal = block.header().seal().clone();
+    //let extra_data = block.header().extra_data().clone();
+    // let extra_data: [u8; 32] = vec!
 
  //   Seal::Regular(seal)
-      Seal::Regular(vec!())
   }
 
 
@@ -136,7 +231,7 @@ impl Engine<EthereumMachine> for Clique {
     // don't allow blocks from the future
 
     // Checkpoint blocks need to enforce zero beneficiary
-    if _header.number() % EPOCH_LENGTH == 0 {
+    if _header.number() % EPOCH_LENGTH as u64 == 0 {
       if _header.author() != &[0; 20].into() {
         return Err(Box::new("Checkpoint blocks need to enforce zero beneficiary").into());
       }
@@ -157,7 +252,12 @@ impl Engine<EthereumMachine> for Clique {
     // Ensure that the block doesn't contain any uncles which are meaningless in PoA
 
     // Ensure that the block's difficulty is meaningful
-    
+
+    // ...
+
+    // TODO verify signer is valid
+    // let signer_address = ec_recover(_header)?.expect(Err(Box::new("fuck").into()));
+
     Ok(()) 
   }
 
@@ -190,7 +290,7 @@ impl Engine<EthereumMachine> for Clique {
   }
 
   fn sign(&self, hash: H256) -> Result<Signature, Error> {
-    unimplemented!()
+    Ok(self.signer.read().sign(hash)?)
   }
 
   fn stop(&self) { }

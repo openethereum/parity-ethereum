@@ -16,13 +16,13 @@
 
 //! Clique params deserialization.
 
-use super::ValidatorSet;
+use hash::Address;
 
 /// Tendermint params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct CliqueParams {
 	/// Valid validators.
-	pub validators: ValidatorSet,
+	pub validators: Box<Address>,
 }
 
 /// Clique engine deserialization.

@@ -22,7 +22,7 @@ use super::super::validator_set::{ValidatorSet, new_validator_set};
 /// `Clique` params.
 pub struct CliqueParams {
 	/// List of validators.
-	pub validators: Box<ValidatorSet>
+	pub validators: Box<Vec<Address>>
 }
 
 fn to_duration(ms: ethjson::uint::Uint) -> Duration {
@@ -33,7 +33,7 @@ fn to_duration(ms: ethjson::uint::Uint) -> Duration {
 impl From<ethjson::spec::CliqueParams> for CliqueParams {
 	fn from(p: ethjson::spec::CliqueParams) -> Self {
 		CliqueParams {
-			validators: new_validator_set(p.validators)
+			validators: Box::new(p.validators)
 		}
 	}
 }
