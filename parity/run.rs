@@ -959,6 +959,11 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		account_settings,
 	);
 
+	// Add development account if running dev chain:
+	if let SpecType::Dev = *spec {
+		insert_dev_account(&account_provider);
+	}
+
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists
 		if !account_provider.has_account(a) {
@@ -973,11 +978,6 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		if !passwords.iter().any(|p| account_provider.unlock_account_permanently(a, (*p).clone()).is_ok()) {
 			return Err(format!("No valid password to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
 		}
-	}
-
-	// Add development account if running dev chain:
-	if let SpecType::Dev = *spec {
-		insert_dev_account(&account_provider);
 	}
 
 	Ok(account_provider)
