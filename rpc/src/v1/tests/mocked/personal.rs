@@ -24,6 +24,7 @@ use ethcore::client::TestBlockChainClient;
 use jsonrpc_core::IoHandler;
 use parking_lot::Mutex;
 use transaction::{Action, Transaction};
+use parity_runtime::Runtime;
 
 use v1::{PersonalClient, Personal, Metadata};
 use v1::helpers::nonce;
@@ -32,6 +33,7 @@ use v1::tests::helpers::TestMinerService;
 use v1::types::H520;
 
 struct PersonalTester {
+	_runtime: Runtime,
 	accounts: Arc<AccountProvider>,
 	io: IoHandler<Metadata>,
 	miner: Arc<TestMinerService>,
@@ -51,10 +53,11 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn setup() -> PersonalTester {
+	let runtime = Runtime::with_thread_count(1);
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
-	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
+	let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let personal = PersonalClient::new(&accounts, dispatcher, false);
@@ -63,6 +66,7 @@ fn setup() -> PersonalTester {
 	io.extend_with(personal.to_delegate());
 
 	let tester = PersonalTester {
+		_runtime: runtime,
 		accounts: accounts,
 		io: io,
 		miner: miner,

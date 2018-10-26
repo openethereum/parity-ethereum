@@ -26,14 +26,13 @@ fn serve(handler: Option<MetaIoHandler<Metadata>>) -> Server<HttpServer> {
 	let address = "127.0.0.1:0".parse().unwrap();
 	let handler = handler.unwrap_or_default();
 
-	Server::new(|remote| ::start_http_with_middleware(
+	Server::new(|_remote| ::start_http_with_middleware(
 		&address,
 		http::DomainsValidation::Disabled,
 		http::DomainsValidation::Disabled,
 		handler,
-		remote,
 		extractors::RpcExtractor,
-		|request: hyper::Request| {
+		|request: hyper::Request<hyper::Body>| {
 			http::RequestMiddlewareAction::Proceed {
 				should_continue_on_invalid_cors: false,
 				request,
@@ -50,7 +49,7 @@ fn request(server: Server<HttpServer>, request: &str) -> http_client::Response {
 }
 
 #[cfg(test)]
-mod testsing {
+mod tests {
 	use jsonrpc_core::{MetaIoHandler, Value};
 	use v1::Metadata;
 	use super::{request, Server};
@@ -73,7 +72,7 @@ mod testsing {
 
 		// when
 		let req = r#"{"method":"hello","params":[],"jsonrpc":"2.0","id":1}"#;
-		let expected = "4B\n{\"jsonrpc\":\"2.0\",\"result\":\"unknown origin / unknown agent via RPC\",\"id\":1}\n\n0\n\n";
+		let expected = "{\"jsonrpc\":\"2.0\",\"result\":\"unknown origin / unknown agent via RPC\",\"id\":1}\n";
 		let res = request(server,
 			&format!("\
 				POST / HTTP/1.1\r\n\
@@ -98,7 +97,7 @@ mod testsing {
 
 		// when
 		let req = r#"{"method":"hello","params":[],"jsonrpc":"2.0","id":1}"#;
-		let expected = "49\n{\"jsonrpc\":\"2.0\",\"result\":\"unknown origin / curl/7.16.3 via RPC\",\"id\":1}\n\n0\n\n";
+		let expected = "{\"jsonrpc\":\"2.0\",\"result\":\"unknown origin / curl/7.16.3 via RPC\",\"id\":1}\n";
 		let res = request(server,
 			&format!("\
 				POST / HTTP/1.1\r\n\

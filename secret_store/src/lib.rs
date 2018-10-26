@@ -24,7 +24,6 @@ extern crate ethcore_sync as sync;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
-extern crate futures_cpupool;
 extern crate hyper;
 extern crate keccak_hash as hash;
 extern crate kvdb;
@@ -34,9 +33,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate tiny_keccak;
 extern crate tokio;
-extern crate tokio_core;
 extern crate tokio_io;
-extern crate tokio_proto;
 extern crate tokio_service;
 extern crate url;
 
