@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 byteorder = "1.0"
 edit-distance = "2.0"
-parity-crypto = "0.1"
+parity-crypto = "0.2"
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 ethereum-types = "0.4"
 lazy_static = "1.0"

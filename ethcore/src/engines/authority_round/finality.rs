@@ -96,7 +96,10 @@ impl RollingFinality {
 	}
 
 	/// Get an iterator over stored hashes in order.
-	pub fn unfinalized_hashes(&self) -> Iter { Iter(self.headers.iter()) }
+	#[cfg(test)]
+	pub fn unfinalized_hashes(&self) -> impl Iterator<Item=&H256> {
+		self.headers.iter().map(|(h, _)| h)
+	}
 
 	/// Get the validator set.
 	pub fn validators(&self) -> &SimpleList { &self.signers }
@@ -142,16 +145,6 @@ impl RollingFinality {
 
 		self.last_pushed = Some(head);
 		Ok(newly_finalized)
-	}
-}
-
-pub struct Iter<'a>(::std::collections::vec_deque::Iter<'a, (H256, Vec<Address>)>);
-
-impl<'a> Iterator for Iter<'a> {
-	type Item = H256;
-
-	fn next(&mut self) -> Option<H256> {
-		self.0.next().map(|&(h, _)| h)
 	}
 }
 
@@ -220,7 +213,7 @@ mod tests {
 
 		// only the last hash has < 51% of authorities' signatures
 		assert_eq!(finality.unfinalized_hashes().count(), 1);
-		assert_eq!(finality.unfinalized_hashes().next(), Some(hashes[11].0));
+		assert_eq!(finality.unfinalized_hashes().next(), Some(&hashes[11].0));
 		assert_eq!(finality.subchain_head(), Some(hashes[11].0));
 	}
 }

@@ -136,8 +136,6 @@ pub struct BlockDownloader {
 	target_hash: Option<H256>,
 	/// Probing range for seeking common best block.
 	retract_step: u64,
-	/// Whether reorg should be limited.
-	limit_reorg: bool,
 	/// consecutive useless headers this round
 	useless_headers_count: usize,
 }
@@ -146,12 +144,12 @@ impl BlockDownloader {
 	/// Create a new instance of syncing strategy.
 	/// For BlockSet::NewBlocks this won't reorganize to before the last kept state.
 	pub fn new(block_set: BlockSet, start_hash: &H256, start_number: BlockNumber) -> Self {
-		let (limit_reorg, sync_receipts) = match block_set {
-			BlockSet::NewBlocks => (true, false),
-			BlockSet::OldBlocks => (false, true)
+		let sync_receipts = match block_set {
+			BlockSet::NewBlocks => false,
+			BlockSet::OldBlocks => true
 		};
 		BlockDownloader {
-			block_set: block_set,
+			block_set,
 			state: State::Idle,
 			highest_block: None,
 			last_imported_block: start_number,
@@ -164,7 +162,6 @@ impl BlockDownloader {
 			download_receipts: sync_receipts,
 			target_hash: None,
 			retract_step: 1,
-			limit_reorg: limit_reorg,
 			useless_headers_count: 0,
 		}
 	}
@@ -321,12 +318,20 @@ impl BlockDownloader {
 					self.state = State::Blocks;
 					return Ok(DownloadAction::Reset);
 				} else {
+					trace_sync!(self, "No useful subchain heads received, expected hash {:?}", expected_hash);
 					let best = io.chain().chain_info().best_block_number;
 					let oldest_reorg = io.chain().pruning_info().earliest_state;
 					let last = self.last_imported_block;
-					if self.limit_reorg && best > last && (last == 0 || last < oldest_reorg) {
-						trace_sync!(self, "No common block, disabling peer");
-						return Err(BlockDownloaderImportError::Invalid);
+					match self.block_set {
+						BlockSet::NewBlocks if best > last && (last == 0 || last < oldest_reorg) => {
+							trace_sync!(self, "No common block, disabling peer");
+							return Err(BlockDownloaderImportError::Invalid)
+						},
+						BlockSet::OldBlocks => {
+							trace_sync!(self, "Expected some useful headers for downloading OldBlocks. Try a different peer");
+							return Err(BlockDownloaderImportError::Useless)
+						},
+						_ => (),
 					}
 				}
 			},
@@ -429,7 +434,7 @@ impl BlockDownloader {
 				} else {
 					let best = io.chain().chain_info().best_block_number;
 					let oldest_reorg = io.chain().pruning_info().earliest_state;
-					if self.limit_reorg && best > start && start < oldest_reorg {
+					if self.block_set == BlockSet::NewBlocks && best > start && start < oldest_reorg {
 						debug_sync!(self, "Could not revert to previous ancient block, last: {} ({})", start, start_hash);
 						self.reset();
 					} else {

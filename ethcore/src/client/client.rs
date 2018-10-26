@@ -262,13 +262,12 @@ impl Importer {
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, client: &Client) -> usize {
-
 		// Shortcut out if we know we're incapable of syncing the chain.
 		if !client.enabled.load(AtomicOrdering::Relaxed) {
 			return 0;
 		}
 
-		let max_blocks_to_import = 4;
+		let max_blocks_to_import = client.config.max_round_blocks_to_import;
 		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, is_empty) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
@@ -474,7 +473,7 @@ impl Importer {
 		let number = header.number();
 		let parent = header.parent_hash();
 		let chain = client.chain.read();
-		let is_finalized = false;
+		let mut is_finalized = false;
 
 		// Commit results
 		let block = block.drain();
@@ -536,10 +535,18 @@ impl Importer {
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
-		for ancestry_action in ancestry_actions {
-			let AncestryAction::MarkFinalized(ancestry) = ancestry_action;
-			chain.mark_finalized(&mut batch, ancestry).expect("Engine's ancestry action must be known blocks; qed");
-		}
+		let finalized: Vec<_> = ancestry_actions.into_iter().map(|ancestry_action| {
+			let AncestryAction::MarkFinalized(a) = ancestry_action;
+
+			if a != header.hash() {
+				chain.mark_finalized(&mut batch, a).expect("Engine's ancestry action must be known blocks; qed");
+			} else {
+				// we're finalizing the current block
+				is_finalized = true;
+			}
+
+			a
+		}).collect();
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
@@ -560,7 +567,7 @@ impl Importer {
 		client.db.read().key_value().write_buffered(batch);
 		chain.commit();
 
-		self.check_epoch_end(&header, &chain, client);
+		self.check_epoch_end(&header, &finalized, &chain, client);
 
 		client.update_last_hashes(&parent, hash);
 
@@ -667,9 +674,10 @@ impl Importer {
 	}
 
 	// check for ending of epoch and write transition if it occurs.
-	fn check_epoch_end<'a>(&self, header: &'a Header, chain: &BlockChain, client: &Client) {
+	fn check_epoch_end<'a>(&self, header: &'a Header, finalized: &'a [H256], chain: &BlockChain, client: &Client) {
 		let is_epoch_end = self.engine.is_epoch_end(
 			header,
+			finalized,
 			&(|hash| client.block_header_decoded(BlockId::Hash(hash))),
 			&(|hash| chain.get_pending_transition(hash)), // TODO: limit to current epoch.
 		);

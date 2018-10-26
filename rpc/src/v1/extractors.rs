@@ -23,6 +23,7 @@ use authcodes;
 use http_common::HttpMetaExtractor;
 use ipc;
 use jsonrpc_core as core;
+use jsonrpc_core::futures::future::Either;
 use jsonrpc_pubsub::Session;
 use ws;
 use ethereum_types::H256;
@@ -216,26 +217,26 @@ impl<M: core::Middleware<Metadata>> WsDispatcher<M> {
 }
 
 impl<M: core::Middleware<Metadata>> core::Middleware<Metadata> for WsDispatcher<M> {
-	type Future = core::futures::future::Either<
-		M::Future,
+	type Future = Either<
+		core::FutureRpcResult<M::Future>,
 		core::FutureResponse,
 	>;
 
-	fn on_request<F, X>(&self, request: core::Request, meta: Metadata, process: F) -> Self::Future where
+	fn on_request<F, X>(&self, request: core::Request, meta: Metadata, process: F)
+		-> Either<Self::Future, X>
+	where
 		F: FnOnce(core::Request, Metadata) -> X,
 		X: core::futures::Future<Item=Option<core::Response>, Error=()> + Send + 'static,
 	{
-		use self::core::futures::future::Either::{A, B};
-
 		let use_full = match &meta.origin {
 			&Origin::Signer { .. } => true,
 			_ => false,
 		};
 
 		if use_full {
-			A(self.full_handler.handle_rpc_request(request, meta))
+			Either::A(Either::A(self.full_handler.handle_rpc_request(request, meta)))
 		} else {
-			B(Box::new(process(request, meta)))
+			Either::B(process(request, meta))
 		}
 	}
 }

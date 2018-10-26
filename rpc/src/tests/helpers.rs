@@ -18,7 +18,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use tempdir::TempDir;
 
-use parity_reactor::{EventLoop, TokioRemote};
+use parity_runtime::{Runtime, TaskExecutor};
 
 use authcodes::AuthCodes;
 
@@ -27,15 +27,15 @@ pub struct Server<T> {
 	/// Server
 	pub server: T,
 	/// RPC Event Loop
-	pub event_loop: EventLoop,
+	pub event_loop: Runtime,
 }
 
 impl<T> Server<T> {
 	pub fn new<F>(f: F) -> Server<T> where
-		F: FnOnce(TokioRemote) -> T,
+		F: FnOnce(TaskExecutor) -> T,
 	{
-		let event_loop = EventLoop::spawn();
-		let remote = event_loop.raw_remote();
+		let event_loop = Runtime::with_thread_count(1);
+		let remote = event_loop.raw_executor();
 
 		Server {
 			server: f(remote),
