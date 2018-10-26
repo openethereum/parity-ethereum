@@ -222,6 +222,7 @@ mod tests {
 				ecip1017_era_rounds: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				progpow_transition: None,
 				difficulty_bomb_delays: None,
 			}
 		});
@@ -261,6 +262,7 @@ mod tests {
 				ecip1017_era_rounds: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				progpow_transition: None,
 				difficulty_bomb_delays: None,
 			}
 		});
