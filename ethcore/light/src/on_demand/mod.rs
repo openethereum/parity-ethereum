@@ -349,12 +349,9 @@ impl OnDemand {
 		max_backoff_rounds: usize,
 	) -> Self {
 
-		let required_success_rate = if required_success_rate > 1.00 || required_success_rate < 0.0 {
-			warn!(target: "on_demand", "success rate is illegal, falling back to default success rate {}", DEFAULT_SUCCESS_RATE);
-			DEFAULT_SUCCESS_RATE
-		} else {
-			required_success_rate
-		};
+		// santize input in order to make sure that it doesn't panic
+		let (s_success_rate, s_window_dur, s_start_backoff_dur, s_max_backoff_dur) =
+			Self::santize_circuit_breaker_input(required_success_rate, time_window_dur, start_backoff_dur, max_backoff_dur);
 
 		OnDemand {
 			pending: RwLock::new(Vec::new()),
@@ -362,12 +359,55 @@ impl OnDemand {
 			in_transit: RwLock::new(HashMap::new()),
 			cache,
 			no_immediate_dispatch: false,
-			required_success_rate,
-			time_window_dur,
-			start_backoff_dur,
-			max_backoff_dur,
+			required_success_rate: s_success_rate,
+			time_window_dur: s_window_dur,
+			start_backoff_dur: s_start_backoff_dur,
+			max_backoff_dur: s_max_backoff_dur,
 			max_backoff_rounds,
 		}
+	}
+
+	fn santize_circuit_breaker_input(
+		required_success_rate: f64,
+		time_window_dur: Duration,
+		start_backoff_dur: Duration,
+		max_backoff_dur: Duration
+	) -> (f64, Duration, Duration, Duration) {
+		let required_success_rate = if required_success_rate > 1.00 || required_success_rate < 0.0 {
+		let rounded_rate = (0.0 as f64).max((1.0 as f64).min(required_success_rate));
+			warn!(target: "on_demand", "Success rate is illegal, falling back to success rate {:.2}", rounded_rate);
+			rounded_rate
+		} else {
+			required_success_rate
+		};
+
+		let time_window_dur = if time_window_dur.as_secs() < 5 {
+			// FIXME: Patch this in the `failsafe-crate before merging`
+			// https://github.com/dmexe/failsafe-rs/blob/b3ed983d36a7ea645884326171db13fe1594a28c/src/windowed_adder.rs#L30
+			warn!(target: "on_demand",
+				"Time window is too short must be at least 5 seconds, configuring it 5 seconds");
+			Duration::from_secs(5)
+		} else {
+			time_window_dur
+		};
+
+		let start_backoff_dur = if start_backoff_dur.as_secs() < 1 {
+			warn!(target: "on_demand",
+				"Initial backoff time is too short must be at least 1 second, configuring it to 1 second");
+			Duration::from_secs(1)
+		} else {
+			start_backoff_dur
+		};
+
+		let max_backoff_dur = if max_backoff_dur.as_secs() < 1 {
+			warn!(target: "on_demand",
+				"Maximum backoff time is too short must be at least 1 second, configuring it 1 second");
+			Duration::from_secs(1)
+		} else {
+			start_backoff_dur
+		};
+
+		(required_success_rate, time_window_dur, start_backoff_dur, max_backoff_dur)
 	}
 
 	// make a test version: this doesn't dispatch pending requests
