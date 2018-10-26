@@ -364,7 +364,7 @@ impl UnverifiedTransaction {
 	pub fn chain_id(&self) -> Option<u64> {
 		match self.v {
 			v if self.is_unsigned() => Some(v),
-			v if v > 36 => Some((v - 35) / 2),
+			v if v >= 35 => Some((v - 35) / 2),
 			_ => None,
 		}
 	}
