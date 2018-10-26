@@ -68,7 +68,7 @@ pub enum Inner {
 /// Handle and register responses that can fail
 #[derive(Debug)]
 pub struct ResponseGuard {
-	state: failsafe::StateMachine<ResponsePolicy, failsafe::NoopInstrument>,
+	state: failsafe::StateMachine<ResponsePolicy, ()>,
 	responses: HashMap<Inner, usize>,
 }
 
@@ -78,7 +78,7 @@ impl ResponseGuard {
 		let policy = failsafe::failure_policy::success_rate_over_time_window(required_success_rate, 1, window_dur, NoBackoff);
 
 		Self {
-			state: failsafe::StateMachine::new(policy, failsafe::NoopInstrument),
+			state: failsafe::StateMachine::new(policy, ()),
 			responses: HashMap::new(),
 		}
 	}

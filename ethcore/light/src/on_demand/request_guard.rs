@@ -35,7 +35,7 @@ pub enum Error {
 pub struct RequestGuard {
 	num_failures: usize,
 	max_failures: usize,
-	state: failsafe::StateMachine<RequestPolicy, failsafe::NoopInstrument>,
+	state: failsafe::StateMachine<RequestPolicy, ()>,
 }
 
 impl RequestGuard {
@@ -53,7 +53,7 @@ impl RequestGuard {
 		Self {
 			num_failures: 0,
 			max_failures: max_backoff_rounds,
-			state: failsafe::StateMachine::new(policy, failsafe::NoopInstrument)
+			state: failsafe::StateMachine::new(policy, ())
 		}
 	}
 
@@ -75,8 +75,8 @@ impl RequestGuard {
 			} else {
 				Error::LetThrough
 			}
-		} 
-		// Circuit breaker is `open`, don't count as a failure 
+		}
+		// Circuit breaker is `open`, don't count as a failure
 		else {
 			Error::Rejected
 		}

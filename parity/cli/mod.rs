@@ -590,15 +590,15 @@ usage! {
 			ARG arg_on_demand_start_backoff: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_start_backoff,
 			"--on-demand-start-backoff=[MS]",
 			"Specify light client start backoff time",
-			
+
 			ARG arg_on_demand_end_backoff: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_end_backoff,
 			"--on-demand-end-backoff=[MS]",
 			"Specify light client end backoff time",
-			
+
 			ARG arg_on_demand_max_backoff_rounds: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_max_backoff_rounds,
 			"--on-demand-max-backoff-rounds=[TIMES]",
 			"Specify light client maximum number of backoff iterations",
-		
+
 		["Secret Store Options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
 			"--no-secretstore",

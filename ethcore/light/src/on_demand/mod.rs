@@ -381,12 +381,10 @@ impl OnDemand {
 			required_success_rate
 		};
 
-		let time_window_dur = if time_window_dur.as_secs() < 5 {
-			// FIXME: Patch this in the `failsafe-crate before merging`
-			// https://github.com/dmexe/failsafe-rs/blob/b3ed983d36a7ea645884326171db13fe1594a28c/src/windowed_adder.rs#L30
+		let time_window_dur = if time_window_dur.as_secs() < 1 {
 			warn!(target: "on_demand",
-				"Time window is too short must be at least 5 seconds, configuring it 5 seconds");
-			Duration::from_secs(5)
+				"Time window is too short must be at least 1 second, configuring it to 1 second");
+			Duration::from_secs(1)
 		} else {
 			time_window_dur
 		};
