@@ -5,7 +5,7 @@ ARG TARGET
 ENV TARGET ${TARGET}
 
 # install tools and dependencies
-RUN apt update && apt install -y --no-install-recommends openssl libudev-dev file
+RUN apt update && apt install -y --no-install-recommends openssl libudev-dev file curl jq
 
 # show backtraces
 ENV RUST_BACKTRACE 1
@@ -30,6 +30,8 @@ COPY artifacts/x86_64-unknown-linux-gnu/$TARGET ./bin/$TARGET
 # Build a shell script because the ENTRYPOINT command doesn't like using ENV
 RUN echo "#!/bin/bash \n ${TARGET} \$@" > ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
+
+ADD check_sync.sh /check_sync.sh
 
 # setup ENTRYPOINT
 EXPOSE 5001 8080 8082 8083 8545 8546 8180 30303/tcp 30303/udp
