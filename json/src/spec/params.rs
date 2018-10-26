@@ -35,7 +35,6 @@ pub struct Params {
 
 	/// Network id.
 	#[serde(rename="networkID")]
-	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub network_id: Uint,
 	/// Chain id.
 	#[serde(rename="chainID")]
@@ -204,22 +203,6 @@ mod tests {
 			"minGasLimit": "0x1388",
 			"accountStartNonce": "0x01",
 			"gasLimitBoundDivisor": "0x0",
-			"maxCodeSize": "0x1000"
-		}"#;
-
-		let _deserialized: Params = serde_json::from_str(s).unwrap();
-	}
-
-	#[test]
-	#[should_panic(expected = "a non-zero value")]
-	fn test_non_zero_network_id() {
-		let s = r#"{
-			"maximumExtraDataSize": "0x20",
-			"networkID" : "0x0",
-			"subprotocolName" : "exp",
-			"minGasLimit": "0x1388",
-			"accountStartNonce": "0x01",
-			"gasLimitBoundDivisor": "0x20",
 			"maxCodeSize": "0x1000"
 		}"#;
 
