@@ -50,13 +50,11 @@ use transaction::{Action, Transaction as EthTransaction, PendingTransaction, Sig
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
-pub use self::dispatch::{LightDispatcher};
-
 const NO_INVALID_BACK_REFS_PROOF: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 const WRONG_RESPONSE_AMOUNT_TYPE_PROOF: &str = "responses correspond directly with requests in amount and type; qed";
 
-pub fn light_all_transactions(dispatch: &Arc<LightDispatcher>) -> impl Iterator<Item=PendingTransaction> {
+pub fn light_all_transactions(dispatch: &Arc<dispatch::LightDispatcher>) -> impl Iterator<Item=PendingTransaction> {
 	let txq = dispatch.transaction_queue.read();
 	let chain_info = dispatch.client.chain_info();
 
