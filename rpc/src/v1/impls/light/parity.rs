@@ -34,7 +34,7 @@ use jsonrpc_core::futures::Future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::LightDispatcher;
-use v1::helpers::light_fetch::LightFetch;
+use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -264,7 +264,7 @@ impl Parity for ParityClient {
 
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {
 		Ok(
-			helpers::light_all_transactions(&self.light_dispatch)
+			light_all_transactions(&self.light_dispatch)
 				.map(|tx| Transaction::from_pending(tx))
 				.collect()
 		)
@@ -272,7 +272,7 @@ impl Parity for ParityClient {
 
 	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
 		Ok(
-			helpers::light_all_transactions(&self.light_dispatch)
+			light_all_transactions(&self.light_dispatch)
 				.map(|tx| tx.transaction.hash().into())
 				.collect()
 		)
