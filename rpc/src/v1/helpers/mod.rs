@@ -38,7 +38,7 @@ mod work;
 
 use std::sync::Arc;
 
-use transaction::{PendingTransaction};
+use transaction::PendingTransaction;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
 pub use self::network_settings::NetworkSettings;
