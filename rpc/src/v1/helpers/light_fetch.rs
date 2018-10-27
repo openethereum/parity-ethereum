@@ -45,7 +45,7 @@ use ethereum_types::{U256, Address};
 use hash::H256;
 use parking_lot::Mutex;
 use fastmap::H256FastMap;
-use transaction::{Action, Transaction as EthTransaction, SignedTransaction, LocalizedTransaction};
+use transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
@@ -53,6 +53,15 @@ use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 const NO_INVALID_BACK_REFS_PROOF: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 const WRONG_RESPONSE_AMOUNT_TYPE_PROOF: &str = "responses correspond directly with requests in amount and type; qed";
+
+pub fn light_all_transactions(dispatch: &Arc<dispatch::LightDispatcher>) -> impl Iterator<Item=PendingTransaction> {
+	let txq = dispatch.transaction_queue.read();
+	let chain_info = dispatch.client.chain_info();
+
+	let current = txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+	let future = txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+	current.into_iter().chain(future.into_iter())
+}
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
