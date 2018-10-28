@@ -546,8 +546,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn proof(&self, _address: RpcH160, values:Vec<RpcH256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
-		let a : H160 = _address.clone().into();
+	fn proof(&self, address: RpcH160, values: Vec<RpcH256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+		let a: H160 = address.clone().into();
 		let key1 = keccak(a);
 
 		let num = num.unwrap_or_default();
@@ -564,14 +564,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		try_bf!(check_known(&*self.client, num.clone()));
 		let res = match self.client.prove_account(key1, id) {
 			Some(p) => Ok(EthAccount {
-				 address : _address.into(),
+				 address : address.into(),
 				 balance : p.1.balance.into(),
 				 nonce : p.1.nonce.into(),
 				 code_hash : p.1.code_hash.into(),
 				 storage_hash : p.1.storage_root.into(),
-				 account_proof: Some(p.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()),
-				 storage_proof: Some(
-					 values.iter().map(|storage_index| { 
+				 account_proof: Some( p.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()),
+				 storage_proof: Some( values.iter().map(|storage_index| { 
 						 let key2 : H256 = storage_index.clone().into();
 					   match self.client.prove_storage(key1, keccak(key2), id) {
 						  	Some(sp) =>  StorageProof {
@@ -585,7 +584,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 									proof : Vec::new()
 								}
 				     }
-					 }).collect::<Vec<StorageProof>>()
+					 })
+					 .collect::<Vec<StorageProof>>()
 				 )
 			}),
 			None => Err(errors::state_pruned()),
