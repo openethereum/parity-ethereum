@@ -191,7 +191,7 @@ impl From<libusb::Error> for Error {
 }
 
 /// Specifies the direction of the `HardwareWallet` i.e, whether it arrived or left
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeviceDirection {
 	/// Device arrived
 	Arrived,
@@ -228,17 +228,14 @@ impl HardwareWalletManager {
 		let t = trezor.clone();
 		let exit = exiting.clone();
 
-		let manager = Arc::new(Self {
-			exiting: exiting.clone(),
-			ledger: ledger.clone(),
-			trezor: trezor.clone(),
-		});
-
 		// Subscribe for all vendor IDs (VIDs) and product IDs (PIDs)
 		// This means that the `HardwareWalletManager` is responsible to validate the detected device
 		usb_context.register_callback(
 			None, None, Some(USB_DEVICE_CLASS_DEVICE),
-			Box::new(EventHandler::new(Arc::downgrade(&manager)))
+			Box::new(EventHandler::new(
+				Arc::downgrade(&ledger),
+				Arc::downgrade(&trezor)
+			))
 		)?;
 
 		// Hardware event subscriber thread
@@ -262,8 +259,8 @@ impl HardwareWalletManager {
 
 		Ok(Self {
 			exiting,
-			ledger,
 			trezor,
+			ledger,
 		})
 	}
 
@@ -331,9 +328,9 @@ impl HardwareWalletManager {
 
 impl Drop for HardwareWalletManager {
 	fn drop(&mut self) {
-		// Indicate to the USB Hotplug handlers that they
-		// shall terminate but don't wait for them to terminate.
-		// If they don't terminate for some reason USB Hotplug events will be handled
+		// Indicate to the USB Hotplug handlers that it
+		// shall terminate but don't wait for it to terminate.
+		// If it don't terminate for some reason USB Hotplug events will be handled
 		// even if the HardwareWalletManger has been dropped
 		self.exiting.store(true, atomic::Ordering::Release);
 	}
@@ -344,44 +341,62 @@ impl Drop for HardwareWalletManager {
 /// Note, that this run to completion and race-conditions can't occur but this can
 /// therefore starve other events for being process with a spinlock or similar
 struct EventHandler {
-	manager: Weak<HardwareWalletManager>,
+	ledger: Weak<ledger::Manager>,
+	trezor: Weak<trezor::Manager>,
 }
 
 impl EventHandler {
 	/// Trezor event handler constructor
-	pub fn new(manager: Weak<HardwareWalletManager>) -> Self {
-		Self { manager }
+	pub fn new(ledger: Weak<ledger::Manager>, trezor: Weak<trezor::Manager>) -> Self {
+		Self { ledger, trezor }
+	}
+
+	fn extract_device_info(device: &libusb::Device) -> Result<(u16, u16), Error> {
+		let desc = device.device_descriptor()?;
+		Ok((desc.vendor_id(), desc.product_id()))
 	}
 }
 
 impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, device: libusb::Device) {
-		if let Some(manager) = self.manager.upgrade() {
-			if trezor::is_valid_trezor(&device).is_ok() {
-				if trezor::try_connect_polling(&manager.trezor, &MAX_POLLING_DURATION, DeviceDirection::Arrived) != true {
-					trace!(target: "hw", "Trezor device was detected but connection failed");
-				}
-			}
-			if ledger::is_valid_ledger(&device).is_ok() {
-				if ledger::try_connect_polling(&manager.ledger, &MAX_POLLING_DURATION, DeviceDirection::Arrived) != true {
-					trace!(target: "hw", "Ledger device was detected but connection failed ");
+		// Upgrade reference to an Arc
+		if let (Some(ledger), Some(trezor)) = (self.ledger.upgrade(), self.trezor.upgrade()) {
+			// Version ID and Product ID are available
+			if let Ok((vid, pid)) = Self::extract_device_info(&device) {
+				if trezor::is_valid_trezor(vid, pid) {
+					if !trezor::try_connect_polling(&trezor, &MAX_POLLING_DURATION, DeviceDirection::Arrived) {
+						trace!(target: "hw", "Trezor device was detected but connection failed");
+					}
+				} else if ledger::is_valid_ledger(vid, pid) {
+					if !ledger::try_connect_polling(&ledger, &MAX_POLLING_DURATION, DeviceDirection::Arrived) {
+						trace!(target: "hw", "Ledger device was detected but connection failed");
+					}
 				}
 			}
 		}
 	}
 
 	fn device_left(&mut self, device: libusb::Device) {
-		if let Some(manager) = self.manager.upgrade() {
-			if trezor::is_valid_trezor(&device).is_ok() {
-				if ledger::try_connect_polling(&manager.ledger, &MAX_POLLING_DURATION, DeviceDirection::Left) != true {
-					trace!(target: "hw", "Trezor device was detected but disconnection failed ");
-				}
-			}
-			if ledger::is_valid_ledger(&device).is_ok() {
-				if ledger::try_connect_polling(&manager.ledger, &MAX_POLLING_DURATION, DeviceDirection::Left) != true {
-					trace!(target: "hw", "Ledger device was detected but disconnection failed ");
+		// Upgrade reference to an Arc
+		if let (Some(ledger), Some(trezor)) = (self.ledger.upgrade(), self.trezor.upgrade()) {
+			// Version ID and Product ID are available
+			if let Ok((vid, pid)) = Self::extract_device_info(&device) {
+				if trezor::is_valid_trezor(vid, pid) {
+					if !trezor::try_connect_polling(&trezor, &MAX_POLLING_DURATION, DeviceDirection::Left) {
+						trace!(target: "hw", "Trezor device was detected but disconnection failed");
+					}
+				} else if ledger::is_valid_ledger(vid, pid) {
+					if !ledger::try_connect_polling(&ledger, &MAX_POLLING_DURATION, DeviceDirection::Left) {
+						trace!(target: "hw", "Ledger device was detected but disconnection failed");
+					}
 				}
 			}
 		}
 	}
+}
+
+
+/// Helper to determine if a device is a valid HID
+pub fn is_valid_hid_device(usage_page: u16, interface_number: i32) -> bool {
+	usage_page == 0xFF00 || interface_number == 0
 }

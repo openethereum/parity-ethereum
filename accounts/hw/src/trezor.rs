@@ -30,7 +30,7 @@ use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
 use protobuf::{self, Message, ProtobufEnum};
-use super::{DeviceDirection, WalletInfo, TransactionInfo, KeyPath, Wallet, Device};
+use super::{DeviceDirection, WalletInfo, TransactionInfo, KeyPath, Wallet, Device, is_valid_hid_device};
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
 /// Trezor v1 vendor ID
@@ -315,13 +315,9 @@ impl <'a>Wallet<'a> for Manager {
 		let num_prev_devices = self.devices.read().len();
 
 		let detected_devices = devices.iter()
-			.filter(|&d| {
-				let is_trezor = d.vendor_id == TREZOR_VID;
-				let is_supported_product = TREZOR_PIDS.contains(&d.product_id);
-				let is_valid = d.usage_page == 0xFF00 || d.interface_number == 0;
-
-				is_trezor && is_supported_product && is_valid
-			})
+			.filter(|&d| is_valid_trezor(d.vendor_id, d.product_id) &&
+					is_valid_hid_device(d.usage_page, d.interface_number)
+			)
 			.fold(Vec::new(), |mut v, d| {
 				match self.read_device(&usb, &d) {
 					Ok(info) => {
@@ -332,7 +328,7 @@ impl <'a>Wallet<'a> for Manager {
 				};
 				v
 			});
-		
+
 		let num_curr_devices = detected_devices.len();
 		*self.devices.write() = detected_devices;
 
@@ -346,7 +342,7 @@ impl <'a>Wallet<'a> for Manager {
 			}
 			DeviceDirection::Left => {
 				if num_prev_devices > num_curr_devices {
-					Ok(num_prev_devices- num_curr_devices)
+					Ok(num_prev_devices - num_curr_devices)
 				} else {
 					Err(Error::NoDeviceLeft)
 				}
@@ -429,49 +425,42 @@ pub fn try_connect_polling(trezor: &Manager, duration: &Duration, dir: DeviceDir
 }
 
 /// Check if the detected device is a Trezor device by checking both the product ID and the vendor ID
-pub fn is_valid_trezor(device: &libusb::Device) -> Result<(), Error> {
-	let desc = device.device_descriptor()?;
-	let vendor_id = desc.vendor_id();
-	let product_id = desc.product_id();
-
-	if vendor_id == TREZOR_VID && TREZOR_PIDS.contains(&product_id) {
-		Ok(())
-	} else {
-		Err(Error::InvalidDevice)
-	}
+pub fn is_valid_trezor(vid: u16, pid: u16) -> bool {
+	vid == TREZOR_VID && TREZOR_PIDS.contains(&pid)
 }
+
+
 
 #[test]
 #[ignore]
 /// This test can't be run without an actual trezor device connected
 /// (and unlocked) attached to the machine that's running the test
 fn test_signature() {
-	use ethereum_types::{H160, H256, U256};
+	use ethereum_types::Address;
 	use MAX_POLLING_DURATION;
+	use super::HardwareWalletManager;
 
-	let manager = Manager::new(
-		Arc::new(Mutex::new(hidapi::HidApi::new().expect("HidApi"))),
-	);
-	
-	let addr: Address = H160::from("some_addr");
+	let manager = HardwareWalletManager::new().unwrap();
 
-	assert_eq!(try_connect_polling(&manager.clone(), &MAX_POLLING_DURATION, DeviceDirection::Arrived), true);
+	assert_eq!(try_connect_polling(&manager.trezor, &MAX_POLLING_DURATION, DeviceDirection::Arrived), true);
+
+	let addr: Address = manager.list_wallets()
+		.iter()
+		.filter(|d| d.name == "TREZOR".to_string() && d.manufacturer == "SatoshiLabs".to_string())
+		.nth(0)
+		.map(|d| d.address)
+		.unwrap();
 
 	let t_info = TransactionInfo {
 		nonce: U256::from(1),
 		gas_price: U256::from(100),
 		gas_limit: U256::from(21_000),
-		to: Some(H160::from("some_other_addr")),
-		chain_id: Some(17),
+		to: Some(Address::from(1337)),
+		chain_id: Some(1),
 		value: U256::from(1_000_000),
 		data: (&[1u8; 3000]).to_vec(),
 	};
-	let signature = manager.sign_transaction(&addr, &t_info).unwrap();
-	let expected = Signature::from_rsv(
-		&H256::from("device_specific_r"),
-		&H256::from("device_specific_s"),
-		0x01
-		);
 
-	assert_eq!(signature, expected)
+	let signature = manager.trezor.sign_transaction(&addr, &t_info);
+	assert!(signature.is_ok());
 }
