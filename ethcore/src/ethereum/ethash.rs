@@ -222,7 +222,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
-	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fffffffffffffffu64.into()) }
+	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffffu64.into()) }
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let difficulty = self.calculate_difficulty(header, parent);
