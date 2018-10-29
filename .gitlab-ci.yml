@@ -23,11 +23,11 @@ cache:
     - ./target
     - ./.cargo
 
-.releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
-  only:                            &releaseable_branches
-    - stable
-    - beta
-    - tags
+# .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
+#   only:                            &releaseable_branches
+#     - stable
+#     - beta
+#     - tags
 
 .collect_artifacts:                &collect_artifacts
   artifacts:
