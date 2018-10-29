@@ -46,7 +46,7 @@ pub fn verify_signature(
 
 	let signature = Signature::from_rsv(&r.into(), &s.into(), v as u8);
 	let public_key = recover(&signature, &hash).map_err(errors::encryption)?;
-	let address = public_to_address(&public);
+	let address = public_to_address(&public_key);
 	Ok(RecoveredAccount { address, public_key, is_valid_for_current_chain })
 }
 
