@@ -38,7 +38,7 @@ cache:
     - artifacts/
 
 .determine_version:                &determine_version
-  - VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' Cargo.toml)"
+  - VERSION="$(sed -r -n '1,/^version/s/^version = "([^"]+)".*$/\1/p' < Cargo.toml)"
   - DATE_STR="$(date +%Y%m%d)"
   - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
   - test "${CI_COMMIT_REF_NAME}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
@@ -49,6 +49,9 @@ test-linux:
   stage:                           test
   variables:
     RUN_TESTS:                     all
+    ###### exp
+  only:
+    - pushes
   script:
     - scripts/gitlab/test-all.sh stable
   tags:
@@ -79,7 +82,7 @@ build-windows:
   script:
     - sh scripts/gitlab/build-windows.sh
   tags:
-   - rust-windows
+   # - rust-windows
    # - ci2
    - qa
   <<:                              *collect_artifacts
@@ -166,7 +169,8 @@ test-windows:
   script:
     - sh scripts/gitlab/test-all.sh stable
   tags:
-   - rust-windows
+   # - rust-windows
+   - qa
    
 test-beta:
   stage:                           optional
