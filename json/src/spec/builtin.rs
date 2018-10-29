@@ -45,15 +45,13 @@ pub struct AltBn128Pairing {
 
 /// Pricing variants.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum Pricing {
 	/// Linear pricing.
-	#[serde(rename="linear")]
 	Linear(Linear),
 	/// Pricing for modular exponentiation.
-	#[serde(rename="modexp")]
 	Modexp(Modexp),
 	/// Pricing for alt_bn128_pairing exponentiation.
-	#[serde(rename="alt_bn128_pairing")]
 	AltBn128Pairing(AltBn128Pairing),
 }
 

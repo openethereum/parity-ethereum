@@ -31,89 +31,67 @@ pub enum BlockReward {
 
 /// Deserializable doppelganger of EthashParams.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EthashParams {
 	/// See main EthashParams docs.
-	#[serde(rename="minimumDifficulty")]
 	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub minimum_difficulty: Uint,
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyBoundDivisor")]
 	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub difficulty_bound_divisor: Uint,
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyIncrementDivisor")]
 	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="metropolisDifficultyIncrementDivisor")]
 	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub metropolis_difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="durationLimit")]
 	pub duration_limit: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="homesteadTransition")]
 	pub homestead_transition: Option<Uint>,
 	/// Reward per block in wei.
-	#[serde(rename="blockReward")]
 	pub block_reward: Option<BlockReward>,
 	/// Block at which the block reward contract should start being used.
-	#[serde(rename="blockRewardContractTransition")]
 	pub block_reward_contract_transition: Option<Uint>,
 	/// Block reward contract address (setting the block reward contract
 	/// overrides all other block reward parameters).
-	#[serde(rename="blockRewardContractAddress")]
 	pub block_reward_contract_address: Option<Address>,
 	/// Block reward code. This overrides the block reward contract address.
-	#[serde(rename="blockRewardContractCode")]
 	pub block_reward_contract_code: Option<Bytes>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="daoHardforkTransition")]
 	pub dao_hardfork_transition: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="daoHardforkBeneficiary")]
 	pub dao_hardfork_beneficiary: Option<Address>,
 	/// See main EthashParams docs.
-	#[serde(rename="daoHardforkAccounts")]
 	pub dao_hardfork_accounts: Option<Vec<Address>>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyHardforkTransition")]
 	pub difficulty_hardfork_transition: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyHardforkBoundDivisor")]
 	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub difficulty_hardfork_bound_divisor: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="bombDefuseTransition")]
 	pub bomb_defuse_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="eip100bTransition")]
 	pub eip100b_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="ecip1010PauseTransition")]
 	pub ecip1010_pause_transition: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="ecip1010ContinueTransition")]
 	pub ecip1010_continue_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="ecip1017EraRounds")]
 	pub ecip1017_era_rounds: Option<Uint>,
 
 	/// Delays of difficulty bombs.
-	#[serde(rename="difficultyBombDelays")]
 	pub difficulty_bomb_delays: Option<BTreeMap<Uint, Uint>>,
 
 	/// EXPIP-2 block height
-	#[serde(rename="expip2Transition")]
 	pub expip2_transition: Option<Uint>,
 	/// EXPIP-2 duration limit
-	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
 }
 

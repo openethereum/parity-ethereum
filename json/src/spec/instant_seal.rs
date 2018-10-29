@@ -18,9 +18,9 @@
 
 /// Instant seal engine params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InstantSealParams {
 	/// Whether to enable millisecond timestamp.
-	#[serde(rename="millisecondTimestamp")]
 	#[serde(default)]
 	pub millisecond_timestamp: bool,
 }
