@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity-ethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "2.2.0"
+version = "2.3.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
