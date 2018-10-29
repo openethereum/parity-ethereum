@@ -22,7 +22,7 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
 use v1::types::{
 	H160, H256, H512, U256, U64, H64, Bytes, CallRequest,
-	Peers, Transaction, RpcSettings, Histogram, BasicAccount,
+	Peers, Transaction, RpcSettings, Histogram, RecoveredAccount,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,

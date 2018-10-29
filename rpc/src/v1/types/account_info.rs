@@ -73,7 +73,7 @@ pub struct HwAccountInfo {
 /// the current chain
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all="camelCase")]
-pub struct BasicAccount {
+pub struct RecoveredAccount {
 	/// address of the recovered account
 	pub address: Address,
 	/// public key of the recovered account

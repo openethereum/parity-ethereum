@@ -41,7 +41,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	LightBlockNumber, ChainStatus, Receipt,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, AccountInfo, HwAccountInfo, Header, RichHeader, BasicAccount
+	OperationsInfo, AccountInfo, HwAccountInfo, Header, RichHeader, RecoveredAccount
 };
 use Host;
 
@@ -425,7 +425,7 @@ impl Parity for ParityClient {
 			Err(errors::status_error(has_peers))
 		}
 	}
-	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<BasicAccount> {
+	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {
 		verify_signature(is_prefixed, message, r, s, v, self.client.signing_chain_id())
 	}
 }
