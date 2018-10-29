@@ -204,11 +204,7 @@ impl Provider where {
 			bail!(ErrorKind::SignerAccountNotSet);
 		}
 		let tx_hash = signed_transaction.hash();
-		let contract = Self::contract_address_from_transaction(&signed_transaction);
-		if let Err(_) = contract {
-			bail!(ErrorKind::BadTransactonType);
-		}
-		let contract = contract.expect("Error was checked before");
+		let contract = Self::contract_address_from_transaction(&signed_transaction).map_err(|_| ErrorKind::BadTransactonType)?;
 		let data = signed_transaction.rlp_bytes();
 		let encrypted_transaction = self.encrypt(&contract, &Self::iv_from_transaction(&signed_transaction), &data)?;
 		let private = PrivateTransaction::new(encrypted_transaction, contract);
@@ -272,11 +268,8 @@ impl Provider where {
 						self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes());
 						return Ok(());
 					}
-					let contract = Self::contract_address_from_transaction(&transaction.transaction);
-					if let Err(_) = contract {
-						bail!("Incorrect type of action for the transaction");
-					}
-					let contract = contract.expect("Error was checked before");
+					let contract = Self::contract_address_from_transaction(&transaction.transaction)
+						.map_err(|_| "Incorrect type of action for the transaction")?;
 					// TODO [ToDr] Usage of BlockId::Latest
 					let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest);
 					if let Err(e) = contract_nonce {
@@ -355,18 +348,12 @@ impl Provider where {
 				}
 			}
 			//Notify about state changes
-			let contract = Self::contract_address_from_transaction(&desc.original_transaction);
-			if let Err(_) = contract {
-				bail!("Incorrect type of action for the transaction");
-			}
-			let contract = contract.expect("Error was checked before");
+			let contract = Self::contract_address_from_transaction(&desc.original_transaction)?;
 			// TODO Usage of BlockId::Latest
-			if let Ok(contract_version) = self.get_contract_version(BlockId::Latest, &contract) {
-				if contract_version >= PRIVATE_CONTRACT_WITH_NOTIFICATION_VER {
-					match self.state_changes_notify(BlockId::Latest, &contract, &desc.original_transaction.sender(), desc.original_transaction.hash()) {
-						Ok(_) => trace!(target: "privatetx", "Notification about private state changes sent"),
-						Err(err) => warn!(target: "privatetx", "Failed to send private state changed notification, error: {:?}", err),
-					}
+			if self.get_contract_version(BlockId::Latest, &contract) >= PRIVATE_CONTRACT_WITH_NOTIFICATION_VER {
+				match self.state_changes_notify(BlockId::Latest, &contract, &desc.original_transaction.sender(), desc.original_transaction.hash()) {
+					Ok(_) => trace!(target: "privatetx", "Notification about private state changes sent"),
+					Err(err) => warn!(target: "privatetx", "Failed to send private state changed notification, error: {:?}", err),
 				}
 			}
 			//Remove from store for signing
@@ -390,7 +377,10 @@ impl Provider where {
 	fn contract_address_from_transaction(transaction: &SignedTransaction) -> Result<Address, Error> {
 		match transaction.action {
 			Action::Call(contract) => Ok(contract),
-			_ => bail!("Incorrect type of action for the transaction"),
+			_ => {
+				warn!(target: "privatetx", "Incorrect type of action for the transaction");
+				bail!(ErrorKind::BadTransactonType);
+			}
 		}
 	}
 
@@ -626,12 +616,12 @@ impl Provider where {
 		decoder.decode(&value).map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)).into())
 	}
 
-	fn get_contract_version(&self, block: BlockId, address: &Address) -> Result<usize, Error> {
+	fn get_contract_version(&self, block: BlockId, address: &Address) -> usize {
 		let (data, decoder) = private_contract::functions::get_version::call();
-		let value = self.client.call_contract(block, *address, data)?;
-		match decoder.decode(&value) {
-			Ok(version) => Ok(version.low_u64() as usize),
-			Err(_) => Ok(INITIAL_PRIVATE_CONTRACT_VER),
+		match self.client.call_contract(block, *address, data)
+			.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string())) {
+			Ok(version) => version.low_u64() as usize,
+			Err(_) => INITIAL_PRIVATE_CONTRACT_VER,
 		}
 	}
 
