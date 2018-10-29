@@ -116,9 +116,8 @@ impl From<ValidationErrors> for Error {
 						string.push_str(&str_error);
 					}
 				},
-				// #[validate] is only used on fields for regex
-				// its impossible to get any other errorkind
-				_ => unreachable!()
+				_ => unreachable!("#[validate] is only used on fields for regex;\
+				its impossible to get any other	ErrorKind; qed")
 			}
 		}
 		ErrorKind::ValidationError(string).into()

@@ -26,7 +26,7 @@ pub(crate) type MessageTypes = HashMap<String, Vec<FieldType>>;
 
 lazy_static! {
 	// match solidity identifier with the addition of '[(\d)*]*'
-	static ref TYPE_REGEX: Regex = Regex::new(r"^[a-zA-Z_$][a-zA-Z_$0-9]*(\[[0-9]*\])*$").unwrap();
+	static ref TYPE_REGEX: Regex = Regex::new(r"^[a-zA-Z_$][a-zA-Z_$0-9]*(\[([1-9]\d*)*\])*$").unwrap();
 	static ref IDENT_REGEX: Regex = Regex::new(r"^[a-zA-Z_$][a-zA-Z_$0-9]*$").unwrap();
 }
 
@@ -78,8 +78,8 @@ mod tests {
 	use serde_json::from_str;
 
 	#[test]
-	fn test_ident_regex() {
-		let test_cases = vec!["unint bytes32", "Seun\\[]", "byte[]uint", "byte[7[]uint][]"];
+	fn test_regex() {
+		let test_cases = vec!["unint bytes32", "Seun\\[]", "byte[]uint", "byte[7[]uint][]", "Person[0]"];
 		for case in test_cases {
 			assert_eq!(TYPE_REGEX.is_match(case), false)
 		}

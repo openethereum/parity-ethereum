@@ -21,7 +21,7 @@ use keccak_hash::keccak;
 use serde_json::Value;
 use std::str::FromStr;
 use itertools::Itertools;
-use linked_hash_set::LinkedHashSet;
+use indexmap::IndexSet;
 use serde_json::to_value;
 use parser::{Parser, Type};
 use error::{Result, ErrorKind, serde_error};
@@ -30,6 +30,16 @@ use rustc_hex::FromHex;
 use validator::Validate;
 use std::collections::HashSet;
 
+
+fn check_hex(string: &str) -> Result<()> {
+	if string.len() >= 2 && &string[..2] == "0x" {
+		return Ok(())
+	}
+
+	return Err(ErrorKind::HexParseError(
+		format!("Expected a 0x-prefixed string of even length, found {} length string", string.len()))
+	)?
+}
 /// given a type and HashMap<String, Vec<FieldType>>
 /// returns a HashSet of dependent types of the given type
 fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes) -> Option<(HashSet<&'a str>)>
@@ -38,11 +48,11 @@ fn build_dependencies<'a>(message_type: &'a str, message_types: &'a MessageTypes
 		return None;
 	}
 
-	let mut types = LinkedHashSet::new();
+	let mut types = IndexSet::new();
 	types.insert(message_type);
 	let mut deps = HashSet::new();
 
-	while let Some(item) = types.pop_back() {
+	while let Some(item) = types.pop() {
 		if let Some(fields) = message_types.get(item) {
 			deps.insert(item);
 
@@ -136,11 +146,9 @@ fn encode_data(
 
 		Type::Bytes => {
 			let string = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
-			if string.len() < 2 {
-				return Err(ErrorKind::HexParseError(
-					format!("Expected a 0x-prefixed string of even length, found {} length string", string.len()))
-				)?
-			}
+
+			check_hex(&string)?;
+
 			let bytes = (&string[2..])
 				.from_hex::<Vec<u8>>()
 				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
@@ -151,18 +159,13 @@ fn encode_data(
 
 		Type::Byte(_) => {
 			let string = value.as_str().ok_or_else(|| serde_error("string", field_name))?;
-			if string.len() < 2 {
-				return Err(ErrorKind::HexParseError(
-					format!("Expected a 0x-prefixed string of even length, found {} length string", string.len()))
-				)?
-			}
+
+			check_hex(&string)?;
+
 			let mut bytes = (&string[2..])
 				.from_hex::<Vec<u8>>()
 				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
 
-			if *message_type == Type::Bytes {
-				bytes = keccak(&bytes).to_vec();
-			}
 			encode(&[EthAbiToken::FixedBytes(bytes)])
 		}
 
@@ -185,11 +188,9 @@ fn encode_data(
 
 		Type::Uint | Type::Int => {
 			let string = value.as_str().ok_or_else(|| serde_error("int/uint", field_name))?;
-			if string.len() < 2 {
-				return Err(ErrorKind::HexParseError(
-					format!("Expected a 0x-prefixed string of even length, found {} length string", string.len()))
-				)?
-			}
+
+			check_hex(&string)?;
+
 			let uint = U256::from_str(&string[2..]).map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
 
 			let token = if *message_type == Type::Uint {
