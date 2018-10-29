@@ -145,10 +145,9 @@ impl<'a, T: HexEncodable> Visitor<'a> for HexEncodeVisitor<T> {
 /// Receiver of a message. Either a public key, identity (presumably symmetric),
 /// or broadcast over the topics.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Receiver {
-	#[serde(rename = "public")]
 	Public(Public),
-	#[serde(rename = "identity")]
 	Identity(Identity),
 }
 
