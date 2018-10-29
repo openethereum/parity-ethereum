@@ -27,6 +27,7 @@ pub enum Engine {
 	/// Instantly sealing engine.
 	InstantSeal(Option<InstantSeal>),
 	/// Ethash engine.
+	#[serde(rename = "Ethash")]
 	Ethash(Ethash),
 	/// BasicAuthority engine.
 	BasicAuthority(BasicAuthority),
