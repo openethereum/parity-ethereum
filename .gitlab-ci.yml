@@ -8,7 +8,7 @@ stages:
 # environment
 # image (-s)
 
-image:                             parity/rust-ci:gitlab-ci
+image:                             parity/rust:gitlab-ci
 
 variables:
   CI_SERVER_NAME:                  "GitLab CI"
