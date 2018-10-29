@@ -61,7 +61,7 @@ test-linux:
 
 build-darwin:
   stage:                           build
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
@@ -76,7 +76,7 @@ build-darwin:
 
 build-windows:
   stage:                           build
-  only:                            *releaseable_branches
+  # only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
   script:
