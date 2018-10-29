@@ -21,11 +21,10 @@ use bytes::Bytes;
 
 /// Blockchain test transaction deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Transaction {
 	data: Bytes,
-	#[serde(rename="gasLimit")]
 	gas_limit: Uint,
-	#[serde(rename="gasPrice")]
 	gas_price: Uint,
 	nonce: Uint,
 	r: Uint,

@@ -24,28 +24,28 @@ use v1::types::H256;
 #[serde(deny_unknown_fields)]
 pub enum Origin {
 	/// RPC server (includes request origin)
-	#[serde(rename="rpc")]
+	#[serde(rename = "rpc")]
 	Rpc(String),
 	/// IPC server (includes session hash)
-	#[serde(rename="ipc")]
+	#[serde(rename = "ipc")]
 	Ipc(H256),
 	/// WS server
-	#[serde(rename="ws")]
+	#[serde(rename = "ws")]
 	Ws {
 		/// Session id
 		session: H256,
 	},
 	/// Signer (authorized WS server)
-	#[serde(rename="signer")]
+	#[serde(rename = "signer")]
 	Signer {
 		/// Session id
 		session: H256
 	},
 	/// From the C API
-	#[serde(rename="c-api")]
+	#[serde(rename = "c-api")]
 	CApi,
 	/// Unknown
-	#[serde(rename="unknown")]
+	#[serde(rename = "unknown")]
 	Unknown,
 }
 

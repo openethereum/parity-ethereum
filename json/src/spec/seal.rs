@@ -22,11 +22,11 @@ use bytes::Bytes;
 
 /// Ethereum seal.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Ethereum {
 	/// Seal nonce.
 	pub nonce: H64,
 	/// Seal mix hash.
-	#[serde(rename="mixHash")]
 	pub mix_hash: H256,
 }
 
@@ -54,16 +54,16 @@ pub struct TendermintSeal {
 #[derive(Debug, PartialEq, Deserialize)]
 pub enum Seal {
 	/// Ethereum seal.
-	#[serde(rename="ethereum")]
+	#[serde(rename = "ethereum")]
 	Ethereum(Ethereum),
 	/// AuthorityRound seal.
-	#[serde(rename="authorityRound")]
+	#[serde(rename = "authorityRound")]
 	AuthorityRound(AuthorityRoundSeal),
 	/// Tendermint seal.
-	#[serde(rename="tendermint")]
+	#[serde(rename = "tendermint")]
 	Tendermint(TendermintSeal),
 	/// Generic seal.
-	#[serde(rename="generic")]
+	#[serde(rename = "generic")]
 	Generic(Bytes),
 }
 

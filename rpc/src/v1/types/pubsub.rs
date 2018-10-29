@@ -49,16 +49,16 @@ impl Serialize for Result {
 #[serde(deny_unknown_fields)]
 pub enum Kind {
 	/// New block headers subscription.
-	#[serde(rename="newHeads")]
+	#[serde(rename = "newHeads")]
 	NewHeads,
 	/// Logs subscription.
-	#[serde(rename="logs")]
+	#[serde(rename = "logs")]
 	Logs,
 	/// New Pending Transactions subscription.
-	#[serde(rename="newPendingTransactions")]
+	#[serde(rename = "newPendingTransactions")]
 	NewPendingTransactions,
 	/// Node syncing status subscription.
-	#[serde(rename="syncing")]
+	#[serde(rename = "syncing")]
 	Syncing,
 }
 

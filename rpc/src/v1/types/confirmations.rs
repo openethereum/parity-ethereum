@@ -163,16 +163,16 @@ pub struct ConfirmationResponseWithToken {
 #[serde(deny_unknown_fields)]
 pub enum ConfirmationPayload {
 	/// Send Transaction
-	#[serde(rename="sendTransaction")]
+	#[serde(rename = "sendTransaction")]
 	SendTransaction(TransactionRequest),
 	/// Sign Transaction
-	#[serde(rename="signTransaction")]
+	#[serde(rename = "signTransaction")]
 	SignTransaction(TransactionRequest),
 	/// Signature
-	#[serde(rename="sign")]
+	#[serde(rename = "sign")]
 	EthSignMessage(SignRequest),
 	/// Decryption
-	#[serde(rename="decrypt")]
+	#[serde(rename = "decrypt")]
 	Decrypt(DecryptRequest),
 }
 
@@ -196,11 +196,11 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 /// Possible modifications to the confirmed transaction sent by `Trusted Signer`
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct TransactionModification {
 	/// Modified transaction sender
 	pub sender: Option<H160>,
 	/// Modified gas price
-	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
 	/// Modified gas
 	pub gas: Option<U256>,

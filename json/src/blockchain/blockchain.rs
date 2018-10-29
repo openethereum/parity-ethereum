@@ -25,23 +25,23 @@ use spec::{ForkSpec, Genesis, Seal, Ethereum};
 
 /// Blockchain deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BlockChain {
 	/// Genesis block header.
-	#[serde(rename="genesisBlockHeader")]
+	#[serde(rename = "genesisBlockHeader")]
 	pub genesis_block: Header,
 	/// Genesis block rlp.
-	#[serde(rename="genesisRLP")]
+	#[serde(rename = "genesisRLP")]
 	pub genesis_rlp: Option<Bytes>,
 	/// Blocks.
 	pub blocks: Vec<Block>,
 	/// Post state.
-	#[serde(rename="postState")]
 	pub post_state: State,
 	/// Pre state.
-	#[serde(rename="pre")]
+	#[serde(rename = "pre")]
 	pub pre_state: State,
 	/// Hash of best block.
-	#[serde(rename="lastblockhash")]
+	#[serde(rename = "lastblockhash")]
 	pub best_block: H256,
 	/// Network.
 	pub network: ForkSpec,

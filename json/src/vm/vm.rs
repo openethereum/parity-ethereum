@@ -26,26 +26,26 @@ use vm::{Transaction, Call, Env};
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Vm {
 	/// Contract calls made internaly by executed transaction.
-	#[serde(rename="callcreates")]
+	#[serde(rename = "callcreates")]
 	pub calls: Option<Vec<Call>>,
 	/// Env info.
 	pub env: Env,
 	/// Executed transaction
-	#[serde(rename="exec")]
+	#[serde(rename = "exec")]
 	pub transaction: Transaction,
 	/// Gas left after transaction execution.
-	#[serde(rename="gas")]
+	#[serde(rename = "gas")]
 	pub gas_left: Option<Uint>,
 	/// Hash of logs created during execution of transaction.
 	pub logs: Option<H256>,
 	/// Transaction output.
-	#[serde(rename="out")]
+	#[serde(rename = "out")]
 	pub output: Option<Bytes>,
 	/// Post execution vm state.
-	#[serde(rename="post")]
+	#[serde(rename = "post")]
 	pub post_state: Option<State>,
 	/// Pre execution vm state.
-	#[serde(rename="pre")]
+	#[serde(rename = "pre")]
 	pub pre_state: State,
 }
 

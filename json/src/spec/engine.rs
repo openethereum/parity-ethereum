@@ -22,21 +22,21 @@ use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine, Inst
 #[derive(Debug, PartialEq, Deserialize)]
 pub enum Engine {
 	/// Null engine.
-	#[serde(rename="null")]
+	#[serde(rename = "null")]
 	Null(NullEngine),
 	/// Instantly sealing engine.
-	#[serde(rename="instantSeal")]
+	#[serde(rename = "instantSeal")]
 	InstantSeal(Option<InstantSeal>),
 	/// Ethash engine.
 	Ethash(Ethash),
 	/// BasicAuthority engine.
-	#[serde(rename="basicAuthority")]
+	#[serde(rename = "basicAuthority")]
 	BasicAuthority(BasicAuthority),
 	/// AuthorityRound engine.
-	#[serde(rename="authorityRound")]
+	#[serde(rename = "authorityRound")]
 	AuthorityRound(AuthorityRound),
 	/// Tendermint engine.
-	#[serde(rename="tendermint")]
+	#[serde(rename = "tendermint")]
 	Tendermint(Tendermint)
 }
 

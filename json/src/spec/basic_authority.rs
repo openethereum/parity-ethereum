@@ -21,9 +21,9 @@ use super::ValidatorSet;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BasicAuthorityParams {
 	/// Block duration.
-	#[serde(rename="durationLimit")]
 	pub duration_limit: Uint,
 	/// Valid authorities
 	pub validators: ValidatorSet,

@@ -20,13 +20,13 @@ use v1::types::{Bytes, H160, U256};
 /// Call request
 #[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct CallRequest {
 	/// From
 	pub from: Option<H160>,
 	/// To
 	pub to: Option<H160>,
 	/// Gas Price
-	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
 	/// Gas
 	pub gas: Option<U256>,
