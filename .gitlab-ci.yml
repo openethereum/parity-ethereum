@@ -40,7 +40,6 @@ variables:
 #   - echo "Version = ${VERSION}"
 
 test-linux:
-  stage:                           test
   variables:
     RUN_TESTS:                     all
     ###### exp
