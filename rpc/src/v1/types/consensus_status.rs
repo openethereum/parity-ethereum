@@ -20,18 +20,15 @@ use updater::{self, CapState};
 
 /// Capability info
 #[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ConsensusCapability {
 	/// Unknown.
-	#[serde(rename = "unknown")]
 	Unknown,
 	/// Capable of consensus indefinitely.
-	#[serde(rename = "capable")]
 	Capable,
 	/// Capable of consensus up until a definite block.
-	#[serde(rename = "capableUntil")]
 	CapableUntil(u64),
 	/// Incapable of consensus since a particular block.
-	#[serde(rename = "incapableSince")]
 	IncapableSince(u64),
 }
 
@@ -48,18 +45,15 @@ impl Into<ConsensusCapability> for CapState {
 
 /// A release's track.
 #[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ReleaseTrack {
 	/// Stable track.
-	#[serde(rename = "stable")]
 	Stable,
 	/// Beta track.
-	#[serde(rename = "beta")]
 	Beta,
 	/// Nightly track.
-	#[serde(rename = "nightly")]
 	Nightly,
 	/// Testing track.
-	#[serde(rename = "testing")]
 	Testing,
 	/// No known track.
 	#[serde(rename = "null")]
