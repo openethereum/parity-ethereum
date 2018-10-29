@@ -161,18 +161,16 @@ pub struct ConfirmationResponseWithToken {
 /// Confirmation payload, i.e. the thing to be confirmed
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub enum ConfirmationPayload {
 	/// Send Transaction
-	#[serde(rename = "sendTransaction")]
 	SendTransaction(TransactionRequest),
 	/// Sign Transaction
-	#[serde(rename = "signTransaction")]
 	SignTransaction(TransactionRequest),
 	/// Signature
 	#[serde(rename = "sign")]
 	EthSignMessage(SignRequest),
 	/// Decryption
-	#[serde(rename = "decrypt")]
 	Decrypt(DecryptRequest),
 }
 
