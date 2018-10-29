@@ -236,21 +236,17 @@ impl From<trace::Create> for Create {
 
 /// Call type.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum CallType {
 	/// None
-	#[serde(rename = "none")]
 	None,
 	/// Call
-	#[serde(rename = "call")]
 	Call,
 	/// Call code
-	#[serde(rename = "callcode")]
 	CallCode,
 	/// Delegate call
-	#[serde(rename = "delegatecall")]
 	DelegateCall,
 	/// Static call
-	#[serde(rename = "staticcall")]
 	StaticCall,
 }
 
@@ -299,18 +295,15 @@ impl From<trace::Call> for Call {
 
 /// Reward type.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum RewardType {
 	/// Block
-	#[serde(rename = "block")]
 	Block,
 	/// Uncle
-	#[serde(rename = "uncle")]
 	Uncle,
 	/// EmptyStep (AuthorityRound)
-	#[serde(rename = "emptyStep")]
 	EmptyStep,
 	/// External (attributed as part of an external protocol)
-	#[serde(rename = "external")]
 	External,
 }
 
