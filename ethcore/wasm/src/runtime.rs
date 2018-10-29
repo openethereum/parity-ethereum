@@ -629,7 +629,7 @@ impl<'a> Runtime<'a> {
 
 	fn debug(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		trace!(target: "wasm", "Contract debug message: {}", {
+		println!("Contract debug message: {}", {
 			let msg_ptr: u32 = args.nth_checked(0)?;
 			let msg_len: u32 = args.nth_checked(1)?;
 
