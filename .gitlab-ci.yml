@@ -5,7 +5,10 @@ stages:
   # - publish
   - optional
 
-image:                             parity/rust:gitlab-ci
+# environment
+# image (-s)
+
+image:                             parity/rust-ci:gitlab-ci
 
 variables:
   CI_SERVER_NAME:                  "GitLab CI"
@@ -50,7 +53,8 @@ test-linux:
     - scripts/gitlab/test-all.sh stable
   tags:
     # - rust-stable
-    - ci2
+    # - ci2
+    - qa
 
 build-darwin:
   stage:                           build
@@ -63,7 +67,8 @@ build-darwin:
     - scripts/gitlab/build-unix.sh
   tags:
     # - rust-osx
-    - ci2
+    # - ci2
+    - qa
   <<:                              *collect_artifacts
 
 build-windows:
@@ -75,7 +80,8 @@ build-windows:
     - sh scripts/gitlab/build-windows.sh
   tags:
    - rust-windows
-   - ci2
+   # - ci2
+   - qa
   <<:                              *collect_artifacts
 
 # publish-docker:
@@ -114,7 +120,8 @@ docs-jsonrpc:
     - scripts/gitlab/docs-jsonrpc.sh
   tags:
     # - shell
-    - ci2
+    # - ci2
+    - qa
 
 cargo-audit:
   stage:                           optional
@@ -122,7 +129,8 @@ cargo-audit:
     - scripts/gitlab/cargo-audit.sh
   tags:
     # - rust-stable
-    - ci2
+    # - ci2
+    - qa
 
 test-android:
   stage:                           optional
@@ -133,7 +141,8 @@ test-android:
     - scripts/gitlab/test-all.sh stable
   tags:
     # - rust-arm
-    - ci2
+    # - ci2
+    - qa
 
 test-darwin:
   stage:                           optional
@@ -146,7 +155,8 @@ test-darwin:
     - scripts/gitlab/test-all.sh stable
   tags:
     # - rust-osx
-    - ci2
+    # - ci2
+    - qa
 
 test-windows:
   stage:                           test-win # optional
@@ -166,7 +176,8 @@ test-beta:
     - scripts/gitlab/test-all.sh beta
   tags:
     # - rust-beta
-    - ci2
+    # - ci2
+    - qa
 
 test-nightly:
   stage:                           optional
@@ -176,4 +187,5 @@ test-nightly:
     - scripts/gitlab/test-all.sh nightly
   tags:
     # - rust-nightly
-    - ci2
+    # - ci2
+    - qa
