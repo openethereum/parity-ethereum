@@ -44,6 +44,8 @@ use types::{BlockNumber, header::{Header, ExtendedHeader}};
 use vm::{EnvInfo, LastHashes};
 
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
+use blockchain::{BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert,
+	BlockNumberKey};
 use client::ancient_import::AncientVerifier;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
@@ -85,6 +87,7 @@ pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
 use client::BlockChainReset;
+use db::Writable;
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -1337,20 +1340,17 @@ impl BlockChainReset for Client {
 		}
 
 		let (blocks_to_delete, best_block_hash) = self.chain.read()
-			.block_hashes_from_best_block(num)
-			.ok_or(String::from("Error traversing block chain"))?;
+			.block_headers_from_best_block(num);
 
 		let mut db_transaction = DBTransaction::with_capacity(num as usize);
 
 		for hash in &blocks_to_delete {
-			db_transaction.delete(::db::COL_HEADERS, hash);
-			db_transaction.delete(::db::COL_BODIES, hash);
-			db_transaction.delete(::db::COL_EXTRA, hash);
+			db_transaction.delete(::db::COL_HEADERS, &hash.hash());
+			db_transaction.delete(::db::COL_BODIES, &hash.hash());
+			db_transaction.delete(::db::COL_EXTRA, &hash.hash());
+			Writable::delete::<H256, BlockNumberKey>
+				(&mut db_transaction, ::db::COL_EXTRA, &hash.number());
 		}
-
-		info!("Deleting block hashes {}", Colour::Red.bold().paint(format!("{:#?}", blocks_to_delete)));
-
-		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 
 		// update the new best block hash
 		db_transaction.put(::db::COL_EXTRA, b"best", &*best_block_hash);
@@ -1359,6 +1359,12 @@ impl BlockChainReset for Client {
 			.key_value()
 			.write(db_transaction)
 			.map_err(|err| format!("could not complete reset operation; io error occured: {}", err))?;
+
+		info!("Deleting block hashes {}", Colour::Red.bold().paint(format!("{:#?}", blocks_to_delete.iter().map(|b| b
+			.hash()).collect::<Vec<_>>()
+		)));
+
+		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 
 		Ok(())
 	}
