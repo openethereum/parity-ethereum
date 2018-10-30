@@ -93,7 +93,7 @@ mod tests {
 	#[test]
 	fn test_deserialization() {
 		let string = r#"{
-            "primaryType": "Mail",
+			"primaryType": "Mail",
 			"domain": {
 				"name": "Ether Mail",
 				"version": "1",
@@ -113,7 +113,7 @@ mod tests {
 			},
 			"types": {
 				"EIP712Domain": [
-				    { "name": "name", "type": "string" },
+					{ "name": "name", "type": "string" },
 					{ "name": "version", "type": "string" },
 					{ "name": "chainId", "type": "uint256" },
 					{ "name": "verifyingContract", "type": "address" }
@@ -128,14 +128,14 @@ mod tests {
 					{ "name": "contents", "type": "string" }
 				]
 			}
-        }"#;
+		}"#;
 		let _ = from_str::<EIP712>(string).unwrap();
 	}
 
 	#[test]
 	fn test_failing_deserialization() {
 		let string = r#"{
-            "primaryType": "Mail",
+			"primaryType": "Mail",
 			"domain": {
 				"name": "Ether Mail",
 				"version": "1",
@@ -155,7 +155,7 @@ mod tests {
 			},
 			"types": {
 				"EIP712Domain": [
-				    { "name": "name", "type": "string" },
+					{ "name": "name", "type": "string" },
 					{ "name": "version", "type": "string" },
 					{ "name": "chainId", "type": "7uint256[x] Seun" },
 					{ "name": "verifyingContract", "type": "address" }
@@ -170,7 +170,7 @@ mod tests {
 					{ "name": "contents", "type": "string" }
 				]
 			}
-        }"#;
+		}"#;
 		let data = from_str::<EIP712>(string).unwrap();
 		assert_eq!(data.validate().is_err(), true);
 	}
