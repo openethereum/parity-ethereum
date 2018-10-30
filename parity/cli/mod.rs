@@ -583,10 +583,6 @@ usage! {
 			"--on-demand-time-window=[MS]",
 			"Specify the time window",
 
-			ARG arg_on_demand_success_rate: (Option<f64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_success_rate,
-			"--on-demand-success-rate=[PERCENT]",
-			"Specify light client query success rate (exponential moving average) that must be met",
-
 			ARG arg_on_demand_start_backoff: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_start_backoff,
 			"--on-demand-start-backoff=[MS]",
 			"Specify light client start backoff time",
@@ -1415,7 +1411,6 @@ struct Whisper {
 #[serde(deny_unknown_fields)]
 struct Light {
 	on_demand_time_window: Option<u64>,
-	on_demand_success_rate: Option<f64>,
 	on_demand_start_backoff: Option<u64>,
 	on_demand_end_backoff: Option<u64>,
 	on_demand_max_backoff_rounds: Option<usize>,
@@ -1835,7 +1830,6 @@ mod tests {
 			arg_snapshot_threads: None,
 
 			// -- Light options.
-			arg_on_demand_success_rate: Some(0.85),
 			arg_on_demand_time_window: Some(1000),
 			arg_on_demand_start_backoff: Some(100),
 			arg_on_demand_end_backoff: Some(9000),
@@ -2093,7 +2087,6 @@ mod tests {
 				num_verifiers: None,
 			}),
 			light: Some(Light {
-				on_demand_success_rate: Some(0.5),
 				on_demand_time_window: Some(1000),
 				on_demand_start_backoff: Some(100),
 				on_demand_end_backoff: Some(10000),

@@ -157,7 +157,6 @@ scale_verifiers = true
 num_verifiers = 6
 
 [light]
-on_demand_success_rate = 0.85
 on_demand_time_window = 1000
 on_demand_start_backoff = 100
 on_demand_end_backoff = 9000

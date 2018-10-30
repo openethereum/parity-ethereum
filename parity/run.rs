@@ -137,7 +137,6 @@ pub struct RunCmd {
 	pub no_hardcoded_sync: bool,
 	pub max_round_blocks_to_import: usize,
 	pub on_demand_time_window: Option<u64>,
-	pub on_demand_success_rate: Option<f64>,
 	pub on_demand_start_backoff: Option<u64>,
 	pub on_demand_end_backoff: Option<u64>,
 	pub on_demand_max_backoff_rounds: Option<usize>,
@@ -238,7 +237,6 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	let on_demand = Arc::new({
 		::light::on_demand::OnDemand::new(
 			cache.clone(),
-			cmd.on_demand_success_rate.unwrap_or(::light::on_demand::DEFAULT_SUCCESS_RATE),
 			backoff_start,
 			backoff_end,
 			time_window,
