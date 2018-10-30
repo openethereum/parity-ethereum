@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Privte transaction signing RPC implementation.
+//! Private transaction signing RPC implementation.
 
 use std::sync::Arc;
 

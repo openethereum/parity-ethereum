@@ -243,6 +243,7 @@ impl Configuration {
 				with_color: logger_config.color,
 				verifier_settings: self.verifier_settings(),
 				light: self.args.flag_light,
+				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -262,6 +263,7 @@ impl Configuration {
 					from_block: to_block_id(&self.args.arg_export_blocks_from)?,
 					to_block: to_block_id(&self.args.arg_export_blocks_to)?,
 					check_seal: !self.args.flag_no_seal_check,
+					max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				};
 				Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
 			} else if self.args.cmd_export_state {
@@ -282,6 +284,7 @@ impl Configuration {
 					code: !self.args.flag_export_state_no_code,
 					min_balance: self.args.arg_export_state_min_balance.and_then(|s| to_u256(&s).ok()),
 					max_balance: self.args.arg_export_state_max_balance.and_then(|s| to_u256(&s).ok()),
+					max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				};
 				Cmd::Blockchain(BlockchainCmd::ExportState(export_cmd))
 			} else {
@@ -301,6 +304,7 @@ impl Configuration {
 				file_path: self.args.arg_snapshot_file.clone(),
 				kind: snapshot::Kind::Take,
 				block_at: to_block_id(&self.args.arg_snapshot_at)?,
+				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				snapshot_conf: snapshot_conf,
 			};
 			Cmd::Snapshot(snapshot_cmd)
@@ -318,6 +322,7 @@ impl Configuration {
 				file_path: self.args.arg_restore_file.clone(),
 				kind: snapshot::Kind::Restore,
 				block_at: to_block_id("latest")?, // unimportant.
+				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				snapshot_conf: snapshot_conf,
 			};
 			Cmd::Snapshot(restore_cmd)
@@ -388,6 +393,7 @@ impl Configuration {
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 				whisper: whisper_config,
 				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
+				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				on_demand_retry_count: self.args.arg_on_demand_retry_count,
 				on_demand_inactive_time_limit: self.args.arg_on_demand_inactive_time_limit,
 			};
@@ -1263,6 +1269,7 @@ mod tests {
 			with_color: !cfg!(windows),
 			verifier_settings: Default::default(),
 			light: false,
+			max_round_blocks_to_import: 12,
 		})));
 	}
 
@@ -1285,6 +1292,7 @@ mod tests {
 			from_block: BlockId::Number(1),
 			to_block: BlockId::Latest,
 			check_seal: true,
+			max_round_blocks_to_import: 12,
 		})));
 	}
 
@@ -1309,6 +1317,7 @@ mod tests {
 			code: true,
 			min_balance: None,
 			max_balance: None,
+			max_round_blocks_to_import: 12,
 		})));
 	}
 
@@ -1331,6 +1340,7 @@ mod tests {
 			from_block: BlockId::Number(1),
 			to_block: BlockId::Latest,
 			check_seal: true,
+			max_round_blocks_to_import: 12,
 		})));
 	}
 
@@ -1427,6 +1437,7 @@ mod tests {
 			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
+			max_round_blocks_to_import: 12,
 			on_demand_retry_count: None,
 			on_demand_inactive_time_limit: None,
 		};

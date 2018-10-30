@@ -40,7 +40,7 @@ use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, Ne
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
+	Bytes, U256, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -173,10 +173,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		Ok(self.settings.chain.clone())
 	}
 
-	fn chain_id(&self) -> Result<Option<U64>> {
-		Ok(self.client.signing_chain_id().map(U64::from))
-	}
-
 	fn chain(&self) -> Result<String> {
 		Ok(self.client.spec_name())
 	}
@@ -305,6 +301,16 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		Ok(all_transactions
 			.into_iter()
 			.map(|t| Transaction::from_pending(t.pending().clone()))
+			.collect()
+		)
+	}
+
+	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
+		let all_transaction_hashes = self.miner.queued_transaction_hashes();
+
+		Ok(all_transaction_hashes
+			.into_iter()
+			.map(|hash| hash.into())
 			.collect()
 		)
 	}

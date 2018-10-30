@@ -8,7 +8,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 futures = "0.1"
-futures-cpupool = "0.1"
 log = "0.4"
 mime = "0.3"
 mime_guess = "2.0.0-alpha.2"
@@ -17,7 +16,7 @@ rustc-hex = "1.0"
 fetch = { path = "../util/fetch" }
 parity-bytes = "0.1"
 ethereum-types = "0.4"
-parity-reactor = { path = "../util/reactor" }
+parity-runtime = { path = "../util/runtime" }
 keccak-hash = "0.1"
 registrar = { path = "../registrar" }
 
@@ -26,6 +25,5 @@ ethabi-derive = "6.0"
 ethabi-contract = "6.0"
 
 [dev-dependencies]
-hyper = "0.11"
 parking_lot = "0.6"
 fake-fetch = { path = "../util/fake-fetch" }

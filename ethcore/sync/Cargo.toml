@@ -17,10 +17,13 @@ ethcore-light = { path = "../light" }
 ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
 ethereum-types = "0.4"
+hashdb = "0.3.0"
 fastmap = { path = "../../util/fastmap" }
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 keccak-hash = "0.1"
+keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
+kvdb = "0.1"
 macros = { path = "../../util/macros" }
 log = "0.4"
 env_logger = "0.5"

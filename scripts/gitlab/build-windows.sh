@@ -5,8 +5,6 @@ set -u # treat unset variables as error
 set INCLUDE="C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt"
 set LIB="C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64"
 
-rustup default stable-x86_64-pc-windows-msvc
-
 echo "__________Show ENVIROMENT__________"
 echo "CI_SERVER_NAME:   " $CI_SERVER_NAME
 echo "CARGO_HOME:       " $CARGO_HOME

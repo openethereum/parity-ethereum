@@ -42,7 +42,7 @@ use engines::EthEngine;
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool::VerifiedTransaction;
 use bytes::Bytes;
-use hashdb::DBValue;
+use kvdb::DBValue;
 
 use types::ids::*;
 use types::basic_account::BasicAccount;

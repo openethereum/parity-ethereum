@@ -36,7 +36,7 @@ mod subscribers;
 mod subscription_manager;
 mod work;
 
-pub use self::dispatch::{Dispatcher, FullDispatcher};
+pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, SyncPollFilter, limit_logs};

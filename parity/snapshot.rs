@@ -62,6 +62,7 @@ pub struct SnapshotCommand {
 	pub file_path: Option<String>,
 	pub kind: Kind,
 	pub block_at: BlockId,
+	pub max_round_blocks_to_import: usize,
 	pub snapshot_conf: SnapshotConfiguration,
 }
 
@@ -179,6 +180,7 @@ impl SnapshotCommand {
 			self.pruning_history,
 			self.pruning_memory,
 			true,
+			self.max_round_blocks_to_import,
 		);
 
 		client_config.snapshot = self.snapshot_conf;

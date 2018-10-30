@@ -51,7 +51,7 @@ impl Block {
 
 	#[inline]
 	pub fn encoded(&self) -> encoded::Block {
-		encoded::Block::new(encode(self).into_vec())
+		encoded::Block::new(encode(self))
 	}
 
 	#[inline]

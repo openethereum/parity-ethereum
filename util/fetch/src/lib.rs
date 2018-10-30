@@ -26,9 +26,9 @@ extern crate futures;
 
 extern crate hyper;
 extern crate hyper_rustls;
+extern crate http;
 
-extern crate tokio_core;
-extern crate tokio_timer;
+extern crate tokio;
 extern crate url;
 extern crate bytes;
 

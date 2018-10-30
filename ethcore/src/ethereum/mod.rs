@@ -89,11 +89,6 @@ pub fn new_social<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/social.json"))
 }
 
-/// Create a new Olympic testnet chain spec.
-pub fn new_olympic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/olympic.json"))
-}
-
 /// Create a new Morden testnet chain spec.
 pub fn new_morden<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/morden.json"))
@@ -112,6 +107,11 @@ pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 /// Create a new POA Sokol testnet chain spec.
 pub fn new_sokol<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/poasokol.json"))
+}
+
+/// Create a new Callisto chaun spec
+pub fn new_callisto<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/callisto.json"))
 }
 
 // For tests

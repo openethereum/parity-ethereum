@@ -110,7 +110,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		if self.validators.contains(header.parent_hash(), author) {
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = self.sign(header.bare_hash()) {
-				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).into_vec()]);
+				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8]))]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
@@ -150,6 +150,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	fn is_epoch_end(
 		&self,
 		chain_head: &Header,
+		_finalized: &[H256],
 		_chain: &super::Headers<Header>,
 		_transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {
@@ -157,6 +158,15 @@ impl Engine<EthereumMachine> for BasicAuthority {
 
 		// finality never occurs so only apply immediate transitions.
 		self.validators.is_epoch_end(first, chain_head)
+	}
+
+	fn is_epoch_end_light(
+		&self,
+		chain_head: &Header,
+		chain: &super::Headers<Header>,
+		transition_store: &super::PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		self.is_epoch_end(chain_head, &[], chain, transition_store)
 	}
 
 	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
@@ -234,7 +244,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![::rlp::encode(&H520::default()).into_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default())]);
 
 		let verify_result = engine.verify_block_external(&header);
 		assert!(verify_result.is_err());

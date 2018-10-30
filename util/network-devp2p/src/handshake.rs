@@ -69,8 +69,6 @@ pub struct Handshake {
 	pub auth_cipher: Bytes,
 	/// A copy of received encrypted ack packet
 	pub ack_cipher: Bytes,
-	/// This Handshake is marked for deletion flag
-	pub expired: bool,
 }
 
 const V4_AUTH_PACKET_SIZE: usize = 307;
@@ -95,13 +93,7 @@ impl Handshake {
 			remote_version: PROTOCOL_VERSION,
 			auth_cipher: Bytes::new(),
 			ack_cipher: Bytes::new(),
-			expired: false,
 		})
-	}
-
-	/// Check if this handshake is expired.
-	pub fn expired(&self) -> bool {
-		self.expired
 	}
 
 	/// Start a handshake
@@ -125,28 +117,26 @@ impl Handshake {
 
 	/// Readable IO handler. Drives the state change.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		if !self.expired() {
-			while let Some(data) = self.connection.readable()? {
-				match self.state {
-					HandshakeState::New => {},
-					HandshakeState::StartSession => {},
-					HandshakeState::ReadingAuth => {
-						self.read_auth(io, host.secret(), &data)?;
-					},
-					HandshakeState::ReadingAuthEip8 => {
-						self.read_auth_eip8(io, host.secret(), &data)?;
-					},
-					HandshakeState::ReadingAck => {
-						self.read_ack(host.secret(), &data)?;
-					},
-					HandshakeState::ReadingAckEip8 => {
-						self.read_ack_eip8(host.secret(), &data)?;
-					},
-				}
-				if self.state == HandshakeState::StartSession {
-					io.clear_timer(self.connection.token).ok();
-					break;
-				}
+		while let Some(data) = self.connection.readable()? {
+			match self.state {
+				HandshakeState::New => {},
+				HandshakeState::StartSession => {},
+				HandshakeState::ReadingAuth => {
+					self.read_auth(io, host.secret(), &data)?;
+				},
+				HandshakeState::ReadingAuthEip8 => {
+					self.read_auth_eip8(io, host.secret(), &data)?;
+				},
+				HandshakeState::ReadingAck => {
+					self.read_ack(host.secret(), &data)?;
+				},
+				HandshakeState::ReadingAckEip8 => {
+					self.read_ack_eip8(host.secret(), &data)?;
+				},
+			}
+			if self.state == HandshakeState::StartSession {
+				io.clear_timer(self.connection.token).ok();
+				break;
 			}
 		}
 		Ok(())
@@ -154,9 +144,7 @@ impl Handshake {
 
 	/// Writable IO handler.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		if !self.expired() {
-			self.connection.writable(io)?;
-		}
+		self.connection.writable(io)?;
 		Ok(())
 	}
 

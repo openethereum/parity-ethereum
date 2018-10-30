@@ -10,7 +10,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 kvdb = "0.1"
 log = "0.4"
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"

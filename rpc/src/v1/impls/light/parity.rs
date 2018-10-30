@@ -27,18 +27,16 @@ use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
 
-use light::client::LightChainClient;
-
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::Future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::LightDispatcher;
-use v1::helpers::light_fetch::LightFetch;
+use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
+	Bytes, U256, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, LightBlockNumber, ConsensusCapability, VersionInfo,
@@ -49,7 +47,6 @@ use Host;
 
 /// Parity implementation for light client.
 pub struct ParityClient {
-	client: Arc<LightChainClient>,
 	light_dispatch: Arc<LightDispatcher>,
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
@@ -62,7 +59,6 @@ pub struct ParityClient {
 impl ParityClient {
 	/// Creates new `ParityClient`.
 	pub fn new(
-		client: Arc<LightChainClient>,
 		light_dispatch: Arc<LightDispatcher>,
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
@@ -78,7 +74,6 @@ impl ParityClient {
 			settings,
 			signer,
 			ws_address,
-			client,
 			gas_price_percentile,
 		}
 	}
@@ -263,17 +258,18 @@ impl Parity for ParityClient {
 	}
 
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {
-		let txq = self.light_dispatch.transaction_queue.read();
-		let chain_info = self.light_dispatch.client.chain_info();
-
-		let current = txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
-		let future = txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
 		Ok(
-			current
-				.into_iter()
-				.chain(future.into_iter())
+			light_all_transactions(&self.light_dispatch)
 				.map(|tx| Transaction::from_pending(tx))
-				.collect::<Vec<_>>()
+				.collect()
+		)
+	}
+
+	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
+		Ok(
+			light_all_transactions(&self.light_dispatch)
+				.map(|tx| tx.transaction.hash().into())
+				.collect()
 		)
 	}
 
@@ -326,10 +322,6 @@ impl Parity for ParityClient {
 
 	fn mode(&self) -> Result<String> {
 		Err(errors::light_unimplemented(None))
-	}
-
-	fn chain_id(&self) -> Result<Option<U64>> {
-		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
 	fn chain(&self) -> Result<String> {

@@ -1091,7 +1091,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let schedule = self.schedule;
 
 		// refunds from SSTORE nonzero -> zero
-		let sstore_refunds = substate.sstore_clears_refund;
+		assert!(substate.sstore_clears_refund >= 0, "On transaction level, sstore clears refund cannot go below zero.");
+		let sstore_refunds = U256::from(substate.sstore_clears_refund as u64);
 		// refunds from contract suicides
 		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
 		let refunds_bound = sstore_refunds + suicide_refunds;
@@ -2095,7 +2096,7 @@ mod tests {
 		let gas_used = gas - gas_left;
 		// sstore: 0 -> (1) -> () -> (1 -> 0 -> 1)
 		assert_eq!(gas_used, U256::from(41860));
-		assert_eq!(refund, U256::from(19800));
+		assert_eq!(refund, 19800);
 
 		assert_eq!(state.storage_at(&operating_address, &k).unwrap(), H256::from(U256::from(1)));
 		// Test a call via top-level -> y2 -> x2
@@ -2113,7 +2114,7 @@ mod tests {
 		let gas_used = gas - gas_left;
 		// sstore: 1 -> (1) -> () -> (0 -> 1 -> 0)
 		assert_eq!(gas_used, U256::from(11860));
-		assert_eq!(refund, U256::from(19800));
+		assert_eq!(refund, 19800);
 	}
 
 	fn wasm_sample_code() -> Arc<Vec<u8>> {
