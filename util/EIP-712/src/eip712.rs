@@ -54,7 +54,7 @@ pub struct EIP712 {
 
 impl Validate for EIP712 {
 	fn validate(&self) -> Result<(), ValidationErrors> {
-		for (_, field_types) in self.types.iter() {
+		for field_types in self.types.values() {
 			for field_type in field_types {
 				field_type.validate()?;
 			}
