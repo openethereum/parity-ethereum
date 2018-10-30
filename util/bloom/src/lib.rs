@@ -178,11 +178,7 @@ impl Bloom {
 	}
 
 	fn bloom_hash(base_hash: u64, k_i: u32) -> u64 {
-		if k_i < 2 {
-			base_hash
-		} else {
-			base_hash.wrapping_add((k_i as u64).wrapping_mul(base_hash) % 0xffffffffffffffc5)
-		}
+		base_hash.wrapping_add((k_i as u64).wrapping_mul(base_hash) % 0xffffffffffffffc5)
 	}
 
 	/// Drains the bloom journal returning the updated bloom part
