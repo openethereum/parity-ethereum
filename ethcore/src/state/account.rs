@@ -76,9 +76,6 @@ pub struct Account {
 	code_filth: Filth,
 	// Cached address hash.
 	address_hash: Cell<Option<H256>>,
-	// Patched account used to operate on the patched state with all changes in memory only
-	// Such accounts should not be committed
-	patched_account: bool,
 }
 
 impl From<BasicAccount> for Account {
@@ -95,7 +92,6 @@ impl From<BasicAccount> for Account {
 			code_cache: Arc::new(vec![]),
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
-			patched_account: false,
 		}
 	}
 }
@@ -116,7 +112,6 @@ impl Account {
 			code_cache: Arc::new(code),
 			code_filth: Filth::Dirty,
 			address_hash: Cell::new(None),
-			patched_account: false,
 		}
 	}
 
@@ -138,7 +133,6 @@ impl Account {
 			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len())),
 			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
 			address_hash: Cell::new(None),
-			patched_account: false,
 		}
 	}
 
@@ -156,7 +150,6 @@ impl Account {
 			code_size: Some(0),
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
-			patched_account: false,
 		}
 	}
 
@@ -186,7 +179,6 @@ impl Account {
 			code_size: None,
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
-			patched_account: false,
 		}
 	}
 
@@ -212,16 +204,7 @@ impl Account {
 		self.code_filth = Filth::Dirty;
 		self.storage_cache = Self::empty_storage_cache();
 		self.storage_changes = storage;
-	}
-
-	/// Swtich account to the patched mode
-	pub fn switch_to_patched(&mut self) {
-		self.patched_account = true;
-	}
-
-	/// Returns patched mode flag
-	pub fn patched(&self) -> bool {
-		self.patched_account
+		self.storage_root = KECCAK_NULL_RLP;
 	}
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
@@ -280,10 +263,6 @@ impl Account {
 	pub fn cached_storage_at(&self, key: &H256) -> Option<H256> {
 		if let Some(value) = self.storage_changes.get(key) {
 			return Some(value.clone())
-		}
-		//Use only in memory state for the patched account
-		if self.patched_account {
-			return None;
 		}
 		self.cached_moved_original_storage_at(key)
 	}
@@ -496,7 +475,6 @@ impl Account {
 
 	/// Commit the `storage_changes` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB<KeccakHasher, DBValue>) -> TrieResult<()> {
-		assert!(!self.patched_account, "Patched account should not be committed");
 		let mut t = trie_factory.from_existing(db, &mut self.storage_root)?;
 		for (k, v) in self.storage_changes.drain() {
 			// cast key and value to trait type,
@@ -515,7 +493,6 @@ impl Account {
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
 	pub fn commit_code(&mut self, db: &mut HashDB<KeccakHasher, DBValue>) {
 		trace!("Commiting code of {:?} - {:?}, {:?}", self, self.code_filth == Filth::Dirty, self.code_cache.is_empty());
-		assert!(!self.patched_account, "Patched account should not be committed");
 		match (self.code_filth == Filth::Dirty, self.code_cache.is_empty()) {
 			(true, true) => {
 				self.code_size = Some(0);
@@ -554,7 +531,6 @@ impl Account {
 			code_cache: self.code_cache.clone(),
 			code_filth: self.code_filth,
 			address_hash: self.address_hash.clone(),
-			patched_account: self.patched_account,
 		}
 	}
 

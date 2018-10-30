@@ -635,10 +635,6 @@ impl<B: Backend> State<B> {
 						if let Some(value) = f_cached_at(account, key) {
 							return Ok(value);
 						} else {
-							if account.patched() {
-								// Use only local cache for patched accounts
-								return Ok(H256::new());
-							}
 							local_account = Some(maybe_acc);
 						}
 					},
@@ -1158,9 +1154,7 @@ impl<B: Backend> State<B> {
 
 	/// Replace account code and storage. Creates account if it does not exist.
 	pub fn patch_account(&self, a: &Address, code: Arc<Bytes>, storage: HashMap<H256, H256>) -> TrieResult<()> {
-		let mut account = self.require(a, false)?;
-		account.switch_to_patched();
-		Ok(account.reset_code_and_storage(code, storage))
+		Ok(self.require(a, false)?.reset_code_and_storage(code, storage))
 	}
 }
 
