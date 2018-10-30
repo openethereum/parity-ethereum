@@ -227,5 +227,15 @@ build_rpc_trait! {
 		/// but returns block hash on success, and returns an explicit error message on failure).
 		#[rpc(name = "parity_submitWorkDetail")]
 		fn submit_work_detail(&self, H64, H256, H256) -> Result<H256>;
+
+		/// Returns the status of the node. Used as the health endpoint.
+		///
+		/// The RPC returns successful response if:
+		/// - The node have a peer (unless running a dev chain)
+		/// - The node is not syncing.
+		///
+		/// Otherwise the RPC returns error.
+		#[rpc(name = "parity_nodeStatus")]
+		fn status(&self) -> Result<()>;
 	}
 }
