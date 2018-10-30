@@ -117,9 +117,9 @@ fn encode_data(
 
 			// check if the type definition actually matches
 			// the length of items to be encoded
-			if *length != 0 && values.len() as u64 != *length {
-				let array_type = format!("{}[{}]", *inner, length);
-				return Err(ErrorKind::UnequalArrayItems(*length, array_type, values.len() as u64))?
+			if length.is_some() && Some(values.len() as u64) != *length {
+				let array_type = format!("{}[{}]", *inner, length.unwrap());
+				return Err(ErrorKind::UnequalArrayItems(length.unwrap(), array_type, values.len() as u64))?
 			}
 
 			for item in values {

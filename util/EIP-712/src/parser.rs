@@ -31,7 +31,7 @@ pub enum Type {
 	Byte(u8),
 	Custom(String),
 	Array {
-		length: u64,
+		length: Option<u64>,
 		inner: Box<Type>
 	}
 }
@@ -52,10 +52,9 @@ impl From<Type> for String {
 				length
 			} => {
 				let inner: String = (*inner).into();
-				if length == 0 {
-					format!("{}[]", inner)
-				} else {
-					format!("{}[{}]", inner, length)
+				match length {
+					None => format!("{}[]", inner),
+					Some(length) => format!("{}[{}]", inner, length)
 				}
 			}
 		}
@@ -119,10 +118,7 @@ impl Parser {
 				}
 				Token::BracketClose if array_depth < 10 => {
 					if state == State::Open && token.is_some() {
-						let length = match current_array_length.take() {
-							None => 0,
-							Some(len) => len
-						};
+						let length = current_array_length.take();
 						state = State::Close;
 						token = Some(Type::Array {
 							inner: Box::new(token.expect("if statement checks for some; qed")),
