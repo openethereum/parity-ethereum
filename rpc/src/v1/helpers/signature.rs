@@ -69,7 +69,7 @@ mod tests {
 	}
 
 	/// mocked signer
-	fn sign(should_prefix: bool, data: Vec<u8>, signing_chain_id: Option<u64>) -> (H160, [u8; 32], [u8; 32], u64) {
+	fn sign(should_prefix: bool, data: Vec<u8>, signing_chain_id: Option<u64>) -> (H160, [u8; 32], [u8; 32], U64) {
 		let hash = if should_prefix { eth_data_hash(data) } else { keccak(data) };
 		let accounts = Arc::new(AccountProvider::transient_provider());
 		let address = accounts.new_account(&"password123".into()).unwrap();
@@ -82,7 +82,7 @@ mod tests {
 			s_buf.copy_from_slice(s);
 			(r_buf, s_buf)
 		};
-		(address.into(), r_buf, s_buf, v)
+		(address.into(), r_buf, s_buf, v.into())
 	}
 
 	fn run_test(test_case: TestCase) {
@@ -90,7 +90,7 @@ mod tests {
 		let data = vec![5u8];
 
 		let (address, r, s, v) = sign(should_prefix, data.clone(), signing_chain_id);
-		let account = verify_signature(should_prefix, data.into(), v.into(), r.into(), s.into(), rpc_chain_id).unwrap();
+		let account = verify_signature(should_prefix, data.into(), r.into(), s.into(), v, rpc_chain_id).unwrap();
 
 		assert_eq!(account.address, address.into());
 		assert_eq!(account.is_valid_for_current_chain, is_valid_for_current_chain)
