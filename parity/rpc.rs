@@ -44,6 +44,7 @@ pub struct HttpConfiguration {
 	pub server_threads: usize,
 	pub processing_threads: usize,
 	pub max_payload: usize,
+	pub keep_alive: bool,
 }
 
 impl Default for HttpConfiguration {
@@ -58,6 +59,7 @@ impl Default for HttpConfiguration {
 			server_threads: 1,
 			processing_threads: 4,
 			max_payload: 5,
+			keep_alive: true,
 		}
 	}
 }
@@ -218,6 +220,7 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		rpc::RpcExtractor,
 		conf.server_threads,
 		conf.max_payload,
+		conf.keep_alive,
 	);
 
 	match start_result {

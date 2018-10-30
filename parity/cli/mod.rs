@@ -499,6 +499,10 @@ usage! {
 			"--jsonrpc-max-payload=[MB]",
 			"Specify maximum size for HTTP JSON-RPC requests in megabytes.",
 
+			ARG arg_jsonrpc_no_keep_alive: (bool) = false, or |c: &Config| c.rpc.as_ref()?.keep_alive,
+			"--jsonrpc-no-keep-alive",
+			"Disable HTTP/1.1 keep alive header. Disabling keep alive will prevent re-using the same TCP connection to fire multiple requests, recommended when using one request per connection.",
+
 		["API and Console Options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| c.websockets.as_ref()?.disable.clone(),
 			"--no-ws",
@@ -1219,6 +1223,7 @@ struct Rpc {
 	server_threads: Option<usize>,
 	processing_threads: Option<usize>,
 	max_payload: Option<usize>,
+	keep_alive: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1684,6 +1689,7 @@ mod tests {
 			arg_jsonrpc_server_threads: None,
 			arg_jsonrpc_threads: 4,
 			arg_jsonrpc_max_payload: None,
+			arg_jsonrpc_no_keep_alive: false,
 
 			// WS
 			flag_no_ws: false,
@@ -1958,6 +1964,7 @@ mod tests {
 				server_threads: None,
 				processing_threads: None,
 				max_payload: None,
+				keep_alive: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,
