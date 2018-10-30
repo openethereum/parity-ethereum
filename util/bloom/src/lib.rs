@@ -130,7 +130,7 @@ impl Bloom {
 		where T: Hash
 	{
 		let base_hash = Bloom::sip_hash(&item);
-		for k_i in 0..self.k_num {
+		for k_i in 1..(self.k_num + 1) {
 			let bit_offset = (Bloom::bloom_hash(base_hash, k_i) % self.bitmap_bits) as usize;
 			self.bitmap.set(bit_offset);
 		}
@@ -142,7 +142,7 @@ impl Bloom {
 		where T: Hash
 	{
 		let base_hash = Bloom::sip_hash(&item);
-		for k_i in 0..self.k_num {
+		for k_i in 1..(self.k_num + 1) {
 			let bit_offset = (Bloom::bloom_hash(base_hash, k_i) % self.bitmap_bits) as usize;
 			if !self.bitmap.get(bit_offset) {
 				return false;
