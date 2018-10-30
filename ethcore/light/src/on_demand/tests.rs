@@ -95,7 +95,6 @@ impl Harness {
 		Harness {
 			service: OnDemand::new_test(
 				cache,
-				super::DEFAULT_SUCCESS_RATE,
 				Duration::from_secs(5),
 				Duration::from_secs(5),
 				Duration::from_secs(10),

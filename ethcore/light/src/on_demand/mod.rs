@@ -63,8 +63,6 @@ pub const DEFAULT_REQUEST_BACKOFF_ATTEMPTS: usize = 10;
 pub const DEFAULT_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(10);
 /// The maximum request interval for OnDemand queries
 pub const DEFAULT_MAX_BACKOFF_DURATION: Duration = Duration::from_secs(100);
-/// The default success rate of a time window that must be met otherwise it is regarded as a failure
-pub const DEFAULT_SUCCESS_RATE: f64 = 0.8;
 /// The default window length when a requested is evaluated as successful or as a failure
 pub const DEFAULT_WINDOW_DURATION: Duration = Duration::from_secs(10);
 /// The default number of maximum backoff iterations
@@ -81,16 +79,16 @@ pub mod error {
 		}
 
 		errors {
-			#[doc = "Failure rate of bad responses exceeded"]
+			#[doc = "Timeout bad response"]
 			BadResponse(err: super::ResponseGuardError) {
-				description("Failure rate of bad responses exceeded")
-				display("Failure rate of bad responses exceeded, determined failure was: {:?}", err)
+				description("Max response evaluation time exceeded")
+				display("Bad response timeout, {}", err)
 			}
 
 			#[doc = "Failure rate for OnDemand requests were exceeded"]
 			RequestLimit {
 				description("Failure rate for OnDemand requests were exceeded")
-				display("Failure rate for OnDemand requests were exceeded")
+				display("Request time out")
 			}
 		}
 	}
@@ -330,7 +328,6 @@ pub struct OnDemand {
 	in_transit: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
 	no_immediate_dispatch: bool,
-	required_success_rate: f64,
 	time_window_dur: Duration,
 	start_backoff_dur: Duration,
 	max_backoff_dur: Duration,
@@ -342,7 +339,6 @@ impl OnDemand {
 	/// Create a new `OnDemand` service with the given cache.
 	pub fn new(
 		cache: Arc<Mutex<Cache>>,
-		required_success_rate: f64,
 		time_window_dur: Duration,
 		start_backoff_dur: Duration,
 		max_backoff_dur: Duration,
@@ -350,8 +346,8 @@ impl OnDemand {
 	) -> Self {
 
 		// santize input in order to make sure that it doesn't panic
-		let (s_success_rate, s_window_dur, s_start_backoff_dur, s_max_backoff_dur) =
-			Self::santize_circuit_breaker_input(required_success_rate, time_window_dur, start_backoff_dur, max_backoff_dur);
+		let (s_window_dur, s_start_backoff_dur, s_max_backoff_dur) =
+			Self::santize_circuit_breaker_input(time_window_dur, start_backoff_dur, max_backoff_dur);
 
 		OnDemand {
 			pending: RwLock::new(Vec::new()),
@@ -359,7 +355,6 @@ impl OnDemand {
 			in_transit: RwLock::new(HashMap::new()),
 			cache,
 			no_immediate_dispatch: false,
-			required_success_rate: s_success_rate,
 			time_window_dur: s_window_dur,
 			start_backoff_dur: s_start_backoff_dur,
 			max_backoff_dur: s_max_backoff_dur,
@@ -368,19 +363,10 @@ impl OnDemand {
 	}
 
 	fn santize_circuit_breaker_input(
-		required_success_rate: f64,
 		time_window_dur: Duration,
 		start_backoff_dur: Duration,
 		max_backoff_dur: Duration
-	) -> (f64, Duration, Duration, Duration) {
-		let required_success_rate = if required_success_rate > 1.00 || required_success_rate < 0.0 {
-		let rounded_rate = (0.0 as f64).max((1.0 as f64).min(required_success_rate));
-			warn!(target: "on_demand", "Success rate is illegal, falling back to success rate {:.2}", rounded_rate);
-			rounded_rate
-		} else {
-			required_success_rate
-		};
-
+	) -> (Duration, Duration, Duration) {
 		let time_window_dur = if time_window_dur.as_secs() < 1 {
 			warn!(target: "on_demand",
 				"Time window is too short must be at least 1 second, configuring it to 1 second");
@@ -405,7 +391,7 @@ impl OnDemand {
 			start_backoff_dur
 		};
 
-		(required_success_rate, time_window_dur, start_backoff_dur, max_backoff_dur)
+		(time_window_dur, start_backoff_dur, max_backoff_dur)
 	}
 
 	// make a test version: this doesn't dispatch pending requests
@@ -413,13 +399,12 @@ impl OnDemand {
 	#[cfg(test)]
 	fn new_test(
 		cache: Arc<Mutex<Cache>>,
-		required_success_rate: f64,
 		time_window_dur: Duration,
 		start_backoff_dur: Duration,
 		max_backoff_dur: Duration,
 		max_backoff_rounds: usize,
 	) -> Self {
-		let mut me = OnDemand::new(cache, required_success_rate, time_window_dur, start_backoff_dur, max_backoff_dur, max_backoff_rounds);
+		let mut me = OnDemand::new(cache, time_window_dur, start_backoff_dur, max_backoff_dur, max_backoff_rounds);
 		me.no_immediate_dispatch = true;
 
 		me
@@ -474,13 +459,12 @@ impl OnDemand {
 			responses,
 			sender,
 			request_guard: RequestGuard::new(
-				self.required_success_rate,
 				self.start_backoff_dur,
 				self.max_backoff_dur, self.
 				time_window_dur,
 				self.max_backoff_rounds
 			),
-			response_guard: ResponseGuard::new(self.required_success_rate, self.time_window_dur),
+			response_guard: ResponseGuard::new(self.time_window_dur),
 		});
 
 		Ok(receiver)
@@ -549,21 +533,12 @@ impl OnDemand {
 				}
 
 				// Register that the request round failed
-				match pending.request_guard.register_error() {
-					// Drop the request
-					RequestError::ReachedLimit => {
-						trace!(target: "on_demand", "The RequestGuard dropped the request");
-						pending.request_limit_reached();
-						return None
-					}
-					RequestError::Rejected => {
-						trace!(target: "on_demand", "The RequestGuard rejected the request, waiting for backoff");
-					}
-					RequestError::LetThrough => {
-						trace!(target: "on_demand", "The RequestGuard registered a bad response");
-					}
+				if let RequestError::ReachedLimit = pending.request_guard.register_error() {
+					pending.request_limit_reached();
+					None
+				} else {
+					Some(pending)
 				}
-				Some(pending)
 		})
 		.collect(); // `pending` now contains all requests we couldn't dispatch
 

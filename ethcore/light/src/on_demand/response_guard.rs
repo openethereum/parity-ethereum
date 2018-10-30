@@ -16,6 +16,7 @@
 
 use std::time::Duration;
 use std::collections::HashMap;
+use std::fmt;
 
 use failsafe;
 use super::{ResponseError, ValidityError};
@@ -26,9 +27,23 @@ type ResponsePolicy = failsafe::failure_policy::SuccessRateOverTimeWindow<NoBack
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
 	/// No majority, the error reason can't be determined
-	NoMajority,
+	NoMajority(usize),
 	/// Majority, with the error reason
-	Majority(Inner),
+	Majority(Inner, usize, usize),
+}
+
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			Error::Majority(err, majority, total) => {
+				write!(f, "error cause was {:?}, (majority count: {} / total: {})",
+					err, majority, total)
+			}
+			Error::NoMajority(total) => {
+				write!(f, "error cause couldn't be determined, the total number of responses was {}", total)
+			}
+		}
+	}
 }
 
 
@@ -74,9 +89,8 @@ pub struct ResponseGuard {
 
 impl ResponseGuard {
 	/// Constructor
-	pub fn new(required_success_rate: f64, window_dur: Duration) -> Self {
-		let policy = failsafe::failure_policy::success_rate_over_time_window(required_success_rate, 1, window_dur, NoBackoff);
-
+	pub fn new(window_dur: Duration) -> Self {
+		let policy = failsafe::failure_policy::success_rate_over_time_window(1.0, 1, window_dur, NoBackoff);
 		Self {
 			state: failsafe::StateMachine::new(policy, ()),
 			responses: HashMap::new(),
@@ -104,21 +118,24 @@ impl ResponseGuard {
 
 	/// Update the state after a `faulty` call
 	pub fn register_error(&mut self, err: &ResponseError<super::request::Error>) -> Result<(), Error> {
-			self.state.on_error();
-			let err = self.into_reason(err);
-			*self.responses.entry(err).or_insert(0) += 1;
-			if self.state.is_call_permitted() {
-				Ok(())
+		self.state.on_error();
+		let err = self.into_reason(err);
+		*self.responses.entry(err).or_insert(0) += 1;
+		if self.state.is_call_permitted() {
+			trace!(target: "circuit_breaker", "ResponseGuard: {:?}, responses {:?}", self.state, self.responses);
+			Ok(())
+		} else {
+			trace!(target: "circuit_breaker", "ResponseGuard: {:?}, responses: {:?}", self.state, self.responses);
+			let (&err, &max_count) = self.responses.iter().max_by_key(|(_k, v)| *v).expect("got at least one element; qed");
+			let majority = self.responses.values().filter(|v| **v == max_count).count() == 1;
+			// FIXME: more efficient with a separate counter
+			let total_responses = self.responses.values().sum();
+			if majority {
+				Err(Error::Majority(err, max_count, total_responses))
 			} else {
-				let (&err, &max_count) = self.responses.iter().max_by_key(|(_k, v)| *v).expect("got at least one element; qed");
-				let majority = self.responses.values().filter(|v| **v == max_count).count() == 1;
-
-				if majority {
-					Err(Error::Majority(err))
-				} else {
-					Err(Error::NoMajority)
-				}
+				Err(Error::NoMajority(total_responses))
 			}
+		}
 	}
 }
 
@@ -141,7 +158,7 @@ mod tests {
 
 	#[test]
 	fn test_basic_by_majority() {
-		let mut guard = ResponseGuard::new(0.8, Duration::from_secs(5));
+		let mut guard = ResponseGuard::new(Duration::from_secs(5));
 		guard.register_error(&ResponseError::Validity(ValidityError::Empty)).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
@@ -149,12 +166,12 @@ mod tests {
 		// wait for the current time window to end
 		thread::sleep(Duration::from_secs(5));
 
-		assert_eq!(guard.register_error(&ResponseError::Validity(ValidityError::WrongKind)), Err(Error::Majority(Inner::Unexpected)));
+		assert_eq!(guard.register_error(&ResponseError::Validity(ValidityError::WrongKind)), Err(Error::Majority(Inner::Unexpected, 3, 5)));
 	}
 
 	#[test]
 	fn test_no_majority() {
-		let mut guard = ResponseGuard::new(0.8, Duration::from_secs(5));
+		let mut guard = ResponseGuard::new(Duration::from_secs(5));
 		guard.register_error(&ResponseError::Validity(ValidityError::Empty)).unwrap();
 		guard.register_error(&ResponseError::Validity(ValidityError::Empty)).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
@@ -162,6 +179,6 @@ mod tests {
 		// wait for the current time window to end
 		thread::sleep(Duration::from_secs(5));
 
-		assert_eq!(guard.register_error(&ResponseError::Validity(ValidityError::WrongKind)), Err(Error::NoMajority));
+		assert_eq!(guard.register_error(&ResponseError::Validity(ValidityError::WrongKind)), Err(Error::NoMajority(5)));
 	}
 }

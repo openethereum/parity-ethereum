@@ -41,43 +41,48 @@ pub struct RequestGuard {
 impl RequestGuard {
 	/// Constructor
 	pub fn new(
-		required_success_rate: f64,
 		min_backoff_dur: Duration,
 		max_backoff_dur: Duration,
 		window_dur: Duration,
 		max_backoff_rounds: usize
 	) -> Self {
 		let backoff = failsafe::backoff::exponential(min_backoff_dur, max_backoff_dur);
-		let policy = failsafe::failure_policy::success_rate_over_time_window(required_success_rate, 1, window_dur, backoff);
+		// success_rate not used because only errors are registered
+		let policy = failsafe::failure_policy::success_rate_over_time_window(1.00, 1, window_dur, backoff);
 
 		Self {
 			num_failures: 0,
 			max_failures: max_backoff_rounds,
-			state: failsafe::StateMachine::new(policy, ())
+			state: failsafe::StateMachine::new(policy, ()),
 		}
 	}
 
 	/// Update the state after a `faulty` call
 	pub fn register_error(&mut self) -> Error {
-
-		// Max number of failures received
-		if self.num_failures >= self.max_failures {
-			Error::ReachedLimit
-		}
 		// Circuit breaker is `closed`, count as a failure
+		if self.num_failures >= self.max_failures {
+				trace!(target: "circuit_breaker", "RequestGuard: reached_limit, failures: {}/{}, state {:?}",
+					self.num_failures, self.max_failures, self.state);
+				Error::ReachedLimit
+		}
 		else if self.state.is_call_permitted() {
-			// register as a `failure`
 			self.state.on_error();
 			self.num_failures += 1;
 
 			if self.num_failures >= self.max_failures {
+				trace!(target: "circuit_breaker", "RequestGuard: reached_limit, failures: {}/{}, state {:?}",
+					self.num_failures, self.max_failures, self.state);
 				Error::ReachedLimit
 			} else {
+				trace!(target: "circuit_breaker", "RequestGuard; failures: {}/{}, state {:?}",
+					self.num_failures, self.max_failures, self.state);
 				Error::LetThrough
 			}
 		}
 		// Circuit breaker is `open`, don't count as a failure
 		else {
+			trace!(target: "circuit_breaker", "RequestGuard; failures: {}/{}, state {:?}",
+				self.num_failures, self.max_failures, self.state);
 			Error::Rejected
 		}
 	}
@@ -87,3 +92,4 @@ impl RequestGuard {
 		self.state.is_call_permitted()
 	}
 }
+
