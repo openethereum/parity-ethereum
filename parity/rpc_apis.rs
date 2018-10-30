@@ -338,6 +338,7 @@ impl FullDependencies {
 						self.settings.clone(),
 						signer,
 						self.ws_address.clone(),
+						self.snapshot.clone().into(),
 					).to_delegate());
 
 					if !for_generic_pubsub {
