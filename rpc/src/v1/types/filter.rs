@@ -57,15 +57,13 @@ pub type Topic = VariadicValue<H256>;
 /// Filter
 #[derive(Debug, PartialEq, Clone, Deserialize, Eq, Hash)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Filter {
 	/// From Block
-	#[serde(rename="fromBlock")]
 	pub from_block: Option<BlockNumber>,
 	/// To Block
-	#[serde(rename="toBlock")]
 	pub to_block: Option<BlockNumber>,
 	/// Block hash
-	#[serde(rename="blockHash")]
 	pub block_hash: Option<H256>,
 	/// Address
 	pub address: Option<FilterAddress>,

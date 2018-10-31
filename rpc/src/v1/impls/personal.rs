@@ -38,6 +38,7 @@ use v1::types::{
 	RichRawTransaction as RpcRichRawTransaction,
 };
 use v1::metadata::Metadata;
+use eip712::{EIP712, hash_structured_data};
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
@@ -148,6 +149,29 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 					 Err(e) => Err(e),
 					 e => Err(errors::internal("Unexpected result", e)),
 				 }))
+	}
+
+	fn sign_typed_data(&self, typed_data: EIP712, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		let data = match hash_structured_data(typed_data) {
+			Ok(d) => d,
+			Err(err) => return Box::new(future::done(Err(errors::invalid_call_data(err.kind())))),
+		};
+		let dispatcher = self.dispatcher.clone();
+		let accounts = self.accounts.clone();
+
+		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), RpcBytes(data)).into());
+
+		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
+			.and_then(|payload| {
+				dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+			})
+			.map(|v| v.into_value())
+			.then(|res| match res {
+				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result", e)),
+			})
+		)
 	}
 
 	fn ec_recover(&self, data: RpcBytes, signature: RpcH520) -> BoxFuture<RpcH160> {

@@ -21,10 +21,10 @@ use transaction;
 #[serde(deny_unknown_fields)]
 pub enum TransactionCondition {
 	/// Valid at this minimum block number.
-	#[serde(rename="block")]
+	#[serde(rename = "block")]
 	Number(u64),
 	/// Valid at given unix time.
-	#[serde(rename="time")]
+	#[serde(rename = "time")]
 	Timestamp(u64),
 }
 

@@ -305,6 +305,16 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		)
 	}
 
+	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
+		let all_transaction_hashes = self.miner.queued_transaction_hashes();
+
+		Ok(all_transaction_hashes
+			.into_iter()
+			.map(|hash| hash.into())
+			.collect()
+		)
+	}
+
 	fn future_transactions(&self) -> Result<Vec<Transaction>> {
 		Err(errors::deprecated("Use `parity_allTransaction` instead."))
 	}

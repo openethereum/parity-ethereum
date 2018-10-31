@@ -20,9 +20,9 @@ use uint::Uint;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NullEngineParams {
 	/// Block reward.
-	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
 }
 

@@ -20,49 +20,43 @@ use updater::{self, CapState};
 
 /// Capability info
 #[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ConsensusCapability {
 	/// Unknown.
-	#[serde(rename="unknown")]
 	Unknown,
 	/// Capable of consensus indefinitely.
-	#[serde(rename="capable")]
 	Capable,
-	/// Capable of consensus up until a definite block. 
-	#[serde(rename="capableUntil")]
+	/// Capable of consensus up until a definite block.
 	CapableUntil(u64),
-	/// Incapable of consensus since a particular block. 
-	#[serde(rename="incapableSince")]
+	/// Incapable of consensus since a particular block.
 	IncapableSince(u64),
 }
 
 impl Into<ConsensusCapability> for CapState {
 	fn into(self) -> ConsensusCapability {
 		match self {
-			CapState::Unknown => ConsensusCapability::Unknown, 
-			CapState::Capable => ConsensusCapability::Capable, 
-			CapState::CapableUntil(n) => ConsensusCapability::CapableUntil(n), 
-			CapState::IncapableSince(n) => ConsensusCapability::IncapableSince(n), 
+			CapState::Unknown => ConsensusCapability::Unknown,
+			CapState::Capable => ConsensusCapability::Capable,
+			CapState::CapableUntil(n) => ConsensusCapability::CapableUntil(n),
+			CapState::IncapableSince(n) => ConsensusCapability::IncapableSince(n),
 		}
 	}
 }
 
 /// A release's track.
 #[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ReleaseTrack {
 	/// Stable track.
-	#[serde(rename="stable")]
 	Stable,
 	/// Beta track.
-	#[serde(rename="beta")]
 	Beta,
 	/// Nightly track.
-	#[serde(rename="nightly")]
 	Nightly,
 	/// Testing track.
-	#[serde(rename="testing")]
 	Testing,
 	/// No known track.
-	#[serde(rename="null")]
+	#[serde(rename = "null")]
 	Unknown,
 }
 
@@ -99,7 +93,7 @@ impl Into<Version> for semver::Version {
 	}
 }
 
-/// Version information of a particular release. 
+/// Version information of a particular release.
 #[derive(Debug, PartialEq, Serialize)]
 pub struct VersionInfo {
 	/// The track on which it was released.
@@ -125,11 +119,11 @@ impl Into<VersionInfo> for updater::VersionInfo {
 pub struct ReleaseInfo {
 	/// Information on the version.
 	pub version: VersionInfo,
-	/// Does this release contain critical security updates? 
+	/// Does this release contain critical security updates?
 	pub is_critical: bool,
 	/// The latest fork that this release can handle.
 	pub fork: u64,
-	/// Our platform's binary, if known. 
+	/// Our platform's binary, if known.
 	pub binary: Option<H256>,
 }
 
@@ -149,9 +143,9 @@ impl Into<ReleaseInfo> for updater::ReleaseInfo {
 pub struct OperationsInfo {
 	/// Our blockchain's latest fork.
 	pub fork: u64,
-	/// Last fork our client supports, if known. 
+	/// Last fork our client supports, if known.
 	pub this_fork: Option<u64>,
-	/// Information on our track's latest release. 
+	/// Information on our track's latest release.
 	pub track: ReleaseInfo,
 	/// Information on our minor version's latest release.
 	pub minor: Option<ReleaseInfo>,

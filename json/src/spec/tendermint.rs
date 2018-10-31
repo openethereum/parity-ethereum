@@ -21,23 +21,19 @@ use super::ValidatorSet;
 
 /// Tendermint params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TendermintParams {
 	/// Valid validators.
 	pub validators: ValidatorSet,
 	/// Propose step timeout in milliseconds.
-	#[serde(rename="timeoutPropose")]
 	pub timeout_propose: Option<Uint>,
 	/// Prevote step timeout in milliseconds.
-	#[serde(rename="timeoutPrevote")]
 	pub timeout_prevote: Option<Uint>,
 	/// Precommit step timeout in milliseconds.
-	#[serde(rename="timeoutPrecommit")]
 	pub timeout_precommit: Option<Uint>,
 	/// Commit step timeout in milliseconds.
-	#[serde(rename="timeoutCommit")]
 	pub timeout_commit: Option<Uint>,
 	/// Reward per block.
-	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
 }
 

@@ -32,7 +32,7 @@ use jsonrpc_core::futures::Future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::LightDispatcher;
-use v1::helpers::light_fetch::LightFetch;
+use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -258,17 +258,18 @@ impl Parity for ParityClient {
 	}
 
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {
-		let txq = self.light_dispatch.transaction_queue.read();
-		let chain_info = self.light_dispatch.client.chain_info();
-
-		let current = txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
-		let future = txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
 		Ok(
-			current
-				.into_iter()
-				.chain(future.into_iter())
+			light_all_transactions(&self.light_dispatch)
 				.map(|tx| Transaction::from_pending(tx))
-				.collect::<Vec<_>>()
+				.collect()
+		)
+	}
+
+	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
+		Ok(
+			light_all_transactions(&self.light_dispatch)
+				.map(|tx| tx.transaction.hash().into())
+				.collect()
 		)
 	}
 
