@@ -556,7 +556,7 @@ impl Provider where {
 			.and_then(|h| h.decode().map_err(|_| ErrorKind::StateIncorrect).into())?;
 		let (executed_code, executed_state) = (executed.code.unwrap_or_default(), executed.state);
 		let tx_data = Self::generate_constructor(validators, executed_code.clone(), executed_state.clone());
-		let gas = match self.client.estimate_gas(&Transaction{
+		let gas = match self.client.estimate_gas(&Transaction {
 			nonce: nonce,
 			action: Action::Create,
 			gas: u64::max_value().into(),
