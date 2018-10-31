@@ -1839,7 +1839,7 @@ mod tests {
 			arg_on_demand_request_time_window: Some(3000),
 			arg_on_demand_request_backoff_start: Some(9000),
 			arg_on_demand_request_backoff_max: Some(15000),
-			arg_on_demand_request_backoff_rounds_max: Some(10),
+			arg_on_demand_request_backoff_rounds_max: Some(100),
 
 			// -- Whisper options.
 			flag_whisper: false,
