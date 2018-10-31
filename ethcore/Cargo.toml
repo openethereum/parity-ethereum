@@ -106,7 +106,5 @@ json-tests = ["ethcore-transaction/json-tests", "test-helpers", "tempdir"]
 ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
-# Compile benches
-benches = []
 # Compile test helpers
 test-helpers = ["tempdir"]
