@@ -95,9 +95,15 @@ impl Harness {
 		Harness {
 			service: OnDemand::new_test(
 				cache,
+				// response duration
 				Duration::from_secs(5),
+				// request duration
 				Duration::from_secs(5),
+				// request start backoff
+				Duration::from_secs(5),
+				// request max backoff
 				Duration::from_secs(10),
+				// request max backoff rounds
 				super::DEFAULT_REQUEST_BACKOFF_ATTEMPTS
 			)
 		}
@@ -533,7 +539,7 @@ fn request_without_response_should_backoff_and_then_be_dropped() {
 	for (i, &backoff) in binary_exp_backoff.iter().enumerate() {
 		harness.service.dispatch_pending(&Context::FaultyRequest);
 		let now = Instant::now();
-		while now.elapsed() <= harness.service.time_window_dur {}
+		while now.elapsed() <= harness.service.request_time_window {}
 		let now = Instant::now();
 		while now.elapsed() < Duration::from_secs(backoff + 2) {}
 		if i < binary_exp_backoff.len() - 1 {
@@ -576,7 +582,7 @@ fn empty_responses_exceeds_limit_should_be_dropped() {
 	// Send `empty responses` in the current time window
 	// Use only half of the `time_window` because we can't be sure exactly
 	// when the window started and the clock accurancy
-	while now.elapsed() < harness.service.time_window_dur / 2 {
+	while now.elapsed() < harness.service.response_time_window / 2 {
 		harness.service.on_responses(
 			&Context::RequestFrom(13, req_id),
 			req_id,

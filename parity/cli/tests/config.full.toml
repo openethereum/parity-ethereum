@@ -157,10 +157,11 @@ scale_verifiers = true
 num_verifiers = 6
 
 [light]
-on_demand_time_window = 1000
-on_demand_start_backoff = 100
-on_demand_end_backoff = 9000
-on_demand_max_backoff_rounds = 100
+on_demand_response_time_window = 1000
+on_demand_request_time_window = 1200
+on_demand_request_backoff_start = 1500
+on_demand_request_backoff_max = 9000
+on_demand_request_backoff_rounds_max = 100
 
 [snapshots]
 disable_periodic = false

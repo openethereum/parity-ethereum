@@ -60,13 +60,15 @@ pub type ExecutionResult = Result<Executed, ExecutionError>;
 /// The default number of a request is ```exponentially backed off``` until it gets dropped
 pub const DEFAULT_REQUEST_BACKOFF_ATTEMPTS: usize = 10;
 /// The initial backoff interval for OnDemand queries
-pub const DEFAULT_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(10);
+pub const DEFAULT_REQUEST_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(10);
 /// The maximum request interval for OnDemand queries
-pub const DEFAULT_MAX_BACKOFF_DURATION: Duration = Duration::from_secs(100);
-/// The default window length when a requested is evaluated as successful or as a failure
-pub const DEFAULT_WINDOW_DURATION: Duration = Duration::from_secs(10);
+pub const DEFAULT_REQUEST_MAX_BACKOFF_DURATION: Duration = Duration::from_secs(100);
+/// The default window length a response is evaluated
+pub const DEFAULT_RESPONSE_WINDOW_DURATION: Duration = Duration::from_secs(10);
+/// The default window length a request is evaluated
+pub const DEFAULT_REQUEST_WINDOW_DURATION: Duration = Duration::from_secs(10);
 /// The default number of maximum backoff iterations
-pub const DEFAULT_MAX_BACKOFF_ROUNDS: usize = 10;
+pub const DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS: usize = 10;
 
 /// OnDemand related errors
 pub mod error {
@@ -328,10 +330,11 @@ pub struct OnDemand {
 	in_transit: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
 	no_immediate_dispatch: bool,
-	time_window_dur: Duration,
-	start_backoff_dur: Duration,
-	max_backoff_dur: Duration,
-	max_backoff_rounds: usize,
+	response_time_window: Duration,
+	request_time_window: Duration,
+	request_backoff_start: Duration,
+	request_backoff_max: Duration,
+	request_backoff_rounds_max: usize
 }
 
 impl OnDemand {
@@ -339,15 +342,12 @@ impl OnDemand {
 	/// Create a new `OnDemand` service with the given cache.
 	pub fn new(
 		cache: Arc<Mutex<Cache>>,
-		time_window_dur: Duration,
-		start_backoff_dur: Duration,
-		max_backoff_dur: Duration,
-		max_backoff_rounds: usize,
+		response_time_window: Duration,
+		request_time_window: Duration,
+		request_backoff_start: Duration,
+		request_backoff_max: Duration,
+		request_backoff_rounds_max: usize,
 	) -> Self {
-
-		// santize input in order to make sure that it doesn't panic
-		let (s_window_dur, s_start_backoff_dur, s_max_backoff_dur) =
-			Self::santize_circuit_breaker_input(time_window_dur, start_backoff_dur, max_backoff_dur);
 
 		OnDemand {
 			pending: RwLock::new(Vec::new()),
@@ -355,43 +355,22 @@ impl OnDemand {
 			in_transit: RwLock::new(HashMap::new()),
 			cache,
 			no_immediate_dispatch: false,
-			time_window_dur: s_window_dur,
-			start_backoff_dur: s_start_backoff_dur,
-			max_backoff_dur: s_max_backoff_dur,
-			max_backoff_rounds,
+			response_time_window: Self::santize_circuit_breaker_input(response_time_window, "Response time window"),
+			request_time_window: Self::santize_circuit_breaker_input(request_time_window, "Request time window"),
+			request_backoff_start: Self::santize_circuit_breaker_input(request_backoff_start, "Request initial backoff time window"),
+			request_backoff_max: Self::santize_circuit_breaker_input(request_backoff_max, "Request maximum backoff time window"),
+			request_backoff_rounds_max,
 		}
 	}
 
-	fn santize_circuit_breaker_input(
-		time_window_dur: Duration,
-		start_backoff_dur: Duration,
-		max_backoff_dur: Duration
-	) -> (Duration, Duration, Duration) {
-		let time_window_dur = if time_window_dur.as_secs() < 1 {
+	fn santize_circuit_breaker_input(dur: Duration, name: &'static str) -> Duration {
+		if dur.as_secs() < 1 {
 			warn!(target: "on_demand",
-				"Time window is too short must be at least 1 second, configuring it to 1 second");
+				"{} is too short must be at least 1 second, configuring it to 1 second", name);
 			Duration::from_secs(1)
 		} else {
-			time_window_dur
-		};
-
-		let start_backoff_dur = if start_backoff_dur.as_secs() < 1 {
-			warn!(target: "on_demand",
-				"Initial backoff time is too short must be at least 1 second, configuring it to 1 second");
-			Duration::from_secs(1)
-		} else {
-			start_backoff_dur
-		};
-
-		let max_backoff_dur = if max_backoff_dur.as_secs() < 1 {
-			warn!(target: "on_demand",
-				"Maximum backoff time is too short must be at least 1 second, configuring it 1 second");
-			Duration::from_secs(1)
-		} else {
-			start_backoff_dur
-		};
-
-		(time_window_dur, start_backoff_dur, max_backoff_dur)
+			dur
+		}
 	}
 
 	// make a test version: this doesn't dispatch pending requests
@@ -399,12 +378,20 @@ impl OnDemand {
 	#[cfg(test)]
 	fn new_test(
 		cache: Arc<Mutex<Cache>>,
-		time_window_dur: Duration,
-		start_backoff_dur: Duration,
-		max_backoff_dur: Duration,
-		max_backoff_rounds: usize,
+		response_time_window: Duration,
+		request_time_window: Duration,
+		request_backoff_start: Duration,
+		request_backoff_max: Duration,
+		request_backoff_rounds_max: usize,
 	) -> Self {
-		let mut me = OnDemand::new(cache, time_window_dur, start_backoff_dur, max_backoff_dur, max_backoff_rounds);
+		let mut me = OnDemand::new(
+			cache,
+			response_time_window,
+			request_time_window,
+			request_backoff_start,
+			request_backoff_max,
+			request_backoff_rounds_max
+		);
 		me.no_immediate_dispatch = true;
 
 		me
@@ -459,12 +446,12 @@ impl OnDemand {
 			responses,
 			sender,
 			request_guard: RequestGuard::new(
-				self.start_backoff_dur,
-				self.max_backoff_dur, self.
-				time_window_dur,
-				self.max_backoff_rounds
+				self.request_time_window,
+				self.request_backoff_start,
+				self.request_backoff_max,
+				self.request_backoff_rounds_max
 			),
-			response_guard: ResponseGuard::new(self.time_window_dur),
+			response_guard: ResponseGuard::new(self.response_time_window),
 		});
 
 		Ok(receiver)

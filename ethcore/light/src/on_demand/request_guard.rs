@@ -41,9 +41,9 @@ pub struct RequestGuard {
 impl RequestGuard {
 	/// Constructor
 	pub fn new(
+		window_dur: Duration,
 		min_backoff_dur: Duration,
 		max_backoff_dur: Duration,
-		window_dur: Duration,
 		max_backoff_rounds: usize
 	) -> Self {
 		let backoff = failsafe::backoff::exponential(min_backoff_dur, max_backoff_dur);

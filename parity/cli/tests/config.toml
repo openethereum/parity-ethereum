@@ -71,10 +71,11 @@ fat_db = "off"
 scale_verifiers = false
 
 [light]
-on_demand_time_window = 1000
-on_demand_start_backoff = 100
-on_demand_end_backoff = 10000
-on_demand_max_backoff_rounds = 10
+on_demand_response_time_window = 1000
+on_demand_request_time_window = 1200
+on_demand_request_backoff_start = 2000
+on_demand_request_backoff_end = 10000
+on_demand_request_backoff_rounds_max = 10
 
 [snapshots]
 disable_periodic = true

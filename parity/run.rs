@@ -136,10 +136,11 @@ pub struct RunCmd {
 	pub whisper: ::whisper::Config,
 	pub no_hardcoded_sync: bool,
 	pub max_round_blocks_to_import: usize,
-	pub on_demand_time_window: Option<u64>,
-	pub on_demand_start_backoff: Option<u64>,
-	pub on_demand_end_backoff: Option<u64>,
-	pub on_demand_max_backoff_rounds: Option<usize>,
+	pub on_demand_request_time_window: Option<u64>,
+	pub on_demand_response_time_window: Option<u64>,
+	pub on_demand_request_backoff_start: Option<u64>,
+	pub on_demand_request_backoff_max: Option<u64>,
+	pub on_demand_request_backoff_rounds_max: Option<usize>,
 }
 
 // node info fetcher for the local store.
@@ -219,28 +220,34 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 	// start on_demand service.
 
-	let time_window = cmd.on_demand_time_window.map_or(
-		::light::on_demand::DEFAULT_WINDOW_DURATION,
+	let response_time_window = cmd.on_demand_response_time_window.map_or(
+		::light::on_demand::DEFAULT_RESPONSE_WINDOW_DURATION,
 		|ms| Duration::from_millis(ms)
 	);
 
-	let backoff_start = cmd.on_demand_time_window.map_or(
-		::light::on_demand::DEFAULT_MIN_BACKOFF_DURATION,
+	let request_time_window = cmd.on_demand_request_time_window.map_or(
+		::light::on_demand::DEFAULT_REQUEST_WINDOW_DURATION,
 		|ms| Duration::from_millis(ms)
 	);
 
-	let backoff_end = cmd.on_demand_time_window.map_or(
-		::light::on_demand::DEFAULT_MIN_BACKOFF_DURATION,
+	let request_backoff_start = cmd.on_demand_request_backoff_start.map_or(
+		::light::on_demand::DEFAULT_REQUEST_MIN_BACKOFF_DURATION,
+		|ms| Duration::from_millis(ms)
+	);
+
+	let request_backoff_max = cmd.on_demand_request_backoff_max.map_or(
+		::light::on_demand::DEFAULT_REQUEST_MAX_BACKOFF_DURATION,
 		|ms| Duration::from_millis(ms)
 	);
 
 	let on_demand = Arc::new({
 		::light::on_demand::OnDemand::new(
 			cache.clone(),
-			backoff_start,
-			backoff_end,
-			time_window,
-			cmd.on_demand_max_backoff_rounds.unwrap_or(::light::on_demand::DEFAULT_MAX_BACKOFF_ROUNDS)
+			response_time_window,
+			request_time_window,
+			request_backoff_start,
+			request_backoff_max,
+			cmd.on_demand_request_backoff_rounds_max.unwrap_or(::light::on_demand::DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS)
 		)
 	});
 
