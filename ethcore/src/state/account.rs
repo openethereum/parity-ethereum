@@ -204,6 +204,9 @@ impl Account {
 		self.code_filth = Filth::Dirty;
 		self.storage_cache = Self::empty_storage_cache();
 		self.storage_changes = storage;
+		if self.storage_root != KECCAK_NULL_RLP {
+			self.original_storage_cache = Some((self.storage_root, Self::empty_storage_cache()));
+		}
 		self.storage_root = KECCAK_NULL_RLP;
 	}
 
