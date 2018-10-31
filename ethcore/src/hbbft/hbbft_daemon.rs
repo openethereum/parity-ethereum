@@ -162,7 +162,7 @@ impl ContributionPusher {
 		info!("Proposing {} transactions (after {} attempts).", contribution.transactions.len(),
 			self.push_attempts);
 
-		self.hydrabadger.push_user_contribution(contribution)
+		self.hydrabadger.propose_user_contribution(contribution)
 			.expect("TODO: Add transactions back to miner txn queue");
 
 		// Reset push attempts counter:
