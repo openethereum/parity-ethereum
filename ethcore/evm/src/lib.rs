@@ -44,8 +44,6 @@ mod instructions;
 
 #[cfg(test)]
 mod tests;
-#[cfg(all(feature = "benches", test))]
-mod benches;
 
 pub use vm::{
     Schedule, CleanDustMode, EnvInfo, CallType, ActionParams, Ext,
