@@ -288,7 +288,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, tobalaba, expanse, musicoin, ellaism, easthub, social, mix, callisto, olympic, morden, ropsten, kovan, poasokol, testnet, or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, tobalaba, expanse, musicoin, ellaism, easthub, social, mix, callisto, morden, ropsten, kovan, poasokol, testnet, or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| c.parity.as_ref()?.keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -785,6 +785,10 @@ usage! {
 			"--stratum-secret=[STRING]",
 			"Secret for authorizing Stratum server for peers.",
 
+			ARG arg_max_round_blocks_to_import: (usize) = 12usize, or |c: &Config| c.mining.as_ref()?.max_round_blocks_to_import.clone(),
+			"--max-round-blocks-to-import=[S]",
+			"Maximal number of blocks to import for each import round.",
+
 		["Internal Options"]
 			FLAG flag_can_restart: (bool) = false, or |_| None,
 			"--can-restart",
@@ -1137,7 +1141,7 @@ struct Operating {
 	no_persistent_txqueue: Option<bool>,
 	no_hardcoded_sync: Option<bool>,
 
-	#[serde(rename="public_node")]
+	#[serde(rename = "public_node")]
 	_legacy_public_node: Option<bool>,
 }
 
@@ -1169,15 +1173,15 @@ struct PrivateTransactions {
 struct Ui {
 	path: Option<String>,
 
-	#[serde(rename="force")]
+	#[serde(rename = "force")]
 	_legacy_force: Option<bool>,
-	#[serde(rename="disable")]
+	#[serde(rename = "disable")]
 	_legacy_disable: Option<bool>,
-	#[serde(rename="port")]
+	#[serde(rename = "port")]
 	_legacy_port: Option<u16>,
-	#[serde(rename="interface")]
+	#[serde(rename = "interface")]
 	_legacy_interface: Option<String>,
-	#[serde(rename="hosts")]
+	#[serde(rename = "hosts")]
 	_legacy_hosts: Option<Vec<String>>,
 }
 
@@ -1240,21 +1244,21 @@ struct Ipc {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Dapps {
-	#[serde(rename="disable")]
+	#[serde(rename = "disable")]
 	_legacy_disable: Option<bool>,
-	#[serde(rename="port")]
+	#[serde(rename = "port")]
 	_legacy_port: Option<u16>,
-	#[serde(rename="interface")]
+	#[serde(rename = "interface")]
 	_legacy_interface: Option<String>,
-	#[serde(rename="hosts")]
+	#[serde(rename = "hosts")]
 	_legacy_hosts: Option<Vec<String>>,
-	#[serde(rename="cors")]
+	#[serde(rename = "cors")]
 	_legacy_cors: Option<String>,
-	#[serde(rename="path")]
+	#[serde(rename = "path")]
 	_legacy_path: Option<String>,
-	#[serde(rename="user")]
+	#[serde(rename = "user")]
 	_legacy_user: Option<String>,
-	#[serde(rename="pass")]
+	#[serde(rename = "pass")]
 	_legacy_pass: Option<String>,
 }
 
@@ -1326,6 +1330,7 @@ struct Mining {
 	notify_work: Option<Vec<String>>,
 	refuse_service_transactions: Option<bool>,
 	infinite_pending_block: Option<bool>,
+	max_round_blocks_to_import: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1758,6 +1763,7 @@ mod tests {
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
 			flag_infinite_pending_block: false,
+			arg_max_round_blocks_to_import: 12usize,
 
 			flag_stratum: false,
 			arg_stratum_interface: "local".to_owned(),
@@ -2029,6 +2035,7 @@ mod tests {
 				notify_work: None,
 				refuse_service_transactions: None,
 				infinite_pending_block: None,
+				max_round_blocks_to_import: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),

@@ -938,6 +938,10 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.all_transactions()
 	}
 
+	fn queued_transaction_hashes(&self) -> Vec<H256> {
+		self.transaction_queue.all_transaction_hashes()
+	}
+
 	fn pending_transaction_hashes<C>(&self, chain: &C) -> BTreeSet<H256> where
 		C: ChainInfo + Sync,
 	{

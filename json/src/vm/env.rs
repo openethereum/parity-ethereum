@@ -22,19 +22,19 @@ use uint::Uint;
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Env {
 	/// Address.
-	#[serde(rename="currentCoinbase")]
+	#[serde(rename = "currentCoinbase")]
 	pub author: Address,
 	/// Difficulty
-	#[serde(rename="currentDifficulty")]
+	#[serde(rename = "currentDifficulty")]
 	pub difficulty: Uint,
 	/// Gas limit.
-	#[serde(rename="currentGasLimit")]
+	#[serde(rename = "currentGasLimit")]
 	pub gas_limit: Uint,
 	/// Number.
-	#[serde(rename="currentNumber")]
+	#[serde(rename = "currentNumber")]
 	pub number: Uint,
 	/// Timestamp.
-	#[serde(rename="currentTimestamp")]
+	#[serde(rename = "currentTimestamp")]
 	pub timestamp: Uint,
 }
 

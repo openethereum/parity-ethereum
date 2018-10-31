@@ -133,6 +133,7 @@ pub struct RunCmd {
 	pub no_persistent_txqueue: bool,
 	pub whisper: ::whisper::Config,
 	pub no_hardcoded_sync: bool,
+	pub max_round_blocks_to_import: usize,
 	pub on_demand_retry_count: Option<usize>,
 	pub on_demand_inactive_time_limit: Option<u64>,
 }
@@ -530,6 +531,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		cmd.pruning_history,
 		cmd.pruning_memory,
 		cmd.check_seal,
+		cmd.max_round_blocks_to_import,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
@@ -957,6 +959,11 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		account_settings,
 	);
 
+	// Add development account if running dev chain:
+	if let SpecType::Dev = *spec {
+		insert_dev_account(&account_provider);
+	}
+
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists
 		if !account_provider.has_account(a) {
@@ -971,11 +978,6 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		if !passwords.iter().any(|p| account_provider.unlock_account_permanently(a, (*p).clone()).is_ok()) {
 			return Err(format!("No valid password to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
 		}
-	}
-
-	// Add development account if running dev chain:
-	if let SpecType::Dev = *spec {
-		insert_dev_account(&account_provider);
 	}
 
 	Ok(account_provider)

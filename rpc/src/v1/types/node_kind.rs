@@ -28,24 +28,22 @@ pub struct NodeKind {
 
 /// Who the node is available to.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Availability {
 	/// A personal node, not intended to be available to everyone.
-	#[serde(rename="personal")]
 	Personal,
 	/// A public, open node.
-	#[serde(rename="public")]
 	Public,
 }
 
 /// The capability of the node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Capability {
 	/// A full node stores the full state and fully enacts incoming blocks.
-	#[serde(rename="full")]
 	Full,
 	/// A light node does a minimal header sync and fetches data as needed
 	/// from the network.
-	#[serde(rename="light")]
 	Light,
 }
 

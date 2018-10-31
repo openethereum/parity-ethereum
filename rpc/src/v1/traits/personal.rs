@@ -16,7 +16,7 @@
 
 //! Personal rpc interface.
 use jsonrpc_core::{BoxFuture, Result};
-
+use eip712::EIP712;
 use v1::types::{Bytes, U128, H160, H256, H520, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
 
 build_rpc_trait! {
@@ -41,6 +41,11 @@ build_rpc_trait! {
 		/// the request.
 		#[rpc(name = "personal_sign")]
 		fn sign(&self, Bytes, H160, String) -> BoxFuture<H520>;
+
+		/// Produces an EIP-712 compliant signature with given account using the given password to unlock the
+		/// account during the request.
+		#[rpc(name = "personal_signTypedData")]
+		fn sign_typed_data(&self, EIP712, H160, String) -> BoxFuture<H520>;
 
 		/// Returns the account associated with the private key that was used to calculate the signature in
 		/// `personal_sign`.

@@ -42,7 +42,6 @@ pub enum SpecType {
 	Social,
 	Mix,
 	Callisto,
-	Olympic,
 	Morden,
 	Ropsten,
 	Kovan,
@@ -73,7 +72,6 @@ impl str::FromStr for SpecType {
 			"social" => SpecType::Social,
 			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
-			"olympic" => SpecType::Olympic,
 			"morden" | "classic-testnet" => SpecType::Morden,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
@@ -99,7 +97,6 @@ impl fmt::Display for SpecType {
 			SpecType::Social => "social",
 			SpecType::Mix => "mix",
 			SpecType::Callisto => "callisto",
-			SpecType::Olympic => "olympic",
 			SpecType::Morden => "morden",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
@@ -125,7 +122,6 @@ impl SpecType {
 			SpecType::Social => Ok(ethereum::new_social(params)),
 			SpecType::Mix => Ok(ethereum::new_mix(params)),
 			SpecType::Callisto => Ok(ethereum::new_callisto(params)),
-			SpecType::Olympic => Ok(ethereum::new_olympic(params)),
 			SpecType::Morden => Ok(ethereum::new_morden(params)),
 			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
@@ -380,7 +376,6 @@ mod tests {
 		assert_eq!(SpecType::Social, "social".parse().unwrap());
 		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
-		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Morden, "classic-testnet".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
@@ -408,7 +403,6 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Social), "social");
 		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
-		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");

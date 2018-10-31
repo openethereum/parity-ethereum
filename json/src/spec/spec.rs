@@ -38,11 +38,11 @@ pub enum ForkSpec {
 
 /// Spec deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Spec {
 	/// Spec name.
 	pub name: String,
 	/// Special fork name.
-	#[serde(rename="dataDir")]
 	pub data_dir: Option<String>,
 	/// Engine.
 	pub engine: Engine,
@@ -55,7 +55,6 @@ pub struct Spec {
 	/// Boot nodes.
 	pub nodes: Option<Vec<String>>,
 	/// Hardcoded synchronization for the light client.
-	#[serde(rename="hardcodedSync")]
 	pub hardcoded_sync: Option<HardcodedSync>,
 }
 
