@@ -6,10 +6,7 @@
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": {
-					"0": "0x29A2241AF62C0000",
-					"5": "0x1BC16D674EC80000"
-				},
+				"blockReward": "0x1BC16D674EC80000",
 				"homesteadTransition": "0x0",
 				"eip100bTransition": "0x0",
 				"difficultyBombDelays": {

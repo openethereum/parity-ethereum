@@ -177,6 +177,7 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stZeroCallsRevert, "GeneralStateTests/stZeroCallsRevert/"}
 	declare_test!{GeneralStateTest_stZeroCallsTest, "GeneralStateTests/stZeroCallsTest/"}
 	declare_test!{GeneralStateTest_stZeroKnowledge, "GeneralStateTests/stZeroKnowledge/"}
+	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 
 	// Attempts to send a transaction that requires more than current balance:
 	// Tx:
