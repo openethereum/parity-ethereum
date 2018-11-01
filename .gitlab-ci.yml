@@ -131,37 +131,15 @@ cargo-audit:
   tags:
     - rust-stable
 
-test-android:
+build-android:
   stage:                           optional
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
   script:
-    - scripts/gitlab/test-all.sh stable
+    - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
-
-test-darwin:
-  stage:                           optional
-  variables:
-    CARGO_TARGET:                  x86_64-apple-darwin
-    CC:                            gcc
-    CXX:                           g++
-    RUN_TESTS:                     cargo
-  script:
-    - scripts/gitlab/test-all.sh stable
-  tags:
-    - rust-osx
-
-test-windows:
-  stage:                           optional
-  variables:
-    CARGO_TARGET:                  x86_64-pc-windows-msvc
-    RUN_TESTS:                     cargo
-  script:
-    - sh scripts/gitlab/test-all.sh stable
-  tags:
-   - rust-windows
 
 test-beta:
   stage:                           optional
