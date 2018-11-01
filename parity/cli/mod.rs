@@ -467,6 +467,10 @@ usage! {
 			"--no-jsonrpc",
 			"Disable the HTTP JSON-RPC API server.",
 
+			FLAG flag_jsonrpc_no_keep_alive: (bool) = false, or |c: &Config| c.rpc.as_ref()?.keep_alive,
+			"--jsonrpc-no-keep-alive",
+			"Disable HTTP/1.1 keep alive header. Disabling keep alive will prevent re-using the same TCP connection to fire multiple requests, recommended when using one request per connection.",
+
 			ARG arg_jsonrpc_port: (u16) = 8545u16, or |c: &Config| c.rpc.as_ref()?.port.clone(),
 			"--jsonrpc-port=[PORT]",
 			"Specify the port portion of the HTTP JSON-RPC API server.",
@@ -498,10 +502,6 @@ usage! {
 			ARG arg_jsonrpc_max_payload: (Option<usize>) = None, or |c: &Config| c.rpc.as_ref()?.max_payload,
 			"--jsonrpc-max-payload=[MB]",
 			"Specify maximum size for HTTP JSON-RPC requests in megabytes.",
-
-			ARG arg_jsonrpc_no_keep_alive: (bool) = false, or |c: &Config| c.rpc.as_ref()?.keep_alive,
-			"--jsonrpc-no-keep-alive",
-			"Disable HTTP/1.1 keep alive header. Disabling keep alive will prevent re-using the same TCP connection to fire multiple requests, recommended when using one request per connection.",
 
 		["API and Console Options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| c.websockets.as_ref()?.disable.clone(),
@@ -1681,6 +1681,7 @@ mod tests {
 			// -- API and Console Options
 			// RPC
 			flag_no_jsonrpc: false,
+			flag_jsonrpc_no_keep_alive: false,
 			arg_jsonrpc_port: 8545u16,
 			arg_jsonrpc_interface: "local".into(),
 			arg_jsonrpc_cors: "null".into(),
@@ -1689,7 +1690,6 @@ mod tests {
 			arg_jsonrpc_server_threads: None,
 			arg_jsonrpc_threads: 4,
 			arg_jsonrpc_max_payload: None,
-			arg_jsonrpc_no_keep_alive: false,
 
 			// WS
 			flag_no_ws: false,

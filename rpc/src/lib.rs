@@ -164,6 +164,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 	middleware: R,
 	threads: usize,
 	max_payload: usize,
+	keep_alive: bool,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -173,6 +174,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 {
 	let extractor = http_common::MetaExtractor::new(extractor);
 	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
+		.keep_alive(keep_alive)
 		.threads(threads)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
