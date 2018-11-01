@@ -27,6 +27,7 @@ use ethcore::miner::Miner;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::test_helpers;
 use ethcore::verification::queue::kind::blocks::Unverified;
+use ethcore::verification::VerifierType;
 use ethjson::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;
 use io::IoChannel;
@@ -84,7 +85,16 @@ struct EthTester {
 
 impl EthTester {
 	fn from_chain(chain: &BlockChain) -> Self {
-		let tester = Self::from_spec(make_spec(chain));
+
+		let tester = if ::ethjson::blockchain::Engine::NoProof == chain.engine {
+			let mut config = ClientConfig::default();
+			config.verifier_type = VerifierType::CanonNoSeal;
+			config.check_seal = false;
+			Self::from_spec_conf(make_spec(chain), config)
+		} else {
+			Self::from_spec(make_spec(chain))
+		};
+
 
 		for b in chain.blocks_rlp() {
 			if let Ok(block) = Unverified::from_rlp(b) {
@@ -101,6 +111,12 @@ impl EthTester {
 	}
 
 	fn from_spec(spec: Spec) -> Self {
+		let config = ClientConfig::default();
+		Self::from_spec_conf(spec, config)
+	}
+
+	fn from_spec_conf(spec: Spec, config: ClientConfig) -> Self {
+
 		let runtime = Runtime::with_thread_count(1);
 		let account_provider = account_provider();
 		let opt_account_provider = account_provider.clone();
@@ -108,7 +124,7 @@ impl EthTester {
 		let snapshot_service = snapshot_service();
 
 		let client = Client::new(
-			ClientConfig::default(),
+			config,
 			&spec,
 			test_helpers::new_db(),
 			miner_service.clone(),
@@ -213,9 +229,9 @@ fn eth_get_block_by_hash() {
 	let tester = EthTester::from_chain(&chain);
 
 	// We're looking for block number 4 from "RPC_API_Test_Frontier"
-	let req_block = r#"{"method":"eth_getBlockByHash","params":["0x9c9bdab4cb53fd834e790b13545597f026494d42112e84c0aca9dd6bcc545295",false],"id":1,"jsonrpc":"2.0"}"#;
+	let req_block = r#"{"method":"eth_getBlockByHash","params":["0xaddb9e39795e9e041c936b88a2577802569f34afded0948707b074caa3163a87",false],"id":1,"jsonrpc":"2.0"}"#;
 
-	let res_block = r#"{"jsonrpc":"2.0","result":{"author":"0x8888f1f195afa192cfee860698584c030f4c9db1","difficulty":"0x200c0","extraData":"0x","gasLimit":"0x1dd8112","gasUsed":"0x5458","hash":"0x9c9bdab4cb53fd834e790b13545597f026494d42112e84c0aca9dd6bcc545295","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x8888f1f195afa192cfee860698584c030f4c9db1","mixHash":"0xaddea8d25bb0f955fa6c1d58d74ab8a3fec99d37943e2a261e3b12f97d6bff7c","nonce":"0x8e18bed16d5a88da","number":"0x4","parentHash":"0x2cbf4fc930c5b4c87598f43fc8eb26dccdab2f58a7d0d3ca92ec60a5444a330e","receiptsRoot":"0x7ed8026cf72ed0e98e6fd53ab406e51ffd34397d9da0052494ff41376fda7b5f","sealFields":["0xa0addea8d25bb0f955fa6c1d58d74ab8a3fec99d37943e2a261e3b12f97d6bff7c","0x888e18bed16d5a88da"],"sha3Uncles":"0x75cc08a7cb2cf8081446659fecb2633fb6b922d26edd59bd2272b1f5cae1c78b","size":"0x661","stateRoot":"0x68805721294e365020aca15ed56c360d9dc2cf03cbeff84c9b84b8aed023bfb5","timestamp":"0x59d662ff","totalDifficulty":"0xa0180","transactions":["0xb094b9dc356dbb8b256402c6d5709288066ad6a372c90c9c516f14277545fd58"],"transactionsRoot":"0x97a593d8d7e15b57f5c6bb25bc6c325463ef99f874bc08a78656c3ab5cb23262","uncles":["0xa1e9c9ecd2af999e0723aae1dc55dd9789ca618e0b34badcc8ac7d9a3dad3af2","0x81d429b6b6635214a2b0f976cc4b2ed49808140d6bede50129bc10d22ac9249e"]},"id":1}"#;
+	let res_block = r#"{"jsonrpc":"2.0","result":{"author":"0x8888f1f195afa192cfee860698584c030f4c9db1","difficulty":"0x20080","extraData":"0x","gasLimit":"0x1dd7ea0","gasUsed":"0x5458","hash":"0xaddb9e39795e9e041c936b88a2577802569f34afded0948707b074caa3163a87","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x8888f1f195afa192cfee860698584c030f4c9db1","mixHash":"0x713b0b31f6e72d8cb7367eaf59447ea531f209fc80e6379edd9f8d3bb73931c4","nonce":"0x4534b406bc23b86d","number":"0x4","parentHash":"0x17567aa5995b703736e32972289d68af50543acc4d56d37e8ad1fea7252cac4a","receiptsRoot":"0x7ed8026cf72ed0e98e6fd53ab406e51ffd34397d9da0052494ff41376fda7b5f","sealFields":["0xa0713b0b31f6e72d8cb7367eaf59447ea531f209fc80e6379edd9f8d3bb73931c4","0x884534b406bc23b86d"],"sha3Uncles":"0xe588a44b3e320e72e70b32b531f3ac0d432e756120135ae8fe5fa10895196b40","size":"0x661","stateRoot":"0x68805721294e365020aca15ed56c360d9dc2cf03cbeff84c9b84b8aed023bfb5","timestamp":"0x5bbdf772","totalDifficulty":"0xa00c0","transactions":["0xb094b9dc356dbb8b256402c6d5709288066ad6a372c90c9c516f14277545fd58"],"transactionsRoot":"0x97a593d8d7e15b57f5c6bb25bc6c325463ef99f874bc08a78656c3ab5cb23262","uncles":["0x86b48f5186c4b0882d3dca7977aa37840008832ef092f8ef797019dc74bfa8c7","0x2da9d062c11d536f0f1cc2a4e0111597c79926958d0fc26ae1a2d07d1a3bf47d"]},"id":1}"#;
 	assert_eq!(tester.handler.handle_request_sync(req_block).unwrap(), res_block);
 }
 

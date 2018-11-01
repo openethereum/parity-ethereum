@@ -222,6 +222,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
+	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffffu64.into()) }
+
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let difficulty = self.calculate_difficulty(header, parent);
 		header.set_difficulty(difficulty);
@@ -320,10 +322,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
-		}
-
-		if header.gas_limit() > &0x7fffffffffffffffu64.into() {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
 		}
 
 		Ok(())
