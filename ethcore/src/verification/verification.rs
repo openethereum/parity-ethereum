@@ -245,14 +245,14 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &BlockProvider, engine: &EthEngin
 
 /// Phase 4 verification. Check block information against transaction enactment results,
 pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> {
+	if expected.state_root() != got.state_root() {
+		return Err(From::from(BlockError::InvalidStateRoot(Mismatch { expected: expected.state_root().clone(), found: got.state_root().clone() })))
+	}
 	if expected.gas_used() != got.gas_used() {
 		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: expected.gas_used().clone(), found: got.gas_used().clone() })))
 	}
 	if expected.log_bloom() != got.log_bloom() {
 		return Err(From::from(BlockError::InvalidLogBloom(Mismatch { expected: expected.log_bloom().clone(), found: got.log_bloom().clone() })))
-	}
-	if expected.state_root() != got.state_root() {
-		return Err(From::from(BlockError::InvalidStateRoot(Mismatch { expected: expected.state_root().clone(), found: got.state_root().clone() })))
 	}
 	if expected.receipts_root() != got.receipts_root() {
 		return Err(From::from(BlockError::InvalidReceiptsRoot(Mismatch { expected: expected.receipts_root().clone(), found: got.receipts_root().clone() })))
