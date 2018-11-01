@@ -218,9 +218,10 @@ impl<M: core::Middleware<Metadata>> WsDispatcher<M> {
 
 impl<M: core::Middleware<Metadata>> core::Middleware<Metadata> for WsDispatcher<M> {
 	type Future = Either<
-		core::FutureRpcResult<M::Future>,
+		core::FutureRpcResult<M::Future, M::CallFuture>,
 		core::FutureResponse,
 	>;
+	type CallFuture = core::middleware::NoopCallFuture;
 
 	fn on_request<F, X>(&self, request: core::Request, meta: Metadata, process: F)
 		-> Either<Self::Future, X>
