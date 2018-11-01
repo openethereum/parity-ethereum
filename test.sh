@@ -98,4 +98,3 @@ then
 else
   cargo_test $@
 fi
-

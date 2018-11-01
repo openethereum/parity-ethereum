@@ -31,11 +31,11 @@ pub use self::transaction::TransactionView;
 
 #[cfg(test)]
 mod tests {
-    use super::HeaderView;
+	use super::HeaderView;
 
-    #[test]
-    #[should_panic(expected="View rlp is trusted and should be valid. Constructed in ethcore/src/views/mod.rs on line 39: RlpExpectedToBeList")]
-    fn should_include_file_line_number_in_panic_for_invalid_rlp() {
-        let _ = view!(HeaderView, &[]).parent_hash();
-    }
+	#[test]
+	#[should_panic]
+	fn should_include_file_line_number_in_panic_for_invalid_rlp() {
+		let _ = view!(HeaderView, &[]).parent_hash();
+	}
 }
