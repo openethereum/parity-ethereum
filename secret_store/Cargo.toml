@@ -16,7 +16,7 @@ serde_derive = "1.0"
 futures = "0.1"
 rustc-hex = "1.0"
 tiny-keccak = "1.4"
-tokio = "~0.1.11"
+tokio = { git = "https://github.com/tokio-rs/tokio", rev = "51e36e4" }
 parity-runtime = { path = "../util/runtime" }
 tokio-io = "0.1"
 tokio-service = "0.1"
