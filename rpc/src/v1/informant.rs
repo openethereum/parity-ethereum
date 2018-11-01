@@ -205,6 +205,7 @@ impl<T: ActivityNotifier> Middleware<T> {
 
 impl<M: core::Metadata, T: ActivityNotifier> core::Middleware<M> for Middleware<T> {
 	type Future = core::FutureResponse;
+	type CallFuture = core::middleware::NoopCallFuture;
 
 	fn on_request<F, X>(&self, request: core::Request, meta: M, process: F) -> Either<Self::Future, X> where
 		F: FnOnce(core::Request, M) -> X,
