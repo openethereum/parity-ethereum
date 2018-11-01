@@ -345,8 +345,8 @@ pub mod tests {
 			if fully_connected {
 				break;
 			}
-			if time::Instant::now() - start > time::Duration::from_millis(1000) {
-				panic!("connections are not established in 1000ms");
+			if time::Instant::now() - start > time::Duration::from_millis(3000) {
+				panic!("connections are not established in 3000ms");
 			}
 		}
 

@@ -63,6 +63,7 @@ extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate patricia_trie as trie;
+extern crate eip712;
 extern crate rlp;
 extern crate stats;
 extern crate vm;

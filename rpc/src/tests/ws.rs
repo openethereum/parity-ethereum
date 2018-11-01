@@ -104,6 +104,7 @@ mod testing {
 		http_client::assert_security_headers_present(&response.headers, None);
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn should_allow_if_authorization_is_correct() {
 		// given
