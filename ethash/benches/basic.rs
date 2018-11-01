@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![feature(test)]
-
-extern crate test;
+#[macro_use]
+extern crate criterion;
 extern crate ethash;
 
-use test::Bencher;
+use criterion::Criterion;
 use ethash::{NodeCacheBuilder, OptimizeFor};
 
 const HASH: [u8; 32] = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe,
@@ -27,52 +26,61 @@ const HASH: [u8; 32] = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0x
 	                    0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
 const NONCE: u64 = 0xd7b3ac70a301a249;
 
-#[bench]
-fn bench_light_compute_memmap(b: &mut Bencher) {
+criterion_group!(
+	basic,
+	bench_light_compute_memmap,
+	bench_light_compute_memory,
+	bench_light_new_round_trip_memmap,
+	bench_light_new_round_trip_memory,
+	bench_light_from_file_round_trip_memory,
+	bench_light_from_file_round_trip_memmap
+);
+criterion_main!(basic);
+
+
+fn bench_light_compute_memmap(b: &mut Criterion) {
 	use std::env;
 
 	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 	let light = builder.light(&env::temp_dir(), 486382);
 
-	b.iter(|| light.compute(&HASH, NONCE));
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE)));
 }
 
-#[bench]
-fn bench_light_compute_memory(b: &mut Bencher) {
+
+fn bench_light_compute_memory(b: &mut Criterion) {
 	use std::env;
 
 	let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
 	let light = builder.light(&env::temp_dir(), 486382);
 
-	b.iter(|| light.compute(&HASH, NONCE));
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE)));
 }
 
-#[bench]
-#[ignore]
-fn bench_light_new_round_trip_memmap(b: &mut Bencher) {
+
+fn bench_light_new_round_trip_memmap(b: &mut Criterion) {
 	use std::env;
 
-	b.iter(|| {
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 		let light = builder.light(&env::temp_dir(), 486382);
 		light.compute(&HASH, NONCE);
-	});
+	}));
 }
 
-#[bench]
-#[ignore]
-fn bench_light_new_round_trip_memory(b: &mut Bencher) {
+
+fn bench_light_new_round_trip_memory(b: &mut Criterion) {
 	use std::env;
 
-	b.iter(|| {
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
 		let light = builder.light(&env::temp_dir(), 486382);
 		light.compute(&HASH, NONCE);
-	});
+	}));
 }
 
-#[bench]
-fn bench_light_from_file_round_trip_memory(b: &mut Bencher) {
+
+fn bench_light_from_file_round_trip_memory(b: &mut Criterion) {
 	use std::env;
 
 	let dir = env::temp_dir();
@@ -83,15 +91,15 @@ fn bench_light_from_file_round_trip_memory(b: &mut Bencher) {
 		dummy.to_file().unwrap();
 	}
 
-	b.iter(|| {
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
 		let light = builder.light_from_file(&dir, 486382).unwrap();
 		light.compute(&HASH, NONCE);
-	});
+	}));
 }
 
-#[bench]
-fn bench_light_from_file_round_trip_memmap(b: &mut Bencher) {
+
+fn bench_light_from_file_round_trip_memmap(b: &mut Criterion) {
 	use std::env;
 
 	let dir = env::temp_dir();
@@ -103,9 +111,9 @@ fn bench_light_from_file_round_trip_memmap(b: &mut Bencher) {
 		dummy.to_file().unwrap();
 	}
 
-	b.iter(|| {
+	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
 		let light = builder.light_from_file(&dir, 486382).unwrap();
 		light.compute(&HASH, NONCE);
-	});
+	}));
 }

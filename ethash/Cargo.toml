@@ -15,3 +15,8 @@ primal = "0.2.3"
 
 [dev-dependencies]
 tempdir = "0.3"
+criterion = "0.2"
+
+[[bench]]
+name = "basic"
+harness = false

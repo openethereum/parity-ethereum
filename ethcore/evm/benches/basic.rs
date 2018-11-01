@@ -15,14 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! benchmarking for EVM
-//! should be started with:
-//! ```bash
-//! multirust run nightly cargo bench
-//! ```
 
-#![feature(test)]
-
-extern crate test;
+#[macro_use]
+extern crate criterion;
 extern crate bit_set;
 extern crate ethereum_types;
 extern crate parking_lot;
@@ -34,23 +29,36 @@ extern crate memory_cache;
 extern crate parity_bytes as bytes;
 extern crate rustc_hex;
 
+use criterion::{Criterion, Bencher, black_box};
 use std::str::FromStr;
 use std::sync::Arc;
-use test::{Bencher, black_box};
 use ethereum_types::{U256, Address};
 use vm::{ActionParams, Result, GasLeft, Ext};
 use vm::tests::FakeExt;
 use evm::Factory;
 use rustc_hex::FromHex;
 
-#[bench]
-fn simple_loop_log0_usize(b: &mut Bencher) {
-	simple_loop_log0(U256::from(::std::usize::MAX), b)
+criterion_group!(
+	basic,
+	simple_loop_log0_usize,
+	simple_loop_log0_u256,
+	mem_gas_calculation_same_usize,
+	mem_gas_calculation_same_u256,
+	mem_gas_calculation_increasing_usize,
+	mem_gas_calculation_increasing_u256
+);
+criterion_main!(basic);
+
+fn simple_loop_log0_usize(b: &mut Criterion) {
+	b.bench_function("simple_loop_log0_usize", |b| {
+		simple_loop_log0(U256::from(::std::usize::MAX), b);
+	});
 }
 
-#[bench]
-fn simple_loop_log0_u256(b: &mut Bencher) {
-	simple_loop_log0(!U256::zero(), b)
+fn simple_loop_log0_u256(b: &mut Criterion) {
+	b.bench_function("simple_loop_log0_u256", |b| {
+		simple_loop_log0(!U256::zero(), b);
+	});
 }
 
 fn simple_loop_log0(gas: U256, b: &mut Bencher) {
@@ -74,14 +82,16 @@ fn simple_loop_log0(gas: U256, b: &mut Bencher) {
 	});
 }
 
-#[bench]
-fn mem_gas_calculation_same_usize(b: &mut Bencher) {
-	mem_gas_calculation_same(U256::from(::std::usize::MAX), b)
+fn mem_gas_calculation_same_usize(b: &mut Criterion) {
+	b.bench_function("mem_gas_calculation_same_usize", |b| {
+		mem_gas_calculation_same(U256::from(::std::usize::MAX), b);
+	});
 }
 
-#[bench]
-fn mem_gas_calculation_same_u256(b: &mut Bencher) {
-	mem_gas_calculation_same(!U256::zero(), b)
+fn mem_gas_calculation_same_u256(b: &mut Criterion) {
+	b.bench_function("mem_gas_calculation_same_u256", |b| {
+		mem_gas_calculation_same(!U256::zero(), b);
+	});
 }
 
 fn mem_gas_calculation_same(gas: U256, b: &mut Bencher) {
@@ -106,14 +116,16 @@ fn mem_gas_calculation_same(gas: U256, b: &mut Bencher) {
 	});
 }
 
-#[bench]
-fn mem_gas_calculation_increasing_usize(b: &mut Bencher) {
-	mem_gas_calculation_increasing(U256::from(::std::usize::MAX), b)
+fn mem_gas_calculation_increasing_usize(b: &mut Criterion) {
+	b.bench_function("mem_gas_calculation_increasing_usize", |b| {
+		mem_gas_calculation_increasing(U256::from(::std::usize::MAX), b);
+	});
 }
 
-#[bench]
-fn mem_gas_calculation_increasing_u256(b: &mut Bencher) {
-	mem_gas_calculation_increasing(!U256::zero(), b)
+fn mem_gas_calculation_increasing_u256(b: &mut Criterion) {
+	b.bench_function("mem_gas_calculation_increasing_u256", |b| {
+		mem_gas_calculation_increasing(!U256::zero(), b);
+	});
 }
 
 fn mem_gas_calculation_increasing(gas: U256, b: &mut Bencher) {
