@@ -43,9 +43,10 @@ mod transaction_condition;
 mod uint;
 mod work;
 mod private_receipt;
+mod eip191;
 
 pub mod pubsub;
-
+pub use self::eip191::{EIP191Version, WithValidator};
 pub use self::account_info::{AccountInfo, ExtAccountInfo, HwAccountInfo};
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
