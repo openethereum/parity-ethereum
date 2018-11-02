@@ -33,7 +33,7 @@ fn gas_rules(wasm_costs: &vm::WasmCosts) -> rules::Set {
 			vals
 		})
 		.with_grow_cost(wasm_costs.grow_mem)
-		//.with_forbidden_floats()
+		.with_forbidden_floats()
 }
 
 /// Splits payload to code and data according to params.params_type, also
