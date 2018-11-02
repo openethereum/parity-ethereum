@@ -180,7 +180,7 @@ pub fn new_network_cluster(
 		connections_data.clone()));
 
 	let connections = NetConnectionsManager::new(
-		executor.clone(),
+		executor,
 		message_processor.clone(),
 		connection_trigger,
 		connections_data,

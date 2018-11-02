@@ -284,7 +284,7 @@ impl NetConnectionsData {
 			"{}: inserting connection to {} at {}. Connected to {} of {} nodes",
 			self.self_key_pair.public(), node, connection.node_address(),
 			container.connections.len() + 1, container.nodes.len());
-		container.connections.insert(node, connection.clone());
+		container.connections.insert(node, connection);
 
 		true
 	}
@@ -301,7 +301,7 @@ impl NetConnectionsData {
 			}
 
 			trace!(target: "secretstore_net", "{}: removing connection to {} at {}",
-				self.self_key_pair.public(), entry.get().node_id(), entry.get().node_address());
+				self.self_key_pair.public(), node_id, entry.get().node_address());
 			entry.remove_entry();
 		
 			true
