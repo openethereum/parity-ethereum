@@ -13,12 +13,6 @@ variables:
   BUILD_ARCH:                      amd64
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
-cache:
-  key:                             "${CI_JOB_NAME}"
-  paths:
-    - ./target
-    - ./.cargo
-
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
     - stable
