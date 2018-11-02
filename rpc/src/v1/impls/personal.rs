@@ -154,15 +154,11 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_191(&self, version: EIP191Version, data: Value, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
-		let data = match eip191::decode_message(version, data) {
-			Ok(d) => d,
-			Err(e) => return Box::new(future::err(e))
-		};
-
+		let data = try_bf!(eip191::hash_message(version, data));
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
-		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), RpcBytes(data.to_vec())).into());
+		let payload = RpcConfirmationPayload::SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
 			.and_then(|payload| {
@@ -185,7 +181,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
-		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), RpcBytes(data.to_vec())).into());
+		let payload = RpcConfirmationPayload::SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
 			.and_then(|payload| {

@@ -19,16 +19,20 @@ use serde::{Deserialize, Deserializer};
 use serde::de;
 use v1::types::{H160, Bytes};
 
+/// EIP-191 version specifier
+#[derive(Debug)]
 pub enum EIP191Version {
 	StructuredData,
 	PersonalMessage,
 	WithValidator
 }
 
-#[derive(Deserialize)]
+/// EIP-191 version 0x0 struct
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WithValidator {
 	// address of intended validator
-	pub address: H160,
+	pub validator: H160,
 	// application specific data
 	pub application_data: Bytes
 }
@@ -40,8 +44,8 @@ impl<'de> Deserialize<'de> for EIP191Version {
 	{
 		let s = String::deserialize(deserializer)?;
 		let byte_version = match s.as_str() {
-			"0x00" | "0x0" | "0x" => EIP191Version::WithValidator,
-			"0x01" | "0x1" => EIP191Version::StructuredData,
+			"0x00" => EIP191Version::WithValidator,
+			"0x01" => EIP191Version::StructuredData,
 			"0x45" => EIP191Version::PersonalMessage,
 			other => return Err(de::Error::custom(format!("Invalid byte version '{}'", other))),
 		};

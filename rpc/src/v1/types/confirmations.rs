@@ -59,9 +59,20 @@ impl fmt::Display for ConfirmationPayload {
 			ConfirmationPayload::SendTransaction(ref transaction) => write!(f, "{}", transaction),
 			ConfirmationPayload::SignTransaction(ref transaction) => write!(f, "(Sign only) {}", transaction),
 			ConfirmationPayload::EthSignMessage(ref sign) => write!(f, "{}", sign),
+			ConfirmationPayload::SignMessage(ref sign) => write!(f, "{}", sign),
 			ConfirmationPayload::Decrypt(ref decrypt) => write!(f, "{}", decrypt),
 		}
 	}
+}
+
+/// Ethereum-prefixed Sign request
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EthSignRequest {
+	/// Address
+	pub address: H160,
+	/// Hash to sign
+	pub data: Bytes,
 }
 
 /// Sign request
@@ -71,11 +82,11 @@ pub struct SignRequest {
 	/// Address
 	pub address: H160,
 	/// Hash to sign
-	pub data: Bytes,
+	pub data: H256,
 }
 
-impl From<(H160, Bytes)> for SignRequest {
-	fn from(tuple: (H160, Bytes)) -> Self {
+impl From<(H160, H256)> for SignRequest {
+	fn from(tuple: (H160, H256)) -> Self {
 		SignRequest {
 			address: tuple.0,
 			data: tuple.1,
@@ -84,6 +95,26 @@ impl From<(H160, Bytes)> for SignRequest {
 }
 
 impl fmt::Display for SignRequest {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(
+			f,
+			"sign 0x{} with {}",
+			self.data.0.pretty(),
+			Colour::White.bold().paint(format!("0x{:?}", self.address)),
+		)
+	}
+}
+
+impl From<(H160, Bytes)> for EthSignRequest {
+	fn from(tuple: (H160, Bytes)) -> Self {
+		EthSignRequest {
+			address: tuple.0,
+			data: tuple.1,
+		}
+	}
+}
+
+impl fmt::Display for EthSignRequest {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(
 			f,
@@ -169,7 +200,9 @@ pub enum ConfirmationPayload {
 	SignTransaction(TransactionRequest),
 	/// Signature
 	#[serde(rename = "sign")]
-	EthSignMessage(SignRequest),
+	EthSignMessage(EthSignRequest),
+	/// signature without prefix
+	SignMessage(SignRequest),
 	/// Decryption
 	Decrypt(DecryptRequest),
 }
@@ -179,7 +212,11 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 		match c {
 			helpers::ConfirmationPayload::SendTransaction(t) => ConfirmationPayload::SendTransaction(t.into()),
 			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
-			helpers::ConfirmationPayload::EthSignMessage(address, data) => ConfirmationPayload::EthSignMessage(SignRequest {
+			helpers::ConfirmationPayload::EthSignMessage(address, data) => ConfirmationPayload::EthSignMessage(EthSignRequest {
+				address: address.into(),
+				data: data.into(),
+			}),
+			helpers::ConfirmationPayload::SignMessage(address, data) => ConfirmationPayload::SignMessage(SignRequest {
 				address: address.into(),
 				data: data.into(),
 			}),

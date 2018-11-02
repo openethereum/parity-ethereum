@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! EIP-191 compliant decoding
+//! EIP-191 compliant decoding + hashing
 use v1::types::{EIP191Version, Bytes, WithValidator};
 use eip712::{hash_structured_data, EIP712};
 use serde_json::{Value, from_value};
@@ -25,10 +25,11 @@ use hash::keccak;
 use std::fmt::Display;
 use ethereum_types::H256;
 
-pub fn decode_message(version: EIP191Version, data: Value) -> Result<H256, Error> {
+/// deserializes and hashes the message depending on the version specifier
+pub fn hash_message(version: EIP191Version, message: Value) -> Result<H256, Error> {
 	let data = match version {
 		EIP191Version::StructuredData => {
-			let typed_data = from_value::<EIP712>(data)
+			let typed_data = from_value::<EIP712>(message)
 				.map_err(map_serde_err("StructuredData"))?;
 
 			hash_structured_data(typed_data)
@@ -36,15 +37,15 @@ pub fn decode_message(version: EIP191Version, data: Value) -> Result<H256, Error
 		}
 
 		EIP191Version::WithValidator => {
-			let typed_data = from_value::<WithValidator>(data)
+			let data = from_value::<WithValidator>(message)
 				.map_err(map_serde_err("WithValidator"))?;
 			let prefix = b"\x19\x00";
-			let data = [&prefix[..], &typed_data.address.0[..], &typed_data.application_data.0[..]].concat();
+			let data = [&prefix[..], &data.validator.0[..], &data.application_data.0[..]].concat();
 			keccak(data)
 		}
 
 		EIP191Version::PersonalMessage => {
-			let bytes = from_value::<Bytes>(data)
+			let bytes = from_value::<Bytes>(message)
 				.map_err(map_serde_err("Bytes"))?;
 			eth_data_hash(bytes.0)
 		}
