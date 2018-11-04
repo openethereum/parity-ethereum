@@ -16,17 +16,38 @@
 
 //! Clique params deserialization.
 
-use hash::Address;
+use ethereum_types::Address;
 
 /// Tendermint params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct CliqueParams {
 	/// Valid validators.
-	pub validators: Box<Address>,
+	pub signers: Vec<Address>,
 }
 
 /// Clique engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Clique {
 	pub params: CliqueParams,
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json;
+    use ethereum_types::H160;
+    use hash::Address;
+    use spec::clique::Clique;
+
+    #[test]
+    fn clique_deserialization() {
+        let s = r#"{
+            "params": {
+                "signers": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b", "0xc6d9d2cd449a754c494264e1809c50e34d64562c"]
+            }
+        }"#;
+
+        let deserialized: Clique = serde_json::from_str(s).unwrap();
+        let vs = vec!(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"), H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562c"));
+        assert_eq!(deserialized.params.signers, vs);
+    }
 }

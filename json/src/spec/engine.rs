@@ -51,6 +51,20 @@ mod tests {
 	#[test]
 	fn engine_deserialization() {
 		let s = r#"{
+			"clique": {
+				"params": {
+					"signers": []
+				}
+			}
+		}"#;
+
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::Clique(_) => {}, // unit test in its own file.
+			_ => panic!(),
+		}
+
+		let s = r#"{
 			"null": {
 				"params": {
 					"blockReward": "0x0d"

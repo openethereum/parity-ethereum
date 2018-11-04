@@ -31,7 +31,7 @@ impl AuthorizationSnapshot {
     }
 */
 
-    Ok(String::from("").into())
+    Err(String::from("").into())
     //ecrecover(header, snap.signers)?.expect("header signer should be authorized");
   }
 
