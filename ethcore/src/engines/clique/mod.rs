@@ -56,12 +56,16 @@ pub struct Clique {
 }
 
 /*
- * Sign over the hash of a block header, where the hash includes all fields of the header except
- * for the empty bytes in extra data that would normally hold signature data
+ * only sign over non-signature bytes (vanity data).  There shouldn't be a signature here to sign
+ * yet.
  */
 pub fn sig_hash(header: &Header) -> Result<H256, Error> {
-  if header.extra_data().len() != SIGNER_VANITY_LENGTH as usize {
-    return Err(Box::new("bad signer extra_data length").into());
+  if header.extra_data().len() >= SIGNER_VANITY_LENGTH as usize {
+    let mut reduced_header = header.clone();
+    let mut extra_data: [u8; SIGNER_VANITY_LENGTH as usize] = [0; SIGNER_VANITY_LENGTH as usize];
+    extra_data.clone_from_slice(&reduced_header.extra_data()[0..SIGNER_VANITY_LENGTH as usize]);
+    reduced_header.set_extra_data(extra_data.to_vec());
+    Ok(keccak(::rlp::encode(&reduced_header)))
   } else {
     Ok(keccak(::rlp::encode(header)))
   }
@@ -123,7 +127,7 @@ impl Engine<EthereumMachine> for Clique {
   fn name(&self) -> &str { "Clique" }
 
   // nonce + mixHash + extraData
-  fn seal_fields(&self, _header: &Header) -> usize { 3 }
+  fn seal_fields(&self, _header: &Header) -> usize { 1 }
   fn machine(&self) -> &EthereumMachine { &self.machine }
   fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
@@ -154,7 +158,6 @@ impl Engine<EthereumMachine> for Clique {
   fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
     let mut header = block.header.clone();
 
-    trace!(target: "engine", "fuckkkk");
     // don't seal the genesis block
     if header.number() == 0 {
       return Seal::None;
@@ -177,6 +180,7 @@ impl Engine<EthereumMachine> for Clique {
     // sign the digest of the seal
     if authorized {
 
+      // todo 
       let mut extra_data: Vec<u8> = vec!(0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize);
 
       // ensure header has correct extra data size before signing
@@ -231,7 +235,7 @@ impl Engine<EthereumMachine> for Clique {
         return Err(Box::new("Checkpoint blocks need to enforce zero beneficiary").into());
       }
 
-      if _header.nonce()[0..32] != [0xff; 32] {
+      if _header.extra_data()[0..32] != [0xff; 32] {
         return Err(Box::new("Seal nonce zeros enforced on checkpoints").into());
       }
     } else {
