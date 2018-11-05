@@ -24,7 +24,7 @@ pub struct AccountInfo {
 /// Datastructure with proof for one single storage-entry
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct StorageProof{
+pub struct StorageProof {
 	pub key: U256,
 	pub value: U256,
 	pub proof: Vec<Bytes>
@@ -33,7 +33,7 @@ pub struct StorageProof{
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EthAccount{
+pub struct EthAccount {
 	pub address: H160,
 	pub balance: U256,
 	pub nonce: U256,
