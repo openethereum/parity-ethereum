@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-use v1::types::{ H160, H256, U256, Bytes};
+use v1::types::{H160, H256, U256, Bytes};
 
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
