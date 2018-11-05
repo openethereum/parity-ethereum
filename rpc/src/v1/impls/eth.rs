@@ -570,19 +570,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				code_hash : p.1.code_hash.into(),
 				storage_hash : p.1.storage_root.into(),
 				account_proof: Some( p.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()),
-				storage_proof: Some( values.iter().map(|storage_index| { 
+				storage_proof: Some( values.iter().filter_map(|storage_index| { 
 					let key2 : H256 = storage_index.clone().into();
 					match self.client.prove_storage(key1, keccak(key2), id) {
-						Some(sp) =>  StorageProof {
+							Some(sp) =>  Some(StorageProof {
 								key : key2.into(),
 								value: sp.1.into(),
 								proof: sp.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()
-							},
-							None => StorageProof {
-								key : key2.into(),
-								value : 0.into(),
-								proof : Vec::new()
-							}
+							}),
+							None => None
 						}
 					})
 					.collect::<Vec<StorageProof>>()
