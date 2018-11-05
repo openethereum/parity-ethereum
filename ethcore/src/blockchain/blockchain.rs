@@ -864,17 +864,21 @@ impl BlockChain {
 		{
 			// Get the target hash ; if there are no ancient block,
 			// it means that the chain is already fully linked
-			let best_ancient_block = self.best_ancient_block.read();
-			let cur_ancient_block = match *best_ancient_block {
-				Some(ref b) => b,
-				None => return,
-			};
-			let target_hash = cur_ancient_block.hash;
+			// Release the `best_ancient_block` RwLock
+			let target_hash = {
+				let best_ancient_block = self.best_ancient_block.read();
+				let cur_ancient_block = match *best_ancient_block {
+					Some(ref b) => b,
+					None => return,
+				};
 
-			// Ensure that the new best ancient block is after the current one
-			if block_view.number() <= cur_ancient_block.number {
-				return;
-			}
+				// Ensure that the new best ancient block is after the current one
+				if block_view.number() <= cur_ancient_block.number {
+					return;
+				}
+
+				cur_ancient_block.hash.clone()
+			};
 
 			let mut block_hash = *hash;
 			let mut is_linked = false;
