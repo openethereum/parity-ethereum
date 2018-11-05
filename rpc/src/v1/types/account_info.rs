@@ -23,33 +23,24 @@ pub struct AccountInfo {
 }
 /// Datastructure with proof for one single storage-entry
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StorageProof{
-	#[serde(rename="key")]
 	pub key: U256,
-	#[serde(rename="value")]
 	pub value: U256,
-	#[serde(rename="proof")]
 	pub proof: Vec<Bytes>
 }
 
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EthAccount{
-	#[serde(rename="address")]
 	pub address: H160,
-	#[serde(rename="balance")]
 	pub balance: U256,
-	#[serde(rename="nonce")]
 	pub nonce: U256,
-	#[serde(rename="codeHash")]
 	pub code_hash: H256,
-	#[serde(rename="storageHash")]
 	pub storage_hash: H256,
-  #[serde(rename="accountProof")]
 	pub account_proof: Option<Vec<Bytes>>,
-  #[serde(rename="storageProof")]
 	pub storage_proof: Option<Vec<StorageProof>>,
-	
 }
 
 /// Extended account information (used by `parity_allAccountInfo`).
