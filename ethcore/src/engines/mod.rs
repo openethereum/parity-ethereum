@@ -254,6 +254,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
 
+	/// Optional maximum gas limit.
+	fn maximum_gas_limit(&self) -> Option<U256> { None }
+
 	/// Block transformation functions, before the transactions.
 	/// `epoch_begin` set to true if this block kicks off an epoch.
 	fn on_new_block(
