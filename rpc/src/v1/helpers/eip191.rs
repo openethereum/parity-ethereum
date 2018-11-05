@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! EIP-191 compliant decoding + hashing
-use v1::types::{EIP191Version, Bytes, WithValidator};
+use v1::types::{EIP191Version, Bytes, PresignedTransaction};
 use eip712::{hash_structured_data, EIP712};
 use serde_json::{Value, from_value};
 use v1::helpers::errors;
@@ -36,11 +36,11 @@ pub fn hash_message(version: EIP191Version, message: Value) -> Result<H256, Erro
 				.map_err(|err| errors::invalid_call_data(err.kind()))?
 		}
 
-		EIP191Version::WithValidator => {
-			let data = from_value::<WithValidator>(message)
+		EIP191Version::PresignedTransaction => {
+			let data = from_value::<PresignedTransaction>(message)
 				.map_err(map_serde_err("WithValidator"))?;
 			let prefix = b"\x19\x00";
-			let data = [&prefix[..], &data.validator.0[..], &data.application_data.0[..]].concat();
+			let data = [&prefix[..], &data.validator.0[..], &data.data.0[..]].concat();
 			keccak(data)
 		}
 

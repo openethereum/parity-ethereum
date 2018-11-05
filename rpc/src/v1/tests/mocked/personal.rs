@@ -31,7 +31,7 @@ use v1::{PersonalClient, Personal, Metadata};
 use v1::helpers::{nonce, eip191};
 use v1::helpers::dispatch::{eth_data_hash, FullDispatcher};
 use v1::tests::helpers::TestMinerService;
-use v1::types::{EIP191Version, WithValidator, H520};
+use v1::types::{EIP191Version, PresignedTransaction, H520};
 use rustc_hex::ToHex;
 use serde_json::to_value;
 use ethkey::Secret;
@@ -351,11 +351,11 @@ fn sign_eip191_with_validator() {
 		],
 		"id": 1
 	}"#;
-	let with_validator = to_value(WithValidator {
+	let with_validator = to_value(PresignedTransaction {
 		validator: address.into(),
-		application_data: keccak("hello world").to_vec().into()
+		data: keccak("hello world").to_vec().into()
 	}).unwrap();
-	let result = eip191::hash_message(EIP191Version::WithValidator, with_validator).unwrap();
+	let result = eip191::hash_message(EIP191Version::PresignedTransaction, with_validator).unwrap();
 	let result = tester.accounts.sign(address, Some("password123".into()), result).unwrap().into_electrum();
 	let expected = r#"{"jsonrpc":"2.0","result":""#.to_owned() +  &format!("0x{}", result.to_hex()) + r#"","id":1}"#;
 	let response = tester.io.handle_request_sync(&request).unwrap();
