@@ -21,6 +21,7 @@ pub struct AccountInfo {
 	/// Account name
 	pub name: String,
 }
+
 /// Datastructure with proof for one single storage-entry
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
