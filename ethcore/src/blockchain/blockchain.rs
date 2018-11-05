@@ -229,6 +229,7 @@ pub struct BlockChain {
 
 	cache_man: Mutex<CacheManager<CacheId>>,
 
+	pending_best_ancient_block: RwLock<Option<Option<BestAncientBlock>>>,
 	pending_best_block: RwLock<Option<BestBlock>>,
 	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	pending_block_details: RwLock<HashMap<H256, BlockDetails>>,
@@ -538,6 +539,7 @@ impl BlockChain {
 			block_receipts: RwLock::new(HashMap::new()),
 			db: db.clone(),
 			cache_man: Mutex::new(cache_man),
+			pending_best_ancient_block: RwLock::new(None),
 			pending_best_block: RwLock::new(None),
 			pending_block_hashes: RwLock::new(HashMap::new()),
 			pending_block_details: RwLock::new(HashMap::new()),
@@ -911,19 +913,19 @@ impl BlockChain {
 	/// Set the best ancient block with the given value: private method
 	/// `best_ancient_block` must not be locked, otherwise a DeadLock would occur
 	fn set_best_ancient_block(&self, block_number: BlockNumber, block_hash: &H256, batch: &mut DBTransaction) {
-		let mut best_ancient_block = self.best_ancient_block.write();
-		let ancient_number = best_ancient_block.as_ref().map_or(0, |b| b.number);
+		let mut pending_best_ancient_block = self.pending_best_ancient_block.write();
+		let ancient_number = self.best_ancient_block.read().as_ref().map_or(0, |b| b.number);
 		if self.block_hash(block_number + 1).is_some() {
 			trace!(target: "blockchain", "The two ends of the chain have met.");
 			batch.delete(db::COL_EXTRA, b"ancient");
-			*best_ancient_block = None;
+			*pending_best_ancient_block = Some(None);
 		} else if block_number > ancient_number {
 			trace!(target: "blockchain", "Updating the best ancient block to {}.", block_number);
 			batch.put(db::COL_EXTRA, b"ancient", &block_hash);
-			*best_ancient_block = Some(BestAncientBlock {
+			*pending_best_ancient_block = Some(Some(BestAncientBlock {
 				hash: *block_hash,
 				number: block_number,
-			});
+			}));
 		}
 	}
 
@@ -1179,15 +1181,21 @@ impl BlockChain {
 
 	/// Apply pending insertion updates
 	pub fn commit(&self) {
+		let mut pending_best_ancient_block = self.pending_best_ancient_block.write();
 		let mut pending_best_block = self.pending_best_block.write();
 		let mut pending_write_hashes = self.pending_block_hashes.write();
 		let mut pending_block_details = self.pending_block_details.write();
 		let mut pending_write_txs = self.pending_transaction_addresses.write();
 
+		let mut best_ancient_block = self.best_ancient_block.write();
 		let mut best_block = self.best_block.write();
 		let mut write_block_details = self.block_details.write();
 		let mut write_hashes = self.block_hashes.write();
 		let mut write_txs = self.transaction_addresses.write();
+		// update best ancient block
+		if let Some(block_option) = pending_best_ancient_block.take() {
+			*best_ancient_block = block_option;
+		}
 		// update best block
 		if let Some(block) = pending_best_block.take() {
 			*best_block = block;
