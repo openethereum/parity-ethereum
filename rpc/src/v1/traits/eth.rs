@@ -63,7 +63,7 @@ build_rpc_trait! {
 		#[rpc(name = "eth_getBalance")]
 		fn balance(&self, H160, Trailing<BlockNumber>) -> BoxFuture<U256>;
 
-		/// Returns balance of the given account.
+		/// Returns the account- and storage-values of the specified account including the Merkle-proof
 		#[rpc(name = "eth_getProof")]
 		fn proof(&self, H160, Vec<H256>, Trailing<BlockNumber>) -> BoxFuture<EthAccount>;
 
