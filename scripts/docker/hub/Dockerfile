@@ -16,7 +16,7 @@ RUN apt clean -y
 RUN rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*
 
 RUN groupadd -g 1000 parity \
-  && useradd -u 1000 -g parity -s /bin/sh parity
+  && useradd -m -u 1000 -g parity -s /bin/sh parity
 
 USER parity
 
