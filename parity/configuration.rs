@@ -855,6 +855,7 @@ impl Configuration {
 				Some(max) if max > 0 => max as usize,
 				_ => 5usize,
 			},
+			keep_alive: !self.args.flag_jsonrpc_no_keep_alive,
 		};
 
 		Ok(conf)
