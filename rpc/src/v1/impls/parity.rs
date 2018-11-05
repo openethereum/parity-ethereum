@@ -489,7 +489,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn status(&self) -> Result<()> {
-		let has_peers = self.client.spec_name() == "developmentchain" || self.sync.status().num_peers > 0;
+		let has_peers = self.settings.is_dev_chain || self.sync.status().num_peers > 0;
 		let is_warping = match self.snapshot.as_ref().map(|s| s.status()) {
 			Some(RestorationStatus::Ongoing { .. }) => true,
 			_ => false,

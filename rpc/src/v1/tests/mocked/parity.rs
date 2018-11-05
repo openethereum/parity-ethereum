@@ -60,6 +60,7 @@ impl Dependencies {
 			settings: Arc::new(NetworkSettings {
 				name: "mynode".to_owned(),
 				chain: "testchain".to_owned(),
+				is_dev_chain: false,
 				network_port: 30303,
 				rpc_enabled: true,
 				rpc_interface: "all".to_owned(),

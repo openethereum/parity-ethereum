@@ -416,7 +416,7 @@ impl Parity for ParityClient {
 	}
 
 	fn status(&self) -> Result<()> {
-		let has_peers = self.settings.chain == "dev" || self.light_dispatch.sync.peer_numbers().connected > 0;
+		let has_peers = self.settings.is_dev_chain || self.light_dispatch.sync.peer_numbers().connected > 0;
 		let is_importing = self.light_dispatch.sync.is_major_importing();
 
 		if has_peers && !is_importing {
