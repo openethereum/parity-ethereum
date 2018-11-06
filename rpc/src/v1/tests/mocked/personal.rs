@@ -344,7 +344,7 @@ fn sign_eip191_with_validator() {
 			"0x00",
 			{
 				"validator": ""#.to_owned() + &format!("0x{:x}", address) + r#"",
-				"applicationData": ""# + &format!("0x{:x}", keccak("hello world")) + r#""
+				"data": ""# + &format!("0x{:x}", keccak("hello world")) + r#""
 			},
 			""# + &format!("0x{:x}", address) + r#"",
 			"password123"
