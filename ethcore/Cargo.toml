@@ -78,6 +78,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 [dev-dependencies]
 tempdir = "0.3"
 trie-standardmap = "0.1"
+criterion = "0.2"
 
 [features]
 parity = ["work-notify", "price-info", "stratum"]
@@ -106,7 +107,9 @@ json-tests = ["ethcore-transaction/json-tests", "test-helpers", "tempdir"]
 ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
-# Compile benches
-benches = []
 # Compile test helpers
 test-helpers = ["tempdir"]
+
+[[bench]]
+name = "builtin"
+harness = false
