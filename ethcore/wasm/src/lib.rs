@@ -97,7 +97,7 @@ impl WasmInterpreter {
 
 		let loaded_module = wasmi::Module::from_parity_wasm_module(module).map_err(Error::Interpreter)?;
 
-		let instantiation_resolver = env::ImportResolver::with_limit(16, ext.schedule().wasm());
+		let instantiation_resolver = env::ImportResolver::with_limit(<u32>::max_value() - 1, ext.schedule().wasm());
 
 		let module_instance = wasmi::ModuleInstance::new(
 			&loaded_module,
