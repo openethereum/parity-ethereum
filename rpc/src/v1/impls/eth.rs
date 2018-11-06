@@ -569,8 +569,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				nonce : account.nonce.into(),
 				code_hash : account.code_hash.into(),
 				storage_hash : account.storage_root.into(),
-				account_proof: Some(proof.into_iter().map(Bytes::new).collect()),
-				storage_proof: Some(values.iter().filter_map(|storage_index| { 
+				account_proof: proof.into_iter().map(Bytes::new).collect(),
+				storage_proof: values.iter().filter_map(|storage_index| { 
 					let key2: H256 = storage_index.clone().into();
 					match self.client.prove_storage(key1, keccak(key2), id) {
 							Some((storage_proof,storage_value)) => Some(StorageProof {
@@ -582,7 +582,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 						}
 					})
 					.collect::<Vec<StorageProof>>()
-				)
 			}),
 			None => Err(errors::state_pruned()),
 		};

@@ -40,8 +40,8 @@ pub struct EthAccount {
 	pub nonce: U256,
 	pub code_hash: H256,
 	pub storage_hash: H256,
-	pub account_proof: Option<Vec<Bytes>>,
-	pub storage_proof: Option<Vec<StorageProof>>,
+	pub account_proof: Vec<Bytes>,
+	pub storage_proof: Vec<StorageProof>,
 }
 
 /// Extended account information (used by `parity_allAccountInfo`).
