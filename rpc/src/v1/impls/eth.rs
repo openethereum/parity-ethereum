@@ -573,7 +573,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				storage_proof: Some(values.iter().filter_map(|storage_index| { 
 					let key2: H256 = storage_index.clone().into();
 					match self.client.prove_storage(key1, keccak(key2), id) {
-							Some((storage_proof,storage_value)) =>  Some(StorageProof {
+							Some((storage_proof,storage_value)) => Some(StorageProof {
 								key : key2.into(),
 								value: storage_value.into(),
 								proof: storage_proof.into_iter().map(Bytes::new).collect()
