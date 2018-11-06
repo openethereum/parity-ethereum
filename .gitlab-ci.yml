@@ -8,6 +8,8 @@ image:                             parity/rust:gitlab-ci
 
 variables:
   CI_SERVER_NAME:                  "GitLab CI"
+  CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
+  CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
 cache:
   key:                             "${CI_JOB_NAME}"
@@ -133,7 +135,7 @@ build-android:
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
   script:
-    - scripts/gitlab/test-all.sh stable
+    - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
 

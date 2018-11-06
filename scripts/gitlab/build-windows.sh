@@ -7,6 +7,7 @@ set LIB="C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.
 
 echo "__________Show ENVIROMENT__________"
 echo "CI_SERVER_NAME:   " $CI_SERVER_NAME
+echo "CARGO_HOME:       " $CARGO_HOME
 echo "CARGO_TARGET:     " $CARGO_TARGET
 
 echo "_____ Building target: "$CARGO_TARGET" _____"
