@@ -565,7 +565,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let res = match self.client.prove_account(key1, id) {
 			Some((proof,account)) => Ok(EthAccount {
 				address : address,
-				balance : account.balance.into(),
+				balance: account.balance.into(),
 				nonce : account.nonce.into(),
 				code_hash : account.code_hash.into(),
 				storage_hash : account.storage_root.into(),
