@@ -470,11 +470,9 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-
 	fn proof(&self, _address: RpcH160, _values:Vec<RpcH256>, _num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
 		Box::new(future::err(errors::unimplemented(None)))
 	}
-
 
 	fn compilers(&self) -> Result<Vec<String>> {
 		Err(errors::deprecated("Compilation functionality is deprecated.".to_string()))
