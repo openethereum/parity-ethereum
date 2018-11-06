@@ -13,12 +13,6 @@ variables:
   BUILD_ARCH:                      amd64
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
-cache:
-  key:                             "${CI_JOB_NAME}"
-  paths:
-    - ./target
-    - ./.cargo
-
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
     - stable
@@ -90,7 +84,6 @@ build-windows:
 publish-docker:
   stage:                           publish
   only:                            *releaseable_branches
-  cache: {}
   dependencies:
     - build-linux
   tags:
@@ -101,7 +94,6 @@ publish-docker:
 publish-awss3:
   stage:                           publish
   only:                            *releaseable_branches
-  cache: {}
   dependencies:
     - build-linux
     - build-darwin
@@ -118,7 +110,6 @@ docs-jsonrpc:
     - tags
   except:
     - nightly
-  cache: {}
   script:
     - scripts/gitlab/docs-jsonrpc.sh
   tags:
