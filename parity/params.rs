@@ -45,6 +45,7 @@ pub enum SpecType {
 	Morden,
 	Ropsten,
 	Kovan,
+	Oasis,
 	Sokol,
 	Dev,
 	Custom(String),
@@ -76,6 +77,7 @@ impl str::FromStr for SpecType {
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
 			"sokol" | "poasokol" => SpecType::Sokol,
+			"oasis" => SpecType::Oasis,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -100,6 +102,7 @@ impl fmt::Display for SpecType {
 			SpecType::Morden => "morden",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
+			SpecType::Oasis => "oasis",
 			SpecType::Sokol => "sokol",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
@@ -125,6 +128,7 @@ impl SpecType {
 			SpecType::Morden => Ok(ethereum::new_morden(params)),
 			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
+			SpecType::Oasis => Ok(ethereum::new_oasis(params)),
 			SpecType::Sokol => Ok(ethereum::new_sokol(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
