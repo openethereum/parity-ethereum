@@ -576,10 +576,9 @@ impl Miner {
 		trace!(target: "miner", "requires_reseal: sealing enabled");
 
 		// Disable sealing if there were no requests for SEALING_TIMEOUT_IN_BLOCKS
-		let had_requests = sealing.last_request.map(|last_request| {
-			best_block > last_request
-				&& best_block - last_request <= SEALING_TIMEOUT_IN_BLOCKS
-		}).unwrap_or(false);
+		let had_requests = sealing.last_request.map(|last_request| 
+			best_block.saturating_sub(last_request) <= SEALING_TIMEOUT_IN_BLOCKS
+		).unwrap_or(false);
 
 		// keep sealing enabled if any of the conditions is met
 		let sealing_enabled = self.forced_sealing()
@@ -1392,6 +1391,33 @@ mod tests {
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
 		assert_eq!(miner.prepare_pending_block(&client), BlockPreparationStatus::NotPrepared);
+	}
+
+	#[test]
+	fn should_not_return_stale_work_packages() {
+		// given
+		let client = TestBlockChainClient::default();
+		let miner = miner();
+
+		// initial work package should create the pending block
+		let res = miner.work_package(&client);
+		assert_eq!(res.unwrap().1, 1);
+		// This should be true, since there were some requests.
+		assert_eq!(miner.requires_reseal(0), true);
+
+		// when new block is imported
+		let client = generate_dummy_client(2);
+		let imported = [0.into()];
+		let empty = &[];
+		miner.chain_new_blocks(&*client, &imported, empty, &imported, empty, false);
+
+		// then
+		// This should be false, because it's too early.
+		assert_eq!(miner.requires_reseal(2), false);
+		// but still work package should be ready
+		let res = miner.work_package(&*client);
+		assert_eq!(res.unwrap().1, 3);
+		assert_eq!(miner.prepare_pending_block(&*client), BlockPreparationStatus::NotPrepared);
 	}
 
 	#[test]
