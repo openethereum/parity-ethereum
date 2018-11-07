@@ -60,6 +60,7 @@ impl Dependencies {
 			settings: Arc::new(NetworkSettings {
 				name: "mynode".to_owned(),
 				chain: "testchain".to_owned(),
+				is_dev_chain: false,
 				network_port: 30303,
 				rpc_enabled: true,
 				rpc_interface: "all".to_owned(),
@@ -83,6 +84,7 @@ impl Dependencies {
 			self.settings.clone(),
 			signer,
 			self.ws_address.clone(),
+			None,
 		)
 	}
 
@@ -549,6 +551,56 @@ fn rpc_parity_block_receipts() {
 		"id": 1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000003","blockNumber":"0x0","contractAddress":null,"cumulativeGasUsed":"0x5208","from":"0x0000000000000000000000000000000000000009","gasUsed":"0x5208","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001","root":null,"status":null,"to":null,"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000001","transactionIndex":"0x0"}],"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_status_ok() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "parity_nodeStatus",
+		"params": [],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_status_error_peers() {
+	let deps = Dependencies::new();
+	deps.sync.status.write().num_peers = 0;
+	let io = deps.default_client();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "parity_nodeStatus",
+		"params": [],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32066,"message":"Node is not connected to any peers."},"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_status_error_sync() {
+	let deps = Dependencies::new();
+	deps.sync.status.write().state = ::sync::SyncState::Blocks;
+	let io = deps.default_client();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "parity_nodeStatus",
+		"params": [],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32001,"message":"Still syncing."},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

@@ -150,6 +150,7 @@ pub fn start_http<M, S, H, T>(
 		.threads(threads)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
+		.health_api(("/api/health", "parity_nodeStatus"))
 		.max_request_body_size(max_payload * 1024 * 1024)
 		.start_http(addr)?)
 }

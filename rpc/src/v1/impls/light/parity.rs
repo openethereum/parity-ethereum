@@ -414,4 +414,15 @@ impl Parity for ParityClient {
 	fn submit_work_detail(&self, _nonce: H64, _pow_hash: H256, _mix_hash: H256) -> Result<H256> {
 		Err(errors::light_unimplemented(None))
 	}
+
+	fn status(&self) -> Result<()> {
+		let has_peers = self.settings.is_dev_chain || self.light_dispatch.sync.peer_numbers().connected > 0;
+		let is_importing = self.light_dispatch.sync.is_major_importing();
+
+		if has_peers && !is_importing {
+			Ok(())
+		} else {
+			Err(errors::status_error(has_peers))
+		}
+	}
 }

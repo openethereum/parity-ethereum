@@ -23,6 +23,8 @@ pub struct NetworkSettings {
 	pub name: String,
 	/// Name of the chain we are connected to
 	pub chain: String,
+	/// Is development chain
+	pub is_dev_chain: bool,
 	/// Networking port
 	pub network_port: u16,
 	/// Is JSON-RPC server enabled?
@@ -38,6 +40,7 @@ impl Default for NetworkSettings {
 		NetworkSettings {
 			name: "".into(),
 			chain: "foundation".into(),
+			is_dev_chain: false,
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "127.0.0.1".into(),

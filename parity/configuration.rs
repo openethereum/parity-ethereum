@@ -471,6 +471,10 @@ impl Configuration {
 		Ok(name.parse()?)
 	}
 
+	fn is_dev_chain(&self) -> Result<bool, String> {
+		Ok(self.chain()? == SpecType::Dev)
+	}
+
 	fn max_peers(&self) -> u32 {
 		self.args.arg_max_peers
 			.or(cmp::max(self.args.arg_min_peers, Some(DEFAULT_MAX_PEERS)))
@@ -528,7 +532,7 @@ impl Configuration {
 	}
 
 	fn miner_options(&self) -> Result<MinerOptions, String> {
-		let is_dev_chain = self.chain()? == SpecType::Dev;
+		let is_dev_chain = self.is_dev_chain()?;
 		if is_dev_chain && self.args.flag_force_sealing && self.args.arg_reseal_min_period == 0 {
 			return Err("Force sealing can't be used with reseal_min_period = 0".into());
 		}
@@ -922,6 +926,7 @@ impl Configuration {
 		Ok(NetworkSettings {
 			name: self.args.arg_identity.clone(),
 			chain: format!("{}", self.chain()?),
+			is_dev_chain: self.is_dev_chain()?,
 			network_port: net_addresses.0.port(),
 			rpc_enabled: http_conf.enabled,
 			rpc_interface: http_conf.interface,
@@ -1522,6 +1527,7 @@ mod tests {
 		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
 			name: "testname".to_owned(),
 			chain: "kovan".to_owned(),
+			is_dev_chain: false,
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "127.0.0.1".to_owned(),
