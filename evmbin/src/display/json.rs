@@ -197,7 +197,6 @@ impl trace::VMTracer for Informant {
 			let subdepth = self.subdepth;
 
 			Self::with_informant_in_depth(&mut self, subdepth, |informant: &mut Informant| {
-				let store_diff = informant.store_written.clone();
 				let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
 				let trace = json!({
