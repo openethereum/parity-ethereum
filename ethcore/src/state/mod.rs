@@ -1533,7 +1533,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_not_trace_callcode() {
+	fn should_trace_callcode_properly() {
 		init_log();
 
 		let mut state = get_temp_state();
@@ -1575,7 +1575,7 @@ mod tests {
 			subtraces: 0,
 			action: trace::Action::Call(trace::Call {
 				from: 0xa.into(),
-				to: 0xa.into(),
+				to: 0xb.into(),
 				value: 0.into(),
 				gas: 4096.into(),
 				input: vec![],
