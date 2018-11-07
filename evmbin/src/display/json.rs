@@ -296,6 +296,17 @@ mod tests {
 {"pc":0,"op":248,"opName":"","gas":"0xffff","gasCost":"0x0","memory":"0x","stack":[],"storage":{},"depth":1}
 			"#,
 		);
+
+		run_test(
+			Informant::default(),
+			&compare_json,
+			"5A51",
+			0xfffff,
+			r#"
+{"depth":1,"gas":"0xfffff","gasCost":"0x2","memory":"0x","op":90,"opName":"GAS","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xffffd","gasCost":"0x0","memory":"0x","op":81,"opName":"MLOAD","pc":1,"stack":["0xffffd"],"storage":{}}
+			"#,
+		);
 	}
 
 	#[test]
