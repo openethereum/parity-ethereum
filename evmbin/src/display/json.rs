@@ -55,6 +55,22 @@ impl Informant {
 			Self::with_informant_in_depth(informant.subinfos.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
 		}
 	}
+
+	fn informant_trace(informant: &Informant, gas_used: U256) -> String {
+		let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
+
+		json!({
+			"pc": informant.pc,
+			"op": informant.instruction,
+			"opName": info.map(|i| i.name).unwrap_or(""),
+			"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
+			"gasCost": format!("{:#x}", informant.gas_cost),
+			"memory": format!("0x{}", informant.memory.to_hex()),
+			"stack": informant.stack,
+			"storage": informant.storage,
+			"depth": informant.depth,
+		}).to_string()
+	}
 }
 
 impl vm::Informant for Informant {
@@ -128,18 +144,8 @@ impl trace::VMTracer for Informant {
 			let store_diff = informant.store_written.clone();
 			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-			let trace = json!({
-				"pc": informant.pc,
-				"op": informant.instruction,
-				"opName": info.map(|i| i.name).unwrap_or(""),
-				"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
-				"gasCost": format!("{:#x}", informant.gas_cost),
-				"memory": format!("0x{}", informant.memory.to_hex()),
-				"stack": informant.stack,
-				"storage": informant.storage,
-				"depth": informant.depth,
-			});
-			informant.traces.push(trace.to_string());
+			let trace = Self::informant_trace(informant, gas_used);
+			informant.traces.push(trace);
 
 			informant.unmatched = false;
 			informant.gas_used = gas_used;
@@ -197,20 +203,8 @@ impl trace::VMTracer for Informant {
 			let subdepth = self.subdepth;
 
 			Self::with_informant_in_depth(&mut self, subdepth, |informant: &mut Informant| {
-				let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
-
-				let trace = json!({
-					"pc": informant.pc,
-					"op": informant.instruction,
-					"opName": info.map(|i| i.name).unwrap_or(""),
-					"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
-					"gasCost": format!("{:#x}", informant.gas_cost),
-					"memory": format!("0x{}", informant.memory.to_hex()),
-					"stack": informant.stack,
-					"storage": informant.storage,
-					"depth": informant.depth,
-				});
-				informant.traces.push(trace.to_string());
+				let trace = Self::informant_trace(informant, gas_used);
+				informant.traces.push(trace);
 			});
 		} else if !self.subtraces.is_empty() {
 			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
