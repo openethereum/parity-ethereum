@@ -320,7 +320,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
 			&header.bare_hash().0,
 			seal.nonce.low_u64(),
-			&seal.mix_hash.0
+			&seal.mix_hash.0,
+			header.number() >= self.ethash_params.progpow_transition
 		)));
 
 		if &difficulty < header.difficulty() {

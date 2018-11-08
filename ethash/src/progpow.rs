@@ -98,7 +98,7 @@ fn keccak_f800_round(st: &mut [u32; 25], r: usize) {
 	}
 }
 
-fn keccak_f800_short(header_hash: H256, nonce: u64, result: [u32; 8]) -> u64 {
+pub fn keccak_f800_short(header_hash: H256, nonce: u64, result: [u32; 8]) -> u64 {
 	let mut st = [0u32; 25];
 
 	for i in 0..8 {

@@ -21,7 +21,7 @@
 
 use keccak::{keccak_512, keccak_256, H256};
 use cache::{NodeCache, NodeCacheBuilder};
-use progpow::{CDag, generate_cdag, progpow};
+use progpow::{CDag, generate_cdag, progpow, keccak_f800_short, keccak_f800_long};
 use seed_compute::SeedHashCompute;
 use shared::*;
 use std::io;
@@ -124,27 +124,32 @@ fn fnv_hash(x: u32, y: u32) -> u32 {
 /// `nonce`            The block's nonce
 /// `mix_hash`         The mix digest hash
 /// Boundary recovered from mix hash
-pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256) -> H256 {
+pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, progpow: bool) -> H256 {
 	unsafe {
-		// This is safe - the `keccak_512` call below reads the first 40 bytes (which we explicitly set
-		// with two `copy_nonoverlapping` calls) but writes the first 64, and then we explicitly write
-		// the next 32 bytes before we read the whole thing with `keccak_256`.
-		//
-		// This cannot be elided by the compiler as it doesn't know the implementation of
-		// `keccak_512`.
-		let mut buf: [u8; 64 + 32] = mem::uninitialized();
+		if progpow {
+			let seed = keccak_f800_short(*header_hash, nonce, [0u32; 8]);
+			keccak_f800_long(*header_hash, seed, mem::transmute(*mix_hash))
+		} else {
+			// This is safe - the `keccak_512` call below reads the first 40 bytes (which we explicitly set
+			// with two `copy_nonoverlapping` calls) but writes the first 64, and then we explicitly write
+			// the next 32 bytes before we read the whole thing with `keccak_256`.
+			//
+			// This cannot be elided by the compiler as it doesn't know the implementation of
+			// `keccak_512`.
+			let mut buf: [u8; 64 + 32] = mem::uninitialized();
 
-		ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32);
-		ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf[32..].as_mut_ptr(), 8);
+			ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32);
+			ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf[32..].as_mut_ptr(), 8);
 
-		keccak_512::unchecked(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
-		ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32);
+			keccak_512::unchecked(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
+			ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32);
 
-		// This is initialized in `keccak_256`
-		let mut hash: [u8; 32] = mem::uninitialized();
-		keccak_256::unchecked(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
+			// This is initialized in `keccak_256`
+			let mut hash: [u8; 32] = mem::uninitialized();
+			keccak_256::unchecked(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
 
-		hash
+			hash
+		}
 	}
 }
 
