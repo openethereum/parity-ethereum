@@ -69,6 +69,7 @@ pub struct EthashManager {
 	nodecache_builder: NodeCacheBuilder,
 	cache: Mutex<LightCache>,
 	cache_dir: PathBuf,
+	progpow_transition: u64,
 }
 
 impl EthashManager {
@@ -77,6 +78,7 @@ impl EthashManager {
 		EthashManager {
 			cache_dir: cache_dir.to_path_buf(),
 			nodecache_builder: NodeCacheBuilder::new(optimize_for.into().unwrap_or_default(), progpow_transition),
+			progpow_transition: progpow_transition,
 			cache: Mutex::new(LightCache {
 				recent_epoch: None,
 				recent: None,
@@ -95,27 +97,33 @@ impl EthashManager {
 		let epoch = block_number / ETHASH_EPOCH_LENGTH;
 		let light = {
 			let mut lights = self.cache.lock();
-			let light = match lights.recent_epoch.clone() {
-				Some(ref e) if *e == epoch => lights.recent.clone(),
-				_ => match lights.prev_epoch.clone() {
-					Some(e) if e == epoch => {
-						// don't swap if recent is newer.
-						if lights.recent_epoch > lights.prev_epoch {
-							None
-						} else {
-							// swap
-							let t = lights.prev_epoch;
-							lights.prev_epoch = lights.recent_epoch;
-							lights.recent_epoch = t;
-							let t = lights.prev.clone();
-							lights.prev = lights.recent.clone();
-							lights.recent = t;
-							lights.recent.clone()
+			let light = if block_number == self.progpow_transition {
+				// we need to regenerate the cache to trigger generation of progpow cdag inside `Light`
+				None
+			} else {
+				match lights.recent_epoch.clone() {
+					Some(ref e) if *e == epoch => lights.recent.clone(),
+					_ => match lights.prev_epoch.clone() {
+						Some(e) if e == epoch => {
+							// don't swap if recent is newer.
+							if lights.recent_epoch > lights.prev_epoch {
+								None
+							} else {
+								// swap
+								let t = lights.prev_epoch;
+								lights.prev_epoch = lights.recent_epoch;
+								lights.recent_epoch = t;
+								let t = lights.prev.clone();
+								lights.prev = lights.recent.clone();
+								lights.recent = t;
+								lights.recent.clone()
+							}
 						}
-					}
-					_ => None,
-				},
+						_ => None,
+					},
+				}
 			};
+
 			match light {
 				None => {
 					let light = match self.nodecache_builder.light_from_file(
