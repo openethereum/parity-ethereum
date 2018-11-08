@@ -1007,8 +1007,11 @@ fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
 
 fn wait_for_drop<T>(w: Weak<T>) {
 	let sleep_duration = Duration::from_secs(1);
-	let warn_timeout = Duration::from_secs(60);
-	let max_timeout = Duration::from_secs(300);
+	// temporary workaround for https://github.com/paritytech/parity-ethereum/issues/9807
+	// let warn_timeout = Duration::from_secs(60);
+	// let max_timeout = Duration::from_secs(300);
+	let warn_timeout = Duration::from_secs(5);
+	let max_timeout = warn_timeout;
 
 	let instant = Instant::now();
 	let mut warned = false;
