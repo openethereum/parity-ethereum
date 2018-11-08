@@ -564,17 +564,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		try_bf!(check_known(&*self.client, num.clone()));
 		let res = match self.client.prove_account(key1, id) {
 			Some((proof,account)) => Ok(EthAccount {
-				address : address,
+				address: address,
 				balance: account.balance.into(),
-				nonce : account.nonce.into(),
-				code_hash : account.code_hash.into(),
-				storage_hash : account.storage_root.into(),
+				nonce: account.nonce.into(),
+				code_hash: account.code_hash.into(),
+				storage_hash: account.storage_root.into(),
 				account_proof: proof.into_iter().map(Bytes::new).collect(),
 				storage_proof: values.into_iter().filter_map(|storage_index| { 
 					let key2: H256 = storage_index.into();
 					match self.client.prove_storage(key1, keccak(key2), id) {
 							Some((storage_proof,storage_value)) => Some(StorageProof {
-								key : key2.into(),
+								key: key2.into(),
 								value: storage_value.into(),
 								proof: storage_proof.into_iter().map(Bytes::new).collect()
 							}),
