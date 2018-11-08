@@ -24,11 +24,11 @@ use std::net::{SocketAddr, IpAddr};
 use futures::{future, Future, Stream};
 use parking_lot::{Mutex, RwLock};
 use tokio_io::IoFuture;
-use tokio::runtime::TaskExecutor;
 use tokio::timer::{Interval, timeout::Error as TimeoutError};
 use tokio::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use ethereum_types::{Address, H256};
+use parity_runtime::Executor;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessions, SessionIdWithSubSession,
 	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view, AdminSessionCreationData, ClusterSessionsListener};
@@ -121,8 +121,6 @@ pub trait Cluster: Send + Sync {
 /// Cluster initialization parameters.
 #[derive(Clone)]
 pub struct ClusterConfiguration {
-	/// Number of threads reserved by cluster.
-	pub threads: usize,
 	/// Allow connecting to 'higher' nodes.
 	pub allow_connecting_to_higher_nodes: bool,
 	/// KeyPair this node holds.
@@ -175,14 +173,14 @@ pub struct ClusterData {
 	/// Cluster configuration.
 	pub config: ClusterConfiguration,
 	/// Handle to the event loop.
-	pub executor: TaskExecutor,
+	pub executor: Executor,
 	/// KeyPair this node holds.
 	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Connections data.
 	pub connections: ClusterConnections,
 	/// Active sessions data.
 	pub sessions: ClusterSessions,
-	/// Shutdown flag:
+	/// A shutdown flag.
 	pub is_shutdown: Arc<AtomicBool>,
 }
 
@@ -235,7 +233,7 @@ pub struct Connection {
 }
 
 impl ClusterCore {
-	pub fn new(executor: TaskExecutor, config: ClusterConfiguration) -> Result<Arc<Self>, Error> {
+	pub fn new(executor: Executor, config: ClusterConfiguration) -> Result<Arc<Self>, Error> {
 		let listen_address = make_socket_address(&config.listen_address.0, config.listen_address.1)?;
 		let connections = ClusterConnections::new(&config)?;
 		let servers_set_change_creator_connector = connections.connector.clone();
@@ -790,7 +788,7 @@ impl ClusterConnections {
 }
 
 impl ClusterData {
-	pub fn new(executor: &TaskExecutor, config: ClusterConfiguration, connections: ClusterConnections, sessions: ClusterSessions) -> Arc<Self> {
+	pub fn new(executor: &Executor, config: ClusterConfiguration, connections: ClusterConnections, sessions: ClusterSessions) -> Arc<Self> {
 		Arc::new(ClusterData {
 			executor: executor.clone(),
 			self_key_pair: config.self_key_pair.clone(),
@@ -807,12 +805,6 @@ impl ClusterData {
 	}
 
 	/// Spawns a future on the runtime.
-	//
-	// TODO: Consider implementing a more graceful shutdown process using an
-	// `AtomicBool`, etc. which would prevent tasks from being spawned after a
-	// shutdown signal is given. (Recursive calls, in
-	// `process_connection_messages` for example, appear to continue
-	// indefinitely.)
 	pub fn spawn<F>(&self, f: F) where F: Future<Item = (), Error = ()> + Send + 'static {
 		if self.is_shutdown.load(Ordering::Acquire) == false {
 			if let Err(err) = future::Executor::execute(&self.executor, Box::new(f)) {
@@ -1139,8 +1131,11 @@ pub mod tests {
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::RwLock;
 	use tokio::{
-		runtime::{Runtime, Builder as RuntimeBuilder},
 		prelude::{future, Future},
+	};
+	use parity_runtime::{
+		futures::sync::oneshot,
+		Runtime, Executor,
 	};
 	use ethereum_types::{Address, H256};
 	use ethkey::{Random, Generator, Public, Signature, sign};
@@ -1263,16 +1258,18 @@ pub mod tests {
 		}
 	}
 
-	/// Loops until `predicate` returns `true` or `timeout` has elapsed.
-	pub fn loop_until<F>(runtime: &mut Runtime, timeout: Duration, predicate: F)
+	/// Blocks the calling thread, looping until `predicate` returns `true` or
+	/// `timeout` has elapsed.
+	pub fn loop_until<F>(executor: &Executor, timeout: Duration, predicate: F)
 		where F: Send + 'static + Fn() -> bool
 	{
 		use futures::Stream;
 		use tokio::timer::Interval;
 
 		let start = Instant::now();
+		let (complete_tx, complete_rx) = oneshot::channel();
 
-		runtime.block_on(Interval::new_interval(Duration::from_millis(1))
+		executor.spawn(Interval::new_interval(Duration::from_millis(1))
 			.and_then(move |_| {
 				if Instant::now() - start > timeout {
 					panic!("no result in {:?}", timeout);
@@ -1282,8 +1279,13 @@ pub mod tests {
 			})
 			.take_while(move |_| future::ok(!predicate()))
 			.for_each(|_| Ok(()))
-			.then(|_| future::ok::<(), ()>(()))
-		).unwrap();
+			.then(|_| {
+				complete_tx.send(()).expect("receiver dropped");
+				future::ok::<(), ()>(())
+			})
+		);
+
+		complete_rx.wait().unwrap();
 	}
 
 	pub fn all_connections_established(cluster: &Arc<ClusterCore>) -> bool {
@@ -1295,7 +1297,6 @@ pub mod tests {
 	pub fn make_clusters(runtime: &Runtime, ports_begin: u16, num_nodes: usize) -> Vec<Arc<ClusterCore>> {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let cluster_params: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
-			threads: 1,
 			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pairs[i].clone())),
 			listen_address: ("127.0.0.1".to_owned(), ports_begin + i as u16),
 			key_server_set: Arc::new(MapKeyServerSet::new(false, key_pairs.iter().enumerate()
@@ -1331,21 +1332,17 @@ pub mod tests {
 
 	/// Returns a new runtime with a static number of threads.
 	pub fn new_runtime() -> Runtime {
-		RuntimeBuilder::new()
-			.core_threads(4)
-			.build()
-			.expect("Unable to create tokio runtime")
+		Runtime::with_thread_count(4)
 	}
 
 	#[test]
 	fn cluster_connects_to_other_nodes() {
-		let mut runtime = new_runtime();
+		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6010, 3);
 		run_clusters(&clusters);
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
+		loop_until(&runtime.executor(), TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 		shutdown_clusters(&clusters);
-		runtime.shutdown_now().wait().unwrap();
 	}
 
 	#[test]
@@ -1359,17 +1356,16 @@ pub mod tests {
 			_ => panic!("unexpected success"),
 		}
 		shutdown_clusters(&clusters);
-		runtime.shutdown_now().wait().unwrap();
 	}
 
 	#[test]
 	fn error_in_generation_session_broadcasted_to_all_other_nodes() {
 		//::logger::init_log();
-		let mut runtime = new_runtime();
+		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6016, 3);
 		run_clusters(&clusters);
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
+		loop_until(&runtime.executor(), TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 
 		// ask one of nodes to produce faulty generation sessions
 		clusters[1].client().make_faulty_generation_sessions();
@@ -1378,7 +1374,7 @@ pub mod tests {
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || session_clone.joint_public_and_secret().is_some()
+		loop_until(&runtime.executor(), TIMEOUT, move || session_clone.joint_public_and_secret().is_some()
 			&& clusters_clone[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
 
@@ -1389,24 +1385,22 @@ pub mod tests {
 				let clusters_clone = clusters.clone();
 				// wait for both session completion && session removal (session completion event is fired
 				// before session is removed from its own container by cluster)
-				loop_until(&mut runtime, TIMEOUT, move || session_clone.joint_public_and_secret().is_some()
+				loop_until(&runtime.executor(), TIMEOUT, move || session_clone.joint_public_and_secret().is_some()
 					&& clusters_clone[i].client().generation_session(&SessionId::default()).is_none());
 				assert!(session.joint_public_and_secret().unwrap().is_err());
 			}
 		}
 		shutdown_clusters(&clusters);
-		runtime.shutdown_now().wait().unwrap();
 	}
 
 	#[test]
 	fn generation_session_completion_signalled_if_failed_on_master() {
 		//::logger::init_log();
-		let mut runtime = new_runtime();
-
+		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6025, 3);
 		run_clusters(&clusters);
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
+		loop_until(&runtime.executor(), TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 
 		// ask one of nodes to produce faulty generation sessions
 		clusters[0].client().make_faulty_generation_sessions();
@@ -1415,7 +1409,7 @@ pub mod tests {
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || session_clone.joint_public_and_secret().is_some()
+		loop_until(&runtime.executor(), TIMEOUT, move || session_clone.joint_public_and_secret().is_some()
 			&& clusters_clone[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
 
@@ -1426,29 +1420,28 @@ pub mod tests {
 				let clusters_clone = clusters.clone();
 				// wait for both session completion && session removal (session completion event is fired
 				// before session is removed from its own container by cluster)
-				loop_until(&mut runtime, TIMEOUT, move || session_clone.joint_public_and_secret().is_some()
+				loop_until(&runtime.executor(), TIMEOUT, move || session_clone.joint_public_and_secret().is_some()
 					&& clusters_clone[i].client().generation_session(&SessionId::default()).is_none());
 				assert!(session.joint_public_and_secret().unwrap().is_err());
 			}
 		}
 		shutdown_clusters(&clusters);
-		runtime.shutdown_now().wait().unwrap();
 	}
 
 	#[test]
 	fn generation_session_is_removed_when_succeeded() {
 		//::logger::init_log();
-		let mut runtime = new_runtime();
+		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6019, 3);
 		run_clusters(&clusters);
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
+		loop_until(&runtime.executor(), TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || (session_clone.state() == GenerationSessionState::Finished
+		loop_until(&runtime.executor(), TIMEOUT, move || (session_clone.state() == GenerationSessionState::Finished
 			|| session_clone.state() == GenerationSessionState::Failed)
 			&& clusters_clone[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
@@ -1462,22 +1455,21 @@ pub mod tests {
 				// AND check that it is actually removed from cluster sessions
 				let session_clone = session.clone();
 				let clusters_clone = clusters.clone();
-				loop_until(&mut runtime, TIMEOUT, move || (session_clone.state() == GenerationSessionState::Finished
+				loop_until(&runtime.executor(), TIMEOUT, move || (session_clone.state() == GenerationSessionState::Finished
 					|| session_clone.state() == GenerationSessionState::Failed)
 					&& clusters_clone[i].client().generation_session(&SessionId::default()).is_none());
 			}
 		}
 		shutdown_clusters(&clusters);
-		runtime.shutdown_now().wait().unwrap();
 	}
 
 	#[test]
 	fn sessions_are_removed_when_initialization_fails() {
-		let mut runtime = new_runtime();
+		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6022, 3);
 		run_clusters(&clusters);
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
+		loop_until(&runtime.executor(), TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 
 		// generation session
 		{
@@ -1506,7 +1498,6 @@ pub mod tests {
 			assert!(clusters[0].data.sessions.negotiation_sessions.is_empty());
 		}
 		shutdown_clusters(&clusters);
-		runtime.shutdown_now().wait().unwrap();
 	}
 
 	// test ignored because of
@@ -1516,17 +1507,17 @@ pub mod tests {
 	#[ignore]
 	fn schnorr_signing_session_completes_if_node_does_not_have_a_share() {
 		//::logger::init_log();
-		let mut runtime = new_runtime();
+		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6028, 3);
 		run_clusters(&clusters);
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
+		loop_until(&runtime.executor(), TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || (session_clone.state() == GenerationSessionState::Finished
+		loop_until(&runtime.executor(), TIMEOUT, move || (session_clone.state() == GenerationSessionState::Finished
 			|| session_clone.state() == GenerationSessionState::Failed)
 			&& clusters_clone[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
@@ -1542,7 +1533,7 @@ pub mod tests {
 
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || session_clone.is_finished() && (0..3).all(|i|
+		loop_until(&runtime.executor(), TIMEOUT, move || session_clone.is_finished() && (0..3).all(|i|
 			clusters_clone[i].data.sessions.schnorr_signing_sessions.is_empty()));
 		session0.wait().unwrap();
 
@@ -1553,7 +1544,7 @@ pub mod tests {
 
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || session_clone.is_finished()  && (0..3).all(|i|
+		loop_until(&runtime.executor(), TIMEOUT, move || session_clone.is_finished()  && (0..3).all(|i|
 			clusters_clone[i].data.sessions.schnorr_signing_sessions.is_empty()));
 		session2.wait().unwrap();
 
@@ -1566,10 +1557,9 @@ pub mod tests {
 		let session = clusters[0].data.sessions.schnorr_signing_sessions.first().unwrap();
 
 		let session = session.clone();
-		loop_until(&mut runtime, TIMEOUT, move || session.is_finished());
+		loop_until(&runtime.executor(), TIMEOUT, move || session.is_finished());
 		session1.wait().unwrap_err();
 		shutdown_clusters(&clusters);
-		runtime.shutdown_now().wait().unwrap();
 	}
 
 	// test ignored because of
@@ -1579,17 +1569,17 @@ pub mod tests {
 	#[ignore]
 	fn ecdsa_signing_session_completes_if_node_does_not_have_a_share() {
 		//::logger::init_log();
-		let mut runtime = new_runtime();
+		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6041, 4);
 		run_clusters(&clusters);
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
+		loop_until(&runtime.executor(), TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, TIMEOUT, move || (session_clone.state() == GenerationSessionState::Finished
+		loop_until(&runtime.executor(), TIMEOUT, move || (session_clone.state() == GenerationSessionState::Finished
 			|| session_clone.state() == GenerationSessionState::Failed)
 			&& clusters_clone[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
@@ -1605,7 +1595,7 @@ pub mod tests {
 
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, Duration::from_millis(1000), move || session_clone.is_finished() && (0..3).all(|i|
+		loop_until(&runtime.executor(), Duration::from_millis(1000), move || session_clone.is_finished() && (0..3).all(|i|
 			clusters_clone[i].data.sessions.ecdsa_signing_sessions.is_empty()));
 		session0.wait().unwrap();
 
@@ -1615,7 +1605,7 @@ pub mod tests {
 		let session = clusters[2].data.sessions.ecdsa_signing_sessions.first().unwrap();
 		let session_clone = session.clone();
 		let clusters_clone = clusters.clone();
-		loop_until(&mut runtime, Duration::from_millis(1000), move || session_clone.is_finished()  && (0..3).all(|i|
+		loop_until(&runtime.executor(), Duration::from_millis(1000), move || session_clone.is_finished()  && (0..3).all(|i|
 			clusters_clone[i].data.sessions.ecdsa_signing_sessions.is_empty()));
 		session2.wait().unwrap();
 
@@ -1626,9 +1616,8 @@ pub mod tests {
 		let signature = sign(Random.generate().unwrap().secret(), &Default::default()).unwrap();
 		let session1 = clusters[0].client().new_ecdsa_signing_session(Default::default(), signature.into(), None, H256::random()).unwrap();
 		let session = clusters[0].data.sessions.ecdsa_signing_sessions.first().unwrap();
-		loop_until(&mut runtime, Duration::from_millis(1000), move || session.is_finished());
+		loop_until(&runtime.executor(), Duration::from_millis(1000), move || session.is_finished());
 		session1.wait().unwrap_err();
 		shutdown_clusters(&clusters);
-		runtime.shutdown_now().wait().unwrap();
 	}
 }
