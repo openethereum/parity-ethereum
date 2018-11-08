@@ -79,7 +79,7 @@ parity-runtime = { path = "../util/runtime" }
 # tokio = "0.1"
 tokio = { git = "https://github.com/tokio-rs/tokio", rev = "51e36e4" }
 # hydrabadger = { path = "../../hydrabadger"}
-hydrabadger = { git = "https://github.com/poanetwork/hydrabadger", branch = "hbbft-vk-extern-sender-queue"}
+hydrabadger = { git = "https://github.com/poanetwork/hydrabadger" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
 hardware-wallet = { path = "../hw" }

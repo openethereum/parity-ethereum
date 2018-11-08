@@ -14,34 +14,79 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! The `Hbbft` consensus engine.
+
 #![allow(unused_imports)]
 
 use std::sync::{Arc, Weak};
 
-use block::ExecutedBlock;
+use ethereum_types::{H256, H520, Address, U128, U256};
+
+use account_provider::AccountProvider;
+use block::{ExecutedBlock, IsBlock};
 use client::{EngineClient, BlockInfo};
-use engines::{Engine, Seal, signer::EngineSigner, ForkChoice};
+use engines::{default_system_or_code_call, Engine, Seal, ForkChoice};
+use engines::block_reward::{apply_block_rewards, BlockRewardContract, RewardKind};
+use engines::signer::EngineSigner;
+use engines::validator_set::{ValidatorSet, SimpleList, new_validator_set};
+use error::{BlockError, Error};
 use ethjson;
 use ethkey::Password;
-use account_provider::AccountProvider;
-use error::{BlockError, Error};
 use header::{Header, ExtendedHeader};
 use machine::EthereumMachine;
 use parking_lot::RwLock;
-use ethereum_types::{H256, H520, Address, U128, U256};
 use rlp::{self, Decodable, DecoderError, Encodable, RlpStream, Rlp};
+use types::BlockNumber;
 
-/// `Hbbft` params.
-#[derive(Debug, PartialEq)]
+// TODO: Use a threshold signature of the block.
+/// A temporary fixed seal code. The seal has only a single field, containing this string.
+const SEAL: &str = "Honey Badger isn't afraid of seals!";
+
+type StepNumber = u64;
+
+fn convert_block_number_to_step_number(block_number: &BlockNumber) -> StepNumber {
+	block_number - 1
+}
+
 pub struct HbbftParams {
-	/// Whether to use millisecond timestamp
+	/// Specifies whether or not we are using timestamps in units of milliseconds within the our
+	/// block headers.
 	pub millisecond_timestamp: bool,
+
+	/// We can query this trait object for information concerning the validator-set.
+	pub validators: Box<ValidatorSet>,
+
+	/// If we are using a smart contract to calculate and distribute block rewards, we store the
+	/// block reward contract address here. `BlockRewardContract` has a `reward()` method that
+	/// handles the logic for serailizing the input, deserializing the output, and calling the
+	/// block reward contract's `reward()` function.
+	pub block_reward_contract: Option<BlockRewardContract>,
+
+	/// If we are not using a block reward smart contract (i.e. `self.block_reward_contract` is
+	/// `None`), the ammount specified by `block_reward` is added to the address in each newly
+	/// sealed block's `author` block header field. We default this value to `U256::zero()` if
+	/// the user did not provide a `block_reward` parameter in their Hbbft engine JSON spec.
+	pub block_reward: U256,
 }
 
 impl From<ethjson::spec::HbbftParams> for HbbftParams {
 	fn from(p: ethjson::spec::HbbftParams) -> Self {
+		let block_reward_contract = p.block_reward_contract_address
+			.map(|json_addr| {
+				let addr: Address = json_addr.into();
+				BlockRewardContract::new_from_address(addr)
+			});
+
+		let block_reward: U256 = match p.block_reward {
+			Some(json_uint) => json_uint.into(),
+			None => U256::zero(),
+		};
+
 		HbbftParams {
 			millisecond_timestamp: p.millisecond_timestamp,
+			validators: new_validator_set(p.validators),
+			block_reward_contract,
+			block_reward,
 		}
 	}
 }
@@ -49,26 +94,29 @@ impl From<ethjson::spec::HbbftParams> for HbbftParams {
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 /// Only seals blocks which have transactions.
 pub struct Hbbft {
-	params: HbbftParams,
 	machine: EthereumMachine,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	signer: RwLock<EngineSigner>,
+	validators: Box<ValidatorSet>,
+	millisecond_timestamp: bool,
+	block_reward_contract: Option<BlockRewardContract>,
+	block_reward: U256,
 }
 
 impl Hbbft {
 	/// Returns new instance of Hbbft over the given state machine.
 	pub fn new(params: HbbftParams, machine: EthereumMachine) -> Self {
 		Hbbft {
-			params,
 			machine,
 			client: RwLock::new(None),
 			signer: Default::default(),
+			validators: params.validators,
+			millisecond_timestamp: params.millisecond_timestamp,
+			block_reward_contract: params.block_reward_contract,
+			block_reward: params.block_reward,
 		}
 	}
 }
-/// A temporary fixed seal code. The seal has only a single field, containing this string.
-// TODO: Use a threshold signature of the block.
-const SEAL: &str = "Honey Badger isn't afraid of seals!";
 
 impl Engine<EthereumMachine> for Hbbft {
 	fn name(&self) -> &str {
@@ -86,26 +134,26 @@ impl Engine<EthereumMachine> for Hbbft {
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		debug!(target: "engine", "####### Hbbft::generate_seal: Called for block: {:?}.", block);
 		// match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-		// 	Some(client) => {
-		// 		let best_block_header_num = (*client).as_full_client().unwrap().best_block_header().number();
+		//	Some(client) => {
+		//		let best_block_header_num = (*client).as_full_client().unwrap().best_block_header().number();
 
-		// 		debug!(target: "engine", "###### block.header.number(): {}, best_block_header_num: {}",
-		// 			block.header.number(), best_block_header_num);
+		//		debug!(target: "engine", "###### block.header.number(): {}, best_block_header_num: {}",
+		//			block.header.number(), best_block_header_num);
 
-		// 		if block.header.number() > best_block_header_num {
-		// 			Seal::Regular(vec![
-		// 				rlp::encode(&SEAL),
-		// 				// rlp::encode(&(&H520::from(&b"Another Field"[..]) as &[u8])),
-		// 			])
-		// 		} else {
-		// 			debug!(target: "engine", "Hbbft::generate_seal: Returning `Seal::None`.");
-		// 			Seal::None
-		// 		}
-		// 	},
-		// 	None => {
-		// 		debug!(target: "engine", "No client ref available.");
-		// 		Seal::None
-		// 	},
+		//		if block.header.number() > best_block_header_num {
+		//			Seal::Regular(vec![
+		//				rlp::encode(&SEAL),
+		//				// rlp::encode(&(&H520::from(&b"Another Field"[..]) as &[u8])),
+		//			])
+		//		} else {
+		//			debug!(target: "engine", "Hbbft::generate_seal: Returning `Seal::None`.");
+		//			Seal::None
+		//		}
+		//	},
+		//	None => {
+		//		debug!(target: "engine", "No client ref available.");
+		//		Seal::None
+		//	},
 		// }
 
 		Seal::Regular(vec![
@@ -126,7 +174,7 @@ impl Engine<EthereumMachine> for Hbbft {
 
 		let dur = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
 		let mut now = dur.as_secs();
-		if self.params.millisecond_timestamp {
+		if self.millisecond_timestamp {
 			now = now * 1000 + dur.subsec_millis() as u64;
 		}
 		cmp::max(now, parent_timestamp)
@@ -137,7 +185,7 @@ impl Engine<EthereumMachine> for Hbbft {
 	}
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
-		// debug!("######## ENGINE-HBBFT::FORK_CHOICE: \n    NEW: {:?}, \n    OLD: {:?}", new, current);
+		// debug!("######## ENGINE-HBBFT::FORK_CHOICE: \n	 NEW: {:?}, \n	  OLD: {:?}", new, current);
 		use ::parity_machine::TotalScoredHeader;
 		if new.header.number() > current.header.number() {
 			debug_assert!(new.total_score() > current.total_score());
@@ -159,17 +207,91 @@ impl Engine<EthereumMachine> for Hbbft {
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
 		self.signer.write().set(ap, address, password);
 	}
+
+	/// Called by `OpenBlock::new()`. This method is responsible for running any validator-set
+	/// related logic that should be run when a new block is opened. This method is called prior to
+	/// any transactions being added to `block`. This method only runs if a newly opened block's
+	/// block number is the first for a validator-set source (i.e. a hardcoded list of validator
+	/// addresses or a smart contract that contains the validator addresses).
+	///
+	/// If the validator-set source corresponding to `block`'s block number uses a smart contract
+	/// to aquire the list of validator addresses, this method will call the smart contract's
+	/// `finalizeChange` function. The `finalizeChange` contract function will finalize any pending
+	/// validator-set changes currently known to the Safe Contract.
+	///
+	/// # Arguments
+	///
+	/// * `block` - an `OpenBlock`'s internal block info (i.e. an `ExecutedBlock`).
+	/// * `epoch_begin` - tells us whether or not `block` is the first block for a validator-set
+	/// source (i.e. for a hardcoded list of validator addresses or for a safe contract from which
+	/// we query the list of validator addresses).
+	/// * `ancestry` - an iterator over all finalized block headers starting from the first block
+	/// for the validator-set source up to and including `block`'s parent. We ignore this argument
+	/// (it appears that every consensus engine ignores the `ancestory` argument, who knows why
+	/// it's there).
+	fn on_new_block(
+		&self,
+		block: &mut ExecutedBlock,
+		epoch_begin: bool,
+		_ancestry: &mut Iterator<Item=ExtendedHeader>,
+	) -> Result<(), Error> {
+		if !epoch_begin {
+			return Ok(());
+		}
+		let header = block.header().clone();
+		let mut call = |to, data| {
+			let gas = U256::max_value();
+			self.machine
+				.execute_as_system(block, to, gas, Some(data))
+				.map_err(|e| format!("{}", e))
+		};
+		self.validators.on_epoch_begin(epoch_begin, &header, &mut call)
+	}
+
+	/// Called by `OpenBlock::close_and_lock()`. This method is responsible for running any
+	/// validator-set related logic that should be run after all transactions have been added to a
+	/// block (i.e. when an `OpenBlock` is ready to be closed and locked).
+	///
+	/// If the `Hbbft` engine is configured to use a smart contract to distribute block rewards via
+	/// a `reward()` function, this method will call the `reward()` contract function.
+	///
+	/// # Arguments
+	///
+	/// * `block` - an `OpenBlock`'s internal block info (i.e. an `ExecutedBlock`).
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+		// TODO: Indica nodes are temporarily using a constant address as the block author (set
+		// using Parity's `--engine-signer` CLI option in the `indica-node-signer` startup script).
+		// We must determine how exactly we will set the block author going forward when using the
+		// `Hbbft` consesnus engine; currently the POA network uses Aura's round robin algorithm
+		// for selecting each block proposer/author from the set of validators.
+		let author = *block.header().author();
+		let rewards: Vec<(Address, RewardKind, U256)> = match self.block_reward_contract {
+			Some(ref contract) => {
+				let beneficiaries = vec![(author, RewardKind::Author)];
+				let mut call = default_system_or_code_call(&self.machine, block);
+				contract.reward(&beneficiaries, &mut call)?
+					.into_iter()
+					.map(|(author, amount)| (author, RewardKind::External, amount))
+					.collect()
+			},
+			None => vec![(author, RewardKind::Author, self.block_reward)],
+		};
+		apply_block_rewards(&rewards, block, &self.machine)
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
+
 	use ethereum_types::{H520, Address};
-	use test_helpers::get_temp_state_db;
-	use spec::Spec;
-	use header::Header;
+
 	use block::*;
 	use engines::Seal;
+	use factory::Factories;
+	use header::Header;
+	use spec::Spec;
+	use test_helpers::get_temp_state_db;
 
 	#[test]
 	fn hbbft_can_seal() {
@@ -178,7 +300,28 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
+		let b = {
+			let factories = Factories::default();
+			let tracing_enabled = false;
+			let author = Address::default();
+			let gas_range = (3141562.into(), 31415620.into());
+			let extra_data = vec![];
+			let is_first_block_for_validator_set_source = false;
+			let ancestry = &mut Vec::new().into_iter();
+			OpenBlock::new(
+				engine,
+				factories,
+				tracing_enabled,
+				db,
+				&genesis_header,
+				last_hashes,
+				author,
+				gas_range,
+				extra_data,
+				is_first_block_for_validator_set_source,
+				ancestry,
+			).unwrap();
+		};
 		let b = b.close_and_lock().unwrap();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
@@ -191,11 +334,8 @@ mod tests {
 	fn hbbft_cant_verify() {
 		let engine = Spec::new_hbbft().engine;
 		let mut header: Header = Header::default();
-
 		assert!(engine.verify_block_basic(&header).is_ok());
-
 		header.set_seal(vec![::rlp::encode(&H520::default())]);
-
 		assert!(engine.verify_block_unordered(&header).is_ok());
 	}
 }

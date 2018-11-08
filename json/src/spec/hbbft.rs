@@ -16,18 +16,44 @@
 
 //! Honey Badger BFT engine params deserialization.
 
-/// Honey Badger BFT engine params deserialization.
+use hash::Address;
+use spec::ValidatorSet;
+use uint::Uint;
+
+/// `Hbbft` engine configuration parameters, this structure is used to deserialize the values found
+/// in the `Hbbft` engine's JSON spec.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct HbbftParams {
 	/// Whether to enable millisecond timestamp.
 	#[serde(rename="millisecondTimestamp")]
 	#[serde(default)]
 	pub millisecond_timestamp: bool,
+
+	/// The block range for which each validator-set source should be used. A "validator-set
+	/// source" is either a hardcoded list of addresses or a smart contract address to query the
+	/// validator set from. The `validators` configuration option conveys information of the form:
+	/// "from block #0 to #50 use a constant list of validator addresses, for every block sealed
+	/// after block #50, query the set of validator addresses from a smart contract which is
+	/// deployed at some address".
+	pub validators: ValidatorSet,
+
+	/// The address at which the block reward contract is deployed. The block reward contract is
+	/// used to calculate block rewards, to create new POA after each new block is sealed, and to
+	/// distribute the created POA as block rewards to a set of recipient addresses.
+	pub block_reward_contract_address: Option<Address>,
+
+	/// If no `block_reward_contract_address` is provided, the `block_reward` configuration option
+	/// can be used to set a constant block reward ammount to be transfered to the address found in
+	/// each newly sealed block header's `author` field. If neither the
+	/// `block_reward_contract_address` nor `block_reward` options are supplied in the Hbbft
+	/// engine's JSON spec, no block rewards will be distributed. If values are provided for both
+	/// `block_reward_contract_address` and `block_reward`, the value for `block_reward` will be
+	/// ignored and only the contract will be queried to determine reward ammounts.
+	pub block_reward: Option<Uint>,
 }
 
 /// Honey Badger BFT engine descriptor.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Hbbft {
-	/// Instant seal parameters.
 	pub params: HbbftParams,
 }
