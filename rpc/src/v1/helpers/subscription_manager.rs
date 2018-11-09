@@ -95,7 +95,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 				jsonrpc: Some(core::Version::V2),
 				id: core::Id::Str(id.as_string()),
 				method: subscription.method.clone(),
-				params: Some(subscription.params.clone()),
+				params: subscription.params.clone(),
 			};
 			trace!(target: "pubsub", "Polling method: {:?}", call);
 			let result = self.rpc.handle_call(call.into(), subscription.metadata.clone());
@@ -141,7 +141,7 @@ mod tests {
 	use jsonrpc_core::{MetaIoHandler, NoopMiddleware, Value, Params};
 	use jsonrpc_core::futures::{Future, Stream};
 	use jsonrpc_pubsub::SubscriptionId;
-	use http::tokio_core::reactor;
+	use http::tokio::runtime::Runtime;
 
 	use super::GenericPollManager;
 
@@ -162,25 +162,25 @@ mod tests {
 	#[test]
 	fn should_poll_subscribed_method() {
 		// given
-		let mut el = reactor::Core::new().unwrap();
+		let mut el = Runtime::new().unwrap();
 		let mut poll_manager = poll_manager();
 		let (id, rx) = poll_manager.subscribe(Default::default(), "hello".into(), Params::None);
 		assert_eq!(id, SubscriptionId::String("0x416d77337e24399d".into()));
 
 		// then
 		poll_manager.tick().wait().unwrap();
-		let (res, rx) = el.run(rx.into_future()).unwrap();
+		let (res, rx) = el.block_on(rx.into_future()).unwrap();
 		assert_eq!(res, Some(Ok(Value::String("hello".into()))));
 
 		// retrieve second item
 		poll_manager.tick().wait().unwrap();
-		let (res, rx) = el.run(rx.into_future()).unwrap();
+		let (res, rx) = el.block_on(rx.into_future()).unwrap();
 		assert_eq!(res, Some(Ok(Value::String("world".into()))));
 
 		// and no more notifications
 		poll_manager.tick().wait().unwrap();
 		// we need to unsubscribe otherwise the future will never finish.
 		poll_manager.unsubscribe(&id);
-		assert_eq!(el.run(rx.into_future()).unwrap().0, None);
+		assert_eq!(el.block_on(rx.into_future()).unwrap().0, None);
 	}
 }

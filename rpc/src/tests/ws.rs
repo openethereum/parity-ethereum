@@ -34,10 +34,9 @@ pub fn serve() -> (Server<ws::Server>, usize, GuardedAuthCodes) {
 	let authcodes = GuardedAuthCodes::new();
 	let stats = Arc::new(informant::RpcStats::default());
 
-	let res = Server::new(|remote| ::start_ws(
+	let res = Server::new(|_| ::start_ws(
 		&address,
 		io,
-		remote,
 		ws::DomainsValidation::Disabled,
 		ws::DomainsValidation::Disabled,
 		5,
@@ -105,6 +104,7 @@ mod testing {
 		http_client::assert_security_headers_present(&response.headers, None);
 	}
 
+	#[cfg(not(target_os = "windows"))]
 	#[test]
 	fn should_allow_if_authorization_is_correct() {
 		// given

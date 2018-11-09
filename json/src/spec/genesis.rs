@@ -23,6 +23,7 @@ use spec::Seal;
 
 /// Spec genesis.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Genesis {
 	/// Seal.
 	pub seal: Seal,
@@ -33,26 +34,19 @@ pub struct Genesis {
 	/// Block timestamp, defaults to 0.
 	pub timestamp: Option<Uint>,
 	/// Parent hash, defaults to 0.
-	#[serde(rename="parentHash")]
 	pub parent_hash: Option<H256>,
 	/// Gas limit.
-	#[serde(rename="gasLimit")]
 	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub gas_limit: Uint,
 	/// Transactions root.
-	#[serde(rename="transactionsRoot")]
 	pub transactions_root: Option<H256>,
 	/// Receipts root.
-	#[serde(rename="receiptsRoot")]
 	pub receipts_root: Option<H256>,
 	/// State root.
-	#[serde(rename="stateRoot")]
 	pub state_root: Option<H256>,
 	/// Gas used.
-	#[serde(rename="gasUsed")]
 	pub gas_used: Option<Uint>,
 	/// Extra data.
-	#[serde(rename="extraData")]
 	pub extra_data: Option<Bytes>,
 }
 

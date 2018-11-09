@@ -19,15 +19,14 @@ use ethcore_private_tx::{Receipt as EthPrivateReceipt};
 
 /// Receipt
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PrivateTransactionReceipt {
 	/// Transaction Hash
-	#[serde(rename="transactionHash")]
 	pub transaction_hash: H256,
 	/// Private contract address
-	#[serde(rename="contractAddress")]
 	pub contract_address: Option<H160>,
 	/// Status code
-	#[serde(rename="status")]
+	#[serde(rename = "status")]
 	pub status_code: u8,
 }
 
@@ -45,9 +44,7 @@ impl From<EthPrivateReceipt> for PrivateTransactionReceipt {
 #[derive(Debug, Serialize)]
 pub struct PrivateTransactionReceiptAndTransaction {
 	/// Receipt
-	#[serde(rename="receipt")]
 	pub receipt: PrivateTransactionReceipt,
 	/// Transaction
-	#[serde(rename="transaction")]
 	pub transaction: TransactionRequest,
 }

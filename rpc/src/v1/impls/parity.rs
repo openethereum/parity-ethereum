@@ -30,17 +30,20 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService};
+use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use updater::{Service as UpdateService};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
+
 use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::block_import::is_major_importing;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
+	Bytes, U256, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -62,6 +65,7 @@ pub struct ParityClient<C, M, U> {
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
+	snapshot: Option<Arc<SnapshotService>>,
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
@@ -79,6 +83,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
 		ws_address: Option<Host>,
+		snapshot: Option<Arc<SnapshotService>>,
 	) -> Self {
 		ParityClient {
 			client,
@@ -91,6 +96,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 			settings,
 			signer,
 			ws_address,
+			snapshot,
 		}
 	}
 }
@@ -171,10 +177,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn net_chain(&self) -> Result<String> {
 		Ok(self.settings.chain.clone())
-	}
-
-	fn chain_id(&self) -> Result<Option<U64>> {
-		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
 	fn chain(&self) -> Result<String> {
@@ -305,6 +307,16 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		Ok(all_transactions
 			.into_iter()
 			.map(|t| Transaction::from_pending(t.pending().clone()))
+			.collect()
+		)
+	}
+
+	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
+		let all_transaction_hashes = self.miner.queued_transaction_hashes();
+
+		Ok(all_transaction_hashes
+			.into_iter()
+			.map(|hash| hash.into())
 			.collect()
 		)
 	}
@@ -474,5 +486,22 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn submit_work_detail(&self, nonce: H64, pow_hash: H256, mix_hash: H256) -> Result<H256> {
 		helpers::submit_work_detail(&self.client, &self.miner, nonce, pow_hash, mix_hash)
+	}
+
+	fn status(&self) -> Result<()> {
+		let has_peers = self.settings.is_dev_chain || self.sync.status().num_peers > 0;
+		let is_warping = match self.snapshot.as_ref().map(|s| s.status()) {
+			Some(RestorationStatus::Ongoing { .. }) => true,
+			_ => false,
+		};
+		let is_not_syncing =
+			!is_warping &&
+			!is_major_importing(Some(self.sync.status().state), self.client.queue_info());
+
+		if has_peers && is_not_syncing {
+			Ok(())
+		} else {
+			Err(errors::status_error(has_peers))
+		}
 	}
 }

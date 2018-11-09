@@ -256,6 +256,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
 
+	/// Optional maximum gas limit.
+	fn maximum_gas_limit(&self) -> Option<U256> { None }
+
 	/// Block transformation functions, before the transactions.
 	/// `epoch_begin` set to true if this block kicks off an epoch.
 	fn on_new_block(
@@ -337,10 +340,30 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// This either means that an immediate transition occurs or a block signalling transition
 	/// has reached finality. The `Headers` given are not guaranteed to return any blocks
-	/// from any epoch other than the current.
+	/// from any epoch other than the current. The client must keep track of finality and provide
+	/// the latest finalized headers to check against the transition store.
 	///
 	/// Return optional transition proof.
 	fn is_epoch_end(
+		&self,
+		_chain_head: &M::Header,
+		_finalized: &[H256],
+		_chain: &Headers<M::Header>,
+		_transition_store: &PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		None
+	}
+
+	/// Whether a block is the end of an epoch.
+	///
+	/// This either means that an immediate transition occurs or a block signalling transition
+	/// has reached finality. The `Headers` given are not guaranteed to return any blocks
+	/// from any epoch other than the current. This is a specialized method to use for light
+	/// clients since the light client doesn't track finality of all blocks, and therefore finality
+	/// for blocks in the current epoch is built inside this method by the engine.
+	///
+	/// Return optional transition proof.
+	fn is_epoch_end_light(
 		&self,
 		_chain_head: &M::Header,
 		_chain: &Headers<M::Header>,

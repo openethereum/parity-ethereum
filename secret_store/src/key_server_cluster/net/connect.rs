@@ -20,26 +20,25 @@ use std::io;
 use std::time::Duration;
 use std::net::SocketAddr;
 use futures::{Future, Poll, Async};
-use tokio_core::reactor::Handle;
-use tokio_core::net::{TcpStream, TcpStreamNew};
+use tokio::net::{TcpStream, tcp::ConnectFuture};
 use key_server_cluster::{Error, NodeId, NodeKeyPair};
 use key_server_cluster::io::{handshake, Handshake, Deadline, deadline};
 use key_server_cluster::net::Connection;
 
 /// Create future for connecting to other node.
-pub fn connect(address: &SocketAddr, handle: &Handle, self_key_pair: Arc<NodeKeyPair>, trusted_nodes: BTreeSet<NodeId>) -> Deadline<Connect> {
+pub fn connect(address: &SocketAddr, self_key_pair: Arc<NodeKeyPair>, trusted_nodes: BTreeSet<NodeId>) -> Deadline<Connect> {
 	let connect = Connect {
-		state: ConnectState::TcpConnect(TcpStream::connect(address, handle)),
+		state: ConnectState::TcpConnect(TcpStream::connect(address)),
 		address: address.clone(),
 		self_key_pair: self_key_pair,
 		trusted_nodes: trusted_nodes,
 	};
 
-	deadline(Duration::new(5, 0), handle, connect).expect("Failed to create timeout")
+	deadline(Duration::new(5, 0), connect).expect("Failed to create timeout")
 }
 
 enum ConnectState {
-	TcpConnect(TcpStreamNew),
+	TcpConnect(ConnectFuture),
 	Handshake(Handshake<TcpStream>),
 	Connected,
 }

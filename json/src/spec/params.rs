@@ -22,140 +22,103 @@ use bytes::Bytes;
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Params {
 	/// Account start nonce, defaults to 0.
-	#[serde(rename="accountStartNonce")]
 	pub account_start_nonce: Option<Uint>,
 	/// Maximum size of extra data.
-	#[serde(rename="maximumExtraDataSize")]
 	pub maximum_extra_data_size: Uint,
 	/// Minimum gas limit.
-	#[serde(rename="minGasLimit")]
 	pub min_gas_limit: Uint,
 
 	/// Network id.
-	#[serde(rename="networkID")]
+	#[serde(rename = "networkID")]
 	pub network_id: Uint,
 	/// Chain id.
-	#[serde(rename="chainID")]
+	#[serde(rename = "chainID")]
 	pub chain_id: Option<Uint>,
 
 	/// Name of the main ("eth") subprotocol.
-	#[serde(rename="subprotocolName")]
 	pub subprotocol_name: Option<String>,
 
 	/// Option fork block number to check.
-	#[serde(rename="forkBlock")]
 	pub fork_block: Option<Uint>,
 	/// Expected fork block hash.
-	#[serde(rename="forkCanonHash")]
+	#[serde(rename = "forkCanonHash")]
 	pub fork_hash: Option<H256>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="eip150Transition")]
 	pub eip150_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="eip160Transition")]
 	pub eip160_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="eip161abcTransition")]
 	pub eip161abc_transition: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="eip161dTransition")]
 	pub eip161d_transition: Option<Uint>,
 
 	/// See `CommonParams` docs.
-	#[serde(rename="eip98Transition")]
 	pub eip98_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip155Transition")]
 	pub eip155_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="validateChainIdTransition")]
 	pub validate_chain_id_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="validateReceiptsTransition")]
 	pub validate_receipts_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip140Transition")]
 	pub eip140_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip210Transition")]
 	pub eip210_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip210ContractAddress")]
 	pub eip210_contract_address: Option<Address>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip210ContractCode")]
 	pub eip210_contract_code: Option<Bytes>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip210ContractGas")]
 	pub eip210_contract_gas: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip211Transition")]
 	pub eip211_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip145Transition")]
 	pub eip145_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip214Transition")]
 	pub eip214_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip658Transition")]
 	pub eip658_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip1052Transition")]
 	pub eip1052_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="eip1283Transition")]
 	pub eip1283_transition: Option<Uint>,
-	#[serde(rename="eip1014Transition")]
 	pub eip1014_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="dustProtectionTransition")]
 	pub dust_protection_transition: Option<Uint>,
 	/// See `CommonParams` docs.
-	#[serde(rename="nonceCapIncrement")]
 	pub nonce_cap_increment: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub remove_dust_contracts : Option<bool>,
 	/// See `CommonParams` docs.
-	#[serde(rename="gasLimitBoundDivisor")]
 	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub gas_limit_bound_divisor: Uint,
 	/// See `CommonParams` docs.
 	pub registrar: Option<Address>,
 	/// Apply reward flag
-	#[serde(rename="applyReward")]
 	pub apply_reward: Option<bool>,
 	/// Node permission contract address.
-	#[serde(rename="nodePermissionContract")]
 	pub node_permission_contract: Option<Address>,
 	/// See main EthashParams docs.
-	#[serde(rename="maxCodeSize")]
 	pub max_code_size: Option<Uint>,
 	/// Maximum size of transaction RLP payload.
-	#[serde(rename="maxTransactionSize")]
 	pub max_transaction_size: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="maxCodeSizeTransition")]
 	pub max_code_size_transition: Option<Uint>,
 	/// Transaction permission contract address.
-	#[serde(rename="transactionPermissionContract")]
 	pub transaction_permission_contract: Option<Address>,
 	/// Block at which the transaction permission contract should start being used.
-	#[serde(rename="transactionPermissionContractTransition")]
 	pub transaction_permission_contract_transition: Option<Uint>,
 	/// Wasm activation block height, if not activated from start
-	#[serde(rename="wasmActivationTransition")]
 	pub wasm_activation_transition: Option<Uint>,
 	/// KIP4 activiation block height.
-	#[serde(rename="kip4Transition")]
 	pub kip4_transition: Option<Uint>,
 	/// KIP6 activiation block height.
-	#[serde(rename="kip6Transition")]
 	pub kip6_transition: Option<Uint>,
 }
 

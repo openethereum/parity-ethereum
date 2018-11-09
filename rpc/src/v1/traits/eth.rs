@@ -20,7 +20,7 @@ use jsonrpc_macros::Trailing;
 
 use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
-use v1::types::{H64, H160, H256, U256};
+use v1::types::{H64, H160, H256, U256, U64};
 
 build_rpc_trait! {
 	/// Eth rpc interface.
@@ -46,6 +46,12 @@ build_rpc_trait! {
 		/// Returns true if client is actively mining new blocks.
 		#[rpc(name = "eth_mining")]
 		fn is_mining(&self) -> Result<bool>;
+
+		/// Returns the chain ID used for transaction signing at the
+		/// current best block. None is returned if not
+		/// available.
+		#[rpc(name = "eth_chainId")]
+		fn chain_id(&self) -> Result<Option<U64>>;
 
 		/// Returns current gas_price.
 		#[rpc(name = "eth_gasPrice")]

@@ -8,11 +8,11 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 futures = "0.1"
-hyper = "0.11"
-hyper-rustls = "0.11"
+hyper = "~0.12.9"
+hyper-rustls = "0.14"
+http = "0.1"
 log = "0.4"
-tokio-core = "0.1"
-tokio-timer = "0.1"
+tokio = "~0.1.8"
 url = "1"
 bytes = "0.4"
 
