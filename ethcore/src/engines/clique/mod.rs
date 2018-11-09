@@ -71,7 +71,7 @@ pub fn sig_hash(header: &Header) -> Result<H256, Error> {
   }
 }
 
-const step_time: Duration = Duration::from_millis(100);
+const step_time: Duration = Duration::from_secs(5);
 
 impl Clique {
 
@@ -159,9 +159,11 @@ impl Engine<EthereumMachine> for Clique {
     let mut header = block.header.clone();
 
     // don't seal the genesis block
+    /*
     if header.number() == 0 {
       return Seal::None;
     }
+    */
 
     // if sealing period is 0, refuse to seal
 
@@ -222,10 +224,19 @@ impl Engine<EthereumMachine> for Clique {
     Ok(())
   }
 
+    fn ancestry_actions(&self, _block: &ExecutedBlock, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+        _ancestry.map(|h| {
+          trace!(target: "engine", "ancestry encountered ");
+          AncestryAction::MarkFinalized(h.header.hash())
+        }).collect::<Vec<AncestryAction>>().to_vec()
+    }
+
   fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { 
+      /*
     if _header.number() == 0 {
       return Err(Box::new("cannot verify genesis block").into());
     }
+    */
 
     // don't allow blocks from the future
 
@@ -309,6 +320,15 @@ impl Engine<EthereumMachine> for Clique {
   fn register_client(&self, client: Weak<EngineClient>) {
 	*self.client.write() = Some(client.clone());
 	//self.validators.register_client(client);
+  }
+
+  fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+      trace!(target: "engine", "extra info");
+      let mut movie_reviews = BTreeMap::<String, String>::new();
+
+      // review some movies.
+      movie_reviews.insert(String::from("Office Space"),       String::from("Deals with real issues in the workplace."));
+      movie_reviews
   }
 
   fn verify_local_seal(&self, header: &Header) -> Result<(), Error> { Ok(()) }
