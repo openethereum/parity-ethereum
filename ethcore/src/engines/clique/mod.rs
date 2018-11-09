@@ -110,17 +110,14 @@ impl Clique {
 	  Clique {
 		  client: RwLock::new(None),
 		  signer: Default::default(),
-		  signers: Default::default(),
+		  signers: our_params.signers,
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
-		  epoch_length: our_params.epoch,
-		  period: our_params.period,
 		});
 
-    trace!(target: "engine", "clique started with period: {}, epoch: {}.", engine.period, engine.epoch_length);
 
-	//let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
-	//engine.step_service.register_handler(Arc::new(handler))?;
+	let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
+	engine.step_service.register_handler(Arc::new(handler))?;
 
     return Ok(engine);
   }
@@ -143,7 +140,7 @@ impl Engine<EthereumMachine> for Clique {
   fn name(&self) -> &str { "Clique" }
 
   // nonce + mixHash + extraData
-  fn seal_fields(&self, _header: &Header) -> usize { 2 }
+  fn seal_fields(&self, _header: &Header) -> usize { 1 }
   fn machine(&self) -> &EthereumMachine { &self.machine }
   fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
@@ -228,25 +225,28 @@ impl Engine<EthereumMachine> for Clique {
     Ok(())
   }
 
-	fn on_new_block(
-		&self,
-		block: &mut ExecutedBlock,
-		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item=ExtendedHeader>,
-	) -> Result<(), Error> {
-		Ok(())
-	}
+  fn on_new_block(
+    &self,
+    _block: &mut ExecutedBlock,
+    _epoch_begin: bool,
+    _ancestry: &mut Iterator<Item=ExtendedHeader>,
+  ) -> Result<(), Error> {
+    Ok(())
+  }
 
-	fn executive_author (&self, header: &Header) -> Address {
-		public_to_address(
-			&recover(header).unwrap()
-		)
-	}
+    fn ancestry_actions(&self, _block: &ExecutedBlock, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+        _ancestry.map(|h| {
+          trace!(target: "engine", "ancestry encountered ");
+          AncestryAction::MarkFinalized(h.header.hash())
+        }).collect::<Vec<AncestryAction>>().to_vec()
+    }
 
-  fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
+  fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { 
+      /*
     if _header.number() == 0 {
       return Err(Box::new("cannot verify genesis block").into());
     }
+    */
 
     // don't allow blocks from the future
 
@@ -335,6 +335,15 @@ impl Engine<EthereumMachine> for Clique {
   fn register_client(&self, client: Weak<EngineClient>) {
 	*self.client.write() = Some(client.clone());
 	//self.validators.register_client(client);
+  }
+
+  fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+      trace!(target: "engine", "extra info");
+      let mut movie_reviews = BTreeMap::<String, String>::new();
+
+      // review some movies.
+      movie_reviews.insert(String::from("Office Space"),       String::from("Deals with real issues in the workplace."));
+      movie_reviews
   }
 
   fn verify_local_seal(&self, header: &Header) -> Result<(), Error> { Ok(()) }

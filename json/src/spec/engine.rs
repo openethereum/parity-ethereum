@@ -34,8 +34,10 @@ pub enum Engine {
 	/// AuthorityRound engine.
 	AuthorityRound(AuthorityRound),
 	/// Tendermint engine.
+	#[serde(rename="tendermint")]
 	Tendermint(Tendermint),
 	/// Clique engine.
+	#[serde(rename="clique")]
 	Clique(Clique)
 }
 

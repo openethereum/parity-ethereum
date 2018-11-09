@@ -21,7 +21,7 @@
 
 /// Export the ethash module.
 pub mod ethash;
-/// Export the denominations module.
+/// Erinkebyxport the denominations module.
 pub mod denominations;
 
 pub use self::ethash::{Ethash};
