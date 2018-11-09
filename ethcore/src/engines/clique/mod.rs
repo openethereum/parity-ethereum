@@ -34,13 +34,12 @@ use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
-use engines::{Engine, Seal, EngineError, ConstructedVerifier};
+use engines::{Engine, Seal, EngineError, ConstructedVerifier, Headers, PendingTransitionStore};
 use super::validator_set::{ValidatorSet, SimpleList};
 use super::signer::EngineSigner;
 use machine::{AuxiliaryData, EthereumMachine};
 //use self::signer_snapshot::SignerSnapshot;
 
-const EPOCH_LENGTH: u32 = 10; // set low for testing (should be 30000 according to clique EIP)
 const SIGNER_VANITY_LENGTH: u32 = 32;
 const SIGNER_SIG_LENGTH: u32 = 65;
 const EXTRA_DATA_POST_LENGTH: u32 = 128;
@@ -53,6 +52,8 @@ pub struct Clique {
   signers: Vec<Address>,
   machine: EthereumMachine,
   step_service: IoService<Duration>,
+  epoch_length: u64,
+  period: u64,
 }
 
 /*
@@ -92,7 +93,6 @@ impl Clique {
     //length of signers must be greater than 1
     //
 
-    trace!(target: "engine", "clique started with period: {}, epoch: {}.", our_params.period, our_params.epoch);
     let engine = Arc::new(
 	  Clique {
 		  client: RwLock::new(None),
@@ -100,8 +100,11 @@ impl Clique {
 		  signers: Default::default(),
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
+		  epoch_length: our_params.epoch,
+		  period: our_params.period,
 		});
 
+    trace!(target: "engine", "clique started with period: {}, epoch: {}.", engine.period, engine.epoch_length);
 
 	let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
 	engine.step_service.register_handler(Arc::new(handler))?;
@@ -127,7 +130,7 @@ impl Engine<EthereumMachine> for Clique {
   fn name(&self) -> &str { "Clique" }
 
   // nonce + mixHash + extraData
-  fn seal_fields(&self, _header: &Header) -> usize { 1 }
+  fn seal_fields(&self, _header: &Header) -> usize { 2 }
   fn machine(&self) -> &EthereumMachine { &self.machine }
   fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
@@ -230,7 +233,7 @@ impl Engine<EthereumMachine> for Clique {
     // don't allow blocks from the future
 
     // Checkpoint blocks need to enforce zero beneficiary
-    if _header.number() % EPOCH_LENGTH as u64 == 0 {
+    if _header.number() % self.epoch_length == 0 {
       if _header.author() != &[0; 20].into() {
         return Err(Box::new("Checkpoint blocks need to enforce zero beneficiary").into());
       }
@@ -271,13 +274,14 @@ impl Engine<EthereumMachine> for Clique {
     super::EpochChange::No
   }
 
-  fn is_epoch_end(
-      &self,
-      chain_head: &Header,
-      _chain: &super::Headers<Header>,
-      transition_store: &super::PendingTransitionStore,
-  ) -> Option<Vec<u8>> {
-    if chain_head.number() % EPOCH_LENGTH as u64 - 1 == 0 {
+	fn is_epoch_end(
+		&self,
+		chain_head: &Header,
+		_finalized: &[H256],
+		_chain: &Headers<Header>,
+		_transition_store: &PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+    if chain_head.number() % self.epoch_length - 1 == 0 {
       // epoch end
       Some(vec!(0x0))
     } else {
