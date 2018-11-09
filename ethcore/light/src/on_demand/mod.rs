@@ -82,14 +82,14 @@ pub mod error {
 
 		errors {
 			#[doc = "Timeout bad response"]
-			BadResponse(err: super::ResponseGuardError) {
+			BadResponse(err: String) {
 				description("Max response evaluation time exceeded")
-				display("Bad response timeout, {}", err)
+				display("{}", err)
 			}
 
-			#[doc = "Failure rate for OnDemand requests were exceeded"]
+			#[doc = "Failure rate for OnDemand requests exceeded"]
 			RequestLimit {
-				description("Failure rate for OnDemand requests were exceeded")
+				description("Failure rate for OnDemand requests exceeded")
 				display("Request time out")
 			}
 		}
@@ -235,7 +235,28 @@ impl Pending {
 	}
 
 	// received too many empty responses, may be away to indicate a faulty request
-	fn bad_response(self, err: ResponseGuardError) {
+	fn bad_response(self, response_err: ResponseGuardError) {
+		let reqs: Vec<&str> = self.requests.requests().iter().map(|req| {
+			match req {
+				CheckedRequest::HeaderProof(_, _) => "HeaderProof",
+				CheckedRequest::HeaderByHash(_, _) => "HeaderByHash",
+				CheckedRequest::HeaderWithAncestors(_, _) => "HeaderWithAncestors",
+				CheckedRequest::TransactionIndex(_, _) => "TransactionIndex",
+				CheckedRequest::Receipts(_, _) => "Receipts",
+				CheckedRequest::Body(_, _) => "Body",
+				CheckedRequest::Account(_, _) => "Account",
+				CheckedRequest::Code(_, _) => "Code",
+				CheckedRequest::Execution(_, _) => "Execution",
+				CheckedRequest::Signal(_, _) => "Signal",
+			}
+		}).collect();
+
+		let err = format!("Bad response on {}: [ {} ]. {}",
+			if reqs.len() > 1 { "requests" } else { "request" },
+			reqs.join(", "),
+			response_err
+		);
+
 		let err = self::error::ErrorKind::BadResponse(err);
 		if self.sender.send(Err(err.into())).is_err() {
 			debug!(target: "on_demand", "Dropped oneshot channel receiver on no response");

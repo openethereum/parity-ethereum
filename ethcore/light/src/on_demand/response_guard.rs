@@ -36,11 +36,11 @@ impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			Error::Majority(err, majority, total) => {
-				write!(f, "error cause was {:?}, (majority count: {} / total: {})",
+				write!(f, "Error cause was {:?}, (majority count: {} / total: {})",
 					err, majority, total)
 			}
 			Error::NoMajority(total) => {
-				write!(f, "error cause couldn't be determined, the total number of responses was {}", total)
+				write!(f, "Error cause couldn't be determined, the total number of responses was {}", total)
 			}
 		}
 	}
