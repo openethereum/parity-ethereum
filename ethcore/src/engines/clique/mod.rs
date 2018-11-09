@@ -92,12 +92,12 @@ impl Clique {
     //length of signers must be greater than 1
     //
 
-    trace!(target: "engine", "clique started with {} validators", our_params.signers.len());
+    trace!(target: "engine", "clique started with period: {}, epoch: {}.", our_params.period, our_params.epoch);
     let engine = Arc::new(
 	  Clique {
 		  client: RwLock::new(None),
 		  signer: Default::default(),
-		  signers: our_params.signers,
+		  signers: Default::default(),
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
 		});
@@ -222,7 +222,7 @@ impl Engine<EthereumMachine> for Clique {
     Ok(())
   }
 
-  fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { 
+  fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
     if _header.number() == 0 {
       return Err(Box::new("cannot verify genesis block").into());
     }
@@ -239,7 +239,7 @@ impl Engine<EthereumMachine> for Clique {
         return Err(Box::new("Seal nonce zeros enforced on checkpoints").into());
       }
     } else {
-        // TODO 
+        // TODO
         // - ensure header extraData has length SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH
         // - ensure header signature corresponds to the right validator for the turn-ness of the
         // block

@@ -16,13 +16,13 @@
 
 //! Clique params deserialization.
 
-use ethereum_types::Address;
+use uint::Uint;
 
 /// Tendermint params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct CliqueParams {
-	/// Valid validators.
-	pub signers: Vec<Address>,
+	pub period: Option<Uint>,
+	pub epoch: Option<Uint>
 }
 
 /// Clique engine deserialization.
@@ -42,12 +42,13 @@ mod tests {
     fn clique_deserialization() {
         let s = r#"{
             "params": {
-                "signers": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b", "0xc6d9d2cd449a754c494264e1809c50e34d64562c"]
+            	"period": 5,
+            	"epoch": 30000
             }
         }"#;
 
         let deserialized: Clique = serde_json::from_str(s).unwrap();
-        let vs = vec!(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"), H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562c"));
-        assert_eq!(deserialized.params.signers, vs);
+		assert_eq!(deserialized.params.period, 5);
+		assert_eq!(deserialized.params.epoch, 30000);
     }
 }

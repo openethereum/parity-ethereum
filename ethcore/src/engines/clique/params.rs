@@ -17,14 +17,15 @@
 //! Clique specific parameters.
 
 use ethjson;
-use super::super::validator_set::{ValidatorSet, new_validator_set};
 use ethereum_types::Address;
 use std::time::Duration;
 
 /// `Clique` params.
 pub struct CliqueParams {
 	/// List of validators.
-	pub signers: Vec<Address>
+	pub period: u64,
+	pub epoch: u64
+
 }
 
 fn to_duration(ms: ethjson::uint::Uint) -> Duration {
@@ -35,7 +36,8 @@ fn to_duration(ms: ethjson::uint::Uint) -> Duration {
 impl From<ethjson::spec::CliqueParams> for CliqueParams {
 	fn from(p: ethjson::spec::CliqueParams) -> Self {
 		CliqueParams {
-			signers: p.signers
+			period: p.period.map_or_else(Default::default, Into::into),
+			epoch: p.epoch.map_or_else(Default::default, Into::into)
 		}
 	}
 }
