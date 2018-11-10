@@ -44,8 +44,8 @@ use machine::{AuxiliaryData, EthereumMachine};
 const SIGNER_VANITY_LENGTH: u32 = 32;  // Fixed number of extra-data prefix bytes reserved for signer vanity
 const SIGNER_SIG_LENGTH: u32 = 65; // Fixed number of extra-data suffix bytes reserved for signer seal
 const EXTRA_DATA_POST_LENGTH: u32 = 128;
-const NONCE_DROP_VOTE: [u8; 16] = [0x00; 16];
-const NONCE_AUTH_VOTE: [u8; 16] = [0xff; 16];
+const NONCE_DROP_VOTE: &[u8; 8] = &[0x0; 8];
+const NONCE_AUTH_VOTE: &[u8; 8] = &[0xf; 8];
 
 pub struct Clique {
   client: RwLock<Option<Weak<EngineClient>>>,
@@ -63,10 +63,10 @@ pub struct Clique {
  */
 pub fn sig_hash(header: &Header) -> Result<H256, Error> {
   if header.extra_data().len() >= SIGNER_VANITY_LENGTH as usize {
+	let extra_data = header.extra_data().clone();
     let mut reduced_header = header.clone();
-    let mut extra_data: [u8; SIGNER_VANITY_LENGTH as usize] = [0; SIGNER_VANITY_LENGTH as usize];
-    extra_data.clone_from_slice(&reduced_header.extra_data()[0..SIGNER_VANITY_LENGTH as usize]);
-    reduced_header.set_extra_data(extra_data.to_vec());
+	  reduced_header.set_extra_data(
+		  extra_data[..extra_data.len() - SIGNER_SIG_LENGTH as usize].to_vec());
     Ok(keccak(::rlp::encode(&reduced_header)))
   } else {
     Ok(keccak(::rlp::encode(header)))
@@ -76,9 +76,8 @@ pub fn sig_hash(header: &Header) -> Result<H256, Error> {
 
 fn recover(header: &Header) -> Result<Public, Error> {
 	let data = header.extra_data();
-
 	let mut sig: [u8; 65] = [0; 65];
-	sig.copy_from_slice(&data[SIGNER_VANITY_LENGTH as usize..]);
+	sig.copy_from_slice(&data[(data.len() - SIGNER_SIG_LENGTH as usize)..]);
 
 	let msg = sig_hash(header).unwrap();
 	let pubkey = ec_recover(&Signature::from(sig), &msg).unwrap();
@@ -256,8 +255,8 @@ impl Engine<EthereumMachine> for Clique {
       if _header.author() != &[0; 20].into() {
         return Err(Box::new("Checkpoint blocks need to enforce zero beneficiary").into());
       }
-
-      if _header.extra_data()[0..32] != [0xff; 32] {
+	  let nonce = _header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
+      if nonce != NONCE_DROP_VOTE {
         return Err(Box::new("Seal nonce zeros enforced on checkpoints").into());
       }
     } else {
@@ -309,12 +308,7 @@ impl Engine<EthereumMachine> for Clique {
 		_chain: &Headers<Header>,
 		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
-    if chain_head.number() % self.epoch_length - 1 == 0 {
-      // epoch end
-      Some(vec!(0x0))
-    } else {
       None
-    }
   }
 
   fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
