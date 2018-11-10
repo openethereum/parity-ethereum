@@ -202,7 +202,8 @@ impl Engine<EthereumMachine> for Clique {
       match self.sign_header(&header) {
           Ok(sig) => {
             trace!(target: "engine", "sealed block {}", block.header.number());
-            Seal::Regular(vec!(sig[0..65].to_vec()))
+            //Seal::Regular(vec!(sig[0..65].to_vec()))
+            Seal::Regular(vec!([header.number() as u8].to_vec()))
           },
           Err(err) => {
             trace!(target: "engine", "failed to seal block: {}", err);
