@@ -321,7 +321,9 @@ impl<'x> OpenBlock<'x> {
 
 	/// Get the environment info concerning this block.
 	pub fn env_info(&self) -> EnvInfo {
-		self.block.env_info()
+		let mut envInfo = self.block.env_info();
+		envInfo.author = self.engine.executive_author(&self.block);
+		return envInfo;
 	}
 
 	/// Push a transaction into the block.
@@ -372,22 +374,6 @@ impl<'x> OpenBlock<'x> {
 		}
 
 		Ok(())
-	}
-
-	/// Populate self from a header.
-	fn populate_from(&mut self, header: &Header) {
-		self.block.header.set_difficulty(*header.difficulty());
-		self.block.header.set_gas_limit(*header.gas_limit());
-		self.block.header.set_timestamp(header.timestamp());
-		self.block.header.set_author(*header.author());
-		self.block.header.set_uncles_hash(*header.uncles_hash());
-		self.block.header.set_transactions_root(*header.transactions_root());
-		// TODO: that's horrible. set only for backwards compatibility
-		if header.extra_data().len() > self.engine.maximum_extra_data_size() {
-			warn!("Couldn't set extradata. Ignoring.");
-		} else {
-			self.block.header.set_extra_data(header.extra_data().clone());
-		}
 	}
 
 	/// Turn this into a `ClosedBlock`.
@@ -563,29 +549,35 @@ fn enact(
 	is_epoch_begin: bool,
 	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
-	{
-		if ::log::max_level() >= ::log::Level::Trace {
-			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
-			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
-				header.number(), s.root(), header.author(), s.balance(&header.author())?);
-		}
-	}
-
 	let mut b = OpenBlock::new(
 		engine,
-		factories,
+		factories.clone(),
 		tracing,
-		db,
+		db.boxed_clone(),
 		parent,
 		last_hashes,
-		Address::new(),
+		header.author().clone(),
 		(3141562.into(), 31415620.into()),
-		vec![],
+		header.extra_data().clone(),
 		is_epoch_begin,
 		ancestry,
 	)?;
 
-	b.populate_from(&header);
+	b.block.header.set_difficulty(*header.difficulty());
+	b.block.header.set_gas_limit(*header.gas_limit());
+	b.block.header.set_timestamp(header.timestamp());
+	b.block.header.set_uncles_hash(*header.uncles_hash());
+	b.block.header.set_transactions_root(*header.transactions_root());
+
+	{
+		if ::log::max_level() >= ::log::Level::Trace {
+			let env = b.env_info();
+			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
+			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
+				   b.block.header.number(), s.root(), env.author, s.balance(&env.author)?);
+		}
+	}
+
 	b.push_transactions(transactions)?;
 
 	for u in uncles {
@@ -595,7 +587,7 @@ fn enact(
 	b.close_and_lock()
 }
 
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
+/// Enact the PreverifiedBlock given using `engine` on the database `db` with given `parent` block header
 pub fn enact_verified(
 	block: PreverifiedBlock,
 	engine: &EthEngine,
@@ -659,36 +651,19 @@ mod tests {
 			.collect();
 		let transactions = transactions?;
 
-		{
-			if ::log::max_level() >= ::log::Level::Trace {
-				let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
-				trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
-					header.number(), s.root(), header.author(), s.balance(&header.author())?);
-			}
-		}
-
-		let mut b = OpenBlock::new(
+		enact(
+			header,
+			transactions,
+			block.uncles,
 			engine,
-			factories,
 			tracing,
 			db,
 			parent,
 			last_hashes,
-			Address::new(),
-			(3141562.into(), 31415620.into()),
-			vec![],
-			false,
-			&mut Vec::new().into_iter(),
-		)?;
-
-		b.populate_from(&header);
-		b.push_transactions(transactions)?;
-
-		for u in block.uncles {
-			b.push_uncle(u)?;
-		}
-
-		b.close_and_lock()
+			factories,
+			is_epoch_begin,
+			ancestry,
+		)
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards

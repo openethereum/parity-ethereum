@@ -8,6 +8,7 @@ use std::time::{Duration};
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
 use std::{fmt, error};
+use std::str::FromStr;
 use hash::{keccak};
 
 use self::params::CliqueParams;
@@ -216,15 +217,21 @@ impl Engine<EthereumMachine> for Clique {
     Ok(())
   }
 
-  fn on_new_block(
-    &self,
-    _block: &mut ExecutedBlock,
-    _epoch_begin: bool,
-    _ancestry: &mut Iterator<Item=ExtendedHeader>,
-  ) -> Result<(), Error> {
-    Ok(())
-  }
+	fn on_new_block(
+		&self,
+		block: &mut ExecutedBlock,
+		_epoch_begin: bool,
+		_ancestry: &mut Iterator<Item=ExtendedHeader>,
+	) -> Result<(), Error> {
+		Ok(())
+	}
 
+	fn executive_author (&self, block: &ExecutedBlock) -> Address {
+		let mut header = block.header().clone();
+		let signer_address =  "ffffffffffffffffffffffffffffffffffffffff"; //ec_recover(header.)?.expect(Err(Box::new("fuck").into()))
+		let address = Address::from_str(signer_address).unwrap();
+		return address;
+	}
   fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
     if _header.number() == 0 {
       return Err(Box::new("cannot verify genesis block").into());

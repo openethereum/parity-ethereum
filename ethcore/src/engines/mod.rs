@@ -54,7 +54,7 @@ use spec::CommonParams;
 use transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Password, Signature};
-use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
+use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader, LiveBlock, Header as LiveHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
@@ -437,6 +437,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Check whether the given new block is the best block, after finalization check.
 	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
+
+	/// Return author should used in executing txns for this block.
+	fn executive_author(&self, block: &M::LiveBlock) -> Address { block.header().author().clone() }
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
