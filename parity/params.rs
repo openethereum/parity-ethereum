@@ -413,7 +413,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
-		assert_eq!(format!("{}", SpecType::Rinkbey), "rinkbey");
+		assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
 

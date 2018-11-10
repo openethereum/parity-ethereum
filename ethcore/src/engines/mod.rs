@@ -439,7 +439,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
 
 	/// Return author should used in executing txns for this block.
-	fn executive_author(&self, block: &M::LiveBlock) -> Address { block.header().author().clone() }
+	fn executive_author(&self, header: &M::Header) -> Address { header.author().clone() }
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.

@@ -23,15 +23,11 @@
 		"eip161abcTransition": 0,
 		"eip161dTransition": 0,
 		"eip155Transition": 3,
-		"eip98Transition": "0",
-		"eip140Transition": 0,
-		"eip211Transition": 0,
-		"eip214Transition": 0,
-		"eip658Transition": 0,
-		"eip145Transition": 0,
-		"eip1014Transition": 0,
-		"eip1052Transition": 0,
-		"eip1283Transition": 0
+		"eip98Transition": "0x7fffffffffffff",
+		"eip140Transition": 1035301,
+		"eip211Transition": 1035301,
+		"eip214Transition": 1035301,
+		"eip658Transition": 1035301
 	},
 	"genesis": {
 		"seal": {

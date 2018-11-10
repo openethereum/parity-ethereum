@@ -320,11 +320,7 @@ impl<'x> OpenBlock<'x> {
 	}
 
 	/// Get the environment info concerning this block.
-	pub fn env_info(&self) -> EnvInfo {
-		let mut envInfo = self.block.env_info();
-		envInfo.author = self.engine.executive_author(&self.block);
-		return envInfo;
-	}
+	pub fn env_info(&self) -> EnvInfo { self.block.env_info() }
 
 	/// Push a transaction into the block.
 	///
@@ -556,18 +552,12 @@ fn enact(
 		db.boxed_clone(),
 		parent,
 		last_hashes,
-		header.author().clone(),
+		engine.executive_author(&header), // Engine such as Clique will calculate author from extra_data.
 		(3141562.into(), 31415620.into()),
 		header.extra_data().clone(),
 		is_epoch_begin,
 		ancestry,
 	)?;
-
-	b.block.header.set_difficulty(*header.difficulty());
-	b.block.header.set_gas_limit(*header.gas_limit());
-	b.block.header.set_timestamp(header.timestamp());
-	b.block.header.set_uncles_hash(*header.uncles_hash());
-	b.block.header.set_transactions_root(*header.transactions_root());
 
 	{
 		if ::log::max_level() >= ::log::Level::Trace {

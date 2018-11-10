@@ -29,9 +29,9 @@ use parking_lot::RwLock;
 use block::*;
 use io::IoService;
 
-use ethkey::{Password, Signature, recover as ec_recover};
+use ethkey::{Password, Signature, recover as ec_recover, public_to_address};
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, Public};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
@@ -41,8 +41,8 @@ use super::signer::EngineSigner;
 use machine::{AuxiliaryData, EthereumMachine};
 //use self::signer_snapshot::SignerSnapshot;
 
-const SIGNER_VANITY_LENGTH: u32 = 32;
-const SIGNER_SIG_LENGTH: u32 = 65;
+const SIGNER_VANITY_LENGTH: u32 = 32;  // Fixed number of extra-data prefix bytes reserved for signer vanity
+const SIGNER_SIG_LENGTH: u32 = 65; // Fixed number of extra-data suffix bytes reserved for signer seal
 const EXTRA_DATA_POST_LENGTH: u32 = 128;
 const NONCE_DROP_VOTE: [u8; 16] = [0x00; 16];
 const NONCE_AUTH_VOTE: [u8; 16] = [0xff; 16];
@@ -71,6 +71,19 @@ pub fn sig_hash(header: &Header) -> Result<H256, Error> {
   } else {
     Ok(keccak(::rlp::encode(header)))
   }
+
+}
+
+fn recover(header: &Header) -> Result<Public, Error> {
+	let data = header.extra_data();
+
+	let mut sig: [u8; 65] = [0; 65];
+	sig.copy_from_slice(&data[SIGNER_VANITY_LENGTH as usize..]);
+
+	let msg = sig_hash(header).unwrap();
+	let pubkey = ec_recover(&Signature::from(sig), &msg).unwrap();
+
+	Ok(pubkey)
 }
 
 const step_time: Duration = Duration::from_millis(100);
@@ -107,8 +120,8 @@ impl Clique {
 
     trace!(target: "engine", "clique started with period: {}, epoch: {}.", engine.period, engine.epoch_length);
 
-	let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
-	engine.step_service.register_handler(Arc::new(handler))?;
+	//let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
+	//engine.step_service.register_handler(Arc::new(handler))?;
 
     return Ok(engine);
   }
@@ -206,7 +219,6 @@ impl Engine<EthereumMachine> for Clique {
   }
 
   fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
-
       /*
        * TODO:
       if not checkpoint block:
@@ -226,12 +238,12 @@ impl Engine<EthereumMachine> for Clique {
 		Ok(())
 	}
 
-	fn executive_author (&self, block: &ExecutedBlock) -> Address {
-		let mut header = block.header().clone();
-		let signer_address =  "ffffffffffffffffffffffffffffffffffffffff"; //ec_recover(header.)?.expect(Err(Box::new("fuck").into()))
-		let address = Address::from_str(signer_address).unwrap();
-		return address;
+	fn executive_author (&self, header: &Header) -> Address {
+		public_to_address(
+			&recover(header).unwrap()
+		)
 	}
+
   fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
     if _header.number() == 0 {
       return Err(Box::new("cannot verify genesis block").into());
@@ -275,7 +287,16 @@ impl Engine<EthereumMachine> for Clique {
     Ok(()) 
   }
 
-  fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
+  fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
+	  // Verifying the genesis block is not supported
+	  // Retrieve the snapshot needed to verify this header and cache it
+	  // Resolve the authorization key and check against signers
+	  // Ensure that the difficulty corresponds to the turn-ness of the signer
+	  Ok(())
+  }
+
+
+	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
       -> super::EpochChange<EthereumMachine>
   {
     super::EpochChange::No
