@@ -405,6 +405,9 @@ pub struct Spec {
 	/// Hardcoded synchronization. Allows the light client to immediately jump to a specific block.
 	pub hardcoded_sync: Option<SpecHardcodedSync>,
 
+	/// Chain info. (optional)
+	pub info: Option<String>,
+
 	/// Contract constructors to be executed on genesis.
 	constructors: Vec<(Address, Bytes)>,
 
@@ -434,6 +437,7 @@ impl Clone for Spec {
 			extra_data: self.extra_data.clone(),
 			seal_rlp: self.seal_rlp.clone(),
 			hardcoded_sync: self.hardcoded_sync.clone(),
+			info: self.info.clone(),
 			constructors: self.constructors.clone(),
 			state_root_memo: RwLock::new(*self.state_root_memo.read()),
 			genesis_state: self.genesis_state.clone(),
@@ -488,7 +492,7 @@ fn load_machine_from(s: ethjson::spec::Spec) -> EthereumMachine {
 }
 
 /// Load from JSON object.
-fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Error> {
+fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec, info: Option<String>) -> Result<Spec, Error> {
 	let builtins = s.accounts
 		.builtins()
 		.into_iter()
@@ -531,6 +535,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		extra_data: g.extra_data,
 		seal_rlp: seal_rlp,
 		hardcoded_sync: hardcoded_sync,
+		info: info.clone(),
 		constructors: s.accounts
 			.constructors()
 			.into_iter()
@@ -831,7 +836,20 @@ impl Spec {
 	{
 		ethjson::spec::Spec::load(reader).map_err(fmt_err).and_then(
 			|x| {
-				load_from(params.into(), x).map_err(fmt_err)
+				load_from(params.into(), x, None).map_err(fmt_err)
+			},
+		)
+	}
+
+	/// Loads spec from json file. Provide factories for executing contracts and ensuring
+	/// storage goes to the right place.
+	pub fn load_with_info<'a, T: Into<SpecParams<'a>>, R>(params: T, reader: R, info: &str) -> Result<Self, String>
+	where
+		R: Read,
+	{
+		ethjson::spec::Spec::load(reader).map_err(fmt_err).and_then(
+			|x| {
+				load_from(params.into(), x, Some(info.to_string())).map_err(fmt_err)
 			},
 		)
 	}

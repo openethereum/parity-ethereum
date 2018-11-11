@@ -38,6 +38,14 @@ pub fn load<'a, T: Into<Option<SpecParams<'a>>>>(params: T, b: &[u8]) -> Spec {
 	}.expect("chain spec is invalid")
 }
 
+/// Load chain spec from `SpecParams`, JSON, and an info string.
+pub fn load_with_info<'a, T: Into<Option<SpecParams<'a>>>>(params: T, b: &[u8], info: &str) -> Spec {
+	match params.into() {
+		Some(params) => Spec::load_with_info(params, b, info),
+		None => Spec::load_with_info(&::std::env::temp_dir(), b, info)
+	}.expect("chain spec is invalid")
+}
+
 fn load_machine(b: &[u8]) -> EthereumMachine {
 	Spec::load_machine(b).expect("chain spec is invalid")
 }
@@ -111,7 +119,7 @@ pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 
 /// Create a new Oasis devnet chain spec.
 pub fn new_oasis<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
-	load(params.into(), include_bytes!("../../res/ethereum/oasis.json"))
+	load_with_info(params.into(), include_bytes!("../../res/ethereum/oasis.json"), include_str!("../../res/ethereum/oasis.txt"))
 }
 
 /// Create a new POA Sokol testnet chain spec.

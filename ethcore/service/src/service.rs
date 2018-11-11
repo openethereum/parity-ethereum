@@ -104,6 +104,9 @@ impl ClientService {
 		let io_service = IoService::<ClientIoMessage>::start()?;
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
+		if spec.info.is_some() {
+			info!("\n{}", spec.info.clone().unwrap());
+		}
 
 		let pruning = config.pruning;
 		let client = Client::new(config, &spec, blockchain_db.clone(), miner.clone(), io_service.channel())?;
