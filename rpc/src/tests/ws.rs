@@ -28,8 +28,7 @@ use tests::helpers::{GuardedAuthCodes, Server};
 
 /// Setup a mock signer for tests
 pub fn serve() -> (Server<ws::Server>, usize, GuardedAuthCodes) {
-	let port = 35000 + rand::random::<usize>() % 10000;
-	let address = format!("127.0.0.1:{}", port).parse().unwrap();
+	let address = "127.0.0.1:0".parse().unwrap();
 	let io = MetaIoHandler::default();
 	let authcodes = GuardedAuthCodes::new();
 	let stats = Arc::new(informant::RpcStats::default());
@@ -44,6 +43,7 @@ pub fn serve() -> (Server<ws::Server>, usize, GuardedAuthCodes) {
 		extractors::WsExtractor::new(Some(&authcodes.path)),
 		extractors::WsStats::new(stats),
 	).unwrap());
+	let port = res.addr().port() as usize;
 
 	(res, port, authcodes)
 }
