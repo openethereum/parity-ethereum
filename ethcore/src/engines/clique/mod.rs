@@ -110,9 +110,11 @@ impl Clique {
 	  Clique {
 		  client: RwLock::new(None),
 		  signer: Default::default(),
-		  signers: our_params.signers,
+          signers: Default::default(),
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
+          epoch_length: our_params.epoch,
+          period: our_params.period,
 		});
 
 
@@ -140,7 +142,7 @@ impl Engine<EthereumMachine> for Clique {
   fn name(&self) -> &str { "Clique" }
 
   // nonce + mixHash + extraData
-  fn seal_fields(&self, _header: &Header) -> usize { 1 }
+  fn seal_fields(&self, _header: &Header) -> usize { 2 }
   fn machine(&self) -> &EthereumMachine { &self.machine }
   fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
@@ -192,24 +194,7 @@ impl Engine<EthereumMachine> for Clique {
 
     // sign the digest of the seal
     if authorized {
-
-      // todo 
-      let mut extra_data: Vec<u8> = vec!(0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize);
-
-      // ensure header has correct extra data size before signing
-      header.set_extra_data(extra_data);
-
-      match self.sign_header(&header) {
-          Ok(sig) => {
-            trace!(target: "engine", "sealed block {}", block.header.number());
-            //Seal::Regular(vec!(sig[0..65].to_vec()))
-            Seal::Regular(vec!([header.number() as u8].to_vec()))
-          },
-          Err(err) => {
-            trace!(target: "engine", "failed to seal block: {}", err);
-            Seal::None
-          }
-      }
+        return Seal::Regular(vec![vec![0,1,2], vec![0,1,2]]);
     } else {
       Seal::None
     }
