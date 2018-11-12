@@ -38,19 +38,18 @@ use types::ancestry_action::AncestryAction;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier, Headers, PendingTransitionStore};
 use super::validator_set::{ValidatorSet, SimpleList};
 use super::signer::EngineSigner;
-use machine::{AuxiliaryData, EthereumMachine};
+use machine::{Call, AuxiliaryData, EthereumMachine};
 //use self::signer_snapshot::SignerSnapshot;
 
 const SIGNER_VANITY_LENGTH: u32 = 32;  // Fixed number of extra-data prefix bytes reserved for signer vanity
 const SIGNER_SIG_LENGTH: u32 = 65; // Fixed number of extra-data suffix bytes reserved for signer seal
-const EXTRA_DATA_POST_LENGTH: u32 = 128;
 const NONCE_DROP_VOTE: &[u8; 8] = &[0x0; 8];
 const NONCE_AUTH_VOTE: &[u8; 8] = &[0xf; 8];
 
 pub struct Clique {
   client: RwLock<Option<Weak<EngineClient>>>,
   signer: RwLock<EngineSigner>,
-  signers: Vec<Address>,
+  signers: RwLock<Option<Vec<Address>>>,
   machine: EthereumMachine,
   step_service: IoService<Duration>,
   epoch_length: u64,
@@ -85,7 +84,7 @@ fn recover(header: &Header) -> Result<Public, Error> {
 	Ok(pubkey)
 }
 
-const step_time: Duration = Duration::from_millis(100);
+const step_time: Duration = Duration::from_millis(1000);
 
 impl Clique {
 
@@ -93,8 +92,12 @@ impl Clique {
   fn is_signer_proposer(&self, bh: &H256) -> bool {
     //let proposer = self.view_proposer(bh, self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
     //let proposer = self.validators.get(bh);
-    if let Some(_) = self.signers.iter().find(|x| self.signer.read().is_address(x)) {
-      true
+    if let Some(ref signers) = *self.signers.read() {
+        if let Some(_) = signers.iter().find(|x| self.signer.read().is_address(x)) {
+          true
+        } else {
+          false
+        }
     } else {
       false
     }
@@ -110,7 +113,7 @@ impl Clique {
 	  Clique {
 		  client: RwLock::new(None),
 		  signer: Default::default(),
-          signers: Default::default(),
+          signers: RwLock::new(Default::default()),
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
           epoch_length: our_params.epoch,
@@ -175,6 +178,7 @@ impl Engine<EthereumMachine> for Clique {
 
     // don't seal the genesis block
     if header.number() == 0 {
+      trace!(target: "engine", "attempted to seal genesis block");
       return Seal::None;
     }
 
@@ -186,11 +190,16 @@ impl Engine<EthereumMachine> for Clique {
 
     // if we signed recently, don't seal
 
-    let authorized = if let Some(pos) = self.signers.iter().position(|x| self.signer.read().is_address(x)) {
-      block.header.number() % ((pos as u64) + 1) == 0 
-    } else {
-      false
+    let mut authorized = false;
+    if let Some(ref signers) = *self.signers.read() {
+        authorized = if let Some(pos) = signers.iter().position(|x| self.signer.read().is_address(x)) {
+          block.header.number() % ((pos as u64) + 1) == 0 
+        } else {
+          false
+        };
     };
+
+    return Seal::Regular(vec![vec![0,1,2], vec![0,1,2]]);
 
     // sign the digest of the seal
     if authorized {
@@ -207,7 +216,7 @@ impl Engine<EthereumMachine> for Clique {
         if the block was successfully sealed, then grab the signature from the seal data and
         append it to the block extraData
         */
-    trace!(target: "engine", "closing block...");
+    trace!(target: "engine", "closing block {}...", block.header().number());
     Ok(())
   }
 
@@ -336,5 +345,31 @@ impl Engine<EthereumMachine> for Clique {
 
   fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
     super::total_difficulty_fork_choice(new, current)
+  }
+
+  fn genesis_epoch_data<'a>(&self, _header: &Header, call: &Call) -> Result<Vec<u8>, String> {
+    // extract signer list from genesis extradata
+    let mut signers = self.signers.write();
+
+    let min_extra_data_size = (SIGNER_VANITY_LENGTH as usize) + (SIGNER_SIG_LENGTH as usize);
+
+    assert!(_header.extra_data().len() >= min_extra_data_size, "need minimum genesis extra data size {}.  found {}.", min_extra_data_size, _header.extra_data().len());
+
+    // extract only the portion of extra_data which includes the signer list
+    let signers_raw = &_header.extra_data()[(SIGNER_VANITY_LENGTH as usize).._header.extra_data().len()-(SIGNER_SIG_LENGTH as usize)];
+    
+    assert_eq!(signers_raw.len() % 20, 0, "bad signer list length {}", signers_raw.len());
+
+    let num_signers = signers_raw.len() % 20;
+    let mut signers_list: Vec<Address> = vec![];
+
+    for i in 0..num_signers {
+      let mut signer = Address::default();
+      signer.copy_from_slice(&signers_raw[i*20..i*20+20]);
+      signers_list.push(signer);
+    }
+
+    *signers = Some(signers_list);
+    Ok(Vec::new())
   }
 }
