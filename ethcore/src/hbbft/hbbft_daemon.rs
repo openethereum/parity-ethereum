@@ -16,7 +16,8 @@ use futures::{
 	sync::oneshot,
 };
 use parking_lot::Mutex;
-use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid, StateDsct, HydrabadgerWeak};
+use hydrabadger::{Hydrabadger, Error as HydrabadgerError, Batch, BatchRx, Uid, StateDsct, HydrabadgerWeak,
+	EpochRx};
 use parity_runtime::Executor;
 use tokio::{self, timer::Delay};
 use hbbft::HbbftConfig;
@@ -64,8 +65,13 @@ error_chain! {
 		}
 		#[doc = "A hydrabadger batch receiver error."]
 		HydrabadgerBatchRxPoll {
-			description("Error polling hydrabadger internal receiver")
-			display("Error polling hydrabadger internal receiver")
+			description("Error polling hydrabadger batch receiver")
+			display("Error polling hydrabadger batch receiver")
+		}
+		#[doc = "A hydrabadger epoch receiver error."]
+		HydrabadgerEpochRxPoll {
+			description("Error polling hydrabadger epoch receiver")
+			display("Error polling hydrabadger epoch receiver")
 		}
 		#[doc = "An ethstore account related error."]
 		EthstoreAccountInitNode(err: ethstore::Error) {
@@ -104,13 +110,14 @@ struct ContributionPusher {
 	hydrabadger: Hydrabadger<Contribution>,
 	block_counter: Arc<AtomicIsize>,
 	push_attempts: usize,
+	epoch_rx: EpochRx,
 }
 
 impl ContributionPusher {
 	fn new(cfg: HbbftConfig, client: Weak<Client>, hydrabadger: Hydrabadger<Contribution>,
-		block_counter: Arc<AtomicIsize>) -> ContributionPusher
+		block_counter: Arc<AtomicIsize>, epoch_rx: EpochRx) -> ContributionPusher
 	{
-		ContributionPusher { cfg, client, hydrabadger, block_counter, push_attempts: 0 }
+		ContributionPusher { cfg, client, hydrabadger, block_counter, push_attempts: 0, epoch_rx }
 	}
 
 	/// Returns the current number of transactions needed before a
@@ -143,6 +150,20 @@ impl ContributionPusher {
 		{
 			// Postpone the next epoch.
 			return;
+		}
+
+		match self.epoch_rx.poll() {
+			Ok(Async::Ready(Some(epoch))) => {
+				info!("####### CONTRIBUTION_PUSHER: epoch {} has begun.", epoch);
+			}
+			Ok(Async::Ready(None)) => {
+				info!("####### CONTRIBUTION_PUSHER: Hydrabadger epoch tx has dropped.",);
+				return;
+			}
+			Ok(Async::NotReady) => {
+				return;
+			}
+			Err(err) => panic!("HbbftDaemon: ContributionPusher: Epoch Tx error: {:?}", err),
 		}
 
 		// Our contribution size.
@@ -184,6 +205,29 @@ impl ContributionPusher {
 		})
 	}
 }
+
+// impl Future for ContributionPusher {
+// 	type Item = ();
+// 	type Error = Error;
+
+// 	/// Polls the batch receiver until the hydrabadger handler batch
+// 	/// transmitter (e.g. handler) is dropped.
+// 	fn poll(&mut self) -> Poll<(), Error> {
+// 		match self.epoch_rx.poll() {
+// 			Ok(Async::Ready(Some(epoch))) => {
+// 				// TODO: Add delay.
+// 				info!("####### CONTRIBUTION_PUSHER: epoch {} has begun.", epoch);
+// 				self.push_contribution(epoch);
+// 			}
+// 			Ok(Async::Ready(None)) => {
+// 				return Ok(Async::Ready(()));
+// 			}
+// 			Ok(Async::NotReady) => {}
+// 			Err(()) => return Err(ErrorKind::HydrabadgerEpochRxPoll.into()),
+// 		}
+// 		Ok(Async::NotReady)
+// 	}
+// }
 
 
 /// Handles honey badger batch outputs.
@@ -320,6 +364,18 @@ impl HbbftDaemon {
 		// Used by laboratory:
 		let block_counter = Arc::new(AtomicIsize::new(-1));
 
+		let epoch_rx = hydrabadger.register_epoch_listener();
+
+		// Spawn contribution pusher:
+		executor.spawn(ContributionPusher::new(
+			cfg.clone(),
+			Arc::downgrade(&client),
+			hydrabadger.clone(),
+			block_counter.clone(),
+			epoch_rx,
+		).into_loop());
+		info!("####### Hbbft contribution pusher has been started.");
+
 		let batch_handler = BatchHandler::new(
 			hydrabadger.batch_rx()
 				.expect("The Hydrabadger batch receiver can not be `None` immediately after creation; qed \
@@ -331,18 +387,7 @@ impl HbbftDaemon {
 
 		// Spawn batch handler:
 		executor.spawn(batch_handler.map_err(|err| panic!("Unhandled batch handler error: {:?}", err)));
-
-		info!("Hbbft batch handler has been started.");
-
-		// Spawn contribution pusher:
-		executor.spawn(ContributionPusher::new(
-			cfg.clone(),
-			Arc::downgrade(&client),
-			hydrabadger.clone(),
-			block_counter.clone(),
-		).into_loop());
-
-		info!("Hbbft contribution pusher has been started.");
+		info!("####### Hbbft batch handler has been started.");
 
 		// Set up an account to use for txn gen:
 		let accounts = Accounts::new(&*account_provider, &*client, &cfg.bind_address.to_string(),
