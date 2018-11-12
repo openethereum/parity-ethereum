@@ -153,7 +153,7 @@ impl Accounts {
 // Add anything at all to this!
 //
 pub(super) struct Laboratory {
-	pub(super) client: Arc<Client>,
+	pub(super) client: Weak<Client>,
 	pub(super) hydrabadger: Hydrabadger<Contribution>,
 	pub(super) hdb_cfg: HbbftConfig,
 	pub(super) account_provider: Arc<AccountProvider>,
@@ -170,8 +170,8 @@ impl Laboratory {
 	}
 
 	/// Converts an unsigned `Transaction` to a `SignedTransaction`.
-	fn sign_txn(&self, sender: Address, password: Password, txn: Transaction) -> SignedTransaction {
-		let chain_id = self.client.signing_chain_id();
+	fn sign_txn(&self, sender: Address, password: Password, chain_id: Option<u64>, txn: Transaction) -> SignedTransaction {
+		// let chain_id = self.client.signing_chain_id();
 		let txn_hash = txn.hash(chain_id);
 		let sig = self.account_provider.sign(sender, Some(password), txn_hash)
 			.unwrap_or_else(|e| panic!("[hbbft-lab] failed to sign txn: {:?}", e));
@@ -181,7 +181,7 @@ impl Laboratory {
 
 	/// Generates a random-ish transaction.
 	fn gen_random_txn(&self, nonce: U256, sender: Address, sender_pwd: Password, receiver: Address,
-		value_range: &mut RandRange<usize>, rng: &mut OsRng) -> (Address, SignedTransaction)
+		chain_id: Option<u64>, value_range: &mut RandRange<usize>, rng: &mut OsRng) -> (Address, SignedTransaction)
 	{
 		let data = rng.gen_iter().take(self.hdb_cfg.txn_gen_bytes).collect();
 		let txn = Transaction {
@@ -195,7 +195,7 @@ impl Laboratory {
 
 		debug!("######## LABORATORY: Transaction generated: {:?}", txn);
 
-		(sender, self.sign_txn(sender, sender_pwd, txn))
+		(sender, self.sign_txn(sender, sender_pwd, chain_id, txn))
 	}
 
 	/// Panics if the account does not exist, if the password is incorrect, or
@@ -217,7 +217,7 @@ impl Laboratory {
 	/// will generate a transaction to send money to it. Currently this
 	/// process can fail.
 	fn gen_random_transactions(&mut self, receiver: Address, receiver_pwd: Password,
-		value_range: &mut RandRange<usize>) -> Vec<SignedTransaction>
+		value_range: &mut RandRange<usize>, client: &Client) -> Vec<SignedTransaction>
 	{
 		let mut rng = OsRng::new().expect("Error creating OS Rng");
 
@@ -234,7 +234,7 @@ impl Laboratory {
 			Some(ref acct) => {
 				debug!("######## LABORATORY: An account is below the minimum balance.");
 				if U256::from(node_id) == (self.gen_counter as u64 % validator_count).into() {
-					let receiver_nonce = self.client.state().nonce(&receiver)
+					let receiver_nonce = client.state().nonce(&receiver)
 						.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", receiver));
 
 					info!("######## LABORATORY: Sending funds to {:?}", acct.address);
@@ -242,14 +242,16 @@ impl Laboratory {
 					let amt = (1000000000000000000 as u64).into();
 					self.accounts.account_mut(&acct.address).unwrap().balance += amt;
 
-					vec![self.sign_txn(receiver, receiver_pwd.clone(), Transaction {
-						action: Action::Call(acct.address),
-						nonce: receiver_nonce,
-						gas_price: 0.into(),
-						gas: self.client.miner().sensible_gas_limit(),
-						value: amt,
-						data: vec![],
-					})]
+					vec![self.sign_txn(receiver, receiver_pwd.clone(), client.signing_chain_id(),
+						Transaction {
+							action: Action::Call(acct.address),
+							nonce: receiver_nonce,
+							gas_price: 0.into(),
+							gas: client.miner().sensible_gas_limit(),
+							value: amt,
+							data: vec![],
+						}
+					)]
 				} else {
 					info!("########### LABORATORY: Not sending funds. \
 						(node_id: {}, gen_counter: {}, validator_count: {}, gen_counter % validator_count: {})",
@@ -266,13 +268,13 @@ impl Laboratory {
 					if sender.balance >= U256::from(TXN_AMOUNT_MAX) {
 						//  TODO: Use `miner.next_nonce<C>(&self, chain: &C,
 						//  address: &Address)` instead.
-						let sender_nonce = self.client.state().nonce(&sender.address)
+						let sender_nonce = client.state().nonce(&sender.address)
 							.unwrap_or_else(|err| panic!("Unable to determine nonce for account: {} ({:?})",
 								sender.address, err));
 
 						// Generate random txns normally:
 						let txn = self.gen_random_txn(sender_nonce, sender.address, sender.password.clone(),
-							receiver, value_range, &mut rng);
+							receiver, client.signing_chain_id(), value_range, &mut rng);
 						txns.push(txn);
 					} else {
 						panic!("######## LABORATORY: Account with insufficient balance: {}", sender.address);
@@ -312,12 +314,17 @@ impl Laboratory {
 			return;
 		}
 
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return,
+		};
+
 		debug!("######## LABORATORY: Checking account data...");
 
 		// Keep account data up to date:
 		for acct in self.accounts.accounts.iter_mut() {
-			let balance_state = self.client.state().balance(&acct.address).unwrap();
-			let nonce_state = self.client.state().nonce(&acct.address).unwrap();
+			let balance_state = client.state().balance(&acct.address).unwrap();
+			let nonce_state = client.state().nonce(&acct.address).unwrap();
 
 			if balance_state != acct.balance || nonce_state != acct.nonce {
 				acct.retries += 1;
@@ -325,8 +332,8 @@ impl Laboratory {
 
 			if acct.retries == 3 {
 				debug!("######## LABORATORY: Refreshing account info for: {}", acct.address);
-				acct.balance = self.client.state().balance(&acct.address).unwrap();
-				acct.nonce = self.client.state().nonce(&acct.address).unwrap();
+				acct.balance = client.state().balance(&acct.address).unwrap();
+				acct.nonce = client.state().nonce(&acct.address).unwrap();
 				acct.retries = 0;
 			}
 		}
@@ -343,7 +350,7 @@ impl Laboratory {
 		debug!("######## LABORATORY: Generating transactions...");
 
 		let txns = self.gen_random_transactions(receiver_addr, receiver_pwd,
-			&mut RandRange::new(100, 1000));
+			&mut RandRange::new(100, 1000), &client);
 
 		if !txns.is_empty() {
 			// Update our 'last_block' (it may skip blocks).
@@ -351,7 +358,7 @@ impl Laboratory {
 		}
 
 		for txn in txns {
-			match self.client.miner().import_claimed_local_transaction(&*self.client, txn.into(), false) {
+			match client.miner().import_claimed_local_transaction(&*client, txn.into(), false) {
 				Ok(()) => {},
 				Err(TransactionError::AlreadyImported) => {},
 				// TODO: Remove this at some point:
@@ -385,52 +392,62 @@ impl Laboratory {
 		let gas_range_target = (3141562.into(), 31415620.into());
 		let extra_data = vec![];
 
-		let mut sender_acct_nonce: U256 = self.client.state().nonce(&sender_addr)
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return,
+		};
+
+		let mut sender_acct_nonce: U256 = client.state().nonce(&sender_addr)
 			.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender_addr));
 
 		// Import some blocks:
 		for i in 0..0 {
-			let mut open_block: OpenBlock = self.client
+			let mut open_block: OpenBlock = client
 				.prepare_open_block(block_author, gas_range_target, extra_data.clone())
 					.unwrap();
 
 			let (_, txn) = self.gen_random_txn(sender_acct_nonce, sender_addr, sender_pwd.clone(), receiver_addr,
-				&mut value_range, &mut rng);
+				client.signing_chain_id(), &mut value_range, &mut rng);
 			sender_acct_nonce += 1.into();
 
 			open_block.push_transaction(txn, None).unwrap();
 
 			let closed_block: ClosedBlock = open_block.close().unwrap();
-			let reopened_block: OpenBlock = closed_block.reopen(self.client.engine());
+			let reopened_block: OpenBlock = closed_block.reopen(client.engine());
 			let reclosed_block: ClosedBlock = reopened_block.close().unwrap();
 			let locked_block: LockedBlock = reclosed_block.lock();
-			let sealed_block: SealedBlock = locked_block.seal(self.client.engine(), vec![]).unwrap();
+			let sealed_block: SealedBlock = locked_block.seal(client.engine(), vec![]).unwrap();
 
-			self.client.import_sealed_block(sealed_block).unwrap();
+			client.import_sealed_block(sealed_block).unwrap();
 		}
 
 		// Import some blocks:
 		for _ in 0..1 {
-			let miner = self.client.miner();
-			let mut open_block: OpenBlock = miner.prepare_new_block(&*self.client).unwrap();
+			let miner = client.miner();
+			let mut open_block: OpenBlock = miner.prepare_new_block(&*client).unwrap();
 
 			let (_, txn) = self.gen_random_txn(sender_acct_nonce, sender_addr, sender_pwd.clone(),
-				receiver_addr, &mut value_range, &mut rng);
+				receiver_addr, client.signing_chain_id(), &mut value_range, &mut rng);
 			sender_acct_nonce += 1.into();
 
 			let min_tx_gas = u64::max_value().into();
-			let block: ClosedBlock = miner.prepare_block_from(open_block, vec![txn], &*self.client, min_tx_gas).unwrap();
+			let block: ClosedBlock = miner.prepare_block_from(open_block, vec![txn], &*client, min_tx_gas).unwrap();
 
 			info!("Importing block {} (#{}, experimentally generated)", block.hash(), block.block().header.number());
-			if !miner.seal_and_import_block_internally(&*self.client, block) {
+			if !miner.seal_and_import_block_internally(&*client, block) {
 				warn!("Failed to seal and import block.");
 			}
 		}
 	}
 
 	fn demonstrate_client_extension_methods(&self) {
-		self.client.a_specialized_method();
-		self.client.change_me_into_something_useful();
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return,
+		};
+
+		client.a_specialized_method();
+		client.change_me_into_something_useful();
 	}
 
 	/// Runs all experiments.

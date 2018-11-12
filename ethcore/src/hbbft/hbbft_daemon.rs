@@ -350,7 +350,7 @@ impl HbbftDaemon {
 
 		// Spawn experimentation loop:
 		executor.spawn(Laboratory {
-			client: client.clone(),
+			client: Arc::downgrade(&client),
 			hydrabadger: hydrabadger.clone(),
 			hdb_cfg: cfg.clone(),
 			account_provider,
