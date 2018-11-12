@@ -23,19 +23,18 @@ use maybe::MaybeEmpty;
 
 /// State test transaction deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Transaction {
 	/// Transaction data.
 	pub data: Bytes,
 	/// Gas limit.
-	#[serde(rename="gasLimit")]
 	pub gas_limit: Uint,
 	/// Gas price.
-	#[serde(rename="gasPrice")]
 	pub gas_price: Uint,
 	/// Nonce.
 	pub nonce: Uint,
 	/// Secret key.
-	#[serde(rename="secretKey")]
+	#[serde(rename = "secretKey")]
 	pub secret: Option<H256>,
 	/// To.
 	pub to: MaybeEmpty<Address>,

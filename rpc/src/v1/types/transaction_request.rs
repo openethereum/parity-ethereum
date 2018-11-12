@@ -25,13 +25,13 @@ use std::fmt;
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct TransactionRequest {
 	/// Sender
 	pub from: Option<H160>,
 	/// Recipient
 	pub to: Option<H160>,
 	/// Gas Price
-	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
 	/// Gas
 	pub gas: Option<U256>,

@@ -38,7 +38,6 @@ pub trait Memory {
 	fn read_slice(&self, offset: U256, size: U256) -> &[u8];
 	/// Retrieve writeable part of memory
 	fn writeable_slice(&mut self, offset: U256, size: U256) -> &mut[u8];
-	fn dump(&self);
 	/// Convert memory into return data.
 	fn into_return_data(self, offset: U256, size: U256) -> ReturnData;
 }
@@ -51,14 +50,6 @@ pub fn is_valid_range(off: usize, size: usize)  -> bool {
 }
 
 impl Memory for Vec<u8> {
-	fn dump(&self) {
-		println!("MemoryDump:");
-		for i in self.iter() {
-			println!("{:02x} ", i);
-		}
-		println!("");
-	}
-
 	fn size(&self) -> usize {
 		self.len()
 	}

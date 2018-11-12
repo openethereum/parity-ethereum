@@ -125,9 +125,9 @@ impl SecretStoreEncryptor {
 
 		// send HTTP request
 		let method = if use_post {
-			Method::Post
+			Method::POST
 		} else {
-			Method::Get
+			Method::GET
 		};
 
 		let url = Url::from_str(&url).map_err(|e| ErrorKind::Encrypt(e.to_string()))?;

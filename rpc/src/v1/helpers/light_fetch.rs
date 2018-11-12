@@ -45,7 +45,7 @@ use ethereum_types::{U256, Address};
 use hash::H256;
 use parking_lot::Mutex;
 use fastmap::H256FastMap;
-use transaction::{Action, Transaction as EthTransaction, SignedTransaction, LocalizedTransaction};
+use transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
@@ -53,6 +53,15 @@ use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 const NO_INVALID_BACK_REFS_PROOF: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 const WRONG_RESPONSE_AMOUNT_TYPE_PROOF: &str = "responses correspond directly with requests in amount and type; qed";
+
+pub fn light_all_transactions(dispatch: &Arc<dispatch::LightDispatcher>) -> impl Iterator<Item=PendingTransaction> {
+	let txq = dispatch.transaction_queue.read();
+	let chain_info = dispatch.client.chain_info();
+
+	let current = txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+	let future = txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+	current.into_iter().chain(future.into_iter())
+}
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
@@ -191,7 +200,7 @@ impl LightFetch {
 	}
 
 	/// Helper for getting proved execution.
-	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+	pub fn proved_read_only_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
 		const DEFAULT_GAS_PRICE: u64 = 21_000;
 		// starting gas when gas not provided.
 		const START_GAS: u64 = 50_000;
@@ -256,14 +265,14 @@ impl LightFetch {
 				_ => return Either::A(future::err(errors::unknown_block())),
 			};
 
-			Either::B(execute_tx(gas_known, ExecuteParams {
-				from: from,
-				tx: tx,
-				hdr: hdr,
-				env_info: env_info,
+			Either::B(execute_read_only_tx(gas_known, ExecuteParams {
+				from,
+				tx,
+				hdr,
+				env_info,
 				engine: client.engine().clone(),
-				on_demand: on_demand,
-				sync: sync,
+				on_demand,
+				sync,
 			}))
 		}))
 	}
@@ -608,10 +617,10 @@ struct ExecuteParams {
 
 // has a peer execute the transaction with given params. If `gas_known` is false,
 // this will double the gas on each `OutOfGas` error.
-fn execute_tx(gas_known: bool, params: ExecuteParams) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+fn execute_read_only_tx(gas_known: bool, params: ExecuteParams) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
 	if !gas_known {
 		Box::new(future::loop_fn(params, |mut params| {
-			execute_tx(true, params.clone()).and_then(move |res| {
+			execute_read_only_tx(true, params.clone()).and_then(move |res| {
 				match res {
 					Ok(executed) => {
 						// TODO: how to distinguish between actual OOG and

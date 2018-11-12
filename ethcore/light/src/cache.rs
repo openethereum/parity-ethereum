@@ -186,7 +186,7 @@ mod tests {
 
 		{
 			let corpus_time = &mut cache.corpus.as_mut().unwrap().1;
-			*corpus_time = *corpus_time - Duration::from_secs(6 * 3600);
+			*corpus_time = *corpus_time - Duration::from_secs(5 * 3600);
 		}
 		assert!(cache.gas_price_corpus().is_none());
 	}

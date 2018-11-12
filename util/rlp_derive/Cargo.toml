@@ -13,4 +13,4 @@ quote = "0.6"
 proc-macro2 = "0.4"
 
 [dev-dependencies]
-rlp = "0.2.4"
+rlp = { version = "0.3.0", features = ["ethereum"] }

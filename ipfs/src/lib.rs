@@ -35,10 +35,9 @@ use std::net::{SocketAddr, IpAddr};
 use core::futures::future::{self, FutureResult};
 use core::futures::{self, Future};
 use ethcore::client::BlockChainClient;
-use http::hyper::header::{self, Vary, ContentType};
-use http::hyper::{Method, StatusCode};
-use http::hyper::{self, server};
-use unicase::Ascii;
+use http::hyper::{self, server, Method, StatusCode, Body,
+	header::{self, HeaderValue},
+};
 
 use error::ServerError;
 use route::Out;
@@ -67,9 +66,9 @@ impl IpfsHandler {
 			client: client,
 		}
 	}
-	pub fn on_request(&self, req: hyper::Request) -> (Option<header::AccessControlAllowOrigin>, Out) {
+	pub fn on_request(&self, req: hyper::Request<Body>) -> (Option<HeaderValue>, Out) {
 		match *req.method() {
-			Method::Get | Method::Post => {},
+			Method::GET | Method::POST => {},
 			_ => return (None, Out::Bad("Invalid Request")),
 		}
 
@@ -77,8 +76,8 @@ impl IpfsHandler {
 			return (None, Out::Bad("Disallowed Host header"));
 		}
 
-		let cors_header = http::cors_header(&req, &self.cors_domains);
-		if cors_header == http::CorsHeader::Invalid {
+		let cors_header = http::cors_allow_origin(&req, &self.cors_domains);
+		if cors_header == http::AllowCors::Invalid {
 			return (None, Out::Bad("Disallowed Origin header"));
 		}
 
@@ -88,39 +87,39 @@ impl IpfsHandler {
 	}
 }
 
-impl server::Service for IpfsHandler {
-	type Request = hyper::Request;
-	type Response = hyper::Response;
+impl hyper::service::Service for IpfsHandler {
+	type ReqBody = Body;
+	type ResBody = Body;
 	type Error = hyper::Error;
-	type Future = FutureResult<hyper::Response, hyper::Error>;
+	type Future = FutureResult<hyper::Response<Body>, Self::Error>;
 
-	fn call(&self, request: Self::Request) -> Self::Future {
+	fn call(&mut self, request: hyper::Request<Self::ReqBody>) -> Self::Future {
 		let (cors_header, out) = self.on_request(request);
 
 		let mut res = match out {
 			Out::OctetStream(bytes) => {
-				hyper::Response::new()
-					.with_status(StatusCode::Ok)
-					.with_header(ContentType::octet_stream())
-					.with_body(bytes)
+				hyper::Response::builder()
+					.status(StatusCode::OK)
+					.header("content-type", HeaderValue::from_static("application/octet-stream"))
+					.body(bytes.into())
 			},
 			Out::NotFound(reason) => {
-				hyper::Response::new()
-					.with_status(StatusCode::NotFound)
-					.with_header(ContentType::plaintext())
-					.with_body(reason)
+				hyper::Response::builder()
+					.status(StatusCode::NOT_FOUND)
+					.header("content-type", HeaderValue::from_static("text/plain; charset=utf-8"))
+					.body(reason.into())
 			},
 			Out::Bad(reason) => {
-				hyper::Response::new()
-					.with_status(StatusCode::BadRequest)
-					.with_header(ContentType::plaintext())
-					.with_body(reason)
+				hyper::Response::builder()
+					.status(StatusCode::BAD_REQUEST)
+					.header("content-type", HeaderValue::from_static("text/plain; charset=utf-8"))
+					.body(reason.into())
 			}
-		};
+		}.expect("Response builder: Parsing 'content-type' header name will not fail; qed");
 
 		if let Some(cors_header) = cors_header {
-			res.headers_mut().set(cors_header);
-			res.headers_mut().set(Vary::Items(vec![Ascii::new("Origin".into())]));
+			res.headers_mut().append(header::ACCESS_CONTROL_ALLOW_ORIGIN, cors_header);
+			res.headers_mut().append(header::VARY, HeaderValue::from_static("origin"));
 		}
 
 		future::ok(res)
@@ -164,23 +163,32 @@ pub fn start_server(
 	let hosts: DomainsValidation<_> = hosts.map(move |hosts| include_current_interface(hosts, interface, port)).into();
 
 	let (close, shutdown_signal) = futures::sync::oneshot::channel::<()>();
-	let (tx, rx) = mpsc::sync_channel(1);
+	let (tx, rx) = mpsc::sync_channel::<Result<(), ServerError>>(1);
 	let thread = thread::spawn(move || {
 		let send = |res| tx.send(res).expect("rx end is never dropped; qed");
-		let server = match server::Http::new().bind(&addr, move || {
-			Ok(IpfsHandler::new(cors.clone(), hosts.clone(), client.clone()))
-		}) {
-			Ok(server) => {
-				send(Ok(()));
-				server
-			},
+
+		let server_bldr = match server::Server::try_bind(&addr) {
+			Ok(s) => s,
 			Err(err) => {
-				send(Err(err));
+				send(Err(ServerError::from(err)));
 				return;
 			}
 		};
 
-		let _ = server.run_until(shutdown_signal.map_err(|_| {}));
+		let new_service = move || {
+			Ok::<_, ServerError>(
+				IpfsHandler::new(cors.clone(), hosts.clone(), client.clone())
+			)
+		};
+
+		let server = server_bldr
+	        .serve(new_service)
+	        .map_err(|_| ())
+	        .select(shutdown_signal.map_err(|_| ()))
+	        .then(|_| Ok(()));
+
+	    hyper::rt::run(server);
+		send(Ok(()));
 	});
 
 	// Wait for server to start successfuly.

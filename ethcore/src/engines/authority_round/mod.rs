@@ -44,6 +44,7 @@ use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
+use types::ancestry_action::AncestryAction;
 use unexpected::{Mismatch, OutOfBounds};
 
 mod finality;
@@ -214,7 +215,7 @@ impl EpochManager {
 
 	// zoom to epoch for given header. returns true if succeeded, false otherwise.
 	fn zoom_to(&mut self, client: &EngineClient, machine: &EthereumMachine, validators: &ValidatorSet, header: &Header) -> bool {
-		let last_was_parent = self.finality_checker.subchain_head() == Some(header.parent_hash().clone());
+		let last_was_parent = self.finality_checker.subchain_head() == Some(*header.parent_hash());
 
 		// early exit for current target == chain head, but only if the epochs are
 		// the same.
@@ -321,7 +322,7 @@ impl EmptyStep {
 
 impl fmt::Display for EmptyStep {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		write!(f, "({}, {}, {})", self.signature, self.step, self.parent_hash)
+		write!(f, "({:x}, {}, {:x})", self.signature, self.step, self.parent_hash)
 	}
 }
 
@@ -451,7 +452,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 					Some(header) => header_empty_steps_signers(header, self.empty_steps_transition).ok()?,
 					_ => Vec::new(),
 				};
-				signers.push(parent_header.author().clone());
+				signers.push(*parent_header.author());
 
 				let newly_finalized = finality_checker.push_hash(parent_header.hash(), signers).ok()?;
 				finalized.extend(newly_finalized);
@@ -577,7 +578,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 
 	if is_invalid_proposer {
 		trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
-		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
+		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: *header.author() }))?
 	} else {
 		Ok(())
 	}
@@ -764,6 +765,67 @@ impl AuthorityRound {
  			}
 		}
 	}
+
+	// Returns the hashes of all ancestor blocks that are finalized by the given `chain_head`.
+	fn build_finality(&self, chain_head: &Header, ancestry: &mut Iterator<Item=Header>) -> Vec<H256> {
+		if self.immediate_transitions { return Vec::new() }
+
+		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => client,
+			None => {
+				warn!(target: "engine", "Unable to apply ancestry actions: missing client ref.");
+				return Vec::new();
+			}
+		};
+
+		let mut epoch_manager = self.epoch_manager.lock();
+		if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, chain_head) {
+			return Vec::new();
+		}
+
+		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
+			// build new finality checker from unfinalized ancestry of chain head, not including chain head itself yet.
+			trace!(target: "finality", "Building finality up to parent of {} ({})",
+				   chain_head.hash(), chain_head.parent_hash());
+
+			// the empty steps messages in a header signal approval of the
+			// parent header.
+			let mut parent_empty_steps_signers = match header_empty_steps_signers(&chain_head, self.empty_steps_transition) {
+				Ok(empty_step_signers) => empty_step_signers,
+				Err(_) => {
+					warn!(target: "finality", "Failed to get empty step signatures from block {}", chain_head.hash());
+					return Vec::new();
+				}
+			};
+
+			let ancestry_iter = ancestry.map(|header| {
+				let mut signers = vec![*header.author()];
+				signers.extend(parent_empty_steps_signers.drain(..));
+
+				if let Ok(empty_step_signers) = header_empty_steps_signers(&header, self.empty_steps_transition) {
+					let res = (header.hash(), signers);
+					trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
+
+					parent_empty_steps_signers = empty_step_signers;
+
+					Some(res)
+
+				} else {
+					warn!(target: "finality", "Failed to get empty step signatures from block {}", header.hash());
+					None
+				}
+			})
+				.while_some();
+
+			if let Err(_) = epoch_manager.finality_checker.build_ancestry_subchain(ancestry_iter) {
+				debug!(target: "engine", "inconsistent validator set within epoch");
+				return Vec::new();
+			}
+		}
+
+		let finalized = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![*chain_head.author()]);
+		finalized.unwrap_or_default()
+	}
 }
 
 fn unix_now() -> Duration {
@@ -829,6 +891,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		if header.seal().len() < header_expected_seal_fields(header, self.empty_steps_transition) {
+			return BTreeMap::default();
+		}
+
 		let step = header_step(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
 		let signature = header_signature(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
 
@@ -972,7 +1038,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 			let empty_steps_rlp = if header.number() >= self.empty_steps_transition {
 				let empty_steps: Vec<_> = empty_steps.iter().map(|e| e.sealed()).collect();
-				Some(::rlp::encode_list(&empty_steps).into_vec())
+				Some(::rlp::encode_list(&empty_steps))
 			} else {
 				None
 			};
@@ -994,8 +1060,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					}
 
 					let mut fields = vec![
-						encode(&step).into_vec(),
-						encode(&(&H520::from(signature) as &[u8])).into_vec(),
+						encode(&step),
+						encode(&(&H520::from(signature) as &[u8])),
 					];
 
 					if let Some(empty_steps_rlp) = empty_steps_rlp {
@@ -1140,7 +1206,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 
 			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
-			Err(EngineError::DoubleVote(header.author().clone()))?;
+			Err(EngineError::DoubleVote(*header.author()))?;
 		}
 
 		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
@@ -1226,9 +1292,53 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		self.validators.signals_epoch_end(first, header, aux)
 	}
 
+	fn is_epoch_end_light(
+		&self,
+		chain_head: &Header,
+		chain: &super::Headers<Header>,
+		transition_store: &super::PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		// epochs only matter if we want to support light clients.
+		if self.immediate_transitions { return None }
+
+		let epoch_transition_hash = {
+			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+				Some(client) => client,
+				None => {
+					warn!(target: "engine", "Unable to check for epoch end: missing client ref.");
+					return None;
+				}
+			};
+
+			let mut epoch_manager = self.epoch_manager.lock();
+			if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, chain_head) {
+				return None;
+			}
+
+			epoch_manager.epoch_transition_hash
+		};
+
+		let mut hash = *chain_head.parent_hash();
+
+		let mut ancestry = itertools::repeat_call(move || {
+			chain(hash).and_then(|header| {
+				if header.number() == 0 { return None }
+				hash = *header.parent_hash();
+				Some(header)
+			})
+		})
+			.while_some()
+			.take_while(|header| header.hash() != epoch_transition_hash);
+
+		let finalized = self.build_finality(chain_head, &mut ancestry);
+
+		self.is_epoch_end(chain_head, &finalized, chain, transition_store)
+	}
+
 	fn is_epoch_end(
 		&self,
 		chain_head: &Header,
+		finalized: &[H256],
 		chain: &super::Headers<Header>,
 		transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {
@@ -1243,108 +1353,46 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			return Some(change)
 		}
 
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				warn!(target: "engine", "Unable to check for epoch end: missing client ref.");
-				return None;
-			}
-		};
-
-		// find most recently finalized blocks, then check transition store for pending transitions.
-		let mut epoch_manager = self.epoch_manager.lock();
-		if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, chain_head) {
-			return None;
-		}
-
-		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
-			// build new finality checker from ancestry of chain head,
-			// not including chain head itself yet.
-			trace!(target: "finality", "Building finality up to parent of {} ({})",
-				chain_head.hash(), chain_head.parent_hash());
-
-			let mut hash = chain_head.parent_hash().clone();
-			let mut parent_empty_steps_signers = match header_empty_steps_signers(&chain_head, self.empty_steps_transition) {
-				Ok(empty_step_signers) => empty_step_signers,
-				Err(_) => {
-					warn!(target: "finality", "Failed to get empty step signatures from block {}", chain_head.hash());
-					return None;
-				}
-			};
-
-			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
-
-			// walk the chain within current epoch backwards.
-			// author == ec_recover(sig) known since the blocks are in the DB.
-			// the empty steps messages in a header signal approval of the parent header.
-			let ancestry_iter = itertools::repeat_call(move || {
-				chain(hash).and_then(|header| {
-					if header.number() == 0 { return None }
-
-					let mut signers = vec![header.author().clone()];
-					signers.extend(parent_empty_steps_signers.drain(..));
-
-					if let Ok(empty_step_signers) = header_empty_steps_signers(&header, self.empty_steps_transition) {
-						let res = (hash, signers);
-						trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
-
-						hash = header.parent_hash().clone();
-						parent_empty_steps_signers = empty_step_signers;
-
-						Some(res)
-
-					} else {
-						warn!(target: "finality", "Failed to get empty step signatures from block {}", header.hash());
-						None
-					}
+		// check transition store for pending transitions against recently finalized blocks
+		for finalized_hash in finalized {
+			if let Some(pending) = transition_store(*finalized_hash) {
+				// walk the chain backwards from current head until finalized_hash
+				// to construct transition proof. author == ec_recover(sig) known
+				// since the blocks are in the DB.
+				let mut hash = chain_head.hash();
+				let mut finality_proof: Vec<_> = itertools::repeat_call(move || {
+					chain(hash).and_then(|header| {
+						hash = *header.parent_hash();
+						if header.number() == 0 { return None }
+						else { return Some(header) }
+					})
 				})
-			})
-				.while_some()
-				.take_while(|&(h, _)| h != epoch_transition_hash);
+					.while_some()
+					.take_while(|h| h.hash() != *finalized_hash)
+					.collect();
 
-			if let Err(_) = epoch_manager.finality_checker.build_ancestry_subchain(ancestry_iter) {
-				debug!(target: "engine", "inconsistent validator set within epoch");
-				return None;
-			}
-		}
+				let finalized_header = chain(*finalized_hash)
+					.expect("header is finalized; finalized headers must exist in the chain; qed");
 
-		{
-			if let Ok(finalized) = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![chain_head.author().clone()]) {
-				let mut finalized = finalized.into_iter();
-				while let Some(finalized_hash) = finalized.next() {
-					if let Some(pending) = transition_store(finalized_hash) {
-						let finality_proof = ::std::iter::once(finalized_hash)
-							.chain(finalized)
-							.chain(epoch_manager.finality_checker.unfinalized_hashes())
-							.map(|h| if h == chain_head.hash() {
-								// chain closure only stores ancestry, but the chain head is also
-								// unfinalized.
-								chain_head.clone()
-							} else {
-								chain(h).expect("these headers fetched before when constructing finality checker; qed")
-							})
-							.collect::<Vec<Header>>();
+				let signal_number = finalized_header.number();
+				info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
 
-						// this gives us the block number for `hash`, assuming it's ancestry.
-						let signal_number = chain_head.number()
-							- finality_proof.len() as BlockNumber
-							+ 1;
-						let finality_proof = ::rlp::encode_list(&finality_proof);
-						epoch_manager.note_new_epoch();
+				finality_proof.push(finalized_header);
+				finality_proof.reverse();
 
-						info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
+				let finality_proof = ::rlp::encode_list(&finality_proof);
 
-						// We turn off can_propose here because upon validator set change there can
-						// be two valid proposers for a single step: one from the old set and
-						// one from the new.
-						//
-						// This way, upon encountering an epoch change, the proposer from the
-						// new set will be forced to wait until the next step to avoid sealing a
-						// block that breaks the invariant that the parent's step < the block's step.
-						self.step.can_propose.store(false, AtomicOrdering::SeqCst);
-						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
-					}
-				}
+				self.epoch_manager.lock().note_new_epoch();
+
+				// We turn off can_propose here because upon validator set change there can
+				// be two valid proposers for a single step: one from the old set and
+				// one from the new.
+				//
+				// This way, upon encountering an epoch change, the proposer from the
+				// new set will be forced to wait until the next step to avoid sealing a
+				// block that breaks the invariant that the parent's step < the block's step.
+				self.step.can_propose.store(false, AtomicOrdering::SeqCst);
+				return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 			}
 		}
 
@@ -1399,14 +1447,29 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
 	}
+
+	fn ancestry_actions(&self, block: &ExecutedBlock, ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+		let finalized = self.build_finality(
+			block.header(),
+			&mut ancestry.take_while(|e| !e.is_finalized).map(|e| e.header),
+		);
+
+		if !finalized.is_empty() {
+			debug!(target: "finality", "Finalizing blocks: {:?}", finalized);
+		}
+
+		finalized.into_iter().map(AncestryAction::MarkFinalized).collect()
+	}
 }
 
 #[cfg(test)]
 mod tests {
+	use std::collections::BTreeMap;
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use hash::keccak;
 	use ethereum_types::{Address, H520, H256, U256};
+	use ethkey::Signature;
 	use header::Header;
 	use rlp::encode;
 	use block::*;
@@ -1440,7 +1503,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = Spec::new_test_round().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![encode(&H520::default()).into_vec()]);
+		header.set_seal(vec![encode(&H520::default())]);
 
 		let verify_result = engine.verify_block_external(&header);
 		assert!(verify_result.is_err());
@@ -1517,7 +1580,7 @@ mod tests {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1530,12 +1593,12 @@ mod tests {
 		// Spec starts with step 2.
 		header.set_difficulty(calculate_score(U256::from(0), U256::from(2), U256::zero()));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&2usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&2usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_err());
 		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&1usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
 	}
@@ -1546,7 +1609,7 @@ mod tests {
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1559,10 +1622,10 @@ mod tests {
 		// Spec starts with step 2.
 		header.set_difficulty(calculate_score(U256::from(0), U256::from(1), U256::zero()));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&1usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
-		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&5usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_basic(&header).is_err());
 	}
 
@@ -1572,7 +1635,7 @@ mod tests {
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&4usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&4usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1584,10 +1647,10 @@ mod tests {
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
-		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&5usize), encode(&(&*signature as &[u8]))]);
 		header.set_difficulty(calculate_score(U256::from(4), U256::from(5), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
-		header.set_seal(vec![encode(&3usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&3usize), encode(&(&*signature as &[u8]))]);
 		header.set_difficulty(calculate_score(U256::from(4), U256::from(3), U256::zero()));
 		assert!(engine.verify_block_family(&header, &parent_header).is_err());
 	}
@@ -1619,12 +1682,12 @@ mod tests {
 		};
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&1usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_difficulty(calculate_score(U256::from(1), U256::from(3), U256::zero()));
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
-		header.set_seal(vec![encode(&3usize).into_vec()]);
+		header.set_seal(vec![encode(&3usize)]);
 
 		// Do not report when signer not present.
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
@@ -1775,7 +1838,7 @@ mod tests {
 		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
 
 		// spec starts with step 2
-		let empty_step_rlp = encode(&empty_step(engine, 2, &genesis_header.hash())).into_vec();
+		let empty_step_rlp = encode(&empty_step(engine, 2, &genesis_header.hash()));
 
 		// we've received the message
 		assert!(notify.messages.read().contains(&empty_step_rlp));
@@ -1828,8 +1891,8 @@ mod tests {
 			let empty_step2 = sealed_empty_step(engine, 2, &genesis_header.hash());
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2]);
 
-			assert_eq!(seal[0], encode(&3usize).into_vec());
-			assert_eq!(seal[2], empty_steps.into_vec());
+			assert_eq!(seal[0], encode(&3usize));
+			assert_eq!(seal[2], empty_steps);
 		}
 	}
 
@@ -1882,8 +1945,8 @@ mod tests {
 
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2, empty_step3]);
 
-			assert_eq!(seal[0], encode(&4usize).into_vec());
-			assert_eq!(seal[2], empty_steps.into_vec());
+			assert_eq!(seal[0], encode(&4usize));
+			assert_eq!(seal[2], empty_steps);
 		}
 	}
 
@@ -1932,7 +1995,7 @@ mod tests {
 		let engine = &*spec.engine;
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 
 		let mut header: Header = Header::default();
@@ -1946,9 +2009,9 @@ mod tests {
 		// empty step with invalid step
 		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 2 }];
 		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
+			encode(&2usize),
+			encode(&(&*signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
@@ -1960,9 +2023,9 @@ mod tests {
 		// empty step with invalid signature
 		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 1 }];
 		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
+			encode(&2usize),
+			encode(&(&*signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
@@ -1975,9 +2038,9 @@ mod tests {
 		engine.set_signer(tap.clone(), addr1, "1".into());
 		let empty_steps = vec![sealed_empty_step(engine, 1, &parent_header.hash())];
 		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
+			encode(&2usize),
+			encode(&(&*signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
@@ -1996,9 +2059,9 @@ mod tests {
 		header.set_difficulty(calculate_score(U256::from(0), U256::from(4), U256::from(2)));
 		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
 		header.set_seal(vec![
-			encode(&4usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
+			encode(&4usize),
+			encode(&(&*signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
 		]);
 
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
@@ -2071,5 +2134,41 @@ mod tests {
 			b2.block().state().balance(&addr1).unwrap(),
 			addr1_balance + (1000 + 0) + (1000 + 2),
 		)
+	}
+
+	#[test]
+	fn extra_info_from_seal() {
+		let (spec, tap, accounts) = setup_empty_steps();
+		let engine = &*spec.engine;
+
+		let addr1 = accounts[0];
+		engine.set_signer(tap.clone(), addr1, "1".into());
+
+		let mut header: Header = Header::default();
+		let empty_step = empty_step(engine, 1, &header.parent_hash());
+		let sealed_empty_step = empty_step.sealed();
+
+		header.set_number(2);
+		header.set_seal(vec![
+			encode(&2usize),
+			encode(&H520::default()),
+			::rlp::encode_list(&vec![sealed_empty_step]),
+		]);
+
+		let info = engine.extra_info(&header);
+
+		let mut expected = BTreeMap::default();
+		expected.insert("step".into(), "2".into());
+		expected.insert("signature".into(), Signature::from(H520::default()).to_string());
+		expected.insert("emptySteps".into(), format!("[{}]", empty_step));
+
+		assert_eq!(info, expected);
+
+		header.set_seal(vec![]);
+
+		assert_eq!(
+			engine.extra_info(&header),
+			BTreeMap::default(),
+		);
 	}
 }

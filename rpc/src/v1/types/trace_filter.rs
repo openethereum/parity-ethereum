@@ -23,18 +23,15 @@ use v1::types::{BlockNumber, H160};
 /// Trace filter
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct TraceFilter {
 	/// From block
-	#[serde(rename="fromBlock")]
 	pub from_block: Option<BlockNumber>,
 	/// To block
-	#[serde(rename="toBlock")]
 	pub to_block: Option<BlockNumber>,
 	/// From address
-	#[serde(rename="fromAddress")]
 	pub from_address: Option<Vec<H160>>,
 	/// To address
-	#[serde(rename="toAddress")]
 	pub to_address: Option<Vec<H160>>,
 	/// Output offset
 	pub after: Option<usize>,

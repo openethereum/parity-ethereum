@@ -16,11 +16,11 @@ crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 parity-bytes = "0.1"
-hashdb = "0.2.1"
-memorydb = "0.2.1"
-patricia-trie = "0.2"
+hashdb = "0.3.0"
+memorydb = "0.3.0"
+patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-parity-crypto = "0.1"
+parity-crypto = "0.2"
 error-chain = { version = "0.12", default-features = false }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
@@ -47,7 +47,7 @@ parity-machine = { path = "../machine" }
 parking_lot = "0.6"
 rayon = "1.0"
 rand = "0.4"
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = "0.1"
@@ -80,6 +80,7 @@ fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 [dev-dependencies]
 tempdir = "0.3"
 trie-standardmap = "0.1"
+criterion = "0.2"
 
 [features]
 parity = ["work-notify", "price-info", "stratum"]
@@ -108,9 +109,11 @@ json-tests = ["ethcore-transaction/json-tests", "test-helpers", "tempdir", "to-p
 ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
-# Compile benches
-benches = []
 # Compile test helpers
 test-helpers = ["tempdir"]
 # Enables slow 'to-pod-full' method for use in tests and evmbin.
 to-pod-full = []
+
+[[bench]]
+name = "builtin"
+harness = false

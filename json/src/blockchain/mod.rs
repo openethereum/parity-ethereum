@@ -27,6 +27,7 @@ pub mod test;
 pub use self::account::Account;
 pub use self::block::Block;
 pub use self::blockchain::BlockChain;
+pub use self::blockchain::Engine;
 pub use self::header::Header;
 pub use self::state::State;
 pub use self::test::Test;

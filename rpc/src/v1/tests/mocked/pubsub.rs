@@ -20,7 +20,7 @@ use jsonrpc_core::{self as core, MetaIoHandler};
 use jsonrpc_core::futures::{self, Stream, Future};
 use jsonrpc_pubsub::Session;
 
-use parity_reactor::EventLoop;
+use parity_runtime::Runtime;
 use v1::{PubSub, PubSubClient, Metadata};
 
 fn rpc() -> MetaIoHandler<Metadata, core::NoopMiddleware> {
@@ -40,9 +40,9 @@ fn rpc() -> MetaIoHandler<Metadata, core::NoopMiddleware> {
 #[test]
 fn should_subscribe_to_a_method() {
 	// given
-	let el = EventLoop::spawn();
+	let el = Runtime::with_thread_count(1);
 	let rpc = rpc();
-	let pubsub = PubSubClient::new_test(rpc, el.remote()).to_delegate();
+	let pubsub = PubSubClient::new_test(rpc, el.executor()).to_delegate();
 
 	let mut io = MetaIoHandler::default();
 	io.extend_with(pubsub);

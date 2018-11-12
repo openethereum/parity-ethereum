@@ -209,8 +209,8 @@ pub mod headers {
 		type Unverified = Header;
 		type Verified = Header;
 
-		fn create(input: Self::Input, engine: &EthEngine, _check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
-			match verify_header_params(&input, engine, true) {
+		fn create(input: Self::Input, engine: &EthEngine, check_seal: bool) -> Result<Self::Unverified, (Self::Input, Error)> {
+			match verify_header_params(&input, engine, true, check_seal) {
 				Ok(_) => Ok(input),
 				Err(err) => Err((input, err))
 			}

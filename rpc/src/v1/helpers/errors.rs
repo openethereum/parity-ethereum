@@ -52,6 +52,7 @@ mod codes {
 	pub const ENCODING_ERROR: i64 = -32058;
 	pub const FETCH_ERROR: i64 = -32060;
 	pub const NO_LIGHT_PEERS: i64 = -32065;
+	pub const NO_PEERS: i64 = -32066;
 	pub const DEPRECATED: i64 = -32070;
 }
 
@@ -286,6 +287,14 @@ pub fn signing(error: AccountError) -> Error {
 	}
 }
 
+pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
+		message: format!("{}", error),
+		data: None
+	}
+}
+
 pub fn password(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
@@ -489,6 +498,18 @@ pub fn on_demand_others(err: &OnDemandError) -> Error {
 		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
 		message: err.to_string(),
 		data: None,
+	}
+}
+
+pub fn status_error(has_peers: bool) -> Error {
+	if has_peers {
+		no_work()
+	} else {
+		Error {
+			code: ErrorCode::ServerError(codes::NO_PEERS),
+			message: "Node is not connected to any peers.".into(),
+			data: None,
+		}
 	}
 }
 

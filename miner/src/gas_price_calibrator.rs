@@ -20,7 +20,7 @@ use std::time::{Instant, Duration};
 
 use ansi_term::Colour;
 use ethereum_types::U256;
-use futures_cpupool::CpuPool;
+use parity_runtime::Executor;
 use price_info::{Client as PriceInfoClient, PriceInfo};
 use price_info::fetch::Client as FetchClient;
 
@@ -43,7 +43,7 @@ pub struct GasPriceCalibrator {
 
 impl GasPriceCalibrator {
 	/// Create a new gas price calibrator.
-	pub fn new(options: GasPriceCalibratorOptions, fetch: FetchClient, p: CpuPool) -> GasPriceCalibrator {
+	pub fn new(options: GasPriceCalibratorOptions, fetch: FetchClient, p: Executor) -> GasPriceCalibrator {
 		GasPriceCalibrator {
 			options: options,
 			next_calibration: Instant::now(),
