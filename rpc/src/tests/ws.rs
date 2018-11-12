@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use devtools::http_client;
 use jsonrpc_core::MetaIoHandler;
-use rand;
 use ws;
 
 use v1::{extractors, informant};
