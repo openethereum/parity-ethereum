@@ -38,8 +38,8 @@ pub struct HbbftParams {
 	pub validators: ValidatorSet,
 
 	/// The address at which the block reward contract is deployed. The block reward contract is
-	/// used to calculate block rewards, to create new POA after each new block is sealed, and to
-	/// distribute the created POA as block rewards to a set of recipient addresses.
+	/// used to calculate block rewards, to create new coin after each new block is sealed, and to
+	/// distribute the created coin as block rewards to a set of recipient addresses.
 	pub block_reward_contract_address: Option<Address>,
 
 	/// If no `block_reward_contract_address` is provided, the `block_reward` configuration option

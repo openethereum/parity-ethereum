@@ -63,7 +63,7 @@ pub struct HbbftParams {
 	pub block_reward_contract: Option<BlockRewardContract>,
 
 	/// If we are not using a block reward smart contract (i.e. `self.block_reward_contract` is
-	/// `None`), the ammount specified by `block_reward` is added to the address in each newly
+	/// `None`), the amount specified by `block_reward` is added to the address in each newly
 	/// sealed block's `author` block header field. We default this value to `U256::zero()` if
 	/// the user did not provide a `block_reward` parameter in their Hbbft engine JSON spec.
 	pub block_reward: U256,
@@ -262,7 +262,7 @@ impl Engine<EthereumMachine> for Hbbft {
 		// TODO: Indica nodes are temporarily using a constant address as the block author (set
 		// using Parity's `--engine-signer` CLI option in the `indica-node-signer` startup script).
 		// We must determine how exactly we will set the block author going forward when using the
-		// `Hbbft` consesnus engine; currently the POA network uses Aura's round robin algorithm
+		// `Hbbft` consensus engine; currently the POA network uses Aura's round robin algorithm
 		// for selecting each block proposer/author from the set of validators.
 		let author = *block.header().author();
 		let rewards: Vec<(Address, RewardKind, U256)> = match self.block_reward_contract {
