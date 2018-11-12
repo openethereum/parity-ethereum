@@ -149,7 +149,13 @@ impl Engine<EthereumMachine> for Clique {
   fn machine(&self) -> &EthereumMachine { &self.machine }
   fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-    /* ? */
+    // if in turn, set difficulty 
+    //
+
+  }
+
+  fn close_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
+    return Some(vec![1,2,3]);
   }
 
 
@@ -347,6 +353,9 @@ impl Engine<EthereumMachine> for Clique {
     super::total_difficulty_fork_choice(new, current)
   }
 
+  /*
+   *  Extract signer addresses from header extraData
+   */
   fn genesis_epoch_data<'a>(&self, _header: &Header, call: &Call) -> Result<Vec<u8>, String> {
     // extract signer list from genesis extradata
     let mut signers = self.signers.write();

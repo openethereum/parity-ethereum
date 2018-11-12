@@ -401,6 +401,10 @@ impl<'x> OpenBlock<'x> {
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
+        if let Some(extra_data) = s.engine.close_block_extra_data(&s.block.header) {
+          s.block.header.set_extra_data(extra_data);
+        }
+
 		Ok(LockedBlock {
 			block: s.block,
 		})
@@ -478,6 +482,7 @@ impl LockedBlock {
 				Mismatch { expected: expected_seal_fields, found: seal.len() }));
 		}
 		s.block.header.set_seal(seal);
+
 		s.block.header.compute_hash();
 		Ok(SealedBlock {
 			block: s.block
