@@ -147,7 +147,7 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent:
 	verify_uncles(params.block, params.block_provider, engine)?;
 
 	for tx in &params.block.transactions {
-		engine.machine().verify_transaction(tx, header, params.client)?;
+		engine.machine().verify_transaction(tx, parent, params.client)?;
 	}
 
 	Ok(())
