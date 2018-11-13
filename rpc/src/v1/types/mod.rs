@@ -54,7 +54,7 @@ pub use self::block_number::{BlockNumber, LightBlockNumber, block_number_to_id};
 pub use self::call_request::CallRequest;
 pub use self::confirmations::{
 	ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken,
-	TransactionModification, SignRequest, EthSignRequest, DecryptRequest, Either
+	TransactionModification, EIP191SignRequest, EthSignRequest, DecryptRequest, Either
 };
 pub use self::consensus_status::*;
 pub use self::derivation::{DeriveHash, DeriveHierarchical, Derive};

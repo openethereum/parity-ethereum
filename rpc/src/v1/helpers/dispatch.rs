@@ -50,7 +50,7 @@ use v1::types::{
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse,
 	EthSignRequest as RpcEthSignRequest,
-	SignRequest as RpcSignRequest,
+	EIP191SignRequest as RpcSignRequest,
 	DecryptRequest as RpcDecryptRequest,
 };
 use rlp;
@@ -792,7 +792,7 @@ pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, di
 		RpcConfirmationPayload::EthSignMessage(RpcEthSignRequest { address, data }) => {
 			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address.into(), data.into())))
 		},
-		RpcConfirmationPayload::SignMessage(RpcSignRequest { address, data }) => {
+		RpcConfirmationPayload::EIP191SignMessage(RpcSignRequest { address, data }) => {
 			Box::new(future::ok(ConfirmationPayload::SignMessage(address.into(), data.into())))
 		},
 	}

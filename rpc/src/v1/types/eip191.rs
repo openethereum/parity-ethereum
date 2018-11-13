@@ -22,8 +22,11 @@ use v1::types::{H160, Bytes};
 /// EIP-191 version specifier
 #[derive(Debug)]
 pub enum EIP191Version {
+	/// byte specifier for structured data (0x01)
 	StructuredData,
+	/// byte specifier for personal message (0x45)
 	PersonalMessage,
+	/// byte specifier for presignedtransaction (0x00)
 	PresignedTransaction
 }
 

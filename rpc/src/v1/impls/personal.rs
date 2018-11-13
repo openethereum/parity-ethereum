@@ -158,7 +158,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
-		let payload = RpcConfirmationPayload::SignMessage((account.clone(), data.into()).into());
+		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
 			.and_then(|payload| {
@@ -181,7 +181,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
-		let payload = RpcConfirmationPayload::SignMessage((account.clone(), data.into()).into());
+		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
 			.and_then(|payload| {

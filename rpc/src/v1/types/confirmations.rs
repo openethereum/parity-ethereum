@@ -59,7 +59,7 @@ impl fmt::Display for ConfirmationPayload {
 			ConfirmationPayload::SendTransaction(ref transaction) => write!(f, "{}", transaction),
 			ConfirmationPayload::SignTransaction(ref transaction) => write!(f, "(Sign only) {}", transaction),
 			ConfirmationPayload::EthSignMessage(ref sign) => write!(f, "{}", sign),
-			ConfirmationPayload::SignMessage(ref sign) => write!(f, "{}", sign),
+			ConfirmationPayload::EIP191SignMessage(ref sign) => write!(f, "{}", sign),
 			ConfirmationPayload::Decrypt(ref decrypt) => write!(f, "{}", decrypt),
 		}
 	}
@@ -75,26 +75,26 @@ pub struct EthSignRequest {
 	pub data: Bytes,
 }
 
-/// Sign request
+/// EIP191 Sign request
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SignRequest {
+pub struct EIP191SignRequest {
 	/// Address
 	pub address: H160,
 	/// Hash to sign
 	pub data: H256,
 }
 
-impl From<(H160, H256)> for SignRequest {
+impl From<(H160, H256)> for EIP191SignRequest {
 	fn from(tuple: (H160, H256)) -> Self {
-		SignRequest {
+		EIP191SignRequest {
 			address: tuple.0,
 			data: tuple.1,
 		}
 	}
 }
 
-impl fmt::Display for SignRequest {
+impl fmt::Display for EIP191SignRequest {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(
 			f,
@@ -202,7 +202,7 @@ pub enum ConfirmationPayload {
 	#[serde(rename = "sign")]
 	EthSignMessage(EthSignRequest),
 	/// signature without prefix
-	SignMessage(SignRequest),
+	EIP191SignMessage(EIP191SignRequest),
 	/// Decryption
 	Decrypt(DecryptRequest),
 }
@@ -216,7 +216,7 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 				address: address.into(),
 				data: data.into(),
 			}),
-			helpers::ConfirmationPayload::SignMessage(address, data) => ConfirmationPayload::SignMessage(SignRequest {
+			helpers::ConfirmationPayload::SignMessage(address, data) => ConfirmationPayload::EIP191SignMessage(EIP191SignRequest {
 				address: address.into(),
 				data: data.into(),
 			}),
