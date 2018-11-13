@@ -798,6 +798,7 @@ impl AuthorityRound {
 				}
 			};
 
+			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
 			let ancestry_iter = ancestry.map(|header| {
 				let mut signers = vec![*header.author()];
 				signers.extend(parent_empty_steps_signers.drain(..));
@@ -815,10 +816,11 @@ impl AuthorityRound {
 					None
 				}
 			})
-				.while_some();
+				.while_some()
+				.take_while(|&(h, _)| h != epoch_transition_hash);
 
-			if let Err(_) = epoch_manager.finality_checker.build_ancestry_subchain(ancestry_iter) {
-				debug!(target: "engine", "inconsistent validator set within epoch");
+			if let Err(e) = epoch_manager.finality_checker.build_ancestry_subchain(ancestry_iter) {
+				debug!(target: "engine", "inconsistent validator set within epoch: {:?}", e);
 				return Vec::new();
 			}
 		}
@@ -1448,9 +1450,9 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		super::total_difficulty_fork_choice(new, current)
 	}
 
-	fn ancestry_actions(&self, block: &ExecutedBlock, ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+	fn ancestry_actions(&self, header: &Header, ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
 		let finalized = self.build_finality(
-			block.header(),
+			header,
 			&mut ancestry.take_while(|e| !e.is_finalized).map(|e| e.header),
 		);
 
