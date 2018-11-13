@@ -627,7 +627,7 @@ fn execute_read_only_tx(gas_known: bool, params: ExecuteParams) -> impl Future<I
 						// `OutOfGas` exception, try double the gas
 						if let Some(vm::Error::OutOfGas) = executed.exception {
 							// block gas limit already tried, regard as an error and don't retry
-							if params.tx.gas == params.hdr.gas_limit() {
+							if params.tx.gas >= params.hdr.gas_limit() {
 								trace!(target: "light_fetch", "OutOutGas exception received, gas increase: failed");
 							} else {
 								params.tx.gas = cmp::min(params.tx.gas * 2_u32, params.hdr.gas_limit());
