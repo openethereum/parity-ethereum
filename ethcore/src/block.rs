@@ -558,7 +558,7 @@ fn enact(
 		parent,
 		last_hashes,
 		engine.executive_author(&header), // Engine such as Clique will calculate author from extra_data.
-		(3141562.into(), 31415620.into()),
+		(*header.gas_limit(), *header.gas_limit()),
 		header.extra_data().clone(),
 		is_epoch_begin,
 		ancestry,
