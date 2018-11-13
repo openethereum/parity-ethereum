@@ -27,7 +27,7 @@
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x400",
-		"maximumExtraDataSize": "0x20",
+		"maximumExtraDataSize": "0x100",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x4BBF7",
 		"eip140Transition": 0,
