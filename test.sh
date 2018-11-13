@@ -1,6 +1,8 @@
 #!/bin/sh
 # Running Parity Full Test Suite
 echo "test.sh"
+echo (rustc --version)
+# deleter it later ^
 
 FEATURES="json-tests,ci-skip-issue"
 OPTIONS="--release"
