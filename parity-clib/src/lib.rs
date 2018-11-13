@@ -17,31 +17,50 @@
 //! Note that all the structs and functions here are documented in `parity.h`, to avoid
 //! duplicating documentation.
 
+extern crate futures;
+extern crate panic_hook;
+extern crate parity_ethereum;
+extern crate tokio;
+extern crate tokio_current_thread;
+
 #[cfg(feature = "jni")]
 extern crate jni;
-extern crate parity_ethereum;
-extern crate panic_hook;
 
+#[cfg(feature = "jni")]
+mod java;
+
+use std::ffi::CString;
 use std::os::raw::{c_char, c_void, c_int};
-use std::panic;
-use std::ptr;
-use std::slice;
-use std::str;
+use std::{panic, ptr, slice, str, thread};
+use std::sync::Arc;
+use std::time::Duration;
 
-#[cfg(feature = "jni")]
-use std::mem;
-#[cfg(feature = "jni")]
-use jni::{JNIEnv, objects::JClass, objects::JString, sys::jlong, sys::jobjectArray};
+use futures::{Future, Stream};
+use futures::sync::mpsc;
+use futures::future;
+use tokio::prelude::Async::Ready;
+use futures::Async;
+use tokio_current_thread::CurrentThread;
+use parity_ethereum::PubSubSession;
+
+type Callback = Option<extern "C" fn(*mut c_void, *const c_char, usize)>;
+
+const QUERY_TIMEOUT: Duration = Duration::from_secs(5*60);
 
 #[repr(C)]
 pub struct ParityParams {
 	pub configuration: *mut c_void,
-	pub on_client_restart_cb: Option<extern "C" fn(*mut c_void, *const c_char, usize)>,
+	pub on_client_restart_cb: Callback,
 	pub on_client_restart_cb_custom: *mut c_void,
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_config_from_cli(args: *const *const c_char, args_lens: *const usize, len: usize, output: *mut *mut c_void) -> c_int {
+pub unsafe extern fn parity_config_from_cli(
+	args: *const *const c_char,
+	args_lens: *const usize,
+	len: usize,
+	output: *mut *mut c_void
+) -> c_int {
 	panic::catch_unwind(|| {
 		*output = ptr::null_mut();
 
@@ -124,8 +143,15 @@ pub unsafe extern fn parity_destroy(client: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_rpc(client: *mut c_void, query: *const c_char, len: usize, out_str: *mut c_char, out_len: *mut usize) -> c_int {
+pub unsafe extern fn parity_rpc(
+	client: *mut c_void,
+	query: *const c_char,
+	len: usize,
+	callback: Callback,
+) -> c_int {
+
 	panic::catch_unwind(|| {
+
 		let client: &mut parity_ethereum::RunningClient = &mut *(client as *mut parity_ethereum::RunningClient);
 
 		let query_str = {
@@ -136,31 +162,60 @@ pub unsafe extern fn parity_rpc(client: *mut c_void, query: *const c_char, len: 
 			}
 		};
 
-		if let Some(output) = client.rpc_query_sync(query_str) {
-			let q_out_len = output.as_bytes().len();
-			if *out_len < q_out_len {
-				return 1;
-			}
+		let callback = match callback {
+			Some(callback) => Arc::new(callback),
+			None => return 1,
+		};
 
-			ptr::copy_nonoverlapping(output.as_bytes().as_ptr(), out_str as *mut u8, q_out_len);
-			*out_len = q_out_len;
-			0
-		} else {
-			1
-		}
+		let cb = callback.clone();
+
+		let (tx, mut rx) = mpsc::channel(1);
+		let session = Some(Arc::new(PubSubSession::new(tx)));
+
+		// FIXME: provide session object here, if we want to support the `PubSub`
+		let mut future = client.rpc_query(query_str, None).map(move |response| {
+			let (cstring, len) = match response {
+				Some(response) => to_cstring(response.into()),
+				_ => to_cstring("empty response".into()),
+			};
+			cb(ptr::null_mut(), cstring, len);
+			()
+		});
+
+		let _handle = thread::Builder::new()
+			.name("rpc-subscriber".into())
+			.spawn(move || {
+				let mut current_thread = CurrentThread::new();
+				let _ = current_thread.run_timeout(QUERY_TIMEOUT).map_err(|_e| {
+					let (cstring, len) = to_cstring("timeout".into());
+					callback(ptr::null_mut(), cstring, len);
+				});
+				loop {
+					// let _e = rx.by_ref().for_each(|r| {
+					//     println!("{:?}", r);
+					//     future::ok(())
+					// });
+
+					// if let Ok(Ready(_)) = future.poll() {
+					//     break;
+					// }
+				}
+			})
+			.expect("rpc-subscriber thread shouldn't fail; qed");
+		0
 	}).unwrap_or(1)
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_set_panic_hook(callback: extern "C" fn(*mut c_void, *const c_char, usize), param: *mut c_void) {
-	let cb = CallbackStr(Some(callback), param);
+pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_void) {
+	let cb = CallbackStr(callback, param);
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg);
 	});
 }
 
 // Internal structure for handling callbacks that get passed a string.
-struct CallbackStr(Option<extern "C" fn(*mut c_void, *const c_char, usize)>, *mut c_void);
+struct CallbackStr(Callback, *mut c_void);
 unsafe impl Send for CallbackStr {}
 unsafe impl Sync for CallbackStr {}
 impl CallbackStr {
@@ -171,97 +226,8 @@ impl CallbackStr {
 	}
 }
 
-#[cfg(feature = "jni")]
-#[no_mangle]
-pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv, _: JClass, cli: jobjectArray) -> jlong {
-	let cli_len = env.get_array_length(cli).expect("invalid Java bindings");
-
-	let mut jni_strings = Vec::with_capacity(cli_len as usize);
-	let mut opts = Vec::with_capacity(cli_len as usize);
-	let mut opts_lens = Vec::with_capacity(cli_len as usize);
-
-	for n in 0 .. cli_len {
-		let elem = env.get_object_array_element(cli, n).expect("invalid Java bindings");
-		let elem_str: JString = elem.into();
-		match env.get_string(elem_str) {
-			Ok(s) => {
-				opts.push(s.as_ptr());
-				opts_lens.push(s.to_bytes().len());
-				jni_strings.push(s);
-			},
-			Err(err) => {
-				let _ = env.throw_new("java/lang/Exception", err.to_string());
-				return 0
-			}
-		};
-	}
-
-	let mut out = ptr::null_mut();
-	match parity_config_from_cli(opts.as_ptr(), opts_lens.as_ptr(), cli_len as usize, &mut out) {
-		0 => out as usize as jlong,
-		_ => {
-			let _ = env.throw_new("java/lang/Exception", "failed to create config object");
-			0
-		},
-	}
-}
-
-#[cfg(feature = "jni")]
-#[no_mangle]
-pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_build(env: JNIEnv, _: JClass, config: jlong) -> jlong {
-	let params = ParityParams {
-		configuration: config as usize as *mut c_void,
-		.. mem::zeroed()
-	};
-
-	let mut out = ptr::null_mut();
-	match parity_start(&params, &mut out) {
-		0 => out as usize as jlong,
-		_ => {
-			let _ = env.throw_new("java/lang/Exception", "failed to start Parity");
-			0
-		},
-	}
-}
-
-#[cfg(feature = "jni")]
-#[no_mangle]
-pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_destroy(_env: JNIEnv, _: JClass, parity: jlong) {
-	let parity = parity as usize as *mut c_void;
-	parity_destroy(parity);
-}
-
-#[cfg(feature = "jni")]
-#[no_mangle]
-pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative<'a>(env: JNIEnv<'a>, _: JClass, parity: jlong, rpc: JString) -> JString<'a> {
-	let parity = parity as usize as *mut c_void;
-
-	let rpc = match env.get_string(rpc) {
-		Ok(s) => s,
-		Err(err) => {
-			let _ = env.throw_new("java/lang/Exception", err.to_string());
-			return env.new_string("").expect("Creating an empty string never fails");
-		},
-	};
-
-	let mut out_len = 255;
-	let mut out = [0u8; 256];
-
-	match parity_rpc(parity, rpc.as_ptr(), rpc.to_bytes().len(), out.as_mut_ptr() as *mut c_char, &mut out_len) {
-		0 => (),
-		_ => {
-			let _ = env.throw_new("java/lang/Exception", "failed to perform RPC query");
-			return env.new_string("").expect("Creating an empty string never fails");
-		},
-	}
-
-	let out = str::from_utf8(&out[..out_len])
-		.expect("parity always generates an UTF-8 RPC response");
-	match env.new_string(out) {
-		Ok(s) => s,
-		Err(err) => {
-			let _ = env.throw_new("java/lang/Exception", err.to_string());
-			return env.new_string("").expect("Creating an empty string never fails");
-		}
-	}
+fn to_cstring(response: Vec<u8>) -> (*mut c_char, usize) {
+	let len = response.len();
+	let cstr = CString::new(response).expect("valid string with no null bytes in the middle; qed").into_raw();
+	(cstr, len)
 }

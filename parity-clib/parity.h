@@ -19,6 +19,8 @@
 
 #include <stddef.h>
 
+typedef void (subscribe)(void*, const char*, size_t);
+
 /// Parameters to pass to `parity_start`.
 struct ParityParams {
 	/// Configuration object, as handled by the `parity_config_*` functions.
@@ -31,7 +33,7 @@ struct ParityParams {
 	///
 	/// The first parameter of the callback is the value of `on_client_restart_cb_custom`.
 	/// The second and third parameters of the callback are the string pointer and length.
-	void (*on_client_restart_cb)(void* custom, const char* new_chain, size_t new_chain_len);
+	subscribe *on_client_restart_cb;
 
 	/// Custom parameter passed to the `on_client_restart_cb` callback as first parameter.
 	void *on_client_restart_cb_custom;
@@ -86,21 +88,12 @@ int parity_start(const ParityParams* params, void** out);
 ///					must not call this function.
 void parity_destroy(void* parity);
 
-/// Performs an RPC request.
-///
-/// Blocks the current thread until the request is finished. You are therefore encouraged to spawn
-/// a new thread for each RPC request that requires accessing the blockchain.
+/// Performs an asynchronous RPC request.
 ///
 /// - `rpc` and `len` must contain the JSON string representing the RPC request.
-/// - `out_str` and `out_len` point to a buffer where the output JSON result will be stored. If the
-///	  buffer is not large enough, the function fails.
-/// - `out_len` will receive the final length of the string.
-/// - On success, the function returns 0. On failure, it returns 1.
+/// - On success, the function returns a callback with the result in `null` terminated `cstring`
 ///
-/// **Important**: Keep in mind that this function doesn't write any null terminator on the output
-///                string.
-///
-int parity_rpc(void* parity, const char* rpc, size_t len, char* out_str, size_t* out_len);
+int parity_rpc(void* parity, const char* rpc_query, size_t len, subscribe rpc_response);
 
 /// Sets a callback to call when a panic happens in the Rust code.
 ///
@@ -117,7 +110,7 @@ int parity_rpc(void* parity, const char* rpc, size_t len, char* out_str, size_t*
 /// The callback can be called from any thread and multiple times simultaneously. Make sure that
 /// your code is thread safe.
 ///
-int parity_set_panic_hook(void (*cb)(void* param, const char* msg, size_t msg_len), void* param);
+int parity_set_panic_hook(subscribe panic, void* param);
 
 #ifdef __cplusplus
 }
