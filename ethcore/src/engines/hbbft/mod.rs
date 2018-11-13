@@ -320,7 +320,7 @@ mod tests {
 				extra_data,
 				is_first_block_for_validator_set_source,
 				ancestry,
-			).unwrap();
+			).unwrap()
 		};
 		let b = b.close_and_lock().unwrap();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
