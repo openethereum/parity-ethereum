@@ -58,7 +58,7 @@ pub struct HbbftParams {
 
 	/// If we are using a smart contract to calculate and distribute block rewards, we store the
 	/// block reward contract address here. `BlockRewardContract` has a `reward()` method that
-	/// handles the logic for serailizing the input, deserializing the output, and calling the
+	/// handles the logic for serializing the input, deserializing the output, and calling the
 	/// block reward contract's `reward()` function.
 	pub block_reward_contract: Option<BlockRewardContract>,
 
@@ -215,7 +215,7 @@ impl Engine<EthereumMachine> for Hbbft {
 	/// addresses or a smart contract that contains the validator addresses).
 	///
 	/// If the validator-set source corresponding to `block`'s block number uses a smart contract
-	/// to aquire the list of validator addresses, this method will call the smart contract's
+	/// to acquire the list of validator addresses, this method will call the smart contract's
 	/// `finalizeChange` function. The `finalizeChange` contract function will finalize any pending
 	/// validator-set changes currently known to the Safe Contract.
 	///
@@ -227,7 +227,7 @@ impl Engine<EthereumMachine> for Hbbft {
 	/// we query the list of validator addresses).
 	/// * `ancestry` - an iterator over all finalized block headers starting from the first block
 	/// for the validator-set source up to and including `block`'s parent. We ignore this argument
-	/// (it appears that every consensus engine ignores the `ancestory` argument, who knows why
+	/// (it appears that every consensus engine ignores the `ancestry` argument, who knows why
 	/// it's there).
 	fn on_new_block(
 		&self,

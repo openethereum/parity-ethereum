@@ -23,9 +23,9 @@ use uint::Uint;
 /// `Hbbft` engine configuration parameters, this structure is used to deserialize the values found
 /// in the `Hbbft` engine's JSON spec.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HbbftParams {
 	/// Whether to enable millisecond timestamp.
-	#[serde(rename="millisecondTimestamp")]
 	#[serde(default)]
 	pub millisecond_timestamp: bool,
 
@@ -38,17 +38,17 @@ pub struct HbbftParams {
 	pub validators: ValidatorSet,
 
 	/// The address at which the block reward contract is deployed. The block reward contract is
-	/// used to calculate block rewards, to create new coin after each new block is sealed, and to
-	/// distribute the created coin as block rewards to a set of recipient addresses.
+	/// used to calculate block rewards, to create mint new coins after each new block is sealed, and to
+	/// distribute the minted coin as block rewards to a set of recipient addresses.
 	pub block_reward_contract_address: Option<Address>,
 
 	/// If no `block_reward_contract_address` is provided, the `block_reward` configuration option
-	/// can be used to set a constant block reward ammount to be transfered to the address found in
+	/// can be used to set a constant block reward amount to be transferred to the address found in
 	/// each newly sealed block header's `author` field. If neither the
 	/// `block_reward_contract_address` nor `block_reward` options are supplied in the Hbbft
 	/// engine's JSON spec, no block rewards will be distributed. If values are provided for both
 	/// `block_reward_contract_address` and `block_reward`, the value for `block_reward` will be
-	/// ignored and only the contract will be queried to determine reward ammounts.
+	/// ignored and only the contract will be queried to determine reward amounts.
 	pub block_reward: Option<Uint>,
 }
 
