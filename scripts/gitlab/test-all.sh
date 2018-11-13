@@ -30,7 +30,7 @@ git log --graph --oneline --decorate=short -n 10
 #   exit 0
 # fi
 
-rustup default $1
+# rustup default $1
 
 git submodule update --init --recursive
 rustup show

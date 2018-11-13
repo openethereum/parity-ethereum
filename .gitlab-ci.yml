@@ -40,8 +40,7 @@ test-linux:
   variables:
     RUN_TESTS:                     all
   script:
-    - test.sh
-    # - scripts/gitlab/test-all.sh stable
+    - scripts/gitlab/test-all.sh stable
   tags:
     - ci2
 
