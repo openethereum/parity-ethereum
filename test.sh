@@ -1,5 +1,6 @@
 #!/bin/sh
 # Running Parity Full Test Suite
+echo "test.sh"
 
 FEATURES="json-tests,ci-skip-issue"
 OPTIONS="--release"

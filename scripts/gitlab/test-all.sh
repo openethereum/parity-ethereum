@@ -1,6 +1,7 @@
 #!/bin/bash
 # ARGUMENT $1 Rust flavor to test with (stable/beta/nightly)
 
+echo "test-all.sh"
 set -e # fail on any error
 set -u # treat unset variables as error
 
