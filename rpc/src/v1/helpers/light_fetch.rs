@@ -626,25 +626,27 @@ fn execute_read_only_tx(gas_known: bool, params: ExecuteParams) -> impl Future<I
 					Ok(executed) => {
 						// `OutOfGas` exception, try double the gas
 						if let Some(vm::Error::OutOfGas) = executed.exception {
-							let old_gas = params.tx.gas;
-							params.tx.gas = params.tx.gas * 2_u32;
-							if params.tx.gas > params.hdr.gas_limit() {
+							// block gas limit already tried, regard as an error and don't retry
+							if params.tx.gas == params.hdr.gas_limit() {
 								trace!(target: "light_fetch", "OutOutGas exception received, gas increase: failed");
-								params.tx.gas = old_gas;
 							} else {
-								trace!(target: "light_fetch", "OutOutGas exception received, gas increase: succeed");
+								params.tx.gas = cmp::min(params.tx.gas * 2_u32, params.hdr.gas_limit());
+								trace!(target: "light_fetch", "OutOutGas exception received, gas increased to {}",
+									   params.tx.gas);
 								return Ok(future::Loop::Continue(params))
 							}
 						}
 						Ok(future::Loop::Break(Ok(executed)))
 					}
 					Err(ExecutionError::NotEnoughBaseGas { required, got }) => {
-						trace!(target: "light_fetch", "Not enough start gas provided required: {}, got: {}", required, got);
+						trace!(target: "light_fetch", "Not enough start gas provided required: {}, got: {}",
+							   required, got);
 						if required <= params.hdr.gas_limit() {
 							params.tx.gas = required;
 							return Ok(future::Loop::Continue(params))
 						} else {
-							warn!(target: "light_fetch", "Required gas is bigger than block header's gas dropping the request");
+							warn!(target: "light_fetch",
+								  "Required gas is bigger than block header's gas dropping the request");
 							Ok(future::Loop::Break(Err(ExecutionError::NotEnoughBaseGas { required, got })))
 						}
 					}
