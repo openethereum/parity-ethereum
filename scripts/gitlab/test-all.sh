@@ -1,7 +1,8 @@
-B#!/bin/bash
+#!/bin/bash
 # ARGUMENT $1 Rust flavor to test with (stable/beta/nightly)
 
 echo "test-all.sh"
+echo (rustc --version)
 # delete this ^
 
 set -e # fail on any error
