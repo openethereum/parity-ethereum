@@ -49,7 +49,8 @@ use v1::types::{
 	RichRawTransaction as RpcRichRawTransaction,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse,
-	SignRequest as RpcSignRequest,
+	EthSignRequest as RpcEthSignRequest,
+	EIP191SignRequest as RpcSignRequest,
 	DecryptRequest as RpcDecryptRequest,
 };
 use rlp;
@@ -693,6 +694,19 @@ pub fn execute<D: Dispatcher + 'static>(
 				);
 			Box::new(future::done(res))
 		},
+		ConfirmationPayload::SignMessage(address, data) => {
+			if accounts.is_hardware_address(&address) {
+				return Box::new(future::err(errors::account("Error signing message with hardware_wallet",
+					"Message signing is unsupported")));
+			}
+			let res = signature(&accounts, address, data, pass)
+				.map(|result| result
+					.map(|rsv| H520(rsv.into_electrum()))
+					.map(RpcH520::from)
+					.map(ConfirmationResponse::Signature)
+				);
+			Box::new(future::done(res))
+		},
 		ConfirmationPayload::Decrypt(address, data) => {
 			if accounts.is_hardware_address(&address) {
 				return Box::new(future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)));
@@ -775,8 +789,11 @@ pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, di
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
 			Box::new(future::ok(ConfirmationPayload::Decrypt(address.into(), msg.into())))
 		},
-		RpcConfirmationPayload::EthSignMessage(RpcSignRequest { address, data }) => {
+		RpcConfirmationPayload::EthSignMessage(RpcEthSignRequest { address, data }) => {
 			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address.into(), data.into())))
+		},
+		RpcConfirmationPayload::EIP191SignMessage(RpcSignRequest { address, data }) => {
+			Box::new(future::ok(ConfirmationPayload::SignMessage(address.into(), data.into())))
 		},
 	}
 }

@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Personal rpc interface.
+use eip712::EIP712;
+use jsonrpc_core::types::Value;
 use jsonrpc_core::{BoxFuture, Result};
-
-use v1::types::{Bytes, U128, H160, H256, H520, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
+use v1::types::{Bytes, U128, H160, H256, H520, TransactionRequest, RichRawTransaction as RpcRichRawTransaction, EIP191Version};
 
 build_rpc_trait! {
 	/// Personal rpc interface. Safe (read-only) functions.
@@ -41,6 +42,15 @@ build_rpc_trait! {
 		/// the request.
 		#[rpc(name = "personal_sign")]
 		fn sign(&self, Bytes, H160, String) -> BoxFuture<H520>;
+
+		/// Produces an EIP-712 compliant signature with given account using the given password to unlock the
+		/// account during the request.
+		#[rpc(name = "personal_signTypedData")]
+		fn sign_typed_data(&self, EIP712, H160, String) -> BoxFuture<H520>;
+
+		/// Signs an arbitrary message based on the version specified
+		#[rpc(name = "personal_sign191")]
+		fn sign_191(&self, EIP191Version, Value, H160, String) -> BoxFuture<H520>;
 
 		/// Returns the account associated with the private key that was used to calculate the signature in
 		/// `personal_sign`.

@@ -59,6 +59,7 @@ parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 patricia-trie = "0.3.0"
 rlp = { version = "0.3.0", features = ["ethereum"] }
+eip712 = { path = "../util/EIP-712" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
