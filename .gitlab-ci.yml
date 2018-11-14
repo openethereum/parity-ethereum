@@ -123,15 +123,15 @@ cargo-audit:
   tags:
     - ci2
 
-# build-android:
-#   stage:                           optional
-#   image:                           parity/rust-android:gitlab-ci
-#   variables:
-#     CARGO_TARGET:                  armv7-linux-androideabi
-#   script:
-#     - scripts/gitlab/build-unix.sh
-#   tags:
-#     - rust-arm
+build-android:
+  stage:                           build # optional
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  script:
+    - scripts/gitlab/build-unix.sh
+  tags:
+    - rust-arm
 
 test-beta:
   stage:                           optional
