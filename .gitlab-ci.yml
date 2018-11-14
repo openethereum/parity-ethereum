@@ -35,14 +35,15 @@ variables:
 #   - export VERSION
 #   - echo "Version = ${VERSION}"
 
-test-linux:
-  stage:                           test
-  variables:
-    RUN_TESTS:                     all
-  script:
-    - scripts/gitlab/test-all.sh stable
-  tags:
-    - ci2
+# for the time economy:
+# test-linux:
+#   stage:                           test
+#   variables:
+#     RUN_TESTS:                     all
+#   script:
+#     - scripts/gitlab/test-all.sh stable
+#   tags:
+#     - ci2
 
 build-linux:
   stage:                           build
@@ -131,7 +132,7 @@ build-android:
   script:
     - scripts/gitlab/build-unix.sh
   tags:
-    - ci2
+    - rust-arm
 
 test-beta:
   stage:                           optional
