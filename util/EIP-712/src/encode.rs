@@ -208,7 +208,7 @@ fn encode_data(
 }
 
 /// encodes and hashes the given EIP712 struct
-pub fn hash_structured_data(typed_data: EIP712) -> Result<Vec<u8>> {
+pub fn hash_structured_data(typed_data: EIP712) -> Result<H256> {
 	// validate input
 	typed_data.validate()?;
 	// EIP-191 compliant
@@ -220,7 +220,7 @@ pub fn hash_structured_data(typed_data: EIP712) -> Result<Vec<u8>> {
 		encode_data(&parser, &Type::Custom(typed_data.primary_type), &typed_data.types, &typed_data.message, None)?
 	);
 	let concat = [&prefix[..], &domain_hash[..], &data_hash[..]].concat();
-	Ok(keccak(concat).to_vec())
+	Ok(keccak(concat))
 }
 
 #[cfg(test)]

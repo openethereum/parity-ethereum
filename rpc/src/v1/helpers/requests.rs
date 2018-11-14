@@ -18,6 +18,7 @@ use ethereum_types::{U256, Address};
 use bytes::Bytes;
 
 use v1::types::{Origin, TransactionCondition};
+use ethereum_types::H256;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -117,6 +118,8 @@ pub enum ConfirmationPayload {
 	SignTransaction(FilledTransactionRequest),
 	/// Sign a message with an Ethereum specific security prefix.
 	EthSignMessage(Address, Bytes),
+	/// Sign a message
+	SignMessage(Address, H256),
 	/// Decrypt request
 	Decrypt(Address, Bytes),
 }
@@ -127,6 +130,7 @@ impl ConfirmationPayload {
 			ConfirmationPayload::SendTransaction(ref request) => request.from,
 			ConfirmationPayload::SignTransaction(ref request) => request.from,
 			ConfirmationPayload::EthSignMessage(ref address, _) => *address,
+			ConfirmationPayload::SignMessage(ref address, _) => *address,
 			ConfirmationPayload::Decrypt(ref address, _) => *address,
 		}
 	}
