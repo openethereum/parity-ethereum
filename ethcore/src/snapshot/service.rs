@@ -362,7 +362,7 @@ impl Service {
 		// The old database looks like this:
 		// [genesis, best_ancient_block] ... [first_block, best_block]
 		// If we are fully synced neither `best_ancient_block` nor `first_block` is set, and we can assume that the whole range from [genesis, best_block] is imported.
-		// The new database only contains the tip of the chain ([forst_block, best_block]),
+		// The new database only contains the tip of the chain ([first_block, best_block]),
 		// so the useful set of blocks is defined as:
 		// [0 ... min(new.first_block, best_ancient_block or best_block)]
 		let find_range = || -> Option<(H256, H256)> {
