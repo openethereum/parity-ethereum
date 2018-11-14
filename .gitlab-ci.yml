@@ -132,7 +132,8 @@ build-android:
   script:
     - scripts/gitlab/build-unix.sh
   tags:
-    - rust-arm
+    - ci2
+    # - rust-arm
 
 test-beta:
   stage:                           optional
