@@ -37,7 +37,7 @@ variables:
 
 .cargo-check:
   only:
-    -pushes
+    - pushes
   script:
     - cargo check
 
