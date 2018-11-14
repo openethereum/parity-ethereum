@@ -28,7 +28,7 @@ use parking_lot::{Mutex, RwLock};
 use provider::Provider;
 use request::{Request, NetworkRequests as Requests, Response};
 use rlp::{RlpStream, Rlp};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::ops::{BitOr, BitAnd, Not};
 use std::sync::Arc;
@@ -38,7 +38,7 @@ use std::time::{Duration, Instant};
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
 use self::error::Punishment;
-use self::load_timer::{LoadDistribution, NullStore};
+use self::load_timer::{LoadDistribution, NullStore, MOVING_SAMPLE_SIZE};
 use self::request_set::RequestSet;
 use self::id_guard::IdGuard;
 
@@ -69,6 +69,9 @@ const PROPAGATE_TIMEOUT_INTERVAL: Duration = Duration::from_secs(5);
 
 const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
 const RECALCULATE_COSTS_INTERVAL: Duration = Duration::from_secs(60 * 60);
+
+const STATISTICS_TIMEOUT: TimerToken = 4;
+const STATISTICS_INTERVAL: Duration = Duration::from_secs(60);
 
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
@@ -258,16 +261,20 @@ pub struct Config {
 	pub max_stored_seconds: u64,
 	/// How much of the total load capacity each peer should be allowed to take.
 	pub load_share: f64,
+	/// The network config median peers (used as default peer count)
+	pub median_peers: f64,
 }
 
 impl Default for Config {
 	fn default() -> Self {
-		const LOAD_SHARE: f64 = 1.0 / 25.0;
+		const LOAD_SHARE: f64 = 1.0;
+		const MEDIAN_PEERS: f64 = 25.0;
 		const MAX_ACCUMULATED: u64 = 60 * 5; // only charge for 5 minutes.
 
 		Config {
 			max_stored_seconds: MAX_ACCUMULATED,
 			load_share: LOAD_SHARE,
+			median_peers: MEDIAN_PEERS,
 		}
 	}
 }
@@ -335,6 +342,40 @@ mod id_guard {
 	}
 }
 
+/// Provides various statistics that could
+/// be used to compute costs
+struct Statistics {
+	/// Samples of peer count
+	peer_counts: VecDeque<usize>,
+}
+
+impl Statistics {
+	pub fn new() -> Self {
+		Statistics {
+			peer_counts: VecDeque::with_capacity(MOVING_SAMPLE_SIZE),
+		}
+	}
+
+	/// Add a new peer_count sample
+	pub fn add_peer_count(&mut self, peer_count: usize) {
+		while self.peer_counts.len() >= MOVING_SAMPLE_SIZE {
+			self.peer_counts.pop_front();
+		}
+		self.peer_counts.push_back(peer_count);
+	}
+
+	/// Get the average peer count from previous samples
+	pub fn avg_peer_count(&self) -> f64 {
+		let avg = self.peer_counts.iter().map(|&v| v as u64).sum::<u64>() as f64
+			/ self.peer_counts.len() as f64;
+		if avg < 1.0 {
+			1.0
+		} else {
+			avg
+		}
+	}
+}
+
 /// This is an implementation of the light ethereum network protocol, abstracted
 /// over a `Provider` of data and a p2p network.
 ///
@@ -359,6 +400,7 @@ pub struct LightProtocol {
 	req_id: AtomicUsize,
 	sample_store: Box<SampleStore>,
 	load_distribution: LoadDistribution,
+	statistics: RwLock<Statistics>,
 }
 
 impl LightProtocol {
@@ -369,9 +411,11 @@ impl LightProtocol {
 		let genesis_hash = provider.chain_info().genesis_hash;
 		let sample_store = params.sample_store.unwrap_or_else(|| Box::new(NullStore));
 		let load_distribution = LoadDistribution::load(&*sample_store);
+		// Default load share relative to median peers
+		let load_share = params.config.load_share / params.config.median_peers;
 		let flow_params = FlowParams::from_request_times(
 			|kind| load_distribution.expected_time(kind),
-			params.config.load_share,
+			load_share,
 			Duration::from_secs(params.config.max_stored_seconds),
 		);
 
@@ -389,6 +433,7 @@ impl LightProtocol {
 			req_id: AtomicUsize::new(0),
 			sample_store,
 			load_distribution,
+			statistics: RwLock::new(Statistics::new()),
 		}
 	}
 
@@ -772,9 +817,12 @@ impl LightProtocol {
 	fn begin_new_cost_period(&self, io: &IoContext) {
 		self.load_distribution.end_period(&*self.sample_store);
 
+		let peer_count = self.statistics.read().avg_peer_count();
+		// Load share relative to average peer count +25%
+		let load_share = self.config.load_share / (peer_count * 1.25);
 		let new_params = Arc::new(FlowParams::from_request_times(
 			|kind| self.load_distribution.expected_time(kind),
-			self.config.load_share,
+			load_share,
 			Duration::from_secs(self.config.max_stored_seconds),
 		));
 		*self.flow_params.write() = new_params.clone();
@@ -796,6 +844,11 @@ impl LightProtocol {
 			io.send(*peer_id, packet::UPDATE_CREDITS, packet_body.clone());
 			peer_info.awaiting_acknowledge = Some((now, new_params.clone()));
 		}
+	}
+
+	fn tick_statistics(&self) {
+		let active_peer_count = self.peer_count().1;
+		self.statistics.write().add_peer_count(active_peer_count);
 	}
 }
 
@@ -1099,6 +1152,8 @@ impl NetworkProtocolHandler for LightProtocol {
 			.expect("Error registering sync timer.");
 		io.register_timer(RECALCULATE_COSTS_TIMEOUT, RECALCULATE_COSTS_INTERVAL)
 			.expect("Error registering request timer interval token.");
+		io.register_timer(STATISTICS_TIMEOUT, STATISTICS_INTERVAL)
+			.expect("Error registering statistics timer.");
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -1119,6 +1174,7 @@ impl NetworkProtocolHandler for LightProtocol {
 			TICK_TIMEOUT => self.tick_handlers(&io),
 			PROPAGATE_TIMEOUT => self.propagate_transactions(&io),
 			RECALCULATE_COSTS_TIMEOUT => self.begin_new_cost_period(&io),
+			STATISTICS_TIMEOUT => self.tick_statistics(),
 			_ => warn!(target: "pip", "received timeout on unknown token {}", timer),
 		}
 	}

@@ -264,7 +264,7 @@ pub struct EthSync {
 
 fn light_params(
 	network_id: u64,
-	max_peers: u32,
+	median_peers: f64,
 	pruning_info: PruningInfo,
 	sample_store: Option<Box<SampleStore>>,
 ) -> LightParams {
@@ -282,9 +282,8 @@ fn light_params(
 		sample_store: sample_store,
 	};
 
-	let max_peers = ::std::cmp::max(max_peers, 1);
-	light_params.config.load_share = MAX_LIGHTSERV_LOAD / max_peers as f64;
-
+	light_params.config.load_share = MAX_LIGHTSERV_LOAD;
+	light_params.config.median_peers = median_peers;
 	light_params
 }
 
@@ -301,9 +300,10 @@ impl EthSync {
 					.map(|mut p| { p.push("request_timings"); light_net::FileStore(p) })
 					.map(|store| Box::new(store) as Box<_>);
 
+				let median_peers = (params.network_config.min_peers + params.network_config.max_peers) as f64 / 2.0;
 				let light_params = light_params(
 					params.config.network_id,
-					params.network_config.max_peers,
+					median_peers,
 					pruning_info,
 					sample_store,
 				);
