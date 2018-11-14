@@ -49,7 +49,6 @@ mod tests {
 		let s = r#"{
 			"clique": {
 				"params": {
-					"signers": []
 				}
 			}
 		}"#;
