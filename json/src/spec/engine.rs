@@ -16,7 +16,7 @@
 
 //! Engine deserialization.
 
-use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine, InstantSeal};
+use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine, InstantSeal, Clique};
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -34,7 +34,11 @@ pub enum Engine {
 	/// AuthorityRound engine.
 	AuthorityRound(AuthorityRound),
 	/// Tendermint engine.
-	Tendermint(Tendermint)
+	#[serde(rename="tendermint")]
+	Tendermint(Tendermint),
+	/// Clique engine.
+	#[serde(rename="clique")]
+	Clique(Clique)
 }
 
 #[cfg(test)]
@@ -44,6 +48,20 @@ mod tests {
 
 	#[test]
 	fn engine_deserialization() {
+		let s = r#"{
+			"clique": {
+				"params": {
+					"signers": []
+				}
+			}
+		}"#;
+
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::Clique(_) => {}, // unit test in its own file.
+			_ => panic!(),
+		}
+
 		let s = r#"{
 			"null": {
 				"params": {

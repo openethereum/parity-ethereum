@@ -18,6 +18,7 @@
 
 mod authority_round;
 mod basic_authority;
+mod clique;
 mod instant_seal;
 mod null_engine;
 mod signer;
@@ -35,6 +36,7 @@ pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
+pub use self::clique::Clique;
 
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
@@ -52,7 +54,7 @@ use spec::CommonParams;
 use transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Password, Signature};
-use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
+use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader, LiveBlock, Header as LiveHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
@@ -370,6 +372,10 @@ pub trait Engine<M: Machine>: Sync + Send {
 		None
 	}
 
+    /// Allow hook to set extra data before closing the block (after txs are applied).  used by
+    /// clique for block signing
+    fn close_block_extra_data(&self, _parent: &M::Header) -> Option<Vec<u8>> { None }
+
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
 	fn epoch_verifier<'a>(&self, _header: &M::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a, M> {
@@ -435,6 +441,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Check whether the given new block is the best block, after finalization check.
 	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
+
+	/// Return author should used in executing txns for this block.
+	fn executive_author(&self, header: &M::Header) -> Address { header.author().clone() }
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.

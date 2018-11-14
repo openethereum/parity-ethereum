@@ -45,6 +45,7 @@ pub enum SpecType {
 	Morden,
 	Ropsten,
 	Kovan,
+    Rinkeby,
 	Sokol,
 	Dev,
 	Custom(String),
@@ -75,6 +76,7 @@ impl str::FromStr for SpecType {
 			"morden" | "classic-testnet" => SpecType::Morden,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
+            "rinkeby" => SpecType::Rinkeby,
 			"sokol" | "poasokol" => SpecType::Sokol,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
@@ -87,6 +89,7 @@ impl fmt::Display for SpecType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match *self {
 			SpecType::Foundation => "foundation",
+			SpecType::Rinkeby => "rinkeby",
 			SpecType::Classic => "classic",
 			SpecType::Poanet => "poanet",
 			SpecType::Tobalaba => "tobalaba",
@@ -125,6 +128,7 @@ impl SpecType {
 			SpecType::Morden => Ok(ethereum::new_morden(params)),
 			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
+            SpecType::Rinkeby => Ok(ethereum::new_rinkeby(params)),
 			SpecType::Sokol => Ok(ethereum::new_sokol(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
@@ -383,6 +387,7 @@ mod tests {
 		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
+		assert_eq!(SpecType::Rinkeby, "rinkeby".parse().unwrap());
 	}
 
 	#[test]
@@ -408,6 +413,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
+		assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
 
