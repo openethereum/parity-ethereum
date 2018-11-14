@@ -35,28 +35,32 @@ variables:
 #   - export VERSION
 #   - echo "Version = ${VERSION}"
 
-# for the time economy:
+push-job:
+  stage:                           test # ?
+  script:
+    - cargo check
+  tags:
+    - ci2
+
 test-linux:
   stage:                           test
   variables:
     RUN_TESTS:                     all
   script:
-    - scripts/gitlab/test-all.sh stable
+    - scripts/gitlab/test-all.sh # stable
   tags:
     - ci2
-# push-job:
 
-
-build-linux:
-  stage:                           build
-  # only:                            *releaseable_branches
-  variables:
-    CARGO_TARGET:                  x86_64-unknown-linux-gnu
-  script:
-    - scripts/gitlab/build-unix.sh
-  <<:                              *collect_artifacts
-  tags:
-    - ci2
+# build-linux:
+#   stage:                           build
+#   # only:                            *releaseable_branches
+#   variables:
+#     CARGO_TARGET:                  x86_64-unknown-linux-gnu
+#   script:
+#     - scripts/gitlab/build-unix.sh
+#   <<:                              *collect_artifacts
+#   tags:
+#     - ci2
 
 # build-darwin:
 #   stage:                           build
@@ -71,17 +75,17 @@ build-linux:
 #     - rust-osx
 #   <<:                              *collect_artifacts
 
-build-windows:
-  stage:                           build
-  # only:                            *releaseable_branches
-  variables:
-    CARGO_TARGET:                  x86_64-pc-windows-msvc
-  script:
-    - sh scripts/gitlab/build-windows.sh
-  tags:
-   # - rust-windows
-   - ci2
-  <<:                              *collect_artifacts
+# build-windows:
+#   stage:                           build
+#   # only:                            *releaseable_branches
+#   variables:
+#     CARGO_TARGET:                  x86_64-pc-windows-msvc
+#   script:
+#     - sh scripts/gitlab/build-windows.sh
+#   tags:
+#    # - rust-windows
+#    - ci2
+#   <<:                              *collect_artifacts
 
 # publish-docker:
 #   stage:                           publish
@@ -108,17 +112,17 @@ build-windows:
 #   tags:
 #     - shell
 
-docs-jsonrpc:
-  stage:                            optional
-  only:
-    - tags
-  except:
-    - nightly
-  cache: {}
-  script:
-    - scripts/gitlab/docs-jsonrpc.sh
-  tags:
-    - ci2
+# docs-jsonrpc:
+#   stage:                            optional
+#   only:
+#     - tags
+#   except:
+#     - nightly
+#   cache: {}
+#   script:
+#     - scripts/gitlab/docs-jsonrpc.sh
+#   tags:
+#     - ci2
 
 cargo-audit:
   stage:                           optional
@@ -128,31 +132,31 @@ cargo-audit:
     - ci2
 
 # works
-build-android:
-  stage:                           optional
-  image:                           parity/rust-android:gitlab-ci
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
-  script:
-    - scripts/gitlab/build-unix.sh
-  tags:
-    - ci2
-    # - rust-arm
+# build-android:
+#   stage:                           optional
+#   image:                           parity/rust-android:gitlab-ci
+#   variables:
+#     CARGO_TARGET:                  armv7-linux-androideabi
+#   script:
+#     - scripts/gitlab/build-unix.sh
+#   tags:
+#     - ci2
+#     # - rust-arm
 
-test-beta:
-  stage:                           optional
-  variables:
-    RUN_TESTS:                     cargo
-  script:
-    - scripts/gitlab/test-all.sh beta
-  tags:
-    - ci2
+# test-beta:
+#   stage:                           optional
+#   variables:
+#     RUN_TESTS:                     cargo
+#   script:
+#     - scripts/gitlab/test-all.sh beta
+#   tags:
+#     - ci2
 
-test-nightly:
-  stage:                           optional
-  variables:
-    RUN_TESTS:                     all
-  script:
-    - scripts/gitlab/test-all.sh nightly
-  tags:
-    - ci2
+# test-nightly:
+#   stage:                           optional
+#   variables:
+#     RUN_TESTS:                     all
+#   script:
+#     - scripts/gitlab/test-all.sh nightly
+#   tags:
+#     - ci2
