@@ -35,10 +35,15 @@ variables:
 #   - export VERSION
 #   - echo "Version = ${VERSION}"
 
-push-job:
-  stage:                           test # ?
+.cargo-check:
+  only:
+    -pushes
   script:
     - cargo check
+
+push-job:
+  stage:                           test
+  extends:                         .cargo-check
   tags:
     - ci2
 
