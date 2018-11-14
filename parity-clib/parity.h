@@ -88,12 +88,36 @@ int parity_start(const ParityParams* params, void** out);
 ///					must not call this function.
 void parity_destroy(void* parity);
 
-/// Performs an asynchronous RPC request.
+/// Performs an asynchronous RPC request running in a background thread for at most X milliseconds
 ///
-/// - `rpc` and `len` must contain the JSON string representing the RPC request.
-/// - On success, the function returns a callback with the result in `null` terminated `cstring`
+///	- parity		: Reference to the running parity client
+///	- rpc_query		: JSON encoded string representing the RPC request.
+///	- len			: Length of the RPC query
+///	- timeout_ms	: Maximum time that request is waiting for a response
+///	- response		: Callback to invoke when the query gets answered. It will respond with
 ///
-int parity_rpc(void* parity, const char* rpc_query, size_t len, subscribe rpc_response);
+///						1) A JSON encoded string with the result
+///						2) A string "empty", (got an empty response)
+//						3) A string "timeout", (the query timed-out)
+///
+/// - On success	: The parity client reference and the query string were valid
+/// - On error		: The parity client reference and the query string were not valid
+///
+int parity_rpc(void* parity, const char* rpc_query, size_t rpc_len, size_t timeout_ms, subscribe response);
+
+
+/// Subscribes to a specific websocket event
+/// FIXME: provide functionality to cancel a "subscription"
+///
+///	 - parity		: Reference to the running parity client
+///	 - ws_query		: JSON encoded string representing the websocket and which event to subscribe to
+///	 - len			: Length of the queury
+///	 - response		: Callback to invoke when a websocket event occured
+///
+///  - On success	: The function returns a callback with a JSON encoded string
+///  - On error		: The function returns a callback with the error (empty or timeout)
+///
+int parity_subscribe_ws(void* parity, const char* ws_query, size_t len, subscribe response);
 
 /// Sets a callback to call when a panic happens in the Rust code.
 ///

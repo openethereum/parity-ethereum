@@ -86,6 +86,7 @@ impl<T: ChainDataFetcher> Service<T> {
 
 	/// Set the actor to be notified on certain chain events
 	pub fn add_notify(&self, notify: Arc<LightChainNotify>) {
+		trace!(target: "pubsub", "add lightchain notify");
 		self.client.add_listener(Arc::downgrade(&notify));
 	}
 

@@ -852,6 +852,7 @@ impl Client {
 
 	/// Adds an actor to be notified on certain events
 	pub fn add_notify(&self, target: Arc<ChainNotify>) {
+		trace!(target: "pubsub", "adding chain notify handler");
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
