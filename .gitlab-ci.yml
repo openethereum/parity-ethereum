@@ -36,14 +36,16 @@ variables:
 #   - echo "Version = ${VERSION}"
 
 # for the time economy:
-# test-linux:
-#   stage:                           test
-#   variables:
-#     RUN_TESTS:                     all
-#   script:
-#     - scripts/gitlab/test-all.sh stable
-#   tags:
-#     - ci2
+test-linux:
+  stage:                           test
+  variables:
+    RUN_TESTS:                     all
+  script:
+    - scripts/gitlab/test-all.sh stable
+  tags:
+    - ci2
+# push-job:
+
 
 build-linux:
   stage:                           build
@@ -69,16 +71,17 @@ build-linux:
 #     - rust-osx
 #   <<:                              *collect_artifacts
 
-# build-windows:
-#   stage:                           build
-#   only:                            *releaseable_branches
-#   variables:
-#     CARGO_TARGET:                  x86_64-pc-windows-msvc
-#   script:
-#     - sh scripts/gitlab/build-windows.sh
-#   tags:
-#    - rust-windows
-#   <<:                              *collect_artifacts
+build-windows:
+  stage:                           build
+  # only:                            *releaseable_branches
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+  script:
+    - sh scripts/gitlab/build-windows.sh
+  tags:
+   # - rust-windows
+   - ci2
+  <<:                              *collect_artifacts
 
 # publish-docker:
 #   stage:                           publish
@@ -124,8 +127,9 @@ cargo-audit:
   tags:
     - ci2
 
+# works
 build-android:
-  stage:                           build # optional
+  stage:                           optional
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
