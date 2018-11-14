@@ -659,8 +659,8 @@ mod tests {
 			parent,
 			last_hashes,
 			factories,
-			is_epoch_begin,
-			ancestry,
+			false,
+			&mut Vec::new().into_iter(),
 		)
 	}
 
