@@ -21,7 +21,7 @@ use bytes::ToPretty;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use parity_reactor::EventLoop;
+use parity_runtime::Runtime;
 use parking_lot::Mutex;
 use rlp::encode;
 use transaction::{Transaction, Action, SignedTransaction};
@@ -36,6 +36,7 @@ use v1::helpers::{nonce, SigningQueue, SignerService, FilledTransactionRequest, 
 use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
 
 struct SignerTester {
+	_runtime: Runtime,
 	signer: Arc<SignerService>,
 	accounts: Arc<AccountProvider>,
 	io: IoHandler<Metadata>,
@@ -56,18 +57,19 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> SignerTester {
+	let runtime = Runtime::with_thread_count(1);
 	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
-	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
-	let event_loop = EventLoop::spawn();
+	let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
+	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer, runtime.executor()).to_delegate());
 
 	SignerTester {
+		_runtime: runtime,
 		signer: signer,
 		accounts: accounts,
 		io: io,
@@ -89,14 +91,14 @@ fn should_return_list_of_items_to_confirm() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	}), Origin::Dapps("http://parity.io".into())).unwrap();
+	}), Origin::Unknown).unwrap();
 	let _sign_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(1.into(), vec![5].into()), Origin::Unknown).unwrap();
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"signer_requestsToConfirm","params":[],"id":1}"#;
 	let response = concat!(
 		r#"{"jsonrpc":"2.0","result":["#,
-		r#"{"id":"0x1","origin":{"dapp":"http://parity.io"},"payload":{"sendTransaction":{"condition":null,"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x1"}}},"#,
+		r#"{"id":"0x1","origin":"unknown","payload":{"sendTransaction":{"condition":null,"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x1"}}},"#,
 		r#"{"id":"0x2","origin":"unknown","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}}}"#,
 		r#"],"id":1}"#
 	);

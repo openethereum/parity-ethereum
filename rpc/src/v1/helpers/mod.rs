@@ -18,7 +18,6 @@
 pub mod errors;
 
 pub mod block_import;
-pub mod dapps;
 pub mod dispatch;
 pub mod fake_sign;
 pub mod ipfs;
@@ -26,6 +25,7 @@ pub mod light_fetch;
 pub mod nonce;
 pub mod oneshot;
 pub mod secretstore;
+pub mod eip191;
 
 mod network_settings;
 mod poll_filter;
@@ -35,8 +35,9 @@ mod signer;
 mod signing_queue;
 mod subscribers;
 mod subscription_manager;
+mod work;
 
-pub use self::dispatch::{Dispatcher, FullDispatcher};
+pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, SyncPollFilter, limit_logs};
@@ -51,6 +52,7 @@ pub use self::signing_queue::{
 pub use self::signer::SignerService;
 pub use self::subscribers::Subscribers;
 pub use self::subscription_manager::GenericPollManager;
+pub use self::work::submit_work_detail;
 
 pub fn to_url(address: &Option<::Host>) -> Option<String> {
 	address.as_ref().map(|host| (**host).to_owned())

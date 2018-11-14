@@ -25,7 +25,7 @@ use ethcore::account_provider::AccountProvider;
 use jsonrpc_core::Result;
 use v1::helpers::errors;
 use v1::traits::ParityAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo};
 use ethkey::Password;
 
 /// Account management (personal) rpc implementation.
@@ -141,61 +141,6 @@ impl ParityAccounts for ParityAccountsClient {
 		self.accounts.set_account_meta(addr.clone(), meta.clone())
 			.unwrap_or_else(|_| self.accounts.set_address_meta(addr, meta));
 		Ok(true)
-	}
-
-	fn set_dapp_addresses(&self, dapp: DappId, addresses: Option<Vec<RpcH160>>) -> Result<bool> {
-		self.accounts.set_dapp_addresses(dapp.into(), addresses.map(into_vec))
-			.map_err(|e| errors::account("Couldn't set dapp addresses.", e))
-			.map(|_| true)
-	}
-
-	fn dapp_addresses(&self, dapp: DappId) -> Result<Vec<RpcH160>> {
-		self.accounts.dapp_addresses(dapp.into())
-			.map_err(|e| errors::account("Couldn't get dapp addresses.", e))
-			.map(into_vec)
-	}
-
-	fn set_dapp_default_address(&self, dapp: DappId, address: RpcH160) -> Result<bool> {
-		self.accounts.set_dapp_default_address(dapp.into(), address.into())
-			.map_err(|e| errors::account("Couldn't set dapp default address.", e))
-			.map(|_| true)
-	}
-
-	fn dapp_default_address(&self, dapp: DappId) -> Result<RpcH160> {
-		self.accounts.dapp_default_address(dapp.into())
-			.map_err(|e| errors::account("Couldn't get dapp default address.", e))
-			.map(Into::into)
-	}
-
-	fn set_new_dapps_addresses(&self, addresses: Option<Vec<RpcH160>>) -> Result<bool> {
-		self.accounts
-			.set_new_dapps_addresses(addresses.map(into_vec))
-			.map_err(|e| errors::account("Couldn't set dapps addresses.", e))
-			.map(|_| true)
-	}
-
-	fn new_dapps_addresses(&self) -> Result<Option<Vec<RpcH160>>> {
-		self.accounts.new_dapps_addresses()
-			.map_err(|e| errors::account("Couldn't get dapps addresses.", e))
-			.map(|accounts| accounts.map(into_vec))
-	}
-
-	fn set_new_dapps_default_address(&self, address: RpcH160) -> Result<bool> {
-		self.accounts.set_new_dapps_default_address(address.into())
-			.map_err(|e| errors::account("Couldn't set new dapps default address.", e))
-			.map(|_| true)
-	}
-
-	fn new_dapps_default_address(&self) -> Result<RpcH160> {
-		self.accounts.new_dapps_default_address()
-			.map_err(|e| errors::account("Couldn't get new dapps default address.", e))
-			.map(Into::into)
-	}
-
-	fn recent_dapps(&self) -> Result<BTreeMap<DappId, u64>> {
-		self.accounts.recent_dapps()
-			.map_err(|e| errors::account("Couldn't get recent dapps.", e))
-			.map(|map| map.into_iter().map(|(k, v)| (k.into(), v)).collect())
 	}
 
 	fn import_geth_accounts(&self, addresses: Vec<RpcH160>) -> Result<Vec<RpcH160>> {

@@ -16,27 +16,24 @@
 
 //! Engine deserialization.
 
-use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine};
+use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine, InstantSeal};
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Engine {
 	/// Null engine.
-	#[serde(rename="null")]
 	Null(NullEngine),
 	/// Instantly sealing engine.
-	#[serde(rename="instantSeal")]
-	InstantSeal,
+	InstantSeal(Option<InstantSeal>),
 	/// Ethash engine.
+	#[serde(rename = "Ethash")]
 	Ethash(Ethash),
 	/// BasicAuthority engine.
-	#[serde(rename="basicAuthority")]
 	BasicAuthority(BasicAuthority),
 	/// AuthorityRound engine.
-	#[serde(rename="authorityRound")]
 	AuthorityRound(AuthorityRound),
 	/// Tendermint engine.
-	#[serde(rename="tendermint")]
 	Tendermint(Tendermint)
 }
 
@@ -62,14 +59,25 @@ mod tests {
 		}
 
 		let s = r#"{
+			"instantSeal": {"params": {}}
+		}"#;
+
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::InstantSeal(_) => {},	// instant seal is unit tested in its own file.
+			_ => panic!(),
+		};
+
+		let s = r#"{
 			"instantSeal": null
 		}"#;
 
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
-			Engine::InstantSeal => {},	// instant seal is unit tested in its own file.
+			Engine::InstantSeal(_) => {},	// instant seal is unit tested in its own file.
 			_ => panic!(),
 		};
+
 
 		let s = r#"{
 			"Ethash": {

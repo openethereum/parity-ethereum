@@ -102,6 +102,23 @@ void parity_destroy(void* parity);
 ///
 int parity_rpc(void* parity, const char* rpc, size_t len, char* out_str, size_t* out_len);
 
+/// Sets a callback to call when a panic happens in the Rust code.
+///
+/// The callback takes as parameter the custom param (the one passed to this function), plus the
+/// panic message. You are expected to log the panic message somehow, in order to communicate it to
+/// the user. A panic always indicates a bug in Parity.
+///
+/// Note that this method sets the panic hook for the whole program, and not just for Parity. In
+/// other words, if you use multiple Rust libraries at once (and not just Parity), then a panic
+/// in any Rust code will call this callback as well.
+///
+/// ## Thread safety
+///
+/// The callback can be called from any thread and multiple times simultaneously. Make sure that
+/// your code is thread safe.
+///
+int parity_set_panic_hook(void (*cb)(void* param, const char* msg, size_t msg_len), void* param);
+
 #ifdef __cplusplus
 }
 #endif

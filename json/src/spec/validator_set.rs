@@ -22,18 +22,15 @@ use hash::Address;
 
 /// Different ways of specifying validators.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ValidatorSet {
 	/// A simple list of authorities.
-	#[serde(rename="list")]
 	List(Vec<Address>),
 	/// Address of a contract that indicates the list of authorities.
-	#[serde(rename="safeContract")]
 	SafeContract(Address),
 	/// Address of a contract that indicates the list of authorities and enables reporting of theor misbehaviour using transactions.
-	#[serde(rename="contract")]
 	Contract(Address),
 	/// A map of starting blocks for each validator set.
-	#[serde(rename="multi")]
 	Multi(BTreeMap<Uint, ValidatorSet>),
 }
 

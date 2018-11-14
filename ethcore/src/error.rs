@@ -24,12 +24,12 @@ use unexpected::{Mismatch, OutOfBounds};
 use ethtrie::TrieError;
 use io::*;
 use header::BlockNumber;
-use client::Error as ClientError;
 use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
 use account_provider::SignError as AccountsError;
 use transaction::Error as TransactionError;
+use rlp;
 
 pub use executed::{ExecutionError, CallError};
 
@@ -153,6 +153,24 @@ impl error::Error for BlockError {
 
 error_chain! {
 	types {
+		QueueError, QueueErrorKind, QueueErrorResultExt, QueueErrorResult;
+	}
+
+	errors {
+		#[doc = "Queue is full"]
+		Full(limit: usize) {
+			description("Queue is full")
+			display("The queue is full ({})", limit)
+		}
+	}
+
+	foreign_links {
+		Channel(IoError) #[doc = "Io channel error"];
+	}
+}
+
+error_chain! {
+	types {
 		ImportError, ImportErrorKind, ImportErrorResultExt, ImportErrorResult;
 	}
 
@@ -173,39 +191,6 @@ error_chain! {
 		KnownBad {
 			description("block known to be bad")
 			display("block known to be bad")
-		}
-	}
-}
-
-error_chain! {
-	types {
-		BlockImportError, BlockImportErrorKind, BlockImportErrorResultExt;
-	}
-
-	links {
-		Import(ImportError, ImportErrorKind) #[doc = "Import error"];
-	}
-
-	foreign_links {
-		Block(BlockError) #[doc = "Block error"];
-		Decoder(::rlp::DecoderError) #[doc = "Rlp decoding error"];
-	}
-
-	errors {
-		#[doc = "Other error"]
-		Other(err: String) {
-			description("Other error")
-			display("Other error {}", err)
-		}
-	}
-}
-
-impl From<Error> for BlockImportError {
-	fn from(e: Error) -> Self {
-		match e {
-			Error(ErrorKind::Block(block_error), _) => BlockImportErrorKind::Block(block_error).into(),
-			Error(ErrorKind::Import(import_error), _) => BlockImportErrorKind::Import(import_error.into()).into(),
-			_ => BlockImportErrorKind::Other(format!("other block import error: {:?}", e)).into(),
 		}
 	}
 }
@@ -235,6 +220,7 @@ error_chain! {
 
 	links {
 		Import(ImportError, ImportErrorKind) #[doc = "Error concerning block import." ];
+		Queue(QueueError, QueueErrorKind) #[doc = "Io channel queue error"];
 	}
 
 	foreign_links {
@@ -247,15 +233,10 @@ error_chain! {
 		Snappy(InvalidInput) #[doc = "Snappy error."];
 		Engine(EngineError) #[doc = "Consensus vote error."];
 		Ethkey(EthkeyError) #[doc = "Ethkey error."];
+		Decoder(rlp::DecoderError) #[doc = "RLP decoding errors"];
 	}
 
 	errors {
-		#[doc = "Client configuration error."]
-		Client(err: ClientError) {
-			description("Client configuration error.")
-			display("Client configuration error {}", err)
-		}
-
 		#[doc = "Snapshot error."]
 		Snapshot(err: SnapshotError) {
 			description("Snapshot error.")
@@ -285,46 +266,12 @@ error_chain! {
 			description("Unknown engine name")
 			display("Unknown engine name ({})", name)
 		}
-
-		#[doc = "RLP decoding errors"]
-		Decoder(err: ::rlp::DecoderError) {
-			description("decoding value failed")
-			display("decoding value failed with error: {}", err)
-		}
-	}
-}
-
-/// Result of import block operation.
-pub type ImportResult = EthcoreResult<H256>;
-
-impl From<ClientError> for Error {
-	fn from(err: ClientError) -> Error {
-		match err {
-			ClientError::Trie(err) => ErrorKind::Trie(err).into(),
-			_ => ErrorKind::Client(err).into()
-		}
 	}
 }
 
 impl From<AccountsError> for Error {
 	fn from(err: AccountsError) -> Error {
 		ErrorKind::AccountProvider(err).into()
-	}
-}
-
-impl From<::rlp::DecoderError> for Error {
-	fn from(err: ::rlp::DecoderError) -> Error {
-		ErrorKind::Decoder(err).into()
-	}
-}
-
-impl From<BlockImportError> for Error {
-	fn from(err: BlockImportError) -> Error {
-		match err {
-			BlockImportError(BlockImportErrorKind::Block(e), _) => ErrorKind::Block(e).into(),
-			BlockImportError(BlockImportErrorKind::Import(e), _) => ErrorKind::Import(e).into(),
-			_ => ErrorKind::Msg(format!("other block import error: {:?}", err)).into(),
-		}
 	}
 }
 

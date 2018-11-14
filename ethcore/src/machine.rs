@@ -29,11 +29,10 @@ use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
-use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
+use transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
-use ethereum_types::{U256, Address};
-use bytes::BytesRef;
+use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
@@ -124,6 +123,39 @@ impl EthereumMachine {
 		gas: U256,
 		data: Option<Vec<u8>>,
 	) -> Result<Vec<u8>, Error> {
+		let (code, code_hash) = {
+			let state = block.state();
+
+			(state.code(&contract_address)?,
+			 state.code_hash(&contract_address)?)
+		};
+
+		self.execute_code_as_system(
+			block,
+			Some(contract_address),
+			code,
+			code_hash,
+			None,
+			gas,
+			data,
+			None,
+		)
+	}
+
+	/// Same as execute_as_system, but execute code directly. If contract address is None, use the null sender
+	/// address. If code is None, then this function has no effect. The call is executed without finalization, and does
+	/// not form a transaction.
+	pub fn execute_code_as_system(
+		&self,
+		block: &mut ExecutedBlock,
+		contract_address: Option<Address>,
+		code: Option<Arc<Vec<u8>>>,
+		code_hash: Option<H256>,
+		value: Option<ActionValue>,
+		gas: U256,
+		data: Option<Vec<u8>>,
+		call_type: Option<CallType>,
+	) -> Result<Vec<u8>, Error> {
 		let env_info = {
 			let mut env_info = block.env_info();
 			env_info.gas_limit = env_info.gas_used.saturating_add(gas);
@@ -131,26 +163,27 @@ impl EthereumMachine {
 		};
 
 		let mut state = block.state_mut();
+
 		let params = ActionParams {
-			code_address: contract_address.clone(),
-			address: contract_address.clone(),
-			sender: SYSTEM_ADDRESS.clone(),
-			origin: SYSTEM_ADDRESS.clone(),
-			gas: gas,
+			code_address: contract_address.unwrap_or(UNSIGNED_SENDER),
+			address: contract_address.unwrap_or(UNSIGNED_SENDER),
+			sender: SYSTEM_ADDRESS,
+			origin: SYSTEM_ADDRESS,
+			gas,
 			gas_price: 0.into(),
-			value: ActionValue::Transfer(0.into()),
-			code: state.code(&contract_address)?,
-			code_hash: Some(state.code_hash(&contract_address)?),
-			data: data,
-			call_type: CallType::Call,
+			value: value.unwrap_or(ActionValue::Transfer(0.into())),
+			code,
+			code_hash,
+			data,
+			call_type: call_type.unwrap_or(CallType::Call),
 			params_type: ParamsType::Separate,
 		};
-		let mut ex = Executive::new(&mut state, &env_info, self);
+		let schedule = self.schedule(env_info.number);
+		let mut ex = Executive::new(&mut state, &env_info, self, &schedule);
 		let mut substate = Substate::new();
-		let mut output = Vec::new();
-		if let Err(e) = ex.call(params, &mut substate, BytesRef::Flexible(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
-			warn!("Encountered error on making system call: {}", e);
-		}
+
+		let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).map_err(|e| ::engines::EngineError::FailedSystemCall(format!("{}", e)))?;
+		let output = res.return_data.to_vec();
 
 		Ok(output)
 	}
@@ -204,8 +237,8 @@ impl EthereumMachine {
 		if let Some(ref ethash_params) = self.ethash_extensions {
 			let gas_limit = {
 				let bound_divisor = self.params().gas_limit_bound_divisor;
-				let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
-				let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
+				let lower_limit = gas_limit - gas_limit / bound_divisor + 1;
+				let upper_limit = gas_limit + gas_limit / bound_divisor - 1;
 				let gas_limit = if gas_limit < gas_floor_target {
 					let gas_limit = cmp::min(gas_floor_target, upper_limit);
 					round_block_gas_limit(gas_limit, lower_limit, upper_limit)
@@ -216,7 +249,7 @@ impl EthereumMachine {
 					let total_lower_limit = cmp::max(lower_limit, gas_floor_target);
 					let total_upper_limit = cmp::min(upper_limit, gas_ceil_target);
 					let gas_limit = cmp::max(gas_floor_target, cmp::min(total_upper_limit,
-						lower_limit + (header.gas_used().clone() * 6u32 / 5.into()) / bound_divisor));
+						lower_limit + (header.gas_used().clone() * 6u32 / 5) / bound_divisor));
 					round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
 				};
 				// ensure that we are not violating protocol limits
@@ -236,9 +269,9 @@ impl EthereumMachine {
 		header.set_gas_limit({
 			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1)
 			} else {
-				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1)
 			}
 		});
 	}
@@ -309,12 +342,8 @@ impl EthereumMachine {
 	}
 
 	/// Returns new contract address generation scheme at given block number.
-	pub fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
-		if number >= self.params().eip86_transition {
-			CreateContractAddress::FromCodeHash
-		} else {
-			CreateContractAddress::FromSenderAndNonce
-		}
+	pub fn create_address_scheme(&self, _number: BlockNumber) -> CreateContractAddress {
+		CreateContractAddress::FromSenderAndNonce
 	}
 
 	/// Verify a particular transaction is valid, regardless of order.
@@ -342,11 +371,11 @@ impl EthereumMachine {
 	}
 
 	/// Does verification of the transaction against the parent state.
-	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, header: &Header, client: &C)
+	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, parent: &Header, client: &C)
 		-> Result<(), transaction::Error>
 	{
 		if let Some(ref filter) = self.tx_filter.as_ref() {
-			if !filter.transaction_allowed(header.parent_hash(), t, client) {
+			if !filter.transaction_allowed(&parent.hash(), parent.number() + 1, t, client) {
 				return Err(transaction::Error::NotAllowed.into())
 			}
 		}

@@ -18,7 +18,7 @@
 
 use jsonrpc_core::Result;
 use jsonrpc_macros::Trailing;
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256, TraceOptions};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceResultsWithTransactionHash, H256, TraceOptions};
 
 build_rpc_trait! {
 	/// Traces specific rpc interface.
@@ -42,12 +42,12 @@ build_rpc_trait! {
 		fn block_traces(&self, BlockNumber) -> Result<Option<Vec<LocalizedTrace>>>;
 
 		/// Executes the given call and returns a number of possible traces for it.
-		#[rpc(meta, name = "trace_call")]
-		fn call(&self, Self::Metadata, CallRequest, TraceOptions, Trailing<BlockNumber>) -> Result<TraceResults>;
+		#[rpc(name = "trace_call")]
+		fn call(&self, CallRequest, TraceOptions, Trailing<BlockNumber>) -> Result<TraceResults>;
 
 		/// Executes all given calls and returns a number of possible traces for each of it.
-		#[rpc(meta, name = "trace_callMany")]
-		fn call_many(&self, Self::Metadata, Vec<(CallRequest, TraceOptions)>, Trailing<BlockNumber>) -> Result<Vec<TraceResults>>;
+		#[rpc(name = "trace_callMany")]
+		fn call_many(&self, Vec<(CallRequest, TraceOptions)>, Trailing<BlockNumber>) -> Result<Vec<TraceResults>>;
 
 		/// Executes the given raw transaction and returns a number of possible traces for it.
 		#[rpc(name = "trace_rawTransaction")]
@@ -59,6 +59,6 @@ build_rpc_trait! {
 
 		/// Executes all the transactions at the given block and returns a number of possible traces for each transaction.
 		#[rpc(name = "trace_replayBlockTransactions")]
-		fn replay_block_transactions(&self, BlockNumber, TraceOptions) ->  Result<Vec<TraceResults>>;
+		fn replay_block_transactions(&self, BlockNumber, TraceOptions) ->  Result<Vec<TraceResultsWithTransactionHash>>;
 	}
 }

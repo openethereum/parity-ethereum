@@ -19,7 +19,7 @@ use std::net::Shutdown;
 use std::io::{Read, Write, Error};
 use futures::Poll;
 use tokio_io::{AsyncRead, AsyncWrite};
-use tokio_core::net::TcpStream;
+use tokio::net::TcpStream;
 
 /// Read+Write implementation for Arc<TcpStream>.
 pub struct SharedTcpStream {

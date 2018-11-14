@@ -16,8 +16,11 @@
 
 //! Blockchain access for transaction pool.
 
-use std::fmt;
-use std::collections::HashMap;
+use std::{
+	collections::HashMap,
+	fmt,
+	sync::Arc,
+};
 
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool;
@@ -37,9 +40,9 @@ use miner;
 use miner::service_transaction_checker::ServiceTransactionChecker;
 
 /// Cache for state nonces.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NonceCache {
-	nonces: RwLock<HashMap<Address, U256>>,
+	nonces: Arc<RwLock<HashMap<Address, U256>>>,
 	limit: usize
 }
 
@@ -47,7 +50,7 @@ impl NonceCache {
 	/// Create new cache with a limit of `limit` entries.
 	pub fn new(limit: usize) -> Self {
 		NonceCache {
-			nonces: RwLock::new(HashMap::with_capacity(limit / 2)),
+			nonces: Arc::new(RwLock::new(HashMap::with_capacity(limit / 2))),
 			limit,
 		}
 	}

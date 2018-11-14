@@ -27,7 +27,7 @@ use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;
 use v1::helpers::{errors, fake_sign};
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceOptions, H256, block_number_to_id};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceResultsWithTransactionHash, TraceOptions, H256, block_number_to_id};
 
 fn to_call_analytics(flags: TraceOptions) -> CallAnalytics {
 	CallAnalytics {
@@ -87,11 +87,11 @@ impl<C, S> Traces for TracesClient<C> where
 			.map(LocalizedTrace::from))
 	}
 
-	fn call(&self, meta: Self::Metadata, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
+	fn call(&self, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
 		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
-		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
+		let signed = fake_sign::sign_call(request)?;
 
 		let id = match block {
 			BlockNumber::Num(num) => BlockId::Number(num),
@@ -109,13 +109,13 @@ impl<C, S> Traces for TracesClient<C> where
 			.map_err(errors::call)
 	}
 
-	fn call_many(&self, meta: Self::Metadata, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
+	fn call_many(&self, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
 		let block = block.unwrap_or_default();
 
 		let requests = requests.into_iter()
 			.map(|(request, flags)| {
 				let request = CallRequest::into(request);
-				let signed = fake_sign::sign_call(request, meta.is_dapp())?;
+				let signed = fake_sign::sign_call(request)?;
 				Ok((signed, to_call_analytics(flags)))
 			})
 			.collect::<Result<Vec<_>>>()?;
@@ -164,7 +164,7 @@ impl<C, S> Traces for TracesClient<C> where
 			.map_err(errors::call)
 	}
 
-	fn replay_block_transactions(&self, block_number: BlockNumber, flags: TraceOptions) -> Result<Vec<TraceResults>> {
+	fn replay_block_transactions(&self, block_number: BlockNumber, flags: TraceOptions) -> Result<Vec<TraceResultsWithTransactionHash>> {
 		let id = match block_number {
 			BlockNumber::Num(num) => BlockId::Number(num),
 			BlockNumber::Earliest => BlockId::Earliest,
@@ -174,7 +174,7 @@ impl<C, S> Traces for TracesClient<C> where
 		};
 
 		self.client.replay_block_transactions(id, to_call_analytics(flags))
-			.map(|results| results.into_iter().map(TraceResults::from).collect())
+			.map(|results| results.into_iter().map(TraceResultsWithTransactionHash::from).collect())
 			.map_err(errors::call)
 	}
 }

@@ -152,17 +152,15 @@ pub struct BlockDetails {
 	pub children: Vec<H256>,
 	/// Whether the block is considered finalized
 	pub is_finalized: bool,
-	/// Additional block metadata
-	pub metadata: Option<Vec<u8>>,
 }
 
 impl rlp::Encodable for BlockDetails {
 	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
-		let use_short_version = self.metadata.is_none() && !self.is_finalized;
+		let use_short_version = !self.is_finalized;
 
 		match use_short_version {
 			true => { stream.begin_list(4); },
-			false => { stream.begin_list(6); },
+			false => { stream.begin_list(5); },
 		}
 
 		stream.append(&self.number);
@@ -171,7 +169,6 @@ impl rlp::Encodable for BlockDetails {
 		stream.append_list(&self.children);
 		if !use_short_version {
 			stream.append(&self.is_finalized);
-			stream.append(&self.metadata);
 		}
 	}
 }
@@ -180,7 +177,7 @@ impl rlp::Decodable for BlockDetails {
 	fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
 		let use_short_version = match rlp.item_count()? {
 			4 => true,
-			6 => false,
+			5 => false,
 			_ => return Err(rlp::DecoderError::RlpIncorrectListLen),
 		};
 
@@ -193,11 +190,6 @@ impl rlp::Decodable for BlockDetails {
 				false
 			} else {
 				rlp.val_at(4)?
-			},
-			metadata: if use_short_version {
-				None
-			} else {
-				rlp.val_at(5)?
 			},
 		})
 	}
@@ -252,7 +244,7 @@ pub struct EpochTransitions {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
-	
+
 	use super::BlockReceipts;
 
 	#[test]

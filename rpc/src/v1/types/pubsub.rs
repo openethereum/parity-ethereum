@@ -47,18 +47,15 @@ impl Serialize for Result {
 /// Subscription kind.
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash, Clone)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub enum Kind {
 	/// New block headers subscription.
-	#[serde(rename="newHeads")]
 	NewHeads,
 	/// Logs subscription.
-	#[serde(rename="logs")]
 	Logs,
 	/// New Pending Transactions subscription.
-	#[serde(rename="newPendingTransactions")]
 	NewPendingTransactions,
 	/// Node syncing status subscription.
-	#[serde(rename="syncing")]
 	Syncing,
 }
 
@@ -119,6 +116,7 @@ mod tests {
 		assert_eq!(logs1, Params::Logs(Filter {
 			from_block: None,
 			to_block: None,
+			block_hash: None,
 			address: None,
 			topics: None,
 			limit: None,
@@ -126,6 +124,7 @@ mod tests {
 		assert_eq!(logs2, Params::Logs(Filter {
 			from_block: None,
 			to_block: None,
+			block_hash: None,
 			address: None,
 			topics: None,
 			limit: Some(10),
@@ -133,6 +132,7 @@ mod tests {
 		assert_eq!(logs3, Params::Logs(Filter {
 			from_block: None,
 			to_block: None,
+			block_hash: None,
 			address: None,
 			topics: Some(vec![
 				VariadicValue::Single("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b".parse().unwrap()

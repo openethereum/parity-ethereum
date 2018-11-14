@@ -19,6 +19,7 @@ use std::fmt::{Display, Formatter, Error as FmtError};
 
 use verification::{VerifierType, QueueConfig};
 use journaldb;
+use snapshot::SnapshotConfiguration;
 
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
@@ -102,8 +103,6 @@ pub struct ClientConfig {
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
-	/// Should db have WAL enabled?
-	pub db_wal: bool,
 	/// Operating mode
 	pub mode: Mode,
 	/// The chain spec name
@@ -122,6 +121,10 @@ pub struct ClientConfig {
 	pub check_seal: bool,
 	/// Maximal number of transactions queued for verification in a separate thread.
 	pub transaction_verification_queue_size: usize,
+	/// Maximal number of blocks to import at each round.
+	pub max_round_blocks_to_import: usize,
+	/// Snapshot configuration
+	pub snapshot: SnapshotConfiguration,
 }
 
 impl Default for ClientConfig {
@@ -137,7 +140,6 @@ impl Default for ClientConfig {
 			name: "default".into(),
 			db_cache_size: None,
 			db_compaction: Default::default(),
-			db_wal: true,
 			mode: Mode::Active,
 			spec_name: "".into(),
 			verifier_type: VerifierType::Canon,
@@ -147,6 +149,8 @@ impl Default for ClientConfig {
 			history_mem: 32 * mb,
 			check_seal: true,
 			transaction_verification_queue_size: 8192,
+			max_round_blocks_to_import: 12,
+			snapshot: Default::default(),
 		}
 	}
 }

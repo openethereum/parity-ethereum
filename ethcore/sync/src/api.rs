@@ -24,6 +24,8 @@ use devp2p::NetworkService;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
 	ConnectionFilter};
+
+use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
@@ -36,10 +38,14 @@ use std::net::{SocketAddr, AddrParseError};
 use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
-	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3};
+	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3,
+	PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET};
 use light::client::AsLightClient;
 use light::Provider;
-use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
+use light::net::{
+	self as light_net, LightProtocol, Params as LightParams,
+	Capabilities, Handler as LightHandler, EventContext, SampleStore,
+};
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
 use transaction::UnverifiedTransaction;
@@ -256,11 +262,35 @@ pub struct EthSync {
 	light_subprotocol_name: [u8; 3],
 }
 
+fn light_params(
+	network_id: u64,
+	max_peers: u32,
+	pruning_info: PruningInfo,
+	sample_store: Option<Box<SampleStore>>,
+) -> LightParams {
+	const MAX_LIGHTSERV_LOAD: f64 = 0.5;
+
+	let mut light_params = LightParams {
+		network_id: network_id,
+		config: Default::default(),
+		capabilities: Capabilities {
+			serve_headers: true,
+			serve_chain_since: Some(pruning_info.earliest_chain),
+			serve_state_since: Some(pruning_info.earliest_state),
+			tx_relay: true,
+		},
+		sample_store: sample_store,
+	};
+
+	let max_peers = ::std::cmp::max(max_peers, 1);
+	light_params.config.load_share = MAX_LIGHTSERV_LOAD / max_peers as f64;
+
+	light_params
+}
+
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(params: Params, connection_filter: Option<Arc<ConnectionFilter>>) -> Result<Arc<EthSync>, Error> {
-		const MAX_LIGHTSERV_LOAD: f64 = 0.5;
-
 		let pruning_info = params.chain.pruning_info();
 		let light_proto = match params.config.serve_light {
 			false => None,
@@ -271,20 +301,12 @@ impl EthSync {
 					.map(|mut p| { p.push("request_timings"); light_net::FileStore(p) })
 					.map(|store| Box::new(store) as Box<_>);
 
-				let mut light_params = LightParams {
-					network_id: params.config.network_id,
-					config: Default::default(),
-					capabilities: Capabilities {
-						serve_headers: true,
-						serve_chain_since: Some(pruning_info.earliest_chain),
-						serve_state_since: Some(pruning_info.earliest_state),
-						tx_relay: true,
-					},
-					sample_store: sample_store,
-				};
-
-				let max_peers = ::std::cmp::min(params.network_config.max_peers, 1);
-				light_params.config.load_share = MAX_LIGHTSERV_LOAD / max_peers as f64;
+				let light_params = light_params(
+					params.config.network_id,
+					params.network_config.max_peers,
+					pruning_info,
+					sample_store,
+				);
 
 				let mut light_proto = LightProtocol::new(params.provider, light_params);
 				light_proto.add_handler(Arc::new(TxRelay(params.chain.clone())));
@@ -340,7 +362,7 @@ impl SyncProvider for EthSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: eth_sync.peer_info(&peer_id),
-					pip_info: light_proto.as_ref().and_then(|lp| lp.peer_status(&peer_id)).map(Into::into),
+					pip_info: light_proto.as_ref().and_then(|lp| lp.peer_status(peer_id)).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)
@@ -501,8 +523,10 @@ impl ChainNotify for EthSync {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			match message_type {
 				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
-				ChainMessageType::PrivateTransaction(message) => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message),
-				ChainMessageType::SignedPrivateTransaction(message) => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message),
+				ChainMessageType::PrivateTransaction(transaction_hash, message) =>
+					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, PRIVATE_TRANSACTION_PACKET, message),
+				ChainMessageType::SignedPrivateTransaction(transaction_hash, message) =>
+					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, SIGNED_PRIVATE_TRANSACTION_PACKET, message),
 			}
 		});
 	}
@@ -520,7 +544,7 @@ struct TxRelay(Arc<BlockChainClient>);
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::transaction::UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).into_vec()).collect(), ctx.peer())
+		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx)).collect(), ctx.peer())
 	}
 }
 
@@ -898,7 +922,7 @@ impl LightSyncProvider for LightSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: None,
-					pip_info: self.proto.peer_status(&peer_id).map(Into::into),
+					pip_info: self.proto.peer_status(peer_id).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)
@@ -914,5 +938,21 @@ impl LightSyncProvider for LightSync {
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
 		Default::default() // TODO
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn light_params_load_share_depends_on_max_peers() {
+		let pruning_info = PruningInfo {
+			earliest_chain: 0,
+			earliest_state: 0,
+		};
+		let params1 = light_params(0, 10, pruning_info.clone(), None);
+		let params2 = light_params(0, 20, pruning_info, None);
+		assert!(params1.config.load_share > params2.config.load_share)
 	}
 }

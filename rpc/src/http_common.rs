@@ -25,7 +25,7 @@ pub trait HttpMetaExtractor: Send + Sync + 'static {
 	/// Type of Metadata
 	type Metadata: jsonrpc_core::Metadata;
 	/// Extracts metadata from given params.
-	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Self::Metadata;
+	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>) -> Self::Metadata;
 }
 
 pub struct MetaExtractor<T> {
@@ -42,14 +42,13 @@ impl<M, T> http::MetaExtractor<M> for MetaExtractor<T> where
 	T: HttpMetaExtractor<Metadata = M>,
 	M: jsonrpc_core::Metadata,
 {
-	fn read_metadata(&self, req: &hyper::server::Request) -> M {
-		let as_string = |header: Option<&hyper::header::Raw>| header
-			.and_then(|raw| raw.one())
-			.map(|raw| String::from_utf8_lossy(raw).into_owned());
+	fn read_metadata(&self, req: &hyper::Request<hyper::Body>) -> M {
+		let as_string = |header: Option<&hyper::header::HeaderValue>| {
+			header.and_then(|val| val.to_str().ok().map(|s| s.to_owned()))
+		};
 
-		let origin = as_string(req.headers().get_raw("origin"));
-		let user_agent = as_string(req.headers().get_raw("user-agent"));
-		let dapps_origin = as_string(req.headers().get_raw("x-parity-origin"));
-		self.extractor.read_metadata(origin, user_agent, dapps_origin)
+		let origin = as_string(req.headers().get("origin"));
+		let user_agent = as_string(req.headers().get("user-agent"));
+		self.extractor.read_metadata(origin, user_agent)
 	}
 }

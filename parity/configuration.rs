@@ -17,7 +17,7 @@
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::collections::BTreeMap;
 use std::cmp;
 use cli::{Args, ArgsError};
@@ -30,8 +30,10 @@ use sync::{NetworkConfiguration, validate_node_url, self};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
+use ethcore::snapshot::SnapshotConfiguration;
 use ethcore::verification::queue::VerifierSettings;
 use miner::pool;
+use num_cpus;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
@@ -41,7 +43,6 @@ use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
-use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig};
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
@@ -103,7 +104,7 @@ impl Configuration {
 	/// # Example
 	///
 	/// ```
-	/// let _cfg = parity::Configuration::parse_cli(&["--light", "--chain", "kovan"]).unwrap();
+	/// let _cfg = parity_ethereum::Configuration::parse_cli(&["--light", "--chain", "kovan"]).unwrap();
 	/// ```
 	pub fn parse_cli<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 		let config = Configuration {
@@ -126,6 +127,7 @@ impl Configuration {
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
 		let ws_conf = self.ws_config()?;
+		let snapshot_conf = self.snapshot_config()?;
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
 		let net_conf = self.net_config()?;
@@ -134,10 +136,8 @@ impl Configuration {
 		let tracing = self.args.arg_tracing.parse()?;
 		let fat_db = self.args.arg_fat_db.parse()?;
 		let compaction = self.args.arg_db_compaction.parse()?;
-		let wal = !self.args.flag_fast_and_loose;
 		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
-		let dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
@@ -159,13 +159,13 @@ impl Configuration {
 					port: ws_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_signer_reject  {
+			} else if self.args.cmd_signer_reject {
 				Cmd::SignerReject {
 					id: self.args.arg_signer_reject_id,
 					port: ws_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_signer_list  {
+			} else if self.args.cmd_signer_list {
 				Cmd::SignerList {
 					port: ws_conf.port,
 					authfile: authfile,
@@ -208,7 +208,7 @@ impl Configuration {
 			};
 			Cmd::Account(account_cmd)
 		} else if self.args.flag_import_geth_keys {
-        	let account_cmd = AccountCmd::ImportFromGeth(
+				let account_cmd = AccountCmd::ImportFromGeth(
 				ImportFromGethAccounts {
 					spec: spec,
 					to: dirs.keys,
@@ -236,7 +236,6 @@ impl Configuration {
 				pruning_history: pruning_history,
 				pruning_memory: self.args.arg_pruning_memory,
 				compaction: compaction,
-				wal: wal,
 				tracing: tracing,
 				fat_db: fat_db,
 				vm_type: vm_type,
@@ -244,6 +243,7 @@ impl Configuration {
 				with_color: logger_config.color,
 				verifier_settings: self.verifier_settings(),
 				light: self.args.flag_light,
+				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -258,12 +258,12 @@ impl Configuration {
 					pruning_history: pruning_history,
 					pruning_memory: self.args.arg_pruning_memory,
 					compaction: compaction,
-					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
 					from_block: to_block_id(&self.args.arg_export_blocks_from)?,
 					to_block: to_block_id(&self.args.arg_export_blocks_to)?,
 					check_seal: !self.args.flag_no_seal_check,
+					max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				};
 				Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
 			} else if self.args.cmd_export_state {
@@ -277,7 +277,6 @@ impl Configuration {
 					pruning_history: pruning_history,
 					pruning_memory: self.args.arg_pruning_memory,
 					compaction: compaction,
-					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
 					at: to_block_id(&self.args.arg_export_state_at)?,
@@ -285,6 +284,7 @@ impl Configuration {
 					code: !self.args.flag_export_state_no_code,
 					min_balance: self.args.arg_export_state_min_balance.and_then(|s| to_u256(&s).ok()),
 					max_balance: self.args.arg_export_state_max_balance.and_then(|s| to_u256(&s).ok()),
+					max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
 				};
 				Cmd::Blockchain(BlockchainCmd::ExportState(export_cmd))
 			} else {
@@ -302,9 +302,10 @@ impl Configuration {
 				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_snapshot_file.clone(),
-				wal: wal,
 				kind: snapshot::Kind::Take,
 				block_at: to_block_id(&self.args.arg_snapshot_at)?,
+				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
+				snapshot_conf: snapshot_conf,
 			};
 			Cmd::Snapshot(snapshot_cmd)
 		} else if self.args.cmd_restore {
@@ -319,9 +320,10 @@ impl Configuration {
 				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_restore_file.clone(),
-				wal: wal,
 				kind: snapshot::Kind::Restore,
 				block_at: to_block_id("latest")?, // unimportant.
+				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
+				snapshot_conf: snapshot_conf,
 			};
 			Cmd::Snapshot(restore_cmd)
 		} else if self.args.cmd_export_hardcoded_sync {
@@ -331,7 +333,6 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				compaction: compaction,
-				wal: wal,
 			};
 			Cmd::ExportHardcodedSync(export_hs_cmd)
 		} else {
@@ -357,8 +358,8 @@ impl Configuration {
 				miner_options: self.miner_options()?,
 				gas_price_percentile: self.args.arg_gas_price_percentile,
 				poll_lifetime: self.args.arg_poll_lifetime,
-				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
+				snapshot_conf: snapshot_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
@@ -372,22 +373,18 @@ impl Configuration {
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
-				wal: wal,
 				vm_type: vm_type,
 				warp_sync: warp_sync,
 				warp_barrier: self.args.arg_warp_barrier,
 				geth_compatibility: geth_compatibility,
 				net_settings: self.network_settings()?,
-				dapps_conf: dapps_conf,
 				ipfs_conf: ipfs_conf,
 				secretstore_conf: secretstore_conf,
 				private_provider_conf: private_provider_conf,
 				private_encryptor_conf: private_enc_conf,
 				private_tx_enabled,
-				dapp: self.dapp_to_open()?,
 				name: self.args.arg_identity,
 				custom_bootnodes: self.args.arg_bootnodes.is_some(),
-				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				verifier_settings: verifier_settings,
@@ -396,6 +393,9 @@ impl Configuration {
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 				whisper: whisper_config,
 				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
+				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
+				on_demand_retry_count: self.args.arg_on_demand_retry_count,
+				on_demand_inactive_time_limit: self.args.arg_on_demand_inactive_time_limit,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -471,6 +471,10 @@ impl Configuration {
 		Ok(name.parse()?)
 	}
 
+	fn is_dev_chain(&self) -> Result<bool, String> {
+		Ok(self.chain()? == SpecType::Dev)
+	}
+
 	fn max_peers(&self) -> u32 {
 		self.args.arg_max_peers
 			.or(cmp::max(self.args.arg_min_peers, Some(DEFAULT_MAX_PEERS)))
@@ -528,7 +532,7 @@ impl Configuration {
 	}
 
 	fn miner_options(&self) -> Result<MinerOptions, String> {
-		let is_dev_chain = self.chain()? == SpecType::Dev;
+		let is_dev_chain = self.is_dev_chain()?;
 		if is_dev_chain && self.args.flag_force_sealing && self.args.arg_reseal_min_period == 0 {
 			return Err("Force sealing can't be used with reseal_min_period = 0".into());
 		}
@@ -583,23 +587,8 @@ impl Configuration {
 				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
 			},
+			no_early_reject: self.args.flag_tx_queue_no_early_reject,
 		})
-	}
-
-	fn ntp_servers(&self) -> Vec<String> {
-		self.args.arg_ntp_servers.split(",").map(str::to_owned).collect()
-	}
-
-	fn dapps_config(&self) -> DappsConfiguration {
-		DappsConfiguration {
-			enabled: self.dapps_enabled(),
-			dapps_path: PathBuf::from(self.directories().dapps),
-			extra_dapps: if self.args.cmd_dapp {
-				self.args.arg_dapp_path.iter().map(|path| PathBuf::from(path)).collect()
-			} else {
-				vec![]
-			},
-		}
 	}
 
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
@@ -633,19 +622,6 @@ impl Configuration {
 			cors: self.ipfs_cors(),
 			hosts: self.ipfs_hosts(),
 		}
-	}
-
-	fn dapp_to_open(&self) -> Result<Option<String>, String> {
-		if !self.args.cmd_dapp {
-			return Ok(None);
-		}
-		let path = self.args.arg_dapp_path.as_ref().map(String::as_str).unwrap_or(".");
-		let path = Path::new(path).canonicalize()
-			.map_err(|e| format!("Invalid path: {}. Error: {:?}", path, e))?;
-		let name = path.file_name()
-			.and_then(|name| name.to_str())
-			.ok_or_else(|| "Root path is not supported.".to_owned())?;
-		Ok(Some(name.into()))
 	}
 
 	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
@@ -759,7 +735,7 @@ impl Configuration {
 		ret.client_version = {
 			let mut client_version = version();
 			if !self.args.arg_identity.is_empty() {
-				// Insert name after the "Parity/" at the beginning of version string.
+				// Insert name after the "Parity-Ethereum/" at the beginning of version string.
 				let idx = client_version.find('/').unwrap_or(client_version.len());
 				client_version.insert_str(idx, &format!("/{}", self.args.arg_identity));
 			}
@@ -883,14 +859,13 @@ impl Configuration {
 				Some(max) if max > 0 => max as usize,
 				_ => 5usize,
 			},
+			keep_alive: !self.args.flag_jsonrpc_no_keep_alive,
 		};
 
 		Ok(conf)
 	}
 
 	fn ws_config(&self) -> Result<WsConfiguration, String> {
-		let http = self.http_config()?;
-
 		let support_token_api =
 			// enabled when not unlocking
 			self.args.arg_unlock.is_none();
@@ -904,7 +879,6 @@ impl Configuration {
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
 			support_token_api,
-			dapps_address: http.address(),
 			max_connections: self.args.arg_ws_max_connections,
 		};
 
@@ -934,12 +908,25 @@ impl Configuration {
 		Ok((provider_conf, encryptor_conf, self.args.flag_private_enabled))
 	}
 
+	fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
+		let conf = SnapshotConfiguration {
+			no_periodic: self.args.flag_no_periodic_snapshot,
+			processing_threads: match self.args.arg_snapshot_threads {
+				Some(threads) if threads > 0 => threads,
+				_ => ::std::cmp::max(1, num_cpus::get() / 2),
+			},
+		};
+
+		Ok(conf)
+	}
+
 	fn network_settings(&self) -> Result<NetworkSettings, String> {
 		let http_conf = self.http_config()?;
 		let net_addresses = self.net_addresses()?;
 		Ok(NetworkSettings {
 			name: self.args.arg_identity.clone(),
 			chain: format!("{}", self.chain()?),
+			is_dev_chain: self.is_dev_chain()?,
 			network_port: net_addresses.0.port(),
 			rpc_enabled: http_conf.enabled,
 			rpc_interface: http_conf.interface,
@@ -979,7 +966,13 @@ impl Configuration {
 		let is_using_base_path = self.args.arg_base_path.is_some();
 		// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
 		let base_db_path = if is_using_base_path && self.args.arg_db_path.is_none() {
-			"$BASE/chains"
+			if self.args.flag_light {
+				"$BASE/chains_light"
+			} else {
+				"$BASE/chains"
+			}
+		} else if self.args.flag_light {
+			self.args.arg_db_path.as_ref().map_or(dir::CHAINS_PATH_LIGHT, |s| &s)
 		} else {
 			self.args.arg_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
@@ -988,7 +981,6 @@ impl Configuration {
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
 		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
 		let keys_path = replace_home(&data_path, &self.args.arg_keys_path);
-		let dapps_path = replace_home(&data_path, &self.args.arg_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.arg_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.arg_ui_path);
 
@@ -997,7 +989,6 @@ impl Configuration {
 			base: data_path,
 			cache: cache_path,
 			db: db_path,
-			dapps: dapps_path,
 			signer: ui_path,
 			secretstore: secretstore_path,
 		}
@@ -1100,10 +1091,6 @@ impl Configuration {
 
 	fn ws_enabled(&self) -> bool {
 		!self.args.flag_no_ws
-	}
-
-	fn dapps_enabled(&self) -> bool {
-		!self.args.flag_dapps_off && !self.args.flag_no_dapps && self.rpc_enabled() && cfg!(feature = "dapps")
 	}
 
 	fn secretstore_enabled(&self) -> bool {
@@ -1281,7 +1268,6 @@ mod tests {
 			pruning_history: 64,
 			pruning_memory: 32,
 			compaction: Default::default(),
-			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
@@ -1289,6 +1275,7 @@ mod tests {
 			with_color: !cfg!(windows),
 			verifier_settings: Default::default(),
 			light: false,
+			max_round_blocks_to_import: 12,
 		})));
 	}
 
@@ -1306,12 +1293,12 @@ mod tests {
 			pruning_memory: 32,
 			format: Default::default(),
 			compaction: Default::default(),
-			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			from_block: BlockId::Number(1),
 			to_block: BlockId::Latest,
 			check_seal: true,
+			max_round_blocks_to_import: 12,
 		})));
 	}
 
@@ -1329,7 +1316,6 @@ mod tests {
 			pruning_memory: 32,
 			format: Default::default(),
 			compaction: Default::default(),
-			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			at: BlockId::Latest,
@@ -1337,6 +1323,7 @@ mod tests {
 			code: true,
 			min_balance: None,
 			max_balance: None,
+			max_round_blocks_to_import: 12,
 		})));
 	}
 
@@ -1354,12 +1341,12 @@ mod tests {
 			pruning_memory: 32,
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
-			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			from_block: BlockId::Number(1),
 			to_block: BlockId::Latest,
 			check_seal: true,
+			max_round_blocks_to_import: 12,
 		})));
 	}
 
@@ -1376,14 +1363,13 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true,
 			max_connections: 100,
 		}, LogConfig {
-            color: true,
-            mode: None,
-            file: None,
-        } ));
+			color: !cfg!(windows),
+			mode: None,
+			file: None,
+		} ));
 	}
 
 	#[test]
@@ -1413,12 +1399,6 @@ mod tests {
 			miner_options: Default::default(),
 			gas_price_percentile: 50,
 			poll_lifetime: 60,
-			ntp_servers: vec![
-				"0.parity.pool.ntp.org:123".into(),
-				"1.parity.pool.ntp.org:123".into(),
-				"2.parity.pool.ntp.org:123".into(),
-				"3.parity.pool.ntp.org:123".into(),
-			],
 			ws_conf: Default::default(),
 			http_conf: Default::default(),
 			ipc_conf: Default::default(),
@@ -1442,21 +1422,18 @@ mod tests {
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
-			wal: true,
 			vm_type: Default::default(),
 			geth_compatibility: false,
 			net_settings: Default::default(),
-			dapps_conf: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
 			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
 			private_tx_enabled: false,
-			dapp: None,
 			name: "".into(),
 			custom_bootnodes: false,
 			fat_db: Default::default(),
-			no_periodic_snapshot: false,
+			snapshot_conf: Default::default(),
 			stratum: None,
 			check_seal: true,
 			download_old_blocks: true,
@@ -1466,6 +1443,9 @@ mod tests {
 			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
+			max_round_blocks_to_import: 12,
+			on_demand_retry_count: None,
+			on_demand_inactive_time_limit: None,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
@@ -1547,6 +1527,7 @@ mod tests {
 		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
 			name: "testname".to_owned(),
 			chain: "kovan".to_owned(),
+			is_dev_chain: false,
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "127.0.0.1".to_owned(),
@@ -1574,11 +1555,11 @@ mod tests {
 						 "--jsonrpc-apis", "web3,eth"
 						 ]);
 		let conf2 = parse(&["parity", "--rpc",
-						  "--rpcport", "8000",
-						  "--rpcaddr", "all",
-						  "--rpccorsdomain", "*",
-						  "--rpcapi", "web3,eth"
-						  ]);
+							"--rpcport", "8000",
+							"--rpcaddr", "all",
+							"--rpccorsdomain", "*",
+							"--rpcapi", "web3,eth"
+							]);
 
 		// then
 		assert(conf1);
@@ -1663,20 +1644,6 @@ mod tests {
 	}
 
 	#[test]
-	fn should_parse_dapp_opening() {
-		// given
-		let tempdir = TempDir::new("").unwrap();
-
-		// when
-		let conf0 = parse(&["parity", "dapp", tempdir.path().to_str().unwrap()]);
-
-		// then
-		assert_eq!(conf0.dapp_to_open(), Ok(Some(tempdir.path().file_name().unwrap().to_str().unwrap().into())));
-		let extra_dapps = conf0.dapps_config().extra_dapps;
-		assert_eq!(extra_dapps, vec![tempdir.path().to_owned()]);
-	}
-
-	#[test]
 	fn should_not_bail_on_empty_line_in_reserved_peers() {
 		let tempdir = TempDir::new("").unwrap();
 		let filename = tempdir.path().join("peers");
@@ -1721,7 +1688,6 @@ mod tests {
 				assert_eq!(c.net_conf.min_peers, 50);
 				assert_eq!(c.net_conf.max_peers, 100);
 				assert_eq!(c.ipc_conf.enabled, false);
-				assert_eq!(c.dapps_conf.enabled, false);
 				assert_eq!(c.miner_options.force_sealing, true);
 				assert_eq!(c.miner_options.reseal_on_external_tx, true);
 				assert_eq!(c.miner_options.reseal_on_own_tx, true);
@@ -1809,7 +1775,7 @@ mod tests {
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.name, "Somebody");
-				assert!(c.net_conf.client_version.starts_with("Parity/Somebody/"));
+				assert!(c.net_conf.client_version.starts_with("Parity-Ethereum/Somebody/"));
 			}
 			_ => panic!("Should be Cmd::Run"),
 		}
@@ -1912,13 +1878,15 @@ mod tests {
 
 	#[test]
 	fn should_use_correct_cache_path_if_base_is_set() {
+		use std::path;
+
 		let std = parse(&["parity"]);
 		let base = parse(&["parity", "--base-path", "/test"]);
 
 		let base_path = ::dir::default_data_path();
 		let local_path = ::dir::default_local_path();
 		assert_eq!(std.directories().cache, dir::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
-		assert_eq!(base.directories().cache, "/test/cache");
+		assert_eq!(path::Path::new(&base.directories().cache), path::Path::new("/test/cache"));
 	}
 
 	#[test]

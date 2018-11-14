@@ -25,19 +25,17 @@ use v1::types::{Bytes, H160, H256, U256, H512, U64, TransactionCondition};
 
 /// Transaction
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Transaction {
 	/// Hash
 	pub hash: H256,
 	/// Nonce
 	pub nonce: U256,
 	/// Block hash
-	#[serde(rename="blockHash")]
 	pub block_hash: Option<H256>,
 	/// Block number
-	#[serde(rename="blockNumber")]
 	pub block_number: Option<U256>,
 	/// Transaction Index
-	#[serde(rename="transactionIndex")]
 	pub transaction_index: Option<U256>,
 	/// Sender
 	pub from: H160,
@@ -46,7 +44,6 @@ pub struct Transaction {
 	/// Transfered value
 	pub value: U256,
 	/// Gas Price
-	#[serde(rename="gasPrice")]
 	pub gas_price: U256,
 	/// Gas
 	pub gas: U256,
@@ -57,13 +54,10 @@ pub struct Transaction {
 	/// Raw transaction data
 	pub raw: Bytes,
 	/// Public key of the signer.
-	#[serde(rename="publicKey")]
 	pub public_key: Option<H512>,
 	/// The network id of the transaction, if any.
-	#[serde(rename="chainId")]
 	pub chain_id: Option<U64>,
 	/// The standardised V field of the signature (0 or 1).
-	#[serde(rename="standardV")]
 	pub standard_v: U256,
 	/// The standardised V field of the signature.
 	pub v: U256,
@@ -82,8 +76,10 @@ pub enum LocalTransactionStatus {
 	Pending,
 	/// Transaction is in future part of the queue
 	Future,
-	/// Transaction is already mined.
+	/// Transaction was mined.
 	Mined(Transaction),
+	/// Transaction was removed from the queue, but not mined.
+	Culled(Transaction),
 	/// Transaction was dropped because of limit.
 	Dropped(Transaction),
 	/// Transaction was replaced by transaction with higher gas price.
@@ -104,7 +100,7 @@ impl Serialize for LocalTransactionStatus {
 
 		let elems = match *self {
 			Pending | Future => 1,
-			Mined(..) | Dropped(..) | Invalid(..) | Canceled(..) => 2,
+			Mined(..) | Culled(..) | Dropped(..) | Invalid(..) | Canceled(..) => 2,
 			Rejected(..) => 3,
 			Replaced(..) => 4,
 		};
@@ -118,6 +114,10 @@ impl Serialize for LocalTransactionStatus {
 			Future => struc.serialize_field(status, "future")?,
 			Mined(ref tx) => {
 				struc.serialize_field(status, "mined")?;
+				struc.serialize_field(transaction, tx)?;
+			},
+			Culled(ref tx) => {
+				struc.serialize_field(status, "culled")?;
 				struc.serialize_field(transaction, tx)?;
 			},
 			Dropped(ref tx) => {
@@ -155,14 +155,14 @@ pub struct RichRawTransaction {
 	/// Raw transaction RLP
 	pub raw: Bytes,
 	/// Transaction details
-	#[serde(rename="tx")]
+	#[serde(rename = "tx")]
 	pub transaction: Transaction
 }
 
 impl RichRawTransaction {
 	/// Creates new `RichRawTransaction` from `SignedTransaction`.
-	pub fn from_signed(tx: SignedTransaction, block_number: u64, eip86_transition: u64) -> Self {
-		let tx = Transaction::from_signed(tx, block_number, eip86_transition);
+	pub fn from_signed(tx: SignedTransaction) -> Self {
+		let tx = Transaction::from_signed(tx);
 		RichRawTransaction {
 			raw: tx.raw.clone(),
 			transaction: tx,
@@ -172,9 +172,9 @@ impl RichRawTransaction {
 
 impl Transaction {
 	/// Convert `LocalizedTransaction` into RPC Transaction.
-	pub fn from_localized(mut t: LocalizedTransaction, eip86_transition: u64) -> Transaction {
+	pub fn from_localized(mut t: LocalizedTransaction) -> Transaction {
 		let signature = t.signature();
-		let scheme = if t.block_number >= eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce };
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -194,7 +194,7 @@ impl Transaction {
 				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0.into()),
 				Action::Call(_) => None,
 			},
-			raw: ::rlp::encode(&t.signed).into_vec().into(),
+			raw: ::rlp::encode(&t.signed).into(),
 			public_key: t.recover_public().ok().map(Into::into),
 			chain_id: t.chain_id().map(U64::from),
 			standard_v: t.standard_v().into(),
@@ -206,9 +206,9 @@ impl Transaction {
 	}
 
 	/// Convert `SignedTransaction` into RPC Transaction.
-	pub fn from_signed(t: SignedTransaction, block_number: u64, eip86_transition: u64) -> Transaction {
+	pub fn from_signed(t: SignedTransaction) -> Transaction {
 		let signature = t.signature();
-		let scheme = if block_number >= eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce };
+		let scheme = CreateContractAddress::FromSenderAndNonce;
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -228,7 +228,7 @@ impl Transaction {
 				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0.into()),
 				Action::Call(_) => None,
 			},
-			raw: ::rlp::encode(&t).into_vec().into(),
+			raw: ::rlp::encode(&t).into(),
 			public_key: t.public_key().map(Into::into),
 			chain_id: t.chain_id().map(U64::from),
 			standard_v: t.standard_v().into(),
@@ -240,8 +240,8 @@ impl Transaction {
 	}
 
 	/// Convert `PendingTransaction` into RPC Transaction.
-	pub fn from_pending(t: PendingTransaction, block_number: u64, eip86_transition: u64) -> Transaction {
-		let mut r = Transaction::from_signed(t.transaction, block_number, eip86_transition);
+	pub fn from_pending(t: PendingTransaction) -> Transaction {
+		let mut r = Transaction::from_signed(t.transaction);
 		r.condition = t.condition.map(|b| b.into());
 		r
 	}
@@ -249,14 +249,15 @@ impl Transaction {
 
 impl LocalTransactionStatus {
 	/// Convert `LocalTransactionStatus` into RPC `LocalTransactionStatus`.
-	pub fn from(s: miner::pool::local_transactions::Status, block_number: u64, eip86_transition: u64) -> Self {
+	pub fn from(s: miner::pool::local_transactions::Status) -> Self {
 		let convert = |tx: Arc<miner::pool::VerifiedTransaction>| {
-			Transaction::from_signed(tx.signed().clone(), block_number, eip86_transition)
+			Transaction::from_signed(tx.signed().clone())
 		};
 		use miner::pool::local_transactions::Status::*;
 		match s {
 			Pending(_) => LocalTransactionStatus::Pending,
 			Mined(tx) => LocalTransactionStatus::Mined(convert(tx)),
+			Culled(tx) => LocalTransactionStatus::Culled(convert(tx)),
 			Dropped(tx) => LocalTransactionStatus::Dropped(convert(tx)),
 			Rejected(tx, reason) => LocalTransactionStatus::Rejected(convert(tx), reason),
 			Invalid(tx) => LocalTransactionStatus::Invalid(convert(tx)),

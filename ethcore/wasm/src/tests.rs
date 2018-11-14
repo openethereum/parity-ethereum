@@ -20,7 +20,7 @@ use byteorder::{LittleEndian, ByteOrder};
 use ethereum_types::{H256, U256, Address};
 
 use super::WasmInterpreter;
-use vm::{self, Vm, GasLeft, ActionParams, ActionValue};
+use vm::{self, Exec, GasLeft, ActionParams, ActionValue, CreateContractAddress};
 use vm::tests::{FakeCall, FakeExt, FakeCallType};
 
 macro_rules! load_sample {
@@ -47,8 +47,8 @@ macro_rules! reqrep_test {
 			fake_ext.info = $info;
 			fake_ext.blockhashes = $block_hashes;
 
-			let mut interpreter = wasm_interpreter();
-			interpreter.exec(params, &mut fake_ext)
+			let mut interpreter = wasm_interpreter(params);
+			interpreter.exec(&mut fake_ext).ok().unwrap()
 				.map(|result| match result {
 					GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
 					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -65,8 +65,8 @@ fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
 	}
 }
 
-fn wasm_interpreter() -> WasmInterpreter {
-	WasmInterpreter
+fn wasm_interpreter(params: ActionParams) -> Box<WasmInterpreter> {
+	Box::new(WasmInterpreter::new(params))
 }
 
 /// Empty contract does almost nothing except producing 1 (one) local node debug log message
@@ -82,8 +82,8 @@ fn empty() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
+		let mut interpreter = wasm_interpreter(params);
+		test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(96_926));
@@ -111,8 +111,8 @@ fn logger() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
+		let mut interpreter = wasm_interpreter(params);
+		test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
 	let address_val: H256 = address.into();
@@ -138,7 +138,7 @@ fn logger() {
 		U256::from(1_000_000_000),
 		"Logger sets 0x04 key to the trasferred value"
 	);
-	assert_eq!(gas_left, U256::from(16_181));
+	assert_eq!(gas_left, U256::from(17_716));
 }
 
 // This test checks if the contract can allocate memory and pass pointer to the result stream properly.
@@ -160,8 +160,8 @@ fn identity() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Identity contract should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -173,7 +173,7 @@ fn identity() {
 		sender,
 		"Idenity test contract does not return the sender passed"
 	);
-	assert_eq!(gas_left, U256::from(96_883));
+	assert_eq!(gas_left, U256::from(98_419));
 }
 
 // Dispersion test sends byte array and expect the contract to 'disperse' the original elements with
@@ -195,8 +195,8 @@ fn dispersion() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Dispersion routine should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -207,7 +207,7 @@ fn dispersion() {
 		result,
 		vec![0u8, 0, 125, 11, 197, 7, 255, 8, 19, 0]
 	);
-	assert_eq!(gas_left, U256::from(92_371));
+	assert_eq!(gas_left, U256::from(92_377));
 }
 
 #[test]
@@ -223,8 +223,8 @@ fn suicide_not() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Suicidal contract should return payload when had not actualy killed himself"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -256,8 +256,8 @@ fn suicide() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas) => gas,
 			GasLeft::NeedsReturn { .. } => {
@@ -267,7 +267,7 @@ fn suicide() {
 	};
 
 	assert!(ext.suicides.contains(&refund));
-	assert_eq!(gas_left, U256::from(93_348));
+	assert_eq!(gas_left, U256::from(93_346));
 }
 
 #[test]
@@ -281,14 +281,19 @@ fn create() {
 	params.value = ActionValue::transfer(1_000_000_000);
 
 	let mut ext = FakeExt::new().with_wasm();
+	ext.schedule.wasm.as_mut().unwrap().have_create2 = true;
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
-			GasLeft::Known(gas) => gas,
-			GasLeft::NeedsReturn { .. } => {
-				panic!("Create contract should not return anthing because ext always fails on creation");
+			GasLeft::Known(_) => {
+				panic!("Create contract always return 40 bytes of the creation address, or in the case where it fails, return 40 bytes of zero.");
+			},
+			GasLeft::NeedsReturn { gas_left, data, apply_state } => {
+				assert!(apply_state);
+				assert_eq!(data.as_ref(), [0u8; 40].as_ref()); // FakeExt never succeeds in create.
+				gas_left
 			},
 		}
 	};
@@ -297,15 +302,28 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(59_269),
+			create_scheme: Some(CreateContractAddress::FromSenderAndCodeHash),
+			gas: U256::from(49_674),
 			sender_address: None,
 			receive_address: None,
-			value: Some(1_000_000_000.into()),
+			value: Some((1_000_000_000 / 2).into()),
 			data: vec![0u8, 2, 4, 8, 16, 32, 64, 128],
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(59_212));
+	assert!(ext.calls.contains(
+		&FakeCall {
+			call_type: FakeCallType::Create,
+			create_scheme: Some(CreateContractAddress::FromSenderSaltAndCodeHash(H256::from([5u8].as_ref()))),
+			gas: U256::from(6039),
+			sender_address: None,
+			receive_address: None,
+			value: Some((1_000_000_000 / 2).into()),
+			data: vec![0u8, 2, 4, 8, 16, 32, 64, 128],
+			code_address: None,
+		}
+	));
+	assert_eq!(gas_left, U256::from(5974));
 }
 
 #[test]
@@ -328,8 +346,8 @@ fn call_msg() {
 	ext.balances.insert(receiver.clone(), U256::from(10000000000u64));
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(gas_left) => gas_left,
 			GasLeft::NeedsReturn { .. } => { panic!("Call test should not return payload"); },
@@ -340,6 +358,7 @@ fn call_msg() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
+			create_scheme: None,
 			gas: U256::from(33_000),
 			sender_address: Some(receiver),
 			receive_address: Some(Address::from([99, 88, 77, 66, 55, 44, 33, 22, 11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 0])),
@@ -350,6 +369,54 @@ fn call_msg() {
 	));
 
 	assert_eq!(gas_left, U256::from(91_672));
+}
+
+// The same as `call_msg`, but send a `pwasm_ethereum::gasleft`
+// value as `gas` argument to the inner pwasm_ethereum::call
+#[test]
+fn call_msg_gasleft() {
+	::ethcore_logger::init_log();
+
+	let sender: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
+	let receiver: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
+	let contract_address: Address = "0d461d4174b4ae35775c4a342f1e5e1e4e6c4db5".parse().unwrap();
+
+	let mut params = ActionParams::default();
+	params.sender = sender.clone();
+	params.address = receiver.clone();
+	params.code_address = contract_address.clone();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample!("call_gasleft.wasm")));
+	params.data = Some(Vec::new());
+
+	let mut ext = FakeExt::new().with_wasm();
+	ext.schedule.wasm.as_mut().unwrap().have_gasleft = true;
+	ext.balances.insert(receiver.clone(), U256::from(10000000000u64));
+
+	let gas_left = {
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(gas_left) => gas_left,
+			GasLeft::NeedsReturn { .. } => { panic!("Call test should not return payload"); },
+		}
+	};
+
+	trace!(target: "wasm", "fake_calls: {:?}", &ext.calls);
+	assert!(ext.calls.contains(
+		&FakeCall {
+			call_type: FakeCallType::Call,
+			create_scheme: None,
+			gas: U256::from(91_165),
+			sender_address: Some(receiver),
+			receive_address: Some(Address::from([99, 88, 77, 66, 55, 44, 33, 22, 11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 0])),
+			value: Some(1000000000.into()),
+			data: vec![129u8, 123, 113, 107, 101, 97],
+			code_address: Some(Address::from([99, 88, 77, 66, 55, 44, 33, 22, 11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 0])),
+		}
+	));
+
+	assert_eq!(gas_left, U256::from(91_671));
 }
 
 #[test]
@@ -370,8 +437,8 @@ fn call_code() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Call test should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -382,6 +449,7 @@ fn call_code() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
+			create_scheme: None,
 			gas: U256::from(20_000),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
@@ -394,7 +462,7 @@ fn call_code() {
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
 	assert_eq!(res, 4198595614);
-	assert_eq!(gas_left, U256::from(90_038));
+	assert_eq!(gas_left, U256::from(90_037));
 }
 
 #[test]
@@ -417,8 +485,8 @@ fn call_static() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("Static call test should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -429,6 +497,7 @@ fn call_static() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
+			create_scheme: None,
 			gas: U256::from(20_000),
 			sender_address: Some(receiver),
 			receive_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),
@@ -442,7 +511,7 @@ fn call_static() {
 	let res = LittleEndian::read_u32(&result[..]);
 	assert_eq!(res, 317632590);
 
-	assert_eq!(gas_left, U256::from(90_043));
+	assert_eq!(gas_left, U256::from(90_042));
 }
 
 // Realloc test
@@ -457,15 +526,15 @@ fn realloc() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("Realloc should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
 		}
 	};
 	assert_eq!(result, vec![0u8; 2]);
-	assert_eq!(gas_left, U256::from(92_842));
+	assert_eq!(gas_left, U256::from(92_848));
 }
 
 #[test]
@@ -479,15 +548,15 @@ fn alloc() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("alloc test should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
 		}
 	};
 	assert_eq!(result, vec![5u8; 1024*400]);
-	assert_eq!(gas_left, U256::from(6_893_883));
+	assert_eq!(gas_left, U256::from(6_893_881));
 }
 
 // Tests that contract's ability to read from a storage
@@ -506,8 +575,8 @@ fn storage_read() {
 	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -515,7 +584,7 @@ fn storage_read() {
 	};
 
 	assert_eq!(Address::from(&result[12..32]), address);
-	assert_eq!(gas_left, U256::from(96_833));
+	assert_eq!(gas_left, U256::from(98_369));
 }
 
 // Tests keccak calculation
@@ -532,8 +601,8 @@ fn keccak() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 				GasLeft::Known(_) => { panic!("keccak should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -541,7 +610,7 @@ fn keccak() {
 	};
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
-	assert_eq!(gas_left, U256::from(84_134));
+	assert_eq!(gas_left, U256::from(85_949));
 }
 
 // math_* tests check the ability of wasm contract to perform big integer operations
@@ -570,7 +639,7 @@ fn math_add() {
 		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(92_086));
+	assert_eq!(gas_left, U256::from(92_072));
 }
 
 // multiplication
@@ -592,7 +661,7 @@ fn math_mul() {
 		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(91_414));
+	assert_eq!(gas_left, U256::from(91_400));
 }
 
 // subtraction
@@ -614,7 +683,7 @@ fn math_sub() {
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(92_086));
+	assert_eq!(gas_left, U256::from(92_072));
 }
 
 // subtraction with overflow
@@ -656,7 +725,7 @@ fn math_div() {
 		U256::from_dec_str("1125000").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(87_376));
+	assert_eq!(gas_left, U256::from(85_700));
 }
 
 #[test]
@@ -679,12 +748,12 @@ fn storage_metering() {
 	]);
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
+		let mut interpreter = wasm_interpreter(params);
+		test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
 	// 0 -> not 0
-	assert_eq!(gas_left, U256::from(72_399));
+	assert_eq!(gas_left, U256::from(72_164));
 
 	// #2
 
@@ -698,12 +767,12 @@ fn storage_metering() {
 	]);
 
 	let gas_left = {
-		let mut interpreter = wasm_interpreter();
-		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
+		let mut interpreter = wasm_interpreter(params);
+		test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
 	// not 0 -> not 0
-	assert_eq!(gas_left, U256::from(87_399));
+	assert_eq!(gas_left, U256::from(87_164));
 }
 
 // This test checks the ability of wasm contract to invoke
@@ -791,7 +860,48 @@ fn externs() {
 		"Gas limit requested and returned does not match"
 	);
 
-	assert_eq!(gas_left, U256::from(90_435));
+	assert_eq!(gas_left, U256::from(90_428));
+}
+
+// This test checks the ability of wasm contract to invoke gasleft
+#[test]
+fn gasleft() {
+	::ethcore_logger::init_log();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample!("gasleft.wasm")));
+
+	let mut ext = FakeExt::new().with_wasm();
+	ext.schedule.wasm.as_mut().unwrap().have_gasleft = true;
+
+	let interpreter = wasm_interpreter(params);
+	let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
+	match result {
+		GasLeft::Known(_) => {},
+		GasLeft::NeedsReturn { gas_left, data, .. } => {
+			let gas = LittleEndian::read_u64(data.as_ref());
+			assert_eq!(gas, 93_423);
+			assert_eq!(gas_left, U256::from(93_349));
+		},
+	}
+}
+
+// This test should fail because
+// ext.schedule.wasm.as_mut().unwrap().have_gasleft = false;
+#[test]
+fn gasleft_fail() {
+	::ethcore_logger::init_log();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample!("gasleft.wasm")));
+	let mut ext = FakeExt::new().with_wasm();
+	let interpreter = wasm_interpreter(params);
+	match interpreter.exec(&mut ext).ok().unwrap() {
+		Err(_) => {},
+		Ok(_) => panic!("interpreter.exec should return Err if ext.schedule.wasm.have_gasleft = false")
+	}
 }
 
 #[test]
@@ -808,8 +918,8 @@ fn embedded_keccak() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("keccak should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -817,7 +927,7 @@ fn embedded_keccak() {
 	};
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
-	assert_eq!(gas_left, U256::from(84_134));
+	assert_eq!(gas_left, U256::from(85_949));
 }
 
 /// This test checks the correctness of log extern
@@ -836,8 +946,8 @@ fn events() {
 	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		let mut interpreter = wasm_interpreter(params);
+		let result = interpreter.exec(&mut ext).ok().unwrap().expect("Interpreter to execute without any errors");
 		match result {
 			GasLeft::Known(_) => { panic!("events should return payload"); },
 			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -852,7 +962,7 @@ fn events() {
 	assert_eq!(&log_entry.data, b"gnihtemos");
 
 	assert_eq!(&result, b"gnihtemos");
-	assert_eq!(gas_left, U256::from(81_351));
+	assert_eq!(gas_left, U256::from(83_161));
 }
 
 #[test]
@@ -876,8 +986,8 @@ fn recursive() {
 
 	let mut ext = FakeExt::new().with_wasm();
 
-	let mut interpreter = wasm_interpreter();
-	let result = interpreter.exec(params, &mut ext);
+	let interpreter = wasm_interpreter(params);
+	let result = interpreter.exec(&mut ext).ok().unwrap();
 
 	// We expect that stack overflow will occur and it should be generated by
 	// deterministic stack metering. Exceeding deterministic stack height limit

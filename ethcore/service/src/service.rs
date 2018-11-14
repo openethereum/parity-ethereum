@@ -21,6 +21,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use ansi_term::Colour;
+use ethereum_types::H256;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use stop_guard::StopGuard;
 
@@ -54,12 +55,24 @@ impl PrivateTxService {
 }
 
 impl PrivateTxHandler for PrivateTxService {
-	fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), String> {
-		self.provider.import_private_transaction(rlp).map_err(|e| e.to_string())
+	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
+		match self.provider.import_private_transaction(rlp) {
+			Ok(import_result) => Ok(import_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to import private transaction packet: {}", err);
+				bail!(err.to_string())
+			}
+		}
 	}
 
-	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<(), String> {
-		self.provider.import_signed_private_transaction(rlp).map_err(|e| e.to_string())
+	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
+		match self.provider.import_signed_private_transaction(rlp) {
+			Ok(import_result) => Ok(import_result),
+			Err(err) => {
+				warn!(target: "privatetx", "Unable to import signed private transaction packet: {}", err);
+				bail!(err.to_string())
+			}
+		}
 	}
 }
 
@@ -94,6 +107,8 @@ impl ClientService {
 
 		let pruning = config.pruning;
 		let client = Client::new(config, &spec, blockchain_db.clone(), miner.clone(), io_service.channel())?;
+		miner.set_io_channel(io_service.channel());
+		miner.set_in_chain_checker(&client.clone());
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -276,7 +291,6 @@ mod tests {
 
 		client_db_config.memory_budget = client_config.db_cache_size;
 		client_db_config.compaction = CompactionProfile::auto(&client_path);
-		client_db_config.wal = client_config.db_wal;
 
 		let client_db_handler = test_helpers::restoration_db_handler(client_db_config.clone());
 		let client_db = client_db_handler.open(&client_path).unwrap();

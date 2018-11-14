@@ -35,7 +35,7 @@ use io::{TimerToken, IoContext, IoHandler};
 use light::Cache as LightDataCache;
 use light::client::{LightChainClient, LightChainNotify};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-use parity_rpc::{is_major_importing};
+use parity_rpc::is_major_importing_or_waiting;
 use parity_rpc::informant::RpcStats;
 use ethereum_types::H256;
 use bytes::Bytes;
@@ -128,7 +128,7 @@ impl InformantData for FullNodeInformantData {
 
 	fn is_major_importing(&self) -> bool {
 		let state = self.sync.as_ref().map(|sync| sync.status().state);
-		is_major_importing(state, self.client.queue_info())
+		is_major_importing_or_waiting(state, self.client.queue_info(), false)
 	}
 
 	fn report(&self) -> Report {
@@ -142,7 +142,8 @@ impl InformantData for FullNodeInformantData {
 		cache_sizes.insert("queue", queue_info.mem_used);
 		cache_sizes.insert("chain", blockchain_cache_info.total());
 
-		let (importing, sync_info) = match (self.sync.as_ref(), self.net.as_ref()) {
+		let importing = self.is_major_importing();
+		let sync_info = match (self.sync.as_ref(), self.net.as_ref()) {
 			(Some(sync), Some(net)) => {
 				let status = sync.status();
 				let num_peers_range = net.num_peers_range();
@@ -150,16 +151,15 @@ impl InformantData for FullNodeInformantData {
 
 				cache_sizes.insert("sync", status.mem_used);
 
-				let importing = is_major_importing(Some(status.state), queue_info.clone());
-				(importing, Some(SyncInfo {
+				Some(SyncInfo {
 					last_imported_block_number: status.last_imported_block_number.unwrap_or(chain_info.best_block_number),
 					last_imported_old_block_number: status.last_imported_old_block_number,
 					num_peers: status.num_peers,
 					max_peers: status.current_max_peers(num_peers_range.start, num_peers_range.end - 1),
 					snapshot_sync: status.is_snapshot_syncing(),
-				}))
+				})
 			}
-			_ => (is_major_importing(self.sync.as_ref().map(|s| s.status().state), queue_info.clone()), None),
+			_ => None
 		};
 
 		Report {
@@ -184,7 +184,7 @@ impl InformantData for LightNodeInformantData {
 	fn executes_transactions(&self) -> bool { false }
 
 	fn is_major_importing(&self) -> bool {
-		self.sync.is_major_importing()
+		self.sync.is_major_importing_no_sync()
 	}
 
 	fn report(&self) -> Report {
@@ -306,7 +306,7 @@ impl<T: InformantData> Informant<T> {
 							format!("{} blk/s {} tx/s {} Mgas/s",
 								paint(Yellow.bold(), format!("{:7.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
 								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_milliseconds() as f64)),
-								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
+								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / (elapsed.as_milliseconds() * 1000)).low_u64()))
 							)
 						} else {
 							format!("{} hdr/s",
@@ -422,15 +422,15 @@ impl LightChainNotify for Informant<LightNodeInformantData> {
 		if ripe {
 			if let Some(header) = good.last().and_then(|h| client.block_header(BlockId::Hash(*h))) {
 				info!(target: "import", "Imported {} {} ({} Mgas){}",
-					  Colour::White.bold().paint(format!("#{}", header.number())),
-					  Colour::White.bold().paint(format!("{}", header.hash())),
-					  Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32  / 1000000f32)),
-					  if good.len() > 1 {
-						  format!(" + another {} header(s)",
-								  Colour::Red.bold().paint(format!("{}", good.len() - 1)))
-					  } else {
-						  String::new()
-					  }
+					Colour::White.bold().paint(format!("#{}", header.number())),
+					Colour::White.bold().paint(format!("{}", header.hash())),
+					Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32 / 1000000f32)),
+					if good.len() > 1 {
+						format!(" + another {} header(s)",
+								Colour::Red.bold().paint(format!("{}", good.len() - 1)))
+					} else {
+						String::new()
+					}
 				);
 				*last_import = Instant::now();
 			}

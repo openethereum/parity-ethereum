@@ -35,12 +35,25 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
 	start_stop_hook: &mut H
 ) {
+	let mut errors = Vec::new();
+	run_test_path_inner(p, skip, runner, start_stop_hook, &mut errors);
+	let empty: [String; 0] = [];
+	assert_eq!(errors, empty);
+}
+
+fn run_test_path_inner<H: FnMut(&str, HookType)>(
+	p: &Path, skip: &[&'static str],
+	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
+	start_stop_hook: &mut H,
+	errors: &mut Vec<String>
+) {
 	let path = Path::new(p);
 	let s: HashSet<OsString> = skip.iter().map(|s| {
 		let mut os: OsString = s.into();
 		os.push(".json");
 		os
 	}).collect();
+	let extension = path.extension().and_then(|s| s.to_str());
 	if path.is_dir() {
 		for p in read_dir(path).unwrap().filter_map(|e| {
 			let e = e.unwrap();
@@ -49,13 +62,30 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 			} else {
 				Some(e.path())
 			}}) {
-			run_test_path(&p, skip, runner, start_stop_hook)
+			run_test_path_inner(&p, skip, runner, start_stop_hook, errors);
 		}
+	} else if extension == Some("swp") || extension == None {
+		// Ignore junk
 	} else {
 		let mut path = p.to_path_buf();
 		path.set_extension("json");
-		run_test_file(&path, runner, start_stop_hook)
+		run_test_file_append(&path, runner, start_stop_hook, errors)
 	}
+}
+
+fn run_test_file_append<H: FnMut(&str, HookType)>(
+	path: &Path,
+	runner: fn(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String>,
+	start_stop_hook: &mut H,
+	errors: &mut Vec<String>
+) {
+	let mut data = Vec::new();
+	let mut file = match File::open(&path) {
+		Ok(file) => file,
+		Err(_) => panic!("Error opening test file at: {:?}", path),
+	};
+	file.read_to_end(&mut data).expect("Error reading test file");
+	errors.append(&mut runner(&data, start_stop_hook));
 }
 
 pub fn run_test_file<H: FnMut(&str, HookType)>(
@@ -64,7 +94,10 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(
 	start_stop_hook: &mut H
 ) {
 	let mut data = Vec::new();
-	let mut file = File::open(&path).expect("Error opening test file");
+	let mut file = match File::open(&path) {
+		Ok(file) => file,
+		Err(_) => panic!("Error opening test file at: {:?}", path),
+	};
 	file.read_to_end(&mut data).expect("Error reading test file");
 	let results = runner(&data, start_stop_hook);
 	let empty: [String; 0] = [];

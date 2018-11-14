@@ -99,7 +99,7 @@ use std::time::{Duration, Instant};
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
-use plain_hasher::H256FastMap;
+use fastmap::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
@@ -109,7 +109,7 @@ use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, Bl
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
-use block_sync::{BlockDownloader, BlockDownloaderImportError as DownloaderImportError};
+use block_sync::{BlockDownloader, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
@@ -148,13 +148,8 @@ const MAX_PEER_LAG_PROPAGATION: BlockNumber = 20;
 const MAX_NEW_HASHES: usize = 64;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
-const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
-// Maximal number of transactions queried from miner to propagate.
-// This set is used to diff with transactions known by the peer and
-// we will send a difference of length up to `MAX_TRANSACTIONS_TO_PROPAGATE`.
-const MAX_TRANSACTIONS_TO_QUERY: usize = 4096;
-// Maximal number of transactions in sent in single packet.
-const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
+// keep it under 8MB as well, cause it seems that it may result oversized after compression.
+const MAX_TRANSACTION_PACKET_SIZE: usize = 5 * 1024 * 1024;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
@@ -178,8 +173,8 @@ pub const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
 pub const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
 pub const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 pub const CONSENSUS_DATA_PACKET: u8 = 0x15;
-const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
-const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
+pub const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
+pub const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -329,6 +324,8 @@ pub struct PeerInfo {
 	ask_time: Instant,
 	/// Holds a set of transactions recently sent to this peer to avoid spamming.
 	last_sent_transactions: HashSet<H256>,
+	/// Holds a set of private transactions and their signatures recently sent to this peer to avoid spamming.
+	last_sent_private_transactions: HashSet<H256>,
 	/// Pending request is expired and result should be ignored
 	expired: bool,
 	/// Peer fork confirmation status
@@ -357,6 +354,10 @@ impl PeerInfo {
 		if self.asking != PeerAsking::Nothing && self.is_allowed() {
 			self.expired = true;
 		}
+	}
+
+	fn reset_private_stats(&mut self) {
+		self.last_sent_private_transactions.clear();
 	}
 }
 
@@ -428,7 +429,7 @@ impl ChainSync {
 			peers: HashMap::new(),
 			handshaking_peers: HashMap::new(),
 			active_peers: HashSet::new(),
-			new_blocks: BlockDownloader::new(false, &chain_info.best_block_hash, chain_info.best_block_number),
+			new_blocks: BlockDownloader::new(BlockSet::NewBlocks, &chain_info.best_block_hash, chain_info.best_block_number),
 			old_blocks: None,
 			last_sent_block_number: 0,
 			network_id: config.network_id,
@@ -506,8 +507,9 @@ impl ChainSync {
 		self.peers.clear();
 	}
 
-	/// Reset sync. Clear all downloaded data but keep the queue
-	fn reset(&mut self, io: &mut SyncIo) {
+	/// Reset sync. Clear all downloaded data but keep the queue.
+	/// Set sync state to the given state or to the initial state if `None` is provided.
+	fn reset(&mut self, io: &mut SyncIo, state: Option<SyncState>) {
 		self.new_blocks.reset();
 		let chain_info = io.chain().chain_info();
 		for (_, ref mut p) in &mut self.peers {
@@ -519,7 +521,7 @@ impl ChainSync {
 				}
 			}
 		}
-		self.state = ChainSync::get_init_state(self.warp_sync, io.chain());
+		self.state = state.unwrap_or_else(|| ChainSync::get_init_state(self.warp_sync, io.chain()));
 		// Reactivate peers only if some progress has been made
 		// since the last sync round of if starting fresh.
 		self.active_peers = self.peers.keys().cloned().collect();
@@ -533,7 +535,7 @@ impl ChainSync {
 			io.snapshot_service().abort_restore();
 		}
 		self.snapshot.clear();
-		self.reset(io);
+		self.reset(io, None);
 		self.continue_sync(io);
 	}
 
@@ -636,13 +638,13 @@ impl ChainSync {
 	pub fn update_targets(&mut self, chain: &BlockChainClient) {
 		// Do not assume that the block queue/chain still has our last_imported_block
 		let chain = chain.chain_info();
-		self.new_blocks = BlockDownloader::new(false, &chain.best_block_hash, chain.best_block_number);
+		self.new_blocks = BlockDownloader::new(BlockSet::NewBlocks, &chain.best_block_hash, chain.best_block_number);
 		self.old_blocks = None;
 		if self.download_old_blocks {
 			if let (Some(ancient_block_hash), Some(ancient_block_number)) = (chain.ancient_block_hash, chain.ancient_block_number) {
 
 				trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
-				let mut downloader = BlockDownloader::with_unlimited_reorg(true, &ancient_block_hash, ancient_block_number);
+				let mut downloader = BlockDownloader::new(BlockSet::OldBlocks, &ancient_block_hash, ancient_block_number);
 				if let Some(hash) = chain.first_block_hash {
 					trace!(target: "sync", "Downloader target set to {:?}", hash);
 					downloader.set_target(&hash);
@@ -698,7 +700,7 @@ impl ChainSync {
 	/// Called after all blocks have been downloaded
 	fn complete_sync(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Sync complete");
-		self.reset(io);
+		self.reset(io, Some(SyncState::Idle));
 	}
 
 	/// Enter waiting state
@@ -761,14 +763,22 @@ impl ChainSync {
 						}
 					}
 
-					// Only ask for old blocks if the peer has a higher difficulty
-					if force || higher_difficulty {
+					// Only ask for old blocks if the peer has an equal or higher difficulty
+					let equal_or_higher_difficulty = peer_difficulty.map_or(false, |pd| pd >= syncing_difficulty);
+
+					if force || equal_or_higher_difficulty {
 						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
 							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
 							return;
 						}
 					} else {
-						trace!(target: "sync", "peer {} is not suitable for asking old blocks", peer_id);
+						trace!(
+							target: "sync",
+							"peer {:?} is not suitable for requesting old blocks, syncing_difficulty={:?}, peer_difficulty={:?}",
+							peer_id,
+							syncing_difficulty,
+							peer_difficulty
+						);
 						self.deactivate_peer(io, peer_id);
 					}
 				},
@@ -844,18 +854,39 @@ impl ChainSync {
 	fn collect_blocks(&mut self, io: &mut SyncIo, block_set: BlockSet) {
 		match block_set {
 			BlockSet::NewBlocks => {
-				if self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) == Err(DownloaderImportError::Invalid) {
-					self.restart(io);
+				if self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) == DownloadAction::Reset {
+					self.reset_downloads(block_set);
+					self.new_blocks.reset();
 				}
 			},
 			BlockSet::OldBlocks => {
-				if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
-					self.restart(io);
-				} else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
+				let mut is_complete = false;
+				let mut download_action = DownloadAction::None;
+				if let Some(downloader) = self.old_blocks.as_mut() {
+					download_action = downloader.collect_blocks(io, false);
+					is_complete = downloader.is_complete();
+				}
+
+				if download_action == DownloadAction::Reset {
+					self.reset_downloads(block_set);
+					if let Some(downloader) = self.old_blocks.as_mut() {
+						downloader.reset();
+					}
+				}
+
+				if is_complete {
 					trace!(target: "sync", "Background block download is complete");
 					self.old_blocks = None;
 				}
 			}
+		};
+	}
+
+	/// Mark all outstanding requests as expired
+	fn reset_downloads(&mut self, block_set: BlockSet) {
+		trace!(target: "sync", "Resetting downloads for {:?}", block_set);
+		for (_, ref mut p) in self.peers.iter_mut().filter(|&(_, ref p)| p.block_set == Some(block_set)) {
+			p.reset_asking();
 		}
 	}
 
@@ -1051,8 +1082,15 @@ impl ChainSync {
 		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_2.0 { Some(*id) } else { None }).collect()
 	}
 
-	fn get_private_transaction_peers(&self) -> Vec<PeerId> {
-		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0 { Some(*id) } else { None }).collect()
+	fn get_private_transaction_peers(&self, transaction_hash: &H256) -> Vec<PeerId> {
+		self.peers.iter().filter_map(
+			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0
+				&& !p.last_sent_private_transactions.contains(transaction_hash) {
+					Some(*id)
+				} else {
+					None
+				}
+		).collect()
 	}
 
 	/// Maintain other peers. Send out any new blocks and transactions
@@ -1080,8 +1118,10 @@ impl ChainSync {
 			// Select random peer to re-broadcast transactions to.
 			let peer = random::new().gen_range(0, self.peers.len());
 			trace!(target: "sync", "Re-broadcasting transactions to a random peer.");
-			self.peers.values_mut().nth(peer).map(|peer_info|
-				peer_info.last_sent_transactions.clear()
+			self.peers.values_mut().nth(peer).map(|peer_info| {
+					peer_info.last_sent_transactions.clear();
+					peer_info.reset_private_stats()
+				}
 			);
 		}
 	}
@@ -1122,13 +1162,8 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, packet: Bytes) {
-		SyncPropagator::propagate_private_transaction(self, io, packet);
-	}
-
-	/// Broadcast signed private transaction message to peers.
-	pub fn propagate_signed_private_transaction(&mut self, io: &mut SyncIo, packet: Bytes) {
-		SyncPropagator::propagate_signed_private_transaction(self, io, packet);
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
+		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
 	}
 }
 
@@ -1168,7 +1203,7 @@ pub mod tests {
 	}
 
 	pub fn get_dummy_blocks(order: u32, parent_hash: H256) -> Bytes {
-		let mut rlp = RlpStream::new_list(1);
+		let mut rlp = RlpStream::new_list(2);
 		rlp.append_raw(&get_dummy_block(order, parent_hash), 1);
 		let difficulty: U256 = (100 * order).into();
 		rlp.append(&difficulty);
@@ -1251,6 +1286,7 @@ pub mod tests {
 				asking_hash: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: HashSet::new(),
+				last_sent_private_transactions: HashSet::new(),
 				expired: false,
 				confirmation: super::ForkConfirmation::Confirmed,
 				snapshot_number: None,

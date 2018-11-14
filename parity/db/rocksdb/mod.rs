@@ -86,13 +86,12 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 }
 
 /// Open a new main DB.
-pub fn open_db(client_path: &str, cache_config: &CacheConfig, compaction: &DatabaseCompactionProfile, wal: bool) -> io::Result<Arc<BlockChainDB>> {
+pub fn open_db(client_path: &str, cache_config: &CacheConfig, compaction: &DatabaseCompactionProfile) -> io::Result<Arc<BlockChainDB>> {
 	let path = Path::new(client_path);
 
 	let db_config = DatabaseConfig {
 		memory_budget: Some(cache_config.blockchain() as usize * 1024 * 1024),
 		compaction: helpers::compaction_profile(&compaction, path),
-		wal,
 		.. DatabaseConfig::with_columns(NUM_COLUMNS)
 	};
 

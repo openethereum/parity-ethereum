@@ -43,6 +43,8 @@ use blooms_db;
 use kvdb::KeyValueDB;
 use kvdb_rocksdb;
 use tempdir::TempDir;
+use verification::queue::kind::blocks::Unverified;
+use encoded;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -88,7 +90,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	rlp.append(header);
 	rlp.begin_list(transactions.len());
 	for t in transactions {
-		rlp.append_raw(&rlp::encode(t).into_vec(), 1);
+		rlp.append_raw(&rlp::encode(t), 1);
 	}
 	rlp.append_list(&uncles);
 	rlp.out()
@@ -172,14 +174,14 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			n += 1;
 		}
 
-		let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+		let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
-		if let Err(e) = client.import_block(b.rlp_bytes()) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(b.rlp_bytes()).unwrap()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 
 		last_header = view!(BlockView, &b.rlp_bytes()).header();
-		db = b.drain();
+		db = b.drain().state.drop().1;
 	}
 	client.flush_queue();
 	client.import_verified_blocks();
@@ -210,7 +212,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 		rolling_block_number = rolling_block_number + 1;
 		rolling_timestamp = rolling_timestamp + 10;
 
-		if let Err(e) = client.import_block(create_test_block(&header)) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(create_test_block(&header)).unwrap()) {
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 	}
@@ -222,15 +224,15 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
-	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new());
+	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new()).unwrap();
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
 		b.push_transaction(t.clone(), None).unwrap();
 	}
-	let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+	let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
-	if let Err(e) = client.import_block(b.rlp_bytes()) {
+	if let Err(e) = client.import_block(Unverified::from_rlp(b.rlp_bytes()).unwrap()) {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
@@ -252,7 +254,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	).unwrap();
 
 	for block in blocks {
-		if let Err(e) = client.import_block(block) {
+		if let Err(e) = client.import_block(Unverified::from_rlp(block).unwrap()) {
 			panic!("error importing block which is well-formed: {:?}", e);
 		}
 	}
@@ -354,10 +356,9 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], ExtrasInsert {
+		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block(block_order, bc.best_block_hash())), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
@@ -373,10 +374,9 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], ExtrasInsert {
+		bc.insert_block(&mut batch, encoded::Block::new(create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None)), vec![], ExtrasInsert {
 			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
-			metadata: None,
 		});
 		bc.commit();
 	}
@@ -490,8 +490,8 @@ impl ChainNotify for TestNotify {
 	fn broadcast(&self, message: ChainMessageType) {
 		let data = match message {
 			ChainMessageType::Consensus(data) => data,
-			ChainMessageType::SignedPrivateTransaction(data) => data,
-			ChainMessageType::PrivateTransaction(data) => data,
+			ChainMessageType::SignedPrivateTransaction(_, data) => data,
+			ChainMessageType::PrivateTransaction(_, data) => data,
 		};
 		self.messages.write().push(data);
 	}

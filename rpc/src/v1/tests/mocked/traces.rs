@@ -238,7 +238,7 @@ fn rpc_trace_replay_block_transactions() {
 	let tester = io();
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_replayBlockTransactions","params":["0x10", ["trace", "stateDiff", "vmTrace"]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null}],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[{"output":"0x010203","stateDiff":null,"trace":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000005","vmTrace":null}],"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }

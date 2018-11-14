@@ -57,7 +57,6 @@ reseal_min_period = 4000
 reseal_max_period = 60000
 price_update_period = "hourly"
 tx_queue_size = 8192
-tx_queue_gas = "off"
 
 [footprint]
 tracing = "on"
@@ -71,11 +70,14 @@ db_compaction = "ssd"
 fat_db = "off"
 scale_verifiers = false
 
+[light]
+on_demand_retry_count = 12
+on_demand_inactive_time_limit = 20000
+
 [snapshots]
 disable_periodic = true
 
 [misc]
-ntp_servers = ["0.parity.pool.ntp.org:123"]
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
 color = true

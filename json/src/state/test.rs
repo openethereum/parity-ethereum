@@ -21,6 +21,7 @@ use std::collections::BTreeMap;
 use uint::Uint;
 use bytes::Bytes;
 use hash::{Address, H256};
+use spec::ForkSpec;
 use state::{Env, AccountState, Transaction};
 use maybe::MaybeEmpty;
 use serde_json::{self, Error};
@@ -51,10 +52,10 @@ pub struct State {
 	/// Environment.
 	pub env: Env,
 	/// Pre state.
-	#[serde(rename="pre")]
+	#[serde(rename = "pre")]
 	pub pre_state: AccountState,
 	/// Post state.
-	#[serde(rename="post")]
+	#[serde(rename = "post")]
 	pub post_states: BTreeMap<ForkSpec, Vec<PostStateResult>>,
 	/// Transaction.
 	pub transaction: MultiTransaction,
@@ -62,19 +63,18 @@ pub struct State {
 
 /// State test transaction deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MultiTransaction {
 	/// Transaction data set.
 	pub data: Vec<Bytes>,
 	/// Gas limit set.
-	#[serde(rename="gasLimit")]
 	pub gas_limit: Vec<Uint>,
 	/// Gas price.
-	#[serde(rename="gasPrice")]
 	pub gas_price: Uint,
 	/// Nonce.
 	pub nonce: Uint,
 	/// Secret key.
-	#[serde(rename="secretKey")]
+	#[serde(rename = "secretKey")]
 	pub secret: Option<H256>,
 	/// To.
 	pub to: MaybeEmpty<Address>,
@@ -95,21 +95,6 @@ impl MultiTransaction {
 			value: self.value[indexes.value as usize].clone(),
 		}
 	}
-}
-
-/// State test transaction deserialization.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
-pub enum ForkSpec {
-	EIP150,
-	EIP158,
-	Frontier,
-	Homestead,
-	Byzantium,
-	Constantinople,
-	EIP158ToByzantiumAt5,
-	FrontierToHomesteadAt5,
-	HomesteadToDaoAt5,
-	HomesteadToEIP150At5,
 }
 
 /// State test indexes deserialization.

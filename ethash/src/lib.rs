@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![cfg_attr(feature = "benches", feature(test))]
-
-extern crate primal;
-extern crate parking_lot;
 extern crate either;
+extern crate ethereum_types;
 extern crate memmap;
+extern crate parking_lot;
+extern crate primal;
 
 #[macro_use]
 extern crate crunchy;
@@ -38,6 +37,7 @@ mod shared;
 pub use cache::{NodeCacheBuilder, OptimizeFor};
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
 use compute::Light;
+use ethereum_types::{U256, U512};
 use keccak::H256;
 use parking_lot::Mutex;
 pub use seed_compute::SeedHashCompute;
@@ -136,6 +136,29 @@ impl EthashManager {
 	}
 }
 
+/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
+pub fn boundary_to_difficulty(boundary: &ethereum_types::H256) -> U256 {
+	difficulty_to_boundary_aux(&**boundary)
+}
+
+/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
+pub fn difficulty_to_boundary(difficulty: &U256) -> ethereum_types::H256 {
+	difficulty_to_boundary_aux(difficulty).into()
+}
+
+fn difficulty_to_boundary_aux<T: Into<U512>>(difficulty: T) -> ethereum_types::U256 {
+	let difficulty = difficulty.into();
+
+	assert!(!difficulty.is_zero());
+
+	if difficulty == U512::one() {
+		U256::max_value()
+	} else {
+		// difficulty > 1, so result should never overflow 256 bits
+		U256::from((U512::one() << 256) / difficulty)
+	}
+}
+
 #[test]
 fn test_lru() {
 	use tempdir::TempDir;
@@ -155,99 +178,39 @@ fn test_lru() {
 	assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 0);
 }
 
-#[cfg(feature = "benches")]
-mod benchmarks {
-	extern crate test;
+#[test]
+fn test_difficulty_to_boundary() {
+	use ethereum_types::H256;
+	use std::str::FromStr;
 
-	use self::test::Bencher;
-	use cache::{NodeCacheBuilder, OptimizeFor};
-	use compute::{Light, light_compute};
+	assert_eq!(difficulty_to_boundary(&U256::from(1)), H256::from(U256::max_value()));
+	assert_eq!(difficulty_to_boundary(&U256::from(2)), H256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
+	assert_eq!(difficulty_to_boundary(&U256::from(4)), H256::from_str("4000000000000000000000000000000000000000000000000000000000000000").unwrap());
+	assert_eq!(difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
+}
 
-	const HASH: [u8; 32] = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe,
-	                        0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f,
-	                        0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
-	const NONCE: u64 = 0xd7b3ac70a301a249;
+#[test]
+fn test_difficulty_to_boundary_regression() {
+	use ethereum_types::H256;
 
-	#[bench]
-	fn bench_light_compute_memmap(b: &mut Bencher) {
-		use std::env;
-
-		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-		let light = builder.light(&env::temp_dir(), 486382);
-
-		b.iter(|| light_compute(&light, &HASH, NONCE));
+	// the last bit was originally being truncated when performing the conversion
+	// https://github.com/paritytech/parity-ethereum/issues/8397
+	for difficulty in 1..9 {
+		assert_eq!(U256::from(difficulty), boundary_to_difficulty(&difficulty_to_boundary(&difficulty.into())));
+		assert_eq!(H256::from(difficulty), difficulty_to_boundary(&boundary_to_difficulty(&difficulty.into())));
+		assert_eq!(U256::from(difficulty), boundary_to_difficulty(&boundary_to_difficulty(&difficulty.into()).into()));
+		assert_eq!(H256::from(difficulty), difficulty_to_boundary(&difficulty_to_boundary(&difficulty.into()).into()));
 	}
+}
 
-	#[bench]
-	fn bench_light_compute_memory(b: &mut Bencher) {
-		use std::env;
+#[test]
+#[should_panic]
+fn test_difficulty_to_boundary_panics_on_zero() {
+	difficulty_to_boundary(&U256::from(0));
+}
 
-		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
-		let light = builder.light(&env::temp_dir(), 486382);
-
-		b.iter(|| light_compute(&light, &HASH, NONCE));
-	}
-
-	#[bench]
-	#[ignore]
-	fn bench_light_new_round_trip_memmap(b: &mut Bencher) {
-		use std::env;
-
-		b.iter(|| {
-			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-			let light = builder.light(&env::temp_dir(), 486382);
-			light_compute(&light, &HASH, NONCE);
-		});
-	}
-
-	#[bench]
-	#[ignore]
-	fn bench_light_new_round_trip_memory(b: &mut Bencher) {
-		use std::env;
-
-		b.iter(|| {
-			let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
-			let light = builder.light(&env::temp_dir(), 486382);
-			light_compute(&light, &HASH, NONCE);
-		});
-	}
-
-	#[bench]
-	fn bench_light_from_file_round_trip_memory(b: &mut Bencher) {
-		use std::env;
-
-		let dir = env::temp_dir();
-		let height = 486382;
-		{
-			let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
-			let mut dummy = builder.light(&dir, height);
-			dummy.to_file().unwrap();
-		}
-
-		b.iter(|| {
-			let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
-			let light = builder.light_from_file(&dir, 486382).unwrap();
-			light_compute(&light, &HASH, NONCE);
-		});
-	}
-
-	#[bench]
-	fn bench_light_from_file_round_trip_memmap(b: &mut Bencher) {
-		use std::env;
-
-		let dir = env::temp_dir();
-		let height = 486382;
-
-		{
-			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-			let mut dummy = builder.light(&dir, height);
-			dummy.to_file().unwrap();
-		}
-
-		b.iter(|| {
-			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-			let light = builder.light_from_file(&dir, 486382).unwrap();
-			light_compute(&light, &HASH, NONCE);
-		});
-	}
+#[test]
+#[should_panic]
+fn test_boundary_to_difficulty_panics_on_zero() {
+	boundary_to_difficulty(&ethereum_types::H256::from(0));
 }

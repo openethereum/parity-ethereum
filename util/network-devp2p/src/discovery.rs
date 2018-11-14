@@ -17,11 +17,12 @@
 use parity_bytes::Bytes;
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap, VecDeque};
+use std::collections::hash_map::Entry;
 use std::default::Default;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use hash::keccak;
 use ethereum_types::{H256, H520};
-use rlp::{Rlp, RlpStream, encode_list};
+use rlp::{Rlp, RlpStream};
 use node_table::*;
 use network::{Error, ErrorKind};
 use ethkey::{Secret, KeyPair, sign, recover};
@@ -41,8 +42,16 @@ const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 
-const PING_TIMEOUT: Duration = Duration::from_millis(300);
+const PING_TIMEOUT: Duration = Duration::from_millis(500);
+const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
+const EXPIRY_TIME: Duration = Duration::from_secs(20);
 const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
+const REQUEST_BACKOFF: [Duration; 4] = [
+	Duration::from_secs(1),
+	Duration::from_secs(4),
+	Duration::from_secs(16),
+	Duration::from_secs(64)
+];
 
 #[derive(Clone, Debug)]
 pub struct NodeEntry {
@@ -53,7 +62,43 @@ pub struct NodeEntry {
 pub struct BucketEntry {
 	pub address: NodeEntry,
 	pub id_hash: H256,
-	pub timeout: Option<Instant>,
+	pub last_seen: Instant,
+	backoff_until: Instant,
+	fail_count: usize,
+}
+
+impl BucketEntry {
+	fn new(address: NodeEntry) -> Self {
+		let now = Instant::now();
+		BucketEntry {
+			id_hash: keccak(address.id),
+			address,
+			last_seen: now,
+			backoff_until: now,
+			fail_count: 0,
+		}
+	}
+}
+
+struct FindNodeRequest {
+	// Time when the request was sent
+	sent_at: Instant,
+	// Number of items sent by the node
+	response_count: usize,
+	// Whether the request have been answered yet
+	answered: bool,
+}
+
+struct PingRequest {
+	// Time when the request was sent
+	sent_at: Instant,
+	// The node to which the request was sent
+	node: NodeEntry,
+	// The hash sent in the Ping request
+	echo_hash: H256,
+	// The hash Parity used to respond with (until rev 01f825b0e1f1c4c420197b51fc801cbe89284b29)
+	#[deprecated()]
+	deprecated_echo_hash: H256,
 }
 
 pub struct NodeBucket {
@@ -79,19 +124,23 @@ pub struct Datagram {
 	pub address: SocketAddr,
 }
 
-pub struct Discovery {
+pub struct Discovery<'a> {
 	id: NodeId,
 	id_hash: H256,
 	secret: Secret,
 	public_endpoint: NodeEndpoint,
-	discovery_round: u16,
+	discovery_initiated: bool,
+	discovery_round: Option<u16>,
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
+	in_flight_pings: HashMap<NodeId, PingRequest>,
+	in_flight_find_nodes: HashMap<NodeId, FindNodeRequest>,
 	send_queue: VecDeque<Datagram>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
 	ip_filter: IpFilter,
+	request_backoff: &'a [Duration],
 }
 
 pub struct TableUpdates {
@@ -99,119 +148,115 @@ pub struct TableUpdates {
 	pub removed: HashSet<NodeId>,
 }
 
-impl Discovery {
-	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery {
+impl<'a> Discovery<'a> {
+	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery<'static> {
 		Discovery {
-			id: key.public().clone(),
+			id: *key.public(),
 			id_hash: keccak(key.public()),
 			secret: key.secret().clone(),
 			public_endpoint: public,
-			discovery_round: 0,
+			discovery_initiated: false,
+			discovery_round: None,
 			discovery_id: NodeId::new(),
 			discovery_nodes: HashSet::new(),
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
+			in_flight_pings: HashMap::new(),
+			in_flight_find_nodes: HashMap::new(),
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
 			adding_nodes: Vec::new(),
-			ip_filter: ip_filter,
+			ip_filter,
+			request_backoff: &REQUEST_BACKOFF,
 		}
 	}
 
 	/// Add a new node to discovery table. Pings the node.
 	pub fn add_node(&mut self, e: NodeEntry) {
-		if self.is_allowed(&e) {
-			let endpoint = e.endpoint.clone();
-			self.update_node(e);
-			self.ping(&endpoint);
+		// If distance returns None, then we are trying to add ourself.
+		let id_hash = keccak(e.id);
+		if let Some(dist) = Discovery::distance(&self.id_hash, &id_hash) {
+			if self.node_buckets[dist].nodes.iter().any(|n| n.id_hash == id_hash) {
+				return;
+			}
+			self.try_ping(e);
 		}
 	}
 
 	/// Add a list of nodes. Pings a few nodes each round
 	pub fn add_node_list(&mut self, nodes: Vec<NodeEntry>) {
-		self.adding_nodes = nodes;
-		self.update_new_nodes();
-	}
-
-	/// Add a list of known nodes to the table.
-	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) {
-		for n in nodes.drain(..) {
-			if self.is_allowed(&n) {
-				self.update_node(n);
-			}
+		for node in nodes {
+			self.add_node(node);
 		}
 	}
 
-	fn update_node(&mut self, e: NodeEntry) {
+	fn update_node(&mut self, e: NodeEntry) -> Option<TableUpdates> {
 		trace!(target: "discovery", "Inserting {:?}", &e);
 		let id_hash = keccak(e.id);
 		let dist = match Discovery::distance(&self.id_hash, &id_hash) {
 			Some(dist) => dist,
 			None => {
 				debug!(target: "discovery", "Attempted to update own entry: {:?}", e);
-				return;
+				return None;
 			}
 		};
 
+		let mut added_map = HashMap::new();
 		let ping = {
 			let bucket = &mut self.node_buckets[dist];
 			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
 				node.address = e.clone();
-				node.timeout = None;
+				node.last_seen = Instant::now();
+				node.backoff_until = Instant::now();
+				node.fail_count = 0;
 				true
 			} else { false };
 
 			if !updated {
-				bucket.nodes.push_front(BucketEntry { address: e, timeout: None, id_hash: id_hash, });
-			}
+				added_map.insert(e.id, e.clone());
+				bucket.nodes.push_front(BucketEntry::new(e));
 
-			if bucket.nodes.len() > BUCKET_SIZE {
-				//ping least active node
-				let last = bucket.nodes.back_mut().expect("Last item is always present when len() > 0");
-				last.timeout = Some(Instant::now());
-				Some(last.address.endpoint.clone())
+				if bucket.nodes.len() > BUCKET_SIZE {
+					select_bucket_ping(bucket.nodes.iter())
+				} else { None }
 			} else { None }
 		};
-		if let Some(endpoint) = ping {
-			self.ping(&endpoint);
+		if let Some(node) = ping {
+			self.try_ping(node);
 		}
-	}
-
-	/// Removes the timeout of a given NodeId if it can be found in one of the discovery buckets
-	fn clear_ping(&mut self, id: &NodeId) {
-		let dist = match Discovery::distance(&self.id_hash, &keccak(id)) {
-			Some(dist) => dist,
-			None => {
-				debug!(target: "discovery", "Received ping from self");
-				return
-			}
-		};
-
-		let bucket = &mut self.node_buckets[dist];
-		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
-			node.timeout = None;
-		}
+		Some(TableUpdates { added: added_map, removed: HashSet::new() })
 	}
 
 	/// Starts the discovery process at round 0
 	fn start(&mut self) {
 		trace!(target: "discovery", "Starting discovery");
-		self.discovery_round = 0;
+		self.discovery_round = Some(0);
 		self.discovery_id.randomize(); //TODO: use cryptographic nonce
 		self.discovery_nodes.clear();
 	}
 
+	/// Complete the discovery process
+	fn stop(&mut self) {
+		trace!(target: "discovery", "Completing discovery");
+		self.discovery_round = None;
+		self.discovery_nodes.clear();
+	}
+
 	fn update_new_nodes(&mut self) {
-		let mut count = 0usize;
-		while !self.adding_nodes.is_empty() && count < MAX_NODES_PING {
-			let node = self.adding_nodes.pop().expect("pop is always Some if not empty; qed");
-			self.add_node(node);
-			count += 1;
+		while self.in_flight_pings.len() < MAX_NODES_PING {
+			match self.adding_nodes.pop() {
+				Some(next) => self.try_ping(next),
+				None => break,
+			}
 		}
 	}
 
 	fn discover(&mut self) {
-		self.update_new_nodes();
-		if self.discovery_round == DISCOVERY_MAX_STEPS {
+		let discovery_round = match self.discovery_round {
+			Some(r) => r,
+			None => return,
+		};
+		if discovery_round == DISCOVERY_MAX_STEPS {
+			self.stop();
 			return;
 		}
 		trace!(target: "discovery", "Starting round {:?}", self.discovery_round);
@@ -219,23 +264,25 @@ impl Discovery {
 		{
 			let nearest = self.nearest_node_entries(&self.discovery_id).into_iter();
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
+			let target = self.discovery_id;
 			for r in nearest {
-				let rlp = encode_list(&(&[self.discovery_id.clone()][..]));
-				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp)
-					.unwrap_or_else(|e| warn!("Error sending node discovery packet for {:?}: {:?}", &r.endpoint, e));
-				self.discovery_nodes.insert(r.id.clone());
-				tried_count += 1;
-				trace!(target: "discovery", "Sent FindNode to {:?}", &r.endpoint);
+				match self.send_find_node(&r, &target) {
+					Ok(()) => {
+						self.discovery_nodes.insert(r.id);
+						tried_count += 1;
+					},
+					Err(e) => {
+						warn!(target: "discovery", "Error sending node discovery packet for {:?}: {:?}", &r.endpoint, e);
+					},
+				};
 			}
 		}
 
 		if tried_count == 0 {
-			trace!(target: "discovery", "Completing discovery");
-			self.discovery_round = DISCOVERY_MAX_STEPS;
-			self.discovery_nodes.clear();
+			self.stop();
 			return;
 		}
-		self.discovery_round += 1;
+		self.discovery_round = Some(discovery_round + 1);
 	}
 
 	/// The base 2 log of the distance between a and b using the XOR metric.
@@ -251,44 +298,71 @@ impl Discovery {
 		None // a and b are equal, so log distance is -inf
 	}
 
-	fn ping(&mut self, node: &NodeEndpoint) {
-		let mut rlp = RlpStream::new_list(3);
-		rlp.append(&PROTOCOL_VERSION);
-		self.public_endpoint.to_rlp_list(&mut rlp);
-		node.to_rlp_list(&mut rlp);
-		trace!(target: "discovery", "Sent Ping to {:?}", &node);
-		self.send_packet(PACKET_PING, &node.udp_address(), &rlp.drain())
-			.unwrap_or_else(|e| warn!("Error sending Ping packet: {:?}", e))
+	fn try_ping(&mut self, node: NodeEntry) {
+		if !self.is_allowed(&node) {
+			trace!(target: "discovery", "Node {:?} not allowed", node);
+			return;
+		}
+		if self.in_flight_pings.contains_key(&node.id) || self.in_flight_find_nodes.contains_key(&node.id) {
+			trace!(target: "discovery", "Node {:?} in flight requests", node);
+			return;
+		}
+		if self.adding_nodes.iter().any(|n| n.id == node.id) {
+			trace!(target: "discovery", "Node {:?} in adding nodes", node);
+			return;
+		}
+
+		if self.in_flight_pings.len() < MAX_NODES_PING {
+			self.ping(&node)
+				.unwrap_or_else(|e| {
+					warn!(target: "discovery", "Error sending Ping packet: {:?}", e);
+				});
+		} else {
+			self.adding_nodes.push(node);
+		}
 	}
 
-	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<(), Error> {
-		let mut rlp = RlpStream::new();
-		rlp.append_raw(&[packet_id], 1);
-		let source = Rlp::new(payload);
-		rlp.begin_list(source.item_count()? + 1);
-		for i in 0 .. source.item_count()? {
-			rlp.append_raw(source.at(i)?.as_raw(), 1);
-		}
-		let timestamp = 60 + SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as u32;
-		rlp.append(&timestamp);
+	fn ping(&mut self, node: &NodeEntry) -> Result<(), Error> {
+		let mut rlp = RlpStream::new_list(4);
+		rlp.append(&PROTOCOL_VERSION);
+		self.public_endpoint.to_rlp_list(&mut rlp);
+		node.endpoint.to_rlp_list(&mut rlp);
+		append_expiration(&mut rlp);
+		let old_parity_hash = keccak(rlp.as_raw());
+		let hash = self.send_packet(PACKET_PING, &node.endpoint.udp_address(), &rlp.drain())?;
 
-		let bytes = rlp.drain();
-		let hash = keccak(bytes.as_ref());
-		let signature = match sign(&self.secret, &hash) {
-			Ok(s) => s,
-			Err(e) => {
-				warn!("Error signing UDP packet");
-				return Err(Error::from(e));
-			}
-		};
-		let mut packet = Bytes::with_capacity(bytes.len() + 32 + 65);
-		packet.extend(hash.iter());
-		packet.extend(signature.iter());
-		packet.extend(bytes.iter());
-		let signed_hash = keccak(&packet[32..]);
-		packet[0..32].clone_from_slice(&signed_hash);
-		self.send_to(packet, address.clone());
+		self.in_flight_pings.insert(node.id, PingRequest {
+			sent_at: Instant::now(),
+			node: node.clone(),
+			echo_hash: hash,
+			deprecated_echo_hash: old_parity_hash,
+		});
+
+		trace!(target: "discovery", "Sent Ping to {:?} ; node_id={:#x}", &node.endpoint, node.id);
 		Ok(())
+	}
+
+	fn send_find_node(&mut self, node: &NodeEntry, target: &NodeId) -> Result<(), Error> {
+		let mut rlp = RlpStream::new_list(2);
+		rlp.append(target);
+		append_expiration(&mut rlp);
+		self.send_packet(PACKET_FIND_NODE, &node.endpoint.udp_address(), &rlp.drain())?;
+
+		self.in_flight_find_nodes.insert(node.id, FindNodeRequest {
+			sent_at: Instant::now(),
+			response_count: 0,
+			answered: false,
+		});
+
+		trace!(target: "discovery", "Sent FindNode to {:?}", &node.endpoint);
+		Ok(())
+	}
+
+	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<H256, Error> {
+		let packet = assemble_packet(packet_id, payload, &self.secret)?;
+		let hash = H256::from(&packet[0..32]);
+		self.send_to(packet, address.clone());
+		Ok(hash)
 	}
 
 	fn nearest_node_entries(&self, target: &NodeId) -> Vec<NodeEntry> {
@@ -343,7 +417,7 @@ impl Discovery {
 	}
 
 	fn send_to(&mut self, payload: Bytes, address: SocketAddr) {
-		self.send_queue.push_back(Datagram { payload: payload, address: address });
+		self.send_queue.push_back(Datagram { payload, address });
 	}
 
 
@@ -361,7 +435,6 @@ impl Discovery {
 		let signed = &packet[(32 + 65)..];
 		let signature = H520::from_slice(&packet[32..(32 + 65)]);
 		let node_id = recover(&signature.into(), &keccak(signed))?;
-
 		let packet_id = signed[0];
 		let rlp = Rlp::new(&signed[1..]);
 		match packet_id {
@@ -390,43 +463,78 @@ impl Discovery {
 		entry.endpoint.is_allowed(&self.ip_filter) && entry.id != self.id
 	}
 
-	fn on_ping(&mut self, rlp: &Rlp, node: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
+	fn on_ping(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
-		let source = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
-		let dest = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
+		let ping_from = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
+		let ping_to = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
 		self.check_timestamp(timestamp)?;
-		let mut added_map = HashMap::new();
-		let entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
+		let mut response = RlpStream::new_list(3);
+		let pong_to = NodeEndpoint {
+			address: from.clone(),
+			udp_port: ping_from.udp_port
+		};
+		// Here the PONG's `To` field should be the node we are
+		// sending the request to
+		// WARNING: this field _should not be used_, but old Parity versions
+		// use it in order to get the node's address.
+		// So this is a temporary fix so that older Parity versions don't brake completely.
+		ping_to.to_rlp_list(&mut response);
+		// pong_to.to_rlp_list(&mut response);
+
+		response.append(&echo_hash);
+		append_expiration(&mut response);
+		self.send_packet(PACKET_PONG, from, &response.drain())?;
+
+		let entry = NodeEntry { id: *node_id, endpoint: pong_to.clone() };
 		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
 		} else {
-			self.update_node(entry.clone());
-			added_map.insert(node.clone(), entry);
+			self.add_node(entry.clone());
 		}
-		let mut response = RlpStream::new_list(2);
-		dest.to_rlp_list(&mut response);
-		response.append(&echo_hash);
-		self.send_packet(PACKET_PONG, from, &response.drain())?;
-
-		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
+		Ok(None)
 	}
 
-	fn on_pong(&mut self, rlp: &Rlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
-		trace!(target: "discovery", "Got Pong from {:?}", &from);
-		// TODO: validate pong packet in rlp.val_at(1)
-		let dest = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
+	fn on_pong(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+		trace!(target: "discovery", "Got Pong from {:?} ; node_id={:#x}", &from, node_id);
+		let _pong_to = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
+		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
-		let mut entry = NodeEntry { id: node.clone(), endpoint: dest };
-		if !entry.endpoint.is_valid() {
-			debug!(target: "discovery", "Bad address: {:?}", entry);
-			entry.endpoint.address = from.clone();
+
+		let expected_node = match self.in_flight_pings.entry(*node_id) {
+			Entry::Occupied(entry) => {
+				let expected_node = {
+					let request = entry.get();
+					if request.echo_hash != echo_hash && request.deprecated_echo_hash != echo_hash {
+						debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash={:#x} ; expected_hash={:#x}", &from, request.echo_hash, echo_hash);
+						None
+					} else {
+						if request.deprecated_echo_hash == echo_hash {
+							trace!(target: "discovery", "Got Pong from an old parity-ethereum version.");
+						}
+						Some(request.node.clone())
+					}
+				};
+
+				if expected_node.is_some() {
+					entry.remove();
+				}
+				expected_node
+			},
+			Entry::Vacant(_) => {
+				None
+			},
+		};
+
+		if let Some(node) = expected_node {
+			Ok(self.update_node(node))
+		} else {
+			debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
+			Ok(None)
 		}
-		self.clear_ping(node);
-		Ok(None)
 	}
 
 	fn on_find_node(&mut self, rlp: &Rlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
@@ -450,22 +558,52 @@ impl Discovery {
 		let limit = (MAX_DATAGRAM_SIZE - 109) / 90;
 		let chunks = nearest.chunks(limit);
 		let packets = chunks.map(|c| {
-			let mut rlp = RlpStream::new_list(1);
+			let mut rlp = RlpStream::new_list(2);
 			rlp.begin_list(c.len());
-			for n in 0 .. c.len() {
+			for n in c {
 				rlp.begin_list(4);
-				c[n].endpoint.to_rlp(&mut rlp);
-				rlp.append(&c[n].id);
+				n.endpoint.to_rlp(&mut rlp);
+				rlp.append(&n.id);
 			}
+			append_expiration(&mut rlp);
 			rlp.out()
 		});
 		packets.collect()
 	}
 
-	fn on_neighbours(&mut self, rlp: &Rlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
-		// TODO: validate packet
-		let mut added = HashMap::new();
-		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count()?, &from);
+	fn on_neighbours(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+		let results_count = rlp.at(0)?.item_count()?;
+
+		let is_expected = match self.in_flight_find_nodes.entry(*node_id) {
+			Entry::Occupied(mut entry) => {
+				let expected = {
+					let request = entry.get_mut();
+					// Mark the request as answered
+					request.answered = true;
+					if request.response_count + results_count <= BUCKET_SIZE {
+						request.response_count += results_count;
+						true
+					} else {
+						debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; oversized packet ({} + {}) node_id={:#x}", &from, request.response_count, results_count, node_id);
+						false
+					}
+				};
+				if entry.get().response_count == BUCKET_SIZE {
+					entry.remove();
+				}
+				expected
+			}
+			Entry::Vacant(_) => {
+				debug!(target: "discovery", "Got unexpected Neighbors from {:?} ; couldn't find node_id={:#x}", &from, node_id);
+				false
+			},
+		};
+
+		if !is_expected {
+			return Ok(None);
+		}
+
+		trace!(target: "discovery", "Got {} Neighbours from {:?}", results_count, &from);
 		for r in rlp.at(0)?.iter() {
 			let endpoint = NodeEndpoint::from_rlp(&r)?;
 			if !endpoint.is_valid() {
@@ -476,48 +614,84 @@ impl Discovery {
 			if node_id == self.id {
 				continue;
 			}
-			let entry = NodeEntry { id: node_id.clone(), endpoint: endpoint };
+			let entry = NodeEntry { id: node_id, endpoint };
 			if !self.is_allowed(&entry) {
 				debug!(target: "discovery", "Address not allowed: {:?}", entry);
 				continue;
 			}
-			added.insert(node_id, entry.clone());
-			self.ping(&entry.endpoint);
-			self.update_node(entry);
+			self.add_node(entry);
 		}
-		Ok(Some(TableUpdates { added: added, removed: HashSet::new() }))
+		Ok(None)
 	}
 
-	fn check_expired(&mut self, force: bool) -> HashSet<NodeId> {
-		let now = Instant::now();
-		let mut removed: HashSet<NodeId> = HashSet::new();
-		for bucket in &mut self.node_buckets {
-			bucket.nodes.retain(|node| {
-				if let Some(timeout) = node.timeout {
-					if !force && now.duration_since(timeout) < PING_TIMEOUT {
-						true
-					}
-					else {
-						trace!(target: "discovery", "Removed expired node {:?}", &node.address);
-						removed.insert(node.address.id.clone());
-						false
-					}
-				} else { true }
-			});
+	fn check_expired(&mut self, time: Instant) {
+		let mut nodes_to_expire = Vec::new();
+		self.in_flight_pings.retain(|node_id, ping_request| {
+			if time.duration_since(ping_request.sent_at) > PING_TIMEOUT {
+				debug!(target: "discovery", "Removing expired PING request for node_id={:#x}", node_id);
+				nodes_to_expire.push(*node_id);
+				false
+			} else {
+				true
+			}
+		});
+		self.in_flight_find_nodes.retain(|node_id, find_node_request| {
+			if time.duration_since(find_node_request.sent_at) > FIND_NODE_TIMEOUT {
+				if !find_node_request.answered {
+					debug!(target: "discovery", "Removing expired FIND NODE request for node_id={:#x}", node_id);
+					nodes_to_expire.push(*node_id);
+				}
+				false
+			} else {
+				true
+			}
+		});
+		for node_id in nodes_to_expire {
+			self.expire_node_request(node_id);
 		}
-		removed
 	}
 
-	pub fn round(&mut self) -> Option<TableUpdates> {
-		let removed = self.check_expired(false);
-		self.discover();
-		if !removed.is_empty() {
-			Some(TableUpdates { added: HashMap::new(), removed: removed })
-		} else { None }
+	fn expire_node_request(&mut self, node_id: NodeId) {
+		// Attempt to remove from bucket if in one.
+		let id_hash = keccak(&node_id);
+		let dist = Discovery::distance(&self.id_hash, &id_hash)
+			.expect("distance is None only if id hashes are equal; will never send request to self; qed");
+		let bucket = &mut self.node_buckets[dist];
+		if let Some(index) = bucket.nodes.iter().position(|n| n.id_hash == id_hash) {
+			if bucket.nodes[index].fail_count < self.request_backoff.len() {
+				let node = &mut bucket.nodes[index];
+				node.backoff_until = Instant::now() + self.request_backoff[node.fail_count];
+				node.fail_count += 1;
+				trace!(
+					target: "discovery",
+					"Requests to node {:?} timed out {} consecutive time(s)",
+					&node.address, node.fail_count
+				);
+			} else {
+				let node = bucket.nodes.remove(index).expect("index was located in if condition");
+				debug!(target: "discovery", "Removed expired node {:?}", &node.address);
+			}
+		}
+	}
+
+
+	pub fn round(&mut self) {
+		self.check_expired(Instant::now());
+		self.update_new_nodes();
+
+		if self.discovery_round.is_some() {
+			self.discover();
+		// Start discovering if the first pings have been sent (or timed out)
+		} else if self.in_flight_pings.len() == 0 && !self.discovery_initiated {
+			self.discovery_initiated = true;
+			self.refresh();
+		}
 	}
 
 	pub fn refresh(&mut self) {
-		self.start();
+		if self.discovery_round.is_none() {
+			self.start();
+		}
 	}
 
 	pub fn any_sends_queued(&self) -> bool {
@@ -531,12 +705,60 @@ impl Discovery {
 	pub fn requeue_send(&mut self, datagram: Datagram) {
 		self.send_queue.push_front(datagram)
 	}
+
+	/// Add a list of known nodes to the table.
+	#[cfg(test)]
+	pub fn init_node_list(&mut self, nodes: Vec<NodeEntry>) {
+		for n in nodes {
+			if self.is_allowed(&n) {
+				self.update_node(n);
+			}
+		}
+	}
+}
+
+fn append_expiration(rlp: &mut RlpStream) {
+	let expiry = SystemTime::now() + EXPIRY_TIME;
+	let timestamp = expiry.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as u32;
+	rlp.append(&timestamp);
+}
+
+fn assemble_packet(packet_id: u8, bytes: &[u8], secret: &Secret) -> Result<Bytes, Error> {
+	let mut packet = Bytes::with_capacity(bytes.len() + 32 + 65 + 1);
+	packet.resize(32 + 65, 0); // Filled in below
+	packet.push(packet_id);
+	packet.extend_from_slice(bytes);
+
+	let hash = keccak(&packet[(32 + 65)..]);
+	let signature = match sign(secret, &hash) {
+		Ok(s) => s,
+		Err(e) => {
+			warn!(target: "discovery", "Error signing UDP packet");
+			return Err(Error::from(e));
+		}
+	};
+	packet[32..(32 + 65)].copy_from_slice(&signature[..]);
+	let signed_hash = keccak(&packet[32..]);
+	packet[0..32].copy_from_slice(&signed_hash);
+	Ok(packet)
+}
+
+// Selects the next node in a bucket to ping. Chooses the eligible node least recently seen.
+fn select_bucket_ping<'a, I>(nodes: I) -> Option<NodeEntry>
+where
+	I: Iterator<Item=&'a BucketEntry>
+{
+	let now = Instant::now();
+	nodes
+		.filter(|n| n.backoff_until < now)
+		.min_by_key(|n| n.last_seen)
+		.map(|n| n.address.clone())
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::net::{SocketAddr};
+	use std::net::{IpAddr,Ipv4Addr};
 	use node_table::{Node, NodeId, NodeEndpoint};
 
 	use std::str::FromStr;
@@ -561,49 +783,164 @@ mod tests {
 	}
 
 	#[test]
-	fn discovery() {
-		let key1 = Random.generate().unwrap();
-		let key2 = Random.generate().unwrap();
-		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40444").unwrap(), udp_port: 40444 };
-		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
-		let mut discovery1 = Discovery::new(&key1, ep1.clone(), IpFilter::default());
-		let mut discovery2 = Discovery::new(&key2, ep2.clone(), IpFilter::default());
+	fn ping_queue() {
+		let key = Random.generate().unwrap();
+		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
+		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
-		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
-		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();
-		discovery1.add_node(NodeEntry { id: node1.id.clone(), endpoint: node1.endpoint.clone() });
-		discovery1.add_node(NodeEntry { id: node2.id.clone(), endpoint: node2.endpoint.clone() });
-
-		discovery2.add_node(NodeEntry { id: key1.public().clone(), endpoint: ep1.clone() });
-		discovery2.refresh();
-
-		for _ in 0 .. 10 {
-			while let Some(datagram) = discovery1.dequeue_send() {
-				if datagram.address == ep2.address {
-					discovery2.on_packet(&datagram.payload, ep1.address.clone()).ok();
-				}
-			}
-			while let Some(datagram) = discovery2.dequeue_send() {
-				if datagram.address == ep1.address {
-					discovery1.on_packet(&datagram.payload, ep2.address.clone()).ok();
-				}
-			}
-			discovery2.round();
+		for i in 1..(MAX_NODES_PING+1) {
+			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
+			assert_eq!(discovery.in_flight_pings.len(), i);
+			assert_eq!(discovery.send_queue.len(), i);
+			assert_eq!(discovery.adding_nodes.len(), 0);
 		}
-		assert_eq!(discovery2.nearest_node_entries(&NodeId::new()).len(), 3)
+		for i in 1..20 {
+			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
+			assert_eq!(discovery.in_flight_pings.len(), MAX_NODES_PING);
+			assert_eq!(discovery.send_queue.len(), MAX_NODES_PING);
+			assert_eq!(discovery.adding_nodes.len(), i);
+		}
+	}
+
+	#[test]
+	fn discovery() {
+		let mut discovery_handlers = (0..5).map(|i| {
+			let key = Random.generate().unwrap();
+			let ep = NodeEndpoint {
+				address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 41000 + i),
+				udp_port: 41000 + i,
+			};
+			Discovery::new(&key, ep, IpFilter::default())
+		})
+			.collect::<Vec<_>>();
+
+		// Sort inversely by XOR distance to the 0 hash.
+		discovery_handlers.sort_by(|a, b| b.id_hash.cmp(&a.id_hash));
+
+		// Initialize the routing table of each with the next one in order.
+		for i in 0 .. 5 {
+			let node = NodeEntry {
+				id: discovery_handlers[(i + 1) % 5].id,
+				endpoint: discovery_handlers[(i + 1) % 5].public_endpoint.clone(),
+			};
+			discovery_handlers[i].update_node(node);
+		}
+
+		// After 4 discovery rounds, the first one should have learned about the rest.
+		for _round in 0 .. 4 {
+			discovery_handlers[0].round();
+
+			let mut continue_loop = true;
+			while continue_loop {
+				continue_loop = false;
+
+				// Process all queued messages.
+				for i in 0 .. 5 {
+					let src = discovery_handlers[i].public_endpoint.address.clone();
+					while let Some(datagram) = discovery_handlers[i].dequeue_send() {
+						let dest = discovery_handlers.iter_mut()
+							.find(|disc| datagram.address == disc.public_endpoint.address)
+							.unwrap();
+						dest.on_packet(&datagram.payload, src).ok();
+
+						continue_loop = true;
+					}
+				}
+			}
+		}
+
+		let results = discovery_handlers[0].nearest_node_entries(&NodeId::new());
+		assert_eq!(results.len(), 4);
 	}
 
 	#[test]
 	fn removes_expired() {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
-		for _ in 0..1200 {
+		let discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+
+		let mut discovery = Discovery { request_backoff: &[], ..discovery };
+
+		let total_bucket_nodes = |node_buckets: &Vec<NodeBucket>| -> usize {
+			node_buckets.iter().map(|bucket| bucket.nodes.len()).sum()
+		};
+
+		let node_entries = (0..1200)
+			.map(|_| NodeEntry { id: NodeId::random(), endpoint: ep.clone() })
+			.collect::<Vec<_>>();
+
+		discovery.init_node_list(node_entries.clone());
+		assert_eq!(total_bucket_nodes(&discovery.node_buckets), 1200);
+
+		// Requests have not expired yet.
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now());
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
+		assert_eq!(removed, 0);
+
+		// Expiring pings to bucket nodes removes them from bucket.
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + PING_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
+		assert!(removed > 0);
+		assert_eq!(total_bucket_nodes(&discovery.node_buckets), 1200 - removed);
+
+		for _ in 0..100 {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
 		}
-		assert!(discovery.nearest_node_entries(&NodeId::new()).len() <= 16);
-		let removed = discovery.check_expired(true).len();
+		assert!(discovery.in_flight_pings.len() > 0);
+
+		// Expire pings to nodes that are not in buckets.
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + PING_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
+		assert_eq!(removed, 0);
+		assert_eq!(discovery.in_flight_pings.len(), 0);
+
+		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
+
+		// FIND_NODE times out because it doesn't receive k results.
+		let key = Random.generate().unwrap();
+		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
+		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..116]) {
+			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
+			discovery.on_packet(&packet, from.clone()).unwrap();
+		}
+
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + FIND_NODE_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
 		assert!(removed > 0);
+
+		// FIND_NODE does not time out because it receives k results.
+		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
+		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..117]) {
+			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
+			discovery.on_packet(&packet, from.clone()).unwrap();
+		}
+
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + FIND_NODE_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
+		assert_eq!(removed, 0);
+
+		// Test bucket evictions with retries.
+		let request_backoff = [Duration::new(0, 0); 2];
+		let mut discovery = Discovery { request_backoff: &request_backoff, ..discovery };
+
+		for _ in 0..2 {
+			discovery.ping(&node_entries[101]).unwrap();
+			let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+			discovery.check_expired(Instant::now() + PING_TIMEOUT);
+			let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
+			assert_eq!(removed, 0);
+		}
+
+		discovery.ping(&node_entries[101]).unwrap();
+		let num_nodes = total_bucket_nodes(&discovery.node_buckets);
+		discovery.check_expired(Instant::now() + PING_TIMEOUT);
+		let removed = num_nodes - total_bucket_nodes(&discovery.node_buckets);
+		assert_eq!(removed, 1);
 	}
 
 	#[test]
@@ -615,11 +952,8 @@ mod tests {
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
 		for _ in 0..(16 + 10) {
-			discovery.node_buckets[0].nodes.push_back(BucketEntry {
-				address: NodeEntry { id: NodeId::new(), endpoint: ep.clone() },
-				timeout: None,
-				id_hash: keccak(NodeId::new()),
-			});
+			let entry = BucketEntry::new(NodeEntry { id: NodeId::new(), endpoint: ep.clone() });
+			discovery.node_buckets[0].nodes.push_back(entry);
 		}
 		let nearest = discovery.nearest_node_entries(&NodeId::new());
 		assert_eq!(nearest.len(), 16)
@@ -674,7 +1008,7 @@ mod tests {
 			.unwrap();
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
-		node_entries.iter().for_each(|entry| discovery.update_node(entry.clone()));
+		discovery.init_node_list(node_entries.clone());
 
 		let expected_bucket_sizes = vec![
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -727,7 +1061,7 @@ mod tests {
 		4be2be5a685a80971ddcfa80cb422cdd0101ec04cb847f000001820cfa8215a8d790000000000000\
 		000000000000000000018208ae820d058443b9a3550102\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
 		let packet = "\
 		577be4349c4dd26768081f58de4c6f375a7a22f3f7adda654d1428637412c3d7fe917cadc56d4e5e\
@@ -739,7 +1073,7 @@ mod tests {
 		7084a95398b6a21eac920fe3dd1345ec0a7ef39367ee69ddf092cbfe5b93e5e568ebc491983c09c7\
 		6d922dc3\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
 		let packet = "\
 		09b2428d83348d27cdf7064ad9024f526cebc19e4958f0fdad87c15eb598dd61d08423e0bf66b206\
@@ -749,7 +1083,7 @@ mod tests {
 		a355c6010203c2040506a0c969a58f6f9095004c0177a6b47f451530cab38966a25cca5cb58f0555
 		42124e\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
 		let packet = "\
 		c7c44041b9f7c7e41934417ebac9a8e1a4c6298f74553f2fcfdcae6ed6fe53163eb3d2b52e39fe91\
@@ -759,7 +1093,7 @@ mod tests {
 		7bf5ccd1fc7f8443b9a35582999983999999280dc62cc8255c73471e0a61da0c89acdc0e035e260a\
 		dd7fc0c04ad9ebf3919644c91cb247affc82b69bd2ca235c71eab8e49737c937a2c396\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
 		let packet = "\
 		c679fc8fe0b8b12f06577f2e802d34f6fa257e6137a995f6f4cbfc9ee50ed3710faf6e66f932c4c8\
@@ -775,24 +1109,79 @@ mod tests {
 		197101a4b2b47dd2d47295286fc00cc081bb542d760717d1bdd6bec2c37cd72eca367d6dd3b9df73\
 		8443b9a355010203b525a138aa34383fec3d2719a0\
 		".from_hex().unwrap();
-		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
+		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 	}
 
 	#[test]
 	fn test_ping() {
 		let key1 = Random.generate().unwrap();
 		let key2 = Random.generate().unwrap();
+		let key3 = Random.generate().unwrap();
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40344").unwrap(), udp_port: 40344 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40345").unwrap(), udp_port: 40345 };
+		let ep3 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40346").unwrap(), udp_port: 40345 };
 		let mut discovery1 = Discovery::new(&key1, ep1.clone(), IpFilter::default());
 		let mut discovery2 = Discovery::new(&key2, ep2.clone(), IpFilter::default());
 
-		discovery1.ping(&ep2);
+		discovery1.ping(&NodeEntry { id: discovery2.id, endpoint: ep2.clone() }).unwrap();
 		let ping_data = discovery1.dequeue_send().unwrap();
-		discovery2.on_packet(&ping_data.payload, ep1.address.clone()).ok();
+		assert!(!discovery1.any_sends_queued());
+		let data = &ping_data.payload[(32 + 65)..];
+		assert_eq!(data[0], PACKET_PING);
+		let rlp = Rlp::new(&data[1..]);
+		assert_eq!(ep1, NodeEndpoint::from_rlp(&rlp.at(1).unwrap()).unwrap());
+		assert_eq!(ep2, NodeEndpoint::from_rlp(&rlp.at(2).unwrap()).unwrap());
+
+		// `discovery1` should be added to node table on ping received
+		if let Some(_) = discovery2.on_packet(&ping_data.payload, ep1.address.clone()).unwrap() {
+			panic!("Expected no changes to discovery2's table");
+		}
+
 		let pong_data = discovery2.dequeue_send().unwrap();
 		let data = &pong_data.payload[(32 + 65)..];
+		assert_eq!(data[0], PACKET_PONG);
 		let rlp = Rlp::new(&data[1..]);
-		assert_eq!(ping_data.payload[0..32], rlp.val_at::<Vec<u8>>(1).unwrap()[..])
+		assert_eq!(ping_data.payload[0..32], rlp.val_at::<Vec<u8>>(1).unwrap()[..]);
+
+		// Create a pong packet with incorrect echo hash and assert that it is rejected.
+		let mut incorrect_pong_rlp = RlpStream::new_list(3);
+		ep1.to_rlp_list(&mut incorrect_pong_rlp);
+		incorrect_pong_rlp.append(&H256::default());
+		append_expiration(&mut incorrect_pong_rlp);
+		let incorrect_pong_data = assemble_packet(
+			PACKET_PONG, &incorrect_pong_rlp.drain(), &discovery2.secret
+		).unwrap();
+		if let Some(_) = discovery1.on_packet(&incorrect_pong_data, ep2.address.clone()).unwrap() {
+			panic!("Expected no changes to discovery1's table because pong hash is incorrect");
+		}
+
+		// Delivery of valid pong response should add to routing table.
+		if let Some(table_updates) = discovery1.on_packet(&pong_data.payload, ep2.address.clone()).unwrap() {
+			assert_eq!(table_updates.added.len(), 1);
+			assert_eq!(table_updates.removed.len(), 0);
+			assert!(table_updates.added.contains_key(&discovery2.id));
+		} else {
+			panic!("Expected discovery1 to be added to discovery1's table");
+		}
+
+		let ping_back = discovery2.dequeue_send().unwrap();
+		assert!(!discovery2.any_sends_queued());
+		let data = &ping_back.payload[(32 + 65)..];
+		assert_eq!(data[0], PACKET_PING);
+		let rlp = Rlp::new(&data[1..]);
+		assert_eq!(ep2, NodeEndpoint::from_rlp(&rlp.at(1).unwrap()).unwrap());
+		assert_eq!(ep1, NodeEndpoint::from_rlp(&rlp.at(2).unwrap()).unwrap());
+
+		// Deliver an unexpected PONG message to discover1.
+		let mut unexpected_pong_rlp = RlpStream::new_list(3);
+		ep3.to_rlp_list(&mut unexpected_pong_rlp);
+		unexpected_pong_rlp.append(&H256::default());
+		append_expiration(&mut unexpected_pong_rlp);
+		let unexpected_pong = assemble_packet(
+			PACKET_PONG, &unexpected_pong_rlp.drain(), key3.secret()
+		).unwrap();
+		if let Some(_) = discovery1.on_packet(&unexpected_pong, ep3.address.clone()).unwrap() {
+			panic!("Expected no changes to discovery1's table for unexpected pong");
+		}
 	}
 }

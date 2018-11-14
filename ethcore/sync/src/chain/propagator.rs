@@ -29,17 +29,13 @@ use transaction::SignedTransaction;
 use super::{
 	random,
 	ChainSync,
+	MAX_TRANSACTION_PACKET_SIZE,
 	MAX_PEER_LAG_PROPAGATION,
 	MAX_PEERS_PROPAGATION,
-	MAX_TRANSACTION_PACKET_SIZE,
-	MAX_TRANSACTIONS_TO_PROPAGATE,
-	MAX_TRANSACTIONS_TO_QUERY,
 	MIN_PEERS_PROPAGATION,
 	CONSENSUS_DATA_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
 	NEW_BLOCK_PACKET,
-	PRIVATE_TRANSACTION_PACKET,
-	SIGNED_PRIVATE_TRANSACTION_PACKET,
 	TRANSACTIONS_PACKET,
 };
 
@@ -48,15 +44,21 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 	// Parity versions starting from this will accept service-transactions
 	const SERVICE_TRANSACTIONS_VERSION: (u32, u32) = (1u32, 6u32);
 	// Parity client string prefix
-	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity/v";
+	const LEGACY_CLIENT_ID_PREFIX: &'static str = "Parity/v";
+	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity-Ethereum/v";
 
-	if !client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
+	let splitted = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) {
+		client_id[LEGACY_CLIENT_ID_PREFIX.len()..].split('.')
+	} else if client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
+		client_id[PARITY_CLIENT_ID_PREFIX.len()..].split('.')
+	} else {
 		return false;
-	}
-	let ver: Vec<u32> = client_id[PARITY_CLIENT_ID_PREFIX.len()..].split('.')
-		.take(2)
-		.filter_map(|s| s.parse().ok())
-		.collect();
+	};
+
+	let ver: Vec<u32> = splitted
+			.take(2)
+			.filter_map(|s| s.parse().ok())
+			.collect();
 	ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
 }
 
@@ -115,7 +117,7 @@ impl SyncPropagator {
 			return 0;
 		}
 
-		let transactions = io.chain().ready_transactions(MAX_TRANSACTIONS_TO_QUERY);
+		let transactions = io.chain().transactions_to_propagate();
 		if transactions.is_empty() {
 			return 0;
 		}
@@ -178,7 +180,6 @@ impl SyncPropagator {
 
 					// Get hashes of all transactions to send to this peer
 					let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions)
-						.take(MAX_TRANSACTIONS_TO_PROPAGATE)
 						.cloned()
 						.collect::<HashSet<_>>();
 					if to_send.is_empty() {
@@ -199,7 +200,7 @@ impl SyncPropagator {
 								let appended = packet.append_raw_checked(&transaction.drain(), 1, MAX_TRANSACTION_PACKET_SIZE);
 								if !appended {
 									// Maximal packet size reached just proceed with sending
-									debug!("Transaction packet size limit reached. Sending incomplete set of {}/{} transactions.", pushed, to_send.len());
+									debug!(target: "sync", "Transaction packet size limit reached. Sending incomplete set of {}/{} transactions.", pushed, to_send.len());
 									to_send = to_send.into_iter().take(pushed).collect();
 									break;
 								}
@@ -234,8 +235,9 @@ impl SyncPropagator {
 			let lucky_peers_len = lucky_peers.len();
 			for (peer_id, sent, rlp) in lucky_peers {
 				peers.insert(peer_id);
+				let size = rlp.len();
 				SyncPropagator::send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
-				trace!(target: "sync", "{:02} <- Transactions ({} entries)", peer_id, sent);
+				trace!(target: "sync", "{:02} <- Transactions ({} entries; {} bytes)", peer_id, sent, size);
 				max_sent = cmp::max(max_sent, sent);
 			}
 			debug!(target: "sync", "Sent up to {} transactions to {} peers.", max_sent, lucky_peers_len);
@@ -289,20 +291,14 @@ impl SyncPropagator {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers());
+	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
+		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
 		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
-			SyncPropagator::send_packet(io, peer_id, PRIVATE_TRANSACTION_PACKET, packet.clone());
-		}
-	}
-
-	/// Broadcast signed private transaction message to peers.
-	pub fn propagate_signed_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers());
-		trace!(target: "sync", "Sending signed private transaction packet to {:?}", lucky_peers);
-		for peer_id in lucky_peers {
-			SyncPropagator::send_packet(io, peer_id, SIGNED_PRIVATE_TRANSACTION_PACKET, packet.clone());
+			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+				peer.last_sent_private_transactions.insert(transaction_hash);
+			}
+			SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
 		}
 	}
 
@@ -424,6 +420,7 @@ mod tests {
 				asking_hash: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: HashSet::new(),
+				last_sent_private_transactions: HashSet::new(),
 				expired: false,
 				confirmation: ForkConfirmation::Confirmed,
 				snapshot_number: None,
@@ -577,13 +574,13 @@ mod tests {
 		io.peers_info.insert(1, "Geth".to_owned());
 		// and peer#2 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 2, block_hash);
-		io.peers_info.insert(2, "Parity/v1.6".to_owned());
+		io.peers_info.insert(2, "Parity-Ethereum/v2.6".to_owned());
 		// and peer#3 is Parity, discarding service transactions
 		insert_dummy_peer(&mut sync, 3, block_hash);
 		io.peers_info.insert(3, "Parity/v1.5".to_owned());
 		// and peer#4 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 4, block_hash);
-		io.peers_info.insert(4, "Parity/v1.7.3-ABCDEFGH".to_owned());
+		io.peers_info.insert(4, "Parity-Ethereum/v2.7.3-ABCDEFGH".to_owned());
 
 		// and new service transaction is propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io);
@@ -607,7 +604,7 @@ mod tests {
 
 		// when peer#1 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 1, block_hash);
-		io.peers_info.insert(1, "Parity/v1.6".to_owned());
+		io.peers_info.insert(1, "Parity-Ethereum/v2.6".to_owned());
 
 		// and service + non-service transactions are propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io);

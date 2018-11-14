@@ -8,36 +8,34 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
+common-types = { path = "../types" }
+parity-bytes = "0.1"
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
 ethcore-transaction = { path = "../transaction" }
 ethcore = { path = ".." }
-ethereum-types = "0.3"
-hashdb = { git = "https://github.com/paritytech/parity-common" }
-plain_hasher = { git = "https://github.com/paritytech/parity-common" }
-rlp = { git = "https://github.com/paritytech/parity-common" }
-rustc-hex = "1.0"
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.4"
+hashdb = "0.3.0"
+fastmap = { path = "../../util/fastmap" }
+rlp = { version = "0.3.0", features = ["ethereum"] }
+keccak-hash = "0.1"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
-kvdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb = "0.1"
 macros = { path = "../../util/macros" }
-log = "0.3"
-env_logger = "0.4"
+log = "0.4"
+env_logger = "0.5"
 rand = "0.4"
 heapsize = "0.4"
-semver = "0.9"
-smallvec = { version = "0.4", features = ["heapsizeof"] }
 parking_lot = "0.6"
-trace-time = { path = "../../util/trace-time" }
-ipnetwork = "0.12.6"
+trace-time = "0.1"
 
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethkey = { path = "../../ethkey" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = "0.1"
 ethcore-private-tx = { path = "../private-tx" }
 ethcore = { path = "..", features = ["test-helpers"] }
+rustc-hex = "1.0"

@@ -43,8 +43,6 @@ pub struct ExtendedHeader {
 	pub is_finalized: bool,
 	/// The parent block difficulty.
 	pub parent_total_difficulty: U256,
-	/// The block metadata information.
-	pub metadata: Option<Vec<u8>>,
 }
 
 /// A block header.
@@ -418,10 +416,6 @@ impl ::parity_machine::FinalizableHeader for ExtendedHeader {
 	fn is_finalized(&self) -> bool { self.is_finalized }
 }
 
-impl ::parity_machine::WithMetadataHeader for ExtendedHeader {
-	fn metadata(&self) -> Option<&[u8]> { self.metadata.as_ref().map(|v| v.as_ref()) }
-}
-
 #[cfg(test)]
 mod tests {
 	use rustc_hex::FromHex;
@@ -455,7 +449,7 @@ mod tests {
 		let header_rlp = "f901f9a0d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a05fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25a088d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158a007c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302008003832fefba82524d84568e932a80a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd88ab4e252a7e8c2a23".from_hex().unwrap();
 
 		let header: Header = rlp::decode(&header_rlp).expect("error decoding header");
-		let encoded_header = rlp::encode(&header).into_vec();
+		let encoded_header = rlp::encode(&header);
 
 		assert_eq!(header_rlp, encoded_header);
 	}

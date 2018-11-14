@@ -24,7 +24,7 @@ use ethjson::bytes::Bytes;
 pub enum Source {
 	Raw(Cow<'static, String>),
 	Constructor {
-		#[serde(rename="constructor")]
+		#[serde(rename = "constructor")]
 		source: Cow<'static, String>,
 		arguments: Bytes,
 		sender: Address,
@@ -42,13 +42,13 @@ impl Source {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Fixture {
 	pub caption: Cow<'static, String>,
 	pub source: Source,
 	pub address: Option<Address>,
 	pub sender: Option<Address>,
 	pub value: Option<Uint>,
-	#[serde(rename="gasLimit")]
 	pub gas_limit: Option<u64>,
 	pub payload: Option<Bytes>,
 	pub storage: Option<Vec<StorageEntry>>,
@@ -62,12 +62,12 @@ pub struct StorageEntry {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CallLocator {
 	pub sender: Option<Address>,
 	pub receiver: Option<Address>,
 	pub value: Option<Uint>,
 	pub data: Option<Bytes>,
-	#[serde(rename="codeAddress")]
 	pub code_address: Option<Address>,
 }
 

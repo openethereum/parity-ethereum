@@ -17,12 +17,12 @@
 use std::sync::Arc;
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use crossbeam::sync::chase_lev;
+use deque;
 use service_mio::{HandlerId, IoChannel, IoContext};
 use IoHandler;
 use LOCAL_STACK_SIZE;
 
-use std::sync::{Condvar as SCondvar, Mutex as SMutex};
+use parking_lot::{Condvar, Mutex};
 
 const STACK_SIZE: usize = 16*1024*1024;
 
@@ -45,18 +45,18 @@ pub struct Work<Message> {
 /// Sorts them ready for blockchain insertion.
 pub struct Worker {
 	thread: Option<JoinHandle<()>>,
-	wait: Arc<SCondvar>,
+	wait: Arc<Condvar>,
 	deleting: Arc<AtomicBool>,
-	wait_mutex: Arc<SMutex<()>>,
+	wait_mutex: Arc<Mutex<()>>,
 }
 
 impl Worker {
 	/// Creates a new worker instance.
 	pub fn new<Message>(index: usize,
-						stealer: chase_lev::Stealer<Work<Message>>,
+						stealer: deque::Stealer<Work<Message>>,
 						channel: IoChannel<Message>,
-						wait: Arc<SCondvar>,
-						wait_mutex: Arc<SMutex<()>>,
+						wait: Arc<Condvar>,
+						wait_mutex: Arc<Mutex<()>>,
 					   ) -> Worker
 					where Message: Send + Sync + 'static {
 		let deleting = Arc::new(AtomicBool::new(false));
@@ -75,24 +75,26 @@ impl Worker {
 		worker
 	}
 
-	fn work_loop<Message>(stealer: chase_lev::Stealer<Work<Message>>,
-						channel: IoChannel<Message>, wait: Arc<SCondvar>,
-						wait_mutex: Arc<SMutex<()>>,
+	fn work_loop<Message>(stealer: deque::Stealer<Work<Message>>,
+						channel: IoChannel<Message>,
+						wait: Arc<Condvar>,
+						wait_mutex: Arc<Mutex<()>>,
 						deleting: Arc<AtomicBool>)
 						where Message: Send + Sync + 'static {
 		loop {
 			{
-				let lock = wait_mutex.lock().expect("Poisoned work_loop mutex");
+				let mut lock = wait_mutex.lock();
 				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}
-				let _ = wait.wait(lock);
+				wait.wait(&mut lock);
 			}
 
 			while !deleting.load(AtomicOrdering::Acquire) {
 				match stealer.steal() {
-					chase_lev::Steal::Data(work) => Worker::do_work(work, channel.clone()),
-					_ => break,
+					deque::Steal::Data(work) => Worker::do_work(work, channel.clone()),
+					deque::Steal::Retry => {},
+					deque::Steal::Empty => break,
 				}
 			}
 		}
@@ -122,7 +124,7 @@ impl Worker {
 impl Drop for Worker {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[IoWorker] Closing...");
-		let _ = self.wait_mutex.lock().expect("Poisoned work_loop mutex");
+		let _ = self.wait_mutex.lock();
 		self.deleting.store(true, AtomicOrdering::Release);
 		self.wait.notify_all();
 		if let Some(thread) = self.thread.take() {

@@ -349,7 +349,7 @@ impl Encodable for Request {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 
-		// hack around https://github.com/paritytech/parity/issues/4356
+		// hack around https://github.com/paritytech/parity-ethereum/issues/4356
 		Encodable::rlp_append(&self.kind(), s);
 
 		match *self {
@@ -596,7 +596,7 @@ impl Encodable for Response {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 
-		// hack around https://github.com/paritytech/parity/issues/4356
+		// hack around https://github.com/paritytech/parity-ethereum/issues/4356
 		Encodable::rlp_append(&self.kind(), s);
 
 		match *self {
@@ -764,9 +764,7 @@ pub mod header {
 				headers.push(encoded::Header::new(item.as_raw().to_owned()));
 			}
 
-			Ok(Response {
-				headers: headers,
-			})
+			Ok(Response { headers })
 		}
 	}
 
@@ -814,7 +812,7 @@ pub mod header_proof {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.num {
 				self.num = match oracle(req, idx) {
-					Ok(Output::Number(num)) => Field::Scalar(num.into()),
+					Ok(Output::Number(num)) => Field::Scalar(num),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -1053,7 +1051,7 @@ pub mod block_body {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.hash {
 				self.hash = match oracle(req, idx) {
-					Ok(Output::Hash(hash)) => Field::Scalar(hash.into()),
+					Ok(Output::Hash(hash)) => Field::Scalar(hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -1152,14 +1150,14 @@ pub mod account {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.block_hash {
 				self.block_hash = match oracle(req, idx) {
-					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
 
 			if let Field::BackReference(req, idx) = self.address_hash {
 				self.address_hash = match oracle(req, idx) {
-					Ok(Output::Hash(address_hash)) => Field::Scalar(address_hash.into()),
+					Ok(Output::Hash(address_hash)) => Field::Scalar(address_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -1257,21 +1255,21 @@ pub mod storage {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.block_hash {
 				self.block_hash = match oracle(req, idx) {
-					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
 
 			if let Field::BackReference(req, idx) = self.address_hash {
 				self.address_hash = match oracle(req, idx) {
-					Ok(Output::Hash(address_hash)) => Field::Scalar(address_hash.into()),
+					Ok(Output::Hash(address_hash)) => Field::Scalar(address_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
 
 			if let Field::BackReference(req, idx) = self.key_hash {
 				self.key_hash = match oracle(req, idx) {
-					Ok(Output::Hash(key_hash)) => Field::Scalar(key_hash.into()),
+					Ok(Output::Hash(key_hash)) => Field::Scalar(key_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -1357,14 +1355,14 @@ pub mod contract_code {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.block_hash {
 				self.block_hash = match oracle(req, idx) {
-					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
 
 			if let Field::BackReference(req, idx) = self.code_hash {
 				self.code_hash = match oracle(req, idx) {
-					Ok(Output::Hash(code_hash)) => Field::Scalar(code_hash.into()),
+					Ok(Output::Hash(code_hash)) => Field::Scalar(code_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -1452,7 +1450,7 @@ pub mod execution {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.block_hash {
 				self.block_hash = match oracle(req, idx) {
-					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -1514,9 +1512,7 @@ pub mod execution {
 				items.push(item);
 			}
 
-			Ok(Response {
-				items: items,
-			})
+			Ok(Response { items })
 		}
 	}
 
@@ -1578,7 +1574,7 @@ pub mod epoch_signal {
 		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
 			if let Field::BackReference(req, idx) = self.block_hash {
 				self.block_hash = match oracle(req, idx) {
-					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash),
 					_ => Field::BackReference(req, idx),
 				}
 			}
@@ -1680,7 +1676,7 @@ mod tests {
 		let full_req = Request::Headers(req.clone());
 		let res = HeadersResponse {
 			headers: vec![
-				::ethcore::encoded::Header::new(::rlp::encode(&Header::default()).into_vec())
+				::ethcore::encoded::Header::new(::rlp::encode(&Header::default()))
 			]
 		};
 		let full_res = Response::Headers(res.clone());

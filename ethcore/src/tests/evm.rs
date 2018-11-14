@@ -29,7 +29,6 @@ use transaction::SYSTEM_ADDRESS;
 use rustc_hex::FromHex;
 
 use ethereum_types::{H256, Address};
-use bytes::BytesRef;
 
 evm_test!{test_blockhash_eip210: test_blockhash_eip210_int}
 fn test_blockhash_eip210(factory: Factory) {
@@ -39,7 +38,7 @@ fn test_blockhash_eip210(factory: Factory) {
 	let test_blockhash_contract = "73fffffffffffffffffffffffffffffffffffffffe33141561007a57600143036020526000356101006020510755600061010060205107141561005057600035610100610100602051050761010001555b6000620100006020510714156100755760003561010062010000602051050761020001555b61014a565b4360003512151561009057600060405260206040f35b610100600035430312156100b357610100600035075460605260206060f3610149565b62010000600035430312156100d157600061010060003507146100d4565b60005b156100f6576101006101006000350507610100015460805260206080f3610148565b630100000060003543031215610116576000620100006000350714610119565b60005b1561013c57610100620100006000350507610200015460a052602060a0f3610147565b600060c052602060c0f35b5b5b5b5b";
 	let blockhash_contract_code = Arc::new(test_blockhash_contract.from_hex().unwrap());
 	let blockhash_contract_code_hash = keccak(blockhash_contract_code.as_ref());
-	let machine = ::ethereum::new_constantinople_test_machine();
+	let machine = ::ethereum::new_eip210_test_machine();
 	let mut env_info = EnvInfo::default();
 
 	// populate state with 256 last hashes
@@ -62,10 +61,10 @@ fn test_blockhash_eip210(factory: Factory) {
 			call_type: CallType::Call,
 			params_type: ParamsType::Separate,
 		};
-		let mut ex = Executive::new(&mut state, &env_info, &machine);
+		let schedule = machine.schedule(env_info.number);
+		let mut ex = Executive::new(&mut state, &env_info, &machine, &schedule);
 		let mut substate = Substate::new();
-		let mut output = [];
-		if let Err(e) = ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
+		if let Err(e) = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
 			panic!("Encountered error on updating last hashes: {}", e);
 		}
 	}
@@ -85,11 +84,15 @@ fn test_blockhash_eip210(factory: Factory) {
 		call_type: CallType::Call,
 		params_type: ParamsType::Separate,
 	};
-	let mut ex = Executive::new(&mut state, &env_info, &machine);
+	let schedule = machine.schedule(env_info.number);
+	let mut ex = Executive::new(&mut state, &env_info, &machine, &schedule);
 	let mut substate = Substate::new();
-	let mut output = H256::new();
-	if let Err(e) = ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
-		panic!("Encountered error on getting last hash: {}", e);
-	}
+	let res = ex.call(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer);
+	let output = match res {
+		Ok(res) => H256::from(&res.return_data[..32]),
+		Err(e) => {
+			panic!("Encountered error on getting last hash: {}", e);
+		},
+	};
 	assert_eq!(output, 255.into());
 }

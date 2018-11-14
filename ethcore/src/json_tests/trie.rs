@@ -20,6 +20,7 @@ use ethtrie::RlpCodec;
 use ethereum_types::H256;
 use memorydb::MemoryDB;
 use keccak_hasher::KeccakHasher;
+use kvdb::DBValue;
 
 use super::HookType;
 
@@ -36,7 +37,7 @@ fn test_trie<H: FnMut(&str, HookType)>(json: &[u8], trie: TrieSpec, start_stop_h
 	for (name, test) in tests.into_iter() {
 		start_stop_hook(&name, HookType::OnStart);
 
-		let mut memdb = MemoryDB::<KeccakHasher>::new();
+		let mut memdb = MemoryDB::<KeccakHasher, DBValue>::new();
 		let mut root = H256::default();
 		let mut t = factory.create(&mut memdb, &mut root);
 

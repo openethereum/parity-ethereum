@@ -2,8 +2,8 @@
 # Make sure to update the service if it's moved or the structure is changed.
 [package]
 name = "parity-version"
-# NOTE: this value is used for Parity version string (via env CARGO_PKG_VERSION)
-version = "1.12.0"
+# NOTE: this value is used for Parity Ethereum version string (via env CARGO_PKG_VERSION)
+version = "2.3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -17,12 +17,12 @@ track = "nightly"
 # Indicates a critical release in this track (i.e. consensus issue).
 [package.metadata.networks]
 foundation = { forkBlock = 4370000, critical = false }
-ropsten = { forkBlock = 10, critical = false }
+ropsten = { forkBlock = 4230000, critical = false }
 kovan = { forkBlock = 6600000, critical = false }
 
 [dependencies]
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
-rlp = { git = "https://github.com/paritytech/parity-common" }
+parity-bytes = "0.1"
+rlp = { version = "0.3.0", features = ["ethereum"] }
 target_info = "0.1"
 
 [build-dependencies]

@@ -204,20 +204,20 @@ pub fn default_network_config() -> ::sync::NetworkConfiguration {
 }
 
 pub fn to_client_config(
-		cache_config: &CacheConfig,
-		spec_name: String,
-		mode: Mode,
-		tracing: bool,
-		fat_db: bool,
-		compaction: DatabaseCompactionProfile,
-		wal: bool,
-		vm_type: VMType,
-		name: String,
-		pruning: Algorithm,
-		pruning_history: u64,
-		pruning_memory: usize,
-		check_seal: bool,
-	) -> ClientConfig {
+	cache_config: &CacheConfig,
+	spec_name: String,
+	mode: Mode,
+	tracing: bool,
+	fat_db: bool,
+	compaction: DatabaseCompactionProfile,
+	vm_type: VMType,
+	name: String,
+	pruning: Algorithm,
+	pruning_history: u64,
+	pruning_memory: usize,
+	check_seal: bool,
+	max_round_blocks_to_import: usize,
+) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
 	let mb = 1024 * 1024;
@@ -246,11 +246,11 @@ pub fn to_client_config(
 	client_config.pruning = pruning;
 	client_config.history = pruning_history;
 	client_config.db_compaction = compaction;
-	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
 	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
 	client_config.spec_name = spec_name;
+	client_config.max_round_blocks_to_import = max_round_blocks_to_import;
 	client_config
 }
 
@@ -263,7 +263,7 @@ pub fn execute_upgrades(
 
 	upgrade_data_paths(base_path, dirs, pruning);
 
-	match upgrade(Some(&dirs.path)) {
+	match upgrade(&dirs.path) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},

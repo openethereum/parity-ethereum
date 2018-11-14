@@ -16,111 +16,82 @@
 
 //! Ethash params deserialization.
 
+use std::collections::BTreeMap;
 use uint::{self, Uint};
+use bytes::Bytes;
 use hash::Address;
+
+/// Deserializable doppelganger of block rewards for EthashParams
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum BlockReward {
+	Single(Uint),
+	Multi(BTreeMap<Uint, Uint>),
+}
 
 /// Deserializable doppelganger of EthashParams.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EthashParams {
 	/// See main EthashParams docs.
-	#[serde(rename="minimumDifficulty")]
+	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub minimum_difficulty: Uint,
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyBoundDivisor")]
 	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub difficulty_bound_divisor: Uint,
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyIncrementDivisor")]
 	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="metropolisDifficultyIncrementDivisor")]
 	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub metropolis_difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="durationLimit")]
 	pub duration_limit: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="homesteadTransition")]
 	pub homestead_transition: Option<Uint>,
 	/// Reward per block in wei.
-	#[serde(rename="blockReward")]
-	pub block_reward: Option<Uint>,
+	pub block_reward: Option<BlockReward>,
+	/// Block at which the block reward contract should start being used.
+	pub block_reward_contract_transition: Option<Uint>,
+	/// Block reward contract address (setting the block reward contract
+	/// overrides all other block reward parameters).
+	pub block_reward_contract_address: Option<Address>,
+	/// Block reward code. This overrides the block reward contract address.
+	pub block_reward_contract_code: Option<Bytes>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="daoHardforkTransition")]
 	pub dao_hardfork_transition: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="daoHardforkBeneficiary")]
 	pub dao_hardfork_beneficiary: Option<Address>,
 	/// See main EthashParams docs.
-	#[serde(rename="daoHardforkAccounts")]
 	pub dao_hardfork_accounts: Option<Vec<Address>>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyHardforkTransition")]
 	pub difficulty_hardfork_transition: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyHardforkBoundDivisor")]
 	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub difficulty_hardfork_bound_divisor: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="bombDefuseTransition")]
 	pub bomb_defuse_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="eip100bTransition")]
 	pub eip100b_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="ecip1010PauseTransition")]
 	pub ecip1010_pause_transition: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="ecip1010ContinueTransition")]
 	pub ecip1010_continue_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="ecip1017EraRounds")]
 	pub ecip1017_era_rounds: Option<Uint>,
 
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3Transition")]
-	pub mcip3_transition: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3MinerReward")]
-	pub mcip3_miner_reward: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3UbiReward")]
-	pub mcip3_ubi_reward: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3UbiContract")]
-	pub mcip3_ubi_contract: Option<Address>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3DevReward")]
-	pub mcip3_dev_reward: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="mcip3DevContract")]
-	pub mcip3_dev_contract: Option<Address>,
-
-	/// EIP-649 transition block.
-	#[serde(rename="eip649Transition")]
-	pub eip649_transition: Option<Uint>,
-
-	/// EIP-649 bomb delay.
-	#[serde(rename="eip649Delay")]
-	pub eip649_delay: Option<Uint>,
-
-	/// EIP-649 base reward.
-	#[serde(rename="eip649Reward")]
-	pub eip649_reward: Option<Uint>,
+	/// Delays of difficulty bombs.
+	pub difficulty_bomb_delays: Option<BTreeMap<Uint, Uint>>,
 
 	/// EXPIP-2 block height
-	#[serde(rename="expip2Transition")]
 	pub expip2_transition: Option<Uint>,
-
 	/// EXPIP-2 duration limit
-	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
 }
 
@@ -137,7 +108,7 @@ mod tests {
 	use uint::Uint;
 	use ethereum_types::{H160, U256};
 	use hash::Address;
-	use spec::ethash::{Ethash, EthashParams};
+	use spec::ethash::{Ethash, EthashParams, BlockReward};
 
 	#[test]
 	fn ethash_deserialization() {
@@ -182,14 +153,17 @@ mod tests {
 		let deserialized: Ethash = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, Ethash {
-			params: EthashParams{
+			params: EthashParams {
 				minimum_difficulty: Uint(U256::from(0x020000)),
 				difficulty_bound_divisor: Uint(U256::from(0x0800)),
 				difficulty_increment_divisor: None,
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: Some(Uint(U256::from(0x0d))),
 				homestead_transition: Some(Uint(U256::from(0x42))),
-				block_reward: Some(Uint(U256::from(0x100))),
+				block_reward: Some(BlockReward::Single(Uint(U256::from(0x100)))),
+				block_reward_contract_address: None,
+				block_reward_contract_code: None,
+				block_reward_contract_transition: None,
 				dao_hardfork_transition: Some(Uint(U256::from(0x08))),
 				dao_hardfork_beneficiary: Some(Address(H160::from("0xabcabcabcabcabcabcabcabcabcabcabcabcabca"))),
 				dao_hardfork_accounts: Some(vec![
@@ -221,17 +195,9 @@ mod tests {
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
-				mcip3_transition: None,
-				mcip3_miner_reward: None,
-				mcip3_ubi_reward: None,
-				mcip3_ubi_contract: None,
-				mcip3_dev_reward: None,
-				mcip3_dev_contract: None,
-				eip649_transition: None,
-				eip649_delay: None,
-				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				difficulty_bomb_delays: None,
 			}
 		});
 	}
@@ -255,6 +221,9 @@ mod tests {
 				duration_limit: None,
 				homestead_transition: None,
 				block_reward: None,
+				block_reward_contract_address: None,
+				block_reward_contract_code: None,
+				block_reward_contract_transition: None,
 				dao_hardfork_transition: None,
 				dao_hardfork_beneficiary: None,
 				dao_hardfork_accounts: None,
@@ -265,17 +234,9 @@ mod tests {
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
-				mcip3_transition: None,
-				mcip3_miner_reward: None,
-				mcip3_ubi_reward: None,
-				mcip3_ubi_contract: None,
-				mcip3_dev_reward: None,
-				mcip3_dev_contract: None,
-				eip649_transition: None,
-				eip649_delay: None,
-				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				difficulty_bomb_delays: None,
 			}
 		});
 	}

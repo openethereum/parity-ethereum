@@ -18,18 +18,19 @@
 
 extern crate ethash;
 extern crate fetch;
-extern crate parity_reactor;
+extern crate parity_runtime;
 extern crate url;
 extern crate hyper;
 
 use self::fetch::{Fetch, Request, Client as FetchClient, Method};
-use self::parity_reactor::Remote;
+use self::parity_runtime::Executor;
 use self::ethash::SeedHashCompute;
 use self::url::Url;
-use self::hyper::header::ContentType;
+use self::hyper::header::{self, HeaderValue};
 
 use ethereum_types::{H256, U256};
 use parking_lot::Mutex;
+
 use futures::Future;
 
 /// Trait for notifying about new mining work
@@ -42,13 +43,13 @@ pub trait NotifyWork : Send + Sync {
 pub struct WorkPoster {
 	urls: Vec<Url>,
 	client: FetchClient,
-	remote: Remote,
+	executor: Executor,
 	seed_compute: Mutex<SeedHashCompute>,
 }
 
 impl WorkPoster {
 	/// Create new `WorkPoster`.
-	pub fn new(urls: &[String], fetch: FetchClient, remote: Remote) -> Self {
+	pub fn new(urls: &[String], fetch: FetchClient, executor: Executor) -> Self {
 		let urls = urls.into_iter().filter_map(|u| {
 			match Url::parse(u) {
 				Ok(url) => Some(url),
@@ -60,26 +61,17 @@ impl WorkPoster {
 		}).collect();
 		WorkPoster {
 			client: fetch,
-			remote: remote,
+			executor: executor,
 			urls: urls,
 			seed_compute: Mutex::new(SeedHashCompute::default()),
 		}
 	}
 }
 
-/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
-fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-	if *difficulty <= U256::one() {
-		U256::max_value().into()
-	} else {
-		(((U256::one() << 255) / *difficulty) << 1).into()
-	}
-}
-
 impl NotifyWork for WorkPoster {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
 		// TODO: move this to engine
-		let target = difficulty_to_boundary(&difficulty);
+		let target = ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = &self.seed_compute.lock().hash_block_number(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		let body = format!(
@@ -89,9 +81,9 @@ impl NotifyWork for WorkPoster {
 
 		for u in &self.urls {
 			let u = u.clone();
-			self.remote.spawn(self.client.fetch(
-				Request::new(u.clone(), Method::Post)
-					.with_header(ContentType::json())
+			self.executor.spawn(self.client.fetch(
+				Request::new(u.clone(), Method::POST)
+					.with_header(header::CONTENT_TYPE, HeaderValue::from_static("application/json"))
 					.with_body(body.clone()), Default::default()
 			).map_err(move |e| {
 				warn!("Error sending HTTP notification to {} : {}, retrying", u, e);

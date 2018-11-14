@@ -21,13 +21,28 @@ use serde_json;
 use serde_json::Error;
 use spec::{Params, Genesis, Engine, State, HardcodedSync};
 
+/// Fork spec definition
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+pub enum ForkSpec {
+	EIP150,
+	EIP158,
+	Frontier,
+	Homestead,
+	Byzantium,
+	Constantinople,
+	EIP158ToByzantiumAt5,
+	FrontierToHomesteadAt5,
+	HomesteadToDaoAt5,
+	HomesteadToEIP150At5,
+}
+
 /// Spec deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Spec {
 	/// Spec name.
 	pub name: String,
 	/// Special fork name.
-	#[serde(rename="dataDir")]
 	pub data_dir: Option<String>,
 	/// Engine.
 	pub engine: Engine,
@@ -40,7 +55,6 @@ pub struct Spec {
 	/// Boot nodes.
 	pub nodes: Option<Vec<String>>,
 	/// Hardcoded synchronization for the light client.
-	#[serde(rename="hardcodedSync")]
 	pub hardcoded_sync: Option<HardcodedSync>,
 }
 

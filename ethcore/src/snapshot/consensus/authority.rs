@@ -30,13 +30,14 @@ use machine::EthereumMachine;
 use ids::BlockId;
 use header::Header;
 use receipt::Receipt;
-use snapshot::{Error, ManifestData};
+use snapshot::{Error, ManifestData, Progress};
 
 use itertools::{Position, Itertools};
 use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
 use kvdb::KeyValueDB;
 use bytes::Bytes;
+use encoded;
 
 
 /// Snapshot creation and restoration for PoA chains.
@@ -58,6 +59,7 @@ impl SnapshotComponents for PoaSnapshot {
 		chain: &BlockChain,
 		block_at: H256,
 		sink: &mut ChunkSink,
+		_progress: &Progress,
 		preferred_size: usize,
 	) -> Result<(), Error> {
 		let number = chain.block_number(&block_at)
@@ -339,7 +341,7 @@ impl Rebuilder for ChunkRebuilder {
 			let parent_td: U256 = last_rlp.val_at(4)?;
 
 			let mut batch = self.db.transaction();
-			self.chain.insert_unordered_block(&mut batch, &block_data, receipts, Some(parent_td), true, false);
+			self.chain.insert_unordered_block(&mut batch, encoded::Block::new(block_data), receipts, Some(parent_td), true, false);
 			self.db.write_buffered(batch);
 
 			self.warp_target = Some(block.header);

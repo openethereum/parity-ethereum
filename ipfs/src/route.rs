@@ -80,7 +80,7 @@ impl IpfsHandler {
 	fn block_list(&self, hash: H256) -> Result<Out> {
 		let uncles = self.client().find_uncles(&hash).ok_or(Error::BlockNotFound)?;
 
-		Ok(Out::OctetStream(rlp::encode_list(&uncles).into_vec()))
+		Ok(Out::OctetStream(rlp::encode_list(&uncles)))
 	}
 
 	/// Get transaction by hash and return as raw binary.
@@ -88,7 +88,7 @@ impl IpfsHandler {
 		let tx_id = TransactionId::Hash(hash);
 		let tx = self.client().transaction(tx_id).ok_or(Error::TransactionNotFound)?;
 
-		Ok(Out::OctetStream(rlp::encode(&*tx).into_vec()))
+		Ok(Out::OctetStream(rlp::encode(&*tx)))
 	}
 
 	/// Get state trie node by hash and return as raw binary.

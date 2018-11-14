@@ -22,11 +22,10 @@ use ethereum_types::{U256, Address};
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
 use sync::ManageNetwork;
-use futures_cpupool::CpuPool;
 
 use jsonrpc_core::IoHandler;
 use v1::{ParitySet, ParitySetClient};
-use v1::tests::helpers::{TestMinerService, TestUpdater, TestDappsService};
+use v1::tests::helpers::{TestMinerService, TestUpdater};
 use super::manage_network::TestManageNetwork;
 
 use fake_fetch::FakeFetch;
@@ -55,9 +54,7 @@ fn parity_set_client(
 	updater: &Arc<TestUpdater>,
 	net: &Arc<TestManageNetwork>,
 ) -> TestParitySetClient {
-	let dapps_service = Arc::new(TestDappsService);
-	let pool = CpuPool::new(1);
-	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), Some(dapps_service), FakeFetch::new(Some(1)), pool)
+	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), FakeFetch::new(Some(1)))
 }
 
 #[test]
@@ -238,19 +235,4 @@ fn rpc_parity_remove_transaction() {
 
 	miner.pending_transactions.lock().insert(hash, signed);
 	assert_eq!(io.handle_request_sync(&request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_set_dapps_list() {
-	let miner = miner_service();
-	let client = client_service();
-	let network = network_service();
-	let updater = updater_service();
-	let mut io = IoHandler::new();
-	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsList", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[{"author":"Parity Technologies Ltd","description":"A skeleton dapp","iconUrl":"title.png","id":"skeleton","localUrl":null,"name":"Skeleton","version":"0.1"}],"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

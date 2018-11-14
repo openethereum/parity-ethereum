@@ -203,6 +203,32 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 		result.push(Deprecated::Removed("--tx-queue-ban-time"));
 	}
 
+	// Removed in 2.0.
+
+	if args.flag_fast_and_loose {
+		result.push(Deprecated::Removed("--fast-and-loose"));
+	}
+
+	if args.cmd_dapp {
+		result.push(Deprecated::Removed("parity dapp"));
+	}
+
+	if args.arg_dapp_path.is_some() {
+		result.push(Deprecated::Removed("--dapp-path"));
+	}
+
+	if args.flag_no_dapps {
+		result.push(Deprecated::Removed("--no-dapps"));
+	}
+
+	if args.arg_dapps_path.is_some() {
+		result.push(Deprecated::Removed("--dapps-path"));
+	}
+
+	if args.arg_ntp_servers.is_some() {
+		result.push(Deprecated::Removed("--ntp-servers"));
+	}
+
 	result
 }
 
@@ -233,6 +259,8 @@ mod tests {
 			args.arg_dapps_user = Some(Default::default());
 			args.arg_dapps_pass = Some(Default::default());
 			args.flag_dapps_apis_all = true;
+			args.flag_fast_and_loose = true;
+			args.arg_ntp_servers = Some(Default::default());
 			args
 		}), vec![
 			Deprecated::DoesNothing("--warp"),
@@ -252,6 +280,8 @@ mod tests {
 			Deprecated::Removed("--dapps-user"),
 			Deprecated::Removed("--dapps-pass"),
 			Deprecated::Replaced("--dapps-apis-all", "--jsonrpc-apis"),
+			Deprecated::Removed("--fast-and-loose"),
+			Deprecated::Removed("--ntp-servers"),
 		]);
 	}
 }

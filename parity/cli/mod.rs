@@ -26,15 +26,6 @@ usage! {
 		// Arguments must start with arg_
 		// Flags must start with flag_
 
-		CMD cmd_dapp
-		{
-			"Manage dapps",
-
-			ARG arg_dapp_path: (Option<String>) = None,
-			"<PATH>",
-			"Path to the dapps",
-		}
-
 		CMD cmd_daemon
 		{
 			"Use Parity as a daemon",
@@ -232,6 +223,17 @@ usage! {
 		{
 			"Print the hashed light clients headers of the given --chain (default: mainnet) in a JSON format. To be used as hardcoded headers in a genesis file.",
 		}
+
+		// CMD removed in 2.0
+
+		CMD cmd_dapp
+		{
+			"Manage dapps",
+
+			ARG arg_dapp_path: (Option<String>) = None,
+			"<PATH>",
+			"Path to the dapps",
+		}
 	}
 	{
 		// Global flags and arguments
@@ -286,7 +288,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, tobalaba, musicoin, ellaism, easthub, social, testnet, kovan or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, tobalaba, expanse, musicoin, ellaism, easthub, social, mix, callisto, morden, ropsten, kovan, poasokol, testnet, or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| c.parity.as_ref()?.keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -336,7 +338,7 @@ usage! {
 
 			ARG arg_unlock: (Option<String>) = None, or |c: &Config| c.account.as_ref()?.unlock.as_ref().map(|vec| vec.join(",")),
 			"--unlock=[ACCOUNTS]",
-			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses. Implies --no-ui.",
+			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses.",
 
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| c.account.as_ref()?.password.clone(),
 			"--password=[FILE]...",
@@ -405,7 +407,7 @@ usage! {
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
 
-			ARG arg_interface: (String)  = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
+			ARG arg_interface: (String) = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
 			"--interface=[IP]",
 			"Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want parity to listen to.",
 
@@ -465,17 +467,21 @@ usage! {
 			"--no-jsonrpc",
 			"Disable the HTTP JSON-RPC API server.",
 
+			FLAG flag_jsonrpc_no_keep_alive: (bool) = false, or |c: &Config| c.rpc.as_ref()?.keep_alive,
+			"--jsonrpc-no-keep-alive",
+			"Disable HTTP/1.1 keep alive header. Disabling keep alive will prevent re-using the same TCP connection to fire multiple requests, recommended when using one request per connection.",
+
 			ARG arg_jsonrpc_port: (u16) = 8545u16, or |c: &Config| c.rpc.as_ref()?.port.clone(),
 			"--jsonrpc-port=[PORT]",
 			"Specify the port portion of the HTTP JSON-RPC API server.",
 
-			ARG arg_jsonrpc_interface: (String)  = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
+			ARG arg_jsonrpc_interface: (String) = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
 			"--jsonrpc-interface=[IP]",
 			"Specify the hostname portion of the HTTP JSON-RPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
 			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-apis=[APIS]",
-			"Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
+			"Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, debug, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
 			ARG arg_jsonrpc_hosts: (String) = "none", or |c: &Config| c.rpc.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-hosts=[HOSTS]",
@@ -483,7 +489,7 @@ usage! {
 
 			ARG arg_jsonrpc_threads: (usize) = 4usize, or |c: &Config| c.rpc.as_ref()?.processing_threads,
 			"--jsonrpc-threads=[THREADS]",
-			"Turn on additional processing threads in all HTTP JSON-RPC servers. Setting this to non-zero value allows parallel execution of cpu-heavy queries.",
+			"Turn on additional processing threads for JSON-RPC servers (all transports). Setting this to a non-zero value allows parallel execution of cpu-heavy queries.",
 
 			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| c.rpc.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-cors=[URL]",
@@ -506,7 +512,7 @@ usage! {
 			"--ws-port=[PORT]",
 			"Specify the port portion of the WebSockets JSON-RPC server.",
 
-			ARG arg_ws_interface: (String)  = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
+			ARG arg_ws_interface: (String) = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
 			"--ws-interface=[IP]",
 			"Specify the hostname portion of the WebSockets JSON-RPC server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
@@ -539,15 +545,6 @@ usage! {
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
-		["API and Console Options – Dapps"]
-			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?.disable.clone(),
-			"--no-dapps",
-			"Disable the Dapps server (e.g. status page).",
-
-			ARG arg_dapps_path: (String) = "$BASE/dapps", or |c: &Config| c.dapps.as_ref()?.path.clone(),
-			"--dapps-path=[PATH]",
-			"Specify directory where dapps should be installed.",
-
 		["API and Console Options – IPFS"]
 			FLAG flag_ipfs_api: (bool) = false, or |c: &Config| c.ipfs.as_ref()?.enable.clone(),
 			"--ipfs-api",
@@ -568,6 +565,15 @@ usage! {
 			ARG arg_ipfs_api_cors: (String) = "none", or |c: &Config| c.ipfs.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
 			"--ipfs-api-cors=[URL]",
 			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
+
+		["Light Client Options"]
+			ARG arg_on_demand_retry_count: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_retry_count,
+			"--on-demand-retry-count=[RETRIES]",
+			"Specify the query retry count.",
+
+			ARG arg_on_demand_inactive_time_limit: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_inactive_time_limit,
+			"--on-demand-inactive-time-limit=[MS]",
+			"Specify light client query inactive time limit. O for no limit.",
 
 		["Secret Store Options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
@@ -659,6 +665,10 @@ usage! {
 			"--tx-queue-no-unfamiliar-locals",
 			"Local transactions sent through JSON-RPC (HTTP, WebSockets, etc) will be treated as 'external' if the sending account is unknown.",
 
+			FLAG flag_tx_queue_no_early_reject: (bool) = false, or |c: &Config| c.mining.as_ref()?.tx_queue_no_early_reject.clone(),
+			"--tx-queue-no-early-reject",
+			"Disables transaction queue optimization to early reject transactions below minimal effective gas price. This allows local transactions to always enter the pool, despite it being full, but requires additional ecrecover on every transaction.",
+
 			FLAG flag_refuse_service_transactions: (bool) = false, or |c: &Config| c.mining.as_ref()?.refuse_service_transactions.clone(),
 			"--refuse-service-transactions",
 			"Always refuse service transactions.",
@@ -707,11 +717,11 @@ usage! {
 			"--price-update-period=[T]",
 			"T will be allowed to pass between each gas price update. T may be daily, hourly, a number of seconds, or a time string of the form \"2 days\", \"30 minutes\" etc..",
 
-			ARG arg_gas_floor_target: (String) = "4700000", or |c: &Config| c.mining.as_ref()?.gas_floor_target.clone(),
+			ARG arg_gas_floor_target: (String) = "8000000", or |c: &Config| c.mining.as_ref()?.gas_floor_target.clone(),
 			"--gas-floor-target=[GAS]",
 			"Amount of gas per block to target when sealing a new block.",
 
-			ARG arg_gas_cap: (String) = "6283184", or |c: &Config| c.mining.as_ref()?.gas_cap.clone(),
+			ARG arg_gas_cap: (String) = "10000000", or |c: &Config| c.mining.as_ref()?.gas_cap.clone(),
 			"--gas-cap=[GAS]",
 			"A cap on how large we will raise the gas limit per block due to transaction volume.",
 
@@ -726,10 +736,6 @@ usage! {
 			ARG arg_tx_queue_per_sender: (Option<usize>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_per_sender.clone(),
 			"--tx-queue-per-sender=[LIMIT]",
 			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
-
-			ARG arg_tx_queue_gas: (String) = "off", or |c: &Config| c.mining.as_ref()?.tx_queue_gas.clone(),
-			"--tx-queue-gas=[LIMIT]",
-			"Maximum amount of total gas for external transactions in the queue. LIMIT can be either an amount of gas or 'auto' or 'off'. 'auto' sets the limit to be 20x the current block gas limit.",
 
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| c.mining.as_ref()?.tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
@@ -783,6 +789,10 @@ usage! {
 			"--stratum-secret=[STRING]",
 			"Secret for authorizing Stratum server for peers.",
 
+			ARG arg_max_round_blocks_to_import: (usize) = 12usize, or |c: &Config| c.mining.as_ref()?.max_round_blocks_to_import.clone(),
+			"--max-round-blocks-to-import=[S]",
+			"Maximal number of blocks to import for each import round.",
+
 		["Internal Options"]
 			FLAG flag_can_restart: (bool) = false, or |_| None,
 			"--can-restart",
@@ -801,23 +811,15 @@ usage! {
 			"--no-config",
 			"Don't load a configuration file.",
 
-			ARG arg_ntp_servers: (String) = "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123", or |c: &Config| c.misc.as_ref()?.ntp_servers.clone().map(|vec| vec.join(",")),
-			"--ntp-servers=[HOSTS]",
-			"Comma separated list of NTP servers to provide current time (host:port). Used to verify node health. Parity uses pool.ntp.org NTP servers; consider joining the pool: http://www.pool.ntp.org/join.html",
-
 			ARG arg_logging: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?.logging.clone(),
 			"-l, --logging=[LOGGING]",
-			"Specify the logging level. Must conform to the same format as RUST_LOG.",
+			"Specify the general logging level (error, warn, info, debug or trace). It can also be set for a specific module, example: '-l sync=debug,rpc=trace'",
 
 			ARG arg_log_file: (Option<String>) = None, or |c: &Config| c.misc.as_ref()?.log_file.clone(),
 			"--log-file=[FILENAME]",
 			"Specify a filename into which logging should be appended.",
 
 		["Footprint Options"]
-			FLAG flag_fast_and_loose: (bool) = false, or |c: &Config| c.footprint.as_ref()?.fast_and_loose.clone(),
-			"--fast-and-loose",
-			"Disables DB WAL, which gives a significant speed up but means an unclean exit is unrecoverable.",
-
 			FLAG flag_scale_verifiers: (bool) = false, or |c: &Config| c.footprint.as_ref()?.scale_verifiers.clone(),
 			"--scale-verifiers",
 			"Automatically scale amount of verifier threads based on workload. Not guaranteed to be faster.",
@@ -880,6 +882,10 @@ usage! {
 			"--no-periodic-snapshot",
 			"Disable automated snapshots which usually occur once every 10000 blocks.",
 
+			ARG arg_snapshot_threads: (Option<usize>) = None, or |c: &Config| c.snapshots.as_ref()?.processing_threads,
+			"--snapshot-threads=[NUM]",
+			"Enables multiple threads for snapshots creation.",
+
 		["Whisper Options"]
 			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
 			"--whisper",
@@ -890,7 +896,7 @@ usage! {
 			"Target size of the whisper message pool in megabytes.",
 
 		["Legacy Options"]
-		    // Options that are hidden from config, but are still unique for its functionality.
+			// Options that are hidden from config, but are still unique for its functionality.
 
 			FLAG flag_geth: (bool) = false, or |_| None,
 			"--geth",
@@ -967,6 +973,16 @@ usage! {
 			"--ui-no-validation",
 			"Does nothing; UI is now a separate project.",
 
+			// FLAG Removed in 2.0.
+
+			FLAG flag_fast_and_loose: (bool) = false, or |_| None,
+			"--fast-and-loose",
+			"Does nothing; DB WAL is always activated.",
+
+			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?._legacy_disable.clone(),
+			"--no-dapps",
+			"Disable the Dapps server (e.g. status page).",
+
 			// ARG Removed in 1.6 or before.
 
 			ARG arg_etherbase: (Option<String>) = None, or |_| None,
@@ -1027,27 +1043,27 @@ usage! {
 
 			// ARG Removed in 1.7.
 
-			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?.port.clone(),
+			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_port.clone(),
 			"--dapps-port=[PORT]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.interface.clone(),
+			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_interface.clone(),
 			"--dapps-interface=[IP]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
+			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_hosts.as_ref().map(|vec| vec.join(",")),
 			"--dapps-hosts=[HOSTS]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.cors.clone(),
+			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_cors.clone(),
 			"--dapps-cors=[URL]",
 			"Does nothing; dapps server has been removed.",
 
-			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.user.clone(),
+			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_user.clone(),
 			"--dapps-user=[USERNAME]",
 			"Dapps server authentication has been removed.",
 
-			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?.pass.clone(),
+			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_pass.clone(),
 			"--dapps-pass=[PASSWORD]",
 			"Dapps server authentication has been removed.",
 
@@ -1072,6 +1088,16 @@ usage! {
 			ARG arg_tx_queue_ban_time: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
 			"--tx-queue-ban-time=[SEC]",
 			"Not supported.",
+
+			// ARG removed in 2.0.
+
+			ARG arg_dapps_path: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
+			"--dapps-path=[PATH]",
+			"Specify directory where dapps should be installed.",
+
+			ARG arg_ntp_servers: (Option<String>) = None, or |_| None,
+			"--ntp-servers=[HOSTS]",
+			"Does nothing; checking if clock is sync with NTP servers is now done on the UI.",
 	}
 }
 
@@ -1095,6 +1121,7 @@ struct Config {
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
 	whisper: Option<Whisper>,
+	light: Option<Light>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1118,7 +1145,7 @@ struct Operating {
 	no_persistent_txqueue: Option<bool>,
 	no_hardcoded_sync: Option<bool>,
 
-	#[serde(rename="public_node")]
+	#[serde(rename = "public_node")]
 	_legacy_public_node: Option<bool>,
 }
 
@@ -1150,15 +1177,15 @@ struct PrivateTransactions {
 struct Ui {
 	path: Option<String>,
 
-	#[serde(rename="force")]
+	#[serde(rename = "force")]
 	_legacy_force: Option<bool>,
-	#[serde(rename="disable")]
+	#[serde(rename = "disable")]
 	_legacy_disable: Option<bool>,
-	#[serde(rename="port")]
+	#[serde(rename = "port")]
 	_legacy_port: Option<u16>,
-	#[serde(rename="interface")]
+	#[serde(rename = "interface")]
 	_legacy_interface: Option<String>,
-	#[serde(rename="hosts")]
+	#[serde(rename = "hosts")]
 	_legacy_hosts: Option<Vec<String>>,
 }
 
@@ -1196,6 +1223,7 @@ struct Rpc {
 	server_threads: Option<usize>,
 	processing_threads: Option<usize>,
 	max_payload: Option<usize>,
+	keep_alive: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1221,14 +1249,22 @@ struct Ipc {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Dapps {
-	disable: Option<bool>,
-	port: Option<u16>,
-	interface: Option<String>,
-	hosts: Option<Vec<String>>,
-	cors: Option<String>,
-	path: Option<String>,
-	user: Option<String>,
-	pass: Option<String>,
+	#[serde(rename = "disable")]
+	_legacy_disable: Option<bool>,
+	#[serde(rename = "port")]
+	_legacy_port: Option<u16>,
+	#[serde(rename = "interface")]
+	_legacy_interface: Option<String>,
+	#[serde(rename = "hosts")]
+	_legacy_hosts: Option<Vec<String>>,
+	#[serde(rename = "cors")]
+	_legacy_cors: Option<String>,
+	#[serde(rename = "path")]
+	_legacy_path: Option<String>,
+	#[serde(rename = "user")]
+	_legacy_user: Option<String>,
+	#[serde(rename = "pass")]
+	_legacy_pass: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1290,15 +1326,16 @@ struct Mining {
 	tx_queue_size: Option<usize>,
 	tx_queue_per_sender: Option<usize>,
 	tx_queue_mem_limit: Option<u32>,
-	tx_queue_gas: Option<String>,
 	tx_queue_strategy: Option<String>,
 	tx_queue_ban_count: Option<u16>,
 	tx_queue_ban_time: Option<u16>,
 	tx_queue_no_unfamiliar_locals: Option<bool>,
+	tx_queue_no_early_reject: Option<bool>,
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 	refuse_service_transactions: Option<bool>,
 	infinite_pending_block: Option<bool>,
+	max_round_blocks_to_import: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1332,12 +1369,12 @@ struct Footprint {
 #[serde(deny_unknown_fields)]
 struct Snapshots {
 	disable_periodic: Option<bool>,
+	processing_threads: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Misc {
-	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,
@@ -1352,12 +1389,19 @@ struct Whisper {
 	pool_size: Option<usize>,
 }
 
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Light {
+	on_demand_retry_count: Option<usize>,
+	on_demand_inactive_time_limit: Option<u64>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, Misc, Whisper, SecretStore,
+		Snapshots, Misc, Whisper, SecretStore, Light,
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
@@ -1637,6 +1681,7 @@ mod tests {
 			// -- API and Console Options
 			// RPC
 			flag_no_jsonrpc: false,
+			flag_jsonrpc_no_keep_alive: false,
 			arg_jsonrpc_port: 8545u16,
 			arg_jsonrpc_interface: "local".into(),
 			arg_jsonrpc_cors: "null".into(),
@@ -1661,7 +1706,7 @@ mod tests {
 			arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
 
 			// DAPPS
-			arg_dapps_path: "$HOME/.parity/dapps".into(),
+			arg_dapps_path: Some("$HOME/.parity/dapps".into()),
 			flag_no_dapps: false,
 
 			// SECRETSTORE
@@ -1700,7 +1745,7 @@ mod tests {
 			arg_reseal_max_period: 60000u64,
 			flag_reseal_on_uncle: false,
 			arg_work_queue_size: 20usize,
-			arg_tx_gas_limit: Some("6283184".into()),
+			arg_tx_gas_limit: Some("10000000".into()),
 			arg_tx_time_limit: Some(100u64),
 			arg_relay_set: "cheap".into(),
 			arg_min_gas_price: Some(0u64),
@@ -1709,14 +1754,14 @@ mod tests {
 			arg_poll_lifetime: 60u32,
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
-			arg_gas_floor_target: "4700000".into(),
-			arg_gas_cap: "6283184".into(),
+			arg_gas_floor_target: "8000000".into(),
+			arg_gas_cap: "10000000".into(),
 			arg_extra_data: Some("Parity".into()),
 			flag_tx_queue_no_unfamiliar_locals: false,
+			flag_tx_queue_no_early_reject: false,
 			arg_tx_queue_size: 8192usize,
 			arg_tx_queue_per_sender: None,
 			arg_tx_queue_mem_limit: 4u32,
-			arg_tx_queue_gas: "off".into(),
 			arg_tx_queue_strategy: "gas_factor".into(),
 			arg_tx_queue_ban_count: Some(1u16),
 			arg_tx_queue_ban_time: Some(180u16),
@@ -1724,6 +1769,7 @@ mod tests {
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
 			flag_infinite_pending_block: false,
+			arg_max_round_blocks_to_import: 12usize,
 
 			flag_stratum: false,
 			arg_stratum_interface: "local".to_owned(),
@@ -1759,6 +1805,11 @@ mod tests {
 			arg_export_state_at: "latest".into(),
 			arg_snapshot_at: "latest".into(),
 			flag_no_periodic_snapshot: false,
+			arg_snapshot_threads: None,
+
+			// -- Light options.
+			arg_on_demand_retry_count: Some(15),
+			arg_on_demand_inactive_time_limit: Some(15000),
 
 			// -- Whisper options.
 			flag_whisper: false,
@@ -1805,7 +1856,7 @@ mod tests {
 			flag_can_restart: false,
 
 			// -- Miscellaneous Options
-			arg_ntp_servers: "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123".into(),
+			arg_ntp_servers: None,
 			flag_version: false,
 			arg_logging: Some("own_tx=trace".into()),
 			arg_log_file: Some("/var/log/parity.log".into()),
@@ -1913,6 +1964,7 @@ mod tests {
 				server_threads: None,
 				processing_threads: None,
 				max_payload: None,
+				keep_alive: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,
@@ -1920,14 +1972,14 @@ mod tests {
 				apis: Some(vec!["rpc".into(), "eth".into()]),
 			}),
 			dapps: Some(Dapps {
-				disable: None,
-				port: Some(8080),
-				path: None,
-				interface: None,
-				hosts: None,
-				cors: None,
-				user: Some("username".into()),
-				pass: Some("password".into())
+				_legacy_disable: None,
+				_legacy_port: Some(8080),
+				_legacy_path: None,
+				_legacy_interface: None,
+				_legacy_hosts: None,
+				_legacy_cors: None,
+				_legacy_user: Some("username".into()),
+				_legacy_pass: Some("password".into())
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
@@ -1978,11 +2030,11 @@ mod tests {
 				tx_queue_size: Some(8192),
 				tx_queue_per_sender: None,
 				tx_queue_mem_limit: None,
-				tx_queue_gas: Some("off".into()),
 				tx_queue_strategy: None,
 				tx_queue_ban_count: None,
 				tx_queue_ban_time: None,
 				tx_queue_no_unfamiliar_locals: None,
+				tx_queue_no_early_reject: None,
 				tx_gas_limit: None,
 				tx_time_limit: None,
 				extra_data: None,
@@ -1990,6 +2042,7 @@ mod tests {
 				notify_work: None,
 				refuse_service_transactions: None,
 				infinite_pending_block: None,
+				max_round_blocks_to_import: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),
@@ -2007,11 +2060,15 @@ mod tests {
 				scale_verifiers: Some(false),
 				num_verifiers: None,
 			}),
+			light: Some(Light {
+				on_demand_retry_count: Some(12),
+				on_demand_inactive_time_limit: Some(20000),
+			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
+				processing_threads: None,
 			}),
 			misc: Some(Misc {
-				ntp_servers: Some(vec!["0.parity.pool.ntp.org:123".into()]),
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),

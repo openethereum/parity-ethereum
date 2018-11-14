@@ -23,6 +23,7 @@ extern crate heapsize;
 extern crate vm;
 extern crate keccak_hash as hash;
 extern crate memory_cache;
+extern crate parity_bytes as bytes;
 
 #[macro_use]
 extern crate lazy_static;
@@ -43,8 +44,6 @@ mod instructions;
 
 #[cfg(test)]
 mod tests;
-#[cfg(all(feature = "benches", test))]
-mod benches;
 
 pub use vm::{
     Schedule, CleanDustMode, EnvInfo, CallType, ActionParams, Ext,

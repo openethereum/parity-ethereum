@@ -26,55 +26,44 @@ use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
-use node_health::{NodeHealth, Health};
-use ethcore::ids::BlockId;
-
-use light::client::LightChainClient;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::Future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::LightDispatcher;
-use v1::helpers::light_fetch::LightFetch;
+use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H160, H256, H512, CallRequest,
+	Bytes, U256, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo, Header, RichHeader,
+	BlockNumber, LightBlockNumber, ConsensusCapability, VersionInfo,
+	OperationsInfo, ChainStatus,
+	AccountInfo, HwAccountInfo, Header, RichHeader, Receipt,
 };
 use Host;
 
 /// Parity implementation for light client.
 pub struct ParityClient {
-	client: Arc<LightChainClient>,
 	light_dispatch: Arc<LightDispatcher>,
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
-	health: NodeHealth,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<Host>,
 	ws_address: Option<Host>,
-	eip86_transition: u64,
 	gas_price_percentile: usize,
 }
 
 impl ParityClient {
 	/// Creates new `ParityClient`.
 	pub fn new(
-		client: Arc<LightChainClient>,
 		light_dispatch: Arc<LightDispatcher>,
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
-		health: NodeHealth,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<Host>,
 		ws_address: Option<Host>,
 		gas_price_percentile: usize,
 	) -> Self {
@@ -83,12 +72,8 @@ impl ParityClient {
 			accounts,
 			logger,
 			settings,
-			health,
 			signer,
-			dapps_address,
 			ws_address,
-			eip86_transition: client.eip86_transition(),
-			client,
 			gas_price_percentile,
 		}
 	}
@@ -108,13 +93,10 @@ impl ParityClient {
 impl Parity for ParityClient {
 	type Metadata = Metadata;
 
-	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>> {
-		let dapp = dapp.unwrap_or_default();
-
+	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
 		let store = &self.accounts;
 		let dapp_accounts = store
-			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| store.dapp_addresses(dapp.into()))
+			.accounts()
 			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
@@ -145,10 +127,9 @@ impl Parity for ParityClient {
 		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
 	}
 
-	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
-		let dapp_id = meta.dapp_id();
+	fn default_account(&self) -> Result<H160> {
 		Ok(self.accounts
-			.dapp_addresses(dapp_id.into())
+			.accounts()
 			.ok()
 			.and_then(|accounts| accounts.get(0).cloned())
 			.map(|acc| acc.into())
@@ -271,23 +252,24 @@ impl Parity for ParityClient {
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
 				.take(limit.unwrap_or_else(usize::max_value))
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
 
 	fn all_transactions(&self) -> Result<Vec<Transaction>> {
-		let txq = self.light_dispatch.transaction_queue.read();
-		let chain_info = self.light_dispatch.client.chain_info();
-
-		let current = txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
-		let future = txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
 		Ok(
-			current
-				.into_iter()
-				.chain(future.into_iter())
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
-				.collect::<Vec<_>>()
+			light_all_transactions(&self.light_dispatch)
+				.map(|tx| Transaction::from_pending(tx))
+				.collect()
+		)
+	}
+
+	fn all_transaction_hashes(&self) -> Result<Vec<H256>> {
+		Ok(
+			light_all_transactions(&self.light_dispatch)
+				.map(|tx| tx.transaction.hash().into())
+				.collect()
 		)
 	}
 
@@ -297,7 +279,7 @@ impl Parity for ParityClient {
 		Ok(
 			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.map(|tx| Transaction::from_pending(tx))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -329,11 +311,6 @@ impl Parity for ParityClient {
 		Ok(map)
 	}
 
-	fn dapps_url(&self) -> Result<String> {
-		helpers::to_url(&self.dapps_address)
-			.ok_or_else(|| errors::dapps_disabled())
-	}
-
 	fn ws_url(&self) -> Result<String> {
 		helpers::to_url(&self.ws_address)
 			.ok_or_else(|| errors::ws_disabled())
@@ -345,10 +322,6 @@ impl Parity for ParityClient {
 
 	fn mode(&self) -> Result<String> {
 		Err(errors::light_unimplemented(None))
-	}
-
-	fn chain_id(&self) -> Result<Option<U64>> {
-		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
 	fn chain(&self) -> Result<String> {
@@ -421,28 +394,35 @@ impl Parity for ParityClient {
 				extra_info: extra_info,
 			})
 		};
-		// Note: Here we treat `Pending` as `Latest`.
-		//       Since light clients don't produce pending blocks
-		//       (they don't have state) we can safely fallback to `Latest`.
-		let id = match number.unwrap_or_default() {
-			BlockNumber::Num(n) => BlockId::Number(n),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
-		};
-
+		let id = number.unwrap_or_default().to_block_id();
 		Box::new(self.fetcher().header(id).and_then(from_encoded))
+	}
+
+	fn block_receipts(&self, number: Trailing<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
+		let id = number.unwrap_or_default().to_block_id();
+		Box::new(self.fetcher().receipts(id).and_then(|receipts| Ok(receipts.into_iter().map(Into::into).collect())))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+	fn call(&self, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn node_health(&self) -> BoxFuture<Health> {
-		Box::new(self.health.health()
-			.map_err(|err| errors::internal("Health API failure.", err)))
+	fn submit_work_detail(&self, _nonce: H64, _pow_hash: H256, _mix_hash: H256) -> Result<H256> {
+		Err(errors::light_unimplemented(None))
+	}
+
+	fn status(&self) -> Result<()> {
+		let has_peers = self.settings.is_dev_chain || self.light_dispatch.sync.peer_numbers().connected > 0;
+		let is_importing = self.light_dispatch.sync.is_major_importing();
+
+		if has_peers && !is_importing {
+			Ok(())
+		} else {
+			Err(errors::status_error(has_peers))
+		}
 	}
 }

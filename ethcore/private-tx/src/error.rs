@@ -21,12 +21,14 @@ use ethcore::account_provider::SignError;
 use ethcore::error::{Error as EthcoreError, ExecutionError};
 use transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
+use txpool::Error as TxPoolError;
 
 error_chain! {
 	foreign_links {
 		Io(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		Decoder(DecoderError) #[doc = "RLP decoding error."];
 		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
+		Txpool(TxPoolError) #[doc = "Tx pool error."];
 	}
 
 	errors {

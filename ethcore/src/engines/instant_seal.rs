@@ -17,17 +17,33 @@
 use engines::{Engine, Seal};
 use parity_machine::{Machine, Transactions, TotalScoredHeader};
 
+/// `InstantSeal` params.
+#[derive(Default, Debug, PartialEq)]
+pub struct InstantSealParams {
+	/// Whether to use millisecond timestamp
+	pub millisecond_timestamp: bool,
+}
+
+impl From<::ethjson::spec::InstantSealParams> for InstantSealParams {
+	fn from(p: ::ethjson::spec::InstantSealParams) -> Self {
+		InstantSealParams {
+			millisecond_timestamp: p.millisecond_timestamp,
+		}
+	}
+}
+
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 /// Only seals blocks which have transactions.
 pub struct InstantSeal<M> {
+	params: InstantSealParams,
 	machine: M,
 }
 
 impl<M> InstantSeal<M> {
 	/// Returns new instance of InstantSeal over the given state machine.
-	pub fn new(machine: M) -> Self {
+	pub fn new(params: InstantSealParams, machine: M) -> Self {
 		InstantSeal {
-			machine: machine,
+			params, machine,
 		}
 	}
 }
@@ -56,8 +72,12 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
 		use std::{time, cmp};
 
-		let now = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
-		cmp::max(now.as_secs(), parent_timestamp)
+		let dur = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
+		let mut now = dur.as_secs();
+		if self.params.millisecond_timestamp {
+			now = now * 1000 + dur.subsec_millis() as u64;
+		}
+		cmp::max(now, parent_timestamp)
 	}
 
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
@@ -87,7 +107,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
-		let b = b.close_and_lock();
+		let b = b.close_and_lock().unwrap();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
 		}
@@ -100,7 +120,7 @@ mod tests {
 
 		assert!(engine.verify_block_basic(&header).is_ok());
 
-		header.set_seal(vec![::rlp::encode(&H520::default()).into_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default())]);
 
 		assert!(engine.verify_block_unordered(&header).is_ok());
 	}

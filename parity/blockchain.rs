@@ -26,10 +26,11 @@ use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
-use ethcore::error::{ImportErrorKind, BlockImportErrorKind};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
+use ethcore::error::{ImportErrorKind, ErrorKind as EthcoreErrorKind, Error as EthcoreError};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
+use ethcore::verification::queue::kind::blocks::Unverified;
 use ethcore_service::ClientService;
 use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
@@ -90,7 +91,6 @@ pub struct ImportBlockchain {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub vm_type: VMType,
@@ -98,6 +98,7 @@ pub struct ImportBlockchain {
 	pub with_color: bool,
 	pub verifier_settings: VerifierSettings,
 	pub light: bool,
+	pub max_round_blocks_to_import: usize,
 }
 
 #[derive(Debug, PartialEq)]
@@ -111,12 +112,12 @@ pub struct ExportBlockchain {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub from_block: BlockId,
 	pub to_block: BlockId,
 	pub check_seal: bool,
+	pub max_round_blocks_to_import: usize,
 }
 
 #[derive(Debug, PartialEq)]
@@ -130,7 +131,6 @@ pub struct ExportState {
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
-	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub at: BlockId,
@@ -138,6 +138,7 @@ pub struct ExportState {
 	pub code: bool,
 	pub min_balance: Option<U256>,
 	pub max_balance: Option<U256>,
+	pub max_round_blocks_to_import: usize,
 }
 
 pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
@@ -187,7 +188,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(false, false, false)?;
+	cmd.dirs.create_dirs(false, false)?;
 
 	let cache = Arc::new(Mutex::new(
 		LightDataCache::new(Default::default(), Duration::new(0, 0))
@@ -207,8 +208,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	// initialize database.
 	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
 						 &cmd.cache_config,
-						 &cmd.compaction,
-						 cmd.wal).map_err(|e| format!("Failed to open database: {:?}", e))?;
+						 &cmd.compaction).map_err(|e| format!("Failed to open database: {:?}", e))?;
 
 	// TODO: could epoch signals be avilable at the end of the file?
 	let fetch = ::light::client::fetch::unavailable();
@@ -254,7 +254,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 		}
 
 		match client.import_header(header) {
-			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+			Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {
@@ -341,7 +341,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(false, false, false)?;
+	cmd.dirs.create_dirs(false, false)?;
 
 	// prepare client config
 	let mut client_config = to_client_config(
@@ -351,13 +351,13 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		tracing,
 		fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.vm_type,
 		"".into(),
 		algorithm,
 		cmd.pruning_history,
 		cmd.pruning_memory,
 		cmd.check_seal,
+		12,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
@@ -422,9 +422,10 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {
+		let block = Unverified::from_rlp(bytes).map_err(|_| "Invalid block rlp")?;
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
-		match client.import_block(bytes) {
-			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
+		match client.import_block(block) {
+			Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {
@@ -479,8 +480,8 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		(report.blocks_imported * 1000) as u64 / ms,
 		report.transactions_applied,
 		(report.transactions_applied * 1000) as u64 / ms,
-		report.gas_processed / From::from(1_000_000),
-		(report.gas_processed / From::from(ms * 1000)).low_u64(),
+		report.gas_processed / 1_000_000,
+		(report.gas_processed / (ms * 1000)).low_u64(),
 	);
 	Ok(())
 }
@@ -494,9 +495,9 @@ fn start_client(
 	tracing: Switch,
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
-	wal: bool,
 	cache_config: CacheConfig,
 	require_fat_db: bool,
+	max_round_blocks_to_import: usize,
 ) -> Result<ClientService, String> {
 
 	// load spec file
@@ -534,7 +535,7 @@ fn start_client(
 	execute_upgrades(&dirs.base, &db_dirs, algorithm, &compaction)?;
 
 	// create dirs used by parity
-	dirs.create_dirs(false, false, false)?;
+	dirs.create_dirs(false, false)?;
 
 	// prepare client config
 	let client_config = to_client_config(
@@ -544,13 +545,13 @@ fn start_client(
 		tracing,
 		fat_db,
 		compaction,
-		wal,
 		VMType::default(),
 		"".into(),
 		algorithm,
 		pruning_history,
 		pruning_memory,
 		true,
+		max_round_blocks_to_import,
 	);
 
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
@@ -586,9 +587,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		cmd.tracing,
 		cmd.fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.cache_config,
 		false,
+		cmd.max_round_blocks_to_import,
 	)?;
 	let format = cmd.format.unwrap_or_default();
 
@@ -631,9 +632,9 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		cmd.tracing,
 		cmd.fat_db,
 		cmd.compaction,
-		cmd.wal,
 		cmd.cache_config,
-		true
+		true,
+		cmd.max_round_blocks_to_import,
 	)?;
 
 	let client = service.client();

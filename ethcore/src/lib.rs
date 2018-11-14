@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature = "benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -36,7 +35,7 @@
 //!   curl https://sh.rustup.rs -sSf | sh
 //!
 //!   # download and build parity
-//!   git clone https://github.com/paritytech/parity
+//!   git clone https://github.com/paritytech/parity-ethereum
 //!   cd parity
 //!   cargo build --release
 //!   ```
@@ -49,7 +48,7 @@
 //!   curl https://sh.rustup.rs -sSf | sh
 //!
 //!   # download and build parity
-//!   git clone https://github.com/paritytech/parity
+//!   git clone https://github.com/paritytech/parity-ethereum
 //!   cd parity
 //!   cargo build --release
 //!   ```
@@ -100,7 +99,7 @@ extern crate patricia_trie_ethereum as ethtrie;
 extern crate triehash_ethereum as triehash;
 extern crate ansi_term;
 extern crate unexpected;
-extern crate snappy;
+extern crate parity_snappy as snappy;
 extern crate ethabi;
 extern crate rustc_hex;
 extern crate stats;
@@ -146,6 +145,7 @@ pub mod views;
 
 pub mod account_provider;
 pub mod block;
+pub mod builtin;
 pub mod client;
 pub mod db;
 pub mod encoded;
@@ -158,6 +158,7 @@ pub mod header;
 pub mod machine;
 pub mod miner;
 pub mod pod_state;
+pub mod pod_account;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
@@ -166,9 +167,7 @@ pub mod trace;
 pub mod verification;
 
 mod cache_manager;
-mod pod_account;
 mod account_db;
-mod builtin;
 mod externalities;
 mod blockchain;
 mod factory;

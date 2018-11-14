@@ -7,38 +7,35 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.0"
-log = "0.3"
+log = "0.4"
 parking_lot = "0.6"
-hyper = { version = "0.11", default-features = false }
+hyper = { version = "0.12", default-features = false }
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 futures = "0.1"
-futures-cpupool = "0.1"
 rustc-hex = "1.0"
 tiny-keccak = "1.4"
-tokio = "0.1"
-tokio-core = "0.1"
+tokio = "~0.1.11"
 tokio-io = "0.1"
 tokio-service = "0.1"
-tokio-proto = "0.1"
 url = "1.0"
 ethcore = { path = "../ethcore" }
-parity-bytes = { git = "https://github.com/paritytech/parity-common" }
-parity-crypto = { git = "https://github.com/paritytech/parity-common" }
+parity-bytes = "0.1"
+parity-crypto = "0.2"
 ethcore-logger = { path = "../logger" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
-ethereum-types = "0.3"
-kvdb = { git = "https://github.com/paritytech/parity-common" }
-keccak-hash = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = "0.4"
+kvdb = "0.1"
+keccak-hash = "0.1"
 ethkey = { path = "../ethkey" }
 lazy_static = "1.0"
-ethabi = "5.1"
-ethabi-derive = "5.0"
-ethabi-contract = "5.0"
+ethabi = "6.0"
+ethabi-derive = "6.0"
+ethabi-contract = "6.0"
 
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
-kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-rocksdb = "0.1.3"

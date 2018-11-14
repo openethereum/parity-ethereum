@@ -41,7 +41,7 @@ pub mod informant;
 pub mod metadata;
 pub mod traits;
 
-pub use self::traits::{Web3, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccounts, ParitySet, ParitySigning, PubSub, Signer, Personal, Traces, Rpc, SecretStore, Private};
+pub use self::traits::{Debug, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccounts, ParitySet, ParitySigning, Personal, PubSub, Private, Rpc, SecretStore, Signer, Traces, Web3};
 pub use self::impls::*;
 pub use self::helpers::{NetworkSettings, block_import, dispatch};
 pub use self::metadata::Metadata;
@@ -52,10 +52,4 @@ pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 pub mod signer {
 	pub use super::helpers::{SigningQueue, SignerService, ConfirmationsQueue};
 	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
-}
-
-/// Dapps integration utilities
-pub mod dapps {
-	pub use super::helpers::dapps::DappsService;
-	pub use super::types::LocalDapp;
 }

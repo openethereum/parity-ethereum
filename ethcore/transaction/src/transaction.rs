@@ -90,8 +90,8 @@ pub mod signature {
 		match v {
 			v if v == 27 => 0,
 			v if v == 28 => 1,
-			v if v > 36 => ((v - 1) % 2) as u8,
-			 _ => 4
+			v if v >= 35 => ((v - 1) % 2) as u8,
+			_ => 4
 		}
 	}
 }
@@ -282,6 +282,12 @@ pub struct UnverifiedTransaction {
 	hash: H256,
 }
 
+impl HeapSizeOf for UnverifiedTransaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.unsigned.heap_size_of_children()
+	}
+}
+
 impl Deref for UnverifiedTransaction {
 	type Target = Transaction;
 
@@ -358,7 +364,7 @@ impl UnverifiedTransaction {
 	pub fn chain_id(&self) -> Option<u64> {
 		match self.v {
 			v if self.is_unsigned() => Some(v),
-			v if v > 36 => Some((v - 35) / 2),
+			v if v >= 35 => Some((v - 35) / 2),
 			_ => None,
 		}
 	}
@@ -385,23 +391,6 @@ impl UnverifiedTransaction {
 	/// Recovers the public key of the sender.
 	pub fn recover_public(&self) -> Result<Public, ethkey::Error> {
 		Ok(recover(&self.signature(), &self.unsigned.hash(self.chain_id()))?)
-	}
-
-	/// Do basic validation, checking for valid signature and minimum gas,
-	// TODO: consider use in block validation.
-	#[cfg(feature = "json-tests")]
-	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_chain_id_of_one: bool, allow_empty_signature: bool)
-		-> Result<UnverifiedTransaction, error::Error>
-	{
-		let chain_id = if allow_chain_id_of_one { Some(1) } else { None };
-		self.verify_basic(require_low, chain_id, allow_empty_signature)?;
-		if !allow_empty_signature || !self.is_unsigned() {
-			self.recover_public()?;
-		}
-		if self.gas < U256::from(self.gas_required(&schedule)) {
-			return Err(error::Error::InvalidGasLimit(::unexpected::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
-		}
-		Ok(self)
 	}
 
 	/// Verify basic signature params. Does not attempt sender recovery.
@@ -436,7 +425,7 @@ pub struct SignedTransaction {
 
 impl HeapSizeOf for SignedTransaction {
 	fn heap_size_of_children(&self) -> usize {
-		self.transaction.unsigned.heap_size_of_children()
+		self.transaction.heap_size_of_children()
 	}
 }
 
@@ -592,6 +581,27 @@ mod tests {
 		assert_eq!(t.value, U256::from(0x0au64));
 		assert_eq!(public_to_address(&t.recover_public().unwrap()), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
 		assert_eq!(t.chain_id(), None);
+	}
+
+	#[test]
+	fn signing_eip155_zero_chainid() {
+		use ethkey::{Random, Generator};
+
+		let key = Random.generate().unwrap();
+		let t = Transaction {
+			action: Action::Create,
+			nonce: U256::from(42),
+			gas_price: U256::from(3000),
+			gas: U256::from(50_000),
+			value: U256::from(1),
+			data: b"Hello!".to_vec()
+		};
+
+		let hash = t.hash(Some(0));
+		let sig = ::ethkey::sign(&key.secret(), &hash).unwrap();
+		let u = t.with_signature(sig, Some(0));
+
+		assert!(SignedTransaction::new(u).is_ok());
 	}
 
 	#[test]
