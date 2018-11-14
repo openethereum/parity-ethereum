@@ -33,7 +33,7 @@ use error::{BlockError, Error};
 use ethjson;
 use ethkey::Password;
 use header::{Header, ExtendedHeader};
-use machine::EthereumMachine;
+use machine::{Call, EthereumMachine};
 use parking_lot::RwLock;
 use rlp::{self, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use types::BlockNumber;
@@ -41,6 +41,15 @@ use types::BlockNumber;
 // TODO: Use a threshold signature of the block.
 /// A temporary fixed seal code. The seal has only a single field, containing this string.
 const SEAL: &str = "Honey Badger isn't afraid of seals!";
+
+/// The block number for the first block in the chain. This value is used to create the genesis
+/// block's validator-set proof.
+const GENESIS_BLOCK_NUMBER: BlockNumber = 0;
+
+/// The proof of block finality for the first block in the chain. This value is used to create the
+/// genesis block's validator-set proof. This is an empty bytes slice because the genesis block
+/// does not require finality.
+const GENESIS_FINALITY_PROOF: &[u8] = &[];
 
 type StepNumber = u64;
 
@@ -277,6 +286,32 @@ impl Engine<EthereumMachine> for Hbbft {
 			None => vec![(author, RewardKind::Author, self.block_reward)],
 		};
 		apply_block_rewards(&rewards, block, &self.machine)
+	}
+
+	/// Returns an RLP encoded proof of the set validator addresses at the genesis block. The
+	/// returned proof is an RLP encoded list containing three elements: the genesis block's block
+	/// number, the proof of the validator-set at the genesis block, and the genesis block's
+	/// "finality proof".
+	///
+	/// The genesis block number is always set to `0`. The genesis block's finality proof is always
+	/// set to an empty bytes array because the genesis block does not require finality.
+	///
+	/// # Arguments
+	///
+	/// * `header` - the genesis block's header.
+	/// * `call` - a function that executes a synchronous contract call within the EVM (EVM is an
+	/// instance of `EthereumMachine`).
+	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
+		// Get a proof for the validator-set at `header`'s block number.
+		let validator_set_proof = self.validators.genesis_epoch_data(header, call)?;
+
+		// Create a proof for the genesis block's validator-set containing: the block number,
+		// validator-set proof, and the genesis block's finality proof.
+		let mut genesis_proof = RlpStream::new_list(3);
+		genesis_proof.append(&GENESIS_BLOCK_NUMBER);
+		genesis_proof.append(&validator_set_proof);
+		genesis_proof.append(&GENESIS_FINALITY_PROOF);
+		Ok(genesis_proof.out())
 	}
 }
 
