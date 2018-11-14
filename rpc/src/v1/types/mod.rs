@@ -43,9 +43,10 @@ mod transaction_condition;
 mod uint;
 mod work;
 mod private_receipt;
+mod eip191;
 
 pub mod pubsub;
-
+pub use self::eip191::{EIP191Version, PresignedTransaction};
 pub use self::account_info::{AccountInfo, ExtAccountInfo, HwAccountInfo};
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
@@ -53,7 +54,7 @@ pub use self::block_number::{BlockNumber, LightBlockNumber, block_number_to_id};
 pub use self::call_request::CallRequest;
 pub use self::confirmations::{
 	ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken,
-	TransactionModification, SignRequest, DecryptRequest, Either
+	TransactionModification, EIP191SignRequest, EthSignRequest, DecryptRequest, Either
 };
 pub use self::consensus_status::*;
 pub use self::derivation::{DeriveHash, DeriveHierarchical, Derive};

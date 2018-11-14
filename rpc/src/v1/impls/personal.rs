@@ -26,7 +26,7 @@ use ethkey::{public_to_address, recover, Signature};
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
-use v1::helpers::errors;
+use v1::helpers::{errors, eip191};
 use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith};
 use v1::traits::Personal;
 use v1::types::{
@@ -36,9 +36,11 @@ use v1::types::{
 	ConfirmationResponse as RpcConfirmationResponse,
 	TransactionRequest,
 	RichRawTransaction as RpcRichRawTransaction,
+	EIP191Version,
 };
 use v1::metadata::Metadata;
 use eip712::{EIP712, hash_structured_data};
+use jsonrpc_core::types::Value;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
@@ -151,15 +153,35 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 				 }))
 	}
 
+	fn sign_191(&self, version: EIP191Version, data: Value, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		let data = try_bf!(eip191::hash_message(version, data));
+		let dispatcher = self.dispatcher.clone();
+		let accounts = self.accounts.clone();
+
+		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
+
+		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
+			.and_then(|payload| {
+				dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+			})
+			.map(|v| v.into_value())
+			.then(|res| match res {
+				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result", e)),
+			})
+		)
+	}
+
 	fn sign_typed_data(&self, typed_data: EIP712, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
 		let data = match hash_structured_data(typed_data) {
 			Ok(d) => d,
-			Err(err) => return Box::new(future::done(Err(errors::invalid_call_data(err.kind())))),
+			Err(err) => return Box::new(future::err(errors::invalid_call_data(err.kind()))),
 		};
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
-		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), RpcBytes(data)).into());
+		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
 			.and_then(|payload| {

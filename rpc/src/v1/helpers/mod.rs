@@ -25,6 +25,7 @@ pub mod light_fetch;
 pub mod nonce;
 pub mod oneshot;
 pub mod secretstore;
+pub mod eip191;
 
 mod network_settings;
 mod poll_filter;
