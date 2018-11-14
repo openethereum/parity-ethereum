@@ -559,6 +559,9 @@ fn enact(
 		ancestry,
 	)?;
 
+	// We must set timestamp here
+	b.block.header.set_timestamp(header.timestamp());
+
 	{
 		if ::log::max_level() >= ::log::Level::Trace {
 			let env = b.env_info();
