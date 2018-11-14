@@ -38,7 +38,6 @@ use light::on_demand::{
 	request, OnDemand, HeaderRef, Request as OnDemandRequest,
 	Response as OnDemandResponse, ExecutionResult,
 };
-use light::on_demand::error::Error as OnDemandError;
 use light::request::Field;
 
 use sync::LightSync;
