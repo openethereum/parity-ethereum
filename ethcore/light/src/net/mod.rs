@@ -817,15 +817,16 @@ impl LightProtocol {
 	fn begin_new_cost_period(&self, io: &IoContext) {
 		self.load_distribution.end_period(&*self.sample_store);
 
-		let peer_count = self.statistics.read().avg_peer_count();
+		let avg_peer_count = self.statistics.read().avg_peer_count();
 		// Load share relative to average peer count +25%
-		let load_share = self.config.load_share / (peer_count * 1.25);
+		let load_share = self.config.load_share / (avg_peer_count * 1.25);
 		let new_params = Arc::new(FlowParams::from_request_times(
 			|kind| self.load_distribution.expected_time(kind),
 			load_share,
 			Duration::from_secs(self.config.max_stored_seconds),
 		));
 		*self.flow_params.write() = new_params.clone();
+		trace!(target: "pip", "New cost period: avg_peers={} ; cost_table:{:?}", avg_peer_count, new_params.cost_table());
 
 		let peers = self.peers.read();
 		let now = Instant::now();
