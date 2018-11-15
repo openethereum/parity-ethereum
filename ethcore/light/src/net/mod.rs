@@ -71,7 +71,7 @@ const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
 const RECALCULATE_COSTS_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
 const STATISTICS_TIMEOUT: TimerToken = 4;
-const STATISTICS_INTERVAL: Duration = Duration::from_secs(60);
+const STATISTICS_INTERVAL: Duration = Duration::from_secs(15);
 
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
@@ -451,6 +451,16 @@ impl LightProtocol {
 			num_pending + peers.len(),
 			peers.values().filter(|p| !p.lock().pending_requests.is_empty()).count(),
 		)
+	}
+
+	/// Get the number of active light peers downloading from the
+	/// node
+	pub fn leecher_count(&self) -> usize {
+		let credit_limit = *self.flow_params.read().limit();
+		// Count the number of peers that used some credit
+		self.peers.read().iter()
+			.filter(|(_, p)| p.lock().local_credits.current() < credit_limit)
+			.count()
 	}
 
 	/// Make a request to a peer.
@@ -848,13 +858,8 @@ impl LightProtocol {
 	}
 
 	fn tick_statistics(&self) {
-		let peer_count = self.peers.read().len();
-		let credit_limit = *self.flow_params.read().limit();
-		let alt_peer_count = self.peers.read().iter()
-			.filter(|(_, p)| p.lock().local_credits.current() < credit_limit)
-			.count();
-		info!(target: "pip", "Found {} connected peers ; {} from credit score", peer_count, alt_peer_count);
-		self.statistics.write().add_peer_count(peer_count);
+		let leecher_count = self.leecher_count();
+		self.statistics.write().add_peer_count(leecher_count);
 	}
 }
 
