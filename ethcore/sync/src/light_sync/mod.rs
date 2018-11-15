@@ -34,6 +34,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::mem;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 
@@ -213,6 +214,43 @@ enum SyncState {
 	Rounds(SyncRound),
 }
 
+/// A wrapper around the SyncState that makes sure to
+/// update the giving reference to `is_idle`
+struct SyncStateWrapper {
+	state: SyncState,
+}
+
+impl SyncStateWrapper {
+	/// Create a new wrapper for SyncState::Idle
+	pub fn idle() -> Self {
+		SyncStateWrapper {
+			state: SyncState::Idle,
+		}
+	}
+
+	/// Set the new state's value, making sure `is_idle` gets updated
+	pub fn set(&mut self, state: SyncState, is_idle_handle: &mut bool) {
+		*is_idle_handle = match state {
+			SyncState::Idle => true,
+			_ => false,
+		};
+		self.state = state;
+	}
+
+	/// Returns the internal state's value
+	pub fn get(self) -> SyncState {
+		self.state
+	}
+}
+
+impl Deref for SyncStateWrapper {
+	type Target = SyncState;
+
+	fn deref(&self) -> &SyncState {
+		&self.state
+	}
+}
+
 struct ResponseCtx<'a> {
 	peer: PeerId,
 	req_id: ReqId,
@@ -235,7 +273,7 @@ pub struct LightSync<L: AsLightClient> {
 	pending_reqs: Mutex<HashMap<ReqId, PendingReq>>, // requests from this handler
 	client: Arc<L>,
 	rng: Mutex<OsRng>,
-	state: Mutex<SyncState>,
+	state: Mutex<SyncStateWrapper>,
 	is_idle: Mutex<bool>,
 }
 
@@ -314,7 +352,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 		} else {
 			let mut state = self.state.lock();
 
-			let next_state = match mem::replace(&mut *state, SyncState::Idle) {
+			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
 				SyncState::Idle => SyncState::Idle,
 				SyncState::AncestorSearch(search) =>
 					SyncState::AncestorSearch(search.requests_abandoned(unfulfilled)),
@@ -392,7 +430,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 				data: headers,
 			};
 
-			let next_state = match mem::replace(&mut *state, SyncState::Idle) {
+			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
 				SyncState::Idle => SyncState::Idle,
 				SyncState::AncestorSearch(search) =>
 					SyncState::AncestorSearch(search.process_response(&ctx, &*self.client)),
@@ -413,17 +451,13 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 impl<L: AsLightClient> LightSync<L> {
 	/// Sets the LightSync's state, and update
 	/// `is_idle`
-	fn set_state(&self, state: &mut SyncState, next_state: SyncState) {
-		*self.is_idle.lock() = match next_state {
-			SyncState::Idle => true,
-			_ => false,
-		};
-		*state = next_state;
+	fn set_state(&self, state: &mut SyncStateWrapper, next_state: SyncState) {
+		state.set(next_state, &mut self.is_idle.lock());
 	}
 
 	// Begins a search for the common ancestor and our best block.
 	// does not lock state, instead has a mutable reference to it passed.
-	fn begin_search(&self, state: &mut SyncState) {
+	fn begin_search(&self, state: &mut SyncStateWrapper) {
 		if let None =  *self.best_seen.lock() {
 			// no peers.
 			self.set_state(state, SyncState::Idle);
@@ -449,7 +483,7 @@ impl<L: AsLightClient> LightSync<L> {
 		let chain_info = client.chain_info();
 
 		let mut state = self.state.lock();
-		debug!(target: "sync", "Maintaining sync ({:?})", &*state);
+		debug!(target: "sync", "Maintaining sync ({:?})", **state);
 
 		// drain any pending blocks into the queue.
 		{
@@ -459,7 +493,7 @@ impl<L: AsLightClient> LightSync<L> {
 			loop {
 				if client.queue_info().is_full() { break }
 
-				let next_state = match mem::replace(&mut *state, SyncState::Idle) {
+				let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
 					SyncState::Rounds(round)
 						=> SyncState::Rounds(round.drain(&mut sink, Some(DRAIN_AMOUNT))),
 					other => other,
@@ -498,12 +532,12 @@ impl<L: AsLightClient> LightSync<L> {
 					let network_score = other.as_ref().map(|target| target.head_td);
 					trace!(target: "sync", "No target to sync to. Network score: {:?}, Local score: {:?}",
 						network_score, best_td);
-					*state = SyncState::Idle;
+					self.set_state(&mut state, SyncState::Idle);
 					return;
 				}
 			};
 
-			match mem::replace(&mut *state, SyncState::Idle) {
+			match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
 				SyncState::Rounds(SyncRound::Abort(reason, remaining)) => {
 					if remaining.len() > 0 {
 						self.set_state(&mut state, SyncState::Rounds(SyncRound::Abort(reason, remaining)));
@@ -558,7 +592,7 @@ impl<L: AsLightClient> LightSync<L> {
 				}
 				drop(pending_reqs);
 
-				let next_state = match mem::replace(&mut *state, SyncState::Idle) {
+				let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
 					SyncState::Idle => SyncState::Idle,
 					SyncState::AncestorSearch(search) =>
 						SyncState::AncestorSearch(search.requests_abandoned(&unfulfilled)),
@@ -621,7 +655,7 @@ impl<L: AsLightClient> LightSync<L> {
 				None
 			};
 
-			let next_state = match mem::replace(&mut *state, SyncState::Idle) {
+			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
 				SyncState::Rounds(round) =>
 					SyncState::Rounds(round.dispatch_requests(dispatcher)),
 				SyncState::AncestorSearch(search) =>
@@ -647,7 +681,7 @@ impl<L: AsLightClient> LightSync<L> {
 			pending_reqs: Mutex::new(HashMap::new()),
 			client: client,
 			rng: Mutex::new(OsRng::new()?),
-			state: Mutex::new(SyncState::Idle),
+			state: Mutex::new(SyncStateWrapper::idle()),
 			is_idle: Mutex::new(true),
 		})
 	}
