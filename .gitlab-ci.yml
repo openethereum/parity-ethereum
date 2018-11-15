@@ -61,7 +61,7 @@ test-linux:
   variables:
     RUN_TESTS:                     all
   extends:
-    - cache
+    - cachew
   script:
     - scripts/gitlab/test-all.sh # stable
   tags:
