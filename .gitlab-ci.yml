@@ -51,6 +51,7 @@ push:cargo:
       - .cargo/
   tags:
     - ci2
+    
 
 test-linux:
   stage:                           test
