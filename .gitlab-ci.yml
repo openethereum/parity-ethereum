@@ -36,6 +36,11 @@ variables:
 #   - export VERSION
 #   - echo "Version = ${VERSION}"
 
+.cache:
+  paths:
+    - target/
+    - .cargo/
+
 .cargo-check:
   only:
     - pushes
@@ -44,19 +49,19 @@ variables:
 
 push:cargo:
   stage:                           check
-  extends:                         .cargo-check
-  cache:
-    paths:
-      - target/
-      - .cargo/
+  extends:                         
+    - .cargo-check
+    - .cache
   tags:
     - ci2
-    
+
 
 test-linux:
   stage:                           test
   variables:
     RUN_TESTS:                     all
+  extends:
+    - .cache
   script:
     - scripts/gitlab/test-all.sh # stable
   tags:
