@@ -42,9 +42,13 @@ variables:
   script:
     - cargo check
 
-push-job:
+push:cargo:
   stage:                           check
   extends:                         .cargo-check
+  cache:
+    paths:
+      - target/
+      - cargo/
   tags:
     - ci2
 
