@@ -940,19 +940,3 @@ impl LightSyncProvider for LightSync {
 		Default::default() // TODO
 	}
 }
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn light_params_load_share_depends_on_max_peers() {
-		let pruning_info = PruningInfo {
-			earliest_chain: 0,
-			earliest_state: 0,
-		};
-		let params1 = light_params(0, 10.0, pruning_info.clone(), None);
-		let params2 = light_params(0, 20.0, pruning_info, None);
-		assert!(params1.config.load_share > params2.config.load_share)
-	}
-}
