@@ -94,9 +94,8 @@ impl EthTester {
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let gas_price_percentile = options.gas_price_percentile;
-		let poll_lifetime = options.poll_lifetime;
 		let eth = EthClient::new(&client, &snapshot, &sync, &opt_ap, &miner, &external_miner, options).to_delegate();
-		let filter = EthFilterClient::new(client.clone(), miner.clone(), poll_lifetime).to_delegate();
+		let filter = EthFilterClient::new(client.clone(), miner.clone(), 60).to_delegate();
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations, gas_price_percentile);
