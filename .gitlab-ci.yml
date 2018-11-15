@@ -48,7 +48,7 @@ push:cargo:
   cache:
     paths:
       - target/
-      - cargo/
+      - .cargo/
   tags:
     - ci2
 
