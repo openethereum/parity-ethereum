@@ -694,9 +694,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				Box::new(future::done(result))
 			}
 		}
-
-		let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-		Box::new(future::ok(receipt.map(Into::into)))
 	}
 
 	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>> {

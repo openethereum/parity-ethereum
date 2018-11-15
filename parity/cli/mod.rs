@@ -238,6 +238,11 @@ usage! {
 	{
 		// Global flags and arguments
 		["Operating Options"]
+			FLAG flag_allow_empty_block_result: (bool) = false, or |c: &Config| c.parity.as_ref()?.allow_empty_block_result
+			.clone(),
+			"--no-empty-block-result",
+			"RPC calls will return 'null' instead of an error if ancient block sync is still in progress and the block information requested could not be found",
+
 			FLAG flag_no_download: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_download.clone(),
 			"--no-download",
 			"Normally new releases will be downloaded ready for updating. This disables it. Not recommended.",
@@ -1139,6 +1144,7 @@ struct Operating {
 	auto_update_check_frequency: Option<u16>,
 	release_track: Option<String>,
 	no_download: Option<bool>,
+	allow_empty_block_result: Option<bool>,
 	no_consensus: Option<bool>,
 	chain: Option<String>,
 	base_path: Option<String>,
@@ -1623,6 +1629,7 @@ mod tests {
 			arg_release_track: "current".into(),
 			flag_public_node: false,
 			flag_no_download: false,
+			flag_allow_empty_block_result: false,
 			flag_no_consensus: false,
 			arg_chain: "xyz".into(),
 			arg_base_path: Some("$HOME/.parity".into()),
@@ -1905,6 +1912,7 @@ mod tests {
 				auto_update_check_frequency: None,
 				release_track: None,
 				no_download: None,
+				allow_empty_block_result: None,
 				no_consensus: None,
 				chain: Some("./chain.json".into()),
 				base_path: None,
