@@ -36,11 +36,20 @@ variables:
 #   - export VERSION
 #   - echo "Version = ${VERSION}"
 
-cache:
-  key:                             "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
-  paths:
+# cache:
+#   key:                             "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+#   paths:
+#     - target/
+#     - $CARGO_HOME
+
+.cachew:                            &cachew
+  before_script:
+    - rustc --version && cargo --version
+  cache:
+    key:                            "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
     - target/
-    - .cargo/
+    - $CARGO_HOME
 
 .cargo-check:
   only:
@@ -51,6 +60,7 @@ cache:
 push:cargo:
   stage:                           check
   extends:                         .cargo-check
+  <<:                              *cachew
   tags:
     - ci2
 
@@ -58,6 +68,7 @@ test-linux:
   stage:                           test
   variables:
     RUN_TESTS:                     all
+  <<:                              *cachew
   script:
     - scripts/gitlab/test-all.sh # stable
   tags:
