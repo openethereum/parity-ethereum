@@ -36,7 +36,7 @@ variables:
 #   - export VERSION
 #   - echo "Version = ${VERSION}"
 
-cachew:
+.cachew:
   cache:
     paths:
       - target/
@@ -52,7 +52,7 @@ push:cargo:
   stage:                           check
   extends:                         
     - .cargo-check
-    - cachew
+    - .cachew
   tags:
     - ci2
 
@@ -61,7 +61,7 @@ test-linux:
   variables:
     RUN_TESTS:                     all
   extends:
-    - cachew
+    - .cachew
   script:
     - scripts/gitlab/test-all.sh # stable
   tags:
