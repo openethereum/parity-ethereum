@@ -37,6 +37,7 @@ variables:
 #   - echo "Version = ${VERSION}"
 
 cache:
+  key:                             "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
   paths:
     - target/
     - .cargo/
