@@ -848,8 +848,13 @@ impl LightProtocol {
 	}
 
 	fn tick_statistics(&self) {
-		let active_peer_count = self.peer_count().1;
-		self.statistics.write().add_peer_count(active_peer_count);
+		let peer_count = self.peers.read().len();
+		let credit_limit = *self.flow_params.read().limit();
+		let alt_peer_count = self.peers.read().iter()
+			.filter(|(_, p)| p.lock().local_credits.current() < credit_limit)
+			.count();
+		info!(target: "pip", "Found {} connected peers ; {} from credit score", peer_count, alt_peer_count);
+		self.statistics.write().add_peer_count(peer_count);
 	}
 }
 
