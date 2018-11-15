@@ -1,4 +1,5 @@
 stages:
+  - check
   - test
   - build
   - publish
@@ -42,7 +43,7 @@ variables:
     - cargo check
 
 push-job:
-  stage:                           test
+  stage:                           check
   extends:                         .cargo-check
   tags:
     - ci2
