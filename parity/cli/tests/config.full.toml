@@ -8,9 +8,9 @@ auto_update_check_frequency = 50
 release_track = "current"
 public_node = false
 no_download = false
-no_empty_block_result = false
 no_consensus = false
 no_persistent_txqueue = false
+allow_empty_block_result = false
 
 chain = "homestead"
 base_path = "$HOME/.parity"

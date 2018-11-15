@@ -51,7 +51,6 @@ use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 use types::pruning_info::PruningInfo;
-use client::ClientConfig;
 
 /// State information to be used during client query
 pub enum StateOrBlock {
@@ -388,9 +387,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
-
-	///get the client config
-	fn client_config(&self) -> ClientConfig;
 }
 
 /// Provides `reopen_block` method

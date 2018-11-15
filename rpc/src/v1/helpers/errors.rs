@@ -219,7 +219,11 @@ pub fn unavailable_block() -> Error {
 	}
 }
 
-pub fn check_block_number_existence<'a, T, C>(client: &'a C, num: BlockNumber) ->
+pub fn check_block_number_existence<'a, T, C>(
+	client: &'a C,
+	num: BlockNumber,
+	allow_empty_block_result: bool,
+) ->
 	impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
 	where C: BlockChainClient,
 {
@@ -228,7 +232,7 @@ pub fn check_block_number_existence<'a, T, C>(client: &'a C, num: BlockNumber) -
 			if let BlockNumber::Num(block_number) = num {
 				// tried to fetch block number and got nothing even though the block number is
 				// less than the latest block number
-				if block_number < client.chain_info().best_block_number && !client.client_config().allow_empty_block_result  {
+				if block_number < client.chain_info().best_block_number && !allow_empty_block_result {
 					return Err(unavailable_block());
 				}
 			}
@@ -237,11 +241,14 @@ pub fn check_block_number_existence<'a, T, C>(client: &'a C, num: BlockNumber) -
 	}
 }
 
-pub fn check_block_gap<'a, T, C>(client: &'a C) -> impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
+pub fn check_block_gap<'a, T, C>(
+	client: &'a C,
+	allow_empty_block_result: bool,
+) -> impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
 	where C: BlockChainClient,
 {
 	move |response| {
-		if response.is_none() && !client.client_config().allow_empty_block_result {
+		if response.is_none() && !allow_empty_block_result {
 			let BlockChainInfo { ancient_block_hash, .. } = client.chain_info();
 			// block information was requested, but unfortunately we couldn't find it and there
 			// are gaps in the database ethcore/src/blockchain/blockchain.rs

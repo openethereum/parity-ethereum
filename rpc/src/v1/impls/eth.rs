@@ -64,6 +64,9 @@ pub struct EthClientOptions {
 	pub send_block_number_in_get_work: bool,
 	/// Gas Price Percentile used as default gas price.
 	pub gas_price_percentile: usize,
+	/// Return 'null' instead of an error if ancient block sync is still in
+	/// progress and the block information requested could not be found.
+	pub allow_empty_block_result: bool,
 }
 
 impl EthClientOptions {
@@ -83,6 +86,7 @@ impl Default for EthClientOptions {
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
 			gas_price_percentile: 50,
+			allow_empty_block_result: false,
 		}
 	}
 }
@@ -640,13 +644,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
 		let result = self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)
-			.and_then(errors::check_block_gap(&*self.client));
+			.and_then(errors::check_block_gap(&*self.client, self.options.allow_empty_block_result));
 		Box::new(future::done(result))
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		let result = self.rich_block(num.clone().into(), include_txs)
-			.and_then(errors::check_block_number_existence(&*self.client, num));
+		let result = self.rich_block(num.clone().into(), include_txs).and_then(
+			errors::check_block_number_existence(&*self.client, num, self.options.allow_empty_block_result));
 		Box::new(future::done(result))
 	}
 
@@ -656,14 +660,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			self.miner.transaction(&hash)
 				.map(|t| Transaction::from_pending(t.pending().clone()))
 		});
-		let result = Ok(tx).and_then(errors::check_block_gap(&*self.client));
+		let result = Ok(tx).and_then(
+			errors::check_block_gap(&*self.client, self.options.allow_empty_block_result));
 		Box::new(future::done(result))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>> {
 		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash.into())), index.value());
-		let result = self.transaction(id)
-			.and_then(errors::check_block_gap(&*self.client));
+		let result = self.transaction(id).and_then(
+			errors::check_block_gap(&*self.client, self.options.allow_empty_block_result));
 		Box::new(future::done(result))
 	}
 
@@ -676,8 +681,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		};
 
 		let transaction_id = PendingTransactionId::Location(block_id, index.value());
-		let result = self.transaction(transaction_id)
-			.and_then(errors::check_block_number_existence(&*self.client, num));
+		let result = self.transaction(transaction_id).and_then(
+			errors::check_block_number_existence(&*self.client, num, self.options.allow_empty_block_result));
 		Box::new(future::done(result))
 	}
 
@@ -689,8 +694,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			(Some(receipt), true) => Box::new(future::ok(Some(receipt.into()))),
 			_ => {
 				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-				let result = Ok(receipt.map(Into::into))
-					.and_then(errors::check_block_gap(&*self.client));
+				let result = Ok(receipt.map(Into::into)).and_then(
+					errors::check_block_gap(&*self.client, self.options.allow_empty_block_result));
 				Box::new(future::done(result))
 			}
 		}

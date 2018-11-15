@@ -125,9 +125,6 @@ pub struct ClientConfig {
 	pub max_round_blocks_to_import: usize,
 	/// Snapshot configuration
 	pub snapshot: SnapshotConfiguration,
-	/// used by the RPC, returns an error if block information was requested
-	/// and there are gaps in the db
-	pub allow_empty_block_result: bool
 }
 
 impl Default for ClientConfig {
@@ -154,7 +151,6 @@ impl Default for ClientConfig {
 			transaction_verification_queue_size: 8192,
 			max_round_blocks_to_import: 12,
 			snapshot: Default::default(),
-			allow_empty_block_result: false
 		}
 	}
 }

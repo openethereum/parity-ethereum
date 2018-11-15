@@ -540,7 +540,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 	client_config.transaction_verification_queue_size = ::std::cmp::max(2048, txpool_size / 4);
 	client_config.snapshot = cmd.snapshot_conf.clone();
-	client_config.allow_empty_block_result = cmd.allow_empty_block_result;
 
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;
@@ -724,6 +723,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		private_tx_service: Some(private_tx_service.clone()),
 		gas_price_percentile: cmd.gas_price_percentile,
 		poll_lifetime: cmd.poll_lifetime,
+		allow_empty_block_result: cmd.allow_empty_block_result,
 	});
 
 	let dependencies = rpc::Dependencies {

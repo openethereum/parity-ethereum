@@ -2100,10 +2100,6 @@ impl BlockChainClient for Client {
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar_address.clone()
 	}
-
-	fn client_config(&self) -> ClientConfig {
-		self.config.clone()
-	}
 }
 
 impl IoClient for Client {

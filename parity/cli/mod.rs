@@ -240,7 +240,7 @@ usage! {
 		["Operating Options"]
 			FLAG flag_allow_empty_block_result: (bool) = false, or |c: &Config| c.parity.as_ref()?.allow_empty_block_result
 			.clone(),
-			"--no-empty-block-result",
+			"--allow-empty-block-result",
 			"RPC calls will return 'null' instead of an error if ancient block sync is still in progress and the block information requested could not be found",
 
 			FLAG flag_no_download: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_download.clone(),

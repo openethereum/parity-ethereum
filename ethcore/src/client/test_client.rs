@@ -66,7 +66,6 @@ use engines::EthEngine;
 use ethtrie;
 use state::StateInfo;
 use views::BlockView;
-use client::ClientConfig;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -878,10 +877,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn registrar_address(&self) -> Option<Address> { None }
-
-	fn client_config(&self) -> ClientConfig {
-		ClientConfig::default()
-	}
 }
 
 impl IoClient for TestBlockChainClient {
