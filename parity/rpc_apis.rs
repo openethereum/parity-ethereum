@@ -290,7 +290,6 @@ impl FullDependencies {
 							allow_pending_receipt_query: !self.geth_compatibility,
 							send_block_number_in_get_work: !self.geth_compatibility,
 							gas_price_percentile: self.gas_price_percentile,
-							poll_lifetime: self.poll_lifetime
 						}
 					);
 					handler.extend_with(client.to_delegate());
