@@ -215,6 +215,14 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 						Err(err) => Err(errors::invalid_params("Invalid signature received.", err)),
 					}
 				},
+				ConfirmationPayload::SignMessage(address, hash) => {
+					let signature = ethkey::Signature::from_electrum(&bytes.0);
+					match ethkey::verify_address(&address, &signature, &hash) {
+						Ok(true) => Ok(ConfirmationResponse::Signature(bytes.0.as_slice().into())),
+						Ok(false) => Err(errors::invalid_params("Sender address does not match the signature.", ())),
+						Err(err) => Err(errors::invalid_params("Invalid signature received.", err)),
+					}
+				},
 				ConfirmationPayload::Decrypt(_address, _data) => {
 					// TODO [ToDr]: Decrypt can we verify if the answer is correct?
 					Ok(ConfirmationResponse::Decrypt(bytes))

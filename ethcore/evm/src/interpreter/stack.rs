@@ -66,11 +66,7 @@ impl<S : fmt::Display> Stack<S> for VecStack<S> {
 	}
 
 	fn pop_back(&mut self) -> S {
-		let val = self.stack.pop();
-		match val {
-			Some(x) => x,
-			None => panic!("Tried to pop from empty stack.")
-		}
+		self.stack.pop().expect("instruction validation prevents from popping too many items; qed")
 	}
 
 	fn pop_n(&mut self, no_of_elems: usize) -> &[S] {

@@ -9,7 +9,7 @@ name = "parity-evm"
 path = "./src/main.rs"
 
 [dependencies]
-docopt = "0.8"
+docopt = "1.0"
 env_logger = "0.5"
 ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
 ethjson = { path = "../json" }
