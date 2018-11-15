@@ -21,6 +21,7 @@
 use std::sync::{Arc, Weak};
 
 use ethereum_types::{H256, H520, Address, U128, U256};
+use unexpected::Mismatch;
 
 use account_provider::AccountProvider;
 use block::{ExecutedBlock, IsBlock};
@@ -29,7 +30,7 @@ use engines::{default_system_or_code_call, EpochChange, Engine, Seal, ForkChoice
 use engines::block_reward::{apply_block_rewards, BlockRewardContract, RewardKind};
 use engines::signer::EngineSigner;
 use engines::validator_set::{ValidatorSet, SimpleList, new_validator_set};
-use error::{BlockError, Error};
+use error::{BlockError, Error, ErrorKind};
 use ethjson;
 use ethkey::Password;
 use header::{Header, ExtendedHeader};
@@ -286,6 +287,34 @@ impl Engine<EthereumMachine> for Hbbft {
 			None => vec![(author, RewardKind::Author, self.block_reward)],
 		};
 		apply_block_rewards(&rewards, block, &self.machine)
+	}
+
+	/// Verifies that the number of seal fields in `header` is consistent with the expected number
+	/// of seal fields for the `Hbbft` engine.
+	///
+	/// # Arguments
+	///
+	/// * `header` - the block header for which we want to check the number of seal fields.
+	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
+		let n_seal_fields_found = header.seal().len();
+		let n_seal_fields_expected = self.seal_fields(header);
+
+		if n_seal_fields_found == n_seal_fields_expected {
+			return Ok(());
+		}
+
+		trace!(
+			target: "engine",
+			"verify_block_basic: invalid number of seal fields, block number: {}, found: {}, expected: {}",
+			header.number(),
+			n_seal_fields_found,
+			n_seal_fields_expected,
+		);
+		let invalid_number_of_seal_fields = Mismatch {
+			expected: n_seal_fields_expected,
+			found: n_seal_fields_found,
+		};
+		Err(BlockError::InvalidSealArity(invalid_number_of_seal_fields).into())
 	}
 
 	/// Returns an RLP encoded proof of the set validator addresses at the genesis block. The
