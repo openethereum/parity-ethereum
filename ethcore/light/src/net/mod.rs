@@ -76,6 +76,10 @@ const STATISTICS_INTERVAL: Duration = Duration::from_secs(15);
 /// Maximum load share for the light server
 pub const MAX_LIGHTSERV_LOAD: f64 = 0.5;
 
+/// Factor to multiply leecher count to cater for
+/// extra sudden connections (should be >= 1.0)
+pub const LEECHER_COUNT_FACTOR: f64 = 1.25;
+
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
 
@@ -827,8 +831,8 @@ impl LightProtocol {
 		self.load_distribution.end_period(&*self.sample_store);
 
 		let avg_peer_count = self.statistics.read().avg_peer_count();
-		// Load share relative to average peer count +25%
-		let load_share = MAX_LIGHTSERV_LOAD / (avg_peer_count * 1.25);
+		// Load share relative to average peer count +LEECHER_COUNT_FACTOR%
+		let load_share = MAX_LIGHTSERV_LOAD / (avg_peer_count * LEECHER_COUNT_FACTOR);
 		let new_params = Arc::new(FlowParams::from_request_times(
 			|kind| self.load_distribution.expected_time(kind),
 			load_share,
