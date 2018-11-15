@@ -25,7 +25,7 @@ use ethereum_types::{H256, H520, Address, U128, U256};
 use account_provider::AccountProvider;
 use block::{ExecutedBlock, IsBlock};
 use client::{EngineClient, BlockInfo};
-use engines::{default_system_or_code_call, Engine, Seal, ForkChoice};
+use engines::{default_system_or_code_call, EpochChange, Engine, Seal, ForkChoice};
 use engines::block_reward::{apply_block_rewards, BlockRewardContract, RewardKind};
 use engines::signer::EngineSigner;
 use engines::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -33,7 +33,7 @@ use error::{BlockError, Error};
 use ethjson;
 use ethkey::Password;
 use header::{Header, ExtendedHeader};
-use machine::{Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, EthereumMachine};
 use parking_lot::RwLock;
 use rlp::{self, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use types::BlockNumber;
@@ -312,6 +312,25 @@ impl Engine<EthereumMachine> for Hbbft {
 		genesis_proof.append(&validator_set_proof);
 		genesis_proof.append(&GENESIS_FINALITY_PROOF);
 		Ok(genesis_proof.out())
+	}
+
+	/// Checks whether or not the block corresponding to `header` is the last block for a
+	/// validator-set epoch. If `EpochChange::Yes` is returned from this method, the changes to the
+	/// validator-set will not take effect until they have received finality.
+	///
+	/// This method is used by `Importer::check_epoch_end_signal()`. If `EpochChange::Yes` is
+	/// returned, `Importer::check_epoch_end_signal()` will insert a pending validator-set
+	/// transition into the blockchain database at the block corresponding to `header`.
+	///
+	/// # Arguments
+	///
+	/// * `header` - the header for the block for which we ask the question: "is this the last
+	/// block for a validator-set epoch?".
+	/// * `aux` - holds any block data and block transaction receipts from the block corresponding
+	/// to `header`.
+	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> EpochChange<EthereumMachine> {
+		let is_genesis_block = header.number() == 0;
+		self.validators.signals_epoch_end(is_genesis_block, header, aux)
 	}
 }
 
