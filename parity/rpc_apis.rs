@@ -318,7 +318,7 @@ impl FullDependencies {
 					}
 				},
 				Api::Personal => {
-					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility, self.experimental_rpcs).to_delegate());
 				},
 				Api::Signer => {
 					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.executor.clone()).to_delegate());
@@ -534,7 +534,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(EthPubSub::to_delegate(client));
 				},
 				Api::Personal => {
-					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility, self.experimental_rpcs).to_delegate());
 				},
 				Api::Signer => {
 					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.executor.clone()).to_delegate());

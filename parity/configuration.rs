@@ -1426,6 +1426,7 @@ mod tests {
 			compaction: Default::default(),
 			vm_type: Default::default(),
 			geth_compatibility: false,
+			experimental_rpcs: false,
 			net_settings: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
