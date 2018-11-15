@@ -73,6 +73,9 @@ const RECALCULATE_COSTS_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const STATISTICS_TIMEOUT: TimerToken = 4;
 const STATISTICS_INTERVAL: Duration = Duration::from_secs(15);
 
+/// Maximum load share for the light server
+pub const MAX_LIGHTSERV_LOAD: f64 = 0.5;
+
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
 
@@ -259,21 +262,17 @@ pub trait Handler: Send + Sync {
 pub struct Config {
 	/// How many stored seconds of credits peers should be able to accumulate.
 	pub max_stored_seconds: u64,
-	/// How much of the total load capacity each peer should be allowed to take.
-	pub load_share: f64,
 	/// The network config median peers (used as default peer count)
 	pub median_peers: f64,
 }
 
 impl Default for Config {
 	fn default() -> Self {
-		const LOAD_SHARE: f64 = 1.0;
 		const MEDIAN_PEERS: f64 = 25.0;
 		const MAX_ACCUMULATED: u64 = 60 * 5; // only charge for 5 minutes.
 
 		Config {
 			max_stored_seconds: MAX_ACCUMULATED,
-			load_share: LOAD_SHARE,
 			median_peers: MEDIAN_PEERS,
 		}
 	}
@@ -364,15 +363,15 @@ impl Statistics {
 		self.peer_counts.push_back(peer_count);
 	}
 
-	/// Get the average peer count from previous samples
+	/// Get the average peer count from previous samples. Is always >= 1.0
 	pub fn avg_peer_count(&self) -> f64 {
-		let avg = self.peer_counts.iter().map(|&v| v as u64).sum::<u64>() as f64
-			/ self.peer_counts.len() as f64;
-		if avg < 1.0 {
-			1.0
-		} else {
-			avg
+		let len = self.peer_counts.len();
+		if len == 0 {
+			return 1.0;
 		}
+		let avg = self.peer_counts.iter().map(|&v| v as u64).sum::<u64>() as f64
+			/ len as f64;
+		avg.max(1.0)
 	}
 }
 
@@ -412,7 +411,7 @@ impl LightProtocol {
 		let sample_store = params.sample_store.unwrap_or_else(|| Box::new(NullStore));
 		let load_distribution = LoadDistribution::load(&*sample_store);
 		// Default load share relative to median peers
-		let load_share = params.config.load_share / params.config.median_peers;
+		let load_share = MAX_LIGHTSERV_LOAD / params.config.median_peers;
 		let flow_params = FlowParams::from_request_times(
 			|kind| load_distribution.expected_time(kind),
 			load_share,
@@ -829,7 +828,7 @@ impl LightProtocol {
 
 		let avg_peer_count = self.statistics.read().avg_peer_count();
 		// Load share relative to average peer count +25%
-		let load_share = self.config.load_share / (avg_peer_count * 1.25);
+		let load_share = MAX_LIGHTSERV_LOAD / (avg_peer_count * 1.25);
 		let new_params = Arc::new(FlowParams::from_request_times(
 			|kind| self.load_distribution.expected_time(kind),
 			load_share,

@@ -268,8 +268,6 @@ fn light_params(
 	pruning_info: PruningInfo,
 	sample_store: Option<Box<SampleStore>>,
 ) -> LightParams {
-	const MAX_LIGHTSERV_LOAD: f64 = 0.5;
-
 	let mut light_params = LightParams {
 		network_id: network_id,
 		config: Default::default(),
@@ -282,7 +280,6 @@ fn light_params(
 		sample_store: sample_store,
 	};
 
-	light_params.config.load_share = MAX_LIGHTSERV_LOAD;
 	light_params.config.median_peers = median_peers;
 	light_params
 }
