@@ -59,7 +59,6 @@ variables:
   script:
     - cargo check
 
-
 push:cargo:
   stage:                           check
   extends:                         .cargo-check
