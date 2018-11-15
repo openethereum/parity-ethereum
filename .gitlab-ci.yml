@@ -47,11 +47,11 @@ variables:
     - rustc --version && cargo --version
     - du -hs target
     - du -hs $CARGO_HOME
-  cache:
-    key:                            "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
-    paths:
-    - target/
-    - $CARGO_HOME
+cache:
+  key:                            "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+  paths:
+  - target/
+  - $CARGO_HOME
 
 .cargo-check:
   only:
@@ -62,7 +62,7 @@ variables:
 push:cargo:
   stage:                           check
   extends:                         .cargo-check
-  <<:                              *cachew
+  # <<:                              *cachew
   tags:
     - ci2
 
@@ -70,7 +70,7 @@ test-linux:
   stage:                           test
   variables:
     RUN_TESTS:                     all
-  <<:                              *cachew
+  # <<:                              *cachew
   script:
     - scripts/gitlab/test-all.sh # stable
   tags:
