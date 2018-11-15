@@ -45,6 +45,8 @@ variables:
 .cachew:                            &cachew
   before_script:
     - rustc --version && cargo --version
+    - du -hs target
+    - du -hs $CARGO_HOME
   cache:
     key:                            "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
