@@ -6,6 +6,32 @@ set -u # treat unset variables as error
 
 git log --graph --oneline --decorate=short -n 10
 
+THREADS=8
+
+# temporarily here
+cpp_test () {
+  case $CARGO_TARGET in
+    (x86_64-unknown-linux-gnu)
+      # Running the C++ example
+      echo "________Running the C++ example________"
+      cd parity-clib-examples/cpp && \
+        mkdir -p build && \
+        cd build && \
+        cmake .. && \
+        make -j $THREADS && \
+        ./parity-example && \
+        cd .. && \
+        rm -rf build && \
+        cd ../..
+      ;;
+    (*)
+      echo "________Skipping the C++ example________"
+      ;;
+  esac
+}
+
+# 
+
 # case ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} in
 #   (beta|stable)
 #     export GIT_COMPARE=origin/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}~
@@ -32,29 +58,7 @@ git log --graph --oneline --decorate=short -n 10
 git submodule update --init --recursive
 rustup show
 
-# temporarily here
-cpp_test () {
-  case $CARGO_TARGET in
-    (x86_64-unknown-linux-gnu)
-      # Running the C++ example
-      echo "________Running the C++ example________"
-      cd parity-clib-examples/cpp && \
-        mkdir -p build && \
-        cd build && \
-        cmake .. && \
-        make -j $THREADS && \
-        ./parity-example && \
-        cd .. && \
-        rm -rf build && \
-        cd ../..
-      ;;
-    (*)
-      echo "________Skipping the C++ example________"
-      ;;
-  esac
-}
-
 # exec ./test.sh
 # cargo test -v --all --target $CARGO_TARGET
-time cargo test --release --features json-tests ci-skip-issue --all --target $CARGO_TARGET -v $@ -- --test-threads 8 
+time cargo test --release --features json-tests ci-skip-issue --all --target $CARGO_TARGET -v -- --test-threads $THREADS
 cpp_test
