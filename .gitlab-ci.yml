@@ -34,8 +34,8 @@ variables:
 #   - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
 #   - test "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
 #   - export VERSION
-#   - echo "Version = ${VERSION}
-"
+#   - echo "Version = ${VERSION}"
+
 .cachew:                            &cachew
   before_script:
     - rustc --version
