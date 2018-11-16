@@ -40,11 +40,11 @@ variables:
   before_script:
     - rustc --version
     - cargo --version
-    - pwd && ls
+    - pwd && ls -la
     - du -hs target
     - du -hs $CARGO_HOME
   after_script:
-    - pwd && ls
+    - pwd && ls -la
     - du -hs target
     - du -hs $CARGO_HOME
 
