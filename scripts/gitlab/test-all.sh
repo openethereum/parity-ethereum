@@ -55,5 +55,5 @@ cpp_test () {
 }
 
 # exec ./test.sh
-cargo test -v --all
+cargo test -v --all --target $CARGO_TARGET
 cpp_test
