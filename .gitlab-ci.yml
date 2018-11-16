@@ -65,15 +65,17 @@ cache:
 #   tags:
 #     - ci2
 
-# test-linux:
-#   stage:                           test
-#   variables:
-#     RUN_TESTS:                     all
-#   <<:                              *cachew
-#   script:
-#     - scripts/gitlab/test-all.sh # stable
-#   tags:
-#     - ci2
+test-linux:
+  stage:                           test
+  # variables:
+  #   RUN_TESTS:                     all
+  <<:                              *cachew
+  script:
+    - scripts/gitlab/test-all.sh
+    # - cargo test -v --all
+    # - cpp test sh
+  tags:
+    - ci2
 
 build-linux:
   stage:                           build
@@ -84,6 +86,7 @@ build-linux:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
   script:
     - scripts/gitlab/build-unix.sh
+    # - cargo build --all # (--release -features_final)
   # <<:                              *cachew
   <<:                              *collect_artifacts
   tags:
@@ -112,7 +115,7 @@ build-windows:
   only:
     - pushes
   variables:
-    CARGO_TARGET:                  x86_64-pc-windows-msvc
+    CARGO_TARGET:                  x86_64-pc-windows-gnu
   script:
     - sh scripts/gitlab/build-windows.sh
   # <<:                              *cachew

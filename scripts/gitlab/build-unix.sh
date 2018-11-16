@@ -10,18 +10,19 @@ echo "CARGO_TARGET:     " $CARGO_TARGET
 echo "CC:               " $CC
 echo "CXX:              " $CXX
 
-echo "__________CARGO CONFIG__________"
-if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
-then
-  # use build container's cargo config
-  cat /.cargo/config
-else
-  mkdir -p .cargo
-  rm -f .cargo/config
-  echo "[target.$CARGO_TARGET]" >> .cargo/config
-  echo "linker= \"$CC\"" >> .cargo/config
-  cat .cargo/config
-fi
+# Pierre suggested to get rid of it
+# echo "__________CARGO CONFIG__________"
+# if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
+# then
+#   # use build container's cargo config
+#   cat /.cargo/config
+# else
+#   mkdir -p .cargo
+#   rm -f .cargo/config
+#   echo "[target.$CARGO_TARGET]" >> .cargo/config
+#   echo "linker= \"$CC\"" >> .cargo/config
+#   cat .cargo/config
+# fi
 
 
 echo "_____ Building target: "$CARGO_TARGET" _____"

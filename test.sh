@@ -1,13 +1,13 @@
 #!/bin/sh
 # Running Parity Full Test Suite
-echo "test.sh"
-# delete it later ^
+echo "________Running test.sh________"
 
 FEATURES="json-tests,ci-skip-issue"
 OPTIONS="--release"
 VALIDATE=1
 THREADS=8
 
+# Pierre suggested to remove that
 case $1 in
   --no-json)
     FEATURES="ipc"

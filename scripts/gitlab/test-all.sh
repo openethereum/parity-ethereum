@@ -32,4 +32,28 @@ git log --graph --oneline --decorate=short -n 10
 git submodule update --init --recursive
 rustup show
 
-exec ./test.sh
+# temporarily here
+cpp_test () {
+  case $CARGO_TARGET in
+    (x86_64-unknown-linux-gnu)
+      # Running the C++ example
+      echo "________Running the C++ example________"
+      cd parity-clib-examples/cpp && \
+        mkdir -p build && \
+        cd build && \
+        cmake .. && \
+        make -j $THREADS && \
+        ./parity-example && \
+        cd .. && \
+        rm -rf build && \
+        cd ../..
+      ;;
+    (*)
+      echo "________Skipping the C++ example________"
+      ;;
+  esac
+}
+
+# exec ./test.sh
+cargo test -v --all
+cpp_test
