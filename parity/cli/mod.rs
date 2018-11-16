@@ -471,6 +471,10 @@ usage! {
 			"--jsonrpc-no-keep-alive",
 			"Disable HTTP/1.1 keep alive header. Disabling keep alive will prevent re-using the same TCP connection to fire multiple requests, recommended when using one request per connection.",
 
+			FLAG flag_jsonrpc_experimental: (bool) = false, or |c: &Config| c.rpc.as_ref()?.experimental_rpcs.clone(),
+			"--jsonrpc-experimental",
+			"Enable experimental RPCs. Enable to have access to methods from unfinalised EIPs in all namespaces",
+
 			ARG arg_jsonrpc_port: (u16) = 8545u16, or |c: &Config| c.rpc.as_ref()?.port.clone(),
 			"--jsonrpc-port=[PORT]",
 			"Specify the port portion of the HTTP JSON-RPC API server.",
@@ -502,6 +506,10 @@ usage! {
 			ARG arg_jsonrpc_max_payload: (Option<usize>) = None, or |c: &Config| c.rpc.as_ref()?.max_payload,
 			"--jsonrpc-max-payload=[MB]",
 			"Specify maximum size for HTTP JSON-RPC requests in megabytes.",
+
+			ARG arg_poll_lifetime: (u32) = 60u32, or |c: &Config| c.rpc.as_ref()?.poll_lifetime.clone(),
+			"--poll-lifetime=[S]",
+			"Set the RPC filter lifetime to S seconds. The filter has to be polled at least every S seconds , otherwise it is removed.",
 
 		["API and Console Options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| c.websockets.as_ref()?.disable.clone(),
@@ -756,10 +764,6 @@ usage! {
 			ARG arg_gas_price_percentile: (usize) = 50usize, or |c: &Config| c.mining.as_ref()?.gas_price_percentile,
 			"--gas-price-percentile=[PCT]",
 			"Set PCT percentile gas price value from last 100 blocks as default gas price when sending transactions.",
-
-			ARG arg_poll_lifetime: (u32) = 60u32, or |c: &Config| c.mining.as_ref()?.poll_lifetime.clone(),
-			"--poll-lifetime=[S]",
-			"Set the lifetime of the internal index filter to S seconds.",
 
 			ARG arg_author: (Option<String>) = None, or |c: &Config| c.mining.as_ref()?.author.clone(),
 			"--author=[ADDRESS]",
@@ -1224,6 +1228,8 @@ struct Rpc {
 	processing_threads: Option<usize>,
 	max_payload: Option<usize>,
 	keep_alive: Option<bool>,
+	experimental_rpcs: Option<bool>,
+	poll_lifetime: Option<u32>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1316,7 +1322,6 @@ struct Mining {
 	relay_set: Option<String>,
 	min_gas_price: Option<u64>,
 	gas_price_percentile: Option<usize>,
-	poll_lifetime: Option<u32>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -1682,6 +1687,7 @@ mod tests {
 			// RPC
 			flag_no_jsonrpc: false,
 			flag_jsonrpc_no_keep_alive: false,
+			flag_jsonrpc_experimental: false,
 			arg_jsonrpc_port: 8545u16,
 			arg_jsonrpc_interface: "local".into(),
 			arg_jsonrpc_cors: "null".into(),
@@ -1690,6 +1696,7 @@ mod tests {
 			arg_jsonrpc_server_threads: None,
 			arg_jsonrpc_threads: 4,
 			arg_jsonrpc_max_payload: None,
+			arg_poll_lifetime: 60u32,
 
 			// WS
 			flag_no_ws: false,
@@ -1751,7 +1758,6 @@ mod tests {
 			arg_min_gas_price: Some(0u64),
 			arg_usd_per_tx: "0.0001".into(),
 			arg_gas_price_percentile: 50usize,
-			arg_poll_lifetime: 60u32,
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
 			arg_gas_floor_target: "8000000".into(),
@@ -1965,6 +1971,8 @@ mod tests {
 				processing_threads: None,
 				max_payload: None,
 				keep_alive: None,
+				experimental_rpcs: None,
+				poll_lifetime: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,
@@ -2021,7 +2029,6 @@ mod tests {
 				relay_set: None,
 				min_gas_price: None,
 				gas_price_percentile: None,
-				poll_lifetime: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),

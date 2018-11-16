@@ -115,6 +115,7 @@ pub struct RunCmd {
 	pub compaction: DatabaseCompactionProfile,
 	pub vm_type: VMType,
 	pub geth_compatibility: bool,
+	pub experimental_rpcs: bool,
 	pub net_settings: NetworkSettings,
 	pub ipfs_conf: ipfs::Configuration,
 	pub secretstore_conf: secretstore::Configuration,
@@ -312,6 +313,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch,
 		geth_compatibility: cmd.geth_compatibility,
+		experimental_rpcs: cmd.experimental_rpcs,
 		executor: runtime.executor(),
 		whisper_rpc: whisper_factory,
 		private_tx_service: None, //TODO: add this to client.
@@ -712,6 +714,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		net_service: manage_network.clone(),
 		updater: updater.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		experimental_rpcs: cmd.experimental_rpcs,
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch.clone(),
 		executor: runtime.executor(),
