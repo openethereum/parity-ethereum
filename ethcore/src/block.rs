@@ -552,26 +552,29 @@ fn enact(
 ) -> Result<LockedBlock, Error> {
 	let mut b = OpenBlock::new(
 		engine,
-		factories.clone(),
+		factories,
 		tracing,
-		db.boxed_clone(),
+		db,
 		parent,
 		last_hashes,
 		engine.executive_author(&header), // Engine such as Clique will calculate author from extra_data.
-		(3141562.into(), 31415620.into()),
+		(*header.gas_limit(), *header.gas_limit()),
 		header.extra_data().clone(),
 		is_epoch_begin,
 		ancestry,
 	)?;
 
-	{
-		if ::log::max_level() >= ::log::Level::Trace {
-			let env = b.env_info();
-			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
-			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
-				   b.block.header.number(), s.root(), env.author, s.balance(&env.author)?);
-		}
-	}
+	// We must set timestamp here
+	b.block.header.set_timestamp(header.timestamp());
+	b.block.header.set_difficulty(*header.difficulty());
+//	{
+//		if ::log::max_level() >= ::log::Level::Trace {
+//			let env = b.env_info();
+//			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
+//			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
+//				   b.block.header.number(), s.root(), env.author, s.balance(&env.author)?);
+//		}
+//	}
 
 	b.push_transactions(transactions)?;
 
@@ -656,8 +659,8 @@ mod tests {
 			parent,
 			last_hashes,
 			factories,
-			is_epoch_begin,
-			ancestry,
+			false,
+			&mut Vec::new().into_iter(),
 		)
 	}
 
