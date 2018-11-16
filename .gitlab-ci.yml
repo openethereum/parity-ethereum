@@ -40,9 +40,11 @@ variables:
   before_script:
     - rustc --version
     - cargo --version
+    - pwd
     - du -hs target
     - du -hs $CARGO_HOME
   after_script:
+    - pwd
     - du -hs target
     - du -hs $CARGO_HOME
 
@@ -58,12 +60,12 @@ cache:
   script:
     - cargo check
 
-push:cargo:
-  stage:                           check
-  extends:                         .cargo-check
-  <<:                              *cachew
-  tags:
-    - ci2
+# push:cargo:
+#   stage:                           check
+#   extends:                         .cargo-check
+#   <<:                              *cachew
+#   tags:
+#     - ci2
 
 # test-linux:
 #   stage:                           test
