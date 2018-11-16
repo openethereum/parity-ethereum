@@ -138,6 +138,7 @@ impl Configuration {
 		let compaction = self.args.arg_db_compaction.parse()?;
 		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
+		let experimental_rpcs = self.args.flag_jsonrpc_experimental;
 		let ipfs_conf = self.ipfs_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
@@ -377,6 +378,7 @@ impl Configuration {
 				warp_sync: warp_sync,
 				warp_barrier: self.args.arg_warp_barrier,
 				geth_compatibility: geth_compatibility,
+				experimental_rpcs,
 				net_settings: self.network_settings()?,
 				ipfs_conf: ipfs_conf,
 				secretstore_conf: secretstore_conf,
@@ -1424,6 +1426,7 @@ mod tests {
 			compaction: Default::default(),
 			vm_type: Default::default(),
 			geth_compatibility: false,
+			experimental_rpcs: false,
 			net_settings: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
