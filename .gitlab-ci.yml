@@ -40,7 +40,7 @@ variables:
   before_script:
     - rustc --version
     - cargo --version
-    - du -hs target
+    # - du -hs target
     - du -hs $CARGO_HOME
   after_script:
     - du -hs target
@@ -58,12 +58,12 @@ cache:
   script:
     - cargo check
 
-push:cargo:
-  stage:                           check
-  extends:                         .cargo-check
-  <<:                              *cachew
-  tags:
-    - ci2
+# push:cargo:
+#   stage:                           check
+#   extends:                         .cargo-check
+#   <<:                              *cachew
+#   tags:
+#     - ci2
 
 # test-linux:
 #   stage:                           test
@@ -84,7 +84,7 @@ build-linux:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
   script:
     - scripts/gitlab/build-unix.sh
-  <<:                              *cachew
+  # <<:                              *cachew
   <<:                              *collect_artifacts
   tags:
     - ci2
@@ -100,7 +100,7 @@ build-darwin:
     CXX:                           g++
   script:
     - scripts/gitlab/build-unix.sh
-  <<:                              *cachew
+  # <<:                              *cachew
   tags:
     # - rust-osx
     - ci2
@@ -115,7 +115,7 @@ build-windows:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
   script:
     - sh scripts/gitlab/build-windows.sh
-  <<:                              *cachew
+  # <<:                              *cachew
   tags:
    # - rust-windows
    - ci2
@@ -130,7 +130,7 @@ build-android:
     CARGO_TARGET:                  armv7-linux-androideabi
   script:
     - scripts/gitlab/build-unix.sh
-  <<:                              *cachew
+  # <<:                              *cachew
   tags:
     - ci2
     # - rust-arm
