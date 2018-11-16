@@ -34,14 +34,8 @@ variables:
 #   - ID_SHORT="$(echo ${CI_COMMIT_SHA} | cut -c 1-7)"
 #   - test "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" = "nightly" && VERSION="${VERSION}-${ID_SHORT}-${DATE_STR}"
 #   - export VERSION
-#   - echo "Version = ${VERSION}"
-
-# cache:
-#   key:                             "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
-#   paths:
-#     - target/
-#     - $CARGO_HOME
-
+#   - echo "Version = ${VERSION}
+"
 .cachew:                            &cachew
   before_script:
     - rustc --version
@@ -71,51 +65,76 @@ push:cargo:
   tags:
     - ci2
 
-test-linux:
-  stage:                           test
-  variables:
-    RUN_TESTS:                     all
-  <<:                              *cachew
-  script:
-    - scripts/gitlab/test-all.sh # stable
-  tags:
-    - ci2
-
-# build-linux:
-#   stage:                           build
-#   # only:                            *releaseable_branches
+# test-linux:
+#   stage:                           test
 #   variables:
-#     CARGO_TARGET:                  x86_64-unknown-linux-gnu
+#     RUN_TESTS:                     all
+#   <<:                              *cachew
 #   script:
-#     - scripts/gitlab/build-unix.sh
-#   <<:                              *collect_artifacts
+#     - scripts/gitlab/test-all.sh # stable
 #   tags:
 #     - ci2
 
-# build-darwin:
-#   stage:                           build
-#   only:                            *releaseable_branches
-#   variables:
-#     CARGO_TARGET:                  x86_64-apple-darwin
-#     CC:                            gcc
-#     CXX:                           g++
-#   script:
-#     - scripts/gitlab/build-unix.sh
-#   tags:
-#     - rust-osx
-#   <<:                              *collect_artifacts
+build-linux:
+  stage:                           build
+  # only:                            *releaseable_branches
+  only:
+    - pushes
+  variables:
+    CARGO_TARGET:                  x86_64-unknown-linux-gnu
+  <<:                              *cachew
+  script:
+    - scripts/gitlab/build-unix.sh
+  <<:                              *collect_artifacts
+  tags:
+    - ci2
 
-# build-windows:
-#   stage:                           build
-#   # only:                            *releaseable_branches
-#   variables:
-#     CARGO_TARGET:                  x86_64-pc-windows-msvc
-#   script:
-#     - sh scripts/gitlab/build-windows.sh
-#   tags:
-#    # - rust-windows
-#    - ci2
-#   <<:                              *collect_artifacts
+build-darwin:
+  stage:                           build
+  # only:                            *releaseable_branches
+  only:
+    - pushes
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+  <<:                              *cachew
+  script:
+    - scripts/gitlab/build-unix.sh
+  tags:
+    # - rust-osx
+    - ci2
+  <<:                              *collect_artifacts
+
+build-windows:
+  stage:                           build
+  # only:                            *releaseable_branches
+  only:
+    - pushes
+  variables:
+    CARGO_TARGET:                  x86_64-pc-windows-msvc
+  <<:                              *cachew
+  script:
+    - sh scripts/gitlab/build-windows.sh
+  tags:
+   # - rust-windows
+   - ci2
+  <<:                              *collect_artifacts
+
+build-android:
+  stage:                           build
+  only:
+    - pushes
+  image:                           parity/rust-android:gitlab-ci
+  variables:
+    CARGO_TARGET:                  armv7-linux-androideabi
+  <<:                              *cachew
+  script:
+    - scripts/gitlab/build-unix.sh
+  tags:
+    - ci2
+    # - rust-arm
+  <<:                              *collect_artifacts # ?
 
 # publish-docker:
 #   stage:                           publish
@@ -160,18 +179,6 @@ cargo-audit:
     - scripts/gitlab/cargo-audit.sh
   tags:
     - ci2
-
-# works
-# build-android:
-#   stage:                           optional
-#   image:                           parity/rust-android:gitlab-ci
-#   variables:
-#     CARGO_TARGET:                  armv7-linux-androideabi
-#   script:
-#     - scripts/gitlab/build-unix.sh
-#   tags:
-#     - ci2
-#     # - rust-arm
 
 # test-beta:
 #   stage:                           optional
