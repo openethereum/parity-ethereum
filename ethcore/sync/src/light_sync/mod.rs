@@ -711,10 +711,11 @@ impl<L: AsLightClient> SyncInfo for LightSync<L> {
 	fn is_major_importing(&self) -> bool {
 		const EMPTY_QUEUE: usize = 3;
 
-		if self.client.as_light_client().queue_info().unverified_queue_size > EMPTY_QUEUE {
-			return true;
-		}
-		!*self.is_idle.lock()
+		let queue_info = self.client.as_light_client().queue_info();
+		let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > EMPTY_QUEUE;
+		let is_syncing = !*self.is_idle.lock();
+
+		is_verifying || is_syncing
 	}
 
 }
