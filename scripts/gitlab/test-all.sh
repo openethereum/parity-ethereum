@@ -59,6 +59,9 @@ git submodule update --init --recursive
 rustup show
 
 # exec ./test.sh
-# cargo test -v --all --target $CARGO_TARGET
+echo "________Validate chainspecs________"
+time ./scripts/validate_chainspecs.sh
+
+echo "________Running Parity Full Test Suite________"
 time cargo test --release --features json-tests ci-skip-issue --all --target $CARGO_TARGET -v -- --test-threads $THREADS
 cpp_test
