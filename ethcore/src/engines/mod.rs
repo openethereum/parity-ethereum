@@ -90,6 +90,8 @@ pub enum EngineError {
 	MalformedMessage(String),
 	/// Requires client ref, but none registered.
 	RequiresClient,
+	/// No validator-set transition exists in the blockchain DB for `BlockNumber`'s parent block.
+	NoTransitionFoundForBlock(BlockNumber),
 }
 
 impl fmt::Display for EngineError {
@@ -105,6 +107,7 @@ impl fmt::Display for EngineError {
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
 			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
 			RequiresClient => format!("Call requires client but none registered"),
+			NoTransitionFoundForBlock(ref block_number) => format!("No transition found for block number: {}", block_number),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))

@@ -26,7 +26,7 @@ use unexpected::Mismatch;
 use account_provider::AccountProvider;
 use block::{ExecutedBlock, IsBlock};
 use client::{EngineClient, BlockInfo};
-use engines::{default_system_or_code_call, EpochChange, Engine, Seal, ForkChoice};
+use engines::{default_system_or_code_call, Engine, EngineError, EpochChange, ForkChoice, Seal};
 use engines::block_reward::{apply_block_rewards, BlockRewardContract, RewardKind};
 use engines::signer::EngineSigner;
 use engines::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -36,7 +36,8 @@ use ethkey::Password;
 use header::{Header, ExtendedHeader};
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use parking_lot::RwLock;
-use rlp::{self, Decodable, DecoderError, Encodable, RlpStream, Rlp};
+use receipt::Receipt;
+use rlp::{self, Decodable, Encodable, RlpStream, Rlp};
 use types::BlockNumber;
 
 // TODO: Use a threshold signature of the block.
@@ -54,8 +55,76 @@ const GENESIS_FINALITY_PROOF: &[u8] = &[];
 
 type StepNumber = u64;
 
-fn convert_block_number_to_step_number(block_number: &BlockNumber) -> StepNumber {
-	block_number - 1
+fn get_step_number_from_header(header: &Header) -> StepNumber {
+	header.number() - 1
+}
+
+/// Validator-set epoch transitions are stored in the blockchain database, this structure
+/// represents the structure of the RLP encoded bytes that are stored in the database. This
+/// structure is used to decode the RLP encoded transition-proof bytes that are returned from
+/// `Client::epoch_transition_for()`.
+struct TransitionProof {
+	block_number: BlockNumber,
+	validator_set_proof: Vec<u8>,
+	finality_proof: Vec<u8>,
+}
+
+impl TransitionProof {
+	/// Decodes RLP bytes into a `TransitionProof`.
+	fn from_rlp_bytes(rlp_bytes: &[u8]) -> Result<Self, rlp::DecoderError> {
+		let rlp = Rlp::new(rlp_bytes);
+		let block_number = rlp.val_at(0)?;
+		let validator_set_proof = rlp.at(1)?.data()?.to_vec();
+		let finality_proof = rlp.at(2)?.data()?.to_vec();
+		Ok(TransitionProof { block_number, validator_set_proof, finality_proof })
+	}
+
+	/// RLP encodes a `TransitionProof`.
+	fn into_rlp_bytes(&self) -> Vec<u8> {
+		let mut rlp = RlpStream::new_list(3);
+		rlp.append(&self.block_number);
+		rlp.append(&self.validator_set_proof);
+		rlp.append(&self.finality_proof);
+		rlp.out()
+	}
+
+	/// Creates a proof for the genesis block's validator-set containing: the block number,
+	/// validator-set proof, and the genesis block's finality proof.
+	fn new_genesis_proof(validator_set_proof: Vec<u8>) -> Self {
+		TransitionProof {
+			block_number: GENESIS_BLOCK_NUMBER,
+			validator_set_proof: validator_set_proof,
+			finality_proof: GENESIS_FINALITY_PROOF.to_vec(),
+		}
+	}
+}
+
+/// Represents an RLP decoded "set-proof". Set-proofs are used to store the receipts for a block
+/// for which a validator-set transition occurred. The `receipts` in this structure contains an
+/// `initiateChange` event log.
+struct ValidatorSetProof {
+	header: Header,
+	receipts: Vec<Receipt>,
+}
+
+impl ValidatorSetProof {
+	/// This method is the same as `fn decode_proof()` in
+	/// `ethcore/src/engines/validator_set/safe_contract.rs`.
+	fn from_rlp_bytes(rlp_bytes: &[u8]) -> Result<Self, rlp::DecoderError> {
+		let rlp = Rlp::new(rlp_bytes);
+		let header = rlp.val_at(0)?;
+		let receipts = rlp.list_at(1)?;
+		Ok(ValidatorSetProof { header, receipts })
+	}
+
+	/// This method is the same as `fn encode_proof()` in
+	/// `ethcore/src/engines/validator_set/safe_contract.rs`.
+	fn into_rlp_bytes(&self) -> Vec<u8> {
+		let mut rlp = RlpStream::new_list(2);
+		rlp.append(&self.header);
+		rlp.append_list(&self.receipts);
+		rlp.out()
+	}
 }
 
 pub struct HbbftParams {
@@ -331,16 +400,10 @@ impl Engine<EthereumMachine> for Hbbft {
 	/// * `call` - a function that executes a synchronous contract call within the EVM (EVM is an
 	/// instance of `EthereumMachine`).
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
-		// Get a proof for the validator-set at `header`'s block number.
 		let validator_set_proof = self.validators.genesis_epoch_data(header, call)?;
-
-		// Create a proof for the genesis block's validator-set containing: the block number,
-		// validator-set proof, and the genesis block's finality proof.
-		let mut genesis_proof = RlpStream::new_list(3);
-		genesis_proof.append(&GENESIS_BLOCK_NUMBER);
-		genesis_proof.append(&validator_set_proof);
-		genesis_proof.append(&GENESIS_FINALITY_PROOF);
-		Ok(genesis_proof.out())
+		let genesis_transition_proof = TransitionProof::new_genesis_proof(validator_set_proof);
+		let rlp_bytes = genesis_transition_proof.into_rlp_bytes();
+		Ok(rlp_bytes)
 	}
 
 	/// Checks whether or not the block corresponding to `header` is the last block for a
@@ -360,6 +423,55 @@ impl Engine<EthereumMachine> for Hbbft {
 	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> EpochChange<EthereumMachine> {
 		let is_genesis_block = header.number() == 0;
 		self.validators.signals_epoch_end(is_genesis_block, header, aux)
+	}
+}
+
+impl Hbbft {
+	/// Returns the set of Validator addresses at the block corresponding to `header`.
+	///
+	/// # Arguments
+	///
+	/// * `header` - the block header at which we want to get the set of validator addresses.
+	fn get_validator_set_at_block(&self, header: &Header) -> Result<Vec<Address>, Error> {
+		let client_opt = self.client
+			.read()
+			.as_ref()
+			.and_then(|weak| weak.upgrade());
+		let client = match client_opt {
+			Some(client) => client,
+			None => {
+				debug!(target: "engine", "get_validator_set_at_block: missing client.");
+				return Err(EngineError::RequiresClient.into())
+			},
+		};
+
+		// Get the validator-set transition for the block corresponding to `header`.
+		let parent_hash = *header.parent_hash();
+		let transition = match client.epoch_transition_for(parent_hash) {
+			Some(transition) => transition,
+			None => {
+				let block_number = header.number();
+				debug!(
+					target: "engine",
+					"get_validator_set_at_block: no epoch transition exists for block: {:?}",
+					block_number
+				);
+				return Err(EngineError::NoTransitionFoundForBlock(block_number).into());
+			},
+		};
+
+		// Decode the stored transition proof and extract the validator-set from the event logs.
+		let transition_proof = TransitionProof::from_rlp_bytes(&transition.proof).unwrap();
+		let is_first_validator_set = transition_proof.block_number == 0;
+		let validator_addrs = self.validators
+			.epoch_set(
+				is_first_validator_set,
+				&self.machine,
+				transition_proof.block_number,
+				&transition_proof.validator_set_proof,
+			).map(|(simple_list, _block_hash)| simple_list.into_inner())
+			.unwrap();
+		Ok(validator_addrs)
 	}
 }
 

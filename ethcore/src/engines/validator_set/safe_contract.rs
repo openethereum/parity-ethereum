@@ -160,6 +160,8 @@ fn encode_proof(header: &Header, receipts: &[Receipt]) -> Bytes {
 	stream.drain()
 }
 
+/// Decode "inter-contract proof" which contains (in this order): a block header and a list of
+/// receipts.
 fn decode_proof(rlp: &Rlp) -> Result<(Header, Vec<Receipt>), ::error::Error> {
 	Ok((rlp.val_at(0)?, rlp.list_at(1)?))
 }

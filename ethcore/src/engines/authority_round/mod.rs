@@ -499,6 +499,10 @@ fn header_seal_hash(header: &Header, empty_steps_rlp: Option<&[u8]>) -> H256 {
 	}
 }
 
+/// Returns the number of fields that the Aura consensus engine adds to a block's header when
+/// sealing. If Aura is broadcasting `EmptyStep` messages to other validators, three seal fields
+/// will be included in the seal, otherwise the seal contains two fields. The first seal field is
+/// always the step number.
 fn header_expected_seal_fields(header: &Header, empty_steps_transition: u64) -> usize {
 	if header.number() >= empty_steps_transition {
 		3
@@ -507,6 +511,8 @@ fn header_expected_seal_fields(header: &Header, empty_steps_transition: u64) -> 
 	}
 }
 
+/// Extracts the step number from the seal found in `header`. The step number is always the first
+/// seal field for the Aura consensus engine.
 fn header_step(header: &Header, empty_steps_transition: u64) -> Result<u64, ::rlp::DecoderError> {
 	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
 	Rlp::new(&header.seal().get(0).expect(
@@ -597,12 +603,16 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 	}
 }
 
+/// Creates a "combined proof". A combined proof is an 3 element RLP encoded list containing (in
+/// this order): a block number, a validator-set proof, and a finality proof.
 fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: &[u8]) -> Vec<u8> {
 	let mut stream = ::rlp::RlpStream::new_list(3);
 	stream.append(&signal_number).append(&set_proof).append(&finality_proof);
 	stream.out()
 }
 
+/// Destructures an RLP encoded "combined proof" into its three elements: a block number, a
+/// validator-set proof, and a finality proof.
 fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
 	let rlp = Rlp::new(combined);
 	Ok((
