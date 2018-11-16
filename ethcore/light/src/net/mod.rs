@@ -373,7 +373,7 @@ impl Statistics {
 		if len == 0 {
 			return 1.0;
 		}
-		let avg = self.peer_counts.iter().map(|&v| v as u64).sum::<u64>() as f64
+		let avg = self.peer_counts.iter().map(|&v| v as u32).sum::<u32>() as f64
 			/ len as f64;
 		avg.max(1.0)
 	}
