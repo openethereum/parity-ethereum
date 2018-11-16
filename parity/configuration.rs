@@ -370,7 +370,7 @@ impl Configuration {
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
-				allow_empty_block_result: self.args.flag_allow_empty_block_result,
+				jsonrpc_allow_missing_blocks: self.args.flag_jsonrpc_allow_missing_blocks,
 				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
@@ -1391,7 +1391,7 @@ mod tests {
 		let args = vec!["parity"];
 		let conf = parse(&args);
 		let mut expected = RunCmd {
-			allow_empty_block_result: false,
+			jsonrpc_allow_missing_blocks: false,
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			spec: Default::default(),

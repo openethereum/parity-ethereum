@@ -233,7 +233,7 @@ pub struct FullDependencies {
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
-	pub allow_empty_block_result: bool,
+	pub jsonrpc_allow_missing_blocks: bool,
 }
 
 impl FullDependencies {
@@ -305,8 +305,8 @@ impl FullDependencies {
 							allow_pending_receipt_query: !self.geth_compatibility,
 							send_block_number_in_get_work: !self.geth_compatibility,
 							gas_price_percentile: self.gas_price_percentile,
-							allow_empty_block_result: self.allow_empty_block_result,
-						},
+							jsonrpc_allow_missing_blocks: self.jsonrpc_allow_missing_blocks,
+						}
 					);
 					handler.extend_with(client.to_delegate());
 
