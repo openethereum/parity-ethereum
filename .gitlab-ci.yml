@@ -58,12 +58,12 @@ cache:
   script:
     - cargo check
 
-# push:cargo:
-#   stage:                           check
-#   extends:                         .cargo-check
-#   <<:                              *cachew
-#   tags:
-#     - ci2
+push:cargo:
+  stage:                           check
+  extends:                         .cargo-check
+  <<:                              *cachew
+  tags:
+    - ci2
 
 # test-linux:
 #   stage:                           test
@@ -82,9 +82,9 @@ build-linux:
     - pushes
   variables:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
-  <<:                              *cachew
   script:
     - scripts/gitlab/build-unix.sh
+  <<:                              *cachew
   <<:                              *collect_artifacts
   tags:
     - ci2
@@ -98,9 +98,9 @@ build-darwin:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
     CXX:                           g++
-  <<:                              *cachew
   script:
     - scripts/gitlab/build-unix.sh
+  <<:                              *cachew
   tags:
     # - rust-osx
     - ci2
@@ -113,9 +113,9 @@ build-windows:
     - pushes
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
-  <<:                              *cachew
   script:
     - sh scripts/gitlab/build-windows.sh
+  <<:                              *cachew
   tags:
    # - rust-windows
    - ci2
@@ -128,9 +128,9 @@ build-android:
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
-  <<:                              *cachew
   script:
     - scripts/gitlab/build-unix.sh
+  <<:                              *cachew
   tags:
     - ci2
     # - rust-arm
