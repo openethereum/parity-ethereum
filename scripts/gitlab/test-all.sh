@@ -55,6 +55,6 @@ cpp_test () {
 }
 
 # exec ./test.sh
-cargo test -v --all --target $CARGO_TARGET
+# cargo test -v --all --target $CARGO_TARGET
 time cargo test --release --features json-tests ci-skip-issue --all --target $CARGO_TARGET -v $@ -- --test-threads 8 
 cpp_test
