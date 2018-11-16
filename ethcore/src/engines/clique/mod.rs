@@ -235,8 +235,8 @@ impl Engine<EthereumMachine> for Clique {
     Ok(())
   }
 
-    fn ancestry_actions(&self, _block: &ExecutedBlock, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
-        _ancestry.map(|h| {
+    fn ancestry_actions(&self, _header: &Header, ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+        ancestry.map(|h| {
           trace!(target: "engine", "ancestry encountered ");
           AncestryAction::MarkFinalized(h.header.hash())
         }).collect::<Vec<AncestryAction>>().to_vec()
