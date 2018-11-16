@@ -54,6 +54,7 @@ mod codes {
 	pub const NO_LIGHT_PEERS: i64 = -32065;
 	pub const NO_PEERS: i64 = -32066;
 	pub const DEPRECATED: i64 = -32070;
+	pub const EXPERIMENTAL_RPC: i64 = -32071;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {
@@ -513,3 +514,15 @@ pub fn status_error(has_peers: bool) -> Error {
 	}
 }
 
+/// Returns a descriptive error in case experimental RPCs are not enabled.
+pub fn require_experimental(allow_experimental_rpcs: bool, eip: &str) -> Result<(), Error> {
+	if allow_experimental_rpcs {
+		Ok(())
+	} else {
+		Err(Error {
+			code: ErrorCode::ServerError(codes::EXPERIMENTAL_RPC),
+			message: format!("This method is not part of the official RPC API yet (EIP-{}). Run with `--jsonrpc-experimental` to enable it.", eip),
+			data: Some(Value::String(format!("See EIP: https://eips.ethereum.org/EIPS/eip-{}", eip))),
+		})
+	}
+}

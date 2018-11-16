@@ -471,6 +471,10 @@ usage! {
 			"--jsonrpc-no-keep-alive",
 			"Disable HTTP/1.1 keep alive header. Disabling keep alive will prevent re-using the same TCP connection to fire multiple requests, recommended when using one request per connection.",
 
+			FLAG flag_jsonrpc_experimental: (bool) = false, or |c: &Config| c.rpc.as_ref()?.experimental_rpcs.clone(),
+			"--jsonrpc-experimental",
+			"Enable experimental RPCs. Enable to have access to methods from unfinalised EIPs in all namespaces",
+
 			ARG arg_jsonrpc_port: (u16) = 8545u16, or |c: &Config| c.rpc.as_ref()?.port.clone(),
 			"--jsonrpc-port=[PORT]",
 			"Specify the port portion of the HTTP JSON-RPC API server.",
@@ -1224,6 +1228,7 @@ struct Rpc {
 	processing_threads: Option<usize>,
 	max_payload: Option<usize>,
 	keep_alive: Option<bool>,
+	experimental_rpcs: Option<bool>,
 	poll_lifetime: Option<u32>,
 }
 
@@ -1682,6 +1687,7 @@ mod tests {
 			// RPC
 			flag_no_jsonrpc: false,
 			flag_jsonrpc_no_keep_alive: false,
+			flag_jsonrpc_experimental: false,
 			arg_jsonrpc_port: 8545u16,
 			arg_jsonrpc_interface: "local".into(),
 			arg_jsonrpc_cors: "null".into(),
@@ -1965,6 +1971,7 @@ mod tests {
 				processing_threads: None,
 				max_payload: None,
 				keep_alive: None,
+				experimental_rpcs: None,
 				poll_lifetime: None,
 			}),
 			ipc: Some(Ipc {

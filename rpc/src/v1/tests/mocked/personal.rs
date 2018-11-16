@@ -57,6 +57,16 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn setup() -> PersonalTester {
+	setup_with(Config {
+		allow_experimental_rpcs: true
+	})
+}
+
+struct Config {
+	pub allow_experimental_rpcs: bool,
+}
+
+fn setup_with(c: Config) -> PersonalTester {
 	let runtime = Runtime::with_thread_count(1);
 	let accounts = accounts_provider();
 	let client = blockchain_client();
@@ -64,7 +74,7 @@ fn setup() -> PersonalTester {
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
-	let personal = PersonalClient::new(&accounts, dispatcher, false);
+	let personal = PersonalClient::new(&accounts, dispatcher, false, c.allow_experimental_rpcs);
 
 	let mut io = IoHandler::default();
 	io.extend_with(personal.to_delegate());
@@ -417,4 +427,110 @@ fn sign_eip191_structured_data() {
 	let expected = r#"{"jsonrpc":"2.0","result":"0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c","id":1}"#;
 	let response = tester.io.handle_request_sync(&request).unwrap();
 	assert_eq!(response, expected)
+}
+
+#[test]
+fn sign_structured_data() {
+	let tester = setup();
+	let secret: Secret = keccak("cow").into();
+	let address = tester.accounts.insert_account(secret, &"lol".into()).unwrap();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_signTypedData",
+		"params": [
+			{
+				"primaryType": "Mail",
+				"domain": {
+					"name": "Ether Mail",
+					"version": "1",
+					"chainId": "0x1",
+					"verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+				},
+				"message": {
+					"from": {
+						"name": "Cow",
+						"wallet": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"
+					},
+					"to": {
+						"name": "Bob",
+						"wallet": "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"
+					},
+					"contents": "Hello, Bob!"
+				},
+				"types": {
+					"EIP712Domain": [
+						{ "name": "name", "type": "string" },
+						{ "name": "version", "type": "string" },
+						{ "name": "chainId", "type": "uint256" },
+						{ "name": "verifyingContract", "type": "address" }
+					],
+					"Person": [
+						{ "name": "name", "type": "string" },
+						{ "name": "wallet", "type": "address" }
+					],
+					"Mail": [
+						{ "name": "from", "type": "Person" },
+						{ "name": "to", "type": "Person" },
+						{ "name": "contents", "type": "string" }
+					]
+				}
+			},
+			""#.to_owned() + &format!("0x{:x}", address) + r#"",
+			"lol"
+		],
+		"id": 1
+	}"#;
+	let expected = r#"{"jsonrpc":"2.0","result":"0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c","id":1}"#;
+	let response = tester.io.handle_request_sync(&request).unwrap();
+	assert_eq!(response, expected)
+}
+
+#[test]
+fn should_disable_experimental_apis() {
+	// given
+	let tester = setup_with(Config {
+		allow_experimental_rpcs: false,
+	});
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_sign191",
+		"params": [
+			"0x01",
+			{},
+			"0x1234567891234567891234567891234567891234",
+			"lol"
+		],
+		"id": 1
+	}"#;
+	let r1 = tester.io.handle_request_sync(&request).unwrap();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_signTypedData",
+		"params": [
+			{
+				"types": {},
+				"message": {},
+				"domain": {
+					"name": "",
+					"version": "1",
+					"chainId": "0x1",
+					"verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+				},
+				"primaryType": ""
+			},
+			"0x1234567891234567891234567891234678912344",
+			"lol"
+		],
+		"id": 1
+	}"#;
+	let r2 = tester.io.handle_request_sync(&request).unwrap();
+
+	// then
+	let expected = r#"{"jsonrpc":"2.0","error":{"code":-32071,"message":"This method is not part of the official RPC API yet (EIP-191). Run with `--jsonrpc-experimental` to enable it.","data":"See EIP: https://eips.ethereum.org/EIPS/eip-191"},"id":1}"#;
+	assert_eq!(r1, expected);
+
+	let expected = r#"{"jsonrpc":"2.0","error":{"code":-32071,"message":"This method is not part of the official RPC API yet (EIP-712). Run with `--jsonrpc-experimental` to enable it.","data":"See EIP: https://eips.ethereum.org/EIPS/eip-712"},"id":1}"#;
+	assert_eq!(r2, expected);
 }

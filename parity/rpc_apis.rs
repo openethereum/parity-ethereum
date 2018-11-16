@@ -228,6 +228,7 @@ pub struct FullDependencies {
 	pub net_service: Arc<ManageNetwork>,
 	pub updater: Arc<Updater>,
 	pub geth_compatibility: bool,
+	pub experimental_rpcs: bool,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub executor: Executor,
@@ -316,7 +317,7 @@ impl FullDependencies {
 					}
 				},
 				Api::Personal => {
-					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility, self.experimental_rpcs).to_delegate());
 				},
 				Api::Signer => {
 					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.executor.clone()).to_delegate());
@@ -438,6 +439,7 @@ pub struct LightDependencies<T> {
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
+	pub experimental_rpcs: bool,
 	pub executor: Executor,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub private_tx_service: Option<Arc<PrivateTransactionManager>>,
@@ -531,7 +533,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(EthPubSub::to_delegate(client));
 				},
 				Api::Personal => {
-					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility, self.experimental_rpcs).to_delegate());
 				},
 				Api::Signer => {
 					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.executor.clone()).to_delegate());
