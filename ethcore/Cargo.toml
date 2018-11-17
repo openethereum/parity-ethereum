@@ -76,6 +76,7 @@ hardware-wallet = { path = "../hw" }
 fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
+env_logger = "0.4"
 tempdir = "0.3"
 trie-standardmap = "0.1"
 criterion = "0.2"
