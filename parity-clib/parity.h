@@ -19,7 +19,7 @@
 
 #include <stddef.h>
 
-typedef void (subscribe)(void*, const char*, size_t);
+typedef void (callback)(void*, const char*, size_t);
 
 /// Parameters to pass to `parity_start`.
 struct ParityParams {
@@ -33,7 +33,7 @@ struct ParityParams {
 	///
 	/// The first parameter of the callback is the value of `on_client_restart_cb_custom`.
 	/// The second and third parameters of the callback are the string pointer and length.
-	subscribe *on_client_restart_cb;
+	callback *on_client_restart_cb;
 
 	/// Custom parameter passed to the `on_client_restart_cb` callback as first parameter.
 	void *on_client_restart_cb_custom;
@@ -59,7 +59,7 @@ extern "C" {
 /// const char *args[] = {"--light", "--can-restart"};
 /// size_t str_lens[] = {7, 13};
 /// if (parity_config_from_cli(args, str_lens, 2, &cfg) != 0) {
-///     return 1;
+///		return 1;
 /// }
 /// ```
 ///
@@ -103,21 +103,37 @@ void parity_destroy(void* parity);
 /// - On success	: The parity client reference and the query string were valid
 /// - On error		: The parity client reference and the query string were not valid
 ///
-int parity_rpc(void* parity, const char* rpc_query, size_t rpc_len, size_t timeout_ms, subscribe response);
+int parity_rpc(const void *const parity, const char* rpc_query, size_t rpc_len, size_t timeout_ms, callback response);
 
 
-/// Subscribes to a specific websocket event
-/// FIXME: provide functionality to cancel a "subscription"
+/// Subscribes to the specified websocket event
 ///
 ///	 - parity		: Reference to the running parity client
 ///	 - ws_query		: JSON encoded string representing the websocket and which event to subscribe to
 ///	 - len			: Length of the queury
 ///	 - response		: Callback to invoke when a websocket event occured
 ///
-///  - On success	: The function returns a callback with a JSON encoded string
-///  - On error		: The function returns a callback with the error (empty or timeout)
+///	 - On success	: The function returns the underlying pointer to a atomic reference counter of the session object
+//					  which should later be used cancel the subscription
+///	 - On error		: The function returns a null pointer
 ///
-int parity_subscribe_ws(void* parity, const char* ws_query, size_t len, subscribe response);
+const void *const parity_subscribe_ws(const void *const parity, const char* ws_query, size_t len, callback response);
+
+/// Unsubscribes from a specific websocket event. Caution this function consumes the session object and must only be
+/// exactly per session.
+///
+///	 - parity		: Reference to the running parity client
+///	 - session		: Underlying pointer to an atomic reference counter
+///	 - ws_query		: JSON encoded string representing the websocket event to unsubscribe from
+///	 - len			: Length of the query
+///	 - timeout		: Maximum time in milliseconds to wait for a response
+///	 - response		: Callback to invoke when a websocket event is received
+///
+///	 - On success	: The function return 0
+///	 - On error		: The function returns non-zero
+//
+int parity_unsubscribe_ws(const void *const parity, const void *const session, const char* ws_query,
+		size_t len, size_t timeout, callback response);
 
 /// Sets a callback to call when a panic happens in the Rust code.
 ///
@@ -134,7 +150,7 @@ int parity_subscribe_ws(void* parity, const char* ws_query, size_t len, subscrib
 /// The callback can be called from any thread and multiple times simultaneously. Make sure that
 /// your code is thread safe.
 ///
-int parity_set_panic_hook(subscribe panic, void* param);
+int parity_set_panic_hook(callback panic, void* param);
 
 #ifdef __cplusplus
 }

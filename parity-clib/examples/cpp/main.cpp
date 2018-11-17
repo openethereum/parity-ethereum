@@ -22,20 +22,20 @@
 #include <cstring>
 #include <unistd.h>
 #include <parity.h>
+#include <regex>
 
-void* parity_light();
+void* parity_light_run();
 void* parity_full_run();
 int parity_subscribe_to_websocket(void*);
 int parity_rpc_queries(void*);
 
+const int SUBSCRIPTION_ID_LEN = 18;
+
 // global variable to keep track of the received rpc responses
 static int g_rpc_counter = 0;
 
-// list of websocket queries
-static const char* ws_queries[] = {
-	"{\"method\":\"parity_subscribe\",\"params\":[\"eth_getBalance\",[\"0x0066Dc48bb833d2B59f730F33952B3c29fE926F5\",\"latest\"]],\"id\":1,\"jsonrpc\":\"2.0\"}",
-	"{\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"],\"id\":1,\"jsonrpc\":\"2.0\"}"
-};
+// global string for callbacks
+static char g_str[60];
 
 // list of rpc queries
 static const char* rpc_queries[] = {
@@ -49,32 +49,56 @@ static const char* rpc_queries[] = {
 void on_restart(void*, const char*, size_t) {}
 
 // callback that is invoked on ws responses
-void ws_response(void *, const char* response, size_t len) {
-	printf("ws_callback: %s \r\n", response);
+void ws_response(void* _unused, const char* response, size_t len) {
+	printf("ws_response: %s\r\n", response);
+	std::regex is_subscription ("\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-F0-9]{16}\",\"id\":1\\}");
+	if (std::regex_match(response, is_subscription) == true) {
+		strncpy(g_str, response, 55);
+	}
 }
 
 // callback that is invoked on ws responses
-void rpc_response(void *, const char* response, size_t len) {
-	printf("rpc_callback: %s \r\n", response);
+void rpc_response(void* _unused, const char* response, size_t len) {
+	printf("rpc_response: %s\r\n", response);
 	g_rpc_counter -= 1;
 }
 
 int main() {
-	void* parity = parity_full_run();
+	// run full-client
+	{
+		void* parity = parity_full_run();
+		if (parity_rpc_queries(parity)) {
+			printf("rpc_queries failed\r\n");
+			return 1;
+		}
 
-	if (parity_rpc_queries(parity)) {
-		printf("rpc_queries failed\r\n");
-		return 1;
+		if (parity_subscribe_to_websocket(parity)) {
+			printf("ws_queries failed\r\n");
+			return 1;
+		}
+
+		if (parity != NULL) {
+			parity_destroy(parity);
+		}
 	}
 
-	if (parity_subscribe_to_websocket(parity)) {
-		printf("ws_queries failed\r\n");
-		return 1;
-	}
+	// run light-client
+	{
+		void* parity = parity_light_run();
 
-	if (parity != NULL) {
-		printf("parity client was err couldn't shutdown\r\n");
-		parity_destroy(parity);
+		if (parity_rpc_queries(parity)) {
+			printf("rpc_queries failed\r\n");
+			return 1;
+		}
+
+		if (parity_subscribe_to_websocket(parity)) {
+			printf("ws_queries failed\r\n");
+			return 1;
+		}
+
+		if (parity != NULL) {
+			parity_destroy(parity);
+		}
 	}
 
 	return 0;
@@ -106,16 +130,29 @@ int parity_subscribe_to_websocket(void* parity) {
 		return 1;
 	}
 
-	int num_queries = sizeof(ws_queries) / sizeof(ws_queries[0]);
+	size_t timeout = 1000;
+	int num_queries = 1;
 
-	for (int i = 0; i < num_queries; i++) {
-		if (parity_subscribe_ws(parity, ws_queries[i], strlen(ws_queries[i]), ws_response) != 0) {
-			return 1;
-		}
+	char subscribe[] = "{\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"],\"id\":1,\"jsonrpc\":\"2.0\"}";
+	char unsubscribe[] = "{\"method\":\"eth_unsubscribe\",\"params\":[\"0x1234567891234567\"],\"id\":1,\"jsonrpc\":\"2.0\"}";
+
+	const void *const handle = parity_subscribe_ws(parity, subscribe, strlen(subscribe), ws_response);
+
+	if (!handle) {
+		return 1;
 	}
 
-	// wait forever
-	while(1);
+	while(g_str[0] == 0);
+	sleep(60);
+
+	// Replace subscription_id with the id we got in the callback
+	// (this is not a good practice use your favorite JSON parser)
+	strncpy(&unsubscribe[39], &g_str[27], SUBSCRIPTION_ID_LEN);
+	if (parity_unsubscribe_ws(parity, handle, unsubscribe, strlen(unsubscribe), timeout, ws_response) != 0) {
+			return 1;
+	}
+
+	return 0;
 }
 
 void* parity_full_run() {
@@ -128,7 +165,7 @@ void* parity_full_run() {
 	const char* args[] = {"--no-ipc" , "--jsonrpc-apis=all", "--chain", "kovan"};
 	size_t str_lens[] = {strlen(args[0]), strlen(args[1]), strlen(args[2]), strlen(args[3])};
 
-	if (parity_config_from_cli(args, str_lens, sizeof(str_lens)/sizeof(str_lens[0]), &cfg.configuration) != 0) {
+	if (parity_config_from_cli(args, str_lens, sizeof(str_lens) / sizeof(str_lens[0]), &cfg.configuration) != 0) {
 		return nullptr;
 	}
 
@@ -150,7 +187,7 @@ void* parity_light_run() {
 	const char* args[] = {"--light", "--no-ipc","--chain", "kovan", "--jsonrpc-apis=all"};
 	size_t str_lens[] = {strlen(args[0]), strlen(args[1]), strlen(args[2]), strlen(args[3]), strlen(args[4])};
 
-	if (parity_config_from_cli(args, str_lens, sizeof(str_lens)/sizeof(str_lens[0]), &cfg.configuration) != 0) {
+	if (parity_config_from_cli(args, str_lens, sizeof(str_lens) / sizeof(str_lens[0]), &cfg.configuration) != 0) {
 		return nullptr;
 	}
 
