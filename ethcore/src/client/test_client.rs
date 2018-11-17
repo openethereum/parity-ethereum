@@ -686,7 +686,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn block_receipts(&self, _id: BlockId) -> Option<Vec<LocalizedReceipt>> {
+	fn localized_block_receipts(&self, _id: BlockId) -> Option<Vec<LocalizedReceipt>> {
 		Some(self.receipts.read().values().cloned().collect())
 	}
 
@@ -789,16 +789,14 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes> {
+	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
 				TransactionOutcome::StateRoot(H256::zero()),
 				U256::zero(),
 				vec![])]);
-			let mut rlp = RlpStream::new();
-			rlp.append(&receipt);
-			return Some(rlp.out());
+			return Some(receipt);
 		}
 		None
 	}

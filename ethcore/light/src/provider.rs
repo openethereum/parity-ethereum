@@ -176,8 +176,8 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn block_receipts(&self, req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse> {
-		BlockChainClient::encoded_block_receipts(self, &req.hash)
-			.map(|x| ::request::ReceiptsResponse { receipts: ::rlp::decode_list(&x) })
+		BlockChainClient::block_receipts(self, &req.hash)
+			.map(|x| ::request::ReceiptsResponse { receipts: x.receipts })
 	}
 
 	fn account_proof(&self, req: request::CompleteAccountRequest) -> Option<request::AccountResponse> {

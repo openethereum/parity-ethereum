@@ -970,6 +970,12 @@ impl ChainSync {
 				self.state = SyncState::Blocks;
 				self.continue_sync(io);
 			},
+			SyncState::SnapshotData => match io.snapshot_service().status() {
+				RestorationStatus::Inactive | RestorationStatus::Failed => {
+					self.state = SyncState::SnapshotWaiting;
+				},
+				RestorationStatus::Initializing { .. } | RestorationStatus::Ongoing { .. } => (),
+			},
 			SyncState::SnapshotWaiting => {
 				match io.snapshot_service().status() {
 					RestorationStatus::Inactive => {
