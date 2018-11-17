@@ -625,7 +625,7 @@ fn execute_read_only_tx(gas_known: bool, params: ExecuteParams) -> impl Future<I
 				match res {
 					Ok(executed) => {
 						// `OutOfGas` exception, try double the gas
-						if let Some(vm::Error::OutOfGas) = executed.exception {
+						if let Some(::vm::Error::OutOfGas) = executed.exception {
 							// block gas limit already tried, regard as an error and don't retry
 							if params.tx.gas >= params.hdr.gas_limit() {
 								trace!(target: "light_fetch", "OutOutGas exception received, gas increase: failed");
