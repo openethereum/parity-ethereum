@@ -242,6 +242,12 @@ impl Engine<EthereumMachine> for Clique {
         }).collect::<Vec<AncestryAction>>().to_vec()
     }
 
+	fn executive_author (&self, header: &Header) -> Address {
+		public_to_address(
+			&recover(header).unwrap()
+		)
+	}
+
   fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { 
       /*
     if _header.number() == 0 {
@@ -336,15 +342,6 @@ impl Engine<EthereumMachine> for Clique {
   fn register_client(&self, client: Weak<EngineClient>) {
 	*self.client.write() = Some(client.clone());
 	//self.validators.register_client(client);
-  }
-
-  fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-      trace!(target: "engine", "extra info");
-      let mut movie_reviews = BTreeMap::<String, String>::new();
-
-      // review some movies.
-      movie_reviews.insert(String::from("Office Space"),       String::from("Deals with real issues in the workplace."));
-      movie_reviews
   }
 
   fn verify_local_seal(&self, header: &Header) -> Result<(), Error> { Ok(()) }

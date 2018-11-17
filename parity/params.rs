@@ -91,7 +91,6 @@ impl fmt::Display for SpecType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match *self {
 			SpecType::Foundation => "foundation",
-			SpecType::Rinkeby => "rinkeby",
 			SpecType::Classic => "classic",
 			SpecType::Poanet => "poanet",
 			SpecType::Tobalaba => "tobalaba",
