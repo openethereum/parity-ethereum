@@ -52,7 +52,9 @@ mod codes {
 	pub const ENCODING_ERROR: i64 = -32058;
 	pub const FETCH_ERROR: i64 = -32060;
 	pub const NO_LIGHT_PEERS: i64 = -32065;
+	pub const NO_PEERS: i64 = -32066;
 	pub const DEPRECATED: i64 = -32070;
+	pub const EXPERIMENTAL_RPC: i64 = -32071;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {
@@ -286,6 +288,14 @@ pub fn signing(error: AccountError) -> Error {
 	}
 }
 
+pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
+		message: format!("{}", error),
+		data: None
+	}
+}
+
 pub fn password(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
@@ -492,3 +502,27 @@ pub fn on_demand_others(err: &OnDemandError) -> Error {
 	}
 }
 
+pub fn status_error(has_peers: bool) -> Error {
+	if has_peers {
+		no_work()
+	} else {
+		Error {
+			code: ErrorCode::ServerError(codes::NO_PEERS),
+			message: "Node is not connected to any peers.".into(),
+			data: None,
+		}
+	}
+}
+
+/// Returns a descriptive error in case experimental RPCs are not enabled.
+pub fn require_experimental(allow_experimental_rpcs: bool, eip: &str) -> Result<(), Error> {
+	if allow_experimental_rpcs {
+		Ok(())
+	} else {
+		Err(Error {
+			code: ErrorCode::ServerError(codes::EXPERIMENTAL_RPC),
+			message: format!("This method is not part of the official RPC API yet (EIP-{}). Run with `--jsonrpc-experimental` to enable it.", eip),
+			data: Some(Value::String(format!("See EIP: https://eips.ethereum.org/EIPS/eip-{}", eip))),
+		})
+	}
+}

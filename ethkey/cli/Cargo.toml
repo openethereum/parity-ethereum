@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-docopt = "0.8"
+docopt = "1.0"
 env_logger = "0.5"
 ethkey = { path = "../" }
 panic_hook = { path = "../../util/panic_hook" }

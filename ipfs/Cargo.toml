@@ -9,11 +9,11 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore = { path = "../ethcore" }
 parity-bytes = "0.1"
 ethereum-types = "0.4"
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
-cid = "0.2"
-multihash = "0.7"
+cid = "0.3"
+multihash = "0.8"
 unicase = "2.0"
 
 [dev-dependencies]

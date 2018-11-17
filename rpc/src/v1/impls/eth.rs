@@ -49,6 +49,7 @@ use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, EthAccount, StorageProof,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256, block_number_to_id,
+	U64 as RpcU64,
 };
 use v1::metadata::Metadata;
 
@@ -64,8 +65,6 @@ pub struct EthClientOptions {
 	pub send_block_number_in_get_work: bool,
 	/// Gas Price Percentile used as default gas price.
 	pub gas_price_percentile: usize,
-	/// Set the timeout for the internal poll manager
-	pub poll_lifetime: u32
 }
 
 impl EthClientOptions {
@@ -84,7 +83,6 @@ impl Default for EthClientOptions {
 			pending_nonce_from_queue: false,
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
-			poll_lifetime: 60u32,
 			gas_price_percentile: 50,
 		}
 	}
@@ -512,6 +510,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 	fn is_mining(&self) -> Result<bool> {
 		Ok(self.miner.is_currently_sealing())
+	}
+
+	fn chain_id(&self) -> Result<Option<RpcU64>> {
+		Ok(self.client.signing_chain_id().map(RpcU64::from))
 	}
 
 	fn hashrate(&self) -> Result<RpcU256> {

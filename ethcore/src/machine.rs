@@ -371,11 +371,11 @@ impl EthereumMachine {
 	}
 
 	/// Does verification of the transaction against the parent state.
-	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, header: &Header, client: &C)
+	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, parent: &Header, client: &C)
 		-> Result<(), transaction::Error>
 	{
 		if let Some(ref filter) = self.tx_filter.as_ref() {
-			if !filter.transaction_allowed(header.parent_hash(), header.number(), t, client) {
+			if !filter.transaction_allowed(&parent.hash(), parent.number() + 1, t, client) {
 				return Err(transaction::Error::NotAllowed.into())
 			}
 		}

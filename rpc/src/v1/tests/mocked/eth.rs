@@ -32,6 +32,7 @@ use miner::external::ExternalMiner;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
 use transaction::{Transaction, Action};
+use parity_runtime::Runtime;
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
@@ -65,6 +66,7 @@ fn snapshot_service() -> Arc<TestSnapshotService> {
 }
 
 struct EthTester {
+	pub runtime: Runtime,
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	pub accounts_provider: Arc<AccountProvider>,
@@ -82,6 +84,7 @@ impl Default for EthTester {
 
 impl EthTester {
 	pub fn new_with_options(options: EthClientOptions) -> Self {
+		let runtime = Runtime::with_thread_count(1);
 		let client = blockchain_client();
 		let sync = sync_provider();
 		let ap = accounts_provider();
@@ -91,10 +94,9 @@ impl EthTester {
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let gas_price_percentile = options.gas_price_percentile;
-		let poll_lifetime = options.poll_lifetime;
 		let eth = EthClient::new(&client, &snapshot, &sync, &opt_ap, &miner, &external_miner, options).to_delegate();
-		let filter = EthFilterClient::new(client.clone(), miner.clone(), poll_lifetime).to_delegate();
-		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
+		let filter = EthFilterClient::new(client.clone(), miner.clone(), 60).to_delegate();
+		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations, gas_price_percentile);
 		let sign = SigningUnsafeClient::new(&opt_ap, dispatcher).to_delegate();
@@ -104,6 +106,7 @@ impl EthTester {
 		io.extend_with(filter);
 
 		EthTester {
+			runtime,
 			client: client,
 			sync: sync,
 			accounts_provider: ap,
@@ -176,6 +179,15 @@ fn rpc_eth_syncing() {
 	}
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(false_res.to_owned()));
+}
+
+#[test]
+fn rpc_eth_chain_id() {
+	let tester = EthTester::default();
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]

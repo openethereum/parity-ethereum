@@ -23,49 +23,37 @@ use super::ValidatorSet;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthorityRoundParams {
 	/// Block duration, in seconds.
-	#[serde(rename="stepDuration")]
 	pub step_duration: Uint,
 	/// Valid authorities
 	pub validators: ValidatorSet,
 	/// Starting step. Determined automatically if not specified.
 	/// To be used for testing only.
-	#[serde(rename="startStep")]
 	pub start_step: Option<Uint>,
 	/// Block at which score validation should start.
-	#[serde(rename="validateScoreTransition")]
 	pub validate_score_transition: Option<Uint>,
 	/// Block from which monotonic steps start.
-	#[serde(rename="validateStepTransition")]
 	pub validate_step_transition: Option<Uint>,
 	/// Whether transitions should be immediate.
-	#[serde(rename="immediateTransitions")]
 	pub immediate_transitions: Option<bool>,
 	/// Reward per block in wei.
-	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
 	/// Block at which the block reward contract should start being used.
-	#[serde(rename="blockRewardContractTransition")]
 	pub block_reward_contract_transition: Option<Uint>,
 	/// Block reward contract address (setting the block reward contract
 	/// overrides the static block reward definition).
-	#[serde(rename="blockRewardContractAddress")]
 	pub block_reward_contract_address: Option<Address>,
 	/// Block reward code. This overrides the block reward contract address.
-	#[serde(rename="blockRewardContractCode")]
 	pub block_reward_contract_code: Option<Bytes>,
 	/// Block at which maximum uncle count should be considered.
-	#[serde(rename="maximumUncleCountTransition")]
 	pub maximum_uncle_count_transition: Option<Uint>,
 	/// Maximum number of accepted uncles.
-	#[serde(rename="maximumUncleCount")]
 	pub maximum_uncle_count: Option<Uint>,
 	/// Block at which empty step messages should start.
-	#[serde(rename="emptyStepsTransition")]
 	pub empty_steps_transition: Option<Uint>,
 	/// Maximum number of accepted empty steps.
-	#[serde(rename="maximumEmptySteps")]
 	pub maximum_empty_steps: Option<Uint>,
 }
 

@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature = "benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -138,6 +137,9 @@ extern crate trace_time;
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
+
+#[cfg(test)]
+extern crate env_logger;
 
 pub extern crate ethstore;
 

@@ -23,31 +23,25 @@ use ethereum_types::{U256, Address};
 use futures::{Future, future, Poll, Async};
 use futures::future::Either;
 use futures::sync::oneshot;
-use futures_cpupool::CpuPool;
+use parity_runtime::Executor;
 
 /// Manages currently reserved and prospective nonces
 /// for multiple senders.
 #[derive(Debug)]
 pub struct Reservations {
 	nonces: HashMap<Address, SenderReservations>,
-	pool: CpuPool,
+	executor: Executor,
 }
 impl Reservations {
 	/// A maximal number of reserved nonces in the hashmap
 	/// before we start clearing the unused ones.
 	const CLEAN_AT: usize = 512;
 
-	/// Create new nonces manager and spawn a single-threaded cpu pool
-	/// for progressing execution of dropped nonces.
-	pub fn new() -> Self {
-		Self::with_pool(CpuPool::new(1))
-	}
-
-	/// Create new nonces manager with given cpupool.
-	pub fn with_pool(pool: CpuPool) -> Self {
+	/// Create new nonces manager with given executor.
+	pub fn new(executor: Executor) -> Self {
 		Reservations {
 			nonces: Default::default(),
-			pool,
+			executor,
 		}
 	}
 
@@ -59,9 +53,9 @@ impl Reservations {
 			self.nonces.retain(|_, v| !v.is_empty());
 		}
 
-		let pool = &self.pool;
+		let executor = &self.executor;
 		self.nonces.entry(sender)
-			.or_insert_with(move || SenderReservations::with_pool(pool.clone()))
+			.or_insert_with(move || SenderReservations::new(executor.clone()))
 			.reserve_nonce(minimal)
 	}
 }
@@ -71,25 +65,18 @@ impl Reservations {
 pub struct SenderReservations {
 	previous: Option<oneshot::Receiver<U256>>,
 	previous_ready: Arc<AtomicBool>,
-	pool: CpuPool,
+	executor: Executor,
 	prospective_value: U256,
 	dropped: Arc<AtomicUsize>,
 }
 
 impl SenderReservations {
-	/// Create new nonces manager and spawn a single-threaded cpu pool
-	/// for progressing execution of dropped nonces.
-	#[cfg(test)]
-	pub fn new() -> Self {
-		Self::with_pool(CpuPool::new(1))
-	}
-
-	/// Create new nonces manager with given cpu pool.
-	pub fn with_pool(pool: CpuPool) -> Self {
+	/// Create new nonces manager with given executor.
+	pub fn new(executor: Executor) -> Self {
 		SenderReservations {
 			previous: None,
 			previous_ready: Arc::new(AtomicBool::new(true)),
-			pool,
+			executor,
 			prospective_value: Default::default(),
 			dropped: Default::default(),
 		}
@@ -110,7 +97,7 @@ impl SenderReservations {
 		let (next, rx) = oneshot::channel();
 		let next = Some(next);
 		let next_sent = Arc::new(AtomicBool::default());
-		let pool = self.pool.clone();
+		let executor = self.executor.clone();
 		let dropped = self.dropped.clone();
 		self.previous_ready = next_sent.clone();
 		match mem::replace(&mut self.previous, Some(rx)) {
@@ -120,7 +107,7 @@ impl SenderReservations {
 				next_sent,
 				minimal,
 				prospective_value,
-				pool,
+				executor,
 				dropped,
 			},
 			None => Reserved {
@@ -129,7 +116,7 @@ impl SenderReservations {
 				next_sent,
 				minimal,
 				prospective_value,
-				pool,
+				executor,
 				dropped,
 			},
 		}
@@ -152,7 +139,7 @@ pub struct Reserved {
 	next_sent: Arc<AtomicBool>,
 	minimal: U256,
 	prospective_value: U256,
-	pool: CpuPool,
+	executor: Executor,
 	dropped: Arc<AtomicUsize>,
 }
 
@@ -196,10 +183,14 @@ impl Drop for Reserved {
 			self.dropped.fetch_add(1, atomic::Ordering::SeqCst);
 			// If Reserved is dropped just pipe previous and next together.
 			let previous = mem::replace(&mut self.previous, Either::B(future::ok(U256::default())));
-			self.pool.spawn(previous.map(move |nonce| {
-				next_sent.store(true, atomic::Ordering::SeqCst);
-				next.send(nonce).expect(Ready::RECV_PROOF)
-			})).forget()
+			self.executor.spawn(
+				previous
+				.map(move |nonce| {
+					next_sent.store(true, atomic::Ordering::SeqCst);
+					next.send(nonce).expect(Ready::RECV_PROOF)
+				})
+				.map_err(|err| error!("Error dropping `Reserved`: {:?}", err))
+			);
 		}
 	}
 }
@@ -253,10 +244,12 @@ impl Drop for Ready {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use parity_runtime::Runtime;
 
 	#[test]
 	fn should_reserve_a_set_of_nonces_and_resolve_them() {
-		let mut nonces = SenderReservations::new();
+		let runtime = Runtime::with_thread_count(1);
+		let mut nonces = SenderReservations::new(runtime.executor());
 
 		assert!(nonces.is_empty());
 		let n1 = nonces.reserve_nonce(5.into());
@@ -303,7 +296,8 @@ mod tests {
 
 	#[test]
 	fn should_return_prospective_nonce() {
-		let mut nonces = SenderReservations::new();
+		let runtime = Runtime::with_thread_count(1);
+		let mut nonces = SenderReservations::new(runtime.executor());
 
 		let n1 = nonces.reserve_nonce(5.into());
 		let n2 = nonces.reserve_nonce(5.into());

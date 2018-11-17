@@ -499,6 +499,7 @@ impl Provider where {
 			None => bail!(ErrorKind::ContractDoesNotExist),
 			Some(address) => {
 				let (code, storage) = state.into_account(&address)?;
+				trace!(target: "privatetx", "Private contract executed. code: {:?}, state: {:?}, result: {:?}", code, storage, result.output);
 				let enc_code = match code {
 					Some(c) => Some(self.encrypt(&address, &Self::iv_from_address(&address), &c)?),
 					None => None,
@@ -506,7 +507,6 @@ impl Provider where {
 				(enc_code, self.encrypt(&address, &Self::iv_from_transaction(transaction), &Self::snapshot_from_storage(&storage))?)
 			},
 		};
-		trace!(target: "privatetx", "Private contract executed. code: {:?}, state: {:?}, result: {:?}", encrypted_code, encrypted_storage, result.output);
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
 			state: encrypted_storage,

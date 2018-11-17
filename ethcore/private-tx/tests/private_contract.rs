@@ -91,6 +91,17 @@ fn private_contract() {
 	trace!("Transaction created. Pushing block");
 	push_block_with_transactions(&client, &[public_tx]);
 
+	trace!("Querying default private state");
+	let mut query_tx = Transaction::default();
+	query_tx.action = Action::Call(address.clone());
+	query_tx.data = "0c55699c".from_hex().unwrap();  // getX
+	query_tx.gas = 50000.into();
+	query_tx.nonce = 1.into();
+	let query_tx = query_tx.sign(&key1.secret(), chain_id);
+	let result = pm.private_call(BlockId::Latest, &query_tx).unwrap();
+	assert_eq!(&result.output[..], &("0000000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap()[..]));
+	assert_eq!(pm.get_validators(BlockId::Latest, &address).unwrap(), validators);
+
 	trace!("Modifying private state");
 	let mut private_tx = Transaction::default();
 	private_tx.action = Action::Call(address.clone());

@@ -25,14 +25,14 @@ use std::time::Duration;
 use v1::{EthPubSub, EthPubSubClient, Metadata};
 
 use ethcore::client::{TestBlockChainClient, EachBlockWith, ChainNotify, ChainRoute, ChainRouteType};
-use parity_reactor::EventLoop;
+use parity_runtime::Runtime;
 
 const DURATION_ZERO: Duration = Duration::from_millis(0);
 
 #[test]
 fn should_subscribe_to_new_heads() {
 	// given
-	let el = EventLoop::spawn();
+	let el = Runtime::with_thread_count(1);
 	let mut client = TestBlockChainClient::new();
 	// Insert some blocks
 	client.add_blocks(3, EachBlockWith::Nothing);
@@ -40,7 +40,7 @@ fn should_subscribe_to_new_heads() {
 	let h2 = client.block_hash_delta_minus(2);
 	let h1 = client.block_hash_delta_minus(3);
 
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
@@ -89,7 +89,7 @@ fn should_subscribe_to_logs() {
 	use ethcore::client::BlockInfo;
 
 	// given
-	let el = EventLoop::spawn();
+	let el = Runtime::with_thread_count(1);
 	let mut client = TestBlockChainClient::new();
 	// Insert some blocks
 	client.add_blocks(1, EachBlockWith::Transaction);
@@ -112,7 +112,7 @@ fn should_subscribe_to_logs() {
 		}
 	]);
 
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
@@ -156,10 +156,10 @@ fn should_subscribe_to_logs() {
 #[test]
 fn should_subscribe_to_pending_transactions() {
 	// given
-	let el = EventLoop::spawn();
+	let el = Runtime::with_thread_count(1);
 	let client = TestBlockChainClient::new();
 
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
@@ -203,9 +203,9 @@ fn should_subscribe_to_pending_transactions() {
 #[test]
 fn should_return_unimplemented() {
 	// given
-	let el = EventLoop::spawn();
+	let el = Runtime::with_thread_count(1);
 	let client = TestBlockChainClient::new();
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();

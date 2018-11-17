@@ -9,15 +9,7 @@ image:                             parity/rust:gitlab-ci
 variables:
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
-  BUILD_TARGET:                    ubuntu
-  BUILD_ARCH:                      amd64
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
-
-cache:
-  key:                             "${CI_JOB_NAME}"
-  paths:
-    - ./target
-    - ./.cargo
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
@@ -131,37 +123,15 @@ cargo-audit:
   tags:
     - rust-stable
 
-test-android:
+build-android:
   stage:                           optional
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
   script:
-    - scripts/gitlab/test-all.sh stable
+    - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
-
-test-darwin:
-  stage:                           optional
-  variables:
-    CARGO_TARGET:                  x86_64-apple-darwin
-    CC:                            gcc
-    CXX:                           g++
-    RUN_TESTS:                     cargo
-  script:
-    - scripts/gitlab/test-all.sh stable
-  tags:
-    - rust-osx
-
-test-windows:
-  stage:                           optional
-  variables:
-    CARGO_TARGET:                  x86_64-pc-windows-msvc
-    RUN_TESTS:                     cargo
-  script:
-    - sh scripts/gitlab/test-all.sh stable
-  tags:
-   - rust-windows
 
 test-beta:
   stage:                           optional

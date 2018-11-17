@@ -55,6 +55,22 @@ impl Informant {
 			Self::with_informant_in_depth(informant.subinfos.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
 		}
 	}
+
+	fn informant_trace(informant: &Informant, gas_used: U256) -> String {
+		let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
+
+		json!({
+			"pc": informant.pc,
+			"op": informant.instruction,
+			"opName": info.map(|i| i.name).unwrap_or(""),
+			"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
+			"gasCost": format!("{:#x}", informant.gas_cost),
+			"memory": format!("0x{}", informant.memory.to_hex()),
+			"stack": informant.stack,
+			"storage": informant.storage,
+			"depth": informant.depth,
+		}).to_string()
+	}
 }
 
 impl vm::Informant for Informant {
@@ -125,22 +141,11 @@ impl trace::VMTracer for Informant {
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem: &[u8]) {
 		let subdepth = self.subdepth;
 		Self::with_informant_in_depth(self, subdepth, |informant: &mut Informant| {
-			let mem_diff = informant.mem_written.clone().map(|(o, s)| (o, &(mem[o..o+s])));
 			let store_diff = informant.store_written.clone();
 			let info = ::evm::Instruction::from_u8(informant.instruction).map(|i| i.info());
 
-			let trace = json!({
-				"pc": informant.pc,
-				"op": informant.instruction,
-				"opName": info.map(|i| i.name).unwrap_or(""),
-				"gas": format!("{:#x}", gas_used.saturating_add(informant.gas_cost)),
-				"gasCost": format!("{:#x}", informant.gas_cost),
-				"memory": format!("0x{}", informant.memory.to_hex()),
-				"stack": informant.stack,
-				"storage": informant.storage,
-				"depth": informant.depth,
-			});
-			informant.traces.push(trace.to_string());
+			let trace = Self::informant_trace(informant, gas_used);
+			informant.traces.push(trace);
 
 			informant.unmatched = false;
 			informant.gas_used = gas_used;
@@ -151,11 +156,11 @@ impl trace::VMTracer for Informant {
 			informant.stack.extend_from_slice(stack_push);
 
 			// TODO [ToDr] Align memory?
-			if let Some((pos, data)) = mem_diff {
-				if informant.memory.len() < (pos + data.len()) {
-					informant.memory.resize(pos + data.len(), 0);
+			if let Some((pos, size)) = informant.mem_written.clone() {
+				if informant.memory.len() < (pos + size) {
+					informant.memory.resize(pos + size, 0);
 				}
-				informant.memory[pos..pos + data.len()].copy_from_slice(data);
+				informant.memory[pos..(pos + size)].copy_from_slice(&mem[pos..(pos + size)]);
 			}
 
 			if let Some((pos, val)) = store_diff {
@@ -195,7 +200,12 @@ impl trace::VMTracer for Informant {
 			// print last line with final state:
 			self.gas_cost = 0.into();
 			let gas_used = self.gas_used;
-			self.trace_executed(gas_used, &[], &[]);
+			let subdepth = self.subdepth;
+
+			Self::with_informant_in_depth(&mut self, subdepth, |informant: &mut Informant| {
+				let trace = Self::informant_trace(informant, gas_used);
+				informant.traces.push(trace);
+			});
 		} else if !self.subtraces.is_empty() {
 			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
 		}
@@ -278,6 +288,17 @@ mod tests {
 			0xffff,
 			r#"
 {"pc":0,"op":248,"opName":"","gas":"0xffff","gasCost":"0x0","memory":"0x","stack":[],"storage":{},"depth":1}
+			"#,
+		);
+
+		run_test(
+			Informant::default(),
+			&compare_json,
+			"5A51",
+			0xfffff,
+			r#"
+{"depth":1,"gas":"0xfffff","gasCost":"0x2","memory":"0x","op":90,"opName":"GAS","pc":0,"stack":[],"storage":{}}
+{"depth":1,"gas":"0xffffd","gasCost":"0x0","memory":"0x","op":81,"opName":"MLOAD","pc":1,"stack":["0xffffd"],"storage":{}}
 			"#,
 		);
 	}

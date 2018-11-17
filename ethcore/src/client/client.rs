@@ -32,7 +32,7 @@ use kvdb::{DBValue, KeyValueDB, DBTransaction};
 // other
 use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
+use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
@@ -66,7 +66,7 @@ use ethcore_miner::pool::VerifiedTransaction;
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
-use snapshot::{self, io as snapshot_io};
+use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
 use state_db::StateDB;
 use state::{self, State};
@@ -262,13 +262,12 @@ impl Importer {
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, client: &Client) -> usize {
-
 		// Shortcut out if we know we're incapable of syncing the chain.
 		if !client.enabled.load(AtomicOrdering::Relaxed) {
 			return 0;
 		}
 
-		let max_blocks_to_import = 4;
+		let max_blocks_to_import = client.config.max_round_blocks_to_import;
 		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, is_empty) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
@@ -474,7 +473,7 @@ impl Importer {
 		let number = header.number();
 		let parent = header.parent_hash();
 		let chain = client.chain.read();
-		let is_finalized = false;
+		let mut is_finalized = false;
 
 		// Commit results
 		let block = block.drain();
@@ -482,7 +481,7 @@ impl Importer {
 
 		let mut batch = DBTransaction::new();
 
-		let ancestry_actions = self.engine.ancestry_actions(&block, &mut chain.ancestry_with_metadata_iter(*parent));
+		let ancestry_actions = self.engine.ancestry_actions(&header, &mut chain.ancestry_with_metadata_iter(*parent));
 
 		let receipts = block.receipts;
 		let traces = block.traces.drain();
@@ -536,10 +535,18 @@ impl Importer {
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
-		for ancestry_action in ancestry_actions {
-			let AncestryAction::MarkFinalized(ancestry) = ancestry_action;
-			chain.mark_finalized(&mut batch, ancestry).expect("Engine's ancestry action must be known blocks; qed");
-		}
+		let finalized: Vec<_> = ancestry_actions.into_iter().map(|ancestry_action| {
+			let AncestryAction::MarkFinalized(a) = ancestry_action;
+
+			if a != header.hash() {
+				chain.mark_finalized(&mut batch, a).expect("Engine's ancestry action must be known blocks; qed");
+			} else {
+				// we're finalizing the current block
+				is_finalized = true;
+			}
+
+			a
+		}).collect();
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
@@ -560,7 +567,7 @@ impl Importer {
 		client.db.read().key_value().write_buffered(batch);
 		chain.commit();
 
-		self.check_epoch_end(&header, &chain, client);
+		self.check_epoch_end(&header, &finalized, &chain, client);
 
 		client.update_last_hashes(&parent, hash);
 
@@ -667,9 +674,10 @@ impl Importer {
 	}
 
 	// check for ending of epoch and write transition if it occurs.
-	fn check_epoch_end<'a>(&self, header: &'a Header, chain: &BlockChain, client: &Client) {
+	fn check_epoch_end<'a>(&self, header: &'a Header, finalized: &'a [H256], chain: &BlockChain, client: &Client) {
 		let is_epoch_end = self.engine.is_epoch_end(
 			header,
+			finalized,
 			&(|hash| client.block_header_decoded(BlockId::Hash(hash))),
 			&(|hash| chain.get_pending_transition(hash)), // TODO: limit to current epoch.
 		);
@@ -995,6 +1003,16 @@ impl Client {
 	#[cfg(test)]
 	pub fn miner(&self) -> Arc<Miner> {
 		self.importer.miner.clone()
+	}
+
+	#[cfg(test)]
+	pub fn state_db(&self) -> ::parking_lot::RwLockReadGuard<StateDB> {
+		self.state_db.read()
+	}
+
+	#[cfg(test)]
+	pub fn chain(&self) -> Arc<BlockChain> {
+		self.chain.read().clone()
 	}
 
 	/// Replace io channel. Useful for testing.
@@ -1809,7 +1827,7 @@ impl BlockChainClient for Client {
 		Some(receipt)
 	}
 
-	fn block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>> {
+	fn localized_block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>> {
 		let hash = self.block_hash(id)?;
 
 		let chain = self.chain.read();
@@ -1852,8 +1870,8 @@ impl BlockChainClient for Client {
 		self.state_db.read().journal_db().state(hash)
 	}
 
-	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.read().block_receipts(hash).map(|receipts| ::rlp::encode(&receipts))
+	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
+		self.chain.read().block_receipts(hash)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
@@ -2398,6 +2416,8 @@ impl ProvingBlockChainClient for Client {
 	}
 }
 
+impl SnapshotClient for Client {}
+
 impl Drop for Client {
 	fn drop(&mut self) {
 		self.engine.stop();
@@ -2496,7 +2516,7 @@ mod tests {
 		use test_helpers::{generate_dummy_client_with_data};
 
 		let client = generate_dummy_client_with_data(2, 2, &[1.into(), 1.into()]);
-		let receipts = client.block_receipts(BlockId::Latest).unwrap();
+		let receipts = client.localized_block_receipts(BlockId::Latest).unwrap();
 
 		assert_eq!(receipts.len(), 2);
 		assert_eq!(receipts[0].transaction_index, 0);

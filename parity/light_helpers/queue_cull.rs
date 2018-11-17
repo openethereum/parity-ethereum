@@ -29,7 +29,7 @@ use light::TransactionQueue;
 
 use futures::{future, Future};
 
-use parity_reactor::Remote;
+use parity_runtime::Executor;
 
 use parking_lot::RwLock;
 
@@ -50,8 +50,8 @@ pub struct QueueCull<T> {
 	pub on_demand: Arc<OnDemand>,
 	/// The transaction queue.
 	pub txq: Arc<RwLock<TransactionQueue>>,
-	/// Event loop remote.
-	pub remote: Remote,
+	/// Event loop executor.
+	pub executor: Executor,
 }
 
 impl<T: LightChainClient + 'static> IoHandler<ClientIoMessage> for QueueCull<T> {
@@ -70,7 +70,7 @@ impl<T: LightChainClient + 'static> IoHandler<ClientIoMessage> for QueueCull<T> 
 		let start_nonce = self.client.engine().account_start_nonce(best_header.number());
 
 		info!(target: "cull", "Attempting to cull queued transactions from {} senders.", senders.len());
-		self.remote.spawn_with_timeout(move |_| {
+		self.executor.spawn_with_timeout(move || {
 			let maybe_fetching = sync.with_context(move |ctx| {
 				// fetch the nonce of each sender in the queue.
 				let nonce_reqs = senders.iter()

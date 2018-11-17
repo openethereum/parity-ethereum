@@ -47,18 +47,15 @@ impl Serialize for Result {
 /// Subscription kind.
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash, Clone)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub enum Kind {
 	/// New block headers subscription.
-	#[serde(rename="newHeads")]
 	NewHeads,
 	/// Logs subscription.
-	#[serde(rename="logs")]
 	Logs,
 	/// New Pending Transactions subscription.
-	#[serde(rename="newPendingTransactions")]
 	NewPendingTransactions,
 	/// Node syncing status subscription.
-	#[serde(rename="syncing")]
 	Syncing,
 }
 

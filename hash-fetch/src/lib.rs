@@ -25,11 +25,10 @@ extern crate ethabi;
 extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate futures;
-extern crate futures_cpupool;
 extern crate keccak_hash as hash;
 extern crate mime;
 extern crate mime_guess;
-extern crate parity_reactor;
+extern crate parity_runtime;
 extern crate rand;
 extern crate rustc_hex;
 extern crate registrar;
@@ -42,8 +41,6 @@ extern crate ethabi_derive;
 extern crate ethabi_contract;
 #[cfg(test)]
 extern crate parking_lot;
-#[cfg(test)]
-extern crate hyper;
 #[cfg(test)]
 extern crate fake_fetch;
 

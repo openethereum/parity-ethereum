@@ -145,10 +145,9 @@ impl<'a, T: HexEncodable> Visitor<'a> for HexEncodeVisitor<T> {
 /// Receiver of a message. Either a public key, identity (presumably symmetric),
 /// or broadcast over the topics.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Receiver {
-	#[serde(rename="public")]
 	Public(Public),
-	#[serde(rename="identity")]
 	Identity(Identity),
 }
 
@@ -190,13 +189,13 @@ pub struct PostRequest {
 
 /// Request for filter or subscription creation.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FilterRequest {
 	/// ID of key used for decryption.
 	///
 	/// If this identity is removed, then no further messages will be returned.
 	///
 	/// If optional, this will listen for broadcast messages.
-	#[serde(rename = "decryptWith")]
 	pub decrypt_with: Option<Identity>,
 
 	/// Accept only messages signed by given public key.
@@ -237,6 +236,7 @@ pub struct FilterItem {
 
 /// Whisper node info.
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NodeInfo {
 	/// min PoW to be accepted into the local pool.
 	#[serde(skip_serializing_if = "Option::is_none")]
@@ -250,7 +250,6 @@ pub struct NodeInfo {
 	pub memory: usize,
 
 	/// Target memory of the pool.
-	#[serde(rename = "targetMemory")]
 	pub target_memory: usize,
 }
 

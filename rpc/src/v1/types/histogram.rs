@@ -21,9 +21,9 @@ use v1::types::U256;
 /// Values of RPC settings.
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Histogram {
 	/// Gas prices for bucket edges.
-	#[serde(rename="bucketBounds")]
 	pub bucket_bounds: Vec<U256>,
 	/// Transacion counts for each bucket.
 	pub counts: Vec<usize>,

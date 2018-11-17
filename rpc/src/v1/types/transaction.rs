@@ -25,19 +25,17 @@ use v1::types::{Bytes, H160, H256, U256, H512, U64, TransactionCondition};
 
 /// Transaction
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Transaction {
 	/// Hash
 	pub hash: H256,
 	/// Nonce
 	pub nonce: U256,
 	/// Block hash
-	#[serde(rename="blockHash")]
 	pub block_hash: Option<H256>,
 	/// Block number
-	#[serde(rename="blockNumber")]
 	pub block_number: Option<U256>,
 	/// Transaction Index
-	#[serde(rename="transactionIndex")]
 	pub transaction_index: Option<U256>,
 	/// Sender
 	pub from: H160,
@@ -46,7 +44,6 @@ pub struct Transaction {
 	/// Transfered value
 	pub value: U256,
 	/// Gas Price
-	#[serde(rename="gasPrice")]
 	pub gas_price: U256,
 	/// Gas
 	pub gas: U256,
@@ -57,13 +54,10 @@ pub struct Transaction {
 	/// Raw transaction data
 	pub raw: Bytes,
 	/// Public key of the signer.
-	#[serde(rename="publicKey")]
 	pub public_key: Option<H512>,
 	/// The network id of the transaction, if any.
-	#[serde(rename="chainId")]
 	pub chain_id: Option<U64>,
 	/// The standardised V field of the signature (0 or 1).
-	#[serde(rename="standardV")]
 	pub standard_v: U256,
 	/// The standardised V field of the signature.
 	pub v: U256,
@@ -161,7 +155,7 @@ pub struct RichRawTransaction {
 	/// Raw transaction RLP
 	pub raw: Bytes,
 	/// Transaction details
-	#[serde(rename="tx")]
+	#[serde(rename = "tx")]
 	pub transaction: Transaction
 }
 
