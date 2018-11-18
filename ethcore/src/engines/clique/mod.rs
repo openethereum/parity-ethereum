@@ -39,16 +39,17 @@ use engines::{Engine, Seal, EngineError, ConstructedVerifier, Headers, PendingTr
 use super::validator_set::{ValidatorSet, SimpleList};
 use super::signer::EngineSigner;
 use machine::{Call, AuxiliaryData, EthereumMachine};
-//use self::signer_snapshot::SignerSnapshot;
+use self::signer_snapshot::{SignerSnapshot, NONCE_AUTH_VOTE, NONCE_DROP_VOTE};
 
-const SIGNER_VANITY_LENGTH: u32 = 32;  // Fixed number of extra-data prefix bytes reserved for signer vanity
+pub const SIGNER_VANITY_LENGTH: u32 = 32;  // Fixed number of extra-data prefix bytes reserved for signer vanity
 //const EXTRA_DATA_POST_LENGTH: u32 = 128;
-const SIGNER_SIG_LENGTH: u32 = 65; // Fixed number of extra-data suffix bytes reserved for signer seal
+pub const SIGNER_SIG_LENGTH: u32 = 65; // Fixed number of extra-data suffix bytes reserved for signer seal
 
 pub struct Clique {
   client: RwLock<Option<Weak<EngineClient>>>,
   signer: RwLock<EngineSigner>,
-  signers: RwLock<Option<Vec<Address>>>,
+  snapshot: RwLock<Option<SignerSnapshot>>,
+  //signers: RwLock<Option<Vec<Address>>>,
   machine: EthereumMachine,
   step_service: IoService<Duration>,
   epoch_length: u64,
@@ -90,14 +91,17 @@ impl Clique {
   /// Check if current signer is the current proposer.
   fn is_signer_proposer(&self, bn: u64) -> bool {
     let mut authorized = false;
-    if let Some(ref signers) = *self.signers.read() {
+    if let Some(ref snapshot) = *self.snapshot.read() {
+        let signers = &snapshot.signers;
         authorized = if let Some(pos) = signers.iter().position(|x| self.signer.read().is_address(x)) {
-          block.header.number() % signers.len() as u64 == pos as u64
+          bn % signers.len() as u64 == pos as u64
         } else {
           false
         };
+        return authorized;
     };
 
+    return false;
   }
 
   pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
@@ -106,14 +110,23 @@ impl Clique {
     //length of signers must be greater than 1
     //
 
+    let epoch_length: u64 = 30;
+    let snapshot = SignerSnapshot {
+      bn: 0,
+      signers: vec![],
+      epoch_length: epoch_length,
+      votes: HashMap::<Address, (bool, Address)>::new(),
+    };
+
     let engine = Arc::new(
 	  Clique {
 		  client: RwLock::new(None),
 		  signer: Default::default(),
-          signers: RwLock::new(Default::default()),
+          //signers: RwLock::new(Default::default()),
+          snapshot: RwLock::new(Some(snapshot)),
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
-          epoch_length: 30, //our_params.epoch, TODO: Fix this
+          epoch_length: epoch_length, //our_params.epoch, TODO: Fix this
           period: 15, // our_params.period,
 		});
 
@@ -131,10 +144,6 @@ impl Clique {
     } else {
       Err(Box::new("failed to sign header").into())
     }
-  }
-
-  fn is_signer(&self, u64 num) -> bool {
-
   }
 
   //pub fn snapshot(self, bn: u64) -> AuthorizationSnapshot {
@@ -157,10 +166,14 @@ impl Engine<EthereumMachine> for Clique {
 
   fn close_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
       if self.is_signer_proposer(_header.number()) {
-         if let Some(ref signers) = *self.signers.read() {
-           let mut v = vec![SIGNER_VANITY_LENGTH+20*signers.len()+SIGNER_SIG_LENGTH; 0];
+         if let Some(ref mut snapshot) = *self.snapshot.write() {
+           snapshot.apply(_header);
+           let signers = &snapshot.signers;
+           let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize+20*signers.len()+SIGNER_SIG_LENGTH as usize];
            for i in 0..signers.len() {
-             v[SIGNER_VANITY_LENGTH+i*20..(i+1)*20].copy_from_slice(&signers[i]);
+             //signers[i].copy_to(&v[SIGNER_VANITY_LENGTH as usize+i*20..(i+1)*20]);
+
+             v[SIGNER_VANITY_LENGTH as usize+i*20..(i+1)*20].clone_from_slice(&signers[i]);
            }
 
            return Some(v);
@@ -168,6 +181,7 @@ impl Engine<EthereumMachine> for Clique {
            panic!("failed to populate extra data when sealing");
          }
       }
+      return None;
   }
 
   fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
@@ -207,9 +221,10 @@ impl Engine<EthereumMachine> for Clique {
 
   trace!(target: "engine", "attempting to generate seal");
     // sign the digest of the seal
-    if self.is_signer_proposer(block.number()) {
+    if self.is_signer_proposer(block.header().number()) {
         trace!(target: "engine", "seal generated for {}", block.header().number());
-        return Seal::Regular(vec![vec![0,1,2], vec![0,1,2]]);
+        //TODO add our vote here if this is not an epoch transition
+        return Seal::Regular(vec![encode(&vec![0; 8]), encode(&vec![0; 64])]);
     } else {
       Seal::None
     }
@@ -234,10 +249,8 @@ impl Engine<EthereumMachine> for Clique {
   ) -> Result<(), Error> {
     trace!(target: "engine", "new block {}", _block.header().number());
 
-    if _block.header().number() % self.epoch_length == 0 {
-
-    } else {
-
+    if let Some(ref mut snapshot) = *self.snapshot.write() {
+        snapshot.apply(_block.header());
     }
 
     Ok(())
@@ -359,39 +372,18 @@ impl Engine<EthereumMachine> for Clique {
     super::total_difficulty_fork_choice(new, current)
   }
 
-  fn extract_signers(&self, _header: &Header) -> Vec<u8> {
-    assert_eq!(_header.number() % self.epoch, true, "header is not an epoch block");
-
-    let min_extra_data_size = (SIGNER_VANITY_LENGTH as usize) + (SIGNER_SIG_LENGTH as usize);
-
-    assert!(_header.extra_data().len() >= min_extra_data_size, "need minimum genesis extra data size {}.  found {}.", min_extra_data_size, _header.extra_data().len());
-
-    // extract only the portion of extra_data which includes the signer list
-    let signers_raw = &_header.extra_data()[(SIGNER_VANITY_LENGTH as usize).._header.extra_data().len()-(SIGNER_SIG_LENGTH as usize)];
-    
-    assert_eq!(signers_raw.len() % 20, 0, "bad signer list length {}", signers_raw.len());
-
-    let num_signers = signers_raw.len() / 20;
-    let mut signers_list: Vec<Address> = vec![];
-
-    for i in 0..num_signers {
-      let mut signer = Address::default();
-      signer.copy_from_slice(&signers_raw[i*20..(i+1)*20]);
-      signers_list.push(signer);
-    }
-
-    signers_list
-  }
-
   /*
    *  Extract signer addresses from header extraData
    */
   fn genesis_epoch_data<'a>(&self, _header: &Header, call: &Call) -> Result<Vec<u8>, String> {
     // extract signer list from genesis extradata
-    let mut signers = self.signers.write();
-
-    *signers = Some(self.extract_signers(header));
-
+      {
+        if let Some(ref mut snapshot) = *self.snapshot.write() {
+          snapshot.apply(_header);
+        } else {
+          panic!("could not get write access to snapshot");
+        }
+      }
     Ok(Vec::new())
   }
 

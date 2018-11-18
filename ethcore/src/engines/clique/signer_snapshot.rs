@@ -1,28 +1,26 @@
-use header::Header;
 use std::sync::Weak;
 use client::EngineClient;
 use ethkey::{public_to_address};
+use ethereum_types::{Address};
+use std::collections::HashMap;
+use engines::clique::{SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH, recover};
+use error::Error;
+use header::{Header, ExtendedHeader};
 
-const NONCE_DROP_VOTE: &[u8; 8] = &[0x0; 8];
-const NONCE_AUTH_VOTE: &[u8; 8] = &[0xf; 8];
-const NULL_AUTHOR:     &[u8; 20] = &[0; 20];
+pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x0; 8];
+pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xf; 8];
+pub const NULL_AUTHOR:     &[u8; 20] = &[0; 20];
 
-pub struct AuthorizationSnapshot {
-  bn: u64,
-  signers: Vec<Address>,
-  epoch_length: u64,
-  votes: HashMap<Address, (bool, Address)>
+pub struct SignerSnapshot {
+  pub bn: u64,
+  pub signers: Vec<Address>,
+  pub epoch_length: u64,
+  pub votes: HashMap<Address, (bool, Address)>
 }
 
-impl AuthorizationSnapshot {
-  pub fn new() -> Self {
-    AuthorizationSnapshot {
-
-    }
-  }
-
-  fn extract_signers(&self, _header: &Header) -> Result<Vec<u8> {
-    assert_eq!(_header.number() % self.epoch, true, "header is not an epoch block");
+impl SignerSnapshot {
+  fn extract_signers(&self, _header: &Header) -> Result<Vec<Address>, Error> {
+    assert_eq!(_header.number() % self.epoch_length == 0, true, "header is not an epoch block");
 
     let min_extra_data_size = (SIGNER_VANITY_LENGTH as usize) + (SIGNER_SIG_LENGTH as usize);
 
@@ -45,44 +43,49 @@ impl AuthorizationSnapshot {
     Ok(signers_list)
   }
 
-  pub fn apply(mut &self, _header: &Header) -> Result<(), Error> {
+  pub fn apply(&mut self, _header: &Header) -> Result<(), Error> {
     if _header.number() % self.epoch_length == 0 {
       // TODO: assert that no voting occurs during an epoch change 
-      return;
+      return Ok(());
     }
 
+    /*
     if _header.author() == NULL_AUTHOR {
-      return;
+      return Ok(());
     }
+    */
 
-    let creator = public_to_address(&recover(&_header).unwrap());
+    let mut creator = public_to_address(&recover(&_header).unwrap()).clone();
 
     //TODO: votes that reach a majority consensus should have effects applied immediately to the signer list
     let nonce = _header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
+      let mut author = _header.author().clone();
       if nonce == NONCE_DROP_VOTE {
-        self.votes.insert(creator, (false, _header.author());
+        self.votes.insert(creator, (false, author));
+        return Ok(());
       } else if nonce == NONCE_AUTH_VOTE {
-        self.votes.insert(creator, (true, _header.author());
+        self.votes.insert(creator, (true, author));
+        return Ok(());
       } else {
-        return Err(From::from("beneficiary specificed but nonce was not AUTH or DROP");
+        return Err(From::from("beneficiary specificed but nonce was not AUTH or DROP"));
       }
   }
 
-  pub fn snapshot(mut &self, _header: &Header, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<Vec<Address>> {
+  pub fn snapshot(&mut self, _header: &Header, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<Vec<Address>, Error> {
     if _header.number() % self.epoch_length == 0 {
       self.extract_signers(_header)
     } else {
       loop {
-        if let Ok(h) = _ancestry.next() {
-          if h.number() == 0 {
-            return extract_signers(&h);
-          } else if h.number() % self.epoch_length == 0 {
+        if let Some(h) = _ancestry.next() {
+          if h.header.number() == 0 {
+            return self.extract_signers(&h.header);
+          } else if h.header.number() % self.epoch_length == 0 {
             // verify signer signatures
             // extract signer list
-            return extract_signers(&h);
+            return self.extract_signers(&h.header);
           }
         } else {
-          Err(())
+          return Err(From::from("couldn't find checkpoint block in history"));
         }
       }
     }
