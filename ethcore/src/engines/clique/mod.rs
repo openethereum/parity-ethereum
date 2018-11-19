@@ -160,9 +160,11 @@ impl Engine<EthereumMachine> for Clique {
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
     // if in turn, set difficulty 
     //
-    let mut address = Address::new();
-    address.0 = NULL_AUTHOR.clone();
-    header.set_author(address);
+    if self.is_signer_proposer(header.number()) {
+        let mut address = Address::new();
+        address.0 = NULL_AUTHOR.clone();
+        header.set_author(address);
+    }
   }
 
   fn close_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
