@@ -6,8 +6,6 @@ set -u # treat unset variables as error
 
 git log --graph --oneline --decorate=short -n 10
 
-THREADS=8
-
 # temporarily here
 # cpp_test () {
 #   case $CARGO_TARGET in
@@ -64,7 +62,9 @@ echo "________Running Parity Full Test Suite________"
 time cargo test --release --features json-tests ci-skip-issue --all --target $CARGO_TARGET -v -- --test-threads $THREADS
 # time cpp_test
 echo "________Running the C++ example________"
-time cmake -B./parity-clib-examples/cpp/build -H./parity-clib-examples/cpp
-time make -j $THREADS
-time ./parity-clib-examples/cpp/build/parity-example
-rm -rf ./parity-clib-examples/cpp/build
+THREADS=8
+CPP_DIR=./parity-clib-examples/cpp
+time cmake -B"$CPP_DIR/build" -H"$CPP_DIR"
+time make -C $CPP_DIR/build -j $THREADS
+time $CPP_DIR/build/parity-example
+rm -rf $CPP_DIR/build

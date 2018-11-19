@@ -10,7 +10,7 @@ echo "CI_SERVER_NAME:   " $CI_SERVER_NAME
 echo "CARGO_HOME:       " $CARGO_HOME
 echo "CARGO_TARGET:     " $CARGO_TARGET
 
-echo "_____ Building target: "$CARGO_TARGET" _____"
+echo "_____ Building target: "$CARGO_TARGET" _____"triple
 time cargo build --target $CARGO_TARGET --release --features final
 time cargo build --target $CARGO_TARGET --release -p evmbin
 time cargo build --target $CARGO_TARGET --release -p ethstore-cli

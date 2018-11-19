@@ -167,6 +167,14 @@ push:build-darwin:
   only:
     - pushes
 
+push:build-linux:
+  <<:                              *build-linux
+  dependencies:
+    - push:test-linux
+    - push:cargo
+  only:
+    - pushes
+
 push:test-linux:
   <<:                              *test-linux
   dependencies:
