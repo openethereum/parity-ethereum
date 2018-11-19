@@ -9,28 +9,26 @@ git log --graph --oneline --decorate=short -n 10
 THREADS=8
 
 # temporarily here
-cpp_test () {
-  case $CARGO_TARGET in
-    (x86_64-unknown-linux-gnu)
-      # Running the C++ example
-      echo "________Running the C++ example________"
-      cd parity-clib-examples/cpp && \
-        mkdir -p build && \
-        cd build && \
-        cmake .. && \
-        make -j $THREADS && \
-        ./parity-example && \
-        cd .. && \
-        rm -rf build && \
-        cd ../..
-      ;;
-    (*)
-      echo "________Skipping the C++ example________"
-      ;;
-  esac
-}
-
-# 
+# cpp_test () {
+#   case $CARGO_TARGET in
+#     (x86_64-unknown-linux-gnu)
+#       # Running the C++ example
+#       echo "________Running the C++ example________"
+#       # cd parity-clib-examples/cpp && \
+#         # mkdir -p build && \
+#         # cd build && \
+#         # cmake .. && \
+#         make -j $THREADS && \
+#         ./parity-example && \
+#         cd .. && \
+#         rm -rf build && \
+#         cd ../..
+#       ;;
+#     (*)
+#       echo "________Skipping the C++ example________"
+#       ;;
+#   esac
+# }
 
 # case ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} in
 #   (beta|stable)
@@ -64,4 +62,9 @@ time ./scripts/validate_chainspecs.sh
 
 echo "________Running Parity Full Test Suite________"
 time cargo test --release --features json-tests ci-skip-issue --all --target $CARGO_TARGET -v -- --test-threads $THREADS
-time cpp_test
+# time cpp_test
+echo "________Running the C++ example________"
+time cmake -B./parity-clib-examples/cpp/build -H./parity-clib-examples/cpp
+time make -j $THREADS
+time ./parity-clib-examples/cpp/build/parity-example
+rm -rf ./parity-clib-examples/cpp/build
