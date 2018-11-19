@@ -274,6 +274,7 @@ pub struct LightSync<L: AsLightClient> {
 	client: Arc<L>,
 	rng: Mutex<OsRng>,
 	state: Mutex<SyncStateWrapper>,
+	// We duplicate this state tracking to avoid deadlocks in `is_major_importing`.
 	is_idle: Mutex<bool>,
 }
 
