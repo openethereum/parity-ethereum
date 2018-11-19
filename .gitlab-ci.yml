@@ -71,12 +71,12 @@ cache:
 
 push:cargo:
   stage:                           check
-  extends:                         .cargo-check
+  extends:                         .cargo_check
   <<:                              *cachew
   tags:
     - ci2
 
-.test-linux:                       &test-linux
+test-linux:                       &test-linux
   stage:                           test
   # variables:
   #   RUN_TESTS:                     all
@@ -147,7 +147,7 @@ push:build-android:
   <<:                              *build-android
   dependencies:
     - test-linux
-    - cargo_check
+    - push:cargo
   only:
     - pushes
 
@@ -155,7 +155,7 @@ push:build-windows:
   <<:                              *build-windows
   dependencies:
     - test-linux
-    - cargo_check
+    - push:cargo
   only:
     - pushes
 
@@ -163,14 +163,14 @@ push:build-darwin:
   <<:                              *build-darwin
   dependencies:
     - test-linux
-    - cargo_check
+    - push:cargo
   only:
     - pushes
 
 push:test-linux:
   <<:                              *test-linux
   dependencies:
-    - cargo_check
+    - push:cargo
   only:
     - pushes
 
