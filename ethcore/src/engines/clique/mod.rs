@@ -110,11 +110,11 @@ impl Clique {
     //length of signers must be greater than 1
     //
 
-    let epoch_length: u64 = 30;
+    trace!(target: "engine", "epoch length: {}, period: {}", our_params.epoch, our_params.period);
     let snapshot = SignerSnapshot {
       bn: 0,
       signers: vec![],
-      epoch_length: epoch_length,
+      epoch_length: our_params.epoch,
       votes: HashMap::<Address, (bool, Address)>::new(),
     };
 
@@ -122,12 +122,11 @@ impl Clique {
 	  Clique {
 		  client: RwLock::new(None),
 		  signer: Default::default(),
-          //signers: RwLock::new(Default::default()),
           snapshot: RwLock::new(Some(snapshot)),
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
-          epoch_length: epoch_length, //our_params.epoch, TODO: Fix this
-          period: 5, // our_params.period,
+          epoch_length: our_params.epoch,
+          period:  our_params.period,
 		});
 
 
@@ -277,12 +276,6 @@ impl Engine<EthereumMachine> for Clique {
 
     Ok(())
   }
-    fn ancestry_actions(&self, _header: &Header, ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
-        ancestry.map(|h| {
-          trace!(target: "engine", "ancestry encountered ");
-          AncestryAction::MarkFinalized(h.header.hash())
-        }).collect::<Vec<AncestryAction>>().to_vec()
-    }
 
 	fn executive_author (&self, header: &Header) -> Address {
         trace!(target: "engine", "called executive_author for block {}", header.number());
