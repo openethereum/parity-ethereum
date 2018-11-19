@@ -239,7 +239,7 @@ impl SyncStateWrapper {
 	}
 
 	/// Returns the internal state's value
-	pub fn get(self) -> SyncState {
+	pub fn into_inner(self) -> SyncState {
 		self.state
 	}
 }
@@ -354,7 +354,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 		} else {
 			let mut state = self.state.lock();
 
-			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
+			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).into_inner() {
 				SyncState::Idle => SyncState::Idle,
 				SyncState::AncestorSearch(search) =>
 					SyncState::AncestorSearch(search.requests_abandoned(unfulfilled)),
@@ -432,7 +432,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 				data: headers,
 			};
 
-			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
+			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).into_inner() {
 				SyncState::Idle => SyncState::Idle,
 				SyncState::AncestorSearch(search) =>
 					SyncState::AncestorSearch(search.process_response(&ctx, &*self.client)),
@@ -495,7 +495,7 @@ impl<L: AsLightClient> LightSync<L> {
 			loop {
 				if client.queue_info().is_full() { break }
 
-				let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
+				let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).into_inner() {
 					SyncState::Rounds(round)
 						=> SyncState::Rounds(round.drain(&mut sink, Some(DRAIN_AMOUNT))),
 					other => other,
@@ -539,7 +539,7 @@ impl<L: AsLightClient> LightSync<L> {
 				}
 			};
 
-			match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
+			match mem::replace(&mut *state, SyncStateWrapper::idle()).into_inner() {
 				SyncState::Rounds(SyncRound::Abort(reason, remaining)) => {
 					if remaining.len() > 0 {
 						self.set_state(&mut state, SyncState::Rounds(SyncRound::Abort(reason, remaining)));
@@ -594,7 +594,7 @@ impl<L: AsLightClient> LightSync<L> {
 				}
 				drop(pending_reqs);
 
-				let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
+				let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).into_inner() {
 					SyncState::Idle => SyncState::Idle,
 					SyncState::AncestorSearch(search) =>
 						SyncState::AncestorSearch(search.requests_abandoned(&unfulfilled)),
@@ -657,7 +657,7 @@ impl<L: AsLightClient> LightSync<L> {
 				None
 			};
 
-			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).get() {
+			let next_state = match mem::replace(&mut *state, SyncStateWrapper::idle()).into_inner() {
 				SyncState::Rounds(round) =>
 					SyncState::Rounds(round.dispatch_requests(dispatcher)),
 				SyncState::AncestorSearch(search) =>
