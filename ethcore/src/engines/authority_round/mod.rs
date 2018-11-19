@@ -1034,7 +1034,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				block.transactions().is_empty() &&
 				empty_steps.len() < self.maximum_empty_steps {
 
-				self.generate_empty_step(header.parent_hash());
+				if self.step.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
+					self.generate_empty_step(header.parent_hash());
+				}
+
 				return Seal::None;
 			}
 
@@ -1844,6 +1847,11 @@ mod tests {
 
 		// we've received the message
 		assert!(notify.messages.read().contains(&empty_step_rlp));
+		let len = notify.messages.read().len();
+
+		// make sure that we don't generate empty step for the second time
+		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
+		assert_eq!(len, notify.messages.read().len());
 	}
 
 	#[test]
