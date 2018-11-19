@@ -276,12 +276,6 @@ impl Engine<EthereumMachine> for Clique {
 
     Ok(())
   }
-    fn ancestry_actions(&self, _header: &Header, ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
-        ancestry.map(|h| {
-          trace!(target: "engine", "ancestry encountered ");
-          AncestryAction::MarkFinalized(h.header.hash())
-        }).collect::<Vec<AncestryAction>>().to_vec()
-    }
 
 	fn executive_author (&self, header: &Header) -> Address {
         trace!(target: "engine", "called executive_author for block {}", header.number());
