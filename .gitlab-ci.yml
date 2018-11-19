@@ -76,7 +76,7 @@ push:cargo:
   tags:
     - ci2
 
-test-linux:                       &test-linux
+.test-linux:                       &test-linux
   stage:                           test
   # variables:
   #   RUN_TESTS:                     all
@@ -146,7 +146,7 @@ test-linux:                       &test-linux
 push:build-android:
   <<:                              *build-android
   dependencies:
-    - test-linux
+    - push:test-linux
     - push:cargo
   only:
     - pushes
@@ -154,7 +154,7 @@ push:build-android:
 push:build-windows:
   <<:                              *build-windows
   dependencies:
-    - test-linux
+    - push:test-linux
     - push:cargo
   only:
     - pushes
@@ -162,7 +162,7 @@ push:build-windows:
 push:build-darwin:
   <<:                              *build-darwin
   dependencies:
-    - test-linux
+    - push:test-linux
     - push:cargo
   only:
     - pushes
