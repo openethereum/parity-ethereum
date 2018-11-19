@@ -347,12 +347,13 @@ mod id_guard {
 
 /// Provides various statistics that could
 /// be used to compute costs
-struct Statistics {
+pub struct Statistics {
 	/// Samples of peer count
 	peer_counts: VecDeque<usize>,
 }
 
 impl Statistics {
+	/// Create a new Statistics instance
 	pub fn new() -> Self {
 		Statistics {
 			peer_counts: VecDeque::with_capacity(MOVING_SAMPLE_SIZE),
