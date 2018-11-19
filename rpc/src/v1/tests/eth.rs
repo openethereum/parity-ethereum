@@ -38,7 +38,7 @@ use parity_runtime::Runtime;
 use jsonrpc_core::IoHandler;
 use v1::helpers::dispatch::FullDispatcher;
 use v1::helpers::nonce;
-use v1::impls::{EthClient, SigningUnsafeClient};
+use v1::impls::{EthClient, EthClientOptions, SigningUnsafeClient};
 use v1::metadata::Metadata;
 use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
 use v1::traits::eth::Eth;
@@ -140,7 +140,13 @@ impl EthTester {
 			&opt_account_provider,
 			&miner_service,
 			&external_miner,
-			Default::default(),
+			EthClientOptions {
+				pending_nonce_from_queue: false,
+				allow_pending_receipt_query: true,
+				send_block_number_in_get_work: true,
+				gas_price_percentile: 50,
+				allow_experimental_rpcs: true,
+			},
 		);
 
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));

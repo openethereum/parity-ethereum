@@ -65,6 +65,8 @@ pub struct EthClientOptions {
 	pub send_block_number_in_get_work: bool,
 	/// Gas Price Percentile used as default gas price.
 	pub gas_price_percentile: usize,
+	/// Enable Experimental RPC-Calls
+	pub allow_experimental_rpcs: bool,
 }
 
 impl EthClientOptions {
@@ -84,6 +86,7 @@ impl Default for EthClientOptions {
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
 			gas_price_percentile: 50,
+			allow_experimental_rpcs: false,
 		}
 	}
 }
@@ -549,6 +552,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn proof(&self, address: RpcH160, values: Vec<RpcH256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+		try_bf!(errors::require_experimental(self.options.allow_experimental_rpcs, "1186"));
+
 		let a: H160 = address.clone().into();
 		let key1 = keccak(a);
 
