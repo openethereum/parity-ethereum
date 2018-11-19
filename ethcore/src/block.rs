@@ -557,7 +557,7 @@ fn enact(
 		db,
 		parent,
 		last_hashes,
-		engine.executive_author(&header), // Engine such as Clique will calculate author from extra_data.
+		engine.executive_author(&header), // Engine such as Clique will calculate author from extra_data.  this is only important for executing contracts as the 'executive_author'
 		(*header.gas_limit(), *header.gas_limit()),
 		header.extra_data().clone(),
 		is_epoch_begin,
@@ -577,6 +577,9 @@ fn enact(
 //	}
 
 	b.push_transactions(transactions)?;
+
+	// reset the author to what it was originally specified as now that transactions are applied
+	b.block.header.set_author(*header.author());
 
 	for u in uncles {
 		b.push_uncle(u)?;

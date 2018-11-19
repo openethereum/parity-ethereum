@@ -9,7 +9,7 @@ use header::{Header, ExtendedHeader};
 
 pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x0; 8];
 pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xf; 8];
-pub const NULL_AUTHOR:     &[u8; 20] = &[0; 20];
+pub const NULL_AUTHOR:     [u8; 20] = [0; 20];
 
 pub struct SignerSnapshot {
   pub bn: u64,
@@ -44,17 +44,21 @@ impl SignerSnapshot {
   }
 
   pub fn apply(&mut self, _header: &Header) -> Result<(), Error> {
-    if _header.number() % self.epoch_length == 0 {
+    if _header.number() == 0 {
+      self.signers = self.extract_signers(_header).expect("should be able to extract signer list from genesis block");
+      trace!(target: "engine", "extracted {} signers", self.signers.len());
+      return Ok(());
+    } else if _header.number() % self.epoch_length == 0 {
       // TODO: assert that no voting occurs during an epoch change 
       return Ok(());
     }
 
-    /*
-    if _header.author() == NULL_AUTHOR {
+    if &_header.author()[0..20] == &NULL_AUTHOR {
       return Ok(());
     }
-    */
 
+    trace!(target: "engine", "header author {}", _header.author());
+    trace!(target: "engine", "attempting to extract creator address");
     let mut creator = public_to_address(&recover(&_header).unwrap()).clone();
 
     //TODO: votes that reach a majority consensus should have effects applied immediately to the signer list
@@ -77,9 +81,7 @@ impl SignerSnapshot {
     } else {
       loop {
         if let Some(h) = _ancestry.next() {
-          if h.header.number() == 0 {
-            return self.extract_signers(&h.header);
-          } else if h.header.number() % self.epoch_length == 0 {
+          if h.header.number() % self.epoch_length == 0 {
             // verify signer signatures
             // extract signer list
             return self.extract_signers(&h.header);

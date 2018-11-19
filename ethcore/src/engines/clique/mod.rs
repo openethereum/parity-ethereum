@@ -39,7 +39,7 @@ use engines::{Engine, Seal, EngineError, ConstructedVerifier, Headers, PendingTr
 use super::validator_set::{ValidatorSet, SimpleList};
 use super::signer::EngineSigner;
 use machine::{Call, AuxiliaryData, EthereumMachine};
-use self::signer_snapshot::{SignerSnapshot, NONCE_AUTH_VOTE, NONCE_DROP_VOTE};
+use self::signer_snapshot::{SignerSnapshot, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR};
 
 pub const SIGNER_VANITY_LENGTH: u32 = 32;  // Fixed number of extra-data prefix bytes reserved for signer vanity
 //const EXTRA_DATA_POST_LENGTH: u32 = 128;
@@ -161,20 +161,34 @@ impl Engine<EthereumMachine> for Clique {
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
     // if in turn, set difficulty 
     //
-
+    let mut address = Address::new();
+    address.0 = NULL_AUTHOR.clone();
+    header.set_author(address);
   }
 
   fn close_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
+      let mut h = _header.clone();
+
       if self.is_signer_proposer(_header.number()) {
          if let Some(ref mut snapshot) = *self.snapshot.write() {
+           trace!(target: "engine", "applying sealed block");
            snapshot.apply(_header);
+
            let signers = &snapshot.signers;
+           trace!(target: "engine", "applied.  found {} signers", signers.len());
+
            let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize+20*signers.len()+SIGNER_SIG_LENGTH as usize];
+           let sig_offset = SIGNER_VANITY_LENGTH as usize+20*signers.len();
            for i in 0..signers.len() {
              //signers[i].copy_to(&v[SIGNER_VANITY_LENGTH as usize+i*20..(i+1)*20]);
 
-             v[SIGNER_VANITY_LENGTH as usize+i*20..(i+1)*20].clone_from_slice(&signers[i]);
+             v[SIGNER_VANITY_LENGTH as usize+i*20..SIGNER_VANITY_LENGTH as usize+(i+1)*20].clone_from_slice(&signers[i]);
            }
+
+           trace!(target: "engine", "writing signature");
+           h.set_extra_data(v.clone());
+           v[sig_offset..].copy_from_slice(&self.sign_header(&h).expect("should be able to sign header")[..]);
+           trace!(target: "engine", "signature written");
 
            return Some(v);
          } else {
@@ -249,9 +263,18 @@ impl Engine<EthereumMachine> for Clique {
   ) -> Result<(), Error> {
     trace!(target: "engine", "new block {}", _block.header().number());
 
+    let parent = _ancestry.next().unwrap();
+
+    if _block.header.timestamp() <= parent.header.timestamp() + self.period {
+      trace!(target: "engine", "block too early");
+      return Err(From::from("block too early"));
+    }
+
+    /*
     if let Some(ref mut snapshot) = *self.snapshot.write() {
         snapshot.apply(_block.header());
     }
+    */
 
     Ok(())
   }
@@ -263,9 +286,15 @@ impl Engine<EthereumMachine> for Clique {
     }
 
 	fn executive_author (&self, header: &Header) -> Address {
-		public_to_address(
-			&recover(header).unwrap()
-		)
+        trace!(target: "engine", "called executive_author for block {}", header.number());
+
+        if self.is_signer_proposer(header.number()) {
+          return self.signer.read().address().expect("asdf");
+        } else {
+            public_to_address(
+                &recover(header).unwrap()
+            )
+        }
 	}
 
   fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { 
@@ -378,6 +407,7 @@ impl Engine<EthereumMachine> for Clique {
   fn genesis_epoch_data<'a>(&self, _header: &Header, call: &Call) -> Result<Vec<u8>, String> {
     // extract signer list from genesis extradata
       {
+        trace!(target: "engine", "genesis_epoch_data received");
         if let Some(ref mut snapshot) = *self.snapshot.write() {
           snapshot.apply(_header);
         } else {
