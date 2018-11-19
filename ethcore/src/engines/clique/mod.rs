@@ -421,4 +421,8 @@ impl Engine<EthereumMachine> for Clique {
     trace!(target: "engine", "is_timestamp_valid");
     header_timestamp >= parent_timestamp + self.period
   }
+
+  fn maximum_extra_data_size(&self) -> usize {
+    1024
+  }
 }
