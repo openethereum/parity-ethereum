@@ -10,7 +10,6 @@ public_node = false
 no_download = false
 no_consensus = false
 no_persistent_txqueue = false
-allow_empty_block_result = false
 
 chain = "homestead"
 base_path = "$HOME/.parity"
@@ -65,6 +64,7 @@ interface = "local"
 cors = ["null"]
 apis = ["web3", "eth", "net", "parity", "traces", "rpc", "secretstore"]
 hosts = ["none"]
+jsonrpc_allow_missing_blocks = false
 
 [websockets]
 disable = false
