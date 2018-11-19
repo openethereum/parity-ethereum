@@ -12,6 +12,16 @@ variables:
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
 
+before_script:
+  - date
+  # - source scripts/utils.sh
+  # - date
+  # - source scripts/prepare_build.sh
+
+after_script:
+  - date
+
+
 # .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
 #   only:                            &releaseable_branches
 #     - stable
@@ -40,7 +50,8 @@ variables:
   before_script:
     - rustc --version
     - cargo --version
-    # - du -hs target
+    - mkdir -p target
+    - du -hs target
     - du -hs $CARGO_HOME
   after_script:
     - du -hs target
@@ -52,20 +63,20 @@ cache:
   - target/
   - $CARGO_HOME
 
-.cargo-check:
+.cargo_check:
   only:
     - pushes
   script:
     - cargo check
 
-# push:cargo:
-#   stage:                           check
-#   extends:                         .cargo-check
-#   <<:                              *cachew
-#   tags:
-#     - ci2
+push:cargo:
+  stage:                           check
+  extends:                         .cargo-check
+  <<:                              *cachew
+  tags:
+    - ci2
 
-test-linux:
+.test-linux:                       &test-linux
   stage:                           test
   # variables:
   #   RUN_TESTS:                     all
@@ -77,67 +88,94 @@ test-linux:
   tags:
     - ci2
 
-build-linux:
+.build-linux:                      &build-linux
   stage:                           build
   # only:                            *releaseable_branches
-  only:
-    - pushes
   variables:
     CARGO_TARGET:                  x86_64-unknown-linux-gnu
   script:
     - scripts/gitlab/build-unix.sh
     # - cargo build --all # (--release -features_final)
-  # <<:                              *cachew
+  <<:                              *cachew
   <<:                              *collect_artifacts
   tags:
     - ci2
 
-build-darwin:
+.build-darwin:                     &build-darwin
   stage:                           build
   # only:                            *releaseable_branches
-  only:
-    - pushes
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
     CXX:                           g++
   script:
     - scripts/gitlab/build-unix.sh
-  # <<:                              *cachew
+  <<:                              *cachew
   tags:
     # - rust-osx
     - ci2
   <<:                              *collect_artifacts
 
-build-windows:
+.build-windows:                    &build-windows
   stage:                           build
   # only:                            *releaseable_branches
-  only:
-    - pushes
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-gnu
   script:
     - sh scripts/gitlab/build-windows.sh
-  # <<:                              *cachew
+  <<:                              *cachew
   tags:
    # - rust-windows
    - ci2
   <<:                              *collect_artifacts
 
-build-android:
+.build-android:                    &build-android
   stage:                           build
-  only:
-    - pushes
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
   script:
     - scripts/gitlab/build-unix.sh
-  # <<:                              *cachew
+  <<:                              *cachew
   tags:
     - ci2
     # - rust-arm
   <<:                              *collect_artifacts # ?
+
+# push pipeline
+push:build-android:
+  <<:                              *build-android
+  dependencies:
+    - test-linux
+    - cargo_check
+  only:
+    - pushes
+
+push:build-windows:
+  <<:                              *build-windows
+  dependencies:
+    - test-linux
+    - cargo_check
+  only:
+    - pushes
+
+push:build-darwin:
+  <<:                              *build-darwin
+  dependencies:
+    - test-linux
+    - cargo_check
+  only:
+    - pushes
+
+push:test-linux:
+  <<:                              *test-linux
+  dependencies:
+    - cargo_check
+  only:
+    - pushes
+
+
+
 
 # publish-docker:
 #   stage:                           publish
