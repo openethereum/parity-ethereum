@@ -127,7 +127,7 @@ impl Clique {
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
           epoch_length: epoch_length, //our_params.epoch, TODO: Fix this
-          period: 15, // our_params.period,
+          period: 5, // our_params.period,
 		});
 
 
@@ -233,7 +233,12 @@ impl Engine<EthereumMachine> for Clique {
 
     // if we signed recently, don't seal
 
-  trace!(target: "engine", "attempting to generate seal");
+    if block.header.timestamp() <= _parent.timestamp() + self.period {
+      trace!(target: "engine", "block too early");
+      return Seal::None;
+    }
+
+    trace!(target: "engine", "attempting to generate seal");
     // sign the digest of the seal
     if self.is_signer_proposer(block.header().number()) {
         trace!(target: "engine", "seal generated for {}", block.header().number());
@@ -263,12 +268,6 @@ impl Engine<EthereumMachine> for Clique {
   ) -> Result<(), Error> {
     trace!(target: "engine", "new block {}", _block.header().number());
 
-    let parent = _ancestry.next().unwrap();
-
-    if _block.header.timestamp() <= parent.header.timestamp() + self.period {
-      trace!(target: "engine", "block too early");
-      return Err(From::from("block too early"));
-    }
 
     /*
     if let Some(ref mut snapshot) = *self.snapshot.write() {
@@ -420,9 +419,5 @@ impl Engine<EthereumMachine> for Clique {
   fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
     trace!(target: "engine", "is_timestamp_valid");
     header_timestamp >= parent_timestamp + self.period
-  }
-
-  fn maximum_extra_data_size(&self) -> usize {
-    1024
   }
 }
