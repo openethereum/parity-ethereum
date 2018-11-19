@@ -318,6 +318,7 @@ impl LightFetch {
 		const MAX_BLOCK_RANGE: u64 = 1000;
 
 		let fetcher = self.clone();
+		let fetcher_block = self.clone();
 		self.headers_range_by_block_id(filter.from_block, filter.to_block, MAX_BLOCK_RANGE)
 			.and_then(move |mut headers| {
 				if headers.is_empty() {
@@ -353,7 +354,7 @@ impl LightFetch {
 											data: log.data.into(),
 											block_hash: Some(hash.into()),
 											block_number: Some(num.into()),
-											// No way to easily retrieve transaction hash, so let's just skip it.
+											// No way to easily retrieve transaction hash.
 											transaction_hash: None,
 											transaction_index: Some(transaction_index.into()),
 											log_index: Some(block_index.into()),
@@ -367,8 +368,42 @@ impl LightFetch {
 							}
 							future::ok::<_,OnDemandError>(matches)
 						}) // and then collect them into a vector.
-						.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
 						.map_err(errors::on_demand_error)
+						// retrieve transaction hash.
+						.and_then(move |matches| {
+							let mut blocks = BTreeMap::new();
+							let mut result: Vec<Log> = matches.into_iter().map(|(_, v)| {
+								{
+								let block_hash = v.block_hash.as_ref().expect("Previously initialized with value; qed");
+								blocks.entry(block_hash.clone()).or_insert_with(|| {
+									fetcher_block.block(BlockId::Hash(block_hash.clone().into()))
+								});
+								}
+								v
+							}).collect();
+							// future get blocks (unordered it)
+							stream::futures_unordered(blocks.into_iter().map(|(_,v)|v)).collect().map(move |blocks| {
+								let mut tr_per_bl = BTreeMap::new();
+								for enc_bl in blocks.iter() {
+									let bl_hash = enc_bl.hash();
+									let tr = enc_bl.transactions();
+									tr_per_bl.insert(bl_hash, tr);
+								}
+								for log in result.iter_mut() {
+									let log_index: U256 = log.transaction_index.expect("Previously initialized with value; qed").into();
+									if log_index < usize::max_value().into() {
+										let block_hash = log.block_hash.clone().expect("Previously initialized with value; qed").into();
+										let btr = tr_per_bl.get(&block_hash)
+											.and_then(|arr_tr| arr_tr.get(log_index.as_usize()))
+											.map(|tr| tr.hash().into());
+											log.transaction_hash = btr;
+									} else {
+										trace!(target: "light_fetch", "A received Receipts indexed other usize length ignored");
+									}
+								}
+								result
+							})
+						})
 				});
 
 				match maybe_future {
