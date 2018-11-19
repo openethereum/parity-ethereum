@@ -216,6 +216,7 @@ enum SyncState {
 
 /// A wrapper around the SyncState that makes sure to
 /// update the giving reference to `is_idle`
+#[derive(Debug)]
 struct SyncStateWrapper {
 	state: SyncState,
 }
