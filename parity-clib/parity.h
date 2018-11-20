@@ -127,7 +127,7 @@ void* parity_subscribe_ws(const void *const parity, const char* ws_query, size_t
 /// Unsubscribes from a websocket subscription. Caution this function consumes the session object and must only be
 /// used exactly once per session.
 ///
-///	 - session		: Underlying pointer to an atomic reference counter
+///	 - session		: Pointer to the session to unsubscribe from
 ///
 int parity_unsubscribe_ws(const void *const session);
 
