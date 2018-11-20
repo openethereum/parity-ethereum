@@ -228,7 +228,7 @@ push:test-cpp:
   <<:                              *test-cpp
   dependencies:
     - push:cargo
-    - push:test-val-chain
+    # - push:test-val-chain
   only:
     - pushes
 
