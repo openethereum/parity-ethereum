@@ -30,9 +30,6 @@ const int SUBSCRIPTION_ID_LEN = 18;
 // global variable to keep track of the received rpc responses
 static int g_rpc_counter = 0;
 
-// global string for callbacks
-static std::string g_str;
-
 // list of rpc queries
 static std::vector<std::string> rpc_queries {
 	"{\"method\":\"parity_versionInfo\",\"params\":[],\"id\":1,\"jsonrpc\":\"2.0\"}",
@@ -49,8 +46,8 @@ void ws_response(void* _unused, const char* response, size_t len) {
 	printf("ws_response: %s\r\n", response);
 	std::regex is_subscription ("\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-F0-9]{16}\",\"id\":1\\}");
 	// assume only one subscription is used
-	if (std::regex_match(response, is_subscription) == true && g_str.empty()) {
-		g_str = response;
+	if (std::regex_match(response, is_subscription) == true) {
+		g_rpc_counter -= 1;
 	}
 }
 
@@ -128,10 +125,9 @@ int parity_subscribe_to_websocket(void* parity) {
 
 	size_t timeout = 1000;
 	int num_queries = 1;
-	g_str.clear();
+	g_rpc_counter = 1;
 
 	std::string subscribe = "{\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"],\"id\":1,\"jsonrpc\":\"2.0\"}";
-	std::string unsubscribe = "{\"method\":\"eth_unsubscribe\",\"params\":[\"0x1234567891234567\"],\"id\":1,\"jsonrpc\":\"2.0\"}";
 
 	const void *const handle = parity_subscribe_ws(parity, subscribe.c_str(), subscribe.length(), ws_response);
 
@@ -139,16 +135,10 @@ int parity_subscribe_to_websocket(void* parity) {
 		return 1;
 	}
 
-	while(g_str.empty());
+	while(g_rpc_counter != 0);
 	std::this_thread::sleep_for(std::chrono::seconds(60));
 
-	// Replace subscription_id with the id we got in the callback
-	// (this is not a good practice use your favorite JSON parser)
-	unsubscribe.replace(39, SUBSCRIPTION_ID_LEN, g_str, 27, SUBSCRIPTION_ID_LEN);
-	if (parity_unsubscribe_ws(parity, handle, unsubscribe.c_str(), unsubscribe.length(), timeout, ws_response) != 0) {
-			return 1;
-	}
-
+	parity_unsubscribe_ws(handle);
 	return 0;
 }
 
@@ -185,7 +175,7 @@ void* parity_light_run() {
 		.on_client_restart_cb_custom = nullptr
 	};
 
-	std::vector<const char*> args = {"--no-ipc" , "--jsonrpc-apis=all", "--chain", "kovan"};
+	std::vector<const char*> args = {"--no-ipc" , "--light", "--jsonrpc-apis=all", "--chain", "kovan"};
 	std::vector<size_t> str_lens;
 
 	for (auto arg: args) {

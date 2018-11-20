@@ -116,21 +116,12 @@ int parity_rpc(const void *const parity, const char* rpc_query, size_t rpc_len, 
 const void *const parity_subscribe_ws(const void *const parity, const char* ws_query, size_t len,
 		void (*subscribe)(void* custom, const char* response, size_t len));
 
-/// Unsubscribes from a specific websocket event. Caution this function consumes the session object and must only be
+/// Unsubscribes from a websocket subscription. Caution this function consumes the session object and must only be
 /// used exactly once per session.
 ///
-///	 - parity		: Reference to the running parity client
 ///	 - session		: Underlying pointer to an atomic reference counter
-///	 - ws_query		: JSON encoded string representing the websocket event to unsubscribe from
-///	 - len			: Length of the query
-///	 - timeout		: Maximum time in milliseconds to wait for a response
-///	 - response		: Callback to invoke when the current session has been terminated
 ///
-///	 - On success	: The function returns 0
-///	 - On error	: The function returns non-zero
-//
-int parity_unsubscribe_ws(const void *const parity, const void *const session, const char* ws_query,
-		size_t len, size_t timeout, void (*unsubscribe)(void* custom, const char* response, size_t len));
+int parity_unsubscribe_ws(const void *const session);
 
 /// Sets a callback to call when a panic happens in the Rust code.
 ///

@@ -175,7 +175,6 @@ fn parity_rpc_dispatcher(
 			None => to_cstring(error::EMPTY.as_bytes()),
 		};
 		cb(ptr::null_mut(), cstr, len);
-		()
 	});
 
 	let _handle = thread::Builder::new()
@@ -223,14 +222,15 @@ pub unsafe extern fn parity_subscribe_ws(
 		if let Some((client, query, callback)) = parity_rpc_query_checker(client, query, len, callback) {
 			let (tx, mut rx) = mpsc::channel(1);
 			let session = Arc::new(PubSubSession::new(tx));
-			let ffi_session = session.clone();
 			let query = client.rpc_query(query, Some(session.clone()));
+			let weak_session = Arc::downgrade(&session);
 
 			let _handle = thread::Builder::new()
 				.name("ws-subscriber".into())
 				.spawn(move || {
-
-					// wait for subscription ID
+					// Wait for subscription ID
+					// Note this may block forever and be can't destroyed using the session object)
+					// FIXME: add timeout
 					match query.wait() {
 						Ok(Some(response)) => {
 							let (cstr, len) = to_cstring(response.as_bytes());
@@ -244,18 +244,24 @@ pub unsafe extern fn parity_subscribe_ws(
 						}
 					};
 
-					while Arc::strong_count(&session) > 1 {
+					loop {
 						for response in rx.by_ref().wait() {
 							if let Ok(r) = response {
 								let (cstring, len) = to_cstring(r.as_bytes());
 								callback(ptr::null_mut(), cstring, len);
+							}
+						}
+
+						let rc = weak_session.upgrade().map_or(0,|session| Arc::strong_count(&session));
+						// No subscription left, then terminate
+						if rc <= 1 {
+							break;
 						}
 					}
-				}
 			})
 			.expect("rpc-subscriber thread shouldn't fail; qed");
 
-			Arc::into_raw(ffi_session) as *const c_void
+			Arc::into_raw(session) as *const c_void
 		} else {
 			ptr::null()
 		}
@@ -264,23 +270,10 @@ pub unsafe extern fn parity_subscribe_ws(
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_unsubscribe_ws(
-	client: *const c_void,
-	session: *const c_void,
-	query: *const c_char,
-	len: usize,
-	timeout_ms: usize,
-	callback: Callback,
-) -> c_int {
-	panic::catch_unwind(|| {
-		if let Some((client, query, callback)) = parity_rpc_query_checker(client, query, len, callback) {
-			let session = Some(Arc::from_raw(session as *const PubSubSession));
-			parity_rpc_dispatcher(client, query, session, callback, timeout_ms, "ws-unsubscribe");
-			0
-		} else {
-			1
-		}
-	}).unwrap_or(1)
+pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
+	let _ = panic::catch_unwind(|| {
+		let _session = Arc::from_raw(session as *const PubSubSession);
+	});
 }
 
 #[no_mangle]
