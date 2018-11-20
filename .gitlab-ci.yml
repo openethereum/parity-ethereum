@@ -88,8 +88,8 @@ push:cargo:
     - set -u # treat unset variables as error
     - git log --graph --oneline --decorate=short -n 10
     # - git submodule update --init --recursive
-    # - echo "________Validate chainspecs________"
-    # - time ./scripts/validate_chainspecs.sh
+    - echo "________Validate chainspecs________"
+    - time ./scripts/validate_chainspecs.sh
     - echo "________Running Parity Full Test Suite________"
     - time cargo test --release --features json-tests ci-skip-issue --all --target $CARGO_TARGET -v -- --test-threads 8
   tags:
@@ -220,7 +220,7 @@ push:test-linux:
   <<:                              *test-linux
   dependencies:
     - push:cargo
-    - push:test-val-chain
+    # - push:test-val-chain
   only:
     - pushes
 
@@ -232,10 +232,10 @@ push:test-cpp:
   only:
     - pushes
 
-push:test-val-chain:
-  <<:                              *test-val-chain
-  only:
-    - pushes
+# push:test-val-chain:
+#   <<:                              *test-val-chain
+#   only:
+#     - pushes
 
 
 
