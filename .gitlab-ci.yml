@@ -70,7 +70,7 @@ cache:
     - cargo check
 
 push:cargo:
-  stage:                           test
+  stage:                           check
   extends:                         .cargo_check
   <<:                              *cachew
   tags:
@@ -226,13 +226,13 @@ push:test-cpp:
   <<:                              *test-cpp
   dependencies:
     - push:cargo
+    - push:test-val-chain
   only:
     - pushes
 
 push:test-val-chain:
   <<:                              *test-val-chain
-  dependencies:
-    - push:cargo
+  stage:                           check
   only:
     - pushes
 
