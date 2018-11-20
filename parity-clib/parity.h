@@ -17,6 +17,11 @@
 #ifndef _PARITY_H_INCLUDED_
 #define _PARITY_H_INCLUDED_
 
+#define		PARITY_CALLBACK_RESTART			0
+#define		PARITY_CALLBACK_RPC				1
+#define		PARITY_CALLBACK_WEBSOCKET		2
+#define		PARITY_CALLBACK_PANIC_HOOK		3
+
 #include <stddef.h>
 
 /// Parameters to pass to `parity_start`.
@@ -31,7 +36,7 @@ struct ParityParams {
 	///
 	/// The first parameter of the callback is the value of `on_client_restart_cb_custom`.
 	/// The second and third parameters of the callback are the string pointer and length.
-	void (*on_client_restart_cb)(void* custom, const char* new_chain, size_t new_chain_len);
+	void (*on_client_restart_cb)(size_t callback_kind, void* custom, const char* new_chain, size_t new_chain_len);
 
 	/// Custom parameter passed to the `on_client_restart_cb` callback as first parameter.
 	void *on_client_restart_cb_custom;
@@ -93,13 +98,15 @@ void parity_destroy(void* parity);
 ///	- len			: Length of the RPC query
 ///	- timeout_ms	: Maximum time that request is waiting for a response
 ///	- response		: Callback to invoke when the query gets answered. It will respond with a JSON encoded the string
-//					  with the result
-///
+///					  with the result
+///	 - ud			: Specific user defined data that can used in the callback ("response)
+//
+//
 ///	 - On success	: The parity client reference and the query string were valid
 ///	 - On error		: The parity client reference and the query string were not valid
 ///
 int parity_rpc(const void *const parity, const char* rpc_query, size_t rpc_len, size_t timeout_ms,
-		void (*subscribe)(void* custom, const char* response, size_t len));
+		void (*subscribe)(size_t callback_kind, void* ud, const char* response, size_t len), void* ud);
 
 
 /// Subscribes to a specific websocket event that will run until it is canceled
@@ -108,13 +115,14 @@ int parity_rpc(const void *const parity, const char* rpc_query, size_t rpc_len, 
 ///	 - ws_query		: JSON encoded string representing the websocket event to subscribe to
 ///	 - len			: Length of the query
 ///	 - response		: Callback to invoke when a websocket event occurs
+///	 - ud			: Specific user defined data that can used in the callback
 ///
 ///	 - On success	: The function returns an object to the current session
 ///					  which can be used cancel the subscription
 ///	 - On error		: The function returns a null pointer
 ///
-const void *const parity_subscribe_ws(const void *const parity, const char* ws_query, size_t len,
-		void (*subscribe)(void* custom, const char* response, size_t len));
+void* parity_subscribe_ws(const void *const parity, const char* ws_query, size_t len,
+		void (*subscribe)(size_t callback_kind, void* ud, const char* response, size_t len), void* ud);
 
 /// Unsubscribes from a websocket subscription. Caution this function consumes the session object and must only be
 /// used exactly once per session.
@@ -138,7 +146,7 @@ int parity_unsubscribe_ws(const void *const session);
 /// The callback can be called from any thread and multiple times simultaneously. Make sure that
 /// your code is thread safe.
 ///
-int parity_set_panic_hook(void (*cb)(void* param, const char* msg, size_t msg_len), void* param);
+int parity_set_panic_hook(void (*cb)(size_t callback_kind, void* param, const char* msg, size_t msg_len), void* param);
 
 #ifdef __cplusplus
 }

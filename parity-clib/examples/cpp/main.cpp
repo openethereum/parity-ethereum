@@ -27,9 +27,6 @@ int parity_rpc_queries(void*);
 const int SUBSCRIPTION_ID_LEN = 18;
 const size_t TIMEOUT_ONE_MIN_AS_MILLIS = 60 * 1000;
 
-// global variable to keep track of the received rpc responses
-static int g_rpc_counter = 0;
-
 // list of rpc queries
 const std::vector<std::string> rpc_queries {
 	"{\"method\":\"parity_versionInfo\",\"params\":[],\"id\":1,\"jsonrpc\":\"2.0\"}",
@@ -45,22 +42,27 @@ const std::vector<std::string> ws_subscriptions {
 	"{\"method\":\"eth_subscribe\",\"params\":[\"newHeads\"],\"id\":1,\"jsonrpc\":\"2.0\"}"
 };
 
-// callback that gets invoked when the client restarts
-void on_restart(void*, const char*, size_t) {}
-
-// callback that is invoked on ws responses
-void ws_response(void* _unused, const char* response, size_t len) {
-	printf("ws_response: %s\r\n", response);
-	std::regex is_subscription ("\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-F0-9]{16}\",\"id\":1\\}");
-	if (std::regex_match(response, is_subscription) == true) {
-		g_rpc_counter -= 1;
+// callback that gets invoked upon an event
+void callback(size_t type, void* ud, const char* response, size_t _len) {
+    if (type == PARITY_CALLBACK_RESTART) {
+		printf("restart\r\n");
+	} else if (type == PARITY_CALLBACK_RPC) {
+		printf("rpc response: %s\r\n", response);
+		size_t* counter = static_cast<size_t*>(ud);
+		*counter -= 1;
+	} else if (type == PARITY_CALLBACK_WEBSOCKET) {
+		printf("websocket response: %s\r\n", response);
+		std::regex is_subscription ("\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-F0-9]{16}\",\"id\":1\\}");
+		if (std::regex_match(response, is_subscription) == true) {
+			size_t* counter = static_cast<size_t*>(ud);
+			*counter -= 1;
+		}
 	}
-}
-
-// callback that is invoked on ws responses
-void rpc_response(void* _unused, const char* response, size_t len) {
-	printf("rpc_response: %s\r\n", response);
-	g_rpc_counter -= 1;
+	else if (type == PARITY_CALLBACK_PANIC_HOOK) {
+		printf("panic hook\r\n");
+	} else {
+		printf("Not supported callback id\r\n");
+	}
 }
 
 int main() {
@@ -111,15 +113,14 @@ int parity_rpc_queries(void* parity) {
 	}
 
 	size_t num_queries = rpc_queries.size();
-	g_rpc_counter = num_queries;
 
 	for (auto query : rpc_queries) {
-		if (parity_rpc(parity, query.c_str(), query.length(), TIMEOUT_ONE_MIN_AS_MILLIS, rpc_response) != 0) {
+		if (parity_rpc(parity, query.c_str(), query.length(), TIMEOUT_ONE_MIN_AS_MILLIS, callback, &num_queries) != 0) {
 			return 1;
 		}
 	}
 
-	while(g_rpc_counter != 0);
+	while(num_queries != 0);
 	return 0;
 }
 
@@ -130,17 +131,17 @@ int parity_subscribe_to_websocket(void* parity) {
 	}
 
 	std::vector<const void*> sessions;
-	g_rpc_counter = ws_subscriptions.size();
+	size_t num_subs = ws_subscriptions.size();
 
 	for (auto sub : ws_subscriptions) {
-		const void *const session = parity_subscribe_ws(parity, sub.c_str(), sub.length(), ws_response);
+		void *const session = parity_subscribe_ws(parity, sub.c_str(), sub.length(), callback, &num_subs);
 		if (!session) {
 			return 1;
 		}
 		sessions.push_back(session);
 	}
 
-	while(g_rpc_counter != 0);
+	while(num_subs != 0);
 	std::this_thread::sleep_for(std::chrono::seconds(60));
 	for (auto session : sessions) {
 		parity_unsubscribe_ws(session);
@@ -151,7 +152,7 @@ int parity_subscribe_to_websocket(void* parity) {
 void* parity_run(std::vector<const char*> args) {
 	ParityParams cfg = {
 		.configuration = nullptr,
-		.on_client_restart_cb = on_restart,
+		.on_client_restart_cb = callback,
 		.on_client_restart_cb_custom = nullptr
 	};
 
