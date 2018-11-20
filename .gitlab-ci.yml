@@ -82,9 +82,32 @@ push:cargo:
   #   RUN_TESTS:                     all
   <<:                              *cachew
   script:
-    - scripts/gitlab/test-all.sh
-    # - cargo test -v --all
-    # - cpp test sh
+    # - scripts/gitlab/test-all.sh
+    - set -e # fail on any error
+    - set -u # treat unset variables as error
+    - git log --graph --oneline --decorate=short -n 10
+    # - THREADS=8
+    - git submodule update --init --recursive
+    - rustup show
+    # exec ./test.sh
+    - echo "________Validate chainspecs________"
+    - time ./scripts/validate_chainspecs.sh
+    - echo "________Running Parity Full Test Suite________"
+    - time cargo test --release --features json-tests ci-skip-issue --all --target $CARGO_TARGET -v -- --test-threads 8
+  tags:
+    - ci2
+
+.test-cpp:                         &test-cpp
+  stage:                           test
+  <<:                              *cachew
+  script:
+    # time cpp_test
+    - echo "________Running the C++ example________"
+    - CPP_DIR=./parity-clib-examples/cpp
+    - time cmake -B"$CPP_DIR/build" -H"$CPP_DIR"
+    - time make -C $CPP_DIR/build -j 8
+    - time $CPP_DIR/build/parity-example
+    - rm -rf $CPP_DIR/build
   tags:
     - ci2
 
@@ -108,7 +131,7 @@ push:cargo:
     CARGO_TARGET:                  x86_64-apple-darwin
     CC:                            gcc
     CXX:                           g++
-  script:
+  script: 
     - scripts/gitlab/build-unix.sh
   <<:                              *cachew
   tags:
@@ -147,6 +170,7 @@ push:build-android:
   <<:                              *build-android
   dependencies:
     - push:test-linux
+    - push:test-cpp
     - push:cargo
   only:
     - pushes
@@ -155,6 +179,7 @@ push:build-windows:
   <<:                              *build-windows
   dependencies:
     - push:test-linux
+    - push:test-cpp
     - push:cargo
   only:
     - pushes
@@ -163,6 +188,7 @@ push:build-darwin:
   <<:                              *build-darwin
   dependencies:
     - push:test-linux
+    - push:test-cpp
     - push:cargo
   only:
     - pushes
@@ -171,12 +197,20 @@ push:build-linux:
   <<:                              *build-linux
   dependencies:
     - push:test-linux
+    - push:test-cpp
     - push:cargo
   only:
     - pushes
 
 push:test-linux:
   <<:                              *test-linux
+  dependencies:
+    - push:cargo
+  only:
+    - pushes
+
+push:test-cpp:
+  <<:                              *test-cpp
   dependencies:
     - push:cargo
   only:
