@@ -48,7 +48,7 @@ after_script:
 
 .cachew:                            &cachew
   before_script:
-    - rustc --version
+    - rustup show
     - cargo --version
     - mkdir -p target
     - du -hs target
@@ -70,7 +70,7 @@ cache:
     - cargo check
 
 push:cargo:
-  stage:                           check
+  stage:                           test
   extends:                         .cargo_check
   <<:                              *cachew
   tags:
@@ -82,14 +82,10 @@ push:cargo:
   #   RUN_TESTS:                     all
   <<:                              *cachew
   script:
-    # - scripts/gitlab/test-all.sh
     - set -e # fail on any error
     - set -u # treat unset variables as error
     - git log --graph --oneline --decorate=short -n 10
-    # - THREADS=8
     - git submodule update --init --recursive
-    - rustup show
-    # exec ./test.sh
     - echo "________Validate chainspecs________"
     - time ./scripts/validate_chainspecs.sh
     - echo "________Running Parity Full Test Suite________"
@@ -101,13 +97,29 @@ push:cargo:
   stage:                           test
   <<:                              *cachew
   script:
-    # time cpp_test
+    - set -e # fail on any error
+    - set -u # treat unset variables as error
+    - git log --graph --oneline --decorate=short -n 10
+    - git submodule update --init --recursive
     - echo "________Running the C++ example________"
     - CPP_DIR=./parity-clib-examples/cpp
     - time cmake -B"$CPP_DIR/build" -H"$CPP_DIR"
     - time make -C $CPP_DIR/build -j 8
     - time $CPP_DIR/build/parity-example
     - rm -rf $CPP_DIR/build
+  tags:
+    - ci2
+
+.test-val-chain:                       &test-val-chain
+  stage:                           test
+  <<:                              *cachew
+  script:
+    - set -e # fail on any error
+    - set -u # treat unset variables as error
+    - git log --graph --oneline --decorate=short -n 10
+    - git submodule update --init --recursive
+    - echo "________Validate chainspecs________"
+    - time ./scripts/validate_chainspecs.sh
   tags:
     - ci2
 
@@ -169,36 +181,36 @@ push:cargo:
 push:build-android:
   <<:                              *build-android
   dependencies:
+    - push:cargo
     - push:test-linux
     - push:test-cpp
-    - push:cargo
   only:
     - pushes
 
 push:build-windows:
   <<:                              *build-windows
   dependencies:
+    - push:cargo
     - push:test-linux
     - push:test-cpp
-    - push:cargo
   only:
     - pushes
 
 push:build-darwin:
   <<:                              *build-darwin
   dependencies:
+    - push:cargo
     - push:test-linux
     - push:test-cpp
-    - push:cargo
   only:
     - pushes
 
 push:build-linux:
   <<:                              *build-linux
   dependencies:
+    - push:cargo
     - push:test-linux
     - push:test-cpp
-    - push:cargo
   only:
     - pushes
 
@@ -206,11 +218,19 @@ push:test-linux:
   <<:                              *test-linux
   dependencies:
     - push:cargo
+    - push:test-val-chain
   only:
     - pushes
 
 push:test-cpp:
   <<:                              *test-cpp
+  dependencies:
+    - push:cargo
+  only:
+    - pushes
+
+push:test-val-chain:
+  <<:                              *test-val-chain
   dependencies:
     - push:cargo
   only:
