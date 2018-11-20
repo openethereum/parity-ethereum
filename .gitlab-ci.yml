@@ -62,7 +62,7 @@ after_script:
 cache:
   key:                            "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
   paths:
-  - target/
+  # - target/
   - $CARGO_HOME
 
 .cargo_check:
