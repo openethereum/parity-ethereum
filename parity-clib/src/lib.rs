@@ -187,7 +187,7 @@ fn parity_rpc_dispatcher(
 					let (cstr, len) = to_cstring(error::TIMEOUT.as_bytes());
 					callback(ptr::null_mut(), cstr, len);
 				});
-			})
+		})
 		.expect("rpc-query thread shouldn't fail; qed");
 }
 
