@@ -154,7 +154,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		let mut polls = self.polls().lock();
 		// +1, since we don't want to include the current block
 		let id = polls.create_poll(SyncPollFilter::new(PollFilter::Block {
-			last_block_number: self.best_block_number() + 1,
+			last_block_number: self.best_block_number(),
 			recent_reported_hashes: VecDeque::with_capacity(PollFilter::MAX_BLOCK_HISTORY_SIZE),
 		}));
 		Ok(id.into())
