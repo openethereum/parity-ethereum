@@ -36,7 +36,7 @@ use sync_io::NetSyncIo;
 use chain::{ChainSyncApi, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
 use std::str::FromStr;
-use parking_lot::RwLock;
+use parking_lot::{RwLock, Mutex};
 use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
 	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3,
 	PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET};
@@ -235,7 +235,10 @@ impl AttachedProtocol {
 /// that happens here should work even if the task is cancelled.
 #[derive(Debug)]
 pub enum PriorityTask {
-
+	/// Propagate given block
+	PropagateBlock(Bytes),
+	/// Propagate a list of transactions
+	PropagateTransactions(Vec<H256>),
 }
 
 /// EthSync initialization parameters.
@@ -254,8 +257,6 @@ pub struct Params {
 	pub network_config: NetworkConfiguration,
 	/// Other protocols to attach.
 	pub attached_protos: Vec<AttachedProtocol>,
-	/// Priority tasks channel
-	pub priority_tasks: mpsc::Receiver<PriorityTask>
 }
 
 /// Ethereum network protocol handler
@@ -272,6 +273,8 @@ pub struct EthSync {
 	subprotocol_name: [u8; 3],
 	/// Light subprotocol name.
 	light_subprotocol_name: [u8; 3],
+	/// Priority tasks notification channel
+	priority_tasks: Mutex<mpsc::Sender<PriorityTask>>,
 }
 
 fn light_params(
@@ -327,11 +330,12 @@ impl EthSync {
 			})
 		};
 
+		let (priority_tasks_tx, priority_tasks_rx) = mpsc::channel();
 		let sync = ChainSyncApi::new(
 			params.config,
 			&*params.chain,
 			params.private_tx_handler.clone(),
-			params.priority_tasks,
+			priority_tasks_rx,
 		);
 		let service = NetworkService::new(params.network_config.clone().into_basic()?, connection_filter)?;
 
@@ -347,9 +351,15 @@ impl EthSync {
 			subprotocol_name: params.config.subprotocol_name,
 			light_subprotocol_name: params.config.light_subprotocol_name,
 			attached_protos: params.attached_protos,
+			priority_tasks: Mutex::new(priority_tasks_tx),
 		});
 
 		Ok(sync)
+	}
+
+	/// Priority tasks producer
+	pub fn priority_tasks(&self) -> mpsc::Sender<PriorityTask> {
+		self.priority_tasks.lock().clone()
 	}
 }
 
@@ -416,7 +426,8 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			io.register_timer(PEERS_TIMER, Duration::from_millis(700)).expect("Error registering peers timer");
 			io.register_timer(SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
 			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
-			io.register_timer(PRIORITY_TIMER, Duration::from_millis(250)).expect("Error registering peers timer");
+
+			io.register_timer(PRIORITY_TIMER, Duration::from_millis(50)).expect("Error registering peers timer");
 		}
 	}
 
@@ -455,6 +466,13 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 }
 
 impl ChainNotify for EthSync {
+	fn block_pre_import(&self, bytes: &Bytes) {
+		let bytes = bytes.clone();
+		if let Err(e) = self.priority_tasks.lock().send(PriorityTask::PropagateBlock(bytes)) {
+			warn!(target: "sync", "Unexpected error during priority block propagation: {:?}", e);
+		}
+	}
+
 	fn new_blocks(&self,
 		imported: Vec<H256>,
 		invalid: Vec<H256>,

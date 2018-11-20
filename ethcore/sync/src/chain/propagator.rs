@@ -18,6 +18,7 @@ use bytes::Bytes;
 use ethereum_types::H256;
 use ethcore::client::BlockChainInfo;
 use ethcore::header::BlockNumber;
+use fastmap::H256FastSet;
 use network::{PeerId, PacketId};
 use rand::Rng;
 use rlp::{Encodable, RlpStream};
@@ -147,7 +148,7 @@ impl SyncPropagator {
 	fn propagate_transactions_to_peers(sync: &mut ChainSync, io: &mut SyncIo, peers: Vec<PeerId>, transactions: Vec<&SignedTransaction>) -> HashSet<PeerId> {
 		let all_transactions_hashes = transactions.iter()
 			.map(|tx| tx.hash())
-			.collect::<HashSet<H256>>();
+			.collect::<H256FastSet>();
 		let all_transactions_rlp = {
 			let mut packet = RlpStream::new_list(transactions.len());
 			for tx in &transactions { packet.append(&**tx); }

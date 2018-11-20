@@ -141,7 +141,15 @@ pub trait ChainNotify : Send + Sync {
 	}
 
 	/// fires when chain broadcasts a message
-	fn broadcast(&self, _message_type: ChainMessageType) {}
+	fn broadcast(&self, _message_type: ChainMessageType) {
+		// does nothing by default
+	}
+
+	/// fires when new block is about to be imported
+	/// implementations should be light
+	fn block_pre_import(&self, _bytes: &Bytes) {
+		// does nothing by default
+	}
 
 	/// fires when new transactions are received from a peer
 	fn transactions_received(&self,

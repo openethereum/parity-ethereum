@@ -52,7 +52,7 @@ pub trait SyncIo {
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8;
 	/// Returns if the chain block queue empty
 	fn is_chain_queue_empty(&self) -> bool {
-		self.chain().queue_info().is_empty()
+		self.chain().is_queue_empty()
 	}
 	/// Check if the session is expired
 	fn is_expired(&self) -> bool;

@@ -99,7 +99,7 @@ use std::time::{Duration, Instant};
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
-use fastmap::H256FastMap;
+use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
@@ -323,9 +323,9 @@ pub struct PeerInfo {
 	/// Request timestamp
 	ask_time: Instant,
 	/// Holds a set of transactions recently sent to this peer to avoid spamming.
-	last_sent_transactions: HashSet<H256>,
+	last_sent_transactions: H256FastSet,
 	/// Holds a set of private transactions and their signatures recently sent to this peer to avoid spamming.
-	last_sent_private_transactions: HashSet<H256>,
+	last_sent_private_transactions: H256FastSet,
 	/// Pending request is expired and result should be ignored
 	expired: bool,
 	/// Peer fork confirmation status
@@ -376,11 +376,13 @@ pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeE
 pub type Peers = HashMap<PeerId, PeerInfo>;
 
 /// Thread-safe wrapper for `ChainSync`.
+///
+/// NOTE always lock in order of fields declaration
 pub struct ChainSyncApi {
-	/// The rest of sync data
-	sync: RwLock<ChainSync>,
 	/// Priority tasks queue
 	priority_tasks: Mutex<mpsc::Receiver<PriorityTask>>,
+	/// The rest of sync data
+	sync: RwLock<ChainSync>,
 }
 
 impl ChainSyncApi {
@@ -419,7 +421,6 @@ impl ChainSyncApi {
 			.iter()
 			.map(|(hash, stats)| (*hash, stats.into()))
 			.collect()
-
 	}
 
 	/// Dispatch incoming requests and responses
@@ -433,10 +434,34 @@ impl ChainSyncApi {
 	///
 	/// NOTE This method should only handle stuff that can be canceled and would reach other peers
 	/// by other means.
-	pub fn process_priority_queue(&self, io: &mut SyncIo) {
+	pub fn process_priority_queue(&self, _io: &mut SyncIo) {
 		let deadline = Instant::now() + Duration::from_millis(250);
+		let check_deadline = || {
+			let now = Instant::now();
+			if now > deadline {
+				None
+			} else {
+				Some(deadline - now)
+			}
+		};
 
-		unimplemented!()
+		let work = || {
+			let tasks = self.priority_tasks.try_lock_until(deadline)?;
+			let mut _sync = self.sync.try_write_until(deadline)?;
+			let left = check_deadline()?;
+			let task = tasks.recv_timeout(left).ok()?;
+
+			match task {
+				PriorityTask::PropagateBlock(_) => info!("Propagating block"),
+				PriorityTask::PropagateTransactions(_) => info!("Propagating transactions"),
+			}
+
+			Some(())
+		};
+
+		if work().is_none() {
+			debug!(target: "sync", "Unable to complete priority task within deadline.");
+		}
 	}
 }
 

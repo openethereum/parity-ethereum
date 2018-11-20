@@ -881,7 +881,7 @@ impl Client {
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
 		self.importer.block_queue.flush();
-		while !self.importer.block_queue.queue_info().is_empty() {
+		while !self.importer.block_queue.is_empty() {
 			self.import_verified_blocks();
 		}
 	}
@@ -1423,8 +1423,15 @@ impl ImportBlock for Client {
 			bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
+		let raw = if self.importer.block_queue.is_empty() { Some(unverified.bytes.clone()) } else { None };
+
 		match self.importer.block_queue.import(unverified) {
-			Ok(res) => Ok(res),
+			Ok(hash) => {
+				if let Some(raw) = raw {
+					self.notify(move |n| n.block_pre_import(&raw));
+				}
+				Ok(hash)
+			},
 			// we only care about block errors (not import errors)
 			Err((block, EthcoreError(EthcoreErrorKind::Block(err), _))) => {
 				self.importer.bad_blocks.report(block.bytes, format!("{:?}", err));
@@ -1878,6 +1885,10 @@ impl BlockChainClient for Client {
 		self.importer.block_queue.queue_info()
 	}
 
+	fn is_queue_empty(&self) -> bool {
+		self.importer.block_queue.is_empty()
+	}
+
 	fn clear_queue(&self) {
 		self.importer.block_queue.clear();
 	}
@@ -2287,6 +2298,9 @@ impl ScheduleInfo for Client {
 
 impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
+		let raw = block.rlp_bytes();
+		self.notify(|n| n.block_pre_import(&raw));
+
 		let h = block.header().hash();
 		let start = Instant::now();
 		let route = {

@@ -583,6 +583,13 @@ impl<K: Kind> VerificationQueue<K> {
 		result
 	}
 
+	/// Returns true if there is nothing currently in the queue.
+	/// TODO [ToDr] Optimize to avoid locking
+	pub fn is_empty(&self) -> bool {
+		let v = &self.verification;
+		v.unverified.lock().is_empty() && v.verifying.lock().is_empty() && v.verified.lock().is_empty()
+	}
+
 	/// Get queue status.
 	pub fn queue_info(&self) -> QueueInfo {
 		use std::mem::size_of;

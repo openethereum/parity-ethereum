@@ -29,7 +29,6 @@ use rlp::Rlp;
 use snapshot::ChunkType;
 use std::cmp;
 use std::mem;
-use std::collections::HashSet;
 use std::time::Instant;
 use sync_io::SyncIo;
 
@@ -578,8 +577,8 @@ impl SyncHandler {
 			asking_blocks: Vec::new(),
 			asking_hash: None,
 			ask_time: Instant::now(),
-			last_sent_transactions: HashSet::new(),
-			last_sent_private_transactions: HashSet::new(),
+			last_sent_transactions: Default::default(),
+			last_sent_private_transactions: Default::default(),
 			expired: false,
 			confirmation: if sync.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
 			asking_snapshot_data: None,
