@@ -157,9 +157,9 @@ impl SyncPropagator {
 		// Clear old transactions from stats
 		sync.transactions_stats.retain(&all_transactions_hashes);
 
-		// sqrt(x)/x scaled to max u32
 		let block_number = io.chain().chain_info().best_block_number;
 
+		// sqrt(x)/x scaled to max u32
 		let lucky_peers = {
 			peers.into_iter()
 				.filter_map(|peer_id| {

@@ -404,7 +404,7 @@ mod test {
 
 		io.sender = Some(2usize);
 
-		ChainSync::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, GET_NODE_DATA_PACKET, &node_request);
+		SyncSupplier::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, GET_NODE_DATA_PACKET, &node_request);
 		assert_eq!(1, io.packets.len());
 	}
 
@@ -446,7 +446,7 @@ mod test {
 		assert_eq!(603, rlp_result.unwrap().1.out().len());
 
 		io.sender = Some(2usize);
-		ChainSync::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, GET_RECEIPTS_PACKET, &receipts_request);
+		SyncSupplier::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, GET_RECEIPTS_PACKET, &receipts_request);
 		assert_eq!(1, io.packets.len());
 	}
 }
