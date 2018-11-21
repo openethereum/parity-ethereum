@@ -291,6 +291,7 @@ impl FullDependencies {
 							allow_pending_receipt_query: !self.geth_compatibility,
 							send_block_number_in_get_work: !self.geth_compatibility,
 							gas_price_percentile: self.gas_price_percentile,
+							allow_experimental_rpcs: self.experimental_rpcs,
 						}
 					);
 					handler.extend_with(client.to_delegate());
