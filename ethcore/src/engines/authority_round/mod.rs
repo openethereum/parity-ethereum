@@ -1626,10 +1626,10 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&5usize), encode(&(&*signature as &[u8]))]);
-		header.set_difficulty(calculate_score(U256::from(4), U256::from(5), U256::zero()));
+		header.set_difficulty(calculate_score(4, 5, 0));
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		header.set_seal(vec![encode(&3usize), encode(&(&*signature as &[u8]))]);
-		header.set_difficulty(calculate_score(U256::from(4), U256::from(3), U256::zero()));
+		header.set_difficulty(calculate_score(4, 3, 0));
 		assert!(engine.verify_block_family(&header, &parent_header).is_err());
 	}
 

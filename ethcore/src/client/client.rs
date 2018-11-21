@@ -2272,8 +2272,7 @@ impl ScheduleInfo for Client {
 }
 
 impl ImportSealedBlock for Client {
-	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
-		let h = block.header().hash();
+	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
 		let start = Instant::now();
 		let header = block.header().clone();
 		let route = {
