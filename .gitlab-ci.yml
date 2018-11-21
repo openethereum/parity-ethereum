@@ -62,9 +62,9 @@ after_script:
     - du -hs $CARGO_HOME
 
 cache:
-  key:                            "$CI_JOB_STAGE-$CI_COMMIT_REF_SLUG"
+  key:                            "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
   paths:
-  # - target/  
+  # - target/
   - $CARGO_HOME
 
 .cargo_check:
