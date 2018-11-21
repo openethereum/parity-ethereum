@@ -2305,11 +2305,7 @@ impl ScheduleInfo for Client {
 impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
 		let start = Instant::now();
-		let raw = block.rlp_bytes();
 		let header = block.header().clone();
-		let hash = header.hash();
-		self.notify(|n| n.block_pre_import(&raw, &hash, header.difficulty()));
-
 		let route = {
 			// Do a super duper basic verification to detect potential bugs
 			if let Err(e) = self.engine.verify_block_basic(&header) {
@@ -2327,14 +2323,15 @@ impl ImportSealedBlock for Client {
 			let block_data = block.rlp_bytes();
 
 			let route = self.importer.commit_block(block, &header, encoded::Block::new(block_data), self);
-			trace!(target: "client", "Imported sealed block #{} ({})", header.number(), hash);
+			trace!(target: "client", "Imported sealed block #{} ({})", header.number(), header.hash());
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
 		};
+		let h = header.hash();
 		let route = ChainRoute::from([route].as_ref());
 		self.importer.miner.chain_new_blocks(
 			self,
-			&[hash],
+			&[h],
 			&[],
 			route.enacted(),
 			route.retracted(),
@@ -2342,16 +2339,16 @@ impl ImportSealedBlock for Client {
 		);
 		self.notify(|notify| {
 			notify.new_blocks(
-				vec![hash],
+				vec![h],
 				vec![],
 				route.clone(),
-				vec![hash],
+				vec![h],
 				vec![],
 				start.elapsed(),
 			);
 		});
 		self.db.read().key_value().flush().expect("DB flush failed.");
-		Ok(hash)
+		Ok(h)
 	}
 }
 
