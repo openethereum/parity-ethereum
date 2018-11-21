@@ -317,10 +317,26 @@ fn rpc_blocks_filter() {
 
 	tester.client.add_blocks(2, EachBlockWith::Nothing);
 
+	let hash1 = tester.client.block_hash(BlockId::Number(1)).unwrap();
+	let hash2 = tester.client.block_hash(BlockId::Number(2)).unwrap();
 	let response = format!(
 		r#"{{"jsonrpc":"2.0","result":["0x{:x}","0x{:x}"],"id":1}}"#,
-		tester.client.block_hash(BlockId::Number(1)).unwrap(),
-		tester.client.block_hash(BlockId::Number(2)).unwrap());
+		hash1,
+		hash2);
+
+	assert_eq!(tester.io.handle_request_sync(request_changes), Some(response.to_owned()));
+
+	// in the case of a re-org we get same block number if hash is different - BlockId::Number(2)
+	tester.client.blocks.write().remove(&hash2).unwrap();
+	tester.client.numbers.write().remove(&2).unwrap();
+	*tester.client.last_hash.write() = hash1;
+	tester.client.add_blocks(2, EachBlockWith::Uncle);
+
+	let request_changes = r#"{"jsonrpc": "2.0", "method": "eth_getFilterChanges", "params": ["0x0"], "id": 2}"#;
+	let response = format!(
+		r#"{{"jsonrpc":"2.0","result":["0x{:x}","0x{:x}"],"id":2}}"#,
+		tester.client.block_hash(BlockId::Number(2)).unwrap(),
+		tester.client.block_hash(BlockId::Number(3)).unwrap());
 
 	assert_eq!(tester.io.handle_request_sync(request_changes), Some(response.to_owned()));
 }
