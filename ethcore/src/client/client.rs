@@ -2287,26 +2287,34 @@ impl ScheduleInfo for Client {
 
 impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
-		let h = block.header().hash();
 		let start = Instant::now();
+		let header = block.header().clone();
 		let route = {
+			// Do a super duper basic verification to detect potential bugs
+			if let Err(e) = self.engine.verify_block_basic(&header) {
+				self.importer.bad_blocks.report(
+					block.rlp_bytes(),
+					format!("Detected an issue with locally sealed block: {}", e),
+				);
+				return Err(e.into());
+			}
+
 			// scope for self.import_lock
 			let _import_lock = self.importer.import_lock.lock();
 			trace_time!("import_sealed_block");
 
-			let number = block.header().number();
 			let block_data = block.rlp_bytes();
-			let header = block.header().clone();
 
 			let route = self.importer.commit_block(block, &header, encoded::Block::new(block_data), self);
-			trace!(target: "client", "Imported sealed block #{} ({})", number, h);
+			trace!(target: "client", "Imported sealed block #{} ({})", header.number(), header.hash());
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
 		};
+		let h = header.hash();
 		let route = ChainRoute::from([route].as_ref());
 		self.importer.miner.chain_new_blocks(
 			self,
-			&[h.clone()],
+			&[h],
 			&[],
 			route.enacted(),
 			route.retracted(),
@@ -2314,10 +2322,10 @@ impl ImportSealedBlock for Client {
 		);
 		self.notify(|notify| {
 			notify.new_blocks(
-				vec![h.clone()],
+				vec![h],
 				vec![],
 				route.clone(),
-				vec![h.clone()],
+				vec![h],
 				vec![],
 				start.elapsed(),
 			);
