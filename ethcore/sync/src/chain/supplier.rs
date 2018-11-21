@@ -27,6 +27,7 @@ use sync_io::SyncIo;
 
 use super::{
 	ChainSync,
+	SyncHandler,
 	RlpResponseResult,
 	PacketDecodeError,
 	BLOCK_BODIES_PACKET,
@@ -47,6 +48,8 @@ use super::{
 	RECEIPTS_PACKET,
 	SNAPSHOT_DATA_PACKET,
 	SNAPSHOT_MANIFEST_PACKET,
+	STATUS_PACKET,
+	TRANSACTIONS_PACKET,
 };
 
 /// The Chain Sync Supplier: answers requests from peers with available data
@@ -56,6 +59,7 @@ impl SyncSupplier {
 	/// Dispatch incoming requests and responses
 	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
+
 		let result = match packet_id {
 			GET_BLOCK_BODIES_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
 				SyncSupplier::return_block_bodies,
@@ -80,9 +84,39 @@ impl SyncSupplier {
 			GET_SNAPSHOT_DATA_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
 				SyncSupplier::return_snapshot_data,
 				|e| format!("Error sending snapshot data: {:?}", e)),
-			CONSENSUS_DATA_PACKET => ChainSync::on_consensus_packet(io, peer, &rlp),
-			_ => {
+
+			STATUS_PACKET => {
 				sync.write().on_packet(io, peer, packet_id, data);
+				Ok(())
+			},
+			// Packets that require the peer to be confirmed
+			_ => {
+				if !sync.read().peers.contains_key(&peer) {
+					debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
+					return;
+				}
+				debug!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
+
+				match packet_id {
+					CONSENSUS_DATA_PACKET => {
+						SyncHandler::on_consensus_packet(io, peer, &rlp)
+					},
+					TRANSACTIONS_PACKET => {
+						let res = {
+							let sync_ro = sync.read();
+							SyncHandler::on_peer_transactions(&*sync_ro, io, peer, &rlp)
+						};
+						if res.is_err() {
+							// peer sent invalid data, disconnect.
+							io.disable_peer(peer);
+							sync.write().deactivate_peer(io, peer);
+						}
+					},
+					_ => {
+						sync.write().on_packet(io, peer, packet_id, data);
+					}
+				}
+
 				Ok(())
 			}
 		};

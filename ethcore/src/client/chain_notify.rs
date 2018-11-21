@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use ethereum_types::H256;
+use ethereum_types::{H256, U256};
 use transaction::UnverifiedTransaction;
 use blockchain::ImportRoute;
 use std::time::Duration;
@@ -147,7 +147,7 @@ pub trait ChainNotify : Send + Sync {
 
 	/// fires when new block is about to be imported
 	/// implementations should be light
-	fn block_pre_import(&self, _bytes: &Bytes) {
+	fn block_pre_import(&self, _bytes: &Bytes, _difficulty: &U256) {
 		// does nothing by default
 	}
 

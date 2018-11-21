@@ -102,7 +102,7 @@ use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
-use rlp::{Rlp, RlpStream, DecoderError};
+use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use ethcore::header::{BlockNumber};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
@@ -434,26 +434,61 @@ impl ChainSyncApi {
 	///
 	/// NOTE This method should only handle stuff that can be canceled and would reach other peers
 	/// by other means.
-	pub fn process_priority_queue(&self, _io: &mut SyncIo) {
-		let deadline = Instant::now() + Duration::from_millis(250);
-		let check_deadline = || {
+	pub fn process_priority_queue(&self, io: &mut SyncIo) {
+		fn check_deadline(deadline: Instant) -> Option<Duration> {
 			let now = Instant::now();
 			if now > deadline {
 				None
 			} else {
 				Some(deadline - now)
 			}
-		};
+		}
 
-		let work = || {
-			let tasks = self.priority_tasks.try_lock_until(deadline)?;
-			let mut _sync = self.sync.try_write_until(deadline)?;
-			let left = check_deadline()?;
-			let task = tasks.recv_timeout(left).ok()?;
+		// deadline to get the task from the queue
+		let deadline = Instant::now() + Duration::from_millis(150);
+		let mut work = || {
+			let task = {
+				let tasks = self.priority_tasks.try_lock_until(deadline)?;
+				let left = check_deadline(deadline)?;
+				tasks.recv_timeout(left).ok()?
+			};
 
+			// wait for the sync lock indefinitely,
+			// since we already have the item.
+			// Subsequent timers will just try to process
+			// other tasks.
+			let mut sync = self.sync.write();
+			// since `sync` might take a while to acquire we have a new deadline
+			// to do the rest of the job now.
+			let deadline = Instant::now() + Duration::from_millis(100);
+
+			let as_us = move |prev| {
+				let dur: Duration = Instant::now() - prev;
+				dur.as_secs() * 1_000_000 + dur.subsec_micros() as u64
+			};
 			match task {
-				PriorityTask::PropagateBlock(_) => info!("Propagating block"),
-				PriorityTask::PropagateTransactions(_) => info!("Propagating transactions"),
+				// NOTE We can't simply use existing methods,
+				// cause the block is not in the DB yet.
+				PriorityTask::PropagateBlock { started, block, difficulty } => {
+					// try to send to peers that are on the same block as us
+					// (they will most likely accept the new block).
+					info!("Starting block propagation, took: {}µs", as_us(started));
+					let chain_info = io.chain().chain_info();
+					let total_difficulty = chain_info.total_difficulty + difficulty;
+					let rlp = ChainSync::create_block_rlp(&block, total_difficulty);
+					for peer in sync.get_peers(&chain_info, PeerState::SameBlock) {
+						check_deadline(deadline)?;
+						SyncPropagator::send_packet(io, peer, NEW_BLOCK_PACKET, rlp.clone());
+						// TODO [ToDr] Update peer latest block?
+					}
+
+					info!("Finished block propagation, took: {}µs", as_us(started));
+				},
+				PriorityTask::PropagateTransactions(time, txs) => info!(
+					"Propagating transactions {}, took {}µs",
+					txs.len(),
+					as_us(time)
+				),
 			}
 
 			Some(())
@@ -467,11 +502,6 @@ impl ChainSyncApi {
 
 // Static methods
 impl ChainSync {
-	/// Called when peer sends us new consensus packet
-	pub fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
-		SyncHandler::on_consensus_packet(io, peer_id, r)
-	}
-
 	/// creates rlp to send for the tree defined by 'from' and 'to' hashes
 	fn create_new_hashes_rlp(chain: &BlockChainClient, from: &H256, to: &H256) -> Option<Bytes> {
 		match chain.tree_route(from, to) {
@@ -543,6 +573,14 @@ impl ChainSync {
 			_ => SyncState::Idle,
 		}
 	}
+}
+
+/// A peer query method for getting a list of peers
+enum PeerState {
+	/// Peer is on different hash than us
+	Lagging,
+	/// Peer is on the same block as us
+	SameBlock
 }
 
 /// Blockchain sync handler.
@@ -1169,15 +1207,24 @@ impl ChainSync {
 		}
 	}
 
-	/// returns peer ids that have different blocks than our chain
-	fn get_lagging_peers(&mut self, chain_info: &BlockChainInfo) -> Vec<PeerId> {
+	/// returns peer ids that have different block than our chain
+	fn get_lagging_peers(&self, chain_info: &BlockChainInfo) -> Vec<PeerId> {
+		self.get_peers(chain_info, PeerState::Lagging)
+	}
+
+	/// returns peer ids that have different or the same blocks than our chain
+	fn get_peers(&self, chain_info: &BlockChainInfo, peers: PeerState) -> Vec<PeerId> {
 		let latest_hash = chain_info.best_block_hash;
 		self
 			.peers
-			.iter_mut()
+			.iter()
 			.filter_map(|(&id, ref mut peer_info)| {
 				trace!(target: "sync", "Checking peer our best {} their best {}", latest_hash, peer_info.latest_hash);
-				if peer_info.latest_hash != latest_hash {
+				let matches = match peers {
+					PeerState::Lagging => peer_info.latest_hash != latest_hash,
+					PeerState::SameBlock => peer_info.latest_hash == latest_hash,
+				};
+				if matches {
 					Some(id)
 				} else {
 					None
@@ -1235,7 +1282,6 @@ impl ChainSync {
 	}
 
 	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
-		debug!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
 		SyncHandler::on_packet(self, io, peer, packet_id, data);
 	}
 

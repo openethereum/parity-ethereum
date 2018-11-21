@@ -70,43 +70,45 @@ impl SyncPropagator {
 	/// propagates latest block to a set of peers
 	pub fn propagate_blocks(sync: &mut ChainSync, chain_info: &BlockChainInfo, io: &mut SyncIo, blocks: &[H256], peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewBlocks to {:?}", peers);
-		let mut sent = 0;
-		for peer_id in peers {
-			if blocks.is_empty() {
-				let rlp =  ChainSync::create_latest_block_rlp(io.chain());
-				SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp);
-			} else {
-				for h in blocks {
-					let rlp =  ChainSync::create_new_block_rlp(io.chain(), h);
-					SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp);
+		let sent = peers.len();
+		let mut send_packet = |io: &mut SyncIo, rlp: Bytes| {
+			for peer_id in peers {
+				SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp.clone());
+				if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
+					peer.latest_hash = chain_info.best_block_hash.clone();
 				}
 			}
-			if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
-				peer.latest_hash = chain_info.best_block_hash.clone();
+		};
+
+		if blocks.is_empty() {
+			let rlp =  ChainSync::create_latest_block_rlp(io.chain());
+			send_packet(io, rlp);
+		} else {
+			for h in blocks {
+				let rlp =  ChainSync::create_new_block_rlp(io.chain(), h);
+				send_packet(io, rlp);
 			}
-			sent += 1;
 		}
+
 		sent
 	}
 
 	/// propagates new known hashes to all peers
 	pub fn propagate_new_hashes(sync: &mut ChainSync, chain_info: &BlockChainInfo, io: &mut SyncIo, peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewHashes to {:?}", peers);
-		let mut sent = 0;
 		let last_parent = *io.chain().best_block_header().parent_hash();
+		let best_block_hash = chain_info.best_block_hash;
+		let rlp = match ChainSync::create_new_hashes_rlp(io.chain(), &last_parent, &best_block_hash) {
+			Some(rlp) => rlp,
+			None => return 0
+		};
+
+		let sent = peers.len();
 		for peer_id in peers {
-			sent += match ChainSync::create_new_hashes_rlp(io.chain(), &last_parent, &chain_info.best_block_hash) {
-				Some(rlp) => {
-					{
-						if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
-							peer.latest_hash = chain_info.best_block_hash.clone();
-						}
-					}
-					SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_HASHES_PACKET, rlp);
-					1
-				},
-				None => 0
+			if let Some(ref mut peer) = sync.peers.get_mut(peer_id) {
+				peer.latest_hash = best_block_hash;
 			}
+			SyncPropagator::send_packet(io, *peer_id, NEW_BLOCK_HASHES_PACKET, rlp.clone());
 		}
 		sent
 	}
@@ -250,10 +252,10 @@ impl SyncPropagator {
 	pub fn propagate_latest_blocks(sync: &mut ChainSync, io: &mut SyncIo, sealed: &[H256]) {
 		let chain_info = io.chain().chain_info();
 		if (((chain_info.best_block_number as i64) - (sync.last_sent_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let mut peers = sync.get_lagging_peers(&chain_info);
+			let peers = sync.get_lagging_peers(&chain_info);
 			if sealed.is_empty() {
 				let hashes = SyncPropagator::propagate_new_hashes(sync, &chain_info, io, &peers);
-				peers = ChainSync::select_random_peers(&peers);
+				let peers = ChainSync::select_random_peers(&peers);
 				let blocks = SyncPropagator::propagate_blocks(sync, &chain_info, io, sealed, &peers);
 				if blocks != 0 || hashes != 0 {
 					trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
@@ -319,7 +321,7 @@ impl SyncPropagator {
 	}
 
 	/// Generic packet sender
-	fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: PacketId, packet: Bytes) {
+	pub fn send_packet(sync: &mut SyncIo, peer_id: PeerId, packet_id: PacketId, packet: Bytes) {
 		if let Err(e) = sync.send(peer_id, packet_id, packet) {
 			debug!(target:"sync", "Error sending packet: {:?}", e);
 			sync.disconnect_peer(peer_id);

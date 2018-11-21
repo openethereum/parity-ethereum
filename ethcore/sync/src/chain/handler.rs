@@ -57,7 +57,6 @@ use super::{
 	SNAPSHOT_DATA_PACKET,
 	SNAPSHOT_MANIFEST_PACKET,
 	STATUS_PACKET,
-	TRANSACTIONS_PACKET,
 };
 
 /// The Chain Sync Handler: handles responses from peers
@@ -66,14 +65,9 @@ pub struct SyncHandler;
 impl SyncHandler {
 	/// Handle incoming packet from peer
 	pub fn on_packet(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
-		if packet_id != STATUS_PACKET && !sync.peers.contains_key(&peer) {
-			debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
-			return;
-		}
 		let rlp = Rlp::new(data);
 		let result = match packet_id {
 			STATUS_PACKET => SyncHandler::on_peer_status(sync, io, peer, &rlp),
-			TRANSACTIONS_PACKET => SyncHandler::on_peer_transactions(sync, io, peer, &rlp),
 			BLOCK_HEADERS_PACKET => SyncHandler::on_peer_block_headers(sync, io, peer, &rlp),
 			BLOCK_BODIES_PACKET => SyncHandler::on_peer_block_bodies(sync, io, peer, &rlp),
 			RECEIPTS_PACKET => SyncHandler::on_peer_block_receipts(sync, io, peer, &rlp),
@@ -108,10 +102,9 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us new consensus packet
-	pub fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
+	pub fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &Rlp) {
 		trace!(target: "sync", "Received consensus packet from {:?}", peer_id);
 		io.chain().queue_consensus_message(r.as_raw().to_vec());
-		Ok(())
 	}
 
 	/// Called by peer when it is disconnecting
@@ -634,7 +627,7 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us new transactions
-	fn on_peer_transactions(sync: &ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+	pub fn on_peer_transactions(sync: &ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		// Accept transactions only when fully synced
 		if !io.is_chain_queue_empty() || (sync.state != SyncState::Idle && sync.state != SyncState::NewBlocks) {
 			trace!(target: "sync", "{} Ignoring transactions while syncing", peer_id);

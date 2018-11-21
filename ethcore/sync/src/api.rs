@@ -236,9 +236,16 @@ impl AttachedProtocol {
 #[derive(Debug)]
 pub enum PriorityTask {
 	/// Propagate given block
-	PropagateBlock(Bytes),
+	PropagateBlock {
+		/// When the task was initiated
+		started: ::std::time::Instant,
+		/// Raw block RLP to propagate
+		block: Bytes,
+		/// Blocks difficulty
+		difficulty: U256,
+	},
 	/// Propagate a list of transactions
-	PropagateTransactions(Vec<H256>),
+	PropagateTransactions(::std::time::Instant, Vec<H256>),
 }
 
 /// EthSync initialization parameters.
@@ -427,7 +434,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			io.register_timer(SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
 			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
 
-			io.register_timer(PRIORITY_TIMER, Duration::from_millis(50)).expect("Error registering peers timer");
+			io.register_timer(PRIORITY_TIMER, Duration::from_millis(100)).expect("Error registering peers timer");
 		}
 	}
 
@@ -466,9 +473,13 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 }
 
 impl ChainNotify for EthSync {
-	fn block_pre_import(&self, bytes: &Bytes) {
-		let bytes = bytes.clone();
-		if let Err(e) = self.priority_tasks.lock().send(PriorityTask::PropagateBlock(bytes)) {
+	fn block_pre_import(&self, bytes: &Bytes, difficulty: &U256) {
+		let task = PriorityTask::PropagateBlock {
+			started: ::std::time::Instant::now(),
+			block: bytes.clone(),
+			difficulty: *difficulty,
+		};
+		if let Err(e) = self.priority_tasks.lock().send(task) {
 			warn!(target: "sync", "Unexpected error during priority block propagation: {:?}", e);
 		}
 	}

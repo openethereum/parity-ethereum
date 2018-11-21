@@ -1423,12 +1423,14 @@ impl ImportBlock for Client {
 			bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
-		let raw = if self.importer.block_queue.is_empty() { Some(unverified.bytes.clone()) } else { None };
+		let raw = if self.importer.block_queue.is_empty() {
+			Some((unverified.bytes.clone(), *unverified.header.difficulty()))
+		} else { None };
 
 		match self.importer.block_queue.import(unverified) {
 			Ok(hash) => {
-				if let Some(raw) = raw {
-					self.notify(move |n| n.block_pre_import(&raw));
+				if let Some((raw, difficulty)) = raw {
+					self.notify(move |n| n.block_pre_import(&raw, &difficulty));
 				}
 				Ok(hash)
 			},
@@ -2299,7 +2301,8 @@ impl ScheduleInfo for Client {
 impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
 		let raw = block.rlp_bytes();
-		self.notify(|n| n.block_pre_import(&raw));
+		let difficulty = *block.header().difficulty();
+		self.notify(|n| n.block_pre_import(&raw, &difficulty));
 
 		let h = block.header().hash();
 		let start = Instant::now();
