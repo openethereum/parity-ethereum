@@ -16,6 +16,8 @@ variables:
 
 before_script:
   - date
+  - set -e # fail on any error
+  - set -u # treat unset variables as error
   # - source scripts/utils.sh
   # - date
   # - source scripts/prepare_build.sh
@@ -96,8 +98,8 @@ push:cargo:
   stage:                           test
   <<:                              *cachew
   script:
-    - set -e # fail on any error
-    - set -u # treat unset variables as error
+    # - set -e # fail on any error
+    # - set -u # treat unset variables as error
     - git log --graph --oneline --decorate=short -n 10
     - echo "________Running the C++ example________"
     - CPP_DIR=./parity-clib-examples/cpp
@@ -112,8 +114,8 @@ push:cargo:
   stage:                           test
   <<:                              *cachew
   script:
-    - set -e # fail on any error
-    - set -u # treat unset variables as error
+    # - set -e # fail on any error
+    # - set -u # treat unset variables as error
     - git log --graph --oneline --decorate=short -n 10
     - echo "________Validate chainspecs________"
     - time ./scripts/validate_chainspecs.sh
