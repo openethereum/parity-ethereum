@@ -306,6 +306,7 @@ impl FullDependencies {
 							send_block_number_in_get_work: !self.geth_compatibility,
 							gas_price_percentile: self.gas_price_percentile,
 							jsonrpc_allow_missing_blocks: self.jsonrpc_allow_missing_blocks,
+							allow_experimental_rpcs: self.experimental_rpcs,
 						}
 					);
 					handler.extend_with(client.to_delegate());

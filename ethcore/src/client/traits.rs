@@ -20,7 +20,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use blockchain::TreeRoute;
+use blockchain::{BlockReceipts, TreeRoute};
 use client::Mode;
 use encoded;
 use vm::LastHashes;
@@ -282,7 +282,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
 
 	/// Get localized receipts for all transaction in given block.
-	fn block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>>;
+	fn localized_block_receipts(&self, id: BlockId) -> Option<Vec<LocalizedReceipt>>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -294,8 +294,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get latest state node
 	fn state_data(&self, hash: &H256) -> Option<Bytes>;
 
-	/// Get raw block receipts data by block header hash.
-	fn encoded_block_receipts(&self, hash: &H256) -> Option<Bytes>;
+	/// Get block receipts data by block header hash.
+	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
