@@ -329,7 +329,6 @@ fn rpc_blocks_filter() {
 	// in the case of a re-org we get same block number if hash is different - BlockId::Number(2)
 	tester.client.blocks.write().remove(&hash2).unwrap();
 	tester.client.numbers.write().remove(&2).unwrap();
-	tester.client.numbers.write().insert(1, hash2);
 	*tester.client.last_hash.write() = hash1;
 	tester.client.add_blocks(2, EachBlockWith::Uncle);
 
