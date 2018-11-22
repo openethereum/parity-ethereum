@@ -21,12 +21,12 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
 use rlp::Rlp;
-use ethereum_types::{U256, H256, Address};
+use ethereum_types::{U256, H256, H160, Address};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
+use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::miner::{self, MinerService};
@@ -35,6 +35,7 @@ use ethcore::encoded;
 use sync::SyncProvider;
 use miner::external::ExternalMinerService;
 use transaction::{SignedTransaction, LocalizedTransaction};
+use hash::keccak;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
@@ -46,7 +47,7 @@ use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
-	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
+	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, EthAccount, StorageProof,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256, block_number_to_id,
 	U64 as RpcU64,
 };
@@ -64,6 +65,8 @@ pub struct EthClientOptions {
 	pub send_block_number_in_get_work: bool,
 	/// Gas Price Percentile used as default gas price.
 	pub gas_price_percentile: usize,
+	/// Enable Experimental RPC-Calls
+	pub allow_experimental_rpcs: bool,
 }
 
 impl EthClientOptions {
@@ -83,6 +86,7 @@ impl Default for EthClientOptions {
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
 			gas_price_percentile: 50,
+			allow_experimental_rpcs: false,
 		}
 	}
 }
@@ -450,7 +454,7 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockC
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<C, SN, S, M, EM> where
-	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo + 'static,
+	C: miner::BlockChainClient + StateClient<State=T> + ProvingBlockChainClient + Call<State=T> + EngineInfo + 'static,
 	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService<State=T> + 'static,
@@ -547,6 +551,50 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
+	fn proof(&self, address: RpcH160, values: Vec<RpcH256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+		try_bf!(errors::require_experimental(self.options.allow_experimental_rpcs, "1186"));
+
+		let a: H160 = address.clone().into();
+		let key1 = keccak(a);
+
+		let num = num.unwrap_or_default();
+		let id = match num {
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending => {
+				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+				BlockId::Latest
+			}
+		};
+
+		try_bf!(check_known(&*self.client, num.clone()));
+		let res = match self.client.prove_account(key1, id) {
+			Some((proof,account)) => Ok(EthAccount {
+				address: address,
+				balance: account.balance.into(),
+				nonce: account.nonce.into(),
+				code_hash: account.code_hash.into(),
+				storage_hash: account.storage_root.into(),
+				account_proof: proof.into_iter().map(Bytes::new).collect(),
+				storage_proof: values.into_iter().filter_map(|storage_index| {
+					let key2: H256 = storage_index.into();
+					self.client.prove_storage(key1, keccak(key2), id)
+					    .map(|(storage_proof,storage_value)| StorageProof {
+							key: key2.into(),
+							value: storage_value.into(),
+							proof: storage_proof.into_iter().map(Bytes::new).collect()
+						})
+					})
+					.collect::<Vec<StorageProof>>()
+			}),
+			None => Err(errors::state_pruned()),
+		};
+
+		Box::new(future::done(res))
+	}
+
+	
 	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256> {
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);

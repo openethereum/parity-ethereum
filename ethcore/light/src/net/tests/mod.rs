@@ -22,9 +22,10 @@ use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethcore::encoded;
 use ethcore::ids::BlockId;
 use ethereum_types::{H256, U256, Address};
-use net::{LightProtocol, Params, packet, Peer};
+use net::{LightProtocol, Params, packet, Peer, Statistics};
 use net::context::IoContext;
 use net::status::{Capabilities, Status};
+use net::load_timer::MOVING_SAMPLE_SIZE;
 use network::{PeerId, NodeId};
 use provider::Provider;
 use request;
@@ -779,4 +780,35 @@ fn get_transaction_index() {
 
 	let expected = Expect::Respond(packet::RESPONSE, response);
 	proto.handle_packet(&expected, 1, packet::REQUEST, &request_body);
+}
+
+#[test]
+fn sync_statistics() {
+	let mut stats = Statistics::new();
+
+	// Empty set should return 1.0
+	assert_eq!(stats.avg_peer_count(), 1.0);
+
+	// Average < 1.0 should return 1.0
+	stats.add_peer_count(0);
+	assert_eq!(stats.avg_peer_count(), 1.0);
+
+	stats = Statistics::new();
+
+	const N: f64 = 50.0;
+
+	for i in 1..(N as usize + 1) {
+		stats.add_peer_count(i);
+	}
+
+	// Compute the average for the sum 1..N
+	assert_eq!(stats.avg_peer_count(), N * (N + 1.0) / 2.0 / N);
+
+	for _ in 1..(MOVING_SAMPLE_SIZE + 1) {
+		stats.add_peer_count(40);
+	}
+
+	// Test that it returns the average of the last
+	// `MOVING_SAMPLE_SIZE` values
+	assert_eq!(stats.avg_peer_count(), 40.0);
 }

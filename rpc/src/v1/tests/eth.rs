@@ -38,7 +38,7 @@ use parity_runtime::Runtime;
 use jsonrpc_core::IoHandler;
 use v1::helpers::dispatch::FullDispatcher;
 use v1::helpers::nonce;
-use v1::impls::{EthClient, SigningUnsafeClient};
+use v1::impls::{EthClient, EthClientOptions, SigningUnsafeClient};
 use v1::metadata::Metadata;
 use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
 use v1::traits::eth::Eth;
@@ -140,7 +140,13 @@ impl EthTester {
 			&opt_account_provider,
 			&miner_service,
 			&external_miner,
-			Default::default(),
+			EthClientOptions {
+				pending_nonce_from_queue: false,
+				allow_pending_receipt_query: true,
+				send_block_number_in_get_work: true,
+				gas_price_percentile: 50,
+				allow_experimental_rpcs: true,
+			},
 		);
 
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
@@ -196,6 +202,33 @@ fn eth_get_balance() {
 
 	let res_new_acc = r#"{"jsonrpc":"2.0","result":"0x0","id":3}"#.to_owned();
 	assert_eq!(tester.handler.handle_request_sync(req_new_acc).unwrap(), res_new_acc);
+}
+
+#[test]
+fn eth_get_proof() {
+	let chain = extract_chain!("BlockchainTests/bcWalletTest/wallet2outOf3txs");
+	let tester = EthTester::from_chain(&chain);
+	// final account state
+	let req_latest = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getProof",
+		"params": ["0xaaaf5374fce5edbc8e2a8697c15331677e6ebaaa", [], "latest"],
+		"id": 1
+	}"#;
+
+	let res_latest = r#","address":"0xaaaf5374fce5edbc8e2a8697c15331677e6ebaaa","balance":"0x9","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","nonce":"0x0","storageHash":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","storageProof":[]},"id":1}"#.to_owned();
+    assert!(tester.handler.handle_request_sync(req_latest).unwrap().to_string().ends_with(res_latest.as_str()));	
+
+	// non-existant account
+	let req_new_acc = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getProof",
+		"params": ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",[],"latest"],
+		"id": 3
+	}"#;
+
+	let res_new_acc = r#","address":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","balance":"0x0","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","nonce":"0x0","storageHash":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","storageProof":[]},"id":3}"#.to_owned();
+    assert!(tester.handler.handle_request_sync(req_new_acc).unwrap().to_string().ends_with(res_new_acc.as_str()));	
 }
 
 #[test]

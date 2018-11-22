@@ -480,13 +480,11 @@ impl ChainSyncApi {
 						check_deadline(deadline)?;
 						for peer in peers {
 							SyncPropagator::send_packet(io, *peer, NEW_BLOCK_PACKET, rlp.clone());
-							// TODO [ToDr] Update peer latest block?
 							if let Some(ref mut peer) = sync.peers.get_mut(peer) {
 								peer.latest_hash = hash;
 							}
 						}
 					}
-
 					info!("Finished block propagation, took: {}µs", as_us(started));
 				},
 				PriorityTask::PropagateTransactions(time) => {
