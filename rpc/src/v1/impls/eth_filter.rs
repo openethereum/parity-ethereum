@@ -17,7 +17,7 @@
 //! Eth Filter RPC implementation
 
 use std::sync::Arc;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 
 use ethcore::miner::{self, MinerService};
 use ethcore::filter::Filter as EthcoreFilter;
@@ -153,7 +153,10 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	fn new_block_filter(&self) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
 		// +1, since we don't want to include the current block
-		let id = polls.create_poll(SyncPollFilter::new(PollFilter::Block(self.best_block_number() + 1)));
+		let id = polls.create_poll(SyncPollFilter::new(PollFilter::Block {
+			last_block_number: self.best_block_number(),
+			recent_reported_hashes: VecDeque::with_capacity(PollFilter::MAX_BLOCK_HISTORY_SIZE),
+		}));
 		Ok(id.into())
 	}
 
@@ -171,15 +174,33 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		};
 
 		Box::new(filter.modify(|filter| match *filter {
-			PollFilter::Block(ref mut block_number) => {
-				// +1, cause we want to return hashes including current block hash.
-				let current_number = self.best_block_number() + 1;
-				let hashes = (*block_number..current_number).into_iter()
-					.map(BlockId::Number)
-					.filter_map(|id| self.block_hash(id).map(Into::into))
-					.collect::<Vec<RpcH256>>();
-
-				*block_number = current_number;
+			PollFilter::Block {
+				ref mut last_block_number,
+				ref mut recent_reported_hashes,
+			} => {
+				// Check validity of recently reported blocks -- in case of re-org, rewind block to last valid
+				while let Some((num, hash)) = recent_reported_hashes.front().cloned() {
+					if self.block_hash(BlockId::Number(num)) == Some(hash) { break; }
+					*last_block_number = num - 1;
+					recent_reported_hashes.pop_front();
+				}
+				let current_number = self.best_block_number();
+				let mut hashes = Vec::new();
+				for n in (*last_block_number + 1)..=current_number {
+					let block_number = BlockId::Number(n);
+					match self.block_hash(block_number) {
+						Some(hash) => {
+							*last_block_number = n;
+							hashes.push(RpcH256::from(hash));
+							// Only keep the most recent history
+							if recent_reported_hashes.len() >= PollFilter::MAX_BLOCK_HISTORY_SIZE {
+								recent_reported_hashes.pop_back();
+							}
+							recent_reported_hashes.push_front((n, hash));
+						},
+						None => (),
+					}
+				}
 
 				Either::A(future::ok(FilterChanges::Hashes(hashes)))
 			},

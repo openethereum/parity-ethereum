@@ -150,3 +150,4 @@ test-nightly:
     - scripts/gitlab/test-all.sh nightly
   tags:
     - rust-nightly
+  allow_failure:                   true

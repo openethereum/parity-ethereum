@@ -440,7 +440,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
 		};
-		let receipts = try_bf!(self.client.block_receipts(id).ok_or_else(errors::unknown_block));
+		let receipts = try_bf!(self.client.localized_block_receipts(id).ok_or_else(errors::unknown_block));
 		Box::new(future::ok(receipts.into_iter().map(Into::into).collect()))
 	}
 
