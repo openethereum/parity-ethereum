@@ -1329,7 +1329,7 @@ impl ChainSync {
 
 #[cfg(test)]
 pub mod tests {
-	use std::collections::{HashSet, VecDeque};
+	use std::collections::{VecDeque};
 	use ethkey;
 	use network::PeerId;
 	use tests::helpers::{TestIo};
@@ -1445,8 +1445,8 @@ pub mod tests {
 				asking_blocks: Vec::new(),
 				asking_hash: None,
 				ask_time: Instant::now(),
-				last_sent_transactions: HashSet::new(),
-				last_sent_private_transactions: HashSet::new(),
+				last_sent_transactions: Default::default(),
+				last_sent_private_transactions: Default::default(),
 				expired: false,
 				confirmation: super::ForkConfirmation::Confirmed,
 				snapshot_number: None,
@@ -1461,7 +1461,7 @@ pub mod tests {
 	fn finds_lagging_peers() {
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Uncle);
-		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(10), &client);
+		let sync = dummy_sync_with_peer(client.block_hash_delta_minus(10), &client);
 		let chain_info = client.chain_info();
 
 		let lagging_peers = sync.get_lagging_peers(&chain_info);
