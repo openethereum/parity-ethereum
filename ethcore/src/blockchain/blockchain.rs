@@ -1530,8 +1530,8 @@ impl BlockChain {
 		let genesis_hash = self.genesis_hash();
 
 		// ensure data consistencly by locking everything first
-		let best_block = self.best_block.read();
 		let best_ancient_block = self.best_ancient_block.read();
+		let best_block = self.best_block.read();
 		BlockChainInfo {
 			total_difficulty: best_block.total_difficulty,
 			pending_total_difficulty: best_block.total_difficulty,
