@@ -256,16 +256,13 @@ impl<T: InformantData> Informant<T> {
 	}
 
 	pub fn tick(&self) {
-		let elapsed = self.last_tick.read().elapsed();
-		if elapsed < Duration::from_secs(5) {
-			return;
-		}
+		let now = Instant::now();
+		let elapsed = now.duration_since(*self.last_tick.read());
 
 		let (client_report, full_report) = {
 			let mut last_report = self.last_report.lock();
 			let full_report = self.target.report();
 			let diffed = full_report.client_report.clone() - &*last_report;
-			*last_report = full_report.client_report.clone();
 			(diffed, full_report)
 		};
 
@@ -289,7 +286,8 @@ impl<T: InformantData> Informant<T> {
 			return;
 		}
 
-		*self.last_tick.write() = Instant::now();
+		*self.last_tick.write() = now;
+		*self.last_report.lock() = full_report.client_report.clone();
 
 		let paint = |c: Style, t: String| match self.with_color && atty::is(atty::Stream::Stdout) {
 			true => format!("{}", c.paint(t)),
@@ -306,7 +304,7 @@ impl<T: InformantData> Informant<T> {
 							format!("{} blk/s {} tx/s {} Mgas/s",
 								paint(Yellow.bold(), format!("{:7.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
 								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_milliseconds() as f64)),
-								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / (elapsed.as_milliseconds() * 1000)).low_u64()))
+								paint(Yellow.bold(), format!("{:6.1}", (client_report.gas_processed / 1000).low_u64() as f64 / elapsed.as_milliseconds() as f64))
 							)
 						} else {
 							format!("{} hdr/s",
