@@ -147,7 +147,7 @@ pub trait ChainNotify : Send + Sync {
 
 	/// fires when new block is about to be imported
 	/// implementations should be light
-	fn block_pre_import(&self, _bytes: &Bytes, _difficulty: &U256) {
+	fn block_pre_import(&self, _bytes: &Bytes, _hash: &H256, _difficulty: &U256) {
 		// does nothing by default
 	}
 

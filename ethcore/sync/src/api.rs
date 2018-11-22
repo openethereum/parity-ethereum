@@ -241,11 +241,13 @@ pub enum PriorityTask {
 		started: ::std::time::Instant,
 		/// Raw block RLP to propagate
 		block: Bytes,
+		/// Block hash
+		hash: H256,
 		/// Blocks difficulty
 		difficulty: U256,
 	},
 	/// Propagate a list of transactions
-	PropagateTransactions(::std::time::Instant, Vec<H256>),
+	PropagateTransactions(::std::time::Instant),
 }
 
 /// EthSync initialization parameters.
@@ -281,7 +283,7 @@ pub struct EthSync {
 	/// Light subprotocol name.
 	light_subprotocol_name: [u8; 3],
 	/// Priority tasks notification channel
-	priority_tasks: Mutex<mpsc::Sender<PriorityTask>>,
+	priority_tasks: Mutex<mpsc::SyncSender<PriorityTask>>,
 }
 
 fn light_params(
@@ -337,7 +339,8 @@ impl EthSync {
 			})
 		};
 
-		let (priority_tasks_tx, priority_tasks_rx) = mpsc::channel();
+		// We create a sync channel with low buffer to prevent excesive queueing.
+		let (priority_tasks_tx, priority_tasks_rx) = mpsc::sync_channel(2);
 		let sync = ChainSyncApi::new(
 			params.config,
 			&*params.chain,
@@ -365,7 +368,7 @@ impl EthSync {
 	}
 
 	/// Priority tasks producer
-	pub fn priority_tasks(&self) -> mpsc::Sender<PriorityTask> {
+	pub fn priority_tasks(&self) -> mpsc::SyncSender<PriorityTask> {
 		self.priority_tasks.lock().clone()
 	}
 }
@@ -434,7 +437,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			io.register_timer(SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
 			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
 
-			io.register_timer(PRIORITY_TIMER, Duration::from_millis(100)).expect("Error registering peers timer");
+			io.register_timer(PRIORITY_TIMER, Duration::from_millis(250)).expect("Error registering peers timer");
 		}
 	}
 
@@ -473,10 +476,11 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 }
 
 impl ChainNotify for EthSync {
-	fn block_pre_import(&self, bytes: &Bytes, difficulty: &U256) {
+	fn block_pre_import(&self, bytes: &Bytes, hash: &H256, difficulty: &U256) {
 		let task = PriorityTask::PropagateBlock {
 			started: ::std::time::Instant::now(),
 			block: bytes.clone(),
+			hash: *hash,
 			difficulty: *difficulty,
 		};
 		if let Err(e) = self.priority_tasks.lock().send(task) {

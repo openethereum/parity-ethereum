@@ -469,26 +469,33 @@ impl ChainSyncApi {
 			match task {
 				// NOTE We can't simply use existing methods,
 				// cause the block is not in the DB yet.
-				PriorityTask::PropagateBlock { started, block, difficulty } => {
+				PriorityTask::PropagateBlock { started, block, hash, difficulty } => {
 					// try to send to peers that are on the same block as us
 					// (they will most likely accept the new block).
 					info!("Starting block propagation, took: {}µs", as_us(started));
 					let chain_info = io.chain().chain_info();
 					let total_difficulty = chain_info.total_difficulty + difficulty;
 					let rlp = ChainSync::create_block_rlp(&block, total_difficulty);
-					for peer in sync.get_peers(&chain_info, PeerState::SameBlock) {
+					for peers in sync.get_peers(&chain_info, PeerState::SameBlock).chunks(10) {
 						check_deadline(deadline)?;
-						SyncPropagator::send_packet(io, peer, NEW_BLOCK_PACKET, rlp.clone());
-						// TODO [ToDr] Update peer latest block?
+						for peer in peers {
+							SyncPropagator::send_packet(io, *peer, NEW_BLOCK_PACKET, rlp.clone());
+							// TODO [ToDr] Update peer latest block?
+							if let Some(ref mut peer) = sync.peers.get_mut(peer) {
+								peer.latest_hash = hash;
+							}
+						}
 					}
 
 					info!("Finished block propagation, took: {}µs", as_us(started));
 				},
-				PriorityTask::PropagateTransactions(time, txs) => info!(
-					"Propagating transactions {}, took {}µs",
-					txs.len(),
-					as_us(time)
-				),
+				PriorityTask::PropagateTransactions(time) => {
+					info!("Starting transaction propagation, took {}µs", as_us(time));
+					SyncPropagator::propagate_new_transactions(&mut sync, io, || {
+						check_deadline(deadline).is_some()
+					});
+					info!("Finished transaction propagation, took {}µs", as_us(time));
+				},
 			}
 
 			Some(())
@@ -496,6 +503,13 @@ impl ChainSyncApi {
 
 		if work().is_none() {
 			debug!(target: "sync", "Unable to complete priority task within deadline.");
+		}
+
+		// attempt to do more stuff, but we don't care if we don't fit the deadline.
+		loop {
+			if work().is_none() {
+				return;
+			}
 		}
 	}
 }
@@ -1297,7 +1311,15 @@ impl ChainSync {
 
 	/// propagates new transactions to all peers
 	pub fn propagate_new_transactions(&mut self, io: &mut SyncIo) {
-		SyncPropagator::propagate_new_transactions(self, io);
+		let deadline = Instant::now() + Duration::from_millis(500);
+		SyncPropagator::propagate_new_transactions(self, io, || {
+			if deadline > Instant::now() {
+				true
+			} else {
+				warn!("Wasn't able to finish transaction propagation within a deadline.");
+				false
+			}
+		});
 	}
 
 	/// Broadcast consensus message to peers.

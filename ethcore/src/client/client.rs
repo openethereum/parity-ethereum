@@ -1424,13 +1424,17 @@ impl ImportBlock for Client {
 		}
 
 		let raw = if self.importer.block_queue.is_empty() {
-			Some((unverified.bytes.clone(), *unverified.header.difficulty()))
+			Some((
+				unverified.bytes.clone(),
+				unverified.header.hash(),
+				*unverified.header.difficulty(),
+			))
 		} else { None };
 
 		match self.importer.block_queue.import(unverified) {
 			Ok(hash) => {
-				if let Some((raw, difficulty)) = raw {
-					self.notify(move |n| n.block_pre_import(&raw, &difficulty));
+				if let Some((raw, hash, difficulty)) = raw {
+					self.notify(move |n| n.block_pre_import(&raw, &hash, &difficulty));
 				}
 				Ok(hash)
 			},
@@ -2302,9 +2306,9 @@ impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
 		let raw = block.rlp_bytes();
 		let difficulty = *block.header().difficulty();
-		self.notify(|n| n.block_pre_import(&raw, &difficulty));
-
 		let h = block.header().hash();
+		self.notify(|n| n.block_pre_import(&raw, &h, &difficulty));
+
 		let start = Instant::now();
 		let route = {
 			// scope for self.import_lock

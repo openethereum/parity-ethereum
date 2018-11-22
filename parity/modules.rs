@@ -29,7 +29,7 @@ pub type SyncModules = (
 	Arc<SyncProvider>,
 	Arc<ManageNetwork>,
 	Arc<ChainNotify>,
-	mpsc::Sender<sync::PriorityTask>,
+	mpsc::SyncSender<sync::PriorityTask>,
 );
 
 pub fn sync(
