@@ -458,15 +458,12 @@ impl ChainSyncApi {
 				tasks.recv_timeout(left).ok()?
 			};
 
-			// wait for the sync lock indefinitely,
-			// since we already have the item.
-			// Subsequent timers will just try to process
-			// other tasks.
-			let mut sync = self.sync.write();
-			// since `sync` might take a while to acquire we have a new deadline
-			// to do the rest of the job now.
+			// wait for the sync lock until deadline,
+			// note we might drop the task here if we won't manage to acquire the lock.
+			let mut sync = self.sync.try_write_until(deadline)?;
+			// since we already have everything let's use a different deadline
+			// to do the rest of the job now, so that previous work is not wasted.
 			let deadline = Instant::now() + PRIORITY_TASK_DEADLINE;
-
 			let as_ms = move |prev| {
 				let dur: Duration = Instant::now() - prev;
 				dur.as_secs() * 1_000 + dur.subsec_millis() as u64
