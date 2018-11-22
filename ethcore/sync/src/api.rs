@@ -416,6 +416,8 @@ const SYNC_TIMER: TimerToken = 1;
 const TX_TIMER: TimerToken = 2;
 const PRIORITY_TIMER: TimerToken = 3;
 
+pub(crate) const PRIORITY_TIMER_INTERVAL: Duration = Duration::from_millis(250);
+
 struct SyncProtocolHandler {
 	/// Shared blockchain client.
 	chain: Arc<BlockChainClient>,
@@ -434,7 +436,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			io.register_timer(SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
 			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
 
-			io.register_timer(PRIORITY_TIMER, Duration::from_millis(250)).expect("Error registering peers timer");
+			io.register_timer(PRIORITY_TIMER, PRIORITY_TIMER_INTERVAL).expect("Error registering peers timer");
 		}
 	}
 

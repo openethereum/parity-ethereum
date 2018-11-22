@@ -187,6 +187,11 @@ const FORK_HEADER_TIMEOUT: Duration = Duration::from_secs(3);
 const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
 const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// Defines how much time we have to complete priority transaction or block propagation.
+/// after the deadline is reached the task is considered finished
+/// (so we might sent only to some part of the peers we originally intended to send to)
+const PRIORITY_TASK_DEADLINE: Duration = Duration::from_millis(100);
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
 pub enum SyncState {
@@ -445,7 +450,7 @@ impl ChainSyncApi {
 		}
 
 		// deadline to get the task from the queue
-		let deadline = Instant::now() + Duration::from_millis(150);
+		let deadline = Instant::now() + ::api::PRIORITY_TIMER_INTERVAL;
 		let mut work = || {
 			let task = {
 				let tasks = self.priority_tasks.try_lock_until(deadline)?;
@@ -460,11 +465,11 @@ impl ChainSyncApi {
 			let mut sync = self.sync.write();
 			// since `sync` might take a while to acquire we have a new deadline
 			// to do the rest of the job now.
-			let deadline = Instant::now() + Duration::from_millis(100);
+			let deadline = Instant::now() + PRIORITY_TASK_DEADLINE;
 
-			let as_us = move |prev| {
+			let as_ms = move |prev| {
 				let dur: Duration = Instant::now() - prev;
-				dur.as_secs() * 1_000_000 + dur.subsec_micros() as u64
+				dur.as_secs() * 1_000 + dur.subsec_millis() as u64
 			};
 			match task {
 				// NOTE We can't simply use existing methods,
@@ -472,7 +477,6 @@ impl ChainSyncApi {
 				PriorityTask::PropagateBlock { started, block, hash, difficulty } => {
 					// try to send to peers that are on the same block as us
 					// (they will most likely accept the new block).
-					info!("Starting block propagation, took: {}µs", as_us(started));
 					let chain_info = io.chain().chain_info();
 					let total_difficulty = chain_info.total_difficulty + difficulty;
 					let rlp = ChainSync::create_block_rlp(&block, total_difficulty);
@@ -485,25 +489,20 @@ impl ChainSyncApi {
 							}
 						}
 					}
-					info!("Finished block propagation, took: {}µs", as_us(started));
+					debug!(target: "sync", "Finished block propagation, took {}ms", as_ms(started));
 				},
 				PriorityTask::PropagateTransactions(time) => {
-					info!("Starting transaction propagation, took {}µs", as_us(time));
 					SyncPropagator::propagate_new_transactions(&mut sync, io, || {
 						check_deadline(deadline).is_some()
 					});
-					info!("Finished transaction propagation, took {}µs", as_us(time));
+					debug!(target: "sync", "Finished transaction propagation, took {}ms", as_ms(time));
 				},
 			}
 
 			Some(())
 		};
 
-		if work().is_none() {
-			debug!(target: "sync", "Unable to complete priority task within deadline.");
-		}
-
-		// attempt to do more stuff, but we don't care if we don't fit the deadline.
+		// Process as many items as we can until the deadline is reached.
 		loop {
 			if work().is_none() {
 				return;
@@ -1314,7 +1313,7 @@ impl ChainSync {
 			if deadline > Instant::now() {
 				true
 			} else {
-				warn!("Wasn't able to finish transaction propagation within a deadline.");
+				debug!(target: "sync", "Wasn't able to finish transaction propagation within a deadline.");
 				false
 			}
 		});

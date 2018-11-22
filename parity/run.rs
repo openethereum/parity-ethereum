@@ -653,9 +653,12 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let tx = ::parking_lot::Mutex::new(priority_tasks);
 	miner.add_transactions_listener(Box::new(move |_hashes| {
 		let task = ::sync::PriorityTask::PropagateTransactions(Instant::now());
-		info!("New transactions imported.");
 		// we ignore both full queue and disconnected error
-		let _ = tx.lock().try_send(task);
+		// If the queue is full it means that propagate task is already there
+		// if the queue is disconnected it means we are closing.
+		if let Some(send) = tx.try_lock() {
+			let _ = send.try_send(task);
+		}
 	}));
 
 	// provider not added to a notification center is effectively disabled
