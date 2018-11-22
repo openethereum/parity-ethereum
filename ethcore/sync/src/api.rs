@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, mpsc, atomic};
 use std::collections::{HashMap, BTreeMap};
 use std::io;
 use std::ops::Range;
@@ -247,7 +247,16 @@ pub enum PriorityTask {
 		difficulty: U256,
 	},
 	/// Propagate a list of transactions
-	PropagateTransactions(::std::time::Instant),
+	PropagateTransactions(::std::time::Instant, Arc<atomic::AtomicBool>),
+}
+impl PriorityTask {
+	/// Mark the task as being processed, right after it's retrieved from the queue.
+	pub fn starting(&self) {
+		match *self {
+			PriorityTask::PropagateTransactions(_, ref is_ready) => is_ready.store(true, atomic::Ordering::SeqCst),
+			_ => {},
+		}
+	}
 }
 
 /// EthSync initialization parameters.
@@ -283,7 +292,7 @@ pub struct EthSync {
 	/// Light subprotocol name.
 	light_subprotocol_name: [u8; 3],
 	/// Priority tasks notification channel
-	priority_tasks: Mutex<mpsc::SyncSender<PriorityTask>>,
+	priority_tasks: Mutex<mpsc::Sender<PriorityTask>>,
 }
 
 fn light_params(
@@ -336,8 +345,7 @@ impl EthSync {
 			})
 		};
 
-		// We create a sync channel with low buffer to prevent excesive queueing.
-		let (priority_tasks_tx, priority_tasks_rx) = mpsc::sync_channel(2);
+		let (priority_tasks_tx, priority_tasks_rx) = mpsc::channel();
 		let sync = ChainSyncApi::new(
 			params.config,
 			&*params.chain,
@@ -365,7 +373,7 @@ impl EthSync {
 	}
 
 	/// Priority tasks producer
-	pub fn priority_tasks(&self) -> mpsc::SyncSender<PriorityTask> {
+	pub fn priority_tasks(&self) -> mpsc::Sender<PriorityTask> {
 		self.priority_tasks.lock().clone()
 	}
 }

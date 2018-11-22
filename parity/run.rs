@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::any::Any;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Weak, atomic};
 use std::time::{Duration, Instant};
 use std::thread;
 
@@ -651,13 +651,13 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	// Propagate transactions as soon as they are imported.
 	let tx = ::parking_lot::Mutex::new(priority_tasks);
+	let is_ready = Arc::new(atomic::AtomicBool::new(true));
 	miner.add_transactions_listener(Box::new(move |_hashes| {
-		let task = ::sync::PriorityTask::PropagateTransactions(Instant::now());
-		// we ignore both full queue and disconnected error
-		// If the queue is full it means that propagate task is already there
-		// if the queue is disconnected it means we are closing.
-		if let Some(send) = tx.try_lock() {
-			let _ = send.try_send(task);
+		// we want to have only one PendingTransactions task in the queue.
+		if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
+			let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
+			// we ignore error cause it means that we are closing
+			let _ = tx.lock().send(task);
 		}
 	}));
 
