@@ -41,8 +41,24 @@ public class Parity {
      * @param query The JSON-encoded RPC query to perform
      * @return A JSON-encoded result
      */
-    public String rpcQuery(String query) {
-        return rpcQueryNative(inner, query);
+    public void rpcQuery(String query, long timeoutMillis, Object callback) {
+        rpcQueryNative(inner, query, timeoutMillis, callback);
+    }
+
+	/** FIXME: docs
+	 *
+	 *
+	 */
+	public Object subscribeWebSocket(String query, Object callback) {
+        return subscribeWebSocketNative(inner, query, callback);
+    }
+
+	/** FIXME: docs
+	 *
+	 *
+	 */
+	public void unsubscribeWebSocket(Object session) {
+        unsubscribeWebSocketNative(session);
     }
 
     @Override
@@ -57,7 +73,9 @@ public class Parity {
     private static native long configFromCli(String[] cliOptions);
     private static native long build(long config);
     private static native void destroy(long inner);
-    private static native String rpcQueryNative(long inner, String rpc);
+    private static native void rpcQueryNative(long inner, String rpc, long timeoutMillis, Object callback);
+    private static native Object subscribeWebSocketNative(long inner, String rpc, Object callback);
+    private static native void unsubscribeWebSocketNative(Object session);
 
     private long inner;
 }

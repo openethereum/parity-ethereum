@@ -1,8 +1,52 @@
 use std::{mem, ptr};
+use std::sync::Arc;
+use std::time::Duration;
+use std::thread;
+use std::os::raw::c_void;
 
-use {Callback, parity_config_from_cli, parity_destroy, parity_start, parity_rpc, parity_subscribe_ws,
-	parity_unsubscribe_ws, ParityParams};
-use jni::{JNIEnv, objects::JClass, objects::JString, sys::jlong, sys::jobjectArray, sys::va_list};
+use {CallbackKind, parity_config_from_cli, parity_destroy, parity_start, parity_unsubscribe_ws, ParityParams, error};
+
+use futures::{Future, Stream};
+use futures::sync::mpsc;
+use jni::{JavaVM, JNIEnv};
+use jni::objects::{JClass, JString, JObject, JValue, GlobalRef};
+use jni::sys::{jlong, jobjectArray, va_list};
+use tokio_current_thread::CurrentThread;
+use parity_ethereum::{RunningClient, PubSubSession};
+
+type CheckedQuery<'a> = (&'a RunningClient, String, JavaVM, GlobalRef);
+
+// Creates a Java callback to a static method named `void callback(long, long, long, long)`
+struct Callback<'a> {
+	jvm: JavaVM,
+	callback: GlobalRef,
+	// class: JClass<'a>,
+	method_name: &'a str,
+	method_descriptor: &'a str,
+	value: [JValue<'a>; 4],
+}
+
+unsafe impl<'a> Send for Callback<'a> {}
+unsafe impl<'a> Sync for Callback<'a> {}
+impl<'a> Callback<'a> {
+	fn new(jvm: JavaVM, callback: GlobalRef, kind: CallbackKind) -> Self {
+		Self {
+			jvm,
+			callback,
+			method_name: "callback",
+			method_descriptor: "(JJJJ)V",
+			value: [JValue::Long(kind as i64), JValue::Long(0), JValue::Long(0), JValue::Long(0)],
+		}
+	}
+
+	fn call(&self, msg: &[u8]) {
+		let mut val = self.value;
+		val[2] = JValue::Long(msg.as_ptr() as i64);
+		val[3] = JValue::Long(msg.len() as i64);
+		let env = self.jvm.attach_current_thread().expect("JavaVM should have an environment; qed");
+		env.call_method(self.callback.as_obj(), self.method_name, self.method_descriptor, &val).expect("The method to callmust be static and be named \"void callback(long, long, long, long)\"; qed)");
+	}
+}
 
 #[no_mangle]
 pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv, _: JClass, cli: jobjectArray) -> jlong {
@@ -60,59 +104,108 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_destroy(_env: JNIEn
 	parity_destroy(parity);
 }
 
+unsafe fn async_checker<'a>(client: va_list, rpc: JString, callback: JObject, env: &JNIEnv<'a>)
+-> Result<CheckedQuery<'a>, String> {
+	let query: String = env.get_string(rpc)
+		.map(Into::into)
+		.map_err(|e| e.to_string())?;
+
+	let client: &RunningClient = &*(client as *const RunningClient);
+	let jvm = env.get_java_vm().map_err(|e| e.to_string())?;
+	let g = env.new_global_ref(callback).map_err(|e| e.to_string())?;
+	Ok((client, query, jvm, g))
+}
+
 #[no_mangle]
-pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative<'a>(
-	env: JNIEnv<'a>,
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative(
+	env: JNIEnv<'static>,
 	_: JClass,
 	parity: va_list,
 	rpc: JString,
 	timeout_ms: jlong,
-	callback: Callback,
-	user_data: va_list,
-)
+	callback: JObject,
+	)
 {
-	let rpc = match env.get_string(rpc) {
-		Ok(s) => s,
-		Err(err) => {
-			let _ = env.throw_new("java/lang/Exception", err.to_string());
-			return;
-		},
-	};
+	let _ = async_checker(parity, rpc, callback, &env)
+		.map(|(client, query, jvm, g)| {
+			let callback = Arc::new(Callback::new(jvm, g, CallbackKind::Rpc));
+			let cb = callback.clone();
+			let future = client.rpc_query(&query, None).map(move |response| {
+				let response = response.unwrap_or_else(|| error::EMPTY.to_string());
+				callback.call(response.as_bytes());
+			});
 
-	match parity_rpc(parity, rpc.as_ptr(), rpc.to_bytes().len(), timeout_ms as usize, callback, user_data) {
-		0 => (),
-		_ => {
-			let _ = env.throw_new("java/lang/Exception", "failed to perform RPC query");
-			return;
-		},
-	}
+			let _handle = thread::Builder::new()
+				.name("rpc_query".to_string())
+				.spawn(move || {
+					let mut current_thread = CurrentThread::new();
+					current_thread.spawn(future);
+					let _ = current_thread.run_timeout(Duration::from_millis(timeout_ms as u64))
+						.map_err(|_e| {
+						cb.call(error::TIMEOUT.as_bytes());
+					});
+				})
+				.expect("rpc-query thread shouldn't fail; qed");
+		})
+		.map_err(|e| {
+			let _ = env.throw_new("java/lang/Exception", e);
+		});
 }
 
 #[no_mangle]
-pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_subscribeWebSocket<'a>(
-	env: JNIEnv<'a>,
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_subscribeWebSocketNative(
+	env: JNIEnv<'static>,
 	_: JClass,
 	parity: va_list,
 	rpc: JString,
-	callback: Callback,
-	user_data: va_list,
-) -> va_list {
-	let rpc = match env.get_string(rpc) {
-		Ok(s) => s,
-		Err(err) => {
-			let _ = env.throw_new("java/lang/Exception", err.to_string());
-			return ptr::null_mut();
-		},
-	};
+	callback: JObject,
+	) -> *const c_void {
 
-	let result = parity_subscribe_ws(parity, rpc.as_ptr(), rpc.to_bytes().len(), callback, user_data) as va_list;
-	if result.is_null() {
-		let _ = env.throw_new("java/lang/Exception", "failed to subscribe to WebSocket");
-	}
-	result
+	 async_checker(parity, rpc, callback, &env)
+		.map(move |(client, query, jvm, g)| {
+			let callback = Arc::new(Callback::new(jvm, g, CallbackKind::WebSocket));
+			let (tx, mut rx) = mpsc::channel(1);
+			let session = Arc::new(PubSubSession::new(tx));
+			let weak_session = Arc::downgrade(&session);
+			let query_future = client.rpc_query(&query, Some(session.clone()));;
+
+			let _handle = thread::Builder::new()
+				.name("ws-subscriber".into())
+				.spawn(move || {
+					// Wait for subscription ID
+					// Note this may block forever and be can't destroyed using the session object
+					// However, this will likely timeout or be catched the RPC layer
+					if let Ok(Some(response)) = query_future.wait() {
+						callback.call(response.as_bytes());
+					} else {
+						callback.call(error::SUBSCRIBE.as_bytes());
+						return;
+					};
+
+					loop {
+						for response in rx.by_ref().wait() {
+							if let Ok(r) = response {
+								callback.call(r.as_bytes());
+							}
+						}
+
+						let rc = weak_session.upgrade().map_or(0,|session| Arc::strong_count(&session));
+						// No subscription left, then terminate
+						if rc <= 1 {
+							break;
+						}
+					}
+				})
+				.expect("rpc-subscriber thread shouldn't fail; qed");
+			Arc::into_raw(session) as *const c_void
+		})
+		.unwrap_or_else(|e| {
+			let _ = env.throw_new("java/lang/Exception", e);
+			ptr::null_mut()
+		})
 }
 
 #[no_mangle]
-pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_unsubscribeWebSocket<'a>(session: va_list) {
+pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_unsubscribeWebSocketNative(session: va_list) {
 	parity_unsubscribe_ws(session);
 }

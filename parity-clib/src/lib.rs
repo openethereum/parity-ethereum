@@ -127,7 +127,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 			let cb = CallbackStr {
 				kind: CallbackKind::Restart,
 				user_data: cfg.on_client_restart_cb_custom,
-				f: cfg.on_client_restart_cb,
+				function: cfg.on_client_restart_cb,
 			};
 			move |new_chain: String| { cb.call(new_chain.as_bytes()); }
 		};
@@ -180,7 +180,7 @@ pub unsafe extern fn parity_rpc(
 	panic::catch_unwind(|| {
 		if let Some((client, query)) = parity_rpc_query_checker(client, query, len) {
 			let client = client as &RunningClient;
-			let callback = Arc::new(CallbackStr { kind: CallbackKind::Rpc, user_data, f: callback});
+			let callback = Arc::new(CallbackStr { kind: CallbackKind::Rpc, user_data, function: callback});
 			let cb = callback.clone();
 			let query = client.rpc_query(query, None)
 				.map(move |response| {
@@ -197,8 +197,8 @@ pub unsafe extern fn parity_rpc(
 				.map_err(|_e| {
 					cb.call(error::TIMEOUT.as_bytes());
 				});
-		})
-		.expect("rpc-query thread shouldn't fail; qed");
+			})
+			.expect("rpc-query thread shouldn't fail; qed");
 			0
 		} else {
 			1
@@ -219,9 +219,9 @@ pub unsafe extern fn parity_subscribe_ws(
 		if let Some((client, query)) = parity_rpc_query_checker(client, query, len) {
 			let (tx, mut rx) = mpsc::channel(1);
 			let session = Arc::new(PubSubSession::new(tx));
-			let query = client.rpc_query(query, Some(session.clone()));
+			let query_future = client.rpc_query(query, Some(session.clone()));
 			let weak_session = Arc::downgrade(&session);
-			let cb = CallbackStr { kind: CallbackKind::WebSocket, user_data, f: callback};
+			let cb = CallbackStr { kind: CallbackKind::WebSocket, user_data, function: callback};
 
 			let _handle = thread::Builder::new()
 				.name("ws-subscriber".into())
@@ -229,16 +229,12 @@ pub unsafe extern fn parity_subscribe_ws(
 					// Wait for subscription ID
 					// Note this may block forever and be can't destroyed using the session object
 					// However, this will likely timeout or be catched the RPC layer
-					match query.wait() {
-						Ok(Some(response)) => {
-							cb.call(response.as_bytes());
-						}
-						// subscription failed return error and exit
-						_ => {
-							cb.call(error::SUBSCRIBE.as_bytes());
-							return;
-						}
-					};
+					if let Ok(Some(response)) = query_future.wait() {
+						cb.call(response.as_bytes());
+					} else {
+						cb.call(error::SUBSCRIBE.as_bytes());
+						return;
+					}
 
 					loop {
 						for response in rx.by_ref().wait() {
@@ -272,7 +268,7 @@ pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
 
 #[no_mangle]
 pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_void) {
-	let cb = CallbackStr {kind: CallbackKind::PanicHook, user_data: param, f: callback};
+	let cb = CallbackStr {kind: CallbackKind::PanicHook, user_data: param, function: callback};
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg.as_bytes());
 	});
@@ -282,14 +278,14 @@ pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_voi
 struct CallbackStr {
 	kind: CallbackKind,
 	user_data: *mut c_void,
-	f: Callback,
+	function: Callback,
 }
 
 unsafe impl Send for CallbackStr {}
 unsafe impl Sync for CallbackStr {}
 impl CallbackStr {
 	fn call(&self, msg: &[u8]) {
-		if let Some(ref cb) = self.f {
+		if let Some(ref cb) = self.function {
 			let cstr = CString::new(msg).expect("valid string with no null bytes in the middle; qed").into_raw();
 			cb(self.kind as usize, self.user_data, cstr, msg.len())
 		}
