@@ -1187,8 +1187,8 @@ impl BlockChain {
 		let mut pending_block_details = self.pending_block_details.write();
 		let mut pending_write_txs = self.pending_transaction_addresses.write();
 
-		let mut best_ancient_block = self.best_ancient_block.write();
 		let mut best_block = self.best_block.write();
+		let mut best_ancient_block = self.best_ancient_block.write();
 		let mut write_block_details = self.block_details.write();
 		let mut write_hashes = self.block_hashes.write();
 		let mut write_txs = self.transaction_addresses.write();
@@ -1530,8 +1530,8 @@ impl BlockChain {
 		let genesis_hash = self.genesis_hash();
 
 		// ensure data consistencly by locking everything first
-		let best_ancient_block = self.best_ancient_block.read();
 		let best_block = self.best_block.read();
+		let best_ancient_block = self.best_ancient_block.read();
 		BlockChainInfo {
 			total_difficulty: best_block.total_difficulty,
 			pending_total_difficulty: best_block.total_difficulty,
