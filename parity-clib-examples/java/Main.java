@@ -67,7 +67,16 @@ class Main {
 	public static void main(String[] args) {
 		String[] full = {"--no-ipc" , "--jsonrpc-apis=all", "--chain", "kovan"};
 		String[] light = {"--no-ipc", "--light", "--jsonrpc-apis=all", "--chain", "kovan"};
+
 		runParity(full);
+
+		try {
+			Thread.sleep(ONE_MINUTE_AS_MILLIS);
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+
+		runParity(light);
 	}
 }
 
