@@ -106,7 +106,7 @@ impl Filter {
 
 				let to_matches = match trace.result {
 					Res::Create(ref create_result) => self.to_address.matches(&create_result.address),
-					_ => false
+					_ => to_address.matches_all()
 				};
 
 				from_matches && to_matches
