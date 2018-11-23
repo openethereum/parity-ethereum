@@ -16,6 +16,7 @@
 		"gasLimitBoundDivisor": "0x400",
 		"minGasLimit": "0x1388",
 		"networkID": "0x62121",
+		"eip98Transition": 0,
 		"wasmActivationTransition": 7250000,
 		"eip140Transition": 7250000,
 		"eip211Transition": 7250000,

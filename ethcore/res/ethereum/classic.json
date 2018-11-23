@@ -30,8 +30,7 @@
 		"eip160Transition": 3000000,
 		"eip161abcTransition": "0x7fffffffffffffff",
 		"eip161dTransition": "0x7fffffffffffffff",
-		"eip155Transition": 3000000,
-		"eip98Transition": "0x7fffffffffffff"
+		"eip155Transition": 3000000
 	},
 	"genesis": {
 		"seal": {
