@@ -47,10 +47,11 @@ class Main {
 
 		while (rpcCallback.getNumCallbacks() != 4);
 
-		Vector<Object> sessions = new Vector<Object>();
+		Vector<Long> sessions = new Vector<Long>();
 
 		for (String ws : ws_queries) {
-			parity.subscribeWebSocket(ws, webSocketCallback);
+			long session = parity.subscribeWebSocket(ws, webSocketCallback);
+			sessions.add(session);
 		}
 
 		try {
@@ -59,9 +60,13 @@ class Main {
 			System.out.println(e);
 		}
 
-		for (Object session : sessions) {
+		for (long session : sessions) {
 			parity.unsubscribeWebSocket(session);
 		}
+
+		// Force GC to destroy parity
+		parity = null;
+		System.gc();
 	}
 
 	public static void main(String[] args) {
@@ -90,7 +95,6 @@ class Callback {
 	public void callback(long kind, long userData, long response, long len) {
 		Pointer responsePointer = new Pointer(response);
 		String s = responsePointer.getString(0);
-		System.out.println("Callback Kind: " + kind + s);
 		counter.getAndIncrement();
 	}
 
