@@ -17,7 +17,6 @@
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 import io.parity.ethereum.Parity;
-import com.sun.jna.Pointer;
 
 class Main {
 	public static final int ONE_MINUTE_AS_MILLIS = 60 * 1000;
@@ -92,9 +91,9 @@ class Callback {
 		counter = new AtomicInteger();
 	}
 
-	public void callback(long kind, long userData, long response, long len) {
-		Pointer responsePointer = new Pointer(response);
-		String s = responsePointer.getString(0);
+	public void callback(long kind, Object response) {
+		response = (String) response;
+		System.out.println("Response: " + response);
 		counter.getAndIncrement();
 	}
 

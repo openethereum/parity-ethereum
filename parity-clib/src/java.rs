@@ -22,7 +22,7 @@ struct Callback<'a> {
 	callback: GlobalRef,
 	method_name: &'a str,
 	method_descriptor: &'a str,
-	value: [JValue<'a>; 4],
+	kind: CallbackKind,
 }
 
 unsafe impl<'a> Send for Callback<'a> {}
@@ -33,18 +33,17 @@ impl<'a> Callback<'a> {
 			jvm,
 			callback,
 			method_name: "callback",
-			method_descriptor: "(JJJJ)V",
-			value: [JValue::Long(kind as i64), JValue::Long(0), JValue::Long(0), JValue::Long(0)],
+			method_descriptor: "(JLjava/lang/Object;)V",
+			kind,
 		}
 	}
 
-	fn call(&self, msg: &[u8]) {
-		let mut val = self.value;
-		val[2] = JValue::Long(msg.as_ptr() as i64);
-		val[3] = JValue::Long(msg.len() as i64);
+	fn call(&self, msg: &str) {
 		let env = self.jvm.attach_current_thread().expect("JavaVM should have an environment; qed");
+		let java_str = env.new_string(msg.to_string()).expect("Rust String to JString shouldn't failed; qed");
+		let val: [JValue; 2] = [JValue::Long(self.kind as jlong), JValue::Object(JObject::from(java_str))];
 		env.call_method(self.callback.as_obj(), self.method_name, self.method_descriptor, &val).expect(
-			"The method to callmust be static and be named \"void callback(long, long, long, long)\"; qed)");
+			"The callback must be an instance method and be named \"void callback(long, Object)\"; qed)");
 	}
 }
 
@@ -132,7 +131,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative(
 			let cb = callback.clone();
 			let future = client.rpc_query(&query, None).map(move |response| {
 				let response = response.unwrap_or_else(|| error::EMPTY.to_string());
-				callback.call(response.as_bytes());
+				callback.call(&response);
 			});
 
 			let _handle = thread::Builder::new()
@@ -142,7 +141,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative(
 					current_thread.spawn(future);
 					let _ = current_thread.run_timeout(Duration::from_millis(timeout_ms as u64))
 						.map_err(|_e| {
-							cb.call(error::TIMEOUT.as_bytes());
+							cb.call(error::TIMEOUT);
 						});
 				})
 			.expect("rpc-query thread shouldn't fail; qed");
@@ -176,16 +175,16 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_subscribeWebSocketN
 					// Note this may block forever and be can't destroyed using the session object
 					// However, this will likely timeout or be catched the RPC layer
 					if let Ok(Some(response)) = query_future.wait() {
-						callback.call(response.as_bytes());
+						callback.call(&response);
 					} else {
-						callback.call(error::SUBSCRIBE.as_bytes());
+						callback.call(error::SUBSCRIBE);
 						return;
 					};
 
 					loop {
 						for response in rx.by_ref().wait() {
 							if let Ok(r) = response {
-								callback.call(r.as_bytes());
+								callback.call(&r);
 							}
 						}
 
