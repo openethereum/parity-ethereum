@@ -136,6 +136,8 @@ pub struct MinerOptions {
 	/// will be invalid if mined.
 	pub infinite_pending_block: bool,
 
+	/// Prioritized Local Addresses
+	pub tx_queue_locals: Vec<Address>,
 	/// Strategy to use for prioritizing transactions in the queue.
 	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Simple senders penalization.
@@ -163,6 +165,7 @@ impl Default for MinerOptions {
 			work_queue_size: 20,
 			enable_resubmission: true,
 			infinite_pending_block: false,
+			tx_queue_locals: Vec::new(),
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			tx_queue_penalization: Penalization::Disabled,
 			tx_queue_no_unfamiliar_locals: false,
@@ -913,11 +916,13 @@ impl miner::MinerService for Miner {
 		pending: PendingTransaction,
 		trusted: bool
 	) -> Result<(), transaction::Error> {
-		// treat the tx as local if the option is enabled, or if we have the account
+		// treat the tx as local if the option is enabled, if we have the account, or if
+		// the acc is specified as local
 		let sender = pending.sender();
 		let treat_as_local = trusted
 			|| !self.options.tx_queue_no_unfamiliar_locals
-			|| self.accounts.as_ref().map(|accts| accts.has_account(sender)).unwrap_or(false);
+			|| self.accounts.as_ref().map(|accts| accts.has_account(sender)).unwrap_or(false)
+			|| self.options.tx_queue_locals.iter().any(|addr| *addr == sender);
 
 		if treat_as_local {
 			self.import_own_transaction(chain, pending)
@@ -1339,6 +1344,7 @@ mod tests {
 				enable_resubmission: true,
 				infinite_pending_block: false,
 				tx_queue_penalization: Penalization::Disabled,
+                                tx_queue_locals: Vec::new(),
 				tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 				tx_queue_no_unfamiliar_locals: false,
 				refuse_service_transactions: false,

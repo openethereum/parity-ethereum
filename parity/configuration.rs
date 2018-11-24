@@ -559,6 +559,7 @@ impl Configuration {
 			infinite_pending_block: self.args.flag_infinite_pending_block,
 
 			tx_queue_penalization: to_queue_penalization(self.args.arg_tx_time_limit)?,
+			tx_queue_locals: to_addresses(&self.args.arg_tx_queue_locals)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
 			tx_queue_no_unfamiliar_locals: self.args.flag_tx_queue_no_unfamiliar_locals,
 			refuse_service_transactions: self.args.flag_refuse_service_transactions,
