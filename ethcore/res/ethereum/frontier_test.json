@@ -22,7 +22,6 @@
 		"eip160Transition": "0x7fffffffffffffff",
 		"eip161abcTransition": "0x7fffffffffffffff",
 		"eip161dTransition": "0x7fffffffffffffff",
-		"eip98Transition": "0x7fffffffffffff",
 		"eip155Transition": "0x7fffffffffffffff"
 	},
 	"genesis": {

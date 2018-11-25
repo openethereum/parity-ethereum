@@ -44,8 +44,7 @@
 		"eip140Transition": 3000000,
 		"eip211Transition": 3000000,
 		"eip214Transition": 3000000,
-		"eip658Transition": 3000000,
-		"eip98Transition": "0x7fffffffffffff"
+		"eip658Transition": 3000000
 	},
 	"nodes": [
 		"enode://aeb6070deb50efeb41c5e4283a6a3b08ff701fef90e3522161c145f30df2852af3dfc51ba74591f7c9d96b11ca4c3c2b354bf58dd243f2d877f6eecc2373fd1d@139.162.15.124:30313",
