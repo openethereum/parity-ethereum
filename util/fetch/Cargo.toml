@@ -12,8 +12,7 @@ hyper = "~0.12.9"
 hyper-rustls = "0.14"
 http = "0.1"
 log = "0.4"
-# tokio = "~0.1.8"
-tokio = { git = "https://github.com/tokio-rs/tokio", rev = "51e36e4" }
+tokio = "~0.1.13"
 url = "1"
 bytes = "0.4"
 

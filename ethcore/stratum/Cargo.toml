@@ -16,7 +16,6 @@ parking_lot = "0.6"
 
 [dev-dependencies]
 env_logger = "0.5"
-# tokio = "0.1"
-tokio = { git = "https://github.com/tokio-rs/tokio", rev = "51e36e4" }
+tokio = "~0.1.13"
 tokio-io = "0.1"
 ethcore-logger = { path = "../../logger" }

@@ -8,5 +8,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 futures = "0.1"
-# tokio = "~0.1.9"
-tokio = { git = "https://github.com/tokio-rs/tokio", rev = "51e36e4" }
+tokio = "~0.1.13"

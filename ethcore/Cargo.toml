@@ -76,8 +76,7 @@ len-caching-mutex = { path = "../util/len-caching-mutex" }
 failure = "0.1"
 futures = "0.1"
 parity-runtime = { path = "../util/runtime" }
-# tokio = "0.1"
-tokio = { git = "https://github.com/tokio-rs/tokio", rev = "51e36e4" }
+tokio = "~0.1.13"
 # hydrabadger = { path = "../../hydrabadger"}
 hydrabadger = { git = "https://github.com/poanetwork/hydrabadger" }
 
