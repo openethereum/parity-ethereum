@@ -324,7 +324,7 @@ impl Manager {
 }
 
 
-impl <'a>Wallet<'a> for Manager {
+impl<'a> Wallet<'a> for Manager {
 	type Error = Error;
 	type Transaction = &'a [u8];
 

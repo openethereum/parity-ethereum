@@ -328,9 +328,9 @@ impl HardwareWalletManager {
 
 impl Drop for HardwareWalletManager {
 	fn drop(&mut self) {
-		// Indicate to the USB Hotplug handlers that it
+		// Indicate to the USB Hotplug handler that it
 		// shall terminate but don't wait for it to terminate.
-		// If it don't terminate for some reason USB Hotplug events will be handled
+		// If it doesn't terminate for some reason USB Hotplug events will be handled
 		// even if the HardwareWalletManger has been dropped
 		self.exiting.store(true, atomic::Ordering::Release);
 	}
