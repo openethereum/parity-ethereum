@@ -1344,7 +1344,7 @@ mod tests {
 				enable_resubmission: true,
 				infinite_pending_block: false,
 				tx_queue_penalization: Penalization::Disabled,
-                                tx_queue_locals: Vec::new(),
+				tx_queue_locals: Vec::new(),
 				tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 				tx_queue_no_unfamiliar_locals: false,
 				refuse_service_transactions: false,
