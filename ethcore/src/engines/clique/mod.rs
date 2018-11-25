@@ -2,7 +2,7 @@ mod signer_snapshot;
 mod params;
 mod step_service;
 
-use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
+use rlp::{encode_list, encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use std::time::{Duration};
 
 use std::sync::{Weak, Arc};
@@ -244,7 +244,7 @@ impl Engine<EthereumMachine> for Clique {
     if self.is_signer_proposer(block.header().number()) {
         trace!(target: "engine", "seal generated for {}", block.header().number());
         //TODO add our vote here if this is not an epoch transition
-        return Seal::Regular(vec![encode(&vec![0; 8]), encode(&vec![0; 64])]);
+        return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
     } else {
       Seal::None
     }
