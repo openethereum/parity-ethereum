@@ -582,7 +582,6 @@ mod tests {
 	pub fn make_cluster_sessions() -> ClusterSessions {
 		let key_pair = Random.generate().unwrap();
 		let config = ClusterConfiguration {
-			threads: 1,
 			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pair.clone())),
 			listen_address: ("127.0.0.1".to_owned(), 100_u16),
 			key_server_set: Arc::new(MapKeyServerSet::new(false, vec![(key_pair.public().clone(), format!("127.0.0.1:{}", 100).parse().unwrap())].into_iter().collect())),

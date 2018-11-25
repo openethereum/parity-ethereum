@@ -26,7 +26,7 @@ use serde::Serialize;
 use serde_json;
 use tokio;
 use tokio::net::TcpListener;
-use tokio::runtime::{Runtime, Builder as RuntimeBuilder};
+use parity_runtime::Executor;
 use futures::{future, Future, Stream};
 use url::percent_encoding::percent_decode;
 
@@ -46,7 +46,7 @@ use types::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKey
 /// To change servers set:							POST		/admin/servers_set_change/{old_signature}/{new_signature} + BODY: json array of hex-encoded nodes ids
 
 pub struct KeyServerHttpListener {
-	_runtime: Runtime,
+	_executor: Executor,
 	_handler: Arc<KeyServerSharedHttpHandler>,
 }
 
@@ -86,15 +86,11 @@ struct KeyServerSharedHttpHandler {
 
 impl KeyServerHttpListener {
 	/// Start KeyServer http listener
-	pub fn start(listener_address: NodeAddress, key_server: Weak<KeyServer>) -> Result<Self, Error> {
+	pub fn start(listener_address: NodeAddress, key_server: Weak<KeyServer>, executor: Executor) -> Result<Self, Error> {
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 		});
 
-		let mut runtime = RuntimeBuilder::new()
-			// TODO: Add config option/arg?
-			.core_threads(2)
-			.build()?;
 		let listener_address = format!("{}:{}", listener_address.address, listener_address.port).parse()?;
 		let listener = TcpListener::bind(&listener_address)?;
 
@@ -113,10 +109,10 @@ impl KeyServerHttpListener {
 				tokio::spawn(serve)
 			});
 
-		runtime.spawn(server);
+		executor.spawn(server);
 
 		let listener = KeyServerHttpListener {
-			_runtime: runtime,
+			_executor: executor,
 			_handler: shared_handler,
 		};
 
@@ -419,13 +415,16 @@ mod tests {
 	use traits::KeyServer;
 	use key_server::tests::DummyKeyServer;
 	use types::NodeAddress;
+	use parity_runtime::Runtime;
 	use super::{parse_request, Request, KeyServerHttpListener};
 
 	#[test]
 	fn http_listener_successfully_drops() {
 		let key_server: Arc<KeyServer> = Arc::new(DummyKeyServer::default());
 		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
-		let listener = KeyServerHttpListener::start(address, Arc::downgrade(&key_server)).unwrap();
+		let runtime = Runtime::with_thread_count(1);
+		let listener = KeyServerHttpListener::start(address, Arc::downgrade(&key_server),
+			runtime.executor()).unwrap();
 		drop(listener);
 	}
 

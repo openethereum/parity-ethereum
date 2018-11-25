@@ -739,7 +739,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};
-	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps)?;
+	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps, runtime.executor())?;
 
 	// the ipfs server
 	let ipfs_server = ipfs::start_server(cmd.ipfs_conf.clone(), client.clone())?;
