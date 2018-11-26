@@ -756,10 +756,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>> {
-		let best_block = self.client.chain_info().best_block_number;
 		let hash: H256 = hash.into();
 
 		if self.options.allow_pending_receipt_query {
+			let best_block = self.client.chain_info().best_block_number;
 			if let Some(receipt) = self.miner.pending_receipt(best_block, &hash) {
 				return Box::new(future::ok(Some(receipt.into())));
 			}
