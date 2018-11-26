@@ -384,7 +384,7 @@ impl OnDemand {
 		}
 	}
 
-	fn santize_circuit_breaker_input(dur: Duration, name: &'static str) -> Duration {
+	fn sanitize_circuit_breaker_input(dur: Duration, name: &'static str) -> Duration {
 		if dur.as_secs() < 1 {
 			warn!(target: "on_demand",
 				"{} is too short must be at least 1 second, configuring it to 1 second", name);
