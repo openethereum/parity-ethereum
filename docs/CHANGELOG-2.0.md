@@ -1,3 +1,26 @@
+Note: Parity 2.0 reached End-of-Life on 2018-11-15 (EOL).
+
+## Parity-Ethereum [v2.0.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.9) (2018-10-29)
+
+Parity-Ethereum 2.0.9-stable is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports: parity stable 2.0.9 ([#9786](https://github.com/paritytech/parity-ethereum/pull/9786))
+  - Version: bump parity stable to 2.0.9
+  - Ethcore: bump ropsten forkblock checkpoint ([#9775](https://github.com/paritytech/parity-ethereum/pull/9775))
+  - Ethcore: handle vm exception when estimating gas ([#9615](https://github.com/paritytech/parity-ethereum/pull/9615))
+  - Update jsonrpc-core to a1b2bb742ce16d1168669ffb13ffe856e8131228 ([#9780](https://github.com/paritytech/parity-ethereum/pull/9780))
+  - Removed "rustup" & added new runner tag ([#9731](https://github.com/paritytech/parity-ethereum/pull/9731))
+    - Removed "rustup" & added new runner tag
+    - Exchanged tag "rust-windows" with "windows"
+    - Revert windows tag change
+  - Allow zero chain id in EIP155 signing process ([#9792](https://github.com/paritytech/parity-ethereum/pull/9792))
+    - Allow zero chain id in EIP155 signing process
+    - Rename test
+    - Fix test failure
+  - Insert dev account before unlocking ([#9813](https://github.com/paritytech/parity-ethereum/pull/9813))
+
 ## Parity-Ethereum [v2.0.8](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.8) (2018-10-16)
 
 Parity-Ethereum 2.0.8-stable is a release that fixes a consensus issue with the recent Constantinople release. Upgrading is mandatory whatever network you are connected to that plans enabling EIP-1283, e.g., Ropsten, Kovan, Ethereum.
