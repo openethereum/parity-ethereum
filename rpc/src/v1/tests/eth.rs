@@ -146,6 +146,7 @@ impl EthTester {
 				send_block_number_in_get_work: true,
 				gas_price_percentile: 50,
 				allow_experimental_rpcs: true,
+				allow_missing_blocks: false
 			},
 		);
 
