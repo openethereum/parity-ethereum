@@ -79,8 +79,8 @@ impl RequestGuard {
 				Error::LetThrough
 			}
 		}
-		// Circuit breaker is `open`, don't count as a failure
 		else {
+			// Circuit breaker is `open`, don't count as a failure
 			trace!(target: "circuit_breaker", "RequestGuard; failures: {}/{}, state {:?}",
 				self.num_failures, self.max_failures, self.state);
 			Error::Rejected
@@ -92,4 +92,3 @@ impl RequestGuard {
 		self.state.is_call_permitted()
 	}
 }
-
