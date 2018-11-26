@@ -72,21 +72,21 @@ impl SyncHandler {
 			return;
 		}
 		let rlp = Rlp::new(data);
-		let result = match packet_id {
-			STATUS_PACKET => SyncHandler::on_peer_status(sync, io, peer, &rlp),
-			TRANSACTIONS_PACKET => SyncHandler::on_peer_transactions(sync, io, peer, &rlp),
-			BLOCK_HEADERS_PACKET => SyncHandler::on_peer_block_headers(sync, io, peer, &rlp),
-			BLOCK_BODIES_PACKET => SyncHandler::on_peer_block_bodies(sync, io, peer, &rlp),
-			RECEIPTS_PACKET => SyncHandler::on_peer_block_receipts(sync, io, peer, &rlp),
-			NEW_BLOCK_PACKET => SyncHandler::on_peer_new_block(sync, io, peer, &rlp),
-			NEW_BLOCK_HASHES_PACKET => SyncHandler::on_peer_new_hashes(sync, io, peer, &rlp),
-			SNAPSHOT_MANIFEST_PACKET => SyncHandler::on_snapshot_manifest(sync, io, peer, &rlp),
-			SNAPSHOT_DATA_PACKET => SyncHandler::on_snapshot_data(sync, io, peer, &rlp),
-			PRIVATE_TRANSACTION_PACKET => SyncHandler::on_private_transaction(sync, io, peer, &rlp),
-			SIGNED_PRIVATE_TRANSACTION_PACKET => SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp),
+		let (sync_peer, result) = match packet_id {
+			STATUS_PACKET => (true, SyncHandler::on_peer_status(sync, io, peer, &rlp)),
+			TRANSACTIONS_PACKET => (false, SyncHandler::on_peer_transactions(sync, io, peer, &rlp)),
+			BLOCK_HEADERS_PACKET => (true, SyncHandler::on_peer_block_headers(sync, io, peer, &rlp)),
+			BLOCK_BODIES_PACKET => (true, SyncHandler::on_peer_block_bodies(sync, io, peer, &rlp)),
+			RECEIPTS_PACKET => (true, SyncHandler::on_peer_block_receipts(sync, io, peer, &rlp)),
+			NEW_BLOCK_PACKET => (true, SyncHandler::on_peer_new_block(sync, io, peer, &rlp)),
+			NEW_BLOCK_HASHES_PACKET => (true, SyncHandler::on_peer_new_hashes(sync, io, peer, &rlp)),
+			SNAPSHOT_MANIFEST_PACKET => (true, SyncHandler::on_snapshot_manifest(sync, io, peer, &rlp)),
+			SNAPSHOT_DATA_PACKET => (true, SyncHandler::on_snapshot_data(sync, io, peer, &rlp)),
+			PRIVATE_TRANSACTION_PACKET => (true, SyncHandler::on_private_transaction(sync, io, peer, &rlp)),
+			SIGNED_PRIVATE_TRANSACTION_PACKET => (true, SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp)),
 			_ => {
 				debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
-				Ok(())
+				(false, Ok(()))
 			}
 		};
 
@@ -99,13 +99,12 @@ impl SyncHandler {
 			Err(DownloaderImportError::Useless) => {
 				sync.deactivate_peer(io, peer);
 			},
-			Ok(()) => {
+			Ok(()) if sync_peer => {
 				// give a task to the same peer first
 				sync.sync_peer(io, peer, false);
 			},
+			_ => (),
 		}
-		// give tasks to other peers
-		sync.continue_sync(io);
 	}
 
 	/// Called when peer sends us new consensus packet
