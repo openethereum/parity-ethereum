@@ -463,8 +463,8 @@ usage! {
 
 
 		["API and Console Options – HTTP JSON-RPC"]
-			FLAG flag_allow_missing_blocks: (bool) = false, or |c: &Config| c.rpc.as_ref()?.allow_missing_blocks.clone(),
-			"--allow-missing-blocks",
+			FLAG flag_jsonrpc_allow_missing_blocks: (bool) = false, or |c: &Config| c.rpc.as_ref()?.allow_missing_blocks.clone(),
+			"--jsonrpc-allow-missing-blocks",
 			"RPC calls will return 'null' instead of an error if ancient block sync is still in progress and the block information requested could not be found",
 
 			FLAG flag_no_jsonrpc: (bool) = false, or |c: &Config| c.rpc.as_ref()?.disable.clone(),
@@ -1702,7 +1702,7 @@ mod tests {
 			arg_jsonrpc_threads: 4,
 			arg_jsonrpc_max_payload: None,
 			arg_poll_lifetime: 60u32,
-			flag_allow_missing_blocks: false,
+			flag_jsonrpc_allow_missing_blocks: false,
 
 			// WS
 			flag_no_ws: false,
