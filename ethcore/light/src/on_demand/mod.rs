@@ -22,15 +22,15 @@ use std::cmp;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use std::time::Duration;
 
 use ethcore::executed::{Executed, ExecutionError};
-
 use futures::{Poll, Future, Async};
 use futures::sync::oneshot::{self, Receiver};
 use network::PeerId;
 use parking_lot::{RwLock, Mutex};
 use rand;
-use std::time::Duration;
+use rand::Rng;
 
 use net::{
 	Handler, PeerStatus, Status, Capabilities,
@@ -376,10 +376,10 @@ impl OnDemand {
 			in_transit: RwLock::new(HashMap::new()),
 			cache,
 			no_immediate_dispatch: false,
-			response_time_window: Self::santize_circuit_breaker_input(response_time_window, "Response time window"),
-			request_time_window: Self::santize_circuit_breaker_input(request_time_window, "Request time window"),
-			request_backoff_start: Self::santize_circuit_breaker_input(request_backoff_start, "Request initial backoff time window"),
-			request_backoff_max: Self::santize_circuit_breaker_input(request_backoff_max, "Request maximum backoff time window"),
+			response_time_window: Self::sanitize_circuit_breaker_input(response_time_window, "Response time window"),
+			request_time_window: Self::sanitize_circuit_breaker_input(request_time_window, "Request time window"),
+			request_backoff_start: Self::sanitize_circuit_breaker_input(request_backoff_start, "Request initial backoff time window"),
+			request_backoff_max: Self::sanitize_circuit_breaker_input(request_backoff_max, "Request maximum backoff time window"),
 			request_backoff_rounds_max,
 		}
 	}
@@ -518,7 +518,7 @@ impl OnDemand {
 
 				let num_peers = peers.len();
 				// The first peer to dispatch the request is chosen at random
-				let rand = rand::random::<usize>() % cmp::max(num_peers, 1);
+				let rand = rand::thread_rng().gen_range(0, cmp::max(1, num_peers));
 
 				for (peer_id, peer) in peers
 					.iter()
