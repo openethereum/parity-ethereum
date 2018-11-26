@@ -759,15 +759,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let best_block = self.client.chain_info().best_block_number;
 		let hash: H256 = hash.into();
 
-		match (self.miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
-			(Some(receipt), true) => Box::new(future::ok(Some(receipt.into()))),
-			_ => {
-				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-				let result = Ok(receipt.map(Into::into)).and_then(
-					errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
-				Box::new(future::done(result))
+		if self.options.allow_pending_receipt_query {
+			if let Some(receipt) = self.miner.pending_receipt(best_block, &hash) {
+				return Box::new(future::ok(Some(receipt.into())));
 			}
 		}
+
+		let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
+		let result = Ok(receipt.map(Into::into))
+			.and_then(errors::check_block_gap(&*self.client, self.options.allow_missing_blocks));
+		Box::new(future::done(result))
 	}
 
 	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>> {
