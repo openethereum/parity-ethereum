@@ -1,4 +1,4 @@
-## Parity-Ethereum [v2.1.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.4) (2018-11-15)
+## Parity-Ethereum [v2.1.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.6) (2018-11-15)
 
 Parity-Ethereum 2.1.6-stable is a release that improves performance and stability.
 
