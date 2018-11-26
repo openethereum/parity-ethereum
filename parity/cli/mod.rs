@@ -1702,7 +1702,7 @@ mod tests {
 			arg_jsonrpc_threads: 4,
 			arg_jsonrpc_max_payload: None,
 			arg_poll_lifetime: 60u32,
-			flag_allow_missing_blocks: false,
+			flag_jsonrpc_allow_missing_blocks: false,
 
 			// WS
 			flag_no_ws: false,
