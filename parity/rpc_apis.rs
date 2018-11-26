@@ -233,7 +233,7 @@ pub struct FullDependencies {
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub gas_price_percentile: usize,
 	pub poll_lifetime: u32,
-	pub jsonrpc_allow_missing_blocks: bool,
+	pub allow_missing_blocks: bool,
 }
 
 impl FullDependencies {
@@ -255,7 +255,7 @@ impl FullDependencies {
 					deps.miner.clone(),
 					$nonces,
 					deps.gas_price_percentile,
-					);
+				);
 				if deps.signer_service.is_enabled() {
 					$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(
 						&deps.signer_service,
@@ -268,8 +268,8 @@ impl FullDependencies {
 						&deps.secret_store,
 						dispatcher,
 					)))
-					}
-				}};
+				}
+			}};
 		}
 
 		let nonces = Arc::new(Mutex::new(dispatch::Reservations::new(
@@ -305,7 +305,7 @@ impl FullDependencies {
 							allow_pending_receipt_query: !self.geth_compatibility,
 							send_block_number_in_get_work: !self.geth_compatibility,
 							gas_price_percentile: self.gas_price_percentile,
-							jsonrpc_allow_missing_blocks: self.jsonrpc_allow_missing_blocks,
+							allow_missing_blocks: self.allow_missing_blocks,
 							allow_experimental_rpcs: self.experimental_rpcs,
 						}
 					);
