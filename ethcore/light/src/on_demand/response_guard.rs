@@ -14,14 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+//! ResponseGuard implementation.
+//! It is responsible for the receiving end of `Pending Request` (see `OnDemand` module docs for more information)
+//! The major functionality is the following:
+//!    1) Register non-successful responses which will reported back if it fails
+//!    2) A timeout mechanism that will wait for successful response at most t seconds
+
+use std::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::fmt;
 
-use failsafe;
 use super::{ResponseError, ValidityError};
-
-type ResponsePolicy = failsafe::failure_policy::SuccessRateOverTimeWindow<NoBackoff>;
 
 /// Response guard error type
 #[derive(Debug, Eq, PartialEq)]
@@ -83,17 +86,20 @@ pub enum Inner {
 /// Handle and register responses that can fail
 #[derive(Debug)]
 pub struct ResponseGuard {
-	state: failsafe::StateMachine<ResponsePolicy, ()>,
+	request_start: Instant,
+	time_to_live: Duration,
 	responses: HashMap<Inner, usize>,
+	number_responses: usize,
 }
 
 impl ResponseGuard {
 	/// Constructor
-	pub fn new(window_dur: Duration) -> Self {
-		let policy = failsafe::failure_policy::success_rate_over_time_window(1.0, 1, window_dur, NoBackoff);
+	pub fn new(time_to_live: Duration) -> Self {
 		Self {
-			state: failsafe::StateMachine::new(policy, ()),
+			request_start: Instant::now(),
+			time_to_live,
 			responses: HashMap::new(),
+			number_responses: 0,
 		}
 	}
 
@@ -118,36 +124,22 @@ impl ResponseGuard {
 
 	/// Update the state after a `faulty` call
 	pub fn register_error(&mut self, err: &ResponseError<super::request::Error>) -> Result<(), Error> {
-		self.state.on_error();
 		let err = self.into_reason(err);
 		*self.responses.entry(err).or_insert(0) += 1;
-		if self.state.is_call_permitted() {
-			trace!(target: "circuit_breaker", "ResponseGuard: {:?}, responses {:?}", self.state, self.responses);
-			Ok(())
-		} else {
-			trace!(target: "circuit_breaker", "ResponseGuard: {:?}, responses: {:?}", self.state, self.responses);
+		self.number_responses = self.number_responses.saturating_add(1);
+		trace!(target: "circuit_breaker", "ResponseGuard: {:?}", self.responses);
+		// The request has exceeded its timeout
+		if self.request_start.elapsed() >= self.time_to_live {
 			let (&err, &max_count) = self.responses.iter().max_by_key(|(_k, v)| *v).expect("got at least one element; qed");
 			let majority = self.responses.values().filter(|v| **v == max_count).count() == 1;
-			// FIXME: more efficient with a separate counter
-			let total_responses = self.responses.values().sum();
 			if majority {
-				Err(Error::Majority(err, max_count, total_responses))
+				Err(Error::Majority(err, max_count, self.number_responses))
 			} else {
-				Err(Error::NoMajority(total_responses))
+				Err(Error::NoMajority(self.number_responses))
 			}
+		} else {
+			Ok(())
 		}
-	}
-}
-
-// Type to indicate that response should never back-off
-#[derive(Clone, Debug)]
-struct NoBackoff;
-
-impl Iterator for NoBackoff {
-	type Item = Duration;
-
-	fn next(&mut self) -> Option<Self::Item> {
-		None
 	}
 }
 
@@ -163,7 +155,6 @@ mod tests {
 		guard.register_error(&ResponseError::Unexpected).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
-		// wait for the current time window to end
 		thread::sleep(Duration::from_secs(5));
 
 		assert_eq!(guard.register_error(&ResponseError::Validity(ValidityError::WrongKind)), Err(Error::Majority(Inner::Unexpected, 3, 5)));
@@ -176,7 +167,6 @@ mod tests {
 		guard.register_error(&ResponseError::Validity(ValidityError::Empty)).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
 		guard.register_error(&ResponseError::Unexpected).unwrap();
-		// wait for the current time window to end
 		thread::sleep(Duration::from_secs(5));
 
 		assert_eq!(guard.register_error(&ResponseError::Validity(ValidityError::WrongKind)), Err(Error::NoMajority(5)));

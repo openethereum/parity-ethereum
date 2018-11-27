@@ -57,18 +57,16 @@ mod response_guard;
 /// The result of execution
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
-/// The default number of a request is ```exponentially backed off``` until it gets dropped
-pub const DEFAULT_REQUEST_BACKOFF_ATTEMPTS: usize = 10;
 /// The initial backoff interval for OnDemand queries
 pub const DEFAULT_REQUEST_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(10);
 /// The maximum request interval for OnDemand queries
 pub const DEFAULT_REQUEST_MAX_BACKOFF_DURATION: Duration = Duration::from_secs(100);
 /// The default window length a response is evaluated
-pub const DEFAULT_RESPONSE_WINDOW_DURATION: Duration = Duration::from_secs(10);
-/// The default window length a request is evaluated
-pub const DEFAULT_REQUEST_WINDOW_DURATION: Duration = Duration::from_secs(10);
+pub const DEFAULT_RESPONSE_TIME_TO_LIVE: Duration = Duration::from_secs(60);
 /// The default number of maximum backoff iterations
 pub const DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS: usize = 10;
+/// The default number failed request to be regarded as failure
+pub const DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS: usize = 1;
 
 /// OnDemand related errors
 pub mod error {
@@ -87,14 +85,13 @@ pub mod error {
 				display("{}", err)
 			}
 
-			#[doc = "Failure rate for OnDemand requests exceeded"]
+			#[doc = "OnDemand requests limit exceeded"]
 			RequestLimit {
-				description("Failure rate for OnDemand requests exceeded")
-				display("Request time out")
+				description("OnDemand request maximum backoff iterations exceeded")
+				display("OnDemand request maximum backoff iterations exceeded")
 			}
 		}
 	}
-
 }
 
 // relevant peer info.
@@ -352,10 +349,10 @@ pub struct OnDemand {
 	cache: Arc<Mutex<Cache>>,
 	no_immediate_dispatch: bool,
 	response_time_window: Duration,
-	request_time_window: Duration,
 	request_backoff_start: Duration,
 	request_backoff_max: Duration,
-	request_backoff_rounds_max: usize
+	request_backoff_rounds_max: usize,
+	request_number_of_consecutive_errors: usize
 }
 
 impl OnDemand {
@@ -364,23 +361,23 @@ impl OnDemand {
 	pub fn new(
 		cache: Arc<Mutex<Cache>>,
 		response_time_window: Duration,
-		request_time_window: Duration,
 		request_backoff_start: Duration,
 		request_backoff_max: Duration,
 		request_backoff_rounds_max: usize,
+		request_number_of_consecutive_errors: usize,
 	) -> Self {
 
-		OnDemand {
+		Self {
 			pending: RwLock::new(Vec::new()),
 			peers: RwLock::new(HashMap::new()),
 			in_transit: RwLock::new(HashMap::new()),
 			cache,
 			no_immediate_dispatch: false,
 			response_time_window: Self::sanitize_circuit_breaker_input(response_time_window, "Response time window"),
-			request_time_window: Self::sanitize_circuit_breaker_input(request_time_window, "Request time window"),
 			request_backoff_start: Self::sanitize_circuit_breaker_input(request_backoff_start, "Request initial backoff time window"),
 			request_backoff_max: Self::sanitize_circuit_breaker_input(request_backoff_max, "Request maximum backoff time window"),
 			request_backoff_rounds_max,
+			request_number_of_consecutive_errors,
 		}
 	}
 
@@ -399,19 +396,19 @@ impl OnDemand {
 	#[cfg(test)]
 	fn new_test(
 		cache: Arc<Mutex<Cache>>,
-		response_time_window: Duration,
-		request_time_window: Duration,
+		request_ttl: Duration,
 		request_backoff_start: Duration,
 		request_backoff_max: Duration,
 		request_backoff_rounds_max: usize,
+		request_number_of_consecutive_errors: usize,
 	) -> Self {
 		let mut me = OnDemand::new(
 			cache,
-			response_time_window,
-			request_time_window,
+			request_ttl,
 			request_backoff_start,
 			request_backoff_max,
-			request_backoff_rounds_max
+			request_backoff_rounds_max,
+			request_number_of_consecutive_errors,
 		);
 		me.no_immediate_dispatch = true;
 
@@ -467,10 +464,10 @@ impl OnDemand {
 			responses,
 			sender,
 			request_guard: RequestGuard::new(
-				self.request_time_window,
+				self.request_number_of_consecutive_errors as u32,
+				self.request_backoff_rounds_max,
 				self.request_backoff_start,
 				self.request_backoff_max,
-				self.request_backoff_rounds_max
 			),
 			response_guard: ResponseGuard::new(self.response_time_window),
 		});

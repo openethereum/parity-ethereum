@@ -95,16 +95,14 @@ impl Harness {
 		Harness {
 			service: OnDemand::new_test(
 				cache,
-				// response duration
+				// Response `time_to_live`
 				Duration::from_secs(5),
-				// request duration
+				// Request start backoff
 				Duration::from_secs(5),
-				// request start backoff
-				Duration::from_secs(5),
-				// request max backoff
+				// Request max backoff
 				Duration::from_secs(10),
-				// request max backoff rounds
-				super::DEFAULT_REQUEST_BACKOFF_ATTEMPTS
+				super::DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS,
+				super::DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS
 			)
 		}
 	}
@@ -534,12 +532,8 @@ fn request_without_response_should_backoff_and_then_be_dropped() {
 	).unwrap();
 	assert_eq!(harness.service.pending.read().len(), 1);
 
-	thread::sleep(Duration::from_secs(1));
-
 	for (i, &backoff) in binary_exp_backoff.iter().enumerate() {
 		harness.service.dispatch_pending(&Context::FaultyRequest);
-		let now = Instant::now();
-		while now.elapsed() <= harness.service.request_time_window {}
 		let now = Instant::now();
 		while now.elapsed() < Duration::from_secs(backoff + 2) {}
 		if i < binary_exp_backoff.len() - 1 {
@@ -573,9 +567,6 @@ fn empty_responses_exceeds_limit_should_be_dropped() {
 
 	assert_eq!(harness.service.pending.read().len(), 0);
 	assert_eq!(harness.service.in_transit.read().len(), 1);
-
-	// Sleep to get a timestamp that is bigger that 0 to the ` EMA (Exponential moving average)` calculation
-	thread::sleep(Duration::from_secs(1));
 
 	let now = Instant::now();
 
