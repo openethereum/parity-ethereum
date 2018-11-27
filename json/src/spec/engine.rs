@@ -20,6 +20,7 @@ use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine, Inst
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub enum Engine {
 	/// Null engine.

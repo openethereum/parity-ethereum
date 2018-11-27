@@ -20,6 +20,7 @@ use uint::Uint;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct NullEngineParams {
 	/// Block reward.
@@ -28,6 +29,7 @@ pub struct NullEngineParams {
 
 /// Null engine descriptor
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NullEngine {
 	/// Ethash params.
 	pub params: NullEngineParams,

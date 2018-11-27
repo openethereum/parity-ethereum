@@ -23,6 +23,7 @@ use spec::Seal;
 
 /// Spec genesis.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct Genesis {
 	/// Seal.
