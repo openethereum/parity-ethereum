@@ -13,14 +13,17 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+extern crate parking_lot;
 
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
-use std::sync::Mutex;
-use std::sync::MutexGuard;
-use std::sync::PoisonError;
+//use std::sync::Mutex;
+//use std::sync::MutexGuard;
+//use std::sync::PoisonError;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
+
+use parking_lot::{Mutex, MutexGuard};
 
 /// Implement to allow a type with a len() method to be used
 /// with [`LenCachingMutex`](struct.LenCachingMutex.html)
@@ -57,16 +60,16 @@ impl<T: Len> LenCachingMutex<T> {
 		self.len.load(Ordering::Relaxed)
 	}
 
-	pub fn lock(&self) -> Result<Guard<T>, PoisonError<MutexGuard<T>>> {
-		Ok( Guard {
-			mutex_guard: self.data.lock()?,
+	pub fn lock(&self) -> Guard<T> {
+		Guard {
+			mutex_guard: self.data.lock(),
 			len: &self.len,
-		})
+		}
 	}
 
-	pub fn try_lock(&self) -> Result<Guard<T>, PoisonError<MutexGuard<T>>> {
-		Ok( Guard {
-			mutex_guard: self.data.lock()?,
+	pub fn try_lock(&self) -> Option<Guard<T>> {
+		Some( Guard {
+			mutex_guard: self.data.try_lock()?,
 			len: &self.len,
 		})
 	}
@@ -75,6 +78,16 @@ impl<T: Len> LenCachingMutex<T> {
 pub struct Guard<'a, T: Len + 'a> {
 	mutex_guard: MutexGuard<'a, T>,
 	len: &'a AtomicUsize,
+}
+
+impl<'a, T: Len> Guard<'a, T> {
+	pub fn inner_mut(&mut self) -> &mut MutexGuard<'a, T> {
+		&mut self.mutex_guard
+	}
+
+	pub fn inner(&self) -> &MutexGuard<'a, T> {
+		&self.mutex_guard
+	}
 }
 
 impl<'a, T: Len> Drop for Guard<'a, T> {
@@ -99,6 +112,7 @@ impl<'a, T: Len> DerefMut for Guard<'a, T> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::collections::VecDeque;
 
     #[test]
     fn caches_len() {
@@ -108,4 +122,12 @@ mod tests {
 		lcm.lock().unwrap().push(4);
         assert_eq!(lcm.load_len(), 4);
     }
+
+	#[test]
+	fn works_with_vec() {
+		let v: VecDeque<i32> = VecDeque::new();
+		let lcm = LenCachingMutex::new(v);
+		assert_eq!(lcm.lock().unwrap().shrink_to_fit(), ());
+	}
+
 }
