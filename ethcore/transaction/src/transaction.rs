@@ -132,6 +132,16 @@ impl Transaction {
 	}
 }
 
+pub trait SizeOfData {
+	/// Measure the heap size of data in a Transaction
+	fn heap_size_of_data(&self) -> usize;
+}
+impl SizeOfData for Transaction {
+	fn heap_size_of_data(&self) -> usize {
+		std::mem::size_of_val(&*self.data)
+	}
+}
+
 impl HeapSizeOf for Transaction {
 	fn heap_size_of_children(&self) -> usize {
 		self.data.heap_size_of_children()
@@ -282,6 +292,12 @@ pub struct UnverifiedTransaction {
 	hash: H256,
 }
 
+impl SizeOfData for UnverifiedTransaction {
+	fn heap_size_of_data(&self) -> usize {
+		self.unsigned.heap_size_of_data()
+	}
+}
+
 impl HeapSizeOf for UnverifiedTransaction {
 	fn heap_size_of_children(&self) -> usize {
 		self.unsigned.heap_size_of_children()
@@ -421,6 +437,12 @@ pub struct SignedTransaction {
 	transaction: UnverifiedTransaction,
 	sender: Address,
 	public: Option<Public>,
+}
+
+impl SizeOfData for SignedTransaction {
+	fn heap_size_of_data(&self) -> usize {
+		self.transaction.heap_size_of_data()
+	}
 }
 
 impl HeapSizeOf for SignedTransaction {
