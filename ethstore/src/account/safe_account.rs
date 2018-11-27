@@ -87,9 +87,9 @@ impl SafeAccount {
 		let address = match json.address {
 			Some(address) => address.into(),
 			None => match password {
-                Some(password) =>
+				Some(password) =>
 					KeyPair::from_secret(crypto.secret(&password).map_err(|_| Error::InvalidPassword)?)?.address(),
-                None =>
+				None =>
 					return Err(Error::Custom("This keystore does not contain address. You need to provide password to import it".to_owned()))
 			}
 		};
