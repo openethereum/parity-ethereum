@@ -21,6 +21,7 @@ use super::ValidatorSet;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct BasicAuthorityParams {
 	/// Block duration.
@@ -31,6 +32,7 @@ pub struct BasicAuthorityParams {
 
 /// Authority engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BasicAuthority {
 	/// Ethash params.
 	pub params: BasicAuthorityParams,
