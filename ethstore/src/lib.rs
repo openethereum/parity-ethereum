@@ -36,7 +36,6 @@ extern crate ethereum_types;
 extern crate ethkey as _ethkey;
 extern crate parity_wordlist;
 
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;

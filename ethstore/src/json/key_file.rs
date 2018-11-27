@@ -217,7 +217,7 @@ mod tests {
 		let expected = KeyFile {
 			id: Uuid::from_str("8777d9f6-7860-4b9b-88b7-0b57ee6b3a73").unwrap(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),
@@ -268,7 +268,7 @@ mod tests {
 		let expected = KeyFile {
 			id: "8777d9f6-7860-4b9b-88b7-0b57ee6b3a73".into(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),
@@ -296,7 +296,7 @@ mod tests {
 		let file = KeyFile {
 			id: "8777d9f6-7860-4b9b-88b7-0b57ee6b3a73".into(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),

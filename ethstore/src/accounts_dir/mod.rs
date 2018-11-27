@@ -46,15 +46,8 @@ pub struct VaultKey {
 
 /// Keys directory
 pub trait KeyDirectory: Send + Sync {
-	/// Read keys from directory with password
-	#[allow(unused_variables)]
-	fn load_with_password(&self, password: &Option<Password>) -> Result<Vec<SafeAccount>, Error> {
-		unimplemented!()
-	}
 	/// Read keys from directory
-	fn load(&self) -> Result<Vec<SafeAccount>, Error> {
-		self.load_with_password(&None)
-	}
+	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
 	/// Insert new key to directory
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
 	/// Update key in the directory

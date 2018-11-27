@@ -16,9 +16,6 @@
 
 extern crate dir;
 extern crate docopt;
-#[macro_use]
-extern crate log;
-extern crate env_logger;
 extern crate ethstore;
 extern crate num_cpus;
 extern crate panic_hook;
@@ -149,31 +146,30 @@ impl fmt::Display for Error {
 
 fn main() {
 	panic_hook::set_abort();
-	env_logger::try_init().expect("Logger initialized only once.");
 
 	match execute(env::args()) {
 		Ok(result) => println!("{}", result),
 		Err(Error::Docopt(ref e)) => e.exit(),
 		Err(err) => {
-			error!("{}", err);
+			eprintln!("{}", err);
 			process::exit(1);
 		}
 	}
 }
 
-fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
-	let dir: Box<KeyDirectory> = match location {
-		"geth" => Box::new(RootDiskDirectory::create(dir::geth(false))?),
-		"geth-test" => Box::new(RootDiskDirectory::create(dir::geth(true))?),
+fn key_dir(location: &str, password: Option<Password>) -> Result<Box<KeyDirectory>, Error> {
+	let dir: RootDiskDirectory = match location {
+		"geth" => RootDiskDirectory::create(dir::geth(false))?,
+		"geth-test" => RootDiskDirectory::create(dir::geth(true))?,
 		path if path.starts_with("parity") => {
 			let chain = path.split('-').nth(1).unwrap_or("ethereum");
 			let path = dir::parity(chain);
-			Box::new(RootDiskDirectory::create(path)?)
+			RootDiskDirectory::create(path)?
 		},
-		path => Box::new(RootDiskDirectory::create(path)?),
+		path => RootDiskDirectory::create(path)?,
 	};
 
-	Ok(dir)
+	Ok(Box::new(dir.with_password(password)))
 }
 
 fn open_args_vault(store: &EthStore, args: &Args) -> Result<SecretVaultRef, Error> {
@@ -218,7 +214,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.argv(command).deserialize())?;
 
-	let store = EthStore::open(key_dir(&args.flag_dir)?)?;
+	let store = EthStore::open(key_dir(&args.flag_dir, None)?)?;
 
 	return if args.cmd_insert {
 		let secret = args.arg_secret.parse().map_err(|_| ethstore::Error::InvalidSecret)?;
@@ -243,10 +239,14 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			.collect();
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {
-		let src = key_dir(&args.flag_src)?;
-		let dst = key_dir(&args.flag_dir)?;
-		let password = load_password(&args.arg_password).ok();
-		let accounts = import_accounts(&*src, &*dst, &password)?;
+		let password = match &args.arg_password.as_ref() {
+			&"" => None,
+			_ => Some(load_password(&args.arg_password)?)
+		};
+		let src = key_dir(&args.flag_src, password)?;
+		let dst = key_dir(&args.flag_dir, None)?;
+
+		let accounts = import_accounts(&*src, &*dst)?;
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import_wallet {
 		let wallet = PresaleWallet::open(&args.arg_path)?;

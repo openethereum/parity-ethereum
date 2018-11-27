@@ -118,7 +118,7 @@ fn import(i: ImportAccounts) -> Result<String, String> {
 		let path = PathBuf::from(path);
 		if path.is_dir() {
 			let from = RootDiskDirectory::at(&path);
-			imported += import_accounts(&from, &to, &None).map_err(|e| format!("Importing accounts from {:?} failed: {}", path, e))?.len();
+			imported += import_accounts(&from, &to).map_err(|e| format!("Importing accounts from {:?} failed: {}", path, e))?.len();
 		} else if path.is_file() {
 			import_account(&path, &to).map_err(|e| format!("Importing account from {:?} failed: {}", path, e))?;
 			imported += 1;

@@ -168,7 +168,7 @@ fn main() {
 		Ok(ok) => println!("{}", ok),
 		Err(Error::Docopt(ref e)) => e.exit(),
 		Err(err) => {
-			error!("{}", err);
+			eprintln!("{}", err);
 			process::exit(1);
 		}
 	}
