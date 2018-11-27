@@ -17,9 +17,6 @@ extern crate parking_lot;
 
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
-//use std::sync::Mutex;
-//use std::sync::MutexGuard;
-//use std::sync::PoisonError;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
@@ -42,6 +39,7 @@ impl<T> Len for VecDeque<T> {
 /// Can be used in place of a `Mutex` where reading `T`'s `len()` without 
 /// needing to lock, is advantageous. 
 /// When the Guard is released, `T`'s `len()` will be cached.
+/// *The cached `len()` may be at most 1 lock behind current state.
 pub struct LenCachingMutex<T> {
   data: Mutex<T>,
   len: AtomicUsize,
@@ -114,20 +112,19 @@ mod tests {
 	use super::*;
 	use std::collections::VecDeque;
 
-    #[test]
-    fn caches_len() {
+	#[test]
+	fn caches_len() {
 		let v = vec![1,2,3];
 		let lcm = LenCachingMutex::new(v);
-        assert_eq!(lcm.load_len(), 3);
-		lcm.lock().unwrap().push(4);
-        assert_eq!(lcm.load_len(), 4);
-    }
+		assert_eq!(lcm.load_len(), 3);
+		lcm.lock().push(4);
+		assert_eq!(lcm.load_len(), 4);
+	}
 
 	#[test]
 	fn works_with_vec() {
 		let v: VecDeque<i32> = VecDeque::new();
 		let lcm = LenCachingMutex::new(v);
-		assert_eq!(lcm.lock().unwrap().shrink_to_fit(), ());
+		assert_eq!(lcm.lock().shrink_to_fit(), ());
 	}
-
 }
