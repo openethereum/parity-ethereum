@@ -44,6 +44,13 @@ test-linux:
   tags:
     - rust-stable
 
+test-audit:
+  stage:                           test
+  script:
+    - scripts/gitlab/cargo-audit.sh
+  tags:
+    - rust-stable
+
 build-linux:
   stage:                           build
   only:                            *releaseable_branches
@@ -104,24 +111,17 @@ publish-awss3:
   tags:
     - shell
 
-docs-jsonrpc:
-  stage:                            optional
+publish-docs:
+  stage:                            publish
   only:
     - tags
   except:
     - nightly
   cache: {}
   script:
-    - scripts/gitlab/docs-jsonrpc.sh
+    - scripts/gitlab/publish-docs.sh
   tags:
     - shell
-
-cargo-audit:
-  stage:                           optional
-  script:
-    - scripts/gitlab/cargo-audit.sh
-  tags:
-    - rust-stable
 
 build-android:
   stage:                           optional
@@ -132,6 +132,7 @@ build-android:
     - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
+  allow_failure:                   true
 
 test-beta:
   stage:                           optional
@@ -141,6 +142,7 @@ test-beta:
     - scripts/gitlab/test-all.sh beta
   tags:
     - rust-beta
+  allow_failure:                   true
 
 test-nightly:
   stage:                           optional
