@@ -325,6 +325,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 			"params": {
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
+				"blockReward": "0x4563918244F40000",
 				"durationLimit": "0x0d",
 				"homesteadTransition": "0xffffffffffffffff",
 				"daoHardforkTransition": "0xffffffffffffffff",
@@ -335,7 +336,6 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
-		"blockReward": "0x4563918244F40000",
 		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"accountStartNonce": "0x0100",
 		"maximumExtraDataSize": "0x20",
