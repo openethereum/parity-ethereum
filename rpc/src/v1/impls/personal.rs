@@ -26,7 +26,7 @@ use ethkey::{public_to_address, recover, Signature};
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
-use v1::helpers::errors;
+use v1::helpers::{errors, eip191};
 use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith};
 use v1::traits::Personal;
 use v1::types::{
@@ -36,23 +36,33 @@ use v1::types::{
 	ConfirmationResponse as RpcConfirmationResponse,
 	TransactionRequest,
 	RichRawTransaction as RpcRichRawTransaction,
+	EIP191Version,
 };
 use v1::metadata::Metadata;
+use eip712::{EIP712, hash_structured_data};
+use jsonrpc_core::types::Value;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
 	accounts: Arc<AccountProvider>,
 	dispatcher: D,
 	allow_perm_unlock: bool,
+	allow_experimental_rpcs: bool,
 }
 
 impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
-	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D, allow_perm_unlock: bool) -> Self {
+	pub fn new(
+		accounts: &Arc<AccountProvider>,
+		dispatcher: D,
+		allow_perm_unlock: bool,
+		allow_experimental_rpcs: bool,
+	) -> Self {
 		PersonalClient {
 			accounts: accounts.clone(),
 			dispatcher,
 			allow_perm_unlock,
+			allow_experimental_rpcs,
 		}
 	}
 }
@@ -150,6 +160,53 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 				 }))
 	}
 
+	fn sign_191(&self, version: EIP191Version, data: Value, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "191"));
+
+		let data = try_bf!(eip191::hash_message(version, data));
+		let dispatcher = self.dispatcher.clone();
+		let accounts = self.accounts.clone();
+
+		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
+
+		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
+			.and_then(|payload| {
+				dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+			})
+			.map(|v| v.into_value())
+			.then(|res| match res {
+				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result", e)),
+			})
+		)
+	}
+
+	fn sign_typed_data(&self, typed_data: EIP712, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "712"));
+
+		let data = match hash_structured_data(typed_data) {
+			Ok(d) => d,
+			Err(err) => return Box::new(future::err(errors::invalid_call_data(err.kind()))),
+		};
+		let dispatcher = self.dispatcher.clone();
+		let accounts = self.accounts.clone();
+
+		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
+
+		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
+			.and_then(|payload| {
+				dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+			})
+			.map(|v| v.into_value())
+			.then(|res| match res {
+				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result", e)),
+			})
+		)
+	}
+
 	fn ec_recover(&self, data: RpcBytes, signature: RpcH520) -> BoxFuture<RpcH160> {
 		let signature: H520 = signature.into();
 		let signature = Signature::from_electrum(&signature);
@@ -175,7 +232,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			.and_then(|(pending_tx, dispatcher)| {
 				let chain_id = pending_tx.chain_id();
 				trace!(target: "miner", "send_transaction: dispatching tx: {} for chain ID {:?}",
-					::rlp::encode(&*pending_tx).into_vec().pretty(), chain_id);
+					::rlp::encode(&*pending_tx).pretty(), chain_id);
 
 				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
 			})

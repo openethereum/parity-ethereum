@@ -64,7 +64,7 @@ fn map_rlp<F: Fn(&Rlp) -> ElasticArray1024<u8>>(rlp: &Rlp, f: F) -> ElasticArray
 	for subrlp in rlp.iter() {
 		stream.append_raw(&f(&subrlp), 1);
 	}
-	stream.drain()
+	stream.drain().as_slice().into()
 }
 
 /// Stores RLPs used for compression

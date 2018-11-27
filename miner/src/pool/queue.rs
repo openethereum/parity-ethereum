@@ -315,6 +315,12 @@ impl TransactionQueue {
 		self.pool.read().unordered_pending(ready).collect()
 	}
 
+	/// Returns all transaction hashes in the queue without explicit ordering.
+	pub fn all_transaction_hashes(&self) -> Vec<H256> {
+		let ready = |_tx: &pool::VerifiedTransaction| txpool::Readiness::Ready;
+		self.pool.read().unordered_pending(ready).map(|tx| tx.hash).collect()
+	}
+
 	/// Computes unordered set of pending hashes.
 	///
 	/// Since strict nonce-checking is not required, you may get some false positive future transactions as well.

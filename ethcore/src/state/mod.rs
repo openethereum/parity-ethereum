@@ -224,17 +224,16 @@ pub fn check_proof(
 	}
 }
 
-/// Prove a transaction on the given state.
+/// Prove a `virtual` transaction on the given state.
 /// Returns `None` when the transacion could not be proved,
 /// and a proof otherwise.
-pub fn prove_transaction<H: AsHashDB<KeccakHasher> + Send + Sync>(
+pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync>(
 	db: H,
 	root: H256,
 	transaction: &SignedTransaction,
 	machine: &Machine,
 	env_info: &EnvInfo,
 	factories: Factories,
-	virt: bool,
 ) -> Option<(Bytes, Vec<DBValue>)> {
 	use self::backend::Proving;
 
@@ -252,7 +251,7 @@ pub fn prove_transaction<H: AsHashDB<KeccakHasher> + Send + Sync>(
 	};
 
 	let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
-	match state.execute(env_info, machine, transaction, options, virt) {
+	match state.execute(env_info, machine, transaction, options, true) {
 		Err(ExecutionError::Internal(_)) => None,
 		Err(e) => {
 			trace!(target: "state", "Proved call failed: {}", e);
@@ -554,62 +553,70 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Get the value of storage at a specific checkpoint.
-	pub fn checkpoint_storage_at(&self, checkpoint_index: usize, address: &Address, key: &H256) -> TrieResult<Option<H256>> {
+	pub fn checkpoint_storage_at(&self, start_checkpoint_index: usize, address: &Address, key: &H256) -> TrieResult<Option<H256>> {
+		#[must_use]
 		enum ReturnKind {
 			/// Use original storage at value at this address.
 			OriginalAt,
-			/// Use the downward checkpoint value.
-			Downward,
+			/// The checkpoint storage value is the same as the checkpoint storage value at the next checkpoint.
+			SameAsNext,
 		}
 
-		let (checkpoints_len, kind) = {
+		let kind = {
 			let checkpoints = self.checkpoints.borrow();
-			let checkpoints_len = checkpoints.len();
-			let checkpoint = match checkpoints.get(checkpoint_index) {
-				Some(checkpoint) => checkpoint,
+
+			if start_checkpoint_index >= checkpoints.len() {
 				// The checkpoint was not found. Return None.
-				None => return Ok(None),
-			};
+				return Ok(None);
+			}
 
-			let kind = match checkpoint.get(address) {
-				// The account exists at this checkpoint.
-				Some(Some(AccountEntry { account: Some(ref account), .. })) => {
-					if let Some(value) = account.cached_storage_at(key) {
-						return Ok(Some(value));
-					} else {
-						// This account has checkpoint entry, but the key is not in the entry's cache. We can use
-						// original_storage_at if current account's original storage root is the same as checkpoint
-						// account's original storage root. Otherwise, the account must be a newly created contract.
-						if account.base_storage_root() == self.original_storage_root(address)? {
-							ReturnKind::OriginalAt
+			let mut kind = None;
+
+			for checkpoint in checkpoints.iter().skip(start_checkpoint_index) {
+				match checkpoint.get(address) {
+					// The account exists at this checkpoint.
+					Some(Some(AccountEntry { account: Some(ref account), .. })) => {
+						if let Some(value) = account.cached_storage_at(key) {
+							return Ok(Some(value));
 						} else {
-							// If account base storage root is different from the original storage root since last
-							// commit, then it can only be created from a new contract, where the base storage root
-							// would always be empty. Note that this branch is actually never called, because
-							// `cached_storage_at` handled this case.
-							warn!("Trying to get an account's cached storage value, but base storage root does not equal to original storage root! Assuming the value is empty.");
-							return Ok(Some(H256::new()));
+							// This account has checkpoint entry, but the key is not in the entry's cache. We can use
+							// original_storage_at if current account's original storage root is the same as checkpoint
+							// account's original storage root. Otherwise, the account must be a newly created contract.
+							if account.base_storage_root() == self.original_storage_root(address)? {
+								kind = Some(ReturnKind::OriginalAt);
+								break
+							} else {
+								// If account base storage root is different from the original storage root since last
+								// commit, then it can only be created from a new contract, where the base storage root
+								// would always be empty. Note that this branch is actually never called, because
+								// `cached_storage_at` handled this case.
+								warn!(target: "state", "Trying to get an account's cached storage value, but base storage root does not equal to original storage root! Assuming the value is empty.");
+								return Ok(Some(H256::new()));
+							}
 						}
-					}
-				},
-				// The account didn't exist at that point. Return empty value.
-				Some(Some(AccountEntry { account: None, .. })) => return Ok(Some(H256::new())),
-				// The value was not cached at that checkpoint, meaning it was not modified at all.
-				Some(None) => ReturnKind::OriginalAt,
-				// This key does not have a checkpoint entry.
-				None => ReturnKind::Downward,
-			};
+					},
+					// The account didn't exist at that point. Return empty value.
+					Some(Some(AccountEntry { account: None, .. })) => return Ok(Some(H256::new())),
+					// The value was not cached at that checkpoint, meaning it was not modified at all.
+					Some(None) => {
+						kind = Some(ReturnKind::OriginalAt);
+						break
+					},
+					// This key does not have a checkpoint entry.
+					None => {
+						kind = Some(ReturnKind::SameAsNext);
+					},
+				}
+			}
 
-			(checkpoints_len, kind)
+			kind.expect("start_checkpoint_index is checked to be below checkpoints_len; for loop above must have been executed at least once; it will either early return, or set the kind value to Some; qed")
 		};
 
 		match kind {
-			ReturnKind::Downward => {
-				if checkpoint_index >= checkpoints_len - 1 {
-					Ok(Some(self.storage_at(address, key)?))
-				} else {
-					self.checkpoint_storage_at(checkpoint_index + 1, address, key)
-				}
+			ReturnKind::SameAsNext => {
+				// If we reached here, all previous SameAsNext failed to early return. It means that the value we want
+				// to fetch is the same as current.
+				Ok(Some(self.storage_at(address, key)?))
 			},
 			ReturnKind::OriginalAt => Ok(Some(self.original_storage_at(address, key)?)),
 		}
@@ -619,7 +626,7 @@ impl<B: Backend> State<B> {
 		&self, address: &Address, key: &H256, f_cached_at: FCachedStorageAt, f_at: FStorageAt,
 	) -> TrieResult<H256> where
 		FCachedStorageAt: Fn(&Account, &H256) -> Option<H256>,
-		FStorageAt: Fn(&Account, &HashDB<KeccakHasher>, &H256) -> TrieResult<H256>
+		FStorageAt: Fn(&Account, &HashDB<KeccakHasher, DBValue>, &H256) -> TrieResult<H256>
 	{
 		// Storage key search and update works like this:
 		// 1. If there's an entry for the account in the local cache check for the key and return it if found.
@@ -940,20 +947,78 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Populate a PodAccount map from this state.
-	pub fn to_pod(&self) -> PodState {
+	fn to_pod_cache(&self) -> PodState {
 		assert!(self.checkpoints.borrow().is_empty());
-		// TODO: handle database rather than just the cache.
-		// will need fat db.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = opt.account {
-				m.insert(add.clone(), PodAccount::from_account(acc));
+				m.insert(*add, PodAccount::from_account(acc));
 			}
 			m
 		}))
 	}
 
+	#[cfg(feature="to-pod-full")]
+	/// Populate a PodAccount map from this state.
+	/// Warning this is not for real time use.
+	/// Use of this method requires FatDB mode to be able 
+	/// to iterate on accounts.
+	pub fn to_pod_full(&self) -> Result<PodState, Error> {
+
+		assert!(self.checkpoints.borrow().is_empty());
+		assert!(self.factories.trie.is_fat());
+
+		let mut result = BTreeMap::new();
+
+		let trie = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
+
+		// put trie in cache 
+		for item in trie.iter()? {
+			if let Ok((addr, _dbval)) = item {
+				let address = Address::from_slice(&addr);
+				let _ = self.require(&address, true);
+			}
+		}
+
+		// Resolve missing part
+		for (add, opt) in self.cache.borrow().iter() {
+			if let Some(ref acc) = opt.account {
+				let pod_account = self.account_to_pod_account(acc, add)?;
+				result.insert(add.clone(), pod_account);
+			}
+		}
+
+		Ok(PodState::from(result))
+	}
+
+	/// Create a PodAccount from an account.
+	/// Differs from existing method by including all storage
+	/// values of the account to the PodAccount.
+	/// This function is only intended for use in small tests or with fresh accounts.
+	/// It requires FatDB.
+	#[cfg(feature="to-pod-full")]
+	fn account_to_pod_account(&self, account: &Account, address: &Address) -> Result<PodAccount, Error> {
+		let mut pod_storage = BTreeMap::new();
+		let addr_hash = account.address_hash(address);
+		let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+		let root = account.base_storage_root();
+
+		let trie = self.factories.trie.readonly(accountdb.as_hashdb(), &root)?;
+		for o_kv in trie.iter()? {
+			if let Ok((key, val)) = o_kv {
+				pod_storage.insert(key[..].into(), U256::from(&val[..]).into());
+			}
+		}
+
+		let mut pod_account = PodAccount::from_account(&account);
+		// cached one first
+		pod_storage.append(&mut pod_account.storage);
+		pod_account.storage = pod_storage;
+		Ok(pod_account)
+	}
+
+
 	/// Populate a PodAccount map from this state, with another state as the account and storage query.
-	pub fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
+	fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
 		assert!(self.checkpoints.borrow().is_empty());
 
 		// Merge PodAccount::to_pod for cache of self and `query`.
@@ -1008,14 +1073,14 @@ impl<B: Backend> State<B> {
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
 	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> TrieResult<StateDiff> {
-		let pod_state_post = self.to_pod();
+		let pod_state_post = self.to_pod_cache();
 		let pod_state_pre = orig.to_pod_diff(self)?;
 		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
 	}
 
 	/// Load required account data from the databases. Returns whether the cache succeeds.
 	#[must_use]
-	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &B, db: &HashDB<KeccakHasher>) -> bool {
+	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &B, db: &HashDB<KeccakHasher, DBValue>) -> bool {
 		if let RequireCache::None = require {
 			return true;
 		}
@@ -1144,6 +1209,8 @@ impl<B: Backend> State<B> {
 					if require_code {
 						let addr_hash = account.address_hash(a);
 						let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+
+						// FIXME (Issue #9838): update_account_cache can fail in rare cases, but we cannot return error in RefMut wrapper.
 						Self::update_account_cache(RequireCache::Code, account, &self.db, accountdb.as_hashdb());
 					}
 					account
@@ -1526,7 +1593,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_not_trace_callcode() {
+	fn should_trace_callcode_properly() {
 		init_log();
 
 		let mut state = get_temp_state();
@@ -1568,7 +1635,7 @@ mod tests {
 			subtraces: 0,
 			action: trace::Action::Call(trace::Call {
 				from: 0xa.into(),
-				to: 0xa.into(),
+				to: 0xb.into(),
 				value: 0.into(),
 				gas: 4096.into(),
 				input: vec![],
@@ -2584,12 +2651,12 @@ mod tests {
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
-				   pod_account::diff_pod(Some(&PodAccount {
-					   balance: U256::from(100),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: Default::default()
-				   }), None).as_ref());
+				pod_account::diff_pod(Some(&PodAccount {
+					balance: U256::from(100),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: Default::default()
+				}), None).as_ref());
 	}
 
 	#[test]
@@ -2615,18 +2682,64 @@ mod tests {
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
-				   pod_account::diff_pod(Some(&PodAccount {
-					   balance: U256::zero(),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64)))]
-						   .into_iter().collect(),
-				   }), Some(&PodAccount {
-					   balance: U256::zero(),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64)))]
-						   .into_iter().collect(),
-				   })).as_ref());
+				pod_account::diff_pod(Some(&PodAccount {
+					balance: U256::zero(),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64)))]
+						.into_iter().collect(),
+				}), Some(&PodAccount {
+					balance: U256::zero(),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64)))]
+						.into_iter().collect(),
+				})).as_ref());
 	}
+
+	#[cfg(feature="to-pod-full")]
+	#[test]
+	fn should_get_full_pod_storage_values() {
+		use trie::{TrieFactory, TrieSpec};
+
+		let a = 10.into();
+		let db = get_temp_state_db();
+
+		let factories = Factories {
+			vm: Default::default(),
+			trie: TrieFactory::new(TrieSpec::Fat),
+			accountdb: Default::default(),
+		};
+
+		let get_pod_state_val = |pod_state : &PodState, ak, k| {
+			pod_state.get().get(ak).unwrap().storage.get(&k).unwrap().clone()
+		};
+
+		let storage_address = H256::from(&U256::from(1u64));
+
+		let (root, db) = {
+			let mut state = State::new(db, U256::from(0), factories.clone());
+			state.set_storage(&a, storage_address.clone(), H256::from(&U256::from(20u64))).unwrap();
+			let dump = state.to_pod_full().unwrap();
+			assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(20u64)));
+			state.commit().unwrap();
+			let dump = state.to_pod_full().unwrap();
+			assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(20u64)));
+			state.drop()
+		};
+
+		let mut state = State::from_existing(db, root, U256::from(0u8), factories).unwrap();
+		let dump = state.to_pod_full().unwrap();
+		assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(20u64)));
+		state.set_storage(&a, storage_address.clone(), H256::from(&U256::from(21u64))).unwrap();
+		let dump = state.to_pod_full().unwrap();
+		assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(21u64)));
+		state.commit().unwrap();
+		state.set_storage(&a, storage_address.clone(), H256::from(&U256::from(0u64))).unwrap();
+		let dump = state.to_pod_full().unwrap();
+		assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(0u64)));
+
+
+	}
+
 }

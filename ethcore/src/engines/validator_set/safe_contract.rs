@@ -157,7 +157,7 @@ fn decode_first_proof(rlp: &Rlp) -> Result<(Header, Vec<DBValue>), ::error::Erro
 fn encode_proof(header: &Header, receipts: &[Receipt]) -> Bytes {
 	let mut stream = RlpStream::new_list(2);
 	stream.append(header).append_list(receipts);
-	stream.drain().into_vec()
+	stream.drain()
 }
 
 fn decode_proof(rlp: &Rlp) -> Result<(Header, Vec<Receipt>), ::error::Error> {

@@ -23,11 +23,11 @@ use blockchain::transaction::Transaction;
 /// Blockchain test block deserializer.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Block {
-	#[serde(rename="blockHeader")]
+	#[serde(rename = "blockHeader")]
 	header: Option<Header>,
 	rlp: Bytes,
 	transactions: Option<Vec<Transaction>>,
-	#[serde(rename="uncleHeaders")]
+	#[serde(rename = "uncleHeaders")]
 	uncles: Option<Vec<Header>>,
 }
 

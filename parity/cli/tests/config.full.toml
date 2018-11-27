@@ -64,6 +64,7 @@ interface = "local"
 cors = ["null"]
 apis = ["web3", "eth", "net", "parity", "traces", "rpc", "secretstore"]
 hosts = ["none"]
+allow_missing_blocks = false
 
 [websockets]
 disable = false

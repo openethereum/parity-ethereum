@@ -5,7 +5,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 rlp_derive = { path = "../../util/rlp_derive" }
 parity-bytes = "0.1"
 ethereum-types = "0.4"

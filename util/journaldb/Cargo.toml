@@ -8,15 +8,15 @@ license = "GPL3"
 [dependencies]
 parity-bytes = "0.1"
 ethereum-types = "0.4"
-hashdb = "0.2.1"
+hashdb = "0.3.0"
 heapsize = "0.4"
 keccak-hasher = { path = "../keccak-hasher" }
 kvdb = "0.1"
 log = "0.4"
-memorydb = "0.2.1"
+memorydb = "0.3.0"
 parking_lot = "0.6"
 fastmap = { path = "../../util/fastmap" }
-rlp = { version = "0.2.4", features = ["ethereum"] }
+rlp = { version = "0.3.0", features = ["ethereum"] }
 
 [dev-dependencies]
 ethcore-logger = { path = "../../logger" }

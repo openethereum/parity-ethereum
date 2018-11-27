@@ -25,6 +25,7 @@ pub mod light_fetch;
 pub mod nonce;
 pub mod oneshot;
 pub mod secretstore;
+pub mod eip191;
 
 mod network_settings;
 mod poll_filter;
@@ -36,7 +37,7 @@ mod subscribers;
 mod subscription_manager;
 mod work;
 
-pub use self::dispatch::{Dispatcher, FullDispatcher};
+pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, SyncPollFilter, limit_logs};

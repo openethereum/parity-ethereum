@@ -61,7 +61,7 @@ impl HeapSizeOf for PreverifiedBlock {
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bool) -> Result<(), Error> {
-	verify_header_params(&block.header, engine, true)?;
+	verify_header_params(&block.header, engine, true, check_seal)?;
 	verify_block_integrity(block)?;
 
 	if check_seal {
@@ -69,7 +69,7 @@ pub fn verify_block_basic(block: &Unverified, engine: &EthEngine, check_seal: bo
 	}
 
 	for uncle in &block.uncles {
-		verify_header_params(uncle, engine, false)?;
+		verify_header_params(uncle, engine, false, check_seal)?;
 		if check_seal {
 			engine.verify_block_basic(uncle)?;
 		}
@@ -147,7 +147,9 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent:
 	verify_uncles(params.block, params.block_provider, engine)?;
 
 	for tx in &params.block.transactions {
-		engine.machine().verify_transaction(tx, header, params.client)?;
+		// transactions are verified against the parent header since the current
+		// state wasn't available when the tx was created
+		engine.machine().verify_transaction(tx, parent, params.client)?;
 	}
 
 	Ok(())
@@ -173,7 +175,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &BlockProvider, engine: &EthEngin
 		for _ in 0..engine.maximum_uncle_age() {
 			match bc.block_details(&hash) {
 				Some(details) => {
-					excluded.insert(details.parent.clone());
+					excluded.insert(details.parent);
 					let b = bc.block(&hash)
 						.expect("parent already known to be stored; qed");
 					excluded.extend(b.uncle_hashes());
@@ -245,39 +247,46 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &BlockProvider, engine: &EthEngin
 
 /// Phase 4 verification. Check block information against transaction enactment results,
 pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> {
+	if expected.state_root() != got.state_root() {
+		return Err(From::from(BlockError::InvalidStateRoot(Mismatch { expected: *expected.state_root(), found: *got.state_root() })))
+	}
 	if expected.gas_used() != got.gas_used() {
-		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: expected.gas_used().clone(), found: got.gas_used().clone() })))
+		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: *expected.gas_used(), found: *got.gas_used() })))
 	}
 	if expected.log_bloom() != got.log_bloom() {
-		return Err(From::from(BlockError::InvalidLogBloom(Mismatch { expected: expected.log_bloom().clone(), found: got.log_bloom().clone() })))
-	}
-	if expected.state_root() != got.state_root() {
-		return Err(From::from(BlockError::InvalidStateRoot(Mismatch { expected: expected.state_root().clone(), found: got.state_root().clone() })))
+		return Err(From::from(BlockError::InvalidLogBloom(Mismatch { expected: *expected.log_bloom(), found: *got.log_bloom() })))
 	}
 	if expected.receipts_root() != got.receipts_root() {
-		return Err(From::from(BlockError::InvalidReceiptsRoot(Mismatch { expected: expected.receipts_root().clone(), found: got.receipts_root().clone() })))
+		return Err(From::from(BlockError::InvalidReceiptsRoot(Mismatch { expected: *expected.receipts_root(), found: *got.receipts_root() })))
 	}
 	Ok(())
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) -> Result<(), Error> {
-	let expected_seal_fields = engine.seal_fields(header);
-	if header.seal().len() != expected_seal_fields {
-		return Err(From::from(BlockError::InvalidSealArity(
-			Mismatch { expected: expected_seal_fields, found: header.seal().len() }
-		)));
+pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool, check_seal: bool) -> Result<(), Error> {
+	if check_seal {
+		let expected_seal_fields = engine.seal_fields(header);
+		if header.seal().len() != expected_seal_fields {
+			return Err(From::from(BlockError::InvalidSealArity(
+				Mismatch { expected: expected_seal_fields, found: header.seal().len() }
+			)));
+		}
 	}
 
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}
 	if header.gas_used() > header.gas_limit() {
-		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit().clone()), min: None, found: header.gas_used().clone() })));
+		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(*header.gas_limit()), min: None, found: *header.gas_used() })));
 	}
 	let min_gas_limit = engine.params().min_gas_limit;
 	if header.gas_limit() < &min_gas_limit {
-		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit().clone() })));
+		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: *header.gas_limit() })));
+	}
+	if let Some(limit) = engine.maximum_gas_limit() {
+		if header.gas_limit() > &limit {
+			return Err(From::from(::error::BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(limit), found: *header.gas_limit() })));
+		}
 	}
 	let maximum_extra_data_size = engine.maximum_extra_data_size();
 	if header.number() != 0 && header.extra_data().len() > maximum_extra_data_size {
@@ -334,7 +343,7 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 	let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
 	let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;
 	if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
+		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: *header.gas_limit() })));
 	}
 
 	Ok(())
@@ -518,7 +527,7 @@ mod tests {
 		// is fine.
 		let client = ::client::TestBlockChainClient::default();
 		let parent = bc.block_header_data(header.parent_hash())
-			.ok_or(BlockError::UnknownParent(header.parent_hash().clone()))?
+			.ok_or(BlockError::UnknownParent(*header.parent_hash()))?
 			.decode()?;
 
 		let block = PreverifiedBlock {

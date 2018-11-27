@@ -23,28 +23,47 @@ use blockchain::header::Header;
 use blockchain::block::Block;
 use spec::{ForkSpec, Genesis, Seal, Ethereum};
 
+/// Json Block test possible engine kind.
+#[derive(Debug, PartialEq, Deserialize)]
+pub enum Engine {
+	/// Default (old) behaviour.
+	Ethash,
+	/// No check of block's difficulty and nonce for tests.
+	NoProof,
+}
+
+impl Default for Engine {
+	fn default() -> Self {
+		Engine::Ethash
+	}
+}
+
 /// Blockchain deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BlockChain {
 	/// Genesis block header.
-	#[serde(rename="genesisBlockHeader")]
+	#[serde(rename = "genesisBlockHeader")]
 	pub genesis_block: Header,
 	/// Genesis block rlp.
-	#[serde(rename="genesisRLP")]
+	#[serde(rename = "genesisRLP")]
 	pub genesis_rlp: Option<Bytes>,
 	/// Blocks.
 	pub blocks: Vec<Block>,
 	/// Post state.
-	#[serde(rename="postState")]
 	pub post_state: State,
 	/// Pre state.
-	#[serde(rename="pre")]
+	#[serde(rename = "pre")]
 	pub pre_state: State,
 	/// Hash of best block.
-	#[serde(rename="lastblockhash")]
+	#[serde(rename = "lastblockhash")]
 	pub best_block: H256,
 	/// Network.
 	pub network: ForkSpec,
+	#[serde(default)]
+	#[serde(rename="sealEngine")]
+	/// Engine
+	pub engine: Engine,
 }
 
 impl BlockChain {

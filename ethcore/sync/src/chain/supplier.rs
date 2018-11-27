@@ -226,7 +226,8 @@ impl SyncSupplier {
 		let mut added_receipts = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(mut receipts_bytes) = io.chain().encoded_block_receipts(&rlp.val_at::<H256>(i)?) {
+			if let Some(receipts) = io.chain().block_receipts(&rlp.val_at::<H256>(i)?) {
+				let mut receipts_bytes = ::rlp::encode(&receipts);
 				data.append(&mut receipts_bytes);
 				added_receipts += receipts_bytes.len();
 				added_headers += 1;

@@ -39,7 +39,7 @@ use sync::LightSync;
 use light::cache::Cache;
 use light::on_demand::OnDemand;
 use light::client::{LightChainClient, LightChainNotify};
-use parity_reactor::Remote;
+use parity_runtime::Executor;
 use ethereum_types::H256;
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
@@ -56,7 +56,7 @@ pub struct EthPubSubClient<C> {
 
 impl<C> EthPubSubClient<C> {
 	/// Creates new `EthPubSubClient`.
-	pub fn new(client: Arc<C>, remote: Remote) -> Self {
+	pub fn new(client: Arc<C>, executor: Executor) -> Self {
 		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
@@ -64,7 +64,7 @@ impl<C> EthPubSubClient<C> {
 		EthPubSubClient {
 			handler: Arc::new(ChainNotificationHandler {
 				client,
-				remote,
+				executor,
 				heads_subscribers: heads_subscribers.clone(),
 				logs_subscribers: logs_subscribers.clone(),
 				transactions_subscribers: transactions_subscribers.clone(),
@@ -77,8 +77,8 @@ impl<C> EthPubSubClient<C> {
 
 	/// Creates new `EthPubSubCient` with deterministic subscription ids.
 	#[cfg(test)]
-	pub fn new_test(client: Arc<C>, remote: Remote) -> Self {
-		let client = Self::new(client, remote);
+	pub fn new_test(client: Arc<C>, executor: Executor) -> Self {
+		let client = Self::new(client, executor);
 		*client.heads_subscribers.write() = Subscribers::new_test();
 		*client.logs_subscribers.write() = Subscribers::new_test();
 		*client.transactions_subscribers.write() = Subscribers::new_test();
@@ -98,7 +98,7 @@ impl EthPubSubClient<LightFetch> {
 		on_demand: Arc<OnDemand>,
 		sync: Arc<LightSync>,
 		cache: Arc<Mutex<Cache>>,
-		remote: Remote,
+		executor: Executor,
 		gas_price_percentile: usize,
 	) -> Self {
 		let fetch = LightFetch {
@@ -108,22 +108,22 @@ impl EthPubSubClient<LightFetch> {
 			cache,
 			gas_price_percentile,
 		};
-		EthPubSubClient::new(Arc::new(fetch), remote)
+		EthPubSubClient::new(Arc::new(fetch), executor)
 	}
 }
 
 /// PubSub Notification handler.
 pub struct ChainNotificationHandler<C> {
 	client: Arc<C>,
-	remote: Remote,
+	executor: Executor,
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
 	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> ChainNotificationHandler<C> {
-	fn notify(remote: &Remote, subscriber: &Client, result: pubsub::Result) {
-		remote.spawn(subscriber
+	fn notify(executor: &Executor, subscriber: &Client, result: pubsub::Result) {
+		executor.spawn(subscriber
 			.notify(Ok(result))
 			.map(|_| ())
 			.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
@@ -133,7 +133,7 @@ impl<C> ChainNotificationHandler<C> {
 	fn notify_heads(&self, headers: &[(encoded::Header, BTreeMap<String, String>)]) {
 		for subscriber in self.heads_subscribers.read().values() {
 			for &(ref header, ref extra_info) in headers {
-				Self::notify(&self.remote, subscriber, pubsub::Result::Header(RichHeader {
+				Self::notify(&self.executor, subscriber, pubsub::Result::Header(RichHeader {
 					inner: header.into(),
 					extra_info: extra_info.clone(),
 				}));
@@ -159,14 +159,14 @@ impl<C> ChainNotificationHandler<C> {
 				.collect::<Vec<_>>()
 			);
 			let limit = filter.limit;
-			let remote = self.remote.clone();
+			let executor = self.executor.clone();
 			let subscriber = subscriber.clone();
-			self.remote.spawn(logs
+			self.executor.spawn(logs
 				.map(move |logs| {
 					let logs = logs.into_iter().flat_map(|log| log).collect();
 
 					for log in limit_logs(logs, limit) {
-						Self::notify(&remote, &subscriber, pubsub::Result::Log(log))
+						Self::notify(&executor, &subscriber, pubsub::Result::Log(log))
 					}
 				})
 				.map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))
@@ -178,7 +178,7 @@ impl<C> ChainNotificationHandler<C> {
 	pub fn notify_new_transactions(&self, hashes: &[H256]) {
 		for subscriber in self.transactions_subscribers.read().values() {
 			for hash in hashes {
-				Self::notify(&self.remote, subscriber, pubsub::Result::TransactionHash((*hash).into()));
+				Self::notify(&self.executor, subscriber, pubsub::Result::TransactionHash((*hash).into()));
 			}
 		}
 	}

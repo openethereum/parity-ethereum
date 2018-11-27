@@ -23,7 +23,7 @@ extern crate ansi_term;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate futures;
-extern crate futures_cpupool;
+extern crate parity_runtime;
 extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate linked_hash_map;

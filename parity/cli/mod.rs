@@ -288,7 +288,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, tobalaba, expanse, musicoin, ellaism, easthub, social, olympic, morden, ropsten, kovan, poasokol, testnet, or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, tobalaba, expanse, musicoin, ellaism, easthub, social, mix, callisto, morden, ropsten, kovan, poasokol, testnet, or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| c.parity.as_ref()?.keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -463,9 +463,21 @@ usage! {
 
 
 		["API and Console Options – HTTP JSON-RPC"]
+			FLAG flag_jsonrpc_allow_missing_blocks: (bool) = false, or |c: &Config| c.rpc.as_ref()?.allow_missing_blocks.clone(),
+			"--jsonrpc-allow-missing-blocks",
+			"RPC calls will return 'null' instead of an error if ancient block sync is still in progress and the block information requested could not be found",
+
 			FLAG flag_no_jsonrpc: (bool) = false, or |c: &Config| c.rpc.as_ref()?.disable.clone(),
 			"--no-jsonrpc",
 			"Disable the HTTP JSON-RPC API server.",
+
+			FLAG flag_jsonrpc_no_keep_alive: (bool) = false, or |c: &Config| c.rpc.as_ref()?.keep_alive,
+			"--jsonrpc-no-keep-alive",
+			"Disable HTTP/1.1 keep alive header. Disabling keep alive will prevent re-using the same TCP connection to fire multiple requests, recommended when using one request per connection.",
+
+			FLAG flag_jsonrpc_experimental: (bool) = false, or |c: &Config| c.rpc.as_ref()?.experimental_rpcs.clone(),
+			"--jsonrpc-experimental",
+			"Enable experimental RPCs. Enable to have access to methods from unfinalised EIPs in all namespaces",
 
 			ARG arg_jsonrpc_port: (u16) = 8545u16, or |c: &Config| c.rpc.as_ref()?.port.clone(),
 			"--jsonrpc-port=[PORT]",
@@ -498,6 +510,10 @@ usage! {
 			ARG arg_jsonrpc_max_payload: (Option<usize>) = None, or |c: &Config| c.rpc.as_ref()?.max_payload,
 			"--jsonrpc-max-payload=[MB]",
 			"Specify maximum size for HTTP JSON-RPC requests in megabytes.",
+
+			ARG arg_poll_lifetime: (u32) = 60u32, or |c: &Config| c.rpc.as_ref()?.poll_lifetime.clone(),
+			"--poll-lifetime=[S]",
+			"Set the RPC filter lifetime to S seconds. The filter has to be polled at least every S seconds , otherwise it is removed.",
 
 		["API and Console Options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| c.websockets.as_ref()?.disable.clone(),
@@ -753,10 +769,6 @@ usage! {
 			"--gas-price-percentile=[PCT]",
 			"Set PCT percentile gas price value from last 100 blocks as default gas price when sending transactions.",
 
-			ARG arg_poll_lifetime: (u32) = 60u32, or |c: &Config| c.mining.as_ref()?.poll_lifetime.clone(),
-			"--poll-lifetime=[S]",
-			"Set the lifetime of the internal index filter to S seconds.",
-
 			ARG arg_author: (Option<String>) = None, or |c: &Config| c.mining.as_ref()?.author.clone(),
 			"--author=[ADDRESS]",
 			"Specify the block author (aka \"coinbase\") address for sending block rewards from sealed blocks. NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.", // Sealing/Mining Option
@@ -784,6 +796,10 @@ usage! {
 			ARG arg_stratum_secret: (Option<String>) = None, or |c: &Config| c.stratum.as_ref()?.secret.clone(),
 			"--stratum-secret=[STRING]",
 			"Secret for authorizing Stratum server for peers.",
+
+			ARG arg_max_round_blocks_to_import: (usize) = 12usize, or |c: &Config| c.mining.as_ref()?.max_round_blocks_to_import.clone(),
+			"--max-round-blocks-to-import=[S]",
+			"Maximal number of blocks to import for each import round.",
 
 		["Internal Options"]
 			FLAG flag_can_restart: (bool) = false, or |_| None,
@@ -1137,7 +1153,7 @@ struct Operating {
 	no_persistent_txqueue: Option<bool>,
 	no_hardcoded_sync: Option<bool>,
 
-	#[serde(rename="public_node")]
+	#[serde(rename = "public_node")]
 	_legacy_public_node: Option<bool>,
 }
 
@@ -1169,15 +1185,15 @@ struct PrivateTransactions {
 struct Ui {
 	path: Option<String>,
 
-	#[serde(rename="force")]
+	#[serde(rename = "force")]
 	_legacy_force: Option<bool>,
-	#[serde(rename="disable")]
+	#[serde(rename = "disable")]
 	_legacy_disable: Option<bool>,
-	#[serde(rename="port")]
+	#[serde(rename = "port")]
 	_legacy_port: Option<u16>,
-	#[serde(rename="interface")]
+	#[serde(rename = "interface")]
 	_legacy_interface: Option<String>,
-	#[serde(rename="hosts")]
+	#[serde(rename = "hosts")]
 	_legacy_hosts: Option<Vec<String>>,
 }
 
@@ -1215,6 +1231,10 @@ struct Rpc {
 	server_threads: Option<usize>,
 	processing_threads: Option<usize>,
 	max_payload: Option<usize>,
+	keep_alive: Option<bool>,
+	experimental_rpcs: Option<bool>,
+	poll_lifetime: Option<u32>,
+	allow_missing_blocks: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1240,21 +1260,21 @@ struct Ipc {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Dapps {
-	#[serde(rename="disable")]
+	#[serde(rename = "disable")]
 	_legacy_disable: Option<bool>,
-	#[serde(rename="port")]
+	#[serde(rename = "port")]
 	_legacy_port: Option<u16>,
-	#[serde(rename="interface")]
+	#[serde(rename = "interface")]
 	_legacy_interface: Option<String>,
-	#[serde(rename="hosts")]
+	#[serde(rename = "hosts")]
 	_legacy_hosts: Option<Vec<String>>,
-	#[serde(rename="cors")]
+	#[serde(rename = "cors")]
 	_legacy_cors: Option<String>,
-	#[serde(rename="path")]
+	#[serde(rename = "path")]
 	_legacy_path: Option<String>,
-	#[serde(rename="user")]
+	#[serde(rename = "user")]
 	_legacy_user: Option<String>,
-	#[serde(rename="pass")]
+	#[serde(rename = "pass")]
 	_legacy_pass: Option<String>,
 }
 
@@ -1307,7 +1327,6 @@ struct Mining {
 	relay_set: Option<String>,
 	min_gas_price: Option<u64>,
 	gas_price_percentile: Option<usize>,
-	poll_lifetime: Option<u32>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -1326,6 +1345,7 @@ struct Mining {
 	notify_work: Option<Vec<String>>,
 	refuse_service_transactions: Option<bool>,
 	infinite_pending_block: Option<bool>,
+	max_round_blocks_to_import: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1671,6 +1691,8 @@ mod tests {
 			// -- API and Console Options
 			// RPC
 			flag_no_jsonrpc: false,
+			flag_jsonrpc_no_keep_alive: false,
+			flag_jsonrpc_experimental: false,
 			arg_jsonrpc_port: 8545u16,
 			arg_jsonrpc_interface: "local".into(),
 			arg_jsonrpc_cors: "null".into(),
@@ -1679,6 +1701,8 @@ mod tests {
 			arg_jsonrpc_server_threads: None,
 			arg_jsonrpc_threads: 4,
 			arg_jsonrpc_max_payload: None,
+			arg_poll_lifetime: 60u32,
+			flag_jsonrpc_allow_missing_blocks: false,
 
 			// WS
 			flag_no_ws: false,
@@ -1740,7 +1764,6 @@ mod tests {
 			arg_min_gas_price: Some(0u64),
 			arg_usd_per_tx: "0.0001".into(),
 			arg_gas_price_percentile: 50usize,
-			arg_poll_lifetime: 60u32,
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
 			arg_gas_floor_target: "8000000".into(),
@@ -1758,6 +1781,7 @@ mod tests {
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
 			flag_infinite_pending_block: false,
+			arg_max_round_blocks_to_import: 12usize,
 
 			flag_stratum: false,
 			arg_stratum_interface: "local".to_owned(),
@@ -1952,6 +1976,10 @@ mod tests {
 				server_threads: None,
 				processing_threads: None,
 				max_payload: None,
+				keep_alive: None,
+				experimental_rpcs: None,
+				poll_lifetime: None,
+				allow_missing_blocks: None
 			}),
 			ipc: Some(Ipc {
 				disable: None,
@@ -2008,7 +2036,6 @@ mod tests {
 				relay_set: None,
 				min_gas_price: None,
 				gas_price_percentile: None,
-				poll_lifetime: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),
@@ -2029,6 +2056,7 @@ mod tests {
 				notify_work: None,
 				refuse_service_transactions: None,
 				infinite_pending_block: None,
+				max_round_blocks_to_import: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),
