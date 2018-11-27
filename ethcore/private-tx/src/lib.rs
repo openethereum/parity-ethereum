@@ -556,28 +556,20 @@ impl Provider where {
 			.and_then(|h| h.decode().map_err(|_| ErrorKind::StateIncorrect).into())?;
 		let (executed_code, executed_state) = (executed.code.unwrap_or_default(), executed.state);
 		let tx_data = Self::generate_constructor(validators, executed_code.clone(), executed_state.clone());
-		let gas = match self.client.estimate_gas(&Transaction {
+		let mut tx = Transaction {
 			nonce: nonce,
 			action: Action::Create,
 			gas: u64::max_value().into(),
 			gas_price: gas_price,
 			value: source.value,
-			data: tx_data.clone(),
-			}.fake_sign(sender),
-		&state,
-		&header) {
+			data: tx_data,
+		};
+		tx.gas = match self.client.estimate_gas(&tx.clone().fake_sign(sender), &state, &header) {
 			Ok(estimated_gas) => estimated_gas,
 			Err(_) => self.estimate_tx_gas(validators, &executed_code, &executed_state, &[]),
 		};
-		Ok((Transaction {
-			nonce: nonce,
-			action: Action::Create,
-			gas: gas.into(),
-			gas_price: gas_price,
-			value: source.value,
-			data: tx_data,
-		},
-		executed.contract_address))
+
+		Ok((tx, executed.contract_address))
 	}
 
 	fn estimate_tx_gas(&self, validators: &[Address], code: &Bytes, state: &Bytes, signatures: &[Signature]) -> U256 {
