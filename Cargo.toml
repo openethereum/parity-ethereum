@@ -141,3 +141,4 @@ members = [
 [patch.crates-io]
 ring = { git = "https://github.com/paritytech/ring" }
 tokio-proto = { git = "https://github.com/tokio-rs/tokio-proto.git", rev = "56c720e" }
+untrusted = { git = "https://github.com/paritytech/untrusted", branch = "0.5" }

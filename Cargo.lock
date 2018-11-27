@@ -2806,7 +2806,7 @@ dependencies = [
  "libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "untrusted 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "untrusted 0.5.1 (git+https://github.com/paritytech/untrusted?branch=0.5)",
 ]
 
 [[package]]
@@ -2913,7 +2913,7 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "ring 0.12.1 (git+https://github.com/paritytech/ring)",
  "sct 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "untrusted 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "untrusted 0.5.1 (git+https://github.com/paritytech/untrusted?branch=0.5)",
  "webpki 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2951,7 +2951,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ring 0.12.1 (git+https://github.com/paritytech/ring)",
- "untrusted 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "untrusted 0.5.1 (git+https://github.com/paritytech/untrusted?branch=0.5)",
 ]
 
 [[package]]
@@ -3651,7 +3651,7 @@ dependencies = [
 [[package]]
 name = "untrusted"
 version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/paritytech/untrusted?branch=0.5#6e8e92cd31b23272685f340cfde481cb68ac1243"
 
 [[package]]
 name = "url"
@@ -3764,7 +3764,7 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ring 0.12.1 (git+https://github.com/paritytech/ring)",
- "untrusted 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "untrusted 0.5.1 (git+https://github.com/paritytech/untrusted?branch=0.5)",
 ]
 
 [[package]]
@@ -3772,7 +3772,7 @@ name = "webpki-roots"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "untrusted 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "untrusted 0.5.1 (git+https://github.com/paritytech/untrusted?branch=0.5)",
  "webpki 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -4179,7 +4179,7 @@ dependencies = [
 "checksum unicode-width 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "882386231c45df4700b275c7ff55b6f3698780a650026380e72dabe76fa46526"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
 "checksum unreachable 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "382810877fe448991dfc7f0dd6e3ae5d58088fd0ea5e35189655f84e6814fa56"
-"checksum untrusted 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f392d7819dbe58833e26872f5f6f0d68b7bbbe90fc3667e98731c4a15ad9a7ae"
+"checksum untrusted 0.5.1 (git+https://github.com/paritytech/untrusted?branch=0.5)" = "<none>"
 "checksum url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2a321979c09843d272956e73700d12c4e7d3d92b2ee112b31548aef0d4efc5a6"
 "checksum utf8-ranges 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "fd70f467df6810094968e2fce0ee1bd0e87157aceb026a8c083bcf5e25b9efe4"
 "checksum vec_map 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
