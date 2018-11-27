@@ -6,4 +6,3 @@ authors = ["Marek Kotewicz <marek@parity.io>"]
 [dependencies]
 ethjson = { path = "../json" }
 serde_json = "1.0"
-serde_ignored = "0.0.4"

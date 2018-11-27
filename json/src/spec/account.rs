@@ -23,6 +23,7 @@ use spec::builtin::Builtin;
 
 /// Spec account.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Account {
 	/// Builtin contract.
 	pub builtin: Option<Builtin>,

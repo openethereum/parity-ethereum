@@ -20,6 +20,7 @@ use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine, Inst
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub enum Engine {
 	/// Null engine.
 	#[serde(rename="null")]
@@ -28,6 +29,7 @@ pub enum Engine {
 	#[serde(rename="instantSeal")]
 	InstantSeal(Option<InstantSeal>),
 	/// Ethash engine.
+	#[serde(rename = "Ethash")]
 	Ethash(Ethash),
 	/// BasicAuthority engine.
 	#[serde(rename="basicAuthority")]

@@ -22,6 +22,7 @@ use bytes::Bytes;
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Params {
 	/// Account start nonce, defaults to 0.
 	#[serde(rename="accountStartNonce")]

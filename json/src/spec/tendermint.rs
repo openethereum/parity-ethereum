@@ -21,6 +21,7 @@ use super::ValidatorSet;
 
 /// Tendermint params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TendermintParams {
 	/// Valid validators.
 	pub validators: ValidatorSet,
@@ -43,6 +44,7 @@ pub struct TendermintParams {
 
 /// Tendermint engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Tendermint {
 	/// Ethash params.
 	pub params: TendermintParams,

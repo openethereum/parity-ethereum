@@ -22,6 +22,7 @@ use hash::Address;
 
 /// Different ways of specifying validators.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub enum ValidatorSet {
 	/// A simple list of authorities.
 	#[serde(rename="list")]
