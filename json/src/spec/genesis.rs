@@ -65,7 +65,6 @@ mod tests {
 	#[test]
 	fn genesis_deserialization() {
 		let s = r#"{
-			"nonce": "0x0000000000000042",
 			"difficulty": "0x400000000",
 			"seal": {
 				"ethereum": {

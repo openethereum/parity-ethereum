@@ -86,7 +86,6 @@ mod tests {
 					"minimumDifficulty": "0x020000",
 					"difficultyBoundDivisor": "0x0800",
 					"durationLimit": "0x0d",
-					"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 					"homesteadTransition" : "0x",
 					"daoHardforkTransition": "0xffffffffffffffff",
 					"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
