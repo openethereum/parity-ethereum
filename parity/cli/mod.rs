@@ -463,6 +463,10 @@ usage! {
 
 
 		["API and Console Options – HTTP JSON-RPC"]
+			FLAG flag_jsonrpc_allow_missing_blocks: (bool) = false, or |c: &Config| c.rpc.as_ref()?.allow_missing_blocks.clone(),
+			"--jsonrpc-allow-missing-blocks",
+			"RPC calls will return 'null' instead of an error if ancient block sync is still in progress and the block information requested could not be found",
+
 			FLAG flag_no_jsonrpc: (bool) = false, or |c: &Config| c.rpc.as_ref()?.disable.clone(),
 			"--no-jsonrpc",
 			"Disable the HTTP JSON-RPC API server.",
@@ -1230,6 +1234,7 @@ struct Rpc {
 	keep_alive: Option<bool>,
 	experimental_rpcs: Option<bool>,
 	poll_lifetime: Option<u32>,
+	allow_missing_blocks: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1697,6 +1702,7 @@ mod tests {
 			arg_jsonrpc_threads: 4,
 			arg_jsonrpc_max_payload: None,
 			arg_poll_lifetime: 60u32,
+			flag_jsonrpc_allow_missing_blocks: false,
 
 			// WS
 			flag_no_ws: false,
@@ -1973,6 +1979,7 @@ mod tests {
 				keep_alive: None,
 				experimental_rpcs: None,
 				poll_lifetime: None,
+				allow_missing_blocks: None
 			}),
 			ipc: Some(Ipc {
 				disable: None,

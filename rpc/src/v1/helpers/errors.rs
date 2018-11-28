@@ -18,15 +18,18 @@
 
 use std::fmt;
 
-use ethcore::account_provider::{SignError as AccountError};
+use ethcore::account_provider::SignError as AccountError;
 use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use ethcore::client::BlockId;
-use jsonrpc_core::{futures, Error, ErrorCode, Value};
+use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
+use ethcore::client::BlockChainClient;
+use ethcore::blockchain_info::BlockChainInfo;
+use v1::types::BlockNumber;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -208,6 +211,60 @@ pub fn cannot_submit_work(err: EthcoreError) -> Error {
 	}
 }
 
+pub fn unavailable_block() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Ancient block sync is still in progress".into(),
+		data: None,
+	}
+}
+
+pub fn check_block_number_existence<'a, T, C>(
+	client: &'a C,
+	num: BlockNumber,
+	allow_missing_blocks: bool,
+) ->
+	impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
+	where C: BlockChainClient,
+{
+	move |response| {
+		if response.is_none() {
+			if let BlockNumber::Num(block_number) = num {
+				// tried to fetch block number and got nothing even though the block number is
+				// less than the latest block number
+				if block_number < client.chain_info().best_block_number && !allow_missing_blocks {
+					return Err(unavailable_block());
+				}
+			}
+		}
+		Ok(response)
+	}
+}
+
+pub fn check_block_gap<'a, T, C>(
+	client: &'a C,
+	allow_missing_blocks: bool,
+) -> impl Fn(Option<T>) -> RpcResult<Option<T>> + 'a
+	where C: BlockChainClient,
+{
+	move |response| {
+		if response.is_none() && !allow_missing_blocks {
+			let BlockChainInfo { ancient_block_hash, .. } = client.chain_info();
+			// block information was requested, but unfortunately we couldn't find it and there
+			// are gaps in the database ethcore/src/blockchain/blockchain.rs
+			if ancient_block_hash.is_some() {
+				return Err(Error {
+					code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+					message: "Block information is incomplete while ancient block sync is still in progress, before \
+					it's finished we can't determine the existence of requested item.".into(),
+					data: None,
+				})
+			}
+		}
+		Ok(response)
+	}
+}
+
 pub fn not_enough_data() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
@@ -328,22 +385,22 @@ pub fn transaction_message(error: &TransactionError) -> String {
 		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
 		TooCheapToReplace => {
 			"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
-		},
+		}
 		LimitReached => {
 			"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
-		},
+		}
 		InsufficientGas { minimal, got } => {
 			format!("Transaction gas is too low. There is not enough gas to cover minimal cost of the transaction (minimal: {}, got: {}). Try increasing supplied gas.", minimal, got)
-		},
+		}
 		InsufficientGasPrice { minimal, got } => {
 			format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
-		},
+		}
 		InsufficientBalance { balance, cost } => {
 			format!("Insufficient funds. The account you tried to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
-		},
+		}
 		GasLimitExceeded { limit, got } => {
 			format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
-		},
+		}
 		InvalidSignature(ref sig) => format!("Invalid signature: {}", sig),
 		InvalidChainId => "Invalid chain id.".into(),
 		InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
@@ -382,7 +439,6 @@ pub fn decode<T: Into<EthcoreError>>(error: T) -> Error {
 			message: "decoding error".into(),
 			data: None,
 		}
-
 	}
 }
 
