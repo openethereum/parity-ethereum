@@ -324,7 +324,7 @@ impl Provider where {
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
-			//Create public transaction
+			// Create public transaction
 			let public_tx = self.public_transaction(
 				desc.state.clone(),
 				&desc.original_transaction,
@@ -333,7 +333,7 @@ impl Provider where {
 				desc.original_transaction.gas_price
 			)?;
 			trace!(target: "privatetx", "Last required signature received, public transaction created: {:?}", public_tx);
-			//Sign and add it to the queue
+			// Sign and add it to the queue
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
 			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
@@ -347,7 +347,7 @@ impl Provider where {
 					bail!(err);
 				}
 			}
-			//Notify about state changes
+			// Notify about state changes
 			let contract = Self::contract_address_from_transaction(&desc.original_transaction)?;
 			// TODO Usage of BlockId::Latest
 			if self.get_contract_version(BlockId::Latest, &contract) >= PRIVATE_CONTRACT_WITH_NOTIFICATION_VER {
@@ -356,13 +356,13 @@ impl Provider where {
 					Err(err) => warn!(target: "privatetx", "Failed to send private state changed notification, error: {:?}", err),
 				}
 			}
-			//Remove from store for signing
+			// Remove from store for signing
 			if let Err(err) = self.transactions_for_signing.write().remove(&private_hash) {
 				warn!(target: "privatetx", "Failed to remove transaction from signing store, error: {:?}", err);
 				bail!(err);
 			}
 		} else {
-			//Add signature to the store
+			// Add signature to the store
 			match self.transactions_for_signing.write().add_signature(&private_hash, signed_tx.signature()) {
 				Ok(_) => trace!(target: "privatetx", "Signature stored for private transaction"),
 				Err(err) => {
@@ -551,7 +551,7 @@ impl Provider where {
 
 	/// Returns the key from the key server associated with the contract
 	pub fn contract_key_id(&self, contract_address: &Address) -> Result<H256, Error> {
-		//current solution uses contract address extended with 0 as id
+		// Current solution uses contract address extended with 0 as id
 		let contract_address_extended: H256 = contract_address.into();
 
 		Ok(H256::from_slice(&contract_address_extended))
@@ -659,12 +659,12 @@ impl Importer for Arc<Provider> {
 			.iter()
 			.find(|address| self.validator_accounts.contains(address));
 
-		//extract the original transaction
+		// Extract the original transaction
 		let encrypted_data = private_tx.encrypted();
 		let transaction_bytes = self.decrypt(&contract, &encrypted_data)?;
 		let original_tx: UnverifiedTransaction = Rlp::new(&transaction_bytes).as_val()?;
 		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
-		//add to the queue for further verification
+		// Add to the queue for further verification
 		self.transactions_for_verification.add_transaction(
 			original_tx,
 			validation_account.map(|&account| account),
