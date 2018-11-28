@@ -899,7 +899,7 @@ usage! {
 			"--whisper",
 			"Enable the Whisper network.",
 
- 			ARG arg_whisper_pool_size: (usize) = 10usize, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
+			ARG arg_whisper_pool_size: (usize) = 10usize, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
 			"--whisper-pool-size=[MB]",
 			"Target size of the whisper message pool in megabytes.",
 

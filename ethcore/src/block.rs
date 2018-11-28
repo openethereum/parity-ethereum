@@ -401,9 +401,9 @@ impl<'x> OpenBlock<'x> {
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
-        if let Some(extra_data) = s.engine.close_block_extra_data(&s.block.header) {
-          s.block.header.set_extra_data(extra_data);
-        }
+		if let Some(extra_data) = s.engine.close_block_extra_data(&s.block.header) {
+			s.block.header.set_extra_data(extra_data);
+		}
 
 		Ok(LockedBlock {
 			block: s.block,
@@ -679,7 +679,7 @@ mod tests {
 	) -> Result<SealedBlock, Error> {
 		let header = Unverified::from_rlp(block_bytes.clone())?.header;
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
-		   .seal(engine, header.seal().to_vec())?)
+			.seal(engine, header.seal().to_vec())?)
 	}
 
 	#[test]
