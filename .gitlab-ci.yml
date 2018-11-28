@@ -49,6 +49,7 @@ test-audit:
     - scripts/gitlab/cargo-audit.sh
   tags:
     - rust-stable
+  allow_failure:                   true
 
 build-linux:
   stage:                           build
@@ -151,3 +152,4 @@ test-nightly:
     - scripts/gitlab/test-all.sh nightly
   tags:
     - rust-nightly
+  allow_failure:                   true
