@@ -953,14 +953,6 @@ impl Spec {
 		load_bundled!("authority_round_block_reward_contract")
 	}
 
-	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
-	/// work).
-	/// Account keccak("0") and keccak("1") are a authorities.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_tendermint() -> Self {
-		load_bundled!("tendermint")
-	}
-
 	/// TestList.sol used in both specs: https://github.com/paritytech/contracts/pull/30/files
 	/// Accounts with secrets keccak("0") and keccak("1") are initially the validators.
 	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine
