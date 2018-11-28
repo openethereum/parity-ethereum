@@ -61,17 +61,16 @@ impl RequestGuard {
 	pub fn register_error(&mut self) -> Error {
 		trace!(target: "circuit_breaker", "RequestGuard; backoff_round: {}/{}, state {:?}",
 			   self.backoff_round, self.max_backoff_rounds, self.state);
-		if self.state.is_call_permitted() {
+
+		if self.backoff_round >= self.max_backoff_rounds {
+			Error::ReachedLimit
+		} else if self.state.is_call_permitted() {
 			self.state.on_error();
 			if self.state.is_call_permitted() {
 				Error::LetThrough
 			} else {
 				self.backoff_round += 1;
-				if self.backoff_round >= self.max_backoff_rounds {
-					Error::ReachedLimit
-				} else {
-					Error::Rejected
-				}
+				Error::Rejected
 			}
 		} else {
 			Error::Rejected
@@ -92,7 +91,8 @@ mod tests {
 
 	#[test]
 	fn one_consecutive_failure_with_10_backoffs() {
-		let binary_exp_backoff = vec![1_u64, 2, 4].into_iter().chain(iter::repeat(5_u64).take(6));
+		// 1, 2, 4, 5, 5 .... 5
+		let binary_exp_backoff = vec![1_u64, 2, 4].into_iter().chain(iter::repeat(5_u64).take(7));
 		let mut guard = RequestGuard::new(1, 10, Duration::from_secs(1), Duration::from_secs(5));
 		for backoff in binary_exp_backoff {
 			assert_eq!(guard.register_error(), Error::Rejected);
@@ -103,8 +103,8 @@ mod tests {
 	}
 
 	#[test]
-	fn five_consecutive_failures_with_4_backoffs() {
-		let mut guard = RequestGuard::new(5, 4, Duration::from_secs(1), Duration::from_secs(30));
+	fn five_consecutive_failures_with_3_backoffs() {
+		let mut guard = RequestGuard::new(5, 3, Duration::from_secs(1), Duration::from_secs(30));
 
 		// register five errors
 		for _ in 0..4 {
@@ -118,6 +118,6 @@ mod tests {
 			while now.elapsed() <= Duration::from_secs(*backoff) {}
 		}
 
-		assert_eq!(guard.register_error(), Error::ReachedLimit, "4 backoffs should be an error");
+		assert_eq!(guard.register_error(), Error::ReachedLimit, "3 backoffs should be an error");
 	}
 }

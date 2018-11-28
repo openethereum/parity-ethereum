@@ -98,9 +98,9 @@ impl Harness {
 				// Response `time_to_live`
 				Duration::from_secs(5),
 				// Request start backoff
-				Duration::from_secs(5),
+				Duration::from_secs(1),
 				// Request max backoff
-				Duration::from_secs(10),
+				Duration::from_secs(20),
 				super::DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS,
 				super::DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS
 			)
@@ -524,7 +524,7 @@ fn request_without_response_should_backoff_and_then_be_dropped() {
 		}
 	);
 
-	let binary_exp_backoff: Vec<u64> = vec![5, 10, 20, 20, 20, 20, 20, 20, 20, 20];
+	let binary_exp_backoff: Vec<u64> = vec![1, 2, 4, 8, 16, 20, 20, 20, 20, 20];
 
 	let _recv = harness.service.request_raw(
 		&Context::RequestFrom(peer_id, req_id),
@@ -532,16 +532,15 @@ fn request_without_response_should_backoff_and_then_be_dropped() {
 	).unwrap();
 	assert_eq!(harness.service.pending.read().len(), 1);
 
-	for (i, &backoff) in binary_exp_backoff.iter().enumerate() {
+	for backoff in &binary_exp_backoff {
 		harness.service.dispatch_pending(&Context::FaultyRequest);
+		assert_eq!(harness.service.pending.read().len(), 1, "Request should not be dropped");
 		let now = Instant::now();
-		while now.elapsed() < Duration::from_secs(backoff + 2) {}
-		if i < binary_exp_backoff.len() - 1 {
-			assert_eq!(harness.service.pending.read().len(), 1, "Request should not be dropped");
-		}
+		while now.elapsed() < Duration::from_secs(*backoff) {}
 	}
 
-	assert_eq!(harness.service.pending.read().len(), 0, "Request exceeded the threshold should be dropped");
+	harness.service.dispatch_pending(&Context::FaultyRequest);
+	assert_eq!(harness.service.pending.read().len(), 0, "Request exceeded the 10 backoff rounds should be dropped");
 }
 
 #[test]
