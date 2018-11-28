@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
 
 use ethcore::client::BlockChainClient;
 use sync::{self, AttachedProtocol, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
@@ -25,12 +25,17 @@ pub use sync::{EthSync, SyncProvider, ManageNetwork, PrivateTxHandler};
 pub use ethcore::client::ChainNotify;
 use ethcore_logger::Config as LogConfig;
 
-pub type SyncModules = (Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>);
+pub type SyncModules = (
+	Arc<SyncProvider>,
+	Arc<ManageNetwork>,
+	Arc<ChainNotify>,
+	mpsc::Sender<sync::PriorityTask>,
+);
 
 pub fn sync(
-	sync_cfg: SyncConfig,
-	net_cfg: NetworkConfiguration,
-	client: Arc<BlockChainClient>,
+	config: SyncConfig,
+	network_config: NetworkConfiguration,
+	chain: Arc<BlockChainClient>,
 	snapshot_service: Arc<SnapshotService>,
 	private_tx_handler: Arc<PrivateTxHandler>,
 	provider: Arc<Provider>,
@@ -39,15 +44,20 @@ pub fn sync(
 	connection_filter: Option<Arc<ConnectionFilter>>,
 ) -> Result<SyncModules, sync::Error> {
 	let eth_sync = EthSync::new(Params {
-		config: sync_cfg,
-		chain: client,
-		provider: provider,
-		snapshot_service: snapshot_service,
+		config,
+		chain,
+		provider,
+		snapshot_service,
 		private_tx_handler,
-		network_config: net_cfg,
-		attached_protos: attached_protos,
+		network_config,
+		attached_protos,
 	},
 	connection_filter)?;
 
-	Ok((eth_sync.clone() as Arc<SyncProvider>, eth_sync.clone() as Arc<ManageNetwork>, eth_sync.clone() as Arc<ChainNotify>))
+	Ok((
+		eth_sync.clone() as Arc<SyncProvider>,
+		eth_sync.clone() as Arc<ManageNetwork>,
+		eth_sync.clone() as Arc<ChainNotify>,
+		eth_sync.priority_tasks()
+	))
 }
