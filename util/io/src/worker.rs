@@ -71,14 +71,8 @@ impl Worker {
 		worker.thread = Some(thread::Builder::new().stack_size(STACK_SIZE).name(format!("IO Worker #{}", index)).spawn(
 			move || {
 				LOCAL_STACK_SIZE.with(|val| val.set(STACK_SIZE));
-				let mut runtime = match tokio::runtime::current_thread::Runtime::new() {
-					Ok(c) => c,
-					Err(e) => {
-						error!(target: "ioworker", "error while executing future: {}", e);
-						return
-					}
-				};
-				let future = future::loop_fn((stealer, channel.clone(), wait, wait_mutex.clone(), deleting), |(stealer, channel, wait, wait_mutex, deleting)| {
+				let ini = (stealer, channel.clone(), wait, wait_mutex.clone(), deleting);
+				let future = future::loop_fn(ini, |(stealer, channel, wait, wait_mutex, deleting)| {
 					{
 						let mut lock = wait_mutex.lock();
 						if deleting.load(AtomicOrdering::Acquire) {
@@ -96,7 +90,7 @@ impl Worker {
 					}
 					Ok(Loop::Continue((stealer, channel, wait, wait_mutex, deleting)))
 				});
-				if let Err(()) = runtime.block_on(future) {
+				if let Err(()) = tokio::runtime::current_thread::block_on_all(future) {
 					error!(target: "ioworker", "error while executing future")
 				}
 			})
