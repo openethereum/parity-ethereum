@@ -22,6 +22,7 @@ use bytes::Bytes;
 
 /// Ethereum seal.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct Ethereum {
 	/// Seal nonce.
@@ -32,6 +33,7 @@ pub struct Ethereum {
 
 /// AuthorityRound seal.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AuthorityRoundSeal {
 	/// Seal step.
 	pub step: Uint,
@@ -41,6 +43,7 @@ pub struct AuthorityRoundSeal {
 
 /// Tendermint seal.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TendermintSeal {
 	/// Seal round.
 	pub round: Uint,
@@ -52,6 +55,7 @@ pub struct TendermintSeal {
 
 /// Seal variants.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub enum Seal {
 	/// Ethereum seal.
