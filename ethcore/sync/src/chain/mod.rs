@@ -677,7 +677,7 @@ impl ChainSync {
 					self.active_peers.len(), peers.len(), self.peers.len()
 				);
 
-				random::new().shuffle(&mut peers); // TODO: sort by rating
+				random::new().shuffle(&mut peers); // TODO (#646): sort by rating
 				// prefer peers with higher protocol version
 				peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
 
