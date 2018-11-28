@@ -20,52 +20,52 @@ package io.parity.ethereum;
  * Interface to the Parity client.
  */
 public class Parity {
-    /**
-     * Starts the Parity client with the CLI options passed as an array of strings.
-     *
-     * Each space-delimited option corresponds to an array entry.
-     * For example: `["--port", "12345"]`
-     *
-     * @param options The CLI options to start Parity with
-     */
+	/**
+	 * Starts the Parity client with the CLI options passed as an array of strings.
+	 *
+	 * Each space-delimited option corresponds to an array entry.
+	 * For example: `["--port", "12345"]`
+	 *
+	 * @param options The CLI options to start Parity with
+	 */
 	public Parity(String[] options) {
 		long config = configFromCli(options);
 		inner = build(config);
 	}
 
-    /** Performs an asynchronous RPC query by spawning a background thread that is executed until
-     *  by either a response is received or the timeout has been expired.
-     *
-     * @param query      The JSON-encoded RPC query to perform
-     * @param ttlMillis  The maximum time in milliseconds that the query will run
-     * @param callback   An instance of class which must have a instance method named `callback` that will be invoked
-     *                   when the result is ready
-     */
+	/** Performs an asynchronous RPC query by spawning a background thread that is executed until
+	 *  either a response is received or the timeout has been expired.
+	 *
+	 * @param query           The JSON-encoded RPC query to perform
+	 * @param timeoutMillis   The maximum time in milliseconds that the query will run
+	 * @param callback        An instance of class which must have a instance method named `callback` that will be
+	 *                        invoke when the result is ready
+	 */
 	public void rpcQuery(String query, long timeoutMillis, Object callback) {
 		rpcQueryNative(inner, query, timeoutMillis, callback);
 	}
 
-    /** Subscribes to a specific WebSocket event which will run in a background thread until it is canceled.
-     *
-     * @param query     The JSON-encoded RPC query to perform
-     * @param callback  An instance of class which must have a instance method named `callback` that will be invoked
-     *                  when the result is ready
-     *
-    * @return A pointer to the current sessions which can be used to terminate the session later
-    */
+	/** Subscribes to a specific WebSocket event that will run in a background thread until it is canceled.
+	 *
+	 * @param query     The JSON-encoded RPC query to perform
+	 * @param callback  An instance of class which must have a instance method named `callback` that will be invoked
+	 *                  when the result is ready
+	 *
+	 * @return A pointer to the current sessions which can be used to terminate the session later
+	 */
 	public long subscribeWebSocket(String query, Object callback) {
 		return subscribeWebSocketNative(inner, query, callback);
 	}
 
-    /** Unsubscribes to a specific WebSocket event
-     *
-     * @param session	Pointer the the session to terminate
-     */
+	/** Unsubscribes to a specific WebSocket event
+	 *
+	 * @param session	Pointer the the session to terminate
+	 */
 	public void unsubscribeWebSocket(long session) {
 		unsubscribeWebSocketNative(session);
 	}
 
-    // FIXME: `finalize` is deprecated
+	// FIXME: `finalize` is deprecated
 	@Override
 	protected void finalize​() {
 		destroy(inner);

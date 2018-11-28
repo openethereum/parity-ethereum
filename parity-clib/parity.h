@@ -99,9 +99,9 @@ void parity_destroy(void* parity);
 ///	- timeout_ms	: Maximum time that request is waiting for a response
 ///	- response		: Callback to invoke when the query gets answered. It will respond with a JSON encoded the string
 ///					  with the result
-///	 - ud			: Specific user defined data that can used in the callback ("response)
-//
-//
+///	- ud			: Specific user defined data that can used in the callback
+///
+///
 ///	 - On success	: The parity client reference and the query string were valid
 ///	 - On error		: The parity client reference and the query string were not valid
 ///
