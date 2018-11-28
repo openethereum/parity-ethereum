@@ -208,7 +208,7 @@ impl Provider where {
 		let data = signed_transaction.rlp_bytes();
 		let encrypted_transaction = self.encrypt(&contract, &Self::iv_from_transaction(&signed_transaction), &data)?;
 		let private = PrivateTransaction::new(encrypted_transaction, contract);
-		// TODO [ToDr] Using BlockId::Latest is bad here,
+		// TODO #9825 [ToDr] Using BlockId::Latest is bad here,
 		// the block may change in the middle of execution
 		// causing really weird stuff to happen.
 		// We should retrieve hash and stick to that. IMHO
@@ -270,7 +270,7 @@ impl Provider where {
 					}
 					let contract = Self::contract_address_from_transaction(&transaction.transaction)
 						.map_err(|_| "Incorrect type of action for the transaction")?;
-					// TODO [ToDr] Usage of BlockId::Latest
+					// TODO #9825 [ToDr] Usage of BlockId::Latest
 					let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest);
 					if let Err(e) = contract_nonce {
 						bail!("Cannot retrieve contract nonce: {:?}", e);
@@ -349,7 +349,7 @@ impl Provider where {
 			}
 			// Notify about state changes
 			let contract = Self::contract_address_from_transaction(&desc.original_transaction)?;
-			// TODO Usage of BlockId::Latest
+			// TODO #9825 Usage of BlockId::Latest
 			if self.get_contract_version(BlockId::Latest, &contract) >= PRIVATE_CONTRACT_WITH_NOTIFICATION_VER {
 				match self.state_changes_notify(BlockId::Latest, &contract, &desc.original_transaction.sender(), desc.original_transaction.hash()) {
 					Ok(_) => trace!(target: "privatetx", "Notification about private state changes sent"),
@@ -489,7 +489,7 @@ impl Provider where {
 		env_info.gas_limit = transaction.gas;
 
 		let mut state = self.client.state_at(block).ok_or(ErrorKind::StatePruned)?;
-		// TODO: in case of BlockId::Latest these need to operate on the same state
+		// TODO #9825 in case of BlockId::Latest these need to operate on the same state
 		let contract_address = match transaction.action {
 			Action::Call(ref contract_address) => {
 				let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
