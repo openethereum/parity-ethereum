@@ -38,17 +38,17 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 
-use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::block_import::is_major_importing;
+use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings, verify_signature};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H64, H160, H256, H512, CallRequest,
+	Bytes, U256, H64, U64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
-	AccountInfo, HwAccountInfo, RichHeader, Receipt,
+	AccountInfo, HwAccountInfo, RichHeader, Receipt, RecoveredAccount,
 	block_number_to_id
 };
 use Host;
@@ -503,5 +503,9 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		} else {
 			Err(errors::status_error(has_peers))
 		}
+	}
+
+	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {
+		verify_signature(is_prefixed, message, r, s, v, self.client.signing_chain_id())
 	}
 }
