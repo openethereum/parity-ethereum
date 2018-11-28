@@ -286,10 +286,12 @@ impl<C: FlushingBlockChainClient> Peer for EthPeer<C> {
 	}
 
 	fn sync_step(&self) {
+		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None);
 		self.chain.flush();
-		self.sync.write().maintain_peers(&mut TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None));
-		self.sync.write().maintain_sync(&mut TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None));
-		self.sync.write().propagate_new_transactions(&mut TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None));
+		self.sync.write().maintain_peers(&mut io);
+		self.sync.write().maintain_sync(&mut io);
+		self.sync.write().continue_sync(&mut io);
+		self.sync.write().propagate_new_transactions(&mut io);
 	}
 
 	fn restart_sync(&self) {

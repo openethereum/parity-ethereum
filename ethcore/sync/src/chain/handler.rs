@@ -97,8 +97,6 @@ impl SyncHandler {
 				sync.sync_peer(io, peer, false);
 			},
 		}
-		// give tasks to other peers
-		sync.continue_sync(io);
 	}
 
 	/// Called when peer sends us new consensus packet

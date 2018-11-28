@@ -866,37 +866,35 @@ impl ChainSync {
 	}
 
 	/// Resume downloading
-	fn continue_sync(&mut self, io: &mut SyncIo) {
-		// Collect active peers that can sync
-		let confirmed_peers: Vec<(PeerId, u8)> = self.peers.iter().filter_map(|(peer_id, peer)|
-			if peer.can_sync() {
-				Some((*peer_id, peer.protocol_version))
-			} else {
-				None
-			}
-		).collect();
-
-		trace!(
-			target: "sync",
-			"Syncing with peers: {} active, {} confirmed, {} total",
-			self.active_peers.len(), confirmed_peers.len(), self.peers.len()
-		);
-
+	pub fn continue_sync(&mut self, io: &mut SyncIo) {
 		if self.state == SyncState::Waiting {
 			trace!(target: "sync", "Waiting for the block queue");
 		} else if self.state == SyncState::SnapshotWaiting {
 			trace!(target: "sync", "Waiting for the snapshot restoration");
 		} else {
-			let mut peers: Vec<(PeerId, u8)> = confirmed_peers.iter().filter(|&&(peer_id, _)|
-				self.active_peers.contains(&peer_id)
-			).map(|v| *v).collect();
+			// Collect active peers that can sync
+			let mut peers: Vec<(PeerId, u8)> = self.peers.iter().filter_map(|(peer_id, peer)|
+				if peer.can_sync() && peer.asking == PeerAsking::Nothing && self.active_peers.contains(&peer_id) {
+					Some((*peer_id, peer.protocol_version))
+				} else {
+					None
+				}
+			).collect();
 
-			random::new().shuffle(&mut peers); //TODO: sort by rating
-			// prefer peers with higher protocol version
-			peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
+			if peers.len() > 0 {
+				trace!(
+					target: "sync",
+					"Syncing with peers: {} active, {} available, {} total",
+					self.active_peers.len(), peers.len(), self.peers.len()
+				);
 
-			for (peer_id, _) in peers {
-				self.sync_peer(io, peer_id, false);
+				random::new().shuffle(&mut peers); // TODO (#646): sort by rating
+				// prefer peers with higher protocol version
+				peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
+
+				for (peer_id, _) in peers {
+					self.sync_peer(io, peer_id, false);
+				}
 			}
 		}
 
