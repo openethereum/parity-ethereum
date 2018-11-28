@@ -66,6 +66,11 @@ use ethjson::spec::ForkSpec;
 pub struct EvmTestClient<'a> {
 	state: state::State<state_db::StateDB>,
 	spec: &'a spec::Spec,
+	dump_state: fn(&state::State<state_db::StateDB>) -> Option<pod_state::PodState>,
+}
+
+fn no_dump_state(_: &state::State<state_db::StateDB>) -> Option<pod_state::PodState> {
+	None
 }
 
 impl<'a> fmt::Debug for EvmTestClient<'a> {
@@ -92,32 +97,51 @@ impl<'a> EvmTestClient<'a> {
 		}
 	}
 
+	/// Change default function for dump state (default does not dump)
+	pub fn set_dump_state_fn(&mut self, dump_state: fn(&state::State<state_db::StateDB>) -> Option<pod_state::PodState>) {
+		self.dump_state = dump_state;
+	}
+
 	/// Creates new EVM test client with in-memory DB initialized with genesis of given Spec.
-	pub fn new(spec: &'a spec::Spec) -> Result<Self, EvmTestError> {
-		let factories = Self::factories();
+	/// Takes a `TrieSpec` to set the type of trie.
+	pub fn new_with_trie(spec: &'a spec::Spec, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
+		let factories = Self::factories(trie_spec);
 		let state =	Self::state_from_spec(spec, &factories)?;
 
 		Ok(EvmTestClient {
 			state,
 			spec,
+			dump_state: no_dump_state,
 		})
 	}
 
-	/// Creates new EVM test client with in-memory DB initialized with given PodState.
-	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: pod_state::PodState) -> Result<Self, EvmTestError> {
-		let factories = Self::factories();
+	/// Creates new EVM test client with an in-memory DB initialized with genesis of given chain Spec.
+	pub fn new(spec: &'a spec::Spec) -> Result<Self, EvmTestError> {
+		Self::new_with_trie(spec, trie::TrieSpec::Secure)
+	}
+
+	/// Creates new EVM test client with an in-memory DB initialized with given PodState.
+	/// Takes a `TrieSpec` to set the type of trie.
+	pub fn from_pod_state_with_trie(spec: &'a spec::Spec, pod_state: pod_state::PodState, trie_spec: trie::TrieSpec) -> Result<Self, EvmTestError> {
+		let factories = Self::factories(trie_spec);
 		let state =	Self::state_from_pod(spec, &factories, pod_state)?;
 
 		Ok(EvmTestClient {
 			state,
 			spec,
+			dump_state: no_dump_state,
 		})
 	}
 
-	fn factories() -> Factories {
+	/// Creates new EVM test client with an in-memory DB initialized with given PodState.
+	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: pod_state::PodState) -> Result<Self, EvmTestError> {
+		Self::from_pod_state_with_trie(spec, pod_state, trie::TrieSpec::Secure)
+	}
+
+	fn factories(trie_spec: trie::TrieSpec) -> Factories {
 		Factories {
 			vm: factory::VmFactory::new(VMType::Interpreter, 5 * 1024),
-			trie: trie::TrieFactory::new(trie::TrieSpec::Secure),
+			trie: trie::TrieFactory::new(trie_spec),
 			accountdb: Default::default(),
 		}
 	}
@@ -223,6 +247,7 @@ impl<'a> EvmTestClient<'a> {
 			return TransactResult::Err {
 				state_root: *self.state.root(),
 				error: error.into(),
+				end_state: (self.dump_state)(&self.state),
 			};
 		}
 
@@ -247,12 +272,17 @@ impl<'a> EvmTestClient<'a> {
 			&None,
 			false
 		).ok();
+
 		self.state.commit().ok();
+
+		let state_root = *self.state.root();
+
+		let end_state = (self.dump_state)(&self.state);
 
 		match result {
 			Ok(result) => {
 				TransactResult::Ok {
-					state_root: *self.state.root(),
+					state_root,
 					gas_left: initial_gas - result.receipt.gas_used,
 					outcome: result.receipt.outcome,
 					output: result.output,
@@ -263,12 +293,14 @@ impl<'a> EvmTestClient<'a> {
 						Some(executive::contract_address(scheme, &transaction.sender(), &transaction.nonce, &transaction.data).0)
 					} else {
 						None
-					}
+					},
+					end_state,
 				}
 			},
 			Err(error) => TransactResult::Err {
-				state_root: *self.state.root(),
+				state_root,
 				error,
+				end_state,
 			},
 		}
 	}
@@ -295,6 +327,8 @@ pub enum TransactResult<T, V> {
 		logs: Vec<log_entry::LogEntry>,
 		/// outcome
 		outcome: receipt::TransactionOutcome,
+		/// end state if needed
+		end_state: Option<pod_state::PodState>,
 	},
 	/// Transaction failed to run
 	Err {
@@ -302,5 +336,7 @@ pub enum TransactResult<T, V> {
 		state_root: H256,
 		/// Execution error
 		error: ::error::Error,
+		/// end state if needed
+		end_state: Option<pod_state::PodState>,
 	},
 }

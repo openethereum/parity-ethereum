@@ -11,7 +11,7 @@ path = "./src/main.rs"
 [dependencies]
 docopt = "1.0"
 env_logger = "0.5"
-ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
+ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests", "to-pod-full"] }
 ethjson = { path = "../json" }
 parity-bytes = "0.1"
 ethcore-transaction = { path = "../ethcore/transaction" }

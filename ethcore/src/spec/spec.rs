@@ -250,7 +250,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip160_transition: p.eip160_transition.map_or(0, Into::into),
 			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
 			eip161d_transition: p.eip161d_transition.map_or(0, Into::into),
-			eip98_transition: p.eip98_transition.map_or(0, Into::into),
+			eip98_transition: p.eip98_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),

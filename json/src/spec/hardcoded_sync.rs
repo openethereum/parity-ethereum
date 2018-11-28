@@ -21,6 +21,7 @@ use uint::Uint;
 
 /// Spec hardcoded sync.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct HardcodedSync {
 	/// Hexadecimal of the RLP encoding of the header of the block to start synchronization from.

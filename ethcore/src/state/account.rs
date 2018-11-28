@@ -624,7 +624,7 @@ mod tests {
 		assert!(raw.len() > compact_vec.len());
 		let again_raw = decompress(&compact_vec, snapshot_swapper());
 		assert_eq!(raw, again_raw.into_vec());
-    }
+	}
 
 	#[test]
 	fn storage_at() {

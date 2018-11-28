@@ -67,6 +67,8 @@ unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 keccak-hasher = { path = "../util/keccak-hasher" }
 kvdb-rocksdb = "0.1.3"
+serde = "1.0"
+serde_derive = "1.0"
 tempdir = {version="0.3", optional = true}
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
@@ -103,13 +105,15 @@ evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 # EVM debug traces are printed.
 slow-blocks = []
 # Run JSON consensus tests.
-json-tests = ["ethcore-transaction/json-tests", "test-helpers", "tempdir"]
+json-tests = ["ethcore-transaction/json-tests", "test-helpers", "tempdir", "to-pod-full"]
 # Skip JSON consensus tests with pending issues.
 ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
 test-helpers = ["tempdir"]
+# Enables slow 'to-pod-full' method for use in tests and evmbin.
+to-pod-full = []
 
 [[bench]]
 name = "builtin"

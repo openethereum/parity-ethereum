@@ -23,6 +23,7 @@ use super::ValidatorSet;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorityRoundParams {
 	/// Block duration, in seconds.
@@ -59,6 +60,7 @@ pub struct AuthorityRoundParams {
 
 /// Authority engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AuthorityRound {
 	/// Ethash params.
 	pub params: AuthorityRoundParams,

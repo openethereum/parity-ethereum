@@ -66,7 +66,7 @@ impl Fail {
 }
 
 impl fmt::Display for Fail {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::Fail::*;
 		match *self {
 			Return { ref expected, ref actual } =>

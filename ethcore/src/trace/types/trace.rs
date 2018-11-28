@@ -71,7 +71,7 @@ pub struct Call {
 impl From<ActionParams> for Call {
 	fn from(p: ActionParams) -> Self {
 		match p.call_type {
-			CallType::DelegateCall => Call {
+			CallType::DelegateCall | CallType::CallCode => Call {
 				from: p.address,
 				to: p.code_address,
 				value: p.value.value(),

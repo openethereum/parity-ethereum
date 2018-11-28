@@ -146,6 +146,7 @@ impl EthTester {
 				send_block_number_in_get_work: true,
 				gas_price_percentile: 50,
 				allow_experimental_rpcs: true,
+				allow_missing_blocks: false
 			},
 		);
 
@@ -217,7 +218,7 @@ fn eth_get_proof() {
 	}"#;
 
 	let res_latest = r#","address":"0xaaaf5374fce5edbc8e2a8697c15331677e6ebaaa","balance":"0x9","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","nonce":"0x0","storageHash":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","storageProof":[]},"id":1}"#.to_owned();
-    assert!(tester.handler.handle_request_sync(req_latest).unwrap().to_string().ends_with(res_latest.as_str()));	
+    assert!(tester.handler.handle_request_sync(req_latest).unwrap().to_string().ends_with(res_latest.as_str()));
 
 	// non-existant account
 	let req_new_acc = r#"{
@@ -228,7 +229,7 @@ fn eth_get_proof() {
 	}"#;
 
 	let res_new_acc = r#","address":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","balance":"0x0","codeHash":"0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","nonce":"0x0","storageHash":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","storageProof":[]},"id":3}"#.to_owned();
-    assert!(tester.handler.handle_request_sync(req_new_acc).unwrap().to_string().ends_with(res_new_acc.as_str()));	
+    assert!(tester.handler.handle_request_sync(req_new_acc).unwrap().to_string().ends_with(res_new_acc.as_str()));
 }
 
 #[test]
@@ -276,6 +277,7 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 			"params": {
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
+				"blockReward": "0x4563918244F40000",
 				"durationLimit": "0x0d",
 				"homesteadTransition": "0xffffffffffffffff",
 				"daoHardforkTransition": "0xffffffffffffffff",
@@ -286,7 +288,6 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
-		"blockReward": "0x4563918244F40000",
 		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x20",
@@ -324,6 +325,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 			"params": {
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
+				"blockReward": "0x4563918244F40000",
 				"durationLimit": "0x0d",
 				"homesteadTransition": "0xffffffffffffffff",
 				"daoHardforkTransition": "0xffffffffffffffff",
@@ -334,7 +336,6 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
-		"blockReward": "0x4563918244F40000",
 		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"accountStartNonce": "0x0100",
 		"maximumExtraDataSize": "0x20",
