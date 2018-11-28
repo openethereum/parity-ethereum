@@ -394,7 +394,6 @@ mod tests {
 		assert_eq!(SpecType::Goerli, "görli".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
-		assert_eq!(SpecType::Rinkeby, "rinkeby".parse().unwrap());
 	}
 
 	#[test]
@@ -422,7 +421,6 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Goerli), "goerli");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
-		assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
 
