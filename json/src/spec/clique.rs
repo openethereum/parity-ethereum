@@ -34,22 +34,22 @@ pub struct Clique {
 
 #[cfg(test)]
 mod tests {
-    use serde_json;
-    use uint::Uint;
-    use ethereum_types::U256;
-    use super::*;
+	use serde_json;
+	use uint::Uint;
+	use ethereum_types::U256;
+	use super::*;
 
-    #[test]
-    fn clique_deserialization() {
-        let s = r#"{
-            "params": {
-            	"period": 5,
-            	"epoch": 30000
-            }
-        }"#;
+	#[test]
+	fn clique_deserialization() {
+		let s = r#"{
+			"params": {
+				"period": 5,
+				"epoch": 30000
+			}
+		}"#;
 
-        let deserialized: Clique = serde_json::from_str(s).unwrap();
+		let deserialized: Clique = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized.params.period, Some(Uint(U256::from(5))));
 		assert_eq!(deserialized.params.epoch, Some(Uint(U256::from(30000))));
-    }
+	}
 }
