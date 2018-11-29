@@ -576,7 +576,7 @@ impl Miner {
 		trace!(target: "miner", "requires_reseal: sealing enabled");
 
 		// Disable sealing if there were no requests for SEALING_TIMEOUT_IN_BLOCKS
-		let had_requests = sealing.last_request.map(|last_request| 
+		let had_requests = sealing.last_request.map(|last_request|
 			best_block.saturating_sub(last_request) <= SEALING_TIMEOUT_IN_BLOCKS
 		).unwrap_or(false);
 

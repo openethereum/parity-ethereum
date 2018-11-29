@@ -106,7 +106,13 @@ impl ClientService {
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, blockchain_db.clone(), miner.clone(), io_service.channel())?;
+		let client = Client::new(
+			config,
+			&spec,
+			blockchain_db.clone(),
+			miner.clone(),
+			io_service.channel(),
+		)?;
 		miner.set_io_channel(io_service.channel());
 		miner.set_in_chain_checker(&client.clone());
 
