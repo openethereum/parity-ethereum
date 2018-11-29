@@ -41,7 +41,7 @@ use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
 use blooms_db;
 use kvdb::KeyValueDB;
-use kvdb_rocksdb;
+use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use tempdir::TempDir;
 use verification::queue::kind::blocks::Unverified;
 use encoded;
@@ -263,30 +263,30 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	client
 }
 
+struct TestBlockChainDB {
+	_blooms_dir: TempDir,
+	_trace_blooms_dir: TempDir,
+	blooms: blooms_db::Database,
+	trace_blooms: blooms_db::Database,
+	key_value: Arc<KeyValueDB>,
+}
+
+impl BlockChainDB for TestBlockChainDB {
+	fn key_value(&self) -> &Arc<KeyValueDB> {
+		&self.key_value
+	}
+
+	fn blooms(&self) -> &blooms_db::Database {
+		&self.blooms
+	}
+
+	fn trace_blooms(&self) -> &blooms_db::Database {
+		&self.trace_blooms
+	}
+}
+
 /// Creates new test instance of `BlockChainDB`
 pub fn new_db() -> Arc<BlockChainDB> {
-	struct TestBlockChainDB {
-		_blooms_dir: TempDir,
-		_trace_blooms_dir: TempDir,
-		blooms: blooms_db::Database,
-		trace_blooms: blooms_db::Database,
-		key_value: Arc<KeyValueDB>,
-	}
-
-	impl BlockChainDB for TestBlockChainDB {
-		fn key_value(&self) -> &Arc<KeyValueDB> {
-			&self.key_value
-		}
-
-		fn blooms(&self) -> &blooms_db::Database {
-			&self.blooms
-		}
-
-		fn trace_blooms(&self) -> &blooms_db::Database {
-			&self.trace_blooms
-		}
-	}
-
 	let blooms_dir = TempDir::new("").unwrap();
 	let trace_blooms_dir = TempDir::new("").unwrap();
 
@@ -296,6 +296,26 @@ pub fn new_db() -> Arc<BlockChainDB> {
 		_blooms_dir: blooms_dir,
 		_trace_blooms_dir: trace_blooms_dir,
 		key_value: Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap()))
+	};
+
+	Arc::new(db)
+}
+
+/// Creates a new temporary `BlockChainDB` on FS
+pub fn new_temp_db(tempdir: &Path) -> Arc<BlockChainDB> {
+	let blooms_dir = TempDir::new("").unwrap();
+	let trace_blooms_dir = TempDir::new("").unwrap();
+	let key_value_dir = tempdir.join("key_value");
+
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let key_value_db = Database::open(&db_config, key_value_dir.to_str().unwrap()).unwrap();
+
+	let db = TestBlockChainDB {
+		blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
+		trace_blooms: blooms_db::Database::open(trace_blooms_dir.path()).unwrap(),
+		_blooms_dir: blooms_dir,
+		_trace_blooms_dir: trace_blooms_dir,
+		key_value: Arc::new(key_value_db)
 	};
 
 	Arc::new(db)

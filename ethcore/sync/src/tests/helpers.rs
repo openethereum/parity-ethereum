@@ -33,7 +33,7 @@ use ethcore::test_helpers;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
-use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3, PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET};
+use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3, PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET, SyncSupplier};
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
 
@@ -271,7 +271,7 @@ impl<C: FlushingBlockChainClient> Peer for EthPeer<C> {
 
 	fn receive_message(&self, from: PeerId, msg: TestPacket) -> HashSet<PeerId> {
 		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, Some(from));
-		ChainSync::dispatch_packet(&self.sync, &mut io, from, msg.packet_id, &msg.data);
+		SyncSupplier::dispatch_packet(&self.sync, &mut io, from, msg.packet_id, &msg.data);
 		self.chain.flush();
 		io.to_disconnect.clone()
 	}
@@ -286,10 +286,12 @@ impl<C: FlushingBlockChainClient> Peer for EthPeer<C> {
 	}
 
 	fn sync_step(&self) {
+		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None);
 		self.chain.flush();
-		self.sync.write().maintain_peers(&mut TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None));
-		self.sync.write().maintain_sync(&mut TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None));
-		self.sync.write().propagate_new_transactions(&mut TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None));
+		self.sync.write().maintain_peers(&mut io);
+		self.sync.write().maintain_sync(&mut io);
+		self.sync.write().continue_sync(&mut io);
+		self.sync.write().propagate_new_transactions(&mut io);
 	}
 
 	fn restart_sync(&self) {

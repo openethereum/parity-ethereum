@@ -21,6 +21,7 @@ use uint::Uint;
 
 /// Spec hardcoded sync.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HardcodedSync {
 	/// Hexadecimal of the RLP encoding of the header of the block to start synchronization from.
 	pub header: String,
@@ -28,7 +29,7 @@ pub struct HardcodedSync {
 	#[serde(rename="totalDifficulty")]
 	pub total_difficulty: Uint,
 	/// Ordered trie roots of blocks before and including `header`.
-	#[serde(rename="CHTs")]
+	#[serde(rename = "CHTs")]
 	pub chts: Vec<H256>,
 }
 

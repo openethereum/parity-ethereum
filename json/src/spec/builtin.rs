@@ -20,6 +20,7 @@ use uint::Uint;
 
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Linear {
 	/// Base price.
 	pub base: usize,
@@ -29,6 +30,7 @@ pub struct Linear {
 
 /// Pricing for modular exponentiation.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Modexp {
 	/// Price divisor.
 	pub divisor: usize,
@@ -36,6 +38,7 @@ pub struct Modexp {
 
 /// Pricing for alt_bn128_pairing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct AltBn128Pairing {
 	/// Base price.
 	pub base: usize,
@@ -45,6 +48,7 @@ pub struct AltBn128Pairing {
 
 /// Pricing variants.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub enum Pricing {
 	/// Linear pricing.
 	#[serde(rename="linear")]
@@ -59,6 +63,7 @@ pub enum Pricing {
 
 /// Spec builtin.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Builtin {
 	/// Builtin name.
 	pub name: String,

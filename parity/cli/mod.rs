@@ -467,6 +467,10 @@ usage! {
 			"--no-jsonrpc",
 			"Disable the HTTP JSON-RPC API server.",
 
+			FLAG flag_jsonrpc_experimental: (bool) = false, or |c: &Config| c.rpc.as_ref()?.experimental_rpcs.clone(),
+			"--jsonrpc-experimental",
+			"Enable experimental RPCs. Enable to have access to methods from unfinalised EIPs in all namespaces",
+
 			ARG arg_jsonrpc_port: (u16) = 8545u16, or |c: &Config| c.rpc.as_ref()?.port.clone(),
 			"--jsonrpc-port=[PORT]",
 			"Specify the port portion of the HTTP JSON-RPC API server.",
@@ -1141,7 +1145,7 @@ struct Operating {
 	no_persistent_txqueue: Option<bool>,
 	no_hardcoded_sync: Option<bool>,
 
-	#[serde(rename="public_node")]
+	#[serde(rename = "public_node")]
 	_legacy_public_node: Option<bool>,
 }
 
@@ -1173,15 +1177,15 @@ struct PrivateTransactions {
 struct Ui {
 	path: Option<String>,
 
-	#[serde(rename="force")]
+	#[serde(rename = "force")]
 	_legacy_force: Option<bool>,
-	#[serde(rename="disable")]
+	#[serde(rename = "disable")]
 	_legacy_disable: Option<bool>,
-	#[serde(rename="port")]
+	#[serde(rename = "port")]
 	_legacy_port: Option<u16>,
-	#[serde(rename="interface")]
+	#[serde(rename = "interface")]
 	_legacy_interface: Option<String>,
-	#[serde(rename="hosts")]
+	#[serde(rename = "hosts")]
 	_legacy_hosts: Option<Vec<String>>,
 }
 
@@ -1219,6 +1223,7 @@ struct Rpc {
 	server_threads: Option<usize>,
 	processing_threads: Option<usize>,
 	max_payload: Option<usize>,
+	experimental_rpcs: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1244,21 +1249,21 @@ struct Ipc {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Dapps {
-	#[serde(rename="disable")]
+	#[serde(rename = "disable")]
 	_legacy_disable: Option<bool>,
-	#[serde(rename="port")]
+	#[serde(rename = "port")]
 	_legacy_port: Option<u16>,
-	#[serde(rename="interface")]
+	#[serde(rename = "interface")]
 	_legacy_interface: Option<String>,
-	#[serde(rename="hosts")]
+	#[serde(rename = "hosts")]
 	_legacy_hosts: Option<Vec<String>>,
-	#[serde(rename="cors")]
+	#[serde(rename = "cors")]
 	_legacy_cors: Option<String>,
-	#[serde(rename="path")]
+	#[serde(rename = "path")]
 	_legacy_path: Option<String>,
-	#[serde(rename="user")]
+	#[serde(rename = "user")]
 	_legacy_user: Option<String>,
-	#[serde(rename="pass")]
+	#[serde(rename = "pass")]
 	_legacy_pass: Option<String>,
 }
 
@@ -1676,6 +1681,7 @@ mod tests {
 			// -- API and Console Options
 			// RPC
 			flag_no_jsonrpc: false,
+			flag_jsonrpc_experimental: false,
 			arg_jsonrpc_port: 8545u16,
 			arg_jsonrpc_interface: "local".into(),
 			arg_jsonrpc_cors: "null".into(),
@@ -1958,6 +1964,7 @@ mod tests {
 				server_threads: None,
 				processing_threads: None,
 				max_payload: None,
+				experimental_rpcs: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,

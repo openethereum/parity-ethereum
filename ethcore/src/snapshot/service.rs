@@ -22,12 +22,13 @@ use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::cmp;
 
 use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use client::{Client, ChainInfo, ClientIoMessage};
+use client::{BlockInfo, BlockChainClient, Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
 use error::{Error, ErrorKind as SnapshotErrorKind};
 use snapshot::{Error as SnapshotError};
@@ -40,6 +41,7 @@ use ethereum_types::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use bytes::Bytes;
 use journaldb::Algorithm;
+use kvdb::DBTransaction;
 use snappy;
 
 /// Helper for removing directories in case of error.
@@ -203,6 +205,9 @@ impl Restoration {
 /// Type alias for client io channel.
 pub type Channel = IoChannel<ClientIoMessage>;
 
+/// Trait alias for the Client Service used
+pub trait SnapshotClient: BlockChainClient + BlockInfo + DatabaseRestore {}
+
 /// Snapshot service parameters.
 pub struct ServiceParams {
 	/// The consensus engine this is built on.
@@ -219,7 +224,7 @@ pub struct ServiceParams {
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-	pub db_restore: Arc<DatabaseRestore>,
+	pub client: Arc<SnapshotClient>,
 }
 
 /// `SnapshotService` implementation.
@@ -236,7 +241,7 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	db_restore: Arc<DatabaseRestore>,
+	client: Arc<SnapshotClient>,
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
@@ -257,7 +262,7 @@ impl Service {
 			genesis_block: params.genesis_block,
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
-			db_restore: params.db_restore,
+			client: params.client,
 			progress: Default::default(),
 			taking_snapshot: AtomicBool::new(false),
 			restoring_snapshot: AtomicBool::new(false),
@@ -334,10 +339,108 @@ impl Service {
 
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
-		let our_db = self.restoration_db();
+		let migrated_blocks = self.migrate_blocks()?;
+		trace!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
 
-		self.db_restore.restore_db(&*our_db.to_string_lossy())?;
+		let rest_db = self.restoration_db();
+		self.client.restore_db(&*rest_db.to_string_lossy())?;
 		Ok(())
+	}
+
+	// Migrate the blocks in the current DB into the new chain
+	fn migrate_blocks(&self) -> Result<usize, Error> {
+		// Count the number of migrated blocks
+		let mut count = 0;
+		let rest_db = self.restoration_db();
+
+		let cur_chain_info = self.client.chain_info();
+
+		let next_db = self.restoration_db_handler.open(&rest_db)?;
+		let next_chain = BlockChain::new(Default::default(), &[], next_db.clone());
+		let next_chain_info = next_chain.chain_info();
+
+		// The old database looks like this:
+		// [genesis, best_ancient_block] ... [first_block, best_block]
+		// If we are fully synced neither `best_ancient_block` nor `first_block` is set, and we can assume that the whole range from [genesis, best_block] is imported.
+		// The new database only contains the tip of the chain ([first_block, best_block]),
+		// so the useful set of blocks is defined as:
+		// [0 ... min(new.first_block, best_ancient_block or best_block)]
+		let find_range = || -> Option<(H256, H256)> {
+			let next_available_from = next_chain_info.first_block_number?;
+			let cur_available_to = cur_chain_info.ancient_block_number.unwrap_or(cur_chain_info.best_block_number);
+
+			let highest_block_num = cmp::min(next_available_from.saturating_sub(1), cur_available_to);
+
+			if highest_block_num == 0 {
+				return None;
+			}
+
+			trace!(target: "snapshot", "Trying to import ancient blocks until {}", highest_block_num);
+
+			// Here we start from the highest block number and go backward to 0,
+			// thus starting at `highest_block_num` and targetting `0`.
+			let target_hash = self.client.block_hash(BlockId::Number(0))?;
+			let start_hash = self.client.block_hash(BlockId::Number(highest_block_num))?;
+
+			Some((start_hash, target_hash))
+		};
+
+		let (start_hash, target_hash) = match find_range() {
+			Some(x) => x,
+			None => return Ok(0),
+		};
+
+		let mut batch = DBTransaction::new();
+		let mut parent_hash = start_hash;
+		while parent_hash != target_hash {
+			// Early return if restoration is aborted
+			if !self.restoring_snapshot.load(Ordering::SeqCst) {
+				return Ok(count);
+			}
+
+			let block = self.client.block(BlockId::Hash(parent_hash)).ok_or(::snapshot::error::Error::UnlinkedAncientBlockChain)?;
+			parent_hash = block.parent_hash();
+
+			let block_number = block.number();
+			let block_receipts = self.client.block_receipts(&block.hash());
+			let parent_total_difficulty = self.client.block_total_difficulty(BlockId::Hash(parent_hash));
+
+			match (block_receipts, parent_total_difficulty) {
+				(Some(block_receipts), Some(parent_total_difficulty)) => {
+					let block_receipts = block_receipts.receipts;
+
+					next_chain.insert_unordered_block(&mut batch, block, block_receipts, Some(parent_total_difficulty), false, true);
+					count += 1;
+				},
+				_ => break,
+			}
+
+			// Writting changes to DB and logging every now and then
+			if block_number % 1_000 == 0 {
+				next_db.key_value().write_buffered(batch);
+				next_chain.commit();
+				next_db.key_value().flush().expect("DB flush failed.");
+				batch = DBTransaction::new();
+			}
+
+			if block_number % 10_000 == 0 {
+				trace!(target: "snapshot", "Block restoration at #{}", block_number);
+			}
+		}
+
+		// Final commit to the DB
+		next_db.key_value().write_buffered(batch);
+		next_chain.commit();
+		next_db.key_value().flush().expect("DB flush failed.");
+
+		// We couldn't reach the targeted hash
+		if parent_hash != target_hash {
+			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain.into());
+		}
+
+		// Update best ancient block in the Next Chain
+		next_chain.update_best_ancient_block(&start_hash);
+		Ok(count)
 	}
 
 	/// Get a reference to the snapshot reader.
@@ -480,12 +583,16 @@ impl Service {
 		// Import previous chunks, continue if it fails
 		self.import_prev_chunks(&mut res, manifest).ok();
 
-		*self.status.lock() = RestorationStatus::Ongoing {
-			state_chunks: state_chunks as u32,
-			block_chunks: block_chunks as u32,
-			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
-			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
-		};
+		// It could be that the restoration failed or completed in the meanwhile
+		let mut restoration_status = self.status.lock();
+		if let RestorationStatus::Initializing { .. } = *restoration_status {
+			*restoration_status = RestorationStatus::Ongoing {
+				state_chunks: state_chunks as u32,
+				block_chunks: block_chunks as u32,
+				state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
+				block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
+			};
+		}
 
 		Ok(())
 	}
@@ -752,26 +859,19 @@ impl Drop for Service {
 
 #[cfg(test)]
 mod tests {
-	use std::sync::Arc;
 	use client::ClientIoMessage;
 	use io::{IoService};
 	use spec::Spec;
 	use journaldb::Algorithm;
-	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 	use tempdir::TempDir;
-	use test_helpers::restoration_db_handler;
-
-	struct NoopDBRestore;
-	impl DatabaseRestore for NoopDBRestore {
-		fn restore_db(&self, _new_db: &str) -> Result<(), Error> {
-			Ok(())
-		}
-	}
+	use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 	#[test]
 	fn sends_async_messages() {
+		let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
+		let client = generate_dummy_client_with_spec_and_data(Spec::new_null, 400, 5, &gas_prices);
 		let service = IoService::<ClientIoMessage>::start().unwrap();
 		let spec = Spec::new_test();
 
@@ -785,7 +885,7 @@ mod tests {
 			pruning: Algorithm::Archive,
 			channel: service.channel(),
 			snapshot_root: dir,
-			db_restore: Arc::new(NoopDBRestore),
+			client: client,
 		};
 
 		let service = Service::new(snapshot_params).unwrap();
