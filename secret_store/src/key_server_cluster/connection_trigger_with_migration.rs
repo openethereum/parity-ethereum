@@ -22,7 +22,7 @@ use ethkey::Public;
 use parking_lot::Mutex;
 use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration, is_migration_required};
 use key_server_cluster::cluster::{ClusterConfiguration, ServersSetChangeParams};
-use key_server_cluster::cluster_connections_net::{NetConnectionsContainer};
+use key_server_cluster::cluster_connections_net::NetConnectionsContainer;
 use key_server_cluster::cluster_sessions::{AdminSession, ClusterSession};
 use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 use key_server_cluster::connection_trigger::{Maintain, ConnectionsAction, ConnectionTrigger,
@@ -283,7 +283,7 @@ impl TriggerSession {
 		match signatures {
 			Ok((old_set_signature, new_set_signature)) => Some(ServersSetChangeParams {
 				session_id: None,
-				migration_id: Some(migration.id.clone()),
+				migration_id: Some(migration.id),
 				new_nodes_set: new_set,
 				old_set_signature,
 				new_set_signature,

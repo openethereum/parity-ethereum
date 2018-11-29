@@ -59,9 +59,8 @@ pub struct NetConnectionsManagerConfig {
 	pub allow_connecting_to_higher_nodes: bool,
 	/// Interface to listen to.
 	pub listen_address: (String, u16),
-	/// Should key servers set change session when servers set changes? This
-	/// will only work when servers set is configured using KeyServerSet
-	/// contract.
+	/// True if we should autostart key servers set change session when servers set changes?
+	/// This will only work when servers set is configured using KeyServerSet contract.
 	pub auto_migrate_enabled: bool,
 }
 
@@ -136,7 +135,7 @@ impl NetConnectionsManager {
 			listen_address,
 			data: Arc::new(NetConnectionsData {
 				allow_connecting_to_higher_nodes: net_config.allow_connecting_to_higher_nodes,
-				executor: executor,
+				executor,
 				message_processor,
 				self_key_pair: config.self_key_pair.clone(),
 				trigger: Mutex::new(trigger),
@@ -253,7 +252,7 @@ impl NetConnectionsData {
 		let container = self.container.read();
 		container.nodes.iter()
 			.filter(|(node_id, _)| !container.connections.contains_key(node_id))
-			.map(|(node_id, addr)| (node_id.clone(), addr.clone()))
+			.map(|(node_id, addr)| (*node_id, *addr))
 			.collect()
 	}
 
@@ -263,23 +262,23 @@ impl NetConnectionsData {
 	/// - we are already connected to the node and existing connection 'supersede'
 	///   new connection by agreement
 	pub fn insert(&self, connection: Arc<NetConnection>) -> bool {
+		let node = *connection.node_id();
 		let mut container = self.container.write();
-		if !container.nodes.contains_key(connection.node_id()) {
+		if !container.nodes.contains_key(&node) {
 			trace!(target: "secretstore_net", "{}: ignoring unknown connection from {} at {}",
-				self.self_key_pair.public(), connection.node_id(), connection.node_address());
+				self.self_key_pair.public(), node, connection.node_address());
 			return false;
 		}
 
-		if container.connections.contains_key(connection.node_id()) {
+		if container.connections.contains_key(&node) {
 			// we have already connected to the same node
 			// the agreement is that node with lower id must establish connection to node with higher id
-			if (self.self_key_pair.public() < connection.node_id() && connection.is_inbound())
-				|| (self.self_key_pair.public() > connection.node_id() && !connection.is_inbound()) {
+			if (*self.self_key_pair.public() < node && connection.is_inbound())
+				|| (*self.self_key_pair.public() > node && !connection.is_inbound()) {
 				return false;
 			}
 		}
 
-		let node = connection.node_id().clone();
 		trace!(target: "secretstore_net",
 			"{}: inserting connection to {} at {}. Connected to {} of {} nodes",
 			self.self_key_pair.public(), node, connection.node_address(),
@@ -292,10 +291,10 @@ impl NetConnectionsData {
 	/// Tries to remove connection. Returns true if connection has been removed.
 	/// Returns false if we do not know this connection.
 	pub fn remove(&self, connection: &NetConnection) -> bool {
-		let node_id = connection.node_id().clone();
+		let node_id = *connection.node_id();
 		let is_inbound = connection.is_inbound();
 		let mut container = self.container.write();
-		if let Entry::Occupied(entry) = container.connections.entry(node_id.clone()) {
+		if let Entry::Occupied(entry) = container.connections.entry(node_id) {
 			if entry.get().is_inbound() != is_inbound {
 				return false;
 			}
@@ -344,10 +343,7 @@ fn net_accept_connection(
 }
 
 /// Accept incoming connection future.
-fn net_accept_connection_future(
-	data: Arc<NetConnectionsData>,
-	stream: TcpStream,
-) -> BoxedEmptyFuture {
+fn net_accept_connection_future(data: Arc<NetConnectionsData>, stream: TcpStream) -> BoxedEmptyFuture {
 	Box::new(io_accept_connection(stream, data.self_key_pair.clone())
 		.then(move |result| net_process_connection_result(data, None, result))
 		.then(|_| future::ok(())))
@@ -436,7 +432,7 @@ fn net_process_connection_messages(
 					Box::new(future::ok(Err(err)))
 				},
 				Err(err) => {
-					let node_id = connection.node_id().clone();
+					let node_id = *connection.node_id();
 					warn!(target: "secretstore_net", "{}: network error '{}' when reading message from node {}",
 						data.self_key_pair.public(), err, node_id);
 					// close connection
@@ -479,7 +475,7 @@ fn net_keep_alive(data: Arc<NetConnectionsData>) {
 			warn!(target: "secretstore_net", "{}: keep alive timeout for node {}",
 				data.self_key_pair.public(), connection.node_id());
 
-			let node_id = connection.node_id().clone();
+			let node_id = *connection.node_id();
 			if data.remove(&*connection) {
 				let maintain_action = data.trigger.lock().on_connection_closed(&node_id);
 				maintain_connection_trigger(data.clone(), maintain_action);
@@ -497,7 +493,7 @@ fn net_connect_disconnected(data: Arc<NetConnectionsData>) {
 	let disconnected_nodes = data.disconnected_nodes();
 	for (node_id, address) in disconnected_nodes {
 		if data.allow_connecting_to_higher_nodes || *data.self_key_pair.public() < node_id {
-			net_connect(data.clone(), address.clone());
+			net_connect(data.clone(), address);
 		}
 	}
 }

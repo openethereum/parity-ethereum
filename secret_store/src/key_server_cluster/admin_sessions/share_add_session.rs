@@ -909,7 +909,7 @@ pub mod tests {
 			SessionImpl::new(SessionParams {
 				meta: meta.clone(),
 				transport: IsolatedSessionTransport::new(meta.id, key_version, 1, ml.cluster(idx).view().unwrap()),
-				key_storage: key_storage,
+				key_storage,
 				admin_public: Some(admin_public),
 				nonce: 1,
 			}).unwrap()

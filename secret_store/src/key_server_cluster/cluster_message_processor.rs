@@ -82,7 +82,7 @@ impl SessionsMessageProcessor {
 			Message: IntoSessionId<S::Id>
 	{
 		// get or create new session, if required
-		let mut sender = connection.node_id().clone();
+		let mut sender = *connection.node_id();
 		let session = self.prepare_session(sessions, &sender, &message);
 		// send error if session is not found, or failed to create
 		let session = match session {
@@ -181,9 +181,9 @@ impl SessionsMessageProcessor {
 			true => {
 				let creation_data = SC::creation_data_from_message(&message)?;
 				let master = if is_initialization_message {
-					sender.clone()
+					*sender
 				} else {
-					self.self_key_pair.public().clone()
+					*self.self_key_pair.public()
 				};
 				let cluster = create_cluster_view(
 					self.self_key_pair.clone(),

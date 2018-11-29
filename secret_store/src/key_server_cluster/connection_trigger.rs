@@ -26,7 +26,7 @@ use key_server_cluster::cluster_sessions::AdminSession;
 use key_server_cluster::cluster_connections::{Connection};
 use key_server_cluster::cluster_connections_net::{NetConnectionsContainer};
 use types::{Error, NodeId};
-use {NodeKeyPair};
+use NodeKeyPair;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Describes which maintain() call is required.
@@ -99,7 +99,7 @@ pub struct TriggerConnections {
 impl SimpleConnectionTrigger {
 	/// Create new simple from cluster configuration.
 	pub fn with_config(config: &ClusterConfiguration) -> Self {
-		Self::new(config.key_server_set.clone(), config.self_key_pair.clone(), config.admin_public.clone())
+		Self::new(config.key_server_set.clone(), config.self_key_pair.clone(), config.admin_public)
 	}
 
 	/// Create new simple connection trigger.
@@ -217,7 +217,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethkey::{Random, Generator};
 	use key_server_cluster::{MapKeyServerSet, PlainNodeKeyPair, KeyServerSetSnapshot, KeyServerSetMigration};
-	use key_server_cluster::cluster_connections_net::{NetConnectionsContainer};
+	use key_server_cluster::cluster_connections_net::NetConnectionsContainer;
 	use super::{Maintain, TriggerConnections, ConnectionsAction, ConnectionTrigger, SimpleConnectionTrigger,
 		select_nodes_to_disconnect, adjust_connections};
 

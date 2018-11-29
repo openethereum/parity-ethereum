@@ -230,9 +230,9 @@ impl<C: ConnectionManager> ClusterCore<C> {
 		Ok(Arc::new(ClusterCore {
 			data: Arc::new(ClusterData {
 				self_key_pair: config.self_key_pair.clone(),
-				connections: connections,
+				connections,
 				sessions: sessions.clone(),
-				config: config,
+				config,
 				message_processor,
 				servers_set_change_creator_connector
 			}),

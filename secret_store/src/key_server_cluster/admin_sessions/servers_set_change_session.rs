@@ -1179,7 +1179,7 @@ pub mod tests {
 				.filter(|n| !removed_nodes_ids.contains(n))
 				.collect();
 			let mut old_set_to_sign = all_nodes_set.clone();
-			all_nodes_set.extend(add.iter().map(|kp| kp.public().clone()));
+			all_nodes_set.extend(add.iter().map(|kp| *kp.public()));
 			if C::SIGN_NEW_NODES {
 				old_set_to_sign.extend(add.iter().map(|kp| *kp.public()));
 			}
