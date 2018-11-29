@@ -132,8 +132,8 @@ pub mod tests {
 		fn connection(&self, node: &NodeId) -> Option<Arc<Connection>> {
 			match self.connected_nodes.lock().contains(node) {
 				true => Some(Arc::new(TestConnection {
-					from: self.node.clone(),
-					to: node.clone(),
+					from: self.node,
+					to: *node,
 					messages: self.messages.clone(),
 				})),
 				false => None,
@@ -155,7 +155,7 @@ pub mod tests {
 		}
 
 		fn send_message(&self, message: Message) {
-			self.messages.lock().push_back((self.from.clone(), self.to.clone(), message))
+			self.messages.lock().push_back((self.from, self.to, message))
 		}
 	}
 

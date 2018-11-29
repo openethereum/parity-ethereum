@@ -1064,12 +1064,12 @@ mod tests {
 	use ethereum_types::H256;
 	use ethkey::{self, Random, Generator, Public, verify_public, public_to_address};
 	use key_server_cluster::{SessionId, Error, KeyStorage};
-	use key_server_cluster::cluster::tests::{MessagesLoop};
+	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop};
 	use key_server_cluster::signing_session_ecdsa::SessionImpl;
 	use key_server_cluster::generation_session::tests::MessageLoop as GenerationMessageLoop;
 
 	#[derive(Debug)]
-	pub struct MessageLoop(pub MessagesLoop);
+	pub struct MessageLoop(pub ClusterMessageLoop);
 
 	impl MessageLoop {
 		pub fn new(num_nodes: usize, threshold: usize) -> Result<Self, Error> {
@@ -1084,8 +1084,8 @@ mod tests {
 			let requester = Random.generate().unwrap();
 			let signature = ethkey::sign(requester.secret(), &SessionId::default()).unwrap();
 			self.0.cluster(0).client()
-				.new_ecdsa_signing_session(Default::default(), signature.into(), key_version, message_hash.clone())
-				.map(|_| (self, requester.public().clone(), message_hash))
+				.new_ecdsa_signing_session(Default::default(), signature.into(), key_version, message_hash)
+				.map(|_| (self, *requester.public(), message_hash))
 		}
 
 		pub fn init(self) -> Result<(Self, Public, H256), Error> {

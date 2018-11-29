@@ -814,7 +814,7 @@ mod tests {
 	use ethkey::{self, Random, Generator, Public, Secret, public_to_address};
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{SessionId, Requester, SessionMeta, Error, KeyStorage};
-	use key_server_cluster::cluster::tests::MessagesLoop;
+	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;
 	use key_server_cluster::generation_session::tests::MessageLoop as GenerationMessageLoop;
 	use key_server_cluster::math;
 	use key_server_cluster::message::{SchnorrSigningMessage, SchnorrSigningConsensusMessage,
@@ -823,7 +823,7 @@ mod tests {
 	use key_server_cluster::signing_session_schnorr::{SessionImpl, SessionState, SessionParams};
 
 	#[derive(Debug)]
-	pub struct MessageLoop(pub MessagesLoop);
+	pub struct MessageLoop(pub ClusterMessageLoop);
 
 	impl MessageLoop {
 		pub fn new(num_nodes: usize, threshold: usize) -> Result<Self, Error> {
@@ -861,7 +861,7 @@ mod tests {
 				Default::default(),
 				signature.into(),
 				key_version,
-				message_hash.clone()).map(|_| (self, requester.public().clone(), message_hash))
+				message_hash).map(|_| (self, *requester.public(), message_hash))
 		}
 
 		pub fn init(self) -> Result<(Self, Public, H256), Error> {

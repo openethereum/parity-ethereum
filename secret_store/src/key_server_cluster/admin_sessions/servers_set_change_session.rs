@@ -1049,7 +1049,7 @@ pub mod tests {
 	use ethkey::{Random, Generator, Public, Signature, KeyPair, sign};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, NodeKeyPair, PlainNodeKeyPair};
 	use key_server_cluster::cluster_sessions::ClusterSession;
-	use key_server_cluster::cluster::tests::MessagesLoop;
+	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;
 	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop};
 	use key_server_cluster::math;
 	use key_server_cluster::message::Message;
@@ -1064,13 +1064,13 @@ pub mod tests {
 			meta: ShareChangeSessionMeta,
 			admin_public: Public,
 			all_nodes_set: BTreeSet<NodeId>,
-			ml: &MessagesLoop,
+			ml: &ClusterMessageLoop,
 			idx: usize
 		) -> S;
 	}
 
 	pub struct MessageLoop<S> {
-		pub ml: MessagesLoop,
+		pub ml: ClusterMessageLoop,
 		pub admin_key_pair: KeyPair,
 		pub original_key_pair: KeyPair,
 		pub original_key_version: H256,
@@ -1097,10 +1097,10 @@ pub mod tests {
 			mut meta: ShareChangeSessionMeta,
 			admin_public: Public,
 			all_nodes_set: BTreeSet<NodeId>,
-			ml: &MessagesLoop,
+			ml: &ClusterMessageLoop,
 			idx: usize
 		) -> SessionImpl {
-			meta.self_node_id = ml.node_key_pair(idx).public().clone();
+			meta.self_node_id = *ml.node_key_pair(idx).public();
 			SessionImpl::new(SessionParams {
 				meta: meta,
 				all_nodes_set: all_nodes_set,
@@ -1153,7 +1153,7 @@ pub mod tests {
 		}
 
 		pub fn with_ml<C: AdminSessionAdapter<S>>(
-			mut ml: MessagesLoop,
+			mut ml: ClusterMessageLoop,
 			original_key_pair: KeyPair,
 			original_key_version: H256,
 			master: NodeId,
@@ -1170,26 +1170,25 @@ pub mod tests {
 			let admin_public = admin_key_pair.public().clone();
 
 			// all active nodes set
-			let mut all_nodes_set: BTreeSet<_> = ml.nodes().iter()
+			let mut all_nodes_set: BTreeSet<_> = ml.nodes().into_iter()
 				.filter(|n| !isolated_nodes_ids.contains(n))
-				.cloned()
 				.collect();
 			// new nodes set includes all old nodes, except nodes being removed + all nodes being added
 			let new_nodes_set: BTreeSet<NodeId> = all_nodes_set.iter().cloned()
-				.chain(add.iter().map(|kp| kp.public().clone()))
+				.chain(add.iter().map(|kp| *kp.public()))
 				.filter(|n| !removed_nodes_ids.contains(n))
 				.collect();
 			let mut old_set_to_sign = all_nodes_set.clone();
 			all_nodes_set.extend(add.iter().map(|kp| kp.public().clone()));
 			if C::SIGN_NEW_NODES {
-				old_set_to_sign.extend(add.iter().map(|kp| kp.public().clone()));
+				old_set_to_sign.extend(add.iter().map(|kp| *kp.public()));
 			}
 			for isolated_node_id in &isolated_nodes_ids {
 				all_nodes_set.remove(isolated_node_id);
 			}
 
 			let meta = ShareChangeSessionMeta {
-				self_node_id: master.clone(),
+				self_node_id: master,
 				master_node_id: master,
 				id: SessionId::default(),
 				configured_nodes_count: all_nodes_set.len(),
@@ -1208,7 +1207,7 @@ pub mod tests {
 
 			// prepare set of nodes
 			let sessions: BTreeMap<_, _> = (0..ml.nodes().len())
-				.map(|idx| (ml.node(idx), C::create(meta.clone(), admin_public.clone(), all_nodes_set.clone(), &ml, idx)))
+				.map(|idx| (ml.node(idx), C::create(meta.clone(), admin_public, all_nodes_set.clone(), &ml, idx)))
 				.collect();
 
 			let all_set_signature = sign(admin_key_pair.secret(), &ordered_nodes_hash(&old_set_to_sign)).unwrap();

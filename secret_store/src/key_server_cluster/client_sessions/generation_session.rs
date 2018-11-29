@@ -945,14 +945,14 @@ pub mod tests {
 	use key_server_cluster::{NodeId, Error, KeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage, KeysDissemination,
 		PublicKeyShare, ConfirmInitialization};
-	use key_server_cluster::cluster::tests::{MessagesLoop, make_clusters_and_preserve_sessions};
+	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop, make_clusters_and_preserve_sessions};
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::generation_session::{SessionImpl, SessionState};
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
 
 	#[derive(Debug)]
-	pub struct MessageLoop(pub MessagesLoop);
+	pub struct MessageLoop(pub ClusterMessageLoop);
 
 	impl MessageLoop {
 		pub fn new(num_nodes: usize) -> Self {
@@ -1050,7 +1050,7 @@ pub mod tests {
 	fn fails_to_accept_initialization_when_already_initialized() {
 		let ml = MessageLoop::new(2).init(0).unwrap();
 		let (from, to, msg) = ml.0.take_message().unwrap();
-		ml.0.process_message(from.clone(), to.clone(), msg.clone());
+		ml.0.process_message(from, to, msg.clone());
 		assert_eq!(
 			ml.session_of(&to).on_message(&from, &msg),
 			Err(Error::InvalidStateForRequest),

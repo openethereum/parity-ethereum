@@ -198,7 +198,7 @@ pub fn new_test_cluster(
 	config: ClusterConfiguration,
 ) -> Result<Arc<ClusterCore<Arc<TestConnections>>>, Error> {
 	let nodes = config.key_server_set.snapshot().current_set;
-	let connections = new_test_connections(messages, config.self_key_pair.public().clone(), nodes.keys().cloned().collect());
+	let connections = new_test_connections(messages, *config.self_key_pair.public(), nodes.keys().cloned().collect());
 
 	let connection_trigger = Box::new(SimpleConnectionTrigger::with_config(&config));
 	let servers_set_change_creator_connector = connection_trigger.servers_set_change_creator_connector();
@@ -517,7 +517,7 @@ pub fn new_servers_set_change_session(
 	let cluster = create_cluster_view(self_key_pair.clone(), connections, true)?;
 	let creation_data = AdminSessionCreationData::ServersSetChange(params.migration_id, params.new_nodes_set.clone());
 	let session = sessions.admin_sessions
-		.insert(cluster, self_key_pair.public().clone(), session_id, None, true, Some(creation_data))?;
+		.insert(cluster, *self_key_pair.public(), session_id, None, true, Some(creation_data))?;
 	let initialization_result = session.as_servers_set_change().expect("servers set change session is created; qed")
 		.initialize(params.new_nodes_set, params.old_set_signature, params.new_set_signature);
 
@@ -680,7 +680,7 @@ pub mod tests {
 	}
 
 	/// Test message loop.
-	pub struct MessagesLoop {
+	pub struct MessageLoop {
 		messages: MessagesQueue,
 		preserve_sessions: bool,
 		key_pairs_map: BTreeMap<NodeId, Arc<PlainNodeKeyPair>>,
@@ -689,13 +689,13 @@ pub mod tests {
 		clusters_map: BTreeMap<NodeId, Arc<ClusterCore<Arc<TestConnections>>>>,
 	}
 
-	impl ::std::fmt::Debug for MessagesLoop {
+	impl ::std::fmt::Debug for MessageLoop {
 		fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
 			write!(f, "MessageLoop({})", self.clusters_map.len())
 		}
 	}
 
-	impl MessagesLoop {
+	impl MessageLoop {
 		/// Returns set of all nodes ids.
 		pub fn nodes(&self) -> BTreeSet<NodeId> {
 			self.clusters_map.keys().cloned().collect()
@@ -703,7 +703,7 @@ pub mod tests {
 
 		/// Returns nodes id by its index.
 		pub fn node(&self, idx: usize) -> NodeId {
-			self.clusters_map.keys().nth(idx).unwrap().clone()
+			*self.clusters_map.keys().nth(idx).unwrap()
 		}
 
 		/// Returns key pair of the node by its idx.
@@ -753,7 +753,7 @@ pub mod tests {
 				if i == idx {
 					cluster.data.connections.isolate();
 				} else {
-					cluster.data.connections.disconnect(node.clone());
+					cluster.data.connections.disconnect(node);
 				}
 			}
 		}
@@ -763,7 +763,7 @@ pub mod tests {
 			let node = self.node(idx);
 			for (i, cluster) in self.clusters_map.values().enumerate() {
 				if i != idx {
-					cluster.data.connections.exclude(node.clone());
+					cluster.data.connections.exclude(node);
 				}
 			}
 			self.key_storages_map.remove(&node);
@@ -780,7 +780,7 @@ pub mod tests {
 				self_key_pair: node_key_pair.clone(),
 				key_server_set: Arc::new(MapKeyServerSet::new(false, self.nodes().iter()
 					.chain(::std::iter::once(node_key_pair.public()))
-					.map(|n| (n.clone(), format!("127.0.0.1:{}", 13).parse().unwrap()))
+					.map(|n| (*n, format!("127.0.0.1:{}", 13).parse().unwrap()))
 					.collect())),
 				key_storage: key_storage.clone(),
 				acl_storage: acl_storage.clone(),
@@ -792,14 +792,14 @@ pub mod tests {
 			for cluster in self.clusters_map.values(){
 				cluster.data.connections.include(node_key_pair.public().clone());
 			}
-			self.acl_storages_map.insert(node_key_pair.public().clone(), acl_storage);
-			self.key_storages_map.insert(node_key_pair.public().clone(), key_storage);
-			self.clusters_map.insert(node_key_pair.public().clone(), cluster);
-			self.key_pairs_map.insert(node_key_pair.public().clone(), node_key_pair.clone());
+			self.acl_storages_map.insert(*node_key_pair.public(), acl_storage);
+			self.key_storages_map.insert(*node_key_pair.public(), key_storage);
+			self.clusters_map.insert(*node_key_pair.public(), cluster);
+			self.key_pairs_map.insert(*node_key_pair.public(), node_key_pair.clone());
 			self.clusters_map.keys().position(|k| k == node_key_pair.public()).unwrap()
 		}
 
-		/// Is empty messagq queue?
+		/// Is empty message queue?
 		pub fn is_empty(&self) -> bool {
 			self.messages.lock().is_empty()
 		}
@@ -837,15 +837,15 @@ pub mod tests {
 		}
 	}
 
-	pub fn make_clusters(num_nodes: usize) -> MessagesLoop {
+	pub fn make_clusters(num_nodes: usize) -> MessageLoop {
 		do_make_clusters(num_nodes, false)
 	}
 
-	pub fn make_clusters_and_preserve_sessions(num_nodes: usize) -> MessagesLoop {
+	pub fn make_clusters_and_preserve_sessions(num_nodes: usize) -> MessageLoop {
 		do_make_clusters(num_nodes, true)
 	}
 
-	fn do_make_clusters(num_nodes: usize, preserve_sessions: bool) -> MessagesLoop {
+	fn do_make_clusters(num_nodes: usize, preserve_sessions: bool) -> MessageLoop {
 		let ports_begin = 0;
 		let messages = Arc::new(Mutex::new(VecDeque::new()));
 		let key_pairs: Vec<_> = (0..num_nodes)
@@ -855,7 +855,7 @@ pub mod tests {
 		let cluster_params: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 			self_key_pair: key_pairs[i].clone(),
 			key_server_set: Arc::new(MapKeyServerSet::new(false, key_pairs.iter().enumerate()
-				.map(|(j, kp)| (kp.public().clone(), format!("127.0.0.1:{}", ports_begin + j as u16).parse().unwrap()))
+				.map(|(j, kp)| (*kp.public(), format!("127.0.0.1:{}", ports_begin + j as u16).parse().unwrap()))
 				.collect())),
 			key_storage: key_storages[i].clone(),
 			acl_storage: acl_storages[i].clone(),
@@ -866,19 +866,19 @@ pub mod tests {
 			.map(|params| new_test_cluster(messages.clone(), params).unwrap())
 			.collect();
 
-		let clusters_map = clusters.iter().map(|c| (c.data.config.self_key_pair.public().clone(), c.clone())).collect();
-		let key_pairs_map = key_pairs.into_iter().map(|kp| (kp.public().clone(), kp)).collect();
+		let clusters_map = clusters.iter().map(|c| (*c.data.config.self_key_pair.public(), c.clone())).collect();
+		let key_pairs_map = key_pairs.into_iter().map(|kp| (*kp.public(), kp)).collect();
 		let key_storages_map = clusters.iter().zip(key_storages.into_iter())
-			.map(|(c, ks)| (c.data.config.self_key_pair.public().clone(), ks)).collect();
+			.map(|(c, ks)| (*c.data.config.self_key_pair.public(), ks)).collect();
 		let acl_storages_map = clusters.iter().zip(acl_storages.into_iter())
-			.map(|(c, acls)| (c.data.config.self_key_pair.public().clone(), acls)).collect();
-		MessagesLoop { preserve_sessions, messages, key_pairs_map, acl_storages_map, key_storages_map, clusters_map }
+			.map(|(c, acls)| (*c.data.config.self_key_pair.public(), acls)).collect();
+		MessageLoop { preserve_sessions, messages, key_pairs_map, acl_storages_map, key_storages_map, clusters_map }
 	}
 
 	#[test]
 	fn cluster_wont_start_generation_session_if_not_fully_connected() {
 		let ml = make_clusters(3);
-		ml.cluster(0).data.connections.disconnect(ml.cluster(0).data.self_key_pair.public().clone());
+		ml.cluster(0).data.connections.disconnect(*ml.cluster(0).data.self_key_pair.public());
 		match ml.cluster(0).client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1) {
 			Err(Error::NodeDisconnected) => (),
 			Err(e) => panic!("unexpected error {:?}", e),

@@ -885,7 +885,7 @@ pub mod tests {
 	use std::collections::BTreeSet;
 	use ethkey::{Random, Generator, Public};
 	use key_server_cluster::{NodeId, Error, KeyStorage, NodeKeyPair};
-	use key_server_cluster::cluster::tests::MessagesLoop;
+	use key_server_cluster::cluster::tests::MessageLoop as ClusterMessageLoop;
 	use key_server_cluster::servers_set_change_session::tests::{MessageLoop, AdminSessionAdapter, generate_key};
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use super::{SessionImpl, SessionParams, IsolatedSessionTransport};
@@ -899,13 +899,13 @@ pub mod tests {
 			mut meta: ShareChangeSessionMeta,
 			admin_public: Public,
 			_: BTreeSet<NodeId>,
-			ml: &MessagesLoop,
+			ml: &ClusterMessageLoop,
 			idx: usize
 		) -> SessionImpl<IsolatedSessionTransport> {
 			let key_storage = ml.key_storage(idx).clone();
-			let key_version = key_storage.get(&meta.id).unwrap().map(|ks| ks.last_version().unwrap().hash.clone());
+			let key_version = key_storage.get(&meta.id).unwrap().map(|ks| ks.last_version().unwrap().hash);
 
-			meta.self_node_id = ml.node_key_pair(idx).public().clone();
+			meta.self_node_id = *ml.node_key_pair(idx).public();
 			SessionImpl::new(SessionParams {
 				meta: meta.clone(),
 				transport: IsolatedSessionTransport::new(meta.id, key_version, 1, ml.cluster(idx).view().unwrap()),
@@ -965,7 +965,7 @@ pub mod tests {
 
 		// try to add 1 node using this node as a master node
 		let add = vec![Random.generate().unwrap()];
-		let master = add[0].public().clone();
+		let master = *add[0].public();
 		assert_eq!(MessageLoop::with_gml::<Adapter>(gml, master, Some(add), None, None)
 			.run_at(master).unwrap_err(), Error::ServerKeyIsNotFound);
 	}
@@ -1048,7 +1048,7 @@ pub mod tests {
 		let mut oldest_nodes_set = gml.0.nodes();
 		oldest_nodes_set.remove(&node_to_isolate);
 		let add = (0..add).map(|_| Random.generate().unwrap()).collect::<Vec<_>>();
-		let newest_nodes_set = add.iter().map(|kp| kp.public().clone()).collect::<Vec<_>>();
+		let newest_nodes_set = add.iter().map(|kp| *kp.public()).collect::<Vec<_>>();
 		let isolate = ::std::iter::once(node_to_isolate).collect();
 		let ml = MessageLoop::with_gml::<Adapter>(gml, master, Some(add), None, Some(isolate))
 			.run_at(master).unwrap();
@@ -1081,13 +1081,13 @@ pub mod tests {
 
 		debug_assert!(oldest_nodes_set.iter().all(|n| vec![version_a.clone(), version_b.clone(), version_c.clone()] ==
 			ml.ml.key_storage_of(n).get(&Default::default()).unwrap().unwrap()
-				.versions.iter().map(|v| v.hash.clone()).collect::<Vec<_>>()));
+				.versions.iter().map(|v| v.hash).collect::<Vec<_>>()));
 		debug_assert!(::std::iter::once(&node_to_isolate).all(|n| vec![version_a.clone(), version_c.clone()] ==
 			ml.ml.key_storage_of(n).get(&Default::default()).unwrap().unwrap()
-				.versions.iter().map(|v| v.hash.clone()).collect::<Vec<_>>()));
+				.versions.iter().map(|v| v.hash).collect::<Vec<_>>()));
 		debug_assert!(newest_nodes_set.iter().all(|n| vec![version_b.clone(), version_c.clone()] ==
 			ml.ml.key_storage_of(n).get(&Default::default()).unwrap().unwrap()
-				.versions.iter().map(|v| v.hash.clone()).collect::<Vec<_>>()));
+				.versions.iter().map(|v| v.hash).collect::<Vec<_>>()));
 	}
 
 	#[test]
