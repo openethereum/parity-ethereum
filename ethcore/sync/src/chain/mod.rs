@@ -333,6 +333,8 @@ pub struct PeerInfo {
 	last_sent_private_transactions: H256FastSet,
 	/// Pending request is expired and result should be ignored
 	expired: bool,
+	/// Private transactions enabled
+	private_tx_enabled: bool,
 	/// Peer fork confirmation status
 	confirmation: ForkConfirmation,
 	/// Best snapshot hash
@@ -395,7 +397,7 @@ impl ChainSyncApi {
 	pub fn new(
 		config: SyncConfig,
 		chain: &BlockChainClient,
-		private_tx_handler: Arc<PrivateTxHandler>,
+		private_tx_handler: Option<Arc<PrivateTxHandler>>,
 		priority_tasks: mpsc::Receiver<PriorityTask>,
 	) -> Self {
 		ChainSyncApi {
@@ -626,7 +628,7 @@ pub struct ChainSync {
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
 	/// Shared private tx service.
-	private_tx_handler: Arc<PrivateTxHandler>,
+	private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	/// Enable warp sync.
 	warp_sync: WarpSync,
 }
@@ -636,7 +638,7 @@ impl ChainSync {
 	pub fn new(
 		config: SyncConfig,
 		chain: &BlockChainClient,
-		private_tx_handler: Arc<PrivateTxHandler>,
+		private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	) -> Self {
 		let chain_info = chain.chain_info();
 		let best_block = chain.chain_info().best_block_number;
@@ -1122,7 +1124,7 @@ impl ChainSync {
 		let warp_protocol = warp_protocol_version != 0;
 		let protocol = if warp_protocol { warp_protocol_version } else { ETH_PROTOCOL_VERSION_63.0 };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
-		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
+		let mut packet = RlpStream::new_list(if warp_protocol { 8 } else { 6 });
 		let chain = io.chain().chain_info();
 		packet.append(&(protocol as u32));
 		packet.append(&self.network_id);
@@ -1136,6 +1138,7 @@ impl ChainSync {
 			packet.append(&manifest_hash);
 			packet.append(&block_number);
 		}
+		packet.append(&self.private_tx_handler.is_some());
 		io.respond(STATUS_PACKET, packet.out())
 	}
 
@@ -1246,7 +1249,8 @@ impl ChainSync {
 	fn get_private_transaction_peers(&self, transaction_hash: &H256) -> Vec<PeerId> {
 		self.peers.iter().filter_map(
 			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0
-				&& !p.last_sent_private_transactions.contains(transaction_hash) {
+				&& !p.last_sent_private_transactions.contains(transaction_hash)
+				&& p.private_tx_enabled {
 					Some(*id)
 				} else {
 					None
@@ -1342,7 +1346,6 @@ pub mod tests {
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::miner::{MinerService, PendingOrdering};
 	use types::header::Header;
-	use private_tx::NoopPrivateTxHandler;
 
 	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -1426,7 +1429,7 @@ pub mod tests {
 	}
 
 	pub fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default(), client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), client, None);
 		insert_dummy_peer(&mut sync, 0, peer_latest_hash);
 		sync
 	}
@@ -1446,6 +1449,7 @@ pub mod tests {
 				last_sent_transactions: Default::default(),
 				last_sent_private_transactions: Default::default(),
 				expired: false,
+				private_tx_enabled: false,
 				confirmation: super::ForkConfirmation::Confirmed,
 				snapshot_number: None,
 				snapshot_hash: None,

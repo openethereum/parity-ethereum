@@ -576,10 +576,26 @@ impl SyncHandler {
 			snapshot_hash: if warp_protocol { Some(r.val_at(5)?) } else { None },
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,
+			private_tx_enabled: if warp_protocol { r.val_at(7).unwrap_or(false) } else { r.val_at(5).unwrap_or(false) },
 		};
 
-		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{}, snapshot:{:?})",
-			peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis, peer.snapshot_number);
+		trace!(target: "sync", "New peer {} (
+			protocol: {},
+			network: {:?},
+			difficulty: {:?},
+			latest:{},
+			genesis:{},
+			snapshot:{:?},
+			private_tx_enabled:{})",
+			peer_id,
+			peer.protocol_version,
+			peer.network_id,
+			peer.difficulty,
+			peer.latest_hash,
+			peer.genesis,
+			peer.snapshot_number,
+			peer.private_tx_enabled
+		);
 		if io.is_expired() {
 			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
 			return Ok(());
@@ -654,9 +670,13 @@ impl SyncHandler {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
-
+		if sync.private_tx_handler.is_none() {
+			trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
+			return Ok(());
+		}
+		let private_handler = sync.private_tx_handler.take().expect("None was checked before; qed");
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
-		match sync.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
+		match private_handler.import_signed_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
 				//don't send the packet back
 				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
@@ -676,10 +696,13 @@ impl SyncHandler {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
-
+		if sync.private_tx_handler.is_none() {
+			trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
+			return Ok(());
+		}
+		let private_handler = sync.private_tx_handler.take().expect("None was checked before; qed");
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
-
-		match sync.private_tx_handler.import_private_transaction(r.as_raw()) {
+		match private_handler.import_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
 				//don't send the packet back
 				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {

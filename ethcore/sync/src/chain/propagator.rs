@@ -350,7 +350,6 @@ impl SyncPropagator {
 mod tests {
 	use ethcore::client::{BlockInfo, ChainInfo, EachBlockWith, TestBlockChainClient};
 	use parking_lot::RwLock;
-	use private_tx::NoopPrivateTxHandler;
 	use rlp::{Rlp};
 	use std::collections::{VecDeque};
 	use tests::helpers::{TestIo};
@@ -426,7 +425,7 @@ mod tests {
 		client.add_blocks(2, EachBlockWith::Uncle);
 		let queue = RwLock::new(VecDeque::new());
 		let block = client.block(BlockId::Latest).unwrap().into_inner();
-		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		sync.peers.insert(0,
 			PeerInfo {
 				// Messaging protocol
@@ -442,6 +441,7 @@ mod tests {
 				last_sent_transactions: Default::default(),
 				last_sent_private_transactions: Default::default(),
 				expired: false,
+				private_tx_enabled: false,
 				confirmation: ForkConfirmation::Confirmed,
 				snapshot_number: None,
 				snapshot_hash: None,
@@ -514,7 +514,7 @@ mod tests {
 		client.add_blocks(100, EachBlockWith::Uncle);
 		client.insert_transaction_to_queue();
 		// Sync with no peers
-		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -584,7 +584,7 @@ mod tests {
 		let mut client = TestBlockChainClient::new();
 		client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
-		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -617,7 +617,7 @@ mod tests {
 		let tx1_hash = client.insert_transaction_to_queue();
 		let tx2_hash = client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
-		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
