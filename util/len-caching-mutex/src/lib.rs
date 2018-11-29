@@ -123,6 +123,13 @@ mod tests {
 
 	#[test]
 	fn works_with_vec() {
+		let v: Vec<i32> = Vec::new();
+		let lcm = LenCachingMutex::new(v);
+		assert_eq!(lcm.lock().shrink_to_fit(), ());
+	}
+
+	#[test]
+	fn works_with_vecdeque() {
 		let v: VecDeque<i32> = VecDeque::new();
 		let lcm = LenCachingMutex::new(v);
 		assert_eq!(lcm.lock().shrink_to_fit(), ());
