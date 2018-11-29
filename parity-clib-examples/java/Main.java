@@ -37,8 +37,8 @@ class Main {
 	public static void runParity(String[] config) {
 		Parity parity = new Parity(config);
 
-		Callback rpcCallback = new Callback();
-		Callback webSocketCallback = new Callback();
+		Callback rpcCallback = new Callback(1);
+		Callback webSocketCallback = new Callback(2);
 
 		for (String query : rpc_queries) {
 			parity.rpcQuery(query, ONE_MINUTE_AS_MILLIS, rpcCallback);
@@ -86,14 +86,20 @@ class Main {
 
 class Callback {
 	private AtomicInteger counter;
+	private final int callbackType;
 
-	public Callback() {
+	public Callback(int type) {
 		counter = new AtomicInteger();
+		callbackType = type;
 	}
 
-	public void callback(long kind, Object response) {
+	public void callback(Object response) {
 		response = (String) response;
-		System.out.println("Response: " + response);
+		if (callbackType == 1) {
+			System.out.println("rpc: " + response);
+		} else if (callbackType == 2) {
+			System.out.println("ws: " + response);
+		}
 		counter.getAndIncrement();
 	}
 
