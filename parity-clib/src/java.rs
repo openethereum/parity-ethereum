@@ -4,7 +4,7 @@ use std::time::Duration;
 use std::thread;
 use std::os::raw::c_void;
 
-use {CallbackKind, parity_config_from_cli, parity_destroy, parity_start, parity_unsubscribe_ws, ParityParams, error};
+use {parity_config_from_cli, parity_destroy, parity_start, parity_unsubscribe_ws, ParityParams, error};
 
 use futures::{Future, Stream};
 use futures::sync::mpsc;
@@ -16,34 +16,32 @@ use parity_ethereum::{RunningClient, PubSubSession};
 
 type CheckedQuery<'a> = (&'a RunningClient, String, JavaVM, GlobalRef);
 
-// Creates a Java callback to a static method named `void callback(long, long, long, long)`
+// Creates a Java callback to a static method named `void callback(Object)`
 struct Callback<'a> {
 	jvm: JavaVM,
 	callback: GlobalRef,
 	method_name: &'a str,
 	method_descriptor: &'a str,
-	kind: CallbackKind,
 }
 
 unsafe impl<'a> Send for Callback<'a> {}
 unsafe impl<'a> Sync for Callback<'a> {}
 impl<'a> Callback<'a> {
-	fn new(jvm: JavaVM, callback: GlobalRef, kind: CallbackKind) -> Self {
+	fn new(jvm: JavaVM, callback: GlobalRef) -> Self {
 		Self {
 			jvm,
 			callback,
 			method_name: "callback",
-			method_descriptor: "(JLjava/lang/Object;)V",
-			kind,
+			method_descriptor: "(Ljava/lang/Object;)V",
 		}
 	}
 
 	fn call(&self, msg: &str) {
 		let env = self.jvm.attach_current_thread().expect("JavaVM should have an environment; qed");
 		let java_str = env.new_string(msg.to_string()).expect("Rust String to JString shouldn't failed; qed");
-		let val: [JValue; 2] = [JValue::Long(self.kind as jlong), JValue::Object(JObject::from(java_str))];
-		env.call_method(self.callback.as_obj(), self.method_name, self.method_descriptor, &val).expect(
-			"The callback must be an instance method and be named \"void callback(long, Object)\"; qed)");
+		let val = &[JValue::Object(JObject::from(java_str))];
+		env.call_method(self.callback.as_obj(), self.method_name, self.method_descriptor, val).expect(
+			"The callback must be an instance method and be named \"void callback(Object)\"; qed)");
 	}
 }
 
@@ -127,7 +125,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative(
 {
 	let _ = async_checker(parity, rpc, callback, &env)
 		.map(|(client, query, jvm, global_ref)| {
-			let callback = Arc::new(Callback::new(jvm, global_ref, CallbackKind::Rpc));
+			let callback = Arc::new(Callback::new(jvm, global_ref));
 			let cb = callback.clone();
 			let future = client.rpc_query(&query, None).map(move |response| {
 				let response = response.unwrap_or_else(|| error::EMPTY.to_string());
@@ -162,7 +160,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_subscribeWebSocketN
 
 	async_checker(parity, rpc, callback, &env)
 		.map(move |(client, query, jvm, global_ref)| {
-			let callback = Arc::new(Callback::new(jvm, global_ref, CallbackKind::WebSocket));
+			let callback = Arc::new(Callback::new(jvm, global_ref));
 			let (tx, mut rx) = mpsc::channel(1);
 			let session = Arc::new(PubSubSession::new(tx));
 			let weak_session = Arc::downgrade(&session);

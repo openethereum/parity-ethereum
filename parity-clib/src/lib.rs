@@ -40,22 +40,13 @@ use futures::sync::mpsc;
 use parity_ethereum::{PubSubSession, RunningClient};
 use tokio_current_thread::CurrentThread;
 
-type Callback = Option<extern "C" fn(usize, *mut c_void, *const c_char, usize)>;
+type Callback = Option<extern "C" fn(*mut c_void, *const c_char, usize)>;
 type CheckedQuery<'a> = (&'a RunningClient, &'static str);
 
 pub mod error {
 	pub const EMPTY: &str = r#"{"jsonrpc":"2.0","result":"null","id":1}"#;
 	pub const TIMEOUT: &str = r#"{"jsonrpc":"2.0","result":"timeout","id":1}"#;
 	pub const SUBSCRIBE: &str = r#"{"jsonrpc":"2.0","result":"subcribe_fail","id":1}"#;
-}
-
-#[derive(Debug, Copy, Clone)]
-#[repr(usize)]
-enum CallbackKind {
-	Restart = 0,
-	Rpc = 1,
-	WebSocket = 2,
-	PanicHook = 3
 }
 
 #[repr(C)]
@@ -125,7 +116,6 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 
 		let on_client_restart_cb = {
 			let cb = CallbackStr {
-				kind: CallbackKind::Restart,
 				user_data: cfg.on_client_restart_cb_custom,
 				function: cfg.on_client_restart_cb,
 			};
@@ -180,7 +170,7 @@ pub unsafe extern fn parity_rpc(
 	panic::catch_unwind(|| {
 		if let Some((client, query)) = parity_rpc_query_checker(client, query, len) {
 			let client = client as &RunningClient;
-			let callback = Arc::new(CallbackStr { kind: CallbackKind::Rpc, user_data, function: callback});
+			let callback = Arc::new(CallbackStr {user_data, function: callback} );
 			let cb = callback.clone();
 			let query = client.rpc_query(query, None)
 				.map(move |response| {
@@ -221,7 +211,7 @@ pub unsafe extern fn parity_subscribe_ws(
 			let session = Arc::new(PubSubSession::new(tx));
 			let query_future = client.rpc_query(query, Some(session.clone()));
 			let weak_session = Arc::downgrade(&session);
-			let cb = CallbackStr { kind: CallbackKind::WebSocket, user_data, function: callback};
+			let cb = CallbackStr { user_data, function: callback};
 
 			let _handle = thread::Builder::new()
 				.name("ws-subscriber".into())
@@ -268,7 +258,7 @@ pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
 
 #[no_mangle]
 pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_void) {
-	let cb = CallbackStr {kind: CallbackKind::PanicHook, user_data: param, function: callback};
+	let cb = CallbackStr {user_data: param, function: callback};
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg.as_bytes());
 	});
@@ -276,7 +266,6 @@ pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_voi
 
 // Internal structure for handling callbacks that get passed a string.
 struct CallbackStr {
-	kind: CallbackKind,
 	user_data: *mut c_void,
 	function: Callback,
 }
@@ -287,7 +276,7 @@ impl CallbackStr {
 	fn call(&self, msg: &[u8]) {
 		if let Some(ref cb) = self.function {
 			let cstr = CString::new(msg).expect("valid string with no null bytes in the middle; qed").into_raw();
-			cb(self.kind as usize, self.user_data, cstr, msg.len())
+			cb(self.user_data, cstr, msg.len())
 		}
 	}
 }
