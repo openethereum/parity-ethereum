@@ -69,7 +69,6 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	let mut builder = LogBuilder::new();
 	// Disable info logging by default for some modules:
 	builder.filter(Some("ws"), LevelFilter::Warn);
-	builder.filter(Some("reqwest"), LevelFilter::Warn);
 	builder.filter(Some("hyper"), LevelFilter::Warn);
 	builder.filter(Some("rustls"), LevelFilter::Error);
 	// Enable info for others.

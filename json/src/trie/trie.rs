@@ -23,7 +23,7 @@ use trie::Input;
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct Trie {
 	/// Trie test input.
-	#[serde(rename="in")]
+	#[serde(rename = "in")]
 	pub input: Input,
 	/// Trie root hash.
 	pub root: H256,

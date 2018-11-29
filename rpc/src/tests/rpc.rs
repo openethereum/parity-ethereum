@@ -40,6 +40,7 @@ fn serve(handler: Option<MetaIoHandler<Metadata>>) -> Server<HttpServer> {
 		},
 		1,
 		5,
+		false,
 	).unwrap())
 }
 

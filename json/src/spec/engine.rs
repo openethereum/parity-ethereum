@@ -16,28 +16,24 @@
 
 //! Engine deserialization.
 
-use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine, InstantSeal};
+use super::{Ethash, BasicAuthority, AuthorityRound, NullEngine, InstantSeal};
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub enum Engine {
 	/// Null engine.
-	#[serde(rename="null")]
 	Null(NullEngine),
 	/// Instantly sealing engine.
-	#[serde(rename="instantSeal")]
 	InstantSeal(Option<InstantSeal>),
 	/// Ethash engine.
+	#[serde(rename = "Ethash")]
 	Ethash(Ethash),
 	/// BasicAuthority engine.
-	#[serde(rename="basicAuthority")]
 	BasicAuthority(BasicAuthority),
 	/// AuthorityRound engine.
-	#[serde(rename="authorityRound")]
 	AuthorityRound(AuthorityRound),
-	/// Tendermint engine.
-	#[serde(rename="tendermint")]
-	Tendermint(Tendermint)
 }
 
 #[cfg(test)]
@@ -88,7 +84,6 @@ mod tests {
 					"minimumDifficulty": "0x020000",
 					"difficultyBoundDivisor": "0x0800",
 					"durationLimit": "0x0d",
-					"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 					"homesteadTransition" : "0x",
 					"daoHardforkTransition": "0xffffffffffffffff",
 					"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
@@ -134,21 +129,6 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::AuthorityRound(_) => {}, // AuthorityRound is unit tested in its own file.
-			_ => panic!(),
-		};
-
-		let s = r#"{
-			"tendermint": {
-				"params": {
-					"validators": {
-						"list": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
-					}
-				}
-			}
-		}"#;
-		let deserialized: Engine = serde_json::from_str(s).unwrap();
-		match deserialized {
-			Engine::Tendermint(_) => {}, // Tendermint is unit tested in its own file.
 			_ => panic!(),
 		};
 	}

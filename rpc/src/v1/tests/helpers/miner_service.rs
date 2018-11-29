@@ -230,6 +230,10 @@ impl MinerService for TestMinerService {
 		}).collect()
 	}
 
+	fn queued_transaction_hashes(&self) -> Vec<H256> {
+		self.pending_transactions.lock().keys().cloned().map(|hash| hash).collect()
+	}
+
 	fn pending_receipts(&self, _best_block: BlockNumber) -> Option<Vec<RichReceipt>> {
 		Some(self.pending_receipts.lock().clone())
 	}

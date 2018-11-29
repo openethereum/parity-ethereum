@@ -204,6 +204,10 @@ impl Account {
 		self.code_filth = Filth::Dirty;
 		self.storage_cache = Self::empty_storage_cache();
 		self.storage_changes = storage;
+		if self.storage_root != KECCAK_NULL_RLP {
+			self.original_storage_cache = Some((self.storage_root, Self::empty_storage_cache()));
+		}
+		self.storage_root = KECCAK_NULL_RLP;
 	}
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
@@ -620,7 +624,7 @@ mod tests {
 		assert!(raw.len() > compact_vec.len());
 		let again_raw = decompress(&compact_vec, snapshot_swapper());
 		assert_eq!(raw, again_raw.into_vec());
-    }
+	}
 
 	#[test]
 	fn storage_at() {

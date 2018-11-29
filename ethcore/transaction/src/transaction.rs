@@ -90,8 +90,8 @@ pub mod signature {
 		match v {
 			v if v == 27 => 0,
 			v if v == 28 => 1,
-			v if v > 36 => ((v - 1) % 2) as u8,
-			 _ => 4
+			v if v >= 35 => ((v - 1) % 2) as u8,
+			_ => 4
 		}
 	}
 }
@@ -364,7 +364,7 @@ impl UnverifiedTransaction {
 	pub fn chain_id(&self) -> Option<u64> {
 		match self.v {
 			v if self.is_unsigned() => Some(v),
-			v if v > 36 => Some((v - 35) / 2),
+			v if v >= 35 => Some((v - 35) / 2),
 			_ => None,
 		}
 	}
@@ -581,6 +581,27 @@ mod tests {
 		assert_eq!(t.value, U256::from(0x0au64));
 		assert_eq!(public_to_address(&t.recover_public().unwrap()), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
 		assert_eq!(t.chain_id(), None);
+	}
+
+	#[test]
+	fn signing_eip155_zero_chainid() {
+		use ethkey::{Random, Generator};
+
+		let key = Random.generate().unwrap();
+		let t = Transaction {
+			action: Action::Create,
+			nonce: U256::from(42),
+			gas_price: U256::from(3000),
+			gas: U256::from(50_000),
+			value: U256::from(1),
+			data: b"Hello!".to_vec()
+		};
+
+		let hash = t.hash(Some(0));
+		let sig = ::ethkey::sign(&key.secret(), &hash).unwrap();
+		let u = t.with_signature(sig, Some(0));
+
+		assert!(SignedTransaction::new(u).is_ok());
 	}
 
 	#[test]

@@ -18,7 +18,7 @@
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_macros::Trailing;
 
-use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
+use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index, EthAccount};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
 use v1::types::{H64, H160, H256, U256, U64};
 
@@ -68,6 +68,10 @@ build_rpc_trait! {
 		/// Returns balance of the given account.
 		#[rpc(name = "eth_getBalance")]
 		fn balance(&self, H160, Trailing<BlockNumber>) -> BoxFuture<U256>;
+
+		/// Returns the account- and storage-values of the specified account including the Merkle-proof
+		#[rpc(name = "eth_getProof")]
+		fn proof(&self, H160, Vec<H256>, Trailing<BlockNumber>) -> BoxFuture<EthAccount>;
 
 		/// Returns content of the storage at given address.
 		#[rpc(name = "eth_getStorageAt")]

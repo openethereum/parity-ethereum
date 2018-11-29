@@ -313,7 +313,7 @@ impl<T: ChainDataFetcher> Client<T> {
 					The node may not be able to synchronize further.", e);
 			}
 
-			let epoch_proof = self.engine.is_epoch_end(
+			let epoch_proof = self.engine.is_epoch_end_light(
 				&verified_header,
 				&|h| self.chain.block_header(BlockId::Hash(h)).and_then(|hdr| hdr.decode().ok()),
 				&|h| self.chain.pending_transition(h),

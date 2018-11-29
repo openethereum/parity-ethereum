@@ -19,6 +19,7 @@ use v1::types::{Bytes, H160, H256, U256};
 
 /// Log
 #[derive(Debug, Serialize, PartialEq, Eq, Hash, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Log {
 	/// H160
 	pub address: H160,
@@ -27,25 +28,19 @@ pub struct Log {
 	/// Data
 	pub data: Bytes,
 	/// Block Hash
-	#[serde(rename="blockHash")]
 	pub block_hash: Option<H256>,
 	/// Block Number
-	#[serde(rename="blockNumber")]
 	pub block_number: Option<U256>,
 	/// Transaction Hash
-	#[serde(rename="transactionHash")]
 	pub transaction_hash: Option<H256>,
 	/// Transaction Index
-	#[serde(rename="transactionIndex")]
 	pub transaction_index: Option<U256>,
 	/// Log Index in Block
-	#[serde(rename="logIndex")]
 	pub log_index: Option<U256>,
 	/// Log Index in Transaction
-	#[serde(rename="transactionLogIndex")]
 	pub transaction_log_index: Option<U256>,
 	/// Log Type
-	#[serde(rename="type")]
+	#[serde(rename = "type")]
 	pub log_type: String,
 	/// Whether Log Type is Removed (Geth Compatibility Field)
 	#[serde(default)]

@@ -21,7 +21,7 @@ use std::time::Duration;
 use parking_lot::RwLock;
 
 use jsonrpc_core::{self as core, Result, MetaIoHandler};
-use jsonrpc_core::futures::{Future, Stream, Sink};
+use jsonrpc_core::futures::{future, Future, Stream, Sink};
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
@@ -42,7 +42,7 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 	/// Creates new `PubSubClient`.
 	pub fn new(rpc: MetaIoHandler<Metadata, S>, executor: Executor) -> Self {
 		let poll_manager = Arc::new(RwLock::new(GenericPollManager::new(rpc)));
-		let pm2 = poll_manager.clone();
+		let pm2 = Arc::downgrade(&poll_manager);
 
 		let timer = tokio_timer::wheel()
 			.tick_duration(Duration::from_millis(500))
@@ -52,7 +52,13 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 		let interval = timer.interval(Duration::from_millis(1000));
 		executor.spawn(interval
 			.map_err(|e| warn!("Polling timer error: {:?}", e))
-			.for_each(move |_| pm2.read().tick())
+			.for_each(move |_| {
+				if let Some(pm2) = pm2.upgrade() {
+					pm2.read().tick()
+				} else {
+					Box::new(future::err(()))
+				}
+			})
 		);
 
 		PubSubClient {

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::any::Any;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Weak, atomic};
 use std::time::{Duration, Instant};
 use std::thread;
 
@@ -115,6 +115,7 @@ pub struct RunCmd {
 	pub compaction: DatabaseCompactionProfile,
 	pub vm_type: VMType,
 	pub geth_compatibility: bool,
+	pub experimental_rpcs: bool,
 	pub net_settings: NetworkSettings,
 	pub ipfs_conf: ipfs::Configuration,
 	pub secretstore_conf: secretstore::Configuration,
@@ -126,6 +127,7 @@ pub struct RunCmd {
 	pub stratum: Option<stratum::Options>,
 	pub snapshot_conf: SnapshotConfiguration,
 	pub check_seal: bool,
+	pub allow_missing_blocks: bool,
 	pub download_old_blocks: bool,
 	pub verifier_settings: VerifierSettings,
 	pub serve_light: bool,
@@ -133,6 +135,7 @@ pub struct RunCmd {
 	pub no_persistent_txqueue: bool,
 	pub whisper: ::whisper::Config,
 	pub no_hardcoded_sync: bool,
+	pub max_round_blocks_to_import: usize,
 	pub on_demand_retry_count: Option<usize>,
 	pub on_demand_inactive_time_limit: Option<u64>,
 }
@@ -311,6 +314,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch,
 		geth_compatibility: cmd.geth_compatibility,
+		experimental_rpcs: cmd.experimental_rpcs,
 		executor: runtime.executor(),
 		whisper_rpc: whisper_factory,
 		private_tx_service: None, //TODO: add this to client.
@@ -401,11 +405,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.acc_conf.unlocked_accounts.len() == 0, cmd.secretstore_conf.enabled)?;
 
-	// run in daemon mode
-	if let Some(pid_file) = cmd.daemon {
-		daemonize(pid_file)?;
-	}
-
 	//print out running parity environment
 	print_running_environment(&spec.data_dir, &cmd.dirs, &db_dirs);
 
@@ -481,7 +480,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), runtime.executor()),
 		&spec,
 		Some(account_provider.clone()),
-
 	));
 	miner.set_author(cmd.miner_extras.author, None).expect("Fails only if password is Some; password is None; qed");
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
@@ -530,6 +528,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		cmd.pruning_history,
 		cmd.pruning_memory,
 		cmd.check_seal,
+		cmd.max_round_blocks_to_import,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
@@ -637,7 +636,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	};
 
 	// create sync object
-	let (sync_provider, manage_network, chain_notify) = modules::sync(
+	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
 		sync_config,
 		net_conf.clone().into(),
 		client.clone(),
@@ -650,6 +649,18 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
+
+	// Propagate transactions as soon as they are imported.
+	let tx = ::parking_lot::Mutex::new(priority_tasks);
+	let is_ready = Arc::new(atomic::AtomicBool::new(true));
+	miner.add_transactions_listener(Box::new(move |_hashes| {
+		// we want to have only one PendingTransactions task in the queue.
+		if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
+			let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
+			// we ignore error cause it means that we are closing
+			let _ = tx.lock().send(task);
+		}
+	}));
 
 	// provider not added to a notification center is effectively disabled
 	// TODO [debris] refactor it later on
@@ -710,6 +721,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		net_service: manage_network.clone(),
 		updater: updater.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		experimental_rpcs: cmd.experimental_rpcs,
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch.clone(),
 		executor: runtime.executor(),
@@ -717,6 +729,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		private_tx_service: Some(private_tx_service.clone()),
 		gas_price_percentile: cmd.gas_price_percentile,
 		poll_lifetime: cmd.poll_lifetime,
+		allow_missing_blocks: cmd.allow_missing_blocks,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -735,11 +748,11 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
 		sync: sync_provider.clone(),
-		miner: miner,
+		miner: miner.clone(),
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};
-	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps)?;
+	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps, runtime.executor())?;
 
 	// the ipfs server
 	let ipfs_server = ipfs::start_server(cmd.ipfs_conf.clone(), client.clone())?;
@@ -795,6 +808,12 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	client.set_exit_handler(on_client_rq);
 	updater.set_exit_handler(on_updater_rq);
+
+	// run in daemon mode
+	if let Some(pid_file) = cmd.daemon {
+		info!("Running as a daemon process!");
+		daemonize(pid_file)?;
+	}
 
 	Ok(RunningClient {
 		inner: RunningClientInner::Full {
@@ -957,6 +976,11 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		account_settings,
 	);
 
+	// Add development account if running dev chain:
+	if let SpecType::Dev = *spec {
+		insert_dev_account(&account_provider);
+	}
+
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists
 		if !account_provider.has_account(a) {
@@ -971,11 +995,6 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		if !passwords.iter().any(|p| account_provider.unlock_account_permanently(a, (*p).clone()).is_ok()) {
 			return Err(format!("No valid password to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
 		}
-	}
-
-	// Add development account if running dev chain:
-	if let SpecType::Dev = *spec {
-		insert_dev_account(&account_provider);
 	}
 
 	Ok(account_provider)

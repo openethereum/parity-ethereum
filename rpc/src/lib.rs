@@ -63,6 +63,7 @@ extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate patricia_trie as trie;
+extern crate eip712;
 extern crate rlp;
 extern crate stats;
 extern crate vm;
@@ -136,6 +137,7 @@ pub fn start_http<M, S, H, T>(
 	extractor: T,
 	threads: usize,
 	max_payload: usize,
+	keep_alive: bool,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -144,9 +146,11 @@ pub fn start_http<M, S, H, T>(
 {
 	let extractor = http_common::MetaExtractor::new(extractor);
 	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
+		.keep_alive(keep_alive)
 		.threads(threads)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
+		.health_api(("/api/health", "parity_nodeStatus"))
 		.max_request_body_size(max_payload * 1024 * 1024)
 		.start_http(addr)?)
 }
@@ -162,6 +166,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 	middleware: R,
 	threads: usize,
 	max_payload: usize,
+	keep_alive: bool,
 ) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -171,6 +176,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 {
 	let extractor = http_common::MetaExtractor::new(extractor);
 	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
+		.keep_alive(keep_alive)
 		.threads(threads)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())

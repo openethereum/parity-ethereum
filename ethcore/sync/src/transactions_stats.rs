@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use api::TransactionStats;
+use std::hash::BuildHasher;
 use std::collections::{HashSet, HashMap};
 use ethereum_types::{H256, H512};
 use fastmap::H256FastMap;
@@ -74,7 +75,7 @@ impl TransactionsStats {
 	}
 
 	/// Retains only transactions present in given `HashSet`.
-	pub fn retain(&mut self, hashes: &HashSet<H256>) {
+	pub fn retain<S: BuildHasher>(&mut self, hashes: &HashSet<H256, S>) {
 		let to_remove = self.pending_transactions.keys()
 			.filter(|hash| !hashes.contains(hash))
 			.cloned()

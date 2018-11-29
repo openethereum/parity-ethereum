@@ -17,9 +17,9 @@
 use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet};
 use parking_lot::RwLock;
-use tokio::runtime::TaskExecutor;
 use ethkey::{Public, Signature, Random, Generator};
 use ethereum_types::{Address, H256};
+use parity_runtime::Executor;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessions, SessionIdWithSubSession,
 	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view,
@@ -146,12 +146,13 @@ pub struct ClusterData<C: ConnectionManager> {
 	pub sessions: Arc<ClusterSessions>,
 	// Messages processor.
 	pub message_processor: Arc<MessageProcessor>,
+	/// Link between servers set chnage session and the connections manager.
 	pub servers_set_change_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
 }
 
 /// Create new network-backed cluster.
 pub fn new_network_cluster(
-	executor: TaskExecutor,
+	executor: Executor,
 	config: ClusterConfiguration,
 	net_config: NetConnectionsManagerConfig
 ) -> Result<Arc<ClusterCore<NetConnectionsManager>>, Error> {

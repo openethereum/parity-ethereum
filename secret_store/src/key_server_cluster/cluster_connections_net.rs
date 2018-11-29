@@ -23,10 +23,10 @@ use std::time::{Duration, Instant};
 use futures::{future, Future, Stream};
 use parking_lot::{Mutex, RwLock};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::runtime::TaskExecutor;
 use tokio::timer::{Interval, timeout::Error as TimeoutError};
 use tokio_io::IoFuture;
 use ethkey::KeyPair;
+use parity_runtime::Executor;
 use key_server_cluster::{Error, NodeId, ClusterConfiguration, NodeKeyPair};
 use key_server_cluster::cluster_connections::{ConnectionProvider, Connection, ConnectionManager};
 use key_server_cluster::connection_trigger::{Maintain, ConnectionTrigger};
@@ -78,7 +78,7 @@ struct NetConnectionsData {
 	/// Allow connecting to 'higher' nodes.
 	allow_connecting_to_higher_nodes: bool,
 	/// Reference to tokio task executor.
-	executor: TaskExecutor,
+	executor: Executor,
 	/// Key pair of this node.
 	self_key_pair: Arc<NodeKeyPair>,
 	/// Network messages processor.
@@ -103,7 +103,7 @@ pub struct NetConnectionsContainer {
 
 /// Network connection to single key server node.
 pub struct NetConnection {
-	executor: TaskExecutor,
+	executor: Executor,
 	/// Id of the peer node.
 	node_id: NodeId,
 	/// Address of the peer node.
@@ -121,7 +121,7 @@ pub struct NetConnection {
 impl NetConnectionsManager {
 	/// Create new network connections manager.
 	pub fn new(
-		executor: TaskExecutor,
+		executor: Executor,
 		message_processor: Arc<MessageProcessor>,
 		trigger: Box<ConnectionTrigger>,
 		container: Arc<RwLock<NetConnectionsContainer>>,
@@ -191,7 +191,7 @@ impl ConnectionProvider for RwLock<NetConnectionsContainer> {
 
 impl NetConnection {
 	/// Create new connection.
-	pub fn new(executor: TaskExecutor, is_inbound: bool, connection: IoConnection) -> NetConnection {
+	pub fn new(executor: Executor, is_inbound: bool, connection: IoConnection) -> NetConnection {
 		NetConnection {
 			executor,
 			node_id: connection.node_id,
@@ -503,7 +503,7 @@ fn net_connect_disconnected(data: Arc<NetConnectionsData>) {
 }
 
 /// Schedule future execution.
-fn execute<F: Future<Item = (), Error = ()> + Send + 'static>(executor: &TaskExecutor, f: F) {
+fn execute<F: Future<Item = (), Error = ()> + Send + 'static>(executor: &Executor, f: F) {
 	if let Err(err) = future::Executor::execute(executor, Box::new(f)) {
 		error!("Secret store runtime unable to spawn task. Runtime is shutting down. ({:?})", err);
 	}

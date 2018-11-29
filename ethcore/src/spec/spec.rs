@@ -35,7 +35,7 @@ use builtin::Builtin;
 use encoded;
 use engines::{
 	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority,
-	AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT
+	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
 };
 use error::Error;
 use executive::Executive;
@@ -250,7 +250,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip160_transition: p.eip160_transition.map_or(0, Into::into),
 			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
 			eip161d_transition: p.eip161d_transition.map_or(0, Into::into),
-			eip98_transition: p.eip98_transition.map_or(0, Into::into),
+			eip98_transition: p.eip98_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),
@@ -604,8 +607,6 @@ impl Spec {
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
-			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(tendermint.params.into(), machine)
-				.expect("Failed to start the Tendermint consensus engine."),
 		}
 	}
 
@@ -950,14 +951,6 @@ impl Spec {
 	#[cfg(any(test, feature = "test-helpers"))]
 	pub fn new_test_round_block_reward_contract() -> Self {
 		load_bundled!("authority_round_block_reward_contract")
-	}
-
-	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
-	/// work).
-	/// Account keccak("0") and keccak("1") are a authorities.
-	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn new_test_tendermint() -> Self {
-		load_bundled!("tendermint")
 	}
 
 	/// TestList.sol used in both specs: https://github.com/paritytech/contracts/pull/30/files

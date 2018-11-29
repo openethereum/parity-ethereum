@@ -15,10 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate serde_json;
-extern crate serde_ignored;
 extern crate ethjson;
 
-use std::collections::BTreeSet;
 use std::{fs, env, process};
 use ethjson::spec::Spec;
 
@@ -41,23 +39,10 @@ fn main() {
 		Err(_) => quit(&format!("{} could not be opened", path)),
 	};
 
-	let mut unused = BTreeSet::new();
-	let mut deserializer = serde_json::Deserializer::from_reader(file);
-
-	let spec: Result<Spec, _> = serde_ignored::deserialize(&mut deserializer, |field| {
-		unused.insert(field.to_string());
-	});
+	let spec: Result<Spec, _> = serde_json::from_reader(file);
 
 	if let Err(err) = spec {
 		quit(&format!("{} {}", path, err.to_string()));
-	}
-
-	if !unused.is_empty() {
-		let err = unused.into_iter()
-			.map(|field| format!("{} unexpected field `{}`", path, field))
-			.collect::<Vec<_>>()
-			.join("\n");
-		quit(&err);
 	}
 
 	println!("{} is valid", path);
