@@ -66,9 +66,11 @@ pub fn sig_hash(header: &Header) -> Result<H256, Error> {
     let mut reduced_header = header.clone();
 	  reduced_header.set_extra_data(
 		  extra_data[..extra_data.len() - SIGNER_SIG_LENGTH as usize].to_vec());
-    Ok(keccak(::rlp::encode(&reduced_header)))
+    //Ok(keccak(::rlp::encode(&reduced_header)))
+    Ok(reduced_header.hash())
   } else {
-    Ok(keccak(::rlp::encode(header)))
+    Ok(header.hash())
+    //Ok(keccak(::rlp::encode(header)))
   }
 
 }
@@ -92,7 +94,7 @@ impl Clique {
   fn is_signer_proposer(&self, bn: u64) -> bool {
     let mut authorized = false;
     if let Some(ref snapshot) = *self.snapshot.read() {
-        let signers = &snapshot.signers;
+        let signers = &snapshot.final_state.signers;
         authorized = if let Some(pos) = signers.iter().position(|x| self.signer.read().is_address(x)) {
           bn % signers.len() as u64 == pos as u64
         } else {
@@ -111,18 +113,20 @@ impl Clique {
     //
 
     trace!(target: "engine", "epoch length: {}, period: {}", our_params.epoch, our_params.period);
+    /*
     let snapshot = SignerSnapshot {
       bn: 0,
       signers: vec![],
       epoch_length: our_params.epoch,
       votes: HashMap::<Address, (bool, Address)>::new(),
     };
+    */
 
     let engine = Arc::new(
 	  Clique {
 		  client: RwLock::new(None),
 		  signer: Default::default(),
-          snapshot: RwLock::new(Some(snapshot)),
+          snapshot: RwLock::new(None),
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
           epoch_length: our_params.epoch,
@@ -157,6 +161,8 @@ impl Engine<EthereumMachine> for Clique {
   fn seal_fields(&self, _header: &Header) -> usize { 2 }
   fn machine(&self) -> &EthereumMachine { &self.machine }
   fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
+
+  // called only when sealing ?
   fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
     // if in turn, set difficulty 
     //
@@ -173,23 +179,31 @@ impl Engine<EthereumMachine> for Clique {
       if self.is_signer_proposer(_header.number()) {
          if let Some(ref mut snapshot) = *self.snapshot.write() {
            trace!(target: "engine", "applying sealed block");
-           snapshot.apply(_header);
+           let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize+SIGNER_SIG_LENGTH as usize];
 
-           let signers = &snapshot.signers;
-           trace!(target: "engine", "applied.  found {} signers", signers.len());
+           {
+               let signers = &snapshot.pending_state.signers;
+               trace!(target: "engine", "applied.  found {} signers", signers.len());
 
-           let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize+20*signers.len()+SIGNER_SIG_LENGTH as usize];
-           let sig_offset = SIGNER_VANITY_LENGTH as usize+20*signers.len();
-           for i in 0..signers.len() {
-             //signers[i].copy_to(&v[SIGNER_VANITY_LENGTH as usize+i*20..(i+1)*20]);
+               //let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize+SIGNER_SIG_LENGTH as usize];
+               let mut sig_offset = SIGNER_VANITY_LENGTH as usize;
 
-             v[SIGNER_VANITY_LENGTH as usize+i*20..SIGNER_VANITY_LENGTH as usize+(i+1)*20].clone_from_slice(&signers[i]);
+               if _header.number() %self.epoch_length == 0 {
+                   sig_offset += 20 * signers.len();
+
+                   for i in 0..signers.len() {
+                     v[SIGNER_VANITY_LENGTH as usize+i*20..SIGNER_VANITY_LENGTH as usize+(i+1)*20].clone_from_slice(&signers[i]);
+                   }
+               }
+
+               trace!(target: "engine", "writing signature");
+               h.set_extra_data(v.clone());
+               v[sig_offset..].copy_from_slice(&self.sign_header(&h).expect("should be able to sign header")[..]);
+
+               trace!(target: "engine", "we are {}", self.signer.read().address().unwrap());
            }
 
-           trace!(target: "engine", "writing signature");
-           h.set_extra_data(v.clone());
-           v[sig_offset..].copy_from_slice(&self.sign_header(&h).expect("should be able to sign header")[..]);
-           trace!(target: "engine", "signature written");
+          snapshot.apply(_header);
 
            return Some(v);
          } else {
@@ -200,6 +214,7 @@ impl Engine<EthereumMachine> for Clique {
   }
 
   fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
+    trace!("setting the signer to {}", address);
     self.signer.write().set(ap, address, password);
   }
 
@@ -220,6 +235,8 @@ impl Engine<EthereumMachine> for Clique {
   fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
     let mut header = block.header.clone();
 
+    trace!(target: "engine", "attempting to seal...");
+
     // don't seal the genesis block
     if header.number() == 0 {
       trace!(target: "engine", "attempted to seal genesis block");
@@ -239,14 +256,14 @@ impl Engine<EthereumMachine> for Clique {
       return Seal::None;
     }
 
-    trace!(target: "engine", "attempting to generate seal");
     // sign the digest of the seal
     if self.is_signer_proposer(block.header().number()) {
         trace!(target: "engine", "seal generated for {}", block.header().number());
         //TODO add our vote here if this is not an epoch transition
         return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
     } else {
-      Seal::None
+        trace!(target: "engine", "we are not the current for block {}", block.header().number());
+        Seal::None
     }
   }
 
@@ -257,7 +274,13 @@ impl Engine<EthereumMachine> for Clique {
         if the block was successfully sealed, then grab the signature from the seal data and
         append it to the block extraData
         */
-    trace!(target: "engine", "closing block {}...", block.header().number());
+    // trace!(target: "engine", "closing block {}...", block.header().number());
+
+    if block.header().seal().len() > 0 {
+        trace!(target: "engine", "seal length was {}", block.header().seal().len());
+        //trace!(target: "engine", "signature written {}", );
+    }
+
     Ok(())
   }
 
@@ -268,6 +291,12 @@ impl Engine<EthereumMachine> for Clique {
     _ancestry: &mut Iterator<Item=ExtendedHeader>,
   ) -> Result<(), Error> {
     trace!(target: "engine", "new block {}", _block.header().number());
+
+    if let Some(ref mut snapshot) = *self.snapshot.write() {
+      snapshot.rollback();
+    } else {
+      panic!("could not get write access to snapshot");
+    }
 
 
     /*
@@ -334,6 +363,12 @@ impl Engine<EthereumMachine> for Clique {
 
     // TODO verify signer is valid
     // let signer_address = ec_recover(_header)?.expect(Err(Box::new("fuck").into()));
+
+    if let Some(ref mut snap) = *self.snapshot.write() {
+      snap.commit();
+    } else {
+      panic!("snapshot should be able to be committed");
+    }
 
     Ok(()) 
   }
@@ -402,11 +437,11 @@ impl Engine<EthereumMachine> for Clique {
     // extract signer list from genesis extradata
       {
         trace!(target: "engine", "genesis_epoch_data received");
-        if let Some(ref mut snapshot) = *self.snapshot.write() {
-          snapshot.apply(_header);
-        } else {
-          panic!("could not get write access to snapshot");
-        }
+
+        let mut snapshot = SignerSnapshot::new(self.epoch_length);
+        snapshot.apply(_header);
+        snapshot.commit();
+        *self.snapshot.write() = Some(snapshot);
       }
     Ok(Vec::new())
   }

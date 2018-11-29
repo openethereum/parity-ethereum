@@ -13,9 +13,15 @@ pub const NULL_AUTHOR:     [u8; 20] = [0; 20];
 
 pub struct SignerSnapshot {
   pub bn: u64,
-  pub signers: Vec<Address>,
   pub epoch_length: u64,
-  pub votes: HashMap<Address, (bool, Address)>
+  pub pending_state: SnapshotState,
+  pub final_state: SnapshotState
+}
+
+#[derive(Clone)]
+pub struct SnapshotState {
+  pub votes: HashMap<Address, (bool, Address)>,
+  pub signers: Vec<Address>,
 }
 
 impl SignerSnapshot {
@@ -40,13 +46,47 @@ impl SignerSnapshot {
       signers_list.push(signer);
     }
 
+    trace!(target: "engine", "extracted signers {:?}", &signers_list);
     Ok(signers_list)
   }
 
+  // finalize the pending state
+  pub fn commit(&mut self) {
+    self.final_state = self.pending_state.clone();
+    self.pending_state = SnapshotState {
+      votes: HashMap::<Address, (bool, Address)>::new(),
+      signers: self.final_state.signers.clone()
+    }
+  }
+
+  // reset the pending state to the previously finalized state
+  pub fn rollback(&mut self) {
+    self.pending_state = SnapshotState {
+      votes: HashMap::<Address, (bool, Address)>::new(),
+      signers: self.final_state.signers.clone()
+    }
+  }
+
+  pub fn new(epoch_length: u64) -> Self {
+    return SignerSnapshot {
+      pending_state: SnapshotState {
+        votes: HashMap::<Address, (bool, Address)>::new(),
+        signers: vec![]
+      },
+      final_state: SnapshotState {
+        votes: HashMap::<Address, (bool, Address)>::new(),
+        signers: vec![]
+      },
+      bn: 0,
+      epoch_length: epoch_length
+    }
+  }
+
+  // apply a header to the pending state
   pub fn apply(&mut self, _header: &Header) -> Result<(), Error> {
     if _header.number() == 0 {
-      self.signers = self.extract_signers(_header).expect("should be able to extract signer list from genesis block");
-      trace!(target: "engine", "extracted {} signers", self.signers.len());
+      self.pending_state.signers = self.extract_signers(_header).expect("should be able to extract signer list from genesis block");
+      trace!(target: "engine", "extracted {} signers", self.pending_state.signers.len());
       return Ok(());
     } else if _header.number() % self.epoch_length == 0 {
       // TODO: assert that no voting occurs during an epoch change 
@@ -65,10 +105,10 @@ impl SignerSnapshot {
     let nonce = _header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
       let mut author = _header.author().clone();
       if nonce == NONCE_DROP_VOTE {
-        self.votes.insert(creator, (false, author));
+        self.pending_state.votes.insert(creator, (false, author));
         return Ok(());
       } else if nonce == NONCE_AUTH_VOTE {
-        self.votes.insert(creator, (true, author));
+        self.pending_state.votes.insert(creator, (true, author));
         return Ok(());
       } else {
         return Err(From::from("beneficiary specificed but nonce was not AUTH or DROP"));
