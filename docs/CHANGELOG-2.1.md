@@ -1,3 +1,55 @@
+## Parity-Ethereum [v2.1.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.7) (2018-11-28)
+
+Parity-Ethereum 2.1.7-stable is a release that improves performance and stability.
+
+The full list of included changes:
+
+- Backports for stable 2.1.7 ([#9975](https://github.com/paritytech/parity-ethereum/pull/9975))
+  - Version: bump stable to 2.1.7
+  - Adjust requests costs for light client ([#9925](https://github.com/paritytech/parity-ethereum/pull/9925))
+    - Pip Table Cost relative to average peers instead of max peers
+    - Add tracing in PIP new_cost_table
+    - Update stat peer_count
+    - Use number of leeching peers for Light serve costs
+    - Fix test::light_params_load_share_depends_on_max_peers (wrong type)
+    - Remove (now) useless test
+    - Remove `load_share` from LightParams.Config
+    - Add LEECHER_COUNT_FACTOR
+    - Pr Grumble: u64 to u32 for f64 casting
+    - Prevent u32 overflow for avg_peer_count
+    - Add tests for LightSync::Statistics
+  - Fix empty steps ([#9939](https://github.com/paritytech/parity-ethereum/pull/9939))
+    - Don't send empty step twice or empty step then block.
+    - Perform basic validation of locally sealed blocks.
+    - Don't include empty step twice.
+  - Prevent silent errors in daemon mode, closes [#9367](https://github.com/paritytech/parity-ethereum/issues/9367) ([#9946](https://github.com/paritytech/parity-ethereum/pull/9946))
+  - Fix light client informant while syncing ([#9932](https://github.com/paritytech/parity-ethereum/pull/9932))
+    - Add `is_idle` to LightSync to check importing status
+    - Use SyncStateWrapper to make sure is_idle gets updates
+    - Update is_major_import to use verified queue size as well
+    - Add comment for `is_idle`
+    - Add Debug to `SyncStateWrapper`
+    - `fn get` -> `fn into_inner`
+  -  Ci: rearrange pipeline by logic ([#9970](https://github.com/paritytech/parity-ethereum/pull/9970))
+    - Ci: rearrange pipeline by logic
+    - Ci: rename docs script
+  - Add readiness check for docker container ([#9804](https://github.com/paritytech/parity-ethereum/pull/9804))
+    - Update Dockerfile
+    - Add sync check script
+  - Fix docker script ([#9854](https://github.com/paritytech/parity-ethereum/pull/9854))
+  - Dockerfile: change source path of the newly added check_sync.sh ([#9869](https://github.com/paritytech/parity-ethereum/pull/9869))
+  - Do not use the home directory as the working dir in docker ([#9834](https://github.com/paritytech/parity-ethereum/pull/9834))
+    - Do not create a home directory.
+    - Re-add -m flag
+  - Fix docker build ([#9971](https://github.com/paritytech/parity-ethereum/pull/9971))
+  - Bump smallvec to 0.6 in ethcore-light, ethstore and whisper ([#9588](https://github.com/paritytech/parity-ethereum/pull/9588))
+    - Bump smallvec to 0.6 in ethcore-light, ethstore and whisper
+    - Bump transaction-pool
+    - Fix test.
+  - Patch cargo to use tokio-proto from git repo
+  - Use patched version of untrusted 0.5.1
+  - Ci: allow audit to fail
+
 ## Parity-Ethereum [v2.1.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.6) (2018-11-15)
 
 Parity-Ethereum 2.1.6-stable is a release that improves performance and stability.
