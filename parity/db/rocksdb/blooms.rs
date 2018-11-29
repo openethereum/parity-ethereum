@@ -23,7 +23,7 @@ use rlp;
 use super::kvdb_rocksdb::DatabaseConfig;
 use super::open_database;
 
-const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
+const LOG_BLOOMS_ELEMENTS_PER_INDEX: u64 = 16;
 
 pub fn migrate_blooms<P: AsRef<Path>>(path: P, config: &DatabaseConfig) -> Result<(), Error> {
 	// init
