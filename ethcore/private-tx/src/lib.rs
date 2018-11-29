@@ -82,7 +82,8 @@ use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
-	Client, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage, BlockId, CallContract
+	Client, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage, BlockId,
+	CallContract, Call, BlockInfo
 };
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
@@ -550,19 +551,34 @@ impl Provider where {
 		let state = self.client.state_at(block).ok_or(ErrorKind::StatePruned)?;
 		let nonce = state.nonce(&sender)?;
 		let executed = self.execute_private(source, TransactOptions::with_no_tracing(), block)?;
-		let gas: u64 = 650000 +
-			validators.len() as u64 * 30000 +
-			executed.code.as_ref().map_or(0, |c| c.len() as u64) * 8000 +
-			executed.state.len() as u64 * 8000;
-		Ok((Transaction {
+		let header = self.client.block_header(block)
+			.ok_or(ErrorKind::StatePruned)
+			.and_then(|h| h.decode().map_err(|_| ErrorKind::StateIncorrect).into())?;
+		let (executed_code, executed_state) = (executed.code.unwrap_or_default(), executed.state);
+		let tx_data = Self::generate_constructor(validators, executed_code.clone(), executed_state.clone());
+		let mut tx = Transaction {
 			nonce: nonce,
 			action: Action::Create,
-			gas: gas.into(),
+			gas: u64::max_value().into(),
 			gas_price: gas_price,
 			value: source.value,
-			data: Self::generate_constructor(validators, executed.code.unwrap_or_default(), executed.state)
-		},
-		executed.contract_address))
+			data: tx_data,
+		};
+		tx.gas = match self.client.estimate_gas(&tx.clone().fake_sign(sender), &state, &header) {
+			Ok(estimated_gas) => estimated_gas,
+			Err(_) => self.estimate_tx_gas(validators, &executed_code, &executed_state, &[]),
+		};
+
+		Ok((tx, executed.contract_address))
+	}
+
+	fn estimate_tx_gas(&self, validators: &[Address], code: &Bytes, state: &Bytes, signatures: &[Signature]) -> U256 {
+		let default_gas = 650000 +
+			validators.len() as u64 * 30000 +
+			code.len() as u64 * 8000 +
+			signatures.len() as u64 * 50000 +
+			state.len() as u64 * 8000;
+		default_gas.into()
 	}
 
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
@@ -576,7 +592,7 @@ impl Provider where {
 
 	/// Create encrypted public transaction from private transaction.
 	pub fn public_transaction(&self, state: Bytes, source: &SignedTransaction, signatures: &[Signature], nonce: U256, gas_price: U256) -> Result<Transaction, Error> {
-		let gas: u64 = 650000 + state.len() as u64 * 8000 + signatures.len() as u64 * 50000;
+		let gas = self.estimate_tx_gas(&[], &Vec::new(), &state, signatures);
 		Ok(Transaction {
 			nonce: nonce,
 			action: source.action.clone(),

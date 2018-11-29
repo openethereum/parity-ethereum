@@ -300,6 +300,11 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
 
+	/// Returns true if block queue is empty.
+	fn is_queue_empty(&self) -> bool {
+		self.queue_info().is_empty()
+	}
+
 	/// Clear block queue and abort all import activity.
 	fn clear_queue(&self);
 
