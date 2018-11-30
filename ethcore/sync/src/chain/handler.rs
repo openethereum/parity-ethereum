@@ -557,7 +557,9 @@ impl SyncHandler {
 	fn on_peer_status(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		sync.handshaking_peers.remove(&peer_id);
 		let protocol_version: u8 = r.val_at(0)?;
-		let warp_protocol = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id) != 0;
+		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id);
+		let warp_protocol = warp_protocol_version != 0;
+		let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
 		let peer = PeerInfo {
 			protocol_version: protocol_version,
 			network_id: r.val_at(1)?,
@@ -576,16 +578,16 @@ impl SyncHandler {
 			snapshot_hash: if warp_protocol { Some(r.val_at(5)?) } else { None },
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,
-			private_tx_enabled: if warp_protocol { r.val_at(7).unwrap_or(false) } else { r.val_at(5).unwrap_or(false) },
+			private_tx_enabled: if private_tx_protocol { r.val_at(7).unwrap_or(false) } else { false },
 		};
 
-		trace!(target: "sync", "New peer {} (
-			protocol: {},
-			network: {:?},
-			difficulty: {:?},
-			latest:{},
-			genesis:{},
-			snapshot:{:?},
+		trace!(target: "sync", "New peer {} (\
+			protocol: {}, \
+			network: {:?}, \
+			difficulty: {:?}, \
+			latest:{}, \
+			genesis:{}, \
+			snapshot:{:?}, \
 			private_tx_enabled:{})",
 			peer_id,
 			peer.protocol_version,
