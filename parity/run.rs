@@ -544,6 +544,12 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 
+	// run in daemon mode
+	if let Some(pid_file) = cmd.daemon {
+		info!("Running as a daemon process!");
+		daemonize(pid_file)?;
+	}
+
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
 	let client_db = restoration_db_handler.open(&client_path)
 		.map_err(|e| format!("Failed to open database {:?}", e))?;
@@ -808,12 +814,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	client.set_exit_handler(on_client_rq);
 	updater.set_exit_handler(on_updater_rq);
-
-	// run in daemon mode
-	if let Some(pid_file) = cmd.daemon {
-		info!("Running as a daemon process!");
-		daemonize(pid_file)?;
-	}
 
 	Ok(RunningClient {
 		inner: RunningClientInner::Full {
