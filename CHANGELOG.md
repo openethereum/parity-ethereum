@@ -1,3 +1,98 @@
+## Parity-Ethereum [v2.2.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.2) (2018-11-29)
+
+Parity-Ethereum 2.2.2-beta is an exciting release. Among others, it improves sync performance, peering stability, block propagation, and transaction propagation times. Also, a warp-sync no longer removes existing blocks from the database, but rather reuses locally available information to decrease sync times and reduces required bandwidth.
+
+Before upgrading to 2.2.2, please also verify the validity of your chain specs. Parity Ethereum now denies unknown fields in the specification. To do this, use the chainspec tool:
+
+```
+cargo build --release -p chainspec
+./target/release/chainspec /path/to/spec.json
+```
+
+Last but not least, JSONRPC APIs which are not yet accepted as an EIP in the `eth`, `personal`, or `web3` namespace, are now considere experimental as their final specification might change in future. These APIs have to be manually enabled by explicitly running `--jsonrpc-experimental`.
+
+The full list of included changes:
+
+- Backports For beta 2.2.2 ([#9976](https://github.com/paritytech/parity-ethereum/pull/9976))
+  - Version: bump beta to 2.2.2
+  - Add experimental RPCs flag ([#9928](https://github.com/paritytech/parity-ethereum/pull/9928))
+  - Keep existing blocks when restoring a Snapshot ([#8643](https://github.com/paritytech/parity-ethereum/pull/8643))
+    - Rename db_restore => client
+    - First step: make it compile!
+    - Second step: working implementation!
+    - Refactoring
+    - Fix tests
+    - Migrate ancient blocks interacting backward
+    - Early return in block migration if snapshot is aborted
+    - Remove RwLock getter (PR Grumble I)
+    - Remove dependency on `Client`: only used Traits
+    - Add test for recovering aborted snapshot recovery
+    - Add test for migrating old blocks
+    - Release RwLock earlier
+    - Revert Cargo.lock
+    - Update _update ancient block_ logic: set local in `commit`
+    - Update typo in ethcore/src/snapshot/service.rs
+  - Adjust requests costs for light client ([#9925](https://github.com/paritytech/parity-ethereum/pull/9925))
+    - Pip Table Cost relative to average peers instead of max peers
+    - Add tracing in PIP new_cost_table
+    - Update stat peer_count
+    - Use number of leeching peers for Light serve costs
+    - Fix test::light_params_load_share_depends_on_max_peers (wrong type)
+    - Remove (now) useless test
+    - Remove `load_share` from LightParams.Config
+    - Add LEECHER_COUNT_FACTOR
+    - Pr Grumble: u64 to u32 for f64 casting
+    - Prevent u32 overflow for avg_peer_count
+    - Add tests for LightSync::Statistics
+  - Fix empty steps ([#9939](https://github.com/paritytech/parity-ethereum/pull/9939))
+    - Don't send empty step twice or empty step then block.
+    - Perform basic validation of locally sealed blocks.
+    - Don't include empty step twice.
+  - Prevent silent errors in daemon mode, closes [#9367](https://github.com/paritytech/parity-ethereum/issues/9367) ([#9946](https://github.com/paritytech/parity-ethereum/pull/9946))
+  - Fix a deadlock ([#9952](https://github.com/paritytech/parity-ethereum/pull/9952))
+    - Update informant:
+      - Decimal in Mgas/s
+      - Print every 5s (not randomly between 5s and 10s)
+    - Fix dead-lock in `blockchain.rs`
+    - Update locks ordering
+  - Fix light client informant while syncing ([#9932](https://github.com/paritytech/parity-ethereum/pull/9932))
+    - Add `is_idle` to LightSync to check importing status
+    - Use SyncStateWrapper to make sure is_idle gets updates
+    - Update is_major_import to use verified queue size as well
+    - Add comment for `is_idle`
+    - Add Debug to `SyncStateWrapper`
+    - `fn get` -> `fn into_inner`
+  -  Ci: rearrange pipeline by logic ([#9970](https://github.com/paritytech/parity-ethereum/pull/9970))
+    - Ci: rearrange pipeline by logic
+    - Ci: rename docs script
+  - Fix docker build ([#9971](https://github.com/paritytech/parity-ethereum/pull/9971))
+  - Deny unknown fields for chainspec ([#9972](https://github.com/paritytech/parity-ethereum/pull/9972))
+    - Add deny_unknown_fields to chainspec
+    - Add tests and fix existing one
+    - Remove serde_ignored dependency for chainspec
+    - Fix rpc test eth chain spec
+    - Fix starting_nonce_test spec
+  - Improve block and transaction propagation ([#9954](https://github.com/paritytech/parity-ethereum/pull/9954))
+    - Refactor sync to add priority tasks.
+    - Send priority tasks notifications.
+    - Propagate blocks, optimize transactions.
+    - Implement transaction propagation. Use sync_channel.
+    - Tone down info.
+    - Prevent deadlock by not waiting forever for sync lock.
+    - Fix lock order.
+    - Don't use sync_channel to prevent deadlocks.
+    - Fix tests.
+  - Fix unstable peers and slowness in sync ([#9967](https://github.com/paritytech/parity-ethereum/pull/9967))
+    - Don't sync all peers after each response
+    - Update formating
+    - Fix tests: add `continue_sync` to `Sync_step`
+    - Update ethcore/sync/src/chain/mod.rs
+    - Fix rpc middlewares
+  - Fix Cargo.lock
+  - Json: resolve merge in spec
+  - Rpc: fix starting_nonce_test
+  - Ci: allow nightl job to fail
+
 ## Parity-Ethereum [v2.2.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.1) (2018-11-15)
 
 Parity-Ethereum 2.2.1-beta is the first v2.2 release, and might introduce features that break previous work flows, among others:
