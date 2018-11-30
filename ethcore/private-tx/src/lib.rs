@@ -82,7 +82,7 @@ use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
-	Client, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage, BlockId,
+	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
 	CallContract, Call, BlockInfo
 };
 use ethcore::account_provider::AccountProvider;
@@ -733,8 +733,8 @@ fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountPr
 }
 
 impl ChainNotify for Provider {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
-		if !imported.is_empty() {
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if !new_blocks.imported.is_empty() && new_blocks.processing_is_empty {
 			trace!(target: "privatetx", "New blocks imported, try to prune the queue");
 			if let Err(err) = self.process_verification_queue() {
 				warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);

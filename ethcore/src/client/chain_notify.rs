@@ -114,19 +114,51 @@ impl ChainRoute {
 	}
 }
 
+/// Used by `ChainNotify` `new_blocks()`
+pub struct NewBlocks {
+	/// Imported blocks
+	pub imported: Vec<H256>,
+	/// Invalid blocks
+	pub invalid: Vec<H256>,
+	/// Route
+	pub route: ChainRoute,
+	/// Sealed
+	pub sealed: Vec<H256>,
+	/// Block bytes.
+	pub proposed: Vec<Bytes>,
+	/// Duration
+	pub duration: Duration,
+	/// `Validation.processing` is empty?
+	pub processing_is_empty: bool,
+}
+
+impl NewBlocks {
+	/// Constructor
+	pub fn new (
+		imported: Vec<H256>,
+		invalid: Vec<H256>,
+		route: ChainRoute,
+		sealed: Vec<H256>,
+		proposed: Vec<Bytes>,
+		duration: Duration,
+		processing_is_empty: bool,
+	) -> NewBlocks {
+		NewBlocks {
+			imported,
+			invalid,
+			route,
+			sealed,
+			proposed,
+			duration,
+			processing_is_empty,
+		}
+	}
+}
+
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
-	fn new_blocks(
-		&self,
-		_imported: Vec<H256>,
-		_invalid: Vec<H256>,
-		_route: ChainRoute,
-		_sealed: Vec<H256>,
-		// Block bytes.
-		_proposed: Vec<Bytes>,
-		_duration: Duration,
-	) {
+	fn new_blocks( &self, _new_blocks: NewBlocks) {
 		// does nothing by default
 	}
 
