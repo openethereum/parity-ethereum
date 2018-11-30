@@ -313,12 +313,16 @@ impl SyncPropagator {
 	/// Broadcast private transaction message to peers.
 	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
-		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
-		for peer_id in lucky_peers {
-			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-				peer.last_sent_private_transactions.insert(transaction_hash);
+		if lucky_peers.is_empty() {
+			error!(target: "privatetx", "Cannot propagate the packet, no peers with private tx enabled connected");
+		} else {
+			trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
+			for peer_id in lucky_peers {
+				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+					peer.last_sent_private_transactions.insert(transaction_hash);
+				}
+				SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
 			}
-			SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
 		}
 	}
 
