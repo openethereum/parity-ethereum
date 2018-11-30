@@ -23,6 +23,8 @@ use rlp;
 use super::kvdb_rocksdb::DatabaseConfig;
 use super::open_database;
 
+const LOG_BLOOMS_ELEMENTS_PER_INDEX: u64 = 16;
+
 pub fn migrate_blooms<P: AsRef<Path>>(path: P, config: &DatabaseConfig) -> Result<(), Error> {
 	// init
 	let db = open_database(&path.as_ref().to_string_lossy(), config)?;
@@ -41,11 +43,12 @@ pub fn migrate_blooms<P: AsRef<Path>>(path: P, config: &DatabaseConfig) -> Resul
 			key[0] == 3u8 && key[1] == 0u8
 		})
 		.map(|(key, group)| {
-			let number =
+			let index =
 				(key[2] as u64) << 24 |
 				(key[3] as u64) << 16 |
 				(key[4] as u64) << 8 |
 				(key[5] as u64);
+			let number = index * LOG_BLOOMS_ELEMENTS_PER_INDEX;
 
 			let blooms = rlp::decode_list::<Bloom>(&group);
 			(number, blooms)
@@ -66,11 +69,12 @@ pub fn migrate_blooms<P: AsRef<Path>>(path: P, config: &DatabaseConfig) -> Resul
 			key[0] == 1u8 && key[1] == 0u8
 		})
 		.map(|(key, group)| {
-			let number =
+			let index =
 				(key[2] as u64) |
 				(key[3] as u64) << 8 |
 				(key[4] as u64) << 16 |
 				(key[5] as u64) << 24;
+			let number = index * LOG_BLOOMS_ELEMENTS_PER_INDEX;
 
 			let blooms = rlp::decode_list::<Bloom>(&group);
 			(number, blooms)
