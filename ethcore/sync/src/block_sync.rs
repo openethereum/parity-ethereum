@@ -37,6 +37,7 @@ const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 16;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
 const MAX_USELESS_HEADERS_PER_ROUND: usize = 3;
+const MAX_REORG_BLOCKS: u64 = 20;
 
 // logging macros prepend BlockSet context for log filtering
 macro_rules! trace_sync {
@@ -320,7 +321,7 @@ impl BlockDownloader {
 				} else {
 					trace_sync!(self, "No useful subchain heads received, expected hash {:?}", expected_hash);
 					let best = io.chain().chain_info().best_block_number;
-					let oldest_reorg = io.chain().pruning_info().earliest_state;
+					let oldest_reorg = cmp::max(io.chain().pruning_info().earliest_state, best - MAX_REORG_BLOCKS);
 					let last = self.last_imported_block;
 					match self.block_set {
 						BlockSet::NewBlocks if best > last && (last == 0 || last < oldest_reorg) => {
@@ -433,7 +434,7 @@ impl BlockDownloader {
 					trace_sync!(self, "Searching common header from the last round {} ({})", self.last_imported_block, self.last_imported_hash);
 				} else {
 					let best = io.chain().chain_info().best_block_number;
-					let oldest_reorg = io.chain().pruning_info().earliest_state;
+					let oldest_reorg = cmp::max(io.chain().pruning_info().earliest_state, best - MAX_REORG_BLOCKS);
 					if self.block_set == BlockSet::NewBlocks && best > start && start < oldest_reorg {
 						debug_sync!(self, "Could not revert to previous ancient block, last: {} ({})", start, start_hash);
 						self.reset();
