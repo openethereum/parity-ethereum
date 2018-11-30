@@ -464,7 +464,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
-	// run in daemon mode
+	// Run in daemon mode.
+	// Note, that it should be called before we leave any file descriptor open,
+	// since `daemonize` will close them.
 	if let Some(pid_file) = cmd.daemon {
 		info!("Running as a daemon process!");
 		daemonize(pid_file)?;
