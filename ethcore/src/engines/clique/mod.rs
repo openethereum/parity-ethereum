@@ -48,7 +48,7 @@ pub const SIGNER_SIG_LENGTH: u32 = 65; // Fixed number of extra-data suffix byte
 
 pub struct Clique {
   client: RwLock<Option<Weak<EngineClient>>>,
-  snapshot: RwLock<Option<SignerSnapshot>>,
+  snapshot: Arc<SignerSnapshot>,
   //signers: RwLock<Option<Vec<Address>>>,
   machine: EthereumMachine,
   step_service: IoService<Duration>,
@@ -96,17 +96,20 @@ impl Clique {
   /// Check if current signer is the current proposer.
   fn is_signer_proposer(&self, bn: u64) -> bool {
     let mut authorized = false;
-    if let Some(ref snapshot) = *self.snapshot.read() {
-        let signers = &snapshot.final_state.signers;
-        authorized = if let Some(pos) = signers.iter().position(|x| snapshot.signer_address().unwrap() == *x) {
-          bn % signers.len() as u64 == pos as u64
-        } else {
-          false
-        };
-        return authorized;
+
+    let address = match self.snapshot.signer_address() {
+        Some(addr) => {addr},
+        None => {return false},
     };
 
-    return false;
+    let signers = self.snapshot.get_signers();
+
+    let authorized = if let Some(pos) = signers.iter().position(|x| self.snapshot.signer_address().unwrap() == *x) {
+      bn % signers.len() as u64 == pos as u64
+    } else {
+      false
+    };
+    return authorized;
   }
 
   pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
@@ -128,7 +131,7 @@ impl Clique {
     let engine = Arc::new(
 	  Clique {
 		  client: RwLock::new(None),
-          snapshot: RwLock::new(None),
+          snapshot: Arc::new(SignerSnapshot::new(our_params.epoch)),
 		  machine: machine,
 		  step_service: IoService::<Duration>::start()?,
           epoch_length: our_params.epoch,
@@ -144,10 +147,8 @@ impl Clique {
 
   fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
     let digest = sig_hash(header)?;
-    if let Some(ref snap) = *self.snapshot.read() {
-        if let Some(sig) = snap.sign_data(&digest) {
-          return Ok((sig, digest));
-        }
+    if let Some(sig) = self.snapshot.sign_data(&digest) {
+      return Ok((sig, digest));
     }
 
     return Err(From::from("failed to sign header"));
@@ -181,12 +182,11 @@ impl Engine<EthereumMachine> for Clique {
   fn close_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
     let mut h = _header.clone();
 
-     if let Some(ref mut snapshot) = *self.snapshot.write() {
        trace!(target: "engine", "applying sealed block");
        let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize+SIGNER_SIG_LENGTH as usize];
 
        {
-           let signers = &snapshot.final_state.signers;
+           let signers = self.snapshot.get_signers();
            trace!(target: "engine", "applied.  found {} signers", signers.len());
 
            //let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize+SIGNER_SIG_LENGTH as usize];
@@ -212,21 +212,16 @@ impl Engine<EthereumMachine> for Clique {
            //trace!(target: "engine", "we are {}", self.signer.read().address().unwrap());
        }
 
-      snapshot.apply(_header);
+      if !self.snapshot.apply(_header).is_ok() {
+          return None;
+      }
 
-       return Some(v);
-     } else {
-       panic!("failed to populate extra data when sealing");
-     }
-
-     return None;
+      return Some(v);
   }
 
   fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-    trace!("setting the signer to {}", address);
-    if let Some(ref mut snap) = *self.snapshot.write() {
-        snap.set_signer(ap, address, password);
-    }
+    self.snapshot.set_signer(ap, address, password);
+    trace!(target: "engine", "set the signer to {}", address);
   }
 
   /// None means that it requires external input (e.g. PoW) to seal a block.
@@ -267,12 +262,8 @@ impl Engine<EthereumMachine> for Clique {
       return Seal::None;
     }
 
-    if let Some(ref snap) = *self.snapshot.read() {
-        if let SignerAuthorization::Unauthorized = snap.get_own_authorization() {
-            return Seal::None;
-        }
-    } else {
-        trace!(target: "engine", "can't seal without being able to read from the snapshot");
+    if let SignerAuthorization::Unauthorized = self.snapshot.get_own_authorization() {
+        return Seal::None;
     }
 
     // sign the digest of the seal
@@ -332,12 +323,7 @@ impl Engine<EthereumMachine> for Clique {
         trace!(target: "engine", "called executive_author for block {}", header.number());
 
         if self.is_signer_proposer(header.number()) {
-          //return (*self.snapshot.read()).unwrap().signer.read().address().expect("asdf");
-          if let Some(ref snap) = *self.snapshot.read() {
-            return snap.signer_address().unwrap();
-          } else {
-            panic!("could not read signer snapshot!");
-          }
+            return self.snapshot.signer_address().unwrap();
         } else {
             return public_to_address(
                 &recover(header).unwrap()
@@ -348,11 +334,7 @@ impl Engine<EthereumMachine> for Clique {
   fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> { 
     trace!(target: "engine", "verify_block_basic {}", _header.number());
 
-    if let Some(ref mut snap) = *self.snapshot.write() {
-      snap.apply(_header);
-    } else {
-      panic!("snapshot should be able to be committed");
-    }
+    self.snapshot.apply(_header);
 
     Ok(()) 
   }
@@ -398,10 +380,8 @@ impl Engine<EthereumMachine> for Clique {
   }
 
   fn sign(&self, hash: H256) -> Result<Signature, Error> {
-    if let Some(ref snap) = *self.snapshot.read() {
-        if let Some(sig) = snap.sign_data(&hash) {
-            return Ok(sig);
-        }
+    if let Some(sig) = self.snapshot.sign_data(&hash) {
+        return Ok(sig);
     }
 
     return Err(From::from("data was not signed"));
@@ -427,10 +407,9 @@ impl Engine<EthereumMachine> for Clique {
       {
         trace!(target: "engine", "genesis_epoch_data received");
 
-        let mut snapshot = SignerSnapshot::new(self.epoch_length);
-        snapshot.apply(_header);
-        snapshot.commit();
-        *self.snapshot.write() = Some(snapshot);
+        self.snapshot.apply(_header);
+        self.snapshot.commit();
+        trace!(target: "engine", "snapshot written");
       }
     Ok(Vec::new())
   }
