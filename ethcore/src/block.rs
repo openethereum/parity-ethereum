@@ -387,7 +387,7 @@ impl<'x> OpenBlock<'x> {
 	pub fn close_and_lock(self) -> Result<LockedBlock, Error> {
 		let mut s = self;
 
-		s.engine.on_close_block(&mut s.block)?;
+
 		s.block.state.commit()?;
 
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
@@ -401,9 +401,7 @@ impl<'x> OpenBlock<'x> {
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
-		if let Some(extra_data) = s.engine.close_block_extra_data(&s.block.header) {
-			s.block.header.set_extra_data(extra_data);
-		}
+		s.engine.on_close_block(&mut s.block)?;
 
 		Ok(LockedBlock {
 			block: s.block,
@@ -482,6 +480,10 @@ impl LockedBlock {
 				Mismatch { expected: expected_seal_fields, found: seal.len() }));
 		}
 		s.block.header.set_seal(seal);
+
+        if let Some(extra_data) = engine.close_block_extra_data(&s.block.header) {
+          s.block.header.set_extra_data(extra_data);
+        }
 
 		s.block.header.compute_hash();
 		Ok(SealedBlock {
@@ -679,7 +681,7 @@ mod tests {
 	) -> Result<SealedBlock, Error> {
 		let header = Unverified::from_rlp(block_bytes.clone())?.header;
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
-			.seal(engine, header.seal().to_vec())?)
+		   .seal(engine, header.seal().to_vec())?)
 	}
 
 	#[test]
