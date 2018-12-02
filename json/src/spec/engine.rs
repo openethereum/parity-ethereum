@@ -35,7 +35,6 @@ pub enum Engine {
 	/// AuthorityRound engine.
 	AuthorityRound(AuthorityRound),
 	/// Clique engine.
-	#[serde(rename="Clique")]
 	Clique(Clique)
 }
 
@@ -132,6 +131,20 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::AuthorityRound(_) => {}, // AuthorityRound is unit tested in its own file.
+			_ => panic!(),
+		};
+
+		let s = r#"{
+			"clique": {
+				"params": {
+					"peorid" : 15,
+					"epoch": 30000
+				}
+			}
+		}"#;
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::Clique(_) => {}, // AuthorityRound is unit tested in its own file.
 			_ => panic!(),
 		};
 	}
