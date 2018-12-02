@@ -18,6 +18,8 @@
 mod usage;
 mod presets;
 
+use std::collections::HashSet;
+
 usage! {
 	{
 		// CLI subcommands
@@ -761,7 +763,7 @@ usage! {
 			"--tx-queue-per-sender=[LIMIT]",
 			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
 
-			ARG arg_tx_queue_locals: (Option<String>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_locals.as_ref().map(|vec| vec.join(",")),
+			ARG arg_tx_queue_locals: (Option<String>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_locals.as_ref().map(|set| set.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(",")),
 			"--tx-queue-locals=[ACCOUNTS]",
 			"Specify local accounts for which transactions are prioritized in the queue. ACCOUNTS is a comma-delimited list of addresses.",
 
@@ -1352,7 +1354,7 @@ struct Mining {
 	tx_queue_size: Option<usize>,
 	tx_queue_per_sender: Option<usize>,
 	tx_queue_mem_limit: Option<u32>,
-	tx_queue_locals: Option<Vec<String>>,
+	tx_queue_locals: Option<HashSet<String>>,
 	tx_queue_strategy: Option<String>,
 	tx_queue_ban_count: Option<u16>,
 	tx_queue_ban_time: Option<u16>,
