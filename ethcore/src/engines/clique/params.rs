@@ -25,8 +25,7 @@ use std::time::Duration;
 pub struct CliqueParams {
 	/// List of validators.
 	pub period: u64,
-	pub epoch: u64
-
+	pub epoch: u64,
 }
 
 fn to_duration(ms: ethjson::uint::Uint) -> Duration {
@@ -38,7 +37,7 @@ impl From<ethjson::spec::CliqueParams> for CliqueParams {
 	fn from(p: ethjson::spec::CliqueParams) -> Self {
 		CliqueParams {
 			period: p.period.map_or_else(Default::default, Into::into),
-			epoch: p.epoch.map_or_else(Default::default, Into::into)
+			epoch: p.epoch.map_or_else(Default::default, Into::into),
 		}
 	}
 }

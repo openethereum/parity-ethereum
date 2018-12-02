@@ -6,8 +6,8 @@ use parity_machine::Machine;
 use std::fmt::Debug;
 
 pub struct StepService<M: Machine> {
-  timeout: Duration,
-  engine: Weak<Engine<M>>
+	timeout: Duration,
+	engine: Weak<Engine<M>>,
 }
 
 impl<M: Machine> StepService<M> {
@@ -20,14 +20,13 @@ impl<M: Machine> StepService<M> {
 	}
 }
 
-fn set_timeout<S: Sync + Send + Clone + 'static + Debug> (io: &IoContext<S>, timeout: Duration) {
-		io.register_timer((1 as usize).into(), timeout)
-					.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
+fn set_timeout<S: Sync + Send + Clone + 'static + Debug>(io: &IoContext<S>, timeout: Duration) {
+	io.register_timer((1 as usize).into(), timeout)
+		.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
 }
 
 impl<S, M> IoHandler<S> for StepService<M>
 	where S: Sync + Send + Clone + 'static + Debug, M: Machine {
-
 	fn initialize(&self, io: &IoContext<S>) {
 		trace!(target: "engine", "Setting the step timeout to {:?}.", self.timeout);
 		set_timeout(io, self.timeout);
