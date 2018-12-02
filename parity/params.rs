@@ -40,12 +40,13 @@ pub enum SpecType {
 	Ellaism,
 	Easthub,
 	Social,
-	Mix,
 	Callisto,
+	Mix,
 	Morden,
 	Ropsten,
 	Kovan,
 	Sokol,
+	Gangnam,
 	Dev,
 	Custom(String),
 }
@@ -70,12 +71,13 @@ impl str::FromStr for SpecType {
 			"ellaism" => SpecType::Ellaism,
 			"easthub" => SpecType::Easthub,
 			"social" => SpecType::Social,
-			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
+			"mix" => SpecType::Mix,
 			"morden" | "classic-testnet" => SpecType::Morden,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
 			"sokol" | "poasokol" => SpecType::Sokol,
+			"gangnam" => SpecType::Gangnam,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -95,12 +97,13 @@ impl fmt::Display for SpecType {
 			SpecType::Ellaism => "ellaism",
 			SpecType::Easthub => "easthub",
 			SpecType::Social => "social",
-			SpecType::Mix => "mix",
 			SpecType::Callisto => "callisto",
+			SpecType::Mix => "mix",
 			SpecType::Morden => "morden",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
 			SpecType::Sokol => "sokol",
+			SpecType::Gangnam => "gangnam",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
 		})
@@ -120,12 +123,13 @@ impl SpecType {
 			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
 			SpecType::Easthub => Ok(ethereum::new_easthub(params)),
 			SpecType::Social => Ok(ethereum::new_social(params)),
-			SpecType::Mix => Ok(ethereum::new_mix(params)),
 			SpecType::Callisto => Ok(ethereum::new_callisto(params)),
+			SpecType::Mix => Ok(ethereum::new_mix(params)),
 			SpecType::Morden => Ok(ethereum::new_morden(params)),
 			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
 			SpecType::Sokol => Ok(ethereum::new_sokol(params)),
+			SpecType::Gangnam => Ok(ethereum::new_gangnam(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
@@ -374,8 +378,8 @@ mod tests {
 		assert_eq!(SpecType::Ellaism, "ellaism".parse().unwrap());
 		assert_eq!(SpecType::Easthub, "easthub".parse().unwrap());
 		assert_eq!(SpecType::Social, "social".parse().unwrap());
-		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
+		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Morden, "classic-testnet".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
@@ -383,6 +387,7 @@ mod tests {
 		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
+		assert_eq!(SpecType::Gangnam, "gangnam".parse().unwrap());
 	}
 
 	#[test]
@@ -401,12 +406,13 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Ellaism), "ellaism");
 		assert_eq!(format!("{}", SpecType::Easthub), "easthub");
 		assert_eq!(format!("{}", SpecType::Social), "social");
-		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
+		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
+		assert_eq!(format!("{}", SpecType::Gangnam), "gangnam");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
