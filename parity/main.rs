@@ -26,6 +26,7 @@ extern crate log;
 extern crate panic_hook;
 extern crate parity_ethereum;
 extern crate parking_lot;
+extern crate daemonize;
 
 #[cfg(windows)] extern crate winapi;
 
@@ -189,6 +190,18 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		conf.args.arg_chain = spec_override;
 	}
 
+	let handle = if let Some(ref pid) = conf.args.arg_daemon_pid_file {
+		match daemonize::daemonize(pid) {
+			Ok(h) => Some(h),
+			Err(e) => {
+				eprintln!("{}", e);
+				return 0;
+			}
+		}
+	} else {
+		None
+	};
+
 	let can_restart = force_can_restart || conf.args.flag_can_restart;
 
 	// increase max number of open files
@@ -283,6 +296,12 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					}
 				});
 
+				// so the client has started successfully
+				// if this is a daemon, detach from the parent process
+				if let Some(mut handle) = handle {
+					handle.detach()
+				}
+
 				// Wait for signal
 				let mut lock = exit.0.lock();
 				if !lock.should_exit {
@@ -306,6 +325,11 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			},
 		},
 		Err(err) => {
+			// error occured during start up
+			// if this is a daemon, detach from the parent process
+			if let Some(mut handle) = handle {
+				handle.detach()
+			}
 			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
 			1
 		},

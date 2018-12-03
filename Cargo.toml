@@ -84,7 +84,7 @@ fake-fetch = { path = "util/fake-fetch" }
 winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 
 [target.'cfg(not(windows))'.dependencies]
-daemonize = "0.3"
+daemonize = { path="util/daemonize" }
 
 [features]
 miner-debug = ["ethcore/miner-debug"]
