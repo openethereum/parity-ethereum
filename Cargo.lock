@@ -1095,7 +1095,6 @@ dependencies = [
  "ethkey 0.3.0",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-crypto 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-wordlist 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
