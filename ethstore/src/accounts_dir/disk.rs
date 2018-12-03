@@ -119,15 +119,9 @@ pub struct DiskDirectory<T> where T: KeyFileManager {
 }
 
 /// Keys file manager for root keys directory
+#[derive(Default)]
 pub struct DiskKeyFileManager {
 	password: Option<Password>,
-}
-
-impl DiskKeyFileManager {
-	/// Create new disk key manager w/o password
-	pub fn new() -> Self {
-		DiskKeyFileManager { password: None }
-	}
 }
 
 impl RootDiskDirectory {
@@ -136,13 +130,14 @@ impl RootDiskDirectory {
 		Ok(Self::at(path))
 	}
 
+	/// allows to read keyfiles with given password (needed for keyfiles w/o address)
 	pub fn with_password(&self, password: Option<Password>) -> Self {
 		DiskDirectory::new(&self.path, DiskKeyFileManager { password })
 	}
 
 
 	pub fn at<P>(path: P) -> Self where P: AsRef<Path> {
-		DiskDirectory::new(path, DiskKeyFileManager::new())
+		DiskDirectory::new(path, DiskKeyFileManager::default())
 	}
 }
 

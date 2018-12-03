@@ -25,7 +25,7 @@ use Error;
 
 /// Import an account from a file.
 pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error> {
-	let key_manager = DiskKeyFileManager::new();
+	let key_manager = DiskKeyFileManager::default();
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
 	let filename = path.file_name().and_then(|n| n.to_str()).map(|f| f.to_owned());
 	let account = fs::File::open(&path)
