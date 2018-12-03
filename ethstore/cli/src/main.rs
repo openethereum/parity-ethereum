@@ -240,7 +240,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {
 		let password = match args.arg_password.as_ref() {
-			&"" => None,
+			"" => None,
 			_ => Some(load_password(&args.arg_password)?)
 		};
 		let src = key_dir(&args.flag_src, password)?;
