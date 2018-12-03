@@ -18,7 +18,7 @@
 			{"name": "hashOfPart", "type": "bytes32", "indexed": true},
 			{"name": "ack", "type": "bytes", "indexed": false},
 			{"name": "stakingEpoch", "type": "uint256", "indexed": false},
-			"name": "changeRequestCount", "type": "uint256", "indexed": true}
+			{"name": "changeRequestCount", "type": "uint256", "indexed": true}
 		],
 		"anonymous": false
 	},
