@@ -1,0 +1,118 @@
+[
+	{
+		"type": "event",
+		"name": "BenignReported",
+		"inputs": [
+			{"name": "reporter", "type": "address", "indexed": true},
+			{"name": "validator", "type": "address", "indexed": true},
+			{"name": "blockNumber", "type": "uint256", "indexed": true},
+			{"name": "proof", "type": "bytes", "indexed": false}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "MaliciousReported",
+		"inputs": [
+			{"name": "reporter", "type": "address", "indexed": true},
+			{"name": "validator", "type": "address", "indexed": true},
+			{"name": "blockNumber", "type": "uint256", "indexed": true},
+			{"name": "proof", "type": "bytes", "indexed": false}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "function",
+		"name": "finalizeChange",
+		"inputs": [],
+		"outputs": [],
+		"constant": false,
+		"payable": false
+	},
+	{
+		"type": "function",
+		"name": "newValidatorSet",
+		"inputs": [],
+		"outputs": [
+			{"name": "", "type": "address[]"}
+		],
+		"constant": false,
+		"payable": false
+	},
+	{
+		"type": "function",
+		"name": "getValidators",
+		"inputs": [],
+		"outputs": [
+			{"name": "", "type": "address[]"}
+		],
+		"constant": false,
+		"payable": false
+	},
+	{
+		"type": "function",
+		"name": "reportBenign",
+		"inputs": [
+			{"name": "validator", "type": "address"},
+			{"name": "blockNumber", "type": "uint256"}
+		],
+		"outputs": [],
+		"constant": false,
+		"payable": false
+	},
+	{
+		"type": "function",
+		"name": "reportMalicious",
+		"inputs": [
+			{"name": "validator", "type": "address"},
+			{"name": "blockNumber", "type": "uint256"},
+			{"name": "proof", "type": "bytes"}
+		],
+		"outputs": [],
+		"constant": false,
+		"payable": false
+	},
+	{
+		"type": "function",
+		"name": "reportMaliciousValidator",
+		"inputs": [
+			{"name": "validators", "type": "address[]"},
+			{"name": "reportingValidators", "type": "address[]"}
+		],
+		"outputs": [
+			{"name": "": "type": "address[]"}
+		],
+		"constant": false,
+		"payable": false
+	},
+	{
+		"type": "function",
+		"name": "savePublicKey",
+		"inputs": [
+			{"name": "key", "type": "bytes"}
+		],
+		"outputs": [],
+		"constant": false,
+		"payable": false
+	},
+	{
+		"type": "function",
+		"name": "storeRandom",
+		"inputs": [
+			{"name": "random", "type": "uint256[]"}
+		],
+		"outputs": [],
+		"constant": false,
+		"payable": false
+	},
+	{
+		"type": "function",
+		"name": "currentRandom",
+		"inputs": [],
+		"outputs": [
+			{"name": "", "type": "uint256[]"}
+		],
+		"constant": false,
+		"payable": false
+	}
+]
