@@ -29,6 +29,7 @@ use sync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
+use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use ethcore::state::StateInfo;
@@ -47,7 +48,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, ChainStatus, Log, Filter,
 	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 	block_number_to_id
 };
@@ -503,5 +504,11 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		} else {
 			Err(errors::status_error(has_peers))
 		}
+	}
+
+	fn logs_light(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
+		use v1::impls::eth::base_logs;
+		// only specific impl for lightclient
+		base_logs(&*self.client, &*self.miner, filter.into())
 	}
 }

@@ -26,7 +26,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, ChainStatus, Log, Filter,
 	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 };
 
@@ -237,5 +237,11 @@ build_rpc_trait! {
 		/// Otherwise the RPC returns error.
 		#[rpc(name = "parity_nodeStatus")]
 		fn status(&self) -> Result<()>;
+
+		/// Returns logs matching given filter object.
+		/// Skip filling transaction hash for faster query.
+		#[rpc(name = "parity_getLogsLight")]
+		fn logs_light(&self, Filter) -> BoxFuture<Vec<Log>>;
+
 	}
 }
