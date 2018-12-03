@@ -20,7 +20,7 @@ before_script:
   - set -u # treat unset variables as error
   # - source scripts/utils.sh
   # - date
-  # - source scripts/prepare_build.sh
+  # - source scripts/prepare_build.sh 
 
 after_script:
   - date
