@@ -1,1 +1,171 @@
-[{"constant": false,"inputs": [{"name": "newState","type": "bytes"},{"name": "v","type": "uint8[]"},{"name": "r","type": "bytes32[]"},{"name": "s","type": "bytes32[]"}],"name": "setState","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},{"constant": true,"inputs": [],"name": "code","outputs": [{"name": "","type": "bytes"}],"payable": false,"stateMutability": "view","type": "function"},{"constant": true,"inputs": [{"name": "","type": "uint256"}],"name": "validators","outputs": [{"name": "","type": "address"}],"payable": false,"stateMutability": "view","type": "function"},{"constant": true,"inputs": [],"name": "nonce","outputs": [{"name": "","type": "uint256"}],"payable": false,"stateMutability": "view","type": "function"},{"constant": true,"inputs": [],"name": "getValidators","outputs": [{"name": "","type": "address[]"}],"payable": false,"stateMutability": "view","type": "function"},{"constant": true,"inputs": [],"name": "state","outputs": [{"name": "","type": "bytes"}],"payable": false,"stateMutability": "view","type": "function"},{"inputs": [{"name": "initialValidators","type": "address[]"},{"name": "initialCode","type": "bytes"},{"name": "initialState","type": "bytes"}],"payable": false,"stateMutability": "nonpayable","type": "constructor"}]
+[
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "getVersion",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "newState",
+				"type": "bytes"
+			},
+			{
+				"name": "v",
+				"type": "uint8[]"
+			},
+			{
+				"name": "r",
+				"type": "bytes32[]"
+			},
+			{
+				"name": "s",
+				"type": "bytes32[]"
+			}
+		],
+		"name": "setState",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "code",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "validators",
+		"outputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "changesOriginator",
+				"type": "address"
+			},
+			{
+				"name": "originalTransactionHash",
+				"type": "bytes"
+			}
+		],
+		"name": "notifyChanges",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "nonce",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "getValidators",
+		"outputs": [
+			{
+				"name": "",
+				"type": "address[]"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "state",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"name": "initialValidators",
+				"type": "address[]"
+			},
+			{
+				"name": "initialCode",
+				"type": "bytes"
+			},
+			{
+				"name": "initialState",
+				"type": "bytes"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "changesOriginator",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"name": "originalTransactionHash",
+				"type": "bytes"
+			}
+		],
+		"name": "PrivateStateChanged",
+		"type": "event"
+	}
+]
