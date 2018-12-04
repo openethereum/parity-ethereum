@@ -333,7 +333,43 @@ impl Engine<EthereumMachine> for Clique {
 	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
 		trace!(target: "engine", "verify_block_basic {}", _header.number());
 
-		self.snapshot.apply(_header)
+		// Ignore genisis block.
+		if _header.number() == 0 {
+			return Ok(());
+		  }
+
+		// don't allow blocks from the future
+		// Checkpoint blocks need to enforce zero beneficiary
+		if _header.number() % self.epoch_length == 0 {
+			if _header.author() != &[0; 20].into() {
+				return Err(Box::new("Checkpoint blocks need to enforce zero beneficiary").into());
+			}
+			let nonce = _header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
+			if nonce != NONCE_DROP_VOTE {
+				return Err(Box::new("Seal nonce zeros enforced on checkpoints").into());
+			}
+		} else {
+			// TODO
+			// - ensure header extraData has length SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH
+			// - ensure header signature corresponds to the right validator for the turn-ness of the
+			// block
+		}
+		// Nonces must be 0x00..0 or 0xff..f, zeroes enforced on checkpoints
+		// Check that the extra-data contains both the vanity and signature
+		// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise
+		// Ensure that the mix digest is zero as we don't have fork protection currently
+		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
+		// Ensure that the block's difficulty is meaningful
+		// ...
+
+		Ok(())
+	}
+
+	fn on_block_applied(&self, header: &Header) -> Result<(), Error> {
+		self.snapshot.apply(&header);
+		self.snapshot.commit();
+
+		Ok(())
 	}
 
 	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
@@ -404,7 +440,7 @@ impl Engine<EthereumMachine> for Clique {
 		{
 			trace!(target: "engine", "genesis_epoch_data received");
 
-			self.snapshot.apply(_header);
+			self.snapshot.apply(_header).unwrap();
 			self.snapshot.commit();
 			trace!(target: "engine", "snapshot written");
 		}

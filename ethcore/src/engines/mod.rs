@@ -386,10 +386,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// updating consensus state and potentially issuing a new one.
 	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
-	/// Find out if the block is a proposal block and should not be inserted into the DB.
-	/// Takes a header of a fully verified block.
-	fn is_proposal(&self, _verified_header: &M::Header) -> bool { false }
-
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: Password) {}
 
@@ -440,6 +436,10 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Return author should used in executing txns for this block.
 	fn executive_author(&self, header: &M::Header) -> Address { header.author().clone() }
+
+	/// Called after block was applied to the blockchain
+	fn on_block_applied(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
+
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.

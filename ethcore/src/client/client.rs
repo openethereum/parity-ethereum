@@ -295,19 +295,14 @@ impl Importer {
 
 				match self.check_and_lock_block(block, client) {
 					Ok(closed_block) => {
-						if self.engine.is_proposal(&header) {
-							self.block_queue.mark_as_good(&[hash]);
-							proposed_blocks.push(bytes);
-						} else {
-							imported_blocks.push(hash);
+						imported_blocks.push(hash);
 
-							let transactions_len = closed_block.transactions().len();
+						let transactions_len = closed_block.transactions().len();
 
-							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
-							import_results.push(route);
+						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
+						import_results.push(route);
 
-							client.report.write().accrue_block(&header, transactions_len);
-						}
+						client.report.write().accrue_block(&header, transactions_len);
 					},
 					Err(err) => {
 						self.bad_blocks.report(bytes, format!("{:?}", err));
@@ -547,6 +542,8 @@ impl Importer {
 
 			a
 		}).collect();
+
+		self.engine.on_block_applied(&header).expect("Engine apply failed.");
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			fork_choice: fork_choice,
