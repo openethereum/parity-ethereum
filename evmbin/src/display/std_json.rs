@@ -21,7 +21,7 @@ use std::io;
 
 use ethereum_types::{H256, U256};
 use bytes::ToPretty;
-use ethcore::trace;
+use ethcore::{trace, pod_state};
 
 use display;
 use info as vm;
@@ -52,7 +52,7 @@ impl Writer for io::Stderr {
 }
 
 /// JSON formatting informant.
-pub struct Informant<Trace = io::Stderr, Out = io::Stdout> {
+pub struct Informant<Trace, Out> {
 	code: Vec<u8>,
 	instruction: u8,
 	depth: usize,
@@ -64,13 +64,28 @@ pub struct Informant<Trace = io::Stderr, Out = io::Stdout> {
 	out_sink: Out,
 }
 
-impl Default for Informant {
+impl Default for Informant<io::Stderr, io::Stdout> {
 	fn default() -> Self {
 		Self::new(io::stderr(), io::stdout())
 	}
 }
 
+impl Informant<io::Stdout, io::Stdout> {
+	/// std json informant using out only.
+	pub fn out_only() -> Self {
+		Self::new(io::stdout(), io::stdout())
+	}
+}
+
+impl Informant<io::Stderr, io::Stderr> {
+	/// std json informant using err only.
+	pub fn err_only() -> Self {
+		Self::new(io::stderr(), io::stderr())
+	}
+}
+
 impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
+
 	pub fn new(trace_sink: Trace, out_sink: Out) -> Self {
 		Informant {
 			code: Default::default(),
@@ -91,9 +106,24 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 			Self::with_informant_in_depth(informant.subinfos.last_mut().expect("prepare/done_trace are not balanced"), depth - 1, f);
 		}
 	}
+
+	fn dump_state_into(trace_sink: &mut Trace, root: H256, end_state: &Option<pod_state::PodState>) {
+		if let Some(ref end_state) =	end_state {
+			let dump_data = json!({
+				"root": root,
+				"accounts": end_state,
+			});
+			writeln!(trace_sink, "{}", dump_data).expect("The sink must be writeable.");
+		}
+	}
+
+
 }
 
 impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
+
+	type Sink = (Trace, Out);
+
 	fn before_test(&mut self, name: &str, action: &str) {
 		let out_data = json!({
 			"action": action,
@@ -105,15 +135,18 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 
 	fn set_gas(&mut self, _gas: U256) {}
 
-	fn finish(result: vm::RunResult<<Self as trace::VMTracer>::Output>) {
-		let mut trace_sink = Trace::default();
-		let mut out_sink = Out::default();
+	fn clone_sink(&self) -> Self::Sink {
+		(self.trace_sink.clone(), self.out_sink.clone())
+	}
+	fn finish(result: vm::RunResult<<Self as trace::VMTracer>::Output>, (ref mut trace_sink, ref mut out_sink): &mut Self::Sink) {
 
 		match result {
 			Ok(success) => {
 				let trace_data = json!({"stateRoot": success.state_root});
-				writeln!(&mut trace_sink, "{}", trace_data)
+				writeln!(trace_sink, "{}", trace_data)
 					.expect("The sink must be writeable.");
+
+				Self::dump_state_into(trace_sink, success.state_root, &success.end_state);
 
 				let out_data = json!({
 					"output": format!("0x{}", success.output.to_hex()),
@@ -121,7 +154,7 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					"time": display::as_micros(&success.time),
 				});
 
-				writeln!(&mut out_sink, "{}", out_data).expect("The sink must be writeable.");
+				writeln!(out_sink, "{}", out_data).expect("The sink must be writeable.");
 			},
 			Err(failure) => {
 				let out_data = json!({
@@ -130,7 +163,9 @@ impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {
 					"time": display::as_micros(&failure.time),
 				});
 
-				writeln!(&mut out_sink, "{}", out_data).expect("The sink must be writeable.");
+				Self::dump_state_into(trace_sink, failure.state_root, &failure.end_state);
+
+				writeln!(out_sink, "{}", out_data).expect("The sink must be writeable.");
 			},
 		}
 	}
@@ -200,6 +235,7 @@ impl<Trace: Writer, Out: Writer> trace::VMTracer for Informant<Trace, Out> {
 	}
 
 	fn drain(self) -> Option<Self::Output> { None }
+
 }
 
 #[cfg(test)]

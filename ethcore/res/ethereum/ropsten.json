@@ -37,7 +37,6 @@
 		"eip161abcTransition": 10,
 		"eip161dTransition": 10,
 		"eip155Transition": 10,
-		"eip98Transition": "0x7fffffffffffff",
 		"eip140Transition": 1700000,
 		"eip211Transition": 1700000,
 		"eip214Transition": 1700000,

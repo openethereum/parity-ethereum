@@ -47,7 +47,7 @@ use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, LightBlockNumber, Bytes, SyncStatus, SyncInfo,
-	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
+	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, EthAccount,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 	U64 as RpcU64,
 };
@@ -473,6 +473,10 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		Box::new(self.fetcher().block(num.to_block_id()).map(move |block| {
 			extract_uncle_at_index(block, idx, client)
 		}))
+	}
+
+	fn proof(&self, _address: RpcH160, _values:Vec<RpcH256>, _num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
 	fn compilers(&self) -> Result<Vec<String>> {

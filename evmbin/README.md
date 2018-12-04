@@ -9,7 +9,7 @@ EVM implementation for Parity.
   Copyright 2015-2018 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--json --std-json --only NAME --chain CHAIN]
+    parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
     parity-evm stats [options]
     parity-evm stats-jsontests-vm <file>
     parity-evm [options]
@@ -36,6 +36,11 @@ State test options:
 General options:
     --json             Display verbose results in JSON.
     --std-json         Display results in standardized JSON format.
+    --std-err-only     With --std-json redirect to err output only.
+    --std-out-only     With --std-json redirect to out output only.
+    --std-dump-json    Display results in standardized JSON format
+                       with additional state dump.
+Display result state dump in standardized JSON format.
     --chain CHAIN      Chain spec file path.
     -h, --help         Display this message and exit.
 ```

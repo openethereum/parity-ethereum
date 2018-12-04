@@ -95,7 +95,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 							flushln!("{} fail", info);
 							failed.push(name.clone());
 						},
-						Ok(TransactResult::Err { state_root, ref error }) if state_root != post_root => {
+						Ok(TransactResult::Err { state_root, ref error, .. }) if state_root != post_root => {
 							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
 							println!("{} !!! Execution error: {:?}", info, error);
 							flushln!("{} fail", info);

@@ -1187,8 +1187,8 @@ impl BlockChain {
 		let mut pending_block_details = self.pending_block_details.write();
 		let mut pending_write_txs = self.pending_transaction_addresses.write();
 
-		let mut best_ancient_block = self.best_ancient_block.write();
 		let mut best_block = self.best_block.write();
+		let mut best_ancient_block = self.best_ancient_block.write();
 		let mut write_block_details = self.block_details.write();
 		let mut write_hashes = self.block_hashes.write();
 		let mut write_txs = self.transaction_addresses.write();

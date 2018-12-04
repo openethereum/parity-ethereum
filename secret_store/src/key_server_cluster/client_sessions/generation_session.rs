@@ -1367,12 +1367,12 @@ pub mod tests {
 			let clusters_clone = clusters.clone();
 
 			// establish connections
-			loop_until(&mut core, CONN_TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
+			loop_until(&core.executor(), CONN_TIMEOUT, move || clusters_clone.iter().all(all_connections_established));
 
 			// run session to completion
 			let session_id = SessionId::default();
 			let session = clusters[0].client().new_generation_session(session_id, Default::default(), Default::default(), threshold).unwrap();
-			loop_until(&mut core, SESSION_TIMEOUT, move || session.joint_public_and_secret().is_some());
+			loop_until(&core.executor(), SESSION_TIMEOUT, move || session.joint_public_and_secret().is_some());
 		}
 	}
 

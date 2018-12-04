@@ -31,7 +31,6 @@
 		"eip160Transition":"0x21e88e",
 		"eip161abcTransition":"0x21e88e",
 		"eip161dTransition":"0x21e88e",
-		"eip98Transition":"0x7fffffffffffff",
 		"eip140Transition":"0x21e88e",
 		"eip155Transition":"0x21e88e",
 		"eip211Transition":"0x21e88e",

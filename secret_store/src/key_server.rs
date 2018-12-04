@@ -15,14 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
-use std::thread;
 use std::sync::Arc;
-use std::sync::mpsc;
-use futures::{self, Future};
 use parking_lot::Mutex;
-use tokio::runtime;
 use crypto::DEFAULT_MAC;
 use ethkey::crypto;
+use parity_runtime::Executor;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
 use super::key_server_set::KeyServerSet;
@@ -39,16 +36,16 @@ pub struct KeyServerImpl {
 
 /// Secret store key server data.
 pub struct KeyServerCore {
-	close: Option<futures::Complete<()>>,
-	handle: Option<thread::JoinHandle<()>>,
 	cluster: Arc<ClusterClient>,
 }
 
 impl KeyServerImpl {
 	/// Create new key server instance
-	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
+	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>,
+		acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>, executor: Executor) -> Result<Self, Error>
+	{
 		Ok(KeyServerImpl {
-			data: Arc::new(Mutex::new(KeyServerCore::new(config, key_server_set, self_key_pair, acl_storage, key_storage)?)),
+			data: Arc::new(Mutex::new(KeyServerCore::new(config, key_server_set, self_key_pair, acl_storage, key_storage, executor)?)),
 		})
 	}
 
@@ -175,9 +172,10 @@ impl MessageSigner for KeyServerImpl {
 }
 
 impl KeyServerCore {
-	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
+	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>,
+		acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>, executor: Executor) -> Result<Self, Error>
+	{
 		let config = NetClusterConfiguration {
-			threads: config.threads,
 			self_key_pair: self_key_pair.clone(),
 			listen_address: (config.listener_address.address.clone(), config.listener_address.port),
 			key_server_set: key_server_set,
@@ -188,42 +186,13 @@ impl KeyServerCore {
 			auto_migrate_enabled: config.auto_migrate_enabled,
 		};
 
-		let (stop, stopped) = futures::oneshot();
-		let (tx, rx) = mpsc::channel();
-		let handle = thread::Builder::new().name("KeyServerLoop".into()).spawn(move || {
-			let runtime_res = runtime::Builder::new()
-				.core_threads(config.threads)
-				.build();
-
-			let mut el = match runtime_res {
-				Ok(el) => el,
-				Err(e) => {
-					tx.send(Err(Error::Internal(format!("error initializing event loop: {}", e)))).expect("Rx is blocking upper thread.");
-					return;
-				},
-			};
-
-			let cluster = ClusterCore::new(el.executor(), config);
-			let cluster_client = cluster.and_then(|c| c.run().map(|_| c.client()));
-			tx.send(cluster_client.map_err(Into::into)).expect("Rx is blocking upper thread.");
-			let _ = el.block_on(futures::empty().select(stopped));
-
-			trace!(target: "secretstore_net", "{}: KeyServerLoop thread stopped", self_key_pair.public());
-		}).map_err(|e| Error::Internal(format!("{}", e)))?;
-		let cluster = rx.recv().map_err(|e| Error::Internal(format!("error initializing event loop: {}", e)))??;
+		let cluster = ClusterCore::new(executor, config)
+			.and_then(|c| c.run().map(|_| c.client()))
+			.map_err(|err| Error::from(err))?;
 
 		Ok(KeyServerCore {
-			close: Some(stop),
-			handle: Some(handle),
-			cluster: cluster,
+			cluster,
 		})
-	}
-}
-
-impl Drop for KeyServerCore {
-	fn drop(&mut self) {
-		self.close.take().map(|v| v.send(()));
-		self.handle.take().map(|h| h.join());
 	}
 }
 
@@ -243,6 +212,7 @@ pub mod tests {
 	use key_server_set::tests::MapKeyServerSet;
 	use key_server_cluster::math;
 	use ethereum_types::{H256, H520};
+	use parity_runtime::Runtime;
 	use types::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
 		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature,
 		Requester, NodeId};
@@ -294,10 +264,9 @@ pub mod tests {
 		}
 	}
 
-	fn make_key_servers(start_port: u16, num_nodes: usize) -> (Vec<KeyServerImpl>, Vec<Arc<DummyKeyStorage>>) {
+	fn make_key_servers(start_port: u16, num_nodes: usize) -> (Vec<KeyServerImpl>, Vec<Arc<DummyKeyStorage>>, Runtime) {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
-				threads: 1,
 				listener_address: NodeAddress {
 					address: "127.0.0.1".into(),
 					port: start_port + (i as u16),
@@ -316,11 +285,12 @@ pub mod tests {
 			.map(|(k, a)| (k.clone(), format!("{}:{}", a.address, a.port).parse().unwrap()))
 			.collect();
 		let key_storages = (0..num_nodes).map(|_| Arc::new(DummyKeyStorage::default())).collect::<Vec<_>>();
+		let runtime = Runtime::with_thread_count(4);
 		let key_servers: Vec<_> = configs.into_iter().enumerate().map(|(i, cfg)|
 			KeyServerImpl::new(&cfg, Arc::new(MapKeyServerSet::new(false, key_servers_set.clone())),
 				Arc::new(PlainNodeKeyPair::new(key_pairs[i].clone())),
 				Arc::new(DummyAclStorage::default()),
-				key_storages[i].clone()).unwrap()
+				key_storages[i].clone(), runtime.executor()).unwrap()
 		).collect();
 
 		// wait until connections are established. It is fast => do not bother with events here
@@ -350,13 +320,13 @@ pub mod tests {
 			}
 		}
 
-		(key_servers, key_storages)
+		(key_servers, key_storages, runtime)
 	}
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_single_node() {
 		//::logger::init_log();
-		let (key_servers, _) = make_key_servers(6070, 1);
+		let (key_servers, _, runtime) = make_key_servers(6070, 1);
 
 		// generate document key
 		let threshold = 0;
@@ -372,12 +342,13 @@ pub mod tests {
 			let retrieved_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 			assert_eq!(retrieved_key, generated_key);
 		}
+		drop(runtime);
 	}
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_3_nodes() {
 		//::logger::init_log();
-		let (key_servers, key_storages) = make_key_servers(6080, 3);
+		let (key_servers, key_storages, runtime) = make_key_servers(6080, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
@@ -399,12 +370,13 @@ pub mod tests {
 				assert!(key_share.encrypted_point.is_some());
 			}
 		}
+		drop(runtime);
 	}
 
 	#[test]
 	fn server_key_generation_and_storing_document_key_works_over_network_with_3_nodes() {
 		//::logger::init_log();
-		let (key_servers, _) = make_key_servers(6090, 3);
+		let (key_servers, _, runtime) = make_key_servers(6090, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
@@ -430,12 +402,13 @@ pub mod tests {
 				assert_eq!(retrieved_key, generated_key);
 			}
 		}
+		drop(runtime);
 	}
 
 	#[test]
 	fn server_key_generation_and_message_signing_works_over_network_with_3_nodes() {
 		//::logger::init_log();
-		let (key_servers, _) = make_key_servers(6100, 3);
+		let (key_servers, _, runtime) = make_key_servers(6100, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
@@ -455,12 +428,13 @@ pub mod tests {
 			// check signature
 			assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
 		}
+		drop(runtime);
 	}
 
 	#[test]
 	fn decryption_session_is_delegated_when_node_does_not_have_key_share() {
 		//::logger::init_log();
-		let (key_servers, _) = make_key_servers(6110, 3);
+		let (key_servers, _, runtime) = make_key_servers(6110, 3);
 
 		// generate document key
 		let threshold = 0;
@@ -477,12 +451,13 @@ pub mod tests {
 		let retrieved_key = key_servers[0].restore_document_key(&document, &signature.into()).unwrap();
 		let retrieved_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 		assert_eq!(retrieved_key, generated_key);
+		drop(runtime);
 	}
 
 	#[test]
 	fn schnorr_signing_session_is_delegated_when_node_does_not_have_key_share() {
 		//::logger::init_log();
-		let (key_servers, _) = make_key_servers(6114, 3);
+		let (key_servers, _, runtime) = make_key_servers(6114, 3);
 		let threshold = 1;
 
 		// generate server key
@@ -503,12 +478,13 @@ pub mod tests {
 
 		// check signature
 		assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+		drop(runtime);
 	}
 
 	#[test]
 	fn ecdsa_signing_session_is_delegated_when_node_does_not_have_key_share() {
 		//::logger::init_log();
-		let (key_servers, _) = make_key_servers(6117, 4);
+		let (key_servers, _, runtime) = make_key_servers(6117, 4);
 		let threshold = 1;
 
 		// generate server key
@@ -528,6 +504,7 @@ pub mod tests {
 
 		// check signature
 		assert!(verify_public(&server_public, &signature.into(), &message_hash).unwrap());
+		drop(runtime);
 	}
 
 	#[test]

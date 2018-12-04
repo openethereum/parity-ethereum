@@ -96,6 +96,7 @@ pub trait VMTracer: Send {
 
 	/// Consumes self and returns the VM trace.
 	fn drain(self) -> Option<Self::Output>;
+
 }
 
 /// `DbExtras` provides an interface to query extra data which is not stored in tracesdb,

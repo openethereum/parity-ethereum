@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::any::Any;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Weak, atomic};
 use std::time::{Duration, Instant};
 use std::thread;
 
@@ -127,6 +127,7 @@ pub struct RunCmd {
 	pub stratum: Option<stratum::Options>,
 	pub snapshot_conf: SnapshotConfiguration,
 	pub check_seal: bool,
+	pub allow_missing_blocks: bool,
 	pub download_old_blocks: bool,
 	pub verifier_settings: VerifierSettings,
 	pub serve_light: bool,
@@ -404,11 +405,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.acc_conf.unlocked_accounts.len() == 0, cmd.secretstore_conf.enabled)?;
 
-	// run in daemon mode
-	if let Some(pid_file) = cmd.daemon {
-		daemonize(pid_file)?;
-	}
-
 	//print out running parity environment
 	print_running_environment(&spec.data_dir, &cmd.dirs, &db_dirs);
 
@@ -468,6 +464,14 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
+	// Run in daemon mode.
+	// Note, that it should be called before we leave any file descriptor open,
+	// since `daemonize` will close them.
+	if let Some(pid_file) = cmd.daemon {
+		info!("Running as a daemon process!");
+		daemonize(pid_file)?;
+	}
+
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
@@ -484,7 +488,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), runtime.executor()),
 		&spec,
 		Some(account_provider.clone()),
-
 	));
 	miner.set_author(cmd.miner_extras.author, None).expect("Fails only if password is Some; password is None; qed");
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
@@ -641,7 +644,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	};
 
 	// create sync object
-	let (sync_provider, manage_network, chain_notify) = modules::sync(
+	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
 		sync_config,
 		net_conf.clone().into(),
 		client.clone(),
@@ -654,6 +657,18 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
+
+	// Propagate transactions as soon as they are imported.
+	let tx = ::parking_lot::Mutex::new(priority_tasks);
+	let is_ready = Arc::new(atomic::AtomicBool::new(true));
+	miner.add_transactions_listener(Box::new(move |_hashes| {
+		// we want to have only one PendingTransactions task in the queue.
+		if is_ready.compare_and_swap(true, false, atomic::Ordering::SeqCst) {
+			let task = ::sync::PriorityTask::PropagateTransactions(Instant::now(), is_ready.clone());
+			// we ignore error cause it means that we are closing
+			let _ = tx.lock().send(task);
+		}
+	}));
 
 	// provider not added to a notification center is effectively disabled
 	// TODO [debris] refactor it later on
@@ -722,6 +737,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		private_tx_service: Some(private_tx_service.clone()),
 		gas_price_percentile: cmd.gas_price_percentile,
 		poll_lifetime: cmd.poll_lifetime,
+		allow_missing_blocks: cmd.allow_missing_blocks,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -740,11 +756,11 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
 		sync: sync_provider.clone(),
-		miner: miner,
+		miner: miner.clone(),
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};
-	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps)?;
+	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps, runtime.executor())?;
 
 	// the ipfs server
 	let ipfs_server = ipfs::start_server(cmd.ipfs_conf.clone(), client.clone())?;

@@ -16,8 +16,8 @@
 
 //! Tokio Runtime wrapper.
 
-extern crate futures;
-extern crate tokio;
+pub extern crate futures;
+pub extern crate tokio;
 
 use std::{fmt, thread};
 use std::sync::mpsc;
@@ -217,6 +217,24 @@ impl Executor {
 				thread::spawn(move || {
 					let _ = timeout(f, duration, on_timeout).wait();
 				});
+			},
+		}
+	}
+}
+
+impl<F: Future<Item = (), Error = ()> + Send + 'static> future::Executor<F> for Executor {
+	fn execute(&self, future: F) -> Result<(), future::ExecuteError<F>> {
+		match self.inner {
+			Mode::Tokio(ref executor) => executor.execute(future),
+			Mode::Sync => {
+				let _= future.wait();
+				Ok(())
+			},
+			Mode::ThreadPerFuture => {
+				thread::spawn(move || {
+					let _= future.wait();
+				});
+				Ok(())
 			},
 		}
 	}
