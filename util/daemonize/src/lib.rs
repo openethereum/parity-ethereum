@@ -25,15 +25,16 @@ extern crate mio;
  extern crate log;
 #[macro_use]
 extern crate failure;
+extern crate ansi_term;
 
 use libc::{
 	 close, dup2, fork, getpid, ioctl, pipe, splice, setsid, FIONREAD, STDERR_FILENO,
-	STDIN_FILENO, STDOUT_FILENO, c_int, umask, open
+	STDIN_FILENO, STDOUT_FILENO, c_int, umask, open, gid_t, uid_t, setgid, setuid
 };
 use mio::*;
 use std::{fs, mem};
 use std::io::{self, Write};
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::os::unix::io::{FromRawFd, RawFd};
 mod pipe;
 pub mod error;
 
@@ -41,7 +42,8 @@ use pipe::Io;
 pub use error::{Error, ErrorKind};
 use std::env::set_current_dir;
 use std::path::PathBuf;
-pub use libc::{uid_t, gid_t, mode_t};
+use std::ffi::{CString};
+use std::os::unix::ffi::OsStringExt;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -87,7 +89,8 @@ impl Handle {
 	/// # panics
 	/// if detach is called more than once
 	pub fn detach(&mut self) {
-		self.detach_with_msg(b"Daemon started succesfully\n");
+		let msg = ansi_term::Colour::Green.paint("Daemon started succesfully, detaching ...\n").to_string();
+		self.detach_with_msg(msg);
 	}
 
 	/// detach the daemon from the parent process
@@ -132,6 +135,16 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 		assert_err!(pipe(&mut out_chan[0] as *mut c_int), ErrorKind::Pipe(io::Error::last_os_error()))?;
 		assert_err!(pipe(&mut err_chan[0] as *mut c_int), ErrorKind::Pipe(io::Error::last_os_error()))?;
 
+		let path = pid_file.into();
+		let path_c =  CString::new(path.clone().into_os_string().into_vec())
+			.map_err(|_| ErrorKind::PathContainsNul)?;
+
+		// create the pid file
+		let pid_fd = assert_err!(
+			open(path_c.as_ptr(), libc::O_WRONLY | libc::O_CREAT, 0o666),
+			ErrorKind::OpenPidfile(io::Error::last_os_error())
+		)?;
+
 		let (rx, tx) = (chan[0], chan[1]);
 		let (out_rx, out_tx) = (out_chan[0], out_chan[1]);
 		let (err_rx, err_tx) = (err_chan[0], err_chan[1]);
@@ -140,6 +153,10 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 		let pid = assert_err!(fork(), ErrorKind::Fork(io::Error::last_os_error()))?;
 
 		if pid == 0 {
+			// redirect stderr/stdout to out/err pipe
+			// incase we get an error before forking
+			assert_err!(dup2(err_tx, STDERR_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
+			assert_err!(dup2(out_tx, STDOUT_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
 			trace!(target: "daemonize", "created child Process! {}", getpid());
 
 			set_current_dir("/").map_err(|_| ErrorKind::ChangeDirectory)?;
@@ -167,20 +184,22 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 				close(*fd);
 			}
 
-			let mut pid_file = fs::OpenOptions::new()
-				.write(true)
-				.truncate(true)
-				.create(true)
-				.open(pid_file.into())
-				.map_err(|e| ErrorKind::OpenPidfile(e))?;
-
-			pid_file
-				.write_all(format!("{}", getpid()).as_bytes())
-				.map_err(|e| ErrorKind::WritePid(e))?;
-
 			// redirect stderr/stdout to out/err pipe
 			assert_err!(dup2(err_tx, STDERR_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
 			assert_err!(dup2(out_tx, STDOUT_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
+
+			let gid = gid_t::max_value() - 1;
+			let uid = uid_t::max_value() - 1;
+			// set the process group_id and user_id
+			setgid(gid);
+			setuid(uid);
+
+			// write the pid to the pid file
+			let mut pid_f = fs::File::from_raw_fd(pid_fd);
+			pid_f.write_all(
+				format!("{}", getpid()).as_bytes()
+			).map_err(|err| ErrorKind::WritePid(err))?;
+
 
 			close(err_tx);
 			close(out_tx);
@@ -196,6 +215,7 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 				close(*fd);
 			}
 
+			// use mio to listen for events on all pipes
 			const STDOUT_READ_PIPE: Token = Token(0);
 			const STDERR_READ_PIPE: Token = Token(1);
 			const STATUS_REPORT_PIPE: Token = Token(3);
@@ -240,15 +260,15 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 							let mut size = 0;
 							get_pending_data_size(out_rx, &mut size);
 
-							if splice(out_rx, 0 as *mut _, io::stdout().as_raw_fd(), 0 as *mut _, size, 0) == -1 {
-								trace!(target: "daemonize", "splice failed");
+							if splice(out_rx, 0 as *mut _, STDOUT_FILENO, 0 as *mut _, size, 0) == -1 {
+								trace!(target: "daemonize", "splice failed {}", io::Error::last_os_error());
 							}
 						}
 						STDERR_READ_PIPE => {
 							let mut size = 0;
 							get_pending_data_size(err_rx, &mut size);
 
-							if splice(err_rx,0 as *mut _,io::stderr().as_raw_fd(),0 as *mut _,size,0) == -1 {
+							if splice(err_rx,0 as *mut _,STDERR_FILENO,0 as *mut _,size,0) == -1 {
 								trace!(target: "daemonize", "splice failed {}", io::Error::last_os_error());
 							}
 						}
@@ -256,7 +276,7 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 							let mut size = 0;
 							get_pending_data_size(rx, &mut size);
 
-							if splice(rx,0 as *mut _,io::stdout().as_raw_fd(),0 as *mut _,size,0) != -1 {
+							if splice(rx,0 as *mut _,STDOUT_FILENO,0 as *mut _,size,0) != -1 {
 								trace!(target: "daemonize", "Exiting Parent Process");
 								for fd in &[rx, out_rx, err_rx] {
 									close(*fd);

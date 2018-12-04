@@ -75,7 +75,7 @@ pub enum ErrorKind {
 	PathContainsNul,
 
 	/// Unable to open pid file
-	#[fail(display = "Unable to open pid file")]
+	#[fail(display = "Unable to open pid file, {}", _0)]
 	OpenPidfile(io::Error),
 
 	/// Unable to lock pid file

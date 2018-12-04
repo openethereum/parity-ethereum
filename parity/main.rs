@@ -27,6 +27,7 @@ extern crate panic_hook;
 extern crate parity_ethereum;
 extern crate parking_lot;
 extern crate daemonize;
+extern crate ansi_term;
 
 #[cfg(windows)] extern crate winapi;
 
@@ -37,7 +38,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{process, env};
-
+use ansi_term::Colour;
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
@@ -191,10 +192,25 @@ fn main_direct(force_can_restart: bool) -> i32 {
 	}
 
 	let handle = if let Some(ref pid) = conf.args.arg_daemon_pid_file {
+		let _ = std::io::stdout()
+			.write_all(
+				Colour::Green.paint("Starting in daemon mode\n")
+					.to_string()
+					.as_bytes()
+			);
+		let _ = std::io::stdout().flush();
+
 		match daemonize::daemonize(pid) {
 			Ok(h) => Some(h),
 			Err(e) => {
-				eprintln!("{}", e);
+				std::io::stderr()
+					.write_all(
+						Colour::Red.paint(format!("\n{}\n", e))
+							.to_string()
+							.as_bytes()
+					);
+				// flush before returning
+				std::io::stderr().flush();
 				return 0;
 			}
 		}
@@ -328,7 +344,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			// error occured during start up
 			// if this is a daemon, detach from the parent process
 			if let Some(mut handle) = handle {
-				handle.detach()
+				handle.detach_with_msg(format!("{}", Colour::Red.paint(&err)))
 			}
 			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
 			1
