@@ -749,9 +749,10 @@ usage! {
 			"--tx-queue-per-sender=[LIMIT]",
 			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
 
+			// INSI: Not sure about the name for this strategy -- 'dynamic'?
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| c.mining.as_ref()?.tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
-			"Prioritization strategy used to order transactions in the queue. S may be: gas_price - Prioritize txs with high gas price",
+			"Prioritization strategy used to order transactions in the queue. S may be: gas_price - Prioritize txs with high gas price, experimental - Prioritize consecutive transactions. Score such that the first transaction has a higher priority to reflect more transactions after it",
 
 			ARG arg_stratum_interface: (String) = "local", or |c: &Config| c.stratum.as_ref()?.interface.clone(),
 			"--stratum-interface=[IP]",
@@ -1346,6 +1347,7 @@ struct Mining {
 	refuse_service_transactions: Option<bool>,
 	infinite_pending_block: Option<bool>,
 	max_round_blocks_to_import: Option<usize>,
+	experimental_scoring: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]

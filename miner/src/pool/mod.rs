@@ -43,6 +43,8 @@ pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 pub enum PrioritizationStrategy {
 	/// Simple gas-price based prioritization.
 	GasPriceOnly,
+	/// Consecutive transactions committed from the same account have higher priority
+	Experimental
 }
 
 /// Transaction ordering when requesting pending set.
