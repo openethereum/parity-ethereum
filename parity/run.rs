@@ -66,6 +66,7 @@ use secretstore;
 use signer;
 use db;
 use ethkey::Password;
+use storage_writer::StorageWriterConfig;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -94,6 +95,7 @@ pub struct RunCmd {
 	pub pruning: Pruning,
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
+	pub storage_writer_config: StorageWriterConfig,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
@@ -197,7 +199,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(cmd.acc_conf.unlocked_accounts.len() == 0, cmd.secretstore_conf.enabled)?;
+	cmd.dirs.create_dirs(cmd.acc_conf.unlocked_accounts.len() == 0, cmd.secretstore_conf.enabled, cmd.storage_writer_config.enabled)?;
 
 	//print out running parity environment
 	print_running_environment(&spec.data_dir, &cmd.dirs, &db_dirs);
@@ -411,6 +413,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// check if fatdb is on
 	let fat_db = fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm)?;
 
+	// check if storage writing is on
+	let storage_writer_config = cmd.storage_writer_config;
+
 	// get the mode
 	let mode = mode_switch_to_bool(cmd.mode, &user_defaults)?;
 	trace!(target: "mode", "mode is {:?}", mode);
@@ -427,7 +432,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(cmd.acc_conf.unlocked_accounts.len() == 0, cmd.secretstore_conf.enabled)?;
+	cmd.dirs.create_dirs(cmd.acc_conf.unlocked_accounts.len() == 0, cmd.secretstore_conf.enabled, storage_writer_config.enabled)?;
 
 	//print out running parity environment
 	print_running_environment(&spec.data_dir, &cmd.dirs, &db_dirs);
@@ -559,6 +564,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		algorithm,
 		cmd.pruning_history,
 		cmd.pruning_memory,
+		storage_writer_config,
 		cmd.check_seal,
 		cmd.max_round_blocks_to_import,
 	);

@@ -71,6 +71,7 @@ extern crate parity_path as path;
 extern crate node_filter;
 extern crate keccak_hash as hash;
 extern crate journaldb;
+extern crate storage_writer;
 extern crate registrar;
 
 #[macro_use]

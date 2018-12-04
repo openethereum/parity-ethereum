@@ -106,6 +106,7 @@ extern crate unexpected;
 extern crate using_queue;
 extern crate vm;
 extern crate wasm;
+extern crate storage_writer;
 
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;

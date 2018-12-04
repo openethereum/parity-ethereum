@@ -40,7 +40,7 @@ use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization, passwords_from_files};
 use dir::helpers::{replace_home, replace_home_and_local};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType, StorageWriting};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use ipfs::Configuration as IpfsConfiguration;
@@ -54,6 +54,7 @@ use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 use network::{IpFilter};
+use storage_writer::StorageWriterConfig;
 
 const DEFAULT_MAX_PEERS: u16 = 50;
 const DEFAULT_MIN_PEERS: u16 = 25;
@@ -142,6 +143,7 @@ impl Configuration {
 		let ipfs_conf = self.ipfs_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
+		let storage_writer_config = self.storage_writer_config()?;
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -183,6 +185,7 @@ impl Configuration {
 				pruning,
 				pruning_history,
 				pruning_memory: self.args.arg_pruning_memory,
+				storage_writer_config,
 				tracing,
 				fat_db,
 				compaction,
@@ -249,6 +252,7 @@ impl Configuration {
 				pruning: pruning,
 				pruning_history: pruning_history,
 				pruning_memory: self.args.arg_pruning_memory,
+				storage_writer_config: storage_writer_config,
 				compaction: compaction,
 				tracing: tracing,
 				fat_db: fat_db,
@@ -271,6 +275,7 @@ impl Configuration {
 					pruning: pruning,
 					pruning_history: pruning_history,
 					pruning_memory: self.args.arg_pruning_memory,
+					storage_writer_config: storage_writer_config,
 					compaction: compaction,
 					tracing: tracing,
 					fat_db: fat_db,
@@ -290,6 +295,7 @@ impl Configuration {
 					pruning: pruning,
 					pruning_history: pruning_history,
 					pruning_memory: self.args.arg_pruning_memory,
+					storage_writer_config: storage_writer_config,
 					compaction: compaction,
 					tracing: tracing,
 					fat_db: fat_db,
@@ -312,6 +318,7 @@ impl Configuration {
 				pruning: pruning,
 				pruning_history: pruning_history,
 				pruning_memory: self.args.arg_pruning_memory,
+				storage_writer_config: storage_writer_config,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
@@ -330,6 +337,7 @@ impl Configuration {
 				pruning: pruning,
 				pruning_history: pruning_history,
 				pruning_memory: self.args.arg_pruning_memory,
+				storage_writer_config: storage_writer_config,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
@@ -367,6 +375,7 @@ impl Configuration {
 				pruning: pruning,
 				pruning_history: pruning_history,
 				pruning_memory: self.args.arg_pruning_memory,
+				storage_writer_config: storage_writer_config,
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
@@ -927,6 +936,18 @@ impl Configuration {
 		Ok((provider_conf, encryptor_conf, self.args.flag_private_enabled))
 	}
 
+	fn storage_writer_config(&self) -> Result<StorageWriterConfig, String> {
+		let storage_writing: StorageWriting = self.args.arg_storage_writing.parse()?;
+		let storage_writing_path = self.directories().storage_diffs;
+		let storage_writer_conf = StorageWriterConfig{
+			database: storage_writing.to_database(),
+			enabled: !storage_writing.eq(&StorageWriting::Off),
+			path: storage_writing_path.into(),
+			watched_contracts: to_addresses(&self.args.arg_watched_contracts)?,
+		};
+		Ok(storage_writer_conf)
+	}
+
 	fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
 		let conf = SnapshotConfiguration {
 			no_periodic: self.args.flag_no_periodic_snapshot,
@@ -997,11 +1018,17 @@ impl Configuration {
 		};
 		let cache_path = if is_using_base_path { "$BASE/cache" } else { dir::CACHE_PATH };
 
+		let chosen_storage_diffs_path = if self.args.arg_storage_writing_path.is_none() {
+			"$BASE/storage_diffs"
+		} else {
+			self.args.arg_storage_writing_path.as_ref().map_or(dir::STORAGE_DIFF_PATH, |s| &s)
+		};
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
 		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
 		let keys_path = replace_home(&data_path, &self.args.arg_keys_path);
 		let secretstore_path = replace_home(&data_path, &self.args.arg_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.arg_ui_path);
+		let storage_diffs_path = replace_home(&data_path, chosen_storage_diffs_path);
 
 		Directories {
 			keys: keys_path,
@@ -1010,6 +1037,7 @@ impl Configuration {
 			db: db_path,
 			signer: ui_path,
 			secretstore: secretstore_path,
+			storage_diffs: storage_diffs_path,
 		}
 	}
 
@@ -1286,6 +1314,7 @@ mod tests {
 			pruning: Default::default(),
 			pruning_history: 64,
 			pruning_memory: 32,
+			storage_writer_config: Default::default(),
 			compaction: Default::default(),
 			tracing: Default::default(),
 			fat_db: Default::default(),
@@ -1310,6 +1339,7 @@ mod tests {
 			pruning: Default::default(),
 			pruning_history: 64,
 			pruning_memory: 32,
+			storage_writer_config: Default::default(),
 			format: Default::default(),
 			compaction: Default::default(),
 			tracing: Default::default(),
@@ -1333,6 +1363,7 @@ mod tests {
 			pruning: Default::default(),
 			pruning_history: 64,
 			pruning_memory: 32,
+			storage_writer_config: Default::default(),
 			format: Default::default(),
 			compaction: Default::default(),
 			tracing: Default::default(),
@@ -1358,6 +1389,7 @@ mod tests {
 			pruning: Default::default(),
 			pruning_history: 64,
 			pruning_memory: 32,
+			storage_writer_config: Default::default(),
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			tracing: Default::default(),
@@ -1414,6 +1446,7 @@ mod tests {
 			pruning: Default::default(),
 			pruning_history: 64,
 			pruning_memory: 32,
+			storage_writer_config: Default::default(),
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),

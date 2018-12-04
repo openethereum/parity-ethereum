@@ -41,6 +41,7 @@ use types::state_diff::StateDiff;
 use types::transaction::SignedTransaction;
 use state_db::StateDB;
 use factory::VmFactory;
+use storage_writer;
 
 use ethereum_types::{H256, U256, Address};
 use hashdb::{HashDB, AsHashDB};
@@ -225,7 +226,7 @@ pub fn check_proof(
 }
 
 /// Prove a `virtual` transaction on the given state.
-/// Returns `None` when the transacion could not be proved,
+/// Returns `None` when the transaction could not be proved,
 /// and a proof otherwise.
 pub fn prove_transaction_virtual<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync>(
 	db: H,
@@ -872,6 +873,24 @@ impl<B: Backend> State<B> {
 		self.require(a, false)?;
 		Ok(())
 	}
+
+    /// Write watched state/storage trie vals to secondary datastore
+    pub fn write_watched_state(&mut self, header_hash: H256, header_number: u64, mut storage_writer: Box<storage_writer::StorageWriter>) -> Result<(), Error> {
+        let accounts_storage_diffs = {
+            let mut accounts_storage_diffs: HashMap<Address, HashMap<H256, H256>> = HashMap::new();
+            for (key, val) in self.cache.borrow().iter() {
+                if let Some(entry) = val.clone_if_dirty() {
+                    if let Some(a) = entry.account {
+                        let storage_changes = a.storage_changes();
+                        accounts_storage_diffs.insert(key.clone(), storage_changes.clone());
+                    }
+                }
+            }
+            accounts_storage_diffs
+        };
+        storage_writer.write_storage_diffs(header_hash, header_number,accounts_storage_diffs)?;
+        Ok(())
+    }
 
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {

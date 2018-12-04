@@ -48,6 +48,11 @@ pub use home::home_dir;
 /// Platform-specific cache path
 #[cfg(not(target_os = "windows"))] pub const CACHE_PATH: &str = "$BASE/cache";
 
+/// Platform-specific storage diff path - Windows only
+#[cfg(target_os = "windows")] pub const STORAGE_DIFF_PATH: &str = "$LOCAL/storage_diffs";
+/// Platform-specific storage diff path
+#[cfg(not(target_os = "windows"))] pub const STORAGE_DIFF_PATH: &str = "$BASE/storage_diffs";
+
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
 const LEGACY_CLIENT_DB_VER_STR: &str = "5.3";
@@ -67,6 +72,8 @@ pub struct Directories {
 	pub signer: String,
 	/// Secrets dir
 	pub secretstore: String,
+	/// Storage diffs dir
+	pub storage_diffs: String,
 }
 
 impl Default for Directories {
@@ -80,13 +87,14 @@ impl Default for Directories {
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
 			secretstore: replace_home(&data_dir, "$BASE/secretstore"),
+			storage_diffs: replace_home(&data_dir, "$BASE/storage_diffs")
 		}
 	}
 }
 
 impl Directories {
 	/// Create local directories
-	pub fn create_dirs(&self, signer_enabled: bool, secretstore_enabled: bool) -> Result<(), String> {
+	pub fn create_dirs(&self, signer_enabled: bool, secretstore_enabled: bool, storage_diffs_enabled: bool) -> Result<(), String> {
 		fs::create_dir_all(&self.base).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.db).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.cache).map_err(|e| e.to_string())?;
@@ -96,6 +104,9 @@ impl Directories {
 		}
 		if secretstore_enabled {
 			fs::create_dir_all(&self.secretstore).map_err(|e| e.to_string())?;
+		}
+		if storage_diffs_enabled {
+			fs::create_dir_all(&self.storage_diffs).map_err(|e| e.to_string())?;
 		}
 		Ok(())
 	}
@@ -355,6 +366,7 @@ mod tests {
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
 			secretstore: replace_home(&data_dir, "$BASE/secretstore"),
+			storage_diffs: replace_home(&data_dir, "$BASE/storage_diffs")
 		};
 		assert_eq!(expected, Directories::default());
 	}

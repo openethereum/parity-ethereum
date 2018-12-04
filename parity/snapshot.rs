@@ -37,6 +37,7 @@ use dir::Directories;
 use user_defaults::UserDefaults;
 use ethcore_private_tx;
 use db;
+use storage_writer::StorageWriterConfig;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -56,6 +57,7 @@ pub struct SnapshotCommand {
 	pub pruning: Pruning,
 	pub pruning_history: u64,
 	pub pruning_memory: usize,
+	pub storage_writer_config: StorageWriterConfig,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
@@ -179,6 +181,7 @@ impl SnapshotCommand {
 			algorithm,
 			self.pruning_history,
 			self.pruning_memory,
+			self.storage_writer_config,
 			true,
 			self.max_round_blocks_to_import,
 		);

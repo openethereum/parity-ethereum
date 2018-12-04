@@ -468,7 +468,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + 'static {
 		trace!(target: "shutdown", "[IoService] Closed.");
 	}
 
-	/// Regiter an IO handler with the event loop.
+	/// Register an IO handler with the event loop.
 	pub fn register_handler(&self, handler: Arc<IoHandler<Message>+Send>) -> Result<(), IoError> {
 		self.host_channel.lock().send(IoMessage::AddHandler {
 			handler: handler,

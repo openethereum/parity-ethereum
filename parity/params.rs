@@ -27,6 +27,7 @@ use journaldb::Algorithm;
 use miner::gas_pricer::GasPricer;
 use miner::gas_price_calibrator::{GasPriceCalibratorOptions, GasPriceCalibrator};
 use parity_version::version_data;
+use storage_writer::Database;
 use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
@@ -175,6 +176,39 @@ impl Pruning {
 		}
 	}
 }
+
+#[derive(Debug, PartialEq)]
+pub enum StorageWriting {
+    Specific(Database),
+    Off,
+}
+
+impl Default for StorageWriting {
+    fn default() -> Self {
+        StorageWriting::Off
+    }
+}
+
+impl str::FromStr for StorageWriting {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "csv" => Ok(StorageWriting::Specific(Database::Csv)),
+            _other => Ok(StorageWriting::Off),
+        }
+    }
+}
+
+impl StorageWriting {
+    pub fn to_database(&self) -> Database {
+        match *self {
+            StorageWriting::Specific(db) => db,
+            StorageWriting::Off => Database::None,
+        }
+    }
+}
+
 
 #[derive(Debug, PartialEq)]
 pub struct ResealPolicy {
@@ -352,8 +386,9 @@ pub fn mode_switch_to_bool(switch: Option<Mode>, user_defaults: &UserDefaults) -
 #[cfg(test)]
 mod tests {
 	use journaldb::Algorithm;
+	use storage_writer::Database;
 	use user_defaults::UserDefaults;
-	use super::{SpecType, Pruning, ResealPolicy, Switch, tracing_switch_to_bool};
+	use super::{SpecType, Pruning, StorageWriting, ResealPolicy, Switch, tracing_switch_to_bool};
 
 	#[test]
 	fn test_spec_type_parsing() {
@@ -423,6 +458,17 @@ mod tests {
 	#[test]
 	fn test_pruning_default() {
 		assert_eq!(Pruning::Auto, Pruning::default());
+	}
+
+	#[test]
+	fn test_storage_writing_parsing() {
+		assert_eq!(StorageWriting::Specific(Database::Csv), "csv".parse().unwrap());
+		assert_eq!(StorageWriting::Off, "off".parse().unwrap());
+	}
+
+	#[test]
+	fn test_storage_writing_default() {
+		assert_eq!(StorageWriting::Off, StorageWriting::default());
 	}
 
 	#[test]

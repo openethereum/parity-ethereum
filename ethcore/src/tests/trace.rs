@@ -19,7 +19,7 @@
 use ethkey::KeyPair;
 use hash::keccak;
 use block::*;
-use ethereum_types::{U256, Address};
+use ethereum_types::{H256, U256, Address};
 use io::*;
 use spec::*;
 use client::*;
@@ -35,6 +35,7 @@ use verification::queue::kind::blocks::Unverified;
 use types::header::Header;
 use types::view;
 use types::views::BlockView;
+use storage_writer;
 
 #[test]
 fn can_trace_block_and_uncle_reward() {
@@ -79,6 +80,8 @@ fn can_trace_block_and_uncle_reward() {
 		engine,
 		Default::default(),
 		false,
+		storage_writer::new(Default::default()),
+		H256::default(),
 		db,
 		&last_header,
 		Arc::new(last_hashes.clone()),
@@ -108,6 +111,8 @@ fn can_trace_block_and_uncle_reward() {
 		engine,
 		Default::default(),
 		false,
+		storage_writer::new(Default::default()),
+		H256::default(),
 		db,
 		&last_header,
 		Arc::new(last_hashes.clone()),
@@ -136,6 +141,8 @@ fn can_trace_block_and_uncle_reward() {
 		engine,
 		Default::default(),
 		true,
+		storage_writer::new(Default::default()),
+		H256::default(),
 		db,
 		&last_header,
 		Arc::new(last_hashes.clone()),

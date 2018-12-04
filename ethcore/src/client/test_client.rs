@@ -70,6 +70,7 @@ use state_db::StateDB;
 use trace::LocalizedTrace;
 use verification::queue::QueueInfo;
 use verification::queue::kind::blocks::Unverified;
+use storage_writer;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -409,6 +410,8 @@ impl PrepareOpenBlock for TestBlockChainClient {
 			engine,
 			Default::default(),
 			false,
+			storage_writer::new(Default::default()),
+			H256::default(),
 			db,
 			&genesis_header,
 			Arc::new(last_hashes),

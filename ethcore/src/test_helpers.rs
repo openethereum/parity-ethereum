@@ -48,6 +48,7 @@ use spec::Spec;
 use state::*;
 use state_db::StateDB;
 use verification::queue::kind::blocks::Unverified;
+use storage_writer;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -152,6 +153,8 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			test_engine,
 			Default::default(),
 			false,
+			storage_writer::new(Default::default()),
+			H256::default(),
 			db,
 			&last_header,
 			Arc::new(last_hashes.clone()),

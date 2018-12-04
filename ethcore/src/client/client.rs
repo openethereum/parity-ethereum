@@ -72,6 +72,7 @@ use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
 use state::{self, State};
 use state_db::StateDB;
+use storage_writer;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use transaction_ext::Transaction;
 use verification::queue::kind::BlockLike;
@@ -203,6 +204,9 @@ pub struct Client {
 	report: RwLock<ClientReport>,
 
 	sleep_state: Mutex<SleepState>,
+
+    /// Storage writer
+    storage_writer: Box<storage_writer::StorageWriter>,
 
 	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
 	liveness: AtomicBool,
@@ -409,6 +413,7 @@ impl Importer {
 			block,
 			engine,
 			client.tracedb.read().tracing_enabled(),
+			client.storage_writer.clone(),
 			db,
 			&parent,
 			last_hashes,
@@ -743,6 +748,8 @@ impl Client {
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
+		let chosen_storage_writer = storage_writer::new(config.storage_writer_config.clone());
+
 		let history = if config.history < MIN_HISTORY_SIZE {
 			info!(target: "client", "Ignoring pruning history parameter of {}\
 				, falling back to minimum of {}",
@@ -770,6 +777,7 @@ impl Client {
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
 			sleep_state: Mutex::new(SleepState::new(awake)),
+			storage_writer: chosen_storage_writer,
 			liveness: AtomicBool::new(awake),
 			mode: Mutex::new(config.mode.clone()),
 			chain: RwLock::new(chain),
@@ -2314,6 +2322,8 @@ impl PrepareOpenBlock for Client {
 			engine,
 			self.factories.clone(),
 			self.tracedb.read().tracing_enabled(),
+			self.storage_writer.clone(),
+			H256::default(),
 			self.state_db.read().boxed_clone_canon(&h),
 			&best_header,
 			self.build_last_hashes(&h),

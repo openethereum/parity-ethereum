@@ -71,6 +71,7 @@ unexpected = { path = "../util/unexpected" }
 using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
+storage-writer = { path = "../util/storage-writer" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
 hardware-wallet = { path = "../accounts/hw" }
