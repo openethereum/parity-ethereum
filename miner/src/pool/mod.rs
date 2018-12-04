@@ -44,7 +44,7 @@ pub enum PrioritizationStrategy {
 	/// Simple gas-price based prioritization.
 	GasPriceOnly,
 	/// Consecutive transactions committed from the same account have higher priority
-	Experimental
+	Consecutive
 }
 
 /// Transaction ordering when requesting pending set.
