@@ -26,7 +26,8 @@
 //! Transactions between senders are prioritized using `gas price`. Higher `gas price`
 //! yields more profits for miners. Additionally we prioritize transactions that originate
 //! from our local node (own transactions).
-
+#[macro_use]
+use log::*; // TODO get rid of these two lines
 use std::cmp;
 
 use ethereum_types::U256;
@@ -49,11 +50,10 @@ fn bump_gas_price(old_gp: U256) -> U256 {
 /// We might want to store penalization status in some persistent state.
 #[derive(Debug, Clone)]
 pub struct NonceAndGasPrice(pub PrioritizationStrategy);
-// TODO: insi name tba
 /// An experimental (Name TBD) scoring strategy that takes into account consecutive transactions.
 /// Consecutive transactions committed from the same account have higher priority
 #[derive(Debug, Clone)]
-pub struct Experimental(pub PrioritizationStrategy);
+pub struct Consecutive(pub PrioritizationStrategy);
 
 impl NonceAndGasPrice {
 	/// Decide if the transaction should even be considered into the pool (if the pool is full).
@@ -156,8 +156,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 	}
 }
 
-
-impl<P> txpool::Scoring<P> for Experimental where P: ScoredTransaction + txpool::VerifiedTransaction {
+impl<P> txpool::Scoring<P> for Consecutive where P: ScoredTransaction + txpool::VerifiedTransaction {
 	type Score = U256;
 	type Event = ();
 
@@ -183,8 +182,13 @@ impl<P> txpool::Scoring<P> for Experimental where P: ScoredTransaction + txpool:
 
 	fn update_scores(&self, txs: &[txpool::Transaction<P>], scores: &mut [U256], change: scoring::Change) {
 
-		let is_consecutive = |txs: &[txpool::Transaction<P>]|
-			if txs[0].nonce() + 1 == txs[1].nonce() { U256::one() } else { U256::zero() };
+		let is_consecutive = |txs: &[txpool::Transaction<P>]| {
+			if (txs[0].nonce() + U256::from(1)) == txs[1].nonce() {
+				U256::one()
+			} else {
+				U256::zero()
+			}
+		};
 
 		match change {
 			Change::Culled(_) => {},
@@ -200,13 +204,15 @@ impl<P> txpool::Scoring<P> for Experimental where P: ScoredTransaction + txpool:
 					super::Priority::Regular => 0,
 				};
 				scores[i] = scores[i] << boost;
-				if txs.len() > 1 {
-					scores[i-1] = *txs[i-1].transaction.gas_price()
-						+ is_consecutive(&txs[i-1..=i])
-						* (U256::from(21_000) / scores[i-1])
-						* scores[i]
+				let last_index = txs.len() - 1;
+				for idx in 1..last_index {
+					scores[idx - 1] = *txs[idx-1].transaction.gas_price()
+						+ is_consecutive(&txs[idx-1..=idx])
+						+ (U256::from(21_000) / scores[idx - 1])
+						* scores[idx]
 						/ 1_000;
 				}
+				debug!("Score of tx {} == {}", i, scores[i]);
 
 			},
 			// We are only sending an event in case of penalization.
@@ -251,6 +257,10 @@ impl<P> txpool::Scoring<P> for Experimental where P: ScoredTransaction + txpool:
 
 #[cfg(test)]
 mod tests {
+	// TODO: get rid of logs before commiting WIP commit
+	#[macro_use]
+	use log::*;
+	use env_logger;
 	use super::*;
 
 	use std::sync::Arc;
@@ -401,5 +411,61 @@ mod tests {
 		// Check penalization
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Event(()));
 		assert_eq!(scores, vec![32768.into(), 128.into(), 0.into()]);
+	}
+
+	#[test]
+	fn should_calculate_consecutive_score_correctly() {
+		env_logger::try_init();
+		// given
+		let scoring = Consecutive(PrioritizationStrategy::Consecutive);
+		let (tx1, tx2, tx3) = Tx::default().signed_triple();
+		let transactions = vec![tx1, tx2, tx3].into_iter().enumerate().map(|(i, tx)| {
+			let mut verified = tx.verified();
+			verified.priority = match i {
+				0 => ::pool::Priority::Local,
+				1 => ::pool::Priority::Retracted,
+				_ => ::pool::Priority::Regular,
+			};
+			txpool::Transaction {
+				insertion_id: 0,
+				transaction: Arc::new(verified),
+			}
+		}).collect::<Vec<_>>();
+		let initial_scores = vec![U256::from(0), 0.into(), 0.into()];
+
+		// No update required
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(0));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(1));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(2));
+		assert_eq!(scores, initial_scores);
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(0));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(1));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(2));
+		assert_eq!(scores, initial_scores);
+
+		// Compute score at given index
+		debug!("INITIAL SCORES: {:?}", initial_scores);
+		transactions.iter().for_each(|tx| debug!("Gas Price: {}", tx.gas_price()));
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
+		assert_eq!(scores, vec![2.into(), 0.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(1));
+		assert_eq!(scores, vec![10754.into(), 1024.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(2));
+		assert_eq!(scores, vec![3.into(), 1024.into(), 1.into()]);
+
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(0));
+		assert_eq!(scores, vec![2.into(), 0.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(1));
+		assert_eq!(scores, vec![10754.into(), 1024.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(2));
+		assert_eq!(scores, vec![3.into(), 1024.into(), 1.into()]);
+
+		// Check penalization
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Event(()));
+		assert_eq!(scores, vec![3.into(), 128.into(), 0.into()]);
 	}
 }
