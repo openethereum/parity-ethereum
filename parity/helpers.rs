@@ -100,7 +100,8 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
 	match s {
 		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
-                "consecutive" => Ok(PrioritizationStrategy::Consecutive),
+		"consecutive" => Ok(PrioritizationStrategy::Consecutive),
+
 		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
 }

@@ -761,7 +761,6 @@ usage! {
 			"--tx-queue-per-sender=[LIMIT]",
 			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
 
-			// INSI: Not sure about the name for this strategy -- 'dynamic'?
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| c.mining.as_ref()?.tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
 			"Prioritization strategy used to order transactions in the queue. S may be: gas_price - Prioritize txs with high gas price, consecutive - Prioritize consecutive transactions. Score such that the first transaction has a higher priority to reflect more transactions after it",
