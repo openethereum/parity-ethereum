@@ -387,7 +387,7 @@ impl<'x> OpenBlock<'x> {
 	pub fn close_and_lock(self) -> Result<LockedBlock, Error> {
 		let mut s = self;
 
-
+		s.engine.on_close_block(&mut s.block)?;
 		s.block.state.commit()?;
 
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
@@ -400,8 +400,6 @@ impl<'x> OpenBlock<'x> {
 			b
 		}));
 		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
-
-		s.engine.on_close_block(&mut s.block)?;
 
 		Ok(LockedBlock {
 			block: s.block,
