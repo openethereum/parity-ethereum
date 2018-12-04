@@ -39,7 +39,7 @@ impl<T> Len for VecDeque<T> {
 /// Can be used in place of a `Mutex` where reading `T`'s `len()` without 
 /// needing to lock, is advantageous. 
 /// When the Guard is released, `T`'s `len()` will be cached.
-/// *The cached `len()` may be at most 1 lock behind current state.
+/// The cached `len()` may be at most 1 lock behind current state.
 pub struct LenCachingMutex<T> {
   data: Mutex<T>,
   len: AtomicUsize,
@@ -55,7 +55,7 @@ impl<T: Len> LenCachingMutex<T> {
 
 	/// Load the most recent value returned from your `T`'s `len()`
 	pub fn load_len(&self) -> usize {
-		self.len.load(Ordering::Relaxed)
+		self.len.load(Ordering::SeqCst)
 	}
 
 	pub fn lock(&self) -> Guard<T> {
@@ -90,7 +90,7 @@ impl<'a, T: Len> Guard<'a, T> {
 
 impl<'a, T: Len> Drop for Guard<'a, T> {
 	fn drop(&mut self) {
-		self.len.store(self.mutex_guard.len(), Ordering::Relaxed);
+		self.len.store(self.mutex_guard.len(), Ordering::SeqCst);
 	}
 }
 
@@ -125,13 +125,14 @@ mod tests {
 	fn works_with_vec() {
 		let v: Vec<i32> = Vec::new();
 		let lcm = LenCachingMutex::new(v);
-		assert_eq!(lcm.lock().shrink_to_fit(), ());
+		assert!(lcm.lock().is_empty());
 	}
 
 	#[test]
 	fn works_with_vecdeque() {
 		let v: VecDeque<i32> = VecDeque::new();
 		let lcm = LenCachingMutex::new(v);
-		assert_eq!(lcm.lock().shrink_to_fit(), ());
+		lcm.lock().push_front(4);
+		assert_eq!(lcm.load_len(), 1);
 	}
 }
