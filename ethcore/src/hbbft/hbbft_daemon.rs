@@ -165,6 +165,7 @@ impl ContributionPusher {
 
 		// Select new transactions and propose them for the next block.
 		let batch_threshold = self.next_batch_threshold();
+
 		let validator_count = self.hydrabadger.peers().count_validators() + 1;
 		let pending = client.miner().pending_transactions_from_queue(&*client,
 			1 << self.cfg.contribution_size_max_log2);
@@ -193,12 +194,16 @@ impl ContributionPusher {
 		}
 
 		// Our contribution size.
-		let contrib_size = batch_threshold / validator_count;
+		let contrib_size = match batch_threshold / validator_count {
+			0 => 1,
+			s => s,
+		};
 
 		let mut rng = rand::thread_rng();
 		let txns = if pending.len() <= contrib_size {
 			pending
 		} else {
+			debug!("###### Limiting proposal to {} transactions.", contrib_size);
 			rand::seq::sample_slice(&mut rng, &pending, contrib_size)
 		};
 		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes()).collect();
