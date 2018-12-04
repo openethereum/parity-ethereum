@@ -460,6 +460,11 @@ pub trait EngineClient: Sync + Send + ChainInfo {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
+
+	/// Returns the name of the consensus engine if known.
+	fn get_engine_name(&self) -> Option<&str> {
+		None
+	}
 }
 
 /// Extended client interface for providing proofs of the state.

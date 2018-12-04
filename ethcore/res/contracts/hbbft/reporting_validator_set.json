@@ -80,7 +80,7 @@
 			{"name": "reportingValidators", "type": "address[]"}
 		],
 		"outputs": [
-			{"name": "": "type": "address[]"}
+			{"name": "", "type": "address[]"}
 		],
 		"constant": false,
 		"payable": false

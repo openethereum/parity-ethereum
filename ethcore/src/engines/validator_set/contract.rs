@@ -30,7 +30,8 @@ use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
 
-use_contract!(validator_report, "res/contracts/validator_report.json");
+use_contract!(reporting_contract, "res/contracts/validator_report.json");
+use_contract!(hbbft_reporting_contract, "res/contracts/hbbft/reporting_validator_set.json");
 
 /// A validator contract with reporting.
 pub struct ValidatorContract {
@@ -47,9 +48,7 @@ impl ValidatorContract {
 			client: RwLock::new(None),
 		}
 	}
-}
 
-impl ValidatorContract {
 	fn transact(&self, data: Bytes) -> Result<(), String> {
 		let client = self.client.read().as_ref()
 			.and_then(Weak::upgrade)
@@ -63,6 +62,22 @@ impl ValidatorContract {
 			},
 			None => Err("No full client!".into()),
 		}
+	}
+
+	fn using_hbbft_engine(&self) -> bool {
+		self.client
+			.read()
+			.as_ref()
+			.and_then(|weak_engine_client| {
+				if let Some(engine_client) = weak_engine_client.upgrade() {
+					if let Some(engine_name) = engine_client.get_engine_name() {
+						let using_hbbft_engine = engine_name == "Hbbft";
+						return Some(using_hbbft_engine);
+					}
+				}
+				Some(false)
+			})
+			.unwrap()
 	}
 }
 
@@ -109,16 +124,24 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
-		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
-		match self.transact(data) {
+		let encoded_input  = if self.using_hbbft_engine() {
+			hbbft_reporting_contract::functions::report_malicious::encode_input(*address, block, proof)
+		} else {
+			reporting_contract::functions::report_malicious::encode_input(*address, block, proof)
+		};
+		match self.transact(encoded_input) {
 			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
-		let data = validator_report::functions::report_benign::encode_input(*address, block);
-		match self.transact(data) {
+		let encoded_input = if self.using_hbbft_engine() {
+			hbbft_reporting_contract::functions::report_benign::encode_input(*address, block)
+		} else {
+			reporting_contract::functions::report_benign::encode_input(*address, block)
+		};
+		match self.transact(encoded_input) {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
