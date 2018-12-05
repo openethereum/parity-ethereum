@@ -50,6 +50,7 @@ use client::{
 use client::bad_blocks;
 use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
+use engines::epoch::PendingTransition;
 use error::{
 	ImportErrorKind, ExecutionError, CallError, BlockError,
 	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
@@ -523,15 +524,15 @@ impl Importer {
 
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
-		self.check_epoch_end_signal(
+		if let Some(pending) = self.check_epoch_end_signal(
 			&header,
 			block_data.raw(),
 			&receipts,
 			&state,
-			&chain,
-			&mut batch,
 			client
-		);
+		) {
+			chain.insert_pending_transition(&mut batch, header.hash(), pending);
+		}
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
@@ -586,10 +587,8 @@ impl Importer {
 		block_bytes: &[u8],
 		receipts: &[Receipt],
 		state_db: &StateDB,
-		chain: &BlockChain,
-		batch: &mut DBTransaction,
 		client: &Client,
-	) {
+	) -> Option<PendingTransition> {
 		use engines::EpochChange;
 
 		let hash = header.hash();
@@ -600,7 +599,6 @@ impl Importer {
 
 		match self.engine.signals_epoch_end(header, auxiliary) {
 			EpochChange::Yes(proof) => {
-				use engines::epoch::PendingTransition;
 				use engines::Proof;
 
 				let proof = match proof {
@@ -662,13 +660,13 @@ impl Importer {
 
 				debug!(target: "client", "Block {} signals epoch end.", hash);
 
-				let pending = PendingTransition { proof: proof };
-				chain.insert_pending_transition(batch, hash, pending);
+				Some(PendingTransition { proof: proof })
 			},
-			EpochChange::No => {},
+			EpochChange::No => None,
 			EpochChange::Unsure(_) => {
 				warn!(target: "client", "Detected invalid engine implementation.");
 				warn!(target: "client", "Engine claims to require more block data, but everything provided.");
+				None
 			}
 		}
 	}
