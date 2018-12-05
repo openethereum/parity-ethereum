@@ -310,7 +310,7 @@ impl LightFetch {
 		}))
 	}
 
-  /// Variant of get transaction logs that does not fetch log transactions hash
+	/// Variant of get transaction logs that does not fetch log transactions hash
 	pub fn logs_light(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
 		use std::collections::BTreeMap;
 		use jsonrpc_core::futures::stream::{self, Stream};
