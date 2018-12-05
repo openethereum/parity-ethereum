@@ -76,7 +76,7 @@ futures = "0.1"
 parity-runtime = { path = "../util/runtime" }
 tokio = "~0.1.13"
 # hydrabadger = { path = "../../hydrabadger"}
-hydrabadger = { git = "https://github.com/poanetwork/hydrabadger" }
+hydrabadger = { git = "https://github.com/poanetwork/hydrabadger", rev = "25a126a"}
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
 hardware-wallet = { path = "../hw" }

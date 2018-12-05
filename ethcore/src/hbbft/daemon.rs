@@ -181,7 +181,7 @@ impl ContributionPusher {
 
 		match self.epoch_rx.poll() {
 			Ok(Async::Ready(Some(epoch))) => {
-				info!("####### CONTRIBUTION_PUSHER: epoch {} has begun.", epoch);
+				debug!("####### CONTRIBUTION_PUSHER: epoch {} has begun.", epoch);
 			}
 			Ok(Async::Ready(None)) => {
 				info!("####### CONTRIBUTION_PUSHER: Hydrabadger epoch tx has dropped.",);
@@ -194,9 +194,9 @@ impl ContributionPusher {
 		}
 
 		// Our contribution size.
-		let contrib_size = match batch_threshold / validator_count {
-			0 => 1,
-			s => s,
+		let contrib_size = match pending.len() / validator_count {
+			0 => 16,
+			s => s + 16,
 		};
 
 		let mut rng = rand::thread_rng();
@@ -206,6 +206,7 @@ impl ContributionPusher {
 			debug!("###### Limiting proposal to {} transactions.", contrib_size);
 			rand::seq::sample_slice(&mut rng, &pending, contrib_size)
 		};
+		info!("ContributionPusher is proposing {} transactions to hydrabadger.", txns.len());
 		let ser_txns: Vec<_> = txns.into_iter().map(|txn| txn.signed().rlp_bytes()).collect();
 		let contribution = Contribution {
 			transactions: ser_txns,
@@ -438,16 +439,14 @@ impl HbbftDaemon {
 			cfg.txn_gen_count, 5)?;
 
 		// Spawn experimentation loop:
-		executor.spawn(Laboratory {
-			client: Arc::downgrade(&client),
-			hydrabadger: hydrabadger.clone(),
-			hdb_cfg: cfg.clone(),
+		executor.spawn(Laboratory::new(
+			Arc::downgrade(&client),
+			hydrabadger.clone(),
+			cfg.clone(),
 			account_provider,
 			accounts,
 			block_counter,
-			last_block: 0,
-			gen_counter: 0,
-		}.into_loop());
+		).into_loop());
 
 		Ok(HbbftDaemon {
 			client: Arc::downgrade(&client),

@@ -2,8 +2,9 @@
 
 #![allow(unused_imports, missing_docs)]
 
-mod hbbft_daemon;
+mod daemon;
 mod laboratory;
+mod keygen;
 
 use std::str::FromStr;
 use std::collections::HashSet;
@@ -13,7 +14,7 @@ use sync::{Node, NetworkConfiguration};
 // use network;
 use hydrabadger::Config as HydrabadgerConfig;
 
-pub use self::hbbft_daemon::{HbbftDaemon, HbbftClientExt};
+pub use self::daemon::{HbbftDaemon, HbbftClientExt};
 
 ///
 pub const DEFAULT_HBBFT_PORT: u16 = 5900;

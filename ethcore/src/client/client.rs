@@ -241,7 +241,7 @@ pub struct Client {
 
 	importer: Importer,
 
-	hbbft_daemon: RwLock<Option<Arc<HbbftDaemon>>>,
+	daemon: RwLock<Option<Arc<HbbftDaemon>>>,
 }
 
 impl Importer {
@@ -793,7 +793,7 @@ impl Client {
 			exit_handler: Mutex::new(None),
 			importer,
 			config,
-			hbbft_daemon: RwLock::new(None),
+			daemon: RwLock::new(None),
 		});
 
 		// prune old states.
@@ -1354,7 +1354,7 @@ impl HbbftClientExt for Client {
 
 	/// Sets the hbbft daemon.
 	fn set_hbbft_daemon(&self, hbbftd: Arc<HbbftDaemon>) {
-		*self.hbbft_daemon.write() = Some(hbbftd);
+		*self.daemon.write() = Some(hbbftd);
 	}
 }
 

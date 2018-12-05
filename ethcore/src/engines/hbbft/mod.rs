@@ -16,7 +16,7 @@
 
 //! The `Hbbft` consensus engine.
 
-#![allow(unused_imports)]
+#![allow(unused_imports, dead_code)]
 
 use std::sync::{Arc, Weak};
 

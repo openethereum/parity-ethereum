@@ -22,20 +22,23 @@ use tokio::{self, timer::Delay};
 use hbbft::HbbftConfig;
 use itertools::Itertools;
 use rlp::{Decodable, Encodable, Rlp};
+use rustc_hex::FromHex;
 use ethstore;
 use ethjson::misc::AccountMeta;
 use ethkey::{Brain, Generator, Password, Random};
-use ethereum_types::{U256, Address};
+use ethereum_types::{U256, H256, Address};
+use types::{ids::TransactionId, receipt::LocalizedReceipt};
 use header::Header;
 use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock,
-	ImportSealedBlock, ImportBlock};
+	ImportSealedBlock, ImportBlock, CallContract};
 use miner::{Miner, MinerService};
 use verification::queue::kind::blocks::{Unverified};
 use transaction::{Transaction, Action, SignedTransaction, Error as TransactionError};
 use block::{OpenBlock, ClosedBlock, IsBlock, LockedBlock, SealedBlock};
 use state::{self, State, CleanupMode};
 use account_provider::AccountProvider;
-use super::hbbft_daemon::{HbbftDaemon, Contribution, Error, ErrorKind, HbbftClientExt};
+use ethabi::FunctionOutputDecoder;
+use super::daemon::{HbbftDaemon, Contribution, Error, ErrorKind, HbbftClientExt};
 
 const RICHIE_ACCT: &'static str = "0x002eb83d1d04ca12fe1956e67ccaa195848e437f";
 const RICHIE_PWD: &'static str =  "richie";
@@ -43,6 +46,8 @@ const RICHIE_PWD: &'static str =  "richie";
 // const NODE0_PWD: &'static str =  "node0";
 
 const TXN_AMOUNT_MAX: usize = 1000;
+
+use_contract!(test_junk_contract, "res/contracts/hbbft/test_junk_contract.json");
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -88,6 +93,7 @@ pub(super) struct Accounts {
 	stage_size: usize,
 	stage_count: usize,
 	next_stage: usize,
+	contract_acct_idx: usize,
 }
 
 impl Accounts {
@@ -100,7 +106,7 @@ impl Accounts {
 		account_provider.unlock_account_permanently(richie_addr, richie_pwd)
 			.map_err(|err| ErrorKind::EthstoreAccountInitRichie(err))?;
 
-		let accounts = (0..(txn_gen_count * stage_count)).map(|i| {
+		let accounts = (0..((txn_gen_count * stage_count) + 1)).map(|i| {
 			let name = format!("{}_{}", node_id, i);
 			let (address, password) = create_account(account_provider, &name)
 				.map_err(|err| ErrorKind::EthstoreAccountInitNode(err))?;
@@ -112,11 +118,14 @@ impl Accounts {
 			Ok(Account { address, password, balance, nonce, retries: 0 })
 		}).collect::<Result<Vec<_>, Error>>()?;
 
+		let contract_acct_idx = accounts.len() - 1;
+
 		Ok(Accounts {
 			accounts,
 			stage_size: txn_gen_count,
 			stage_count,
 			next_stage: 0,
+			contract_acct_idx,
 		})
 	}
 
@@ -131,6 +140,11 @@ impl Accounts {
 
 	fn accounts(&self) -> &[Account] {
 		&self.accounts
+	}
+
+	/// Returns the account used for creating contracts.
+	fn contract_account(&self) -> &Account {
+		&self.accounts[self.contract_acct_idx]
 	}
 
 	/// Returns a slice of the accounts in the 'stage' specified.
@@ -148,22 +162,73 @@ impl Accounts {
 }
 
 
+/// Contract testing.
+pub(super) struct Contract {
+	deploy_txn_id: Option<TransactionId>,
+	receipt: Option<LocalizedReceipt>,
+	new_owner_address: Option<(Address, TransactionId)>,
+}
+
+impl Contract {
+	pub fn new() -> Contract {
+		Contract {
+			deploy_txn_id: None,
+			receipt: None,
+			new_owner_address: None,
+		}
+	}
+
+	fn create_txn(&self, client: &Client) -> Transaction {
+		Transaction {
+			action: Action::Create,
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: client.miner().sensible_gas_limit(),
+			value: 0.into(),
+			data: TEST_CONTRACT_BINARY.from_hex().unwrap(),
+		}
+	}
+}
+
+
 /// Experiments and other junk.
 //
 // Add anything at all to this!
 //
 pub(super) struct Laboratory {
-	pub(super) client: Weak<Client>,
-	pub(super) hydrabadger: Hydrabadger<Contribution>,
-	pub(super) hdb_cfg: HbbftConfig,
-	pub(super) account_provider: Arc<AccountProvider>,
-	pub(super) accounts: Accounts,
-	pub(super) block_counter: Arc<AtomicIsize>,
-	pub(super) last_block: isize,
-	pub(super) gen_counter: usize,
+	client: Weak<Client>,
+	hydrabadger: Hydrabadger<Contribution>,
+	hdb_cfg: HbbftConfig,
+	account_provider: Arc<AccountProvider>,
+	accounts: Accounts,
+	block_counter: Arc<AtomicIsize>,
+	last_block: isize,
+	gen_counter: usize,
+	contract: Contract,
 }
 
 impl Laboratory {
+	pub fn new(
+		client: Weak<Client>,
+		hydrabadger: Hydrabadger<Contribution>,
+		hdb_cfg: HbbftConfig,
+		account_provider: Arc<AccountProvider>,
+		accounts: Accounts,
+		block_counter: Arc<AtomicIsize>,
+	) -> Laboratory {
+		Laboratory {
+			client,
+			hydrabadger,
+			hdb_cfg,
+			account_provider,
+			accounts,
+			block_counter,
+			last_block: 0,
+			gen_counter: 0,
+			contract: Contract::new(),
+		}
+	}
+
 	/// Returns each Parity account's address and metadata.
 	fn get_accounts(&self) -> HashMap<Address, AccountMeta> {
 		self.account_provider.accounts_info().unwrap()
@@ -447,7 +512,119 @@ impl Laboratory {
 		};
 
 		client.a_specialized_method();
+
 		client.change_me_into_something_useful();
+	}
+
+	/// Mess with contracts.
+	fn contract_stuff(&mut self) {
+		if !self.hydrabadger.is_validator() { return; }
+
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return,
+		};
+
+		// Deploy contract:
+		if self.contract.deploy_txn_id.is_none() {
+			let sender = self.accounts.contract_account();
+			let sender_nonce = client.state().nonce(&sender.address)
+				.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender.address));
+
+			let txn_signed = self.sign_txn(sender.address, sender.password.clone(), client.signing_chain_id(),
+				Transaction {
+					action: Action::Create,
+					nonce: sender_nonce,
+					gas_price: 0.into(),
+					gas: client.miner().sensible_gas_limit(),
+					value: 0.into(),
+					data: TEST_CONTRACT_BINARY.from_hex().unwrap(),
+				}
+			);
+
+			let txn_hash = txn_signed.hash();
+
+			match client.miner().import_claimed_local_transaction(&*client, txn_signed.into(), false) {
+				Ok(()) => {},
+				Err(ref err) => error!("Unable to import deploy transaction: {:?}", err),
+			}
+
+			self.contract.deploy_txn_id = Some(TransactionId::Hash(txn_hash));
+			info!("Test contract deployed: {}", txn_hash);
+		}
+
+		if self.contract.receipt.is_none() {
+			// Wait for receipt.
+			if let Some(receipt) = client.transaction_receipt(self.contract.deploy_txn_id.clone().unwrap()) {
+				match receipt.contract_address.clone() {
+					Some(addr) => {
+						info!("Test contract created with address: {}", addr);
+						self.contract.receipt = Some(receipt);
+					},
+					None => panic!("Contract creation transaction has no contract address"),
+				}
+			}
+		} else {
+			// Verify owner address.
+			let receipt = self.contract.receipt.as_ref().unwrap();
+			// let block = BlockId::Number(receipt.block_number);
+			let block = BlockId::Latest;
+			let address = receipt.contract_address.clone().unwrap();
+			let (data, decoder) = test_junk_contract::functions::get_owner::call();
+			let value = client.call_contract(block, address, data)
+				.expect("Error calling test contract");
+			let owner_addr = decoder.decode(&value)
+				.expect("Error decoding test contract return value");
+			info!("Test contract owner address: {} (orig: {})", owner_addr, self.accounts.contract_account().address);
+
+			match self.contract.new_owner_address {
+				Some((new_addr, ref txn_id)) => {
+					// Presumably this could fail if the block state changes
+					// between the above call to `::call_contract` and this
+					// call to `::transaction_receipt`.
+					match client.transaction_receipt(txn_id.clone()) {
+						Some(_receipt) => assert_eq!(owner_addr, new_addr),
+						None => assert_eq!(owner_addr, self.accounts.contract_account().address),
+					}
+				},
+				None => {
+					assert_eq!(owner_addr, self.accounts.contract_account().address)
+				},
+			}
+		}
+
+		// Modify owner address.
+		if self.contract.receipt.is_some() && self.contract.new_owner_address.is_none() {
+			let sender = self.accounts.contract_account();
+			let sender_nonce = client.state().nonce(&sender.address)
+				.unwrap_or_else(|_| panic!("Unable to determine nonce for account: {}", sender.address));
+			let contract_addr = self.contract.receipt.as_ref().unwrap().contract_address.clone().unwrap();
+			let new_addr = self.accounts.accounts()[0].address.clone();
+			let data = test_junk_contract::functions::set_owner::encode_input(new_addr);
+
+			let txn_signed = self.sign_txn(sender.address, sender.password.clone(), client.signing_chain_id(),
+				Transaction {
+					action: Action::Call(contract_addr),
+					nonce: sender_nonce,
+					gas_price: 0.into(),
+					gas: client.miner().sensible_gas_limit(),
+					value: 0.into(),
+					data,
+				}
+			);
+
+			let txn_hash = txn_signed.hash();
+
+			match client.miner().import_claimed_local_transaction(&*client, txn_signed.into(), false) {
+				Ok(()) => {},
+				Err(ref err) => error!("Unable to import setOwner transaction: {:?}", err),
+			}
+
+			info!("Test contract: Setting owner address to {} (orig: {})", new_addr,
+				self.accounts.contract_account().address);
+
+			self.contract.new_owner_address = Some((new_addr, TransactionId::Hash(txn_hash)));
+		}
 	}
 
 	/// Runs all experiments.
@@ -457,6 +634,8 @@ impl Laboratory {
 		self.export_transactions_to_miner();
 		// self.play_with_blocks();
 		self.demonstrate_client_extension_methods();
+
+		self.contract_stuff();
 	}
 
 	pub(super) fn into_loop(self) -> impl Future<Item = (), Error = ()> + Send {
@@ -473,3 +652,29 @@ impl Laboratory {
 	}
 
 }
+
+const TEST_CONTRACT_BINARY: &str = r#"608060405234801561001057600080fd5b5060008054600160a060020a03191633179055610142806100326000396000f30060806040526004361061004b5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166313af40358114610050578063893d20e814610080575b600080fd5b34801561005c57600080fd5b5061007e73ffffffffffffffffffffffffffffffffffffffff600435166100be565b005b34801561008c57600080fd5b506100956100fa565b6040805173ffffffffffffffffffffffffffffffffffffffff9092168252519081900360200190f35b6000805473ffffffffffffffffffffffffffffffffffffffff191673ffffffffffffffffffffffffffffffffffffffff92909216919091179055565b60005473ffffffffffffffffffffffffffffffffffffffff16905600a165627a7a72305820d57cdcf8acc8736a2ad737c6c4b5b69e7fefe49b812f7a110f52cfb31b819b4a0029"#;
+
+const TEST_CONTRACT_GAS: usize = 4700000;
+
+/*********************** TEST CONTRACT SOURCE **********************
+
+pragma solidity ^0.4.25;
+
+contract MyContract {
+    address owner;
+
+    constructor() public {
+        owner = msg.sender;
+    }
+
+    function getOwner() public constant returns(address) {
+        return owner;
+    }
+
+    function setOwner(address newOwner) public {
+        owner = newOwner;
+    }
+}
+
+***************************************************************/
