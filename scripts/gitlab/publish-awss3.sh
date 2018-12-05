@@ -42,7 +42,7 @@ aws configure set aws_access_key_id $s3_key
 aws configure set aws_secret_access_key $s3_secret
 if [[ "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" || "$CI_COMMIT_REF_NAME" = "nightly" ]];
   then
-    export S3_BUCKET=builds-parity-published;
+    export S3_BUCKET=releases.parity.io/ethereum;
   else
     export S3_BUCKET=builds-parity;
 fi
