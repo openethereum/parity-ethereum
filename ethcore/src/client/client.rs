@@ -294,7 +294,7 @@ impl Importer {
 					continue;
 				}
 
-				match self.check_and_lock_block(block, client) {
+				match self.check_and_lock_block(&bytes, block, client) {
 					Ok((closed_block, pending)) => {
 						if self.engine.is_proposal(&header) {
 							self.block_queue.mark_as_good(&[hash]);
@@ -353,7 +353,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
+	fn check_and_lock_block(&self, bytes: &[u8], block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -402,7 +402,6 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
-		let bytes = block.bytes.clone();
 		let enact_result = enact_verified(
 			block,
 			engine,
@@ -440,7 +439,7 @@ impl Importer {
 
 		let pending = self.check_epoch_end_signal(
 			&header,
-			&bytes,
+			bytes,
 			locked_block.receipts(),
 			locked_block.state().db(),
 			client
