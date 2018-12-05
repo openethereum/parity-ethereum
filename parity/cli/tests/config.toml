@@ -71,9 +71,9 @@ fat_db = "off"
 scale_verifiers = false
 
 [light]
-on_demand_response_time_window = 2000
-on_demand_request_backoff_start = 9000
-on_demand_request_backoff_max = 15000
+on_demand_response_time_window = 2
+on_demand_request_backoff_start = 9
+on_demand_request_backoff_max = 15
 on_demand_request_backoff_rounds_max = 10
 on_demand_request_consecutive_failures = 1
 
