@@ -30,6 +30,7 @@ extern crate daemonize;
 extern crate ansi_term;
 
 #[cfg(windows)] extern crate winapi;
+extern crate ethcore_logger;
 
 use std::ffi::OsString;
 use std::fs::{remove_file, metadata, File, create_dir_all};
@@ -44,6 +45,7 @@ use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
 use parity_ethereum::{start, ExecutionAction};
 use parking_lot::{Condvar, Mutex};
+use ethcore_logger::setup_log;
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 const PARITY_EXECUTABLE_NAME: &str = "parity";
@@ -186,6 +188,9 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
+	// TODO: expose in the C API so that users can setup logging the way they want
+	let logger = setup_log(&conf.logger_config()).expect("Logger is initialized only once; qed");
+
 	if let Some(spec_override) = take_spec_name_override() {
 		conf.args.flag_testnet = false;
 		conf.args.arg_chain = spec_override;
@@ -203,15 +208,15 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		match daemonize::daemonize(pid) {
 			Ok(h) => Some(h),
 			Err(e) => {
-				std::io::stderr()
+				let _ = std::io::stderr()
 					.write_all(
 						Colour::Red.paint(format!("\n{}\n", e))
 							.to_string()
 							.as_bytes()
 					);
 				// flush before returning
-				std::io::stderr().flush();
-				return 0;
+				let _ = std::io::stderr().flush();
+				return 1;
 			}
 		}
 	} else {
@@ -237,6 +242,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 	let exec = if can_restart {
 		start(
 			conf,
+			logger,
 			{
 				let e = exit.clone();
 				let exiting = exiting.clone();
@@ -268,10 +274,9 @@ fn main_direct(force_can_restart: bool) -> i32 {
 				}
 			}
 		)
-
 	} else {
 		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
-		start(conf, move |_| {}, move || {})
+		start(conf, logger,move |_| {}, move || {})
 	};
 
 	let res = match exec {

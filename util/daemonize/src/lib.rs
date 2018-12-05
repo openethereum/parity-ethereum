@@ -21,8 +21,8 @@
 //! and provides a handle to your daemon process to manually detach itself from the parent process
 extern crate libc;
 extern crate mio;
- #[macro_use]
- extern crate log;
+#[macro_use]
+extern crate log;
 #[macro_use]
 extern crate failure;
 extern crate ansi_term;
@@ -47,7 +47,7 @@ use std::os::unix::ffi::OsStringExt;
 
 type Result<T> = std::result::Result<T, Error>;
 
-macro_rules! assert_err {
+macro_rules! map_err {
 	($e:expr, $err:expr) => {
 		match $e {
 			-1 => {
@@ -104,8 +104,8 @@ impl Handle {
 		// redirect stdout/stderr to dev/null
 		unsafe {
 			let fd = open(mem::transmute(b"/dev/null\0"), libc::O_RDWR);
-			let result = assert_err!(dup2(fd, STDERR_FILENO), ErrorKind::Dup2(io::Error::last_os_error())).and_then(
-				|_| assert_err!(dup2(fd, STDOUT_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))
+			let result = map_err!(dup2(fd, STDERR_FILENO), ErrorKind::Dup2(io::Error::last_os_error())).and_then(
+				|_| map_err!(dup2(fd, STDOUT_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))
 			);
 			if result.is_err() {
 				error!(target: "daemonize", "Couldn't redirect STDOUT/STDERR to /dev/null, daemon will panic")
@@ -131,16 +131,16 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 		let mut out_chan = [-1 as c_int, -1 as c_int];
 		let mut err_chan = [-1 as c_int, -1 as c_int];
 
-		assert_err!(pipe(&mut chan[0] as *mut c_int), ErrorKind::Pipe(io::Error::last_os_error()))?;
-		assert_err!(pipe(&mut out_chan[0] as *mut c_int), ErrorKind::Pipe(io::Error::last_os_error()))?;
-		assert_err!(pipe(&mut err_chan[0] as *mut c_int), ErrorKind::Pipe(io::Error::last_os_error()))?;
+		map_err!(pipe(&mut chan[0] as *mut c_int), ErrorKind::Pipe(io::Error::last_os_error()))?;
+		map_err!(pipe(&mut out_chan[0] as *mut c_int), ErrorKind::Pipe(io::Error::last_os_error()))?;
+		map_err!(pipe(&mut err_chan[0] as *mut c_int), ErrorKind::Pipe(io::Error::last_os_error()))?;
 
 		let path = pid_file.into();
 		let path_c =  CString::new(path.clone().into_os_string().into_vec())
 			.map_err(|_| ErrorKind::PathContainsNul)?;
 
 		// create the pid file
-		let pid_fd = assert_err!(
+		let pid_fd = map_err!(
 			open(path_c.as_ptr(), libc::O_WRONLY | libc::O_CREAT, 0o666),
 			ErrorKind::OpenPidfile(io::Error::last_os_error())
 		)?;
@@ -150,20 +150,20 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 		let (err_rx, err_tx) = (err_chan[0], err_chan[1]);
 
 		// fork once
-		let pid = assert_err!(fork(), ErrorKind::Fork(io::Error::last_os_error()))?;
+		let pid = map_err!(fork(), ErrorKind::Fork(io::Error::last_os_error()))?;
 
 		if pid == 0 {
 			// redirect stderr/stdout to out/err pipe
 			// incase we get an error before forking
-			assert_err!(dup2(err_tx, STDERR_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
-			assert_err!(dup2(out_tx, STDOUT_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
+			map_err!(dup2(err_tx, STDERR_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
+			map_err!(dup2(out_tx, STDOUT_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
 			trace!(target: "daemonize", "created child Process! {}", getpid());
 
 			set_current_dir("/").map_err(|_| ErrorKind::ChangeDirectory)?;
 			set_sid()?;
 			umask(0o027);
 			// fork again
-			let pid = assert_err!(fork(), ErrorKind::Fork(io::Error::last_os_error()))?;
+			let pid = map_err!(fork(), ErrorKind::Fork(io::Error::last_os_error()))?;
 
 			// kill the the old parent
 			if pid != 0 {
@@ -185,8 +185,8 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 			}
 
 			// redirect stderr/stdout to out/err pipe
-			assert_err!(dup2(err_tx, STDERR_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
-			assert_err!(dup2(out_tx, STDOUT_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
+			map_err!(dup2(err_tx, STDERR_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
+			map_err!(dup2(out_tx, STDOUT_FILENO), ErrorKind::Dup2(io::Error::last_os_error()))?;
 
 			let gid = gid_t::max_value() - 1;
 			let uid = uid_t::max_value() - 1;
@@ -300,7 +300,7 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 }
 
 unsafe fn set_sid() -> Result<()> {
-	assert_err!(setsid(), ErrorKind::DetachSession(io::Error::last_os_error()))?;
+	map_err!(setsid(), ErrorKind::DetachSession(io::Error::last_os_error()))?;
 	Ok(())
 }
 
