@@ -1136,7 +1136,7 @@ impl<B: Backend> State<B> {
 		self.note_cache(a);
 
 		// at this point the entry is guaranteed to be in the cache.
-		Ok(RefMut::map(self.cache.borrow_mut(), |c| {
+		let mut account = RefMut::map(self.cache.borrow_mut(), |c| {
 			let entry = c.get_mut(a).expect("entry known to exist in the cache; qed");
 
 			match &mut entry.account {
@@ -1146,18 +1146,19 @@ impl<B: Backend> State<B> {
 
 			// set the dirty flag after changing account data.
 			entry.state = AccountState::Dirty;
-			match entry.account {
-				Some(ref mut account) => {
-					if require_code {
-						let addr_hash = account.address_hash(a);
-						let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
-						Self::update_account_cache(RequireCache::Code, account, &self.db, accountdb.as_hashdb());
-					}
-					account
-				},
-				_ => panic!("Required account must always exist; qed"),
+			entry.account.as_mut().expect("Required account must always exist; qed")
+		});
+
+		if require_code {
+			let addr_hash = account.address_hash(a);
+			let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+
+			if !Self::update_account_cache(RequireCache::Code, &mut account, &self.db, accountdb.as_hashdb()) {
+				return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))))
 			}
-		}))
+		}
+
+		Ok(account)
 	}
 
 	/// Replace account code and storage. Creates account if it does not exist.
@@ -2591,12 +2592,12 @@ mod tests {
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
-				   pod_account::diff_pod(Some(&PodAccount {
-					   balance: U256::from(100),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: Default::default()
-				   }), None).as_ref());
+				pod_account::diff_pod(Some(&PodAccount {
+					balance: U256::from(100),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: Default::default()
+				}), None).as_ref());
 	}
 
 	#[test]
@@ -2622,18 +2623,18 @@ mod tests {
 		assert_eq!(diff_map.len(), 1);
 		assert!(diff_map.get(&a).is_some());
 		assert_eq!(diff_map.get(&a),
-				   pod_account::diff_pod(Some(&PodAccount {
-					   balance: U256::zero(),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64)))]
-						   .into_iter().collect(),
-				   }), Some(&PodAccount {
-					   balance: U256::zero(),
-					   nonce: U256::zero(),
-					   code: Some(Default::default()),
-					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64)))]
-						   .into_iter().collect(),
-				   })).as_ref());
+				pod_account::diff_pod(Some(&PodAccount {
+					balance: U256::zero(),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64)))]
+						.into_iter().collect(),
+				}), Some(&PodAccount {
+					balance: U256::zero(),
+					nonce: U256::zero(),
+					code: Some(Default::default()),
+					storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64)))]
+						.into_iter().collect(),
+				})).as_ref());
 	}
 }
