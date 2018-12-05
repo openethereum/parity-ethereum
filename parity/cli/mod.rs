@@ -1835,9 +1835,9 @@ mod tests {
 			arg_snapshot_threads: None,
 
 			// -- Light options.
-			arg_on_demand_response_time_window: Some(2000),
-			arg_on_demand_request_backoff_start: Some(9000),
-			arg_on_demand_request_backoff_max: Some(15000),
+			arg_on_demand_response_time_window: Some(2),
+			arg_on_demand_request_backoff_start: Some(9),
+			arg_on_demand_request_backoff_max: Some(15),
 			arg_on_demand_request_backoff_rounds_max: Some(100),
 			arg_on_demand_request_consecutive_failures: Some(1),
 
@@ -2093,9 +2093,9 @@ mod tests {
 				num_verifiers: None,
 			}),
 			light: Some(Light {
-				on_demand_response_time_window: Some(2000),
-				on_demand_request_backoff_start: Some(9000),
-				on_demand_request_backoff_max: Some(15000),
+				on_demand_response_time_window: Some(2),
+				on_demand_request_backoff_start: Some(9),
+				on_demand_request_backoff_max: Some(15),
 				on_demand_request_backoff_rounds_max: Some(10),
 				on_demand_request_consecutive_failures: Some(1),
 			}),
