@@ -77,21 +77,31 @@ Note: if cargo fails to parse manifest try:
 $ ~/.cargo/bin/cargo build --release
 ```
 
-Note, when compiling a crate and you receive errors, it's in most cases your outdated version of Rust, or some of your crates have to be recompiled. Cleaning the repository will most likely solve the issue if you are on the latest stable version of Rust, try:
+Note, when compiling a crate and you receive errors, it's in most cases your outdated version of Rust, or some of your crates have to be recompiled. If you encounter errors with nightly try stable instead. Cleaning the repository will most likely solve the issue if you are on the latest stable version of Rust, try:
 
 ```bash
 $ cargo clean
 ```
 
-This always compiles the latest nightly builds. If you want to build stable or beta, do a
+Use the master branch with the nightly version of Rust to compile the latest nightly builds.
 
 ```bash
+$ rustup default nightly;
+$ git checkout master
+```
+
+If you want to build stable or beta, switch to the stable version of Rust, then fetch a local copy of the remote stable or beta branch and switch to it:
+
+```bash
+$ rustup default stable;
+$ git fetch origin stable:stable;
 $ git checkout stable
 ```
 
 or
 
 ```bash
+$ git fetch origin beta:beta;
 $ git checkout beta
 ```
 
