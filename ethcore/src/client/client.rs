@@ -295,7 +295,7 @@ impl Importer {
 				}
 
 				match self.check_and_lock_block(block, client) {
-					Ok(closed_block) => {
+					Ok((closed_block, pending)) => {
 						if self.engine.is_proposal(&header) {
 							self.block_queue.mark_as_good(&[hash]);
 							proposed_blocks.push(bytes);
@@ -304,7 +304,7 @@ impl Importer {
 
 							let transactions_len = closed_block.transactions().len();
 
-							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), client);
+							let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
 							import_results.push(route);
 
 							client.report.write().accrue_block(&header, transactions_len);
@@ -353,7 +353,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<LockedBlock> {
+	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -402,6 +402,7 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+		let bytes = block.bytes.clone();
 		let enact_result = enact_verified(
 			block,
 			engine,
@@ -437,7 +438,15 @@ impl Importer {
 			bail!(e);
 		}
 
-		Ok(locked_block)
+		let pending = self.check_epoch_end_signal(
+			&header,
+			&bytes,
+			locked_block.receipts(),
+			locked_block.state().db(),
+			client
+		);
+
+		Ok((locked_block, pending))
 	}
 
 	/// Import a block with transaction receipts.
@@ -469,7 +478,7 @@ impl Importer {
 	// it is for reconstructing the state transition.
 	//
 	// The header passed is from the original block data and is sealed.
-	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, client: &Client) -> ImportRoute where B: Drain {
+	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, pending: Option<PendingTransition>, client: &Client) -> ImportRoute where B: Drain {
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -524,13 +533,7 @@ impl Importer {
 
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
-		if let Some(pending) = self.check_epoch_end_signal(
-			&header,
-			block_data.raw(),
-			&receipts,
-			&state,
-			client
-		) {
+		if let Some(pending) = pending {
 			chain.insert_pending_transition(&mut batch, header.hash(), pending);
 		}
 
@@ -2324,7 +2327,20 @@ impl ImportSealedBlock for Client {
 
 			let block_data = block.rlp_bytes();
 
-			let route = self.importer.commit_block(block, &header, encoded::Block::new(block_data), self);
+			let pending = self.importer.check_epoch_end_signal(
+				&header,
+				&block_data,
+				block.receipts(),
+				block.state().db(),
+				self
+			);
+			let route = self.importer.commit_block(
+				block,
+				&header,
+				encoded::Block::new(block_data),
+				pending,
+				self
+			);
 			trace!(target: "client", "Imported sealed block #{} ({})", header.number(), hash);
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
