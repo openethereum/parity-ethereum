@@ -49,7 +49,7 @@ use client::{
 };
 use client::bad_blocks;
 use encoded;
-use engines::{EthEngine, EpochTransition, ForkChoice};
+use engines::{EthEngine, EpochTransition, ForkChoice, EngineError};
 use engines::epoch::PendingTransition;
 use error::{
 	ImportErrorKind, ExecutionError, CallError, BlockError,
@@ -638,11 +638,9 @@ impl Importer {
 								.transact(&transaction, options);
 
 							let res = match res {
-								Err(ExecutionError::Internal(e)) =>
-									Err(format!("Internal error: {}", e)),
 								Err(e) => {
 									trace!(target: "client", "Proved call failed: {}", e);
-									Ok((Vec::new(), state.drop().1.extract_proof()))
+									Err(e.to_string())
 								}
 								Ok(res) => Ok((res.output, state.drop().1.extract_proof())),
 							};
@@ -655,7 +653,7 @@ impl Importer {
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
 								warn!(target: "client", "Snapshots produced by this client may be incomplete");
-								Vec::new()
+								return Err(EngineError::FailedSystemCall(e).into())
 							}
 						}
 					}
@@ -669,7 +667,7 @@ impl Importer {
 			EpochChange::Unsure(_) => {
 				warn!(target: "client", "Detected invalid engine implementation.");
 				warn!(target: "client", "Engine claims to require more block data, but everything provided.");
-				Ok(None)
+				Err(EngineError::InvalidEngine.into())
 			}
 		}
 	}
