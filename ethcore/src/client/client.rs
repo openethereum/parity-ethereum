@@ -444,7 +444,7 @@ impl Importer {
 			locked_block.receipts(),
 			locked_block.state().db(),
 			client
-		);
+		)?;
 
 		Ok((locked_block, pending))
 	}
@@ -591,7 +591,7 @@ impl Importer {
 		receipts: &[Receipt],
 		state_db: &StateDB,
 		client: &Client,
-	) -> Option<PendingTransition> {
+	) -> EthcoreResult<Option<PendingTransition>> {
 		use engines::EpochChange;
 
 		let hash = header.hash();
@@ -663,13 +663,13 @@ impl Importer {
 
 				debug!(target: "client", "Block {} signals epoch end.", hash);
 
-				Some(PendingTransition { proof: proof })
+				Ok(Some(PendingTransition { proof: proof }))
 			},
-			EpochChange::No => None,
+			EpochChange::No => Ok(None),
 			EpochChange::Unsure(_) => {
 				warn!(target: "client", "Detected invalid engine implementation.");
 				warn!(target: "client", "Engine claims to require more block data, but everything provided.");
-				None
+				Ok(None)
 			}
 		}
 	}
@@ -2333,7 +2333,7 @@ impl ImportSealedBlock for Client {
 				block.receipts(),
 				block.state().db(),
 				self
-			);
+			)?;
 			let route = self.importer.commit_block(
 				block,
 				&header,
