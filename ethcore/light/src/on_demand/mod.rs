@@ -62,7 +62,7 @@ pub const DEFAULT_REQUEST_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(1
 /// The maximum request interval for OnDemand queries
 pub const DEFAULT_REQUEST_MAX_BACKOFF_DURATION: Duration = Duration::from_secs(100);
 /// The default window length a response is evaluated
-pub const DEFAULT_RESPONSE_TIME_TO_LIVE: Duration = Duration::from_secs(60);
+pub const DEFAULT_RESPONSE_TIME_TO_LIVE: Duration = Duration::from_secs(10);
 /// The default number of maximum backoff iterations
 pub const DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS: usize = 10;
 /// The default number failed request to be regarded as failure
