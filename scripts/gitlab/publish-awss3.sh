@@ -43,10 +43,10 @@ aws configure set aws_secret_access_key $s3_secret
 
 case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
   (beta|stable|nightly)
-    export S3_BUCKET=public/ethereum;
+    export S3_BUCKET=releases.parity.io/ethereum;
     ;;
   (*)
-    export S3_BUCKET=builds/ethereum;
+    export S3_BUCKET=builds-parity;
     ;;
 esac
 
