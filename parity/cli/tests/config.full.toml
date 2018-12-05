@@ -157,8 +157,11 @@ scale_verifiers = true
 num_verifiers = 6
 
 [light]
-on_demand_retry_count = 15
-on_demand_inactive_time_limit = 15000
+on_demand_response_time_window = 2000
+on_demand_request_backoff_start = 9000
+on_demand_request_backoff_max = 15000
+on_demand_request_backoff_rounds_max = 100
+on_demand_request_consecutive_failures = 1
 
 [snapshots]
 disable_periodic = false

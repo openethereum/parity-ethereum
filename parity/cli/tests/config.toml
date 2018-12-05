@@ -71,8 +71,11 @@ fat_db = "off"
 scale_verifiers = false
 
 [light]
-on_demand_retry_count = 12
-on_demand_inactive_time_limit = 20000
+on_demand_response_time_window = 2000
+on_demand_request_backoff_start = 9000
+on_demand_request_backoff_max = 15000
+on_demand_request_backoff_rounds_max = 10
+on_demand_request_consecutive_failures = 1
 
 [snapshots]
 disable_periodic = true
