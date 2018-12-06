@@ -28,7 +28,7 @@ macros = { path = "../../util/macros" }
 log = "0.4"
 env_logger = "0.5"
 rand = "0.4"
-heapsize = "0.4"
+parity-util-mem = { path = "../../../../parity-common/mem" }
 parking_lot = "0.6"
 trace-time = "0.1"
 

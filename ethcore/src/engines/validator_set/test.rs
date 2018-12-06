@@ -19,7 +19,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 
@@ -44,9 +44,9 @@ impl TestSet {
 	}
 }
 
-impl HeapSizeOf for TestSet {
-	fn heap_size_of_children(&self) -> usize {
-		self.validator.heap_size_of_children()
+impl MallocSizeOf for TestSet {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.validator.size_of(ops)
 	}
 }
 

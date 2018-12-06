@@ -26,7 +26,7 @@ use ethcore::receipt::Receipt;
 
 use stats::Corpus;
 use std::time::{Instant, Duration};
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use memory_cache::MemoryLruCache;
 
@@ -157,12 +157,12 @@ impl Cache {
 
 	/// Get the memory used.
 	pub fn mem_used(&self) -> usize {
-		self.heap_size_of_children()
+		self.m_size_of()
 	}
 }
 
-impl HeapSizeOf for Cache {
-	fn heap_size_of_children(&self) -> usize {
+impl MallocSizeOf for Cache {
+	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize {
 		self.headers.current_size()
 			+ self.canon_hashes.current_size()
 			+ self.bodies.current_size()

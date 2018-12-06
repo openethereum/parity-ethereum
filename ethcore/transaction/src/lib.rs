@@ -20,7 +20,7 @@ extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
 extern crate evm;
-extern crate heapsize;
+extern crate parity_util_mem as mem;
 extern crate keccak_hash as hash;
 extern crate rlp;
 extern crate unexpected;

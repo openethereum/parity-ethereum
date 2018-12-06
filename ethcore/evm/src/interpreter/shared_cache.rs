@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use hash::KECCAK_EMPTY;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
 use ethereum_types::H256;
 use parking_lot::Mutex;
 use memory_cache::MemoryLruCache;
@@ -28,8 +28,8 @@ const DEFAULT_CACHE_SIZE: usize = 4 * 1024 * 1024;
 // stub for a HeapSizeOf implementation.
 struct Bits(Arc<BitSet>);
 
-impl HeapSizeOf for Bits {
-	fn heap_size_of_children(&self) -> usize {
+impl MallocSizeOf for Bits {
+	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize {
 		// dealing in bits here
 		self.0.capacity() * 8
 	}

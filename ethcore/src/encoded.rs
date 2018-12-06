@@ -27,7 +27,7 @@ use block::Block as FullBlock;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::{BlockNumber, Header as FullHeader};
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
 use rlp::{self, Rlp, RlpStream};
 use transaction::UnverifiedTransaction;
 use views::{self, BlockView, HeaderView, BodyView};
@@ -36,8 +36,10 @@ use views::{self, BlockView, HeaderView, BodyView};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Header(Vec<u8>);
 
-impl HeapSizeOf for Header {
-	fn heap_size_of_children(&self) -> usize { self.0.heap_size_of_children() }
+impl MallocSizeOf for Header {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.0.size_of(ops)
+	}
 }
 
 impl Header {
@@ -115,8 +117,10 @@ impl Header {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Body(Vec<u8>);
 
-impl HeapSizeOf for Body {
-	fn heap_size_of_children(&self) -> usize { self.0.heap_size_of_children() }
+impl MallocSizeOf for Body {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.0.size_of(ops)
+	}
 }
 
 impl Body {
@@ -180,8 +184,10 @@ impl Body {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block(Vec<u8>);
 
-impl HeapSizeOf for Block {
-	fn heap_size_of_children(&self) -> usize { self.0.heap_size_of_children() }
+impl MallocSizeOf for Block {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.0.size_of(ops)
+	}
 }
 
 impl Block {

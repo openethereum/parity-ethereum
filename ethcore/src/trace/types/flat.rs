@@ -17,7 +17,7 @@
 //! Flat trace module
 
 use rlp::{Rlp, RlpStream, Decodable, Encodable, DecoderError};
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
 use ethereum_types::Bloom;
 use super::trace::{Action, Res};
 
@@ -45,9 +45,9 @@ impl FlatTrace {
 	}
 }
 
-impl HeapSizeOf for FlatTrace {
-	fn heap_size_of_children(&self) -> usize {
-		self.trace_address.heap_size_of_children()
+impl MallocSizeOf for FlatTrace {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.trace_address.size_of(ops)
 	}
 }
 
@@ -85,9 +85,9 @@ impl From<Vec<FlatTrace>> for FlatTransactionTraces {
 	}
 }
 
-impl HeapSizeOf for FlatTransactionTraces {
-	fn heap_size_of_children(&self) -> usize {
-		self.0.heap_size_of_children()
+impl MallocSizeOf for FlatTransactionTraces {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.0.size_of(ops)
 	}
 }
 
@@ -108,9 +108,9 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 #[derive(Debug, PartialEq, Clone, Default, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
 
-impl HeapSizeOf for FlatBlockTraces {
-	fn heap_size_of_children(&self) -> usize {
-		self.0.heap_size_of_children()
+impl MallocSizeOf for FlatBlockTraces {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.0.size_of(ops)
 	}
 }
 

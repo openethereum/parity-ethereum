@@ -354,9 +354,9 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Get blockchain mem usage in bytes.
 	pub fn chain_mem_used(&self) -> usize {
-		use heapsize::HeapSizeOf;
+		use mem::MallocSizeOfExt;
 
-		self.chain.heap_size_of_children()
+		self.chain.m_size_of()
 	}
 
 	/// Get a handle to the verification engine.

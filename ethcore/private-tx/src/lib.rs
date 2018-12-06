@@ -37,7 +37,7 @@ extern crate ethkey;
 extern crate ethjson;
 extern crate fetch;
 extern crate futures;
-extern crate heapsize;
+extern crate parity_util_mem as mem;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
 extern crate patricia_trie as trie;

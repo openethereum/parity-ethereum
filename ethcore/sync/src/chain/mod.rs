@@ -97,7 +97,7 @@ use std::collections::{HashSet, HashMap, BTreeMap};
 use std::cmp;
 use std::time::{Duration, Instant};
 use hash::keccak;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
@@ -122,7 +122,7 @@ use self::propagator::SyncPropagator;
 use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
 
-known_heap_size!(0, PeerInfo);
+malloc_size_of_is_0!(PeerInfo);
 
 pub type PacketDecodeError = DecoderError;
 
@@ -682,10 +682,11 @@ impl ChainSync {
 			num_active_peers: self.peers.values().filter(|p| p.is_allowed() && p.asking != PeerAsking::Nothing).count(),
 			num_snapshot_chunks: self.snapshot.total_chunks(),
 			snapshot_chunks_done: self.snapshot.done_chunks(),
+		// TODO implement and use MallocSizeOf
 			mem_used:
 				self.new_blocks.heap_size()
 				+ self.old_blocks.as_ref().map_or(0, |d| d.heap_size())
-				+ self.peers.heap_size_of_children(),
+				+ self.peers.m_size_of(),
 		}
 	}
 

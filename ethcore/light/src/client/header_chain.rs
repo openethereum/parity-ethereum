@@ -38,7 +38,7 @@ use ethcore::header::Header;
 use ethcore::ids::BlockId;
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
 use kvdb::{DBTransaction, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
 use fastmap::H256FastMap;
@@ -95,8 +95,8 @@ struct Entry {
 	canonical_hash: H256,
 }
 
-impl HeapSizeOf for Entry {
-	fn heap_size_of_children(&self) -> usize {
+impl MallocSizeOf for Entry {
+	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize {
 		if self.candidates.spilled() {
 			self.candidates.capacity() * ::std::mem::size_of::<Candidate>()
 		} else {
@@ -832,9 +832,9 @@ impl HeaderChain {
 	}
 }
 
-impl HeapSizeOf for HeaderChain {
-	fn heap_size_of_children(&self) -> usize {
-		self.candidates.read().heap_size_of_children()
+impl MallocSizeOf for HeaderChain {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.candidates.read().size_of(ops)
 	}
 }
 

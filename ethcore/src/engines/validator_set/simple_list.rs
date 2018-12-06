@@ -16,7 +16,7 @@
 
 /// Preconfigured validator list.
 
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
 use ethereum_types::{H256, Address};
 
 use machine::{AuxiliaryData, Call, EthereumMachine};
@@ -57,9 +57,9 @@ impl From<Vec<Address>> for SimpleList {
 	}
 }
 
-impl HeapSizeOf for SimpleList {
-	fn heap_size_of_children(&self) -> usize {
-		self.validators.heap_size_of_children()
+impl MallocSizeOf for SimpleList {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.validators.size_of(ops)
 	}
 }
 

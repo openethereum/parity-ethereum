@@ -23,7 +23,7 @@ extern crate rlp;
 #[macro_use]
 extern crate rlp_derive;
 extern crate keccak_hash as hash;
-extern crate heapsize;
+extern crate parity_util_mem as mem;
 
 #[cfg(test)]
 extern crate rustc_hex;

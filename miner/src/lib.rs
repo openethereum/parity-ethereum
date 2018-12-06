@@ -24,7 +24,8 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate futures;
 extern crate parity_runtime;
-extern crate heapsize;
+
+extern crate parity_util_mem as mem;
 extern crate keccak_hash as hash;
 extern crate linked_hash_map;
 extern crate parking_lot;

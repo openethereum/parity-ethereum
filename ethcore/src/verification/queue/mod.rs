@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
@@ -101,9 +101,9 @@ pub struct Verifying<K: Kind> {
 	output: Option<K::Verified>,
 }
 
-impl<K: Kind> HeapSizeOf for Verifying<K> {
-	fn heap_size_of_children(&self) -> usize {
-		self.output.heap_size_of_children()
+impl<K: Kind> MallocSizeOf for Verifying<K> {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.output.size_of(ops)
 	}
 }
 
@@ -353,7 +353,7 @@ impl<K: Kind> VerificationQueue<K> {
 					None => continue,
 				};
 
-				verification.sizes.unverified.fetch_sub(item.heap_size_of_children(), AtomicOrdering::SeqCst);
+				verification.sizes.unverified.fetch_sub(item.m_size_of(), AtomicOrdering::SeqCst);
 				verifying.push_back(Verifying { hash: item.hash(), output: None });
 				item
 			};
@@ -367,7 +367,7 @@ impl<K: Kind> VerificationQueue<K> {
 						if e.hash == hash {
 							idx = Some(i);
 
-							verification.sizes.verifying.fetch_add(verified.heap_size_of_children(), AtomicOrdering::SeqCst);
+							verification.sizes.verifying.fetch_add(verified.m_size_of(), AtomicOrdering::SeqCst);
 							e.output = Some(verified);
 							break;
 						}
@@ -417,7 +417,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 		while let Some(output) = verifying.front_mut().and_then(|x| x.output.take()) {
 			assert!(verifying.pop_front().is_some());
-			let size = output.heap_size_of_children();
+			let size = output.m_size_of();
 			removed_size += size;
 
 			if bad.contains(&output.parent_hash()) {
@@ -490,7 +490,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
 			Ok(item) => {
-				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
+				self.verification.sizes.unverified.fetch_add(item.m_size_of(), AtomicOrdering::SeqCst);
 
 				self.processing.write().insert(hash, item.difficulty());
 				{
@@ -537,7 +537,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let mut removed_size = 0;
 		for output in verified.drain(..) {
 			if bad.contains(&output.parent_hash()) {
-				removed_size += output.heap_size_of_children();
+				removed_size += output.m_size_of();
 				bad.insert(output.hash());
 				if let Some(difficulty) = processing.remove(&output.hash()) {
 					let mut td = self.total_difficulty.write();
@@ -574,7 +574,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let count = cmp::min(max, verified.len());
 		let result = verified.drain(..count).collect::<Vec<_>>();
 
-		let drained_size = result.iter().map(HeapSizeOf::heap_size_of_children).fold(0, |a, c| a + c);
+		let drained_size = result.iter().map(MallocSizeOfExt::m_size_of).fold(0, |a, c| a + c);
 		self.verification.sizes.verified.fetch_sub(drained_size, AtomicOrdering::SeqCst);
 
 		self.ready_signal.reset();

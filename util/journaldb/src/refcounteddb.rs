@@ -23,7 +23,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::*;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfExt};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::MemoryDB;
@@ -102,7 +102,7 @@ impl JournalDB for RefCountedDB {
 	}
 
 	fn mem_used(&self) -> usize {
-		self.inserts.heap_size_of_children() + self.removes.heap_size_of_children()
+		self.inserts.m_size_of() + self.removes.m_size_of()
  	}
 
 	fn is_empty(&self) -> bool {

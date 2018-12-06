@@ -16,7 +16,7 @@
 
 //! `JournalDB` interface and implementation.
 
-extern crate heapsize;
+extern crate parity_util_mem as mem;
 #[macro_use]
 extern crate log;
 

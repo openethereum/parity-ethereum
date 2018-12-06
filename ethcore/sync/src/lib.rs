@@ -49,7 +49,7 @@ extern crate macros;
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate heapsize;
+extern crate parity_util_mem as mem;
 #[macro_use]
 extern crate trace_time;
 

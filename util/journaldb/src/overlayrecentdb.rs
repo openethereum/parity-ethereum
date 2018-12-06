@@ -24,7 +24,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::*;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfExt, MallocSizeOfOps};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::*;
@@ -135,9 +135,9 @@ struct JournalEntry {
 	deletions: Vec<H256>,
 }
 
-impl HeapSizeOf for JournalEntry {
-	fn heap_size_of_children(&self) -> usize {
-		self.insertions.heap_size_of_children() + self.deletions.heap_size_of_children()
+impl MallocSizeOf for JournalEntry {
+	fn size_of(&self,	ops: &mut MallocSizeOfOps) -> usize {
+		self.insertions.size_of(ops) + self.deletions.size_of(ops)
 	}
 }
 
@@ -252,8 +252,8 @@ impl JournalDB for OverlayRecentDB {
 		let overlay = self.journal_overlay.read();
 
 		mem += overlay.backing_overlay.mem_used();
-		mem += overlay.pending_overlay.heap_size_of_children();
-		mem += overlay.journal.heap_size_of_children();
+		mem += overlay.pending_overlay.m_size_of();
+		mem += overlay.journal.m_size_of();
 
 		mem
 	}

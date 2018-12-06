@@ -23,7 +23,8 @@ use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use evm::Schedule;
 use hash::keccak;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
+
 use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
 
 type Bytes = Vec<u8>;
@@ -132,9 +133,9 @@ impl Transaction {
 	}
 }
 
-impl HeapSizeOf for Transaction {
-	fn heap_size_of_children(&self) -> usize {
-		self.data.heap_size_of_children()
+impl MallocSizeOf for Transaction {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.data.size_of(ops)
 	}
 }
 
@@ -282,9 +283,9 @@ pub struct UnverifiedTransaction {
 	hash: H256,
 }
 
-impl HeapSizeOf for UnverifiedTransaction {
-	fn heap_size_of_children(&self) -> usize {
-		self.unsigned.heap_size_of_children()
+impl MallocSizeOf for UnverifiedTransaction {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.unsigned.size_of(ops)
 	}
 }
 
@@ -423,9 +424,9 @@ pub struct SignedTransaction {
 	public: Option<Public>,
 }
 
-impl HeapSizeOf for SignedTransaction {
-	fn heap_size_of_children(&self) -> usize {
-		self.transaction.heap_size_of_children()
+impl MallocSizeOf for SignedTransaction {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.transaction.size_of(ops)
 	}
 }
 

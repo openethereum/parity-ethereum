@@ -26,7 +26,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use hash::keccak;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
 use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
@@ -51,11 +51,11 @@ pub struct PreverifiedBlock {
 	pub bytes: Bytes,
 }
 
-impl HeapSizeOf for PreverifiedBlock {
-	fn heap_size_of_children(&self) -> usize {
-		self.header.heap_size_of_children()
-			+ self.transactions.heap_size_of_children()
-			+ self.bytes.heap_size_of_children()
+impl MallocSizeOf for PreverifiedBlock {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.header.size_of(ops)
+			+ self.transactions.size_of(ops)
+			+ self.bytes.size_of(ops)
 	}
 }
 

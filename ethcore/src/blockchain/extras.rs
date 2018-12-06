@@ -23,7 +23,7 @@ use db::Key;
 use engines::epoch::{Transition as EpochTransition};
 use ethereum_types::{H256, H264, U256};
 use header::BlockNumber;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps};
 use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use receipt::Receipt;
 use rlp;
@@ -195,9 +195,9 @@ impl rlp::Decodable for BlockDetails {
 	}
 }
 
-impl HeapSizeOf for BlockDetails {
-	fn heap_size_of_children(&self) -> usize {
-		self.children.heap_size_of_children()
+impl MallocSizeOf for BlockDetails {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.children.size_of(ops)
 	}
 }
 
@@ -210,8 +210,8 @@ pub struct TransactionAddress {
 	pub index: usize
 }
 
-impl HeapSizeOf for TransactionAddress {
-	fn heap_size_of_children(&self) -> usize { 0 }
+impl MallocSizeOf for TransactionAddress {
+	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize { 0 }
 }
 
 /// Contains all block receipts.
@@ -228,9 +228,9 @@ impl BlockReceipts {
 	}
 }
 
-impl HeapSizeOf for BlockReceipts {
-	fn heap_size_of_children(&self) -> usize {
-		self.receipts.heap_size_of_children()
+impl MallocSizeOf for BlockReceipts {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.receipts.size_of(ops)
 	}
 }
 

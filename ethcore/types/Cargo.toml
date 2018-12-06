@@ -11,7 +11,7 @@ parity-bytes = "0.1"
 ethereum-types = "0.4"
 ethjson = { path = "../../json" }
 keccak-hash = "0.1"
-heapsize = "0.4"
+parity-util-mem = { path = "../../../../parity-common/mem" }
 
 [dev-dependencies]
 rustc-hex= "1.0"

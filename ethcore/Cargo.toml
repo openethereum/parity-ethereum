@@ -36,7 +36,7 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
-heapsize = "0.4"
+parity-util-mem = { path = "../../../parity-common/mem" }
 itertools = "0.5"
 lazy_static = "1.0"
 log = "0.4"

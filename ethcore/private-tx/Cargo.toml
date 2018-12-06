@@ -22,7 +22,7 @@ ethjson = { path = "../../json" }
 ethkey = { path = "../../ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
-heapsize = "0.4"
+parity-util-mem = { path = "../../../../parity-common/mem" }
 keccak-hash = "0.1.2"
 log = "0.4"
 parking_lot = "0.6"

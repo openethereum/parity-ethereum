@@ -16,7 +16,7 @@
 
 use std::collections::{HashSet, HashMap, hash_map};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
 use ethereum_types::H256;
 use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
@@ -26,7 +26,7 @@ use ethcore::header::Header as BlockHeader;
 use ethcore::verification::queue::kind::blocks::Unverified;
 use transaction::UnverifiedTransaction;
 
-known_heap_size!(0, HeaderId);
+malloc_size_of_is_0!(HeaderId);
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct SyncHeader {
@@ -34,10 +34,10 @@ pub struct SyncHeader {
 	pub header: BlockHeader,
 }
 
-impl HeapSizeOf for SyncHeader {
-	fn heap_size_of_children(&self) -> usize {
-		self.bytes.heap_size_of_children()
-			+ self.header.heap_size_of_children()
+impl MallocSizeOf for SyncHeader {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.bytes.size_of(ops)
+			+ self.header.size_of(ops)
 	}
 }
 
@@ -85,12 +85,12 @@ impl SyncBody {
 	}
 }
 
-impl HeapSizeOf for SyncBody {
-	fn heap_size_of_children(&self) -> usize {
-		self.transactions_bytes.heap_size_of_children()
-			+ self.transactions.heap_size_of_children()
-			+ self.uncles_bytes.heap_size_of_children()
-			+ self.uncles.heap_size_of_children()
+impl MallocSizeOf for SyncBody {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.transactions_bytes.size_of(ops)
+			+ self.transactions.size_of(ops)
+			+ self.uncles_bytes.size_of(ops)
+			+ self.uncles.size_of(ops)
 	}
 }
 
@@ -102,9 +102,9 @@ struct SyncBlock {
 	receipts_root: H256,
 }
 
-impl HeapSizeOf for SyncBlock {
-	fn heap_size_of_children(&self) -> usize {
-		self.header.heap_size_of_children() + self.body.heap_size_of_children()
+impl MallocSizeOf for SyncBlock {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.header.size_of(ops) + self.body.size_of(ops)
 	}
 }
 
@@ -399,14 +399,15 @@ impl BlockCollection {
 		self.heads.len()
 	}
 
+  // TODO switch to MallocSizeOf !! 
 	/// Return used heap size.
 	pub fn heap_size(&self) -> usize {
-		self.heads.heap_size_of_children()
-			+ self.blocks.heap_size_of_children()
-			+ self.parents.heap_size_of_children()
-			+ self.header_ids.heap_size_of_children()
-			+ self.downloading_headers.heap_size_of_children()
-			+ self.downloading_bodies.heap_size_of_children()
+		self.heads.m_size_of()
+			+ self.blocks.m_size_of()
+			+ self.parents.m_size_of()
+			+ self.header_ids.m_size_of()
+			+ self.downloading_headers.m_size_of()
+			+ self.downloading_bodies.m_size_of()
 	}
 
 	/// Check if given block hash is marked as being downloaded.

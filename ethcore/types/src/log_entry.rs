@@ -17,7 +17,7 @@
 //! Log entry type definition.
 
 use std::ops::Deref;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfExt, MallocSizeOfOps};
 use bytes::Bytes;
 use ethereum_types::{H256, Address, Bloom, BloomInput};
 
@@ -35,9 +35,9 @@ pub struct LogEntry {
 	pub data: Bytes,
 }
 
-impl HeapSizeOf for LogEntry {
-	fn heap_size_of_children(&self) -> usize {
-		self.topics.heap_size_of_children() + self.data.heap_size_of_children()
+impl MallocSizeOf for LogEntry {
+	fn size_of(&self,	ops: &mut MallocSizeOfOps) -> usize {
+		self.topics.size_of(ops) + self.data.size_of(ops)
 	}
 }
 

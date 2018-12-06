@@ -24,7 +24,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::*;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfExt, MallocSizeOfOps};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::*;
@@ -40,8 +40,8 @@ struct RefInfo {
 	in_archive: bool,
 }
 
-impl HeapSizeOf for RefInfo {
-	fn heap_size_of_children(&self) -> usize { 0 }
+impl MallocSizeOf for RefInfo {
+	fn size_of(&self,	_ops: &mut MallocSizeOfOps) -> usize { 0 }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -353,7 +353,7 @@ impl JournalDB for EarlyMergeDB {
 
 	fn mem_used(&self) -> usize {
 		self.overlay.mem_used() + match self.refs {
-			Some(ref c) => c.read().heap_size_of_children(),
+			Some(ref c) => c.read().m_size_of(),
 			None => 0
 		}
  	}

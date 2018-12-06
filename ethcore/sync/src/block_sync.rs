@@ -20,7 +20,7 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::cmp;
-use heapsize::HeapSizeOf;
+use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
 use ethereum_types::H256;
 use rlp::{self, Rlp};
 use ethcore::header::BlockNumber;
@@ -220,9 +220,10 @@ impl BlockDownloader {
 		self.state = State::Blocks;
 	}
 
+	// TODO switch to MallocSizeOf !!
 	/// Returns used heap memory size.
 	pub fn heap_size(&self) -> usize {
-		self.blocks.heap_size() + self.round_parents.heap_size_of_children()
+		self.blocks.heap_size() + self.round_parents.m_size_of()
 	}
 
 	/// Returns best imported block number.
