@@ -219,6 +219,7 @@ impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
 
 impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if self.heads_subscribers.read().len() == 0 && self.logs_subscribers.read().len() == 0 { return }
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 		let headers = new_blocks.route.route()
 			.iter()
