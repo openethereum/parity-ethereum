@@ -13,29 +13,14 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-extern crate parking_lot;
 
-use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::{Mutex, MutexGuard as InnerMutexGuard};
 
-/// Implement to allow a type with a len() method to be used
-/// with [`LenCachingMutex`](struct.LenCachingMutex.html)
-pub trait Len {
-	fn len(&self) -> usize;
-}
-
-impl<T> Len for Vec<T> {
-	fn len(&self) -> usize { self.len() }
-}
-
-impl<T> Len for VecDeque<T> {
-	fn len(&self) -> usize { self.len() }
-}
-
+use Len;
 /// Can be used in place of a `Mutex` where reading `T`'s `len()` without 
 /// needing to lock, is advantageous. 
 /// When the Guard is released, `T`'s `len()` will be cached.
@@ -46,6 +31,7 @@ pub struct LenCachingMutex<T> {
 }
 
 impl<T: Len> LenCachingMutex<T> {
+	/// Constructs a new LenCachingMutex
 	pub fn new(data: T) -> LenCachingMutex<T> {
 		LenCachingMutex {
 			len: AtomicUsize::new(data.len()),
@@ -53,55 +39,64 @@ impl<T: Len> LenCachingMutex<T> {
 		}
 	}
 
-	/// Load the most recent value returned from your `T`'s `len()`
+	/// Load the value returned from your `T`'s `len()`
+	/// subsequent to the most recent lock being released.
 	pub fn load_len(&self) -> usize {
 		self.len.load(Ordering::SeqCst)
 	}
 
-	pub fn lock(&self) -> Guard<T> {
-		Guard {
+	/// Convenience method to check if collection T `is_empty()`
+	pub fn load_is_empty(&self) -> bool {
+		self.len.load(Ordering::SeqCst) == 0
+	}
+
+	/// Delegates to `parking_lot::Mutex` `lock()`
+	pub fn lock(&self) -> MutexGuard<T> {
+		MutexGuard {
 			mutex_guard: self.data.lock(),
 			len: &self.len,
 		}
 	}
 
-	pub fn try_lock(&self) -> Option<Guard<T>> {
-		Some( Guard {
+	/// Delegates to `parking_lot::Mutex` `try_lock()`
+	pub fn try_lock(&self) -> Option<MutexGuard<T>> {
+		Some( MutexGuard {
 			mutex_guard: self.data.try_lock()?,
 			len: &self.len,
 		})
 	}
 }
 
-pub struct Guard<'a, T: Len + 'a> {
-	mutex_guard: MutexGuard<'a, T>,
+/// Guard comprising `MutexGuard` and `AtomicUsize` for cache
+pub struct MutexGuard<'a, T: Len + 'a> {
+	mutex_guard: InnerMutexGuard<'a, T>,
 	len: &'a AtomicUsize,
 }
 
-impl<'a, T: Len> Guard<'a, T> {
-	pub fn inner_mut(&mut self) -> &mut MutexGuard<'a, T> {
+impl<'a, T: Len> MutexGuard<'a, T> {
+	pub fn inner_mut(&mut self) -> &mut InnerMutexGuard<'a, T> {
 		&mut self.mutex_guard
 	}
 
-	pub fn inner(&self) -> &MutexGuard<'a, T> {
+	pub fn inner(&self) -> &InnerMutexGuard<'a, T> {
 		&self.mutex_guard
 	}
 }
 
-impl<'a, T: Len> Drop for Guard<'a, T> {
+impl<'a, T: Len> Drop for MutexGuard<'a, T> {
 	fn drop(&mut self) {
 		self.len.store(self.mutex_guard.len(), Ordering::SeqCst);
 	}
 }
 
-impl<'a, T: Len> Deref for Guard<'a, T> {
+impl<'a, T: Len> Deref for MutexGuard<'a, T> {
 	type Target = T;
 	fn deref(&self)	-> &T {
 		self.mutex_guard.deref()
 	}
 }
 
-impl<'a, T: Len> DerefMut for Guard<'a, T> {
+impl<'a, T: Len> DerefMut for MutexGuard<'a, T> {
 	fn deref_mut(&mut self)	-> &mut T {
 		self.mutex_guard.deref_mut()
 	}
