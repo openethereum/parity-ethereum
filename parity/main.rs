@@ -197,23 +197,16 @@ fn main_direct(force_can_restart: bool) -> i32 {
 	}
 
 	let handle = if let Some(ref pid) = conf.args.arg_daemon_pid_file {
-		let _ = std::io::stdout()
-			.write_all(
-				Colour::Green.paint("Starting in daemon mode\n")
-					.to_string()
-					.as_bytes()
-			);
+		info!("{}", Colour::Blue.paint("starting in daemon mode").to_string());
 		let _ = std::io::stdout().flush();
 
 		match daemonize::daemonize(pid) {
 			Ok(h) => Some(h),
 			Err(e) => {
-				let _ = std::io::stderr()
-					.write_all(
-						Colour::Red.paint(format!("\n{}\n", e))
-							.to_string()
-							.as_bytes()
-					);
+				error!(
+					"{}",
+					Colour::Red.paint(format!("{}", e))
+				);
 				// flush before returning
 				let _ = std::io::stderr().flush();
 				return 1;
@@ -276,7 +269,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		)
 	} else {
 		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
-		start(conf, logger,move |_| {}, move || {})
+		start(conf, logger, move |_| {}, move || {})
 	};
 
 	let res = match exec {

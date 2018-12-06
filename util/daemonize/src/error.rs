@@ -38,33 +38,9 @@ pub enum ErrorKind {
 	#[fail(display = "Couldn't redirect stdio streams: {}", _0)]
 	Dup2(io::Error),
 
-	/// "Unable to create new session
+	/// Unable to create new session
 	#[fail(display = "Unable to create new session: {}", _0)]
 	DetachSession(io::Error),
-
-	/// Unable to resolve group name to group id
-	#[fail(display = "Unable to resolve group name to group id")]
-	GroupNotFound,
-
-	/// Group option contains NUL
-	#[fail(display = "Group option contains NUL")]
-	GroupContainsNul,
-
-	/// Unable to set group
-	#[fail(display = "Unable to set group: {}", _0)]
-	SetGroup(io::Error),
-
-	/// Unable to resolve user name to user id
-	#[fail(display = "Unable to resolve user name to user id")]
-	UserNotFound,
-
-	/// User option contains NUL
-	#[fail(display = "User option contains NUL")]
-	UserContainsNul,
-
-	/// Unable to set user
-	#[fail(display = "Unable to set user: {}", _0)]
-	SetUser(io::Error),
 
 	/// Unable to change directory
 	#[fail(display = "Unable to change directory")]
@@ -78,25 +54,21 @@ pub enum ErrorKind {
 	#[fail(display = "Unable to open pid file, {}", _0)]
 	OpenPidfile(io::Error),
 
-	/// Unable to lock pid file
-	#[fail(display = "Unable to lock pid file: {}", _0)]
-	LockPidfile(io::Error),
-
-	/// Unable to chown pid file
-	#[fail(display = "Unable to chown pid file: {}", _0)]
-	ChownPidfile(io::Error),
-
-	/// Unable to redirect standard streams to /dev/null
-	#[fail(display = "Unable to redirect standard streams to /dev/null: {}", _0)]
-	RedirectStreams(io::Error),
-
 	/// Unable to write self pid to pid file
 	#[fail(display = "Unable to write self pid to pid file {}", _0)]
 	WritePid(io::Error),
 
-	/// Unable to chroot
-	#[fail(display = "Unable to chroot: {}", _0)]
-	Chroot(io::Error),
+	/// failed to register pipe fd's with mio
+	#[fail(display = "Unable to register pipe with mio: {}", _0)]
+	RegisterationError(io::Error),
+
+	/// splice returned an error
+	#[fail(display = "Unable to splice streams: {}", _0)]
+	SpliceError(io::Error),
+
+	/// couldn't get the pending datasize from ioctl
+	#[fail(display = "Unable to fetch pending datasize from ioctl: {}", _0)]
+	Ioctl(io::Error),
 
 	/// attempted to daemonize in windows
 	#[fail(display = "Windows doesn't support daemons")]

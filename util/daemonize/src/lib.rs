@@ -19,6 +19,7 @@
 //! but you might want to confirm if the daemon actually started successfully
 //! this library automatically pipes STDOUT/STDERR of your daemon process to STDOUT/STDERR of the parent process
 //! and provides a handle to your daemon process to manually detach itself from the parent process
+#![warn(unused)]
 extern crate libc;
 extern crate mio;
 #[macro_use]
@@ -39,7 +40,7 @@ mod pipe;
 pub mod error;
 
 use pipe::Io;
-pub use error::{Error, ErrorKind};
+use error::{Error, ErrorKind};
 use std::env::set_current_dir;
 use std::path::PathBuf;
 use std::ffi::{CString};
@@ -58,11 +59,6 @@ macro_rules! map_err {
 	};
 }
 
-unsafe fn get_pending_data_size(fd: RawFd, size: &mut usize) {
-	if ioctl(fd, FIONREAD, size) == -1 {
-		panic!("ioctl error {}", io::Error::last_os_error());
-	}
-}
 
 /// handle returned from `daemonize` to the daemon process
 /// the daemon should use this handle to detach itself from the
@@ -233,58 +229,58 @@ pub fn daemonize<T: Into<PathBuf>>(pid_file: T) -> Result<Handle> {
 				STDOUT_READ_PIPE,
 				Ready::readable(),
 				PollOpt::edge(),
-			).unwrap();
+			).map_err(|err| ErrorKind::RegisterationError(err))?;
 
 			poll.register(
 				&stderr_read,
 				STDERR_READ_PIPE,
 				Ready::readable(),
 				PollOpt::edge(),
-			).unwrap();
+			).map_err(|err| ErrorKind::RegisterationError(err))?;
 
 			poll.register(
 				&status_read,
 				STATUS_REPORT_PIPE,
 				Ready::readable(),
 				PollOpt::edge(),
-			).unwrap();
+			).map_err(|err| ErrorKind::RegisterationError(err))?;
 
 			let mut events = Events::with_capacity(1024);
 
 			loop {
-				poll.poll(&mut events, None).unwrap();
+				poll.poll(&mut events, None).expect("");
 
 				for event in events.iter() {
 					match event.token() {
 						STDOUT_READ_PIPE => {
-							let mut size = 0;
-							get_pending_data_size(out_rx, &mut size);
+							let size = get_pending_data_size(out_rx)?;
 
-							if splice(out_rx, 0 as *mut _, STDOUT_FILENO, 0 as *mut _, size, 0) == -1 {
-								trace!(target: "daemonize", "splice failed {}", io::Error::last_os_error());
-							}
+							map_err!(
+								splice(out_rx, 0 as *mut _, STDOUT_FILENO, 0 as *mut _, size, 0),
+								ErrorKind::SpliceError(io::Error::last_os_error())
+							)?;
 						}
 						STDERR_READ_PIPE => {
-							let mut size = 0;
-							get_pending_data_size(err_rx, &mut size);
+							let size = get_pending_data_size(err_rx)?;
 
-							if splice(err_rx,0 as *mut _,STDERR_FILENO,0 as *mut _,size,0) == -1 {
-								trace!(target: "daemonize", "splice failed {}", io::Error::last_os_error());
-							}
+							map_err!(
+								splice(err_rx, 0 as *mut _, STDERR_FILENO, 0 as *mut _, size, 0),
+								ErrorKind::SpliceError(io::Error::last_os_error())
+							)?;
 						}
 						STATUS_REPORT_PIPE => {
-							let mut size = 0;
-							get_pending_data_size(rx, &mut size);
+							let size = get_pending_data_size(rx)?;
 
-							if splice(rx,0 as *mut _,STDOUT_FILENO,0 as *mut _,size,0) != -1 {
-								trace!(target: "daemonize", "Exiting Parent Process");
-								for fd in &[rx, out_rx, err_rx] {
-									close(*fd);
-								}
-								::std::process::exit(0);
-							} else {
-								trace!(target: "daemonize", "splice failed {}", io::Error::last_os_error());
+							map_err!(
+								splice(rx, 0 as *mut _, STDOUT_FILENO, 0 as *mut _, size, 0),
+								ErrorKind::SpliceError(io::Error::last_os_error())
+							)?;
+
+							trace!(target: "daemonize", "Exiting Parent Process");
+							for fd in &[rx, out_rx, err_rx] {
+								close(*fd);
 							}
+							::std::process::exit(0);
 						}
 						_ => unreachable!(),
 					}
@@ -304,3 +300,11 @@ unsafe fn set_sid() -> Result<()> {
 	Ok(())
 }
 
+unsafe fn get_pending_data_size(fd: RawFd) -> Result<usize> {
+	let mut size: usize = 0;
+	map_err!(
+		ioctl(fd, FIONREAD, &mut size),
+		ErrorKind::Ioctl(io::Error::last_os_error())
+	)?;
+	return Ok(size)
+}

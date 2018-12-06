@@ -473,6 +473,7 @@ impl Configuration {
 		}
 	}
 
+	/// returns logger config
 	pub fn logger_config(&self) -> LogConfig {
 		LogConfig {
 			mode: self.args.arg_logging.clone(),

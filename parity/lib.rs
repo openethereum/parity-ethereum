@@ -115,11 +115,11 @@ use std::fs::File;
 use std::io::BufReader;
 use std::sync::Arc;
 
-use hash::keccak_buffer;
 use cli::Args;
 use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
 use ethcore_logger::{RotatingLogger, setup_log};
+use hash::keccak_buffer;
 
 #[cfg(feature = "memory_profiling")]
 use std::alloc::System;
@@ -227,9 +227,11 @@ pub fn start<Cr, Rr>(
 	conf: Configuration,
 	logger: Arc<RotatingLogger>,
 	on_client_rq: Cr,
-	on_updater_rq: Rr) -> Result<ExecutionAction, String>
-	where Cr: Fn(String) + 'static + Send,
-	      Rr: Fn() + 'static + Send
+	on_updater_rq: Rr
+) -> Result<ExecutionAction, String>
+	where
+		Cr: Fn(String) + 'static + Send,
+		Rr: Fn() + 'static + Send
 {
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
