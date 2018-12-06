@@ -349,7 +349,7 @@ impl EthSync {
 		let sync = ChainSyncApi::new(
 			params.config,
 			&*params.chain,
-			params.private_tx_handler.map(|handler| handler.clone()),
+			params.private_tx_handler.as_ref().cloned(),
 			priority_tasks_rx,
 		);
 		let service = NetworkService::new(params.network_config.clone().into_basic()?, connection_filter)?;

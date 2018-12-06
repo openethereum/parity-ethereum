@@ -1125,16 +1125,8 @@ impl ChainSync {
 		let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
 		let protocol = if warp_protocol { warp_protocol_version } else { ETH_PROTOCOL_VERSION_63.0 };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
-		let rlp_len = if warp_protocol {
-			if private_tx_protocol {
-				8
-			} else {
-				7
-			}
-		} else {
-			5
-		};
-		let mut packet = RlpStream::new_list(rlp_len);
+		let mut packet = RlpStream::new();
+		packet.begin_unbounded_list();
 		let chain = io.chain().chain_info();
 		packet.append(&(protocol as u32));
 		packet.append(&self.network_id);
@@ -1151,6 +1143,7 @@ impl ChainSync {
 				packet.append(&self.private_tx_handler.is_some());
 			}
 		}
+		packet.complete_unbounded_list();
 		io.respond(STATUS_PACKET, packet.out())
 	}
 

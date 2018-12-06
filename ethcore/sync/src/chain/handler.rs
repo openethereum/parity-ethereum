@@ -672,11 +672,13 @@ impl SyncHandler {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
-		if sync.private_tx_handler.is_none() {
-			trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
-			return Ok(());
-		}
-		let private_handler = sync.private_tx_handler.take().expect("None was checked before; qed");
+		let private_handler = match sync.private_tx_handler {
+			Some(ref handler) => handler,
+			None => {
+				trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
+				return Ok(());
+			}
+		};
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
 		match private_handler.import_signed_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
@@ -698,11 +700,13 @@ impl SyncHandler {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
-		if sync.private_tx_handler.is_none() {
-			trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
-			return Ok(());
-		}
-		let private_handler = sync.private_tx_handler.take().expect("None was checked before; qed");
+		let private_handler = match sync.private_tx_handler {
+			Some(ref handler) => handler,
+			None => {
+				trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
+				return Ok(());
+			}
+		};
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
 		match private_handler.import_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
