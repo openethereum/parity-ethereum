@@ -93,6 +93,7 @@ extern crate rlp_compress;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate parity_util_mem as mem;
+extern crate parity_util_mem as malloc_size_of;
 extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate patricia_trie_ethereum as ethtrie;

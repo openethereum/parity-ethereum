@@ -196,14 +196,21 @@ pub enum HardcodedSync {
 	Deny,
 }
 
+#[derive(MallocSizeOf)]
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
+	#[ignore_malloc_size_of = "perf"]
 	genesis_header: encoded::Header, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
+	#[ignore_malloc_size_of = "perf"]
 	best_block: RwLock<BlockDescriptor>,
+	#[ignore_malloc_size_of = "perf"]
 	live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
+	#[ignore_malloc_size_of = "perf"]
 	db: Arc<KeyValueDB>,
+	#[ignore_malloc_size_of = "perf"]
 	col: Option<u32>,
+	#[ignore_malloc_size_of = "perf"]
 	cache: Arc<Mutex<Cache>>,
 }
 
@@ -829,12 +836,6 @@ impl HeaderChain {
 				None
 			}
 		}
-	}
-}
-
-impl MallocSizeOf for HeaderChain {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.candidates.read().size_of(ops)
 	}
 }
 

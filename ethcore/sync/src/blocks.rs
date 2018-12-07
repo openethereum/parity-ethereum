@@ -16,7 +16,7 @@
 
 use std::collections::{HashSet, HashMap, hash_map};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
+use mem::MallocSizeOf;
 use ethereum_types::H256;
 use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
@@ -29,16 +29,10 @@ use transaction::UnverifiedTransaction;
 malloc_size_of_is_0!(HeaderId);
 
 #[derive(PartialEq, Debug, Clone)]
+#[derive(MallocSizeOf)]
 pub struct SyncHeader {
 	pub bytes: Bytes,
 	pub header: BlockHeader,
-}
-
-impl MallocSizeOf for SyncHeader {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.bytes.size_of(ops)
-			+ self.header.size_of(ops)
-	}
 }
 
 impl SyncHeader {
@@ -52,6 +46,7 @@ impl SyncHeader {
 	}
 }
 
+#[derive(MallocSizeOf)]
 pub struct SyncBody {
 	pub transactions_bytes: Bytes,
 	pub transactions: Vec<UnverifiedTransaction>,
@@ -85,27 +80,13 @@ impl SyncBody {
 	}
 }
 
-impl MallocSizeOf for SyncBody {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.transactions_bytes.size_of(ops)
-			+ self.transactions.size_of(ops)
-			+ self.uncles_bytes.size_of(ops)
-			+ self.uncles.size_of(ops)
-	}
-}
-
 /// Block data with optional body.
+#[derive(MallocSizeOf)]
 struct SyncBlock {
 	header: SyncHeader,
 	body: Option<SyncBody>,
 	receipts: Option<Bytes>,
 	receipts_root: H256,
-}
-
-impl MallocSizeOf for SyncBlock {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.header.size_of(ops) + self.body.size_of(ops)
-	}
 }
 
 fn unverified_from_sync(header: SyncHeader, body: Option<SyncBody>) -> Unverified {
@@ -141,7 +122,7 @@ struct HeaderId {
 /// A collection of blocks and subchain pointers being downloaded. This keeps track of
 /// which headers/bodies need to be downloaded, which are being downloaded and also holds
 /// the downloaded blocks.
-#[derive(Default)]
+#[derive(Default, MallocSizeOf)]
 pub struct BlockCollection {
 	/// Does this collection need block receipts.
 	need_receipts: bool,
@@ -397,17 +378,6 @@ impl BlockCollection {
 	/// Check the number of heads
 	pub fn heads_len(&self) -> usize {
 		self.heads.len()
-	}
-
-  // TODO switch to MallocSizeOf !! 
-	/// Return used heap size.
-	pub fn heap_size(&self) -> usize {
-		self.heads.m_size_of()
-			+ self.blocks.m_size_of()
-			+ self.parents.m_size_of()
-			+ self.header_ids.m_size_of()
-			+ self.downloading_headers.m_size_of()
-			+ self.downloading_bodies.m_size_of()
 	}
 
 	/// Check if given block hash is marked as being downloaded.

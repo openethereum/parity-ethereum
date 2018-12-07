@@ -24,6 +24,7 @@ extern crate rlp;
 extern crate rlp_derive;
 extern crate keccak_hash as hash;
 extern crate parity_util_mem as mem;
+extern crate parity_util_mem as malloc_size_of;
 
 #[cfg(test)]
 extern crate rustc_hex;

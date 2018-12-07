@@ -24,7 +24,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::*;
-use mem::{MallocSizeOf, MallocSizeOfExt, MallocSizeOfOps};
+use mem::{MallocSizeOf, alloc::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::*;
@@ -128,17 +128,11 @@ struct JournalOverlay {
 	cumulative_size: usize, // cumulative size of all entries.
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, MallocSizeOf)]
 struct JournalEntry {
 	id: H256,
 	insertions: Vec<H256>,
 	deletions: Vec<H256>,
-}
-
-impl MallocSizeOf for JournalEntry {
-	fn size_of(&self,	ops: &mut MallocSizeOfOps) -> usize {
-		self.insertions.size_of(ops) + self.deletions.size_of(ops)
-	}
 }
 
 impl Clone for OverlayRecentDB {
@@ -248,12 +242,14 @@ impl JournalDB for OverlayRecentDB {
 	}
 
 	fn mem_used(&self) -> usize {
+		// TODO could use mem alloc derive instead (require some switch in other crates)
 		let mut mem = self.transaction_overlay.mem_used();
+		let mut ops = new_malloc_size_ops();
 		let overlay = self.journal_overlay.read();
 
 		mem += overlay.backing_overlay.mem_used();
-		mem += overlay.pending_overlay.m_size_of();
-		mem += overlay.journal.m_size_of();
+		mem += overlay.pending_overlay.size_of(&mut ops);
+		mem += overlay.journal.size_of(&mut ops);
 
 		mem
 	}

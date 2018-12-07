@@ -74,7 +74,7 @@ pub mod blocks {
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 	use transaction::UnverifiedTransaction;
 
-	use mem::{MallocSizeOf, MallocSizeOfOps};
+	use mem::MallocSizeOf;
 	use ethereum_types::{H256, U256};
 	use bytes::Bytes;
 
@@ -113,7 +113,7 @@ pub mod blocks {
 	}
 
 	/// An unverified block.
-	#[derive(PartialEq, Debug)]
+	#[derive(PartialEq, Debug, MallocSizeOf)]
 	pub struct Unverified {
 		/// Unverified block header.
 		pub header: Header,
@@ -143,15 +143,6 @@ pub mod blocks {
 				uncles,
 				bytes,
 			})
-		}
-	}
-
-	impl MallocSizeOf for Unverified {
-		fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-			self.header.size_of(ops)
-				+ self.transactions.size_of(ops)
-				+ self.uncles.size_of(ops)
-				+ self.bytes.size_of(ops)
 		}
 	}
 

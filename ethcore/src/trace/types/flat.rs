@@ -17,17 +17,19 @@
 //! Flat trace module
 
 use rlp::{Rlp, RlpStream, Decodable, Encodable, DecoderError};
-use mem::{MallocSizeOf, MallocSizeOfOps};
+use mem::MallocSizeOf;
 use ethereum_types::Bloom;
 use super::trace::{Action, Res};
 
 /// Trace localized in vector of traces produced by a single transaction.
 ///
 /// Parent and children indexes refer to positions in this vector.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, MallocSizeOf)]
 pub struct FlatTrace {
+	#[ignore_malloc_size_of = "perf"]
 	/// Type of action performed by a transaction.
 	pub action: Action,
+	#[ignore_malloc_size_of = "perf"]
 	/// Result of this action.
 	pub result: Res,
 	/// Number of subtraces.
@@ -42,12 +44,6 @@ impl FlatTrace {
 	/// Returns bloom of the trace.
 	pub fn bloom(&self) -> Bloom {
 		self.action.bloom() | self.result.bloom()
-	}
-}
-
-impl MallocSizeOf for FlatTrace {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.trace_address.size_of(ops)
 	}
 }
 
@@ -76,18 +72,12 @@ impl Decodable for FlatTrace {
 }
 
 /// Represents all traces produced by a single transaction.
-#[derive(Debug, PartialEq, Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
+#[derive(Debug, PartialEq, Clone, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
 pub struct FlatTransactionTraces(Vec<FlatTrace>);
 
 impl From<Vec<FlatTrace>> for FlatTransactionTraces {
 	fn from(v: Vec<FlatTrace>) -> Self {
 		FlatTransactionTraces(v)
-	}
-}
-
-impl MallocSizeOf for FlatTransactionTraces {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.0.size_of(ops)
 	}
 }
 
@@ -105,14 +95,8 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 }
 
 /// Represents all traces produced by transactions in a single block.
-#[derive(Debug, PartialEq, Clone, Default, RlpEncodableWrapper, RlpDecodableWrapper)]
+#[derive(Debug, PartialEq, Clone, Default, RlpEncodableWrapper, RlpDecodableWrapper, MallocSizeOf)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
-
-impl MallocSizeOf for FlatBlockTraces {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.0.size_of(ops)
-	}
-}
 
 impl From<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 	fn from(v: Vec<FlatTransactionTraces>) -> Self {

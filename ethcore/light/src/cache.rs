@@ -161,6 +161,8 @@ impl Cache {
 	}
 }
 
+
+// TODO this is fast method: should feature gate an exhaustive implementation
 impl MallocSizeOf for Cache {
 	fn size_of(&self, _ops: &mut MallocSizeOfOps) -> usize {
 		self.headers.current_size()

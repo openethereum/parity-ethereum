@@ -37,7 +37,7 @@ use engines::ForkChoice;
 use ethereum_types::{H256, Bloom, BloomRef, U256};
 use error::Error as EthcoreError;
 use header::*;
-use mem::MallocSizeOfExt;
+use mem::{MallocSizeOf, alloc::new_malloc_size_ops};
 use itertools::Itertools;
 use kvdb::{DBTransaction, KeyValueDB};
 use log_entry::{LogEntry, LocalizedLogEntry};
@@ -1464,11 +1464,12 @@ impl BlockChain {
 
 	/// Get current cache size.
 	pub fn cache_size(&self) -> CacheSize {
+		let mut ops = new_malloc_size_ops();
 		CacheSize {
-			blocks: self.block_headers.read().m_size_of() + self.block_bodies.read().m_size_of(),
-			block_details: self.block_details.read().m_size_of(),
-			transaction_addresses: self.transaction_addresses.read().m_size_of(),
-			block_receipts: self.block_receipts.read().m_size_of(),
+			blocks: self.block_headers.size_of(&mut ops) + self.block_bodies.size_of(&mut ops),
+			block_details: self.block_details.size_of(&mut ops),
+			transaction_addresses: self.transaction_addresses.size_of(&mut ops),
+			block_receipts: self.block_receipts.size_of(&mut ops),
 		}
 	}
 
@@ -1503,12 +1504,13 @@ impl BlockChain {
 			transaction_addresses.shrink_to_fit();
 			block_receipts.shrink_to_fit();
 
-			block_headers.m_size_of() +
-			block_bodies.m_size_of() +
-			block_details.m_size_of() +
-			block_hashes.m_size_of() +
-			transaction_addresses.m_size_of() +
-			block_receipts.m_size_of()
+			let mut ops = new_malloc_size_ops();
+			block_headers.size_of(&mut ops) +
+			block_bodies.size_of(&mut ops) +
+			block_details.size_of(&mut ops) +
+			block_hashes.size_of(&mut ops) +
+			transaction_addresses.size_of(&mut ops) +
+			block_receipts.size_of(&mut ops)
 		});
 	}
 

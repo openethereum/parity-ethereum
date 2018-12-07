@@ -20,7 +20,7 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::cmp;
-use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
+use mem::MallocSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
 use ethcore::header::BlockNumber;
@@ -57,7 +57,7 @@ macro_rules! debug_sync {
 	};
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, MallocSizeOf)]
 /// Downloader state
 pub enum State {
 	/// No active downloads.
@@ -110,6 +110,7 @@ impl From<rlp::DecoderError> for BlockDownloaderImportError {
 
 /// Block downloader strategy.
 /// Manages state and block data for a block download process.
+#[derive(MallocSizeOf)]
 pub struct BlockDownloader {
 	/// Which set of blocks to download
 	block_set: BlockSet,
@@ -218,12 +219,6 @@ impl BlockDownloader {
 		self.reset();
 		self.blocks.reset_to(hashes);
 		self.state = State::Blocks;
-	}
-
-	// TODO switch to MallocSizeOf !!
-	/// Returns used heap memory size.
-	pub fn heap_size(&self) -> usize {
-		self.blocks.heap_size() + self.round_parents.m_size_of()
 	}
 
 	/// Returns best imported block number.

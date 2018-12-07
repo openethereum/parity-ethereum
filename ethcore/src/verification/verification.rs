@@ -26,7 +26,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use hash::keccak;
-use mem::{MallocSizeOf, MallocSizeOfOps};
+use mem::MallocSizeOf;
 use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
@@ -40,6 +40,7 @@ use transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
+#[derive(MallocSizeOf)]
 pub struct PreverifiedBlock {
 	/// Populated block header
 	pub header: Header,
@@ -49,14 +50,6 @@ pub struct PreverifiedBlock {
 	pub uncles: Vec<Header>,
 	/// Block bytes
 	pub bytes: Bytes,
-}
-
-impl MallocSizeOf for PreverifiedBlock {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.header.size_of(ops)
-			+ self.transactions.size_of(ops)
-			+ self.bytes.size_of(ops)
-	}
 }
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block

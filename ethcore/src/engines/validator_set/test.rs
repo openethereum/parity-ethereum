@@ -28,9 +28,12 @@ use header::{Header, BlockNumber};
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
+#[derive(MallocSizeOf)]
 pub struct TestSet {
 	validator: SimpleList,
+	#[ignore_malloc_size_of = "zero sized"]
 	last_malicious: Arc<AtomicUsize>,
+	#[ignore_malloc_size_of = "zero sized"]
 	last_benign: Arc<AtomicUsize>,
 }
 
@@ -41,12 +44,6 @@ impl TestSet {
 			last_malicious: last_malicious,
 			last_benign: last_benign,
 		}
-	}
-}
-
-impl MallocSizeOf for TestSet {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.validator.size_of(ops)
 	}
 }
 

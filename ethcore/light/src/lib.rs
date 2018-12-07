@@ -61,6 +61,7 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethcore;
 extern crate hashdb;
+extern crate parity_util_mem as malloc_size_of;
 extern crate parity_util_mem as mem;
 extern crate failsafe;
 extern crate futures;

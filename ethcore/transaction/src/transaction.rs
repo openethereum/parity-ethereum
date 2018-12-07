@@ -23,7 +23,7 @@ use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use evm::Schedule;
 use hash::keccak;
-use mem::{MallocSizeOf, MallocSizeOfOps};
+use mem::MallocSizeOf;
 
 use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
 
@@ -37,7 +37,7 @@ pub const UNSIGNED_SENDER: Address = H160([0xff; 20]);
 pub const SYSTEM_ADDRESS: Address = H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
 
 /// Transaction action type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub enum Action {
 	/// Create creates new contract.
 	Create,
@@ -99,7 +99,7 @@ pub mod signature {
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -130,12 +130,6 @@ impl Transaction {
 			s.append(&0u8);
 			s.append(&0u8);
 		}
-	}
-}
-
-impl MallocSizeOf for Transaction {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.data.size_of(ops)
 	}
 }
 
@@ -268,7 +262,7 @@ impl Transaction {
 }
 
 /// Signed transaction information without verified signature.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, MallocSizeOf)]
 pub struct UnverifiedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
@@ -281,12 +275,6 @@ pub struct UnverifiedTransaction {
 	s: U256,
 	/// Hash of the transaction
 	hash: H256,
-}
-
-impl MallocSizeOf for UnverifiedTransaction {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.unsigned.size_of(ops)
-	}
 }
 
 impl Deref for UnverifiedTransaction {
@@ -417,17 +405,11 @@ impl UnverifiedTransaction {
 }
 
 /// A `UnverifiedTransaction` with successfully recovered `sender`.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, MallocSizeOf)]
 pub struct SignedTransaction {
 	transaction: UnverifiedTransaction,
 	sender: Address,
 	public: Option<Public>,
-}
-
-impl MallocSizeOf for SignedTransaction {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.transaction.size_of(ops)
-	}
 }
 
 impl rlp::Encodable for SignedTransaction {

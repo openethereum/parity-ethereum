@@ -21,6 +21,7 @@ extern crate ethjson;
 extern crate ethkey;
 extern crate evm;
 extern crate parity_util_mem as mem;
+extern crate parity_util_mem as malloc_size_of;
 extern crate keccak_hash as hash;
 extern crate rlp;
 extern crate unexpected;

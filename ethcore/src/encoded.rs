@@ -27,20 +27,14 @@ use block::Block as FullBlock;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::{BlockNumber, Header as FullHeader};
-use mem::{MallocSizeOf, MallocSizeOfOps};
+use mem::MallocSizeOf;
 use rlp::{self, Rlp, RlpStream};
 use transaction::UnverifiedTransaction;
 use views::{self, BlockView, HeaderView, BodyView};
 
 /// Owning header view.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub struct Header(Vec<u8>);
-
-impl MallocSizeOf for Header {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.0.size_of(ops)
-	}
-}
 
 impl Header {
 	/// Create a new owning header view.
@@ -114,14 +108,8 @@ impl Header {
 }
 
 /// Owning block body view.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub struct Body(Vec<u8>);
-
-impl MallocSizeOf for Body {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.0.size_of(ops)
-	}
-}
 
 impl Body {
 	/// Create a new owning block body view. The raw bytes passed in must be an rlp-encoded block
@@ -181,14 +169,8 @@ impl Body {
 }
 
 /// Owning block view.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 pub struct Block(Vec<u8>);
-
-impl MallocSizeOf for Block {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.0.size_of(ops)
-	}
-}
 
 impl Block {
 	/// Create a new owning block view. The raw bytes passed in must be an rlp-encoded block.

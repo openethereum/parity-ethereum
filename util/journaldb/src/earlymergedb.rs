@@ -24,7 +24,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::*;
-use mem::{MallocSizeOf, MallocSizeOfExt, MallocSizeOfOps};
+use mem::{MallocSizeOf, MallocSizeOfExt};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::*;
@@ -34,14 +34,10 @@ use super::{DB_PREFIX_LEN, LATEST_ERA_KEY, error_negatively_reference_hash, erro
 use super::traits::JournalDB;
 use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
 struct RefInfo {
 	queue_refs: usize,
 	in_archive: bool,
-}
-
-impl MallocSizeOf for RefInfo {
-	fn size_of(&self,	_ops: &mut MallocSizeOfOps) -> usize { 0 }
 }
 
 #[derive(Clone, PartialEq, Eq)]

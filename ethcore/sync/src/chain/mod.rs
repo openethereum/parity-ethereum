@@ -97,7 +97,7 @@ use std::collections::{HashSet, HashMap, BTreeMap};
 use std::cmp;
 use std::time::{Duration, Instant};
 use hash::keccak;
-use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
+use mem::MallocSizeOfExt;
 use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
@@ -192,7 +192,7 @@ const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
 /// (so we might sent only to some part of the peers we originally intended to send to)
 const PRIORITY_TASK_DEADLINE: Duration = Duration::from_millis(100);
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, MallocSizeOf)]
 /// Sync state
 pub enum SyncState {
 	/// Collecting enough peers to start syncing.
@@ -286,7 +286,7 @@ pub enum PeerAsking {
 	SnapshotData,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, MallocSizeOf)]
 /// Block downloader channel.
 pub enum BlockSet {
 	/// New blocks better than out best blocks
@@ -593,6 +593,7 @@ enum PeerState {
 
 /// Blockchain sync handler.
 /// See module documentation for more details.
+#[derive(MallocSizeOf)]
 pub struct ChainSync {
 	/// Sync state
 	state: SyncState,
@@ -626,6 +627,7 @@ pub struct ChainSync {
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
 	/// Shared private tx service.
+	#[ignore_malloc_size_of = "arc on dyn trait here seems tricky, ignoring"]
 	private_tx_handler: Arc<PrivateTxHandler>,
 	/// Enable warp sync.
 	warp_sync: WarpSync,
@@ -682,11 +684,7 @@ impl ChainSync {
 			num_active_peers: self.peers.values().filter(|p| p.is_allowed() && p.asking != PeerAsking::Nothing).count(),
 			num_snapshot_chunks: self.snapshot.total_chunks(),
 			snapshot_chunks_done: self.snapshot.done_chunks(),
-		// TODO implement and use MallocSizeOf
-			mem_used:
-				self.new_blocks.heap_size()
-				+ self.old_blocks.as_ref().map_or(0, |d| d.heap_size())
-				+ self.peers.m_size_of(),
+			mem_used: self.m_size_of(),
 		}
 	}
 

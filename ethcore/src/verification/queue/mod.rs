@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
-use mem::{MallocSizeOf, MallocSizeOfOps, MallocSizeOfExt};
+use mem::{MallocSizeOf, MallocSizeOfExt};
 use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
@@ -96,15 +96,10 @@ enum State {
 }
 
 /// An item which is in the process of being verified.
+#[derive(MallocSizeOf)]
 pub struct Verifying<K: Kind> {
 	hash: H256,
 	output: Option<K::Verified>,
-}
-
-impl<K: Kind> MallocSizeOf for Verifying<K> {
-	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-		self.output.size_of(ops)
-	}
 }
 
 /// Status of items in the queue.

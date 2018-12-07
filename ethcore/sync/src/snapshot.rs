@@ -27,6 +27,7 @@ pub enum ChunkType {
 	Block(H256),
 }
 
+#[derive(MallocSizeOf)]
 pub struct Snapshot {
 	pending_state_chunks: Vec<H256>,
 	pending_block_chunks: Vec<H256>,
