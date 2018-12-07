@@ -26,7 +26,7 @@ extern crate log;
 extern crate panic_hook;
 extern crate parity_ethereum;
 extern crate parking_lot;
-extern crate daemonize;
+extern crate daemonize_rs;
 extern crate ansi_term;
 
 #[cfg(windows)] extern crate winapi;
@@ -200,7 +200,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		info!("{}", Colour::Blue.paint("starting in daemon mode").to_string());
 		let _ = std::io::stdout().flush();
 
-		match daemonize::daemonize(pid) {
+		match daemonize_rs::daemonize(pid) {
 			Ok(h) => Some(h),
 			Err(e) => {
 				error!(

@@ -84,7 +84,7 @@ fake-fetch = { path = "util/fake-fetch" }
 winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 
 [target.'cfg(not(windows))'.dependencies]
-daemonize = { path = "util/daemonize" }
+daemonize-rs = "0.1"
 
 [features]
 miner-debug = ["ethcore/miner-debug"]
@@ -133,6 +133,10 @@ members = [
 	"evmbin",
 	"parity-clib",
 	"whisper/cli",
+	"util/triehash-ethereum",
+	"util/keccak-hasher",
+	"util/patricia-trie-ethereum",
+	"util/fastmap"
 ]
 
 [patch.crates-io]
