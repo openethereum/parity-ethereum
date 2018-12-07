@@ -69,7 +69,7 @@ ethcore-secretstore = { path = "secret_store", optional = true }
 
 registrar = { path = "registrar" }
 
-parity-util-mem = { path = "../../parity-common/mem", features = ["jemalloc-global"] }
+# parity-util-mem = { path = "../../parity-common/mem", features = ["jemalloc-global"] }
 
 [build-dependencies]
 rustc_version = "0.2"
