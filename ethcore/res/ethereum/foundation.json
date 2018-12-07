@@ -160,7 +160,11 @@
 		"eip140Transition": 4370000,
 		"eip211Transition": 4370000,
 		"eip214Transition": 4370000,
-		"eip658Transition": 4370000
+		"eip658Transition": 4370000,
+		"eip145Transition": 7080000,
+		"eip1014Transition": 7080000,
+		"eip1052Transition": 7080000,
+		"eip1283Transition": 7080000
 	},
 	"genesis": {
 		"seal": {
