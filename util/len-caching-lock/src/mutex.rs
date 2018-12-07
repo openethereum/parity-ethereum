@@ -136,4 +136,13 @@ mod tests {
 		lcm.lock().push_front(4);
 		assert_eq!(lcm.load_len(), 1);
 	}
+
+	#[test]
+	fn load_is_empty_works() {
+		let v = vec![1,2,3];
+		let lcm = LenCachingMutex::new(v);
+		assert!(!lcm.load_is_empty());
+		lcm.lock().clear();
+		assert!(lcm.load_is_empty());
+	}
 }

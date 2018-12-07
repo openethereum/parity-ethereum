@@ -148,4 +148,20 @@ mod tests {
 		lcl.write().push_front(4);
 		assert_eq!(lcl.load_len(), 1);
 	}
+
+	#[test]
+	fn load_is_empty_works() {
+		let v = vec![1,2,3];
+		let lcl = LenCachingRwLock::new(v);
+		assert!(!lcl.load_is_empty());
+		lcl.write().clear();
+		assert!(lcl.load_is_empty());
+	}
+
+	#[test]
+	fn read_works() {
+		let v = vec![1,2,3];
+		let lcl = LenCachingRwLock::new(v);
+		assert_eq!(lcl.read().len(), 3);
+	}
 }

@@ -14,6 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! This crate allows automatic caching of `T.len()` with an api that 
+//! allows drop in replacement for `parking_lot`
+//! [`Mutex`](../lock_api/struct.Mutex.html)
+//! and [`RwLock`](../lock_api/struct.RwLock.html) for most common use-cases.
+//!
+//! This crate implements `Len` for the following types: 
+//! `std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet, BinaryHeap}`
+//!
+//! ## Example
+//!
+//! ```rust
+//! extern crate len_caching_lock;
+//! use len_caching_lock::LenCachingMutex;
+//!
+//! fn main() {
+//!		let vec: Vec<i32> = Vec::new();
+//!		let len_caching_mutex = LenCachingMutex::new(vec);
+//!		assert_eq!(len_caching_mutex.lock().len(), len_caching_mutex.load_len());
+//!		len_caching_mutex.lock().push(0);
+//!		assert_eq!(1, len_caching_mutex.load_len());
+//!		// Also has convenience method to check if empty
+//!		assert!(!len_caching_mutex.load_is_empty());
+//!	}
+
 extern crate parking_lot;
 use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet, BinaryHeap};
 use std::hash::Hash;
