@@ -9,7 +9,8 @@
 				"durationLimit": "0x0d",
 				"blockReward": {
 					"0": "0x4563918244F40000",
-					"4370000": "0x29A2241AF62C0000"
+					"4370000": "0x29A2241AF62C0000",
+					"7080000": "0x1BC16D674EC80000"
 				},
 				"homesteadTransition": "0x118c30",
 				"daoHardforkTransition": "0x1d4c00",
