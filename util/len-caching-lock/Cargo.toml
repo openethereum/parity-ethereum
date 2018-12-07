@@ -8,5 +8,3 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 parking_lot = "0.6"
-
-[workspace]
