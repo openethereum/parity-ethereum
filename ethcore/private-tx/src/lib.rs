@@ -25,6 +25,7 @@ mod key_server_keys;
 mod private_transactions;
 mod messages;
 mod error;
+mod log;
 
 extern crate common_types as types;
 extern crate ethabi;
@@ -45,11 +46,15 @@ extern crate parking_lot;
 extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
 extern crate rustc_hex;
 extern crate transaction_pool as txpool;
 extern crate url;
 #[macro_use]
-extern crate log;
+extern crate log as ethlog;
 #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
@@ -67,7 +72,8 @@ pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryp
 pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
-pub use error::Error;
+pub use error::{Error, ErrorKind};
+use log::{Logging};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
@@ -117,6 +123,8 @@ pub struct ProviderConfig {
 	pub validator_accounts: Vec<Address>,
 	/// Account used for signing public transactions created from private transactions
 	pub signer_account: Option<Address>,
+	/// Path to private tx logs
+	pub logs_path: Option<String>,
 }
 
 #[derive(Debug)]
@@ -177,6 +185,7 @@ pub struct Provider {
 	accounts: Arc<Signer>,
 	channel: IoChannel<ClientIoMessage>,
 	keys_provider: Arc<KeyProvider>,
+	logging: Logging,
 }
 
 #[derive(Debug)]
@@ -211,6 +220,7 @@ impl Provider {
 			accounts,
 			channel,
 			keys_provider,
+			logging: Logging::new(config.logs_path),
 		}
 	}
 
@@ -257,8 +267,9 @@ impl Provider {
 		trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
 		let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 		trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
-		self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, contract_validators, private_state, contract_nonce)?;
+		self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, &contract_validators, private_state, contract_nonce)?;
 		self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
+		self.logging.private_tx_created(tx_hash, &contract_validators);
 		Ok(Receipt {
 			hash: tx_hash,
 			contract_address: contract,
@@ -354,8 +365,9 @@ impl Provider {
 			Some(desc) => desc,
 		};
 		let last = self.last_required_signature(&desc, signed_tx.signature())?;
+		let original_tx_hash = desc.original_transaction.hash();
 
-		if last {
+		if last.0 {
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
@@ -373,7 +385,7 @@ impl Provider {
 			trace!(target: "privatetx", "Last required signature received, public transaction created: {:?}", public_tx);
 			// Sign and add it to the queue
 			let chain_id = desc.original_transaction.chain_id();
-			let hash = public_tx.hash(chain_id);
+			let public_tx_hash = public_tx.hash(chain_id);
 			let signature = self.accounts.sign(signer_account, hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 			match self.miner.import_own_transaction(&*self.client, signed.into()) {
@@ -392,6 +404,9 @@ impl Provider {
 					Err(err) => warn!(target: "privatetx", "Failed to send private state changed notification, error: {:?}", err),
 				}
 			}
+			// Store logs
+			self.logging.signature_added(original_tx_hash, last.1);
+			self.logging.tx_deployed(original_tx_hash, public_tx_hash);
 			// Remove from store for signing
 			if let Err(err) = self.transactions_for_signing.write().remove(&private_hash) {
 				warn!(target: "privatetx", "Failed to remove transaction from signing store, error: {:?}", err);
@@ -400,7 +415,10 @@ impl Provider {
 		} else {
 			// Add signature to the store
 			match self.transactions_for_signing.write().add_signature(&private_hash, signed_tx.signature()) {
-				Ok(_) => trace!(target: "privatetx", "Signature stored for private transaction"),
+				Ok(_) => {
+					trace!(target: "privatetx", "Signature stored for private transaction");
+					self.logging.signature_added(original_tx_hash, last.1);
+				}
 				Err(err) => {
 					warn!(target: "privatetx", "Failed to add signature to signing store, error: {:?}", err);
 					return Err(err);
@@ -420,17 +438,14 @@ impl Provider {
 		}
 	}
 
-	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<bool, Error>  {
-		if desc.received_signatures.contains(&sign) {
-			return Ok(false);
-		}
+	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<(bool, Address), Error>  {
 		let state_hash = self.calculate_state_hash(&desc.state, desc.contract_nonce);
 		match recover(&sign, &state_hash) {
 			Ok(public) => {
 				let sender = public_to_address(&public);
 				match desc.validators.contains(&sender) {
 					true => {
-						Ok(desc.received_signatures.len() + 1 == desc.validators.len())
+						Ok((desc.received_signatures.len() + 1 == desc.validators.len(), sender))
 					}
 					false => {
 						warn!(target: "privatetx", "Sender's state doesn't correspond to validator's");
