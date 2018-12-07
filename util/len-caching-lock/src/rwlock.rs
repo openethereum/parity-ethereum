@@ -1,4 +1,3 @@
-
 // Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -13,18 +12,19 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard as InnerWriteGuard};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use Len;
 
-/// Can be used in place of a `Mutex` where reading `T`'s `len()` without 
-/// needing to lock, is advantageous. 
-/// When the Guard is released, `T`'s `len()` will be cached.
-/// The cached `len()` may be at most 1 lock behind current state.
+/// Can be used in place of a [`RwLock`](../../lock_api/struct.RwLock.html) where 
+/// reading `T`'s `len()` without needing to lock, is advantageous. 
+/// When the WriteGuard is released, `T`'s `len()` will be cached.
 pub struct LenCachingRwLock<T> {
   data: RwLock<T>,
   len: AtomicUsize,
@@ -39,7 +39,7 @@ impl<T: Len> LenCachingRwLock<T> {
 		}
 	}
 
-	/// Load the value returned from your `T`'s `len()`
+	/// Load the cached value that was returned from your `T`'s `len()`
 	/// subsequent to the most recent lock being released.
 	pub fn load_len(&self) -> usize {
 		self.len.load(Ordering::SeqCst)
@@ -50,65 +50,102 @@ impl<T: Len> LenCachingRwLock<T> {
 		self.len.load(Ordering::SeqCst) == 0
 	}
 
-	/// Delegates to `parking_lot::Mutex` `lock()`
-	pub fn write(&self) -> RwLockWriteGuard<T> {
-		RwLockWriteGuard {
+	/// Delegates to `parking_lot::RwLock`
+	/// [`write()`](../../lock_api/struct.RwLock.html#method.write).
+	pub fn write(&self) -> CachingRwLockWriteGuard<T> {
+		CachingRwLockWriteGuard {
 			write_guard: self.data.write(),
 			len: &self.len,
 		}
 	}
 
-	/// Delegates to `parking_lot::Mutex` `try_lock()`
-	pub fn try_write(&self) -> Option<RwLockWriteGuard<T>> {
-		Some( RwLockWriteGuard {
+	/// Delegates to `parking_lot::RwLock`
+	/// [`try_write()`](../../lock_api/struct.RwLock.html#method.try_write).
+	pub fn try_write(&self) -> Option<CachingRwLockWriteGuard<T>> {
+		Some( CachingRwLockWriteGuard {
 			write_guard: self.data.try_write()?,
 			len: &self.len,
 		})
 	}
 
+	/// Delegates to `parking_lot::RwLock`
+	/// [`read()`](../../lock_api/struct.RwLock.html#method.read).
 	pub fn read(&self) -> RwLockReadGuard<T> {
 		self.data.read()
 	}
 
+	/// Delegates to `parking_lot::RwLock`
+	/// [`try_read()`](../../lock_api/struct.RwLock.html#method.try_read).
 	pub fn try_read(&self) -> Option<RwLockReadGuard<T>> {
 		self.data.try_read()
 	}
 }
 
-/// Guard comprising `MutexGuard` and `AtomicUsize` for cache
-pub struct RwLockWriteGuard<'a, T: Len + 'a> {
-	write_guard: InnerWriteGuard<'a, T>,
+/// Guard that caches `T`'s `len()` in an `AtomicUsize` when dropped
+pub struct CachingRwLockWriteGuard<'a, T: Len + 'a> {
+	write_guard: RwLockWriteGuard<'a, T>,
 	len: &'a AtomicUsize,
 }
 
-impl<'a, T: Len> RwLockWriteGuard<'a, T> {
-	pub fn inner_mut(&mut self) -> &mut InnerWriteGuard<'a, T> {
+impl<'a, T: Len> CachingRwLockWriteGuard<'a, T> {
+	/// Returns a mutable reference to the contained
+	/// [`RwLockWriteGuard`](../../parking_lot/rwlock/type.RwLockWriteGuard.html)
+	pub fn inner_mut(&mut self) -> &mut RwLockWriteGuard<'a, T> {
 		&mut self.write_guard
 	}
 
-	pub fn inner(&self) -> &InnerWriteGuard<'a, T> {
+	/// Returns a non-mutable reference to the contained
+	/// [`RwLockWriteGuard`](../../parking_lot/rwlock/type.RwLockWriteGuard.html)
+	pub fn inner(&self) -> &RwLockWriteGuard<'a, T> {
 		&self.write_guard
 	}
 }
 
-impl<'a, T: Len> Drop for RwLockWriteGuard<'a, T> {
+impl<'a, T: Len> Drop for CachingRwLockWriteGuard<'a, T> {
 	fn drop(&mut self) {
 		self.len.store(self.write_guard.len(), Ordering::SeqCst);
 	}
 }
 
-impl<'a, T: Len> Deref for RwLockWriteGuard<'a, T> {
+impl<'a, T: Len> Deref for CachingRwLockWriteGuard<'a, T> {
 	type Target = T;
 	fn deref(&self)	-> &T {
 		self.write_guard.deref()
 	}
 }
 
-impl<'a, T: Len> DerefMut for RwLockWriteGuard<'a, T> {
+impl<'a, T: Len> DerefMut for CachingRwLockWriteGuard<'a, T> {
 	fn deref_mut(&mut self)	-> &mut T {
 		self.write_guard.deref_mut()
 	}
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+	use super::*;
+	use std::collections::VecDeque;
+
+	#[test]
+	fn caches_len() {
+		let v = vec![1,2,3];
+		let lcl = LenCachingRwLock::new(v);
+		assert_eq!(lcl.load_len(), 3);
+		lcl.write().push(4);
+		assert_eq!(lcl.load_len(), 4);
+	}
+
+	#[test]
+	fn works_with_vec() {
+		let v: Vec<i32> = Vec::new();
+		let lcl = LenCachingRwLock::new(v);
+		assert!(lcl.write().is_empty());
+	}
+
+	#[test]
+	fn works_with_vecdeque() {
+		let v: VecDeque<i32> = VecDeque::new();
+		let lcl = LenCachingRwLock::new(v);
+		lcl.write().push_front(4);
+		assert_eq!(lcl.load_len(), 1);
+	}
+}

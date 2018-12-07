@@ -13,6 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 extern crate parking_lot;
 use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet, BinaryHeap};
 use std::hash::Hash;
@@ -24,9 +25,8 @@ pub use mutex::LenCachingMutex;
 pub use rwlock::LenCachingRwLock;
 
 /// Implement to allow a type with a len() method to be used
-/// with [`LenCachingMutex`](struct.LenCachingMutex.html)
-/// or  [`LenCachingRwLock`](struct.LenCachingRwLock.html)
-
+/// with [`LenCachingMutex`](mutex/struct.LenCachingMutex.html)
+/// or  [`LenCachingRwLock`](rwlock/struct.LenCachingRwLock.html)
 pub trait Len {
 	fn len(&self) -> usize;
 }

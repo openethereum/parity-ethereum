@@ -18,10 +18,10 @@ use std::ops::{Deref, DerefMut};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-use parking_lot::{Mutex, MutexGuard as InnerMutexGuard};
+use parking_lot::{Mutex, MutexGuard};
 
 use Len;
-/// Can be used in place of a `Mutex` where reading `T`'s `len()` without 
+/// Can be used in place of a [`Mutex`](../../lock_api/struct.Mutex.html) where reading `T`'s `len()` without 
 /// needing to lock, is advantageous. 
 /// When the Guard is released, `T`'s `len()` will be cached.
 /// The cached `len()` may be at most 1 lock behind current state.
@@ -39,7 +39,7 @@ impl<T: Len> LenCachingMutex<T> {
 		}
 	}
 
-	/// Load the value returned from your `T`'s `len()`
+	/// Load the cached value that was returned from your `T`'s `len()`
 	/// subsequent to the most recent lock being released.
 	pub fn load_len(&self) -> usize {
 		self.len.load(Ordering::SeqCst)
@@ -50,17 +50,19 @@ impl<T: Len> LenCachingMutex<T> {
 		self.len.load(Ordering::SeqCst) == 0
 	}
 
-	/// Delegates to `parking_lot::Mutex` `lock()`
-	pub fn lock(&self) -> MutexGuard<T> {
-		MutexGuard {
+	/// Delegates to `parking_lot::Mutex`
+	/// [`lock()`](../../lock_api/struct.Mutex.html#method.lock).
+	pub fn lock(&self) -> CachingMutexGuard<T> {
+		CachingMutexGuard {
 			mutex_guard: self.data.lock(),
 			len: &self.len,
 		}
 	}
 
-	/// Delegates to `parking_lot::Mutex` `try_lock()`
-	pub fn try_lock(&self) -> Option<MutexGuard<T>> {
-		Some( MutexGuard {
+	/// Delegates to `parking_lot::Mutex`
+	/// [`try_lock()`](../../lock_api/struct.Mutex.html#method.try_lock).
+	pub fn try_lock(&self) -> Option<CachingMutexGuard<T>> {
+		Some( CachingMutexGuard {
 			mutex_guard: self.data.try_lock()?,
 			len: &self.len,
 		})
@@ -68,35 +70,39 @@ impl<T: Len> LenCachingMutex<T> {
 }
 
 /// Guard comprising `MutexGuard` and `AtomicUsize` for cache
-pub struct MutexGuard<'a, T: Len + 'a> {
-	mutex_guard: InnerMutexGuard<'a, T>,
+pub struct CachingMutexGuard<'a, T: Len + 'a> {
+	mutex_guard: MutexGuard<'a, T>,
 	len: &'a AtomicUsize,
 }
 
-impl<'a, T: Len> MutexGuard<'a, T> {
-	pub fn inner_mut(&mut self) -> &mut InnerMutexGuard<'a, T> {
+impl<'a, T: Len> CachingMutexGuard<'a, T> {
+	/// Returns a mutable reference to the contained
+	/// [`MutexGuard`](../../parking_lot/mutex/type.MutexGuard.html)
+	pub fn inner_mut(&mut self) -> &mut MutexGuard<'a, T> {
 		&mut self.mutex_guard
 	}
 
-	pub fn inner(&self) -> &InnerMutexGuard<'a, T> {
+	/// Returns a non-mutable reference to the contained
+	/// [`MutexGuard`](../../parking_lot/mutex/type.MutexGuard.html)
+	pub fn inner(&self) -> &MutexGuard<'a, T> {
 		&self.mutex_guard
 	}
 }
 
-impl<'a, T: Len> Drop for MutexGuard<'a, T> {
+impl<'a, T: Len> Drop for CachingMutexGuard<'a, T> {
 	fn drop(&mut self) {
 		self.len.store(self.mutex_guard.len(), Ordering::SeqCst);
 	}
 }
 
-impl<'a, T: Len> Deref for MutexGuard<'a, T> {
+impl<'a, T: Len> Deref for CachingMutexGuard<'a, T> {
 	type Target = T;
 	fn deref(&self)	-> &T {
 		self.mutex_guard.deref()
 	}
 }
 
-impl<'a, T: Len> DerefMut for MutexGuard<'a, T> {
+impl<'a, T: Len> DerefMut for CachingMutexGuard<'a, T> {
 	fn deref_mut(&mut self)	-> &mut T {
 		self.mutex_guard.deref_mut()
 	}
