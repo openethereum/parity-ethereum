@@ -31,6 +31,7 @@ ethereum-types = "0.4"
 memory-cache = { path = "../util/memory_cache" }
 ethabi = "6.0"
 ethabi-derive = "6.0"
+threshold_crypto = "*"
 ethabi-contract = "6.0"
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
@@ -75,6 +76,7 @@ failure = "0.1"
 futures = "0.1"
 parity-runtime = { path = "../util/runtime" }
 tokio = "~0.1.13"
+crypto = "*"
 # hydrabadger = { path = "../../hydrabadger"}
 hydrabadger = { git = "https://github.com/poanetwork/hydrabadger", rev = "25a126a"}
 

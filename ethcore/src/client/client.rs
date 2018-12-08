@@ -80,7 +80,7 @@ use verification::{PreverifiedBlock, Verifier, BlockQueue};
 use verification::queue::kind::blocks::Unverified;
 use verification::queue::kind::BlockLike;
 
-use hbbft::{HbbftDaemon, HbbftClientExt};
+use hbbft::{HbbftDaemon, HbbftClientExt, Contribution};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -2441,6 +2441,10 @@ impl super::traits::EngineClient for Client {
 
 	fn get_engine_name(&self) -> Option<&str> {
 		Some(self.engine.name())
+	}
+
+	fn get_hydrabadger(&self) -> Option<hydrabadger::Hydrabadger<Contribution>> {
+		self.get_hydrabadger()
 	}
 }
 

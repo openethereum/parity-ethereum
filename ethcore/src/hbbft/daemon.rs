@@ -63,7 +63,7 @@ fn xor_slices<'a, T>(dest: &'a mut [T], src: &'a [T])
 
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Serialize, Deserialize)]
-pub(super) struct Contribution {
+pub struct Contribution {
 	transactions: Vec<Vec<u8>>,
 	timestamp: u64,
 	/// Random data for on-chain randomness.

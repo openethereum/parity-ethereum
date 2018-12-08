@@ -212,32 +212,27 @@ impl Engine<EthereumMachine> for Hbbft {
 
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		debug!(target: "engine", "####### Hbbft::generate_seal: Called for block: {:?}.", block);
-		// match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-		//	Some(client) => {
-		//		let best_block_header_num = (*client).as_full_client().unwrap().best_block_header().number();
+		match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => {
+				let best_block_header_num = (*client).as_full_client().unwrap().best_block_header().number();
 
-		//		debug!(target: "engine", "###### block.header.number(): {}, best_block_header_num: {}",
-		//			block.header.number(), best_block_header_num);
+				debug!(target: "engine", "###### block.header.number(): {}, best_block_header_num: {}",
+					block.header.number(), best_block_header_num);
 
-		//		if block.header.number() > best_block_header_num {
-		//			Seal::Regular(vec![
-		//				rlp::encode(&SEAL),
-		//				// rlp::encode(&(&H520::from(&b"Another Field"[..]) as &[u8])),
-		//			])
-		//		} else {
-		//			debug!(target: "engine", "Hbbft::generate_seal: Returning `Seal::None`.");
-		//			Seal::None
-		//		}
-		//	},
-		//	None => {
-		//		debug!(target: "engine", "No client ref available.");
-		//		Seal::None
-		//	},
-		// }
-
-		Seal::Regular(vec![
-			rlp::encode(&SEAL),
-		])
+				if block.header.number() > best_block_header_num {
+					Seal::Proposal(vec![
+						unimplemented!()
+					])
+				} else {
+					debug!(target: "engine", "Hbbft::generate_seal: Returning `Seal::None`.");
+					Seal::None
+				}
+			},
+			None => {
+				debug!(target: "engine", "No client ref available.");
+				Seal::None
+			},
+		}
 	}
 
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {

@@ -61,6 +61,7 @@ extern crate blooms_db;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
+extern crate threshold_crypto;
 extern crate common_types as types;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;

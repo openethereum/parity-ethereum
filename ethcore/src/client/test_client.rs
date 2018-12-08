@@ -939,4 +939,8 @@ impl super::traits::EngineClient for TestBlockChainClient {
 	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
 		BlockChainClient::block_header(self, id)
 	}
+
+	fn get_hydrabadger(&self) -> Option<hydrabadger::Hydrabadger<super::super::hbbft::Contribution>> {
+		unreachable!()
+	}
 }

@@ -617,4 +617,8 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		Client::block_header(self, id)
 	}
+
+	// fn get_hydrabadger(&self) -> ! {
+	// 	unreachable!()
+	// }
 }

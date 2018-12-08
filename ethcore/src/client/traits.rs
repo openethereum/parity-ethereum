@@ -38,6 +38,7 @@ use verification::queue::kind::blocks::Unverified;
 use state::StateInfo;
 use header::Header;
 use engines::EthEngine;
+use hbbft::Contribution;
 
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool::VerifiedTransaction;
@@ -465,6 +466,9 @@ pub trait EngineClient: Sync + Send + ChainInfo {
 	fn get_engine_name(&self) -> Option<&str> {
 		None
 	}
+
+	/// Gets a `HydraBadger` instance
+	fn get_hydrabadger(&self) -> Option<hydrabadger::Hydrabadger<Contribution>>;
 }
 
 /// Extended client interface for providing proofs of the state.

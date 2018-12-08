@@ -14,7 +14,7 @@ use sync::{Node, NetworkConfiguration};
 // use network;
 use hydrabadger::Config as HydrabadgerConfig;
 
-pub use self::daemon::{HbbftDaemon, HbbftClientExt};
+pub use self::daemon::{HbbftDaemon, HbbftClientExt, Contribution};
 
 ///
 pub const DEFAULT_HBBFT_PORT: u16 = 5900;
