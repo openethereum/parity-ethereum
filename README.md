@@ -1,6 +1,6 @@
 ![Parity Ethereum](docs/logo-parity-ethereum.svg)
 
-## The fastest and most advanced Ethereum client.
+<h2 align="center">The Fastest and most Advanced Ethereum Client.</h2>
 
 <p align="center"><strong><a href="https://github.com/paritytech/parity-ethereum/releases/latest">» Download the latest release «</a></strong></p>
 
