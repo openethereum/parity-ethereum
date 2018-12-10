@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature = "benches", feature(test))]
 
 //! Ethcore library
 //!
@@ -110,8 +109,10 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
+extern crate serde;
 #[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
+extern crate len_caching_mutex;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;
@@ -135,9 +136,14 @@ extern crate macros;
 extern crate rlp_derive;
 #[macro_use]
 extern crate trace_time;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;
+
+#[cfg(test)]
+extern crate env_logger;
 
 pub extern crate ethstore;
 
@@ -185,3 +191,4 @@ pub use types::*;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use blockchain::{BlockChainDB, BlockChainDBHandler};
+pub use trie::TrieSpec;

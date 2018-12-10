@@ -25,7 +25,7 @@ extern crate parking_lot;
 
 #[macro_use] extern crate log;
 
-#[cfg(test)] extern crate tokio_core;
+#[cfg(test)] extern crate tokio;
 #[cfg(test)] extern crate tokio_io;
 #[cfg(test)] extern crate ethcore_logger;
 
@@ -323,12 +323,10 @@ impl MetaExtractor<SocketMetadata> for PeerMetaExtractor {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::net::SocketAddr;
+	use std::net::{SocketAddr, Shutdown};
 	use std::sync::Arc;
 
-	use tokio_core::reactor::{Core, Timeout};
-	use tokio_core::net::TcpStream;
-	use tokio_io::io;
+	use tokio::{io, runtime::Runtime, timer::timeout::{self, Timeout}, net::TcpStream};
 	use jsonrpc_core::futures::{Future, future};
 
 	use ethcore_logger::init_log;
@@ -342,23 +340,23 @@ mod tests {
 	}
 
 	fn dummy_request(addr: &SocketAddr, data: &str) -> Vec<u8> {
-		let mut core = Core::new().expect("Tokio Core should be created with no errors");
-		let mut buffer = vec![0u8; 2048];
+		let mut runtime = Runtime::new().expect("Tokio Runtime should be created with no errors");
 
 		let mut data_vec = data.as_bytes().to_vec();
 		data_vec.extend(b"\n");
 
-		let stream = TcpStream::connect(addr, &core.handle())
-			.and_then(|stream| {
-				io::write_all(stream, &data_vec)
+		let stream = TcpStream::connect(addr)
+			.and_then(move |stream| {
+				io::write_all(stream, data_vec)
 			})
 			.and_then(|(stream, _)| {
-				io::read(stream, &mut buffer)
+				stream.shutdown(Shutdown::Write).unwrap();
+				io::read_to_end(stream, Vec::with_capacity(2048))
 			})
-			.and_then(|(_, read_buf, len)| {
-				future::ok(read_buf[0..len].to_vec())
+			.and_then(|(_stream, read_buf)| {
+				future::ok(read_buf)
 			});
-			let result = core.run(stream).expect("Core should run with no errors");
+			let result = runtime.block_on(stream).expect("Runtime should run with no errors");
 
 			result
 	}
@@ -417,7 +415,7 @@ mod tests {
 	}
 
 	#[test]
-	fn receives_initial_paylaod() {
+	fn receives_initial_payload() {
 		let addr = "127.0.0.1:19975".parse().unwrap();
 		let _stratum = Stratum::start(&addr, DummyManager::new(), None).expect("There should be no error starting stratum");
 		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 2}"#;
@@ -460,40 +458,43 @@ mod tests {
 			.to_vec();
 		auth_request.extend(b"\n");
 
-		let mut core = Core::new().expect("Tokio Core should be created with no errors");
-		let timeout1 = Timeout::new(::std::time::Duration::from_millis(100), &core.handle())
-			.expect("There should be a timeout produced in message test");
-		let timeout2 = Timeout::new(::std::time::Duration::from_millis(100), &core.handle())
-			.expect("There should be a timeout produced in message test");
-		let mut buffer = vec![0u8; 2048];
-		let mut buffer2 = vec![0u8; 2048];
-		let stream = TcpStream::connect(&addr, &core.handle())
-			.and_then(|stream| {
-				io::write_all(stream, &auth_request)
+		let auth_response = "{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1}\n";
+
+		let mut runtime = Runtime::new().expect("Tokio Runtime should be created with no errors");
+		let read_buf0 = vec![0u8; auth_response.len()];
+		let read_buf1 = Vec::with_capacity(2048);
+		let stream = TcpStream::connect(&addr)
+			.and_then(move |stream| {
+				io::write_all(stream, auth_request)
 			})
 			.and_then(|(stream, _)| {
-				io::read(stream, &mut buffer)
+				io::read_exact(stream, read_buf0)
 			})
-			.and_then(|(stream, _, _)| {
+			.map_err(|err| panic!("{:?}", err))
+			.and_then(move |(stream, read_buf0)| {
+				assert_eq!(String::from_utf8(read_buf0).unwrap(), auth_response);
 				trace!(target: "stratum", "Received authorization confirmation");
-				timeout1.join(future::ok(stream))
+				Timeout::new(future::ok(stream), ::std::time::Duration::from_millis(100))
 			})
-			.and_then(|(_, stream)| {
+			.map_err(|err: timeout::Error<()>| panic!("Timeout: {:?}", err))
+			.and_then(move |stream| {
 				trace!(target: "stratum", "Pusing work to peers");
 				stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned())
 					.expect("Pushing work should produce no errors");
-				timeout2.join(future::ok(stream))
+				Timeout::new(future::ok(stream), ::std::time::Duration::from_millis(100))
 			})
-			.and_then(|(_, stream)| {
+			.map_err(|err: timeout::Error<()>| panic!("Timeout: {:?}", err))
+			.and_then(|stream| {
 				trace!(target: "stratum", "Ready to read work from server");
-				io::read(stream, &mut buffer2)
+				stream.shutdown(Shutdown::Write).unwrap();
+				io::read_to_end(stream, read_buf1)
 			})
-			.and_then(|(_, read_buf, len)| {
+			.and_then(|(_, read_buf1)| {
 				trace!(target: "stratum", "Received work from server");
-				future::ok(read_buf[0..len].to_vec())
+				future::ok(read_buf1)
 			});
 		let response = String::from_utf8(
-			core.run(stream).expect("Core should run with no errors")
+			runtime.block_on(stream).expect("Runtime should run with no errors")
 		).expect("Response should be utf-8");
 
 		assert_eq!(

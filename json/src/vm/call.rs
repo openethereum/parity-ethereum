@@ -23,13 +23,13 @@ use maybe::MaybeEmpty;
 
 /// Vm call deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Call {
 	/// Call data.
 	pub data: Bytes,
 	/// Call destination.
 	pub destination: MaybeEmpty<Address>,
 	/// Gas limit.
-	#[serde(rename="gasLimit")]
 	pub gas_limit: Uint,
 	/// Call value.
 	pub value: Uint,

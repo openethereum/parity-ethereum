@@ -9,15 +9,7 @@ image:                             parity/rust:gitlab-ci
 variables:
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
-  BUILD_TARGET:                    ubuntu
-  BUILD_ARCH:                      amd64
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
-
-cache:
-  key:                             "${CI_JOB_NAME}"
-  paths:
-    - ./target
-    - ./.cargo
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
@@ -49,6 +41,13 @@ test-linux:
     RUN_TESTS:                     all
   script:
     - scripts/gitlab/test-all.sh stable
+  tags:
+    - rust-stable
+
+test-audit:
+  stage:                           test
+  script:
+    - scripts/gitlab/cargo-audit.sh
   tags:
     - rust-stable
 
@@ -112,56 +111,28 @@ publish-awss3:
   tags:
     - shell
 
-docs-jsonrpc:
-  stage:                            optional
+publish-docs:
+  stage:                            publish
   only:
     - tags
   except:
     - nightly
   cache: {}
   script:
-    - scripts/gitlab/docs-jsonrpc.sh
+    - scripts/gitlab/publish-docs.sh
   tags:
     - shell
 
-cargo-audit:
-  stage:                           optional
-  script:
-    - scripts/gitlab/cargo-audit.sh
-  tags:
-    - rust-stable
-
-test-android:
+build-android:
   stage:                           optional
   image:                           parity/rust-android:gitlab-ci
   variables:
     CARGO_TARGET:                  armv7-linux-androideabi
   script:
-    - scripts/gitlab/test-all.sh stable
+    - scripts/gitlab/build-unix.sh
   tags:
     - rust-arm
-
-test-darwin:
-  stage:                           optional
-  variables:
-    CARGO_TARGET:                  x86_64-apple-darwin
-    CC:                            gcc
-    CXX:                           g++
-    RUN_TESTS:                     cargo
-  script:
-    - scripts/gitlab/test-all.sh stable
-  tags:
-    - rust-osx
-
-test-windows:
-  stage:                           optional
-  variables:
-    CARGO_TARGET:                  x86_64-pc-windows-msvc
-    RUN_TESTS:                     cargo
-  script:
-    - sh scripts/gitlab/test-all.sh stable
-  tags:
-   - rust-windows
+  allow_failure:                   true
 
 test-beta:
   stage:                           optional
@@ -171,6 +142,7 @@ test-beta:
     - scripts/gitlab/test-all.sh beta
   tags:
     - rust-beta
+  allow_failure:                   true
 
 test-nightly:
   stage:                           optional
@@ -180,3 +152,4 @@ test-nightly:
     - scripts/gitlab/test-all.sh nightly
   tags:
     - rust-nightly
+  allow_failure:                   true

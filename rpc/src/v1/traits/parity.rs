@@ -20,10 +20,9 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
-
 use v1::types::{
-	H64, H160, H256, H512, U256, U64, Bytes, CallRequest,
-	Peers, Transaction, RpcSettings, Histogram,
+	H160, H256, H512, U256, U64, H64, Bytes, CallRequest,
+	Peers, Transaction, RpcSettings, Histogram, RecoveredAccount,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
@@ -148,6 +147,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_allTransactions")]
 		fn all_transactions(&self) -> Result<Vec<Transaction>>;
 
+		/// Same as parity_allTransactions, but return only transactions hashes.
+		#[rpc(name = "parity_allTransactionHashes")]
+		fn all_transaction_hashes(&self) -> Result<Vec<H256>>;
+
 		/// Returns all future transactions from transaction queue (deprecated)
 		#[rpc(name = "parity_futureTransactions")]
 		fn future_transactions(&self) -> Result<Vec<Transaction>>;
@@ -171,12 +174,6 @@ build_rpc_trait! {
 		/// Get the mode. Returns one of: "active", "passive", "dark", "offline".
 		#[rpc(name = "parity_mode")]
 		fn mode(&self) -> Result<String>;
-
-		/// Returns the chain ID used for transaction signing at the
-		/// current best block. None is returned if not
-		/// available.
-		#[rpc(name = "parity_chainId")]
-		fn chain_id(&self) -> Result<Option<U64>>;
 
 		/// Get the chain name. Returns one of the pre-configured chain names or a filename.
 		#[rpc(name = "parity_chain")]
@@ -229,5 +226,20 @@ build_rpc_trait! {
 		/// but returns block hash on success, and returns an explicit error message on failure).
 		#[rpc(name = "parity_submitWorkDetail")]
 		fn submit_work_detail(&self, H64, H256, H256) -> Result<H256>;
+
+		/// Returns the status of the node. Used as the health endpoint.
+		///
+		/// The RPC returns successful response if:
+		/// - The node have a peer (unless running a dev chain)
+		/// - The node is not syncing.
+		///
+		/// Otherwise the RPC returns error.
+		#[rpc(name = "parity_nodeStatus")]
+		fn status(&self) -> Result<()>;
+
+		/// Extracts Address and public key from signature using the r, s and v params. Equivalent to Solidity erecover
+		/// as well as checks the signature for chain replay protection
+		#[rpc(name = "parity_verifySignature")]
+		fn verify_signature(&self, bool, Bytes, H256, H256, U64) -> Result<RecoveredAccount>;
 	}
 }

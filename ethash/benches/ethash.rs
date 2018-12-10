@@ -14,7 +14,7 @@ use ethash::{NodeCacheBuilder, OptimizeFor};
 use ethash::compute::light_compute;
 
 fn bench_hashimoto_light(c: &mut Criterion) {
-	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 	let tempdir = TempDir::new("").unwrap();
 	let light = builder.light(&tempdir.path(), 1);
 	let h = FromHex::from_hex("c9149cc0386e689d789a1c2f3d5d169a61a6218ed30e74414dc736e442ef3d1f").unwrap();
@@ -27,7 +27,7 @@ fn bench_hashimoto_light(c: &mut Criterion) {
 }
 
 fn bench_progpow_light(c: &mut Criterion) {
-	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 	let tempdir = TempDir::new("").unwrap();
 	let cache = builder.new_cache(tempdir.into_path(), 0);
 
@@ -50,7 +50,7 @@ fn bench_progpow_light(c: &mut Criterion) {
 }
 
 fn bench_progpow_optimal_light(c: &mut Criterion) {
-	let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
+	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
 	let tempdir = TempDir::new("").unwrap();
 	let cache = builder.new_cache(tempdir.into_path(), 0);
 	let c_dag = progpow::generate_cdag(cache.as_ref());

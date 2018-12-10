@@ -32,8 +32,10 @@ use state::Account;
 use ethjson;
 use types::account_diff::*;
 use rlp::{self, RlpStream};
+use serde::Serializer;
+use rustc_hex::ToHex;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 /// An account, expressed as Plain-Old-Data (hence the name).
 /// Does not have a DB overlay cache, code hash or anything like that.
 pub struct PodAccount {
@@ -41,10 +43,17 @@ pub struct PodAccount {
 	pub balance: U256,
 	/// The nonce of the account.
 	pub nonce: U256,
+	#[serde(serialize_with="opt_bytes_to_hex")]
 	/// The code of the account or `None` in the special case that it is unknown.
 	pub code: Option<Bytes>,
 	/// The storage of the account.
 	pub storage: BTreeMap<H256, H256>,
+}
+
+fn opt_bytes_to_hex<S>(opt_bytes: &Option<Bytes>, serializer: S) -> Result<S::Ok, S::Error>
+	where S: Serializer
+{
+	serializer.collect_str(&format_args!("0x{}",opt_bytes.as_ref().map_or("".to_string(), |b|b.to_hex())))
 }
 
 impl PodAccount {

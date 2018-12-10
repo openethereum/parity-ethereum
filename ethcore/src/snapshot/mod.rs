@@ -56,7 +56,7 @@ use rand::{Rng, OsRng};
 pub use self::error::Error;
 
 pub use self::consensus::*;
-pub use self::service::{Service, DatabaseRestore};
+pub use self::service::{SnapshotClient, Service, DatabaseRestore};
 pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
 pub use types::snapshot_manifest::ManifestData;

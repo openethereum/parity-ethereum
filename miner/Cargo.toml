@@ -10,8 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 # Only work_notify, consider a separate crate
 ethash = { path = "../ethash", optional = true }
 fetch = { path = "../util/fetch", optional = true }
-hyper = { version = "0.11", optional = true }
-parity-reactor = { path = "../util/reactor", optional = true }
+hyper = { version = "0.12", optional = true }
 url = { version = "1", optional = true }
 
 # Miner
@@ -20,7 +19,7 @@ error-chain = "0.12"
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.4"
 futures = "0.1"
-futures-cpupool = "0.1"
+parity-runtime = { path = "../util/runtime" }
 heapsize = "0.4"
 keccak-hash = "0.1"
 linked-hash-map = "0.5"
@@ -37,4 +36,4 @@ ethkey = { path = "../ethkey" }
 rustc-hex = "1.0"
 
 [features]
-work-notify = ["ethash", "fetch", "hyper", "parity-reactor", "url"]
+work-notify = ["ethash", "fetch", "hyper", "url"]

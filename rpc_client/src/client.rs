@@ -274,7 +274,7 @@ impl Rpc {
 		let request = MethodCall {
 			jsonrpc: Some(Version::V2),
 			method: method.to_owned(),
-			params: Some(Params::Array(params)),
+			params: Params::Array(params),
 			id: Id::Num(id as u64),
 		};
 

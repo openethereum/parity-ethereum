@@ -25,24 +25,19 @@ use uint::Uint;
 
 /// Blockchain test header deserializer.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DifficultyTestCase {
 	/// Parent timestamp.
-	#[serde(rename="parentTimestamp")]
 	pub parent_timestamp: Uint,
 	/// Parent difficulty.
-	#[serde(rename="parentDifficulty")]
 	pub parent_difficulty: Uint,
 	/// Parent uncle hash.
-	#[serde(rename="parentUncles")]
 	pub parent_uncles: H256,
 	/// Current timestamp.
-	#[serde(rename="currentTimestamp")]
 	pub current_timestamp: Uint,
 	/// Current difficulty.
-	#[serde(rename="currentDifficulty")]
 	pub current_difficulty: Uint,
 	/// Current block number.
-	#[serde(rename="currentBlockNumber")]
 	pub current_block_number: Uint,
 }
 

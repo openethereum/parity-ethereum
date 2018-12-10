@@ -23,6 +23,7 @@ use spec::{Account, Builtin};
 
 /// Blockchain test state deserializer.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct State(BTreeMap<Address, Account>);
 
 impl State {

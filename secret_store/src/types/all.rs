@@ -75,8 +75,6 @@ pub struct ServiceConfiguration {
 /// Key server cluster configuration
 #[derive(Debug)]
 pub struct ClusterConfiguration {
-	/// Number of threads reserved by cluster.
-	pub threads: usize,
 	/// This node address.
 	pub listener_address: NodeAddress,
 	/// All cluster nodes addresses.
