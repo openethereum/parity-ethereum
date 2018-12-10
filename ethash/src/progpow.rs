@@ -209,8 +209,8 @@ fn merge(a: u32, b: u32, r: u32) -> u32 {
 	match r % 4 {
 		0 => a.wrapping_mul(33).wrapping_add(b),
 		1 => (a ^ b).wrapping_mul(33),
-		2 => a.rotate_left((r >> 16) % 32) ^ b,
-		_ => a.rotate_right((r >> 16) % 32) ^ b,
+		2 => a.rotate_left(((r >> 16) % 31) + 1) ^ b,
+		_ => a.rotate_right(((r >> 16) % 31) + 1) ^ b,
 	}
 }
 
@@ -298,7 +298,6 @@ fn progpow_loop(
 		let mut mix_seq_dst_cnt = 0;
 		let mut mix_seq_cache_cnt = 0;
 
-		let mix_src = |rnd: &mut Kiss99| rnd.next_u32() as usize % PROGPOW_REGS;
 		let mut mix_dst = || {
 			let res = mix_seq_dst[mix_seq_dst_cnt % PROGPOW_REGS] as usize;
 			mix_seq_dst_cnt += 1;
@@ -330,7 +329,15 @@ fn progpow_loop(
 
 			if i < PROGPOW_CNT_MATH {
 				// Random math
-				let data = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
+				// Generate 2 unique sources
+				let src_rnd = rnd.next_u32() % (PROGPOW_REGS * (PROGPOW_REGS - 1)) as u32;
+				let src1 = src_rnd % PROGPOW_REGS as u32; // 0 <= src1 < PROGPOW_REGS
+				let mut src2 = src_rnd / PROGPOW_REGS as u32; // 0 <= src2 < PROGPOW_REGS - 1
+				if src2 >= src1 {
+					src2 += 1; // src2 is now any reg other than src1
+				}
+
+				let data = math(mix[l][src1 as usize], mix[l][src2 as usize], rnd.next_u32());
 				let dst = mix_dst();
 
 				unsafe {
@@ -477,12 +484,12 @@ mod test {
 		let tests = [
 			(1000000u32, 101u32, 33000101u32),
 			(2000000, 102, 66003366),
-			(3000000, 103, 2999975),
-			(4000000, 104, 4000104),
+			(3000000, 103, 6000103),
+			(4000000, 104, 2000104),
 			(1000000, 0, 33000000),
 			(2000000, 0, 66000000),
-			(3000000, 0, 3000000),
-			(4000000, 0, 4000000),
+			(3000000, 0, 6000000),
+			(4000000, 0, 2000000),
 		];
 
 		for (i, &(a, b, expected)) in tests.iter().enumerate() {
@@ -563,8 +570,8 @@ mod test {
 			&c_dag,
 		);
 
-		let expected_digest = FromHex::from_hex("7ea12cfc33f64616ab7dbbddf3362ee7dd3e1e20d60d860a85c51d6559c912c4").unwrap();
-		let expected_result = FromHex::from_hex("a09ffaa0f2b5d47a98c2d4fbc0e90936710dd2b2a220fce04e8d55a6c6a093d6").unwrap();
+		let expected_digest = FromHex::from_hex("63155f732f2bf556967f906155b510c917e48e99685ead76ea83f4eca03ab12b").unwrap();
+		let expected_result = FromHex::from_hex("faeb1be51075b03a4ff44b335067951ead07a3b078539ace76fd56fc410557a3").unwrap();
 
 		assert_eq!(
 			digest.to_vec(),
