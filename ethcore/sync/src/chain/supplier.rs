@@ -127,6 +127,7 @@ impl SyncSupplier {
 
 	/// Respond to GetBlockHeaders request
 	fn return_block_headers(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
 		let max_headers: usize = r.val_at(1)?;
@@ -182,6 +183,10 @@ impl SyncSupplier {
 			} else if let Some(hdr) = io.chain().block_header(BlockId::Number(number)) {
 				data.append(&mut hdr.into_inner());
 				count += 1;
+				// Check that the packet won't be oversized
+				if data.len() > payload_soft_limit {
+					break;
+				}
 			} else {
 				// No required block.
 				break;
@@ -203,6 +208,7 @@ impl SyncSupplier {
 
 	/// Respond to GetBlockBodies request
 	fn return_block_bodies(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		let mut count = r.item_count().unwrap_or(0);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetBlockBodies request, ignoring.");
@@ -215,6 +221,10 @@ impl SyncSupplier {
 			if let Some(body) = io.chain().block_body(BlockId::Hash(r.val_at::<H256>(i)?)) {
 				data.append(&mut body.into_inner());
 				added += 1;
+				// Check that the packet won't be oversized
+				if data.len() > payload_soft_limit {
+					break;
+				}
 			}
 		}
 		let mut rlp = RlpStream::new_list(added);
@@ -225,6 +235,7 @@ impl SyncSupplier {
 
 	/// Respond to GetNodeData request
 	fn return_node_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		let mut count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetNodeData: {} entries", peer_id, count);
 		if count == 0 {
@@ -238,6 +249,10 @@ impl SyncSupplier {
 			if let Some(node) = io.chain().state_data(&r.val_at::<H256>(i)?) {
 				data.push(node);
 				added += 1;
+				// Check that the packet won't be oversized
+				if data.len() > payload_soft_limit {
+					break;
+				}
 			}
 		}
 		trace!(target: "sync", "{} -> GetNodeData: return {} entries", peer_id, added);
@@ -249,6 +264,7 @@ impl SyncSupplier {
 	}
 
 	fn return_receipts(io: &SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		let mut count = rlp.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
 		if count == 0 {
@@ -266,6 +282,10 @@ impl SyncSupplier {
 				added_receipts += receipts_bytes.len();
 				added_headers += 1;
 				if added_receipts > MAX_RECEIPTS_TO_SEND { break; }
+				// Check that the packet won't be oversized
+				if data.len() > payload_soft_limit {
+					break;
+				}
 			}
 		}
 		let mut rlp_result = RlpStream::new_list(added_headers);
