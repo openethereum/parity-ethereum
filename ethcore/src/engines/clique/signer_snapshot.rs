@@ -12,17 +12,25 @@ use std::sync::Arc;
 use account_provider::AccountProvider;
 use ethkey::Password;
 use std::borrow::BorrowMut;
+use lru_cache::LruCache;
 
 pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x00; 8];
 pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xff; 8];
 pub const NULL_AUTHOR: [u8; 20] = [0; 20];
 pub const DIFF_INTURN: u8 = 2;
 pub const DIFF_NOT_INTURN: u8 = 1;
+pub const STATE_CACHE_NUM: usize = 4096;
 
 pub enum SignerAuthorization {
 	InTurn,
 	OutOfTurn,
 	Unauthorized,
+}
+
+#[derive(PartialEq, Clone, Debug, Copy)]
+pub enum VoteType {
+	Add,
+	Remove
 }
 
 #[derive(Debug)]
@@ -32,14 +40,16 @@ pub struct CliqueBlock {
 	header: Header,
 }
 
+#[derive(Debug)]
 pub struct CliqueState {
 	epoch_length: u64,
-	states_by_hash: HashMap<H256, SnapshotState>,
+	states_by_hash: LruCache<H256, SnapshotState>,
 }
 
 #[derive(Clone, Debug)]
 pub struct SnapshotState {
-	pub votes: Vec<(Address, bool, Address)>,
+	pub votes: HashMap<(Address, Address), VoteType>, // k: (Voter, beneficiary), VoteType)
+	pub votes_history: Vec<(u64, Address, VoteType, Address)>, // blockNumber, Voter, VoteType, beneficiary
 	pub signers: Vec<Address>,
 }
 
@@ -47,13 +57,14 @@ impl CliqueState {
 	pub fn new(epoch_length: u64) -> Self {
 		CliqueState {
 			epoch_length: epoch_length,
-			states_by_hash: HashMap::new(),
+			states_by_hash: LruCache::new(STATE_CACHE_NUM),
 		}
 	}
 
 	/// Get an valid state
-	pub fn state(&self, hash: &H256) -> Option<SnapshotState> {
-		return self.states_by_hash.get(hash).cloned();
+	pub fn state(&mut self, hash: &H256) -> Option<SnapshotState> {
+		let db = self.states_by_hash.borrow_mut();
+		return db.get_mut(hash).cloned();
 	}
 
 	/// Apply an new header
@@ -61,12 +72,18 @@ impl CliqueState {
 		let db = self.states_by_hash.borrow_mut();
 
 		// make sure current hash is not in the db
-		match db.get(header.parent_hash()).cloned() {
+		match db.get_mut(header.parent_hash()).cloned() {
 			Some(ref mut new_state) => {
-				process_header(&header, new_state, self.epoch_length)?;
+				match process_header(&header, new_state, self.epoch_length) {
+					Err(e) => {
+						return Err(From::from(
+							format!("Error applying header: {}, current state: {:?}", e, new_state)
+						));
+					},
+					_ => {} ,
+				}
 				db.insert(header.hash(), new_state.clone());
 				Ok(())
-
 			}
 			None => {
 				Err(From::from(
@@ -80,19 +97,14 @@ impl CliqueState {
 	pub fn apply_checkpoint(&mut self, header: &Header) -> Result<(), Error> {
 		let db = self.states_by_hash.borrow_mut();
 		let state = &mut SnapshotState {
-			votes: Vec::new(),
+			votes: HashMap::new(),
+			votes_history: Vec::new(),
 			signers: Vec::new(),
 		};
 		process_genesis_header(header, state)?;
 		db.insert(header.hash(), state.clone());
 
 		Ok(())
-	}
-}
-
-impl std::fmt::Debug for CliqueState {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "CliqueState {{ epoch: {:?}, states: {:?} }}", self.epoch_length, self.states_by_hash)
 	}
 }
 
@@ -136,10 +148,9 @@ impl SnapshotState {
 }
 
 fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<(), Error> {
-	assert_eq!(header.number(), 0, "header is not for gensis block.");
-
 	state.signers = extract_signers(header)?;
 	state.votes.clear();
+	state.votes_history.clear();
 
 	Ok(())
 }
@@ -161,34 +172,82 @@ pub fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: 
 		}
 		SignerAuthorization::Unauthorized => {
 			return Err(From::from(
-				format!("unauthorized to sign at this time: current state: {:?}, creator: {}", state, creator )
+				format!("unauthorized to sign at this time: creator: {}", creator)
 			));
 		}
 	}
+
+	// header Authorized
 
 	// If this is checkpoint blocks
 	if header.number() % epoch_length == 0 {
 		state.signers = extract_signers(header)?;
 		state.votes.clear();
+		state.votes_history.clear();
 		return Ok(());
 	}
 
-	// non checkpoint block and no votes,  we just ignore.
-	if header.author()[0..20] == NULL_AUTHOR {
+	let beneficiary = header.author().clone();
+
+	// No vote, ignore.
+	if beneficiary[0..20] == NULL_AUTHOR {
 		return Ok(());
 	}
 
-	//TODO: votes that reach a majority consensus should have effects applied immediately to the signer list
 	let nonce = header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
-	let mut author = header.author().clone();
-	if nonce == NONCE_DROP_VOTE {
-		state.votes.push((creator, false, author));
-	} else if nonce == NONCE_AUTH_VOTE {
-		state.votes.push((creator, true, author));
+
+	let mut vote_type = VoteType::Add;
+	if NONCE_AUTH_VOTE == nonce {
+		vote_type = VoteType::Add;
+	} else if NONCE_DROP_VOTE == nonce {
+		vote_type = VoteType::Remove;
 	} else {
 		return Err(From::from("beneficiary specificed but nonce was not AUTH or DROP"));
-	}
+	};
 
-	return Ok(());
+	state.votes_history.push((header.number(), creator, vote_type, beneficiary));
+
+	// Discard any of previous votes
+	state.votes.remove(&(creator, beneficiary));
+
+	state.votes.insert((creator, beneficiary), vote_type);
+
+	// Tally up current target votes.
+	let threshold = state.signers.len() / 2;
+	let vote = state.votes.iter().filter(|(key, value)| {
+		(**key).1 == beneficiary && **value == vote_type
+	}).count();
+
+	if vote > threshold {
+		match vote_type {
+			VoteType::Add => {
+				state.signers.push(beneficiary);
+			} ,
+			VoteType::Remove => {
+				let pos = state.signers.binary_search(&beneficiary);
+				if pos.is_ok() {
+					state.signers.remove(pos.unwrap());
+				}
+			}
+		}
+
+		state.signers.sort();
+
+		// Remove all votes about or made by this beneficiary
+		{
+			let votes_copy = state.votes.clone();
+			let items: Vec<_> = votes_copy.iter().filter(|(key, value)| {
+				(**key).0 == beneficiary || (**key).1 == beneficiary
+			}).collect();
+
+			for (key, _) in items {
+				state.votes.remove(&key);
+			}
+		}
+	}
+	// No cascading votes.
+
+	Ok(())
 }
+
 

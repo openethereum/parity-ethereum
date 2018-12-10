@@ -295,8 +295,6 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
-		trace!(target: "engine", "verify_block_basic {}", _header.number());
-
 		// Ignore genisis block.
 		if _header.number() == 0 {
 			return Ok(());
@@ -309,7 +307,7 @@ impl Engine<EthereumMachine> for Clique {
 				return Err(Box::new("Checkpoint blocks need to enforce zero beneficiary").into());
 			}
 			let nonce = _header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
-			if nonce != NONCE_DROP_VOTE {
+			if nonce != &NONCE_DROP_VOTE[..] {
 				return Err(Box::new("Seal nonce zeros enforced on checkpoints").into());
 			}
 		} else {
@@ -366,6 +364,8 @@ impl Engine<EthereumMachine> for Clique {
 					if let Some(next) = c.block_header(BlockId::Hash(*last.parent_hash())) {
 						chain.push(next.decode().unwrap().clone());
 						last = chain.last().unwrap().clone();
+					} else {
+						return Err(From::from("No parent state exist."));
 					}
 				}
 
@@ -375,12 +375,22 @@ impl Engine<EthereumMachine> for Clique {
 				}
 				// Catching up state.
 				chain.reverse();
+
+				trace!(target: "engine",
+				       "verify_block_family backfilling state. last_checkpoint: {}, chain: {:?}.",
+				       last_checkpoint_number, chain);
+
 				for item in chain {
 					state.apply(item)?;
 				}
 			}
 		}
-		state.apply(header)?;
+		if (header.number() % self.epoch_length == 0) {
+			// TODO: we may still need to validate checkpoint state
+			state.apply_checkpoint(header);
+		} else {
+			state.apply(header)?;
+		}
 
 		Ok(())
 	}
