@@ -917,7 +917,7 @@ impl miner::MinerService for Miner {
 		trusted: bool
 	) -> Result<(), transaction::Error> {
 		// treat the tx as local if the option is enabled, if we have the account, or if
-		// the account is specified as local
+		// the account is specified as a Prioritized Local Addresses
 		let sender = pending.sender();
 		let treat_as_local = trusted
 			|| !self.options.tx_queue_no_unfamiliar_locals
