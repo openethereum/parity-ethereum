@@ -18,14 +18,16 @@ use compute::{FNV_PRIME, calculate_dag_item};
 use keccak::H256;
 use shared::{ETHASH_ACCESSES, ETHASH_MIX_BYTES, Node, get_data_size};
 
-const PROGPOW_LANES: usize = 32;
-const PROGPOW_REGS: usize = 16;
-const PROGPOW_CACHE_WORDS: usize = 4 * 1024;
-const PROGPOW_CNT_MEM: usize = ETHASH_ACCESSES;
-const PROGPOW_CNT_CACHE: usize = 8;
-const PROGPOW_CNT_MATH: usize = 8;
+const PROGPOW_CACHE_BYTES: usize = 16 * 1024;
+const PROGPOW_CACHE_WORDS: usize = PROGPOW_CACHE_BYTES / 4;
+const PROGPOW_CNT_CACHE: usize = 12;
+const PROGPOW_CNT_MATH: usize = 20;
+const PROGPOW_CNT_DAG: usize = ETHASH_ACCESSES;
+const PROGPOW_DAG_LOADS: usize = 4;
 const PROGPOW_MIX_BYTES: usize = 2 * ETHASH_MIX_BYTES;
 const PROGPOW_PERIOD_LENGTH: usize = 50; // blocks per progpow epoch (N)
+const PROGPOW_LANES: usize = 16;
+const PROGPOW_REGS: usize = 32;
 
 const FNV_HASH: u32 = 0x811c9dc5;
 
@@ -191,9 +193,9 @@ fn fill_mix(seed: u64, lane_id: u32) -> [u32; PROGPOW_REGS] {
 
 	let mut mix = [0; PROGPOW_REGS];
 
-	debug_assert_eq!(PROGPOW_REGS, 16);
+	debug_assert_eq!(PROGPOW_REGS, 32);
 	unroll! {
-		for i in 0..16 {
+		for i in 0..32 {
 			mix[i] = rnd.next_u32();
 		}
 	}
@@ -228,7 +230,7 @@ fn math(a: u32, b: u32, r: u32) -> u32 {
 	}
 }
 
-fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
+fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS], [u32; PROGPOW_REGS]) {
 	let z = fnv1a_hash(FNV_HASH, seed as u32);
 	let w = fnv1a_hash(z, (seed >> 32) as u32);
 	let jsr = fnv1a_hash(w, seed as u32);
@@ -236,26 +238,32 @@ fn progpow_init(seed: u64) -> (Kiss99, [u32; PROGPOW_REGS]) {
 
 	let mut rnd = Kiss99::new(z, w, jsr, jcong);
 
-	// Create a random sequence of mix destinations for merge() guaranteeing
-	// every location is touched once. Uses Fisher–Yates shuffle
-	let mut mix_seq = [0u32; PROGPOW_REGS];
-	for i in 0..mix_seq.len() {
-		mix_seq[i] = i as u32;
+	// Create a random sequence of mix destinations for merge() and mix sources
+	// for cache reads guarantees every destination merged once and guarantees
+	// no duplicate cache reads, which could be optimized away. Uses
+	// Fisher-Yates shuffle.
+	let mut mix_seq_dst = [0u32; PROGPOW_REGS];
+	let mut mix_seq_cache = [0u32; PROGPOW_REGS];
+	for i in 0..mix_seq_dst.len() {
+		mix_seq_dst[i] = i as u32;
+		mix_seq_cache[i] = i as u32;
 	}
 
-	for i in (1..mix_seq.len()).rev() {
-		let j = rnd.next_u32() as usize % (i + 1);
-
+	for i in (1..mix_seq_dst.len()).rev() {
 		unsafe {
-			// NOTE: `i` takes values from the range [1..15] and `j` takes
-			// values from the the range [0..i]. This way it is guaranteed that
-			// the indices are always within the range of `mix_seq` and we can
-			// skip the bounds checking.
-			::std::ptr::swap(&mut mix_seq[i], mix_seq.get_unchecked_mut(j));
+			// NOTE: `i` takes values from the range [1..PROGPOW_REGS] and `j`
+			// takes values from the the range [0..i]. This way it is guaranteed
+			// that the indices are always within the range of `mix_seq_dst` and
+			// `mix_seq_cache` and we can skip the bounds checking.
+			let j = rnd.next_u32() as usize % (i + 1);
+			::std::ptr::swap(&mut mix_seq_dst[i], mix_seq_dst.get_unchecked_mut(j));
+
+			let j = rnd.next_u32() as usize % (i + 1);
+			::std::ptr::swap(&mut mix_seq_cache[i], mix_seq_cache.get_unchecked_mut(j));
 		}
 	}
 
-	(rnd, mix_seq)
+	(rnd, mix_seq_dst, mix_seq_cache)
 }
 
 pub type CDag = [u32; PROGPOW_CACHE_WORDS];
@@ -268,8 +276,10 @@ fn progpow_loop(
 	c_dag: &CDag,
 	data_size: usize,
 ) {
-	let g_offset = mix[loop_ % PROGPOW_LANES][0] as usize % data_size;
-	let g_offset = g_offset * PROGPOW_LANES;
+	// All lanes share a base address for the global load. Global offset uses
+	// mix[0] to guarantee it depends on the load result.
+	let g_offset = mix[loop_ % PROGPOW_LANES][0] as usize %
+		(64 * data_size / (PROGPOW_LANES * PROGPOW_DAG_LOADS));
 
 	let mut node = unsafe {
 		// NOTE: `node` will always be initialized on the first iteration of the
@@ -278,67 +288,77 @@ fn progpow_loop(
 		::std::mem::uninitialized()
 	};
 
-	debug_assert_eq!(g_offset % 8, 0);
-
 	// Lanes can execute in parallel and will be convergent
 	for l in 0..mix.len() {
-		let index = g_offset + l;
+		// Initialize the seed and mix destination sequence
+		let (mut rnd, mix_seq_dst, mix_seq_cache) = progpow_init(seed);
+		let mut mix_seq_dst_cnt = 0;
+		let mut mix_seq_cache_cnt = 0;
 
-		if index % 8 == 0 {
-			node = calculate_dag_item((index / 8) as u32, cache);
+		let mix_src = |rnd: &mut Kiss99| rnd.next_u32() as usize % PROGPOW_REGS;
+		let mut mix_dst = || {
+			let res = mix_seq_dst[mix_seq_dst_cnt % PROGPOW_REGS] as usize;
+			mix_seq_dst_cnt += 1;
+			res
+		};
+		let mut mix_cache = || {
+			let res = mix_seq_cache[mix_seq_cache_cnt % PROGPOW_REGS] as usize;
+			mix_seq_cache_cnt += 1;
+			res
+		};
+
+		for i in 0..PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH) {
+			if i < PROGPOW_CNT_CACHE {
+	            // Cached memory access, lanes access random 32-bit locations
+ 				// within the first portion of the DAG
+				let offset = mix[l][mix_cache()] as usize % PROGPOW_CACHE_WORDS;
+				let data = c_dag[offset];
+				let dst = mix_dst();
+
+				unsafe {
+					// NOTE: `dst` is taken from `mix_seq` whose values are
+					// always defined in the range [0..15] (they are initialised
+					// in `progpow_init` and we bind it as immutable). Thus, it
+					// is guaranteed that the index is always within range of
+					// `mix[l][dst]`.
+					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data, rnd.next_u32());
+				}
+			}
+
+			if i < PROGPOW_CNT_MATH {
+				// Random math
+                let data = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
+				let dst = mix_dst();
+
+				unsafe {
+					// NOTE: Same as above.
+					*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data, rnd.next_u32());
+				}
+			}
+		}
+
+		if l % 4 == 0 {
+			let index = g_offset * PROGPOW_LANES * 4 + l * 4;
+			node = calculate_dag_item(index as u32 / 16, cache);
 		}
 
 		// Global load to sequential locations
-		let data64 = node.as_dwords()[index % 8];
-
-		// Initialize the seed and mix destination sequence
-		let (mut rnd, mix_seq) = progpow_init(seed);
-		let mut mix_seq_cnt = 0;
-
-		debug_assert_eq!(PROGPOW_CNT_CACHE, 8);
-		debug_assert_eq!(PROGPOW_CNT_MATH, 8);
-		for _ in 0..8 { // PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH)
-			// if i < PROGPOW_CNT_CACHE
-			// Cached memory access lanes access random location
-			let src = rnd.next_u32() as usize % PROGPOW_REGS;
-			let offset = mix[l][src] as usize % PROGPOW_CACHE_WORDS;
-			let data32 = c_dag[offset];
-
-			let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
-			mix_seq_cnt += 1;
-
-			unsafe {
-				// NOTE: `dst` is taken from `mix_seq` whose values are
-				// always defined in the range [0..15] (they are initialised
-				// in `progpow_init` and we bind it as immutable). Thus, it
-				// is guaranteed that the index is always within range of
-				// `mix[l][dst]`.
-				*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
-			}
-
-			// if i < PROGPOW_CNT_MATH
-			// Random math
-			let src1 = rnd.next_u32() as usize % PROGPOW_REGS;
-			let src2 = rnd.next_u32() as usize % PROGPOW_REGS;
-			let data32 = math(mix[l][src1], mix[l][src2], rnd.next_u32());
-
-			let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
-			mix_seq_cnt += 1;
-
-			unsafe {
-				// NOTE: Same as above.
-				*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data32, rnd.next_u32());
-			}
+		let mut data_g = [0u32; PROGPOW_DAG_LOADS];
+		let index = 4 * (l % 4);
+		for i in 0..PROGPOW_DAG_LOADS {
+			data_g[i] = node.as_words()[index + i];
 		}
 
-		// Consume the global load data at the very end of the loop.
-		// Allows full latency hiding
-		mix[l][0] = merge(mix[l][0], data64 as u32, rnd.next_u32());
-
-		let dst = mix_seq[mix_seq_cnt % PROGPOW_REGS] as usize;
-		unsafe {
-			// NOTE: Same as above.
-			*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), (data64 >> 32) as u32, rnd.next_u32());
+		// Consume the global load data at the very end of the loop to allow
+		// full latency hiding. Always merge into `mix[0]` to feed the offset
+		// calculation.
+		mix[l][0] = merge(mix[l][0], data_g[0], rnd.next_u32());
+		for i in 1..PROGPOW_DAG_LOADS {
+			let dst = mix_dst();
+			unsafe {
+				// NOTE: Same as above.
+				*mix[l].get_unchecked_mut(dst) = merge(*mix[l].get_unchecked(dst), data_g[i], rnd.next_u32());
+			}
 		}
 	}
 }
@@ -369,7 +389,7 @@ pub fn progpow(
 
 	// Execute the randomly generated inner loop
 	let period = block_number / PROGPOW_PERIOD_LENGTH as u64;
-	for i in 0..PROGPOW_CNT_MEM {
+	for i in 0..PROGPOW_CNT_DAG {
 		progpow_loop(
 			period,
 			i,
@@ -545,8 +565,8 @@ mod test {
 			&c_dag,
 		);
 
-		let expected_digest = FromHex::from_hex("5391770a00140cfab1202df86ab47fb86bb299fe4386e6d593d4416b9414df92").unwrap();
-		let expected_result = FromHex::from_hex("d46c7c0a927acead9f943bee6ed95bba40dfbe6c24b232af3e7764f6c8849d41").unwrap();
+		let expected_digest = FromHex::from_hex("752b1d57497c9f66686acfa9a8251d4e2ad30dd9d09c536aed7085ee1ad69132").unwrap();
+		let expected_result = FromHex::from_hex("efc5c1fe4726469763ceb5fdcf3022b2915f9f36080b096da7c6e71fa34b6c26").unwrap();
 
 		assert_eq!(
 			digest.to_vec(),
