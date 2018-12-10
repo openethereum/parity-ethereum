@@ -37,7 +37,7 @@ use engines::ForkChoice;
 use ethereum_types::{H256, Bloom, BloomRef, U256};
 use error::Error as EthcoreError;
 use header::*;
-use mem::{MallocSizeOf, alloc::new_malloc_size_ops};
+use mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use itertools::Itertools;
 use kvdb::{DBTransaction, KeyValueDB};
 use log_entry::{LogEntry, LocalizedLogEntry};
