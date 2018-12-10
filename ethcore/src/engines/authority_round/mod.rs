@@ -81,6 +81,8 @@ pub struct AuthorityRoundParams {
 	pub empty_steps_transition: u64,
 	/// Number of accepted empty steps.
 	pub maximum_empty_steps: usize,
+	/// Transition block to strict empty steps validation.
+	pub strict_empty_steps_transition: u64,
 }
 
 const U16_MAX: usize = ::std::u16::MAX as usize;
@@ -110,6 +112,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
 			maximum_empty_steps: p.maximum_empty_steps.map_or(0, Into::into),
+			strict_empty_steps_transition: p.strict_empty_steps_transition.map_or(0, Into::into),
 		}
 	}
 }
@@ -421,6 +424,7 @@ pub struct AuthorityRound {
 	maximum_uncle_count_transition: u64,
 	maximum_uncle_count: usize,
 	empty_steps_transition: u64,
+	strict_empty_steps_transition: u64,
 	maximum_empty_steps: usize,
 	machine: EthereumMachine,
 }
@@ -674,6 +678,7 @@ impl AuthorityRound {
 				maximum_uncle_count: our_params.maximum_uncle_count,
 				empty_steps_transition: our_params.empty_steps_transition,
 				maximum_empty_steps: our_params.maximum_empty_steps,
+				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
 				machine: machine,
 			});
 
@@ -1250,8 +1255,11 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
 		let empty_steps_len = if header.number() >= self.empty_steps_transition {
 			let validate_empty_steps = || -> Result<usize, Error> {
+				let strict_empty_steps = header.number() >= self.strict_empty_steps_transition;
 				let empty_steps = header_empty_steps(header)?;
 				let empty_steps_len = empty_steps.len();
+				let mut prev_empty_step = 0;
+
 				for empty_step in empty_steps {
 					if empty_step.step <= parent_step || empty_step.step >= step {
 						Err(EngineError::InsufficientProof(
@@ -1267,7 +1275,20 @@ impl Engine<EthereumMachine> for AuthorityRound {
 						Err(EngineError::InsufficientProof(
 							format!("invalid empty step proof: {:?}", empty_step)))?;
 					}
+
+					if strict_empty_steps {
+						if empty_step.step <= prev_empty_step {
+							Err(EngineError::InsufficientProof(format!(
+								"{} empty step: {:?}",
+								if empty_step.step == prev_empty_step { "duplicate" } else { "unordered" },
+								empty_step
+							)))?;
+						}
+
+						prev_empty_step = empty_step.step;
+					}
 				}
+
 				Ok(empty_steps_len)
 			};
 
@@ -1539,6 +1560,7 @@ mod tests {
 			block_reward: Default::default(),
 			block_reward_contract_transition: 0,
 			block_reward_contract: Default::default(),
+			strict_empty_steps_transition: 0,
 		};
 
 		// mutate aura params
@@ -2248,7 +2270,7 @@ mod tests {
 		// then
 		assert_insufficient_proof(
 			engine.verify_block_family(&header, &parent),
-			"test"
+			"duplicate empty step"
 		);
 	}
 
@@ -2287,16 +2309,12 @@ mod tests {
 		// then make sure it's rejected because of the order
 		assert_insufficient_proof(
 			engine.verify_block_family(&header, &parent),
-			"test"
+			"unordered empty step"
 		);
 
 		// now try to fix the order
 		empty_steps.reverse();
 		set_empty_steps_seal(&mut header, step, &signature, &empty_steps);
-		assert_insufficient_proof(
-			engine.verify_block_family(&header, &parent),
-			"test"
-		);
 		assert_eq!(engine.verify_block_family(&header, &parent).unwrap(), ());
 	}
 }
