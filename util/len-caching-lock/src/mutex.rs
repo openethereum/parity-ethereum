@@ -21,6 +21,7 @@ use std::sync::atomic::Ordering;
 use parking_lot::{Mutex, MutexGuard};
 
 use Len;
+
 /// Can be used in place of a [`Mutex`](../../lock_api/struct.Mutex.html) where reading `T`'s `len()` without 
 /// needing to lock, is advantageous. 
 /// When the Guard is released, `T`'s `len()` will be cached.
@@ -62,7 +63,7 @@ impl<T: Len> LenCachingMutex<T> {
 	/// Delegates to `parking_lot::Mutex`
 	/// [`try_lock()`](../../lock_api/struct.Mutex.html#method.try_lock).
 	pub fn try_lock(&self) -> Option<CachingMutexGuard<T>> {
-		Some( CachingMutexGuard {
+		Some(CachingMutexGuard {
 			mutex_guard: self.data.try_lock()?,
 			len: &self.len,
 		})

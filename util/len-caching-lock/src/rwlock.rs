@@ -26,8 +26,8 @@ use Len;
 /// reading `T`'s `len()` without needing to lock, is advantageous. 
 /// When the WriteGuard is released, `T`'s `len()` will be cached.
 pub struct LenCachingRwLock<T> {
-  data: RwLock<T>,
-  len: AtomicUsize,
+	data: RwLock<T>,
+	len: AtomicUsize,
 }
 
 impl<T: Len> LenCachingRwLock<T> {
@@ -62,7 +62,7 @@ impl<T: Len> LenCachingRwLock<T> {
 	/// Delegates to `parking_lot::RwLock`
 	/// [`try_write()`](../../lock_api/struct.RwLock.html#method.try_write).
 	pub fn try_write(&self) -> Option<CachingRwLockWriteGuard<T>> {
-		Some( CachingRwLockWriteGuard {
+		Some(CachingRwLockWriteGuard {
 			write_guard: self.data.try_write()?,
 			len: &self.len,
 		})

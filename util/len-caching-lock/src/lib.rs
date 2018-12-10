@@ -37,6 +37,7 @@
 //!		// Also has convenience method to check if empty
 //!		assert!(!len_caching_mutex.load_is_empty());
 //!	}
+//!	```
 
 extern crate parking_lot;
 use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet, BinaryHeap};
