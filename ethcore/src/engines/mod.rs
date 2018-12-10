@@ -124,7 +124,7 @@ pub enum Seal {
 	Proposal(Vec<Bytes>),
 	/// Regular block seal; should be part of the blockchain.
 	Regular(Vec<Bytes>),
-	/// Engine does generate seal for this block right now.
+	/// Engine does not generate seal for this block right now.
 	None,
 }
 

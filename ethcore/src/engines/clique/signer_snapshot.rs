@@ -1,7 +1,7 @@
 use std::sync::Weak;
-use client::EngineClient;
+use client::{EngineClient, BlockId};
 use ethkey::{public_to_address, Signature};
-use ethereum_types::{Address, H256};
+use ethereum_types::{Address, H256, U256};
 use std::collections::{HashMap, VecDeque};
 use engines::clique::{SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH, recover};
 use error::Error;
@@ -11,12 +11,13 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 use account_provider::AccountProvider;
 use ethkey::Password;
+use std::borrow::BorrowMut;
 
-pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x0; 8];
-pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xf; 8];
+pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x00; 8];
+pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xff; 8];
 pub const NULL_AUTHOR: [u8; 20] = [0; 20];
-pub const DIFF_INTURN: &[u64; 4] = &[1, 0, 0, 0];
-pub const DIFF_NOT_INTURN: &[u64; 4] = &[2, 0, 0, 0];
+pub const DIFF_INTURN: u8 = 2;
+pub const DIFF_NOT_INTURN: u8 = 1;
 
 pub enum SignerAuthorization {
 	InTurn,
@@ -24,232 +25,170 @@ pub enum SignerAuthorization {
 	Unauthorized,
 }
 
-pub struct SignerSnapshot {
-	pub signer: RwLock<EngineSigner>,
-	pub bn: RwLock<u64>,
-	pub epoch_length: u64,
-	pub pending_state: RwLock<SnapshotState>,
-	pub final_state: RwLock<SnapshotState>,
+#[derive(Debug)]
+pub struct CliqueBlock {
+	is_checkpoint_block: bool,
+	creator: Address,
+	header: Header,
 }
 
-#[derive(Clone)]
+pub struct CliqueState {
+	epoch_length: u64,
+	states_by_hash: HashMap<H256, SnapshotState>,
+}
+
+#[derive(Clone, Debug)]
 pub struct SnapshotState {
-	pub votes: HashMap<Address, (bool, Address)>,
+	pub votes: Vec<(Address, bool, Address)>,
 	pub signers: Vec<Address>,
-	pub recents: VecDeque<Address>,
 }
 
-impl SignerSnapshot {
-	fn extract_signers(&self, _header: &Header) -> Result<Vec<Address>, Error> {
-		assert_eq!(_header.number() % self.epoch_length == 0, true, "header is not an epoch block");
-
-		let min_extra_data_size = (SIGNER_VANITY_LENGTH as usize) + (SIGNER_SIG_LENGTH as usize);
-
-		assert!(_header.extra_data().len() >= min_extra_data_size, "need minimum genesis extra data size {}.  found {}.", min_extra_data_size, _header.extra_data().len());
-
-		// extract only the portion of extra_data which includes the signer list
-		let signers_raw = &_header.extra_data()[(SIGNER_VANITY_LENGTH as usize).._header.extra_data().len() - (SIGNER_SIG_LENGTH as usize)];
-
-		assert_eq!(signers_raw.len() % 20, 0, "bad signer list length {}", signers_raw.len());
-
-		let num_signers = signers_raw.len() / 20;
-		let mut signers_list: Vec<Address> = vec![];
-
-		for i in 0..num_signers {
-			let mut signer = Address::default();
-			signer.copy_from_slice(&signers_raw[i * 20..(i + 1) * 20]);
-			signers_list.push(signer);
-		}
-
-		trace!(target: "engine", "extracted signers {:?}", &signers_list);
-		Ok(signers_list)
-	}
-
-	pub fn get_signers(&self) -> Vec<Address> {
-		self.final_state.read().signers.clone()
-	}
-
-	pub fn get_signer(&self) -> Option<Address> {
-		self.signer.read().address()
-	}
-
-	pub fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-		self.signer.write().set(ap, address, password);
-	}
-
-	// finalize the pending state
-	pub fn commit(&self) -> Option<()> {
-		{
-			let pending_state = self.pending_state.read();
-			*self.final_state.write() = pending_state.clone();
-		}
-
-		{
-			let mut pending_state = self.pending_state.write();
-			let final_state = self.final_state.read();
-			*pending_state = SnapshotState {
-				votes: HashMap::<Address, (bool, Address)>::new(),
-				signers: final_state.signers.clone(),
-				recents: final_state.recents.clone(),
-			};
-
-			let mut bn = *self.bn.write();
-			bn += 1;
-		}
-
-		return Some(());
-	}
-
-	// reset the pending state to the previously finalized state
-	pub fn rollback(&self) {
-		let final_state = self.final_state.read();
-		let mut pending_state = self.pending_state.write();
-		*pending_state = SnapshotState {
-			votes: HashMap::<Address, (bool, Address)>::new(),
-			signers: final_state.signers.clone(),
-			recents: final_state.recents.clone(),
-		}
-	}
-
+impl CliqueState {
 	pub fn new(epoch_length: u64) -> Self {
-		return SignerSnapshot {
-			pending_state: RwLock::new(SnapshotState {
-				votes: HashMap::<Address, (bool, Address)>::new(),
-				signers: vec![],
-				recents: VecDeque::<Address>::new(),
-			}),
-			final_state: RwLock::new(SnapshotState {
-				votes: HashMap::<Address, (bool, Address)>::new(),
-				signers: vec![],
-				recents: VecDeque::<Address>::new(),
-			}),
-			bn: RwLock::new(0),
+		CliqueState {
 			epoch_length: epoch_length,
-			signer: Default::default(),
-		};
-	}
-
-	pub fn get_own_authorization(&self) -> SignerAuthorization {
-		if let Some(ref address) = self.signer.read().address() {
-			return self.get_signer_authorization(address.clone());
-		} else {
-			return SignerAuthorization::Unauthorized;
+			states_by_hash: HashMap::new(),
 		}
 	}
 
-	pub fn get_signer_authorization(&self, author: Address) -> SignerAuthorization {
-		let final_state = &*self.pending_state.read();
-		if let Some(pos) = final_state.signers.iter().position(|x| self.signer.read().address().unwrap() == *x) {
-			if *self.bn.read() % final_state.signers.len() as u64 == pos as u64 {
+	/// Get an valid state
+	pub fn state(&self, hash: &H256) -> Option<SnapshotState> {
+		return self.states_by_hash.get(hash).cloned();
+	}
+
+	/// Apply an new header
+	pub fn apply(&mut self, header: &Header) -> Result<(), Error> {
+		let db = self.states_by_hash.borrow_mut();
+
+		// make sure current hash is not in the db
+		match db.get(header.parent_hash()).cloned() {
+			Some(ref mut new_state) => {
+				process_header(&header, new_state, self.epoch_length)?;
+				db.insert(header.hash(), new_state.clone());
+				Ok(())
+
+			}
+			None => {
+				Err(From::from(
+					format!("Parent block (hash: {}) for Block {}, hash {} is not found!",
+					        header.parent_hash(),
+					        header.number(), header.hash() )))
+			}
+		}
+	}
+
+	pub fn apply_checkpoint(&mut self, header: &Header) -> Result<(), Error> {
+		let db = self.states_by_hash.borrow_mut();
+		let state = &mut SnapshotState {
+			votes: Vec::new(),
+			signers: Vec::new(),
+		};
+		process_genesis_header(header, state)?;
+		db.insert(header.hash(), state.clone());
+
+		Ok(())
+	}
+}
+
+impl std::fmt::Debug for CliqueState {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "CliqueState {{ epoch: {:?}, states: {:?} }}", self.epoch_length, self.states_by_hash)
+	}
+}
+
+fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
+	let min_extra_data_size = (SIGNER_VANITY_LENGTH as usize) + (SIGNER_SIG_LENGTH as usize);
+
+	assert!(header.extra_data().len() >= min_extra_data_size, "need minimum genesis extra data size {}.  found {}.", min_extra_data_size, header.extra_data().len());
+
+	// extract only the portion of extra_data which includes the signer list
+	let signers_raw = &header.extra_data()[(SIGNER_VANITY_LENGTH as usize)..header.extra_data().len() - (SIGNER_SIG_LENGTH as usize)];
+
+	assert_eq!(signers_raw.len() % 20, 0, "bad signer list length {}", signers_raw.len());
+
+	let num_signers = signers_raw.len() / 20;
+	let mut signers_list: Vec<Address> = vec![];
+
+	for i in 0..num_signers {
+		let mut signer = Address::default();
+		signer.copy_from_slice(&signers_raw[i * 20..(i + 1) * 20]);
+		signers_list.push(signer);
+	}
+	// NOTE: base on geth implmentation , signers list area always sorted to ascending order.
+	signers_list.sort();
+
+	trace!(target: "engine", "extracted signers {:?}", &signers_list);
+	Ok(signers_list)
+}
+
+impl SnapshotState {
+	pub fn get_signer_authorization(&self, currentBlockNumber: u64, author: Address) -> SignerAuthorization {
+		// TODO: Implement recent signer check list.
+		if let Some(pos) = self.signers.iter().position(|x| author == *x) {
+			if currentBlockNumber % self.signers.len() as u64 == pos as u64 {
 				return SignerAuthorization::InTurn;
 			} else {
-				if final_state.recents.contains(&self.signer_address().unwrap()) {
-					return SignerAuthorization::Unauthorized;
-				} else {
-					return SignerAuthorization::OutOfTurn;
-				}
+				return SignerAuthorization::OutOfTurn;
 			}
 		}
-
 		return SignerAuthorization::Unauthorized;
 	}
+}
 
-	/*
-	// apply a block that we sealed
-	fn apply_own(&mut self, _header: &Header) -> Result<(), Error> {
+fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<(), Error> {
+	assert_eq!(header.number(), 0, "header is not for gensis block.");
 
+	state.signers = extract_signers(header)?;
+	state.votes.clear();
+
+	Ok(())
+}
+
+pub fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64) -> Result<(), Error> {
+	// Check signature & dificulty
+	let creator = public_to_address(&recover(header).unwrap()).clone();
+
+	match state.get_signer_authorization(header.number(),creator) {
+		SignerAuthorization::InTurn => {
+			if *header.difficulty() != U256::from(DIFF_INTURN) {
+				return Err(From::from("difficulty must be set to DIFF_INTURN"));
+			}
+		}
+		SignerAuthorization::OutOfTurn => {
+			if *header.difficulty() != U256::from(DIFF_NOT_INTURN) {
+				return Err(From::from("difficulty must be set to DIFF_NOT_INTURN"));
+			}
+		}
+		SignerAuthorization::Unauthorized => {
+			return Err(From::from(
+				format!("unauthorized to sign at this time: current state: {:?}, creator: {}", state, creator )
+			));
+		}
 	}
 
-	fn apply_external(&mut self, _header: &Header) -> Result<(), Error> {
-
-	}
-	*/
-
-	// apply a header to the pending state
-	pub fn apply(&self, _header: &Header) -> Result<(), Error> {
-		let mut pending_state = self.pending_state.write();
-		if _header.number() == 0 {
-			pending_state.signers = self.extract_signers(_header).expect("should be able to extractsigners from genesis block");
-			return Ok(());
-		}
-
-		if _header.number() < *self.bn.read() {
-			// TODO this might be called when impporting blocks from competing forks?
-			return Err(From::from("tried to import block with header < chain tip"));
-		}
-
-		if &_header.author()[0..20] == &NULL_AUTHOR {
-			return Ok(());
-		}
-
-		let creator = public_to_address(&recover(&_header).unwrap()).clone();
-
-		match self.get_signer_authorization(creator) {
-			SignerAuthorization::InTurn => {
-				if &_header.difficulty().0 != DIFF_INTURN {
-					return Err(From::from("difficulty must be set to DIFF_INTURN"));
-				}
-			}
-			SignerAuthorization::OutOfTurn => {
-				if &_header.difficulty().0 != DIFF_NOT_INTURN {
-					return Err(From::from("difficulty must be set to DIFF_NOT_INTURN"));
-				}
-			}
-			SignerAuthorization::Unauthorized => {
-				return Err(From::from("unauthorized to sign at this time"));
-			}
-		}
-
-		//TODO: votes that reach a majority consensus should have effects applied immediately to the signer list
-		let nonce = _header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
-		let mut author = _header.author().clone();
-		if nonce == NONCE_DROP_VOTE {
-			pending_state.votes.insert(creator, (false, author));
-		} else if nonce == NONCE_AUTH_VOTE {
-			pending_state.votes.insert(creator, (true, author));
-		} else {
-			return Err(From::from("beneficiary specificed but nonce was not AUTH or DROP"));
-		}
-
-		let limit = (self.final_state.read().signers.len() / 2) + 1;
-		if pending_state.recents.len() >= limit {
-			pending_state.recents.pop_back();
-		}
-
-		pending_state.recents.push_front(creator.clone());
-
+	// If this is checkpoint blocks
+	if header.number() % epoch_length == 0 {
+		state.signers = extract_signers(header)?;
+		state.votes.clear();
 		return Ok(());
 	}
 
-	pub fn signer_address(&self) -> Option<Address> {
-		self.signer.read().address().clone()
+	// non checkpoint block and no votes,  we just ignore.
+	if header.author()[0..20] == NULL_AUTHOR {
+		return Ok(());
 	}
 
-	pub fn sign_data(&self, data: &H256) -> Option<Signature> {
-		if let Ok(sig) = self.signer.read().sign(*data) {
-			Some(sig)
-		} else {
-			None
-		}
+	//TODO: votes that reach a majority consensus should have effects applied immediately to the signer list
+	let nonce = header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
+	let mut author = header.author().clone();
+	if nonce == NONCE_DROP_VOTE {
+		state.votes.push((creator, false, author));
+	} else if nonce == NONCE_AUTH_VOTE {
+		state.votes.push((creator, true, author));
+	} else {
+		return Err(From::from("beneficiary specificed but nonce was not AUTH or DROP"));
 	}
 
-	/*
-	pub fn snapshot(&mut self, _header: &Header, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<Vec<Address>, Error> {
-	  if _header.number() % self.epoch_length == 0 {
-		self.extract_signers(_header)
-	  } else {
-		loop {
-		  if let Some(h) = _ancestry.next() {
-			if h.header.number() % self.epoch_length == 0 {
-			  // verify signer signatures
-			  // extract signer list
-			  return self.extract_signers(&h.header);
-			}
-		  } else {
-			return Err(From::from("couldn't find checkpoint block in history"));
-		  }
-		}
-	  }
-	}
-	*/
+	return Ok(());
 }
+
