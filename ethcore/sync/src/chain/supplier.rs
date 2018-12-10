@@ -431,6 +431,42 @@ mod test {
 	}
 
 	#[test]
+	fn respect_packet_limit() {
+		let small_num_blocks = 10;
+		let large_num_blocks = 50;
+		let tx_per_block = 100;
+
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(large_num_blocks, EachBlockWith::Transactions(tx_per_block));
+
+		let mut small_rlp_request = RlpStream::new_list(small_num_blocks);
+		let mut large_rlp_request = RlpStream::new_list(large_num_blocks);
+
+		for i in 0..small_num_blocks {
+			let hash: H256 = client.block_hash(BlockId::Number(i as u64)).unwrap();
+			small_rlp_request.append(&hash);
+			large_rlp_request.append(&hash);
+		}
+
+		for i in small_num_blocks..large_num_blocks {
+			let hash: H256 = client.block_hash(BlockId::Number(i as u64)).unwrap();
+			large_rlp_request.append(&hash);
+		}
+
+		let queue = RwLock::new(VecDeque::new());
+		let ss = TestSnapshotService::new();
+		let io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let small_result = SyncSupplier::return_block_bodies(&io, &Rlp::new(&small_rlp_request.out()), 0);
+		let small_result = small_result.unwrap().unwrap().1;
+		assert_eq!(Rlp::new(&small_result.out()).item_count().unwrap(), small_num_blocks);
+
+		let large_result = SyncSupplier::return_block_bodies(&io, &Rlp::new(&large_rlp_request.out()), 0);
+		let large_result = large_result.unwrap().unwrap().1;
+		assert!(Rlp::new(&large_result.out()).item_count().unwrap() < large_num_blocks);
+	}
+
+	#[test]
 	fn return_nodes() {
 		let mut client = TestBlockChainClient::new();
 		let queue = RwLock::new(VecDeque::new());
