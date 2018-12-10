@@ -281,12 +281,15 @@ fn progpow_loop(
 	let g_offset = mix[loop_ % PROGPOW_LANES][0] as usize %
 		(64 * data_size / (PROGPOW_LANES * PROGPOW_DAG_LOADS));
 
-	let mut node = unsafe {
-		// NOTE: `node` will always be initialized on the first iteration of the
-		// loop below. `g_offset` is multiplied by `PROGPOW_LANES` (32) which
-		// guarantees it is divisible by 8.
-		::std::mem::uninitialized()
-	};
+	// 256 bytes of dag data
+	let mut dag_item = [0u32; 64];
+
+	// Fetch DAG nodes (64 bytes each)
+	for l in 0..PROGPOW_DAG_LOADS {
+		let index = g_offset * PROGPOW_LANES * PROGPOW_DAG_LOADS + l * 16;
+		let node = calculate_dag_item(index as u32 / 16, cache);
+		dag_item[l * 16..(l + 1) * 16].clone_from_slice(node.as_words());
+	}
 
 	// Lanes can execute in parallel and will be convergent
 	for l in 0..mix.len() {
@@ -309,8 +312,8 @@ fn progpow_loop(
 
 		for i in 0..PROGPOW_CNT_CACHE.max(PROGPOW_CNT_MATH) {
 			if i < PROGPOW_CNT_CACHE {
-	            // Cached memory access, lanes access random 32-bit locations
- 				// within the first portion of the DAG
+				// Cached memory access, lanes access random 32-bit locations
+				// within the first portion of the DAG
 				let offset = mix[l][mix_cache()] as usize % PROGPOW_CACHE_WORDS;
 				let data = c_dag[offset];
 				let dst = mix_dst();
@@ -327,7 +330,7 @@ fn progpow_loop(
 
 			if i < PROGPOW_CNT_MATH {
 				// Random math
-                let data = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
+				let data = math(mix[l][mix_src(&mut rnd)], mix[l][mix_src(&mut rnd)], rnd.next_u32());
 				let dst = mix_dst();
 
 				unsafe {
@@ -337,16 +340,11 @@ fn progpow_loop(
 			}
 		}
 
-		if l % 4 == 0 {
-			let index = g_offset * PROGPOW_LANES * 4 + l * 4;
-			node = calculate_dag_item(index as u32 / 16, cache);
-		}
-
 		// Global load to sequential locations
 		let mut data_g = [0u32; PROGPOW_DAG_LOADS];
-		let index = 4 * (l % 4);
+		let index = ((l ^ loop_) % PROGPOW_LANES) * PROGPOW_DAG_LOADS;
 		for i in 0..PROGPOW_DAG_LOADS {
-			data_g[i] = node.as_words()[index + i];
+			data_g[i] = dag_item[index + i];
 		}
 
 		// Consume the global load data at the very end of the loop to allow
@@ -565,8 +563,8 @@ mod test {
 			&c_dag,
 		);
 
-		let expected_digest = FromHex::from_hex("752b1d57497c9f66686acfa9a8251d4e2ad30dd9d09c536aed7085ee1ad69132").unwrap();
-		let expected_result = FromHex::from_hex("efc5c1fe4726469763ceb5fdcf3022b2915f9f36080b096da7c6e71fa34b6c26").unwrap();
+		let expected_digest = FromHex::from_hex("7ea12cfc33f64616ab7dbbddf3362ee7dd3e1e20d60d860a85c51d6559c912c4").unwrap();
+		let expected_result = FromHex::from_hex("a09ffaa0f2b5d47a98c2d4fbc0e90936710dd2b2a220fce04e8d55a6c6a093d6").unwrap();
 
 		assert_eq!(
 			digest.to_vec(),
