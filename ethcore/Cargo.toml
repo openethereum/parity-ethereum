@@ -12,7 +12,7 @@ blooms-db = { path = "../util/blooms-db" }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
-crossbeam = "0.3"
+crossbeam = "0.4"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 parity-bytes = "0.1"
