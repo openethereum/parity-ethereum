@@ -116,7 +116,7 @@ impl Logging {
 				}
 			}
 			None => {
-				error!(target: "privatetx", "Logs path is not defined");
+				warn!(target: "privatetx", "Logs path is not defined");
 				return;
 			}
 		};
@@ -134,6 +134,10 @@ impl Logging {
 	}
 
 	fn flush_logs(&self) {
+		if self.logs.read().is_empty() {
+			// Do not create empty file
+			return;
+		}
 		let log_file = match self.logs_dir {
 			Some(ref path) => {
 				let mut file_path = path.clone();
