@@ -56,6 +56,14 @@ pub struct ParityParams {
 	pub on_client_restart_cb_custom: *mut c_void,
 }
 
+#[repr(C)]
+pub struct Logger {
+	pub mode: *const char,
+	pub mode_len: usize,
+	pub file: *const char,
+	pub file_len: usize,
+}
+
 #[no_mangle]
 pub unsafe extern fn parity_config_from_cli(
 	args: *const *const c_char,
@@ -107,11 +115,34 @@ pub unsafe extern fn parity_config_destroy(cfg: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_void) -> c_int {
+pub unsafe extern fn parity_start(cfg: *const ParityParams, logger: Logger, output: *mut *mut c_void) -> c_int {
 	panic::catch_unwind(|| {
 		*output = ptr::null_mut();
 		let cfg: &ParityParams = &*cfg;
 
+		let mode = {
+			if logger.mode_len == 0 {
+				None
+			} else {
+				let mode = slice::from_raw_parts(logger.mode as *const u8, logger.mode_len);
+				String::from_utf8(mode.to_owned()).ok()
+			}
+		};
+
+		let file = {
+			if logger.file_len == 0 {
+				None
+			} else {
+				let mode = slice::from_raw_parts(logger.mode as *const u8, logger.mode_len);
+				String::from_utf8(mode.to_owned()).ok()
+			}
+		};
+
+		let mut log_cfg = parity_ethereum::LoggerConfig::default();
+		log_cfg.mode = mode;
+		log_cfg.file = file;
+
+		let logger = parity_ethereum::setup_log(&log_cfg).expect("Logger initialized only once; qed");
 		let config = Box::from_raw(cfg.configuration as *mut parity_ethereum::Configuration);
 
 		let on_client_restart_cb = {
@@ -122,7 +153,7 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 			move |new_chain: String| { cb.call(new_chain.as_bytes()); }
 		};
 
-		let action = match parity_ethereum::start(*config, on_client_restart_cb, || {}) {
+		let action = match parity_ethereum::start(*config, logger, on_client_restart_cb, || {}) {
 			Ok(action) => action,
 			Err(_) => return 1,
 		};

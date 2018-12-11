@@ -118,7 +118,6 @@ use std::sync::Arc;
 use cli::Args;
 use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
-use ethcore_logger::{RotatingLogger, setup_log};
 use hash::keccak_buffer;
 
 #[cfg(feature = "memory_profiling")]
@@ -127,6 +126,7 @@ use std::alloc::System;
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
 pub use parity_rpc::PubSubSession;
+pub use ethcore_logger::{Config as LoggerConfig, setup_log, RotatingLogger};
 
 #[cfg(feature = "memory_profiling")]
 #[global_allocator]

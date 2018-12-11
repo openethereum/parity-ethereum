@@ -37,6 +37,18 @@ struct ParityParams {
 	void *on_client_restart_cb_custom;
 };
 
+/// Logger options for `parity_start`
+struct Logger {
+	/// Logger mode (Rust log format, see module docs for `ethcore-logger`
+	const char* mode;
+	/// Length of the `Logger mode`
+	size_t mode_len;
+	/// File name to write the log to
+	const char* file;
+	/// Length of the file name
+	size_t file_len;
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -78,7 +90,7 @@ void parity_config_destroy(void* cfg);
 /// On success, the produced object will be written to the `void*` pointed by `out`.
 ///
 /// Returns 0 on success, and non-zero on error.
-int parity_start(const ParityParams* params, void** out);
+int parity_start(const ParityParams* params, Logger logger, void** out);
 
 /// Destroys the parity client created with `parity_start`.
 ///
