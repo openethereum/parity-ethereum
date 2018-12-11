@@ -25,7 +25,7 @@ futures = "0.1"
 heapsize = "0.4"
 keccak-hash = "0.1.2"
 log = "0.4"
-parking_lot = "0.6"
+parking_lot = "0.7"
 patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
