@@ -380,7 +380,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut ext = self.as_externalities(origin_info, unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 				vm.exec(&mut ext).finalize(ext)
 			}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
-		}).join()
+		}).join().expect("Sub-thread never panics; qed")
 	}
 
 	/// Calls contract function with given contract params.
