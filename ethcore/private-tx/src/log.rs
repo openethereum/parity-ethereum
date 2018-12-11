@@ -22,28 +22,44 @@ use std::fs::{File};
 use std::time::{SystemTime, UNIX_EPOCH};
 use parking_lot::{RwLock};
 
-#[derive(Clone, Serialize, Deserialize)]
-enum Status {
+/// Current status of the private transaction
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub enum Status {
+	/// Private tx was created but no validation received yet
 	Created,
+	/// Several validators (but not all) validated the transaction
 	Validating,
+	/// All validators validated the private tx
+	/// Corresponding public tx was created and added into the pool
 	Deployed,
 }
 
+/// Information about private tx validation
 #[derive(Clone, Serialize, Deserialize)]
-struct ValidatorLog {
-	account: Address,
-	validated: bool,
-	validation_timestamp: Option<u64>,
+pub struct ValidatorLog {
+	/// Account of the validator
+	pub account: Address,
+	/// Validation flag
+	pub validated: bool,
+	/// Validation timestamp
+	pub validation_timestamp: Option<u64>,
 }
 
+/// Information about the private transaction
 #[derive(Clone, Serialize, Deserialize)]
-struct TransactionLog {
-	tx_hash: H256,
-	status: Status,
-	creation_timestamp: u64,
-	validators: Vec<ValidatorLog>,
-	deployment_timestamp: Option<u64>,
-	public_tx_hash: Option<H256>,
+pub struct TransactionLog {
+	/// Original signed transaction hash (used as a source for private tx)
+	pub tx_hash: H256,
+	/// Current status of the private transaction
+	pub status: Status,
+	/// Creation timestamp
+	pub creation_timestamp: u64,
+	/// List of validations
+	pub validators: Vec<ValidatorLog>,
+	/// Timestamp of the resulting public tx deployment
+	pub deployment_timestamp: Option<u64>,
+	/// Hash of the resulting public tx
+	pub public_tx_hash: Option<H256>,
 }
 
 /// Private transactions logging
@@ -53,6 +69,7 @@ pub struct Logging {
 }
 
 impl Logging {
+	/// Creates the logging object
 	pub fn new(logs_dir: Option<String>) -> Self {
 		let logging = Logging {
 			logs: RwLock::new(HashMap::new()),
@@ -62,6 +79,12 @@ impl Logging {
 		logging
 	}
 
+	/// Retrieves log for the corresponding tx hash
+	pub fn tx_log(&self, tx_hash: H256) -> Option<TransactionLog> {
+		self.logs.read().get(&tx_hash).cloned()
+	}
+
+	/// Logs the creation of private transaction
 	pub fn private_tx_created(&self, tx_hash: H256, validators: &Vec<Address>) {
 		let mut validator_logs = Vec::new();
 		for account in validators {
@@ -82,6 +105,7 @@ impl Logging {
 		});
 	}
 
+	/// Logs the obtaining of the signature for the private transaction
 	pub fn signature_added(&self, tx_hash: H256, validator: Address) {
 		let mut logs = self.logs.write();
 		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
@@ -93,6 +117,7 @@ impl Logging {
 		}
 	}
 
+	/// Logs the final deployment of the resulting public transaction
 	pub fn tx_deployed(&self, tx_hash: H256, public_tx_hash: H256) {
 		let mut logs = self.logs.write();
 		if let Some(log) = logs.get_mut(&tx_hash) {
@@ -166,5 +191,42 @@ impl Logging {
 impl Drop for Logging {
 	fn drop(&mut self) {
 		self.flush_logs();
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use transaction::{Transaction};
+	use super::{TransactionLog, Logging, Status};
+
+	#[test]
+	fn private_log_format() {
+		let s = r#"{
+			"tx_hash":"0x64f648ca7ae7f4138014f860ae56164d8d5732969b1cea54d8be9d144d8aa6f6",
+			"status":"Deployed",
+			"creation_timestamp":1544528180,
+			"validators":[{
+				"account":"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1",
+				"validated":true,
+				"validation_timestamp":1544528181
+			}],
+			"deployment_timestamp":1544528181,
+			"public_tx_hash":"0x69b9c691ede7993effbcc88911c309af1c82be67b04b3882dd446b808ae146da"
+		}"#;
+
+		let _deserialized: TransactionLog = serde_json::from_str(s).unwrap();
+	}
+
+	#[test]
+	fn private_log_status() {
+		let logger = Logging::new(None);
+		let private_tx = Transaction::default();
+		let hash = private_tx.hash(None);
+		logger.private_tx_created(hash, &vec!["0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()]);
+		logger.signature_added(hash, "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into());
+		logger.tx_deployed(hash, hash);
+		let tx_log = logger.tx_log(hash).unwrap();
+		assert_eq!(tx_log.status, Status::Deployed);
 	}
 }
