@@ -45,7 +45,7 @@ use jsonrpc_core::futures::{future, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{errors, nonce, TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
-	H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes,
+	H520 as RpcH520, Bytes as RpcBytes,
 	RichRawTransaction as RpcRichRawTransaction,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse,
@@ -56,6 +56,7 @@ use v1::types::{
 use rlp;
 
 pub use self::nonce::Reservations;
+use v1::types::TransactionCondition;
 
 /// Has the capability to dispatch, sign, and decrypt.
 ///
@@ -70,8 +71,9 @@ pub trait Dispatcher: Send + Sync + Clone {
 		-> BoxFuture<FilledTransactionRequest>;
 
 	/// Sign the given transaction request without dispatching, fetching appropriate nonce.
-	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
-		-> BoxFuture<WithToken<SignedTransaction>>;
+	fn sign<T>(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith, post_sign: T)
+		-> BoxFuture<WithToken<SignedTransaction>>
+		where T: 'static + PostSign;
 
 	/// Converts a `SignedTransaction` into `RichRawTransaction`
 	fn enrich(&self, SignedTransaction) -> RpcRichRawTransaction;
@@ -164,8 +166,9 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 		}))
 	}
 
-	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
+	fn sign<T>(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith, post_sign: T)
 		-> BoxFuture<WithToken<SignedTransaction>>
+		where T: 'static + PostSign
 	{
 		let chain_id = self.client.signing_chain_id();
 
@@ -176,7 +179,10 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 		let state = self.state_nonce(&filled.from);
 		let reserved = self.nonces.lock().reserve(filled.from, state);
 
-		Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password))
+		Box::new(ProspectiveDispatcher {
+			signer: ProspectiveSigner::new(accounts, filled, chain_id, reserved, password),
+			post_sign: Box::new(post_sign)
+		})
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
@@ -396,8 +402,9 @@ impl Dispatcher for LightDispatcher {
 		}))
 	}
 
-	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
+	fn sign<T>(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith, _: T)
 		-> BoxFuture<WithToken<SignedTransaction>>
+		where T: 'static + PostSign
 	{
 		let chain_id = self.client.signing_chain_id();
 		let nonce = filled.nonce.expect("nonce is always provided; qed");
@@ -464,6 +471,66 @@ struct ProspectiveSigner {
 	ready: Option<nonce::Ready>,
 }
 
+/// action to execute after signing
+/// e.g importing a transaction into the chain
+pub trait PostSign: Send {
+	/// perform an action with the signed transaction
+	fn execute(&mut self, signer: SignedTransaction) -> Result<()>;
+}
+
+/// performs no action in PostSign
+pub struct NoopPostSign;
+
+impl PostSign for NoopPostSign {
+	fn execute(&mut self, _: SignedTransaction) -> Result<()> {
+		Ok(())
+	}
+}
+
+/// thsis imports the signed transaction in PostSign
+pub struct ImportTransactionPostSign<D: Dispatcher> {
+	dispatcher: D,
+	condition: Option<TransactionCondition>
+}
+
+impl<D: Dispatcher> ImportTransactionPostSign<D> {
+	/// given a dispatcher and a transaction condition
+	/// contructs a PostSign trait object that will import the signed transaction
+	pub fn new(dispatcher: D, condition: Option<TransactionCondition>) -> Self {
+		ImportTransactionPostSign {
+			dispatcher,
+			condition
+		}
+	}
+}
+
+impl<D: Dispatcher> PostSign for ImportTransactionPostSign<D> {
+	fn execute(&mut self, signed: SignedTransaction) -> Result<()> {
+		let condition = self.condition.take().map(Into::into);
+		self.dispatcher.dispatch_transaction(PendingTransaction::new(signed, condition))?;
+		Ok(())
+	}
+}
+
+struct ProspectiveDispatcher {
+	signer: ProspectiveSigner,
+	post_sign: Box<PostSign + Send>
+}
+
+impl Future for ProspectiveDispatcher {
+	type Item = WithToken<SignedTransaction>;
+	type Error = Error;
+
+	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+		let (signed, ready) = try_ready!(self.signer.poll());
+		if let Err(e) = self.post_sign.execute((*signed).clone()) {
+			return Err(e)
+		}
+		ready.mark_used();
+		return Ok(Async::Ready(signed))
+	}
+}
+
 impl ProspectiveSigner {
 	pub fn new(
 		accounts: Arc<AccountProvider>,
@@ -510,7 +577,7 @@ impl ProspectiveSigner {
 }
 
 impl Future for ProspectiveSigner {
-	type Item = WithToken<SignedTransaction>;
+	type Item = (WithToken<SignedTransaction>, nonce::Ready);
 	type Error = Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -546,8 +613,7 @@ impl Future for ProspectiveSigner {
 					if let (Some(result), Some(nonce)) = (self.prospective.take(), self.ready.take()) {
 						// Mark nonce as used on successful signing
 						return result.map(move |tx| {
-							nonce.mark_used();
-							Async::Ready(tx)
+							Async::Ready((tx, nonce))
 						})
 					} else {
 						panic!("Poll after ready.");
@@ -654,20 +720,15 @@ pub fn execute<D: Dispatcher + 'static>(
 ) -> BoxFuture<WithToken<ConfirmationResponse>> {
 	match payload {
 		ConfirmationPayload::SendTransaction(request) => {
-			let condition = request.condition.clone().map(Into::into);
-			Box::new(dispatcher.sign(accounts, request, pass)
-				.map(move |v| v.map(move |tx| PendingTransaction::new(tx, condition)))
-				.map(WithToken::into_tuple)
-				.map(|(tx, token)| (tx, token, dispatcher))
-				.and_then(|(tx, tok, dispatcher)| {
-					dispatcher.dispatch_transaction(tx)
-						.map(RpcH256::from)
-						.map(ConfirmationResponse::SendTransaction)
-						.map(move |h| WithToken::from((h, tok)))
-				}))
+			let post_sign = ImportTransactionPostSign::new(dispatcher.clone(), request.condition.clone());
+			Box::new(dispatcher.sign(accounts, request, pass, post_sign)
+				.map(|with_token| {
+					with_token.map(|tx| ConfirmationResponse::SendTransaction(tx.hash().into()))
+				})
+			)
 		},
 		ConfirmationPayload::SignTransaction(request) => {
-			Box::new(dispatcher.sign(accounts, request, pass)
+			Box::new(dispatcher.sign(accounts, request, pass, NoopPostSign)
 				.map(move |result| result
 					.map(move |tx| dispatcher.enrich(tx))
 					.map(ConfirmationResponse::SignTransaction)
