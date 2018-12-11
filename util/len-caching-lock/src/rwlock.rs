@@ -26,9 +26,9 @@ use Len;
 /// reading `T`'s `len()` without needing to lock, is advantageous. 
 /// When the WriteGuard is released, `T`'s `len()` will be cached.
 #[derive(Debug)]
-pub struct LenCachingRwLock<T> {
-	data: RwLock<T>,
+pub struct LenCachingRwLock<T: ?Sized> {
 	len: AtomicUsize,
+	data: RwLock<T>,
 }
 
 impl<T: Len + Default> Default for LenCachingRwLock<T> {
@@ -51,7 +51,9 @@ impl<T: Len> LenCachingRwLock<T> {
 			data: RwLock::new(data),
 		}
 	}
+}
 
+impl<T: Len + ?Sized> LenCachingRwLock<T> {
 	/// Load the cached value that was returned from your `T`'s `len()`
 	/// subsequent to the most recent lock being released.
 	pub fn load_len(&self) -> usize {
@@ -90,12 +92,12 @@ impl<T: Len> LenCachingRwLock<T> {
 }
 
 /// Guard that caches `T`'s `len()` in an `AtomicUsize` when dropped
-pub struct CachingRwLockWriteGuard<'a, T: Len + 'a> {
+pub struct CachingRwLockWriteGuard<'a, T: Len + 'a + ?Sized> {
 	write_guard: RwLockWriteGuard<'a, T>,
 	len: &'a AtomicUsize,
 }
 
-impl<'a, T: Len> CachingRwLockWriteGuard<'a, T> {
+impl<'a, T: Len + ?Sized> CachingRwLockWriteGuard<'a, T> {
 	/// Returns a mutable reference to the contained
 	/// [`RwLockWriteGuard`](../../parking_lot/rwlock/type.RwLockWriteGuard.html)
 	pub fn inner_mut(&mut self) -> &mut RwLockWriteGuard<'a, T> {
@@ -109,20 +111,20 @@ impl<'a, T: Len> CachingRwLockWriteGuard<'a, T> {
 	}
 }
 
-impl<'a, T: Len> Drop for CachingRwLockWriteGuard<'a, T> {
+impl<'a, T: Len + ?Sized> Drop for CachingRwLockWriteGuard<'a, T> {
 	fn drop(&mut self) {
 		self.len.store(self.write_guard.len(), Ordering::SeqCst);
 	}
 }
 
-impl<'a, T: Len> Deref for CachingRwLockWriteGuard<'a, T> {
+impl<'a, T: Len + ?Sized> Deref for CachingRwLockWriteGuard<'a, T> {
 	type Target = T;
 	fn deref(&self)	-> &T {
 		self.write_guard.deref()
 	}
 }
 
-impl<'a, T: Len> DerefMut for CachingRwLockWriteGuard<'a, T> {
+impl<'a, T: Len + ?Sized> DerefMut for CachingRwLockWriteGuard<'a, T> {
 	fn deref_mut(&mut self)	-> &mut T {
 		self.write_guard.deref_mut()
 	}
