@@ -59,29 +59,29 @@ impl<T> Len for Vec<T> {
 }
 
 impl<T> Len for VecDeque<T> {
-	fn len(&self) -> usize { self.len() }
+	fn len(&self) -> usize { VecDeque::len(self) }
 }
 
 impl<T> Len for LinkedList<T> {
-	fn len(&self) -> usize { self.len() }
+	fn len(&self) -> usize { LinkedList::len(self) }
 }
 
 impl<K: Eq + Hash, V> Len for HashMap<K, V> {
-	fn len(&self) -> usize { self.len() }
+	fn len(&self) -> usize { HashMap::len(self) }
 }
 
 impl<K, V> Len for BTreeMap<K, V> {
-	fn len(&self) -> usize { self.len() }
+	fn len(&self) -> usize { BTreeMap::len(self) }
 }
 
 impl<T: Eq + Hash> Len for HashSet<T> {
-	fn len(&self) -> usize { self.len() }
+	fn len(&self) -> usize { HashSet::len(self) }
 }
 
 impl<T> Len for BTreeSet<T> {
-	fn len(&self) -> usize { self.len() }
+	fn len(&self) -> usize { BTreeSet::len(self) }
 }
 
 impl<T: Ord> Len for BinaryHeap<T> {
-	fn len(&self) -> usize { self.len() }
+	fn len(&self) -> usize { BinaryHeap::len(self) }
 }
