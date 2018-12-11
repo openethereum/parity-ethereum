@@ -29,7 +29,6 @@ use sync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
-use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use ethcore::state::StateInfo;

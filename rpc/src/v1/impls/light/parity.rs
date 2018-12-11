@@ -26,7 +26,6 @@ use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
-use ethcore::filter::Filter as EthcoreFilter;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};

@@ -46,6 +46,7 @@ use ethereum_types::{U256, Address};
 use hash::H256;
 use parking_lot::Mutex;
 use fastmap::H256FastMap;
+use std::collections::BTreeMap;
 use transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
@@ -308,11 +309,11 @@ impl LightFetch {
 			Some(OnDemandResponse::Receipts(b)) => b,
 			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE_PROOF),
 		}))
+
+	
 	}
 
-	/// Variant of get transaction logs that does not fetch log transactions hash
-	pub fn logs_light(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
-		use std::collections::BTreeMap;
+	fn logs_common(&self, filter: EthcoreFilter) -> impl Future<Item = BTreeMap<(u64,usize),Log>, Error = Error> + Send {
 		use jsonrpc_core::futures::stream::{self, Stream};
 
 		const MAX_BLOCK_RANGE: u64 = 1000;
@@ -321,7 +322,7 @@ impl LightFetch {
 		self.headers_range_by_block_id(filter.from_block, filter.to_block, MAX_BLOCK_RANGE)
 			.and_then(move |mut headers| {
 				if headers.is_empty() {
-					return Either::A(future::ok(Vec::new()));
+					return Either::A(future::ok(BTreeMap::new()));
 				}
 
 				let on_demand = &fetcher.on_demand;
@@ -343,7 +344,7 @@ impl LightFetch {
 					// insert them into a BTreeMap to maintain order by number and block index.
 					stream::futures_unordered(receipts_futures)
 						.fold(BTreeMap::new(), move |mut matches, (num, hash, receipts)| {
-							let mut block_index = 0;
+							let mut block_index: usize = 0;
 							for (transaction_index, receipt) in receipts.into_iter().enumerate() {
 								for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
 									if filter.matches(&log) {
@@ -366,8 +367,7 @@ impl LightFetch {
 								}
 							}
 							future::ok::<_,OnDemandError>(matches)
-						}) // and then collect them into a vector.
-						.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
+						})
 						.map_err(errors::on_demand_error)
 				});
 
@@ -376,105 +376,52 @@ impl LightFetch {
 					None => Either::B(Either::B(future::err(errors::network_disabled()))),
 				}
 			})
+
+	}
+
+
+	/// Variant of get transaction logs that does not fetch log transactions hash
+	pub fn logs_light(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
+		self.logs_common(filter)
+			.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
 	}
 
 	/// Get transaction logs
 	pub fn logs(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
-		use std::collections::BTreeMap;
 		use jsonrpc_core::futures::stream::{self, Stream};
-
-		const MAX_BLOCK_RANGE: u64 = 1000;
-
-		let fetcher = self.clone();
 		let fetcher_block = self.clone();
-		self.headers_range_by_block_id(filter.from_block, filter.to_block, MAX_BLOCK_RANGE)
-			.and_then(move |mut headers| {
-				if headers.is_empty() {
-					return Either::A(future::ok(Vec::new()));
+		self.logs_common(filter)
+		// retrieve transaction hash.
+			.and_then(move |matches| {
+			let mut blocks = BTreeMap::new();
+			let mut result: Vec<Log> = matches.into_iter().map(|(_, v)| {
+				{
+					let block_hash = v.block_hash.as_ref().expect("Previously initialized with value; qed");
+					blocks.entry(block_hash.clone()).or_insert_with(|| {
+						fetcher_block.block(BlockId::Hash(block_hash.clone().into()))
+					});
 				}
-
-				let on_demand = &fetcher.on_demand;
-
-				let maybe_future = fetcher.sync.with_context(move |ctx| {
-					// find all headers which match the filter, and fetch the receipts for each one.
-					// match them with their numbers for easy sorting later.
-					let bit_combos = filter.bloom_possibilities();
-					let receipts_futures: Vec<_> = headers.drain(..)
-						.filter(|ref hdr| {
-							let hdr_bloom = hdr.log_bloom();
-							bit_combos.iter().any(|bloom| hdr_bloom.contains_bloom(bloom))
-						})
-						.map(|hdr| (hdr.number(), hdr.hash(), request::BlockReceipts(hdr.into())))
-						.map(|(num, hash, req)| on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS_PROOF).map(move |x| (num, hash, x)))
-						.collect();
-
-					// as the receipts come in, find logs within them which match the filter.
-					// insert them into a BTreeMap to maintain order by number and block index.
-					stream::futures_unordered(receipts_futures)
-						.fold(BTreeMap::new(), move |mut matches, (num, hash, receipts)| {
-							let mut block_index = 0;
-							for (transaction_index, receipt) in receipts.into_iter().enumerate() {
-								for (transaction_log_index, log) in receipt.logs.into_iter().enumerate() {
-									if filter.matches(&log) {
-										matches.insert((num, block_index), Log {
-											address: log.address.into(),
-											topics: log.topics.into_iter().map(Into::into).collect(),
-											data: log.data.into(),
-											block_hash: Some(hash.into()),
-											block_number: Some(num.into()),
-											// No way to easily retrieve transaction hash.
-											transaction_hash: None,
-											transaction_index: Some(transaction_index.into()),
-											log_index: Some(block_index.into()),
-											transaction_log_index: Some(transaction_log_index.into()),
-											log_type: "mined".into(),
-											removed: false,
-										});
-									}
-									block_index += 1;
-								}
-							}
-							future::ok::<_,OnDemandError>(matches)
-						}) // and then collect them into a vector.
-						.map_err(errors::on_demand_error)
-						// retrieve transaction hash.
-						.and_then(move |matches| {
-							let mut blocks = BTreeMap::new();
-							let mut result: Vec<Log> = matches.into_iter().map(|(_, v)| {
-								{
-									let block_hash = v.block_hash.as_ref().expect("Previously initialized with value; qed");
-									blocks.entry(block_hash.clone()).or_insert_with(|| {
-										fetcher_block.block(BlockId::Hash(block_hash.clone().into()))
-									});
-								}
-								v
-							}).collect();
-							// future get blocks (unordered it)
-							stream::futures_unordered(blocks.into_iter().map(|(_,v)|v)).collect().map(move |blocks| {
-								let transactions_per_block: BTreeMap<_, _> = blocks.iter()
-									.map(|block| (block.hash(), block.transactions())).collect();
-								for log in result.iter_mut() {
-									let log_index: U256 = log.transaction_index.expect("Previously initialized with value; qed").into();
-									if log_index < usize::max_value().into() {
-										let block_hash = log.block_hash.clone().expect("Previously initialized with value; qed").into();
-										let tx_hash = transactions_per_block.get(&block_hash)
-											.and_then(|txs| txs.get(log_index.as_usize()))
-											.map(|tr| tr.hash().into());
-											log.transaction_hash = tx_hash;
-									} else {
-										trace!(target: "light_fetch", "A received Receipts indexed other usize length ignored");
-									}
-								}
-								result
-							})
-						})
-				});
-
-				match maybe_future {
-					Some(fut) => Either::B(Either::A(fut)),
-					None => Either::B(Either::B(future::err(errors::network_disabled()))),
+				v
+			}).collect();
+			// future get blocks (unordered it)
+			stream::futures_unordered(blocks.into_iter().map(|(_,v)|v)).collect().map(move |blocks| {
+				let transactions_per_block: BTreeMap<_, _> = blocks.iter()
+					.map(|block| (block.hash(), block.transactions())).collect();
+				for log in result.iter_mut() {
+					let log_index: U256 = log.transaction_index.expect("Previously initialized with value; qed").into();
+					if log_index < usize::max_value().into() {
+						let block_hash = log.block_hash.clone().expect("Previously initialized with value; qed").into();
+						let tx_hash = transactions_per_block.get(&block_hash)
+							.and_then(|txs| txs.get(log_index.as_usize()))
+							.map(|tr| tr.hash().into());
+						log.transaction_hash = tx_hash;
+					} else {
+						trace!(target: "light_fetch", "A received Receipts indexed other usize length ignored");
+					}
 				}
+				result
 			})
+		})
 	}
 
 	// Get a transaction by hash. also returns the index in the block.
