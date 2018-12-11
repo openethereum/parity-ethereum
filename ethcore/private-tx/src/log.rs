@@ -22,6 +22,13 @@ use std::fs::{File};
 use std::time::{SystemTime, UNIX_EPOCH};
 use parking_lot::{RwLock};
 
+/// Maximum amount of stored private transaction logs.
+const MAX_JOURNAL_LEN: usize = 1000;
+
+/// Maximum period for storing private transaction logs.
+/// Older logs will not be processed, 20 days
+const MAX_STORING_TIME: u64 = 60 * 60 * 24 * 20;
+
 /// Current status of the private transaction
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub enum Status {
@@ -95,6 +102,12 @@ impl Logging {
 			});
 		}
 		let mut logs = self.logs.write();
+		if logs.len() > MAX_JOURNAL_LEN {
+			// Remove the oldest log
+			let mut sorted_logs = logs.values().cloned().collect::<Vec<TransactionLog>>();
+			sorted_logs.sort_by(|a, b| a.creation_timestamp.cmp(&b.creation_timestamp));
+			logs.remove(&sorted_logs[0].tx_hash);
+		}
 		logs.insert(tx_hash, TransactionLog {
 			tx_hash,
 			status: Status::Created,
@@ -145,13 +158,16 @@ impl Logging {
 				return;
 			}
 		};
-		let transaction_logs: Vec<TransactionLog> = match serde_json::from_reader(log_file) {
+		let mut transaction_logs: Vec<TransactionLog> = match serde_json::from_reader(log_file) {
 			Ok(logs) => logs,
 			Err(err) => {
 				error!(target: "privatetx", "Cannot deserialize logs from file: {}", err);
 				return;
 			}
 		};
+		// Drop old logs
+		let current_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+		transaction_logs.retain(|tx_log| tx_log.creation_timestamp - current_timestamp < MAX_STORING_TIME);
 		let mut logs = self.logs.write();
 		for log in transaction_logs {
 			logs.insert(log.tx_hash, log);
