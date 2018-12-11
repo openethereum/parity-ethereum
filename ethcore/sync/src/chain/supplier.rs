@@ -245,14 +245,16 @@ impl SyncSupplier {
 		count = cmp::min(count, MAX_NODE_DATA_TO_SEND);
 		let mut added = 0usize;
 		let mut data = Vec::new();
+		let mut total_bytes = 0;
 		for i in 0..count {
 			if let Some(node) = io.chain().state_data(&r.val_at::<H256>(i)?) {
-				data.push(node);
-				added += 1;
+				total_bytes += node.len();
 				// Check that the packet won't be oversized
-				if data.len() > payload_soft_limit {
+				if total_bytes > payload_soft_limit {
 					break;
 				}
+				data.push(node);
+				added += 1;
 			}
 		}
 		trace!(target: "sync", "{} -> GetNodeData: return {} entries", peer_id, added);
@@ -264,7 +266,6 @@ impl SyncSupplier {
 	}
 
 	fn return_receipts(io: &SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
-		let payload_soft_limit = io.payload_soft_limit();
 		let mut count = rlp.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
 		if count == 0 {
@@ -282,10 +283,6 @@ impl SyncSupplier {
 				added_receipts += receipts_bytes.len();
 				added_headers += 1;
 				if added_receipts > MAX_RECEIPTS_TO_SEND { break; }
-				// Check that the packet won't be oversized
-				if data.len() > payload_soft_limit {
-					break;
-				}
 			}
 		}
 		let mut rlp_result = RlpStream::new_list(added_headers);
