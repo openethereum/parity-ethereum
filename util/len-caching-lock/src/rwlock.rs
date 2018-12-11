@@ -25,14 +25,27 @@ use Len;
 /// Can be used in place of a [`RwLock`](../../lock_api/struct.RwLock.html) where 
 /// reading `T`'s `len()` without needing to lock, is advantageous. 
 /// When the WriteGuard is released, `T`'s `len()` will be cached.
+#[derive(Debug)]
 pub struct LenCachingRwLock<T> {
 	data: RwLock<T>,
 	len: AtomicUsize,
 }
 
+impl<T: Len + Default> Default for LenCachingRwLock<T> {
+	fn default() -> Self {
+		LenCachingRwLock::new(T::default())
+	}
+}
+
+impl<T: Len> From<T> for LenCachingRwLock<T> {
+	fn from(data: T) -> Self {
+		LenCachingRwLock::new(data)
+	}
+}
+
 impl<T: Len> LenCachingRwLock<T> {
 	/// Constructs a new LenCachingRwLock
-	pub fn new(data: T) -> LenCachingRwLock<T> {
+	pub fn new(data: T) -> Self {
 		LenCachingRwLock {
 			len: AtomicUsize::new(data.len()),
 			data: RwLock::new(data),
@@ -43,11 +56,6 @@ impl<T: Len> LenCachingRwLock<T> {
 	/// subsequent to the most recent lock being released.
 	pub fn load_len(&self) -> usize {
 		self.len.load(Ordering::SeqCst)
-	}
-
-	/// Convenience method to check if collection T `is_empty()`
-	pub fn load_is_empty(&self) -> bool {
-		self.len.load(Ordering::SeqCst) == 0
 	}
 
 	/// Delegates to `parking_lot::RwLock`
@@ -147,15 +155,6 @@ mod tests {
 		let lcl = LenCachingRwLock::new(v);
 		lcl.write().push_front(4);
 		assert_eq!(lcl.load_len(), 1);
-	}
-
-	#[test]
-	fn load_is_empty_works() {
-		let v = vec![1,2,3];
-		let lcl = LenCachingRwLock::new(v);
-		assert!(!lcl.load_is_empty());
-		lcl.write().clear();
-		assert!(lcl.load_is_empty());
 	}
 
 	#[test]

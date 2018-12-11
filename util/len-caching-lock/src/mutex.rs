@@ -26,14 +26,27 @@ use Len;
 /// needing to lock, is advantageous. 
 /// When the Guard is released, `T`'s `len()` will be cached.
 /// The cached `len()` may be at most 1 lock behind current state.
+#[derive(Debug)]
 pub struct LenCachingMutex<T> {
   data: Mutex<T>,
   len: AtomicUsize,
 }
 
+impl<T: Len + Default> Default for LenCachingMutex<T> {
+	fn default() -> Self {
+		LenCachingMutex::new(T::default())
+	}
+}
+
+impl<T: Len> From<T> for LenCachingMutex<T> {
+	fn from(data: T) -> Self {
+		LenCachingMutex::new(data)
+	}
+}
+
 impl<T: Len> LenCachingMutex<T> {
 	/// Constructs a new LenCachingMutex
-	pub fn new(data: T) -> LenCachingMutex<T> {
+	pub fn new(data: T) -> Self {
 		LenCachingMutex {
 			len: AtomicUsize::new(data.len()),
 			data: Mutex::new(data),
@@ -44,11 +57,6 @@ impl<T: Len> LenCachingMutex<T> {
 	/// subsequent to the most recent lock being released.
 	pub fn load_len(&self) -> usize {
 		self.len.load(Ordering::SeqCst)
-	}
-
-	/// Convenience method to check if collection T `is_empty()`
-	pub fn load_is_empty(&self) -> bool {
-		self.len.load(Ordering::SeqCst) == 0
 	}
 
 	/// Delegates to `parking_lot::Mutex`
@@ -136,14 +144,5 @@ mod tests {
 		let lcm = LenCachingMutex::new(v);
 		lcm.lock().push_front(4);
 		assert_eq!(lcm.load_len(), 1);
-	}
-
-	#[test]
-	fn load_is_empty_works() {
-		let v = vec![1,2,3];
-		let lcm = LenCachingMutex::new(v);
-		assert!(!lcm.load_is_empty());
-		lcm.lock().clear();
-		assert!(lcm.load_is_empty());
 	}
 }

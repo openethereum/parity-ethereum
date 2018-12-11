@@ -34,8 +34,6 @@
 //!		assert_eq!(len_caching_mutex.lock().len(), len_caching_mutex.load_len());
 //!		len_caching_mutex.lock().push(0);
 //!		assert_eq!(1, len_caching_mutex.load_len());
-//!		// Also has convenience method to check if empty
-//!		assert!(!len_caching_mutex.load_is_empty());
 //!	}
 //!	```
 
@@ -57,7 +55,7 @@ pub trait Len {
 }
 
 impl<T> Len for Vec<T> {
-	fn len(&self) -> usize { self.len() }
+	fn len(&self) -> usize { Vec::len(self) }
 }
 
 impl<T> Len for VecDeque<T> {
