@@ -21,21 +21,13 @@ addons:
 matrix:
   include:
 
-    # GNU/Linux - Rust Stable Test
+    # GNU/Linux - Sync Goerli Node
     - env: TARGET=x86_64-unknown-linux-gnu
-      name: Cargo Test Rust Stable
-      rust: stable
-      script:
-        - $TRAVIS_BUILD_DIR/scripts/validate_chainspecs.sh
-        - cargo test --features json-tests,ci-skip-issue,final --all
-
-    # GNU/Linux - Deploy Görli Node
-    - env: TARGET=x86_64-unknown-linux-gnu
-      name: Deploy Goerli Node
+      name: Sync Goerli Node
       rust: stable
       script:
         - cargo build --features final
-        - $TRAVIS_BUILD_DIR/target/debug/parity --chain goerli --log-file $TRAVIS_BUILD_DIR/parity.log & sleep 1200 && killall parity
+        - $TRAVIS_BUILD_DIR/target/debug/parity --chain goerli --log-file $TRAVIS_BUILD_DIR/parity.log & sleep 1800 && killall parity
 
     # GNU/Linux - Deploy Clique Network
     - env: TARGET=x86_64-unknown-linux-gnu
