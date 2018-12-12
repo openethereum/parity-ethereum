@@ -28,7 +28,10 @@ matrix:
       name: Cargo Test Rust Stable
       stage: test
       rust: stable
-      script: $TRAVIS_BUILD_DIR/test.sh
+      script:
+        - git submodule update --init --recursive
+        - $TRAVIS_BUILD_DIR/scripts/validate_chainspecs.sh
+        - cargo test --features json-tests,ci-skip-issue,final --all
 
     # GNU/Linux - Deploy Görli Node
     - env: TARGET=x86_64-unknown-linux-gnu
