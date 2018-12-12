@@ -5,7 +5,8 @@ set -e
 echo "________________________________________________________________________________"
 echo "INSTALL GETH: sudo apt install ethereum"
 sudo add-apt-repository -y ppa:ethereum/ethereum
-sudo apt install ethereum
+sudo apt update
+sudo apt install -y ethereum
 
 echo "________________________________________________________________________________"
 echo "BUILD PARITY: cargo build --features final"
