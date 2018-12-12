@@ -15,6 +15,9 @@ sed -i '/\#driver\:\ local/d' docker-compose.yaml
 sed -i '/driver\_opts\:/d' docker-compose.yaml
 sed -i '/o\:\ uid\=1000\,gid\=1000/d' docker-compose.yaml
 
-cat docker-compose.yaml
-
 docker-compose up
+
+TIMEOUT=$(echo 50*60-60-$SECONDS|bc)
+sleep $TIMEOUT
+
+./clean.sh
