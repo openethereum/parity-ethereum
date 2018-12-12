@@ -136,8 +136,11 @@ pub struct RunCmd {
 	pub whisper: ::whisper::Config,
 	pub no_hardcoded_sync: bool,
 	pub max_round_blocks_to_import: usize,
-	pub on_demand_retry_count: Option<usize>,
-	pub on_demand_inactive_time_limit: Option<u64>,
+	pub on_demand_response_time_window: Option<u64>,
+	pub on_demand_request_backoff_start: Option<u64>,
+	pub on_demand_request_backoff_max: Option<u64>,
+	pub on_demand_request_backoff_rounds_max: Option<usize>,
+	pub on_demand_request_consecutive_failures: Option<usize>,
 }
 
 // node info fetcher for the local store.
@@ -216,12 +219,31 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	config.queue.verifier_settings = cmd.verifier_settings;
 
 	// start on_demand service.
+
+	let response_time_window = cmd.on_demand_response_time_window.map_or(
+		::light::on_demand::DEFAULT_RESPONSE_TIME_TO_LIVE,
+		|s| Duration::from_secs(s)
+	);
+
+	let request_backoff_start = cmd.on_demand_request_backoff_start.map_or(
+		::light::on_demand::DEFAULT_REQUEST_MIN_BACKOFF_DURATION,
+		|s| Duration::from_secs(s)
+	);
+
+	let request_backoff_max = cmd.on_demand_request_backoff_max.map_or(
+		::light::on_demand::DEFAULT_REQUEST_MAX_BACKOFF_DURATION,
+		|s| Duration::from_secs(s)
+	);
+
 	let on_demand = Arc::new({
-		let mut on_demand = ::light::on_demand::OnDemand::new(cache.clone());
-		on_demand.default_retry_number(cmd.on_demand_retry_count.unwrap_or(::light::on_demand::DEFAULT_RETRY_COUNT));
-		on_demand.query_inactive_time_limit(cmd.on_demand_inactive_time_limit.map(Duration::from_millis)
-																				.unwrap_or(::light::on_demand::DEFAULT_QUERY_TIME_LIMIT));
-		on_demand
+		::light::on_demand::OnDemand::new(
+			cache.clone(),
+			response_time_window,
+			request_backoff_start,
+			request_backoff_max,
+			cmd.on_demand_request_backoff_rounds_max.unwrap_or(::light::on_demand::DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS),
+			cmd.on_demand_request_consecutive_failures.unwrap_or(::light::on_demand::DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS)
+		)
 	});
 
 	let sync_handle = Arc::new(RwLock::new(Weak::new()));
