@@ -19,6 +19,7 @@
 use ethereum_types::{H256, Address};
 use std::collections::{HashMap};
 use std::fs::{File};
+use std::path::{PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use parking_lot::{RwLock};
 
@@ -72,7 +73,7 @@ pub struct TransactionLog {
 /// Private transactions logging
 pub struct Logging {
 	logs: RwLock<HashMap<H256, TransactionLog>>,
-	logs_dir: Option<String>,
+	logs_dir: Option<PathBuf>,
 }
 
 impl Logging {
@@ -80,7 +81,7 @@ impl Logging {
 	pub fn new(logs_dir: Option<String>) -> Self {
 		let logging = Logging {
 			logs: RwLock::new(HashMap::new()),
-			logs_dir,
+			logs_dir: logs_dir.map(|dir| PathBuf::from(dir)),
 		};
 		logging.read_logs();
 		logging
@@ -144,7 +145,7 @@ impl Logging {
 		let log_file = match self.logs_dir {
 			Some(ref path) => {
 				let mut file_path = path.clone();
-				file_path.push_str("private_tx.log");
+				file_path.push("private_tx.log");
 				match File::open(&file_path) {
 					Ok(file) => file,
 					Err(err) => {
@@ -167,7 +168,7 @@ impl Logging {
 		};
 		// Drop old logs
 		let current_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-		transaction_logs.retain(|tx_log| tx_log.creation_timestamp - current_timestamp < MAX_STORING_TIME);
+		transaction_logs.retain(|tx_log| current_timestamp - tx_log.creation_timestamp < MAX_STORING_TIME);
 		let mut logs = self.logs.write();
 		for log in transaction_logs {
 			logs.insert(log.tx_hash, log);
@@ -182,18 +183,16 @@ impl Logging {
 		let log_file = match self.logs_dir {
 			Some(ref path) => {
 				let mut file_path = path.clone();
-				file_path.push_str("private_tx.log");
-				match File::open(&file_path) {
-					Ok(file) => Some(file),
-					Err(_) => File::create(&file_path).ok()
+				file_path.push("private_tx.log");
+				match File::create(&file_path) {
+					Ok(file) => file,
+					Err(err) => {
+						trace!(target: "privatetx", "Cannot open logs file for writing: {}", err);
+						return;
+					}
 				}
 			}
-			None => None,
-		};
-		let log_file = match log_file {
-			Some(file) => file,
 			None => {
-				error!(target: "privatetx", "Cannot open logs file");
 				return;
 			}
 		};
