@@ -70,10 +70,14 @@ pub trait Dispatcher: Send + Sync + Clone {
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest>;
 
-	/// Sign the given transaction request without dispatching, fetching appropriate nonce.
-	fn sign<T>(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith, post_sign: T)
-		-> BoxFuture<WithToken<SignedTransaction>>
-		where T: 'static + PostSign;
+	/// Sign the given transaction request, fetching appropriate nonce and executing the PostSign action
+	fn sign(
+		&self,
+		accounts: Arc<AccountProvider>,
+		filled: FilledTransactionRequest,
+		password: SignWith,
+		post_sign: impl PostSign + 'static
+	) -> BoxFuture<WithToken<SignedTransaction>>;
 
 	/// Converts a `SignedTransaction` into `RichRawTransaction`
 	fn enrich(&self, SignedTransaction) -> RpcRichRawTransaction;
@@ -166,9 +170,13 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 		}))
 	}
 
-	fn sign<T>(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith, post_sign: T)
-		-> BoxFuture<WithToken<SignedTransaction>>
-		where T: 'static + PostSign
+	fn sign(
+		&self,
+		accounts: Arc<AccountProvider>,
+		filled: FilledTransactionRequest,
+		password: SignWith,
+		post_sign:  impl PostSign + 'static
+	) -> BoxFuture<WithToken<SignedTransaction>>
 	{
 		let chain_id = self.client.signing_chain_id();
 
@@ -179,9 +187,9 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 		let state = self.state_nonce(&filled.from);
 		let reserved = self.nonces.lock().reserve(filled.from, state);
 
-		Box::new(ProspectiveDispatcher {
+		Box::new(WithPostSign {
 			signer: ProspectiveSigner::new(accounts, filled, chain_id, reserved, password),
-			post_sign: Box::new(post_sign)
+			post_sign
 		})
 	}
 
@@ -402,9 +410,13 @@ impl Dispatcher for LightDispatcher {
 		}))
 	}
 
-	fn sign<T>(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith, _: T)
-		-> BoxFuture<WithToken<SignedTransaction>>
-		where T: 'static + PostSign
+	fn sign(
+		&self,
+		accounts: Arc<AccountProvider>,
+		filled: FilledTransactionRequest,
+		password: SignWith,
+		_: impl PostSign + 'static
+	) -> BoxFuture<WithToken<SignedTransaction>>
 	{
 		let chain_id = self.client.signing_chain_id();
 		let nonce = filled.nonce.expect("nonce is always provided; qed");
@@ -473,7 +485,7 @@ struct ProspectiveSigner {
 
 /// action to execute after signing
 /// e.g importing a transaction into the chain
-pub trait PostSign: Send {
+pub trait PostSign: Send + Sync {
 	/// perform an action with the signed transaction
 	fn execute(&mut self, signer: SignedTransaction) -> Result<()>;
 }
@@ -512,12 +524,12 @@ impl<D: Dispatcher> PostSign for ImportTransactionPostSign<D> {
 	}
 }
 
-struct ProspectiveDispatcher {
+struct WithPostSign<P: PostSign> {
 	signer: ProspectiveSigner,
-	post_sign: Box<PostSign + Send>
+	post_sign: P
 }
 
-impl Future for ProspectiveDispatcher {
+impl<P: PostSign> Future for WithPostSign<P> {
 	type Item = WithToken<SignedTransaction>;
 	type Error = Error;
 
@@ -611,7 +623,7 @@ impl Future for ProspectiveSigner {
 				},
 				Finish => {
 					if let (Some(result), Some(nonce)) = (self.prospective.take(), self.ready.take()) {
-						// Mark nonce as used on successful signing
+						// return nonce and signed tx
 						return result.map(move |tx| {
 							Async::Ready((tx, nonce))
 						})
