@@ -52,11 +52,11 @@ use v1::types::{
 	EthSignRequest as RpcEthSignRequest,
 	EIP191SignRequest as RpcSignRequest,
 	DecryptRequest as RpcDecryptRequest,
+	TransactionCondition
 };
 use rlp;
 
 pub use self::nonce::Reservations;
-use v1::types::TransactionCondition;
 
 /// Has the capability to dispatch, sign, and decrypt.
 ///
