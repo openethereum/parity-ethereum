@@ -20,22 +20,22 @@ matrix:
 
     # GNU/Linux - Rust Stable Test
     - env: TARGET=x86_64-unknown-linux-gnu
+      name: Cargo Test Rust Stable
       stage: test
-      name: Cargo Test
       rust: stable
       script: $TRAVIS_BUILD_DIR/test.sh
 
     # GNU/Linux - Deploy Görli Node
     - env: TARGET=x86_64-unknown-linux-gnu
-      name: Cargo Test
+      name: Deploy Goerli Node
       stage: deploy
       rust: stable
       script: $TRAVIS_BUILD_DIR/target/debug/parity --chain goerli
 
     # GNU/Linux - Deploy Clique Network
     - env: TARGET=x86_64-unknown-linux-gnu
-      name: Cargo Test
-      stage: deploy
+      name: Deploy Clique Network
+      deploy: deploy
       rust: stable
       script: $TRAVIS_BUILD_DIR/clique.sh
 
