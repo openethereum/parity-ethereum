@@ -112,6 +112,7 @@ extern crate journaldb;
 extern crate serde;
 #[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
+extern crate len_caching_mutex;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;

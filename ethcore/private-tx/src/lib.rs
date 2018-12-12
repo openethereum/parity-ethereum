@@ -68,7 +68,7 @@ pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};
 
 use std::sync::{Arc, Weak};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, BTreeMap};
 use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
@@ -474,7 +474,9 @@ impl Provider where {
 
 	fn snapshot_from_storage(storage: &HashMap<H256, H256>) -> Bytes {
 		let mut raw = Vec::with_capacity(storage.len() * 64);
-		for (key, value) in storage {
+		// Sort the storage to guarantee the order for all parties
+		let sorted_storage: BTreeMap<&H256, &H256> = storage.iter().collect();
+		for (key, value) in sorted_storage {
 			raw.extend_from_slice(key);
 			raw.extend_from_slice(value);
 		};
