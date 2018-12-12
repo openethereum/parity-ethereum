@@ -18,19 +18,31 @@ matrix:
 
     # GNU/Linux - Rust Stable Test
     - env: TARGET=x86_64-unknown-linux-gnu
+      stage: test
       name: Cargo Test
       rust: stable
-      script: ./test.sh
+      script: $TRAVIS_BUILD_DIR/test.sh
+
+    # GNU/Linux - Deploy Görli Node
+    - env: TARGET=x86_64-unknown-linux-gnu
+      name: Cargo Test
+      stage: deploy
+      rust: stable
+      script: $TRAVIS_BUILD_DIR/target/debug/parity --chain goerli
 
     # GNU/Linux - Deploy Clique Network
     - env: TARGET=x86_64-unknown-linux-gnu
       name: Cargo Test
+      stage: deploy
       rust: stable
-      script: ./clique.sh
+      script: $TRAVIS_BUILD_DIR/clique.sh
 
-cache: cargo
+cache:
+  - $HOME/.cargo
+  - $TRAVIS_BUILD_DIR/target
 before_cache:
   - chmod -R a+r $HOME/.cargo
+  - chmod -R a+r $TRAVIS_BUILD_DIR
 
 before_script:
   - rustup self update
