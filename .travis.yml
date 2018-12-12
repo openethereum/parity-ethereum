@@ -17,6 +17,7 @@ addons:
       - libudev-dev
       - make
       - pkg-config
+      - software-properties-common
 
 matrix:
   include:
