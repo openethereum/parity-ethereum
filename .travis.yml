@@ -16,17 +16,17 @@ addons:
 matrix:
   include:
 
-    # GNU/Linux - Rust Beta Build
-    - env: TARGET=x86_64-unknown-linux-gnu DISABLE_TESTS=1
-      name: Cargo Build
-      rust: stable
-      script: cargo build --verbose --all
-
     # GNU/Linux - Rust Stable Test
     - env: TARGET=x86_64-unknown-linux-gnu
       name: Cargo Test
       rust: stable
       script: ./test.sh
+
+    # GNU/Linux - Deploy Clique Network
+    - env: TARGET=x86_64-unknown-linux-gnu
+      name: Cargo Test
+      rust: stable
+      script: ./clique.sh
 
 cache: cargo
 before_cache:
