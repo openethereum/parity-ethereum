@@ -56,14 +56,13 @@ matrix:
 
 cache:
   - $HOME/.cargo
+  - $HOME/.rustup
   - $TRAVIS_BUILD_DIR/target
 before_cache:
   - chmod -R a+r $HOME/.cargo
+  - chmod -R a+r $HOME/.rustup
   - chmod -R a+r $TRAVIS_BUILD_DIR
 
 before_script:
   - rustup self update
   - source ~/.cargo/env || true
-
-after_success: |
-  echo "@TODO"
