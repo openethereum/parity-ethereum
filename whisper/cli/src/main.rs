@@ -45,6 +45,8 @@ use std::{fmt, io, process, env, sync::Arc};
 use jsonrpc_core::{Metadata, MetaIoHandler};
 use jsonrpc_pubsub::{PubSubMetadata, Session};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation};
+use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
+use std::str::FromStr;
 
 const POOL_UNIT: usize = 1024 * 1024;
 const USAGE: &'static str = r#"
@@ -57,8 +59,10 @@ Usage:
 
 Options:
 	--whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
-	-p, --port PORT                Specify which RPC port to use [default: 8545].
-	-a, --address ADDRESS          Specify which address to use [default: 127.0.0.1].
+	-p, --port PORT                Specify which P2P port to use [default: random].
+	-a, --address ADDRESS          Specify which P2P address to use [default: 127.0.0.1].
+	-P, --rpc-port PORT            Specify which RPC port to use [default: 8545].
+	-A, --rpc-address ADDRESS      Specify which RPC address to use [default: 127.0.0.1].
 	-l, --log LEVEL                Specify the logging level. Must conform to the same format as RUST_LOG [default: Error].
 	-h, --help                     Display this message and exit.
 "#;
@@ -79,6 +83,8 @@ struct Args {
 	flag_whisper_pool_size: usize,
 	flag_port: String,
 	flag_address: String,
+	flag_rpc_port: String,
+	flag_rpc_address: String,
 	flag_log: String,
 }
 
@@ -196,7 +202,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	// Parse arguments
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.argv(command).deserialize())?;
 	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
-	let url = format!("{}:{}", args.flag_address, args.flag_port);
+	let rpc_url = format!("{}:{}", args.flag_rpc_address, args.flag_rpc_port);
 
 	initialize_logger(args.flag_log);
 	info!(target: "whisper-cli", "start");
@@ -207,8 +213,20 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	// Whisper protocol network handler
 	let whisper_network_handler = Arc::new(whisper::net::Network::new(pool_size, manager.clone()));
 
+	let network_config = {
+		let mut cfg = net::NetworkConfiguration::new();
+		let port = match &args.flag_port[..] {
+			"random" => 0 as u16,
+			port => port.parse::<u16>().expect("Invalid port specifier")
+		};
+		let addr = Ipv4Addr::from_str(&args.flag_address[..]).expect("Could not decode IP address");
+		cfg.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(addr, port)));
+		cfg.nat_enabled = false;
+		cfg
+	};
+
 	// Create network service
-	let network = devp2p::NetworkService::new(net::NetworkConfiguration::new_local(), None)?;
+	let network = devp2p::NetworkService::new(network_config, None)?;
 
 	// Start network service
 	network.start().map_err(|(err, _)| err)?;
@@ -233,7 +251,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 
 	let server = jsonrpc_http_server::ServerBuilder::new(io)
 		.cors(DomainsValidation::AllowOnly(vec![AccessControlAllowOrigin::Null]))
-		.start_http(&url.parse()?)?;
+		.start_http(&rpc_url.parse()?)?;
 
 	server.wait();
 
