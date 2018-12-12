@@ -1,7 +1,16 @@
 #!/bin/bash
 
 cd $TRAVIS_BUILD_DIR
+
+echo "________________________________________________________________________________"
+echo "BUILD PARITY: cargo build --features final"
 cargo build --features final
 TIMEOUT=$(echo 50*60-60-$SECONDS|bc)
+
+echo "________________________________________________________________________________"
+echo "RUN PARITY FOR $TIMEOUT SECONDS: parity --chain goerli"
 $TRAVIS_BUILD_DIR/target/debug/parity --chain goerli --log-file $TRAVIS_BUILD_DIR/parity.log & sleep $TIMEOUT && killall parity
-tail $TRAVIS_BUILD_DIR/parity.log
+
+echo "________________________________________________________________________________"
+echo "FINISHED SYNC TASK: tail -n32 parity.log"
+tail -n32 $TRAVIS_BUILD_DIR/parity.log
