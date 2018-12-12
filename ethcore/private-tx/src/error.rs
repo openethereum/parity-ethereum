@@ -99,6 +99,8 @@ pub enum Error {
 	/// Key server URL is not set.
 	#[display(fmt = "Key server URL is not set.")]
 	KeyServerNotSet,
+	#[display(fmt = "Private transaction not found in logs.")]
+	TxNotFoundInLog,
 	/// VM execution error.
 	#[display(fmt = "VM execution error {}", _0)]
 	Execution(ExecutionError),

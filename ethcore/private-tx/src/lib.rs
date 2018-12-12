@@ -73,7 +73,7 @@ pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};
-use log::{Logging};
+pub use log::{Logging, TransactionLog, ValidatorLog, PrivateTxStatus};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
@@ -687,6 +687,11 @@ impl Provider {
 	pub fn private_call(&self, block: BlockId, transaction: &SignedTransaction) -> Result<Executed, Error> {
 		let result = self.execute_private(transaction, TransactOptions::with_no_tracing(), block)?;
 		Ok(result.result)
+	}
+
+	/// Retrieves log information about private transaction
+	pub fn private_log(&self, tx_hash: H256) -> Result<TransactionLog, Error> {
+		self.logging.tx_log(tx_hash).ok_or(ErrorKind::TxNotFoundInLog.into())
 	}
 
 	/// Returns private validators for a contract.

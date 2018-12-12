@@ -31,7 +31,7 @@ const MAX_STORING_TIME: u64 = 60 * 60 * 24 * 20;
 
 /// Current status of the private transaction
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub enum Status {
+pub enum PrivateTxStatus {
 	/// Private tx was created but no validation received yet
 	Created,
 	/// Several validators (but not all) validated the transaction
@@ -58,7 +58,7 @@ pub struct TransactionLog {
 	/// Original signed transaction hash (used as a source for private tx)
 	pub tx_hash: H256,
 	/// Current status of the private transaction
-	pub status: Status,
+	pub status: PrivateTxStatus,
 	/// Creation timestamp
 	pub creation_timestamp: u64,
 	/// List of validations
@@ -110,7 +110,7 @@ impl Logging {
 		}
 		logs.insert(tx_hash, TransactionLog {
 			tx_hash,
-			status: Status::Created,
+			status: PrivateTxStatus::Created,
 			creation_timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
 			validators: validator_logs,
 			deployment_timestamp: None,
@@ -122,7 +122,7 @@ impl Logging {
 	pub fn signature_added(&self, tx_hash: H256, validator: Address) {
 		let mut logs = self.logs.write();
 		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
-			transaction_log.status = Status::Validating;
+			transaction_log.status = PrivateTxStatus::Validating;
 			if let Some(ref mut validator_log) = transaction_log.validators.iter_mut().find(|log| log.account == validator) {
 				validator_log.validated = true;
 				validator_log.validation_timestamp = Some(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
@@ -134,7 +134,7 @@ impl Logging {
 	pub fn tx_deployed(&self, tx_hash: H256, public_tx_hash: H256) {
 		let mut logs = self.logs.write();
 		if let Some(log) = logs.get_mut(&tx_hash) {
-			log.status = Status::Deployed;
+			log.status = PrivateTxStatus::Deployed;
 			log.deployment_timestamp = Some(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
 			log.public_tx_hash = Some(public_tx_hash);
 		}
@@ -214,7 +214,7 @@ impl Drop for Logging {
 mod tests {
 	use serde_json;
 	use transaction::{Transaction};
-	use super::{TransactionLog, Logging, Status};
+	use super::{TransactionLog, Logging, PrivateTxStatus};
 
 	#[test]
 	fn private_log_format() {
@@ -243,6 +243,6 @@ mod tests {
 		logger.signature_added(hash, "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into());
 		logger.tx_deployed(hash, hash);
 		let tx_log = logger.tx_log(hash).unwrap();
-		assert_eq!(tx_log.status, Status::Deployed);
+		assert_eq!(tx_log.status, PrivateTxStatus::Deployed);
 	}
 }
