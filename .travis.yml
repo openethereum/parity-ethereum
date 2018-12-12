@@ -7,13 +7,18 @@ services: docker
 addons:
   apt:
     packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - cmake
-      - gcc
       - binutils-dev
+      - cmake
+      - file
+      - g++
+      - gcc
+      - libcurl4-openssl-dev
+      - libdw-dev
+      - libelf-dev
       - libiberty-dev
+      - libudev-dev
+      - make
+      - pkg-config
 
 matrix:
   include:
