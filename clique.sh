@@ -33,7 +33,7 @@ sed -i '/myapp\:/d' ./docker-compose.yaml
 sed -i '/\#driver\:\ local/d' ./docker-compose.yaml
 sed -i '/driver\_opts\:/d' ./docker-compose.yaml
 sed -i '/o\:\ uid\=1000\,gid\=1000/d' ./docker-compose.yaml
-TIMEOUT=$(echo 50*60-60-$SECONDS|bc)
+TIMEOUT=$(echo 50*60-600-$SECONDS|bc)
 
 echo "________________________________________________________________________________"
 echo "RUN NETWORK FOR $TIMEOUT SECONDS: docker-compose up"

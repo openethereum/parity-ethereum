@@ -5,7 +5,7 @@ cd $TRAVIS_BUILD_DIR
 echo "________________________________________________________________________________"
 echo "BUILD PARITY: cargo build --features final"
 cargo build --features final
-TIMEOUT=$(echo 50*60-60-$SECONDS|bc)
+TIMEOUT=$(echo 50*60-600-$SECONDS|bc)
 
 echo "________________________________________________________________________________"
 echo "RUN PARITY FOR $TIMEOUT SECONDS: parity --chain goerli"
