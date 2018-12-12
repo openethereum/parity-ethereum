@@ -23,15 +23,12 @@ addons:
 matrix:
   include:
 
-    # GNU/Linux - Rust Stable Test
+    # GNU/Linux - Rust Stable Build
     - env: TARGET=x86_64-unknown-linux-gnu
-      name: Cargo Test Rust Stable
-      stage: test
+      name: Cargo Build Rust Stable
+      stage: build
       rust: stable
-      script:
-        - git submodule update --init --recursive
-        - $TRAVIS_BUILD_DIR/scripts/validate_chainspecs.sh
-        - cargo test --features json-tests,ci-skip-issue,final --all
+      script: cargo build --features final
 
     # GNU/Linux - Deploy Görli Node
     - env: TARGET=x86_64-unknown-linux-gnu
@@ -46,6 +43,16 @@ matrix:
       deploy: deploy
       rust: stable
       script: $TRAVIS_BUILD_DIR/clique.sh
+
+    # GNU/Linux - Rust Stable Test
+    - env: TARGET=x86_64-unknown-linux-gnu
+      name: Cargo Test Rust Stable
+      stage: test
+      rust: stable
+      script:
+        - git submodule update --init --recursive
+        - $TRAVIS_BUILD_DIR/scripts/validate_chainspecs.sh
+        - cargo test --features json-tests,ci-skip-issue,final --all
 
 cache:
   - $HOME/.cargo
