@@ -44,7 +44,7 @@ lru-cache = "0.1"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
-parking_lot = "0.6"
+parking_lot = "0.7"
 rayon = "1.0"
 rand = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }
