@@ -41,7 +41,7 @@ use sync::LightSync;
 use transaction::{Action, SignedTransaction, PendingTransaction, Transaction, Error as TransactionError};
 
 use jsonrpc_core::{BoxFuture, Result, Error};
-use jsonrpc_core::futures::{future, Future, Poll, Async};
+use jsonrpc_core::futures::{future, Future, Poll, Async, IntoFuture};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{errors, nonce, TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
@@ -52,7 +52,6 @@ use v1::types::{
 	EthSignRequest as RpcEthSignRequest,
 	EIP191SignRequest as RpcSignRequest,
 	DecryptRequest as RpcDecryptRequest,
-	TransactionCondition
 };
 use rlp;
 
@@ -71,16 +70,18 @@ pub trait Dispatcher: Send + Sync + Clone {
 		-> BoxFuture<FilledTransactionRequest>;
 
 	/// Sign the given transaction request, fetching appropriate nonce and executing the PostSign action
-	fn sign(
+	fn sign<P>(
 		&self,
 		accounts: Arc<AccountProvider>,
 		filled: FilledTransactionRequest,
 		password: SignWith,
-		post_sign: impl PostSign + 'static
-	) -> BoxFuture<WithToken<SignedTransaction>>;
+		post_sign: P
+	) -> BoxFuture<<P as PostSign>::Item>
+		where P: PostSign + 'static,
+		      <<P as PostSign>::Out as futures::future::IntoFuture>::Future: Send;
 
 	/// Converts a `SignedTransaction` into `RichRawTransaction`
-	fn enrich(&self, SignedTransaction) -> RpcRichRawTransaction;
+	fn enrich(&self, signed: SignedTransaction) -> RpcRichRawTransaction;
 
 	/// "Dispatch" a local transaction.
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction)
@@ -170,27 +171,29 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 		}))
 	}
 
-	fn sign(
+	fn sign<P>(
 		&self,
 		accounts: Arc<AccountProvider>,
 		filled: FilledTransactionRequest,
 		password: SignWith,
-		post_sign:  impl PostSign + 'static
-	) -> BoxFuture<WithToken<SignedTransaction>>
+		post_sign:  P
+	) -> BoxFuture<<P as PostSign>::Item>
+		where P: PostSign + 'static,
+		      <<P as PostSign>::Out as futures::future::IntoFuture>::Future: Send
 	{
 		let chain_id = self.client.signing_chain_id();
 
 		if let Some(nonce) = filled.nonce {
-			return Box::new(future::done(sign_transaction(&*accounts, filled, chain_id, nonce, password)));
+			let future = sign_transaction(&*accounts, filled, chain_id, nonce, password)
+				.into_future()
+				.and_then(move |signed| post_sign.execute(signed));
+			return Box::new(future);
 		}
 
 		let state = self.state_nonce(&filled.from);
 		let reserved = self.nonces.lock().reserve(filled.from, state);
 
-		Box::new(WithPostSign {
-			signer: ProspectiveSigner::new(accounts, filled, chain_id, reserved, password),
-			post_sign
-		})
+		Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password, post_sign))
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
@@ -410,17 +413,23 @@ impl Dispatcher for LightDispatcher {
 		}))
 	}
 
-	fn sign(
+	fn sign<P>(
 		&self,
 		accounts: Arc<AccountProvider>,
 		filled: FilledTransactionRequest,
 		password: SignWith,
-		_: impl PostSign + 'static
-	) -> BoxFuture<WithToken<SignedTransaction>>
+		post_sign: P
+	) -> BoxFuture<<P as PostSign>::Item>
+		where P: PostSign + 'static,
+		      <<P as PostSign>::Out as futures::future::IntoFuture>::Future: Send
 	{
 		let chain_id = self.client.signing_chain_id();
 		let nonce = filled.nonce.expect("nonce is always provided; qed");
-		Box::new(future::done(sign_transaction(&*accounts, filled, chain_id, nonce, password)))
+
+		let future = sign_transaction(&*accounts, filled, chain_id, nonce, password)
+			.into_future()
+			.and_then(move |signed| post_sign.execute(signed));
+		Box::new(future)
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
@@ -468,88 +477,61 @@ fn sign_transaction(
 #[derive(Debug, Clone, Copy)]
 enum ProspectiveSignerState {
 	TryProspectiveSign,
+	PostSign,
+	WaitForPostSign,
 	WaitForNonce,
-	Finish,
 }
 
-struct ProspectiveSigner {
+struct ProspectiveSigner<P: PostSign> {
 	accounts: Arc<AccountProvider>,
 	filled: FilledTransactionRequest,
 	chain_id: Option<u64>,
 	reserved: nonce::Reserved,
 	password: SignWith,
 	state: ProspectiveSignerState,
-	prospective: Option<Result<WithToken<SignedTransaction>>>,
+	prospective: Option<WithToken<SignedTransaction>>,
 	ready: Option<nonce::Ready>,
+	post_sign: Option<P>,
+	post_sign_future: Option<<<P as PostSign>::Out as IntoFuture>::Future>
 }
 
 /// action to execute after signing
 /// e.g importing a transaction into the chain
 pub trait PostSign: Send + Sync {
+	/// item that this PostSign returns
+	type Item: Send;
+	/// incase you need to perform async PostSign actions
+	type Out: IntoFuture<Item = Self::Item, Error = Error> + Send;
 	/// perform an action with the signed transaction
-	fn execute(&mut self, signer: SignedTransaction) -> Result<()>;
+	fn execute(self, signer: WithToken<SignedTransaction>) -> Self::Out;
 }
 
-/// performs no action in PostSign
-pub struct NoopPostSign;
-
-impl PostSign for NoopPostSign {
-	fn execute(&mut self, _: SignedTransaction) -> Result<()> {
-		Ok(())
-	}
-}
-
-/// thsis imports the signed transaction in PostSign
-pub struct ImportTransactionPostSign<D: Dispatcher> {
-	dispatcher: D,
-	condition: Option<TransactionCondition>
-}
-
-impl<D: Dispatcher> ImportTransactionPostSign<D> {
-	/// given a dispatcher and a transaction condition
-	/// contructs a PostSign trait object that will import the signed transaction
-	pub fn new(dispatcher: D, condition: Option<TransactionCondition>) -> Self {
-		ImportTransactionPostSign {
-			dispatcher,
-			condition
-		}
-	}
-}
-
-impl<D: Dispatcher> PostSign for ImportTransactionPostSign<D> {
-	fn execute(&mut self, signed: SignedTransaction) -> Result<()> {
-		let condition = self.condition.take().map(Into::into);
-		self.dispatcher.dispatch_transaction(PendingTransaction::new(signed, condition))?;
-		Ok(())
-	}
-}
-
-struct WithPostSign<P: PostSign> {
-	signer: ProspectiveSigner,
-	post_sign: P
-}
-
-impl<P: PostSign> Future for WithPostSign<P> {
+impl PostSign for () {
 	type Item = WithToken<SignedTransaction>;
-	type Error = Error;
-
-	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		let (signed, ready) = try_ready!(self.signer.poll());
-		if let Err(e) = self.post_sign.execute((*signed).clone()) {
-			return Err(e)
-		}
-		ready.mark_used();
-		return Ok(Async::Ready(signed))
+	type Out = Result<Self::Item>;
+	fn execute(self, signed: WithToken<SignedTransaction>) -> Self::Out {
+		Ok(signed)
 	}
 }
 
-impl ProspectiveSigner {
+impl<F: Send + Sync, T: Send + Sync> PostSign for F
+	where F: FnOnce(WithToken<SignedTransaction>) -> Result<T>
+{
+	type Item = T;
+	type Out = Result<Self::Item>;
+	fn execute(self, signed: WithToken<SignedTransaction>) -> Self::Out {
+		(self)(signed)
+	}
+}
+
+impl<P: PostSign> ProspectiveSigner<P> {
 	pub fn new(
 		accounts: Arc<AccountProvider>,
 		filled: FilledTransactionRequest,
 		chain_id: Option<u64>,
 		reserved: nonce::Reserved,
 		password: SignWith,
+		post_sign: P
 	) -> Self {
 		// If the account is permanently unlocked we can try to sign
 		// using prospective nonce. This should speed up sending
@@ -570,6 +552,8 @@ impl ProspectiveSigner {
 			},
 			prospective: None,
 			ready: None,
+			post_sign: Some(post_sign),
+			post_sign_future: None
 		}
 	}
 
@@ -588,8 +572,8 @@ impl ProspectiveSigner {
 	}
 }
 
-impl Future for ProspectiveSigner {
-	type Item = (WithToken<SignedTransaction>, nonce::Ready);
+impl<P: PostSign> Future for ProspectiveSigner<P> {
+	type Item = <P as PostSign>::Item;
 	type Error = Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -602,31 +586,62 @@ impl Future for ProspectiveSigner {
 					match self.poll_reserved()? {
 						Async::NotReady => {
 							self.state = WaitForNonce;
-							self.prospective = Some(self.sign(self.reserved.prospective_value()));
+							self.prospective = Some(self.sign(self.reserved.prospective_value())?);
 						},
 						Async::Ready(nonce) => {
-							self.state = Finish;
-							self.prospective = Some(self.sign(nonce.value()));
+							self.state = PostSign;
+							self.prospective = Some(self.sign(nonce.value())?);
 							self.ready = Some(nonce);
 						},
 					}
 				},
 				WaitForNonce => {
 					let nonce = try_ready!(self.poll_reserved());
-					let result = match (self.prospective.take(), nonce.matches_prospective()) {
+					let prospective = match (self.prospective.take(), nonce.matches_prospective()) {
 						(Some(prospective), true) => prospective,
-						_ => self.sign(nonce.value()),
+						_ => self.sign(nonce.value())?,
 					};
-					self.state = Finish;
-					self.prospective = Some(result);
+					self.state = PostSign;
+					self.prospective = Some(prospective);
 					self.ready = Some(nonce);
 				},
-				Finish => {
+				PostSign => {
 					if let (Some(result), Some(nonce)) = (self.prospective.take(), self.ready.take()) {
-						// return nonce and signed tx
-						return result.map(move |tx| {
-							Async::Ready((tx, nonce))
-						})
+						let mut post_sign_future = self.post_sign.take()
+							.expect("post_sign is set on creation; qed")
+							.execute(result)
+							.into_future();
+
+						match post_sign_future.poll()? {
+							Async::NotReady => {
+								self.post_sign_future = Some(post_sign_future);
+								self.state = WaitForPostSign;
+								self.ready = Some(nonce);
+							},
+							Async::Ready(item) => {
+								nonce.mark_used();
+								return Ok(Async::Ready(item))
+							},
+						}
+					} else {
+						panic!("Poll after ready.");
+					}
+				},
+				WaitForPostSign => {
+					if let Some(mut fut) = self.post_sign_future.take() {
+						match fut.poll()? {
+							Async::Ready(item) => {
+								let nonce = self.ready
+									.take()
+									.expect("nonce is set before state transitions to WaitForPostSign; qed");
+								nonce.mark_used();
+								return Ok(Async::Ready(item))
+							},
+							Async::NotReady => {
+								self.post_sign_future = Some(fut);
+								return Ok(Async::NotReady)
+							}
+						}
 					} else {
 						panic!("Poll after ready.");
 					}
@@ -732,15 +747,22 @@ pub fn execute<D: Dispatcher + 'static>(
 ) -> BoxFuture<WithToken<ConfirmationResponse>> {
 	match payload {
 		ConfirmationPayload::SendTransaction(request) => {
-			let post_sign = ImportTransactionPostSign::new(dispatcher.clone(), request.condition.clone());
-			Box::new(dispatcher.sign(accounts, request, pass, post_sign)
-				.map(|with_token| {
-					with_token.map(|tx| ConfirmationResponse::SendTransaction(tx.hash().into()))
-				})
-			)
+			let condition = request.condition.clone().map(Into::into);
+			let cloned_dispatcher = dispatcher.clone();
+			let post_sign = move |with_token_signed: WithToken<SignedTransaction>| {
+				let (signed, token) = with_token_signed.into_tuple();
+				let signed_transaction = PendingTransaction::new(signed, condition);
+				cloned_dispatcher.dispatch_transaction(signed_transaction)
+					.map(|hash| (hash, token))
+			};
+			let future = dispatcher.sign(accounts, request, pass, post_sign)
+				.map(|(hash, token)| {
+					WithToken::from((ConfirmationResponse::SendTransaction(hash.into()), token))
+				});
+			Box::new(future)
 		},
 		ConfirmationPayload::SignTransaction(request) => {
-			Box::new(dispatcher.sign(accounts, request, pass, NoopPostSign)
+			Box::new(dispatcher.sign(accounts, request, pass, ())
 				.map(move |result| result
 					.map(move |tx| dispatcher.enrich(tx))
 					.map(ConfirmationResponse::SignTransaction)
