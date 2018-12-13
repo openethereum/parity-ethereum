@@ -46,7 +46,7 @@ use v1::helpers::{SyncPollFilter, PollManager};
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
-	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
+	RichBlock, Block, BlockTransactions, BlockNumber, LightBlockNumber, Bytes, SyncStatus, SyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
@@ -65,23 +65,6 @@ pub struct EthClient<T> {
 	polls: Mutex<PollManager<SyncPollFilter>>,
 	poll_lifetime: u32,
 	gas_price_percentile: usize,
-}
-
-impl<T> EthClient<T> {
-	fn num_to_id(num: BlockNumber) -> BlockId {
-		// Note: Here we treat `Pending` as `Latest`.
-		//       Since light clients don't produce pending blocks
-		//       (they don't have state) we can safely fallback to `Latest`.
-		match num {
-			BlockNumber::Num(n) => BlockId::Number(n),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
-			BlockNumber::Pending => {
-				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
-				BlockId::Latest
-			}
-		}
-	}
 }
 
 impl<T> Clone for EthClient<T> {
@@ -285,7 +268,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
-		Box::new(self.fetcher().account(address.into(), Self::num_to_id(num.unwrap_or_default()))
+		Box::new(self.fetcher().account(address.into(), num.unwrap_or_default().to_block_id())
 			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()))
 	}
 
@@ -298,11 +281,11 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(self.rich_block(Self::num_to_id(num), include_txs).map(Some))
+		Box::new(self.rich_block(num.to_block_id(), include_txs).map(Some))
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
-		Box::new(self.fetcher().account(address.into(), Self::num_to_id(num.unwrap_or_default()))
+		Box::new(self.fetcher().account(address.into(), num.unwrap_or_default().to_block_id())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()))
 	}
 
@@ -325,7 +308,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		Box::new(self.fetcher().header(Self::num_to_id(num)).and_then(move |hdr| {
+		Box::new(self.fetcher().header(num.to_block_id()).and_then(move |hdr| {
 			if hdr.transactions_root() == KECCAK_NULL_RLP {
 				Either::A(future::ok(Some(U256::from(0).into())))
 			} else {
@@ -357,7 +340,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		Box::new(self.fetcher().header(Self::num_to_id(num)).and_then(move |hdr| {
+		Box::new(self.fetcher().header(num.to_block_id()).and_then(move |hdr| {
 			if hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
 				Either::B(future::ok(Some(U256::from(0).into())))
 			} else {
@@ -371,7 +354,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
-		Box::new(self.fetcher().code(address.into(), Self::num_to_id(num.unwrap_or_default())).map(Into::into))
+		Box::new(self.fetcher().code(address.into(), num.unwrap_or_default().to_block_id()).map(Into::into))
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
@@ -438,7 +421,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<Transaction>> {
-		Box::new(self.fetcher().block(Self::num_to_id(num)).map(move |block| {
+		Box::new(self.fetcher().block(num.to_block_id()).map(move |block| {
 			light_fetch::extract_transaction_at_index(block, idx.value())
 		}))
 	}
@@ -482,7 +465,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 	fn uncle_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<RichBlock>> {
 		let client = self.client.clone();
-		Box::new(self.fetcher().block(Self::num_to_id(num)).map(move |block| {
+		Box::new(self.fetcher().block(num.to_block_id()).map(move |block| {
 			extract_uncle_at_index(block, idx, client)
 		}))
 	}

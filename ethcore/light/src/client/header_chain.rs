@@ -218,7 +218,7 @@ impl HeaderChain {
 	) -> Result<Self, Error> {
 		let mut live_epoch_proofs = ::std::collections::HashMap::default();
 
-		let genesis = ::rlp::encode(&spec.genesis_header()).into_vec();
+		let genesis = ::rlp::encode(&spec.genesis_header());
 		let decoded_header = spec.genesis_header();
 
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {

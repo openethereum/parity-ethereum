@@ -80,6 +80,8 @@ pub struct AuthorityRoundParams {
 	pub empty_steps_transition: u64,
 	/// Number of accepted empty steps.
 	pub maximum_empty_steps: usize,
+	/// Transition block to strict empty steps validation.
+	pub strict_empty_steps_transition: u64,
 }
 
 const U16_MAX: usize = ::std::u16::MAX as usize;
@@ -109,6 +111,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
 			maximum_empty_steps: p.maximum_empty_steps.map_or(0, Into::into),
+			strict_empty_steps_transition: p.strict_empty_steps_transition.map_or(0, Into::into),
 		}
 	}
 }
@@ -420,6 +423,7 @@ pub struct AuthorityRound {
 	maximum_uncle_count_transition: u64,
 	maximum_uncle_count: usize,
 	empty_steps_transition: u64,
+	strict_empty_steps_transition: u64,
 	maximum_empty_steps: usize,
 	machine: EthereumMachine,
 }
@@ -673,6 +677,7 @@ impl AuthorityRound {
 				maximum_uncle_count: our_params.maximum_uncle_count,
 				empty_steps_transition: our_params.empty_steps_transition,
 				maximum_empty_steps: our_params.maximum_empty_steps,
+				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
 				machine: machine,
 			});
 
@@ -1011,7 +1016,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 			let empty_steps_rlp = if header.number() >= self.empty_steps_transition {
 				let empty_steps: Vec<_> = empty_steps.iter().map(|e| e.sealed()).collect();
-				Some(::rlp::encode_list(&empty_steps).into_vec())
+				Some(::rlp::encode_list(&empty_steps))
 			} else {
 				None
 			};
@@ -1033,8 +1038,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					}
 
 					let mut fields = vec![
-						encode(&step).into_vec(),
-						encode(&(&H520::from(signature) as &[u8])).into_vec(),
+						encode(&step),
+						encode(&(&H520::from(signature) as &[u8])),
 					];
 
 					if let Some(empty_steps_rlp) = empty_steps_rlp {
@@ -1186,8 +1191,11 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
 		let empty_steps_len = if header.number() >= self.empty_steps_transition {
 			let validate_empty_steps = || -> Result<usize, Error> {
+				let strict_empty_steps = header.number() >= self.strict_empty_steps_transition;
 				let empty_steps = header_empty_steps(header)?;
 				let empty_steps_len = empty_steps.len();
+				let mut prev_empty_step = 0;
+
 				for empty_step in empty_steps {
 					if empty_step.step <= parent_step || empty_step.step >= step {
 						Err(EngineError::InsufficientProof(
@@ -1203,7 +1211,20 @@ impl Engine<EthereumMachine> for AuthorityRound {
 						Err(EngineError::InsufficientProof(
 							format!("invalid empty step proof: {:?}", empty_step)))?;
 					}
+
+					if strict_empty_steps {
+						if empty_step.step <= prev_empty_step {
+							Err(EngineError::InsufficientProof(format!(
+								"{} empty step: {:?}",
+								if empty_step.step == prev_empty_step { "duplicate" } else { "unordered" },
+								empty_step
+							)))?;
+						}
+
+						prev_empty_step = empty_step.step;
+					}
 				}
+
 				Ok(empty_steps_len)
 			};
 
@@ -1459,9 +1480,39 @@ mod tests {
 	use spec::Spec;
 	use transaction::{Action, Transaction};
 	use engines::{Seal, Engine, EngineError, EthEngine};
-	use engines::validator_set::TestSet;
+	use engines::validator_set::{TestSet, SimpleList};
 	use error::{Error, ErrorKind};
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, calculate_score};
+
+	fn aura<F>(f: F) -> Arc<AuthorityRound> where
+		F: FnOnce(&mut AuthorityRoundParams),
+	{
+		let mut params = AuthorityRoundParams {
+			step_duration: 1,
+			start_step: Some(1),
+			validators: Box::new(TestSet::default()),
+			validate_score_transition: 0,
+			validate_step_transition: 0,
+			immediate_transitions: true,
+			maximum_uncle_count_transition: 0,
+			maximum_uncle_count: 0,
+			empty_steps_transition: u64::max_value(),
+			maximum_empty_steps: 0,
+			block_reward: Default::default(),
+			block_reward_contract_transition: 0,
+			block_reward_contract: Default::default(),
+			strict_empty_steps_transition: 0,
+		};
+
+		// mutate aura params
+		f(&mut params);
+
+		// create engine
+		let mut c_params = ::spec::CommonParams::default();
+		c_params.gas_limit_bound_divisor = 5.into();
+		let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
+		AuthorityRound::new(params, machine).unwrap()
+	}
 
 	#[test]
 	fn has_valid_metadata() {
@@ -1481,7 +1532,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = Spec::new_test_round().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![encode(&H520::default()).into_vec()]);
+		header.set_seal(vec![encode(&H520::default())]);
 
 		let verify_result = engine.verify_block_external(&header);
 		assert!(verify_result.is_err());
@@ -1558,7 +1609,7 @@ mod tests {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1571,12 +1622,12 @@ mod tests {
 		// Spec starts with step 2.
 		header.set_difficulty(calculate_score(0, 2, 0));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&2usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&2usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_err());
 		header.set_difficulty(calculate_score(0, 1, 0));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&1usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
 	}
@@ -1587,7 +1638,7 @@ mod tests {
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1600,10 +1651,10 @@ mod tests {
 		// Spec starts with step 2.
 		header.set_difficulty(calculate_score(0, 1, 0));
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&1usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
-		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&5usize), encode(&(&*signature as &[u8]))]);
 		assert!(engine.verify_block_basic(&header).is_err());
 	}
 
@@ -1613,7 +1664,7 @@ mod tests {
 		let addr = tap.insert_account(keccak("0").into(), &"0".into()).unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&4usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&4usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -1625,10 +1676,10 @@ mod tests {
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
-		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&5usize), encode(&(&*signature as &[u8]))]);
 		header.set_difficulty(calculate_score(4, 5, 0));
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
-		header.set_seal(vec![encode(&3usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
+		header.set_seal(vec![encode(&3usize), encode(&(&*signature as &[u8]))]);
 		header.set_difficulty(calculate_score(4, 3, 0));
 		assert!(engine.verify_block_family(&header, &parent_header).is_err());
 	}
@@ -1636,36 +1687,17 @@ mod tests {
 	#[test]
 	fn reports_skipped() {
 		let last_benign = Arc::new(AtomicUsize::new(0));
-		let params = AuthorityRoundParams {
-			step_duration: 1,
-			start_step: Some(1),
-			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
-			validate_score_transition: 0,
-			validate_step_transition: 0,
-			immediate_transitions: true,
-			maximum_uncle_count_transition: 0,
-			maximum_uncle_count: 0,
-			empty_steps_transition: u64::max_value(),
-			maximum_empty_steps: 0,
-			block_reward: Default::default(),
-			block_reward_contract_transition: 0,
-			block_reward_contract: Default::default(),
-		};
-
-		let aura = {
-			let mut c_params = ::spec::CommonParams::default();
-			c_params.gas_limit_bound_divisor = 5.into();
-			let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
-			AuthorityRound::new(params, machine).unwrap()
-		};
+		let aura = aura(|p| {
+			p.validators = Box::new(TestSet::new(Default::default(), last_benign.clone()));
+		});
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&1usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_difficulty(calculate_score(1, 3, 0));
 		header.set_gas_limit("222222".parse::<U256>().unwrap());
-		header.set_seal(vec![encode(&3usize).into_vec()]);
+		header.set_seal(vec![encode(&3usize)]);
 
 		// Do not report when signer not present.
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
@@ -1686,29 +1718,9 @@ mod tests {
 
 	#[test]
 	fn test_uncles_transition() {
-		let last_benign = Arc::new(AtomicUsize::new(0));
-		let params = AuthorityRoundParams {
-			step_duration: 1,
-			start_step: Some(1),
-			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
-			validate_score_transition: 0,
-			validate_step_transition: 0,
-			immediate_transitions: true,
-			maximum_uncle_count_transition: 1,
-			maximum_uncle_count: 0,
-			empty_steps_transition: u64::max_value(),
-			maximum_empty_steps: 0,
-			block_reward: Default::default(),
-			block_reward_contract_transition: 0,
-			block_reward_contract: Default::default(),
-		};
-
-		let aura = {
-			let mut c_params = ::spec::CommonParams::default();
-			c_params.gas_limit_bound_divisor = 5.into();
-			let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
-			AuthorityRound::new(params, machine).unwrap()
-		};
+		let aura = aura(|params| {
+			params.maximum_uncle_count_transition = 1;
+		});
 
 		assert_eq!(aura.maximum_uncle_count(0), 2);
 		assert_eq!(aura.maximum_uncle_count(1), 0);
@@ -1742,27 +1754,9 @@ mod tests {
 	#[test]
 	#[should_panic(expected="authority_round: step duration can't be zero")]
 	fn test_step_duration_zero() {
-		let last_benign = Arc::new(AtomicUsize::new(0));
-		let params = AuthorityRoundParams {
-			step_duration: 0,
-			start_step: Some(1),
-			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
-			validate_score_transition: 0,
-			validate_step_transition: 0,
-			immediate_transitions: true,
-			maximum_uncle_count_transition: 0,
-			maximum_uncle_count: 0,
-			empty_steps_transition: u64::max_value(),
-			maximum_empty_steps: 0,
-			block_reward: Default::default(),
-			block_reward_contract_transition: 0,
-			block_reward_contract: Default::default(),
-		};
-
-		let mut c_params = ::spec::CommonParams::default();
-		c_params.gas_limit_bound_divisor = 5.into();
-		let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
-		AuthorityRound::new(params, machine).unwrap();
+		aura(|params| {
+			params.step_duration = 0;
+		});
 	}
 
 	fn setup_empty_steps() -> (Spec, Arc<AccountProvider>, Vec<Address>) {
@@ -1788,6 +1782,23 @@ mod tests {
 		let empty_step_rlp = super::empty_step_rlp(step, parent_hash);
 		let signature = engine.sign(keccak(&empty_step_rlp)).unwrap().into();
 		SealedEmptyStep { signature, step }
+	}
+
+	fn set_empty_steps_seal(header: &mut Header, step: u64, block_signature: &ethkey::Signature, empty_steps: &[SealedEmptyStep]) {
+		header.set_seal(vec![
+			encode(&(step as usize)),
+			encode(&(&**block_signature as &[u8])),
+			::rlp::encode_list(&empty_steps),
+		]);
+	}
+
+	fn assert_insufficient_proof<T: ::std::fmt::Debug>(result: Result<T, Error>, contains: &str) {
+		match result {
+			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _)) =>{
+				assert!(s.contains(contains), "Expected {:?} to contain {:?}", s, contains);
+			},
+			e => assert!(false, "Unexpected result: {:?}", e),
+		}
 	}
 
 	#[test]
@@ -1816,7 +1827,7 @@ mod tests {
 		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
 
 		// spec starts with step 2
-		let empty_step_rlp = encode(&empty_step(engine, 2, &genesis_header.hash())).into_vec();
+		let empty_step_rlp = encode(&empty_step(engine, 2, &genesis_header.hash()));
 
 		// we've received the message
 		assert!(notify.messages.read().contains(&empty_step_rlp));
@@ -1874,8 +1885,8 @@ mod tests {
 			let empty_step2 = sealed_empty_step(engine, 2, &genesis_header.hash());
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2]);
 
-			assert_eq!(seal[0], encode(&3usize).into_vec());
-			assert_eq!(seal[2], empty_steps.into_vec());
+			assert_eq!(seal[0], encode(&3usize));
+			assert_eq!(seal[2], empty_steps);
 		}
 	}
 
@@ -1928,8 +1939,8 @@ mod tests {
 
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2, empty_step3]);
 
-			assert_eq!(seal[0], encode(&4usize).into_vec());
-			assert_eq!(seal[2], empty_steps.into_vec());
+			assert_eq!(seal[0], encode(&4usize));
+			assert_eq!(seal[2], empty_steps);
 		}
 	}
 
@@ -1978,7 +1989,7 @@ mod tests {
 		let engine = &*spec.engine;
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_seal(vec![encode(&0usize)]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 
 		let mut header: Header = Header::default();
@@ -1991,46 +2002,31 @@ mod tests {
 
 		// empty step with invalid step
 		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 2 }];
-		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
-		]);
+		set_empty_steps_seal(&mut header, 2, &signature, &empty_steps);
 
-		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
-				if s.contains("invalid step") => true,
-			_ => false,
-		});
+		assert_insufficient_proof(
+			engine.verify_block_family(&header, &parent_header),
+			"invalid step"
+		);
 
 		// empty step with invalid signature
 		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 1 }];
-		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
-		]);
+		set_empty_steps_seal(&mut header, 2, &signature, &empty_steps);
 
-		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
-				if s.contains("invalid empty step proof") => true,
-			_ => false,
-		});
+		assert_insufficient_proof(
+			engine.verify_block_family(&header, &parent_header),
+			"invalid empty step proof"
+		);
 
 		// empty step with valid signature from incorrect proposer for step
 		engine.set_signer(tap.clone(), addr1, "1".into());
 		let empty_steps = vec![sealed_empty_step(engine, 1, &parent_header.hash())];
-		header.set_seal(vec![
-			encode(&2usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
-		]);
+		set_empty_steps_seal(&mut header, 2, &signature, &empty_steps);
 
-		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
-				if s.contains("invalid empty step proof") => true,
-			_ => false,
-		});
+		assert_insufficient_proof(
+			engine.verify_block_family(&header, &parent_header),
+			"invalid empty step proof"
+		);
 
 		// valid empty steps
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -2041,11 +2037,7 @@ mod tests {
 		let empty_steps = vec![empty_step2, empty_step3];
 		header.set_difficulty(calculate_score(0, 4, 2));
 		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
-		header.set_seal(vec![
-			encode(&4usize).into_vec(),
-			encode(&(&*signature as &[u8])).into_vec(),
-			::rlp::encode_list(&empty_steps).into_vec(),
-		]);
+		set_empty_steps_seal(&mut header, 4, &signature, &empty_steps);
 
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 	}
@@ -2157,28 +2149,11 @@ mod tests {
 
 	#[test]
 	fn test_empty_steps() {
-		let last_benign = Arc::new(AtomicUsize::new(0));
-		let params = AuthorityRoundParams {
-			step_duration: 4,
-			start_step: Some(1),
-			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
-			validate_score_transition: 0,
-			validate_step_transition: 0,
-			immediate_transitions: true,
-			maximum_uncle_count_transition: 0,
-			maximum_uncle_count: 0,
-			empty_steps_transition: 0,
-			maximum_empty_steps: 10,
-			block_reward: Default::default(),
-			block_reward_contract_transition: 0,
-			block_reward_contract: Default::default(),
-		};
-
-		let mut c_params = ::spec::CommonParams::default();
-		c_params.gas_limit_bound_divisor = 5.into();
-		let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
-		let engine = AuthorityRound::new(params, machine).unwrap();
-
+		let engine = aura(|p| {
+			p.step_duration = 4;
+			p.empty_steps_transition = 0;
+			p.maximum_empty_steps = 0;
+		});
 
 		let parent_hash: H256 = 1.into();
 		let signature = H520::default();
@@ -2201,5 +2176,86 @@ mod tests {
 
 		assert_eq!(engine.empty_steps(0, 3, parent_hash), vec![]);
 		assert_eq!(engine.empty_steps(0, 4, parent_hash), vec![step(3)]);
+	}
+
+	#[test]
+	fn should_reject_duplicate_empty_steps() {
+		// given
+		let (_spec, tap, accounts) = setup_empty_steps();
+		let engine = aura(|p| {
+			p.validators = Box::new(SimpleList::new(accounts.clone()));
+			p.step_duration = 4;
+			p.empty_steps_transition = 0;
+			p.maximum_empty_steps = 0;
+		});
+
+		let mut parent = Header::default();
+		parent.set_seal(vec![encode(&0usize)]);
+
+		let mut header = Header::default();
+		header.set_number(parent.number() + 1);
+		header.set_parent_hash(parent.hash());
+		header.set_author(accounts[0]);
+
+		// when
+		engine.set_signer(tap.clone(), accounts[1], "0".into());
+		let empty_steps = vec![
+			sealed_empty_step(&*engine, 1, &parent.hash()),
+			sealed_empty_step(&*engine, 1, &parent.hash()),
+		];
+		let step = 2;
+		let signature = tap.sign(accounts[0], Some("1".into()), header.bare_hash()).unwrap();
+		set_empty_steps_seal(&mut header, step, &signature, &empty_steps);
+		header.set_difficulty(calculate_score(0, step, empty_steps.len()));
+
+		// then
+		assert_insufficient_proof(
+			engine.verify_block_family(&header, &parent),
+			"duplicate empty step"
+		);
+	}
+
+	#[test]
+	fn should_reject_empty_steps_out_of_order() {
+		// given
+		let (_spec, tap, accounts) = setup_empty_steps();
+		let engine = aura(|p| {
+			p.validators = Box::new(SimpleList::new(accounts.clone()));
+			p.step_duration = 4;
+			p.empty_steps_transition = 0;
+			p.maximum_empty_steps = 0;
+		});
+
+		let mut parent = Header::default();
+		parent.set_seal(vec![encode(&0usize)]);
+
+		let mut header = Header::default();
+		header.set_number(parent.number() + 1);
+		header.set_parent_hash(parent.hash());
+		header.set_author(accounts[0]);
+
+		// when
+		engine.set_signer(tap.clone(), accounts[1], "0".into());
+		let es1 = sealed_empty_step(&*engine, 1, &parent.hash());
+		engine.set_signer(tap.clone(), accounts[0], "1".into());
+		let es2 = sealed_empty_step(&*engine, 2, &parent.hash());
+
+		let mut empty_steps = vec![es2, es1];
+
+		let step = 3;
+		let signature = tap.sign(accounts[1], Some("0".into()), header.bare_hash()).unwrap();
+		set_empty_steps_seal(&mut header, step, &signature, &empty_steps);
+		header.set_difficulty(calculate_score(0, step, empty_steps.len()));
+
+		// then make sure it's rejected because of the order
+		assert_insufficient_proof(
+			engine.verify_block_family(&header, &parent),
+			"unordered empty step"
+		);
+
+		// now try to fix the order
+		empty_steps.reverse();
+		set_empty_steps_seal(&mut header, step, &signature, &empty_steps);
+		assert_eq!(engine.verify_block_family(&header, &parent).unwrap(), ());
 	}
 }

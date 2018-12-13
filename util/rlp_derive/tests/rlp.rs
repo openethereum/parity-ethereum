@@ -37,7 +37,7 @@ fn test_encode_foo() {
 	};
 
 	let expected = vec![0xc4, 0x83, b'c', b'a', b't'];
-	let out = encode(&foo).into_vec();
+	let out = encode(&foo);
 	assert_eq!(out, expected);
 
 	let decoded = decode(&expected).expect("decode failure");
@@ -51,7 +51,7 @@ fn test_encode_foo_wrapper() {
 	};
 
 	let expected = vec![0x83, b'c', b'a', b't'];
-	let out = encode(&foo).into_vec();
+	let out = encode(&foo);
 	assert_eq!(out, expected);
 
 	let decoded = decode(&expected).expect("decode failure");

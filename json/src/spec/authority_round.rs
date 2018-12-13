@@ -67,6 +67,8 @@ pub struct AuthorityRoundParams {
 	/// Maximum number of accepted empty steps.
 	#[serde(rename="maximumEmptySteps")]
 	pub maximum_empty_steps: Option<Uint>,
+	/// Strict validation of empty steps transition block.
+	pub strict_empty_steps_transition: Option<Uint>,
 }
 
 /// Authority engine deserialization.

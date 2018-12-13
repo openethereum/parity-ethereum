@@ -29,7 +29,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
-use ethcore::log_entry::LogEntry;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
@@ -419,11 +418,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
 	let receipts = miner.pending_receipts(best_block).unwrap_or_default();
 
-	let pending_logs = receipts.into_iter()
-		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
-		.collect::<Vec<(H256, LogEntry)>>();
-
-	pending_logs.into_iter()
+	receipts.into_iter()
+		.flat_map(|r| {
+			let hash = r.transaction_hash;
+			r.logs.into_iter().map(move |l| (hash, l))
+		})
 		.filter(|pair| filter.matches(&pair.1))
 		.map(|pair| {
 			let mut log = Log::from(pair.1);
@@ -673,16 +672,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>> {
-		let best_block = self.client.chain_info().best_block_number;
 		let hash: H256 = hash.into();
 
-		match (self.miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
-			(Some(receipt), true) => Box::new(future::ok(Some(receipt.into()))),
-			_ => {
-				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-				Box::new(future::ok(receipt.map(Into::into)))
+		if self.options.allow_pending_receipt_query {
+			let best_block = self.client.chain_info().best_block_number;
+			if let Some(receipt) = self.miner.pending_receipt(best_block, &hash) {
+				return Box::new(future::ok(Some(receipt.into())));
 			}
 		}
+
+		let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
+		Box::new(future::ok(receipt.map(Into::into)))
 	}
 
 	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>> {
@@ -795,7 +795,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let mix_hash: H256 = mix_hash.into();
 		trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 
-		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
+		let seal = vec![rlp::encode(&mix_hash).to_vec(), rlp::encode(&nonce).to_vec()];
 		let import = self.miner.submit_seal(pow_hash, seal)
 			.and_then(|block| self.client.import_sealed_block(block));
 

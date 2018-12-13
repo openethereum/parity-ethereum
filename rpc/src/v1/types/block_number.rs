@@ -54,6 +54,31 @@ impl BlockNumber {
 	}
 }
 
+/// BlockNumber to BlockId conversion
+///
+/// NOTE use only for light clients.
+pub trait LightBlockNumber {
+	/// Convert block number to block id.
+	fn to_block_id(self) -> BlockId;
+}
+
+impl LightBlockNumber for BlockNumber {
+	fn to_block_id(self) -> BlockId {
+		// NOTE Here we treat `Pending` as `Latest`.
+		// Since light clients don't produce pending blocks
+		// (they don't have state) we can safely fallback to `Latest`.
+		match self {
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending => {
+				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+				BlockId::Latest
+			}
+		}
+	}
+}
+
 impl Serialize for BlockNumber {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
 		match *self {

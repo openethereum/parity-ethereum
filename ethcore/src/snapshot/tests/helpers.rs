@@ -62,7 +62,7 @@ impl StateProducer {
 
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
-	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher>) {
+	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB<KeccakHasher, DBValue>) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
 			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
@@ -80,7 +80,7 @@ impl StateProducer {
 			let mut account: BasicAccount = ::rlp::decode(&*account_data).expect("error decoding basic account");
 			let acct_db = AccountDBMut::from_hash(db, *address_hash);
 			fill_storage(acct_db, &mut account.storage_root, &mut self.storage_seed);
-			*account_data = DBValue::from_vec(::rlp::encode(&account).into_vec());
+			*account_data = DBValue::from_vec(::rlp::encode(&account));
 		}
 
 		// sweep again to alter account trie.
@@ -131,7 +131,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 }
 
 /// Compare two state dbs.
-pub fn compare_dbs(one: &HashDB<KeccakHasher>, two: &HashDB<KeccakHasher>) {
+pub fn compare_dbs(one: &HashDB<KeccakHasher, DBValue>, two: &HashDB<KeccakHasher, DBValue>) {
 	let keys = one.keys();
 
 	for key in keys.keys() {

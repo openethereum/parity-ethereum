@@ -1156,7 +1156,7 @@ mod tests {
 		header.set_number(10_000);
 		header.set_extra_data(b"test_header".to_vec());
 		let hash = header.hash();
-		let raw_header = encoded::Header::new(::rlp::encode(&header).into_vec());
+		let raw_header = encoded::Header::new(::rlp::encode(&header));
 
 		let cache = Mutex::new(make_cache());
 		assert!(HeaderByHash(hash.into()).check_response(&cache, &hash.into(), &[raw_header]).is_ok())
@@ -1177,14 +1177,14 @@ mod tests {
 		headers.reverse();  // because responses are in reverse order
 
 		let raw_headers = headers.iter()
-			.map(|hdr| encoded::Header::new(::rlp::encode(hdr).into_vec()))
+			.map(|hdr| encoded::Header::new(::rlp::encode(hdr)))
 			.collect::<Vec<_>>();
 
 		let mut invalid_successor = Header::new();
 		invalid_successor.set_number(11);
 		invalid_successor.set_parent_hash(headers[1].hash());
 
-		let raw_invalid_successor = encoded::Header::new(::rlp::encode(&invalid_successor).into_vec());
+		let raw_invalid_successor = encoded::Header::new(::rlp::encode(&invalid_successor));
 
 		let cache = Mutex::new(make_cache());
 
@@ -1247,10 +1247,10 @@ mod tests {
 		let mut body_stream = RlpStream::new_list(2);
 		body_stream.begin_list(0).begin_list(0);
 
-		let req = Body(encoded::Header::new(::rlp::encode(&header).into_vec()).into());
+		let req = Body(encoded::Header::new(::rlp::encode(&header)).into());
 
 		let cache = Mutex::new(make_cache());
-		let response = encoded::Body::new(body_stream.drain().into_vec());
+		let response = encoded::Body::new(body_stream.drain());
 		assert!(req.check_response(&cache, &response).is_ok())
 	}
 
@@ -1270,7 +1270,7 @@ mod tests {
 
 		header.set_receipts_root(receipts_root);
 
-		let req = BlockReceipts(encoded::Header::new(::rlp::encode(&header).into_vec()).into());
+		let req = BlockReceipts(encoded::Header::new(::rlp::encode(&header)).into());
 
 		let cache = Mutex::new(make_cache());
 		assert!(req.check_response(&cache, &receipts).is_ok())
@@ -1318,7 +1318,7 @@ mod tests {
 		header.set_state_root(root.clone());
 
 		let req = Account {
-			header: encoded::Header::new(::rlp::encode(&header).into_vec()).into(),
+			header: encoded::Header::new(::rlp::encode(&header)).into(),
 			address: addr,
 		};
 
@@ -1332,7 +1332,7 @@ mod tests {
 		let code_hash = keccak(&code);
 		let header = Header::new();
 		let req = Code {
-			header: encoded::Header::new(::rlp::encode(&header).into_vec()).into(),
+			header: encoded::Header::new(::rlp::encode(&header)).into(),
 			code_hash: code_hash.into(),
 		};
 

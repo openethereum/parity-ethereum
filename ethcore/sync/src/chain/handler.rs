@@ -772,9 +772,7 @@ mod tests {
 
 		let block = Rlp::new(&block_data);
 
-		let result = SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block);
-
-		assert!(result.is_ok());
+		SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block).expect("result to be ok");
 	}
 
 	#[test]
