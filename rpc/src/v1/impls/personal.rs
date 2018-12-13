@@ -128,7 +128,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 		let r = match (self.allow_perm_unlock, duration) {
 			(false, None) => store.unlock_account_temporarily(account, account_pass.into()),
-			(false, _) => return Err(errors::unsupported(				(false, _) => store.unlock_account_temporarily(account, account_pass.into()),
+			(false, _) => return Err(errors::unsupported(
 				"Time-unlocking is not supported when permanent unlock is disabled.",	
 				Some("Use personal_sendTransaction or enable permanent unlocking, instead."),	
 			)),
