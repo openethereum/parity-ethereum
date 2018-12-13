@@ -128,10 +128,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 		let r = match (self.allow_perm_unlock, duration) {
 			(false, None) => store.unlock_account_temporarily(account, account_pass.into()),
-			(false, _) => return Err(errors::unsupported(
-				"Time-unlocking is only supported in --geth compatibility mode.",
-				Some("Restart your client with --geth flag or use personal_sendTransaction instead."),
-			)),
+			(false, _) => store.unlock_account_temporarily(account, account_pass.into()),
 			(true, Some(0)) => store.unlock_account_permanently(account, account_pass.into()),
 			(true, Some(d)) => store.unlock_account_timed(account, account_pass.into(), Duration::from_secs(d.into())),
 			(true, None) => store.unlock_account_timed(account, account_pass.into(), Duration::from_secs(300)),
