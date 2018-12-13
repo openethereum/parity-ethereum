@@ -221,9 +221,9 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 
 	let network_config = {
 		let mut cfg = net::NetworkConfiguration::new();
-		let port = match &args.flag_port[..] {
+		let port = match args.flag_port.as_str() {
 			"random" => 0 as u16,
-						port => port.parse::<u16>().map_err(|e| e.to_string())?,
+			port => port.parse::<u16>().map_err(|e| e.to_string())?,
 
 		};
 		let addr = Ipv4Addr::from_str(&args.flag_address[..])?;
