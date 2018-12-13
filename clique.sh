@@ -29,11 +29,6 @@ docker build -t parity/clique ./docker
 echo "________________________________________________________________________________"
 echo "DEPLOY DOCKER IMAGE: --config clique --nodes 2 --geth-nodes 2"
 ./parity-deploy.sh --config clique --nodes 2 --geth-nodes 2
-sed -i '/volumes\:/d' ./docker-compose.yml
-sed -i '/myapp\:/d' ./docker-compose.yml
-sed -i '/\#driver\:\ local/d' ./docker-compose.yml
-sed -i '/driver\_opts\:/d' ./docker-compose.yml
-sed -i '/o\:\ uid\=1000\,gid\=1000/d' ./docker-compose.yml
 TIMEOUT=$(echo 50*60-600-$SECONDS|bc)
 
 echo "________________________________________________________________________________"
