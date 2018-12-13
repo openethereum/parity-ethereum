@@ -303,7 +303,7 @@ fn ec_recover_invalid_signature() {
 }
 
 #[test]
-fn should_unlock_account_temporarily_if_allow_perm_is_disabled() {
+fn should_not_unlock_account_temporarily_if_allow_perm_is_disabled() {
 	let tester = setup();
 	let address = tester.accounts.new_account(&"password123".into()).unwrap();
 
@@ -318,10 +318,9 @@ fn should_unlock_account_temporarily_if_allow_perm_is_disabled() {
 		"id": 1
 	}"#;
 
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
-	assert!(tester.accounts.sign(address, None, Default::default()).is_ok(), "Should unlock account.");
-	assert!(tester.accounts.sign(address, None, Default::default()).is_err(), "Should only sign once.");
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Time-unlocking is not supported when permanent unlock is disabled.","data":"Use personal_sendTransaction or enable permanent unlocking, instead."},"id":1}"#;	
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));	
+ 	assert!(tester.accounts.sign(address, None, Default::default()).is_err(), "Should not unlock account.");
 }
 
 #[test]
