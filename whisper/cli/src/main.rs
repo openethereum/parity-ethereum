@@ -33,6 +33,8 @@ extern crate serde;
 extern crate jsonrpc_core;
 extern crate jsonrpc_pubsub;
 extern crate jsonrpc_http_server;
+extern crate ethkey;
+extern crate rustc_hex;
 
 #[macro_use]
 extern crate log as rlog;
@@ -47,6 +49,8 @@ use jsonrpc_pubsub::{PubSubMetadata, Session};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation};
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use std::str::FromStr;
+use ethkey::Secret;
+use rustc_hex::FromHex;
 
 const POOL_UNIT: usize = 1024 * 1024;
 const USAGE: &'static str = r#"
@@ -61,6 +65,7 @@ Options:
 	--whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
 	-p, --port PORT                Specify which P2P port to use [default: random].
 	-a, --address ADDRESS          Specify which P2P address to use [default: 127.0.0.1].
+	-s, --secret KEYFILE           Specify which file contains the key to generate the enode.
 	-P, --rpc-port PORT            Specify which RPC port to use [default: 8545].
 	-A, --rpc-address ADDRESS      Specify which RPC address to use [default: 127.0.0.1].
 	-l, --log LEVEL                Specify the logging level. Must conform to the same format as RUST_LOG [default: Error].
@@ -86,6 +91,7 @@ struct Args {
 	flag_rpc_port: String,
 	flag_rpc_address: String,
 	flag_log: String,
+	flag_secret: String,
 }
 
 struct WhisperPoolHandle {
@@ -222,6 +228,15 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 		};
 		let addr = Ipv4Addr::from_str(&args.flag_address[..])?;
 		cfg.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(addr, port)));
+		cfg.use_secret = match args.flag_secret.as_str() {
+			"" => None,
+			fname => {
+				let key_text = std::fs::read_to_string(fname)?;
+				let key = FromHex::from_hex(key_text.as_str())
+					.map_err(|e| format!("Error converting key: {}", e.to_string()))?;
+				Secret::from_slice(key.as_slice())
+			}
+		};
 		cfg.nat_enabled = false;
 		cfg
 	};
