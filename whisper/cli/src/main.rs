@@ -217,7 +217,8 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 		let mut cfg = net::NetworkConfiguration::new();
 		let port = match &args.flag_port[..] {
 			"random" => 0 as u16,
-			port => port.parse::<u16>().expect("Invalid port specifier")
+						port => port.parse::<u16>().map_err(|e| e.to_string())?,
+
 		};
 		let addr = Ipv4Addr::from_str(&args.flag_address[..])?;
 		cfg.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(addr, port)));
