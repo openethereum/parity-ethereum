@@ -1,0 +1,10 @@
+[package]
+description = "Atomically cached len(), for use with collections contained in parking_lot Mutex and RwLock"
+homepage = "http://parity.io"
+license = "GPL-3.0"
+name = "len-caching-lock"
+version = "0.1.1"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+parking_lot = "0.7"

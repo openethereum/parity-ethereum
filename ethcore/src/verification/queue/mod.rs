@@ -29,7 +29,7 @@ use io::*;
 use error::{BlockError, ImportErrorKind, ErrorKind, Error};
 use engines::EthEngine;
 use client::ClientIoMessage;
-use len_caching_mutex::LenCachingMutex;
+use len_caching_lock::LenCachingMutex;
 
 use self::kind::{BlockLike, Kind};
 
