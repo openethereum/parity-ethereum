@@ -219,7 +219,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 			"random" => 0 as u16,
 			port => port.parse::<u16>().expect("Invalid port specifier")
 		};
-		let addr = Ipv4Addr::from_str(&args.flag_address[..]).expect("Could not decode IP address");
+		let addr = Ipv4Addr::from_str(&args.flag_address[..])?;
 		cfg.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(addr, port)));
 		cfg.nat_enabled = false;
 		cfg
