@@ -712,7 +712,7 @@ dependencies = [
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-rocksdb 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "len-caching-mutex 0.1.0",
+ "len-caching-lock 0.1.1",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
@@ -1897,8 +1897,8 @@ version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "len-caching-mutex"
-version = "0.1.0"
+name = "len-caching-lock"
+version = "0.1.1"
 dependencies = [
  "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
