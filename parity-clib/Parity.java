@@ -65,7 +65,7 @@ public class Parity {
 		unsubscribeWebSocketNative(session);
 	}
 
-	// FIXME: `finalize` is deprecated
+	// FIXME: `finalize` is deprecated - https://github.com/paritytech/parity-ethereum/issues/10066
 	@Override
 	protected void finalize​() {
 		destroy(inner);

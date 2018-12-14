@@ -38,7 +38,7 @@ impl<'a> Callback<'a> {
 
 	fn call(&self, msg: &str) {
 		let env = self.jvm.attach_current_thread().expect("JavaVM should have an environment; qed");
-		let java_str = env.new_string(msg.to_string()).expect("Rust String to JString shouldn't failed; qed");
+		let java_str = env.new_string(msg.to_string()).expect("Rust String is valid JString; qed");
 		let val = &[JValue::Object(JObject::from(java_str))];
 		env.call_method(self.callback.as_obj(), self.method_name, self.method_descriptor, val).expect(
 			"The callback must be an instance method and be named \"void callback(Object)\"; qed)");

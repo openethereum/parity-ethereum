@@ -877,6 +877,7 @@ enum RunningClientInner {
 
 impl RunningClient {
 	/// Performs an asynchronous RPC query.
+	// FIXME: [tomaka] This API should be better, with for example a Future
 	pub fn rpc_query(&self, request: &str, session: Option<Arc<PubSubSession>>)
 		-> FutureResult<FutureResponse, FutureOutput>
 	{
@@ -886,12 +887,8 @@ impl RunningClient {
 		};
 
 		match self.inner {
-			RunningClientInner::Light { ref rpc, .. } => {
-				rpc.handle_request(request, metadata)
-			},
-			RunningClientInner::Full { ref rpc, .. } => {
-				rpc.handle_request(request, metadata)
-			},
+			RunningClientInner::Light { ref rpc, .. } => rpc.handle_request(request, metadata),
+			RunningClientInner::Full { ref rpc, .. } => rpc.handle_request(request, metadata),
 		}
 	}
 

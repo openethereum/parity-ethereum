@@ -172,10 +172,9 @@ pub unsafe extern fn parity_rpc(
 			let client = client as &RunningClient;
 			let callback = Arc::new(CallbackStr {user_data, function: callback} );
 			let cb = callback.clone();
-			let query = client.rpc_query(query, None)
-				.map(move |response| {
-					let response = response.unwrap_or_else(|| error::EMPTY.to_string());
-					callback.call(response.as_bytes());
+			let query = client.rpc_query(query, None).map(move |response| {
+				let response = response.unwrap_or_else(|| error::EMPTY.to_string());
+				callback.call(response.as_bytes());
 			});
 
 			let _handle = thread::Builder::new()

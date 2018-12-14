@@ -93,12 +93,11 @@ void parity_destroy(void* parity);
 ///	- len			: Length of the RPC query
 ///	- timeout_ms	: Maximum time that request is waiting for a response
 ///	- response		: Callback to invoke when the query gets answered. It will respond with a JSON encoded the string
-///					  with the result
+///					  with the result both on success and error.
 ///	- ud			: Specific user defined data that can used in the callback
 ///
-///
-///	 - On success	: The parity client reference and the query string were valid
-///	 - On error		: The parity client reference and the query string were not valid
+///	- On success	: The function returns 0
+///	- On error		: The function returns 1
 ///
 int parity_rpc(const void *const parity, const char* rpc_query, size_t rpc_len, size_t timeout_ms,
 		void (*subscribe)(void* ud, const char* response, size_t len), void* ud);
@@ -106,15 +105,15 @@ int parity_rpc(const void *const parity, const char* rpc_query, size_t rpc_len, 
 
 /// Subscribes to a specific websocket event that will run until it is canceled
 ///
-///	 - parity		: Reference to the running parity client
-///	 - ws_query		: JSON encoded string representing the websocket event to subscribe to
-///	 - len			: Length of the query
-///	 - response		: Callback to invoke when a websocket event occurs
-///	 - ud			: Specific user defined data that can used in the callback
+///	- parity		: Reference to the running parity client
+///	- ws_query		: JSON encoded string representing the websocket event to subscribe to
+///	- len			: Length of the query
+///	- response		: Callback to invoke when a websocket event occurs
+///	- ud			: Specific user defined data that can used in the callback
 ///
-///	 - On success	: The function returns an object to the current session
+///	- On success	: The function returns an object to the current session
 ///					  which can be used cancel the subscription
-///	 - On error		: The function returns a null pointer
+///	- On error		: The function returns a null pointer
 ///
 void* parity_subscribe_ws(const void *const parity, const char* ws_query, size_t len,
 		void (*subscribe)(void* ud, const char* response, size_t len), void* ud);
@@ -122,7 +121,7 @@ void* parity_subscribe_ws(const void *const parity, const char* ws_query, size_t
 /// Unsubscribes from a websocket subscription. Caution this function consumes the session object and must only be
 /// used exactly once per session.
 ///
-///	 - session		: Pointer to the session to unsubscribe from
+///	- session		: Pointer to the session to unsubscribe from
 ///
 int parity_unsubscribe_ws(const void *const session);
 
