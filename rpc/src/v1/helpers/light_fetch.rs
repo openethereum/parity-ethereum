@@ -409,15 +409,12 @@ impl LightFetch {
 					.map(|block| (block.hash(), block.transactions())).collect();
 				for log in result.iter_mut() {
 					let log_index: U256 = log.transaction_index.expect("Previously initialized with value; qed").into();
-					if log_index < usize::max_value().into() {
-						let block_hash = log.block_hash.clone().expect("Previously initialized with value; qed").into();
-						let tx_hash = transactions_per_block.get(&block_hash)
-							.and_then(|txs| txs.get(log_index.as_usize()))
-							.map(|tr| tr.hash().into());
-						log.transaction_hash = tx_hash;
-					} else {
-						trace!(target: "light_fetch", "A received Receipts indexed other usize length ignored");
-					}
+					let block_hash = log.block_hash.clone().expect("Previously initialized with value; qed").into();
+					let tx_hash = transactions_per_block.get(&block_hash)
+						// transaction index is from an enumerate call in log common so not need to check value
+						.and_then(|txs| txs.get(log_index.as_usize()))
+						.map(|tr| tr.hash().into());
+					log.transaction_hash = tx_hash;
 				}
 				result
 			})
