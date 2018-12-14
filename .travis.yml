@@ -44,7 +44,7 @@ cache:
   - $TRAVIS_BUILD_DIR/target
 
 before_cache:
-  - chmod -R a+r $HOME
+  - sudo chmod -R a+r $HOME
 
 before_script:
   - rustup self update

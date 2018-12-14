@@ -37,5 +37,5 @@ TIMEOUT=$(echo 50*60-600-$SECONDS|bc)
 echo "________________________________________________________________________________"
 echo "RUN NETWORK FOR $TIMEOUT SECONDS: docker-compose up"
 docker-compose up & sleep $TIMEOUT && docker-compose stop
-docker-compose rm -f
-./clean.sh
+sudo docker-compose rm -f
+sudo ./clean.sh
