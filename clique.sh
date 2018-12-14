@@ -24,6 +24,7 @@ sudo install -C ./target/debug/ethkey /usr/local/bin/ethkey
 echo "________________________________________________________________________________"
 echo "BUILD DOCKER IMAGE: docker build -t parity/clique"
 cd /home/travis/build/goerli/parity-deploy
+git pull --rebase https://github.com/paritytech/parity-deploy master
 rm -f docker/parity
 cp ../parity-goerli/target/debug/parity ./docker/parity
 docker build -t parity/clique ./docker
