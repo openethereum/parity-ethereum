@@ -184,6 +184,18 @@ build_rpc_trait! {
 		/// Used for submitting mining hashrate.
 		#[rpc(name = "eth_submitHashrate")]
 		fn submit_hashrate(&self, U256, H256) -> Result<bool>;
+
+        /// Used to get the public encryption key of an account
+        #[rpc(name = "eth_getEncryptionPublicKey")]
+        fn get_encryption_public_key(&self, H160) -> Result<H256>;
+
+        /// Used to encrypt a message
+        #[rpc(name = "eth_encrypt")]
+        fn encrypt(&self, H256, String, Bytes, Trailing<U64>) -> BoxFuture<Bytes>;
+
+        /// Used to decrypt a message
+        #[rpc(name = "eth_decrypt")]
+        fn decrypt(&self, H160, Bytes) -> BoxFuture<Bytes>;
 	}
 }
 

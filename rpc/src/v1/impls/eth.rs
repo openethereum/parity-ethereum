@@ -995,4 +995,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn compile_solidity(&self, _: String) -> Result<Bytes> {
 		Err(errors::deprecated("Compilation of Solidity via RPC is deprecated".to_string()))
 	}
+
+    fn get_encryption_public_key(&self, receiver_address: RpcH160) -> Result<RpcH256> {
+		Err(errors::light_unimplemented(None))
+    }
+
+    fn encrypt(&self, encryption_public_key: RpcH256, version: String, data: Bytes, padding: Trailing<RpcU64>) -> BoxFuture<Bytes> {
+		Box::new(future::err(errors::unimplemented(None)))
+    }
+
+    fn decrypt(&self, receiver_address: RpcH160, data: Bytes) -> BoxFuture<Bytes> {
+		Box::new(future::err(errors::unimplemented(None)))
+    }
 }

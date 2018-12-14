@@ -516,6 +516,18 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	fn submit_hashrate(&self, _rate: RpcU256, _id: RpcH256) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
+    
+    fn get_encryption_public_key(&self, receiver_address: RpcH160) -> Result<RpcH256> {
+		Err(errors::light_unimplemented(None))
+    }
+
+    fn encrypt(&self, encryption_public_key: RpcH256, version: String, data: Bytes, padding: Trailing<RpcU64>) -> BoxFuture<Bytes> {
+		Box::new(future::err(errors::unimplemented(None)))
+    }
+
+    fn decrypt(&self, receiver_address: RpcH160, data: Bytes) -> BoxFuture<Bytes> {
+		Box::new(future::err(errors::unimplemented(None)))
+    }
 }
 
 // This trait implementation triggers a blanked impl of `EthFilter`.
