@@ -37,7 +37,6 @@ The full list of included changes:
 	* ethcore: delay diff bomb by 2e6 blocks for foundation after constantinople
 	* ethcore: enable eip-{145,1014,1052,1283} for foundation after constantinople
 * Change test miner max memory to malloc reports. ([#10024](https://github.com/paritytech/parity-ethereum/pull/10024))
-* Revert "Bump crossbeam. ([#10048](https://github.com/paritytech/parity-ethereum/pull/10048))"
 
 ## Parity-Ethereum [v2.1.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.7) (2018-11-28)
 
