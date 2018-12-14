@@ -39,9 +39,7 @@ cache:
   timeout: 600
   cargo: true
   directories:
-  - $HOME/.cargo
   - $HOME/.rustup
-  - $TRAVIS_BUILD_DIR/target
 
 before_cache:
   - sudo chmod -R a+r $HOME
