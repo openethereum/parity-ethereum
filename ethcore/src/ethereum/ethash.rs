@@ -202,7 +202,9 @@ impl engines::EpochVerifier<EthereumMachine> for Arc<Ethash> {
 	}
 }
 
-impl Engine<EthereumMachine> for Arc<Ethash> {
+impl Engine for Arc<Ethash> {
+	type Machine = EthereumMachine;
+
 	fn name(&self) -> &str { "Ethash" }
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 

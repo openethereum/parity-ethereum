@@ -58,10 +58,12 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: Machine + WithRewards> Engine<M> for NullEngine<M>
+impl<M: Machine + WithRewards> Engine for NullEngine<M>
   where M::ExtendedHeader: TotalScoredHeader,
         <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
 {
+	type Machine = M;
+
 	fn name(&self) -> &str {
 		"NullEngine"
 	}

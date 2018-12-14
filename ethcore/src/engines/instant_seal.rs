@@ -48,11 +48,13 @@ impl<M> InstantSeal<M> {
 	}
 }
 
-impl<M: Machine> Engine<M> for InstantSeal<M>
+impl<M: Machine> Engine for InstantSeal<M>
   where M::LiveBlock: Transactions,
         M::ExtendedHeader: TotalScoredHeader,
         <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
 {
+	type Machine = M;
+
 	fn name(&self) -> &str {
 		"InstantSeal"
 	}

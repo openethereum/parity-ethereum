@@ -230,19 +230,22 @@ pub enum EpochChange<M: Machine> {
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine<M: Machine>: Sync + Send {
+pub trait Engine: Sync + Send {
+	/// The virtual machine that this engine uses.
+	type Machine: Machine;
+
 	/// The name of this engine.
 	fn name(&self) -> &str;
 
 	/// Get access to the underlying state machine.
 	// TODO: decouple.
-	fn machine(&self) -> &M;
+	fn machine(&self) -> &Self::Machine;
 
 	/// The number of additional header fields required for this engine.
-	fn seal_fields(&self, _header: &M::Header) -> usize { 0 }
+	fn seal_fields(&self, _header: &<Self::Machine as Machine>::Header) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }
+	fn extra_info(&self, _header: &<Self::Machine as Machine>::Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
 	/// Maximum number of uncles a block is allowed to declare.
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
@@ -257,15 +260,15 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// `epoch_begin` set to true if this block kicks off an epoch.
 	fn on_new_block(
 		&self,
-		_block: &mut M::LiveBlock,
+		_block: &mut <Self::Machine as Machine>::LiveBlock,
 		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item=M::ExtendedHeader>,
-	) -> Result<(), M::Error> {
+		_ancestry: &mut Iterator<Item=<Self::Machine as Machine>::ExtendedHeader>,
+	) -> Result<(), <Self::Machine as Machine>::Error> {
 		Ok(())
 	}
 
 	/// Block transformation functions, after the transactions.
-	fn on_close_block(&self, _block: &mut M::LiveBlock) -> Result<(), M::Error> {
+	fn on_close_block(&self, _block: &mut <Self::Machine as Machine>::LiveBlock) -> Result<(), <Self::Machine as Machine>::Error> {
 		Ok(())
 	}
 
@@ -283,7 +286,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// It is fine to require access to state or a full client for this function, since
 	/// light clients do not generate seals.
-	fn generate_seal(&self, _block: &M::LiveBlock, _parent: &M::Header) -> Seal { Seal::None }
+	fn generate_seal(&self, _block: &<Self::Machine as Machine>::LiveBlock, _parent: &<Self::Machine as Machine>::Header) -> Seal { Seal::None }
 
 	/// Verify a locally-generated seal of a header.
 	///
@@ -295,25 +298,25 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// It is fine to require access to state or a full client for this function, since
 	/// light clients do not generate seals.
-	fn verify_local_seal(&self, header: &M::Header) -> Result<(), M::Error>;
+	fn verify_local_seal(&self, header: &<Self::Machine as Machine>::Header) -> Result<(), <Self::Machine as Machine>::Error>;
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_basic(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_basic(&self, _header: &<Self::Machine as Machine>::Header) -> Result<(), <Self::Machine as Machine>::Error> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
 	/// The verification module can optionally avoid checking the seal (`check_seal`), if seal verification is disabled this method won't be called.
-	fn verify_block_unordered(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_unordered(&self, _header: &<Self::Machine as Machine>::Header) -> Result<(), <Self::Machine as Machine>::Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &M::Header, _parent: &M::Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &<Self::Machine as Machine>::Header, _parent: &<Self::Machine as Machine>::Header) -> Result<(), <Self::Machine as Machine>::Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	/// Should only be called when `register_client` has been called previously.
-	fn verify_block_external(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
+	fn verify_block_external(&self, _header: &<Self::Machine as Machine>::Header) -> Result<(), <Self::Machine as Machine>::Error> { Ok(()) }
 
 	/// Genesis epoch data.
-	fn genesis_epoch_data<'a>(&self, _header: &M::Header, _state: &<M as Localized<'a>>::StateContext) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+	fn genesis_epoch_data<'a>(&self, _header: &<Self::Machine as Machine>::Header, _state: &<Self::Machine as Localized<'a>>::StateContext) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
 	/// Whether an epoch change is signalled at the given header but will require finality.
 	/// If a change can be enacted immediately then return `No` from this function but
@@ -324,8 +327,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end<'a>(&self, _header: &M::Header, _aux: <M as Localized<'a>>::AuxiliaryData)
-		-> EpochChange<M>
+	fn signals_epoch_end<'a>(&self, _header: &<Self::Machine as Machine>::Header, _aux: <Self::Machine as Localized<'a>>::AuxiliaryData)
+		-> EpochChange<Self::Machine>
 	{
 		EpochChange::No
 	}
@@ -340,9 +343,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return optional transition proof.
 	fn is_epoch_end(
 		&self,
-		_chain_head: &M::Header,
+		_chain_head: &<Self::Machine as Machine>::Header,
 		_finalized: &[H256],
-		_chain: &Headers<M::Header>,
+		_chain: &Headers<<Self::Machine as Machine>::Header>,
 		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		None
@@ -359,8 +362,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return optional transition proof.
 	fn is_epoch_end_light(
 		&self,
-		_chain_head: &M::Header,
-		_chain: &Headers<M::Header>,
+		_chain_head: &<Self::Machine as Machine>::Header,
+		_chain: &Headers<<Self::Machine as Machine>::Header>,
 		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		None
@@ -368,13 +371,13 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
-	fn epoch_verifier<'a>(&self, _header: &M::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a, M> {
+	fn epoch_verifier<'a>(&self, _header: &<Self::Machine as Machine>::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a, Self::Machine> {
 		ConstructedVerifier::Trusted(Box::new(self::epoch::NoOp))
 	}
 
 	/// Populate a header's fields based on its parent's header.
 	/// Usually implements the chain scoring rule based on weight.
-	fn populate_from_parent(&self, _header: &mut M::Header, _parent: &M::Header) { }
+	fn populate_from_parent(&self, _header: &mut <Self::Machine as Machine>::Header, _parent: &<Self::Machine as Machine>::Header) { }
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
@@ -382,16 +385,16 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Find out if the block is a proposal block and should not be inserted into the DB.
 	/// Takes a header of a fully verified block.
-	fn is_proposal(&self, _verified_header: &M::Header) -> bool { false }
+	fn is_proposal(&self, _verified_header: &<Self::Machine as Machine>::Header) -> bool { false }
 
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: Password) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
-	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
+	fn sign(&self, _hash: H256) -> Result<Signature, <Self::Machine as Machine>::Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, potentially querying the state and sending messages.
-	fn register_client(&self, _client: Weak<M::EngineClient>) {}
+	fn register_client(&self, _client: Weak<<Self::Machine as Machine>::EngineClient>) {}
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
@@ -425,12 +428,12 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
 	/// the ancestry exists.
-	fn ancestry_actions(&self, _header: &M::Header, _ancestry: &mut Iterator<Item=M::ExtendedHeader>) -> Vec<AncestryAction> {
+	fn ancestry_actions(&self, _header: &<Self::Machine as Machine>::Header, _ancestry: &mut Iterator<Item=<Self::Machine as Machine>::ExtendedHeader>) -> Vec<AncestryAction> {
 		Vec::new()
 	}
 
 	/// Check whether the given new block is the best block, after finalization check.
-	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
+	fn fork_choice(&self, new: &<Self::Machine as Machine>::ExtendedHeader, best: &<Self::Machine as Machine>::ExtendedHeader) -> ForkChoice;
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
@@ -446,7 +449,7 @@ pub fn total_difficulty_fork_choice<T: TotalScoredHeader>(new: &T, best: &T) -> 
 // TODO: make this a _trait_ alias when those exist.
 // fortunately the effect is largely the same since engines are mostly used
 // via trait objects.
-pub trait EthEngine: Engine<::machine::EthereumMachine> {
+pub trait EthEngine: Engine<Machine = ::machine::EthereumMachine> {
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams {
 		self.machine().params()
@@ -526,4 +529,4 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 }
 
 // convenience wrappers for existing functions.
-impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }
+impl<T> EthEngine for T where T: Engine<Machine = ::machine::EthereumMachine> { }

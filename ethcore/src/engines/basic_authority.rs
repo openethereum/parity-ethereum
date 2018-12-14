@@ -91,7 +91,9 @@ impl BasicAuthority {
 	}
 }
 
-impl Engine<EthereumMachine> for BasicAuthority {
+impl Engine for BasicAuthority {
+	type Machine = EthereumMachine;
+
 	fn name(&self) -> &str { "BasicAuthority" }
 
 	fn machine(&self) -> &EthereumMachine { &self.machine }

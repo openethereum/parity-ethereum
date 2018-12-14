@@ -907,7 +907,9 @@ impl IoHandler<()> for TransitionHandler {
 	}
 }
 
-impl Engine<EthereumMachine> for AuthorityRound {
+impl Engine for AuthorityRound {
+	type Machine = EthereumMachine;
+
 	fn name(&self) -> &str { "AuthorityRound" }
 
 	fn machine(&self) -> &EthereumMachine { &self.machine }
