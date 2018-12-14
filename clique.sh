@@ -32,7 +32,7 @@ docker build -t parity/clique ./docker
 echo "________________________________________________________________________________"
 echo "DEPLOY DOCKER IMAGE: --config clique --nodes 2 --geth-nodes 2"
 ./parity-deploy.sh --config clique --nodes 2 --geth-nodes 2
-TIMEOUT=$(echo 50*60-600-$SECONDS|bc)
+TIMEOUT=$(echo 50*60-1800-$SECONDS|bc)
 
 echo "________________________________________________________________________________"
 echo "RUN NETWORK FOR $TIMEOUT SECONDS: docker-compose up"
