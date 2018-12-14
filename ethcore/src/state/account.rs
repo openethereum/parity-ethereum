@@ -451,6 +451,11 @@ impl Account {
 		}
 	}
 
+	/// Whether the base storage root of this account is unchanged.
+	pub fn is_base_storage_root_unchanged(&self) -> bool {
+		self.original_storage_cache.is_none()
+	}
+
 	/// Storage root where the account changes are based upon.
 	pub fn base_storage_root(&self) -> H256 {
 		self.storage_root

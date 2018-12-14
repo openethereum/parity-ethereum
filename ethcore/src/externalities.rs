@@ -116,7 +116,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
 	fn initial_storage_at(&self, key: &H256) -> vm::Result<H256> {
-		self.state.checkpoint_storage_at(0, &self.origin_info.address, key).map(|v| v.unwrap_or(H256::zero())).map_err(Into::into)
+		if self.state.is_base_storage_root_unchanged(&self.origin_info.address)? {
+			self.state.checkpoint_storage_at(0, &self.origin_info.address, key).map(|v| v.unwrap_or(H256::zero())).map_err(Into::into)
+		} else {
+			Ok(H256::zero())
+		}
 	}
 
 	fn storage_at(&self, key: &H256) -> vm::Result<H256> {

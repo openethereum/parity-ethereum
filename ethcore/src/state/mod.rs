@@ -541,9 +541,9 @@ impl<B: Backend> State<B> {
 
 	/// Whether the base storage root of an account remains unchanged.
 	pub fn is_base_storage_root_unchanged(&self, a: &Address) -> TrieResult<bool> {
-		self.ensure_cached(a, RequireCache::None, true,
-			|a| a.as_ref().and_then(|account| account.base_storage_root() == account.original_storage_root))?
-			.unwrap_or(true)
+		Ok(self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map(|account| account.is_base_storage_root_unchanged()))?
+			.unwrap_or(true))
 	}
 
 	/// Get the storage root of account `a`.
