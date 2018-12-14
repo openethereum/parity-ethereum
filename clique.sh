@@ -14,10 +14,12 @@ git clone https://github.com/jwasinger/parity-deploy -b clique /home/travis/buil
 ln -s /home/travis/build/goerli/parity-goerli /home/travis/build/goerli/parity-ethereum
 cd /home/travis/build/goerli/parity-goerli
 cargo build --features final
+cargo build -p ethkey-cli
 
 echo "________________________________________________________________________________"
 echo "INSTALL PARITY: sudo install -C parity"
 sudo install -C ./target/debug/parity /usr/local/bin/parity
+sudo install -C ./target/debug/ethkey /usr/local/bin/ethkey
 
 echo "________________________________________________________________________________"
 echo "BUILD DOCKER IMAGE: docker build -t parity/clique"
