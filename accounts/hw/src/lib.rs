@@ -228,7 +228,7 @@ impl HardwareWalletManager {
 		let t = trezor.clone();
 		let exit = exiting.clone();
 
-		// Subscribe for all vendor IDs (VIDs) and product IDs (PIDs)
+		// Subscribe to all vendor IDs (VIDs) and product IDs (PIDs)
 		// This means that the `HardwareWalletManager` is responsible to validate the detected device
 		usb_context.register_callback(
 			None, None, Some(USB_DEVICE_CLASS_DEVICE),
