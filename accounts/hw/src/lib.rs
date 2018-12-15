@@ -338,7 +338,7 @@ impl Drop for HardwareWalletManager {
 
 /// Hardware wallet event handler
 ///
-/// Note, that this run to completion and race-conditions can't occur but this can
+/// Note, that this runs to completion and race-conditions can't occur but it can
 /// therefore starve other events for being process with a spinlock or similar
 struct EventHandler {
 	ledger: Weak<ledger::Manager>,
