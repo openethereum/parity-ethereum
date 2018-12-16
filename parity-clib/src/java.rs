@@ -142,7 +142,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative(
 							cb.call(error::TIMEOUT);
 						});
 				})
-			.expect("rpc-query thread shouldn't fail; qed");
+				.expect("rpc-query thread shouldn't fail; qed");
 		})
 		.map_err(|e| {
 			let _ = env.throw_new("java/lang/Exception", e);
