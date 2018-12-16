@@ -342,9 +342,8 @@ impl<'a> Wallet<'a> for Manager {
 		let devices = usb.devices();
 		let num_prev_devices = self.devices.read().len();
 
-		// Sometimes when a ledger is connected at run-time with no other devices connected it will case a `disconnected` event. To work around this, ignore such spurious events and poll a couple of extra times in order to get the correct state.
-		// it first appears as it `disconnected` then ignore this and poll a couple extra iterations in order
-		// to get the correct state.
+		// Sometimes when a ledger is connected at run-time with no other devices connected it will case a `disconnected` event.
+		// To work around this, ignore such spurious events and poll a couple of extra times in order to get the correct state.
 		if DeviceDirection::Left == device_direction && num_prev_devices == 0 {
 			return Err(Error::NoDeviceArrived);
 		}

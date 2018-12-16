@@ -42,7 +42,8 @@ use ethereum_types::U256;
 use ethkey::{Address, Signature};
 use parking_lot::Mutex;
 
-const USB_DEVICE_CLASS_DEVICE: u8 = 0;
+const HID_GLOBAL_USAGE_PAGE: u16 = 0xFF00;
+const HID_USB_DEVICE_CLASS: u8 = 0;
 const MAX_POLLING_DURATION: Duration = Duration::from_millis(500);
 const USB_EVENT_POLLING_INTERVAL: Duration = Duration::from_millis(500);
 
@@ -231,7 +232,7 @@ impl HardwareWalletManager {
 		// Subscribe to all vendor IDs (VIDs) and product IDs (PIDs)
 		// This means that the `HardwareWalletManager` is responsible to validate the detected device
 		usb_context.register_callback(
-			None, None, Some(USB_DEVICE_CLASS_DEVICE),
+			None, None, Some(HID_USB_DEVICE_CLASS),
 			Box::new(EventHandler::new(
 				Arc::downgrade(&ledger),
 				Arc::downgrade(&trezor)
@@ -339,7 +340,7 @@ impl Drop for HardwareWalletManager {
 /// Hardware wallet event handler
 ///
 /// Note, that this runs to completion and race-conditions can't occur but it can
-/// therefore starve other events for being process with a spinlock or similar
+/// stop other events for being processed with an infinite loop or similar
 struct EventHandler {
 	ledger: Weak<ledger::Manager>,
 	trezor: Weak<trezor::Manager>,
@@ -395,8 +396,7 @@ impl libusb::Hotplug for EventHandler {
 	}
 }
 
-
 /// Helper to determine if a device is a valid HID
 pub fn is_valid_hid_device(usage_page: u16, interface_number: i32) -> bool {
-	usage_page == 0xFF00 || interface_number == 0
+	usage_page == HID_GLOBAL_USAGE_PAGE || interface_number == HID_USB_DEVICE_CLASS as i32
 }
