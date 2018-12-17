@@ -243,9 +243,9 @@ build_rpc_trait! {
 		fn verify_signature(&self, bool, Bytes, H256, H256, U64) -> Result<RecoveredAccount>;
 
 		/// Returns logs matching given filter object.
-		/// Skip filling transaction hash for faster query.
-		#[rpc(name = "parity_getLogsLight")]
-		fn logs_light(&self, Filter) -> BoxFuture<Vec<Log>>;
+		/// Is allowed to skip filling transaction hash for faster query.
+		#[rpc(name = "parity_getLogsNoTransactionHash")]
+		fn logs_no_tx_hash(&self, Filter) -> BoxFuture<Vec<Log>>;
 
 	}
 }

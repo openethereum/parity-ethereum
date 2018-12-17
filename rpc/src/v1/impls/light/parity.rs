@@ -427,12 +427,12 @@ impl Parity for ParityClient {
 		}
 	}
 
-	fn logs_light(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
+	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
     let filter = match filter.try_into() {
 			Ok(value) => value,
 			Err(err) => return Box::new(future::err(err)),
 		};
-		Box::new(self.fetcher().logs_light(filter)) as BoxFuture<_>
+		Box::new(self.fetcher().logs_no_tx_hash(filter)) as BoxFuture<_>
 	}
 
 	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {

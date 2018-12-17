@@ -309,11 +309,9 @@ impl LightFetch {
 			Some(OnDemandResponse::Receipts(b)) => b,
 			_ => panic!(WRONG_RESPONSE_AMOUNT_TYPE_PROOF),
 		}))
-
-	
 	}
 
-	fn logs_common(&self, filter: EthcoreFilter) -> impl Future<Item = BTreeMap<(u64,usize),Log>, Error = Error> + Send {
+	fn logs_common(&self, filter: EthcoreFilter) -> impl Future<Item = BTreeMap<(u64, usize), Log>, Error = Error> + Send {
 		use jsonrpc_core::futures::stream::{self, Stream};
 
 		const MAX_BLOCK_RANGE: u64 = 1000;
@@ -376,12 +374,11 @@ impl LightFetch {
 					None => Either::B(Either::B(future::err(errors::network_disabled()))),
 				}
 			})
-
 	}
 
 
 	/// Variant of get transaction logs that does not fetch log transactions hash
-	pub fn logs_light(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
+	pub fn logs_no_tx_hash(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
 		self.logs_common(filter)
 			.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
 	}
@@ -391,34 +388,34 @@ impl LightFetch {
 		use jsonrpc_core::futures::stream::{self, Stream};
 		let fetcher_block = self.clone();
 		self.logs_common(filter)
-		// retrieve transaction hash.
+			// retrieve transaction hash.
 			.and_then(move |matches| {
-			let mut blocks = BTreeMap::new();
-			let mut result: Vec<Log> = matches.into_iter().map(|(_, v)| {
-				{
-					let block_hash = v.block_hash.as_ref().expect("Previously initialized with value; qed");
-					blocks.entry(block_hash.clone()).or_insert_with(|| {
-						fetcher_block.block(BlockId::Hash(block_hash.clone().into()))
-					});
-				}
-				v
-			}).collect();
-			// future get blocks (unordered it)
-			stream::futures_unordered(blocks.into_iter().map(|(_,v)|v)).collect().map(move |blocks| {
-				let transactions_per_block: BTreeMap<_, _> = blocks.iter()
-					.map(|block| (block.hash(), block.transactions())).collect();
-				for log in result.iter_mut() {
-					let log_index: U256 = log.transaction_index.expect("Previously initialized with value; qed").into();
-					let block_hash = log.block_hash.clone().expect("Previously initialized with value; qed").into();
-					let tx_hash = transactions_per_block.get(&block_hash)
-						// transaction index is from an enumerate call in log common so not need to check value
-						.and_then(|txs| txs.get(log_index.as_usize()))
-						.map(|tr| tr.hash().into());
-					log.transaction_hash = tx_hash;
-				}
-				result
+				let mut blocks = BTreeMap::new();
+				let mut result: Vec<Log> = matches.into_iter().map(|(_, v)| {
+					{
+						let block_hash = v.block_hash.as_ref().expect("Previously initialized with value; qed");
+						blocks.entry(block_hash.clone()).or_insert_with(|| {
+							fetcher_block.block(BlockId::Hash(block_hash.clone().into()))
+						});
+					}
+					v
+				}).collect();
+				// future get blocks (unordered it)
+				stream::futures_unordered(blocks.into_iter().map(|(_, v)| v)).collect().map(move |blocks| {
+					let transactions_per_block: BTreeMap<_, _> = blocks.iter()
+						.map(|block| (block.hash(), block.transactions())).collect();
+					for log in result.iter_mut() {
+						let log_index: U256 = log.transaction_index.expect("Previously initialized with value; qed").into();
+						let block_hash = log.block_hash.clone().expect("Previously initialized with value; qed").into();
+						let tx_hash = transactions_per_block.get(&block_hash)
+							// transaction index is from an enumerate call in log common so not need to check value
+							.and_then(|txs| txs.get(log_index.as_usize()))
+							.map(|tr| tr.hash().into());
+						log.transaction_hash = tx_hash;
+					}
+					result
+				})
 			})
-		})
 	}
 
 	// Get a transaction by hash. also returns the index in the block.

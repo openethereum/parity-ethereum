@@ -505,7 +505,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		}
 	}
 
-	fn logs_light(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
+	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
 		use v1::impls::eth::base_logs;
 		// only specific impl for lightclient
 		base_logs(&*self.client, &*self.miner, filter.into())
