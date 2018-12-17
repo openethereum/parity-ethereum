@@ -311,7 +311,7 @@ impl LightFetch {
 		}))
 	}
 
-	fn logs_common(&self, filter: EthcoreFilter) -> impl Future<Item = BTreeMap<(u64, usize), Log>, Error = Error> + Send {
+	pub fn logs_no_tx_hash(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
 		use jsonrpc_core::futures::stream::{self, Stream};
 
 		const MAX_BLOCK_RANGE: u64 = 1000;
@@ -320,7 +320,7 @@ impl LightFetch {
 		self.headers_range_by_block_id(filter.from_block, filter.to_block, MAX_BLOCK_RANGE)
 			.and_then(move |mut headers| {
 				if headers.is_empty() {
-					return Either::A(future::ok(BTreeMap::new()));
+					return Either::A(future::ok(Vec::new()));
 				}
 
 				let on_demand = &fetcher.on_demand;
@@ -367,6 +367,7 @@ impl LightFetch {
 							future::ok::<_,OnDemandError>(matches)
 						})
 						.map_err(errors::on_demand_error)
+						.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
 				});
 
 				match maybe_future {
@@ -377,21 +378,15 @@ impl LightFetch {
 	}
 
 
-	/// Variant of get transaction logs that does not fetch log transactions hash
-	pub fn logs_no_tx_hash(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
-		self.logs_common(filter)
-			.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
-	}
-
 	/// Get transaction logs
 	pub fn logs(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
 		use jsonrpc_core::futures::stream::{self, Stream};
 		let fetcher_block = self.clone();
-		self.logs_common(filter)
+		self.logs_no_tx_hash(filter)
 			// retrieve transaction hash.
 			.and_then(move |matches| {
 				let mut blocks = BTreeMap::new();
-				let mut result: Vec<Log> = matches.into_iter().map(|(_, v)| {
+				let mut result: Vec<Log> = matches.into_iter().map(|v| {
 					{
 						let block_hash = v.block_hash.as_ref().expect("Previously initialized with value; qed");
 						blocks.entry(block_hash.clone()).or_insert_with(|| {
