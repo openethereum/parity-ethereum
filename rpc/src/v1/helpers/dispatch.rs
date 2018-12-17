@@ -76,9 +76,10 @@ pub trait Dispatcher: Send + Sync + Clone {
 		filled: FilledTransactionRequest,
 		password: SignWith,
 		post_sign: P
-	) -> BoxFuture<<P as PostSign>::Item>
-		where P: PostSign + 'static,
-		      <<P as PostSign>::Out as futures::future::IntoFuture>::Future: Send;
+	) -> BoxFuture<P::Item>
+		where
+			P: PostSign + 'static,
+		    <P::Out as futures::future::IntoFuture>::Future: Send;
 
 	/// Converts a `SignedTransaction` into `RichRawTransaction`
 	fn enrich(&self, signed: SignedTransaction) -> RpcRichRawTransaction;
@@ -176,10 +177,11 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 		accounts: Arc<AccountProvider>,
 		filled: FilledTransactionRequest,
 		password: SignWith,
-		post_sign:  P
-	) -> BoxFuture<<P as PostSign>::Item>
-		where P: PostSign + 'static,
-		      <<P as PostSign>::Out as futures::future::IntoFuture>::Future: Send
+		post_sign: P
+	) -> BoxFuture<P::Item>
+		where
+			P: PostSign + 'static,
+		    <P::Out as futures::future::IntoFuture>::Future: Send
 	{
 		let chain_id = self.client.signing_chain_id();
 
@@ -419,9 +421,10 @@ impl Dispatcher for LightDispatcher {
 		filled: FilledTransactionRequest,
 		password: SignWith,
 		post_sign: P
-	) -> BoxFuture<<P as PostSign>::Item>
-		where P: PostSign + 'static,
-		      <<P as PostSign>::Out as futures::future::IntoFuture>::Future: Send
+	) -> BoxFuture<P::Item>
+		where
+			P: PostSign + 'static,
+		    <P::Out as futures::future::IntoFuture>::Future: Send
 	{
 		let chain_id = self.client.signing_chain_id();
 		let nonce = filled.nonce.expect("nonce is always provided; qed");
@@ -477,7 +480,6 @@ fn sign_transaction(
 #[derive(Debug, Clone, Copy)]
 enum ProspectiveSignerState {
 	TryProspectiveSign,
-	PostSign,
 	WaitForPostSign,
 	WaitForNonce,
 }
@@ -497,7 +499,7 @@ struct ProspectiveSigner<P: PostSign> {
 
 /// action to execute after signing
 /// e.g importing a transaction into the chain
-pub trait PostSign: Send + Sync {
+pub trait PostSign: Send {
 	/// item that this PostSign returns
 	type Item: Send;
 	/// incase you need to perform async PostSign actions
@@ -514,7 +516,7 @@ impl PostSign for () {
 	}
 }
 
-impl<F: Send + Sync, T: Send + Sync> PostSign for F
+impl<F: Send, T: Send> PostSign for F
 	where F: FnOnce(WithToken<SignedTransaction>) -> Result<T>
 {
 	type Item = T;
@@ -589,8 +591,11 @@ impl<P: PostSign> Future for ProspectiveSigner<P> {
 							self.prospective = Some(self.sign(self.reserved.prospective_value())?);
 						},
 						Async::Ready(nonce) => {
-							self.state = PostSign;
-							self.prospective = Some(self.sign(nonce.value())?);
+							self.state = WaitForPostSign;
+							self.post_sign_future = Some(self.post_sign.take()
+								.expect("post_sign is set on creation; qed")
+								.execute(self.sign(nonce.value())?)
+								.into_future());
 							self.ready = Some(nonce);
 						},
 					}
@@ -601,34 +606,15 @@ impl<P: PostSign> Future for ProspectiveSigner<P> {
 						(Some(prospective), true) => prospective,
 						_ => self.sign(nonce.value())?,
 					};
-					self.state = PostSign;
-					self.prospective = Some(prospective);
 					self.ready = Some(nonce);
-				},
-				PostSign => {
-					if let (Some(result), Some(nonce)) = (self.prospective.take(), self.ready.take()) {
-						let mut post_sign_future = self.post_sign.take()
-							.expect("post_sign is set on creation; qed")
-							.execute(result)
-							.into_future();
-
-						match post_sign_future.poll()? {
-							Async::NotReady => {
-								self.post_sign_future = Some(post_sign_future);
-								self.state = WaitForPostSign;
-								self.ready = Some(nonce);
-							},
-							Async::Ready(item) => {
-								nonce.mark_used();
-								return Ok(Async::Ready(item))
-							},
-						}
-					} else {
-						panic!("Poll after ready.");
-					}
+					self.state = WaitForPostSign;
+					self.post_sign_future = Some(self.post_sign.take()
+						.expect("post_sign is set on creation; qed")
+						.execute(prospective)
+						.into_future());
 				},
 				WaitForPostSign => {
-					if let Some(mut fut) = self.post_sign_future.take() {
+					if let Some(mut fut) = self.post_sign_future.as_mut() {
 						match fut.poll()? {
 							Async::Ready(item) => {
 								let nonce = self.ready
@@ -638,7 +624,6 @@ impl<P: PostSign> Future for ProspectiveSigner<P> {
 								return Ok(Async::Ready(item))
 							},
 							Async::NotReady => {
-								self.post_sign_future = Some(fut);
 								return Ok(Async::NotReady)
 							}
 						}
