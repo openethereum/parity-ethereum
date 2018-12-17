@@ -34,12 +34,18 @@ pub struct TestSet {
 	last_benign: Arc<AtomicUsize>,
 }
 
+impl Default for TestSet {
+	fn default() -> Self {
+		TestSet::new(Default::default(), Default::default())
+	}
+}
+
 impl TestSet {
 	pub fn new(last_malicious: Arc<AtomicUsize>, last_benign: Arc<AtomicUsize>) -> Self {
 		TestSet {
 			validator: SimpleList::new(vec![Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()]),
-			last_malicious: last_malicious,
-			last_benign: last_benign,
+			last_malicious,
+			last_benign,
 		}
 	}
 }

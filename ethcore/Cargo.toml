@@ -12,7 +12,7 @@ blooms-db = { path = "../util/blooms-db" }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
-crossbeam = "0.3"
+crossbeam = "0.4"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 parity-bytes = "0.1"
@@ -44,7 +44,7 @@ lru-cache = "0.1"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
-parking_lot = "0.6"
+parking_lot = "0.7"
 rayon = "1.0"
 rand = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }
@@ -70,7 +70,7 @@ kvdb-rocksdb = "0.1.3"
 serde = "1.0"
 serde_derive = "1.0"
 tempdir = {version="0.3", optional = true}
-len-caching-mutex = { path = "../util/len-caching-mutex" }
+len-caching-lock = { path = "../util/len-caching-lock" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
 hardware-wallet = { path = "../hw" }

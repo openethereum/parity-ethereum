@@ -29,7 +29,7 @@ log = "0.4"
 env_logger = "0.5"
 rand = "0.4"
 heapsize = "0.4"
-parking_lot = "0.6"
+parking_lot = "0.7"
 trace-time = "0.1"
 
 [dev-dependencies]

@@ -12,7 +12,7 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 log = "0.4"
-parking_lot = "0.6"
+parking_lot = "0.7"
 
 [dev-dependencies]
 env_logger = "0.5"

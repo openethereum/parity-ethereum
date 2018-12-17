@@ -979,7 +979,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
 					self.call_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
 				}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
-			}).join()
+			}).join().expect("Sub-thread never panics; qed")
 		}
 	}
 
@@ -1063,7 +1063,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				scope.builder().stack_size(::std::cmp::max(self.schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
 					self.create_with_stack_depth(params, substate, stack_depth, tracer, vm_tracer)
 				}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
-			}).join()
+			}).join().expect("Sub-thread never panics; qed")
 		}
 	}
 
