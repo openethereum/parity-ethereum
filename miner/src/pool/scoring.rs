@@ -26,8 +26,8 @@
 //! Transactions between senders are prioritized using `gas price`. Higher `gas price`
 //! yields more profits for miners. Additionally we prioritize transactions that originate
 //! from our local node (own transactions).
-#[macro_use]
-use log::*; // TODO get rid of these two lines
+
+use log::*; // TODO get rid of this line
 use std::cmp;
 
 use ethereum_types::U256;

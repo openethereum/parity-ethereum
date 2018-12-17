@@ -1358,7 +1358,6 @@ struct Mining {
 	refuse_service_transactions: Option<bool>,
 	infinite_pending_block: Option<bool>,
 	max_round_blocks_to_import: Option<usize>,
-	experimental_scoring: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
