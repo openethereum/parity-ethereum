@@ -384,17 +384,14 @@ impl LightFetch {
 		let fetcher_block = self.clone();
 		self.logs_no_tx_hash(filter)
 			// retrieve transaction hash.
-			.and_then(move |matches| {
+			.and_then(move |mut result| {
 				let mut blocks = BTreeMap::new();
-				let mut result: Vec<Log> = matches.into_iter().map(|v| {
-					{
-						let block_hash = v.block_hash.as_ref().expect("Previously initialized with value; qed");
+				for log in result.iter() {
+						let block_hash = log.block_hash.as_ref().expect("Previously initialized with value; qed");
 						blocks.entry(block_hash.clone()).or_insert_with(|| {
 							fetcher_block.block(BlockId::Hash(block_hash.clone().into()))
 						});
-					}
-					v
-				}).collect();
+				}
 				// future get blocks (unordered it)
 				stream::futures_unordered(blocks.into_iter().map(|(_, v)| v)).collect().map(move |blocks| {
 					let transactions_per_block: BTreeMap<_, _> = blocks.iter()
