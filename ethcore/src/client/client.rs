@@ -474,6 +474,7 @@ impl Importer {
 	// it is for reconstructing the state transition.
 	//
 	// The header passed is from the original block data and is sealed.
+	// TODO: should return an error if ImportRoute is none
 	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, client: &Client) -> ImportRoute where B: Drain {
 		let hash = &header.hash();
 		let number = header.number();
