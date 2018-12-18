@@ -18,7 +18,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use bytes::{Bytes};
+use bytes::Bytes;
 use ethcore::account_provider::AccountProvider;
 use transaction::PendingTransaction;
 use ethereum_types::{H520, U128, Address};

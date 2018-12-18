@@ -189,13 +189,13 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 			let future = sign_transaction(&*accounts, filled, chain_id, nonce, password)
 				.into_future()
 				.and_then(move |signed| post_sign.execute(signed));
-			return Box::new(future);
+			Box::new(future)
+		} else {
+			let state = self.state_nonce(&filled.from);
+			let reserved = self.nonces.lock().reserve(filled.from, state);
+
+			Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password, post_sign))
 		}
-
-		let state = self.state_nonce(&filled.from);
-		let reserved = self.nonces.lock().reserve(filled.from, state);
-
-		Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password, post_sign))
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
@@ -494,7 +494,7 @@ struct ProspectiveSigner<P: PostSign> {
 	prospective: Option<WithToken<SignedTransaction>>,
 	ready: Option<nonce::Ready>,
 	post_sign: Option<P>,
-	post_sign_future: Option<<<P as PostSign>::Out as IntoFuture>::Future>
+	post_sign_future: Option<<P::Out as IntoFuture>::Future>
 }
 
 /// action to execute after signing
@@ -575,7 +575,7 @@ impl<P: PostSign> ProspectiveSigner<P> {
 }
 
 impl<P: PostSign> Future for ProspectiveSigner<P> {
-	type Item = <P as PostSign>::Item;
+	type Item = P::Item;
 	type Error = Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
