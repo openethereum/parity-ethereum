@@ -141,7 +141,7 @@ impl NewBlocks {
 		sealed: Vec<H256>,
 		proposed: Vec<Bytes>,
 		duration: Duration,
-		processing_is_empty: bool,
+		has_more_blocks_to_import: bool,
 	) -> NewBlocks {
 		NewBlocks {
 			imported,
@@ -150,7 +150,7 @@ impl NewBlocks {
 			sealed,
 			proposed,
 			duration,
-			has_more_blocks_to_import: processing_is_empty,
+			has_more_blocks_to_import,
 		}
 	}
 }

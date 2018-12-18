@@ -2352,7 +2352,7 @@ impl ImportSealedBlock for Client {
 					vec![hash],
 					vec![],
 					start.elapsed(),
-					true
+					false
 				)
 			);
 		});
@@ -2373,7 +2373,7 @@ impl BroadcastProposalBlock for Client {
 					vec![],
 					vec![block.rlp_bytes()],
 					DURATION_ZERO,
-					true
+					false
 				)
 			);
 		});

@@ -168,7 +168,7 @@ mod tests {
 			vec![],
 			vec![],
 			DURATION_ZERO,
-			true
+			false
 		));
 	}
 
