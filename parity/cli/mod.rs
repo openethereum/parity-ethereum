@@ -19,7 +19,6 @@ mod usage;
 mod presets;
 
 use std::collections::HashSet;
-
 use super::helpers;
 
 usage! {
