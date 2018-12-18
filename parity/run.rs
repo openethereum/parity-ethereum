@@ -582,8 +582,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
 		account_provider.clone(),
-		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf, fetch.clone()).map_err(|e| e.to_string())?),
+		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf.clone(), fetch.clone()).map_err(|e| e.to_string())?),
 		cmd.private_provider_conf,
+		cmd.private_encryptor_conf,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	let connection_filter_address = spec.params().node_permission_contract;

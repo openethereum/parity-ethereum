@@ -21,6 +21,7 @@
 #![recursion_limit="256"]
 
 mod encryptor;
+mod key_server_keys;
 mod private_transactions;
 mod messages;
 mod error;
@@ -64,6 +65,7 @@ extern crate rand;
 extern crate env_logger;
 
 pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryptor};
+pub use key_server_keys::{KeyProvider, SecretStoreKeys, StoringKeyProvider};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};
@@ -83,7 +85,7 @@ use types::transaction::{SignedTransaction, Transaction, Action, UnverifiedTrans
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
 	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
-	Call, BlockInfo, CallContract, RegistryInfo
+	Call, BlockInfo, CallContract
 };
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
@@ -97,10 +99,7 @@ use ethabi::FunctionOutputDecoder;
 // Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
 
-const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
-
 use_contract!(private_contract, "res/private.json");
-use_contract!(keys_acl_contract, "res/keys_acl.json");
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -149,7 +148,7 @@ pub struct Provider {
 	miner: Arc<Miner>,
 	accounts: Arc<AccountProvider>,
 	channel: IoChannel<ClientIoMessage>,
-	keys_acl_contract: RwLock<Option<Address>>,
+	keys_provider: Arc<KeyProvider>,
 }
 
 #[derive(Debug)]
@@ -169,8 +168,10 @@ impl Provider where {
 		encryptor: Box<Encryptor>,
 		config: ProviderConfig,
 		channel: IoChannel<ClientIoMessage>,
+		keys_provider: Arc<KeyProvider>,
 	) -> Self {
-		let provider = Provider {
+		keys_provider.update_acl_contract();
+		Provider {
 			encryptor,
 			validator_accounts: config.validator_accounts.into_iter().collect(),
 			signer_account: config.signer_account,
@@ -182,22 +183,7 @@ impl Provider where {
 			miner,
 			accounts,
 			channel,
-			keys_acl_contract: RwLock::new(None),
-		};
-		provider.update_acl_contract();
-		provider
-	}
-
-	fn update_acl_contract(&self) {
-		let contract_address = self.client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.into(), BlockId::Latest);
-		let current_address = self.keys_acl_contract.read();
-
-		if *current_address != contract_address {
-			trace!(target: "privatetx", "Configuring for ACL checker contract from address {:?}",
-				contract_address);
-
-			let keys_acl_contract = self.keys_acl_contract.write();
-			keys_acl_contract.and(contract_address);
+			keys_provider,
 		}
 	}
 
@@ -541,8 +527,8 @@ impl Provider where {
 		});
 		let contract_address = contract_address.expect("Private contract address should be non zero by this moment; qed");
 		// Patch other available private contracts' states as well
-		if let Some(key_server_account) = self.encryptor.key_server_account() {
-			if let Some(available_contracts) = self.available_private_contracts(block, &key_server_account) {
+		if let Some(key_server_account) = self.keys_provider.key_server_account() {
+			if let Some(available_contracts) = self.keys_provider.available_keys(block, &key_server_account) {
 				for private_contract in available_contracts {
 					if private_contract == contract_address {
 						continue;
@@ -591,20 +577,7 @@ impl Provider where {
 
 	/// Returns the key from the key server associated with the contract
 	pub fn contract_key_id(&self, contract_address: &Address) -> Result<H256, Error> {
-		// Current solution uses contract address extended with 0 as id
-		let contract_address_extended: H256 = contract_address.into();
-
-		Ok(H256::from_slice(&contract_address_extended))
-	}
-
-	fn keys_to_addresses(&self, keys: Option<Vec<H256>>) -> Option<Vec<Address>> {
-		keys.map(|key_values| {
-			let mut addresses: Vec<Address> = Vec::new();
-			for key in key_values {
-				addresses.push(Address::from_slice(&key.to_vec()[..10]));
-			}
-			addresses
-		})
+		Ok(key_server_keys::address_to_key(contract_address))
 	}
 
 	/// Create encrypted public contract deployment transaction.
@@ -694,20 +667,6 @@ impl Provider where {
 		let (data, _) = private_contract::functions::notify_changes::call(*originator, transaction_hash.0.to_vec());
 		let _value = self.client.call_contract(block, *address, data)?;
 		Ok(())
-	}
-
-	fn available_private_contracts(&self, block: BlockId, account: &Address) -> Option<Vec<Address>> {
-		match *self.keys_acl_contract.read() {
-			Some(acl_contract_address) => {
-				let (data, decoder) = keys_acl_contract::functions::available_keys::call(*account);
-				if let Ok(value) = self.client.call_contract(block, acl_contract_address, data) {
-					self.keys_to_addresses(decoder.decode(&value).ok())
-				} else {
-					None
-				}
-			}
-			None => None,
-		}
 	}
 }
 
@@ -800,6 +759,6 @@ impl ChainNotify for Provider {
 		if let Err(err) = self.process_verification_queue() {
 			warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);
 		}
-		self.update_acl_contract();
+		self.keys_provider.update_acl_contract();
 	}
 }

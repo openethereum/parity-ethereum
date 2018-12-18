@@ -42,7 +42,7 @@ use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions}
 use ethkey::{Secret, KeyPair, Signature};
 use hash::keccak;
 
-use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig};
+use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig, StoringKeyProvider};
 
 #[test]
 fn private_contract() {
@@ -67,6 +67,7 @@ fn private_contract() {
 
 	let io = ethcore_io::IoChannel::disconnected();
 	let miner = Arc::new(Miner::new_for_tests(&::ethcore::spec::Spec::new_test(), None));
+	let private_keys = Arc::new(StoringKeyProvider::default());
 	let pm = Arc::new(Provider::new(
 			client.clone(),
 			miner,
@@ -74,6 +75,7 @@ fn private_contract() {
 			Box::new(NoopEncryptor::default()),
 			config,
 			io,
+			private_keys,
 	));
 
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);

@@ -59,11 +59,6 @@ pub trait Encryptor: Send + Sync + 'static {
 		accounts: &AccountProvider,
 		cypher: &[u8],
 	) -> Result<Bytes, Error>;
-
-	/// Account, that is used for communication with key server
-	fn key_server_account(
-		&self,
-	) -> Option<Address>;
 }
 
 /// Configurtion for key server encryptor
@@ -193,11 +188,9 @@ impl SecretStoreEncryptor {
 	}
 
 	fn sign_contract_address(&self, contract_address: &Address, accounts: &AccountProvider) -> Result<Signature, Error> {
-		// key id in SS is H256 && we have H160 here => expand with assitional zeros
-		let contract_address_extended: H256 = contract_address.into();
 		let key_server_account = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
 		let password = find_account_password(&self.config.passwords, accounts, &key_server_account);
-		Ok(accounts.sign(key_server_account, password, H256::from_slice(&contract_address_extended))?)
+		Ok(accounts.sign(key_server_account, password, key_server_keys::address_to_key(contract_address))?)
 	}
 }
 
@@ -253,10 +246,6 @@ impl Encryptor for SecretStoreEncryptor {
 			.map_err(|e| ErrorKind::Decrypt(e.to_string()))?;
 		Ok(plain_data)
 	}
-
-	fn key_server_account(&self) -> Option<Address> {
-		self.config.key_server_account
-	}
 }
 
 /// Dummy encryptor.
@@ -282,9 +271,4 @@ impl Encryptor for NoopEncryptor {
 	) -> Result<Bytes, Error> {
 		Ok(data.to_vec())
 	}
-
-	fn key_server_account(&self) -> Option<Address> {
-		None
-	}
-
 }
