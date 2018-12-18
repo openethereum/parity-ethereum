@@ -59,6 +59,11 @@ pub trait Encryptor: Send + Sync + 'static {
 		accounts: &AccountProvider,
 		cypher: &[u8],
 	) -> Result<Bytes, Error>;
+
+	/// Account, that is used for communication with key server
+	fn key_server_account(
+		&self,
+	) -> Option<Address>;
 }
 
 /// Configurtion for key server encryptor
@@ -248,6 +253,10 @@ impl Encryptor for SecretStoreEncryptor {
 			.map_err(|e| ErrorKind::Decrypt(e.to_string()))?;
 		Ok(plain_data)
 	}
+
+	fn key_server_account(&self) -> Option<Address> {
+		self.config.key_server_account
+	}
 }
 
 /// Dummy encryptor.
@@ -273,4 +282,9 @@ impl Encryptor for NoopEncryptor {
 	) -> Result<Bytes, Error> {
 		Ok(data.to_vec())
 	}
+
+	fn key_server_account(&self) -> Option<Address> {
+		None
+	}
+
 }
