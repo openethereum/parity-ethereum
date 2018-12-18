@@ -128,7 +128,7 @@ pub struct NewBlocks {
 	pub proposed: Vec<Bytes>,
 	/// Duration
 	pub duration: Duration,
-	/// `Validation.processing` is empty?
+	/// Has more blocks to import
 	pub has_more_blocks_to_import: bool,
 }
 
