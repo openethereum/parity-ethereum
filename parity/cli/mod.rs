@@ -20,6 +20,8 @@ mod presets;
 
 use std::collections::HashSet;
 
+use super::helpers;
+
 usage! {
 	{
 		// CLI subcommands
@@ -763,7 +765,7 @@ usage! {
 			"--tx-queue-per-sender=[LIMIT]",
 			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
 
-			ARG arg_tx_queue_locals: (Option<String>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_locals.as_ref().map(|set| set.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(",")),
+			ARG arg_tx_queue_locals: (Option<String>) = None, or |c: &Config| helpers::join_set(c.mining.as_ref()?.tx_queue_locals.as_ref()),
 			"--tx-queue-locals=[ACCOUNTS]",
 			"Specify local accounts for which transactions are prioritized in the queue. ACCOUNTS is a comma-delimited list of addresses.",
 

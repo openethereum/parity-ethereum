@@ -1517,12 +1517,11 @@ mod tests {
 
 	#[test]
 	fn should_prioritize_locals() {
-		// Test borrowed from `should_treat_unfamiliar_locals_selectively` and modified for tx_queue_locals (PR#9960)
-		// given
 		let keypair = Random.generate().unwrap();
 		let client = TestBlockChainClient::default();
 		let account_provider = AccountProvider::transient_provider();
-		account_provider.insert_account(keypair.secret().clone(), &"".into()).expect("can add accounts to the provider we just created");
+		account_provider.insert_account(keypair.secret().clone(), &"".into())
+		    .expect("can add accounts to the provider we just created");
 
 		let transaction = transaction();
 		let miner = Miner::new(
@@ -1537,13 +1536,10 @@ mod tests {
 		);
 		let best_block = 0;
 
-		// when
 		// Miner with sender as a known local address should prioritize transactions from that address
 		let res2 = miner.import_claimed_local_transaction(&client, PendingTransaction::new(transaction, None), false);
 
-		// then
 		// check to make sure the prioritized transaction is pending
-		// This is borrowed from `should_make_pending_block_when_importing_own_transaction` and slightly modified.
 		assert_eq!(res2.unwrap(), ());
 		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 1);
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 1);
