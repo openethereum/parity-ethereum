@@ -113,14 +113,23 @@ impl KeyProvider for SecretStoreKeys {
 }
 
 /// Dummy keys provider.
-#[derive(Default)]
 pub struct StoringKeyProvider {
-	available_keys: Option<Vec<Address>>,
+	available_keys: RwLock<Option<Vec<Address>>>,
 }
 
 impl StoringKeyProvider {
-	fn set_available_keys(&mut self, keys: &Vec<Address>) {
-		self.available_keys.replace(keys.to_vec());
+	/// Store available keys
+	pub fn set_available_keys(&self, keys: &Vec<Address>) {
+		let mut current = self.available_keys.write();
+		current.replace(keys.to_vec());
+	}
+}
+
+impl Default for StoringKeyProvider {
+	fn default() -> Self {
+		StoringKeyProvider {
+			available_keys: RwLock::new(None),
+		}
 	}
 }
 
@@ -128,7 +137,7 @@ impl KeyProvider for StoringKeyProvider {
 	fn key_server_account(&self) -> Option<Address> { None }
 
 	fn available_keys(&self, _block: BlockId, _account: &Address) -> Option<Vec<Address>> {
-		self.available_keys.clone()
+		self.available_keys.read().clone()
 	}
 
 	fn update_acl_contract(&self) {}
