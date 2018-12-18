@@ -1,0 +1,43 @@
+[
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name":"user",
+				"type":"address"
+			}
+		],
+		"name": "availableKeys",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32[]"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant":true,
+		"inputs": [
+			{
+				"name":"user",
+				"type":"address"
+			},
+			{
+				"name":"document",
+				"type":"bytes32"
+			}
+		],
+		"name":"checkPermissions",
+		"outputs": [
+			{
+				"name":"",
+				"type":"bool"
+			}
+		],
+		"payable":false,
+		"type":"function"
+	}
+]
