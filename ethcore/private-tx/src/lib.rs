@@ -69,7 +69,6 @@ pub use error::{Error, ErrorKind};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
-use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
 use rlp::*;
@@ -734,11 +733,10 @@ fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountPr
 
 impl ChainNotify for Provider {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
-		if !new_blocks.imported.is_empty() && new_blocks.processing_is_empty {
-			trace!(target: "privatetx", "New blocks imported, try to prune the queue");
-			if let Err(err) = self.process_verification_queue() {
-				warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);
-			}
+		if new_blocks.imported.is_empty() || new_blocks.has_more_blocks_to_import { return }
+		trace!(target: "privatetx", "New blocks imported, try to prune the queue");
+		if let Err(err) = self.process_verification_queue() {
+			warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);
 		}
 	}
 }

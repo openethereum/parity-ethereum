@@ -129,7 +129,7 @@ pub struct NewBlocks {
 	/// Duration
 	pub duration: Duration,
 	/// `Validation.processing` is empty?
-	pub processing_is_empty: bool,
+	pub has_more_blocks_to_import: bool,
 }
 
 impl NewBlocks {
@@ -150,7 +150,7 @@ impl NewBlocks {
 			sealed,
 			proposed,
 			duration,
-			processing_is_empty,
+			has_more_blocks_to_import: processing_is_empty,
 		}
 	}
 }

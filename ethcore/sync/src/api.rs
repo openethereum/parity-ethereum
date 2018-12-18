@@ -500,7 +500,7 @@ impl ChainNotify for EthSync {
 
 	fn new_blocks(&self, new_blocks: NewBlocks)
 	{
-		if !new_blocks.processing_is_empty { return }
+		if new_blocks.has_more_blocks_to_import { return }
 		use light::net::Announcement;
 
 		self.network.with_context(self.subprotocol_name, |context| {

@@ -268,7 +268,7 @@ impl Importer {
 		}
 
 		let max_blocks_to_import = client.config.max_round_blocks_to_import;
-		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, processing_is_empty) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, has_more_blocks_to_import) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
 			let mut proposed_blocks = Vec::with_capacity(max_blocks_to_import);
@@ -322,15 +322,15 @@ impl Importer {
 			if !invalid_blocks.is_empty() {
 				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
-			let processing_is_empty = self.block_queue.mark_as_good(&imported_blocks);
-			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, start.elapsed(), processing_is_empty)
+			let has_more_blocks_to_import = !self.block_queue.mark_as_good(&imported_blocks);
+			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, start.elapsed(), has_more_blocks_to_import)
 		};
 
 		{
 			if !imported_blocks.is_empty() {
 				let route = ChainRoute::from(import_results.as_ref());
 
-				if processing_is_empty {
+				if !has_more_blocks_to_import {
 					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, route.enacted(), route.retracted(), false);
 				}
 
@@ -343,7 +343,7 @@ impl Importer {
 							Vec::new(),
 							proposed_blocks.clone(),
 							duration,
-							processing_is_empty,
+							has_more_blocks_to_import,
 						)
 					);
 				});

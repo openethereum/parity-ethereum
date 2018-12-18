@@ -151,7 +151,7 @@ impl KeyServerSet for OnChainKeyServerSet {
 
 impl ChainNotify for OnChainKeyServerSet {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
-		if !new_blocks.processing_is_empty { return }
+		if new_blocks.has_more_blocks_to_import { return }
 		let (enacted, retracted) = new_blocks.route.into_enacted_retracted();
 
 		if !enacted.is_empty() || !retracted.is_empty() {

@@ -99,7 +99,7 @@ impl Watcher {
 
 impl ChainNotify for Watcher {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
-		if self.oracle.is_major_importing() || !new_blocks.processing_is_empty { return }
+		if self.oracle.is_major_importing() || new_blocks.has_more_blocks_to_import { return }
 
 		trace!(target: "snapshot_watcher", "{} imported", new_blocks.imported.len());
 

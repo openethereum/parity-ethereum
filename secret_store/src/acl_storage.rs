@@ -76,7 +76,7 @@ impl AclStorage for OnChainAclStorage {
 
 impl ChainNotify for OnChainAclStorage {
 	fn new_blocks(&self, new_blocks: NewBlocks) {
-		if !new_blocks.processing_is_empty { return }
+		if new_blocks.has_more_blocks_to_import { return }
 		if !new_blocks.route.enacted().is_empty() || !new_blocks.route.retracted().is_empty() {
 			self.contract.lock().update_contract_address()
 		}
