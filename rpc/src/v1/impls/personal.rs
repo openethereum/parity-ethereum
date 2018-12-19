@@ -75,9 +75,9 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 		request: TransactionRequest,
 		password: String,
 		post_sign: P
-	) -> BoxFuture<<P as PostSign>::Item>
+ 	) -> BoxFuture<P::Item>
 		where P: PostSign + 'static,
-		      <<P as PostSign>::Out as futures::future::IntoFuture>::Future: Send
+ 		      <P::Out as futures::future::IntoFuture>::Future: Send
 	{
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
