@@ -115,6 +115,7 @@ impl KeyProvider for SecretStoreKeys {
 /// Dummy keys provider.
 pub struct StoringKeyProvider {
 	available_keys: RwLock<Option<Vec<Address>>>,
+	key_server_account: Option<Address>,
 }
 
 impl StoringKeyProvider {
@@ -129,12 +130,15 @@ impl Default for StoringKeyProvider {
 	fn default() -> Self {
 		StoringKeyProvider {
 			available_keys: RwLock::new(None),
+			key_server_account: Some(Address::default()),
 		}
 	}
 }
 
 impl KeyProvider for StoringKeyProvider {
-	fn key_server_account(&self) -> Option<Address> { None }
+	fn key_server_account(&self) -> Option<Address> {
+		self.key_server_account
+	}
 
 	fn available_keys(&self, _block: BlockId, _account: &Address) -> Option<Vec<Address>> {
 		self.available_keys.read().clone()
