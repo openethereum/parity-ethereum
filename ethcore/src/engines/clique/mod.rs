@@ -65,13 +65,9 @@ pub fn sig_hash(header: &Header) -> Result<H256, Error> {
 		reduced_header.set_extra_data(
 			extra_data[..extra_data.len() - SIGNER_SIG_LENGTH as usize].to_vec());
 
-		trace!(target: "engine", "Header RLP {}", reduced_header.encoded().rlp());
-
-		//Ok(keccak(::rlp::encode(&reduced_header)))
 		Ok(reduced_header.hash())
 	} else {
 		Ok(header.hash())
-		//Ok(keccak(::rlp::encode(header)))
 	}
 }
 
@@ -201,6 +197,7 @@ impl Engine<EthereumMachine> for Clique {
 	/// This operation is synchronous and may (quite reasonably) not be available, in which case
 	/// `Seal::None` will be returned.
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
+        trace!(target: "engine", "tried to generate seal");
 		Seal::None
 //
 //		let mut header = block.header.clone();
@@ -250,11 +247,6 @@ impl Engine<EthereumMachine> for Clique {
 		  */
 		// trace!(target: "engine", "closing block {}...", block.header().number());
 
-		if block.header().seal().len() > 0 {
-			trace!(target: "engine", "seal length was {}", block.header().seal().len());
-			//trace!(target: "engine", "signature written {}", );
-		}
-
 		Ok(())
 	}
 
@@ -264,7 +256,7 @@ impl Engine<EthereumMachine> for Clique {
 		_epoch_begin: bool,
 		_ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
-		trace!(target: "engine", "new block {}", _block.header().number());
+		//trace!(target: "engine", "new block {}", _block.header().number());
 
 		/*
 		if let Some(ref mut snapshot) = *self.snapshot.write() {
