@@ -56,7 +56,7 @@ use rand::{Rng, OsRng};
 pub use self::error::Error;
 
 pub use self::consensus::*;
-pub use self::service::{Service, DatabaseRestore};
+pub use self::service::{SnapshotClient, Service, DatabaseRestore};
 pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
 pub use types::snapshot_manifest::ManifestData;
@@ -192,11 +192,11 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 			state_guards.push(state_guard);
 		}
 
-		let block_hashes = block_guard.join()?;
+		let block_hashes = block_guard.join().expect("Sub-thread never panics; qed")?;
 		let mut state_hashes = Vec::new();
 
 		for guard in state_guards {
-			let part_state_hashes = guard.join()?;
+			let part_state_hashes = guard.join().expect("Sub-thread never panics; qed")?;
 			state_hashes.extend(part_state_hashes);
 		}
 

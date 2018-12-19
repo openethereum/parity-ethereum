@@ -1,6 +1,6 @@
 ![Parity Ethereum](docs/logo-parity-ethereum.svg)
 
-## The fastest and most advanced Ethereum client.
+<h2 align="center">The Fastest and most Advanced Ethereum Client.</h2>
 
 <p align="center"><strong><a href="https://github.com/paritytech/parity-ethereum/releases/latest">» Download the latest release «</a></strong></p>
 
@@ -27,7 +27,7 @@ Parity Ethereum's current beta-release is 2.1. You can download it at [the relea
 
 ## Build Dependencies
 
-Parity Ethereum requires **Rust version 1.29.x** to build.
+Parity Ethereum requires **latest stable Rust version** to build.
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have `rustup`, you can install it like this:
 

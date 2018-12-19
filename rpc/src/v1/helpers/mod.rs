@@ -36,8 +36,10 @@ mod signing_queue;
 mod subscribers;
 mod subscription_manager;
 mod work;
+mod signature;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
+pub use self::signature::verify_signature;
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, SyncPollFilter, limit_logs};

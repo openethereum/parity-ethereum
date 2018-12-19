@@ -50,6 +50,10 @@ impl Notifier {
 
 	/// Notify listeners about all currently pending transactions.
 	pub fn notify(&mut self) {
+		if self.pending.is_empty() {
+			return;
+		}
+
 		for l in &self.listeners {
 			(l)(&self.pending);
 		}

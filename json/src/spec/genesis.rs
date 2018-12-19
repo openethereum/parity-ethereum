@@ -23,6 +23,7 @@ use spec::Seal;
 
 /// Spec genesis.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct Genesis {
 	/// Seal.
@@ -64,7 +65,6 @@ mod tests {
 	#[test]
 	fn genesis_deserialization() {
 		let s = r#"{
-			"nonce": "0x0000000000000042",
 			"difficulty": "0x400000000",
 			"seal": {
 				"ethereum": {

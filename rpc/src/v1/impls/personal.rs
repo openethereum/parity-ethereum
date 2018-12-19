@@ -47,15 +47,22 @@ pub struct PersonalClient<D: Dispatcher> {
 	accounts: Arc<AccountProvider>,
 	dispatcher: D,
 	allow_perm_unlock: bool,
+	allow_experimental_rpcs: bool,
 }
 
 impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
-	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D, allow_perm_unlock: bool) -> Self {
+	pub fn new(
+		accounts: &Arc<AccountProvider>,
+		dispatcher: D,
+		allow_perm_unlock: bool,
+		allow_experimental_rpcs: bool,
+	) -> Self {
 		PersonalClient {
 			accounts: accounts.clone(),
 			dispatcher,
 			allow_perm_unlock,
+			allow_experimental_rpcs,
 		}
 	}
 }
@@ -154,6 +161,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_191(&self, version: EIP191Version, data: Value, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "191"));
+
 		let data = try_bf!(eip191::hash_message(version, data));
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
@@ -174,6 +183,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_typed_data(&self, typed_data: EIP712, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "712"));
+
 		let data = match hash_structured_data(typed_data) {
 			Ok(d) => d,
 			Err(err) => return Box::new(future::err(errors::invalid_call_data(err.kind()))),

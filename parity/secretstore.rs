@@ -24,6 +24,7 @@ use ethcore::miner::Miner;
 use ethkey::{Secret, Public};
 use sync::SyncProvider;
 use ethereum_types::Address;
+use parity_runtime::Executor;
 
 /// This node secret key.
 #[derive(Debug, PartialEq, Clone)]
@@ -100,14 +101,14 @@ pub struct Dependencies<'a> {
 
 #[cfg(not(feature = "secretstore"))]
 mod server {
-	use super::{Configuration, Dependencies};
+	use super::{Configuration, Dependencies, Executor};
 
 	/// Noop key server implementation
 	pub struct KeyServer;
 
 	impl KeyServer {
 		/// Create new noop key server
-		pub fn new(_conf: Configuration, _deps: Dependencies) -> Result<Self, String> {
+		pub fn new(_conf: Configuration, _deps: Dependencies, _executor: Executor) -> Result<Self, String> {
 			Ok(KeyServer)
 		}
 	}
@@ -120,7 +121,7 @@ mod server {
 	use ethkey::KeyPair;
 	use ansi_term::Colour::{Red, White};
 	use db;
-	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress};
+	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};
 
 	fn into_service_contract_address(address: ContractAddress) -> ethcore_secretstore::ContractAddress {
 		match address {
@@ -136,7 +137,7 @@ mod server {
 
 	impl KeyServer {
 		/// Create new key server
-		pub fn new(mut conf: Configuration, deps: Dependencies) -> Result<Self, String> {
+		pub fn new(mut conf: Configuration, deps: Dependencies, executor: Executor) -> Result<Self, String> {
 			let self_secret: Arc<ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
 				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
@@ -179,7 +180,6 @@ mod server {
 				service_contract_doc_sretr_address: conf.service_contract_doc_sretr_address.map(into_service_contract_address),
 				acl_check_contract_address: conf.acl_check_contract_address.map(into_service_contract_address),
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
-					threads: 4,
 					listener_address: ethcore_secretstore::NodeAddress {
 						address: conf.interface.clone(),
 						port: conf.port,
@@ -198,7 +198,7 @@ mod server {
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
 			let db = db::open_secretstore_db(&conf.data_path)?;
-			let key_server = ethcore_secretstore::start(deps.client, deps.sync, deps.miner, self_secret, cconf, db)
+			let key_server = ethcore_secretstore::start(deps.client, deps.sync, deps.miner, self_secret, cconf, db, executor)
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {
@@ -238,11 +238,11 @@ impl Default for Configuration {
 }
 
 /// Start secret store-related functionality
-pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<KeyServer>, String> {
+pub fn start(conf: Configuration, deps: Dependencies, executor: Executor) -> Result<Option<KeyServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
 
-	KeyServer::new(conf, deps)
+	KeyServer::new(conf, deps, executor)
 		.map(|s| Some(s))
 }

@@ -21,11 +21,13 @@ extern crate plain_hasher;
 
 use ethereum_types::H256;
 use std::hash;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use plain_hasher::PlainHasher;
 
 /// Specialized version of `HashMap` with H256 keys and fast hashing function.
 pub type H256FastMap<T> = HashMap<H256, T, hash::BuildHasherDefault<PlainHasher>>;
+/// Specialized version of HashSet with H256 values and fast hashing function.
+pub type H256FastSet = HashSet<H256, hash::BuildHasherDefault<PlainHasher>>;
 
 #[cfg(test)]
 mod tests {

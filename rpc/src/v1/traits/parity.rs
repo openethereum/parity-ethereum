@@ -20,13 +20,12 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
-
 use v1::types::{
-	H64, H160, H256, H512, U256, Bytes, CallRequest,
-	Peers, Transaction, RpcSettings, Histogram,
+	H160, H256, H512, U256, U64, H64, Bytes, CallRequest,
+	Peers, Transaction, RpcSettings, Histogram, RecoveredAccount,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, ChainStatus, Log, Filter,
 	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 };
 
@@ -237,5 +236,16 @@ build_rpc_trait! {
 		/// Otherwise the RPC returns error.
 		#[rpc(name = "parity_nodeStatus")]
 		fn status(&self) -> Result<()>;
+
+		/// Extracts Address and public key from signature using the r, s and v params. Equivalent to Solidity erecover
+		/// as well as checks the signature for chain replay protection
+		#[rpc(name = "parity_verifySignature")]
+		fn verify_signature(&self, bool, Bytes, H256, H256, U64) -> Result<RecoveredAccount>;
+
+		/// Returns logs matching given filter object.
+		/// Is allowed to skip filling transaction hash for faster query.
+		#[rpc(name = "parity_getLogsNoTransactionHash")]
+		fn logs_no_tx_hash(&self, Filter) -> BoxFuture<Vec<Log>>;
+
 	}
 }

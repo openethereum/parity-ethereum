@@ -138,6 +138,7 @@ impl Configuration {
 		let compaction = self.args.arg_db_compaction.parse()?;
 		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
+		let experimental_rpcs = self.args.flag_jsonrpc_experimental;
 		let ipfs_conf = self.ipfs_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
@@ -369,6 +370,7 @@ impl Configuration {
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
+				allow_missing_blocks: self.args.flag_jsonrpc_allow_missing_blocks,
 				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
@@ -377,6 +379,7 @@ impl Configuration {
 				warp_sync: warp_sync,
 				warp_barrier: self.args.arg_warp_barrier,
 				geth_compatibility: geth_compatibility,
+				experimental_rpcs,
 				net_settings: self.network_settings()?,
 				ipfs_conf: ipfs_conf,
 				secretstore_conf: secretstore_conf,
@@ -394,8 +397,11 @@ impl Configuration {
 				whisper: whisper_config,
 				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
 				max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
-				on_demand_retry_count: self.args.arg_on_demand_retry_count,
-				on_demand_inactive_time_limit: self.args.arg_on_demand_inactive_time_limit,
+				on_demand_response_time_window: self.args.arg_on_demand_response_time_window,
+				on_demand_request_backoff_start: self.args.arg_on_demand_request_backoff_start,
+				on_demand_request_backoff_max: self.args.arg_on_demand_request_backoff_max,
+				on_demand_request_backoff_rounds_max: self.args.arg_on_demand_request_backoff_rounds_max,
+				on_demand_request_consecutive_failures: self.args.arg_on_demand_request_consecutive_failures,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1388,6 +1394,7 @@ mod tests {
 		let args = vec!["parity"];
 		let conf = parse(&args);
 		let mut expected = RunCmd {
+			allow_missing_blocks: false,
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			spec: Default::default(),
@@ -1424,6 +1431,7 @@ mod tests {
 			compaction: Default::default(),
 			vm_type: Default::default(),
 			geth_compatibility: false,
+			experimental_rpcs: false,
 			net_settings: Default::default(),
 			ipfs_conf: Default::default(),
 			secretstore_conf: Default::default(),
@@ -1444,8 +1452,11 @@ mod tests {
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
 			max_round_blocks_to_import: 12,
-			on_demand_retry_count: None,
-			on_demand_inactive_time_limit: None,
+			on_demand_response_time_window: None,
+			on_demand_request_backoff_start: None,
+			on_demand_request_backoff_max: None,
+			on_demand_request_backoff_rounds_max: None,
+			on_demand_request_consecutive_failures: None,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");

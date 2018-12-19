@@ -21,10 +21,7 @@ mod basic_authority;
 mod instant_seal;
 mod null_engine;
 mod signer;
-mod tendermint;
-mod transition;
 mod validator_set;
-mod vote_collector;
 
 pub mod block_reward;
 pub mod epoch;
@@ -34,7 +31,6 @@ pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
-pub use self::tendermint::Tendermint;
 
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};

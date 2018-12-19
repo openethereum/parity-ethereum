@@ -28,20 +28,21 @@ use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
-use jsonrpc_core::futures::Future;
+use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
-use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings, verify_signature};
 use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H64, H160, H256, H512, CallRequest,
+	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber, LightBlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
-	AccountInfo, HwAccountInfo, Header, RichHeader, Receipt,
+	LightBlockNumber, ChainStatus, Receipt,
+	BlockNumber, ConsensusCapability, VersionInfo,
+	OperationsInfo, AccountInfo, HwAccountInfo, Header, RichHeader, RecoveredAccount,
+	Log, Filter,
 };
 use Host;
 
@@ -424,5 +425,17 @@ impl Parity for ParityClient {
 		} else {
 			Err(errors::status_error(has_peers))
 		}
+	}
+
+	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
+    let filter = match filter.try_into() {
+			Ok(value) => value,
+			Err(err) => return Box::new(future::err(err)),
+		};
+		Box::new(self.fetcher().logs_no_tx_hash(filter)) as BoxFuture<_>
+	}
+
+	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {
+		verify_signature(is_prefixed, message, r, s, v, self.light_dispatch.client.signing_chain_id())
 	}
 }

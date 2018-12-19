@@ -65,6 +65,8 @@ pub enum Error {
 	BadEpochProof(u64),
 	/// Wrong chunk format.
 	WrongChunkFormat(String),
+	/// Unlinked ancient block chain
+	UnlinkedAncientBlockChain,
 }
 
 impl fmt::Display for Error {
@@ -91,6 +93,7 @@ impl fmt::Display for Error {
 			Error::SnapshotsUnsupported => write!(f, "Snapshots unsupported by consensus engine."),
 			Error::BadEpochProof(i) => write!(f, "Bad epoch proof for transition to epoch {}", i),
 			Error::WrongChunkFormat(ref msg) => write!(f, "Wrong chunk format: {}", msg),
+			Error::UnlinkedAncientBlockChain => write!(f, "Unlinked ancient blocks chain"),
 		}
 	}
 }

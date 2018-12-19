@@ -23,6 +23,7 @@ use super::ValidatorSet;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorityRoundParams {
 	/// Block duration, in seconds.
@@ -55,10 +56,13 @@ pub struct AuthorityRoundParams {
 	pub empty_steps_transition: Option<Uint>,
 	/// Maximum number of accepted empty steps.
 	pub maximum_empty_steps: Option<Uint>,
+	/// Strict validation of empty steps transition block.
+	pub strict_empty_steps_transition: Option<Uint>,
 }
 
 /// Authority engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AuthorityRound {
 	/// Ethash params.
 	pub params: AuthorityRoundParams,

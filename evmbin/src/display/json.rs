@@ -74,6 +74,8 @@ impl Informant {
 }
 
 impl vm::Informant for Informant {
+	type Sink = ();
+
 	fn before_test(&mut self, name: &str, action: &str) {
 		println!("{}", json!({"action": action, "test": name}));
 	}
@@ -82,7 +84,9 @@ impl vm::Informant for Informant {
 		self.gas_used = gas;
 	}
 
-	fn finish(result: vm::RunResult<Self::Output>) {
+	fn clone_sink(&self) -> Self::Sink { () }
+
+	fn finish(result: vm::RunResult<Self::Output>, _sink: &mut Self::Sink) {
 		match result {
 			Ok(success) => {
 				for trace in success.traces.unwrap_or_else(Vec::new) {

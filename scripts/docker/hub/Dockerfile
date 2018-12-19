@@ -18,20 +18,18 @@ RUN rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*
 RUN groupadd -g 1000 parity \
   && useradd -m -u 1000 -g parity -s /bin/sh parity
 
-USER parity
-
-WORKDIR /home/parity
-
-ENV PATH "~/bin:${PATH}"
 
 #add TARGET to docker image
-COPY artifacts/x86_64-unknown-linux-gnu/$TARGET ./bin/$TARGET
+COPY artifacts/x86_64-unknown-linux-gnu/$TARGET /bin/$TARGET
 
 # Build a shell script because the ENTRYPOINT command doesn't like using ENV
 RUN echo "#!/bin/bash \n ${TARGET} \$@" > ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 COPY scripts/docker/hub/check_sync.sh /check_sync.sh
+
+# switch to user parity here
+USER parity
 
 # setup ENTRYPOINT
 EXPOSE 5001 8080 8082 8083 8545 8546 8180 30303/tcp 30303/udp

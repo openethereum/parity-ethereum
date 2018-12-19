@@ -27,11 +27,16 @@ use info as vm;
 pub struct Informant;
 
 impl vm::Informant for Informant {
+
+	type Sink = ();
+
 	fn before_test(&mut self, name: &str, action: &str) {
 		println!("Test: {} ({})", name, action);
 	}
 
-	fn finish(result: vm::RunResult<Self::Output>) {
+	fn clone_sink(&self) -> Self::Sink { () }
+
+	fn finish(result: vm::RunResult<Self::Output>, _sink: &mut Self::Sink) {
 		match result {
 			Ok(success) => {
 				println!("Output: 0x{}", success.output.to_hex());
