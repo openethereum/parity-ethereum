@@ -18,7 +18,6 @@
 
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
-use std::time::Duration;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
@@ -34,14 +33,13 @@ use v1::types::{pubsub, RichHeader, Log};
 
 use ethcore::encoded;
 use ethcore::filter::Filter as EthFilter;
-use ethcore::client::{BlockChainClient, ChainNotify, ChainRoute, ChainRouteType, BlockId};
+use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, BlockId};
 use sync::LightSync;
 use light::cache::Cache;
 use light::on_demand::OnDemand;
 use light::client::{LightChainClient, LightChainNotify};
 use parity_runtime::Executor;
 use ethereum_types::H256;
-use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 
 type Client = Sink<pubsub::Result>;
@@ -220,18 +218,10 @@ impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
 }
 
 impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
-	fn new_blocks(
-		&self,
-		_imported: Vec<H256>,
-		_invalid: Vec<H256>,
-		route: ChainRoute,
-		_sealed: Vec<H256>,
-		// Block bytes.
-		_proposed: Vec<Bytes>,
-		_duration: Duration,
-	) {
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if self.heads_subscribers.read().is_empty() && self.logs_subscribers.read().is_empty() { return }
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
-		let headers = route.route()
+		let headers = new_blocks.route.route()
 			.iter()
 			.filter_map(|&(hash, ref typ)| {
 				match typ {
@@ -249,7 +239,7 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 		self.notify_heads(&headers);
 
 		// We notify logs enacting and retracting as the order in route.
-		self.notify_logs(route.route(), |filter, ex| {
+		self.notify_logs(new_blocks.route.route(), |filter, ex| {
 			match ex {
 				&ChainRouteType::Enacted =>
 					Ok(self.client.logs(filter).unwrap_or_default().into_iter().map(Into::into).collect()),
