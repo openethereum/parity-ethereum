@@ -488,6 +488,6 @@ but the first password is trimmed
 		test_set.insert("0x1111111111111111111111111111111111111111".to_string());
 		test_set.insert("0x0000000000000000000000000000000000000000".to_string());
 		assert_eq!("0x1111111111111111111111111111111111111111,0x0000000000000000000000000000000000000000".to_string(),
-				  join_set(Some(&test_set)).unwrap());
+			join_set(Some(&test_set)).unwrap());
 	}
 }
