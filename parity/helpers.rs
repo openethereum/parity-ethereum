@@ -484,10 +484,10 @@ but the first password is trimmed
 
 	#[test]
 	fn test_join_set() {
-		let test_set = HashSet::new();
-		test_set.insert("0xE992F69bad26CF5773b7839BA2C1Fdecf6923C92");
-		test_set.insert("0xE992F69bad26CF5773b7839BA2C1Fdecf6923C92");
-		assert_eq!(Some("0xE992F69bad26CF5773b7839BA2C1Fdecf6923C92,0xE992F69bad26CF5773b7839BA2C1Fdecf6923C92"),
-				  join_set(Some(&test_set)));
+		let mut test_set = HashSet::new();
+		test_set.insert("0x1111111111111111111111111111111111111111".to_string());
+		test_set.insert("0x0000000000000000000000000000000000000000".to_string());
+		assert_eq!("0x1111111111111111111111111111111111111111,0x0000000000000000000000000000000000000000".to_string(),
+				  join_set(Some(&test_set)).unwrap());
 	}
 }
