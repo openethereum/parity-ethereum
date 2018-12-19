@@ -202,7 +202,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 					.map_err(Into::into)
 					.and_then(|file| self.key_manager.read(filename, file))
 					.map_err(|err| {
-						eprintln!("Invalid key file: {:?} ({})", path, err);
+						warn!("Invalid key file: {:?} ({})", path, err);
 						err
 					})
 					.map(|account| (path, account))

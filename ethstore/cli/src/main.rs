@@ -23,6 +23,8 @@ extern crate parking_lot;
 extern crate rustc_hex;
 extern crate serde;
 
+extern crate env_logger;
+
 #[macro_use]
 extern crate serde_derive;
 
@@ -146,6 +148,10 @@ impl fmt::Display for Error {
 
 fn main() {
 	panic_hook::set_abort();
+	if env::var("RUST_LOG").is_err() {
+		env::set_var("RUST_LOG", "warn")
+	}
+	env_logger::try_init().expect("Logger initialized only once.");
 
 	match execute(env::args()) {
 		Ok(result) => println!("{}", result),
