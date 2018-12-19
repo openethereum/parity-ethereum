@@ -8,7 +8,6 @@ use error::Error;
 use header::{Header, ExtendedHeader};
 use super::super::signer::EngineSigner;
 use parking_lot::RwLock;
-use std::sync::Arc;
 use account_provider::AccountProvider;
 use ethkey::Password;
 use std::borrow::BorrowMut;
@@ -51,6 +50,7 @@ pub struct SnapshotState {
 	pub votes: HashMap<(Address, Address), VoteType>, // k: (Voter, beneficiary), VoteType)
 	pub votes_history: Vec<(u64, Address, VoteType, Address)>, // blockNumber, Voter, VoteType, beneficiary
 	pub signers: Vec<Address>,
+	pub recent_signers: VecDeque<Address>,
 }
 
 impl CliqueState {
@@ -82,6 +82,14 @@ impl CliqueState {
 					},
 					_ => {} ,
 				}
+
+				let creator = public_to_address(&recover(header).unwrap()).clone();
+				new_state.recent_signers.push_front(creator);
+
+				if new_state.recent_signers.len() >= ( new_state.signers.len() / 2 ) + 1 {
+					new_state.recent_signers.pop_back();
+				}
+
 				db.insert(header.hash(), new_state.clone());
 				Ok(())
 			}
@@ -100,6 +108,7 @@ impl CliqueState {
 			votes: HashMap::new(),
 			votes_history: Vec::new(),
 			signers: Vec::new(),
+			recent_signers: VecDeque::new(),
 		};
 		process_genesis_header(header, state)?;
 		db.insert(header.hash(), state.clone());
@@ -140,7 +149,14 @@ impl SnapshotState {
 			if currentBlockNumber % self.signers.len() as u64 == pos as u64 {
 				return SignerAuthorization::InTurn;
 			} else {
-				return SignerAuthorization::OutOfTurn;
+
+				if self.recent_signers.contains(&self.signers[pos]) && pos != self.signers.len()-1 {
+					return SignerAuthorization::Unauthorized;
+				} else {
+                    // author didn't sign recently, or will be shifted out of the recent
+                    // signer list this block
+					return SignerAuthorization::OutOfTurn;
+				}
 			}
 		}
 		return SignerAuthorization::Unauthorized;
@@ -151,6 +167,7 @@ fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<
 	state.signers = extract_signers(header)?;
 	state.votes.clear();
 	state.votes_history.clear();
+    state.recent_signers.clear();
 
 	Ok(())
 }
@@ -181,7 +198,11 @@ pub fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: 
 
 	// If this is checkpoint blocks
 	if header.number() % epoch_length == 0 {
-		state.signers = extract_signers(header)?;
+		let signers = extract_signers(header)?;
+
+        assert!(signers.iter().zip(state.signers.iter()).filter(|(a, b)| { a != b }).count() == 0, "received signer list did not match computed");
+
+        state.signers = signers;
 		state.votes.clear();
 		state.votes_history.clear();
 		return Ok(());
