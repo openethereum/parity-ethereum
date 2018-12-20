@@ -134,7 +134,7 @@ pub struct NewBlocks {
 
 impl NewBlocks {
 	/// Constructor
-	pub fn new (
+	pub fn new(
 		imported: Vec<H256>,
 		invalid: Vec<H256>,
 		route: ChainRoute,
@@ -158,7 +158,7 @@ impl NewBlocks {
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
-	fn new_blocks( &self, _new_blocks: NewBlocks) {
+	fn new_blocks(&self, _new_blocks: NewBlocks) {
 		// does nothing by default
 	}
 
