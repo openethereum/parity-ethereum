@@ -183,7 +183,7 @@ impl<P> txpool::Scoring<P> for Consecutive where P: ScoredTransaction + txpool::
 	fn update_scores(&self, txs: &[txpool::Transaction<P>], scores: &mut [U256], change: scoring::Change) {
 
 		let is_consecutive = |txs: &[txpool::Transaction<P>]| {
-			if (txs[0].nonce() + U256::from(1)) == txs[1].nonce() {
+			if (txs[0].nonce() + U256::one()) == txs[1].nonce() {
 				U256::one()
 			} else {
 				U256::zero()
@@ -203,12 +203,13 @@ impl<P> txpool::Scoring<P> for Consecutive where P: ScoredTransaction + txpool::
 					super::Priority::Retracted => 10,
 					super::Priority::Regular => 0,
 				};
+				
 				scores[i] = scores[i] << boost;
 				let last_index = txs.len() - 1;
-				for idx in 1..last_index {
+				for idx in last_index..1 {
 					scores[idx - 1] = *txs[idx-1].transaction.gas_price()
-						+ is_consecutive(&txs[idx-1..=idx])
-						+ (U256::from(21_000) / scores[idx - 1])
+						+ is_consecutive(&txs[idx+1..=idx])
+						+ (U256::from(21_000) / *txs[idx-1].transaction.gas())
 						* scores[idx]
 						/ 1_000;
 				}
@@ -450,22 +451,22 @@ mod tests {
 		transactions.iter().for_each(|tx| debug!("Gas Price: {}", tx.gas_price()));
 		let mut scores = initial_scores.clone();
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
-		assert_eq!(scores, vec![2.into(), 0.into(), 0.into()]);
+		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(1));
-		assert_eq!(scores, vec![10754.into(), 1024.into(), 0.into()]);
+		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(2));
-		assert_eq!(scores, vec![3.into(), 1024.into(), 1.into()]);
+		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
 
 		let mut scores = initial_scores.clone();
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(0));
-		assert_eq!(scores, vec![2.into(), 0.into(), 0.into()]);
+		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(1));
-		assert_eq!(scores, vec![10754.into(), 1024.into(), 0.into()]);
+		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(2));
-		assert_eq!(scores, vec![3.into(), 1024.into(), 1.into()]);
+		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
 
 		// Check penalization
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Event(()));
-		assert_eq!(scores, vec![3.into(), 128.into(), 0.into()]);
+		assert_eq!(scores, vec![32768.into(), 128.into(), 0.into()]);
 	}
 }
