@@ -21,6 +21,13 @@ use uint::Uint;
 use bytes::Bytes;
 use super::ValidatorSet;
 
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ConsensusKind {
+	Poa,
+	Pos,
+}
+
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -58,6 +65,10 @@ pub struct AuthorityRoundParams {
 	pub maximum_empty_steps: Option<Uint>,
 	/// Strict validation of empty steps transition block.
 	pub strict_empty_steps_transition: Option<Uint>,
+	/// If set, enables random number contract integration, and use Proof of
+	/// Stake (PoS) consensus.  Otherwise, use Proof of Authority (PoA)
+	/// consensus.
+	pub randomness_contract_address: Option<Address>,
 }
 
 /// Authority engine deserialization.
