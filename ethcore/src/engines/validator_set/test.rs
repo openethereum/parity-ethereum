@@ -23,6 +23,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 
+use error::Error;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use header::{Header, BlockNumber};
 use super::{ValidatorSet, SimpleList};
