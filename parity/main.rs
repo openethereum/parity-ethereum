@@ -188,7 +188,6 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
-	// TODO: expose in the C API so that users can setup logging the way they want
 	let logger = setup_log(&conf.logger_config()).expect("Logger is initialized only once; qed");
 
 	if let Some(spec_override) = take_spec_name_override() {
