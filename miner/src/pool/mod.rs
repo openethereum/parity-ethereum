@@ -118,6 +118,9 @@ pub trait ScoredTransaction {
 	/// Gets transaction gas price.
 	fn gas_price(&self) -> &U256;
 
+	/// Gets transaction gas
+	fn gas(&self) -> &U256;
+
 	/// Gets transaction nonce.
 	fn nonce(&self) -> U256;
 }
@@ -193,6 +196,11 @@ impl ScoredTransaction for VerifiedTransaction {
 	/// Gets transaction gas price.
 	fn gas_price(&self) -> &U256 {
 		&self.transaction.gas_price
+	}
+
+	/// Gets gas of a transaction
+	fn gas(&self) -> &U256 {
+		&self.transaction.gas
 	}
 
 	/// Gets transaction nonce.
