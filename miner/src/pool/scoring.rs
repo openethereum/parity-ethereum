@@ -211,7 +211,7 @@ impl<P> txpool::Scoring<P> for Consecutive where P: ScoredTransaction + txpool::
 						+ is_consecutive(&txs[idx+1..=idx])
 						+ (U256::from(21_000) / *txs[idx-1].transaction.gas())
 						* scores[idx]
-						/ 1_000;
+						/ 10_000;
 				}
 				debug!("Score of tx {} == {}", i, scores[i]);
 
@@ -415,6 +415,68 @@ mod tests {
 	}
 
 	#[test]
+	fn should_bump_score_of_consecutive_tx() {
+		env_logger::try_init();
+		// given
+		let scoring = Consecutive(PrioritizationStrategy::Consecutive);
+
+		let transactions = Tx::gas_multiplier(10000, 2).signed_consecutive(3).into_iter().map(|tx| {
+			let mut verified = tx.verified();
+			verified.priority = ::pool::Priority::Local;
+
+			txpool::Transaction {
+				insertion_id: 0,
+				transaction: Arc::new(verified),
+			}
+		}).collect::<Vec<_>>();
+		debug!("Sender of txs {:?}-{:?}-{:?}", transactions[0].sender, transactions[1].sender, &transactions[2].sender);
+
+        let transactions2 = Tx::gas_multiplier(10000, 15).signed_consecutive(3).into_iter().map(|tx| {
+			let mut verified = tx.verified();
+			verified.priority = ::pool::Priority::Local;
+
+			txpool::Transaction {
+				insertion_id: 0,
+				transaction: Arc::new(verified)
+			}
+		}).collect::<Vec<_>>();
+		debug!("Sender of txs {:?}-{:?}-{:?}", transactions2[0].sender, transactions2[1].sender, &transactions2[2].sender);
+
+		let initial_scores = vec![U256::from(0), 0.into(), 0.into()];
+		// No update required
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(0));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(1));
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(2));
+		assert_eq!(scores, initial_scores);
+
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions2, &mut *scores, scoring::Change::Culled(0));
+		scoring.update_scores(&transactions2, &mut *scores, scoring::Change::Culled(1));
+		scoring.update_scores(&transactions2, &mut *scores, scoring::Change::Culled(2));
+		assert_eq!(scores, initial_scores);
+		
+		// Compute score at given index
+		transactions.iter().chain(transactions2.iter()).for_each(|tx| debug!("Gas Price: {:#}", tx.gas_price()));
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
+		//assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(1));
+		// assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(2));
+		// assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
+
+		let mut scores2 = initial_scores.clone();
+		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(0));
+		
+		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(1));
+
+		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(2));
+
+		assert!(scores2[1] > scores[1]);
+    }
+	
+	#[test]
 	fn should_calculate_consecutive_score_correctly() {
 		env_logger::try_init();
 		// given
@@ -447,7 +509,6 @@ mod tests {
 		assert_eq!(scores, initial_scores);
 
 		// Compute score at given index
-		debug!("INITIAL SCORES: {:?}", initial_scores);
 		transactions.iter().for_each(|tx| debug!("Gas Price: {}", tx.gas_price()));
 		let mut scores = initial_scores.clone();
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));

@@ -26,6 +26,7 @@ pub struct Tx {
 	pub nonce: u64,
 	pub gas: u64,
 	pub gas_price: u64,
+	pub multiplier: u64,
 }
 
 impl Default for Tx {
@@ -34,6 +35,7 @@ impl Default for Tx {
 			nonce: 123,
 			gas: 21_000,
 			gas_price: 1,
+			multiplier: 1,
 		}
 	}
 }
@@ -45,6 +47,15 @@ impl Tx {
 			..Default::default()
 		}
 	}
+
+    /// For consecutive transactions. gas is multiplied by nonce * gas for each transaction
+	pub fn gas_multiplier(gas_price: u64, multiplier: u64) -> Self {
+        Tx {
+            gas_price,
+            multiplier,
+            ..Default::default()
+        }
+    }
 
 	pub fn signed(self) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
@@ -66,6 +77,16 @@ impl Tx {
 
 		(tx1, tx2, tx3)
 	}
+
+	pub fn signed_consecutive(mut self, amount: usize) -> Vec<SignedTransaction> {
+		let keypair = Random.generate().unwrap();
+		(0..amount).map(|i| {
+			let tx = self.clone().unsigned().sign(keypair.secret(), None);
+			self.nonce += 1;
+			self.gas_price *= (self.nonce + 1) * self.multiplier;
+			tx
+		}).collect::<Vec<SignedTransaction>>()
+    }
 
 	pub fn signed_replacement(mut self) -> (SignedTransaction, SignedTransaction) {
 		let keypair = Random.generate().unwrap();
