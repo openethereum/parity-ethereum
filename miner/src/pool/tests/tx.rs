@@ -48,14 +48,14 @@ impl Tx {
 		}
 	}
 
-    /// For consecutive transactions. gas is multiplied by nonce * gas for each transaction
+    /// For consecutive transactions. gas is multiplied by nonce * multiplier for each transaction
 	pub fn gas_multiplier(gas_price: u64, multiplier: u64) -> Self {
-        Tx {
-            gas_price,
-            multiplier,
-            ..Default::default()
-        }
-    }
+		Tx {
+			gas_price,
+			multiplier,
+			..Default::default()
+		}
+	}
 
 	pub fn signed(self) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();

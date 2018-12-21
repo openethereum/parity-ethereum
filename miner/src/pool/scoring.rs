@@ -203,7 +203,7 @@ impl<P> txpool::Scoring<P> for Consecutive where P: ScoredTransaction + txpool::
 					super::Priority::Retracted => 10,
 					super::Priority::Regular => 0,
 				};
-				
+
 				scores[i] = scores[i] << boost;
 				let last_index = txs.len() - 1;
 				for idx in last_index..1 {
@@ -455,7 +455,7 @@ mod tests {
 		scoring.update_scores(&transactions2, &mut *scores, scoring::Change::Culled(1));
 		scoring.update_scores(&transactions2, &mut *scores, scoring::Change::Culled(2));
 		assert_eq!(scores, initial_scores);
-		
+
 		// Compute score at given index
 		transactions.iter().chain(transactions2.iter()).for_each(|tx| debug!("Gas Price: {:#}", tx.gas_price()));
 		let mut scores = initial_scores.clone();
@@ -468,14 +468,14 @@ mod tests {
 
 		let mut scores2 = initial_scores.clone();
 		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(0));
-		
+
 		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(1));
 
 		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(2));
 
 		assert!(scores2[1] > scores[1]);
     }
-	
+
 	#[test]
 	fn should_calculate_consecutive_score_correctly() {
 		env_logger::try_init();
