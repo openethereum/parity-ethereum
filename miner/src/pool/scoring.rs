@@ -50,10 +50,6 @@ fn bump_gas_price(old_gp: U256) -> U256 {
 /// We might want to store penalization status in some persistent state.
 #[derive(Debug, Clone)]
 pub struct NonceAndGasPrice(pub PrioritizationStrategy);
-/// An experimental (Name TBD) scoring strategy that takes into account consecutive transactions.
-/// Consecutive transactions committed from the same account have higher priority
-#[derive(Debug, Clone)]
-pub struct Consecutive(pub PrioritizationStrategy);
 
 impl NonceAndGasPrice {
 	/// Decide if the transaction should even be considered into the pool (if the pool is full).
@@ -99,133 +95,85 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 
 	fn update_scores(&self, txs: &[txpool::Transaction<P>], scores: &mut [U256], change: scoring::Change) {
 
-		match change {
-			Change::Culled(_) => {},
-			Change::RemovedAt(_) => {}
-			Change::InsertedAt(i) | Change::ReplacedAt(i) => {
+		match self.0 {
+			PrioritizationStrategy::GasPriceOnly => {
 
-				// calculate base score + boost
-				assert!(i < txs.len());
-				assert!(i < scores.len());
+				match change {
+					Change::Culled(_) => {},
+					Change::RemovedAt(_) => {}
+					Change::InsertedAt(i) | Change::ReplacedAt(i) => {
 
-				scores[i] = *txs[i].transaction.gas_price();
-				let boost = match txs[i].priority() {
-					super::Priority::Local => 15,
-					super::Priority::Retracted => 10,
-					super::Priority::Regular => 0,
-				};
-				scores[i] = scores[i] << boost;
-			},
-			// We are only sending an event in case of penalization.
-			// So just lower the priority of all non-local transactions.
-			Change::Event(_) => {
-				for (score, tx) in scores.iter_mut().zip(txs) {
-					// Never penalize local transactions.
-					if !tx.priority().is_local() {
-						*score = *score >> 3;
-					}
+						// calculate base score + boost
+						assert!(i < txs.len());
+						assert!(i < scores.len());
+
+						scores[i] = *txs[i].transaction.gas_price();
+						let boost = match txs[i].priority() {
+							super::Priority::Local => 15,
+							super::Priority::Retracted => 10,
+							super::Priority::Regular => 0,
+						};
+						scores[i] = scores[i] << boost;
+					},
+					// We are only sending an event in case of penalization.
+					// So just lower the priority of all non-local transactions.
+					Change::Event(_) => {
+						for (score, tx) in scores.iter_mut().zip(txs) {
+							// Never penalize local transactions.
+							if !tx.priority().is_local() {
+								*score = *score >> 3;
+							}
+						}
+					},
 				}
 			},
-		}
-	}
-
-	fn should_replace(&self, old: &P, new: &P) -> scoring::Choice {
-		if old.sender() == new.sender() {
-			// prefer earliest transaction
-			match new.nonce().cmp(&old.nonce()) {
-				cmp::Ordering::Less => scoring::Choice::ReplaceOld,
-				cmp::Ordering::Greater => scoring::Choice::RejectNew,
-				cmp::Ordering::Equal => self.choose(old, new),
-			}
-		} else if old.priority().is_local() && new.priority().is_local() {
-			// accept local transactions over the limit
-			scoring::Choice::InsertNew
-		} else {
-			let old_score = (old.priority(), old.gas_price());
-			let new_score = (new.priority(), new.gas_price());
-			if new_score > old_score {
-				scoring::Choice::ReplaceOld
-			} else {
-				scoring::Choice::RejectNew
-			}
-		}
-	}
-
-	fn should_ignore_sender_limit(&self, new: &P) -> bool {
-		new.priority().is_local()
-	}
-}
-
-impl<P> txpool::Scoring<P> for Consecutive where P: ScoredTransaction + txpool::VerifiedTransaction {
-	type Score = U256;
-	type Event = ();
-
-	fn compare(&self, old: &P, other: &P) -> cmp::Ordering {
-		old.nonce().cmp(&other.nonce())
-	}
-
-	fn choose(&self, old: &P, new: &P) -> scoring::Choice {
-		if old.nonce() != new.nonce() {
-			return scoring::Choice::InsertNew
-		}
-
-		let old_gp = old.gas_price();
-		let new_gp = new.gas_price();
-
-		let min_required_gp = bump_gas_price(*old_gp);
-
-		match min_required_gp.cmp(&new_gp) {
-			cmp::Ordering::Greater => scoring::Choice::RejectNew,
-			_ => scoring::Choice::ReplaceOld,
-		}
-	}
-
-	fn update_scores(&self, txs: &[txpool::Transaction<P>], scores: &mut [U256], change: scoring::Change) {
-
-		let is_consecutive = |txs: &[txpool::Transaction<P>]| {
-			if (txs[0].nonce() + U256::one()) == txs[1].nonce() {
-				U256::one()
-			} else {
-				U256::zero()
-			}
-		};
-
-		match change {
-			Change::Culled(_) => {},
-			Change::RemovedAt(_) => {}
-			Change::InsertedAt(i) | Change::ReplacedAt(i) => {
-				assert!(i < txs.len());
-				assert!(i < scores.len());
-
-				scores[i] = *txs[i].transaction.gas_price();
-				let boost = match txs[i].priority() {
-					super::Priority::Local => 15,
-					super::Priority::Retracted => 10,
-					super::Priority::Regular => 0,
+			PrioritizationStrategy::Consecutive => {
+				let is_consecutive = |txs: &[txpool::Transaction<P>]| {
+					if (txs[0].nonce() + U256::one()) == txs[1].nonce() {
+						U256::one()
+					} else {
+						U256::zero()
+					}
 				};
 
-				scores[i] = scores[i] << boost;
-				let last_index = txs.len() - 1;
-				for idx in last_index..1 {
-					scores[idx - 1] = *txs[idx-1].transaction.gas_price()
-						+ is_consecutive(&txs[idx+1..=idx])
-						+ (U256::from(21_000) / *txs[idx-1].transaction.gas())
-						* scores[idx]
-						/ 10_000;
-				}
-				debug!("Score of tx {} == {}", i, scores[i]);
+				match change {
+					Change::Culled(_) => {},
+					Change::RemovedAt(_) => {}
+					Change::InsertedAt(i) | Change::ReplacedAt(i) => {
+						assert!(i < txs.len());
+						assert!(i < scores.len());
 
-			},
-			// We are only sending an event in case of penalization.
-			// So just lower the priority of all non-local transactions.
-			Change::Event(_) => {
-				for (score, tx) in scores.iter_mut().zip(txs) {
-					// Never penalize local transactions.
-					if !tx.priority().is_local() {
-						*score = *score >> 3;
-					}
+						scores[i] = *txs[i].transaction.gas_price();
+						let boost = match txs[i].priority() {
+							super::Priority::Local => 15,
+							super::Priority::Retracted => 10,
+							super::Priority::Regular => 0,
+						};
+
+						scores[i] = scores[i] << boost;
+						let last_index = txs.len() - 1;
+						for idx in last_index..1 {
+							scores[idx - 1] = *txs[idx-1].transaction.gas_price()
+								+ is_consecutive(&txs[idx+1..=idx])
+								+ (U256::from(21_000) / *txs[idx-1].transaction.gas())
+								* scores[idx]
+								/ 10_000;
+						}
+						debug!("Score of tx {} == {}", i, scores[i]);
+
+					},
+					// We are only sending an event in case of penalization.
+					// So just lower the priority of all non-local transactions.
+					Change::Event(_) => {
+						for (score, tx) in scores.iter_mut().zip(txs) {
+							// Never penalize local transactions.
+							if !tx.priority().is_local() {
+								*score = *score >> 3;
+							}
+						}
+					},
 				}
-			},
+			}
 		}
 	}
 
@@ -418,7 +366,7 @@ mod tests {
 	fn should_bump_score_of_consecutive_tx() {
 		env_logger::try_init();
 		// given
-		let scoring = Consecutive(PrioritizationStrategy::Consecutive);
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 
 		let transactions = Tx::gas_multiplier(10000, 2).signed_consecutive(3).into_iter().map(|tx| {
 			let mut verified = tx.verified();
@@ -480,7 +428,7 @@ mod tests {
 	fn should_calculate_consecutive_score_correctly() {
 		env_logger::try_init();
 		// given
-		let scoring = Consecutive(PrioritizationStrategy::Consecutive);
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 		let (tx1, tx2, tx3) = Tx::default().signed_triple();
 		let transactions = vec![tx1, tx2, tx3].into_iter().enumerate().map(|(i, tx)| {
 			let mut verified = tx.verified();
