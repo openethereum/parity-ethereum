@@ -370,7 +370,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 		/// Allow hook to set extra data before closing the block (after txs are applied).  used by
 		/// clique for block signing
-		fn close_block_extra_data(&self, _parent: &M::Header) -> Option<Vec<u8>> { None }
+		fn seal_block_extra_data(&self, _parent: &M::Header) -> Option<Vec<u8>> { None }
 
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.

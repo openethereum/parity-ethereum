@@ -479,7 +479,7 @@ impl LockedBlock {
 		}
 		s.block.header.set_seal(seal);
 
-        if let Some(extra_data) = engine.close_block_extra_data(&s.block.header) {
+        if let Some(extra_data) = engine.seal_block_extra_data(&s.block.header) {
           s.block.header.set_extra_data(extra_data);
         }
 

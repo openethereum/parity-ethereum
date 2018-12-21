@@ -93,6 +93,7 @@ impl Clique {
 		//
 
 		trace!(target: "engine", "epoch length: {}, period: {}", our_params.epoch, our_params.period);
+
 		/*
 		let snapshot = SignerSnapshot {
 		  bn: 0,
@@ -140,12 +141,37 @@ impl Engine<EthereumMachine> for Clique {
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 	}
 
+
 //	// only called when we are sealing the block.  TODO rename this to make more sense
-//	fn close_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
-//		let mut h = _header.clone();
+fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
+  // sign the block
+  //
+
+    //self.state.().get(_header.parent_hash).expect(format!("couldn't find parent hash for header {}"));
+
+    let mut Vec<u8> seal = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
+
+    let mut sig_offset = SIGNER_VANITY_LENGTH as usize;
+    
+    if _header.number() % self.epoch_length == 0 {
+        sig_offset += 20 * signers.len();
+        for i in 0..signers.len() {
+            seal[SIGNER_VANITY_LENGTH as usize + i * 20..SIGNER_VANITY_LENGTH as usize + (i + 1) * 20].clone_from_slice(&signers[i]);
+        }
+    }
+
+    let mut header = _header.clone();
+    header.set_extra_data(v.clone());
+
+    self.state.apply(header);
+
+    let (sig, msg) = self.sign_header(&h).expect("should be able to sign header");
+    seal[sig_offset..].copy_from_slice(&sig[..]);
+    Some(seal)
+}
+
+
 //
-//		trace!(target: "engine", "applying sealed block");
-//		let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
 //
 //		{
 //			let signers = self.state.get_signers();
@@ -189,7 +215,7 @@ impl Engine<EthereumMachine> for Clique {
 	///     now.
 	///
 	fn seals_internally(&self) -> Option<bool> {
-		Some(false)
+		Some(true)
 	}
 
 	/// Attempt to seal generate a proposal seal.
@@ -198,44 +224,49 @@ impl Engine<EthereumMachine> for Clique {
 	/// `Seal::None` will be returned.
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
         trace!(target: "engine", "tried to generate seal");
-		Seal::None
 //
 //		let mut header = block.header.clone();
 //
 //		trace!(target: "engine", "attempting to seal...");
 //
 //		// don't seal the genesis block
-//		if header.number() == 0 {
-//			trace!(target: "engine", "attempted to seal genesis block");
-//			return Seal::None;
-//		}
-//
+		if header.number() == 0 {
+			trace!(target: "engine", "attempted to seal genesis block");
+			return Seal::None;
+		}
+
 //		// if sealing period is 0, refuse to seal
+        if self.epoch_length == 0 {
+            return Seal::None;
+        }
+
+        let db = self.state.state(_parent.hash());
 //
-//		// let vote_snapshot = self.snapshot.get(bh);
+// let vote_snapshot = self.snapshot.get(bh);
 //
 //		// if we are not authorized to sign, don't seal
 //
 //		// if we signed recently, don't seal
 //
-//		if block.header.timestamp() <= _parent.timestamp() + self.period {
-//			trace!(target: "engine", "block too early");
-//			return Seal::None;
-//		}
-//
-//		if let SignerAuthorization::Unauthorized = self.snapshot.get_own_authorization() {
-//			return Seal::None;
-//		}
+		if block.header.timestamp() <= _parent.timestamp() + self.period {
+			return Seal::None;
+		}
+
+		if let SignerAuthorization::Unauthorized = self.snapshot.get_own_authorization() {
+			trace!(target: "engine", "tried to seal: not authorized");
+			return Seal::None;
+		}
+
 //
 //		// sign the digest of the seal
-//		if self.is_signer_proposer(block.header().number()) {
-//			trace!(target: "engine", "seal generated for {}", block.header().number());
-//			//TODO add our vote here if this is not an epoch transition
-//			return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
-//		} else {
-//			trace!(target: "engine", "we are not the current for block {}", block.header().number());
-//			Seal::None
-//		}
+        if self.is_signer_proposer(block.header().number()) {
+            trace!(target: "engine", "seal generated for {}", block.header().number());
+            //TODO add our vote here if this is not an epoch transition
+            return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
+        } else {
+            trace!(target: "engine", "we are not the current for block {}", block.header().number());
+            Seal::None
+        }
 	}
 
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
