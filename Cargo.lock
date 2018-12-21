@@ -539,8 +539,9 @@ version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "eip712"
+name = "eip-712"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ethabi 6.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2507,7 +2508,7 @@ version = "1.12.0"
 dependencies = [
  "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cid 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "eip712 0.1.0",
+ "eip-712 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.12.0",
  "ethcore 1.12.0",
  "ethcore-devtools 1.12.0",
@@ -4400,6 +4401,7 @@ dependencies = [
 "checksum digest 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)" = "03b072242a8cbaf9c145665af9d250c59af3b958f83ed6824e13533cf76d5b90"
 "checksum docopt 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "db2906c2579b5b7207fc1e328796a9a8835dc44e22dbe8e460b1d636f9a7b225"
 "checksum edit-distance 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3bd26878c3d921f89797a4e1a1711919f999a9f6946bb6f5a4ffda126d297b7e"
+"checksum eip-712 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c965dd4a14e0b486ab7bb91fdca01f4cb2d62eb8843b7515d6c0d581b6dd763e"
 "checksum either 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3be565ca5c557d7f59e7cfcf1844f9e3033650c929c6566f511e8005f205c1d0"
 "checksum elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "88d4851b005ef16de812ea9acdb7bece2f0a40dd86c07b85631d7dafa54537bb"
 "checksum env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3ddf21e73e016298f5cb37d6ef8e8da8e39f91f9ec8b0df44b7deb16a9f8cd5b"
