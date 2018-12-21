@@ -191,11 +191,11 @@ build_rpc_trait! {
 
         /// Used to encrypt a message
         #[rpc(name = "eth_encrypt")]
-        fn encrypt(&self, H256, String, Bytes, Trailing<U64>) -> BoxFuture<Bytes>;
+        fn encrypt(&self, H256, String, Bytes, Trailing<U64>) -> Result<Bytes>;
 
         /// Used to decrypt a message
         #[rpc(name = "eth_decrypt")]
-        fn decrypt(&self, H160, Bytes) -> BoxFuture<Bytes>;
+        fn decrypt(&self, H160, Bytes) -> Result<Bytes>;
 	}
 }
 

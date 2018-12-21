@@ -28,6 +28,7 @@ extern crate multihash;
 extern crate order_stat;
 extern crate parking_lot;
 extern crate rand;
+extern crate ring;
 extern crate rustc_hex;
 extern crate semver;
 extern crate serde;

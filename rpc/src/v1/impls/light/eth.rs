@@ -521,12 +521,12 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		Err(errors::light_unimplemented(None))
     }
 
-    fn encrypt(&self, encryption_public_key: RpcH256, version: String, data: Bytes, padding: Trailing<RpcU64>) -> BoxFuture<Bytes> {
-		Box::new(future::err(errors::unimplemented(None)))
+    fn encrypt(&self, encryption_public_key: RpcH256, version: String, data: Bytes, padding: Trailing<RpcU64>) -> Result<Bytes> {
+		Err(errors::light_unimplemented(None))
     }
 
-    fn decrypt(&self, receiver_address: RpcH160, data: Bytes) -> BoxFuture<Bytes> {
-		Box::new(future::err(errors::unimplemented(None)))
+    fn decrypt(&self, receiver_address: RpcH160, data: Bytes) -> Result<Bytes> {
+		Err(errors::light_unimplemented(None))
     }
 }
 

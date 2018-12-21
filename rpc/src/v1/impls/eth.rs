@@ -32,6 +32,7 @@ use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
+use ring::{aead,agreement,rand::SecureRandom,rand::SystemRandom};
 use sync::SyncProvider;
 use miner::external::ExternalMinerService;
 use transaction::{SignedTransaction, LocalizedTransaction};
@@ -1000,11 +1001,22 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Err(errors::light_unimplemented(None))
     }
 
-    fn encrypt(&self, encryption_public_key: RpcH256, version: String, data: Bytes, padding: Trailing<RpcU64>) -> BoxFuture<Bytes> {
-		Box::new(future::err(errors::unimplemented(None)))
+    fn encrypt(&self, encryption_public_key: RpcH256, version: String, data: Bytes, padding: Trailing<RpcU64>) -> Result<Bytes> {
+        let mut data_vec: Vec<u8> = data.into();
+        let mut message = data_vec.as_mut_slice();
+        let public_key_bytes: [u8; 32] = encryption_public_key.0;
+        let ad: [u8; 0] = [0; 0];
+        let mut nonce = vec![0; 12];
+        let rand = SystemRandom::new();
+
+        let sealing_key = aead::SealingKey::new(&aead::AES_256_GCM, &public_key_bytes).unwrap();
+        rand.fill(&mut nonce).unwrap();
+
+        aead::seal_in_place(&sealing_key, &nonce, &ad, &mut message, 0);
+		Ok(Bytes::new(message.to_vec()))
     }
 
-    fn decrypt(&self, receiver_address: RpcH160, data: Bytes) -> BoxFuture<Bytes> {
-		Box::new(future::err(errors::unimplemented(None)))
+    fn decrypt(&self, receiver_address: RpcH160, data: Bytes) -> Result<Bytes> {
+		Err(errors::light_unimplemented(None))
     }
 }
