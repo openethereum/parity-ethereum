@@ -127,9 +127,9 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 					},
 				}
 			},
-			PrioritizationStrategy::Consecutive => {
-				let is_consecutive = |txs: &[txpool::Transaction<P>]| {
-					if (txs[0].nonce() + U256::one()) == txs[1].nonce() {
+		PrioritizationStrategy::Consecutive => {
+				let is_consecutive = |i: usize| {
+					if (txs[i].nonce() + U256::one()) == txs[i+1].nonce() {
 						U256::one()
 					} else {
 						U256::zero()
@@ -151,11 +151,11 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 						};
 
 						scores[i] = scores[i] << boost;
-						let last_index = txs.len() - 1;
-						for idx in last_index..1 {
-							scores[idx - 1] = *txs[idx-1].transaction.gas_price()
-								+ is_consecutive(&txs[idx+1..=idx])
-								+ (U256::from(21_000) / *txs[idx-1].transaction.gas())
+						for idx in (1..txs.len()).rev() {
+							debug!("Consecutive {:?}, last_index: {:#?}", is_consecutive(idx - 1), txs.len());
+							scores[idx - 1] = txs[idx - 1].transaction.gas_price()
+								+ is_consecutive(idx - 1)
+								+ (U256::from(21_000) / txs[idx - 1].transaction.gas())
 								* scores[idx]
 								/ 10_000;
 						}
@@ -328,19 +328,9 @@ mod tests {
 		}).collect::<Vec<_>>();
 		let initial_scores = vec![U256::from(0), 0.into(), 0.into()];
 
-		// No update required
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(0));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(1));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(2));
-		assert_eq!(scores, initial_scores);
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(0));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(1));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(2));
-		assert_eq!(scores, initial_scores);
-
 		// Compute score at given index
+        // first score of first transaction from `transactions2` should be higher than
+        // transactions
 		let mut scores = initial_scores.clone();
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
 		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
@@ -377,7 +367,6 @@ mod tests {
 				transaction: Arc::new(verified),
 			}
 		}).collect::<Vec<_>>();
-		debug!("Sender of txs {:?}-{:?}-{:?}", transactions[0].sender, transactions[1].sender, &transactions[2].sender);
 
         let transactions2 = Tx::gas_multiplier(10000, 15).signed_consecutive(3).into_iter().map(|tx| {
 			let mut verified = tx.verified();
@@ -388,24 +377,10 @@ mod tests {
 				transaction: Arc::new(verified)
 			}
 		}).collect::<Vec<_>>();
-		debug!("Sender of txs {:?}-{:?}-{:?}", transactions2[0].sender, transactions2[1].sender, &transactions2[2].sender);
 
 		let initial_scores = vec![U256::from(0), 0.into(), 0.into()];
-		// No update required
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(0));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(1));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(2));
-		assert_eq!(scores, initial_scores);
-
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions2, &mut *scores, scoring::Change::Culled(0));
-		scoring.update_scores(&transactions2, &mut *scores, scoring::Change::Culled(1));
-		scoring.update_scores(&transactions2, &mut *scores, scoring::Change::Culled(2));
-		assert_eq!(scores, initial_scores);
-
 		// Compute score at given index
-		transactions.iter().chain(transactions2.iter()).for_each(|tx| debug!("Gas Price: {:#}", tx.gas_price()));
+		transactions.iter().chain(transactions2.iter()).for_each(|tx| debug!("Gas Price: {:#?}", tx.gas_price()));
 		let mut scores = initial_scores.clone();
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
 		//assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);

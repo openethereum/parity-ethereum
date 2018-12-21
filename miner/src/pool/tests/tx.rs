@@ -55,7 +55,7 @@ impl Tx {
 			multiplier,
 			..Default::default()
 		}
-	}
+    }
 
 	pub fn signed(self) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
@@ -80,13 +80,13 @@ impl Tx {
 
 	pub fn signed_consecutive(mut self, amount: usize) -> Vec<SignedTransaction> {
 		let keypair = Random.generate().unwrap();
-		(0..amount).map(|i| {
+		(0..amount).map(|_| {
 			let tx = self.clone().unsigned().sign(keypair.secret(), None);
 			self.nonce += 1;
 			self.gas_price *= (self.nonce + 1) * self.multiplier;
 			tx
 		}).collect::<Vec<SignedTransaction>>()
-    }
+	}
 
 	pub fn signed_replacement(mut self) -> (SignedTransaction, SignedTransaction) {
 		let keypair = Random.generate().unwrap();
