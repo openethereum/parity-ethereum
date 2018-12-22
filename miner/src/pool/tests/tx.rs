@@ -48,15 +48,6 @@ impl Tx {
 		}
 	}
 
-    /// For consecutive transactions. gas is multiplied by nonce + multiplier for each transaction
-	pub fn gas_price_multiplier(gas_price: u64, multiplier: u64) -> Self {
-		Tx {
-			gas_price,
-			multiplier,
-			..Default::default()
-		}
-    }
-
 	pub fn signed(self) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		self.unsigned().sign(keypair.secret(), None)
@@ -78,10 +69,14 @@ impl Tx {
 		(tx1, tx2, tx3)
 	}
 
-	pub fn signed_consecutive(mut self, amount: usize) -> Vec<SignedTransaction> {
+	/// Consecutive transactions where the gas_price is decided by the predicate
+	/// P(i, nonce)
+	pub fn signed_consecutive<P>(mut self, amount: usize, fun: P) -> Vec<SignedTransaction>
+		where P: Fn(usize, u64) -> u64
+	{
 		let keypair = Random.generate().unwrap();
 		(0..amount).map(|i| {
-			self.gas_price = self.multiplier.pow(i as u32);
+			self.gas_price = fun(i, self.nonce);
 			let tx = self.clone().unsigned().sign(keypair.secret(), None);
 			self.nonce += 1;
 			tx

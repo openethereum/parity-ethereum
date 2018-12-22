@@ -340,7 +340,9 @@ mod tests {
 		// given
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 
-		let transactions = Tx::gas_price_multiplier(1, 1000).signed_consecutive(3).into_iter().map(|tx| {
+		let multiplier = |i: usize, _| 1000u64.pow(i as u32);
+		
+		let transactions = Tx::gas_price(1).signed_consecutive(3, multiplier).into_iter().map(|tx| {
 			let mut verified = tx.verified();
 			verified.priority = ::pool::Priority::Local;
 
@@ -350,7 +352,7 @@ mod tests {
 			}
 		}).collect::<Vec<_>>();
 
-		let transactions2 = Tx::gas_price_multiplier(1, 1000).signed_consecutive(2).into_iter().map(|tx| {
+		let transactions2 = Tx::gas_price(1).signed_consecutive(2, multiplier).into_iter().map(|tx| {
 			let mut verified = tx.verified();
 			verified.priority = ::pool::Priority::Local;
 
@@ -383,7 +385,7 @@ mod tests {
 
 	#[test]
 	fn should_be_harder_to_bump_larger_tx() {
-
+		
 	}
 	
 	/*
