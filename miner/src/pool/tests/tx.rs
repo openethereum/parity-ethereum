@@ -35,7 +35,7 @@ impl Default for Tx {
 			nonce: 123,
 			gas: 21_000,
 			gas_price: 1,
-			multiplier: 1,
+			multiplier: 0,
 		}
 	}
 }
@@ -121,6 +121,54 @@ impl Tx {
 		tx.sign(keypair.secret(), None)
 	}
 }
+
+#[derive(Default)]
+pub struct TxBuilder {
+	pub nonce: Option<u64>,
+	pub gas: Option<u64>,
+	pub gas_price: Option<u64>,
+	pub multiplier: Option<u64>,
+}
+
+impl TxBuilder {
+	pub fn build(&mut self) -> Tx {
+		let mut tx = Tx::default();
+		if let Some(n) = self.nonce {
+			tx.nonce = n;
+		}
+		if let Some(g) = self.gas {
+			tx.gas = g;
+		}
+		if let Some(gp) = self.gas_price {
+			tx.gas_price = gp;
+		}
+		if let Some(multiplier) = self.multiplier {
+			tx.multiplier = multiplier;
+		}
+		tx
+	}
+
+	pub fn nonce(&mut self, nonce: u64) -> &mut Self {
+		self.nonce = Some(nonce);
+		self
+	}
+
+	pub fn gas(&mut self, gas: u64) -> &mut Self {
+		self.gas = Some(gas);
+		self
+	}
+	
+	pub fn gas_price(&mut self, gas_price: u64) -> &mut Self {
+		self.gas_price = Some(gas_price);
+		self
+	}
+
+	pub fn multiplier(&mut self, multiplier: u64) -> &mut Self {
+		self.multiplier = Some(multiplier);
+		self
+	}
+}
+
 pub trait TxExt: Sized {
 	type Out;
 	type Verified;

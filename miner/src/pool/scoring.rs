@@ -382,6 +382,12 @@ mod tests {
 	}
 
 	#[test]
+	fn should_be_harder_to_bump_larger_tx() {
+
+	}
+	
+	/*
+	#[test]
 	fn should_calculate_consecutive_score_correctly() {
 		env_logger::try_init();
 		// given
@@ -435,4 +441,5 @@ mod tests {
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Event(()));
 		assert_eq!(scores, vec![32768.into(), 128.into(), 0.into()]);
 	}
+	*/
 }
