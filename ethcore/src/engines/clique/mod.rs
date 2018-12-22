@@ -50,6 +50,7 @@ pub struct Clique {
 	state: RwLock<CliqueState>,
 	//signers: RwLock<Option<Vec<Address>>>,
 	machine: EthereumMachine,
+	signer: RwLock<EngineSigner>,
 	epoch_length: u64,
 	period: u64,
 }
@@ -110,6 +111,7 @@ impl Clique {
 				machine: machine,
 				epoch_length: our_params.epoch,
 				period: our_params.period,
+                signer: Default::default()
 			});
 
 		return Ok(engine);
@@ -139,6 +141,21 @@ impl Engine<EthereumMachine> for Clique {
 
 	// called only when sealing ?
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+        //TODO populate fields for sealing
+        //self.state.read().B
+        //
+
+		match self.state.read().proposer_authorization(header) {
+            SignerAuthorization::InTurn => {
+               header.set_difficulty(U256::From(DIFF_INTURN));
+            },
+            SignerAuthorization::OutOfTurn => {
+               header.set_difficulty(U256::From(DIFF_NOT_INTURN));
+            },
+            SignerAuthorization::Unauthorized => {
+                // do oothing this will be caught later
+            }
+		}
 	}
 
 
@@ -149,7 +166,7 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 
     //self.state.().get(_header.parent_hash).expect(format!("couldn't find parent hash for header {}"));
 
-    let mut Vec<u8> seal = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
+    let mut seal: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
 
     let mut sig_offset = SIGNER_VANITY_LENGTH as usize;
     
@@ -163,7 +180,7 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
     let mut header = _header.clone();
     header.set_extra_data(v.clone());
 
-    self.state.apply(header);
+    self.state.write().apply(&header);
 
     let (sig, msg) = self.sign_header(&h).expect("should be able to sign header");
     seal[sig_offset..].copy_from_slice(&sig[..]);
@@ -203,10 +220,9 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 //		return Some(v);
 //	}
 
-//	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-//		self.snapshot.set_signer(ap, address, password);
-//		trace!(target: "engine", "set the signer to {}", address);
-//	}
+    fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
+        self.signer.write().set(ap, address, password);
+    }
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// /// Some(true) means the engine is currently prime for seal generation (i.e. node
@@ -230,7 +246,7 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 //		trace!(target: "engine", "attempting to seal...");
 //
 //		// don't seal the genesis block
-		if header.number() == 0 {
+		if block.header.number() == 0 {
 			trace!(target: "engine", "attempted to seal genesis block");
 			return Seal::None;
 		}
@@ -240,7 +256,7 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
             return Seal::None;
         }
 
-        let db = self.state.state(_parent.hash());
+        let db = self.state.read().state(_parent.hash());
 //
 // let vote_snapshot = self.snapshot.get(bh);
 //
@@ -252,7 +268,7 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 			return Seal::None;
 		}
 
-		if let SignerAuthorization::Unauthorized = self.snapshot.get_own_authorization() {
+		if let SignerAuthorization::Unauthorized = self.state.get_own_authorization() {
 			trace!(target: "engine", "tried to seal: not authorized");
 			return Seal::None;
 		}

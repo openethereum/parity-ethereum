@@ -7,7 +7,7 @@ use engines::clique::{SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH, recover};
 use error::Error;
 use header::{Header, ExtendedHeader};
 use super::super::signer::EngineSigner;
-use parking_lot::RwLock;
+use parking_lot::{RwLock, Mutex};
 use account_provider::AccountProvider;
 use ethkey::Password;
 use std::borrow::BorrowMut;
@@ -42,7 +42,8 @@ pub struct CliqueBlock {
 #[derive(Debug)]
 pub struct CliqueState {
 	epoch_length: u64,
-	states_by_hash: LruCache<H256, SnapshotState>,
+	states_by_hash: Mutex<LruCache<H256, SnapshotState>>,
+    signer: RwLock<EngineSigner>,
 }
 
 #[derive(Clone, Debug)]
@@ -57,24 +58,25 @@ impl CliqueState {
 	pub fn new(epoch_length: u64) -> Self {
 		CliqueState {
 			epoch_length: epoch_length,
-			states_by_hash: LruCache::new(STATE_CACHE_NUM),
+			states_by_hash: Mutex::new(LruCache::new(STATE_CACHE_NUM)),
 		}
 	}
 
 	/// Get an valid state
 	pub fn state(&mut self, hash: &H256) -> Option<SnapshotState> {
-		let db = self.states_by_hash.borrow_mut();
+		let db = self.states_by_hash.lock().borrow_mut();
 		return db.get_mut(hash).cloned();
 	}
 
 	/// Apply an new header
 	pub fn apply(&mut self, header: &Header) -> Result<(), Error> {
-		let db = self.states_by_hash.borrow_mut();
+		let db = self.states_by_hash.lock().borrow_mut();
 
 		// make sure current hash is not in the db
 		match db.get_mut(header.parent_hash()).cloned() {
 			Some(ref mut new_state) => {
-				match process_header(&header, new_state, self.epoch_length) {
+				let creator = public_to_address(&recover(header).unwrap()).clone();
+				match process_header(&header, new_state, self.epoch_length, creator) {
 					Err(e) => {
 						return Err(From::from(
 							format!("Error applying header: {}, current state: {:?}", e, new_state)
@@ -83,7 +85,6 @@ impl CliqueState {
 					_ => {} ,
 				}
 
-				let creator = public_to_address(&recover(header).unwrap()).clone();
 				new_state.recent_signers.push_front(creator);
 
 				if new_state.recent_signers.len() >= ( new_state.signers.len() / 2 ) + 1 {
@@ -103,7 +104,7 @@ impl CliqueState {
 	}
 
 	pub fn apply_checkpoint(&mut self, header: &Header) -> Result<(), Error> {
-		let db = self.states_by_hash.borrow_mut();
+		let db = self.states_by_hash.lock().borrow_mut();
 		let state = &mut SnapshotState {
 			votes: HashMap::new(),
 			votes_history: Vec::new(),
@@ -115,6 +116,26 @@ impl CliqueState {
 
 		Ok(())
 	}
+
+    pub fn set_signer(&self, signer: EngineSigner) {
+        self.signer.write().set(ap, address, password); 
+    }
+
+    pub fn proposer_authorization(&self, header: &Header) -> SignerAuthorization {
+        let db = self.states_by_hash.lock().borrow_mut();
+        let proposer_address = self.signer.read().address();
+
+        match db.get_mut(header.parent_hash()).cloned() {
+            Some(ref state) => {
+                return state.get_signer_authorization(header.number(), self.signer.read().address());
+            },
+            None => {
+                panic!("Parent block (hash: {}) for Block {}, hash {} is not found!",
+                            header.parent_hash(),
+                            header.number(), header.hash())
+            }
+        }
+    }
 }
 
 fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
@@ -149,7 +170,6 @@ impl SnapshotState {
 			if currentBlockNumber % self.signers.len() as u64 == pos as u64 {
 				return SignerAuthorization::InTurn;
 			} else {
-
 				if self.recent_signers.contains(&self.signers[pos]) && pos != self.signers.len()-1 {
 					return SignerAuthorization::Unauthorized;
 				} else {
@@ -163,6 +183,7 @@ impl SnapshotState {
 	}
 }
 
+
 fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<(), Error> {
 	state.signers = extract_signers(header)?;
 	state.votes.clear();
@@ -172,7 +193,8 @@ fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<
 	Ok(())
 }
 
-pub fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64) -> Result<(), Error> {
+/// Apply header to the state, used in block sealing and external block import
+fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64) -> Result<(), Error> {
 	// Check signature & dificulty
 	let creator = public_to_address(&recover(header).unwrap()).clone();
 
