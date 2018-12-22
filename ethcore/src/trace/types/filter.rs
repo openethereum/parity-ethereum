@@ -106,7 +106,7 @@ impl Filter {
 
 				let to_matches = match trace.result {
 					Res::Create(ref create_result) => self.to_address.matches(&create_result.address),
-					_ => false
+					_ => self.to_address.matches_all(),
 				};
 
 				from_matches && to_matches
@@ -385,4 +385,44 @@ mod tests {
 		assert!(f1.matches(&trace));
 		assert!(f2.matches(&trace));
 	}
+
+  #[test]
+  fn filter_match_failed_contract_creation_fix_9822() {
+
+      let f0 = Filter {
+          range: (0..0),
+          from_address: vec![1.into()].into(),
+          to_address: vec![].into(),
+      };
+
+      let f1 = Filter {
+          range: (0..0),
+          from_address: vec![].into(),
+          to_address: vec![].into(),
+      };
+
+      let f2 = Filter {
+          range: (0..0),
+          from_address: vec![].into(),
+          to_address: vec![2.into()].into(),
+      };
+
+      let trace = FlatTrace {
+          action: Action::Create(Create {
+              from: 1.into(),
+              gas: 4.into(),
+              init: vec![0x5],
+              value: 3.into(),
+          }),
+          result: Res::FailedCall(TraceError::BadInstruction),
+          trace_address: vec![].into_iter().collect(),
+          subtraces: 0
+      };
+
+      assert!(f0.matches(&trace));
+      assert!(f1.matches(&trace));
+      assert!(!f2.matches(&trace));
+  }
+
 }
+
