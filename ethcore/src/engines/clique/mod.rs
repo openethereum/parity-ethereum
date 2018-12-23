@@ -36,7 +36,7 @@ use types::ancestry_action::AncestryAction;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier, Headers, PendingTransitionStore};
 use super::signer::EngineSigner;
 use machine::{Call, AuxiliaryData, EthereumMachine};
-use self::signer_snapshot::{CliqueState, SignerAuthorization, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR};
+use self::signer_snapshot::{CliqueState, SignerAuthorization, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, DIFF_INTURN, DIFF_NOT_INTURN};
 
 pub const SIGNER_VANITY_LENGTH: u32 = 32;
 // Fixed number of extra-data prefix bytes reserved for signer vanity
@@ -117,18 +117,14 @@ impl Clique {
 		return Ok(engine);
 	}
 
-//	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
-//		let digest = sig_hash(header)?;
-//		if let Some(sig) = self.snapshot.sign_data(&digest) {
-//			return Ok((sig, digest));
-//		}
-//
-//		return Err(From::from("failed to sign header"));
-//	}
+	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
+		let digest = sig_hash(header)?;
 
-	//pub fn snapshot(self, bn: u64) -> AuthorizationSnapshot {
-	// if we are on a checkpoint block, build a snapshot
-	//}
+        match (*self.signer.read()).sign(digest) {
+            Ok(sig) => { Ok((sig, digest)) },
+            Err(e) =>  { Err(From::from("failed to sign header")) }
+        }
+	}
 }
 
 impl Engine<EthereumMachine> for Clique {
@@ -145,12 +141,12 @@ impl Engine<EthereumMachine> for Clique {
         //self.state.read().B
         //
 
-		match self.state.read().proposer_authorization(header) {
+		match self.state.write().proposer_authorization(header) {
             SignerAuthorization::InTurn => {
-               header.set_difficulty(U256::From(DIFF_INTURN));
+               header.set_difficulty(U256::from(DIFF_INTURN));
             },
             SignerAuthorization::OutOfTurn => {
-               header.set_difficulty(U256::From(DIFF_NOT_INTURN));
+               header.set_difficulty(U256::from(DIFF_NOT_INTURN));
             },
             SignerAuthorization::Unauthorized => {
                 // do oothing this will be caught later
@@ -166,10 +162,12 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 
     //self.state.().get(_header.parent_hash).expect(format!("couldn't find parent hash for header {}"));
 
+    let mut state = self.state.write();
+    let signers = state.state(&_header.parent_hash()).unwrap().signers;
     let mut seal: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
 
     let mut sig_offset = SIGNER_VANITY_LENGTH as usize;
-    
+
     if _header.number() % self.epoch_length == 0 {
         sig_offset += 20 * signers.len();
         for i in 0..signers.len() {
@@ -178,11 +176,10 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
     }
 
     let mut header = _header.clone();
-    header.set_extra_data(v.clone());
-
+    header.set_extra_data(seal.clone());
     self.state.write().apply(&header);
 
-    let (sig, msg) = self.sign_header(&h).expect("should be able to sign header");
+    let (sig, msg) = self.sign_header(&header).expect("should be able to sign header");
     seal[sig_offset..].copy_from_slice(&sig[..]);
     Some(seal)
 }
@@ -222,6 +219,7 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 
     fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
         self.signer.write().set(ap, address, password);
+        self.state.write().set_signer_address(address.clone());
     }
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
@@ -255,8 +253,6 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
         if self.epoch_length == 0 {
             return Seal::None;
         }
-
-        let db = self.state.read().state(_parent.hash());
 //
 // let vote_snapshot = self.snapshot.get(bh);
 //
@@ -268,20 +264,14 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 			return Seal::None;
 		}
 
-		if let SignerAuthorization::Unauthorized = self.state.get_own_authorization() {
+		if let SignerAuthorization::Unauthorized = self.state.write().proposer_authorization(&block.header) {
 			trace!(target: "engine", "tried to seal: not authorized");
-			return Seal::None;
-		}
+            return Seal::None;
+		} else {
+            trace!(target: "engine", "seal generated for {}", block.header.hash());
 
-//
-//		// sign the digest of the seal
-        if self.is_signer_proposer(block.header().number()) {
-            trace!(target: "engine", "seal generated for {}", block.header().number());
             //TODO add our vote here if this is not an epoch transition
             return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
-        } else {
-            trace!(target: "engine", "we are not the current for block {}", block.header().number());
-            Seal::None
         }
 	}
 

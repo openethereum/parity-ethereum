@@ -12,6 +12,7 @@ use account_provider::AccountProvider;
 use ethkey::Password;
 use std::borrow::BorrowMut;
 use lru_cache::LruCache;
+use std::fmt;
 
 pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x00; 8];
 pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xff; 8];
@@ -39,11 +40,16 @@ pub struct CliqueBlock {
 	header: Header,
 }
 
-#[derive(Debug)]
 pub struct CliqueState {
 	epoch_length: u64,
-	states_by_hash: Mutex<LruCache<H256, SnapshotState>>,
-    signer: RwLock<EngineSigner>,
+	states_by_hash: LruCache<H256, SnapshotState>,
+    signer: RwLock<Option<Address>>,
+}
+
+impl fmt::Debug for CliqueState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "CliqueState {{ epoch_length: {}, states_by_hash: {:?}, signer: {} }}", self.epoch_length, &self.states_by_hash, self.signer.read().unwrap_or(Address::new()))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -58,32 +64,32 @@ impl CliqueState {
 	pub fn new(epoch_length: u64) -> Self {
 		CliqueState {
 			epoch_length: epoch_length,
-			states_by_hash: Mutex::new(LruCache::new(STATE_CACHE_NUM)),
+			states_by_hash: LruCache::new(STATE_CACHE_NUM),
+            signer: RwLock::new(None),
 		}
 	}
 
 	/// Get an valid state
 	pub fn state(&mut self, hash: &H256) -> Option<SnapshotState> {
-		let db = self.states_by_hash.lock().borrow_mut();
+		let db = self.states_by_hash.borrow_mut();
 		return db.get_mut(hash).cloned();
 	}
 
 	/// Apply an new header
 	pub fn apply(&mut self, header: &Header) -> Result<(), Error> {
-		let db = self.states_by_hash.lock().borrow_mut();
+		let db = self.states_by_hash.borrow_mut();
 
 		// make sure current hash is not in the db
 		match db.get_mut(header.parent_hash()).cloned() {
 			Some(ref mut new_state) => {
-				let creator = public_to_address(&recover(header).unwrap()).clone();
-				match process_header(&header, new_state, self.epoch_length, creator) {
+				let creator = match process_header(&header, new_state, self.epoch_length) {
 					Err(e) => {
 						return Err(From::from(
 							format!("Error applying header: {}, current state: {:?}", e, new_state)
 						));
 					},
-					_ => {} ,
-				}
+					Ok(creator) => {creator} ,
+				};
 
 				new_state.recent_signers.push_front(creator);
 
@@ -104,7 +110,7 @@ impl CliqueState {
 	}
 
 	pub fn apply_checkpoint(&mut self, header: &Header) -> Result<(), Error> {
-		let db = self.states_by_hash.lock().borrow_mut();
+		let db = self.states_by_hash.borrow_mut();
 		let state = &mut SnapshotState {
 			votes: HashMap::new(),
 			votes_history: Vec::new(),
@@ -117,17 +123,21 @@ impl CliqueState {
 		Ok(())
 	}
 
-    pub fn set_signer(&self, signer: EngineSigner) {
-        self.signer.write().set(ap, address, password); 
+    pub fn set_signer_address(&self, signer_address: Address) {
+        *self.signer.write() = Some(signer_address.clone());
     }
 
-    pub fn proposer_authorization(&self, header: &Header) -> SignerAuthorization {
-        let db = self.states_by_hash.lock().borrow_mut();
-        let proposer_address = self.signer.read().address();
+    pub fn proposer_authorization(&mut self, header: &Header) -> SignerAuthorization {
+        let mut db = self.states_by_hash.borrow_mut();
+
+        let proposer_address = match *self.signer.read() {
+            Some(address) => address.clone(),
+            None => { return SignerAuthorization::Unauthorized }
+        };
 
         match db.get_mut(header.parent_hash()).cloned() {
             Some(ref state) => {
-                return state.get_signer_authorization(header.number(), self.signer.read().address());
+                return state.get_signer_authorization(header.number(), &proposer_address);
             },
             None => {
                 panic!("Parent block (hash: {}) for Block {}, hash {} is not found!",
@@ -164,9 +174,9 @@ fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 }
 
 impl SnapshotState {
-	pub fn get_signer_authorization(&self, currentBlockNumber: u64, author: Address) -> SignerAuthorization {
+	pub fn get_signer_authorization(&self, currentBlockNumber: u64, author: &Address) -> SignerAuthorization {
 		// TODO: Implement recent signer check list.
-		if let Some(pos) = self.signers.iter().position(|x| author == *x) {
+		if let Some(pos) = self.signers.iter().position(|x| *author == *x) {
 			if currentBlockNumber % self.signers.len() as u64 == pos as u64 {
 				return SignerAuthorization::InTurn;
 			} else {
@@ -194,11 +204,11 @@ fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<
 }
 
 /// Apply header to the state, used in block sealing and external block import
-fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64) -> Result<(), Error> {
+fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64) -> Result<Address, Error> {
 	// Check signature & dificulty
 	let creator = public_to_address(&recover(header).unwrap()).clone();
 
-	match state.get_signer_authorization(header.number(),creator) {
+	match state.get_signer_authorization(header.number(), &creator) {
 		SignerAuthorization::InTurn => {
 			if *header.difficulty() != U256::from(DIFF_INTURN) {
 				return Err(From::from("difficulty must be set to DIFF_INTURN"));
@@ -227,14 +237,14 @@ fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64)
         state.signers = signers;
 		state.votes.clear();
 		state.votes_history.clear();
-		return Ok(());
+		return Ok(creator);
 	}
 
 	let beneficiary = header.author().clone();
 
 	// No vote, ignore.
 	if beneficiary[0..20] == NULL_AUTHOR {
-		return Ok(());
+		return Ok(creator);
 	}
 
 	let nonce = header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
@@ -290,7 +300,5 @@ fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64)
 	}
 	// No cascading votes.
 
-	Ok(())
+	Ok(creator)
 }
-
-
