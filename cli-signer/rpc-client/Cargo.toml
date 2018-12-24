@@ -16,5 +16,5 @@ matches = "0.1"
 parking_lot = "0.7"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
-parity-rpc = { path = "../rpc" }
+parity-rpc = { path = "../../rpc" }
 keccak-hash = "0.1"

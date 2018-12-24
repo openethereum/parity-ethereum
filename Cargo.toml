@@ -46,13 +46,12 @@ ethereum-types = "0.4"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "accounts/ethkey" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
-rpc-cli = { path = "rpc_cli" }
+cli-signer= { path = "cli-signer" }
 parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
 parity-runtime = { path = "util/runtime" }
 parity-rpc = { path = "rpc" }
-parity-rpc-client = { path = "rpc_client" }
 parity-updater = { path = "updater" }
 parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }

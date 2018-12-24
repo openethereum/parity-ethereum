@@ -3,11 +3,11 @@ authors = ["Parity <admin@parity.io>"]
 description = "Parity Cli Tool"
 homepage = "http://parity.io"
 license = "GPL-3.0"
-name = "rpc-cli"
+name = "cli-signer"
 version = "1.4.0"
 
 [dependencies]
 futures = "0.1"
 rpassword = "1.0"
 parity-rpc = { path = "../rpc" }
-parity-rpc-client = { path = "../rpc_client" }
+parity-rpc-client = { path = "rpc-client" }
