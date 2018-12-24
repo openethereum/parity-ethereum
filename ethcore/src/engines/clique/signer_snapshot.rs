@@ -13,6 +13,7 @@ use ethkey::Password;
 use std::borrow::BorrowMut;
 use lru_cache::LruCache;
 use std::fmt;
+use std::time::{SystemTime, Duration};
 
 pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x00; 8];
 pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xff; 8];
@@ -44,6 +45,7 @@ pub struct CliqueState {
 	epoch_length: u64,
 	states_by_hash: LruCache<H256, SnapshotState>,
     signer: RwLock<Option<Address>>,
+    not_in_turn_delay: Option<(H256, SystemTime, Duration)>
 }
 
 impl fmt::Debug for CliqueState {
@@ -66,6 +68,7 @@ impl CliqueState {
 			epoch_length: epoch_length,
 			states_by_hash: LruCache::new(STATE_CACHE_NUM),
             signer: RwLock::new(None),
+            not_in_turn_delay: None,
 		}
 	}
 
@@ -75,9 +78,32 @@ impl CliqueState {
 		return db.get_mut(hash).cloned();
 	}
 
+    pub fn turn_delay(&mut self, header: &Header) -> bool {
+        match self.not_in_turn_delay {
+            Some((parent_hash, start, duration)) => {
+                if *header.parent_hash() != parent_hash {
+                    // reorg.  make sure the timer is reset
+                    self.not_in_turn_delay = Some((header.parent_hash().clone(), SystemTime::now(), Duration::new(1,0)));
+                    return false;
+                }
+
+                if start.elapsed().expect("start delay was after current time") >= duration {
+                    return true
+                } else {
+                    return false
+                }
+            },
+            None => {
+                self.not_in_turn_delay = Some((header.parent_hash().clone(), SystemTime::now(), Duration::new(1,0)));
+                return false;
+            }
+        }
+    }
+
 	/// Apply an new header
 	pub fn apply(&mut self, header: &Header) -> Result<(), Error> {
 		let db = self.states_by_hash.borrow_mut();
+        trace!(target: "engine", "applying header {}", header.hash());
 
 		// make sure current hash is not in the db
 		match db.get_mut(header.parent_hash()).cloned() {
@@ -97,6 +123,7 @@ impl CliqueState {
 					new_state.recent_signers.pop_back();
 				}
 
+                trace!(target: "engine", "inserting {} {:?}", header.hash(), &new_state);
 				db.insert(header.hash(), new_state.clone());
 				Ok(())
 			}
@@ -118,12 +145,15 @@ impl CliqueState {
 			recent_signers: VecDeque::new(),
 		};
 		process_genesis_header(header, state)?;
+
+        trace!("inserting {} {:?}", header.hash(), &state);
 		db.insert(header.hash(), state.clone());
 
 		Ok(())
 	}
 
     pub fn set_signer_address(&self, signer_address: Address) {
+        trace!(target: "engine", "setting signer {}", signer_address);
         *self.signer.write() = Some(signer_address.clone());
     }
 
@@ -189,6 +219,8 @@ impl SnapshotState {
 				}
 			}
 		}
+
+        trace!(target: "engine", "get_signer_authorization, didn't find {} in signers list {:?}", author, &self.signers);
 		return SignerAuthorization::Unauthorized;
 	}
 }
@@ -200,12 +232,38 @@ fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<
 	state.votes_history.clear();
     state.recent_signers.clear();
 
+    trace!(target: "engine", "genesis signers are {:?}", &state.signers);
+
 	Ok(())
 }
 
+// get the hash of a block ommitting the signature bytes.  Assumes that the block header contains
+// the signature bytes
+/*
+fn clique_hash(h: &Header) -> U256 {
+    let mut header = header.clone();
+    let new_extra_data_len = h.header.extra_data.len()-SIGNER_SIG_LENGTH
+    let old_extra_data = &h.header.extra_data()[0..new_extra_data_len];
+    let mut extra_data = Vec<u8>::new(new_extra_data_len);
+
+    extra_data.copy_from_slice(old_extra_data);
+    header.set_extra_data(extra_data);
+
+    return header.hash();
+}
+*/
+
 /// Apply header to the state, used in block sealing and external block import
 fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64) -> Result<Address, Error> {
-	// Check signature & dificulty
+
+    trace!(target: "engine", "called process_header for {}", header.number());
+
+    if header.extra_data().len() < SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize {
+        return Err(From::from(format!("header extra data was too small: {}", header.extra_data().len())));
+    }
+
+    trace!(target: "engine", "extra_data field has valid length: {:?}", header.extra_data());
+
 	let creator = public_to_address(&recover(header).unwrap()).clone();
 
 	match state.get_signer_authorization(header.number(), &creator) {
@@ -257,6 +315,8 @@ fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64)
 	} else {
 		return Err(From::from("beneficiary specificed but nonce was not AUTH or DROP"));
 	};
+
+    return Ok(creator);
 
 	state.votes_history.push((header.number(), creator, vote_type, beneficiary));
 

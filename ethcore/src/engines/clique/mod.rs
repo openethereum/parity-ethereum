@@ -1,4 +1,5 @@
 mod signer_snapshot;
+mod step_service;
 mod params;
 
 use rlp::{encode_list, encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
@@ -12,6 +13,7 @@ use std::str::FromStr;
 use hash::keccak;
 
 use self::params::CliqueParams;
+use self::step_service::StepService;
 
 use super::epoch::{PendingTransition, EpochVerifier, NoOp};
 
@@ -51,6 +53,7 @@ pub struct Clique {
 	//signers: RwLock<Option<Vec<Address>>>,
 	machine: EthereumMachine,
 	signer: RwLock<EngineSigner>,
+	step_service: IoService<Duration>,
 	epoch_length: u64,
 	period: u64,
 }
@@ -110,9 +113,13 @@ impl Clique {
 				state: RwLock::new(CliqueState::new(our_params.epoch)),
 				machine: machine,
 				epoch_length: our_params.epoch,
+				step_service: IoService::<Duration>::start()?,
 				period: our_params.period,
                 signer: Default::default()
 			});
+
+		let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
+		engine.step_service.register_handler(Arc::new(handler))?;
 
 		return Ok(engine);
 	}
@@ -177,10 +184,13 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 
     let mut header = _header.clone();
     header.set_extra_data(seal.clone());
-    self.state.write().apply(&header);
 
     let (sig, msg) = self.sign_header(&header).expect("should be able to sign header");
     seal[sig_offset..].copy_from_slice(&sig[..]);
+    header.set_extra_data(seal.clone());
+
+    state.apply(&header).unwrap();
+
     Some(seal)
 }
 
@@ -217,7 +227,16 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 //		return Some(v);
 //	}
 
+    fn step(&self) {
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
+			}
+		}
+	}
+
     fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
+        trace!(target: "engine", "called set_signer");
         self.signer.write().set(ap, address, password);
         self.state.write().set_signer_address(address.clone());
     }
@@ -264,14 +283,26 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 			return Seal::None;
 		}
 
-		if let SignerAuthorization::Unauthorized = self.state.write().proposer_authorization(&block.header) {
-			trace!(target: "engine", "tried to seal: not authorized");
-            return Seal::None;
-		} else {
-            trace!(target: "engine", "seal generated for {}", block.header.hash());
+        let mut state = self.state.write();
 
-            //TODO add our vote here if this is not an epoch transition
-            return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
+        match state.proposer_authorization(&block.header) {
+            SignerAuthorization::Unauthorized => {
+                trace!(target: "engine", "tried to seal: not authorized");
+                return Seal::None;
+            },
+            SignerAuthorization::InTurn => {
+                trace!(target: "engine", "seal generated for {}", block.header.number());
+                return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
+            },
+            SignerAuthorization::OutOfTurn => {
+                if state.turn_delay(&block.header) {
+                    trace!(target: "engine", "seal generated for {}", block.header.number());
+                    return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
+                } else {
+                    trace!(target: "engine", "not in turn. seal delayed for {}", block.header.number());
+                    return Seal::None;
+                }
+            }
         }
 	}
 
@@ -324,6 +355,8 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 	}
 
 	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
+		trace!(target: "engine", "called verify_block_basic for block {}", _header.number());
+
 		// Ignore genisis block.
 		if _header.number() == 0 {
 			return Ok(());
@@ -420,6 +453,8 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 		} else {
 			state.apply(header)?;
 		}
+
+        trace!(target: "engine", "verify_block_family finished");
 
 		Ok(())
 	}
