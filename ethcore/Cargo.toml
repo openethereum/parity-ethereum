@@ -53,7 +53,6 @@ rlp_derive = { path = "../util/rlp_derive" }
 kvdb = "0.1"
 kvdb-memorydb = "0.1"
 parity-snappy = "0.1"
-stop-guard = { path = "../util/stop-guard" }
 macros = { path = "../util/macros" }
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }
