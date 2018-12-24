@@ -49,7 +49,7 @@ rlp = { version = "0.3.0", features = ["ethereum"] }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
-parity-local-store = { path = "local-store" }
+parity-local-store = { path = "miner/local-store" }
 parity-runtime = { path = "util/runtime" }
 parity-rpc = { path = "rpc" }
 parity-rpc-client = { path = "rpc_client" }
