@@ -13,7 +13,7 @@ parity-whisper = { path = "../" }
 docopt = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-panic_hook = { path = "../../util/panic_hook" }
+panic_hook = { path = "../../util/panic-hook" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
