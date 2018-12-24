@@ -44,7 +44,7 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, Mode,
-	ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
+	ChainNotify, NewBlocks, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
@@ -268,7 +268,7 @@ impl Importer {
 		}
 
 		let max_blocks_to_import = client.config.max_round_blocks_to_import;
-		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, is_empty) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, has_more_blocks_to_import) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
 			let mut proposed_blocks = Vec::with_capacity(max_blocks_to_import);
@@ -322,26 +322,29 @@ impl Importer {
 			if !invalid_blocks.is_empty() {
 				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
-			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
-			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, start.elapsed(), is_empty)
+			let has_more_blocks_to_import = !self.block_queue.mark_as_good(&imported_blocks);
+			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, start.elapsed(), has_more_blocks_to_import)
 		};
 
 		{
-			if !imported_blocks.is_empty() && is_empty {
+			if !imported_blocks.is_empty() {
 				let route = ChainRoute::from(import_results.as_ref());
 
-				if is_empty {
+				if !has_more_blocks_to_import {
 					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, route.enacted(), route.retracted(), false);
 				}
 
 				client.notify(|notify| {
 					notify.new_blocks(
-						imported_blocks.clone(),
-						invalid_blocks.clone(),
-						route.clone(),
-						Vec::new(),
-						proposed_blocks.clone(),
-						duration,
+						NewBlocks::new(
+							imported_blocks.clone(),
+							invalid_blocks.clone(),
+							route.clone(),
+							Vec::new(),
+							proposed_blocks.clone(),
+							duration,
+							has_more_blocks_to_import,
+						)
 					);
 				});
 			}
@@ -2342,12 +2345,15 @@ impl ImportSealedBlock for Client {
 		);
 		self.notify(|notify| {
 			notify.new_blocks(
-				vec![hash],
-				vec![],
-				route.clone(),
-				vec![hash],
-				vec![],
-				start.elapsed(),
+				NewBlocks::new(
+					vec![hash],
+					vec![],
+					route.clone(),
+					vec![hash],
+					vec![],
+					start.elapsed(),
+					false
+				)
 			);
 		});
 		self.db.read().key_value().flush().expect("DB flush failed.");
@@ -2360,12 +2366,15 @@ impl BroadcastProposalBlock for Client {
 		const DURATION_ZERO: Duration = Duration::from_millis(0);
 		self.notify(|notify| {
 			notify.new_blocks(
-				vec![],
-				vec![],
-				ChainRoute::default(),
-				vec![],
-				vec![block.rlp_bytes()],
-				DURATION_ZERO,
+				NewBlocks::new(
+					vec![],
+					vec![],
+					ChainRoute::default(),
+					vec![],
+					vec![block.rlp_bytes()],
+					DURATION_ZERO,
+					false
+				)
 			);
 		});
 	}

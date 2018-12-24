@@ -29,7 +29,7 @@ use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
-use ethcore::client::{BlockChainClient, ChainNotify, ChainRoute, ChainMessageType};
+use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
@@ -498,14 +498,9 @@ impl ChainNotify for EthSync {
 		}
 	}
 
-	fn new_blocks(&self,
-		imported: Vec<H256>,
-		invalid: Vec<H256>,
-		route: ChainRoute,
-		sealed: Vec<H256>,
-		proposed: Vec<Bytes>,
-		_duration: Duration)
+	fn new_blocks(&self, new_blocks: NewBlocks)
 	{
+		if new_blocks.has_more_blocks_to_import { return }
 		use light::net::Announcement;
 
 		self.network.with_context(self.subprotocol_name, |context| {
@@ -513,12 +508,12 @@ impl ChainNotify for EthSync {
 				&self.eth_handler.overlay);
 			self.eth_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
-				&imported,
-				&invalid,
-				route.enacted(),
-				route.retracted(),
-				&sealed,
-				&proposed);
+				&new_blocks.imported,
+				&new_blocks.invalid,
+				new_blocks.route.enacted(),
+				new_blocks.route.retracted(),
+				&new_blocks.sealed,
+				&new_blocks.proposed);
 		});
 
 		self.network.with_context(self.light_subprotocol_name, |context| {
