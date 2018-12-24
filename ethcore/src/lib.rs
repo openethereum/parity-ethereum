@@ -67,7 +67,6 @@ extern crate ethcore_bloom_journal as bloom_journal;
 extern crate parity_crypto;
 extern crate ethcore_io as io;
 extern crate parity_bytes as bytes;
-extern crate ethcore_logger;
 extern crate ethcore_miner;
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
@@ -142,7 +141,7 @@ extern crate serde_derive;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
 
 pub extern crate ethstore;

@@ -31,7 +31,7 @@ extern crate fastmap;
 extern crate rlp;
 
 #[cfg(test)]
-extern crate ethcore_logger;
+extern crate env_logger;
 #[cfg(test)]
 extern crate keccak_hash as keccak;
 #[cfg(test)]

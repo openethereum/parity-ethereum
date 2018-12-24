@@ -29,7 +29,6 @@ extern crate ethcore_io as io;
 extern crate ethcore_transaction as transaction;
 extern crate ethcore;
 extern crate ethereum_types;
-extern crate env_logger;
 extern crate fastmap;
 extern crate rand;
 extern crate parking_lot;
@@ -39,10 +38,11 @@ extern crate triehash_ethereum;
 
 extern crate ethcore_light as light;
 
+#[cfg(test)] extern crate env_logger;
+#[cfg(test)] extern crate ethcore_private_tx;
 #[cfg(test)] extern crate ethkey;
 #[cfg(test)] extern crate kvdb_memorydb;
 #[cfg(test)] extern crate rustc_hex;
-#[cfg(test)] extern crate ethcore_private_tx;
 
 #[macro_use]
 extern crate macros;

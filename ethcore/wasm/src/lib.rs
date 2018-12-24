@@ -17,7 +17,6 @@
 //! Wasm Interpreter
 
 extern crate byteorder;
-extern crate ethcore_logger;
 extern crate ethereum_types;
 #[macro_use] extern crate log;
 extern crate libc;
@@ -26,12 +25,17 @@ extern crate vm;
 extern crate pwasm_utils as wasm_utils;
 extern crate wasmi;
 
-mod runtime;
 #[cfg(test)]
-mod tests;
+extern crate env_logger;
+
 mod env;
 mod panic_payload;
 mod parser;
+mod runtime;
+
+#[cfg(test)]
+mod tests;
+
 
 use vm::{GasLeft, ReturnData, ActionParams};
 use wasmi::{Error as InterpreterError, Trap};

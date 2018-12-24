@@ -27,7 +27,7 @@ extern crate parking_lot;
 
 #[cfg(test)] extern crate tokio;
 #[cfg(test)] extern crate tokio_io;
-#[cfg(test)] extern crate ethcore_logger;
+#[cfg(test)] extern crate env_logger;
 
 mod traits;
 
@@ -329,8 +329,6 @@ mod tests {
 	use tokio::{io, runtime::Runtime, timer::timeout::{self, Timeout}, net::TcpStream};
 	use jsonrpc_core::futures::{Future, future};
 
-	use ethcore_logger::init_log;
-
 	pub struct VoidManager;
 
 	impl JobDispatcher for VoidManager {
@@ -369,7 +367,7 @@ mod tests {
 
 	#[test]
 	fn records_subscriber() {
-		init_log();
+		let _ = ::env_logger::try_init();
 
 		let addr = "127.0.0.1:19985".parse().unwrap();
 		let stratum = Stratum::start(&addr, Arc::new(VoidManager), None).unwrap();
@@ -443,7 +441,7 @@ mod tests {
 
 	#[test]
 	fn can_push_work() {
-		init_log();
+		let _ = ::env_logger::try_init();
 
 		let addr = "127.0.0.1:19995".parse().unwrap();
 		let stratum = Stratum::start(

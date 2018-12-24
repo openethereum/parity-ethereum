@@ -19,7 +19,6 @@ extern crate ethabi;
 extern crate ethcore;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
-extern crate ethcore_logger as logger;
 extern crate ethcore_sync as sync;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
@@ -51,6 +50,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+extern crate env_logger;
 #[cfg(test)]
 extern crate kvdb_rocksdb;
 

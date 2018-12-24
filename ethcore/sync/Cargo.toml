@@ -26,13 +26,13 @@ triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 kvdb = "0.1"
 macros = { path = "../../util/macros" }
 log = "0.4"
-env_logger = "0.5"
 rand = "0.4"
 heapsize = "0.4"
 parking_lot = "0.7"
 trace-time = "0.1"
 
 [dev-dependencies]
+env_logger = "0.5"
 ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethkey = { path = "../../ethkey" }
 kvdb-memorydb = "0.1"
