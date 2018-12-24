@@ -47,7 +47,7 @@ node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "accounts/ethkey" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 rpc-cli = { path = "rpc_cli" }
-parity-hash-fetch = { path = "hash-fetch" }
+parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
 parity-runtime = { path = "util/runtime" }
@@ -67,7 +67,7 @@ journaldb = { path = "util/journaldb" }
 
 ethcore-secretstore = { path = "secret_store", optional = true }
 
-registrar = { path = "registrar" }
+registrar = { path = "util/registrar" }
 
 [build-dependencies]
 rustc_version = "0.2"
