@@ -17,5 +17,5 @@ serde_json = "1.0"
 
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
-ethkey = { path = "../ethkey" }
+ethkey = { path = "../accounts/ethkey" }
 kvdb-memorydb = "0.1"

@@ -32,7 +32,7 @@ transaction-pool = "1.13"
 
 [dev-dependencies]
 env_logger = "0.5"
-ethkey = { path = "../ethkey" }
+ethkey = { path = "../accounts/ethkey" }
 rustc-hex = "1.0"
 
 [features]

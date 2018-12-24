@@ -19,7 +19,7 @@ ethcore-miner = { path = "../../miner" }
 ethcore-transaction = { path = "../transaction" }
 ethereum-types = "0.4"
 ethjson = { path = "../../json" }
-ethkey = { path = "../../ethkey" }
+ethkey = { path = "../../accounts/ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
 heapsize = "0.4"

@@ -30,7 +30,7 @@ ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.4"
 kvdb = "0.1"
 keccak-hash = "0.1"
-ethkey = { path = "../ethkey" }
+ethkey = { path = "../accounts/ethkey" }
 lazy_static = "1.0"
 ethabi = "6.0"
 ethabi-derive = "6.0"

@@ -7,4 +7,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethereum-types = "0.4"
-ethkey = { path = "../../ethkey" }
+ethkey = { path = "../../accounts/ethkey" }

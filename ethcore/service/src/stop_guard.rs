@@ -31,11 +31,6 @@ impl StopGuard {
 			flag: Arc::new(AtomicBool::new(false))
 		}
 	}
-
-	/// Share stop guard between the threads
-	pub fn share(&self) -> Arc<AtomicBool> {
-		self.flag.clone()
-	}
 }
 
 impl Drop for StopGuard {
