@@ -26,8 +26,8 @@
 		"eip1052Transition":"0x37db77",
 		"eip1283Transition":"0x37db77",
 		"gasLimitBoundDivisor":"0x400",
-		"maxCodeSize": "0x6000",
-		"maxCodeSizeTransition": "0x0",
+		"maxCodeSize":"0x6000",
+		"maxCodeSizeTransition":"0x0",
 		"maximumExtraDataSize":"0xffff",
 		"minGasLimit":"0x1388",
 		"networkID":"0x4"
