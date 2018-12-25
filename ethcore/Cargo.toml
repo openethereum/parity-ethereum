@@ -70,7 +70,7 @@ kvdb-rocksdb = "0.1.3"
 serde = "1.0"
 serde_derive = "1.0"
 tempdir = {version="0.3", optional = true}
-len-caching-mutex = { path = "../util/len-caching-mutex" }
+len-caching-lock = { path = "../util/len-caching-lock" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
 hardware-wallet = { path = "../hw" }

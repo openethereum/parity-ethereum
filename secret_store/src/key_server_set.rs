@@ -17,10 +17,9 @@
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
-use std::time::Duration;
 use parking_lot::Mutex;
 use ethabi::FunctionOutputDecoder;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, ChainRoute, CallContract};
+use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, NewBlocks, CallContract};
 use ethereum_types::{H256, Address};
 use ethkey::public_to_address;
 use bytes::Bytes;
@@ -151,8 +150,9 @@ impl KeyServerSet for OnChainKeyServerSet {
 }
 
 impl ChainNotify for OnChainKeyServerSet {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
-		let (enacted, retracted) = route.into_enacted_retracted();
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if new_blocks.has_more_blocks_to_import { return }
+		let (enacted, retracted) = new_blocks.route.into_enacted_retracted();
 
 		if !enacted.is_empty() || !retracted.is_empty() {
 			self.contract.lock().update(enacted, retracted)

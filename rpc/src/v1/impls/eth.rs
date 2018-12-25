@@ -146,6 +146,33 @@ enum PendingTransactionId {
 	Location(PendingOrBlock, usize)
 }
 
+pub fn base_logs<C, M, T: StateInfo + 'static> (client: &C, miner: &M, filter: Filter) -> BoxFuture<Vec<Log>> where
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T>,
+	M: MinerService<State=T> {
+	let include_pending = filter.to_block == Some(BlockNumber::Pending);
+	let filter: EthcoreFilter = match filter.try_into() {
+		Ok(value) => value,
+		Err(err) => return Box::new(future::err(err)),
+	};
+	let mut logs = match client.logs(filter.clone()) {
+		Ok(logs) => logs
+			.into_iter()
+			.map(From::from)
+			.collect::<Vec<Log>>(),
+		Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
+	};
+
+	if include_pending {
+		let best_block = client.chain_info().best_block_number;
+		let pending = pending_logs(&*miner, best_block, &filter);
+		logs.extend(pending);
+	}
+
+	let logs = limit_logs(logs, filter.limit);
+
+	Box::new(future::ok(logs))
+}
+
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
 	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
 	SN: SnapshotService,
@@ -803,28 +830,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
-		let include_pending = filter.to_block == Some(BlockNumber::Pending);
-		let filter: EthcoreFilter = match filter.try_into() {
-			Ok(value) => value,
-			Err(err) => return Box::new(future::err(err)),
-		};
-		let mut logs = match self.client.logs(filter.clone()) {
-			Ok(logs) => logs
-				.into_iter()
-				.map(From::from)
-				.collect::<Vec<Log>>(),
-			Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
-		};
-
-		if include_pending {
-			let best_block = self.client.chain_info().best_block_number;
-			let pending = pending_logs(&*self.miner, best_block, &filter);
-			logs.extend(pending);
-		}
-
-		let logs = limit_logs(logs, filter.limit);
-
-		Box::new(future::ok(logs))
+		base_logs(&*self.client, &*self.miner, filter.into())
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work> {
