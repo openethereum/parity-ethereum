@@ -16,7 +16,7 @@
 
 //! EIP-191 compliant decoding + hashing
 use v1::types::{EIP191Version, Bytes, PresignedTransaction};
-use eip712::{hash_structured_data, EIP712};
+use eip_712::{hash_structured_data, EIP712};
 use serde_json::{Value, from_value};
 use v1::helpers::errors;
 use jsonrpc_core::Error;

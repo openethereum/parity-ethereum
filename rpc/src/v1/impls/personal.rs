@@ -39,7 +39,7 @@ use v1::types::{
 	EIP191Version,
 };
 use v1::metadata::Metadata;
-use eip712::{EIP712, hash_structured_data};
+use eip_712::{EIP712, hash_structured_data};
 use jsonrpc_core::types::Value;
 
 /// Account management (personal) rpc implementation.
