@@ -18,8 +18,8 @@ build_docs() {
 
 build_config() {
     echo "_______Build config docs______"
-    npm install
-    AUTOGENSCRIPT=1 npm run generate-docs
+    yarn install
+    AUTOGENSCRIPT=1 yarn generate-docs
 }
 
 update_wiki_docs() {
