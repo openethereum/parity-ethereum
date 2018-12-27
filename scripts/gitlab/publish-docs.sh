@@ -19,7 +19,6 @@ build_docs() {
 build_config() {
     echo "_______Build config docs______"
     npm install
-    npm run generate-data
     npm run generate-docs
 }
 
