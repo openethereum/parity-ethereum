@@ -2,12 +2,12 @@
 name = "eip-712"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-repository = "https://github.com/paritytech/eip-712"
-documentation = "https://docs.rs/eip712"
+repository = "https://github.com/paritytech/parity-ethereum"
+documentation = "https://docs.rs/eip-712"
 readme = "README.md"
 description = "eip-712 encoding"
 keywords = ["eip-712", "eip712", "eip"]
-license = "MIT"
+license = "GPL-3.0"
 edition = "2018"
 
 [dependencies]

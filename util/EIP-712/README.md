@@ -59,4 +59,4 @@ fn main() {
 
 This crate is distributed under the terms of GNU GENERAL PUBLIC LICENSE version 3.0.
 
-See [LICENSE](LICENSE) for details.
+See [LICENSE](../../LICENSE) for details.
