@@ -59,7 +59,7 @@ cpp_test () {
     (x86_64-unknown-linux-gnu)
       # Running the C++ example
       echo "________Running the C++ example________"
-      cd parity-clib-examples/cpp && \
+      cd parity-clib/examples/cpp && \
         mkdir -p build && \
         cd build && \
         cmake .. && \
