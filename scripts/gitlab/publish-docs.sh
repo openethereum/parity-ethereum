@@ -19,7 +19,7 @@ build_docs() {
 build_config() {
     echo "_______Build config docs______"
     npm install
-    npm run generate-docs
+    AUTOGENSCRIPT=1 npm run generate-docs
 }
 
 update_wiki_docs() {
@@ -56,7 +56,6 @@ upload_files() {
 }
 
 RPC_TRAITS_DIR="rpc/src/v1/traits"
-AUTOGENSCRIPT=1
 
 setup_git
 clone_repos
