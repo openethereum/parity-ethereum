@@ -39,6 +39,13 @@ validate () {
     time cargo check $@ --manifest-path util/io/Cargo.toml --no-default-features
     time cargo check $@ --manifest-path util/io/Cargo.toml --features "mio"
 
+    MODIFIED=$(git ls-files -m | grep Cargo.lock | wc -l)
+    if [ "$MODIFIED" -eq "1" ]
+    then
+      echo "Detected Cargo.lock modification. Exitting."
+      exit 1
+    fi
+
     # Validate chainspecs
     echo "________Validate chainspecs________"
     time ./scripts/validate_chainspecs.sh
