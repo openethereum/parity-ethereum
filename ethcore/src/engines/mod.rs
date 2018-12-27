@@ -389,6 +389,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: Password) {}
 
+    fn seal_header(&self, header: &mut Header) {}
+
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
 

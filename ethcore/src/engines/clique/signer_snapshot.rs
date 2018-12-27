@@ -316,8 +316,6 @@ fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64)
 		return Err(From::from("beneficiary specificed but nonce was not AUTH or DROP"));
 	};
 
-    return Ok(creator);
-
 	state.votes_history.push((header.number(), creator, vote_type, beneficiary));
 
 	// Discard any of previous votes

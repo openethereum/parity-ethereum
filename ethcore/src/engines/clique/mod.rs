@@ -119,7 +119,7 @@ impl Clique {
 			});
 
 		let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
-		engine.step_service.register_handler(Arc::new(handler))?;
+		//engine.step_service.register_handler(Arc::new(handler))?;
 
 		return Ok(engine);
 	}
@@ -142,13 +142,12 @@ impl Engine<EthereumMachine> for Clique {
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
-	// called only when sealing ?
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-        //TODO populate fields for sealing
-        //self.state.read().B
-        //
+    fn seal_header(&self, header: &mut Header) {
 
-		match self.state.write().proposer_authorization(header) {
+        trace!(target: "seal", "sealed header");
+
+        let mut state = self.state.write();
+        match state.proposer_authorization(header) {
             SignerAuthorization::InTurn => {
                header.set_difficulty(U256::from(DIFF_INTURN));
             },
@@ -158,41 +157,53 @@ impl Engine<EthereumMachine> for Clique {
             SignerAuthorization::Unauthorized => {
                 // do oothing this will be caught later
             }
-		}
-	}
-
-
-//	// only called when we are sealing the block.  TODO rename this to make more sense
-fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
-  // sign the block
-  //
-
-    //self.state.().get(_header.parent_hash).expect(format!("couldn't find parent hash for header {}"));
-
-    let mut state = self.state.write();
-    let signers = state.state(&_header.parent_hash()).unwrap().signers;
-    let mut seal: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
-
-    let mut sig_offset = SIGNER_VANITY_LENGTH as usize;
-
-    if _header.number() % self.epoch_length == 0 {
-        sig_offset += 20 * signers.len();
-        for i in 0..signers.len() {
-            seal[SIGNER_VANITY_LENGTH as usize + i * 20..SIGNER_VANITY_LENGTH as usize + (i + 1) * 20].clone_from_slice(&signers[i]);
         }
+
+        let signers = state.state(&header.parent_hash()).unwrap().signers;
+        let mut seal: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
+
+        let mut sig_offset = SIGNER_VANITY_LENGTH as usize;
+
+        if header.number() % self.epoch_length == 0 {
+            sig_offset += 20 * signers.len();
+            for i in 0..signers.len() {
+                seal[SIGNER_VANITY_LENGTH as usize + i * 20..SIGNER_VANITY_LENGTH as usize + (i + 1) * 20].clone_from_slice(&signers[i]);
+            }
+        }
+
+        header.set_extra_data(seal.clone());
+
+        let (sig, msg) = self.sign_header(&header).expect("should be able to sign header");
+        seal[sig_offset..].copy_from_slice(&sig[..]);
+        header.set_extra_data(seal.clone());
+
+        state.apply(&header).unwrap();
     }
 
-    let mut header = _header.clone();
-    header.set_extra_data(seal.clone());
+	// called only when sealing ?
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+        //TODO populate fields for sealing
+        //self.state.read().B
+        //
+        //
 
-    let (sig, msg) = self.sign_header(&header).expect("should be able to sign header");
-    seal[sig_offset..].copy_from_slice(&sig[..]);
-    header.set_extra_data(seal.clone());
+        /*
+        match self.state.write().proposer_authorization(header) {
+            SignerAuthorization::InTurn => {
+               header.set_difficulty(U256::from(DIFF_INTURN));
+            },
+            SignerAuthorization::OutOfTurn => {
+               header.set_difficulty(U256::from(DIFF_NOT_INTURN));
+            },
+            SignerAuthorization::Unauthorized => {
+                // do oothing this will be caught later
+            }
+        }
+        */
 
-    state.apply(&header).unwrap();
-
-    Some(seal)
-}
+        trace!(target: "foobarbaz", "setting author, was {}", header.author());
+        header.set_author(Address::new());
+    }
 
 
 //
@@ -344,7 +355,6 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 	}
 
 	fn executive_author(&self, header: &Header) -> Address {
-		trace!(target: "engine", "called executive_author for block {}", header.number());
 
 //		if self.is_signer_proposer(header.number()) {
 //			return self.snapshot.signer_address().unwrap();
@@ -355,7 +365,7 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 	}
 
 	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
-		trace!(target: "engine", "called verify_block_basic for block {}", _header.number());
+		//trace!(target: "engine", "called verify_block_basic for block {}", _header.number());
 
 		// Ignore genisis block.
 		if _header.number() == 0 {
@@ -405,9 +415,11 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+        /*
 		trace!(target: "engine",
 		       "verify_block_family for {}: current state: {:?}.",
 		       header.number(), *self.state.read());
+               */
 
 		let mut state = self.state.write();
 
@@ -453,8 +465,6 @@ fn seal_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
 		} else {
 			state.apply(header)?;
 		}
-
-        trace!(target: "engine", "verify_block_family finished");
 
 		Ok(())
 	}
