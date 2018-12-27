@@ -65,8 +65,8 @@ cpp_test () {
       cmake ..
       make -j $THREADS
       ./parity-example
-      rm -rf $DIR
       cd -
+      rm -rf $DIR
       ;;
     (*)
       echo "________Skipping the C++ example________"
