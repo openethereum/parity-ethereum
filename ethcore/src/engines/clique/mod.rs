@@ -119,7 +119,7 @@ impl Clique {
 			});
 
 		let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
-		//engine.step_service.register_handler(Arc::new(handler))?;
+		engine.step_service.register_handler(Arc::new(handler))?;
 
 		return Ok(engine);
 	}
@@ -178,31 +178,6 @@ impl Engine<EthereumMachine> for Clique {
         header.set_extra_data(seal.clone());
 
         state.apply(&header).unwrap();
-    }
-
-	// called only when sealing ?
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-        //TODO populate fields for sealing
-        //self.state.read().B
-        //
-        //
-
-        /*
-        match self.state.write().proposer_authorization(header) {
-            SignerAuthorization::InTurn => {
-               header.set_difficulty(U256::from(DIFF_INTURN));
-            },
-            SignerAuthorization::OutOfTurn => {
-               header.set_difficulty(U256::from(DIFF_NOT_INTURN));
-            },
-            SignerAuthorization::Unauthorized => {
-                // do oothing this will be caught later
-            }
-        }
-        */
-
-        trace!(target: "foobarbaz", "setting author, was {}", header.author());
-        header.set_author(Address::new());
     }
 
 
