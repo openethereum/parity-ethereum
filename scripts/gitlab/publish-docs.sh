@@ -57,6 +57,7 @@ upload_files() {
 }
 
 RPC_TRAITS_DIR="rpc/src/v1/traits"
+AUTOGENSCRIPT=1
 
 setup_git
 clone_repos
