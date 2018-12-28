@@ -35,9 +35,9 @@ validate () {
   if [ "$VALIDATE" -eq "1" ]
   then
     echo "________Validate build________"
-    time cargo check $@ --no-default-features
-    time cargo check $@ --manifest-path util/io/Cargo.toml --no-default-features
-    time cargo check $@ --manifest-path util/io/Cargo.toml --features "mio"
+    time cargo check $@ --locked --no-default-features
+    time cargo check $@ --locked --manifest-path util/io/Cargo.toml --no-default-features
+    time cargo check $@ --locked --manifest-path util/io/Cargo.toml --features "mio"
 
     # Validate chainspecs
     echo "________Validate chainspecs________"
@@ -52,15 +52,14 @@ cpp_test () {
     (x86_64-unknown-linux-gnu)
       # Running the C++ example
       echo "________Running the C++ example________"
-      cd parity-clib-examples/cpp && \
-        mkdir -p build && \
-        cd build && \
-        cmake .. && \
-        make -j $THREADS && \
-        ./parity-example && \
-        cd .. && \
-        rm -rf build && \
-        cd ../..
+      DIR=parity-clib/examples/cpp/build
+      mkdir -p $DIR
+      cd $DIR
+      cmake ..
+      make -j $THREADS
+      ./parity-example
+      cd -
+      rm -rf $DIR
       ;;
     (*)
       echo "________Skipping the C++ example________"
@@ -71,7 +70,7 @@ cpp_test () {
 cargo_test () {
   echo "________Running Parity Full Test Suite________"
   git submodule update --init --recursive
-  time cargo test $OPTIONS --features "$FEATURES" --all $@ -- --test-threads $THREADS
+  time cargo test $OPTIONS --features "$FEATURES" --locked --all $@ -- --test-threads $THREADS
 }
 
 
