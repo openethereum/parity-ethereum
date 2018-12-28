@@ -33,7 +33,7 @@ use journaldb;
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
-use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
+use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
 use trie::{TrieSpec, TrieFactory, Trie};
 use types::ancestry_action::AncestryAction;
 use types::encoded;
@@ -72,6 +72,7 @@ use spec::Spec;
 use state::{self, State};
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
+use transaction_ext::Transaction;
 use verification::queue::kind::BlockLike;
 use verification::queue::kind::blocks::Unverified;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
@@ -1228,7 +1229,7 @@ impl Client {
 	// from the null sender, with 50M gas.
 	fn contract_call_tx(&self, block_id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
 		let from = Address::default();
-		Transaction {
+		transaction::Transaction {
 			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
 			action: Action::Call(address),
 			gas: U256::from(50_000_000),
@@ -2109,7 +2110,7 @@ impl BlockChainClient for Client {
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
-		let transaction = Transaction {
+		let transaction = transaction::Transaction {
 			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
 			gas: self.importer.miner.sensible_gas_limit(),

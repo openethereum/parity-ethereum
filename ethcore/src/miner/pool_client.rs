@@ -38,6 +38,7 @@ use client::{TransactionId, BlockInfo, CallContract, Nonce};
 use engines::EthEngine;
 use miner;
 use miner::service_transaction_checker::ServiceTransactionChecker;
+use transaction_ext::Transaction;
 
 /// Cache for state nonces.
 #[derive(Debug, Clone)]

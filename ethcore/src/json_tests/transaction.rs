@@ -21,6 +21,7 @@ use ethjson;
 use rlp::Rlp;
 use types::header::Header;
 use transaction::UnverifiedTransaction;
+use transaction_ext::Transaction;
 
 /// Run transaction jsontests on a given folder.
 pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {

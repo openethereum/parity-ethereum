@@ -19,7 +19,6 @@
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate evm;
 extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate rlp;

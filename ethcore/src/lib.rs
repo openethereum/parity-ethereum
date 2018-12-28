@@ -166,6 +166,7 @@ pub mod spec;
 pub mod state;
 pub mod state_db;
 pub mod trace;
+pub mod transaction_ext;
 pub mod verification;
 
 mod account_db;

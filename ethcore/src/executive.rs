@@ -32,6 +32,7 @@ use factory::VmFactory;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
+use transaction_ext::Transaction;
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
 
