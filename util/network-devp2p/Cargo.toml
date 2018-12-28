@@ -25,7 +25,7 @@ parity-crypto = "0.2"
 ethcore-logger = { path ="../../logger" }
 ethcore-network = { path = "../network" }
 ethereum-types = "0.4"
-ethkey = { path = "../../ethkey" }
+ethkey = { path = "../../accounts/ethkey" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 parity-path = "0.1"
 ipnetwork = "0.12.6"

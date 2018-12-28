@@ -25,14 +25,14 @@ keccak-hash = "0.1"
 linked-hash-map = "0.5"
 log = "0.4"
 parking_lot = "0.7"
-price-info = { path = "../price-info", optional = true }
+price-info = { path = "./price-info", optional = true }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 trace-time = "0.1"
 transaction-pool = "1.13"
 
 [dev-dependencies]
 env_logger = "0.5"
-ethkey = { path = "../ethkey" }
+ethkey = { path = "../accounts/ethkey" }
 rustc-hex = "1.0"
 
 [features]
