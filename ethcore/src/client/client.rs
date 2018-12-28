@@ -14,25 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::cmp;
+use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
-// util
-use hash::keccak;
+use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use bytes::Bytes;
+use encoded;
+use ethcore_miner::pool::VerifiedTransaction;
+use ethereum_types::{H256, Address, U256};
+use evm::Schedule;
+use hash::keccak;
+use io::IoChannel;
 use itertools::Itertools;
 use journaldb;
-use trie::{TrieSpec, TrieFactory, Trie};
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
+use parking_lot::{Mutex, RwLock};
+use rand::OsRng;
+use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
+use trie::{TrieSpec, TrieFactory, Trie};
+use types::ancestry_action::AncestryAction;
+use types::filter::Filter;
+use types::log_entry::LocalizedLogEntry;
+use types::receipt::{Receipt, LocalizedReceipt};
+use types::{BlockNumber, header::{Header, ExtendedHeader}};
+use vm::{EnvInfo, LastHashes};
 
-// other
-use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
@@ -48,37 +59,23 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
 use error::{
 	ImportErrorKind, ExecutionError, CallError, BlockError,
 	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
 };
-use vm::{EnvInfo, LastHashes};
-use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
-use header::{BlockNumber, Header, ExtendedHeader};
-use io::IoChannel;
-use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
-use ethcore_miner::pool::VerifiedTransaction;
-use parking_lot::{Mutex, RwLock};
-use rand::OsRng;
-use receipt::{Receipt, LocalizedReceipt};
 use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
-use state_db::StateDB;
 use state::{self, State};
-use trace;
-use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
-use types::filter::Filter;
-use types::ancestry_action::AncestryAction;
-use verification;
-use verification::{PreverifiedBlock, Verifier, BlockQueue};
-use verification::queue::kind::blocks::Unverified;
+use state_db::StateDB;
+use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use verification::queue::kind::BlockLike;
+use verification::queue::kind::blocks::Unverified;
+use verification::{PreverifiedBlock, Verifier, BlockQueue};
+use verification;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;

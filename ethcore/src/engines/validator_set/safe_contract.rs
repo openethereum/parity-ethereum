@@ -16,24 +16,26 @@
 
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
+use std::sync::{Weak, Arc};
+
 use bytes::Bytes;
-use client::EngineClient;
+use ethabi::FunctionOutputDecoder;
 use ethereum_types::{H256, U256, Address, Bloom};
 use hash::keccak;
-use header::Header;
-use ids::BlockId;
 use kvdb::DBValue;
-use log_entry::LogEntry;
-use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
 use memory_cache::MemoryLruCache;
 use parking_lot::RwLock;
-use receipt::Receipt;
 use rlp::{Rlp, RlpStream};
-use std::sync::{Weak, Arc};
+use types::header::Header;
+use types::ids::BlockId;
+use types::log_entry::LogEntry;
+use types::receipt::Receipt;
+use unexpected::Mismatch;
+
+use client::EngineClient;
+use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
-use unexpected::Mismatch;
-use ethabi::FunctionOutputDecoder;
 
 use_contract!(validator_set, "res/contracts/validator_set.json");
 
@@ -343,7 +345,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
-	fn epoch_set(&self, first: bool, machine: &EthereumMachine, _number: ::header::BlockNumber, proof: &[u8])
+	fn epoch_set(&self, first: bool, machine: &EthereumMachine, _number: ::types::BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>
 	{
 		let rlp = Rlp::new(proof);

@@ -34,6 +34,7 @@ use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 use test_helpers;
 use verification::queue::kind::blocks::Unverified;
+use types::view;
 
 #[test]
 fn can_trace_block_and_uncle_reward() {

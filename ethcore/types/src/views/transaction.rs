@@ -34,10 +34,10 @@ impl<'a> TransactionView<'a> {
 	///
 	/// ```
 	/// #[macro_use]
-	/// extern crate ethcore;
-	/// 
-	/// use ethcore::views::{TransactionView};
-	/// 
+	/// extern crate common_types;
+	///
+	/// use common_types::views::{TransactionView};
+	///
 	/// fn main() {
 	/// let bytes : &[u8] = &[];
 	/// let tx_view = view!(TransactionView, bytes);

@@ -14,24 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces import request.
-use ethereum_types::H256;
-use types::BlockNumber;
+//! Blockchain database.
 
-use trace::FlatBlockTraces;
+#[warn(missing_docs)]
 
-/// Traces import request.
-pub struct ImportRequest {
-	/// Traces to import.
-	pub traces: FlatBlockTraces,
-	/// Hash of traces block.
-	pub block_hash: H256,
-	/// Number of traces block.
-	pub block_number: BlockNumber,
-	/// Blocks enacted by this import.
-	///
-	/// They should be ordered from oldest to newest.
-	pub enacted: Vec<H256>,
-	/// Number of blocks retracted by this import.
-	pub retracted: usize,
-}
+mod best_block;
+mod block_info;
+mod blockchain;
+mod cache;
+mod config;
+mod import_route;
+mod update;
+
+pub mod generator;
+
+pub use self::blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler};
+pub use self::cache::CacheSize;
+pub use self::config::Config;
+pub use self::import_route::ImportRoute;
+pub use self::update::ExtrasInsert;
+pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress};
+pub use common_types::tree_route::TreeRoute;

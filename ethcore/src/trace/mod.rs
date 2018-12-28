@@ -30,6 +30,7 @@ pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
 
+// TODO [ToDr] Remove re-exports
 pub use self::types::{filter, flat, localized, trace, Tracing};
 pub use self::types::error::Error as TraceError;
 pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, RewardType};
@@ -39,7 +40,7 @@ pub use self::types::filter::{Filter, AddressesFilter};
 use ethereum_types::{H256, U256, Address};
 use kvdb::DBTransaction;
 use vm::{Error as VmError, ActionParams};
-use header::BlockNumber;
+use types::BlockNumber;
 
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {

@@ -19,11 +19,13 @@
 use std::collections::VecDeque;
 use ethereum_types::{U256, H256, Bloom};
 
-use header::Header;
+use common_types::encoded;
+use common_types::view;
+use common_types::header::Header;
+use common_types::views::BlockView;
+use ethcore_transaction::SignedTransaction;
 use rlp::encode;
-use transaction::SignedTransaction;
-use views::BlockView;
-use encoded;
+use rlp_derive::{RlpEncodable};
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default, Clone, RlpEncodable)]

@@ -24,21 +24,20 @@ use super::{SnapshotComponents, Rebuilder, ChunkSink};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use engines::{EthEngine, EpochVerifier, EpochTransition};
 use machine::EthereumMachine;
-use ids::BlockId;
-use header::Header;
-use receipt::Receipt;
 use snapshot::{Error, ManifestData, Progress};
 
-use itertools::{Position, Itertools};
-use rlp::{RlpStream, Rlp};
-use ethereum_types::{H256, U256};
-use kvdb::KeyValueDB;
+use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use bytes::Bytes;
-use encoded;
-
+use ethereum_types::{H256, U256};
+use itertools::{Position, Itertools};
+use kvdb::KeyValueDB;
+use rlp::{RlpStream, Rlp};
+use types::encoded;
+use types::header::Header;
+use types::ids::BlockId;
+use types::receipt::Receipt;
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:
@@ -319,7 +318,7 @@ impl Rebuilder for ChunkRebuilder {
 		}
 
 		if is_last_chunk {
-			use block::Block;
+			use types::block::Block;
 
 			let last_rlp = rlp.at(num_items - 1)?;
 			let block = Block {

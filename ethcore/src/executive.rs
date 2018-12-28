@@ -21,7 +21,7 @@ use hash::keccak;
 use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
-use error::ExecutionError;
+use executed::ExecutionError;
 use machine::EthereumMachine as Machine;
 use evm::{CallType, Finalize, FinalizationResult};
 use vm::{

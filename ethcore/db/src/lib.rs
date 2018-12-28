@@ -14,24 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces import request.
-use ethereum_types::H256;
-use types::BlockNumber;
+//! Database utilities.
 
-use trace::FlatBlockTraces;
+#![warn(missing_docs)]
 
-/// Traces import request.
-pub struct ImportRequest {
-	/// Traces to import.
-	pub traces: FlatBlockTraces,
-	/// Hash of traces block.
-	pub block_hash: H256,
-	/// Number of traces block.
-	pub block_number: BlockNumber,
-	/// Blocks enacted by this import.
-	///
-	/// They should be ordered from oldest to newest.
-	pub enacted: Vec<H256>,
-	/// Number of blocks retracted by this import.
-	pub retracted: usize,
-}
+mod db;
+
+pub mod keys;
+pub mod cache_manager;
+
+pub use self::db::*;

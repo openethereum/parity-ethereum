@@ -21,6 +21,7 @@ use ethereum_types::{H256, H160, Address, U256};
 use error;
 use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
+// TODO [ToDr] Get rid of this shit!
 use evm::Schedule;
 use hash::keccak;
 use heapsize::HeapSizeOf;

@@ -60,13 +60,13 @@
 extern crate blooms_db;
 extern crate bn;
 extern crate byteorder;
-extern crate crossbeam;
 extern crate common_types as types;
+extern crate crossbeam;
 extern crate ethash;
+extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
-extern crate parity_crypto;
+extern crate ethcore_db as db;
 extern crate ethcore_io as io;
-extern crate parity_bytes as bytes;
 extern crate ethcore_logger;
 extern crate ethcore_miner;
 #[cfg(feature = "stratum")]
@@ -75,6 +75,8 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto;
 
 extern crate hashdb;
 extern crate itertools;
@@ -147,21 +149,15 @@ extern crate env_logger;
 
 pub extern crate ethstore;
 
-#[macro_use]
-pub mod views;
-
 pub mod account_provider;
 pub mod block;
 pub mod builtin;
 pub mod client;
-pub mod db;
-pub mod encoded;
 pub mod engines;
 pub mod error;
 pub mod ethereum;
 pub mod executed;
 pub mod executive;
-pub mod header;
 pub mod machine;
 pub mod miner;
 pub mod pod_state;
@@ -173,10 +169,8 @@ pub mod state_db;
 pub mod trace;
 pub mod verification;
 
-mod cache_manager;
 mod account_db;
 mod externalities;
-mod blockchain;
 mod factory;
 mod tx_filter;
 
@@ -187,8 +181,9 @@ pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 
-pub use types::*;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
-pub use blockchain::{BlockChainDB, BlockChainDBHandler};
 pub use trie::TrieSpec;
+// TODO [ToDr] Remove
+// pub use blockchain::{BlockChainDB, BlockChainDBHandler};
+pub use types::*;

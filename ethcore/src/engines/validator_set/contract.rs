@@ -21,11 +21,12 @@ use std::sync::Weak;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
+use machine::{AuxiliaryData, Call, EthereumMachine};
 use parking_lot::RwLock;
+use types::BlockNumber;
+use types::header::Header;
 
 use client::EngineClient;
-use header::{Header, BlockNumber};
-use machine::{AuxiliaryData, Call, EthereumMachine};
 
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;

@@ -123,6 +123,7 @@ debug = false
 [workspace]
 members = [
 	"chainspec",
+	"ethcore",
 	"ethcore/wasm/run",
 	"ethcore/types",
 	"ethkey/cli",

@@ -17,7 +17,7 @@
 //! Import route.
 
 use ethereum_types::H256;
-use blockchain::block_info::{BlockInfo, BlockLocation};
+use crate::block_info::{BlockInfo, BlockLocation};
 
 /// Import route for newly inserted block.
 #[derive(Debug, PartialEq, Clone)]
@@ -68,8 +68,8 @@ impl From<BlockInfo> for ImportRoute {
 #[cfg(test)]
 mod tests {
 	use ethereum_types::{H256, U256};
-	use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
-	use blockchain::ImportRoute;
+	use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+	use super::ImportRoute;
 
 	#[test]
 	fn import_route_none() {

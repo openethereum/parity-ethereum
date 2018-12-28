@@ -14,24 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Engine-specific types.
 
-mod best_block;
-mod block_info;
-mod blockchain;
-mod cache;
-mod config;
-mod extras;
-mod import_route;
-mod update;
+pub mod epoch;
 
-#[cfg(test)]
-pub mod generator;
+/// Fork choice.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ForkChoice {
+	/// Choose the new block.
+	New,
+	/// Choose the current best block.
+	Old,
+}
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use self::extras::{BlockReceipts, BlockDetails, TransactionAddress};
-pub use self::import_route::ImportRoute;
-pub use self::update::ExtrasInsert;
-pub use types::tree_route::TreeRoute;

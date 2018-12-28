@@ -22,6 +22,8 @@ patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 parity-crypto = "0.2"
 error-chain = { version = "0.12", default-features = false }
+ethcore-blockchain = { path = "./blockchain" }
+ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
@@ -79,7 +81,7 @@ hardware-wallet = { path = "../hw" }
 fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
 
 [dev-dependencies]
-env_logger = "0.4"
+env_logger = "0.5"
 tempdir = "0.3"
 trie-standardmap = "0.1"
 criterion = "0.2"

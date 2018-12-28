@@ -20,7 +20,8 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Address};
 
 use machine::{AuxiliaryData, Call, EthereumMachine};
-use header::{BlockNumber, Header};
+use types::BlockNumber;
+use types::header::Header;
 use super::ValidatorSet;
 
 /// Validator set containing a known set of addresses.

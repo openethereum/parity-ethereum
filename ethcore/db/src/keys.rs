@@ -19,14 +19,16 @@
 use std::io::Write;
 use std::ops;
 
-use db::Key;
-use engines::epoch::{Transition as EpochTransition};
+use common_types::BlockNumber;
+use common_types::engines::epoch::{Transition as EpochTransition};
+use common_types::receipt::Receipt;
 use ethereum_types::{H256, H264, U256};
-use header::BlockNumber;
 use heapsize::HeapSizeOf;
 use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
-use receipt::Receipt;
 use rlp;
+use rlp_derive::{RlpEncodableWrapper, RlpDecodableWrapper, RlpEncodable, RlpDecodable};
+
+use crate::db::Key;
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -100,7 +102,7 @@ impl Key<BlockReceipts> for H256 {
 	}
 }
 
-impl Key<::engines::epoch::PendingTransition> for H256 {
+impl Key<common_types::engines::epoch::PendingTransition> for H256 {
 	type Target = H264;
 
 	fn key(&self) -> H264 {

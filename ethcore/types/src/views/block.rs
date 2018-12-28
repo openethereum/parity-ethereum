@@ -37,9 +37,9 @@ impl<'a> BlockView<'a> {
 	///
 	/// ```
 	/// #[macro_use]
-	/// extern crate ethcore;
+	/// extern crate common_types;
 	///
-	/// use ethcore::views::{BlockView};
+	/// use common_types::views::{BlockView};
 	///
 	/// fn main() {
 	/// let bytes : &[u8] = &[];

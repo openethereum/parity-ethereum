@@ -18,11 +18,14 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
+
+use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use bytes::Bytes;
-use ids::BlockId;
-use header::{BlockNumber, Header};
+use types::BlockNumber;
+use types::header::Header;
+use types::ids::BlockId;
+
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{SystemCall, ValidatorSet};

@@ -744,6 +744,7 @@ mod tests {
 	use error::*;
 	use views::BlockView;
 	use bytes::Bytes;
+	use types::view;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.

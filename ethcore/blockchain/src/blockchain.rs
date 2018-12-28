@@ -21,35 +21,38 @@ use std::{mem, io};
 use std::path::Path;
 use std::sync::Arc;
 
+use log::{trace, warn, info};
 use ansi_term::Colour;
-use blockchain::{CacheSize, ImportRoute, Config};
-use blockchain::best_block::{BestBlock, BestAncientBlock};
-use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
-use blockchain::extras::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
-use blockchain::update::{ExtrasUpdate, ExtrasInsert};
 use blooms_db;
-use bytes::Bytes;
-use cache_manager::CacheManager;
-use db::{self, Writable, Readable, CacheUpdatePolicy};
-use encoded;
-use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use engines::ForkChoice;
+use common_types::BlockNumber;
+use common_types::blockchain_info::BlockChainInfo;
+use common_types::encoded;
+use common_types::engines::ForkChoice;
+use common_types::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
+use common_types::header::{Header, ExtendedHeader};
+use common_types::log_entry::{LogEntry, LocalizedLogEntry};
+use common_types::receipt::Receipt;
+use common_types::tree_route::TreeRoute;
+use common_types::views::{BlockView, HeaderView};
+use common_types::view;
+use ethcore_db::{self as db, Writable, Readable, CacheUpdatePolicy};
+use ethcore_db::cache_manager::CacheManager;
+use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
+use ethcore_transaction::LocalizedTransaction;
 use ethereum_types::{H256, Bloom, BloomRef, U256};
-use error::Error as EthcoreError;
-use header::*;
 use heapsize::HeapSizeOf;
 use itertools::Itertools;
 use kvdb::{DBTransaction, KeyValueDB};
-use log_entry::{LogEntry, LocalizedLogEntry};
+use parity_bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use receipt::Receipt;
-use rlp_compress::{compress, decompress, blocks_swapper};
 use rlp::RlpStream;
-use transaction::*;
-use types::blockchain_info::BlockChainInfo;
-use types::tree_route::TreeRoute;
-use views::{BlockView, HeaderView};
+use rlp_compress::{compress, decompress, blocks_swapper};
+
+use crate::best_block::{BestBlock, BestAncientBlock};
+use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+use crate::update::{ExtrasUpdate, ExtrasInsert};
+use crate::{CacheSize, ImportRoute, Config};
 
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {
@@ -63,7 +66,7 @@ pub trait BlockChainDB: Send + Sync {
 	fn trace_blooms(&self) -> &blooms_db::Database;
 
 	/// Restore the DB from the given path
-	fn restore(&self, new_db: &str) -> Result<(), EthcoreError> {
+	fn restore(&self, new_db: &str) -> Result<(), io::Error> {
 		// First, close the Blooms databases
 		self.blooms().close()?;
 		self.trace_blooms().close()?;
@@ -1549,25 +1552,23 @@ impl BlockChain {
 
 #[cfg(test)]
 mod tests {
+	use super::*;
+
 	use std::iter;
-	use std::sync::Arc;
-	use rustc_hex::FromHex;
-	use hash::keccak;
-	use kvdb::DBTransaction;
-	use ethereum_types::*;
-	use receipt::{Receipt, TransactionOutcome};
-	use blockchain::{BlockProvider, BlockChain, BlockChainDB, Config, ImportRoute};
-	use test_helpers::{
-		generate_dummy_blockchain, generate_dummy_blockchain_with_extra,
-		generate_dummy_empty_blockchain
-	};
-	use blockchain::generator::{BlockGenerator, BlockBuilder, BlockOptions};
-	use blockchain::extras::TransactionAddress;
-	use transaction::{Transaction, Action};
-	use log_entry::{LogEntry, LocalizedLogEntry};
+
+	use common_types::receipt::{Receipt, TransactionOutcome};
+	use common_types::view;
+	use crate::generator::{BlockGenerator, BlockBuilder, BlockOptions};
+	use ethcore_transaction::{Transaction, Action};
 	use ethkey::Secret;
-	use test_helpers::new_db;
-	use encoded;
+	use keccak_hash::keccak;
+
+	use ethcore::test_helpers::{
+		generate_dummy_blockchain,
+		generate_dummy_blockchain_with_extra,
+		generate_dummy_empty_blockchain,
+		new_db,
+	};
 
 	fn new_chain(genesis: encoded::Block, db: Arc<BlockChainDB>) -> BlockChain {
 		BlockChain::new(Config::default(), genesis.raw(), db)
@@ -1588,7 +1589,7 @@ mod tests {
 	}
 
 	fn insert_block_batch(batch: &mut DBTransaction, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>) -> ImportRoute {
-		use blockchain::ExtrasInsert;
+		use crate::ExtrasInsert;
 
 		let fork_choice = {
 			let header = block.header_view();
@@ -1596,9 +1597,9 @@ mod tests {
 			let parent_details = bc.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 			let block_total_difficulty = parent_details.total_difficulty + header.difficulty();
 			if block_total_difficulty > bc.best_block_total_difficulty() {
-				::engines::ForkChoice::New
+				common_types::engines::ForkChoice::New
 			} else {
-				::engines::ForkChoice::Old
+				common_types::engines::ForkChoice::Old
 			}
 		};
 
@@ -2369,7 +2370,7 @@ mod tests {
 
 	#[test]
 	fn epoch_transitions_iter() {
-		use ::engines::EpochTransition;
+		use common_types::engines::epoch::Transition as EpochTransition;
 
 		let genesis = BlockBuilder::genesis();
 		let next_5 = genesis.add_blocks(5);
@@ -2418,7 +2419,7 @@ mod tests {
 
 	#[test]
 	fn epoch_transition_for() {
-		use ::engines::EpochTransition;
+		use common_types::engines::epoch::Transition as EpochTransition;
 
 		let genesis = BlockBuilder::genesis();
 		let fork_7 = genesis.add_blocks_with(7, || BlockOptions {

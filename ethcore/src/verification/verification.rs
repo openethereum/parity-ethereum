@@ -35,7 +35,7 @@ use blockchain::*;
 use client::{BlockInfo, CallContract};
 use engines::EthEngine;
 use error::{BlockError, Error};
-use header::{BlockNumber, Header};
+use types::{BlockNumber, header::Header};
 use transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
@@ -638,14 +638,18 @@ mod tests {
 		good_uncle1.set_parent_hash(parent8.hash());
 		good_uncle1.set_difficulty(parent8.difficulty().clone() + diff_inc);
 		good_uncle1.set_timestamp(parent8.timestamp() + 10);
-		good_uncle1.extra_data_mut().push(1u8);
+		let mut ex = good_uncle1.extra_data().to_vec();
+		ex.push(1u8);
+		good_uncle1.set_extra_data(ex);
 
 		let mut good_uncle2 = good.clone();
 		good_uncle2.set_number(8);
 		good_uncle2.set_parent_hash(parent7.hash());
 		good_uncle2.set_difficulty(parent7.difficulty().clone() + diff_inc);
 		good_uncle2.set_timestamp(parent7.timestamp() + 10);
-		good_uncle2.extra_data_mut().push(2u8);
+		let mut ex = good_uncle2.extra_data().to_vec();
+		ex.push(2u8);
+		good_uncle2.set_extra_data(ex);
 
 		let good_uncles = vec![ good_uncle1.clone(), good_uncle2.clone() ];
 		let mut uncles_rlp = RlpStream::new();
@@ -702,12 +706,16 @@ mod tests {
 			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit().clone()), min: None, found: header.gas_used().clone() }));
 
 		header = good.clone();
-		header.extra_data_mut().resize(engine.maximum_extra_data_size() + 1, 0u8);
+		let mut ex = header.extra_data().to_vec();
+		ex.resize(engine.maximum_extra_data_size() + 1, 0u8);
+		header.set_extra_data(ex);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data().len() }));
 
 		header = good.clone();
-		header.extra_data_mut().resize(engine.maximum_extra_data_size() + 1, 0u8);
+		let mut ex = header.extra_data().to_vec();
+		ex.resize(engine.maximum_extra_data_size() + 1, 0u8);
+		header.set_extra_data(ex);
 		check_fail(basic_test(&create_test_block(&header), engine),
 			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data().len() }));
 
