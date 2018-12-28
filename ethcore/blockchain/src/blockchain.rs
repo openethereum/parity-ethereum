@@ -1562,6 +1562,7 @@ mod tests {
 	use ethcore_transaction::{Transaction, Action};
 	use ethkey::Secret;
 	use keccak_hash::keccak;
+	use rustc_hex::FromHex;
 
 	use ethcore::test_helpers::{
 		generate_dummy_blockchain,
