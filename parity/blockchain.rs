@@ -196,7 +196,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 
 	let mut config = LightClientConfig {
 		queue: Default::default(),
-		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
+		chain_column: ethcore_db::COL_LIGHT_CHAIN,
 		verify_full: true,
 		check_seal: cmd.check_seal,
 		no_hardcoded_sync: true,

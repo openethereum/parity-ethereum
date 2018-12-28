@@ -14,61 +14,48 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::*;
+use blockchain::BlockProvider;
 
-use std::iter;
-
-use common_types::receipt::{Receipt, TransactionOutcome};
-use common_types::view;
-use crate::generator::{BlockGenerator, BlockBuilder, BlockOptions};
-use ethcore_transaction::{Transaction, Action};
-use ethkey::Secret;
-use keccak_hash::keccak;
-use rustc_hex::FromHex;
-
-use ethcore::test_helpers::{
+use test_helpers::{
 	generate_dummy_blockchain,
 	generate_dummy_blockchain_with_extra,
 	generate_dummy_empty_blockchain,
-	new_db,
 };
 
+#[test]
+fn can_contain_arbitrary_block_sequence() {
+	let bc = generate_dummy_blockchain(50);
+	assert_eq!(bc.best_block_number(), 49);
+}
 
-	#[test]
-	fn can_contain_arbitrary_block_sequence() {
-		let bc = generate_dummy_blockchain(50);
-		assert_eq!(bc.best_block_number(), 49);
+#[test]
+fn can_collect_garbage() {
+	let bc = generate_dummy_blockchain(3000);
+
+	assert_eq!(bc.best_block_number(), 2999);
+	let best_hash = bc.best_block_hash();
+	let mut block_header = bc.block_header_data(&best_hash);
+
+	while !block_header.is_none() {
+		block_header = bc.block_header_data(&block_header.unwrap().parent_hash());
 	}
+	assert!(bc.cache_size().blocks > 1024 * 1024);
 
-
-	#[test]
-	fn can_collect_garbage() {
-		let bc = generate_dummy_blockchain(3000);
-
-		assert_eq!(bc.best_block_number(), 2999);
-		let best_hash = bc.best_block_hash();
-		let mut block_header = bc.block_header_data(&best_hash);
-
-		while !block_header.is_none() {
-			block_header = bc.block_header_data(&block_header.unwrap().parent_hash());
-		}
-		assert!(bc.cache_size().blocks > 1024 * 1024);
-
-		for _ in 0..2 {
-			bc.collect_garbage();
-		}
-		assert!(bc.cache_size().blocks < 1024 * 1024);
+	for _ in 0..2 {
+		bc.collect_garbage();
 	}
+	assert!(bc.cache_size().blocks < 1024 * 1024);
+}
 
-	#[test]
-	fn can_contain_arbitrary_block_sequence_with_extra() {
-		let bc = generate_dummy_blockchain_with_extra(25);
-		assert_eq!(bc.best_block_number(), 24);
-	}
+#[test]
+fn can_contain_arbitrary_block_sequence_with_extra() {
+	let bc = generate_dummy_blockchain_with_extra(25);
+	assert_eq!(bc.best_block_number(), 24);
+}
 
-	#[test]
-	fn can_contain_only_genesis_block() {
-		let bc = generate_dummy_empty_blockchain();
-		assert_eq!(bc.best_block_number(), 0);
-	}
+#[test]
+fn can_contain_only_genesis_block() {
+	let bc = generate_dummy_empty_blockchain();
+	assert_eq!(bc.best_block_number(), 0);
+}
 

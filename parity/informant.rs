@@ -27,7 +27,7 @@ use ethcore::client::{
 	BlockId, BlockChainClient, ChainInfo, BlockInfo, BlockChainInfo,
 	BlockQueueInfo, ChainNotify, NewBlocks, ClientReport, Client, ClientIoMessage
 };
-use ethcore::header::BlockNumber;
+use common_types::BlockNumber;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::service::Service as SnapshotService;
 use sync::{LightSyncProvider, LightSync, SyncProvider, ManageNetwork};

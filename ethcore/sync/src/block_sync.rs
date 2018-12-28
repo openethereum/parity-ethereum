@@ -23,7 +23,7 @@ use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
-use ethcore::header::BlockNumber;
+use types::BlockNumber;
 use ethcore::client::{BlockStatus, BlockId};
 use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError, Error as EthcoreError, ErrorKind as EthcoreErrorKind};
 use sync_io::SyncIo;

@@ -24,11 +24,11 @@ use rlp::Rlp;
 use ethereum_types::{U256, H256, H160, Address};
 use parking_lot::Mutex;
 
+use common_types::BlockNumber as EthBlockNumber;
 use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
@@ -625,7 +625,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	
+
 	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256> {
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);

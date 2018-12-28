@@ -20,12 +20,14 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
+use common_types::BlockNumber;
+use common_types::block::Block;
 use ethcore::account_provider::SignError as AccountError;
-use ethcore::block::{Block, SealedBlock, IsBlock};
+use ethcore::block::{SealedBlock, IsBlock};
 use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::engines::EthEngine;
 use ethcore::error::Error;
-use ethcore::header::{BlockNumber, Header};
+use ethcore::header::Header;
 use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService, AuthoringParams};
 use ethcore::receipt::RichReceipt;

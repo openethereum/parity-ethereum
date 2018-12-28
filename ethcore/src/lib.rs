@@ -184,5 +184,4 @@ pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;
 // TODO [ToDr] Remove
-// pub use blockchain::{BlockChainDB, BlockChainDBHandler};
 pub use types::*;

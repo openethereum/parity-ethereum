@@ -17,9 +17,7 @@
 use api::WARP_SYNC_PROTOCOL_ID;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
-use ethcore::client::{BlockId, BlockStatus};
 use ethcore::error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind, BlockError};
-use ethcore::header::BlockNumber;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
@@ -27,10 +25,12 @@ use hash::keccak;
 use network::PeerId;
 use rlp::Rlp;
 use snapshot::ChunkType;
-use std::cmp;
-use std::mem;
 use std::time::Instant;
+use std::{mem, cmp};
 use sync_io::SyncIo;
+use types::BlockNumber;
+use types::block_status::BlockStatus;
+use types::ids::BlockId;
 
 use super::{
 	BlockSet,

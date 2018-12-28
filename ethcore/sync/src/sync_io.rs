@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use bytes::Bytes;
 use ethcore::client::BlockChainClient;
-use ethcore::header::BlockNumber;
+use types::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use parking_lot::RwLock;
 

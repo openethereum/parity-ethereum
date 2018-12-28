@@ -104,7 +104,6 @@ use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
-use ethcore::header::{BlockNumber};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
@@ -116,6 +115,7 @@ use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use transaction::UnverifiedTransaction;
+use types::BlockNumber;
 
 use self::handler::SyncHandler;
 use self::propagator::SyncPropagator;

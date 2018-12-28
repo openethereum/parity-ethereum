@@ -31,7 +31,7 @@ use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
-use ethcore::header::BlockNumber;
+use types::BlockNumber;
 use sync_io::NetSyncIo;
 use chain::{ChainSyncApi, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};

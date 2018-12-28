@@ -120,6 +120,7 @@ pub const EPOCH_KEY_PREFIX: &'static [u8; DB_PREFIX_LEN] = &[
 	ExtrasIndex::EpochTransitions as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
+/// Epoch transitions key
 pub struct EpochTransitionsKey([u8; EPOCH_KEY_LEN]);
 
 impl ops::Deref for EpochTransitionsKey {

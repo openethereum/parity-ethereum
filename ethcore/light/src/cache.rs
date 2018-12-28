@@ -20,15 +20,15 @@
 //! Furthermore, stores a "gas price corpus" of relative recency, which is a sorted
 //! vector of all gas prices from a recent range of blocks.
 
-use ethcore::encoded;
-use ethcore::header::BlockNumber;
-use ethcore::receipt::Receipt;
-
-use stats::Corpus;
 use std::time::{Instant, Duration};
-use heapsize::HeapSizeOf;
+
+use common_types::encoded;
+use common_types::BlockNumber;
+use common_types::receipt::Receipt;
 use ethereum_types::{H256, U256};
+use heapsize::HeapSizeOf;
 use memory_cache::MemoryLruCache;
+use stats::Corpus;
 
 /// Configuration for how much data to cache.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
