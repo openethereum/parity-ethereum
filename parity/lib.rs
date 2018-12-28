@@ -56,6 +56,7 @@ extern crate ethcore_private_tx;
 extern crate ethcore_service;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
+extern crate ethstore;
 extern crate ethkey;
 extern crate kvdb;
 extern crate parity_hash_fetch as hash_fetch;

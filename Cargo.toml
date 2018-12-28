@@ -44,6 +44,7 @@ ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
+ethstore = { path = "accounts/ethstore" }
 ethereum-types = "0.4"
 node-filter = { path = "ethcore/node-filter" }
 ethkey = { path = "accounts/ethkey" }

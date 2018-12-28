@@ -27,7 +27,7 @@ use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use sync::{NetworkConfiguration, validate_node_url, self};
-use ethcore::ethstore::ethkey::{Secret, Public};
+use ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
 use ethcore::snapshot::SnapshotConfiguration;

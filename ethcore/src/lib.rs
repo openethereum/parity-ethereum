@@ -57,61 +57,64 @@
 // error_chain foreign_links.
 #![recursion_limit="128"]
 
+extern crate ansi_term;
 extern crate blooms_db;
 extern crate bn;
 extern crate byteorder;
 extern crate common_types as types;
 extern crate crossbeam;
+extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
-extern crate ethcore_logger;
 extern crate ethcore_miner;
-#[cfg(feature = "stratum")]
-extern crate ethcore_stratum;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate parity_bytes as bytes;
-extern crate parity_crypto;
-
+extern crate ethstore;
 extern crate hashdb;
+extern crate heapsize;
 extern crate itertools;
+extern crate journaldb;
+extern crate keccak_hash as hash;
+extern crate keccak_hasher;
 extern crate kvdb;
 extern crate kvdb_memorydb;
-extern crate kvdb_rocksdb;
+extern crate len_caching_lock;
 extern crate lru_cache;
-extern crate num_cpus;
+extern crate memory_cache;
+extern crate memorydb;
 extern crate num;
+extern crate num_cpus;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto;
 extern crate parity_machine;
+extern crate parity_snappy as snappy;
 extern crate parking_lot;
+extern crate patricia_trie as trie;
+extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
-extern crate keccak_hash as hash;
-extern crate keccak_hasher;
-extern crate heapsize;
-extern crate memorydb;
-extern crate patricia_trie as trie;
-extern crate patricia_trie_ethereum as ethtrie;
-extern crate triehash_ethereum as triehash;
-extern crate ansi_term;
-extern crate unexpected;
-extern crate parity_snappy as snappy;
-extern crate ethabi;
 extern crate rustc_hex;
+extern crate serde;
 extern crate stats;
+extern crate triehash_ethereum as triehash;
+extern crate unexpected;
 extern crate using_queue;
 extern crate vm;
 extern crate wasm;
-extern crate memory_cache;
-extern crate journaldb;
-extern crate serde;
+
+#[cfg(feature = "stratum")]
+extern crate ethcore_stratum;
 #[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
-extern crate len_caching_lock;
+#[cfg(feature = "json-tests")]
+extern crate ethcore_logger;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate kvdb_rocksdb;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;
@@ -143,8 +146,8 @@ extern crate evm;
 
 #[cfg(test)]
 extern crate env_logger;
-
-pub extern crate ethstore;
+#[cfg(test)]
+extern crate rlp_compress;
 
 pub mod account_provider;
 pub mod block;
@@ -182,5 +185,3 @@ pub mod test_helpers;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
 pub use trie::TrieSpec;
-// TODO [ToDr] Remove
-// pub use types::*;

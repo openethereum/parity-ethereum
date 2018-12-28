@@ -23,7 +23,7 @@ use ansi_term::Colour;
 use bytes::Bytes;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
-use ethcore::ethstore::ethkey;
+use ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -973,8 +973,8 @@ fn print_running_environment(data_dir: &str, dirs: &Directories, db_dirs: &Datab
 }
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[Password]) -> Result<AccountProvider, String> {
-	use ethcore::ethstore::EthStore;
-	use ethcore::ethstore::accounts_dir::RootDiskDirectory;
+	use ethstore::EthStore;
+	use ethstore::accounts_dir::RootDiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
