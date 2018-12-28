@@ -604,3 +604,26 @@ fn rpc_status_error_sync() {
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
+
+#[test]
+fn rpc_parity_verify_signature() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "parity_verifySignature",
+		"params": [
+			false,
+			"0xe552acf4caabe9661893fd48c7b5e68af20bf007193442f8ca05ce836699d75e",
+			"0x2089e84151c3cdc45255c07557b349f5bf2ed3e68f6098723eaa90a0f8b2b3e5",
+			"0x5f70e8df7bd0c4417afb5f5a39d82e15d03adeff8796725d8b14889ed1d1aa8a",
+			"0x1"
+		],
+		"id": 0
+	}"#;
+
+	let response = r#"{"jsonrpc":"2.0","result":{"address":"0x9a2a08a1170f51208c2f3cede0d29ada94481eed","isValidForCurrentChain":true,"publicKey":"0xbeec94ea24444906fe247c47841a45220f07e5718d06157fe4502fac326dab617e973e221e45746721330c2db3f63202268686378cc28b9800c1daaf0bbafeb1"},"id":0}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}

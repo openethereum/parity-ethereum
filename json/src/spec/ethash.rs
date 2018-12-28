@@ -23,6 +23,7 @@ use hash::Address;
 
 /// Deserializable doppelganger of block rewards for EthashParams
 #[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(untagged)]
 pub enum BlockReward {
 	Single(Uint),
@@ -31,6 +32,7 @@ pub enum BlockReward {
 
 /// Deserializable doppelganger of EthashParams.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct EthashParams {
 	/// See main EthashParams docs.
@@ -97,6 +99,7 @@ pub struct EthashParams {
 
 /// Ethash engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Ethash {
 	/// Ethash params.
 	pub params: EthashParams,

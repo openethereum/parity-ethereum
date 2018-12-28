@@ -18,12 +18,12 @@
 
 use std::sync::Arc;
 
-use devtools::http_client;
 use jsonrpc_core::MetaIoHandler;
 use ws;
 
 use v1::{extractors, informant};
 use tests::helpers::{GuardedAuthCodes, Server};
+use tests::http_client;
 
 /// Setup a mock signer for tests
 pub fn serve() -> (Server<ws::Server>, usize, GuardedAuthCodes) {
@@ -56,8 +56,7 @@ pub fn request(server: Server<ws::Server>, request: &str) -> http_client::Respon
 mod testing {
 	use std::time;
 	use hash::keccak;
-	use devtools::http_client;
-	use super::{serve, request};
+	use super::{serve, request, http_client};
 
 	#[test]
 	fn should_not_redirect_to_parity_host() {

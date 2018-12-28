@@ -57,11 +57,6 @@ impl EngineSigner {
 		self.address.clone()
 	}
 
-	/// Check if the given address is the signing address.
-	pub fn is_address(&self, address: &Address) -> bool {
-		self.address.map_or(false, |a| a == *address)
-	}
-
 	/// Check if the signing address was set.
 	pub fn is_some(&self) -> bool {
 		self.address.is_some()

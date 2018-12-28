@@ -25,7 +25,7 @@ use std::time::{Instant, Duration};
 use atty;
 use ethcore::client::{
 	BlockId, BlockChainClient, ChainInfo, BlockInfo, BlockChainInfo,
-	BlockQueueInfo, ChainNotify, ChainRoute, ClientReport, Client, ClientIoMessage
+	BlockQueueInfo, ChainNotify, NewBlocks, ClientReport, Client, ClientIoMessage
 };
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
@@ -38,7 +38,6 @@ use number_prefix::{binary_prefix, Standalone, Prefixed};
 use parity_rpc::is_major_importing_or_waiting;
 use parity_rpc::informant::RpcStats;
 use ethereum_types::H256;
-use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 
 /// Format byte counts to standard denominations.
@@ -365,29 +364,30 @@ impl<T: InformantData> Informant<T> {
 }
 
 impl ChainNotify for Informant<FullNodeInformantData> {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: Duration) {
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if new_blocks.has_more_blocks_to_import { return }
 		let mut last_import = self.last_import.lock();
 		let client = &self.target.client;
 
 		let importing = self.target.is_major_importing();
 		let ripe = Instant::now() > *last_import + Duration::from_secs(1) && !importing;
-		let txs_imported = imported.iter()
-			.take(imported.len().saturating_sub(if ripe { 1 } else { 0 }))
+		let txs_imported = new_blocks.imported.iter()
+			.take(new_blocks.imported.len().saturating_sub(if ripe { 1 } else { 0 }))
 			.filter_map(|h| client.block(BlockId::Hash(*h)))
 			.map(|b| b.transactions_count())
 			.sum();
 
 		if ripe {
-			if let Some(block) = imported.last().and_then(|h| client.block(BlockId::Hash(*h))) {
+			if let Some(block) = new_blocks.imported.last().and_then(|h| client.block(BlockId::Hash(*h))) {
 				let header_view = block.header_view();
 				let size = block.rlp().as_raw().len();
-				let (skipped, skipped_txs) = (self.skipped.load(AtomicOrdering::Relaxed) + imported.len() - 1, self.skipped_txs.load(AtomicOrdering::Relaxed) + txs_imported);
+				let (skipped, skipped_txs) = (self.skipped.load(AtomicOrdering::Relaxed) + new_blocks.imported.len() - 1, self.skipped_txs.load(AtomicOrdering::Relaxed) + txs_imported);
 				info!(target: "import", "Imported {} {} ({} txs, {} Mgas, {} ms, {} KiB){}",
 					Colour::White.bold().paint(format!("#{}", header_view.number())),
 					Colour::White.bold().paint(format!("{}", header_view.hash())),
 					Colour::Yellow.bold().paint(format!("{}", block.transactions_count())),
 					Colour::Yellow.bold().paint(format!("{:.2}", header_view.gas_used().low_u64() as f32 / 1000000f32)),
-					Colour::Purple.bold().paint(format!("{}", duration.as_milliseconds())),
+					Colour::Purple.bold().paint(format!("{}", new_blocks.duration.as_milliseconds())),
 					Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
 					if skipped > 0 {
 						format!(" + another {} block(s) containing {} tx(s)",
@@ -403,7 +403,7 @@ impl ChainNotify for Informant<FullNodeInformantData> {
 				*last_import = Instant::now();
 			}
 		} else {
-			self.skipped.fetch_add(imported.len(), AtomicOrdering::Relaxed);
+			self.skipped.fetch_add(new_blocks.imported.len(), AtomicOrdering::Relaxed);
 			self.skipped_txs.fetch_add(txs_imported, AtomicOrdering::Relaxed);
 		}
 	}

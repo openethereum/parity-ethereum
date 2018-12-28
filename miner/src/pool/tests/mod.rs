@@ -26,12 +26,18 @@ pub mod client;
 use self::tx::{Tx, TxExt, PairExt};
 use self::client::TestClient;
 
+// max mem for 3 transaction, this is relative
+// to the global use allocator, the value is currently
+// set to reflect malloc usage.
+// 50 was enough when using jmalloc.
+const TEST_QUEUE_MAX_MEM: usize = 80;
+
 fn new_queue() -> TransactionQueue {
 	TransactionQueue::new(
 		txpool::Options {
 			max_count: 3,
 			max_per_sender: 3,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),
@@ -49,7 +55,7 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 		txpool::Options {
 			max_count: 3,
 			max_per_sender: 1,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),
@@ -103,7 +109,7 @@ fn should_never_drop_local_transactions_from_different_senders() {
 		txpool::Options {
 			max_count: 3,
 			max_per_sender: 1,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),
@@ -477,7 +483,7 @@ fn should_prefer_current_transactions_when_hitting_the_limit() {
 		txpool::Options {
 			max_count: 1,
 			max_per_sender: 2,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),
@@ -707,7 +713,7 @@ fn should_accept_local_transactions_below_min_gas_price() {
 		txpool::Options {
 			max_count: 3,
 			max_per_sender: 3,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 10.into(),
@@ -890,7 +896,7 @@ fn should_include_local_transaction_to_a_full_pool() {
 		txpool::Options {
 			max_count: 1,
 			max_per_sender: 2,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),
@@ -922,7 +928,7 @@ fn should_avoid_verifying_transaction_already_in_pool() {
 		txpool::Options {
 			max_count: 1,
 			max_per_sender: 2,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),
@@ -957,7 +963,7 @@ fn should_avoid_reverifying_recently_rejected_transactions() {
 		txpool::Options {
 			max_count: 1,
 			max_per_sender: 2,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),
@@ -999,7 +1005,7 @@ fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
 		txpool::Options {
 			max_count: 1,
 			max_per_sender: 2,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),
@@ -1039,7 +1045,7 @@ fn should_not_reject_early_in_case_gas_price_is_less_than_min_effective() {
 		txpool::Options {
 			max_count: 1,
 			max_per_sender: 2,
-			max_mem_usage: 50
+			max_mem_usage: TEST_QUEUE_MAX_MEM
 		},
 		verifier::Options {
 			minimal_gas_price: 1.into(),

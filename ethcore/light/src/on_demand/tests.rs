@@ -23,10 +23,11 @@ use network::{PeerId, NodeId};
 use net::*;
 use ethereum_types::H256;
 use parking_lot::Mutex;
-use std::time::Duration;
 use ::request::{self as basic_request, Response};
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+use std::thread;
 
 use super::{request, OnDemand, Peer, HeaderRef};
 
@@ -36,6 +37,7 @@ enum Context {
 	WithPeer(PeerId),
 	RequestFrom(PeerId, ReqId),
 	Punish(PeerId),
+	FaultyRequest,
 }
 
 impl EventContext for Context {
@@ -44,6 +46,7 @@ impl EventContext for Context {
 			Context::WithPeer(id)
 			| Context::RequestFrom(id, _)
 			| Context::Punish(id) => id,
+			| Context::FaultyRequest => 0,
 			_ => panic!("didn't expect to have peer queried."),
 		}
 	}
@@ -60,6 +63,7 @@ impl BasicContext for Context {
 	fn request_from(&self, peer_id: PeerId, _: ::request::NetworkRequests) -> Result<ReqId, Error> {
 		match *self {
 			Context::RequestFrom(id, req_id) => if peer_id == id { Ok(req_id) } else { Err(Error::NoCredits) },
+			Context::FaultyRequest => Err(Error::NoCredits),
 			_ => panic!("didn't expect to have requests dispatched."),
 		}
 	}
@@ -89,7 +93,17 @@ impl Harness {
 	fn create() -> Self {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(60))));
 		Harness {
-			service: OnDemand::new_test(cache),
+			service: OnDemand::new_test(
+				cache,
+				// Response `time_to_live`
+				Duration::from_secs(5),
+				// Request start backoff
+				Duration::from_secs(1),
+				// Request max backoff
+				Duration::from_secs(20),
+				super::DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS,
+				super::DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS
+			)
 		}
 	}
 
@@ -494,4 +508,91 @@ fn fill_from_cache() {
 	);
 
 	assert!(recv.wait().is_ok());
+}
+
+#[test]
+fn request_without_response_should_backoff_and_then_be_dropped() {
+	let harness = Harness::create();
+	let peer_id = 0;
+	let req_id = ReqId(13);
+
+	harness.inject_peer(
+		peer_id,
+		Peer {
+			status: dummy_status(),
+			capabilities: dummy_capabilities(),
+		}
+	);
+
+	let binary_exp_backoff: Vec<u64> = vec![1, 2, 4, 8, 16, 20, 20, 20, 20, 20];
+
+	let _recv = harness.service.request_raw(
+		&Context::RequestFrom(peer_id, req_id),
+		vec![request::HeaderByHash(Header::default().encoded().hash().into()).into()],
+	).unwrap();
+	assert_eq!(harness.service.pending.read().len(), 1);
+
+	for backoff in &binary_exp_backoff {
+		harness.service.dispatch_pending(&Context::FaultyRequest);
+		assert_eq!(harness.service.pending.read().len(), 1, "Request should not be dropped");
+		let now = Instant::now();
+		while now.elapsed() < Duration::from_secs(*backoff) {}
+	}
+
+	harness.service.dispatch_pending(&Context::FaultyRequest);
+	assert_eq!(harness.service.pending.read().len(), 0, "Request exceeded the 10 backoff rounds should be dropped");
+}
+
+#[test]
+fn empty_responses_exceeds_limit_should_be_dropped() {
+	let harness = Harness::create();
+	let peer_id = 0;
+	let req_id = ReqId(13);
+
+	harness.inject_peer(
+		peer_id,
+		Peer {
+			status: dummy_status(),
+			capabilities: dummy_capabilities(),
+		}
+	);
+
+	let _recv = harness.service.request_raw(
+		&Context::RequestFrom(peer_id, req_id),
+		vec![request::HeaderByHash(Header::default().encoded().hash().into()).into()],
+	).unwrap();
+
+	harness.service.dispatch_pending(&Context::RequestFrom(peer_id, req_id));
+
+	assert_eq!(harness.service.pending.read().len(), 0);
+	assert_eq!(harness.service.in_transit.read().len(), 1);
+
+	let now = Instant::now();
+
+	// Send `empty responses` in the current time window
+	// Use only half of the `time_window` because we can't be sure exactly
+	// when the window started and the clock accurancy
+	while now.elapsed() < harness.service.response_time_window / 2 {
+		harness.service.on_responses(
+			&Context::RequestFrom(13, req_id),
+			req_id,
+			&[]
+		);
+		assert!(harness.service.pending.read().len() != 0);
+		let pending = harness.service.pending.write().remove(0);
+		harness.service.in_transit.write().insert(req_id, pending);
+	}
+
+	// Make sure we passed the first `time window`
+	thread::sleep(Duration::from_secs(5));
+
+	// Now, response is in failure state but need another response to be `polled`
+	harness.service.on_responses(
+			&Context::RequestFrom(13, req_id),
+			req_id,
+			&[]
+	);
+
+	assert!(harness.service.in_transit.read().is_empty());
+	assert!(harness.service.pending.read().is_empty());
 }

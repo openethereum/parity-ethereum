@@ -11,7 +11,7 @@ error-chain = { version = "0.12", default-features = false }
 parity-crypto = "0.2"
 ethcore-io = { path = "../io" }
 ethereum-types = "0.4"
-ethkey = { path = "../../ethkey" }
+ethkey = { path = "../../accounts/ethkey" }
 ipnetwork = "0.12.6"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 libc = "0.2"
