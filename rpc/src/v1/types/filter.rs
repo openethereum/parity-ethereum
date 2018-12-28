@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde::de::{Error, DeserializeOwned};
-use serde_json::{Value, from_value};
 use jsonrpc_core::{Error as RpcError};
-use ethcore::filter::Filter as EthFilter;
-use ethcore::client::BlockId;
+use serde::de::{Error, DeserializeOwned};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::{Value, from_value};
+use types::filter::Filter as EthFilter;
+use types::ids::BlockId;
+
 use v1::types::{BlockNumber, H160, H256, Log};
 use v1::helpers::errors::invalid_params;
 
@@ -149,8 +150,8 @@ mod tests {
 	use ethereum_types::H256;
 	use super::{VariadicValue, Topic, Filter};
 	use v1::types::BlockNumber;
-	use ethcore::filter::Filter as EthFilter;
-	use ethcore::client::BlockId;
+	use types::filter::Filter as EthFilter;
+	use types::ids::BlockId;
 
 	#[test]
 	fn topic_deserialization() {

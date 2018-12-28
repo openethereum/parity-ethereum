@@ -19,10 +19,10 @@
 
 use std::sync::Arc;
 
-use ethcore::blockchain_info::BlockChainInfo;
+use common_types::blockchain_info::BlockChainInfo;
+use common_types::encoded;
+use common_types::ids::BlockId;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, BlockInfo as ClientBlockInfo};
-use ethcore::ids::BlockId;
-use ethcore::encoded;
 use ethereum_types::H256;
 use parking_lot::RwLock;
 use transaction::PendingTransaction;
@@ -161,7 +161,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)
 		-> Option<request::TransactionIndexResponse>
 	{
-		use ethcore::ids::TransactionId;
+		use common_types::ids::TransactionId;
 
 		self.transaction_receipt(TransactionId::Hash(req.hash)).map(|receipt| request::TransactionIndexResponse {
 			num: receipt.block_number,

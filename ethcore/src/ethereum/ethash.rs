@@ -485,7 +485,7 @@ mod tests {
 	use block::*;
 	use test_helpers::get_temp_state_db;
 	use error::{BlockError, Error, ErrorKind};
-	use header::Header;
+	use types::header::Header;
 	use spec::Spec;
 	use engines::Engine;
 	use super::super::{new_morden, new_mcip3_test, new_homestead_test_machine};

@@ -84,9 +84,9 @@ fn should_subscribe_to_new_heads() {
 
 #[test]
 fn should_subscribe_to_logs() {
-	use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
-	use ethcore::ids::BlockId;
 	use ethcore::client::BlockInfo;
+	use types::log_entry::{LocalizedLogEntry, LogEntry};
+	use types::ids::BlockId;
 
 	// given
 	let el = Runtime::with_thread_count(1);

@@ -19,11 +19,11 @@
 use std::cmp;
 use std::sync::Arc;
 
-use ethcore::basic_account::BasicAccount;
-use ethcore::encoded;
-use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::ids::BlockId;
-use ethcore::receipt::Receipt;
+use types::basic_account::BasicAccount;
+use types::encoded;
+use types::filter::Filter as EthcoreFilter;
+use types::ids::BlockId;
+use types::receipt::Receipt;
 use ethcore::executed::ExecutionError;
 
 use jsonrpc_core::{Result, Error};

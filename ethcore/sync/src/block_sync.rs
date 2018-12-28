@@ -621,7 +621,6 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 mod tests {
 	use super::*;
 	use ethcore::client::TestBlockChainClient;
-	use ethcore::header::Header as BlockHeader;
 	use ethcore::spec::Spec;
 	use ethkey::{Generator,Random};
 	use hash::keccak;
@@ -631,6 +630,7 @@ mod tests {
 	use tests::snapshot::TestSnapshotService;
 	use transaction::{Transaction,SignedTransaction};
 	use triehash_ethereum::ordered_trie_root;
+	use types::header::Header as BlockHeader;
 
 	fn dummy_header(number: u64, parent_hash: H256) -> BlockHeader {
 		let mut header = BlockHeader::new();

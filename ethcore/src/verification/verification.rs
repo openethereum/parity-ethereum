@@ -378,7 +378,7 @@ mod tests {
 	use std::time::{SystemTime, UNIX_EPOCH};
 	use ethereum_types::{H256, BloomRef, U256};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
-	use encoded;
+	use types::encoded;
 	use hash::keccak;
 	use engines::EthEngine;
 	use error::BlockError::*;

@@ -21,8 +21,8 @@ use bytes::Bytes;
 use ethtrie;
 use vm;
 use trace::{VMTrace, FlatTrace};
-use log_entry::LogEntry;
-use state_diff::StateDiff;
+use types::state_diff::StateDiff;
+use types::log_entry::LogEntry;
 
 use std::{fmt, error};
 

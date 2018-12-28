@@ -26,7 +26,7 @@ use std::fmt;
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
 
-use receipt::{Receipt, TransactionOutcome};
+use types::receipt::{Receipt, TransactionOutcome};
 use machine::EthereumMachine as Machine;
 use vm::EnvInfo;
 use error::Error;

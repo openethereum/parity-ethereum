@@ -409,7 +409,7 @@ pub struct AuxiliaryData<'a> {
 	/// The full block bytes, including the header.
 	pub bytes: Option<&'a [u8]>,
 	/// The block receipts.
-	pub receipts: Option<&'a [::receipt::Receipt]>,
+	pub receipts: Option<&'a [::types::receipt::Receipt]>,
 }
 
 /// Type alias for a function we can make calls through synchronously.
@@ -527,7 +527,7 @@ mod tests {
 			Default::default(),
 			ethparams,
 		);
-		let mut header = ::header::Header::new();
+		let mut header = ::types::header::Header::new();
 		header.set_number(15);
 
 		let res = machine.verify_transaction_basic(&transaction, &header);
@@ -547,8 +547,8 @@ mod tests {
 			ethparams,
 		);
 
-		let mut parent = ::header::Header::new();
-		let mut header = ::header::Header::new();
+		let mut parent = ::types::header::Header::new();
+		let mut header = ::types::header::Header::new();
 		header.set_number(1);
 
 		// this test will work for this constant only

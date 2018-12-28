@@ -1529,7 +1529,7 @@ mod tests {
 	use hash::keccak;
 	use ethereum_types::{Address, H520, H256, U256};
 	use ethkey::Signature;
-	use header::Header;
+	use types::header::Header;
 	use rlp::encode;
 	use block::*;
 	use test_helpers::{

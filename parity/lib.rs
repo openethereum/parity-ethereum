@@ -43,7 +43,7 @@ extern crate toml;
 
 extern crate blooms_db;
 extern crate cli_signer;
-extern crate common_types;
+extern crate common_types as types;
 extern crate ethcore;
 extern crate parity_bytes as bytes;
 extern crate ethcore_db;

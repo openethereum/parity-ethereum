@@ -50,11 +50,11 @@ use verification::PreverifiedBlock;
 use vm::{EnvInfo, LastHashes};
 
 use hash::keccak;
-use header::{Header, ExtendedHeader};
-use receipt::{Receipt, TransactionOutcome};
 use rlp::{RlpStream, Encodable, encode_list};
 use transaction::{SignedTransaction, Error as TransactionError};
 use types::block::Block;
+use types::header::{Header, ExtendedHeader};
+use types::receipt::{Receipt, TransactionOutcome};
 
 /// Block that is ready for transactions to be added.
 ///

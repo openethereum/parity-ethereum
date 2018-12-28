@@ -65,7 +65,7 @@ impl HeapSizeOf for SimpleList {
 }
 
 impl ValidatorSet for SimpleList {
-	fn default_caller(&self, _block_id: ::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, _block_id: ::types::ids::BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
 	}
 

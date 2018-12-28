@@ -340,7 +340,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
-		use log_entry::LogEntry;
+		use types::log_entry::LogEntry;
 
 		if self.static_flag {
 			return Err(vm::Error::MutableCallInStaticContext);

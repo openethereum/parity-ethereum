@@ -30,12 +30,12 @@ use transaction::{
 	UnverifiedTransaction,
 	SignedTransaction,
 };
+use types::header::Header;
 use parking_lot::RwLock;
 
 use account_provider::AccountProvider;
 use client::{TransactionId, BlockInfo, CallContract, Nonce};
 use engines::EthEngine;
-use header::Header;
 use miner;
 use miner::service_transaction_checker::ServiceTransactionChecker;
 

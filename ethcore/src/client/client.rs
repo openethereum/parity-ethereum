@@ -23,7 +23,6 @@ use std::time::{Instant, Duration};
 
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use bytes::Bytes;
-use encoded;
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, Address, U256};
 use evm::Schedule;
@@ -37,6 +36,7 @@ use rand::OsRng;
 use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
 use trie::{TrieSpec, TrieFactory, Trie};
 use types::ancestry_action::AncestryAction;
+use types::encoded;
 use types::filter::Filter;
 use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
@@ -2408,7 +2408,7 @@ impl super::traits::EngineClient for Client {
 		BlockChainClient::block_number(self, id)
 	}
 
-	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		BlockChainClient::block_header(self, id)
 	}
 }
@@ -2517,7 +2517,7 @@ mod tests {
 		use std::sync::atomic::{AtomicBool, Ordering};
 		use kvdb::DBTransaction;
 		use blockchain::ExtrasInsert;
-		use encoded;
+		use types::encoded;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;
@@ -2576,8 +2576,8 @@ mod tests {
 		use hash::keccak;
 		use super::transaction_receipt;
 		use ethkey::KeyPair;
-		use log_entry::{LogEntry, LocalizedLogEntry};
-		use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
+		use types::log_entry::{LogEntry, LocalizedLogEntry};
+		use types::receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 		use transaction::{Transaction, LocalizedTransaction, Action};
 
 		// given

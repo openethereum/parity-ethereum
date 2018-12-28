@@ -155,7 +155,7 @@ mod tests {
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
-	use header::Header;
+	use types::header::Header;
 	use miner::MinerService;
 	use spec::Spec;
 	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};

@@ -17,9 +17,9 @@
 use std::path::Path;
 use super::test_common::*;
 use client::EvmTestClient;
-use header::Header;
 use ethjson;
 use rlp::Rlp;
+use types::header::Header;
 use transaction::UnverifiedTransaction;
 
 /// Run transaction jsontests on a given folder.

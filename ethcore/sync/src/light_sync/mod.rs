@@ -38,7 +38,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 
-use ethcore::encoded;
+use types::encoded;
 use light::client::{AsLightClient, LightChainClient};
 use light::net::{
 	PeerStatus, Announcement, Handler, BasicContext,

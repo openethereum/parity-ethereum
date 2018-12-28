@@ -68,7 +68,7 @@ impl ValidatorContract {
 }
 
 impl ValidatorSet for ValidatorContract {
-	fn default_caller(&self, id: ::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, id: ::types::ids::BlockId) -> Box<Call> {
 		self.validators.default_caller(id)
 	}
 
@@ -140,7 +140,7 @@ mod tests {
 	use bytes::ToPretty;
 	use rlp::encode;
 	use spec::Spec;
-	use header::Header;
+	use types::header::Header;
 	use account_provider::AccountProvider;
 	use miner::MinerService;
 	use types::ids::BlockId;

@@ -534,10 +534,10 @@ mod tests {
 
 	#[test]
 	fn detects_bloom() {
-		use header::Header;
 		use engines::EpochChange;
 		use machine::AuxiliaryRequest;
-		use log_entry::LogEntry;
+		use types::header::Header;
+		use types::log_entry::LogEntry;
 
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
 		let engine = client.engine().clone();
@@ -573,7 +573,7 @@ mod tests {
 
 	#[test]
 	fn initial_contract_is_signal() {
-		use header::Header;
+		use types::header::Header;
 		use engines::{EpochChange, Proof};
 
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);

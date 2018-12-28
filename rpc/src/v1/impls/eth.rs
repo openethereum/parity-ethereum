@@ -24,18 +24,18 @@ use rlp::Rlp;
 use ethereum_types::{U256, H256, H160, Address};
 use parking_lot::Mutex;
 
-use common_types::BlockNumber as EthBlockNumber;
 use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
-use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
-use ethcore::encoded;
-use sync::SyncProvider;
-use miner::external::ExternalMinerService;
-use transaction::{SignedTransaction, LocalizedTransaction};
 use hash::keccak;
+use miner::external::ExternalMinerService;
+use sync::SyncProvider;
+use transaction::{SignedTransaction, LocalizedTransaction};
+use types::BlockNumber as EthBlockNumber;
+use types::encoded;
+use types::filter::Filter as EthcoreFilter;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
@@ -466,7 +466,7 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 }
 
 fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockChainClient {
-	use ethcore::block_status::BlockStatus;
+	use types::block_status::BlockStatus;
 
 	let id = match number {
 		BlockNumber::Pending => return Ok(()),

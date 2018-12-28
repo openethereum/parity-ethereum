@@ -28,8 +28,8 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::EthEngine;
-use header::Header;
-use ids::BlockId;
+use types::header::Header;
+use types::ids::BlockId;
 
 use ethereum_types::{H256, U256};
 use hashdb::HashDB;
