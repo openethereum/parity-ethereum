@@ -35,16 +35,9 @@ validate () {
   if [ "$VALIDATE" -eq "1" ]
   then
     echo "________Validate build________"
-    time cargo check $@ --no-default-features
-    time cargo check $@ --manifest-path util/io/Cargo.toml --no-default-features
-    time cargo check $@ --manifest-path util/io/Cargo.toml --features "mio"
-
-    MODIFIED=$(git ls-files -m | grep Cargo.lock | wc -l)
-    if [ "$MODIFIED" -eq "1" ]
-    then
-      echo "Detected Cargo.lock modification. Exitting."
-      exit 1
-    fi
+    time cargo check $@ --locked --no-default-features
+    time cargo check $@ --locked --manifest-path util/io/Cargo.toml --no-default-features
+    time cargo check $@ --locked --manifest-path util/io/Cargo.toml --features "mio"
 
     # Validate chainspecs
     echo "________Validate chainspecs________"
@@ -77,7 +70,7 @@ cpp_test () {
 cargo_test () {
   echo "________Running Parity Full Test Suite________"
   git submodule update --init --recursive
-  time cargo test $OPTIONS --features "$FEATURES" --all $@ -- --test-threads $THREADS
+  time cargo test $OPTIONS --features "$FEATURES" --locked --all $@ -- --test-threads $THREADS
 }
 
 
