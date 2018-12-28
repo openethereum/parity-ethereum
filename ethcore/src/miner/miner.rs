@@ -1095,13 +1095,12 @@ impl miner::MinerService for Miner {
 			None => return,
 		};
 
-		// refuse to seal the first block of the chain if it contains hard forks
+		// warn if the first block of the chain contains hard forks
 		// which should be on by default.
 		if block.block().header().number() == 1 {
 			if let Some(name) = self.engine.params().nonzero_bugfix_hard_fork() {
 				warn!("Your chain specification contains one or more hard forks which are required to be \
 					   on by default. Please remove these forks and start your chain again: {}.", name);
-				return;
 			}
 		}
 
