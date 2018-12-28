@@ -23,7 +23,7 @@ vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
 failsafe = { version = "0.3.0", default-features = false, features = ["parking_lot_mutex"] }
 rlp = { version = "0.3.0", features = ["ethereum"] }
-rlp_derive = { path = "../../util/rlp_derive" }
+rlp_derive = { path = "../../util/rlp-derive" }
 smallvec = "0.6"
 futures = "0.1"
 rand = "0.4"
@@ -37,7 +37,7 @@ keccak-hash = "0.1"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 kvdb = "0.1"
-memory-cache = { path = "../../util/memory_cache" }
+memory-cache = { path = "../../util/memory-cache" }
 error-chain = { version = "0.12", default-features = false }
 
 [dev-dependencies]

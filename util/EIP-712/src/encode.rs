@@ -23,9 +23,9 @@ use std::str::FromStr;
 use itertools::Itertools;
 use indexmap::IndexSet;
 use serde_json::to_value;
-use parser::{Parser, Type};
-use error::{Result, ErrorKind, serde_error};
-use eip712::{EIP712, MessageTypes};
+use crate::parser::{Parser, Type};
+use crate::error::{Result, ErrorKind, serde_error};
+use crate::eip712::{EIP712, MessageTypes};
 use rustc_hex::FromHex;
 use validator::Validate;
 use std::collections::HashSet;
@@ -162,7 +162,7 @@ fn encode_data(
 
 			check_hex(&string)?;
 
-			let mut bytes = (&string[2..])
+			let bytes = (&string[2..])
 				.from_hex::<Vec<u8>>()
 				.map_err(|err| ErrorKind::HexParseError(format!("{}", err)))?;
 
