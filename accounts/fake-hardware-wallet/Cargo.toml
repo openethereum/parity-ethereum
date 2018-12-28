@@ -1,0 +1,10 @@
+[package]
+description = "Fake hardware-wallet, for OS' that don't support libusb"
+name = "fake-hardware-wallet"
+version = "0.0.1"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethereum-types = "0.4"
+ethkey = { path = "../../accounts/ethkey" }

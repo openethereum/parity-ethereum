@@ -59,15 +59,14 @@ cpp_test () {
     (x86_64-unknown-linux-gnu)
       # Running the C++ example
       echo "________Running the C++ example________"
-      cd parity-clib-examples/cpp && \
-        mkdir -p build && \
-        cd build && \
-        cmake .. && \
-        make -j $THREADS && \
-        ./parity-example && \
-        cd .. && \
-        rm -rf build && \
-        cd ../..
+      DIR=parity-clib/examples/cpp/build
+      mkdir -p $DIR
+      cd $DIR
+      cmake ..
+      make -j $THREADS
+      ./parity-example
+      cd -
+      rm -rf $DIR
       ;;
     (*)
       echo "________Skipping the C++ example________"

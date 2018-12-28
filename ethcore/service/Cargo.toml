@@ -13,7 +13,6 @@ ethcore-sync = { path = "../sync" }
 ethereum-types = "0.4"
 kvdb = "0.1"
 log = "0.4"
-stop-guard = { path = "../../util/stop-guard" }
 trace-time = "0.1"
 
 [dev-dependencies]

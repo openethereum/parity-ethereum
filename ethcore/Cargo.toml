@@ -25,16 +25,16 @@ error-chain = { version = "0.12", default-features = false }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
-ethcore-stratum = { path = "./stratum", optional = true }
+ethcore-stratum = { path = "../miner/stratum", optional = true }
 ethcore-transaction = { path = "./transaction" }
 ethereum-types = "0.4"
-memory-cache = { path = "../util/memory_cache" }
+memory-cache = { path = "../util/memory-cache" }
 ethabi = "6.0"
 ethabi-derive = "6.0"
 ethabi-contract = "6.0"
 ethjson = { path = "../json" }
-ethkey = { path = "../ethkey" }
-ethstore = { path = "../ethstore" }
+ethkey = { path = "../accounts/ethkey" }
+ethstore = { path = "../accounts/ethstore" }
 evm = { path = "evm" }
 heapsize = "0.4"
 itertools = "0.5"
@@ -48,17 +48,16 @@ parking_lot = "0.7"
 rayon = "1.0"
 rand = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }
-rlp_compress = { path = "../util/rlp_compress" }
-rlp_derive = { path = "../util/rlp_derive" }
+rlp_compress = { path = "../util/rlp-compress" }
+rlp_derive = { path = "../util/rlp-derive" }
 kvdb = "0.1"
 kvdb-memorydb = "0.1"
 parity-snappy = "0.1"
-stop-guard = { path = "../util/stop-guard" }
 macros = { path = "../util/macros" }
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 trace-time = "0.1"
-using_queue = { path = "../util/using_queue" }
+using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 keccak-hash = "0.1"
@@ -73,10 +72,10 @@ tempdir = {version="0.3", optional = true}
 len-caching-lock = { path = "../util/len-caching-lock" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
-hardware-wallet = { path = "../hw" }
+hardware-wallet = { path = "../accounts/hw" }
 
 [target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
-fake-hardware-wallet = { path = "../util/fake-hardware-wallet" }
+fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
 
 [dev-dependencies]
 env_logger = "0.4"

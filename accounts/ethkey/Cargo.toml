@@ -1,0 +1,21 @@
+[package]
+name = "ethkey"
+version = "0.3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+byteorder = "1.0"
+edit-distance = "2.0"
+parity-crypto = "0.2"
+eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
+ethereum-types = "0.4"
+lazy_static = "1.0"
+log = "0.4"
+memzero = { path = "../../util/memzero" }
+parity-wordlist = "1.2"
+quick-error = "1.2.2"
+rand = "0.4"
+rustc-hex = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+tiny-keccak = "1.4"

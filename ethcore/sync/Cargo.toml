@@ -34,7 +34,7 @@ trace-time = "0.1"
 
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }
-ethkey = { path = "../../ethkey" }
+ethkey = { path = "../../accounts/ethkey" }
 kvdb-memorydb = "0.1"
 ethcore-private-tx = { path = "../private-tx" }
 ethcore = { path = "..", features = ["test-helpers"] }
