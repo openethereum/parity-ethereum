@@ -93,7 +93,7 @@ fn encode_first_proof(header: &Header, state_items: &[Vec<u8>]) -> Bytes {
 fn check_first_proof(machine: &EthereumMachine, contract_address: Address, old_header: Header, state_items: &[DBValue])
 	-> Result<Vec<Address>, String>
 {
-	use transaction::{Action, Transaction};
+	use types::transaction::{Action, Transaction};
 
 	// TODO: match client contract_call_tx more cleanly without duplication.
 	const PROVIDED_GAS: u64 = 50_000_000;
@@ -446,7 +446,7 @@ mod tests {
 	use types::ids::BlockId;
 	use spec::Spec;
 	use account_provider::AccountProvider;
-	use transaction::{Transaction, Action};
+	use types::transaction::{Transaction, Action};
 	use client::{ChainInfo, BlockInfo, ImportBlock};
 	use ethkey::Secret;
 	use miner::MinerService;

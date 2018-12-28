@@ -33,7 +33,7 @@ use journaldb;
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
-use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
+use types::transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Action};
 use trie::{TrieSpec, TrieFactory, Trie};
 use types::ancestry_action::AncestryAction;
 use types::encoded;
@@ -2579,7 +2579,7 @@ mod tests {
 		use ethkey::KeyPair;
 		use types::log_entry::{LogEntry, LocalizedLogEntry};
 		use types::receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-		use transaction::{Transaction, LocalizedTransaction, Action};
+		use types::transaction::{Transaction, LocalizedTransaction, Action};
 
 		// given
 		let key = KeyPair::from_secret_slice(&keccak("test")).unwrap();

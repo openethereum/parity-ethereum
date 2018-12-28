@@ -21,7 +21,6 @@ use std::{mem, io};
 use std::path::Path;
 use std::sync::Arc;
 
-use log::{trace, warn, info};
 use ansi_term::Colour;
 use blooms_db;
 use common_types::BlockNumber;
@@ -32,17 +31,18 @@ use common_types::engines::epoch::{Transition as EpochTransition, PendingTransit
 use common_types::header::{Header, ExtendedHeader};
 use common_types::log_entry::{LogEntry, LocalizedLogEntry};
 use common_types::receipt::Receipt;
+use common_types::transaction::LocalizedTransaction;
 use common_types::tree_route::TreeRoute;
-use common_types::views::{BlockView, HeaderView};
 use common_types::view;
-use ethcore_db::{self as db, Writable, Readable, CacheUpdatePolicy};
+use common_types::views::{BlockView, HeaderView};
 use ethcore_db::cache_manager::CacheManager;
 use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
-use ethcore_transaction::LocalizedTransaction;
+use ethcore_db::{self as db, Writable, Readable, CacheUpdatePolicy};
 use ethereum_types::{H256, Bloom, BloomRef, U256};
 use heapsize::HeapSizeOf;
 use itertools::Itertools;
 use kvdb::{DBTransaction, KeyValueDB};
+use log::{trace, warn, info};
 use parity_bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
@@ -1557,8 +1557,8 @@ mod tests {
 	use std::iter;
 
 	use common_types::receipt::{Receipt, TransactionOutcome};
+	use common_types::transaction::{Transaction, Action};
 	use crate::generator::{BlockGenerator, BlockBuilder, BlockOptions};
-	use ethcore_transaction::{Transaction, Action};
 	use ethkey::Secret;
 	use keccak_hash::keccak;
 	use rustc_hex::FromHex;

@@ -18,7 +18,6 @@
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use hash::keccak;
-// use rlp::{Rlp, Decodable};
 use super::ViewRlp;
 
 /// View onto transaction rlp.

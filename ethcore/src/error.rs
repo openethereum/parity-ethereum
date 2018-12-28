@@ -25,7 +25,7 @@ use ethtrie::TrieError;
 use rlp;
 use snappy::InvalidInput;
 use snapshot::Error as SnapshotError;
-use transaction::Error as TransactionError;
+use types::transaction::Error as TransactionError;
 use types::BlockNumber;
 use unexpected::{Mismatch, OutOfBounds};
 

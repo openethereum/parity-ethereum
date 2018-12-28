@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
-use transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
+use types::transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
 use types::BlockNumber;
 use types::header::{Header, ExtendedHeader};
 use vm::{CallType, ActionParams, ActionValue, ParamsType};

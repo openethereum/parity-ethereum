@@ -27,7 +27,7 @@ use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
 use std::sync::Arc;
 use miner::Miner;
-use transaction::{Action, Transaction};
+use types::transaction::{Action, Transaction};
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 use test_helpers;

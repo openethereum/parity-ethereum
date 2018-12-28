@@ -628,7 +628,7 @@ mod tests {
 	use rlp::{encode_list,RlpStream};
 	use tests::helpers::TestIo;
 	use tests::snapshot::TestSnapshotService;
-	use transaction::{Transaction,SignedTransaction};
+	use types::transaction::{Transaction,SignedTransaction};
 	use triehash_ethereum::ordered_trie_root;
 	use types::header::Header as BlockHeader;
 

@@ -20,7 +20,6 @@ extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_logger as logger;
 extern crate ethcore_sync as sync;
-extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate hyper;

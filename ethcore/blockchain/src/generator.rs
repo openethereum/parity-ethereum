@@ -20,10 +20,10 @@ use std::collections::VecDeque;
 use ethereum_types::{U256, H256, Bloom};
 
 use common_types::encoded;
-use common_types::view;
 use common_types::header::Header;
+use common_types::transaction::SignedTransaction;
+use common_types::view;
 use common_types::views::BlockView;
-use ethcore_transaction::SignedTransaction;
 use rlp::encode;
 use rlp_derive::{RlpEncodable};
 

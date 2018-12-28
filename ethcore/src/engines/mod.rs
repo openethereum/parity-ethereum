@@ -47,7 +47,7 @@ use types::BlockNumber;
 use types::header::Header;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
-use transaction::{self, UnverifiedTransaction, SignedTransaction};
+use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Password, Signature};
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![warn(missing_docs)]
+#![warn(missing_docs, unused_extern_crates)]
 
 //! Ethcore library
 //!
@@ -71,7 +71,6 @@ extern crate ethcore_logger;
 extern crate ethcore_miner;
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
-extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
@@ -91,7 +90,6 @@ extern crate parking_lot;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
-extern crate rlp_compress;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate heapsize;

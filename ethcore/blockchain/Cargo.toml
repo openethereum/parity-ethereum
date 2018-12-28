@@ -12,7 +12,6 @@ ansi_term = "0.10"
 blooms-db = { path = "../../util/blooms-db" }
 common-types = { path = "../types" }
 ethcore-db = { path = "../db" }
-ethcore-transaction = { path = ".././transaction" }
 ethereum-types = "0.4"
 heapsize = "0.4"
 itertools = "0.5"

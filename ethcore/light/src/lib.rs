@@ -59,7 +59,6 @@ extern crate ethcore_blockchain;
 extern crate ethcore_db;
 extern crate ethcore_io as io;
 extern crate ethcore_network as network;
-extern crate ethcore_transaction as transaction;
 extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate ethcore;

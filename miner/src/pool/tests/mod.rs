@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::U256;
-use transaction::{self, PendingTransaction};
+use types::transaction::{self, PendingTransaction};
 use txpool;
 
 use pool::{verifier, TransactionQueue, PrioritizationStrategy, PendingSettings, PendingOrdering};

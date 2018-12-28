@@ -17,7 +17,7 @@
 //! Ethereum transaction
 
 use evm::Schedule;
-use transaction::{self, Action};
+use types::transaction::{self, Action};
 
 /// Extends transaction with gas verification method.
 pub trait Transaction {

@@ -36,7 +36,7 @@ use ethcore::client::BlockChainClient;
 use ethcore::miner::{self, MinerService};
 use ethkey::{Password, Signature};
 use sync::LightSync;
-use transaction::{Action, SignedTransaction, PendingTransaction, Transaction, Error as TransactionError};
+use types::transaction::{Action, SignedTransaction, PendingTransaction, Transaction, Error as TransactionError};
 use types::basic_account::BasicAccount;
 use types::ids::BlockId;
 

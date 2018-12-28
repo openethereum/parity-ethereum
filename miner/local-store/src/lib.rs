@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::fmt;
 use std::time::Duration;
 
-use transaction::{
+use common_types::transaction::{
 	SignedTransaction, PendingTransaction, UnverifiedTransaction,
 	Condition as TransactionCondition
 };
@@ -29,7 +29,6 @@ use rlp::Rlp;
 use kvdb::KeyValueDB;
 
 extern crate common_types;
-extern crate ethcore_transaction as transaction;
 extern crate ethcore_io as io;
 extern crate rlp;
 extern crate serde_json;
@@ -232,7 +231,7 @@ mod tests {
 	use super::NodeInfo;
 
 	use std::sync::Arc;
-	use transaction::{Transaction, Condition, PendingTransaction};
+	use common_types::transaction::{Transaction, Condition, PendingTransaction};
 	use ethkey::{Brain, Generator};
 
 	// we want to test: round-trip of good transactions.

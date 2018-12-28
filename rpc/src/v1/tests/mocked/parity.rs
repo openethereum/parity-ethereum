@@ -433,11 +433,11 @@ fn rpc_parity_transactions_stats() {
 fn rpc_parity_local_transactions() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
-	let tx = ::transaction::Transaction {
+	let tx = ::types::transaction::Transaction {
 		value: 5.into(),
 		gas: 3.into(),
 		gas_price: 2.into(),
-		action: ::transaction::Action::Create,
+		action: ::types::transaction::Action::Create,
 		data: vec![1, 2, 3],
 		nonce: 0.into(),
 	}.fake_sign(3.into());

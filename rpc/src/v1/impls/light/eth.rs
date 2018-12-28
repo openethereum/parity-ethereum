@@ -35,7 +35,7 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use parking_lot::{RwLock, Mutex};
 use rlp::Rlp;
 use sync::LightSync;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 use types::encoded;
 use types::filter::Filter as EthcoreFilter;
 use types::ids::BlockId;

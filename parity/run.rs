@@ -149,7 +149,7 @@ struct FullNodeInfo {
 }
 
 impl ::local_store::NodeInfo for FullNodeInfo {
-	fn pending_transactions(&self) -> Vec<::transaction::PendingTransaction> {
+	fn pending_transactions(&self) -> Vec<::types::transaction::PendingTransaction> {
 		let miner = match self.miner.as_ref() {
 			Some(m) => m,
 			None => return Vec::new(),

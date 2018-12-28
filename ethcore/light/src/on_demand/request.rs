@@ -23,6 +23,7 @@ use bytes::Bytes;
 use common_types::basic_account::BasicAccount;
 use common_types::encoded;
 use common_types::receipt::Receipt;
+use common_types::transaction::SignedTransaction;
 use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
 use ethcore::state::{self, ProvedExecution};
@@ -35,7 +36,6 @@ use memorydb::MemoryDB;
 use parking_lot::Mutex;
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 use rlp::{RlpStream, Rlp};
-use transaction::SignedTransaction;
 use trie::Trie;
 use vm::EnvInfo;
 

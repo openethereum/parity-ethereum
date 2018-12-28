@@ -841,7 +841,7 @@ impl Spec {
 	/// initialize genesis epoch data, using in-memory database for
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
-		use transaction::{Action, Transaction};
+		use types::transaction::{Action, Transaction};
 		use journaldb;
 		use kvdb_memorydb;
 

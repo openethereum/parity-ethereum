@@ -20,6 +20,7 @@
 use common_types::blockchain_info::BlockChainInfo;
 use common_types::encoded;
 use common_types::ids::BlockId;
+use common_types::transaction::{Action, PendingTransaction};
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethereum_types::{H256, U256, Address};
 use net::context::IoContext;
@@ -31,7 +32,6 @@ use provider::Provider;
 use request::*;
 use request;
 use rlp::{Rlp, RlpStream};
-use transaction::{Action, PendingTransaction};
 
 use std::sync::Arc;
 use std::time::Instant;

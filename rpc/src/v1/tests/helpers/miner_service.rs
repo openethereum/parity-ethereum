@@ -31,7 +31,7 @@ use ethkey::Password;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
-use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
+use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use txpool;
 use types::BlockNumber;
 use types::block::Block;

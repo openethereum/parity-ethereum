@@ -32,7 +32,7 @@ use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
 use miner;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use transaction::{
+use types::transaction::{
 	self,
 	Action,
 	UnverifiedTransaction,
@@ -1293,7 +1293,7 @@ mod tests {
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
 	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
-	use transaction::{Transaction};
+	use types::transaction::{Transaction};
 
 	#[test]
 	fn should_prepare_block_to_seal() {

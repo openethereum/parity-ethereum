@@ -23,7 +23,7 @@ use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;
 use ethcore::verification::queue::kind::blocks::Unverified;
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
 use types::header::Header as BlockHeader;
 
 known_heap_size!(0, HeaderId);

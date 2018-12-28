@@ -16,19 +16,8 @@
 
 //! Ethereum Transactions
 
-extern crate ethereum_types;
-extern crate ethjson;
-extern crate ethkey;
-extern crate heapsize;
-extern crate keccak_hash as hash;
-extern crate rlp;
-extern crate unexpected;
-
-#[cfg(test)]
-extern crate rustc_hex;
-
 mod error;
 mod transaction;
 
-pub use error::Error;
-pub use transaction::*;
+pub use self::error::Error;
+pub use self::transaction::*;

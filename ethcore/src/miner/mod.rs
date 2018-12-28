@@ -36,7 +36,7 @@ use bytes::Bytes;
 use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
 use ethereum_types::{H256, U256, Address};
 use ethkey::Password;
-use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
+use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use types::BlockNumber;
 use types::block::Block;
 use types::header::Header;

@@ -30,7 +30,7 @@ use parking_lot::Mutex;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
 use sync::SyncState;
-use transaction::{Transaction, Action};
+use types::transaction::{Transaction, Action};
 use types::log_entry::{LocalizedLogEntry, LogEntry};
 use types::receipt::{LocalizedReceipt, TransactionOutcome};
 
@@ -584,7 +584,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 fn rpc_eth_pending_transaction_by_hash() {
 	use ethereum_types::H256;
 	use rlp;
-	use transaction::SignedTransaction;
+	use types::transaction::SignedTransaction;
 
 	let tester = EthTester::default();
 	{

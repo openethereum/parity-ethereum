@@ -1090,7 +1090,7 @@ pub mod block_body {
 	impl Decodable for Response {
 		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 			use common_types::header::Header as FullHeader;
-			use transaction::UnverifiedTransaction;
+			use common_types::transaction::UnverifiedTransaction;
 
 			// check body validity.
 			let _: Vec<UnverifiedTransaction> = rlp.list_at(0)?;
@@ -1406,7 +1406,7 @@ pub mod contract_code {
 /// A request for proof of execution.
 pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use transaction::Action;
+	use common_types::transaction::Action;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBValue;
@@ -1749,7 +1749,7 @@ mod tests {
 
 	#[test]
 	fn body_roundtrip() {
-		use transaction::{Transaction, UnverifiedTransaction};
+		use common_types::transaction::{Transaction, UnverifiedTransaction};
 		let req = IncompleteBodyRequest {
 			hash: Field::Scalar(Default::default()),
 		};
@@ -1844,7 +1844,7 @@ mod tests {
 		let req = IncompleteExecutionRequest {
 			block_hash: Field::Scalar(Default::default()),
 			from: Default::default(),
-			action: ::transaction::Action::Create,
+			action: ::common_types::transaction::Action::Create,
 			gas: 100_000.into(),
 			gas_price: 0.into(),
 			value: 100_000_001.into(),
@@ -1874,7 +1874,7 @@ mod tests {
 		let reqs: Vec<_> = (0..10).map(|_| IncompleteExecutionRequest {
 			block_hash: Field::Scalar(Default::default()),
 			from: Default::default(),
-			action: ::transaction::Action::Create,
+			action: ::common_types::transaction::Action::Create,
 			gas: 100_000.into(),
 			gas_price: 0.into(),
 			value: 100_000_001.into(),

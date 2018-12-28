@@ -23,7 +23,7 @@ use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
-use transaction::Error as TransactionError;
+use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};

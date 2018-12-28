@@ -136,7 +136,7 @@ mod tests {
 
 	use bytes::Bytes;
 	use ethereum_types::{H256, U256, Address};
-	use transaction::{Action, Transaction};
+	use types::transaction::{Action, Transaction};
 	use types::block::Block;
 	use types::view;
 	use types::views::BlockView;

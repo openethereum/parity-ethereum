@@ -32,7 +32,7 @@ use ethcore::snapshot::SnapshotService;
 use hash::keccak;
 use miner::external::ExternalMinerService;
 use sync::SyncProvider;
-use transaction::{SignedTransaction, LocalizedTransaction};
+use types::transaction::{SignedTransaction, LocalizedTransaction};
 use types::BlockNumber as EthBlockNumber;
 use types::encoded;
 use types::filter::Filter as EthcoreFilter;

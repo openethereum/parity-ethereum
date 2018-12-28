@@ -47,7 +47,7 @@ use hash::H256;
 use parking_lot::Mutex;
 use fastmap::H256FastMap;
 use std::collections::BTreeMap;
-use transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
+use types::transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};

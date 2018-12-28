@@ -17,13 +17,15 @@
 //! Transaction data structure.
 
 use std::ops::Deref;
+
 use ethereum_types::{H256, H160, Address, U256};
-use error;
 use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
+
+use transaction::error;
 
 type Bytes = Vec<u8>;
 type BlockNumber = u64;
@@ -341,6 +343,7 @@ impl UnverifiedTransaction {
 		&self.unsigned
 	}
 
+	/// Returns standardized `v` value (0, 1 or 4 (invalid))
 	pub fn standard_v(&self) -> u8 { signature::check_replay_protection(self.v) }
 
 	/// The `v` value that appears in the RLP.

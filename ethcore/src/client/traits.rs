@@ -24,7 +24,7 @@ use ethereum_types::{H256, U256, Address};
 use evm::Schedule;
 use itertools::Itertools;
 use kvdb::DBValue;
-use transaction::{self, LocalizedTransaction, SignedTransaction};
+use types::transaction::{self, LocalizedTransaction, SignedTransaction};
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::block_status::BlockStatus;

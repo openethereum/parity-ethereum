@@ -20,14 +20,13 @@
 
 extern crate ethereum_types;
 extern crate ethjson;
+extern crate ethkey;
 extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
-extern crate rlp;
-// TODO [ToDr] Consider feature-gating?
 extern crate parity_machine;
-// TODO [ToDr] merge
-extern crate ethcore_transaction as transaction;
+extern crate rlp;
+extern crate unexpected;
 
 #[macro_use]
 extern crate rlp_derive;
@@ -58,6 +57,7 @@ pub mod security_level;
 pub mod snapshot_manifest;
 pub mod state_diff;
 pub mod trace_filter;
+pub mod transaction;
 pub mod tree_route;
 pub mod verification_queue_info;
 

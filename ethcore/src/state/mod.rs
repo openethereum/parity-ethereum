@@ -38,7 +38,7 @@ use pod_state::{self, PodState};
 use types::basic_account::BasicAccount;
 use executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 use state_db::StateDB;
 use factory::VmFactory;
 
@@ -1316,7 +1316,7 @@ mod tests {
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
 	use spec::*;
-	use transaction::*;
+	use types::transaction::*;
 	use ethcore_logger::init_log;
 	use trace::{FlatTrace, TraceError, trace};
 	use evm::CallType;

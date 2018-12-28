@@ -53,7 +53,6 @@ extern crate ethcore_logger;
 extern crate ethcore_miner as miner;
 extern crate ethcore_private_tx;
 extern crate ethcore_sync as sync;
-extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;

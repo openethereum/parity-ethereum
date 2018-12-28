@@ -38,7 +38,7 @@ use ethkey::Secret;
 use ethstore::ethkey::{Generator, Random};
 use parking_lot::Mutex;
 use serde_json;
-use transaction::{Transaction, Action, SignedTransaction};
+use types::transaction::{Transaction, Action, SignedTransaction};
 use parity_runtime::{Runtime, Executor};
 
 struct SigningTester {

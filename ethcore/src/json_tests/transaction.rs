@@ -20,7 +20,7 @@ use client::EvmTestClient;
 use ethjson;
 use rlp::Rlp;
 use types::header::Header;
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
 use transaction_ext::Transaction;
 
 /// Run transaction jsontests on a given folder.
@@ -68,7 +68,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 
 					let minimal = t.gas_required(&spec.engine.schedule(header.number())).into();
 					if t.gas < minimal {
-						return Err(::transaction::Error::InsufficientGas {
+						return Err(::types::transaction::Error::InsufficientGas {
 							minimal, got: t.gas,
 						}.into());
 					}

@@ -22,7 +22,7 @@ use ethkey::KeyPair;
 use hash::keccak;
 use io::IoChannel;
 use tempdir::TempDir;
-use transaction::{PendingTransaction, Transaction, Action, Condition};
+use types::transaction::{PendingTransaction, Transaction, Action, Condition};
 use types::filter::Filter;
 use types::view;
 use types::views::BlockView;

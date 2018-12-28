@@ -7,7 +7,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 common-types = { path = "../../ethcore/types" }
 ethcore-io = { path = "../../util/io" }
-ethcore-transaction = { path = "../../ethcore/transaction" }
 kvdb = "0.1"
 log = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }

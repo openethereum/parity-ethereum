@@ -72,7 +72,7 @@ pub mod blocks {
 	use error::{Error, ErrorKind, BlockError};
 	use types::header::Header;
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
-	use transaction::UnverifiedTransaction;
+	use types::transaction::UnverifiedTransaction;
 
 	use heapsize::HeapSizeOf;
 	use ethereum_types::{H256, U256};

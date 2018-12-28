@@ -24,7 +24,7 @@ use network::{PeerId, PacketId};
 use rand::Rng;
 use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 use types::BlockNumber;
 use types::blockchain_info::BlockChainInfo;
 

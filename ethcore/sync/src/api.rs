@@ -48,7 +48,7 @@ use light::net::{
 };
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -594,7 +594,7 @@ impl ChainNotify for EthSync {
 struct TxRelay(Arc<BlockChainClient>);
 
 impl LightHandler for TxRelay {
-	fn on_transactions(&self, ctx: &EventContext, relay: &[::transaction::UnverifiedTransaction]) {
+	fn on_transactions(&self, ctx: &EventContext, relay: &[::types::transaction::UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
 		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx)).collect(), ctx.peer())
 	}

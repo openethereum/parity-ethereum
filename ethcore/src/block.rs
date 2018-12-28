@@ -51,7 +51,7 @@ use vm::{EnvInfo, LastHashes};
 
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
-use transaction::{SignedTransaction, Error as TransactionError};
+use types::transaction::{SignedTransaction, Error as TransactionError};
 use types::block::Block;
 use types::header::{Header, ExtendedHeader};
 use types::receipt::{Receipt, TransactionOutcome};
@@ -600,7 +600,7 @@ mod tests {
 	use ethereum_types::Address;
 	use std::sync::Arc;
 	use verification::queue::kind::blocks::Unverified;
-	use transaction::SignedTransaction;
+	use types::transaction::SignedTransaction;
 	use types::header::Header;
 	use types::view;
 	use types::views::BlockView;

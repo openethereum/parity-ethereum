@@ -1538,7 +1538,7 @@ mod tests {
 	};
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use transaction::{Action, Transaction};
+	use types::transaction::{Action, Transaction};
 	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::{TestSet, SimpleList};
 	use error::{Error, ErrorKind};

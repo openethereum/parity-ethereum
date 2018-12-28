@@ -35,7 +35,7 @@ use kvdb_memorydb;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
-use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
+use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::encoded;

@@ -25,7 +25,7 @@ use std::{
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool;
 use ethcore_miner::pool::client::NonceClient;
-use transaction::{
+use types::transaction::{
 	self,
 	UnverifiedTransaction,
 	SignedTransaction,

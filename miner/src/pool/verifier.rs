@@ -28,8 +28,8 @@ use std::sync::atomic::{self, AtomicUsize};
 
 use ethereum_types::{U256, H256};
 use rlp::Encodable;
-use transaction;
 use txpool;
+use types::transaction;
 
 use super::client::{Client, TransactionType};
 use super::VerifiedTransaction;

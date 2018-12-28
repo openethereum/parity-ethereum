@@ -114,7 +114,7 @@ use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
 use types::BlockNumber;
 
 use self::handler::SyncHandler;

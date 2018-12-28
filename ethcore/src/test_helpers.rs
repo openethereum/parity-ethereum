@@ -33,7 +33,7 @@ use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use tempdir::TempDir;
-use transaction::{Action, Transaction, SignedTransaction};
+use types::transaction::{Action, Transaction, SignedTransaction};
 use types::encoded;
 use types::header::Header;
 use types::view;

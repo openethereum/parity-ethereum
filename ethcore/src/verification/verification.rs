@@ -36,7 +36,7 @@ use client::{BlockInfo, CallContract};
 use engines::EthEngine;
 use error::{BlockError, Error};
 use types::{BlockNumber, header::Header};
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 use verification::queue::kind::blocks::Unverified;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
@@ -386,7 +386,7 @@ mod tests {
 	use ethkey::{Random, Generator};
 	use spec::{CommonParams, Spec};
 	use test_helpers::{create_test_block_with_data, create_test_block};
-	use transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
+	use types::transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
 	use rlp;
 	use triehash::ordered_trie_root;
@@ -786,7 +786,7 @@ mod tests {
 	#[test]
 	fn dust_protection() {
 		use ethkey::{Generator, Random};
-		use transaction::{Transaction, Action};
+		use types::transaction::{Transaction, Action};
 		use machine::EthereumMachine;
 		use engines::NullEngine;
 

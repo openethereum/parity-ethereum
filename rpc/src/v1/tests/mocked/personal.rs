@@ -23,7 +23,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use jsonrpc_core::IoHandler;
 use parking_lot::Mutex;
-use transaction::{Action, Transaction};
+use types::transaction::{Action, Transaction};
 use parity_runtime::Runtime;
 use hash::keccak;
 
