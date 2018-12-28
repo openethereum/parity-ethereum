@@ -54,6 +54,7 @@ fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
 	result
 }
 
+/// Wrapper for block number used as a DB key.
 pub struct BlockNumberKey([u8; 5]);
 
 impl ops::Deref for BlockNumberKey {
@@ -219,10 +220,12 @@ impl HeapSizeOf for TransactionAddress {
 /// Contains all block receipts.
 #[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct BlockReceipts {
+	/// Block receipts
 	pub receipts: Vec<Receipt>,
 }
 
 impl BlockReceipts {
+	/// Create new block receipts wrapper.
 	pub fn new(receipts: Vec<Receipt>) -> Self {
 		BlockReceipts {
 			receipts: receipts
@@ -239,7 +242,9 @@ impl HeapSizeOf for BlockReceipts {
 /// Candidate transitions to an epoch with specific number.
 #[derive(Clone, RlpEncodable, RlpDecodable)]
 pub struct EpochTransitions {
+	/// Epoch number
 	pub number: u64,
+	/// List of candidate transitions
 	pub candidates: Vec<EpochTransition>,
 }
 
