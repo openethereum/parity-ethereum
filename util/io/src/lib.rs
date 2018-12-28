@@ -80,6 +80,8 @@ extern crate num_cpus;
 extern crate timer;
 extern crate fnv;
 extern crate time;
+extern crate tokio;
+extern crate futures;
 
 #[cfg(feature = "mio")]
 mod service_mio;

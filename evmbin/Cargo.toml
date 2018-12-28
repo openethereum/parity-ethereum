@@ -17,7 +17,7 @@ parity-bytes = "0.1"
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.4"
 evm = { path = "../ethcore/evm" }
-panic_hook = { path = "../util/panic_hook" }
+panic_hook = { path = "../util/panic-hook" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"

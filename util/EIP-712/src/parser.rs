@@ -16,7 +16,7 @@
 
 //! Solidity type-name parsing
 use lunarity_lexer::{Lexer, Token};
-use error::*;
+use crate::error::*;
 use toolshed::Arena;
 use std::{fmt, result};
 

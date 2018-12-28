@@ -62,6 +62,7 @@ extern crate ethereum_types;
 extern crate ethcore;
 extern crate hashdb;
 extern crate heapsize;
+extern crate failsafe;
 extern crate futures;
 extern crate itertools;
 extern crate keccak_hasher;

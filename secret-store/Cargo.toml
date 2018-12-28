@@ -1,0 +1,42 @@
+[package]
+description = "Ethcore Secret Store"
+name = "ethcore-secretstore"
+version = "1.0.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+byteorder = "1.0"
+log = "0.4"
+parking_lot = "0.7"
+hyper = { version = "0.12", default-features = false }
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+futures = "0.1"
+rustc-hex = "1.0"
+tiny-keccak = "1.4"
+tokio = "~0.1.11"
+parity-runtime = { path = "../util/runtime" }
+tokio-io = "0.1"
+tokio-service = "0.1"
+url = "1.0"
+ethcore = { path = "../ethcore" }
+parity-bytes = "0.1"
+parity-crypto = "0.2"
+ethcore-logger = { path = "../logger" }
+ethcore-sync = { path = "../ethcore/sync" }
+ethcore-transaction = { path = "../ethcore/transaction" }
+ethereum-types = "0.4"
+kvdb = "0.1"
+keccak-hash = "0.1"
+ethkey = { path = "../accounts/ethkey" }
+lazy_static = "1.0"
+ethabi = "6.0"
+ethabi-derive = "6.0"
+ethabi-contract = "6.0"
+
+[dev-dependencies]
+ethcore = { path = "../ethcore", features = ["test-helpers"] }
+tempdir = "0.3"
+kvdb-rocksdb = "0.1.3"
