@@ -129,7 +129,6 @@ members = [
 	"accounts/ethkey/cli",
 	"accounts/ethstore/cli",
 	"chainspec",
-	"ethcore",
 	"ethcore/wasm/run",
 	"evmbin",
 	"parity-clib",
