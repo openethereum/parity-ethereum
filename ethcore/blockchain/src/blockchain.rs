@@ -1557,19 +1557,50 @@ mod tests {
 	use std::iter;
 
 	use common_types::receipt::{Receipt, TransactionOutcome};
-	use common_types::view;
 	use crate::generator::{BlockGenerator, BlockBuilder, BlockOptions};
 	use ethcore_transaction::{Transaction, Action};
 	use ethkey::Secret;
 	use keccak_hash::keccak;
 	use rustc_hex::FromHex;
+	use tempdir::TempDir;
 
-	use ethcore::test_helpers::{
-		generate_dummy_blockchain,
-		generate_dummy_blockchain_with_extra,
-		generate_dummy_empty_blockchain,
-		new_db,
-	};
+	struct TestBlockChainDB {
+		_blooms_dir: TempDir,
+		_trace_blooms_dir: TempDir,
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for TestBlockChainDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &blooms_db::Database {
+			&self.blooms
+		}
+
+		fn trace_blooms(&self) -> &blooms_db::Database {
+			&self.trace_blooms
+		}
+	}
+
+	/// Creates new test instance of `BlockChainDB`
+	pub fn new_db() -> Arc<BlockChainDB> {
+		let blooms_dir = TempDir::new("").unwrap();
+		let trace_blooms_dir = TempDir::new("").unwrap();
+
+		let db = TestBlockChainDB {
+			blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
+			trace_blooms: blooms_db::Database::open(trace_blooms_dir.path()).unwrap(),
+			_blooms_dir: blooms_dir,
+			_trace_blooms_dir: trace_blooms_dir,
+			key_value: Arc::new(kvdb_memorydb::create(ethcore_db::NUM_COLUMNS.unwrap()))
+		};
+
+		Arc::new(db)
+	}
 
 	fn new_chain(genesis: encoded::Block, db: Arc<BlockChainDB>) -> BlockChain {
 		BlockChain::new(Config::default(), genesis.raw(), db)
@@ -2012,43 +2043,6 @@ mod tests {
 
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
-	}
-
-	#[test]
-	fn can_contain_arbitrary_block_sequence() {
-		let bc = generate_dummy_blockchain(50);
-		assert_eq!(bc.best_block_number(), 49);
-	}
-
-	#[test]
-	fn can_collect_garbage() {
-		let bc = generate_dummy_blockchain(3000);
-
-		assert_eq!(bc.best_block_number(), 2999);
-		let best_hash = bc.best_block_hash();
-		let mut block_header = bc.block_header_data(&best_hash);
-
-		while !block_header.is_none() {
-			block_header = bc.block_header_data(&block_header.unwrap().parent_hash());
-		}
-		assert!(bc.cache_size().blocks > 1024 * 1024);
-
-		for _ in 0..2 {
-			bc.collect_garbage();
-		}
-		assert!(bc.cache_size().blocks < 1024 * 1024);
-	}
-
-	#[test]
-	fn can_contain_arbitrary_block_sequence_with_extra() {
-		let bc = generate_dummy_blockchain_with_extra(25);
-		assert_eq!(bc.best_block_number(), 24);
-	}
-
-	#[test]
-	fn can_contain_only_genesis_block() {
-		let bc = generate_dummy_empty_blockchain();
-		assert_eq!(bc.best_block_number(), 0);
 	}
 
 	#[test]
