@@ -155,7 +155,7 @@ impl Engine<EthereumMachine> for Clique {
                header.set_difficulty(U256::from(DIFF_NOT_INTURN));
             },
             SignerAuthorization::Unauthorized => {
-                // do oothing this will be caught later
+                panic!("sealed header should be authorized to sign");
             }
         }
 
