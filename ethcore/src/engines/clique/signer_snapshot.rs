@@ -14,6 +14,7 @@ use std::borrow::BorrowMut;
 use lru_cache::LruCache;
 use std::fmt;
 use std::time::{SystemTime, Duration};
+use rand::{thread_rng, Rng};
 
 pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x00; 8];
 pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xff; 8];
@@ -45,7 +46,7 @@ pub struct CliqueState {
 	epoch_length: u64,
 	states_by_hash: LruCache<H256, SnapshotState>,
     signer: RwLock<Option<Address>>,
-    not_in_turn_delay: Option<(H256, SystemTime, Duration)>
+    active_prop_delay: Option<(H256, SystemTime, Duration)>
 }
 
 impl fmt::Debug for CliqueState {
@@ -68,7 +69,7 @@ impl CliqueState {
 			epoch_length: epoch_length,
 			states_by_hash: LruCache::new(STATE_CACHE_NUM),
             signer: RwLock::new(None),
-            not_in_turn_delay: None,
+            active_prop_delay: None,
 		}
 	}
 
@@ -79,11 +80,13 @@ impl CliqueState {
 	}
 
     pub fn turn_delay(&mut self, header: &Header) -> bool {
-        match self.not_in_turn_delay {
+        match self.active_prop_delay {
             Some((parent_hash, start, duration)) => {
                 if *header.parent_hash() != parent_hash {
                     // reorg.  make sure the timer is reset
-                    self.not_in_turn_delay = Some((header.parent_hash().clone(), SystemTime::now(), Duration::new(1,0)));
+                    self.active_prop_delay = Some((header.parent_hash().clone(), 
+                                                   SystemTime::now(),
+                                                   Duration::from_millis(thread_rng().gen_range::<u64>(0, self.state(header.parent_hash()).unwrap().signers.len() as u64 * 500))));
                     return false;
                 }
 
@@ -94,7 +97,9 @@ impl CliqueState {
                 }
             },
             None => {
-                self.not_in_turn_delay = Some((header.parent_hash().clone(), SystemTime::now(), Duration::new(1,0)));
+                self.active_prop_delay = Some((header.parent_hash().clone(), 
+                                               SystemTime::now(),
+                                               Duration::from_millis(thread_rng().gen_range::<u64>(0, self.state(header.parent_hash()).unwrap().signers.len() as u64 * 500))));
                 return false;
             }
         }
