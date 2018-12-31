@@ -155,7 +155,7 @@ mod tests {
 	use header::Header;
 	use miner::MinerService;
 	use spec::Spec;
-	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
+	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
 	use ethereum_types::Address;
 	use verification::queue::kind::blocks::Unverified;
@@ -168,7 +168,7 @@ mod tests {
 		let s0: Secret = keccak("0").into();
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_multi, Some(tap.clone()));
+		let client = generate_dummy_client_with_spec(Spec::new_validator_multi);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 
 		// Make sure txs go through.

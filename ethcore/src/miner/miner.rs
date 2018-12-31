@@ -1280,7 +1280,7 @@ mod tests {
 
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
 	use miner::{MinerService, PendingOrdering};
-	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
+	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
 	use transaction::{Transaction};
 
 	#[test]
@@ -1539,7 +1539,7 @@ mod tests {
 		let spec = Spec::new_test_round;
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
+		let client = generate_dummy_client_with_spec(spec);
 		let engine_signer = Box::new((tap.clone(), addr, "".into()));
 		let msg = Default::default();
 		assert!(client.engine().sign(msg).is_err());

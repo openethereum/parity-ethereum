@@ -143,14 +143,14 @@ mod tests {
 	use accounts::AccountProvider;
 	use miner::MinerService;
 	use types::ids::BlockId;
-	use test_helpers::generate_dummy_client_with_spec_and_accounts;
+	use test_helpers::generate_dummy_client_with_spec;
 	use client::{BlockChainClient, ChainInfo, BlockInfo, CallContract};
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 
 	#[test]
 	fn fetches_validators() {
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
+		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);
 		let vc = Arc::new(ValidatorContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
 		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
@@ -162,7 +162,7 @@ mod tests {
 	fn reports_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let v1 = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
+		let client = generate_dummy_client_with_spec(Spec::new_validator_contract);
 		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 

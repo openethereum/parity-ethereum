@@ -22,7 +22,6 @@ patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 parity-crypto = "0.2"
 error-chain = { version = "0.12", default-features = false }
-ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
@@ -106,7 +105,7 @@ ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
-test-helpers = ["tempdir", "ethcore-accounts"]
+test-helpers = ["tempdir"]
 # Enables slow 'to-pod-full' method for use in tests and evmbin.
 to-pod-full = []
 

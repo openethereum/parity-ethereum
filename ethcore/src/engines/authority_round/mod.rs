@@ -1532,7 +1532,7 @@ mod tests {
 	use rlp::encode;
 	use block::*;
 	use test_helpers::{
-		generate_dummy_client_with_spec_and_accounts, get_temp_state_db,
+		generate_dummy_client_with_spec, get_temp_state_db,
 		TestNotify
 	};
 	use spec::Spec;
@@ -1871,7 +1871,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
+		let client = generate_dummy_client_with_spec(Spec::new_test_round_empty_steps);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
@@ -1910,7 +1910,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
+		let client = generate_dummy_client_with_spec(Spec::new_test_round_empty_steps);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
@@ -1963,7 +1963,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
+		let client = generate_dummy_client_with_spec(Spec::new_test_round_empty_steps);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client) as _);
@@ -2015,7 +2015,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_round_empty_steps, None);
+		let client = generate_dummy_client_with_spec(Spec::new_test_round_empty_steps);
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2
@@ -2114,10 +2114,7 @@ mod tests {
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let client = generate_dummy_client_with_spec_and_accounts(
-			Spec::new_test_round_block_reward_contract,
-			None,
-		);
+		let client = generate_dummy_client_with_spec(Spec::new_test_round_block_reward_contract);
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2

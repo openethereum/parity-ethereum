@@ -113,7 +113,7 @@ extern crate len_caching_lock;
 
 #[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
-#[cfg(any(test, feature = "test-helpers"))]
+#[cfg(test)]
 extern crate ethcore_accounts as accounts;
 #[cfg(test)]
 extern crate env_logger;
