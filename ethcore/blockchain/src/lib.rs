@@ -16,7 +16,7 @@
 
 //! Blockchain database.
 
-#[warn(missing_docs)]
+#![warn(missing_docs)]
 
 mod best_block;
 mod block_info;
