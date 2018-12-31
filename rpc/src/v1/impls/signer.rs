@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethkey;
 use parity_runtime::Executor;
 use parking_lot::Mutex;

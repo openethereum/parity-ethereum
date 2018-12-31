@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};

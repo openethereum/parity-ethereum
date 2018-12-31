@@ -30,8 +30,8 @@ use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 
+use accounts::AccountProvider;
 use crypto::DEFAULT_MAC;
-use ethcore::account_provider::AccountProvider;
 use ethcore::basic_account::BasicAccount;
 use ethcore::client::BlockChainClient;
 use ethcore::ids::BlockId;

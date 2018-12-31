@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use accounts::SignError;
 use ethereum_types::Address;
 use rlp::DecoderError;
 use ethtrie::TrieError;
-use ethcore::account_provider::SignError;
 use ethcore::error::{Error as EthcoreError, ExecutionError};
 use transaction::Error as TransactionError;
 use ethkey::Error as KeyError;

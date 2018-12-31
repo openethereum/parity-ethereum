@@ -18,7 +18,7 @@
 
 use std::fmt;
 
-use ethcore::account_provider::SignError as AccountError;
+use accounts::SignError as AccountError;
 use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};

@@ -15,10 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::PathBuf;
-use ethcore::ethstore::{EthStore, SecretStore, import_account, import_accounts, read_geth_accounts};
-use ethcore::ethstore::accounts_dir::RootDiskDirectory;
-use ethcore::ethstore::SecretVaultRef;
-use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
+use accounts::{AccountProvider, AccountProviderSettings};
+use ethstore::{EthStore, SecretStore, SecretVaultRef, import_account, import_accounts, read_geth_accounts};
+use ethstore::accounts_dir::RootDiskDirectory;
 use helpers::{password_prompt, password_from_file};
 use params::SpecType;
 
@@ -130,7 +129,7 @@ fn import(i: ImportAccounts) -> Result<String, String> {
 
 fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
 	use std::io::ErrorKind;
-	use ethcore::ethstore::Error;
+	use ethstore::Error;
 
 	let dir = Box::new(keys_dir(i.to, i.spec)?);
 	let secret_store = Box::new(secret_store(dir, None)?);

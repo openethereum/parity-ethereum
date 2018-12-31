@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use dir::default_data_path;
 use dir::helpers::replace_home;
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethkey::{Secret, Public};

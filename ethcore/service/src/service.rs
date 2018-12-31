@@ -25,6 +25,7 @@ use ethereum_types::H256;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use stop_guard::StopGuard;
 
+use accounts::AccountProvider;
 use sync::PrivateTxHandler;
 use ethcore::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
@@ -32,7 +33,6 @@ use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
-use ethcore::account_provider::AccountProvider;
 
 use ethcore_private_tx::{self, Importer};
 use Error;
@@ -275,7 +275,7 @@ mod tests {
 
 	use tempdir::TempDir;
 
-	use ethcore::account_provider::AccountProvider;
+	use accounts::AccountProvider;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;

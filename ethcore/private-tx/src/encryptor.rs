@@ -23,7 +23,7 @@ use std::time::{Instant, Duration};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use parking_lot::Mutex;
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethereum_types::{H128, H256, Address};
 use ethjson;
 use ethkey::{Signature, Password, Public};

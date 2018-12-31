@@ -31,8 +31,9 @@ futures = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
-ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = "0.1"
+ethcore = { path = "ethcore", features = ["parity"] }
+ethcore-accounts = { path = "accounts" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
@@ -43,8 +44,9 @@ ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
 ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.4"
-node-filter = { path = "ethcore/node-filter" }
 ethkey = { path = "accounts/ethkey" }
+ethstore = { path = "accounts/ethstore" }
+node-filter = { path = "ethcore/node-filter" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "cli-signer" }
 parity-hash-fetch = { path = "updater/hash-fetch" }

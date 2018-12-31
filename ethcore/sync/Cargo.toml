@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 common-types = { path = "../types" }
 parity-bytes = "0.1"
+ethkey = { path = "../../accounts/ethkey" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-io = { path = "../../util/io" }
@@ -34,7 +35,6 @@ trace-time = "0.1"
 
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }
-ethkey = { path = "../../accounts/ethkey" }
 kvdb-memorydb = "0.1"
 ethcore-private-tx = { path = "../private-tx" }
 ethcore = { path = "..", features = ["test-helpers"] }

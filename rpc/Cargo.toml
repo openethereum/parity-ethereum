@@ -39,6 +39,7 @@ ethcore = { path = "../ethcore", features = ["test-helpers"] }
 fastmap = { path = "../util/fastmap" }
 parity-bytes = "0.1"
 parity-crypto = "0.2"
+ethcore-accounts = { path = "../accounts" }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }

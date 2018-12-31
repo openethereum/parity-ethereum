@@ -21,7 +21,7 @@ use transient_hashmap::TransientHashMap;
 use ethereum_types::U256;
 use parking_lot::Mutex;
 
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};

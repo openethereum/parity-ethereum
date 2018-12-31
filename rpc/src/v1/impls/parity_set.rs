@@ -19,8 +19,10 @@ use std::io;
 use std::sync::Arc;
 use std::time::Duration;
 
+use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Mode};
 use ethcore::miner::MinerService;
+use ethkey::{self, Address, Password};
 use sync::ManageNetwork;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
@@ -37,6 +39,7 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	client: Arc<C>,
 	miner: Arc<M>,
 	updater: Arc<U>,
+	accounts: Arc<AccountProvider>,
 	net: Arc<ManageNetwork>,
 	fetch: F,
 }
@@ -49,6 +52,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 		client: &Arc<C>,
 		miner: &Arc<M>,
 		updater: &Arc<U>,
+		accounts: &Arc<AccountProvider>,
 		net: &Arc<ManageNetwork>,
 		fetch: F,
 	) -> Self {
@@ -56,6 +60,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 			client: client.clone(),
 			miner: miner.clone(),
 			updater: updater.clone(),
+			accounts: accounts.clone(),
 			net: net.clone(),
 			fetch: fetch,
 		}
@@ -104,12 +109,38 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_author(&self, address: H160) -> Result<bool> {
-		self.miner.set_author(address.into(), None).map_err(Into::into).map_err(errors::password)?;
+		self.miner.set_author(address.into(), None);
 		Ok(true)
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
-		self.miner.set_author(address.into(), Some(password.into())).map_err(Into::into).map_err(errors::password)?;
+		// TODO [ToDr] Simplfiy the interface further (Address instead of Option<Address>)
+		struct Signer {
+			accounts: Arc<AccountProvider>,
+			address: Address,
+			password: Password,
+		}
+		impl ethcore::engines::EngineSigner for Signer {
+			fn sign(&self, message: ethkey::Message) -> ::std::result::Result<ethkey::Signature, ethkey::Error> {
+				match self.accounts.sign(self.address, Some(self.password.clone()), message) {
+					Ok(ok) => Ok(ok),
+					Err(e) => {
+						warn!("Unable to sign consensus message: {:?}", e);
+						Err(ethkey::Error::InvalidSecret)
+					},
+				}
+			}
+
+			fn address(&self) -> Option<Address> {
+				Some(self.address)
+			}
+		}
+		let signer = Box::new(Signer {
+			accounts: self.accounts.clone(),
+			address: address.clone().into(),
+			password: password.into(),
+		});
+		self.miner.set_author(address.into(), Some(signer));
 		Ok(true)
 	}
 

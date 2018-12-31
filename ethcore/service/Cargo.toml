@@ -7,6 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ansi_term = "0.10"
 error-chain = { version = "0.12", default-features = false }
 ethcore = { path = ".." }
+ethcore-accounts = { path = "../../accounts" }
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }

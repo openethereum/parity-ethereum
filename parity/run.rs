@@ -19,11 +19,10 @@ use std::sync::{Arc, Weak, atomic};
 use std::time::{Duration, Instant};
 use std::thread;
 
+use accounts::{AccountProvider, AccountProviderSettings};
 use ansi_term::Colour;
 use bytes::Bytes;
-use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
-use ethcore::ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -31,6 +30,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
+use ethkey;
 use sync::{self, SyncConfig};
 use miner::work_notify::WorkPoster;
 use futures::IntoFuture;
@@ -327,7 +327,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		client: client.clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
-		secret_store: account_provider,
+		accounts: account_provider,
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
 		on_demand: on_demand,
@@ -509,9 +509,17 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		cmd.miner_options,
 		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), runtime.executor()),
 		&spec,
-		Some(account_provider.clone()),
+		{
+			struct LocalAccounts(Arc<AccountProvider>);
+			impl ::ethcore::miner::LocalAccounts for LocalAccounts {
+				fn is_local(&self, address: &Address) -> bool {
+					self.0.has_account(*address)
+				}
+			}
+			LocalAccounts(account_provider.clone())
+		}
 	));
-	miner.set_author(cmd.miner_extras.author, None).expect("Fails only if password is Some; password is None; qed");
+	miner.set_author(cmd.miner_extras.author, None);
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 
@@ -534,9 +542,10 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		}
 
 		// Attempt to sign in the engine signer.
-		if !passwords.iter().any(|p| miner.set_author(engine_signer, Some(p.to_owned())).is_ok()) {
-			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
-		}
+		// TODO [ToDr] Set engine signer
+		// if !passwords.iter().any(|p| miner.set_author(engine_signer, Some(p.to_owned()))) {
+		// 	return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
+		// }
 	}
 
 	// display warning if using --no-hardcoded-sync
@@ -743,7 +752,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
-		secret_store: secret_store,
+		accounts: secret_store,
 		miner: miner.clone(),
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
@@ -973,8 +982,8 @@ fn print_running_environment(data_dir: &str, dirs: &Directories, db_dirs: &Datab
 }
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[Password]) -> Result<AccountProvider, String> {
-	use ethcore::ethstore::EthStore;
-	use ethcore::ethstore::accounts_dir::RootDiskDirectory;
+	use ethstore::EthStore;
+	use ethstore::accounts_dir::RootDiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);

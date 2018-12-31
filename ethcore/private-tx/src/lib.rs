@@ -25,27 +25,28 @@ mod private_transactions;
 mod messages;
 mod error;
 
+extern crate ethabi;
 extern crate ethcore;
-extern crate parity_bytes as bytes;
-extern crate parity_crypto as crypto;
+extern crate ethcore_accounts as accounts;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
 extern crate ethcore_transaction as transaction;
-extern crate ethabi;
 extern crate ethereum_types;
-extern crate ethkey;
 extern crate ethjson;
+extern crate ethkey;
 extern crate fetch;
 extern crate futures;
 extern crate heapsize;
 extern crate keccak_hash as hash;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto as crypto;
 extern crate parking_lot;
 extern crate patricia_trie as trie;
-extern crate transaction_pool as txpool;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
-extern crate url;
 extern crate rustc_hex;
+extern crate transaction_pool as txpool;
+extern crate url;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -76,6 +77,7 @@ use parking_lot::RwLock;
 use bytes::Bytes;
 use ethkey::{Signature, recover, public_to_address};
 use io::IoChannel;
+use accounts::AccountProvider;
 use ethcore::executive::{Executive, TransactOptions};
 use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
@@ -84,7 +86,6 @@ use ethcore::client::{
 	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
 	CallContract, Call, BlockInfo
 };
-use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
@@ -153,7 +154,7 @@ pub struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	result: Executed<T::Output, V::Output>,
 }
 
-impl Provider where {
+impl Provider {
 	/// Create a new provider.
 	pub fn new(
 		client: Arc<Client>,
@@ -239,21 +240,20 @@ impl Provider where {
 		keccak(&state_buf.as_ref())
 	}
 
-	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache) -> miner::pool_client::PoolClient<'a, Client> {
+	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache, local_accounts: &'a HashSet<Address>) -> miner::pool_client::PoolClient<'a, Client> {
 		let engine = self.client.engine();
 		let refuse_service_transactions = true;
 		miner::pool_client::PoolClient::new(
 			&*self.client,
 			nonce_cache,
 			engine,
-			Some(&*self.accounts),
+			local_accounts,
 			refuse_service_transactions,
 		)
 	}
 
 	/// Retrieve and verify the first available private transaction for every sender
 	fn process_verification_queue(&self) -> Result<(), Error> {
-		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
 		let process_transaction = |transaction: &VerifiedPrivateTransaction| -> Result<_, String> {
 			let private_hash = transaction.private_transaction.hash();
 			match transaction.validator_account {
@@ -296,7 +296,9 @@ impl Provider where {
 			}
 			Ok(())
 		};
-		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache));
+		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
+		let local_accounts = HashSet::new();
+		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache, &local_accounts));
 		for transaction in ready_transactions {
 			if let Err(e) = process_transaction(&transaction) {
 				warn!(target: "privatetx", "Error: {:?}", e);
@@ -681,12 +683,13 @@ impl Importer for Arc<Provider> {
 		let transaction_bytes = self.decrypt(&contract, &encrypted_data)?;
 		let original_tx: UnverifiedTransaction = Rlp::new(&transaction_bytes).as_val()?;
 		let nonce_cache = NonceCache::new(NONCE_CACHE_SIZE);
+		let local_accounts = HashSet::new();
 		// Add to the queue for further verification
 		self.transactions_for_verification.add_transaction(
 			original_tx,
 			validation_account.map(|&account| account),
 			private_tx,
-			self.pool_client(&nonce_cache),
+			self.pool_client(&nonce_cache, &local_accounts),
 		)?;
 		let provider = Arc::downgrade(self);
 		let result = self.channel.send(ClientIoMessage::execute(move |_| {

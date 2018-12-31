@@ -43,8 +43,9 @@ extern crate toml;
 
 extern crate blooms_db;
 extern crate cli_signer;
-extern crate ethcore;
 extern crate parity_bytes as bytes;
+extern crate ethcore;
+extern crate ethcore_accounts as accounts;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
@@ -56,6 +57,7 @@ extern crate ethcore_sync as sync;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
+extern crate ethstore;
 extern crate kvdb;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
