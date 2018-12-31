@@ -20,7 +20,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use std::str::FromStr;
 
-use account_provider::AccountProvider;
+use accounts::AccountProvider;
 use client::{Client, BlockChainClient, ChainInfo};
 use ethkey::Secret;
 use snapshot::tests::helpers as snapshot_helpers;
@@ -106,7 +106,8 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}",
 				n, txs.len(), signers[idx]);
 
-			client.miner().set_author(signers[idx], Some(PASS.into())).unwrap();
+			let signer = Box::new((accounts.clone(), signers[idx], PASS.into()));
+			client.miner().set_author(signers[idx], Some(signer));
 			client.miner().import_external_transactions(&*client,
 				txs.into_iter().map(Into::into).collect());
 

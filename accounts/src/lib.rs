@@ -32,14 +32,14 @@ use ethcore_transaction::{Action, Transaction};
 use ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
 use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::{
-	SimpleSecretStore, SecretStore, Error, EthStore, EthMultiStore,
+	SimpleSecretStore, SecretStore, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
 use log::{warn, debug};
 use parking_lot::RwLock;
 
 pub use ethkey::Signature;
-pub use ethstore::{Derivation, IndexDerivation, KeyFile};
+pub use ethstore::{Derivation, IndexDerivation, KeyFile, Error};
 pub use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
 
 pub use self::account_data::AccountMeta;

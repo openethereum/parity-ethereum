@@ -22,7 +22,7 @@ patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 parity-crypto = "0.2"
 error-chain = { version = "0.12", default-features = false }
-ethcore-accounts = { path = "../accounts" }
+ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
@@ -34,8 +34,7 @@ ethabi = "6.0"
 ethabi-derive = "6.0"
 ethabi-contract = "6.0"
 ethjson = { path = "../json" }
-# ethkey = { path = "../accounts/ethkey" }
-# ethstore = { path = "../accounts/ethstore" }
+ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
 heapsize = "0.4"
 itertools = "0.5"
@@ -73,6 +72,7 @@ tempdir = {version="0.3", optional = true}
 len-caching-lock = { path = "../util/len-caching-lock" }
 
 [dev-dependencies]
+ethcore-accounts = { path = "../accounts" }
 env_logger = "0.4"
 tempdir = "0.3"
 trie-standardmap = "0.1"
@@ -106,7 +106,7 @@ ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
-test-helpers = ["tempdir"]
+test-helpers = ["tempdir", "ethcore-accounts"]
 # Enables slow 'to-pod-full' method for use in tests and evmbin.
 to-pod-full = []
 

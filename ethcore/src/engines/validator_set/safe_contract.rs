@@ -443,7 +443,7 @@ mod tests {
 	use ethereum_types::Address;
 	use types::ids::BlockId;
 	use spec::Spec;
-	use account_provider::AccountProvider;
+	use accounts::AccountProvider;
 	use transaction::{Transaction, Action};
 	use client::{ChainInfo, BlockInfo, ImportBlock};
 	use ethkey::Secret;
@@ -470,11 +470,12 @@ mod tests {
 		let v0 = tap.insert_account(s0.clone(), &"".into()).unwrap();
 		let v1 = tap.insert_account(keccak("0").into(), &"".into()).unwrap();
 		let chain_id = Spec::new_validator_safe_contract().chain_id();
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap.clone()));
 		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
 
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		client.miner().set_author(v1, Some(signer));
 		// Remove "1" validator.
 		let tx = Transaction {
 			nonce: 0.into(),
@@ -502,11 +503,13 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 1);
 
 		// Switch to the validator that is still there.
-		client.miner().set_author(v0, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v0, "".into()));
+		client.miner().set_author(v0, Some(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// Switch back to the added validator, since the state is updated.
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
+		client.miner().set_author(v1, Some(signer));
 		let tx = Transaction {
 			nonce: 2.into(),
 			gas_price: 0.into(),

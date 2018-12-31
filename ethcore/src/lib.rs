@@ -109,15 +109,14 @@ extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
 extern crate serde;
-#[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
-extern crate tempdir;
 extern crate len_caching_lock;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
-extern crate hardware_wallet;
-
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-extern crate fake_hardware_wallet as hardware_wallet;
+#[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
+extern crate tempdir;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate ethcore_accounts as accounts;
+#[cfg(test)]
+extern crate env_logger;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -141,15 +140,9 @@ extern crate serde_derive;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(test)]
-extern crate env_logger;
-
-pub extern crate ethstore;
-
 #[macro_use]
 pub mod views;
 
-pub mod account_provider;
 pub mod block;
 pub mod builtin;
 pub mod client;

@@ -708,6 +708,7 @@ dependencies = [
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
+ "ethkey 0.3.0",
  "evm 0.1.0",
  "hashdb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",

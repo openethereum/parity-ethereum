@@ -19,7 +19,7 @@
 use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
-use account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockChainConfig, ExtrasInsert};
@@ -125,7 +125,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::new_for_tests(&test_spec, accounts)),
+		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let test_engine = &*test_spec.engine;

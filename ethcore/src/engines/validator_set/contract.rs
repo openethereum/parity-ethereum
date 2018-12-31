@@ -140,7 +140,7 @@ mod tests {
 	use rlp::encode;
 	use spec::Spec;
 	use header::Header;
-	use account_provider::AccountProvider;
+	use accounts::AccountProvider;
 	use miner::MinerService;
 	use types::ids::BlockId;
 	use test_helpers::generate_dummy_client_with_spec_and_accounts;
@@ -168,7 +168,8 @@ mod tests {
 
 		// Make sure reporting can be done.
 		client.miner().set_gas_range_target((1_000_000.into(), 1_000_000.into()));
-		client.miner().set_author(v1, Some("".into())).unwrap();
+		let signer = Box::new((tap.clone(), v1, "".into()));
+		client.miner().set_author(v1, Some(signer));
 
 		// Check a block that is a bit in future, reject it but don't report the validator.
 		let mut header = Header::default();
