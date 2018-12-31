@@ -699,6 +699,7 @@ dependencies = [
  "ethabi-contract 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.12.0",
+ "ethcore-accounts 0.1.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-logger 1.12.0",
@@ -707,11 +708,7 @@ dependencies = [
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
- "ethkey 0.3.0",
- "ethstore 0.2.0",
  "evm 0.1.0",
- "fake-hardware-wallet 0.0.1",
- "hardware-wallet 1.12.0",
  "hashdb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -754,6 +751,24 @@ dependencies = [
  "using_queue 0.1.0",
  "vm 0.1.0",
  "wasm 0.1.0",
+]
+
+[[package]]
+name = "ethcore-accounts"
+version = "0.1.0"
+dependencies = [
+ "ethcore-transaction 0.1.0",
+ "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethkey 0.3.0",
+ "ethstore 0.2.0",
+ "fake-hardware-wallet 0.0.1",
+ "hardware-wallet 1.12.0",
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.32 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

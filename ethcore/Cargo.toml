@@ -22,6 +22,7 @@ patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 parity-crypto = "0.2"
 error-chain = { version = "0.12", default-features = false }
+ethcore-accounts = { path = "../accounts" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
@@ -33,8 +34,8 @@ ethabi = "6.0"
 ethabi-derive = "6.0"
 ethabi-contract = "6.0"
 ethjson = { path = "../json" }
-ethkey = { path = "../accounts/ethkey" }
-ethstore = { path = "../accounts/ethstore" }
+# ethkey = { path = "../accounts/ethkey" }
+# ethstore = { path = "../accounts/ethstore" }
 evm = { path = "evm" }
 heapsize = "0.4"
 itertools = "0.5"
@@ -70,12 +71,6 @@ serde = "1.0"
 serde_derive = "1.0"
 tempdir = {version="0.3", optional = true}
 len-caching-lock = { path = "../util/len-caching-lock" }
-
-[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
-hardware-wallet = { path = "../accounts/hw" }
-
-[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
-fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
 
 [dev-dependencies]
 env_logger = "0.4"

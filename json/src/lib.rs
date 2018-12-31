@@ -30,5 +30,4 @@ pub mod vm;
 pub mod maybe;
 pub mod state;
 pub mod transaction;
-pub mod misc;
 pub mod test;
