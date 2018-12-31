@@ -63,7 +63,6 @@ impl NonceAndGasPrice {
 		if old.priority().is_local() {
 			return true
 		}
-
 		&old.transaction.gas_price > new.gas_price()
 	}
 }
@@ -141,10 +140,9 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 					Change::InsertedAt(i) | Change::ReplacedAt(i) => {
 						assert!(i < txs.len());
 						assert!(i < scores.len());
-						scores[i] = *txs[i].transaction.gas_price() << boost(i);
+						// scores[i] = *txs[i].transaction.gas_price() << boost(i);
 
 						for idx in (1..txs.len()).rev() {
-							debug!("Consecutive {:?}, last_index: {}, idx {}", is_consecutive(idx - 1), txs.len(), idx);
 							scores[idx - 1] = txs[idx - 1].transaction.gas_price()
 								+ is_consecutive(idx - 1)
 								+ (U256::from(21_000) / txs[idx - 1].transaction.gas())
@@ -196,7 +194,8 @@ mod tests {
 
 	use std::sync::Arc;
 	use ethkey::{Random, Generator};
-	use pool::tests::tx::{Tx, TxExt};
+	use pool::tests::tx::{Tx, TxExt, TxBuilder};
+	use transaction::SignedTransaction;
 	use txpool::Scoring;
 	use txpool::scoring::Choice::*;
 
@@ -311,8 +310,8 @@ mod tests {
 		let initial_scores = vec![U256::from(0), 0.into(), 0.into()];
 
 		// Compute score at given index
-        // first score of first transaction from `transactions2` should be higher than
-        // transactions
+		// first score of first transaction from `transactions2` should be higher than
+		// transactions
 		let mut scores = initial_scores.clone();
 		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
 		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
@@ -341,7 +340,7 @@ mod tests {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 
 		let multiplier = |i: usize, _| 1000u64.pow(i as u32);
-		
+
 		let transactions = Tx::gas_price(1).signed_consecutive(3, multiplier).into_iter().map(|tx| {
 			let mut verified = tx.verified();
 			verified.priority = ::pool::Priority::Local;
@@ -361,8 +360,6 @@ mod tests {
 				transaction: Arc::new(verified)
 			}
 		}).collect::<Vec<_>>();
-
-		transactions.iter().chain(transactions2.iter()).for_each(|tx| debug!("Gas Price: {}", tx.gas_price()));
 
 		let initial_scores = vec![U256::from(0), 0.into(), 0.into(), 0.into()];
 		// Compute score at given index
@@ -385,9 +382,60 @@ mod tests {
 
 	#[test]
 	fn should_be_harder_to_bump_larger_tx() {
-		
+		env_logger::try_init();
+
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
+
+		let key_0 = Random.generate().unwrap();
+		let key_1 = Random.generate().unwrap();
+		let key_2 = Random.generate().unwrap();
+
+		let verified = |txs: Vec<SignedTransaction>| txs.into_iter().map(|tx| {
+
+			let mut verified = tx.verified();
+			verified.priority = ::pool::Priority::Local;
+
+			txpool::Transaction {
+					insertion_id: 0,
+					transaction: Arc::new(verified)
+				}
+			}).collect::<Vec<_>>();
+
+		let transactions_0 = verified(vec![
+			TxBuilder::default().gas_price(1).gas(1_000_000).nonce(0).build().signed_custom(key_0.clone()),
+			TxBuilder::default().gas_price(1_000).gas(21_000).nonce(1).build().signed_custom(key_0),
+		]);
+
+		let transactions_1 = verified(vec![
+			TxBuilder::default().gas_price(1).gas(1_000_000).nonce(0).build().signed_custom(key_1.clone()),
+			TxBuilder::default().gas_price(1_000).gas(21_000).nonce(1).build().signed_custom(key_1.clone()),
+			TxBuilder::default().gas_price(1_000_000).gas(1_000_000).nonce(2).build().signed_custom(key_1),
+		]);
+
+		let transactions_2 = verified(vec![
+			TxBuilder::default().gas_price(1).gas(1_000_000).nonce(0).build().signed_custom(key_2.clone()),
+			TxBuilder::default().gas_price(1_000_000).gas(21_000).nonce(1).build().signed_custom(key_2),
+		]);
+
+		let mut scores_0 = vec![U256::from(0), 0.into()];
+		let mut scores_1 = vec![U256::from(0), 0.into(), 0.into()];
+		let mut scores_2 = scores_1.clone();
+
+		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(1));
+
+		scoring.update_scores(&transactions_1, &mut *scores_1, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions_1, &mut *scores_1, scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions_1, &mut *scores_1, scoring::Change::InsertedAt(2));
+
+		scoring.update_scores(&transactions_2, &mut *scores_2, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions_2, &mut *scores_2, scoring::Change::InsertedAt(1));
+
+		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores_0[0], scores_1[0], scores_2[0]);
+		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores_0[1], scores_1[1], scores_2[1]);
+		debug!("Score1 {}", scores_1[2]);
 	}
-	
+
 	/*
 	#[test]
 	fn should_calculate_consecutive_score_correctly() {

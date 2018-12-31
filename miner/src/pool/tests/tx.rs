@@ -53,6 +53,10 @@ impl Tx {
 		self.unsigned().sign(keypair.secret(), None)
 	}
 
+	pub fn signed_custom(self, keypair: ethkey::KeyPair) -> SignedTransaction {
+		self.unsigned().sign(keypair.secret(), None)
+	}
+
 	pub fn signed_pair(self) -> (SignedTransaction, SignedTransaction) {
 		let (tx1, tx2, _) = self.signed_triple();
 		(tx1, tx2)
