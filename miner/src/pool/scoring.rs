@@ -140,14 +140,13 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 					Change::InsertedAt(i) | Change::ReplacedAt(i) => {
 						assert!(i < txs.len());
 						assert!(i < scores.len());
-						// scores[i] = *txs[i].transaction.gas_price() << boost(i);
+						// scores[i] = *txs[txs.len() - 1].transaction.gas_price() << boost(i);
+						let last_index = txs.len() - 1;
+						scores[last_index] = *txs[last_index].transaction.gas_price();
 
 						for idx in (1..txs.len()).rev() {
-							scores[idx - 1] = txs[idx - 1].transaction.gas_price()
-								+ is_consecutive(idx - 1)
-								+ (U256::from(21_000) / txs[idx - 1].transaction.gas())
-								* scores[idx]
-								/ 1_000;
+							let consecutive_bump = is_consecutive(idx - 1) * (U256::from(21_000) * scores[idx]) / txs[idx-1].transaction.gas();
+							scores[idx-1] = txs[idx - 1].transaction.gas_price() + (consecutive_bump / 1000);
 						}
 					},
 					// We are only sending an event in case of penalization.
@@ -333,6 +332,22 @@ mod tests {
 		assert_eq!(scores, vec![32768.into(), 128.into(), 0.into()]);
 	}
 
+    fn verify_vec(txs: Vec<SignedTransaction>) -> Vec<txpool::Transaction<VerifiedTransaction>> {
+        txs.into_iter().map(|tx| {
+            verify(tx)
+        }).collect::<Vec<_>>()
+    }
+
+    fn verify(tx: SignedTransaction) -> txpool::Transaction<VerifiedTransaction> {
+		let mut verified = tx.verified();
+		verified.priority = ::pool::Priority::Local;
+
+		txpool::Transaction {
+			insertion_id: 0,
+			transaction: Arc::new(verified)
+		}
+	}
+
 	#[test]
 	fn should_bump_score_of_consecutive_tx() {
 		env_logger::try_init();
@@ -380,7 +395,7 @@ mod tests {
 		assert!(scores[0] > scores2[0]);
 	}
 
-	#[test]
+    #[test]
 	fn should_be_harder_to_bump_larger_tx() {
 		env_logger::try_init();
 
@@ -390,29 +405,18 @@ mod tests {
 		let key_1 = Random.generate().unwrap();
 		let key_2 = Random.generate().unwrap();
 
-		let verified = |txs: Vec<SignedTransaction>| txs.into_iter().map(|tx| {
-
-			let mut verified = tx.verified();
-			verified.priority = ::pool::Priority::Local;
-
-			txpool::Transaction {
-					insertion_id: 0,
-					transaction: Arc::new(verified)
-				}
-			}).collect::<Vec<_>>();
-
-		let transactions_0 = verified(vec![
+		let transactions_0 = verify_vec(vec![
 			TxBuilder::default().gas_price(1).gas(1_000_000).nonce(0).build().signed_custom(key_0.clone()),
 			TxBuilder::default().gas_price(1_000).gas(21_000).nonce(1).build().signed_custom(key_0),
 		]);
 
-		let transactions_1 = verified(vec![
+		let transactions_1 = verify_vec(vec![
 			TxBuilder::default().gas_price(1).gas(1_000_000).nonce(0).build().signed_custom(key_1.clone()),
 			TxBuilder::default().gas_price(1_000).gas(21_000).nonce(1).build().signed_custom(key_1.clone()),
 			TxBuilder::default().gas_price(1_000_000).gas(1_000_000).nonce(2).build().signed_custom(key_1),
 		]);
 
-		let transactions_2 = verified(vec![
+		let transactions_2 = verify_vec(vec![
 			TxBuilder::default().gas_price(1).gas(1_000_000).nonce(0).build().signed_custom(key_2.clone()),
 			TxBuilder::default().gas_price(1_000_000).gas(21_000).nonce(1).build().signed_custom(key_2),
 		]);
@@ -435,6 +439,20 @@ mod tests {
 		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores_0[1], scores_1[1], scores_2[1]);
 		debug!("Score1 {}", scores_1[2]);
 	}
+
+	// #[test]
+	// fn should_score_nonconsecutive_tx_the_same() {
+
+ //        let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
+ //        let transaction_0 = verify(Tx::default().signed());
+ //        let transaction_1 = verify(Tx::default().signed());
+
+ //        let initial_scores = vec![U256::from(0)];
+ //        let (mut scores_0, mut scores_1) = (initial_scores.clone(), initial_scores.clone());
+ //        scoring.update_scores(&vec![transaction_0], &mut *scores_0, scoring::Change::InsertedAt(0));
+ //        scoring.update_scores(&vec![transaction_1], &mut *scores_1, scoring::Change::InsertedAt(0));
+ //        assert!(scores_0[0] == scores_1[0])
+ //    }
 
 	/*
 	#[test]
