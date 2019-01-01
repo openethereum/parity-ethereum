@@ -21,7 +21,7 @@ use uint::Uint;
 use bytes::Bytes;
 use super::ValidatorSet;
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Copy, Clone, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum ConsensusKind {
 	Poa,

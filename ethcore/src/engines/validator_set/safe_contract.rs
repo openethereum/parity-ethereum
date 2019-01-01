@@ -33,6 +33,7 @@ use std::sync::{Weak, Arc};
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
 use unexpected::Mismatch;
+use ethjson::spec::authority_round::ConsensusKind;
 use ethabi::FunctionOutputDecoder;
 
 use_contract!(validator_set, "res/contracts/validator_set.json");
@@ -74,6 +75,7 @@ pub struct ValidatorSafeContract {
 	contract_address: Address,
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
 	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
+	consensus_kind: ConsensusKind,
 }
 
 // first proof is just a state proof call of `getValidators` at header's state.
@@ -189,11 +191,12 @@ fn prove_initial(contract_address: Address, header: &Header, caller: &Call) -> R
 }
 
 impl ValidatorSafeContract {
-	pub fn new(contract_address: Address) -> Self {
+	pub fn new(contract_address: Address, consensus_kind: ConsensusKind) -> Self {
 		ValidatorSafeContract {
 			contract_address,
 			validators: RwLock::new(MemoryLruCache::new(MEMOIZE_CAPACITY)),
 			client: RwLock::new(None),
+			consensus_kind,
 		}
 	}
 
@@ -272,6 +275,15 @@ impl ValidatorSafeContract {
 			Some(matched_event) => Some(SimpleList::new(matched_event.new_set))
 		}
 	}
+
+	// check receipts for block.
+	fn extract_from_block(&self, caller: Box<Call>) -> Option<SimpleList> {
+		let data = validator_set::functions::get_pending_validators::encode_input();
+		caller(self.contract_address, data)
+			.ok()
+			.and_then(|x| validator_set::functions::get_pending_validators::decode_output(&x.0).ok())
+			.map(SimpleList::new)
+	}
 }
 
 impl ValidatorSet for ValidatorSafeContract {
@@ -320,17 +332,24 @@ impl ValidatorSet for ValidatorSafeContract {
 			return ::engines::EpochChange::Yes(::engines::Proof::WithState(state_proof as Arc<_>));
 		}
 
-		// otherwise, we're checking for logs.
-		let bloom = self.expected_bloom(header);
-		let header_bloom = header.log_bloom();
-
-		if &bloom & header_bloom != bloom { return ::engines::EpochChange::No }
+		let bloom = match self.consensus_kind {
+			ConsensusKind::Pos => None,
+			ConsensusKind::Poa => {
+				let bloom = self.expected_bloom(header);
+				let header_bloom = header.log_bloom();
+				if &bloom & header_bloom != bloom { return ::engines::EpochChange::No }
+				Some(bloom)
+			}
+		};
 
 		trace!(target: "engine", "detected epoch change event bloom");
 
 		match receipts {
 			None => ::engines::EpochChange::Unsure(AuxiliaryRequest::Receipts),
-			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
+			Some(receipts) => match match bloom {
+				None => self.extract_from_block(self.default_caller(BlockId::Number(header.number()))),
+				Some(bloom) => self.extract_from_event(bloom, header, receipts),
+			} {
 				None => ::engines::EpochChange::No,
 				Some(list) => {
 					info!(target: "engine", "Signal for transition within contract. New list: {:?}",
@@ -343,7 +362,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
-	fn epoch_set(&self, first: bool, machine: &EthereumMachine, _number: ::header::BlockNumber, proof: &[u8])
+	fn epoch_set(&self, first: bool, machine: &EthereumMachine, number: ::types::BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>
 	{
 		let rlp = Rlp::new(proof);
@@ -375,9 +394,10 @@ impl ValidatorSet for ValidatorSafeContract {
 				).into());
 			}
 
-			let bloom = self.expected_bloom(&old_header);
-
-			match self.extract_from_event(bloom, &old_header, &receipts) {
+			match match self.consensus_kind {
+				ConsensusKind::Pos => self.extract_from_block(self.default_caller(BlockId::Number(number))),
+				ConsensusKind::Poa => self.extract_from_event(self.expected_bloom(&old_header), &old_header, &receipts),
+			} {
 				Some(list) => Ok((list, Some(old_header.hash()))),
 				None => Err(::engines::EngineError::InsufficientProof("No log event in proof.".into()).into()),
 			}
@@ -450,17 +470,19 @@ mod tests {
 	use miner::MinerService;
 	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
-	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
+	use super::{ValidatorSafeContract, EVENT_NAME_HASH, ConsensusKind};
 	use verification::queue::kind::blocks::Unverified;
 
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
-		let vc = Arc::new(ValidatorSafeContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
-		vc.register_client(Arc::downgrade(&client) as _);
-		let last_hash = client.best_block_header().hash();
-		assert!(vc.contains(&last_hash, &"7d577a597b2742b498cb5cf0c26cdcd726d39e6e".parse::<Address>().unwrap()));
-		assert!(vc.contains(&last_hash, &"82a978b3f5962a5b0957d9ee9eef472ee55b42f1".parse::<Address>().unwrap()));
+		for &i in &[ConsensusKind::Poa, ConsensusKind::Pos] {
+			let vc = Arc::new(ValidatorSafeContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap(), i));
+			vc.register_client(Arc::downgrade(&client) as _);
+			let last_hash = client.best_block_header().hash();
+			assert!(vc.contains(&last_hash, &"7d577a597b2742b498cb5cf0c26cdcd726d39e6e".parse::<Address>().unwrap()));
+			assert!(vc.contains(&last_hash, &"82a978b3f5962a5b0957d9ee9eef472ee55b42f1".parse::<Address>().unwrap()));
+		}
 	}
 
 	#[test]
