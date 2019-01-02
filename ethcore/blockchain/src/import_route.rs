@@ -31,6 +31,7 @@ pub struct ImportRoute {
 }
 
 impl ImportRoute {
+	/// Empty import route.
 	pub fn none() -> Self {
 		ImportRoute {
 			retracted: vec![],

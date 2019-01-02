@@ -15,6 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Types used in the public API
+//!
+//! This crate stores Parity Etherem specific types that are
+//! COMMONLY used across different separate modules of the codebase.
+//! It should only focus on data structures, not any logic that relates to them.
+//!
+//! The interaction between modules should be possible by
+//! implementing a required trait that potentially uses some of the data
+//! structures from that crate.
+//!
+//! NOTE If you can specify your data type in the same crate as your trait, please do that.
+//! Don't treat this crate as a bag for any types that we use in Parity Ethereum.
+//! This one is reserved for types that are shared heavily (like transactions),
+//! historically this contains types extracted from `ethcore` crate, if possible
+//! we should try to dissolve that crate in favour of more fine-grained crates,
+//! by moving the types closer to where they are actually required.
 
 #![warn(missing_docs, unused_extern_crates)]
 

@@ -111,7 +111,7 @@ extern crate wasm;
 extern crate ethcore_stratum;
 #[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
-#[cfg(feature = "json-tests")]
+#[cfg(any(test, feature = "json-tests"))]
 extern crate ethcore_logger;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate kvdb_rocksdb;
