@@ -31,7 +31,8 @@ use jsonrpc_core::futures::future::Either;
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
 use v1::helpers::dispatch::{self, Dispatcher, WithToken, eth_data_hash};
-use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest, Subscribers};
+use v1::helpers::{errors, ConfirmationPayload, FilledTransactionRequest, Subscribers};
+use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
 use v1::traits::Signer;
 use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
@@ -245,10 +246,6 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	fn generate_token(&self) -> Result<String> {
 		self.signer.generate_token()
 			.map_err(|e| errors::token(e))
-	}
-
-	fn generate_web_proxy_token(&self, domain: String) -> Result<String> {
-		Ok(self.signer.generate_web_proxy_access_token(domain.into()))
 	}
 
 	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {

@@ -43,6 +43,23 @@ pub fn none() -> Box<EngineSigner> {
 	Box::new(())
 }
 
+/// Creates a new `EngineSigner` from given key pair.
+pub fn from_keypair(keypair: ethkey::KeyPair) -> Box<EngineSigner> {
+	Box::new(Signer(keypair))
+}
+
+struct Signer(ethkey::KeyPair);
+
+impl EngineSigner for Signer {
+	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
+		ethkey::sign(self.0.secret(), &hash)
+	}
+
+	fn address(&self) -> Option<Address> {
+		Some(self.0.address())
+	}
+}
+
 #[cfg(test)]
 mod test_signer {
 	use std::sync::Arc;

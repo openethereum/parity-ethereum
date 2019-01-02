@@ -39,7 +39,8 @@ use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 
 use v1::helpers::block_import::is_major_importing;
-use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings, verify_signature};
+use v1::helpers::{self, errors, fake_sign, ipfs, NetworkSettings, verify_signature};
+use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{

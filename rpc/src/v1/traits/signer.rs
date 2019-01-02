@@ -50,10 +50,6 @@ build_rpc_trait! {
 		#[rpc(name = "signer_generateAuthorizationToken")]
 		fn generate_token(&self) -> Result<String>;
 
-		/// Generates new web proxy access token for particular domain.
-		#[rpc(name = "signer_generateWebProxyAccessToken")]
-		fn generate_web_proxy_token(&self, String) -> Result<String>;
-
 		#[pubsub(name = "signer_pending")] {
 			/// Subscribe to new pending requests on signer interface.
 			#[rpc(name = "signer_subscribePending")]

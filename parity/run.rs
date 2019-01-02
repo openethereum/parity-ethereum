@@ -23,6 +23,7 @@ use accounts::{AccountProvider, AccountProviderSettings};
 use ansi_term::Colour;
 use bytes::Bytes;
 use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
+use ethcore::engines::EngineSigner;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -541,11 +542,21 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			return Err(format!("No password found for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
 
-		// Attempt to sign in the engine signer.
-		// TODO [ToDr] Set engine signer
-		// if !passwords.iter().any(|p| miner.set_author(engine_signer, Some(p.to_owned()))) {
-		// 	return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
-		// }
+		let mut has_set = false;
+		for password in &passwords {
+			let signer = parity_rpc::signer::EngineSigner::new(
+				account_provider.clone(),
+				engine_signer,
+				password.clone(),
+			);
+			if signer.sign(Default::default()).is_ok() {
+				miner.set_author(engine_signer, Some(Box::new(signer)));
+				has_set = true;
+			}
+		}
+		if !has_set {
+			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
+		}
 	}
 
 	// display warning if using --no-hardcoded-sync

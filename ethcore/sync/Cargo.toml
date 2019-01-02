@@ -34,8 +34,9 @@ parking_lot = "0.7"
 trace-time = "0.1"
 
 [dev-dependencies]
-ethcore-io = { path = "../../util/io", features = ["mio"] }
-kvdb-memorydb = "0.1"
-ethcore-private-tx = { path = "../private-tx" }
 ethcore = { path = "..", features = ["test-helpers"] }
+ethcore-accounts = { path = "../../accounts" }
+ethcore-io = { path = "../../util/io", features = ["mio"] }
+ethcore-private-tx = { path = "../private-tx" }
+kvdb-memorydb = "0.1"
 rustc-hex = "1.0"

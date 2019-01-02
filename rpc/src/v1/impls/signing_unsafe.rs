@@ -19,10 +19,11 @@
 use std::sync::Arc;
 
 use accounts::AccountProvider;
+use ethereum_types::Address;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
-use v1::helpers::{errors, DefaultAccount};
+use v1::helpers::{errors};
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning};
@@ -51,14 +52,11 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 		}
 	}
 
-	fn handle(&self, payload: RpcConfirmationPayload, account: DefaultAccount) -> BoxFuture<RpcConfirmationResponse> {
+	fn handle(&self, payload: RpcConfirmationPayload, account: Address) -> BoxFuture<RpcConfirmationResponse> {
 		let accounts = self.accounts.clone();
-		let default = match account {
-			DefaultAccount::Provided(acc) => acc,
-		};
 
 		let dis = self.dispatcher.clone();
-		Box::new(dispatch::from_rpc(payload, default, &dis)
+		Box::new(dispatch::from_rpc(payload, account, &dis)
 			.and_then(move |payload| {
 				dispatch::execute(dis, accounts, payload, dispatch::SignWith::Nothing)
 			})
@@ -80,7 +78,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	}
 
 	fn send_transaction(&self, _meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256> {
-		Box::new(self.handle(RpcConfirmationPayload::SendTransaction(request), DefaultAccount::Provided(self.accounts.default_account().ok().unwrap_or_default()))
+		Box::new(self.handle(RpcConfirmationPayload::SendTransaction(request), self.accounts.default_account().ok().unwrap_or_default())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
 				Err(e) => Err(e),
@@ -89,7 +87,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	}
 
 	fn sign_transaction(&self, _meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction> {
-		Box::new(self.handle(RpcConfirmationPayload::SignTransaction(request), DefaultAccount::Provided(self.accounts.default_account().ok().unwrap_or_default()))
+		Box::new(self.handle(RpcConfirmationPayload::SignTransaction(request), self.accounts.default_account().ok().unwrap_or_default())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
 				Err(e) => Err(e),

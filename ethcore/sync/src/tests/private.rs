@@ -17,15 +17,16 @@
 use std::sync::Arc;
 use hash::keccak;
 use io::{IoHandler, IoChannel};
-use ethcore::client::{BlockChainClient, BlockId, ClientIoMessage};
-use ethcore::spec::Spec;
-use ethcore::miner::MinerService;
+use accounts::AccountProvider;
 use ethcore::CreateContractAddress;
-use transaction::{Transaction, Action};
+use ethcore::client::{BlockChainClient, BlockId, ClientIoMessage};
+use ethcore::engines;
 use ethcore::executive::{contract_address};
+use ethcore::miner::MinerService;
+use ethcore::spec::Spec;
 use ethcore::test_helpers::{push_block_with_transactions};
 use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction};
-use ethcore::account_provider::AccountProvider;
+use transaction::{Transaction, Action};
 use ethkey::{KeyPair};
 use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
@@ -42,18 +43,19 @@ fn send_private_transaction() {
 	// Setup two clients
 	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
 	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
+
 	let ap = Arc::new(AccountProvider::transient_provider());
 	ap.insert_account(s0.secret().clone(), &"".into()).unwrap();
 	ap.insert_account(s1.secret().clone(), &"".into()).unwrap();
 
-	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), seal_spec, Some(ap.clone()));
+	let mut net = TestNet::with_spec(2, SyncConfig::default(), seal_spec);
 	let client0 = net.peer(0).chain.clone();
 	let client1 = net.peer(1).chain.clone();
 	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 
-	net.peer(0).miner.set_author(s0.address(), Some("".into())).unwrap();
-	net.peer(1).miner.set_author(s1.address(), Some("".into())).unwrap();
+	net.peer(0).miner.set_author(s0.address(), Some(engines::signer::from_keypair(s0.clone())));
+	net.peer(1).miner.set_author(s1.address(), Some(engines::signer::from_keypair(s1.clone())));
 	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
 	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));

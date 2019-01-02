@@ -17,9 +17,10 @@
 //! Contract for private transactions tests.
 
 extern crate rustc_hex;
-extern crate ethcore;
 extern crate ethkey;
 extern crate keccak_hash as hash;
+extern crate ethcore;
+extern crate ethcore_accounts as accounts;
 extern crate ethcore_io;
 extern crate ethcore_logger;
 extern crate ethcore_private_tx;
@@ -31,8 +32,8 @@ extern crate log;
 use std::sync::Arc;
 use rustc_hex::FromHex;
 
+use accounts::AccountProvider;
 use ethcore::CreateContractAddress;
-use ethcore::account_provider::AccountProvider;
 use ethcore::client::BlockChainClient;
 use ethcore::client::BlockId;
 use ethcore::executive::{contract_address};

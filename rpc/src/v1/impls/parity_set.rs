@@ -22,7 +22,6 @@ use std::time::Duration;
 use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Mode};
 use ethcore::miner::MinerService;
-use ethkey::{self, Address, Password};
 use sync::ManageNetwork;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
@@ -31,6 +30,7 @@ use updater::{Service as UpdateService};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::Future;
 use v1::helpers::errors;
+use v1::helpers::engine_signer::EngineSigner;
 use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
@@ -114,32 +114,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
-		// TODO [ToDr] Simplfiy the interface further (Address instead of Option<Address>)
-		struct Signer {
-			accounts: Arc<AccountProvider>,
-			address: Address,
-			password: Password,
-		}
-		impl ethcore::engines::EngineSigner for Signer {
-			fn sign(&self, message: ethkey::Message) -> ::std::result::Result<ethkey::Signature, ethkey::Error> {
-				match self.accounts.sign(self.address, Some(self.password.clone()), message) {
-					Ok(ok) => Ok(ok),
-					Err(e) => {
-						warn!("Unable to sign consensus message: {:?}", e);
-						Err(ethkey::Error::InvalidSecret)
-					},
-				}
-			}
-
-			fn address(&self) -> Option<Address> {
-				Some(self.address)
-			}
-		}
-		let signer = Box::new(Signer {
-			accounts: self.accounts.clone(),
-			address: address.clone().into(),
-			password: password.into(),
-		});
+		let signer = Box::new(EngineSigner::new(
+			self.accounts.clone(),
+			address.clone().into(),
+			password.into(),
+		));
 		self.miner.set_author(address.into(), Some(signer));
 		Ok(true)
 	}
