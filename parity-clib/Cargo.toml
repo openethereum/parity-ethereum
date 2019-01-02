@@ -12,7 +12,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 futures = "0.1.6"
 jni = { version = "0.10.1", optional = true }
-panic_hook = { path = "../util/panic_hook" }
+panic_hook = { path = "../util/panic-hook" }
 parity-ethereum = { path = "../", default-features = false }
 tokio = "0.1.11"
 tokio-current-thread = "0.1.3"

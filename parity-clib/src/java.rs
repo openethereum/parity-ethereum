@@ -170,7 +170,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_subscribeWebSocketN
 				.name("ws-subscriber".into())
 				.spawn(move || {
 					// Wait for subscription ID
-					// Note this may block forever and be can't destroyed using the session object
+					// Note this may block forever and can't be destroyed using the session object
 					// However, this will likely timeout or be catched the RPC layer
 					if let Ok(Some(response)) = query_future.wait() {
 						callback.call(&response);
