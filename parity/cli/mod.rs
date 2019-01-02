@@ -219,7 +219,7 @@ usage! {
 			}
 
 			CMD cmd_db_reset {
-				"Removes NUM latests blocks from the db",",
+				"Removes NUM latests blocks from the db",
 
 				ARG arg_db_reset_num: (Option<u64>) = None,
 				"<NUM>",
