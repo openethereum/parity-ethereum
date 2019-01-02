@@ -356,7 +356,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	pub fn chain_mem_used(&self) -> usize {
 		use mem::MallocSizeOfExt;
 
-		self.chain.m_size_of()
+		self.chain.malloc_size_of()
 	}
 
 	/// Get a handle to the verification engine.

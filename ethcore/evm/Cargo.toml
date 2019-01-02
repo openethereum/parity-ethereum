@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 bit-set = "0.4"
 parity-bytes = "0.1"
 ethereum-types = "0.4"
-parity-util-mem = { path = "../../../../parity-common/mem" }
+parity-util-mem = { path = "../../../../parity-common/parity-util-mem" }
 lazy_static = "1.0"
 log = "0.4"
 vm = { path = "../vm" }

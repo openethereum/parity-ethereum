@@ -349,7 +349,7 @@ impl JournalDB for EarlyMergeDB {
 
 	fn mem_used(&self) -> usize {
 		self.overlay.mem_used() + match self.refs {
-			Some(ref c) => c.read().m_size_of(),
+			Some(ref c) => c.read().malloc_size_of(),
 			None => 0
 		}
  	}

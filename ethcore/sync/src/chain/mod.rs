@@ -684,7 +684,7 @@ impl ChainSync {
 			num_active_peers: self.peers.values().filter(|p| p.is_allowed() && p.asking != PeerAsking::Nothing).count(),
 			num_snapshot_chunks: self.snapshot.total_chunks(),
 			snapshot_chunks_done: self.snapshot.done_chunks(),
-			mem_used: self.m_size_of(),
+			mem_used: self.malloc_size_of(),
 		}
 	}
 

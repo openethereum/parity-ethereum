@@ -9,7 +9,7 @@ license = "GPL3"
 parity-bytes = "0.1"
 ethereum-types = "0.4"
 hashdb = "0.3.0"
-parity-util-mem = { path = "../../../../parity-common/mem" }
+parity-util-mem = { path = "../../../../parity-common/parity-util-mem" }
 keccak-hasher = { path = "../keccak-hasher" }
 kvdb = "0.1"
 log = "0.4"

@@ -20,7 +20,7 @@ ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.4"
 futures = "0.1"
 parity-runtime = { path = "../util/runtime" }
-parity-util-mem = { path = "../../../parity-common/mem" }
+parity-util-mem = { path = "../../../parity-common/parity-util-mem" }
 keccak-hash = "0.1"
 linked-hash-map = "0.5"
 log = "0.4"

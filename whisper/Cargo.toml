@@ -13,7 +13,7 @@ parity-crypto = "0.2"
 ethkey = { path = "../ethkey" }
 hex = "0.2"
 log = "0.4"
-parity-util-mem = { path = "../../../parity-common/mem" }
+parity-util-mem = { path = "../../../parity-common/parity-util-mem" }
 ordered-float = "0.5"
 parking_lot = "0.6"
 rand = "0.4"

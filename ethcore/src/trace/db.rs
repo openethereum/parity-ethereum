@@ -86,7 +86,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn cache_size(&self) -> usize {
-		self.traces.read().m_size_of()
+		self.traces.read().malloc_size_of()
 	}
 
 	/// Let the cache system know that a cacheable item has been used.
@@ -108,7 +108,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			}
 			traces.shrink_to_fit();
 
-			traces.m_size_of()
+			traces.malloc_size_of()
 		});
 	}
 

@@ -37,7 +37,7 @@ pub struct MemoryLruCache<K: Eq + Hash, V> {
 
 // amount of memory used when the item will be put on the heap.
 fn heap_size_of<T: MallocSizeOf>(val: &T) -> usize {
-	::std::mem::size_of::<T>() + val.m_size_of()
+	::std::mem::size_of::<T>() + val.malloc_size_of()
 }
 
 impl<K: Eq + Hash, V: MallocSizeOf> MemoryLruCache<K, V> {

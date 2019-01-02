@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethjson = { path = "../../json" }
 ethkey = { path = "../../ethkey" }
 evm = { path = "../evm" }
-parity-util-mem = { path = "../../../../parity-common/mem" }
+parity-util-mem = { path = "../../../../parity-common/parity-util-mem" }
 keccak-hash = "0.1"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 unexpected = { path = "../../util/unexpected" }

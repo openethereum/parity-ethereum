@@ -175,7 +175,7 @@ impl txpool::VerifiedTransaction for VerifiedTransaction {
 	}
 
 	fn mem_usage(&self) -> usize {
-		self.transaction.m_size_of()
+		self.transaction.malloc_size_of()
 	}
 
 	fn sender(&self) -> &Address {

@@ -6,5 +6,5 @@ description = "An LRU-cache which operates on memory used"
 license = "GPL3"
 
 [dependencies]
-parity-util-mem = { path = "../../../../parity-common/mem" }
+parity-util-mem = { path = "../../../../parity-common/parity-util-mem" }
 lru-cache = "0.1"
