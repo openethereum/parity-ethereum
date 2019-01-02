@@ -52,7 +52,7 @@ use client::{
 	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-	ClientIoMessage,
+	ClientIoMessage, BlockChainReset
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -86,7 +86,6 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
-use client::BlockChainReset;
 use db::Writable;
 
 use_contract!(registry, "res/contracts/registrar.json");
@@ -474,7 +473,7 @@ impl Importer {
 	// it is for reconstructing the state transition.
 	//
 	// The header passed is from the original block data and is sealed.
-	// TODO: should return an error if ImportRoute is none
+	// TODO: should return an error if ImportRoute is none, issue #9910
 	fn commit_block<B>(&self, block: B, header: &Header, block_data: encoded::Block, client: &Client) -> ImportRoute where B: Drain {
 		let hash = &header.hash();
 		let number = header.number();
@@ -1341,7 +1340,8 @@ impl BlockChainReset for Client {
 		}
 
 		let (blocks_to_delete, best_block_hash) = self.chain.read()
-			.block_headers_from_best_block(num);
+			.block_headers_from_best_block(num)
+			.ok_or("Attempted to reset past genesis block")?;
 
 		let mut db_transaction = DBTransaction::with_capacity(num as usize);
 
@@ -1361,9 +1361,13 @@ impl BlockChainReset for Client {
 			.write(db_transaction)
 			.map_err(|err| format!("could not complete reset operation; io error occured: {}", err))?;
 
-		info!("Deleting block hashes {}", Colour::Red.bold().paint(format!("{:#?}", blocks_to_delete.iter().map(|b| b
-			.hash()).collect::<Vec<_>>()
-		)));
+		let hashes = blocks_to_delete.iter().map(|b| b.hash()).collect::<Vec<_>>();
+
+		info!("Deleting block hashes {}",
+			Colour::Red
+				.bold()
+				.paint(format!("{:#?}", hashes))
+		);
 
 		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 

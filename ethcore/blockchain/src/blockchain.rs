@@ -670,18 +670,17 @@ impl BlockChain {
 
 	/// fetches the list of blocks from best block to n, and n's parent hash
 	/// where n > 0
-	pub fn block_headers_from_best_block(&self, n: u64) -> (Vec<encoded::Header>, H256) {
-		(0..n)
-			.fold(
-				(vec![], self.best_block_hash()),
-				|(mut blocks, hash), _| {
-					let current_hash = self.block_header_data(&hash)
-						.expect("hash was gotten from previous block's parent_hash; qed");
-					let parent_hash = current_hash.parent_hash();
-					blocks.push(current_hash);
-					(blocks, parent_hash)
-				}
-			)
+	pub fn block_headers_from_best_block(&self, n: u64) -> Option<(Vec<encoded::Header>, H256)> {
+		let mut blocks = vec![];
+		let mut hash = self.best_block_hash();
+
+		for _ in 0..n {
+			let current_hash = self.block_header_data(&hash)?;
+			hash = current_hash.parent_hash();
+			blocks.push(current_hash);
+		}
+
+		Some((blocks, hash))
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:

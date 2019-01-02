@@ -219,10 +219,10 @@ usage! {
 			}
 
 			CMD cmd_db_reset {
-				"Resets the blocks in the blockchain db by the number given",
+				"Removes NUM latests blocks from the db",",
 
 				ARG arg_db_reset_num: (Option<u64>) = None,
-				"--num=[NUM]",
+				"<NUM>",
 				"Number of blocks to revert",
 			}
 
