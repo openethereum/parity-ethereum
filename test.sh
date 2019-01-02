@@ -14,9 +14,9 @@ validate () {
   if [ "$VALIDATE" -eq "1" ]
   then
     echo "________Validate build________"
-    time cargo check $@ --locked --no-default-features
-    time cargo check $@ --locked --manifest-path util/io/Cargo.toml --no-default-features
-    time cargo check $@ --locked --manifest-path util/io/Cargo.toml --features "mio"
+    time cargo check "$@" --locked --no-default-features
+    time cargo check "$@" --locked --manifest-path util/io/Cargo.toml --no-default-features
+    time cargo check "$@" --locked --manifest-path util/io/Cargo.toml --features "mio"
 
     # Validate chainspecs
     echo "________Validate chainspecs________"
@@ -49,7 +49,7 @@ cpp_test () {
 cargo_test () {
   echo "________Running Parity Full Test Suite________"
   git submodule update --init --recursive
-  time cargo test $OPTIONS --features "$FEATURES" --locked --all $@ -- --test-threads $THREADS
+  time cargo test $OPTIONS --features "$FEATURES" --locked --all "$@" -- --test-threads $THREADS
 }
 
 
@@ -67,12 +67,12 @@ then
 
   case "${RUN_TESTS}" in
     (cargo|all)
-      cargo_test --target $CARGO_TARGET $@
+      cargo_test --target $CARGO_TARGET "$@"
       ;;
     ('')
-      cargo_test --no-run --target $CARGO_TARGET $@
+      cargo_test --no-run --target $CARGO_TARGET "$@"
       ;;
   esac
 else
-  cargo_test $@
+  cargo_test "$@"
 fi
