@@ -108,6 +108,7 @@ pub mod v1;
 
 pub mod tests;
 
+pub use jsonrpc_core::{FutureOutput, FutureResult, FutureResponse, FutureRpcResult};
 pub use jsonrpc_pubsub::Session as PubSubSession;
 pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext};
 pub use http::{

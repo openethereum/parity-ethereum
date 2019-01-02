@@ -41,7 +41,8 @@ use light::Cache as LightDataCache;
 use miner::external::ExternalMiner;
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
-use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing};
+use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult,
+	FutureResponse, FutureOutput};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
@@ -875,21 +876,19 @@ enum RunningClientInner {
 }
 
 impl RunningClient {
-	/// Performs a synchronous RPC query.
-	/// Blocks execution until the result is ready.
-	pub fn rpc_query_sync(&self, request: &str) -> Option<String> {
+	/// Performs an asynchronous RPC query.
+	// FIXME: [tomaka] This API should be better, with for example a Future
+	pub fn rpc_query(&self, request: &str, session: Option<Arc<PubSubSession>>)
+		-> FutureResult<FutureResponse, FutureOutput>
+	{
 		let metadata = Metadata {
 			origin: Origin::CApi,
-			session: None,
+			session,
 		};
 
 		match self.inner {
-			RunningClientInner::Light { ref rpc, .. } => {
-				rpc.handle_request_sync(request, metadata)
-			},
-			RunningClientInner::Full { ref rpc, .. } => {
-				rpc.handle_request_sync(request, metadata)
-			},
+			RunningClientInner::Light { ref rpc, .. } => rpc.handle_request(request, metadata),
+			RunningClientInner::Full { ref rpc, .. } => rpc.handle_request(request, metadata),
 		}
 	}
 
