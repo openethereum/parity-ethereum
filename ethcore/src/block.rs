@@ -568,9 +568,12 @@ fn enact(
 		ancestry,
 	)?;
 
-	// We must set timestamp here
-	b.block.header.set_timestamp(header.timestamp());
 	b.block.header.set_difficulty(*header.difficulty());
+	b.block.header.set_gas_limit(*header.gas_limit());
+	b.block.header.set_timestamp(header.timestamp());
+	b.block.header.set_uncles_hash(*header.uncles_hash());
+	b.block.header.set_transactions_root(*header.transactions_root());
+
 //	{
 //		if ::log::max_level() >= ::log::Level::Trace {
 //			let env = b.env_info();
