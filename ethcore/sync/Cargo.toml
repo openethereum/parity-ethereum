@@ -29,12 +29,12 @@ log = "0.4"
 env_logger = "0.5"
 rand = "0.4"
 heapsize = "0.4"
-parking_lot = "0.6"
+parking_lot = "0.7"
 trace-time = "0.1"
 
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }
-ethkey = { path = "../../ethkey" }
+ethkey = { path = "../../accounts/ethkey" }
 kvdb-memorydb = "0.1"
 ethcore-private-tx = { path = "../private-tx" }
 ethcore = { path = "..", features = ["test-helpers"] }

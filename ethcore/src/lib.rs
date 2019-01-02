@@ -103,7 +103,6 @@ extern crate parity_snappy as snappy;
 extern crate ethabi;
 extern crate rustc_hex;
 extern crate stats;
-extern crate stop_guard;
 extern crate using_queue;
 extern crate vm;
 extern crate wasm;
@@ -112,7 +111,7 @@ extern crate journaldb;
 extern crate serde;
 #[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
 extern crate tempdir;
-extern crate len_caching_mutex;
+extern crate len_caching_lock;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;

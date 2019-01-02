@@ -21,6 +21,7 @@ use ethereum_types::{U256, H256, Address};
 use regex::Regex;
 use validator::Validate;
 use validator::ValidationErrors;
+use lazy_static::lazy_static;
 
 pub(crate) type MessageTypes = HashMap<String, Vec<FieldType>>;
 

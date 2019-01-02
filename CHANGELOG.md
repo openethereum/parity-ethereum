@@ -1,3 +1,31 @@
+## Parity-Ethereum [v2.2.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.5) (2018-12-14)
+Parity-Ethereum 2.2.5-beta is an important release that introduces Constantinople fork at block 7080000 on Mainnet. 
+This release also contains a fix for chains using AuRa + EmptySteps. Read carefully if this applies to you. 
+If you have a chain with`empty_steps` already running, some blocks most likely contain non-strict entries (unordered or duplicated empty steps). In this release`strict_empty_steps_transition` **is enabled by default at block 0** for any chain with `empty_steps`.
+If your network uses `empty_steps` you **must**:
+- plan a hard fork and change `strict_empty_steps_transition` to the desire fork block
+- update the clients of the whole network to 2.2.5-beta / 2.1.10-stable.
+If for some reason you don't want to do this please set`strict_empty_steps_transition` to `0xfffffffff` to disable it.
+
+The full list of included changes: 
+- Backports for beta 2.2.5 ([#10047](https://github.com/paritytech/parity-ethereum/pull/10047))
+	- Bump beta to 2.2.5 ([#10047](https://github.com/paritytech/parity-ethereum/pull/10047))
+	- Fix empty steps ([#9939](https://github.com/paritytech/parity-ethereum/pull/9939))
+		- Prevent sending empty step message twice
+		- Prevent sending empty step and then block in the same step
+		- Don't accept double empty steps
+		- Do basic validation of self-sealed blocks
+	- Strict empty steps validation ([#10041](https://github.com/paritytech/parity-ethereum/pull/10041))
+		- Enables strict verification of empty steps - there can be no duplicates and empty steps should be ordered inside the seal.
+		- Note that authorities won't produce invalid seals after [#9939](https://github.com/paritytech/parity-ethereum/pull/9939), this PR just adds verification to the seal to prevent forging incorrect blocks and potentially causing consensus issues.
+		- This features is enabled by default so any AuRa + EmptySteps chain should set strict_empty_steps_transition fork block number in their spec and upgrade to v2.2.5-beta or v2.1.10-stable.
+	- ethcore: enable constantinople on ethereum ([#10031](https://github.com/paritytech/parity-ethereum/pull/10031))
+		- ethcore: change blockreward to 2e18 for foundation after constantinople
+		- ethcore: delay diff bomb by 2e6 blocks for foundation after constantinople
+		- ethcore: enable eip-{145,1014,1052,1283} for foundation after constantinople
+	- Change test miner max memory to malloc reports. ([#10024](https://github.com/paritytech/parity-ethereum/pull/10024))
+	- Fix: test corpus_inaccessible panic ([#10019](https://github.com/paritytech/parity-ethereum/pull/10019))
+
 ## Parity-Ethereum [v2.2.2](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.2) (2018-11-29)
 
 Parity-Ethereum 2.2.2-beta is an exciting release. Among others, it improves sync performance, peering stability, block propagation, and transaction propagation times. Also, a warp-sync no longer removes existing blocks from the database, but rather reuses locally available information to decrease sync times and reduces required bandwidth.

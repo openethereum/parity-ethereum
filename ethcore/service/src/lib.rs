@@ -21,7 +21,6 @@ extern crate ethcore_private_tx;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate kvdb;
-extern crate stop_guard;
 
 #[macro_use]
 extern crate error_chain;
@@ -37,6 +36,7 @@ extern crate tempdir;
 
 mod error;
 mod service;
+mod stop_guard;
 
 #[cfg(test)]
 extern crate kvdb_rocksdb;

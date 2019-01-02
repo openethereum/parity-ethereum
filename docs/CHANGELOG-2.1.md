@@ -1,3 +1,44 @@
+## Parity-Ethereum [v2.1.10](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.10) (2018-12-14)
+Parity-Ethereum 2.1.10-stable is an important release that introduces Constantinople fork at block 7080000 on Mainnet. 
+This release also contains a fix for chains using AuRa + EmptySteps. Read carefully if this applies to you. 
+If you have a chain with`empty_steps` already running, some blocks most likely contain non-strict entries (unordered or duplicated empty steps). In this release`strict_empty_steps_transition` **is enabled by default at block 0** for any chain with `empty_steps`.
+If your network uses `empty_steps` you **must**:
+- plan a hard fork and change `strict_empty_steps_transition` to the desire fork block
+- update the clients of the whole network to 2.2.5-beta / 2.1.10-stable.
+If for some reason you don't want to do this please set`strict_empty_steps_transition` to `0xfffffffff` to disable it.
+
+The full list of included changes: 
+
+-  Backports for stable 2.1.10 ([#10046](https://github.com/paritytech/parity-ethereum/pull/10046))
+	- Bump stable to 2.1.10 ([#10046](https://github.com/paritytech/parity-ethereum/pull/10046))
+	- RPC: parity_getBlockReceipts ([#9527](https://github.com/paritytech/parity-ethereum/pull/9527))
+		- Block receipts RPC.
+		- Use lazy evaluation of block receipts (ecrecover).
+		- Optimize transaction_receipt to prevent performance regression.
+		- Add block & transaction receipt tests.
+		- Fix conversion to block id.
+	- Update a few parity-common dependencies ([#9663](https://github.com/paritytech/parity-ethereum/pull/9663))
+		- revert update of ethereum/tests
+		- better reporting of network rlp errors
+		- Use rlp 0.3.0-beta.1
+		- fix util function get_dummy_blocks
+		- Already a Vec
+		- encode_list returns vec already
+	- Fix empty steps ([#9939](https://github.com/paritytech/parity-ethereum/pull/9939))
+		- Prevent sending empty step message twice
+		- Prevent sending empty step and then block in the same step
+		- Don't accept double empty steps
+		- Do basic validation of self-sealed blocks
+	- Strict empty steps validation ([#10041](https://github.com/paritytech/parity-ethereum/pull/10041))
+		- Enables strict verification of empty steps - there can be no duplicates and empty steps should be ordered inside the seal.
+		- Note that authorities won't produce invalid seals after [#9939](https://github.com/paritytech/parity-ethereum/pull/9939), this PR just adds verification to the seal to prevent forging incorrect blocks and potentially causing consensus issues.
+		- This features is enabled by default so any AuRa + EmptySteps chain should set `strict_empty_steps_transition` fork block number in their spec and upgrade to v2.2.5-beta or v2.1.10-stable.
+	- ethcore: enable constantinople on ethereum ([#10031](https://github.com/paritytech/parity-ethereum/pull/10031))
+		- ethcore: change blockreward to 2e18 for foundation after constantinople
+		- ethcore: delay diff bomb by 2e6 blocks for foundation after constantinople
+		- ethcore: enable eip-{145,1014,1052,1283} for foundation after constantinople
+	- Change test miner max memory to malloc reports. ([#10024](https://github.com/paritytech/parity-ethereum/pull/10024))
+
 ## Parity-Ethereum [v2.1.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.7) (2018-11-28)
 
 Parity-Ethereum 2.1.7-stable is a release that improves performance and stability.

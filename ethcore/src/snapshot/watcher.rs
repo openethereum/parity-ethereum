@@ -17,14 +17,13 @@
 //! Watcher for snapshot-related chain events.
 
 use parking_lot::Mutex;
-use client::{BlockInfo, Client, ChainNotify, ChainRoute, ClientIoMessage};
+use client::{BlockInfo, Client, ChainNotify, NewBlocks, ClientIoMessage};
 use ids::BlockId;
 
 use io::IoChannel;
 use ethereum_types::H256;
-use bytes::Bytes;
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 // helper trait for transforming hashes to numbers and checking if syncing.
 trait Oracle: Send + Sync {
@@ -99,20 +98,12 @@ impl Watcher {
 }
 
 impl ChainNotify for Watcher {
-	fn new_blocks(
-		&self,
-		imported: Vec<H256>,
-		_: Vec<H256>,
-		_: ChainRoute,
-		_: Vec<H256>,
-		_: Vec<Bytes>,
-		_duration: Duration)
-	{
-		if self.oracle.is_major_importing() { return }
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if self.oracle.is_major_importing() || new_blocks.has_more_blocks_to_import { return }
 
-		trace!(target: "snapshot_watcher", "{} imported", imported.len());
+		trace!(target: "snapshot_watcher", "{} imported", new_blocks.imported.len());
 
-		let highest = imported.into_iter()
+		let highest = new_blocks.imported.into_iter()
 			.filter_map(|h| self.oracle.to_number(h))
 			.filter(|&num| num >= self.period + self.history)
 			.map(|num| num - self.history)
@@ -130,7 +121,7 @@ impl ChainNotify for Watcher {
 mod tests {
 	use super::{Broadcast, Oracle, Watcher};
 
-	use client::{ChainNotify, ChainRoute};
+	use client::{ChainNotify, NewBlocks, ChainRoute};
 
 	use ethereum_types::{H256, U256};
 
@@ -170,14 +161,15 @@ mod tests {
 			history: history,
 		};
 
-		watcher.new_blocks(
+		watcher.new_blocks(NewBlocks::new(
 			hashes,
 			vec![],
 			ChainRoute::default(),
 			vec![],
 			vec![],
 			DURATION_ZERO,
-		);
+			false
+		));
 	}
 
 	// helper
