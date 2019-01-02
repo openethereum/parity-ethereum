@@ -330,7 +330,7 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 impl KeyFileManager for DiskKeyFileManager {
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
 		let key_file = json::KeyFile::load(reader).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		SafeAccount::from_file_with_password(key_file, filename, &self.password)
+		SafeAccount::from_file(key_file, filename, &self.password)
 	}
 
 	fn write<T>(&self, mut account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {

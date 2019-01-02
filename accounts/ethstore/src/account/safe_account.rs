@@ -77,20 +77,31 @@ impl SafeAccount {
 	/// Create a new `SafeAccount` from the given `json`; if it was read from a
 	/// file, the `filename` should be `Some` name. If it is as yet anonymous, then it
 	/// can be left `None`.
-	pub fn from_file(json: json::KeyFile, filename: Option<String>) -> Result<Self, Error> {
-		SafeAccount::from_file_with_password(json, filename, &None)
-	}
-
-	/// Same as [`from_file`](#method.from_file), but with `password` which enables reading keystore files w/o address.
-	pub fn from_file_with_password(json: json::KeyFile, filename: Option<String>, password: &Option<Password>) -> Result<Self, Error> {
+	/// In case `password` is provided, we will attempt to read the secret from the keyfile
+	/// and derive the address from it instead of reading it directly.
+	/// Providing password is required for `json::KeyFile`s with no address.
+	pub fn from_file(json: json::KeyFile, filename: Option<String>, password: &Option<Password>) -> Result<Self, Error> {
 		let crypto = Crypto::from(json.crypto);
-		let address = match json.address {
-			Some(address) => address.into(),
-			None => match password {
-				Some(password) =>
-					KeyPair::from_secret(crypto.secret(&password).map_err(|_| Error::InvalidPassword)?)?.address(),
-				None =>
-					return Err(Error::Custom("This keystore does not contain address. You need to provide password to import it".to_owned()))
+		let address = match (password, &json.address) {
+			(None, Some(json_address)) => json_address.into(),
+			(None, None) => Err(Error::Custom(
+				"This keystore does not contain address. You need to provide password to import it".into()))?,
+			(Some(password), json_address) => {
+				let derived_address = KeyPair::from_secret(
+					crypto.secret(&password).map_err(|_| Error::InvalidPassword)?
+				)?.address();
+
+				match json_address {
+					Some(json_address) => {
+						let json_address = json_address.into();
+						if derived_address != json_address {
+							warn!("Detected address mismatch when opening an account. Derived: {:?}, in json got: {:?}",
+								derived_address, json_address);
+						}
+					},
+					_ => {},
+				}
+				derived_address
 			}
 		};
 
@@ -120,7 +131,7 @@ impl SafeAccount {
 			address: Some(meta_plain.address),
 			name: meta_plain.name,
 			meta: meta_plain.meta,
-		}, filename)
+		}, filename, &None)
 	}
 
 	/// Create a new `VaultKeyFile` from the given `self`
