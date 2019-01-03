@@ -112,7 +112,7 @@ publish-awss3:
     - shell
 
 publish-docs:
-  stage:                            publish
+  stage:                            optional # publish
   # only:
     # - tags
   except:
