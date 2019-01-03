@@ -21,7 +21,7 @@ use io::{IoHandler, IoChannel};
 use ethcore::client::{ChainInfo, ClientIoMessage};
 use ethcore::engines;
 use ethcore::spec::Spec;
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use ethkey::{KeyPair, Secret};
 use transaction::{Action, PendingTransaction, Transaction};
 use super::helpers::*;
@@ -49,8 +49,8 @@ fn authority_round() {
 	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(0).chain.clone()));
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(net.peer(1).chain.clone()));
 	// Push transaction to both clients. Only one of them gets lucky to produce a block.
-	net.peer(0).miner.set_author(s0.address(), Some(engines::signer::from_keypair(s0.clone())));
-	net.peer(1).miner.set_author(s1.address(), Some(engines::signer::from_keypair(s1.clone())));
+	net.peer(0).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s0.clone())));
+	net.peer(1).miner.set_author(miner::Author::Sealer(engines::signer::from_keypair(s1.clone())));
 	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
 	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));

@@ -23,6 +23,8 @@ mod oneshot;
 mod signing_queue;
 
 pub use self::signing_queue::{SigningQueue, ConfirmationsQueue, ConfirmationReceiver, ConfirmationResult};
+#[cfg(test)]
+pub use self::signing_queue::QueueEvent;
 
 /// Manages communication with Signer crate
 pub struct SignerService {

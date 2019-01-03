@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use accounts::AccountProvider;
 use ethkey::crypto::ecdh::agree;
 use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
-use ethcore::account_provider::AccountProvider;
 use ethereum_types::{H256, Address};
 use traits::NodeKeyPair;
 use ethkey::Password;

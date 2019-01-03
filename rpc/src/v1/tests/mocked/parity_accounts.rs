@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
+use accounts::{AccountProvider, AccountProviderSettings};
 use ethstore::EthStore;
 use ethstore::accounts_dir::RootDiskDirectory;
 use tempdir::TempDir;

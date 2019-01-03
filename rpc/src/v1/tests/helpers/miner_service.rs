@@ -20,10 +20,9 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
-use ethcore::account_provider::SignError as AccountError;
 use ethcore::block::{Block, SealedBlock, IsBlock};
 use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
-use ethcore::engines::EthEngine;
+use ethcore::engines::{EthEngine, signer::EngineSigner};
 use ethcore::error::Error;
 use ethcore::header::{BlockNumber, Header};
 use ethcore::ids::BlockId;
@@ -35,7 +34,6 @@ use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use txpool;
-use ethkey::Password;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -49,8 +47,8 @@ pub struct TestMinerService {
 	pub pending_receipts: Mutex<Vec<RichReceipt>>,
 	/// Next nonces.
 	pub next_nonces: RwLock<HashMap<Address, U256>>,
-	/// Password held by Engine.
-	pub password: RwLock<Password>,
+	/// Signer (if any)
+	pub signer: RwLock<Option<Box<EngineSigner>>>,
 
 	authoring_params: RwLock<AuthoringParams>,
 }
@@ -63,12 +61,12 @@ impl Default for TestMinerService {
 			local_transactions: Default::default(),
 			pending_receipts: Default::default(),
 			next_nonces: Default::default(),
-			password: RwLock::new("".into()),
 			authoring_params: RwLock::new(AuthoringParams {
 				author: Address::zero(),
 				gas_range_target: (12345.into(), 54321.into()),
 				extra_data: vec![1, 2, 3, 4],
 			}),
+			signer: RwLock::new(None),
 		}
 	}
 }
@@ -120,12 +118,11 @@ impl MinerService for TestMinerService {
 		self.authoring_params.read().clone()
 	}
 
-	fn set_author(&self, author: Address, password: Option<Password>) -> Result<(), AccountError> {
-		self.authoring_params.write().author = author;
-		if let Some(password) = password {
-			*self.password.write() = password;
+	fn set_author(&self, author: miner::Author) {
+		self.authoring_params.write().author = author.address();
+		if let miner::Author::Sealer(signer) = author {
+			*self.signer.write() = Some(signer);
 		}
-		Ok(())
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {

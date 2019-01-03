@@ -19,7 +19,7 @@ use std::env;
 use std::sync::Arc;
 
 use ethereum_types::{H256, Address};
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
@@ -56,8 +56,8 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 	}))
 }
 
-fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-	Arc::new(Miner::new_for_tests(spec, Some(accounts)))
+fn miner_service(spec: &Spec) -> Arc<Miner> {
+	Arc::new(Miner::new_for_tests(spec, None))
 }
 
 fn snapshot_service() -> Arc<TestSnapshotService> {
@@ -119,8 +119,7 @@ impl EthTester {
 
 		let runtime = Runtime::with_thread_count(1);
 		let account_provider = account_provider();
-		let opt_account_provider = account_provider.clone();
-		let miner_service = miner_service(&spec, account_provider.clone());
+		let miner_service = miner_service(&spec);
 		let snapshot_service = snapshot_service();
 
 		let client = Client::new(
@@ -137,7 +136,7 @@ impl EthTester {
 			&client,
 			&snapshot_service,
 			&sync_provider,
-			&opt_account_provider,
+			&account_provider,
 			&miner_service,
 			&external_miner,
 			EthClientOptions {
@@ -154,7 +153,7 @@ impl EthTester {
 
 		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone(), reservations, 50);
 		let eth_sign = SigningUnsafeClient::new(
-			&opt_account_provider,
+			&account_provider,
 			dispatcher,
 		);
 

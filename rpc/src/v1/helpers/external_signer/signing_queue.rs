@@ -215,9 +215,8 @@ mod test {
 	use ethereum_types::{U256, Address};
 	use parking_lot::Mutex;
 	use jsonrpc_core::futures::Future;
-	use v1::helpers::{
-		SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload,
-	};
+	use v1::helpers::external_signer::{SigningQueue, ConfirmationsQueue, QueueEvent};
+	use v1::helpers::{FilledTransactionRequest, ConfirmationPayload};
 	use v1::types::ConfirmationResponse;
 
 	fn request() -> ConfirmationPayload {

@@ -53,8 +53,7 @@ pub fn verify_signature(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::sync::Arc;
-	use ethcore::account_provider::AccountProvider;
+	use ethkey::Generator;
 	use v1::types::H160;
 
 	pub fn add_chain_replay_protection(v: u64, chain_id: Option<u64>) -> u64 {
@@ -71,9 +70,9 @@ mod tests {
 	/// mocked signer
 	fn sign(should_prefix: bool, data: Vec<u8>, signing_chain_id: Option<u64>) -> (H160, [u8; 32], [u8; 32], U64) {
 		let hash = if should_prefix { eth_data_hash(data) } else { keccak(data) };
-		let accounts = Arc::new(AccountProvider::transient_provider());
-		let address = accounts.new_account(&"password123".into()).unwrap();
-		let sig = accounts.sign(address, Some("password123".into()), hash).unwrap();
+		let account = ethkey::Random.generate().unwrap();
+		let address = account.address();
+		let sig = ethkey::sign(account.secret(), &hash).unwrap();
 		let (r, s, v) = (sig.r(), sig.s(), sig.v());
 		let v = add_chain_replay_protection(v as u64, signing_chain_id);
 		let (r_buf, s_buf) = {

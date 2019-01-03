@@ -21,10 +21,10 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use ethereum_types::{H160, H256, U256, Address};
 use parking_lot::Mutex;
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
 use ethkey::Secret;
 use sync::SyncState;
@@ -405,7 +405,7 @@ fn rpc_eth_author() {
 
 	for i in 0..20 {
 		let addr = tester.accounts_provider.new_account(&format!("{}", i).into()).unwrap();
-		tester.miner.set_author(addr.clone(), None).unwrap();
+		tester.miner.set_author(miner::Author::External(addr));
 
 		assert_eq!(tester.io.handle_request_sync(request), Some(make_res(addr)));
 	}
@@ -414,7 +414,7 @@ fn rpc_eth_author() {
 #[test]
 fn rpc_eth_mining() {
 	let tester = EthTester::default();
-	tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap(), None).unwrap();
+	tester.miner.set_author(miner::Author::External(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_mining", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
@@ -1141,7 +1141,7 @@ fn rpc_get_work_returns_no_work_if_cant_mine() {
 #[test]
 fn rpc_get_work_returns_correct_work_package() {
 	let eth_tester = EthTester::default();
-	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap(), None).unwrap();
+	eth_tester.miner.set_author(miner::Author::External(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x76c7bd86693aee93d1a80a408a09a0585b1a1292afcb56192f171d925ea18e2d","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}"#;
@@ -1154,7 +1154,7 @@ fn rpc_get_work_should_not_return_block_number() {
 	let eth_tester = EthTester::new_with_options(EthClientOptions::with(|options| {
 		options.send_block_number_in_get_work = false;
 	}));
-	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap(), None).unwrap();
+	eth_tester.miner.set_author(miner::Author::External(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x76c7bd86693aee93d1a80a408a09a0585b1a1292afcb56192f171d925ea18e2d","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000"],"id":1}"#;
@@ -1165,7 +1165,7 @@ fn rpc_get_work_should_not_return_block_number() {
 #[test]
 fn rpc_get_work_should_timeout() {
 	let eth_tester = EthTester::default();
-	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap(), None).unwrap();
+	eth_tester.miner.set_author(miner::Author::External(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()));
 	let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 1000;  // Set latest block to 1000 seconds ago
 	eth_tester.client.set_latest_block_timestamp(timestamp);
 	let hash = eth_tester.miner.work_package(&*eth_tester.client).unwrap().0;

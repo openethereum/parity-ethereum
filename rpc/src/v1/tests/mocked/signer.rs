@@ -19,7 +19,7 @@ use std::str::FromStr;
 use ethereum_types::{U256, Address};
 use bytes::ToPretty;
 
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
@@ -32,7 +32,8 @@ use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
 use v1::types::{Bytes as RpcBytes, H520};
-use v1::helpers::{nonce, SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
+use v1::helpers::{nonce, FilledTransactionRequest, ConfirmationPayload};
+use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
 
 struct SignerTester {

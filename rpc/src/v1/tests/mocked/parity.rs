@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed, TransactionId};
 use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
 use ethcore_logger::RotatingLogger;
@@ -27,7 +27,8 @@ use sync::ManageNetwork;
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
 use v1::metadata::Metadata;
-use v1::helpers::{SignerService, NetworkSettings};
+use v1::helpers::NetworkSettings;
+use v1::helpers::external_signer::SignerService;
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestUpdater};
 use super::manage_network::TestManageNetwork;
 use Host;

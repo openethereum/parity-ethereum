@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use crypto::DEFAULT_MAC;
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethkey::{KeyPair, Signature, verify_public};
 
 use serde_json;

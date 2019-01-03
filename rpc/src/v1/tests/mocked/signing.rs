@@ -25,14 +25,15 @@ use jsonrpc_core::futures::Future;
 use v1::impls::SigningQueueClient;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
-use v1::helpers::{nonce, SignerService, SigningQueue, FullDispatcher};
+use v1::helpers::{nonce, FullDispatcher};
+use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::types::{ConfirmationResponse, RichRawTransaction};
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use ethereum_types::{U256, Address};
+use accounts::AccountProvider;
 use bytes::ToPretty;
-use ethcore::account_provider::AccountProvider;
+use ethereum_types::{U256, Address};
 use ethcore::client::TestBlockChainClient;
 use ethkey::Secret;
 use ethstore::ethkey::{Generator, Random};
