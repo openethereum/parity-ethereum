@@ -585,10 +585,12 @@ impl<K: Kind> VerificationQueue<K> {
 	}
 
 	/// Returns true if there is nothing currently in the queue.
-	/// TODO [ToDr] Optimize to avoid locking
 	pub fn is_empty(&self) -> bool {
 		let v = &self.verification;
-		v.unverified.lock().is_empty() && v.verifying.lock().is_empty() && v.verified.lock().is_empty()
+
+		v.unverified.load_len() == 0
+			&& v.verifying.load_len() == 0
+			&& v.verified.load_len() == 0
 	}
 
 	/// Get queue status.
