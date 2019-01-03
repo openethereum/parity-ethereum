@@ -21,7 +21,7 @@ use ethereum_types::{H256, H520};
 use parking_lot::RwLock;
 use ethkey::{self, Signature};
 use block::*;
-use engines::{self, Engine, Seal, ConstructedVerifier, EngineError};
+use engines::{Engine, Seal, ConstructedVerifier, EngineError};
 use engines::signer::EngineSigner;
 use error::{BlockError, Error};
 use ethjson;
@@ -75,7 +75,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 /// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
 	machine: EthereumMachine,
-	signer: RwLock<Box<EngineSigner>>,
+	signer: RwLock<Option<Box<EngineSigner>>>,
 	validators: Box<ValidatorSet>,
 }
 
@@ -84,7 +84,7 @@ impl BasicAuthority {
 	pub fn new(our_params: BasicAuthorityParams, machine: EthereumMachine) -> Self {
 		BasicAuthority {
 			machine: machine,
-			signer: RwLock::new(engines::signer::none()),
+			signer: RwLock::new(None),
 			validators: new_validator_set(our_params.validators),
 		}
 	}
@@ -99,7 +99,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.read().address().is_some())
+		Some(self.signer.read().is_some())
 	}
 
 	/// Attempt to seal the block internally.
@@ -190,11 +190,15 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	}
 
 	fn set_signer(&self, signer: Box<EngineSigner>) {
-		*self.signer.write() = signer;
+		*self.signer.write() = Some(signer);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		Ok(self.signer.read().sign(hash)?)
+		Ok(self.signer.read()
+			.as_ref()
+			.ok_or_else(|| ethkey::Error::InvalidAddress)?
+			.sign(hash)?
+		)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

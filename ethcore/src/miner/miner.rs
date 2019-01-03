@@ -192,6 +192,25 @@ pub struct AuthoringParams {
 	pub extra_data: Bytes,
 }
 
+/// Block sealing mechanism
+pub enum Author {
+	/// Sealing block is external and we only need a reward beneficiary (i.e. PoW)
+	External(Address),
+	/// Sealing is done internally, we need a way to create signatures to seal block (i.e. PoA)
+	Sealer(Box<EngineSigner>),
+}
+
+impl Author {
+	/// Get author's address.
+	pub fn address(&self) -> Address {
+		match *self {
+			Author::External(address) => address,
+			Author::Sealer(ref sealer) => sealer.address(),
+		}
+	}
+}
+
+
 struct SealingWork {
 	queue: UsingQueue<ClosedBlock>,
 	enabled: bool,
@@ -822,10 +841,10 @@ impl miner::MinerService for Miner {
 		self.params.write().extra_data = extra_data;
 	}
 
-	fn set_author(&self, address: Address, signer: Option<Box<EngineSigner>>) {
-		self.params.write().author = address;
+	fn set_author(&self, author: Author) {
+		self.params.write().author = author.address();
 
-		if let Some(signer) = signer {
+		if let Author::Sealer(signer) = author {
 			if self.engine.seals_internally().is_some() {
 				// Enable sealing
 				self.sealing.lock().enabled = true;
@@ -835,6 +854,8 @@ impl miner::MinerService for Miner {
 				// | Make sure to release the locks before calling that method.             |
 				// --------------------------------------------------------------------------
 				self.engine.set_signer(signer);
+			} else {
+				warn!("Setting an EngineSigner while Engine does not require one.");
 			}
 		}
 	}
@@ -1545,7 +1566,7 @@ mod tests {
 		assert!(client.engine().sign(msg).is_err());
 
 		// should set engine signer and miner author
-		client.miner().set_author(addr.clone(), Some(engine_signer));
+		client.miner().set_author(Author::Sealer(engine_signer));
 		assert_eq!(client.miner().authoring_params().author, addr);
 		assert!(client.engine().sign(msg).is_ok());
 	}

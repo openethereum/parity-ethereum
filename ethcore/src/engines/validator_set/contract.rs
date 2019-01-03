@@ -141,7 +141,7 @@ mod tests {
 	use spec::Spec;
 	use header::Header;
 	use accounts::AccountProvider;
-	use miner::MinerService;
+	use miner::{self, MinerService};
 	use types::ids::BlockId;
 	use test_helpers::generate_dummy_client_with_spec;
 	use client::{BlockChainClient, ChainInfo, BlockInfo, CallContract};
@@ -169,7 +169,7 @@ mod tests {
 		// Make sure reporting can be done.
 		client.miner().set_gas_range_target((1_000_000.into(), 1_000_000.into()));
 		let signer = Box::new((tap.clone(), v1, "".into()));
-		client.miner().set_author(v1, Some(signer));
+		client.miner().set_author(miner::Author::Sealer(signer));
 
 		// Check a block that is a bit in future, reject it but don't report the validator.
 		let mut header = Header::default();

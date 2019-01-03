@@ -99,14 +99,14 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 	{
 		// push a block with given number, signed by one of the signers, with given transactions.
 		let push_block = |signers: &[Address], n, txs: Vec<SignedTransaction>| {
-			use miner::MinerService;
+			use miner::{self, MinerService};
 
 			let idx = n as usize % signers.len();
 			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}",
 				n, txs.len(), signers[idx]);
 
 			let signer = Box::new((accounts.clone(), signers[idx], PASS.into()));
-			client.miner().set_author(signers[idx], Some(signer));
+			client.miner().set_author(miner::Author::Sealer(signer));
 			client.miner().import_external_transactions(&*client,
 				txs.into_iter().map(Into::into).collect());
 

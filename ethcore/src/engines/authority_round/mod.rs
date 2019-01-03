@@ -26,7 +26,7 @@ use std::time::{UNIX_EPOCH, SystemTime, Duration};
 
 use block::*;
 use client::EngineClient;
-use engines::{self, Engine, Seal, EngineError, ConstructedVerifier};
+use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use engines::block_reward;
 use engines::block_reward::{BlockRewardContract, RewardKind};
 use error::{Error, ErrorKind, BlockError};
@@ -410,7 +410,7 @@ pub struct AuthorityRound {
 	transition_service: IoService<()>,
 	step: Arc<PermissionedStep>,
 	client: Arc<RwLock<Option<Weak<EngineClient>>>>,
-	signer: RwLock<Box<EngineSigner>>,
+	signer: RwLock<Option<Box<EngineSigner>>>,
 	validators: Box<ValidatorSet>,
 	validate_score_transition: u64,
 	validate_step_transition: u64,
@@ -663,7 +663,7 @@ impl AuthorityRound {
 					can_propose: AtomicBool::new(true),
 				}),
 				client: Arc::new(RwLock::new(None)),
-				signer: RwLock::new(engines::signer::none()),
+				signer: RwLock::new(None),
 				validators: our_params.validators,
 				validate_score_transition: our_params.validate_score_transition,
 				validate_step_transition: our_params.validate_step_transition,
@@ -786,7 +786,7 @@ impl AuthorityRound {
 			return;
 		}
 
-		if let (true, Some(me)) = (current_step > parent_step + 1, self.signer.read().address()) {
+		if let (true, Some(me)) = (current_step > parent_step + 1, self.signer.read().as_ref().map(|s| s.address())) {
 			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				   header.author(), current_step, parent_step);
 			let mut reported = HashSet::new();
@@ -984,7 +984,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	fn seals_internally(&self) -> Option<bool> {
 		// TODO: accept a `&Call` here so we can query the validator set.
-		Some(self.signer.read().address().is_some())
+		Some(self.signer.read().is_some())
 	}
 
 	fn handle_message(&self, rlp: &[u8]) -> Result<(), EngineError> {
@@ -1486,11 +1486,15 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	fn set_signer(&self, signer: Box<EngineSigner>) {
-		*self.signer.write() = signer;
+		*self.signer.write() = Some(signer);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		Ok(self.signer.read().sign(hash)?)
+		Ok(self.signer.read()
+			.as_ref()
+			.ok_or_else(|| ethkey::Error::InvalidAddress)?
+			.sign(hash)?
+		)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

@@ -19,7 +19,7 @@ use std::sync::Arc;
 use accounts::AccountProvider;
 use ethkey::{self, Address, Password};
 
-// TODO [ToDr] Simplfiy the interface further (Address instead of Option<Address>)
+/// An implementation of EngineSigner using internal account management.
 pub struct EngineSigner {
 	accounts: Arc<AccountProvider>,
 	address: Address,
@@ -44,8 +44,8 @@ impl ethcore::engines::EngineSigner for EngineSigner {
 		}
 	}
 
-	fn address(&self) -> Option<Address> {
-		Some(self.address)
+	fn address(&self) -> Address {
+		self.address
 	}
 }
 

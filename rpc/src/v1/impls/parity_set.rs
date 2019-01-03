@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Mode};
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use sync::ManageNetwork;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
@@ -109,7 +109,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_author(&self, address: H160) -> Result<bool> {
-		self.miner.set_author(address.into(), None);
+		self.miner.set_author(miner::Author::External(address.into()));
 		Ok(true)
 	}
 
@@ -119,7 +119,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 			address.clone().into(),
 			password.into(),
 		));
-		self.miner.set_author(address.into(), Some(signer));
+		self.miner.set_author(miner::Author::Sealer(signer));
 		Ok(true)
 	}
 

@@ -447,7 +447,7 @@ mod tests {
 	use transaction::{Transaction, Action};
 	use client::{ChainInfo, BlockInfo, ImportBlock};
 	use ethkey::Secret;
-	use miner::MinerService;
+	use miner::{self, MinerService};
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
@@ -475,7 +475,7 @@ mod tests {
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 		let signer = Box::new((tap.clone(), v1, "".into()));
 
-		client.miner().set_author(v1, Some(signer));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		// Remove "1" validator.
 		let tx = Transaction {
 			nonce: 0.into(),
@@ -504,12 +504,12 @@ mod tests {
 
 		// Switch to the validator that is still there.
 		let signer = Box::new((tap.clone(), v0, "".into()));
-		client.miner().set_author(v0, Some(signer));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// Switch back to the added validator, since the state is updated.
 		let signer = Box::new((tap.clone(), v1, "".into()));
-		client.miner().set_author(v1, Some(signer));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		let tx = Transaction {
 			nonce: 2.into(),
 			gas_price: 0.into(),

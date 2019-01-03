@@ -24,23 +24,8 @@ pub trait EngineSigner: Send + Sync {
 	/// Sign a consensus message hash.
 	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error>;
 
-	/// Signing address (None if not available)
-	fn address(&self) -> Option<Address>;
-}
-
-impl EngineSigner for () {
-	fn sign(&self, _hash: H256) -> Result<Signature, ethkey::Error> {
-		Err(ethkey::Error::InvalidAddress)?
-	}
-
-	fn address(&self) -> Option<Address> {
-		None
-	}
-}
-
-/// Returns no-op `EngineSigner`
-pub fn none() -> Box<EngineSigner> {
-	Box::new(())
+	/// Signing address
+	fn address(&self) -> Address;
 }
 
 /// Creates a new `EngineSigner` from given key pair.
@@ -55,8 +40,8 @@ impl EngineSigner for Signer {
 		ethkey::sign(self.0.secret(), &hash)
 	}
 
-	fn address(&self) -> Option<Address> {
-		Some(self.0.address())
+	fn address(&self) -> Address {
+		self.0.address()
 	}
 }
 
@@ -91,8 +76,8 @@ mod test_signer {
 			}
 		}
 
-		fn address(&self) -> Option<Address> {
-			Some(self.1)
+		fn address(&self) -> Address {
+			self.1
 		}
 	}
 }

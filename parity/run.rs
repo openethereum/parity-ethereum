@@ -24,7 +24,7 @@ use ansi_term::Colour;
 use bytes::Bytes;
 use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
 use ethcore::engines::EngineSigner;
-use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
+use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
@@ -520,7 +520,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			LocalAccounts(account_provider.clone())
 		}
 	));
-	miner.set_author(cmd.miner_extras.author, None);
+	miner.set_author(miner::Author::External(cmd.miner_extras.author));
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 
@@ -550,7 +550,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 				password.clone(),
 			);
 			if signer.sign(Default::default()).is_ok() {
-				miner.set_author(engine_signer, Some(Box::new(signer)));
+				miner.set_author(miner::Author::Sealer(Box::new(signer)));
 				has_set = true;
 			}
 		}

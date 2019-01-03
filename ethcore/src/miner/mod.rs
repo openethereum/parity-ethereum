@@ -26,7 +26,7 @@ pub mod pool_client;
 #[cfg(feature = "stratum")]
 pub mod stratum;
 
-pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams};
+pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams, Author};
 pub use ethcore_miner::local_accounts::LocalAccounts;
 pub use ethcore_miner::pool::PendingOrdering;
 
@@ -44,7 +44,6 @@ use client::{
 	AccountData, Nonce,
 };
 use error::Error;
-use engines::EngineSigner;
 use header::{BlockNumber, Header};
 use receipt::RichReceipt;
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
@@ -129,8 +128,8 @@ pub trait MinerService : Send + Sync {
 
 	/// Set info necessary to sign consensus messages and block authoring.
 	///
-	/// On chains where sealing is done externally (e.g. PoW) signer is optional.
-	fn set_author(&self, address: Address, signer: Option<Box<EngineSigner>>);
+	/// On chains where sealing is done externally (e.g. PoW) we provide only reward beneficiary.
+	fn set_author(&self, author: Author);
 
 	// Transaction Pool
 

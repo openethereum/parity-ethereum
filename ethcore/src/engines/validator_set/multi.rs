@@ -153,7 +153,7 @@ mod tests {
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
 	use header::Header;
-	use miner::MinerService;
+	use miner::{self, MinerService};
 	use spec::Spec;
 	use test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
@@ -176,13 +176,13 @@ mod tests {
 
 		// Wrong signer for the first block.
 		let signer = Box::new((tap.clone(), v1, "".into()));
-		client.miner().set_author(v1, Some(signer));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		client.transact_contract(Default::default(), Default::default()).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
 		let signer = Box::new((tap.clone(), v0, "".into()));
-		client.miner().set_author(v0, Some(signer));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
@@ -190,7 +190,7 @@ mod tests {
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		let signer = Box::new((tap.clone(), v1, "".into()));
-		client.miner().set_author(v1, Some(signer));
+		client.miner().set_author(miner::Author::Sealer(signer));
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.
