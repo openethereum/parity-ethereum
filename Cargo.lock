@@ -2492,12 +2492,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)",
  "local-encoding 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-rocksdb-sys 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-rocksdb-sys 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "parity-rocksdb-sys"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cmake 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4512,7 +4512,7 @@ dependencies = [
 "checksum parity-crypto 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8adf489acb31f1922db0ce43803b6f48a425241a8473611be3cc625a8e4a4c47"
 "checksum parity-path 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5962540f99d3895d9addf535f37ab1397886bc2c68e59efd040ef458e5f8c3f7"
 "checksum parity-rocksdb 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cd55d2d6d6000ec99f021cf52c9acc7d2a402e14f95ced4c5de230696fabe00b"
-"checksum parity-rocksdb-sys 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "c172000a0115db7615befec1e52a2f5b25dbfa08a969659df494d24b7e6457b5"
+"checksum parity-rocksdb-sys 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "5bbb241262c768522f6460f0e2672dee185c8504d4d0a5a5bab45c1147981c4f"
 "checksum parity-snappy 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2c5f9d149b13134b8b354d93a92830efcbee6fe5b73a2e6e540fe70d4dd8a63"
 "checksum parity-snappy-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1a413d51e5e1927320c9de992998e4a279dffb8c8a7363570198bd8383e66f1b"
 "checksum parity-tokio-ipc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "eb002c2d3539ccd3b82bd915ec060028d4ab350ad203dbffa20028c1e483af5b"
