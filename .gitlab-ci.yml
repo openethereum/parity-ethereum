@@ -113,8 +113,8 @@ publish-awss3:
 
 publish-docs:
   stage:                            publish
-  only:
-    - tags
+  # only:
+    # - tags
   except:
     - nightly
   cache: {}
