@@ -1343,7 +1343,7 @@ impl BlockChainReset for Client {
 			.block_headers_from_best_block(num)
 			.ok_or("Attempted to reset past genesis block")?;
 
-		let mut db_transaction = DBTransaction::with_capacity(num as usize);
+		let mut db_transaction = DBTransaction::with_capacity((num + 1) as usize);
 
 		for hash in &blocks_to_delete {
 			db_transaction.delete(::db::COL_HEADERS, &hash.hash());
