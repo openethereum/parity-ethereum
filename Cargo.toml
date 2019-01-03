@@ -34,7 +34,7 @@ ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = "0.1"
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
-ethcore-logger = { path = "logger" }
+ethcore-logger = { path = "parity/logger" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
