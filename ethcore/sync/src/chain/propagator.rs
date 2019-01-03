@@ -45,13 +45,12 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 	// Parity versions starting from this will accept service-transactions
 	const SERVICE_TRANSACTIONS_VERSION: (u32, u32) = (1u32, 6u32);
 	// Parity client string prefix
-	const LEGACY_CLIENT_ID_PREFIX: &'static str = "Parity/v";
-	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity-Ethereum/v";
-
-	let splitted = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) {
-		client_id[LEGACY_CLIENT_ID_PREFIX.len()..].split('.')
-	} else if client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
-		client_id[PARITY_CLIENT_ID_PREFIX.len()..].split('.')
+	const LEGACY_CLIENT_ID_PREFIX: &'static str = "Parity/";
+	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity-Ethereum/";
+	
+	let idx = client_id.find("/v").unwrap_or(client_version.len());
+	let splitted = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) || client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
+		client_id[idx.len()..].split('.')
 	} else {
 		return false;
 	};
@@ -599,7 +598,7 @@ mod tests {
 		io.peers_info.insert(3, "Parity/v1.5".to_owned());
 		// and peer#4 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 4, block_hash);
-		io.peers_info.insert(4, "Parity-Ethereum/v2.7.3-ABCDEFGH".to_owned());
+		io.peers_info.insert(4, "Parity-Ethereum/ABCDEFGH/v2.7.3".to_owned());
 
 		// and new service transaction is propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
