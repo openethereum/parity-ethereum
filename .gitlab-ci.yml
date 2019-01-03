@@ -121,7 +121,7 @@ publish-docs:
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
-    - ci2 # shell
+    - docs # ci2 # shell
 
 build-android:
   stage:                           optional
