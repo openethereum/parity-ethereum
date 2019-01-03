@@ -31,7 +31,7 @@ pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 
-// TODO [ToDr] Remove re-export
+// TODO [ToDr] Remove re-export (#10130)
 pub use types::engines::ForkChoice;
 pub use types::engines::epoch;
 

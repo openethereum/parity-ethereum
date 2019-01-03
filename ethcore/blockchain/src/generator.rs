@@ -70,7 +70,7 @@ impl Block {
 	}
 }
 
-/// Specify block options for generatro
+/// Specify block options for generator
 #[derive(Debug)]
 pub struct BlockOptions {
 	/// Difficulty
