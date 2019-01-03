@@ -121,6 +121,7 @@ use std::alloc::System;
 
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
+pub use parity_rpc::PubSubSession;
 
 #[cfg(feature = "memory_profiling")]
 #[global_allocator]
