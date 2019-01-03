@@ -50,7 +50,7 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 	
 	let idx = client_id.find("/v").unwrap_or(client_id.len()) + 1;
 	let splitted = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) || client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
-		client_id[idx.len()..].split('.')
+		client_id[idx..].split('.')
 	} else {
 		return false;
 	};
