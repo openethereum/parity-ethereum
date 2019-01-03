@@ -168,7 +168,7 @@ impl SecretStore for EthStore {
 
 	fn import_wallet(&self, vault: SecretVaultRef, json: &[u8], password: &Password, gen_id: bool) -> Result<StoreAccountRef, Error> {
 		let json_keyfile = json::KeyFile::load(json).map_err(|_| Error::InvalidKeyFile("Invalid JSON format".to_owned()))?;
-		let mut safe_account = SafeAccount::from_file(json_keyfile, None);
+		let mut safe_account = SafeAccount::from_file(json_keyfile, None, &None)?;
 
 		if gen_id {
 			safe_account.id = Random::random();

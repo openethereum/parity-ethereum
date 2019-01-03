@@ -708,7 +708,7 @@ dependencies = [
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
- "ethstore 0.2.0",
+ "ethstore 0.2.1",
  "evm 0.1.0",
  "fake-hardware-wallet 0.0.1",
  "hardware-wallet 1.12.0",
@@ -1143,7 +1143,7 @@ dependencies = [
 
 [[package]]
 name = "ethstore"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dir 0.1.2",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1168,11 +1168,12 @@ dependencies = [
 
 [[package]]
 name = "ethstore-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dir 0.1.2",
  "docopt 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethstore 0.2.0",
+ "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethstore 0.2.1",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic_hook 0.1.0",
  "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2526,7 +2527,7 @@ dependencies = [
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
- "ethstore 0.2.0",
+ "ethstore 0.2.1",
  "fake-fetch 0.0.1",
  "fake-hardware-wallet 0.0.1",
  "fastmap 0.1.0",

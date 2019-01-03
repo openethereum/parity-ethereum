@@ -1,10 +1,11 @@
 [package]
 name = "ethstore-cli"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 docopt = "1.0"
+env_logger = "0.5"
 num_cpus = "1.6"
 rustc-hex = "1.0"
 serde = "1.0"
