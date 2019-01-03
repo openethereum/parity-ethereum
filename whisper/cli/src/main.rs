@@ -23,16 +23,16 @@
 #![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
 
 extern crate docopt;
-extern crate ethcore_network_devp2p as devp2p;
+extern crate env_logger;
 extern crate ethcore_network as net;
+extern crate ethcore_network_devp2p as devp2p;
+extern crate panic_hook;
 extern crate parity_whisper as whisper;
 extern crate serde;
-extern crate panic_hook;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_pubsub;
 extern crate jsonrpc_http_server;
-extern crate ethcore_logger as log;
 
 #[macro_use]
 extern crate log as rlog;
@@ -131,7 +131,6 @@ enum Error {
 	JsonRpc(jsonrpc_core::Error),
 	Network(net::Error),
 	SockAddr(std::net::AddrParseError),
-	Logger(String),
 }
 
 impl From<std::net::AddrParseError> for Error {
@@ -164,12 +163,6 @@ impl From<jsonrpc_core::Error> for Error {
 	}
 }
 
-impl From<String> for Error {
-	fn from(err: String) -> Self {
-		Error::Logger(err)
-	}
-}
-
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
@@ -178,7 +171,6 @@ impl fmt::Display for Error {
 			Error::Io(ref e) => write!(f, "{}", e),
 			Error::JsonRpc(ref e) => write!(f, "{:?}", e),
 			Error::Network(ref e) => write!(f, "{}", e),
-			Error::Logger(ref e) => write!(f, "{}", e),
 		}
 	}
 }
@@ -206,7 +198,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
 	let url = format!("{}:{}", args.flag_address, args.flag_port);
 
-	initialize_logger(args.flag_log)?;
+	initialize_logger(args.flag_log);
 	info!(target: "whisper-cli", "start");
 
 	// Filter manager that will dispatch `decryption tasks`
@@ -249,11 +241,10 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	Ok(())
 }
 
-fn initialize_logger(log_level: String) -> Result<(), String> {
-	let mut l = log::Config::default();
-	l.mode = Some(log_level);
-	log::setup_log(&l)?;
-	Ok(())
+fn initialize_logger(log_level: String) {
+	env_logger::Builder::from_env(env_logger::Env::default())
+		.parse(&log_level)
+		.init();
 }
 
 #[cfg(test)]

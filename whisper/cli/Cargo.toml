@@ -7,7 +7,7 @@ license = "GPL-3.0"
 
 [dependencies]
 docopt = "1.0"
-ethcore-logger = { path = "../../logger" }
+env_logger = "0.5"
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
