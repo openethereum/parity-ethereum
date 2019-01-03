@@ -743,9 +743,7 @@ fn execute_reset(cmd: ResetBlockchain) -> Result<(), String> {
 	)?;
 
 	let client = service.client();
-0xbe6ec53559aa5ccf132f870a6387da504d6d0de6caa737f5256a92b125928d85,
 	client.reset(cmd.num)?;
-0xbe6ec53559aa5ccf132f870a6387da504d6d0de6caa737f5256a92b125928d85,
 	info!("{}", Colour::Green.bold().paint("Successfully reset db!"));
 
 	Ok(())
