@@ -33,9 +33,9 @@ impl<'a> TransactionView<'a> {
 	///
 	/// ```
 	/// #[macro_use]
-	/// extern crate common_types;
+	/// extern crate common_types as types;
 	///
-	/// use common_types::views::{TransactionView};
+	/// use types::views::{TransactionView};
 	///
 	/// fn main() {
 	/// let bytes : &[u8] = &[];

@@ -58,7 +58,6 @@
 #![recursion_limit="128"]
 
 extern crate ansi_term;
-extern crate blooms_db;
 extern crate bn;
 extern crate byteorder;
 extern crate common_types as types;
@@ -115,6 +114,8 @@ extern crate tempdir;
 extern crate ethcore_logger;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate kvdb_rocksdb;
+#[cfg(any(test, feature = "test-helpers"))]
+extern crate blooms_db;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;

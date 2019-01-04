@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
-blooms-db = { path = "../util/blooms-db" }
+blooms-db = { path = "../util/blooms-db", optional = true }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
@@ -78,6 +78,7 @@ hardware-wallet = { path = "../accounts/hw" }
 fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
 
 [dev-dependencies]
+blooms-db = { path = "../util/blooms-db" }
 criterion = "0.2"
 env_logger = "0.5"
 ethcore-logger = { path = "../logger" }
@@ -114,7 +115,7 @@ ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
-test-helpers = ["tempdir", "kvdb-rocksdb"]
+test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db"]
 # Enables slow 'to-pod-full' method for use in tests and evmbin.
 to-pod-full = []
 

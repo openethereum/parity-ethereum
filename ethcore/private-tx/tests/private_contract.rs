@@ -16,7 +16,7 @@
 
 //! Contract for private transactions tests.
 
-extern crate common_types;
+extern crate common_types as types;
 extern crate ethcore;
 extern crate ethcore_io;
 extern crate ethcore_logger;
@@ -31,8 +31,8 @@ extern crate log;
 use std::sync::Arc;
 use rustc_hex::FromHex;
 
-use common_types::ids::BlockId;
-use common_types::transaction::{Transaction, Action};
+use types::ids::BlockId;
+use types::transaction::{Transaction, Action};
 use ethcore::CreateContractAddress;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::BlockChainClient;
