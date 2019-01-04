@@ -144,6 +144,10 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
 		&self.overlay
 	}
+
+	fn payload_soft_limit(&self) -> usize {
+		100_000
+	}
 }
 
 /// Mock for emulution of async run of new blocks

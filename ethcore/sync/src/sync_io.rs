@@ -58,6 +58,8 @@ pub trait SyncIo {
 	fn is_expired(&self) -> bool;
 	/// Return sync overlay
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>>;
+	/// Returns the size the payload shouldn't exceed
+	fn payload_soft_limit(&self) -> usize;
 }
 
 /// Wraps `NetworkContext` and the blockchain client
@@ -134,5 +136,9 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		self.network.peer_client_version(peer_id)
+	}
+
+	fn payload_soft_limit(&self) -> usize {
+		self.network.payload_soft_limit()
 	}
 }
