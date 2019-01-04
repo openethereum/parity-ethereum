@@ -316,7 +316,7 @@ impl SyncPropagator {
 		if lucky_peers.is_empty() {
 			error!(target: "privatetx", "Cannot propagate the packet, no peers with private tx enabled connected");
 		} else {
-			trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
+			trace!(target: "privatetx", "Sending private transaction packet to {:?}", lucky_peers);
 			for peer_id in lucky_peers {
 				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 					peer.last_sent_private_transactions.insert(transaction_hash);
