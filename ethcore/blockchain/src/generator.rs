@@ -25,7 +25,7 @@ use common_types::transaction::SignedTransaction;
 use common_types::view;
 use common_types::views::BlockView;
 use rlp::encode;
-use rlp_derive::{RlpEncodable};
+use rlp_derive::RlpEncodable;
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default, Clone, RlpEncodable)]
