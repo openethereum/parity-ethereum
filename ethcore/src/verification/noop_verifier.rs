@@ -19,7 +19,7 @@
 use client::{BlockInfo, CallContract};
 use engines::EthEngine;
 use error::Error;
-use header::Header;
+use types::header::Header;
 use super::{verification, Verifier};
 
 /// A no-op verifier -- this will verify everything it's given immediately.

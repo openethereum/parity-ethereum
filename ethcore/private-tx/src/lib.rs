@@ -25,27 +25,27 @@ mod private_transactions;
 mod messages;
 mod error;
 
+extern crate common_types as types;
+extern crate ethabi;
 extern crate ethcore;
-extern crate parity_bytes as bytes;
-extern crate parity_crypto as crypto;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
-extern crate ethcore_transaction as transaction;
-extern crate ethabi;
 extern crate ethereum_types;
-extern crate ethkey;
 extern crate ethjson;
+extern crate ethkey;
 extern crate fetch;
 extern crate futures;
 extern crate heapsize;
 extern crate keccak_hash as hash;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto as crypto;
 extern crate parking_lot;
 extern crate patricia_trie as trie;
-extern crate transaction_pool as txpool;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
-extern crate url;
 extern crate rustc_hex;
+extern crate transaction_pool as txpool;
+extern crate url;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -78,7 +78,7 @@ use ethkey::{Signature, recover, public_to_address};
 use io::IoChannel;
 use ethcore::executive::{Executive, TransactOptions};
 use ethcore::executed::{Executed};
-use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
+use types::transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
 	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,

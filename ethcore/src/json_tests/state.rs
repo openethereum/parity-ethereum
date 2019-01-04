@@ -20,7 +20,7 @@ use pod_state::PodState;
 use trace;
 use client::{EvmTestClient, EvmTestError, TransactResult};
 use ethjson;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 use vm::EnvInfo;
 use super::SKIP_TEST_STATE;
 use super::HookType;

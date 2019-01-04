@@ -26,13 +26,14 @@ use db::COL_ACCOUNT_BLOOM;
 use ethereum_types::{H256, Address};
 use hash::keccak;
 use hashdb::HashDB;
-use keccak_hasher::KeccakHasher;
-use header::BlockNumber;
 use journaldb::JournalDB;
+use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use lru_cache::LruCache;
 use memory_cache::MemoryLruCache;
 use parking_lot::Mutex;
+use types::BlockNumber;
+
 use state::{self, Account};
 
 /// Value used to initialize bloom bitmap size.

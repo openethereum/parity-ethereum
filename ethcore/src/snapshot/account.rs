@@ -17,7 +17,7 @@
 //! Account state encoding and decoding
 
 use account_db::{AccountDB, AccountDBMut};
-use basic_account::BasicAccount;
+use types::basic_account::BasicAccount;
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use ethtrie::{TrieDB, TrieDBMut};
@@ -207,7 +207,7 @@ pub fn from_fat_rlp(
 #[cfg(test)]
 mod tests {
 	use account_db::{AccountDB, AccountDBMut};
-	use basic_account::BasicAccount;
+	use types::basic_account::BasicAccount;
 	use test_helpers::get_temp_state_db;
 	use snapshot::tests::helpers::fill_storage;
 

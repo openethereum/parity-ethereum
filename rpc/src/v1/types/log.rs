@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
+use types::log_entry::{LocalizedLogEntry, LogEntry};
 use v1::types::{Bytes, H160, H256, U256};
 
 /// Log

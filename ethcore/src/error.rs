@@ -18,18 +18,19 @@
 
 use std::{fmt, error};
 use std::time::SystemTime;
+
 use ethereum_types::{H256, U256, Address, Bloom};
-use snappy::InvalidInput;
-use unexpected::{Mismatch, OutOfBounds};
-use ethtrie::TrieError;
-use io::*;
-use header::BlockNumber;
-use snapshot::Error as SnapshotError;
-use engines::EngineError;
 use ethkey::Error as EthkeyError;
-use account_provider::SignError as AccountsError;
-use transaction::Error as TransactionError;
+use ethtrie::TrieError;
 use rlp;
+use snappy::InvalidInput;
+use snapshot::Error as SnapshotError;
+use types::transaction::Error as TransactionError;
+use types::BlockNumber;
+use unexpected::{Mismatch, OutOfBounds};
+
+use account_provider::SignError as AccountsError;
+use engines::EngineError;
 
 pub use executed::{ExecutionError, CallError};
 
@@ -165,7 +166,7 @@ error_chain! {
 	}
 
 	foreign_links {
-		Channel(IoError) #[doc = "Io channel error"];
+		Channel(::io::IoError) #[doc = "Io channel error"];
 	}
 }
 
@@ -224,7 +225,7 @@ error_chain! {
 	}
 
 	foreign_links {
-		Io(IoError) #[doc = "Io create error"];
+		Io(::io::IoError) #[doc = "Io create error"];
 		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
 		Execution(ExecutionError) #[doc = "Error concerning EVM code execution."];

@@ -18,22 +18,22 @@
 use std::env;
 use std::sync::Arc;
 
-use ethereum_types::{H256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
-use ethcore::ids::BlockId;
 use ethcore::miner::Miner;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::test_helpers;
-use ethcore::verification::queue::kind::blocks::Unverified;
 use ethcore::verification::VerifierType;
+use ethcore::verification::queue::kind::blocks::Unverified;
+use ethereum_types::{H256, Address};
 use ethjson::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;
 use io::IoChannel;
 use miner::external::ExternalMiner;
-use parking_lot::Mutex;
 use parity_runtime::Runtime;
+use parking_lot::Mutex;
+use types::ids::BlockId;
 
 use jsonrpc_core::IoHandler;
 use v1::helpers::dispatch::FullDispatcher;

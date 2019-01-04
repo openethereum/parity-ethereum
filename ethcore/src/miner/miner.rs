@@ -21,39 +21,42 @@ use std::sync::Arc;
 
 use ansi_term::Colour;
 use bytes::Bytes;
-use engines::{EthEngine, Seal};
-use error::{Error, ErrorKind, ExecutionError};
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
+use ethkey::Password;
 use io::IoChannel;
+use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
+use miner;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use transaction::{
+use types::transaction::{
 	self,
 	Action,
 	UnverifiedTransaction,
 	SignedTransaction,
 	PendingTransaction,
 };
+use types::BlockNumber;
+use types::block::Block;
+use types::header::Header;
+use types::receipt::RichReceipt;
 use using_queue::{UsingQueue, GetAction};
 
 use account_provider::{AccountProvider, SignError as AccountError};
-use block::{ClosedBlock, IsBlock, Block, SealedBlock};
+use block::{ClosedBlock, IsBlock, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
+use engines::{EthEngine, Seal};
+use error::{Error, ErrorKind};
+use executed::ExecutionError;
 use executive::contract_address;
-use header::{Header, BlockNumber};
-use miner;
-use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use receipt::RichReceipt;
 use spec::Spec;
 use state::State;
-use ethkey::Password;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -1284,13 +1287,13 @@ mod tests {
 	use super::*;
 	use ethkey::{Generator, Random};
 	use hash::keccak;
-	use header::BlockNumber;
 	use rustc_hex::FromHex;
+	use types::BlockNumber;
 
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
 	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
-	use transaction::{Transaction};
+	use types::transaction::{Transaction};
 
 	#[test]
 	fn should_prepare_block_to_seal() {

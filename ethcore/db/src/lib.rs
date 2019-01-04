@@ -14,22 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum Transactions
+//! Parity Ethereum database access utilities.
 
-extern crate ethereum_types;
-extern crate ethjson;
-extern crate ethkey;
-extern crate evm;
-extern crate heapsize;
-extern crate keccak_hash as hash;
-extern crate rlp;
-extern crate unexpected;
+#![warn(missing_docs)]
 
-#[cfg(test)]
-extern crate rustc_hex;
+mod db;
 
-mod error;
-mod transaction;
+pub mod keys;
+pub mod cache_manager;
 
-pub use error::Error;
-pub use transaction::*;
+pub use self::db::*;

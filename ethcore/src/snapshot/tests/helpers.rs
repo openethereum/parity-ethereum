@@ -23,7 +23,7 @@ use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP};
 
 use account_db::AccountDBMut;
-use basic_account::BasicAccount;
+use types::basic_account::BasicAccount;
 use blockchain::{BlockChain, BlockChainDB};
 use client::{Client, ChainInfo};
 use engines::EthEngine;
@@ -142,7 +142,7 @@ pub fn compare_dbs(one: &HashDB<KeccakHasher, DBValue>, two: &HashDB<KeccakHashe
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
 pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
-	use ids::BlockId;
+	use types::ids::BlockId;
 
 	let tempdir = TempDir::new("").unwrap();
 	let path = tempdir.path().join("file");

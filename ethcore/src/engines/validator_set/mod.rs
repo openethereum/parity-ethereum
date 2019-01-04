@@ -24,13 +24,16 @@ mod contract;
 mod multi;
 
 use std::sync::Weak;
-use ids::BlockId;
-use ethereum_types::{H256, Address};
+
 use bytes::Bytes;
+use ethereum_types::{H256, Address};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
-use client::EngineClient;
-use header::{Header, BlockNumber};
 use machine::{AuxiliaryData, Call, EthereumMachine};
+use types::BlockNumber;
+use types::header::Header;
+use types::ids::BlockId;
+
+use client::EngineClient;
 
 #[cfg(test)]
 pub use self::test::TestSet;

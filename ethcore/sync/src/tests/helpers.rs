@@ -23,7 +23,6 @@ use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
-use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
@@ -35,6 +34,7 @@ use api::WARP_SYNC_PROTOCOL_ID;
 use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3, PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET, SyncSupplier};
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
+use types::BlockNumber;
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}

@@ -26,7 +26,7 @@ use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
-use ethcore::{BlockChainDB, BlockChainDBHandler};
+use blockchain::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -275,11 +275,11 @@ mod tests {
 
 	use tempdir::TempDir;
 
+	use ethcore_db::NUM_COLUMNS;
 	use ethcore::account_provider::AccountProvider;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
-	use ethcore::db::NUM_COLUMNS;
 	use ethcore::test_helpers;
 	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;

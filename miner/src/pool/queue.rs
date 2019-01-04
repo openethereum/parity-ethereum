@@ -23,8 +23,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
-use transaction;
 use txpool::{self, Verifier};
+use types::transaction;
 
 use pool::{
 	self, scoring, verifier, client, ready, listener,

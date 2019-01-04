@@ -17,16 +17,19 @@
 //! Trace database.
 use std::collections::HashMap;
 use std::sync::Arc;
-use blockchain::{BlockChainDB};
-use heapsize::HeapSizeOf;
+
+
+use blockchain::BlockChainDB;
+use db::cache_manager::CacheManager;
+use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
 use ethereum_types::{H256, H264};
+use heapsize::HeapSizeOf;
 use kvdb::{DBTransaction};
 use parking_lot::RwLock;
-use header::BlockNumber;
+use types::BlockNumber;
+
 use trace::{LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras};
-use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
-use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
-use cache_manager::CacheManager;
+use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 
 const TRACE_DB_VER: &'static [u8] = b"1.0";
 
@@ -333,7 +336,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::{DBTransaction};
-	use header::BlockNumber;
+	use types::BlockNumber;
 	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
 	use trace::trace::{Call, Action, Res};

@@ -104,7 +104,6 @@ use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
-use ethcore::header::{BlockNumber};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
@@ -115,7 +114,8 @@ use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
+use types::BlockNumber;
 
 use self::handler::SyncHandler;
 use self::propagator::SyncPropagator;
@@ -1339,9 +1339,9 @@ pub mod tests {
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
-	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::miner::{MinerService, PendingOrdering};
+	use types::header::Header;
 	use private_tx::NoopPrivateTxHandler;
 
 	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {

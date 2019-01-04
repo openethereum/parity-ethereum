@@ -19,13 +19,13 @@
 
 use std::sync::Arc;
 
-use ethcore::blockchain_info::BlockChainInfo;
+use common_types::blockchain_info::BlockChainInfo;
+use common_types::encoded;
+use common_types::ids::BlockId;
+use common_types::transaction::PendingTransaction;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, BlockInfo as ClientBlockInfo};
-use ethcore::ids::BlockId;
-use ethcore::encoded;
 use ethereum_types::H256;
 use parking_lot::RwLock;
-use transaction::PendingTransaction;
 
 use cht::{self, BlockInfo};
 use client::{LightChainClient, AsLightClient};
@@ -161,7 +161,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)
 		-> Option<request::TransactionIndexResponse>
 	{
-		use ethcore::ids::TransactionId;
+		use common_types::ids::TransactionId;
 
 		self.transaction_receipt(TransactionId::Hash(req.hash)).map(|receipt| request::TransactionIndexResponse {
 			num: receipt.block_number,
@@ -265,7 +265,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn transaction_proof(&self, req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
-		use transaction::Transaction;
+		use common_types::transaction::Transaction;
 
 		let id = BlockId::Hash(req.block_hash);
 		let nonce = match self.nonce(&req.from, id) {

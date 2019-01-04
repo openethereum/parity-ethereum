@@ -16,27 +16,29 @@
 
 use std::str::FromStr;
 use std::sync::Arc;
+
+use ethereum_types::{U256, Address};
+use ethkey::KeyPair;
 use hash::keccak;
 use io::IoChannel;
-use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
-use state::{self, State, CleanupMode};
-use executive::{Executive, TransactOptions};
-use ethereum;
+use tempdir::TempDir;
+use types::transaction::{PendingTransaction, Transaction, Action, Condition};
+use types::filter::Filter;
+use types::view;
+use types::views::BlockView;
+
 use block::IsBlock;
+use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use ethereum;
+use executive::{Executive, TransactOptions};
+use miner::{Miner, PendingOrdering, MinerService};
+use spec::Spec;
+use state::{self, State, CleanupMode};
 use test_helpers::{
+	self,
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
-use types::filter::Filter;
-use ethereum_types::{U256, Address};
-use miner::{Miner, PendingOrdering};
-use spec::Spec;
-use views::BlockView;
-use ethkey::KeyPair;
-use transaction::{PendingTransaction, Transaction, Action, Condition};
-use miner::MinerService;
-use tempdir::TempDir;
-use test_helpers;
 use verification::queue::kind::blocks::Unverified;
 
 #[test]

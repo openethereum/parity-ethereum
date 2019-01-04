@@ -33,21 +33,23 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
+use ethereum_types::{H256, U256, Address};
+use ethkey::Password;
+use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
+use types::BlockNumber;
+use types::block::Block;
+use types::header::Header;
+use types::receipt::RichReceipt;
 
-use block::{Block, SealedBlock};
+use block::SealedBlock;
 use client::{
 	CallContract, RegistryInfo, ScheduleInfo,
 	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
 	AccountData, Nonce,
 };
 use error::Error;
-use header::{BlockNumber, Header};
-use receipt::RichReceipt;
-use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use state::StateInfo;
-use ethkey::Password;
 
 /// Provides methods to verify incoming external transactions
 pub trait TransactionVerifierClient: Send + Sync
