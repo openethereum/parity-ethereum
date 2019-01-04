@@ -37,7 +37,7 @@ pub fn sync(
 	network_config: NetworkConfiguration,
 	chain: Arc<BlockChainClient>,
 	snapshot_service: Arc<SnapshotService>,
-	private_tx_handler: Arc<PrivateTxHandler>,
+	private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	provider: Arc<Provider>,
 	_log_settings: &LogConfig,
 	attached_protos: Vec<AttachedProtocol>,

@@ -268,7 +268,7 @@ pub struct Params {
 	/// Snapshot service.
 	pub snapshot_service: Arc<SnapshotService>,
 	/// Private tx service.
-	pub private_tx_handler: Arc<PrivateTxHandler>,
+	pub private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	/// Light data provider.
 	pub provider: Arc<::light::Provider>,
 	/// Network layer configuration.
@@ -349,7 +349,7 @@ impl EthSync {
 		let sync = ChainSyncApi::new(
 			params.config,
 			&*params.chain,
-			params.private_tx_handler.clone(),
+			params.private_tx_handler.as_ref().cloned(),
 			priority_tasks_rx,
 		);
 		let service = NetworkService::new(params.network_config.clone().into_basic()?, connection_filter)?;
