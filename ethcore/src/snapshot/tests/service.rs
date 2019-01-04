@@ -36,7 +36,7 @@ use verification::queue::kind::blocks::Unverified;
 
 #[test]
 fn restored_is_equivalent() {
-	::env_logger::try_init().ok();
+	let _ = ::env_logger::try_init();
 
 	const NUM_BLOCKS: u32 = 400;
 	const TX_PER: usize = 5;
@@ -152,7 +152,7 @@ fn guards_delete_folders() {
 
 #[test]
 fn keep_ancient_blocks() {
-	::env_logger::try_init().ok();
+	let _ = ::env_logger::try_init();
 
 	// Test variables
 	const NUM_BLOCKS: u64 = 500;
@@ -271,7 +271,7 @@ fn keep_ancient_blocks() {
 
 #[test]
 fn recover_aborted_recovery() {
-	::env_logger::try_init().ok();
+	let _ = ::env_logger::try_init();
 
 	const NUM_BLOCKS: u32 = 400;
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
