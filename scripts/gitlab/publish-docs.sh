@@ -51,8 +51,8 @@ commit_files() {
 
 upload_files() {
     echo "__________Upload files__________"
-    git push origin HEAD
-    git push --tags
+    git push -q origin HEAD
+    git push -q --tags
 }
 
 RPC_TRAITS_DIR="rpc/src/v1/traits"
