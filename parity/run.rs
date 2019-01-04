@@ -31,7 +31,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use sync::{self, SyncConfig};
+use sync::{self, SyncConfig, PrivateTxHandler};
 use miner::work_notify::WorkPoster;
 use futures::IntoFuture;
 use hash_fetch::{self, fetch};
@@ -666,13 +666,18 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		None
 	};
 
+	let private_tx_sync: Option<Arc<PrivateTxHandler>> = match cmd.private_tx_enabled {
+		true => Some(private_tx_service.clone() as Arc<PrivateTxHandler>),
+		false => None,
+	};
+
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
 		sync_config,
 		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
-		private_tx_service.clone(),
+		private_tx_sync,
 		client.clone(),
 		&cmd.logger_config,
 		attached_protos,

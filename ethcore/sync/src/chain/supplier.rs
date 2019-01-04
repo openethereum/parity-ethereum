@@ -43,7 +43,6 @@ use super::{
 	MAX_HEADERS_TO_SEND,
 	MAX_NODE_DATA_TO_SEND,
 	MAX_RECEIPTS_HEADERS_TO_SEND,
-	MAX_RECEIPTS_TO_SEND,
 	NODE_DATA_PACKET,
 	RECEIPTS_PACKET,
 	SNAPSHOT_DATA_PACKET,
@@ -127,6 +126,7 @@ impl SyncSupplier {
 
 	/// Respond to GetBlockHeaders request
 	fn return_block_headers(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
 		let max_headers: usize = r.val_at(1)?;
@@ -182,6 +182,10 @@ impl SyncSupplier {
 			} else if let Some(hdr) = io.chain().block_header(BlockId::Number(number)) {
 				data.append(&mut hdr.into_inner());
 				count += 1;
+				// Check that the packet won't be oversized
+				if data.len() > payload_soft_limit {
+					break;
+				}
 			} else {
 				// No required block.
 				break;
@@ -203,6 +207,7 @@ impl SyncSupplier {
 
 	/// Respond to GetBlockBodies request
 	fn return_block_bodies(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		let mut count = r.item_count().unwrap_or(0);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetBlockBodies request, ignoring.");
@@ -215,6 +220,10 @@ impl SyncSupplier {
 			if let Some(body) = io.chain().block_body(BlockId::Hash(r.val_at::<H256>(i)?)) {
 				data.append(&mut body.into_inner());
 				added += 1;
+				// Check that the packet won't be oversized
+				if data.len() > payload_soft_limit {
+					break;
+				}
 			}
 		}
 		let mut rlp = RlpStream::new_list(added);
@@ -225,6 +234,7 @@ impl SyncSupplier {
 
 	/// Respond to GetNodeData request
 	fn return_node_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		let mut count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetNodeData: {} entries", peer_id, count);
 		if count == 0 {
@@ -234,8 +244,14 @@ impl SyncSupplier {
 		count = cmp::min(count, MAX_NODE_DATA_TO_SEND);
 		let mut added = 0usize;
 		let mut data = Vec::new();
+		let mut total_bytes = 0;
 		for i in 0..count {
 			if let Some(node) = io.chain().state_data(&r.val_at::<H256>(i)?) {
+				total_bytes += node.len();
+				// Check that the packet won't be oversized
+				if total_bytes > payload_soft_limit {
+					break;
+				}
 				data.push(node);
 				added += 1;
 			}
@@ -249,6 +265,7 @@ impl SyncSupplier {
 	}
 
 	fn return_receipts(io: &SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		let mut count = rlp.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
 		if count == 0 {
@@ -257,15 +274,15 @@ impl SyncSupplier {
 		}
 		count = cmp::min(count, MAX_RECEIPTS_HEADERS_TO_SEND);
 		let mut added_headers = 0usize;
-		let mut added_receipts = 0usize;
 		let mut data = Bytes::new();
+		let mut total_bytes = 0;
 		for i in 0..count {
 			if let Some(receipts) = io.chain().block_receipts(&rlp.val_at::<H256>(i)?) {
 				let mut receipts_bytes = ::rlp::encode(&receipts);
+				total_bytes += receipts_bytes.len();
+				if total_bytes > payload_soft_limit { break; }
 				data.append(&mut receipts_bytes);
-				added_receipts += receipts_bytes.len();
 				added_headers += 1;
-				if added_receipts > MAX_RECEIPTS_TO_SEND { break; }
 			}
 		}
 		let mut rlp_result = RlpStream::new_list(added_headers);
@@ -408,6 +425,42 @@ mod test {
 
 		let result = SyncSupplier::return_block_headers(&io, &Rlp::new(&make_num_req(50, 3, 5, true)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[50].clone(), headers[44].clone(), headers[38].clone()]);
+	}
+
+	#[test]
+	fn respect_packet_limit() {
+		let small_num_blocks = 10;
+		let large_num_blocks = 50;
+		let tx_per_block = 100;
+
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(large_num_blocks, EachBlockWith::Transactions(tx_per_block));
+
+		let mut small_rlp_request = RlpStream::new_list(small_num_blocks);
+		let mut large_rlp_request = RlpStream::new_list(large_num_blocks);
+
+		for i in 0..small_num_blocks {
+			let hash: H256 = client.block_hash(BlockId::Number(i as u64)).unwrap();
+			small_rlp_request.append(&hash);
+			large_rlp_request.append(&hash);
+		}
+
+		for i in small_num_blocks..large_num_blocks {
+			let hash: H256 = client.block_hash(BlockId::Number(i as u64)).unwrap();
+			large_rlp_request.append(&hash);
+		}
+
+		let queue = RwLock::new(VecDeque::new());
+		let ss = TestSnapshotService::new();
+		let io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let small_result = SyncSupplier::return_block_bodies(&io, &Rlp::new(&small_rlp_request.out()), 0);
+		let small_result = small_result.unwrap().unwrap().1;
+		assert_eq!(Rlp::new(&small_result.out()).item_count().unwrap(), small_num_blocks);
+
+		let large_result = SyncSupplier::return_block_bodies(&io, &Rlp::new(&large_rlp_request.out()), 0);
+		let large_result = large_result.unwrap().unwrap().1;
+		assert!(Rlp::new(&large_result.out()).item_count().unwrap() < large_num_blocks);
 	}
 
 	#[test]

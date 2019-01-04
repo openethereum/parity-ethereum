@@ -46,6 +46,7 @@ use ip_utils::{map_external_address, select_public_address};
 use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use network::{ConnectionFilter, ConnectionDirection};
+use connection::PAYLOAD_SOFT_LIMIT;
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -199,6 +200,10 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 			.and_then(|info| info.id)
 			.map(|node| self.reserved_peers.contains(&node))
 			.unwrap_or(false)
+	}
+
+	fn payload_soft_limit(&self) -> usize {
+		PAYLOAD_SOFT_LIMIT
 	}
 }
 

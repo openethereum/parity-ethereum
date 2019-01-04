@@ -129,6 +129,8 @@ pub enum EachBlockWith {
 	Uncle,
 	/// Block with a transaction.
 	Transaction,
+	/// Block with multiple transactions.
+	Transactions(usize),
 	/// Block with an uncle and transaction.
 	UncleAndTransaction
 }
@@ -274,21 +276,31 @@ impl TestBlockChainClient {
 			_ => RlpStream::new_list(0)
 		};
 		let txs = match with {
-			EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
-				let mut txs = RlpStream::new_list(1);
-				let keypair = Random.generate().unwrap();
-				// Update nonces value
-				self.nonces.write().insert(keypair.address(), U256::one());
-				let tx = Transaction {
-					action: Action::Create,
-					value: U256::from(100),
-					data: "3331600055".from_hex().unwrap(),
-					gas: U256::from(100_000),
-					gas_price: U256::from(200_000_000_000u64),
-					nonce: U256::zero()
+			EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction | EachBlockWith::Transactions(_) => {
+				let num_transactions = match with {
+					EachBlockWith::Transactions(num) => num,
+					_ => 1,
 				};
-				let signed_tx = tx.sign(keypair.secret(), None);
-				txs.append(&signed_tx);
+				let mut txs = RlpStream::new_list(num_transactions);
+				let keypair = Random.generate().unwrap();
+				let mut nonce = U256::zero();
+
+				for _ in 0..num_transactions {
+					// Update nonces value
+					let tx = Transaction {
+						action: Action::Create,
+						value: U256::from(100),
+						data: "3331600055".from_hex().unwrap(),
+						gas: U256::from(100_000),
+						gas_price: U256::from(200_000_000_000u64),
+						nonce: nonce
+					};
+					let signed_tx = tx.sign(keypair.secret(), None);
+					txs.append(&signed_tx);
+					nonce += U256::one();
+				}
+
+				self.nonces.write().insert(keypair.address(), nonce);
 				txs.out()
 			},
 			_ => ::rlp::EMPTY_LIST_RLP.to_vec()
