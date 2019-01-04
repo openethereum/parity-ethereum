@@ -485,7 +485,7 @@ mod tests {
 
 	#[test]
 	fn state_db_smoke() {
-		::env_logger::try_init().ok();
+		let _ = ::env_logger::try_init();
 
 		let state_db = get_temp_state_db();
 		let root_parent = H256::random();
