@@ -30,7 +30,7 @@ use self::client::TestClient;
 // to the global use allocator, the value is currently
 // set to reflect malloc usage.
 // 50 was enough when using jmalloc.
-const TEST_QUEUE_MAX_MEM: usize = 80;
+const TEST_QUEUE_MAX_MEM: usize = 100;
 
 fn new_queue() -> TransactionQueue {
 	TransactionQueue::new(
