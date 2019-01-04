@@ -47,7 +47,7 @@ use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig};
 #[test]
 fn private_contract() {
 	// This uses a simple private contract: contract Test1 { bytes32 public x; function setX(bytes32 _x) { x = _x; } }
-	::env_logger::try_init().ok();
+	let _ = ::env_logger::try_init();
 	let client = generate_dummy_client(0);
 	let chain_id = client.signing_chain_id();
 	let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000011")).unwrap();
