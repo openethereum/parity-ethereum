@@ -77,7 +77,6 @@ mod tests {
 			_ => panic!(),
 		};
 
-
 		let s = r#"{
 			"Ethash": {
 				"params": {

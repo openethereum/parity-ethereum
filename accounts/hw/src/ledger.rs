@@ -251,7 +251,6 @@ impl Manager {
 		Self::read(&handle)
 	}
 
-
 	fn get_firmware_version(handle: &hidapi::HidDevice) -> Result<FirmwareVersion, Error> {
 		let ver = Self::send_apdu(&handle, commands::GET_APP_CONFIGURATION, 0, 0, &[])?;
 		if ver.len() != 4 {
@@ -322,7 +321,6 @@ impl Manager {
 		self.signer_helper(address, msg, commands::SIGN_ETH_PERSONAL_MESSAGE)
 	}
 }
-
 
 impl<'a> Wallet<'a> for Manager {
 	type Error = Error;

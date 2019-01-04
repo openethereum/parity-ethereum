@@ -135,7 +135,6 @@ impl RootDiskDirectory {
 		DiskDirectory::new(&self.path, DiskKeyFileManager { password })
 	}
 
-
 	pub fn at<P>(path: P) -> Self where P: AsRef<Path> {
 		DiskDirectory::new(path, DiskKeyFileManager::default())
 	}

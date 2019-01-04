@@ -461,7 +461,6 @@ usage! {
 				Ok(())
 			},
 
-
 		["API and Console Options – HTTP JSON-RPC"]
 			FLAG flag_jsonrpc_allow_missing_blocks: (bool) = false, or |c: &Config| c.rpc.as_ref()?.allow_missing_blocks.clone(),
 			"--jsonrpc-allow-missing-blocks",

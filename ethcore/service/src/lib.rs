@@ -35,7 +35,6 @@ extern crate ethcore_db;
 #[cfg(test)]
 extern crate tempdir;
 
-
 mod error;
 mod service;
 mod stop_guard;

@@ -354,7 +354,6 @@ impl Instruction {
 		}
 	}
 
-
 	/// Returns stack position of item to duplicate
 	/// DUP1 -> 0
 	pub fn dup_position(&self) -> Option<usize> {
@@ -364,7 +363,6 @@ impl Instruction {
 			None
 		}
 	}
-
 
 	/// Returns stack position of item to SWAP top with
 	/// SWAP1 -> 1

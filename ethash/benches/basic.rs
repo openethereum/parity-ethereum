@@ -37,7 +37,6 @@ criterion_group!(
 );
 criterion_main!(basic);
 
-
 fn bench_light_compute_memmap(b: &mut Criterion) {
 	use std::env;
 
@@ -47,7 +46,6 @@ fn bench_light_compute_memmap(b: &mut Criterion) {
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE)));
 }
 
-
 fn bench_light_compute_memory(b: &mut Criterion) {
 	use std::env;
 
@@ -56,7 +54,6 @@ fn bench_light_compute_memory(b: &mut Criterion) {
 
 	b.bench_function("bench_light_compute_memmap", move |b| b.iter(|| light.compute(&HASH, NONCE)));
 }
-
 
 fn bench_light_new_round_trip_memmap(b: &mut Criterion) {
 	use std::env;
@@ -68,7 +65,6 @@ fn bench_light_new_round_trip_memmap(b: &mut Criterion) {
 	}));
 }
 
-
 fn bench_light_new_round_trip_memory(b: &mut Criterion) {
 	use std::env;
 
@@ -78,7 +74,6 @@ fn bench_light_new_round_trip_memory(b: &mut Criterion) {
 		light.compute(&HASH, NONCE);
 	}));
 }
-
 
 fn bench_light_from_file_round_trip_memory(b: &mut Criterion) {
 	use std::env;
@@ -97,7 +92,6 @@ fn bench_light_from_file_round_trip_memory(b: &mut Criterion) {
 		light.compute(&HASH, NONCE);
 	}));
 }
-
 
 fn bench_light_from_file_round_trip_memmap(b: &mut Criterion) {
 	use std::env;

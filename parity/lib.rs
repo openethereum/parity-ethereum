@@ -168,7 +168,6 @@ fn run_deadlock_detection_thread() {
 	});
 }
 
-
 /// Action that Parity performed when running `start`.
 pub enum ExecutionAction {
 	/// The execution didn't require starting a node, and thus has finished.

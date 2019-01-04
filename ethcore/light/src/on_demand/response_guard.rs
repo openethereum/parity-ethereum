@@ -49,7 +49,6 @@ impl fmt::Display for Error {
 	}
 }
 
-
 /// Dummy type to convert a generic type with no trait bounds
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Inner {

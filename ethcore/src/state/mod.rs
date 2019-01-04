@@ -1016,7 +1016,6 @@ impl<B: Backend> State<B> {
 		Ok(pod_account)
 	}
 
-
 	/// Populate a PodAccount map from this state, with another state as the account and storage query.
 	fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
 		assert!(self.checkpoints.borrow().is_empty());
@@ -2737,7 +2736,6 @@ mod tests {
 		state.set_storage(&a, storage_address.clone(), H256::from(&U256::from(0u64))).unwrap();
 		let dump = state.to_pod_full().unwrap();
 		assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(0u64)));
-
 
 	}
 

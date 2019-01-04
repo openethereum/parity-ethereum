@@ -30,7 +30,6 @@ use rustc_hex::FromHex;
 use validator::Validate;
 use std::collections::HashSet;
 
-
 fn check_hex(string: &str) -> Result<()> {
 	if string.len() >= 2 && &string[..2] == "0x" {
 		return Ok(())

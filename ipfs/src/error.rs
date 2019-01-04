@@ -30,7 +30,6 @@ pub enum ServerError {
 	InvalidInterface
 }
 
-
 /// Handle IO errors (ports taken when starting the server).
 impl From<::std::io::Error> for ServerError {
 	fn from(err: ::std::io::Error) -> ServerError {

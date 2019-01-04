@@ -1037,7 +1037,6 @@ fn should_reject_early_in_case_gas_price_is_less_than_min_effective() {
 	assert_eq!(txq.status().status.transaction_count, 1);
 }
 
-
 #[test]
 fn should_not_reject_early_in_case_gas_price_is_less_than_min_effective() {
 	// given

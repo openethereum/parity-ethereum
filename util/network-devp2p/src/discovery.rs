@@ -420,7 +420,6 @@ impl<'a> Discovery<'a> {
 		self.send_queue.push_back(Datagram { payload, address });
 	}
 
-
 	pub fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		// validate packet
 		if packet.len() < 32 + 65 + 4 + 1 {
@@ -673,7 +672,6 @@ impl<'a> Discovery<'a> {
 			}
 		}
 	}
-
 
 	pub fn round(&mut self) {
 		self.check_expired(Instant::now());

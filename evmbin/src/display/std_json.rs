@@ -117,7 +117,6 @@ impl<Trace: Writer, Out: Writer> Informant<Trace, Out> {
 		}
 	}
 
-
 }
 
 impl<Trace: Writer, Out: Writer> vm::Informant for Informant<Trace, Out> {

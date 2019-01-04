@@ -146,7 +146,6 @@ pub unsafe extern fn parity_destroy(client: *mut c_void) {
 	});
 }
 
-
 unsafe fn parity_rpc_query_checker<'a>(client: *const c_void, query: *const c_char, len: usize)
 	-> Option<CheckedQuery<'a>>
 {

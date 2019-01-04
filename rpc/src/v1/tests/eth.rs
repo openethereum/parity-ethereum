@@ -95,7 +95,6 @@ impl EthTester {
 			Self::from_spec(make_spec(chain))
 		};
 
-
 		for b in chain.blocks_rlp() {
 			if let Ok(block) = Unverified::from_rlp(b) {
 				let _ = tester.client.import_block(block);

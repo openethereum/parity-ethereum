@@ -1195,7 +1195,6 @@ impl miner::MinerService for Miner {
 		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
 
-
 		// Then import all transactions from retracted blocks.
 		let client = self.pool_client(chain);
 		{

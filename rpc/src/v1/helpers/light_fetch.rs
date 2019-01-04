@@ -377,7 +377,6 @@ impl LightFetch {
 			})
 	}
 
-
 	/// Get transaction logs
 	pub fn logs(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
 		use jsonrpc_core::futures::stream::{self, Stream};

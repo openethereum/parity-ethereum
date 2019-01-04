@@ -411,7 +411,6 @@ impl<'a> Wallet<'a> for Manager {
 	}
 }
 
-
 /// Poll the device in maximum `max_polling_duration` if it doesn't succeed
 pub fn try_connect_polling(trezor: &Manager, duration: &Duration, dir: DeviceDirection) -> bool {
 	let start_time = Instant::now();
@@ -428,8 +427,6 @@ pub fn try_connect_polling(trezor: &Manager, duration: &Duration, dir: DeviceDir
 pub fn is_valid_trezor(vid: u16, pid: u16) -> bool {
 	vid == TREZOR_VID && TREZOR_PIDS.contains(&pid)
 }
-
-
 
 #[test]
 #[ignore]

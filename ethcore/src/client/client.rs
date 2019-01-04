@@ -2564,7 +2564,6 @@ mod tests {
 		assert_eq!(receipts[1].cumulative_gas_used, 106_000.into());
 		assert_eq!(receipts[1].gas_used, 53_000.into());
 
-
 		let receipt = client.transaction_receipt(TransactionId::Hash(receipts[0].transaction_hash));
 		assert_eq!(receipt, Some(receipts[0].clone()));
 

@@ -18,7 +18,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-
 use blockchain::BlockChainDB;
 use db::cache_manager::CacheManager;
 use db::{self, Key, Writable, Readable, CacheUpdatePolicy};

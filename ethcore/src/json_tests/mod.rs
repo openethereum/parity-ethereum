@@ -29,7 +29,6 @@ mod skip;
 #[cfg(test)]
 mod difficulty;
 
-
 pub use self::test_common::HookType;
 
 pub use self::transaction::run_test_path as run_transaction_test_path;
