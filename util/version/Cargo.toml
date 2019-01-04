@@ -18,7 +18,7 @@ track = "stable"
 [package.metadata.networks]
 foundation = { forkBlock = 4370000, critical = false }
 ropsten = { forkBlock = 4230000, critical = false }
-kovan = { forkBlock = 6600000, critical = false }
+kovan = { forkBlock = 6600000, critical = true }
 
 [dependencies]
 parity-bytes = "0.1"
