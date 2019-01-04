@@ -112,16 +112,16 @@ publish-awss3:
     - shell
 
 publish-docs:
-  stage:                            optional # publish
-  # only:
-    # - tags
+  stage:                            publish
+  only:
+    - tags
   except:
     - nightly
   cache: {}
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
-    - ci2 # shell
+    - linux-docker
 
 build-android:
   stage:                           optional
