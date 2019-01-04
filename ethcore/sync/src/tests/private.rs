@@ -24,7 +24,7 @@ use ethcore::CreateContractAddress;
 use types::transaction::{Transaction, Action};
 use ethcore::executive::{contract_address};
 use ethcore::test_helpers::{push_block_with_transactions};
-use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider	};
+use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair};
 use tests::helpers::{TestNet, TestIoHandler};

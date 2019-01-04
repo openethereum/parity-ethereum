@@ -527,6 +527,7 @@ impl Provider where {
 		});
 		let contract_address = contract_address.expect("Private contract address should be non zero by this moment; qed");
 		// Patch other available private contracts' states as well
+		// TODO: #10133 patch only required for the contract states
 		if let Some(key_server_account) = self.keys_provider.key_server_account() {
 			if let Some(available_contracts) = self.keys_provider.available_keys(block, &key_server_account) {
 				for private_contract in available_contracts {
