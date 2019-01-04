@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! General block status
+
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
 pub enum BlockStatus {

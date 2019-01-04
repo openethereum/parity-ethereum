@@ -95,7 +95,7 @@ mod tests {
 	use ethereum_types::{H520, Address};
 	use test_helpers::get_temp_state_db;
 	use spec::Spec;
-	use header::Header;
+	use types::header::Header;
 	use block::*;
 	use engines::Seal;
 

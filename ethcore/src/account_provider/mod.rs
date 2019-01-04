@@ -32,11 +32,11 @@ use ethstore::{
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
 use parking_lot::RwLock;
+use types::transaction::{Action, Transaction};
 
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
 pub use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
-pub use super::transaction::{Action, Transaction};
 
 /// Type of unlock.
 #[derive(Clone, PartialEq)]

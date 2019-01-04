@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::{H256, U256};
-use header::BlockNumber;
+use common_types::BlockNumber;
 
 /// Brief info about inserted block.
 #[derive(Clone)]

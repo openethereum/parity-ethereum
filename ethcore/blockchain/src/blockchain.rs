@@ -22,34 +22,37 @@ use std::path::Path;
 use std::sync::Arc;
 
 use ansi_term::Colour;
-use blockchain::{CacheSize, ImportRoute, Config};
-use blockchain::best_block::{BestBlock, BestAncientBlock};
-use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
-use blockchain::extras::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
-use blockchain::update::{ExtrasUpdate, ExtrasInsert};
 use blooms_db;
-use bytes::Bytes;
-use cache_manager::CacheManager;
-use db::{self, Writable, Readable, CacheUpdatePolicy};
-use encoded;
-use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
-use engines::ForkChoice;
+use common_types::BlockNumber;
+use common_types::blockchain_info::BlockChainInfo;
+use common_types::encoded;
+use common_types::engines::ForkChoice;
+use common_types::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
+use common_types::header::{Header, ExtendedHeader};
+use common_types::log_entry::{LogEntry, LocalizedLogEntry};
+use common_types::receipt::Receipt;
+use common_types::transaction::LocalizedTransaction;
+use common_types::tree_route::TreeRoute;
+use common_types::view;
+use common_types::views::{BlockView, HeaderView};
+use ethcore_db::cache_manager::CacheManager;
+use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
+use ethcore_db::{self as db, Writable, Readable, CacheUpdatePolicy};
 use ethereum_types::{H256, Bloom, BloomRef, U256};
-use error::Error as EthcoreError;
-use header::*;
 use heapsize::HeapSizeOf;
 use itertools::Itertools;
 use kvdb::{DBTransaction, KeyValueDB};
-use log_entry::{LogEntry, LocalizedLogEntry};
+use log::{trace, warn, info};
+use parity_bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use receipt::Receipt;
-use rlp_compress::{compress, decompress, blocks_swapper};
 use rlp::RlpStream;
-use transaction::*;
-use types::blockchain_info::BlockChainInfo;
-use types::tree_route::TreeRoute;
-use views::{BlockView, HeaderView};
+use rlp_compress::{compress, decompress, blocks_swapper};
+
+use crate::best_block::{BestBlock, BestAncientBlock};
+use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+use crate::update::{ExtrasUpdate, ExtrasInsert};
+use crate::{CacheSize, ImportRoute, Config};
 
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {
@@ -63,7 +66,7 @@ pub trait BlockChainDB: Send + Sync {
 	fn trace_blooms(&self) -> &blooms_db::Database;
 
 	/// Restore the DB from the given path
-	fn restore(&self, new_db: &str) -> Result<(), EthcoreError> {
+	fn restore(&self, new_db: &str) -> Result<(), io::Error> {
 		// First, close the Blooms databases
 		self.blooms().close()?;
 		self.trace_blooms().close()?;
@@ -1549,25 +1552,55 @@ impl BlockChain {
 
 #[cfg(test)]
 mod tests {
+	use super::*;
+
 	use std::iter;
-	use std::sync::Arc;
-	use rustc_hex::FromHex;
-	use hash::keccak;
-	use kvdb::DBTransaction;
-	use ethereum_types::*;
-	use receipt::{Receipt, TransactionOutcome};
-	use blockchain::{BlockProvider, BlockChain, BlockChainDB, Config, ImportRoute};
-	use test_helpers::{
-		generate_dummy_blockchain, generate_dummy_blockchain_with_extra,
-		generate_dummy_empty_blockchain
-	};
-	use blockchain::generator::{BlockGenerator, BlockBuilder, BlockOptions};
-	use blockchain::extras::TransactionAddress;
-	use transaction::{Transaction, Action};
-	use log_entry::{LogEntry, LocalizedLogEntry};
+
+	use common_types::receipt::{Receipt, TransactionOutcome};
+	use common_types::transaction::{Transaction, Action};
+	use crate::generator::{BlockGenerator, BlockBuilder, BlockOptions};
 	use ethkey::Secret;
-	use test_helpers::new_db;
-	use encoded;
+	use keccak_hash::keccak;
+	use rustc_hex::FromHex;
+	use tempdir::TempDir;
+
+	struct TestBlockChainDB {
+		_blooms_dir: TempDir,
+		_trace_blooms_dir: TempDir,
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for TestBlockChainDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &blooms_db::Database {
+			&self.blooms
+		}
+
+		fn trace_blooms(&self) -> &blooms_db::Database {
+			&self.trace_blooms
+		}
+	}
+
+	/// Creates new test instance of `BlockChainDB`
+	pub fn new_db() -> Arc<BlockChainDB> {
+		let blooms_dir = TempDir::new("").unwrap();
+		let trace_blooms_dir = TempDir::new("").unwrap();
+
+		let db = TestBlockChainDB {
+			blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
+			trace_blooms: blooms_db::Database::open(trace_blooms_dir.path()).unwrap(),
+			_blooms_dir: blooms_dir,
+			_trace_blooms_dir: trace_blooms_dir,
+			key_value: Arc::new(kvdb_memorydb::create(ethcore_db::NUM_COLUMNS.unwrap()))
+		};
+
+		Arc::new(db)
+	}
 
 	fn new_chain(genesis: encoded::Block, db: Arc<BlockChainDB>) -> BlockChain {
 		BlockChain::new(Config::default(), genesis.raw(), db)
@@ -1588,7 +1621,7 @@ mod tests {
 	}
 
 	fn insert_block_batch(batch: &mut DBTransaction, bc: &BlockChain, block: encoded::Block, receipts: Vec<Receipt>) -> ImportRoute {
-		use blockchain::ExtrasInsert;
+		use crate::ExtrasInsert;
 
 		let fork_choice = {
 			let header = block.header_view();
@@ -1596,9 +1629,9 @@ mod tests {
 			let parent_details = bc.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 			let block_total_difficulty = parent_details.total_difficulty + header.difficulty();
 			if block_total_difficulty > bc.best_block_total_difficulty() {
-				::engines::ForkChoice::New
+				common_types::engines::ForkChoice::New
 			} else {
-				::engines::ForkChoice::Old
+				common_types::engines::ForkChoice::Old
 			}
 		};
 
@@ -2013,43 +2046,6 @@ mod tests {
 	}
 
 	#[test]
-	fn can_contain_arbitrary_block_sequence() {
-		let bc = generate_dummy_blockchain(50);
-		assert_eq!(bc.best_block_number(), 49);
-	}
-
-	#[test]
-	fn can_collect_garbage() {
-		let bc = generate_dummy_blockchain(3000);
-
-		assert_eq!(bc.best_block_number(), 2999);
-		let best_hash = bc.best_block_hash();
-		let mut block_header = bc.block_header_data(&best_hash);
-
-		while !block_header.is_none() {
-			block_header = bc.block_header_data(&block_header.unwrap().parent_hash());
-		}
-		assert!(bc.cache_size().blocks > 1024 * 1024);
-
-		for _ in 0..2 {
-			bc.collect_garbage();
-		}
-		assert!(bc.cache_size().blocks < 1024 * 1024);
-	}
-
-	#[test]
-	fn can_contain_arbitrary_block_sequence_with_extra() {
-		let bc = generate_dummy_blockchain_with_extra(25);
-		assert_eq!(bc.best_block_number(), 24);
-	}
-
-	#[test]
-	fn can_contain_only_genesis_block() {
-		let bc = generate_dummy_empty_blockchain();
-		assert_eq!(bc.best_block_number(), 0);
-	}
-
-	#[test]
 	fn find_transaction_by_hash() {
 		let genesis = "f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0af81e09f8c46ca322193edfda764fa7e88e81923f802f1d325ec0b0308ac2cd0a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000830200008083023e38808454c98c8142a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421880102030405060708c0c0".from_hex().unwrap();
 		let b1 = "f904a8f901faa0ce1f26f798dd03c8782d63b3e42e79a64eaea5694ea686ac5d7ce3df5171d1aea01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0a65c2364cd0f1542d761823dc0109c6b072f14c20459598c5455c274601438f4a070616ebd7ad2ed6fb7860cf7e9df00163842351c38a87cac2c1cb193895035a2a05c5b4fc43c2d45787f54e1ae7d27afdb4ad16dfc567c5692070d5c4556e0b1d7b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000830200000183023ec683021536845685109780a029f07836e4e59229b3a065913afc27702642c683bba689910b2b2fd45db310d3888957e6d004a31802f902a7f85f800a8255f094aaaf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca0575da4e21b66fa764be5f74da9389e67693d066fb0d1312e19e17e501da00ecda06baf5a5327595f6619dfc2fcb3f2e6fb410b5810af3cb52d0e7508038e91a188f85f010a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba04fa966bf34b93abc1bcd665554b7f316b50f928477b50be0f3285ead29d18c5ba017bba0eeec1625ab433746955e125d46d80b7fdc97386c51266f842d8e02192ef85f020a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca004377418ae981cc32b1312b4a427a1d69a821b28db8584f5f2bd8c6d42458adaa053a1dba1af177fac92f3b6af0a9fa46a22adf56e686c93794b6a012bf254abf5f85f030a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca04fe13febd28a05f4fcb2f451d7ddc2dda56486d9f8c79a62b0ba4da775122615a0651b2382dd402df9ebc27f8cb4b2e0f3cea68dda2dca0ee9603608f0b6f51668f85f040a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba078e6a0ba086a08f8450e208a399bb2f2d2a0d984acd2517c7c7df66ccfab567da013254002cd45a97fac049ae00afbc43ed0d9961d0c56a3b2382c80ce41c198ddf85f050a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba0a7174d8f43ea71c8e3ca9477691add8d80ac8e0ed89d8d8b572041eef81f4a54a0534ea2e28ec4da3b5b944b18c51ec84a5cf35f5b3343c5fb86521fd2d388f506f85f060a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba034bd04065833536a10c77ee2a43a5371bc6d34837088b861dd9d4b7f44074b59a078807715786a13876d3455716a6b9cb2186b7a4887a5c31160fc877454958616c0".from_hex().unwrap();
@@ -2369,7 +2365,7 @@ mod tests {
 
 	#[test]
 	fn epoch_transitions_iter() {
-		use ::engines::EpochTransition;
+		use common_types::engines::epoch::Transition as EpochTransition;
 
 		let genesis = BlockBuilder::genesis();
 		let next_5 = genesis.add_blocks(5);
@@ -2418,7 +2414,7 @@ mod tests {
 
 	#[test]
 	fn epoch_transition_for() {
-		use ::engines::EpochTransition;
+		use common_types::engines::epoch::Transition as EpochTransition;
 
 		let genesis = BlockBuilder::genesis();
 		let fork_7 = genesis.add_blocks_with(7, || BlockOptions {

@@ -15,15 +15,15 @@ url = { version = "1", optional = true }
 
 # Miner
 ansi_term = "0.10"
+common-types = { path = "../ethcore/types" }
 error-chain = "0.12"
-ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.4"
 futures = "0.1"
-parity-runtime = { path = "../util/runtime" }
 heapsize = "0.4"
 keccak-hash = "0.1"
 linked-hash-map = "0.5"
 log = "0.4"
+parity-runtime = { path = "../util/runtime" }
 parking_lot = "0.7"
 price-info = { path = "./price-info", optional = true }
 rlp = { version = "0.3.0", features = ["ethereum"] }

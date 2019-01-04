@@ -19,12 +19,14 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use heapsize::HeapSizeOf;
-use ethereum_types::{H256, Address};
+
 use bytes::Bytes;
+use ethereum_types::{H256, Address};
+use heapsize::HeapSizeOf;
+use types::BlockNumber;
+use types::header::Header;
 
 use machine::{AuxiliaryData, Call, EthereumMachine};
-use header::{Header, BlockNumber};
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
@@ -57,7 +59,7 @@ impl HeapSizeOf for TestSet {
 }
 
 impl ValidatorSet for TestSet {
-	fn default_caller(&self, _block_id: ::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, _block_id: ::types::ids::BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Test set doesn't require calls.".into()))
 	}
 

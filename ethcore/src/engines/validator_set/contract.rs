@@ -21,11 +21,12 @@ use std::sync::Weak;
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
+use machine::{AuxiliaryData, Call, EthereumMachine};
 use parking_lot::RwLock;
+use types::BlockNumber;
+use types::header::Header;
 
 use client::EngineClient;
-use header::{Header, BlockNumber};
-use machine::{AuxiliaryData, Call, EthereumMachine};
 
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
@@ -67,7 +68,7 @@ impl ValidatorContract {
 }
 
 impl ValidatorSet for ValidatorContract {
-	fn default_caller(&self, id: ::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, id: ::types::ids::BlockId) -> Box<Call> {
 		self.validators.default_caller(id)
 	}
 
@@ -139,7 +140,7 @@ mod tests {
 	use bytes::ToPretty;
 	use rlp::encode;
 	use spec::Spec;
-	use header::Header;
+	use types::header::Header;
 	use account_provider::AccountProvider;
 	use miner::MinerService;
 	use types::ids::BlockId;

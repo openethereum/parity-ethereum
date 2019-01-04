@@ -17,10 +17,11 @@
 use std::path::Path;
 use super::test_common::*;
 use client::EvmTestClient;
-use header::Header;
 use ethjson;
 use rlp::Rlp;
-use transaction::UnverifiedTransaction;
+use types::header::Header;
+use types::transaction::UnverifiedTransaction;
+use transaction_ext::Transaction;
 
 /// Run transaction jsontests on a given folder.
 pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
@@ -67,7 +68,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mu
 
 					let minimal = t.gas_required(&spec.engine.schedule(header.number())).into();
 					if t.gas < minimal {
-						return Err(::transaction::Error::InsufficientGas {
+						return Err(::types::transaction::Error::InsufficientGas {
 							minimal, got: t.gas,
 						}.into());
 					}

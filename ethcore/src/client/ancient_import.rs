@@ -18,13 +18,13 @@
 
 use std::sync::Arc;
 
-use blockchain::BlockChain;
 use engines::{EthEngine, EpochVerifier};
-use header::Header;
 use machine::EthereumMachine;
 
-use rand::Rng;
+use blockchain::BlockChain;
 use parking_lot::RwLock;
+use rand::Rng;
+use types::header::Header;
 
 // do "heavy" verification on ~1/50 blocks, randomly sampled.
 const HEAVY_VERIFY_RATE: f32 = 0.02;

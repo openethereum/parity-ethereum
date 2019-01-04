@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use hash::{KECCAK_NULL_RLP, keccak};
 
-use basic_account::BasicAccount;
+use types::basic_account::BasicAccount;
 use snapshot::account;
 use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder, SNAPSHOT_SUBPARTS};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};

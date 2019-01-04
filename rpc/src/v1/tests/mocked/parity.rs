@@ -17,12 +17,12 @@
 use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed, TransactionId};
-use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256};
 use ethstore::ethkey::{Generator, Random};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use sync::ManageNetwork;
+use types::receipt::{LocalizedReceipt, TransactionOutcome};
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -433,11 +433,11 @@ fn rpc_parity_transactions_stats() {
 fn rpc_parity_local_transactions() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
-	let tx = ::transaction::Transaction {
+	let tx = ::types::transaction::Transaction {
 		value: 5.into(),
 		gas: 3.into(),
 		gas_price: 2.into(),
-		action: ::transaction::Action::Create,
+		action: ::types::transaction::Action::Create,
 		data: vec![1, 2, 3],
 		nonce: 0.into(),
 	}.fake_sign(3.into());

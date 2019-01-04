@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use transaction::{Transaction, SignedTransaction, Action};
+use types::transaction::{Transaction, SignedTransaction, Action};
 
 use ethereum_types::U256;
 use jsonrpc_core::Error;

@@ -19,9 +19,9 @@
 use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
-use header::BlockNumber;
 use rlp::{self};
 use super::ViewRlp;
+use BlockNumber;
 
 /// View onto block header rlp.
 pub struct HeaderView<'a> {
@@ -36,10 +36,10 @@ impl<'a> HeaderView<'a> {
 	///
 	/// ```
 	/// #[macro_use]
-	/// extern crate ethcore;
-	/// 
-	/// use ethcore::views::{HeaderView};
-	/// 
+	/// extern crate common_types as types;
+	///
+	/// use types::views::{HeaderView};
+	///
 	/// fn main() {
 	/// let bytes : &[u8] = &[];
 	/// let tx_view = view!(HeaderView, bytes);

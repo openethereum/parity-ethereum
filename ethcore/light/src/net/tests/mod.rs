@@ -17,21 +17,21 @@
 //! Tests for the `LightProtocol` implementation.
 //! These don't test of the higher level logic on top of
 
-use ethcore::blockchain_info::BlockChainInfo;
+use common_types::blockchain_info::BlockChainInfo;
+use common_types::encoded;
+use common_types::ids::BlockId;
+use common_types::transaction::{Action, PendingTransaction};
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
-use ethcore::encoded;
-use ethcore::ids::BlockId;
 use ethereum_types::{H256, U256, Address};
-use net::{LightProtocol, Params, packet, Peer, Statistics};
 use net::context::IoContext;
-use net::status::{Capabilities, Status};
 use net::load_timer::MOVING_SAMPLE_SIZE;
+use net::status::{Capabilities, Status};
+use net::{LightProtocol, Params, packet, Peer, Statistics};
 use network::{PeerId, NodeId};
 use provider::Provider;
-use request;
 use request::*;
+use request;
 use rlp::{Rlp, RlpStream};
-use transaction::{Action, PendingTransaction};
 
 use std::sync::Arc;
 use std::time::Instant;

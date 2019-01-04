@@ -20,11 +20,12 @@ use std::cmp;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use ethcore::basic_account::BasicAccount;
-use ethcore::encoded;
+use common_types::basic_account::BasicAccount;
+use common_types::encoded;
+use common_types::receipt::Receipt;
+use common_types::transaction::SignedTransaction;
 use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
-use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethereum_types::{H256, U256, Address};
 use ethtrie::{TrieError, TrieDB};
@@ -35,7 +36,6 @@ use memorydb::MemoryDB;
 use parking_lot::Mutex;
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 use rlp::{RlpStream, Rlp};
-use transaction::SignedTransaction;
 use trie::Trie;
 use vm::EnvInfo;
 
@@ -1108,10 +1108,10 @@ mod tests {
 	use trie::Recorder;
 	use hash::keccak;
 
-	use ::ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
-	use ethcore::header::Header;
-	use ethcore::encoded;
-	use ethcore::receipt::{Receipt, TransactionOutcome};
+	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
+	use common_types::header::Header;
+	use common_types::encoded;
+	use common_types::receipt::{Receipt, TransactionOutcome};
 
 	fn make_cache() -> ::cache::Cache {
 		::cache::Cache::new(Default::default(), Duration::from_secs(1))

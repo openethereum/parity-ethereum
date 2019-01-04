@@ -14,18 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
+use std::collections::HashSet;
+
 use bytes::Bytes;
 use ethereum_types::H256;
-use ethcore::client::BlockChainInfo;
-use ethcore::header::BlockNumber;
 use fastmap::H256FastSet;
 use network::{PeerId, PacketId};
 use rand::Rng;
 use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
-use std::cmp;
-use std::collections::HashSet;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
+use types::BlockNumber;
+use types::blockchain_info::BlockChainInfo;
 
 use super::{
 	random,

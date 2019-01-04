@@ -20,20 +20,35 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::mem;
-use itertools::Itertools;
-use rustc_hex::FromHex;
-use hash::keccak;
+
+use blockchain::{TreeRoute, BlockReceipts};
+use bytes::Bytes;
+use db::{NUM_COLUMNS, COL_STATE};
+use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, U256, Address};
-use parking_lot::RwLock;
-use journaldb;
+use ethkey::{Generator, Random};
+use ethtrie;
+use hash::keccak;
+use itertools::Itertools;
 use kvdb::DBValue;
 use kvdb_memorydb;
-use bytes::Bytes;
+use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
-use ethkey::{Generator, Random};
-use ethcore_miner::pool::VerifiedTransaction;
-use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
-use blockchain::{TreeRoute, BlockReceipts};
+use rustc_hex::FromHex;
+use types::transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
+use types::BlockNumber;
+use types::basic_account::BasicAccount;
+use types::encoded;
+use types::filter::Filter;
+use types::header::Header;
+use types::log_entry::LocalizedLogEntry;
+use types::pruning_info::PruningInfo;
+use types::receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
+use types::view;
+use types::views::BlockView;
+use vm::Schedule;
+
+use block::{OpenBlock, SealedBlock, ClosedBlock};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
@@ -42,30 +57,18 @@ use client::{
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks,
 };
-use db::{NUM_COLUMNS, COL_STATE};
-use header::{Header as BlockHeader, BlockNumber};
-use filter::Filter;
-use log_entry::LocalizedLogEntry;
-use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
+use engines::EthEngine;
 use error::{Error, EthcoreResult};
-use vm::Schedule;
+use executed::CallError;
+use executive::Executed;
+use journaldb;
 use miner::{self, Miner, MinerService};
 use spec::Spec;
-use types::basic_account::BasicAccount;
-use types::pruning_info::PruningInfo;
+use state::StateInfo;
+use state_db::StateDB;
+use trace::LocalizedTrace;
 use verification::queue::QueueInfo;
 use verification::queue::kind::blocks::Unverified;
-use block::{OpenBlock, SealedBlock, ClosedBlock};
-use executive::Executed;
-use error::CallError;
-use trace::LocalizedTrace;
-use state_db::StateDB;
-use header::Header;
-use encoded;
-use engines::EthEngine;
-use ethtrie;
-use state::StateInfo;
-use views::BlockView;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -244,11 +247,11 @@ impl TestBlockChainClient {
 
 	/// Add a block to test client.
 	pub fn add_block<F>(&self, with: EachBlockWith, hook: F)
-		where F: Fn(BlockHeader) -> BlockHeader
+		where F: Fn(Header) -> Header
 	{
 		let n = self.numbers.read().len();
 
-		let mut header = BlockHeader::new();
+		let mut header = Header::new();
 		header.set_difficulty(From::from(n));
 		header.set_parent_hash(self.last_hash.read().clone());
 		header.set_number(n as BlockNumber);
@@ -260,7 +263,7 @@ impl TestBlockChainClient {
 		let uncles = match with {
 			EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
 				let mut uncles = RlpStream::new_list(1);
-				let mut uncle_header = BlockHeader::new();
+				let mut uncle_header = Header::new();
 				uncle_header.set_difficulty(From::from(n));
 				uncle_header.set_parent_hash(self.last_hash.read().clone());
 				uncle_header.set_number(n as BlockNumber);
@@ -309,7 +312,7 @@ impl TestBlockChainClient {
 	/// Make a bad block by setting invalid parent hash.
 	pub fn corrupt_block_parent(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
-		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode().expect("decoding failed");
+		let mut header: Header = self.block_header(BlockId::Number(n)).unwrap().decode().expect("decoding failed");
 		header.set_parent_hash(H256::from(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
@@ -935,7 +938,7 @@ impl super::traits::EngineClient for TestBlockChainClient {
 		BlockChainClient::block_number(self, id)
 	}
 
-	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		BlockChainClient::block_header(self, id)
 	}
 }

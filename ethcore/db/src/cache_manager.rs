@@ -14,11 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Database cache manager
+
 use std::collections::{VecDeque, HashSet};
 use std::hash::Hash;
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
 
+/// DB cache manager
 pub struct CacheManager<T> {
 	pref_cache_size: usize,
 	max_cache_size: usize,
@@ -27,6 +30,7 @@ pub struct CacheManager<T> {
 }
 
 impl<T> CacheManager<T> where T: Eq + Hash {
+	/// Create new cache manager with preferred (heap) sizes.
 	pub fn new(pref_cache_size: usize, max_cache_size: usize, bytes_per_cache_entry: usize) -> Self {
 		CacheManager {
 			pref_cache_size: pref_cache_size,
@@ -36,6 +40,7 @@ impl<T> CacheManager<T> where T: Eq + Hash {
 		}
 	}
 
+	/// Mark element as used.
 	pub fn note_used(&mut self, id: T) {
 		if !self.cache_usage[0].contains(&id) {
 			if let Some(c) = self.cache_usage.iter_mut().skip(1).find(|e| e.contains(&id)) {

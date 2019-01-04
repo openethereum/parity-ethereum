@@ -20,13 +20,13 @@
 //! Keeps track of transactions and mined block.
 
 extern crate ansi_term;
-extern crate ethcore_transaction as transaction;
+extern crate common_types as types;
 extern crate ethereum_types;
 extern crate futures;
-extern crate parity_runtime;
 extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate linked_hash_map;
+extern crate parity_runtime;
 extern crate parking_lot;
 #[cfg(feature = "price-info")]
 extern crate price_info;

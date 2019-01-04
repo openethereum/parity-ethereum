@@ -21,21 +21,23 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use bytes::Bytes;
 use ethcore::account_provider::SignError as AccountError;
-use ethcore::block::{Block, SealedBlock, IsBlock};
+use ethcore::block::{SealedBlock, IsBlock};
 use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::engines::EthEngine;
 use ethcore::error::Error;
-use ethcore::header::{BlockNumber, Header};
-use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService, AuthoringParams};
-use ethcore::receipt::RichReceipt;
 use ethereum_types::{H256, U256, Address};
+use ethkey::Password;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
-use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
+use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use txpool;
-use ethkey::Password;
+use types::BlockNumber;
+use types::block::Block;
+use types::header::Header;
+use types::ids::BlockId;
+use types::receipt::RichReceipt;
 
 /// Test miner service.
 pub struct TestMinerService {

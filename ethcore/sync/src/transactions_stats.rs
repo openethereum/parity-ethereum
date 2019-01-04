@@ -19,9 +19,9 @@ use std::hash::BuildHasher;
 use std::collections::{HashSet, HashMap};
 use ethereum_types::{H256, H512};
 use fastmap::H256FastMap;
+use types::BlockNumber;
 
 type NodeId = H512;
-type BlockNumber = u64;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stats {

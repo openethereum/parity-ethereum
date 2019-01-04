@@ -6,17 +6,15 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+common-types = { path = "../types" }
 error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
-ethabi-derive = "6.0"
 ethabi-contract = "6.0"
+ethabi-derive = "6.0"
 ethcore = { path = ".." }
-parity-bytes = "0.1"
-parity-crypto = "0.2"
 ethcore-io = { path = "../../util/io" }
 ethcore-logger = { path = "../../logger" }
 ethcore-miner = { path = "../../miner" }
-ethcore-transaction = { path = "../transaction" }
 ethereum-types = "0.4"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../accounts/ethkey" }
@@ -25,6 +23,8 @@ futures = "0.1"
 heapsize = "0.4"
 keccak-hash = "0.1.2"
 log = "0.4"
+parity-bytes = "0.1"
+parity-crypto = "0.2"
 parking_lot = "0.7"
 patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }

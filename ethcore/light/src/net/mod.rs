@@ -18,8 +18,7 @@
 //!
 //! This uses a "Provider" to answer requests.
 
-use transaction::UnverifiedTransaction;
-
+use common_types::transaction::UnverifiedTransaction;
 use ethereum_types::{H256, U256};
 use io::TimerToken;
 use kvdb::DBValue;

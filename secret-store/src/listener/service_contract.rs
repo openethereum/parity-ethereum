@@ -16,10 +16,10 @@
 
 use std::sync::Arc;
 use parking_lot::RwLock;
+use common_types::filter::Filter;
 use ethabi::RawLog;
 use ethabi::FunctionOutputDecoder;
 use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
-use ethcore::filter::Filter;
 use ethkey::{Public, public_to_address};
 use hash::keccak;
 use bytes::Bytes;

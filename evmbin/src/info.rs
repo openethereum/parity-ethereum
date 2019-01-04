@@ -21,7 +21,7 @@ use ethereum_types::{H256, U256};
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
 use ethcore::{state, state_db, trace, spec, pod_state, TrieSpec};
 use ethjson;
-use transaction;
+use types::transaction;
 use vm::ActionParams;
 
 /// VM execution informant

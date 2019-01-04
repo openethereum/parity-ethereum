@@ -16,15 +16,16 @@
 
 extern crate kvdb_rocksdb;
 extern crate migration_rocksdb;
+extern crate ethcore_blockchain;
 
 use std::{io, fs};
 use std::sync::Arc;
 use std::path::Path;
 use blooms_db;
-use ethcore::{BlockChainDBHandler, BlockChainDB};
-use ethcore::db::NUM_COLUMNS;
+use ethcore_db::NUM_COLUMNS;
 use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
 use kvdb::KeyValueDB;
+use self::ethcore_blockchain::{BlockChainDBHandler, BlockChainDB};
 use self::kvdb_rocksdb::{Database, DatabaseConfig};
 
 use cache::CacheConfig;

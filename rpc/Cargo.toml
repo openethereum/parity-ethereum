@@ -34,6 +34,7 @@ jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 
+common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 fastmap = { path = "../util/fastmap" }
@@ -45,7 +46,6 @@ ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.4"
 
 ethjson = { path = "../json" }

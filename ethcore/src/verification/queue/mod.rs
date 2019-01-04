@@ -117,9 +117,9 @@ pub enum Status {
 	Unknown,
 }
 
-impl Into<::block_status::BlockStatus> for Status {
-	fn into(self) -> ::block_status::BlockStatus {
-		use ::block_status::BlockStatus;
+impl Into<::types::block_status::BlockStatus> for Status {
+	fn into(self) -> ::types::block_status::BlockStatus {
+		use ::types::block_status::BlockStatus;
 		match self {
 			Status::Queued => BlockStatus::Queued,
 			Status::Bad => BlockStatus::Bad,
@@ -744,8 +744,9 @@ mod tests {
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use error::*;
-	use views::BlockView;
 	use bytes::Bytes;
+	use types::view;
+	use types::views::BlockView;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.

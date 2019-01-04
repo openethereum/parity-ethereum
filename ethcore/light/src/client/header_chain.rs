@@ -30,12 +30,12 @@ use std::sync::Arc;
 
 use cache::Cache;
 use cht;
-use ethcore::block_status::BlockStatus;
-use ethcore::encoded;
+use common_types::block_status::BlockStatus;
+use common_types::encoded;
+use common_types::header::Header;
+use common_types::ids::BlockId;
 use ethcore::engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
 use ethcore::error::{Error, EthcoreResult, ErrorKind as EthcoreErrorKind, BlockError};
-use ethcore::header::Header;
-use ethcore::ids::BlockId;
 use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethereum_types::{H256, H264, U256};
 use heapsize::HeapSizeOf;
@@ -862,11 +862,11 @@ mod tests {
 	use super::{HeaderChain, HardcodedSync};
 	use std::sync::Arc;
 
-	use ethereum_types::U256;
-	use ethcore::ids::BlockId;
-	use ethcore::header::Header;
-	use ethcore::spec::Spec;
 	use cache::Cache;
+	use common_types::header::Header;
+	use common_types::ids::BlockId;
+	use ethcore::spec::Spec;
+	use ethereum_types::U256;
 	use kvdb::KeyValueDB;
 	use kvdb_memorydb;
 

@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use ethcore::client::BlockId;
-use ethcore::header::BlockNumber;
 use ethereum_types::H256;
 use network::{self, PeerId};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use std::cmp;
+use types::BlockNumber;
+use types::ids::BlockId;
 
 use sync_io::SyncIo;
 
