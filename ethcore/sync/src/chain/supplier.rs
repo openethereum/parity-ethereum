@@ -43,7 +43,6 @@ use super::{
 	MAX_HEADERS_TO_SEND,
 	MAX_NODE_DATA_TO_SEND,
 	MAX_RECEIPTS_HEADERS_TO_SEND,
-	MAX_RECEIPTS_TO_SEND,
 	NODE_DATA_PACKET,
 	RECEIPTS_PACKET,
 	SNAPSHOT_DATA_PACKET,
@@ -266,6 +265,7 @@ impl SyncSupplier {
 	}
 
 	fn return_receipts(io: &SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		let payload_soft_limit = io.payload_soft_limit();
 		let mut count = rlp.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
 		if count == 0 {
@@ -274,15 +274,15 @@ impl SyncSupplier {
 		}
 		count = cmp::min(count, MAX_RECEIPTS_HEADERS_TO_SEND);
 		let mut added_headers = 0usize;
-		let mut added_receipts = 0usize;
 		let mut data = Bytes::new();
+		let mut total_bytes = 0;
 		for i in 0..count {
 			if let Some(receipts) = io.chain().block_receipts(&rlp.val_at::<H256>(i)?) {
 				let mut receipts_bytes = ::rlp::encode(&receipts);
+				total_bytes += receipts_bytes.len();
+				if total_bytes > payload_soft_limit { break; }
 				data.append(&mut receipts_bytes);
-				added_receipts += receipts_bytes.len();
 				added_headers += 1;
-				if added_receipts > MAX_RECEIPTS_TO_SEND { break; }
 			}
 		}
 		let mut rlp_result = RlpStream::new_list(added_headers);
