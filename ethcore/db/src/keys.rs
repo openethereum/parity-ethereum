@@ -20,7 +20,7 @@ use std::io::Write;
 use std::ops;
 
 use common_types::BlockNumber;
-use common_types::engines::epoch::{Transition as EpochTransition};
+use common_types::engines::epoch::Transition as EpochTransition;
 use common_types::receipt::Receipt;
 use ethereum_types::{H256, H264, U256};
 use heapsize::HeapSizeOf;
