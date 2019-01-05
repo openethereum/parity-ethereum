@@ -146,7 +146,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 
 						for idx in (1..txs.len()).rev() {
 							let consecutive_bump = is_consecutive(idx - 1) * (U256::from(21_000) * scores[idx]) / txs[idx-1].transaction.gas();
-							scores[idx-1] = txs[idx - 1].transaction.gas_price() + (consecutive_bump / 1000);
+							scores[idx - 1] = txs[idx - 1].transaction.gas_price() + (consecutive_bump / 1000);
 						}
 					},
 					// We are only sending an event in case of penalization.
@@ -353,46 +353,42 @@ mod tests {
 		env_logger::try_init();
 		// given
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
-
 		let multiplier = |i: usize, _| 1000u64.pow(i as u32);
+		let key_3 = Random.generate().unwrap();
 
-		let transactions = Tx::gas_price(1).signed_consecutive(3, multiplier).into_iter().map(|tx| {
-			let mut verified = tx.verified();
-			verified.priority = ::pool::Priority::Local;
-
-			txpool::Transaction {
-				insertion_id: 0,
-				transaction: Arc::new(verified),
-			}
-		}).collect::<Vec<_>>();
-
-		let transactions2 = Tx::gas_price(1).signed_consecutive(2, multiplier).into_iter().map(|tx| {
-			let mut verified = tx.verified();
-			verified.priority = ::pool::Priority::Local;
-
-			txpool::Transaction {
-				insertion_id: 0,
-				transaction: Arc::new(verified)
-			}
-		}).collect::<Vec<_>>();
+		let transactions0 = verify_vec(Tx::gas_price(1).signed_consecutive(3, multiplier));
+		let transactions1 = verify_vec(Tx::gas_price(1).signed_consecutive(2, multiplier));
+		let transactions2 = verify_vec(vec![
+		    TxBuilder::default().gas_price(1).gas(21_000).nonce(0).build().signed_custom(key_3.clone()),
+		    TxBuilder::default().gas_price(1_000).gas(21_000).nonce(1).build().signed_custom(key_3.clone()),
+		    TxBuilder::default().gas_price(1_000).gas(21_000).nonce(2).build().signed_custom(key_3.clone()),
+		]);
 
 		let initial_scores = vec![U256::from(0), 0.into(), 0.into(), 0.into()];
 		// Compute score at given index
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(1));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(2));
+		let mut scores0 = initial_scores.clone();
+		scoring.update_scores(&transactions0, &mut *scores0, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions0, &mut *scores0, scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions0, &mut *scores0, scoring::Change::InsertedAt(2));
 
+		let mut scores1 = initial_scores[0..2].to_vec().clone();
+		scoring.update_scores(&transactions1, &mut *scores1, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions1, &mut *scores1, scoring::Change::InsertedAt(1));
 
-		let mut scores2 = vec![U256::from(0), 0.into()];
+		let mut scores2 = initial_scores.clone();
 		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(0));
 		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(2));
 
-		debug!("Score {} -- Score2 {}", scores[0], scores2[0]);
-		debug!("Score {} -- Score2 {}", scores[1], scores2[1]);
-		debug!("Score {}", scores[2]);
+		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores0[0], scores1[0], scores2[0]);
+		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores0[1], scores1[1], scores2[1]);
+		debug!("Score0 {} -- Score2 {}", scores0[2], scores2[1]);
 
-		assert!(scores[0] > scores2[0]);
+		assert!(scores0[0] > scores1[0]);
+		assert!(scores0[0] > scores2[0]);
+		assert!(scores0[1] > scores1[1]);
+		assert!(scores0[1] > scores2[1]);
+		assert!(scores0[2] > scores2[2]);
 	}
 
     #[test]
@@ -440,74 +436,18 @@ mod tests {
 		debug!("Score1 {}", scores_1[2]);
 	}
 
-	// #[test]
-	// fn should_score_nonconsecutive_tx_the_same() {
-
- //        let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
- //        let transaction_0 = verify(Tx::default().signed());
- //        let transaction_1 = verify(Tx::default().signed());
-
- //        let initial_scores = vec![U256::from(0)];
- //        let (mut scores_0, mut scores_1) = (initial_scores.clone(), initial_scores.clone());
- //        scoring.update_scores(&vec![transaction_0], &mut *scores_0, scoring::Change::InsertedAt(0));
- //        scoring.update_scores(&vec![transaction_1], &mut *scores_1, scoring::Change::InsertedAt(0));
- //        assert!(scores_0[0] == scores_1[0])
- //    }
-
-	/*
 	#[test]
-	fn should_calculate_consecutive_score_correctly() {
-		env_logger::try_init();
-		// given
-		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
-		let (tx1, tx2, tx3) = Tx::default().signed_triple();
-		let transactions = vec![tx1, tx2, tx3].into_iter().enumerate().map(|(i, tx)| {
-			let mut verified = tx.verified();
-			verified.priority = match i {
-				0 => ::pool::Priority::Local,
-				1 => ::pool::Priority::Retracted,
-				_ => ::pool::Priority::Regular,
-			};
-			txpool::Transaction {
-				insertion_id: 0,
-				transaction: Arc::new(verified),
-			}
-		}).collect::<Vec<_>>();
-		let initial_scores = vec![U256::from(0), 0.into(), 0.into()];
-
-		// No update required
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(0));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(1));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Culled(2));
-		assert_eq!(scores, initial_scores);
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(0));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(1));
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::RemovedAt(2));
-		assert_eq!(scores, initial_scores);
-
-		// Compute score at given index
-		transactions.iter().for_each(|tx| debug!("Gas Price: {}", tx.gas_price()));
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
-		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(1));
-		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(2));
-		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
-
-		let mut scores = initial_scores.clone();
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(0));
-		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(1));
-		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::ReplacedAt(2));
-		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
-
-		// Check penalization
-		scoring.update_scores(&transactions, &mut *scores, scoring::Change::Event(()));
-		assert_eq!(scores, vec![32768.into(), 128.into(), 0.into()]);
-	}
-	*/
+	fn possible_attack() {
+        let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
+        let key = Random.generate().unwrap();
+    	let transactions = verify_vec(vec![
+    	    TxBuilder::default().gas_price(1).gas(21_000).nonce(0).build().signed_custom(key.clone()),
+    	    TxBuilder::default().gas_price(1).gas(8_000_000).nonce(1).build().signed_custom(key.clone()),
+    	    TxBuilder::default().gas_price(1_000_000_000_000_000_000).gas(21_000).nonce(2).build().signed_custom(key.clone()),
+    	]);
+        let mut scores = vec![U256::from(0), 0.into(), 0.into()];
+    	scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
+    	scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(1));
+    	scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(2));
+    }
 }
