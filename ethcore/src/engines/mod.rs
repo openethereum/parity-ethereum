@@ -370,7 +370,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 		/// Allow hook to set extra data before closing the block (after txs are applied).  used by
 		/// clique for block signing
-		fn close_block_extra_data(&self, _parent: &M::Header) -> Option<Vec<u8>> { None }
+		fn seal_block_extra_data(&self, _parent: &M::Header) -> Option<Vec<u8>> { None }
 
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
@@ -388,6 +388,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: Password) {}
+
+    fn seal_header(&self, header: &mut Header) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }

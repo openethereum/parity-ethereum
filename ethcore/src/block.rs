@@ -479,9 +479,12 @@ impl LockedBlock {
 		}
 		s.block.header.set_seal(seal);
 
-        if let Some(extra_data) = engine.close_block_extra_data(&s.block.header) {
+        engine.seal_header(&mut s.block.header);
+        /*
+        if let Some(extra_data) = engine.seal_block_extra_data(&s.block.header) {
           s.block.header.set_extra_data(extra_data);
         }
+        */
 
 		s.block.header.compute_hash();
 		Ok(SealedBlock {
@@ -558,15 +561,19 @@ fn enact(
 		parent,
 		last_hashes,
 		engine.executive_author(&header), // Engine such as Clique will calculate author from extra_data.  this is only important for executing contracts as the 'executive_author'
-		(*header.gas_limit(), *header.gas_limit()),
+		//(*header.gas_limit(), *header.gas_limit()),
+        (3141562.into(), 31415620.into()),
 		header.extra_data().clone(),
 		is_epoch_begin,
 		ancestry,
 	)?;
 
-	// We must set timestamp here
-	b.block.header.set_timestamp(header.timestamp());
 	b.block.header.set_difficulty(*header.difficulty());
+	b.block.header.set_gas_limit(*header.gas_limit());
+	b.block.header.set_timestamp(header.timestamp());
+	b.block.header.set_uncles_hash(*header.uncles_hash());
+	b.block.header.set_transactions_root(*header.transactions_root());
+
 //	{
 //		if ::log::max_level() >= ::log::Level::Trace {
 //			let env = b.env_info();
@@ -578,8 +585,11 @@ fn enact(
 
 	b.push_transactions(transactions)?;
 
+    trace!(target: "blocks", "resetting author to {}, was {}", *header.author(), b.block.header.author());
+
 	// reset the author to what it was originally specified as now that transactions are applied
 	b.block.header.set_author(*header.author());
+
 
 	for u in uncles {
 		b.push_uncle(u)?;
@@ -642,8 +652,9 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
-		let block = Unverified::from_rlp(block_bytes)?;
-		let header = block.header;
+		let mut block = Unverified::from_rlp(block_bytes)?;
+		let mut header = block.header;
+
 		let transactions: Result<Vec<_>, Error> = block
 			.transactions
 			.into_iter()

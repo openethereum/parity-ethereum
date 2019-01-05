@@ -1,4 +1,5 @@
 mod signer_snapshot;
+mod step_service;
 mod params;
 
 use rlp::{encode_list, encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
@@ -12,6 +13,7 @@ use std::str::FromStr;
 use hash::keccak;
 
 use self::params::CliqueParams;
+use self::step_service::StepService;
 
 use super::epoch::{PendingTransition, EpochVerifier, NoOp};
 
@@ -36,7 +38,7 @@ use types::ancestry_action::AncestryAction;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier, Headers, PendingTransitionStore};
 use super::signer::EngineSigner;
 use machine::{Call, AuxiliaryData, EthereumMachine};
-use self::signer_snapshot::{CliqueState, SignerAuthorization, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR};
+use self::signer_snapshot::{CliqueState, SignerAuthorization, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, DIFF_INTURN, DIFF_NOT_INTURN};
 
 pub const SIGNER_VANITY_LENGTH: u32 = 32;
 // Fixed number of extra-data prefix bytes reserved for signer vanity
@@ -50,6 +52,8 @@ pub struct Clique {
 	state: RwLock<CliqueState>,
 	//signers: RwLock<Option<Vec<Address>>>,
 	machine: EthereumMachine,
+	signer: RwLock<EngineSigner>,
+	step_service: IoService<Duration>,
 	epoch_length: u64,
 	period: u64,
 }
@@ -93,6 +97,7 @@ impl Clique {
 		//
 
 		trace!(target: "engine", "epoch length: {}, period: {}", our_params.epoch, our_params.period);
+
 		/*
 		let snapshot = SignerSnapshot {
 		  bn: 0,
@@ -108,24 +113,25 @@ impl Clique {
 				state: RwLock::new(CliqueState::new(our_params.epoch)),
 				machine: machine,
 				epoch_length: our_params.epoch,
+				step_service: IoService::<Duration>::start()?,
 				period: our_params.period,
+                signer: Default::default()
 			});
+
+		let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
+		engine.step_service.register_handler(Arc::new(handler))?;
 
 		return Ok(engine);
 	}
 
-//	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
-//		let digest = sig_hash(header)?;
-//		if let Some(sig) = self.snapshot.sign_data(&digest) {
-//			return Ok((sig, digest));
-//		}
-//
-//		return Err(From::from("failed to sign header"));
-//	}
+	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
+		let digest = sig_hash(header)?;
 
-	//pub fn snapshot(self, bn: u64) -> AuthorizationSnapshot {
-	// if we are on a checkpoint block, build a snapshot
-	//}
+        match (*self.signer.read()).sign(digest) {
+            Ok(sig) => { Ok((sig, digest)) },
+            Err(e) =>  { Err(From::from("failed to sign header")) }
+        }
+	}
 }
 
 impl Engine<EthereumMachine> for Clique {
@@ -136,16 +142,46 @@ impl Engine<EthereumMachine> for Clique {
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
-	// called only when sealing ?
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-	}
+    fn seal_header(&self, header: &mut Header) {
 
-//	// only called when we are sealing the block.  TODO rename this to make more sense
-//	fn close_block_extra_data(&self, _header: &Header) -> Option<Vec<u8>> {
-//		let mut h = _header.clone();
+        trace!(target: "seal", "sealed header");
+
+        let mut state = self.state.write();
+        match state.proposer_authorization(header) {
+            SignerAuthorization::InTurn => {
+               header.set_difficulty(U256::from(DIFF_INTURN));
+            },
+            SignerAuthorization::OutOfTurn => {
+               header.set_difficulty(U256::from(DIFF_NOT_INTURN));
+            },
+            SignerAuthorization::Unauthorized => {
+                panic!("sealed header should be authorized to sign");
+            }
+        }
+
+        let signers = state.state(&header.parent_hash()).unwrap().signers;
+        let mut seal: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
+
+        let mut sig_offset = SIGNER_VANITY_LENGTH as usize;
+
+        if header.number() % self.epoch_length == 0 {
+            sig_offset += 20 * signers.len();
+            for i in 0..signers.len() {
+                seal[SIGNER_VANITY_LENGTH as usize + i * 20..SIGNER_VANITY_LENGTH as usize + (i + 1) * 20].clone_from_slice(&signers[i]);
+            }
+        }
+
+        header.set_extra_data(seal.clone());
+
+        let (sig, msg) = self.sign_header(&header).expect("should be able to sign header");
+        seal[sig_offset..].copy_from_slice(&sig[..]);
+        header.set_extra_data(seal.clone());
+
+        state.apply(&header).unwrap();
+    }
+
+
 //
-//		trace!(target: "engine", "applying sealed block");
-//		let mut v: Vec<u8> = vec![0; SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize];
 //
 //		{
 //			let signers = self.state.get_signers();
@@ -177,10 +213,19 @@ impl Engine<EthereumMachine> for Clique {
 //		return Some(v);
 //	}
 
-//	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-//		self.snapshot.set_signer(ap, address, password);
-//		trace!(target: "engine", "set the signer to {}", address);
-//	}
+    fn step(&self) {
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
+			}
+		}
+	}
+
+    fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
+        trace!(target: "engine", "called set_signer");
+        self.signer.write().set(ap, address, password);
+        self.state.write().set_signer_address(address.clone());
+    }
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// /// Some(true) means the engine is currently prime for seal generation (i.e. node
@@ -189,7 +234,7 @@ impl Engine<EthereumMachine> for Clique {
 	///     now.
 	///
 	fn seals_internally(&self) -> Option<bool> {
-		Some(false)
+		Some(true)
 	}
 
 	/// Attempt to seal generate a proposal seal.
@@ -198,44 +243,53 @@ impl Engine<EthereumMachine> for Clique {
 	/// `Seal::None` will be returned.
 	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
         trace!(target: "engine", "tried to generate seal");
-		Seal::None
 //
 //		let mut header = block.header.clone();
 //
 //		trace!(target: "engine", "attempting to seal...");
 //
 //		// don't seal the genesis block
-//		if header.number() == 0 {
-//			trace!(target: "engine", "attempted to seal genesis block");
-//			return Seal::None;
-//		}
-//
+		if block.header.number() == 0 {
+			trace!(target: "engine", "attempted to seal genesis block");
+			return Seal::None;
+		}
+
 //		// if sealing period is 0, refuse to seal
+        if self.epoch_length == 0 {
+            return Seal::None;
+        }
 //
-//		// let vote_snapshot = self.snapshot.get(bh);
+// let vote_snapshot = self.snapshot.get(bh);
 //
 //		// if we are not authorized to sign, don't seal
 //
 //		// if we signed recently, don't seal
 //
-//		if block.header.timestamp() <= _parent.timestamp() + self.period {
-//			trace!(target: "engine", "block too early");
-//			return Seal::None;
-//		}
-//
-//		if let SignerAuthorization::Unauthorized = self.snapshot.get_own_authorization() {
-//			return Seal::None;
-//		}
-//
-//		// sign the digest of the seal
-//		if self.is_signer_proposer(block.header().number()) {
-//			trace!(target: "engine", "seal generated for {}", block.header().number());
-//			//TODO add our vote here if this is not an epoch transition
-//			return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
-//		} else {
-//			trace!(target: "engine", "we are not the current for block {}", block.header().number());
-//			Seal::None
-//		}
+		if block.header.timestamp() <= _parent.timestamp() + self.period {
+			return Seal::None;
+		}
+
+        let mut state = self.state.write();
+
+        match state.proposer_authorization(&block.header) {
+            SignerAuthorization::Unauthorized => {
+                trace!(target: "engine", "tried to seal: not authorized");
+                return Seal::None;
+            },
+            SignerAuthorization::InTurn => {
+                trace!(target: "engine", "seal generated for {}", block.header.number());
+                return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
+            },
+            SignerAuthorization::OutOfTurn => {
+                if state.turn_delay(&block.header) {
+                    trace!(target: "engine", "seal generated for {}", block.header.number());
+                    return Seal::Regular(vec![encode(&vec![0; 32]), encode(&vec![0; 8])]);
+                } else {
+                    trace!(target: "engine", "not in turn. seal delayed for {}", block.header.number());
+                    return Seal::None;
+                }
+            }
+        }
 	}
 
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
@@ -276,7 +330,6 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn executive_author(&self, header: &Header) -> Address {
-		trace!(target: "engine", "called executive_author for block {}", header.number());
 
 //		if self.is_signer_proposer(header.number()) {
 //			return self.snapshot.signer_address().unwrap();
@@ -287,6 +340,8 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
+		//trace!(target: "engine", "called verify_block_basic for block {}", _header.number());
+
 		// Ignore genisis block.
 		if _header.number() == 0 {
 			return Ok(());
@@ -335,9 +390,11 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+        /*
 		trace!(target: "engine",
 		       "verify_block_family for {}: current state: {:?}.",
 		       header.number(), *self.state.read());
+               */
 
 		let mut state = self.state.write();
 
