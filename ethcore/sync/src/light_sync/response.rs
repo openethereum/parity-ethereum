@@ -16,7 +16,7 @@
 
 //! Helpers for decoding and verifying responses for headers.
 
-use ethcore::{encoded, header::Header};
+use types::{encoded, header::Header};
 use ethereum_types::H256;
 use light::request::{HashOrNumber, CompleteHeadersRequest as HeadersRequest};
 use rlp::DecoderError;
@@ -153,8 +153,8 @@ impl Constraint for Max {
 
 #[cfg(test)]
 mod tests {
-	use ethcore::encoded;
-	use ethcore::header::Header;
+	use types::encoded;
+	use types::header::Header;
 	use light::request::CompleteHeadersRequest as HeadersRequest;
 
 	use super::*;

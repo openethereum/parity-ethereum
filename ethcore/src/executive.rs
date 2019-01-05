@@ -21,7 +21,7 @@ use hash::keccak;
 use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
-use error::ExecutionError;
+use executed::ExecutionError;
 use machine::EthereumMachine as Machine;
 use evm::{CallType, Finalize, FinalizationResult};
 use vm::{
@@ -31,7 +31,8 @@ use vm::{
 use factory::VmFactory;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
-use transaction::{Action, SignedTransaction};
+use types::transaction::{Action, SignedTransaction};
+use transaction_ext::Transaction;
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
 
@@ -1179,7 +1180,7 @@ mod tests {
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
-	use transaction::{Action, Transaction};
+	use types::transaction::{Action, Transaction};
 
 	fn make_frontier_machine(max_depth: usize) -> EthereumMachine {
 		let mut machine = ::ethereum::new_frontier_test_machine();

@@ -70,9 +70,9 @@ pub mod blocks {
 
 	use engines::EthEngine;
 	use error::{Error, ErrorKind, BlockError};
-	use header::Header;
+	use types::header::Header;
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
-	use transaction::UnverifiedTransaction;
+	use types::transaction::UnverifiedTransaction;
 
 	use heapsize::HeapSizeOf;
 	use ethereum_types::{H256, U256};
@@ -190,7 +190,7 @@ pub mod headers {
 
 	use engines::EthEngine;
 	use error::Error;
-	use header::Header;
+	use types::header::Header;
 	use verification::verify_header_params;
 
 	use ethereum_types::{H256, U256};

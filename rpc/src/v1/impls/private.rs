@@ -22,7 +22,7 @@ use rlp::Rlp;
 
 use ethcore_private_tx::Provider as PrivateTransactionManager;
 use ethereum_types::Address;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 
 use jsonrpc_core::{Error};
 use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, TransactionRequest, U256,

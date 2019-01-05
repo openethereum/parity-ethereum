@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 include(ExternalProject)
-
-include_directories("${CMAKE_SOURCE_DIR}/../../../parity-clib")
-
+include_directories("${CMAKE_SOURCE_DIR}/../..")
+set (CMAKE_CXX_STANDARD 11) # Enfore C++11
 add_executable(parity-example main.cpp)
 
 ExternalProject_Add(

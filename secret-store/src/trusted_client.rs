@@ -16,11 +16,11 @@
 
 use std::sync::{Arc, Weak};
 use bytes::Bytes;
+use common_types::transaction::{Transaction, SignedTransaction, Action};
 use ethereum_types::Address;
 use ethcore::client::{Client, BlockChainClient, ChainInfo, Nonce, BlockId, RegistryInfo};
 use ethcore::miner::{Miner, MinerService};
 use sync::SyncProvider;
-use transaction::{Transaction, SignedTransaction, Action};
 use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {Error, NodeKeyPair, ContractAddress};
 

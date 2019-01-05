@@ -15,15 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use serde::{Serialize, Serializer};
-use serde::ser::SerializeStruct;
-use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
-use ethcore::trace as et;
-use ethcore::state_diff;
-use ethcore::account_diff;
+
 use ethcore::client::Executed;
+use ethcore::trace as et;
+use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
 use ethereum_types::H256 as EthH256;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+use types::account_diff;
+use types::state_diff;
 use vm;
+
 use v1::types::{Bytes, H160, H256, U256};
 
 #[derive(Debug, Serialize)]

@@ -16,14 +16,14 @@
 
 //! Block RLP compression.
 
-use block::Block;
-use header::Header;
-use hash::keccak;
-use views::BlockView;
-use rlp::{DecoderError, RlpStream, Rlp};
-use ethereum_types::H256;
 use bytes::Bytes;
+use ethereum_types::H256;
+use hash::keccak;
+use rlp::{DecoderError, RlpStream, Rlp};
 use triehash::ordered_trie_root;
+use types::block::Block;
+use types::header::Header;
+use types::views::BlockView;
 
 const HEADER_FIELDS: usize = 8;
 const BLOCK_FIELDS: usize = 2;
@@ -132,13 +132,14 @@ impl AbridgedBlock {
 
 #[cfg(test)]
 mod tests {
-	use views::BlockView;
-	use block::Block;
 	use super::AbridgedBlock;
-	use transaction::{Action, Transaction};
 
-	use ethereum_types::{H256, U256, Address};
 	use bytes::Bytes;
+	use ethereum_types::{H256, U256, Address};
+	use types::transaction::{Action, Transaction};
+	use types::block::Block;
+	use types::view;
+	use types::views::BlockView;
 
 	fn encode_block(b: &Block) -> Bytes {
 		b.rlp_bytes()

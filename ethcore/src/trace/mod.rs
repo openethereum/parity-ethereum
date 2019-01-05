@@ -39,7 +39,7 @@ pub use self::types::filter::{Filter, AddressesFilter};
 use ethereum_types::{H256, U256, Address};
 use kvdb::DBTransaction;
 use vm::{Error as VmError, ActionParams};
-use header::BlockNumber;
+use types::BlockNumber;
 
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {

@@ -20,7 +20,7 @@ use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
 use ethcore::{contract_address, CreateContractAddress};
 use miner;
-use transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
+use types::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
 use v1::types::{Bytes, H160, H256, U256, H512, U64, TransactionCondition};
 
 /// Transaction

@@ -23,6 +23,7 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey};
 use super::vault::{VAULT_FILE_NAME, VaultDiskDirectory};
+use ethkey::Password;
 
 const IGNORED_FILES: &'static [&'static str] = &[
 	"thumbs.db",
@@ -106,6 +107,7 @@ pub type RootDiskDirectory = DiskDirectory<DiskKeyFileManager>;
 pub trait KeyFileManager: Send + Sync {
 	/// Read `SafeAccount` from given key file stream
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read;
+
 	/// Write `SafeAccount` to given key file stream
 	fn write<T>(&self, account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write;
 }
@@ -117,7 +119,10 @@ pub struct DiskDirectory<T> where T: KeyFileManager {
 }
 
 /// Keys file manager for root keys directory
-pub struct DiskKeyFileManager;
+#[derive(Default)]
+pub struct DiskKeyFileManager {
+	password: Option<Password>,
+}
 
 impl RootDiskDirectory {
 	pub fn create<P>(path: P) -> Result<Self, Error> where P: AsRef<Path> {
@@ -125,8 +130,14 @@ impl RootDiskDirectory {
 		Ok(Self::at(path))
 	}
 
+	/// allows to read keyfiles with given password (needed for keyfiles w/o address)
+	pub fn with_password(&self, password: Option<Password>) -> Self {
+		DiskDirectory::new(&self.path, DiskKeyFileManager { password })
+	}
+
+
 	pub fn at<P>(path: P) -> Self where P: AsRef<Path> {
-		DiskDirectory::new(path, DiskKeyFileManager)
+		DiskDirectory::new(path, DiskKeyFileManager::default())
 	}
 }
 
@@ -319,7 +330,7 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 impl KeyFileManager for DiskKeyFileManager {
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
 		let key_file = json::KeyFile::load(reader).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		Ok(SafeAccount::from_file(key_file, filename))
+		SafeAccount::from_file(key_file, filename, &self.password)
 	}
 
 	fn write<T>(&self, mut account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {

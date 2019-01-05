@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethjson;
-use header::Header;
+use types::header::Header;
 use ethereum_types::U256;
 use spec::Spec;
 

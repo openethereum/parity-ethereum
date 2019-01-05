@@ -42,8 +42,8 @@ use std::cmp;
 use std::collections::HashMap;
 
 use ethereum_types::{U256, H160 as Address};
-use transaction;
 use txpool::{self, VerifiedTransaction as PoolVerifiedTransaction};
+use types::transaction;
 
 use super::client::NonceClient;
 use super::VerifiedTransaction;

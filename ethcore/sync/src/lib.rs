@@ -22,19 +22,19 @@
 //!
 
 extern crate common_types as types;
+extern crate env_logger;
+extern crate ethcore;
+extern crate ethcore_io as io;
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;
-extern crate parity_bytes as bytes;
-extern crate ethcore_io as io;
-extern crate ethcore_transaction as transaction;
-extern crate ethcore;
 extern crate ethereum_types;
-extern crate env_logger;
+extern crate ethstore;
 extern crate fastmap;
-extern crate rand;
-extern crate parking_lot;
-extern crate rlp;
 extern crate keccak_hash as hash;
+extern crate parity_bytes as bytes;
+extern crate parking_lot;
+extern crate rand;
+extern crate rlp;
 extern crate triehash_ethereum;
 
 extern crate ethcore_light as light;

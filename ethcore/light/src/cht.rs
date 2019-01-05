@@ -23,7 +23,7 @@
 //! root has. A correct proof implies that the claimed block is identical to the one
 //! we discarded.
 
-use ethcore::ids::BlockId;
+use common_types::ids::BlockId;
 use ethereum_types::{H256, U256};
 use hashdb::HashDB;
 use keccak_hasher::KeccakHasher;
