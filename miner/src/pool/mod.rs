@@ -18,7 +18,7 @@
 
 use ethereum_types::{U256, H256, Address};
 use heapsize::HeapSizeOf;
-use transaction;
+use types::transaction;
 use txpool;
 
 mod listener;

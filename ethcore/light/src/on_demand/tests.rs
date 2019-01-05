@@ -17,13 +17,13 @@
 //! Tests for the on-demand service.
 
 use cache::Cache;
-use ethcore::header::Header;
 use futures::Future;
 use network::{PeerId, NodeId};
 use net::*;
+use common_types::header::Header;
 use ethereum_types::H256;
 use parking_lot::Mutex;
-use ::request::{self as basic_request, Response};
+use request::{self as basic_request, Response};
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};

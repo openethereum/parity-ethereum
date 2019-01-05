@@ -25,7 +25,7 @@ use heapsize::HeapSizeOf;
 use ethkey::Signature;
 use messages::PrivateTransaction;
 use parking_lot::RwLock;
-use transaction::{UnverifiedTransaction, SignedTransaction};
+use types::transaction::{UnverifiedTransaction, SignedTransaction};
 use txpool;
 use txpool::{VerifiedTransaction, Verifier};
 use error::{Error, ErrorKind};

@@ -52,6 +52,7 @@ enum CryptoField {
 	Kdf,
 	KdfParams,
 	Mac,
+	Version,
 }
 
 impl<'a> Deserialize<'a> for CryptoField {
@@ -81,6 +82,7 @@ impl<'a> Visitor<'a> for CryptoFieldVisitor {
 			"kdf" => Ok(CryptoField::Kdf),
 			"kdfparams" => Ok(CryptoField::KdfParams),
 			"mac" => Ok(CryptoField::Mac),
+			"version" => Ok(CryptoField::Version),
 			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
 		}
 	}
@@ -122,6 +124,8 @@ impl<'a> Visitor<'a> for CryptoVisitor {
 				Some(CryptoField::Kdf) => { kdf = Some(visitor.next_value()?); }
 				Some(CryptoField::KdfParams) => { kdfparams = Some(visitor.next_value()?); }
 				Some(CryptoField::Mac) => { mac = Some(visitor.next_value()?); }
+				// skip not required version field (it appears in pyethereum generated keystores)
+				Some(CryptoField::Version) => { visitor.next_value().unwrap_or(()) }
 				None => { break; }
 			}
 		}

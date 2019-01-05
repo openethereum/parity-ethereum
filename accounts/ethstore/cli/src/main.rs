@@ -23,6 +23,8 @@ extern crate parking_lot;
 extern crate rustc_hex;
 extern crate serde;
 
+extern crate env_logger;
+
 #[macro_use]
 extern crate serde_derive;
 
@@ -45,7 +47,7 @@ Usage:
     ethstore insert <secret> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore change-pwd <address> <old-pwd> <new-pwd> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore list [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
-    ethstore import [--src DIR] [--dir DIR]
+    ethstore import [<password>] [--src DIR] [--dir DIR]
     ethstore import-wallet <path> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore find-wallet-pass <path> <password>
     ethstore remove <address> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
@@ -146,30 +148,34 @@ impl fmt::Display for Error {
 
 fn main() {
 	panic_hook::set_abort();
+	if env::var("RUST_LOG").is_err() {
+		env::set_var("RUST_LOG", "warn")
+	}
+	env_logger::try_init().expect("Logger initialized only once.");
 
 	match execute(env::args()) {
 		Ok(result) => println!("{}", result),
 		Err(Error::Docopt(ref e)) => e.exit(),
 		Err(err) => {
-			println!("{}", err);
+			eprintln!("{}", err);
 			process::exit(1);
 		}
 	}
 }
 
-fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
-	let dir: Box<KeyDirectory> = match location {
-		"geth" => Box::new(RootDiskDirectory::create(dir::geth(false))?),
-		"geth-test" => Box::new(RootDiskDirectory::create(dir::geth(true))?),
+fn key_dir(location: &str, password: Option<Password>) -> Result<Box<KeyDirectory>, Error> {
+	let dir: RootDiskDirectory = match location {
+		"geth" => RootDiskDirectory::create(dir::geth(false))?,
+		"geth-test" => RootDiskDirectory::create(dir::geth(true))?,
 		path if path.starts_with("parity") => {
 			let chain = path.split('-').nth(1).unwrap_or("ethereum");
 			let path = dir::parity(chain);
-			Box::new(RootDiskDirectory::create(path)?)
+			RootDiskDirectory::create(path)?
 		},
-		path => Box::new(RootDiskDirectory::create(path)?),
+		path => RootDiskDirectory::create(path)?,
 	};
 
-	Ok(dir)
+	Ok(Box::new(dir.with_password(password)))
 }
 
 fn open_args_vault(store: &EthStore, args: &Args) -> Result<SecretVaultRef, Error> {
@@ -202,9 +208,9 @@ fn format_vaults(vaults: &[String]) -> String {
 }
 
 fn load_password(path: &str) -> Result<Password, Error> {
-	let mut file = fs::File::open(path).map_err(|e| ethstore::Error::Custom(format!("Error opening password file {}: {}", path, e)))?;
+	let mut file = fs::File::open(path).map_err(|e| ethstore::Error::Custom(format!("Error opening password file '{}': {}", path, e)))?;
 	let mut password = String::new();
-	file.read_to_string(&mut password).map_err(|e| ethstore::Error::Custom(format!("Error reading password file {}: {}", path, e)))?;
+	file.read_to_string(&mut password).map_err(|e| ethstore::Error::Custom(format!("Error reading password file '{}': {}", path, e)))?;
 	// drop EOF
 	let _ = password.pop();
 	Ok(password.into())
@@ -214,7 +220,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.argv(command).deserialize())?;
 
-	let store = EthStore::open(key_dir(&args.flag_dir)?)?;
+	let store = EthStore::open(key_dir(&args.flag_dir, None)?)?;
 
 	return if args.cmd_insert {
 		let secret = args.arg_secret.parse().map_err(|_| ethstore::Error::InvalidSecret)?;
@@ -239,8 +245,13 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			.collect();
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {
-		let src = key_dir(&args.flag_src)?;
-		let dst = key_dir(&args.flag_dir)?;
+		let password = match args.arg_password.as_ref() {
+			"" => None,
+			_ => Some(load_password(&args.arg_password)?)
+		};
+		let src = key_dir(&args.flag_src, password)?;
+		let dst = key_dir(&args.flag_dir, None)?;
+
 		let accounts = import_accounts(&*src, &*dst)?;
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import_wallet {

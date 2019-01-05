@@ -19,20 +19,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
-use ethereum_types::{H160, H256, U256, Address};
-use parking_lot::Mutex;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
-use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::miner::MinerService;
-use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
+use ethereum_types::{H160, H256, U256, Address};
 use ethkey::Secret;
-use sync::SyncState;
 use miner::external::ExternalMiner;
+use parity_runtime::Runtime;
+use parking_lot::Mutex;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
-use transaction::{Transaction, Action};
-use parity_runtime::Runtime;
+use sync::SyncState;
+use types::transaction::{Transaction, Action};
+use types::log_entry::{LocalizedLogEntry, LogEntry};
+use types::receipt::{LocalizedReceipt, TransactionOutcome};
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
@@ -584,7 +584,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 fn rpc_eth_pending_transaction_by_hash() {
 	use ethereum_types::H256;
 	use rlp;
-	use transaction::SignedTransaction;
+	use types::transaction::SignedTransaction;
 
 	let tester = EthTester::default();
 	{

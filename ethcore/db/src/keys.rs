@@ -19,14 +19,16 @@
 use std::io::Write;
 use std::ops;
 
-use db::Key;
-use engines::epoch::{Transition as EpochTransition};
+use common_types::BlockNumber;
+use common_types::engines::epoch::Transition as EpochTransition;
+use common_types::receipt::Receipt;
 use ethereum_types::{H256, H264, U256};
-use header::BlockNumber;
 use heapsize::HeapSizeOf;
 use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
-use receipt::Receipt;
 use rlp;
+use rlp_derive::{RlpEncodableWrapper, RlpDecodableWrapper, RlpEncodable, RlpDecodable};
+
+use crate::db::Key;
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -52,6 +54,7 @@ fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
 	result
 }
 
+/// Wrapper for block number used as a DB key.
 pub struct BlockNumberKey([u8; 5]);
 
 impl ops::Deref for BlockNumberKey {
@@ -100,7 +103,7 @@ impl Key<BlockReceipts> for H256 {
 	}
 }
 
-impl Key<::engines::epoch::PendingTransition> for H256 {
+impl Key<common_types::engines::epoch::PendingTransition> for H256 {
 	type Target = H264;
 
 	fn key(&self) -> H264 {
@@ -117,6 +120,7 @@ pub const EPOCH_KEY_PREFIX: &'static [u8; DB_PREFIX_LEN] = &[
 	ExtrasIndex::EpochTransitions as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
+/// Epoch transitions key
 pub struct EpochTransitionsKey([u8; EPOCH_KEY_LEN]);
 
 impl ops::Deref for EpochTransitionsKey {
@@ -217,10 +221,12 @@ impl HeapSizeOf for TransactionAddress {
 /// Contains all block receipts.
 #[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct BlockReceipts {
+	/// Block receipts
 	pub receipts: Vec<Receipt>,
 }
 
 impl BlockReceipts {
+	/// Create new block receipts wrapper.
 	pub fn new(receipts: Vec<Receipt>) -> Self {
 		BlockReceipts {
 			receipts: receipts
@@ -237,7 +243,9 @@ impl HeapSizeOf for BlockReceipts {
 /// Candidate transitions to an epoch with specific number.
 #[derive(Clone, RlpEncodable, RlpDecodable)]
 pub struct EpochTransitions {
+	/// Epoch number
 	pub number: u64,
+	/// List of candidate transitions
 	pub candidates: Vec<EpochTransition>,
 }
 

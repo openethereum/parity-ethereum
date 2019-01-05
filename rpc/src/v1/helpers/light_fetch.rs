@@ -19,11 +19,11 @@
 use std::cmp;
 use std::sync::Arc;
 
-use ethcore::basic_account::BasicAccount;
-use ethcore::encoded;
-use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::ids::BlockId;
-use ethcore::receipt::Receipt;
+use types::basic_account::BasicAccount;
+use types::encoded;
+use types::filter::Filter as EthcoreFilter;
+use types::ids::BlockId;
+use types::receipt::Receipt;
 use ethcore::executed::ExecutionError;
 
 use jsonrpc_core::{Result, Error};
@@ -47,7 +47,7 @@ use hash::H256;
 use parking_lot::Mutex;
 use fastmap::H256FastMap;
 use std::collections::BTreeMap;
-use transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
+use types::transaction::{Action, Transaction as EthTransaction, PendingTransaction, SignedTransaction, LocalizedTransaction};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};

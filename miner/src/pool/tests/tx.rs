@@ -17,7 +17,7 @@
 use ethereum_types::{U256, H256};
 use ethkey::{Random, Generator};
 use rustc_hex::FromHex;
-use transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
+use types::transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
 
 use pool::{verifier, VerifiedTransaction};
 

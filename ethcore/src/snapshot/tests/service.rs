@@ -22,7 +22,7 @@ use std::sync::Arc;
 use tempdir::TempDir;
 use blockchain::BlockProvider;
 use client::{Client, ClientConfig, ImportBlock, BlockInfo};
-use ids::BlockId;
+use types::ids::BlockId;
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{chunk_state, chunk_secondary, ManifestData, Progress, SnapshotService, RestorationStatus};
@@ -153,7 +153,7 @@ fn guards_delete_folders() {
 
 #[test]
 fn keep_ancient_blocks() {
-	::env_logger::init().ok();
+	::env_logger::try_init().ok();
 
 	// Test variables
 	const NUM_BLOCKS: u64 = 500;
@@ -272,7 +272,7 @@ fn keep_ancient_blocks() {
 
 #[test]
 fn recover_aborted_recovery() {
-	::env_logger::init().ok();
+	::env_logger::try_init().ok();
 
 	const NUM_BLOCKS: u32 = 400;
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];

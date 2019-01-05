@@ -120,7 +120,7 @@ impl txpool::Listener<Transaction> for Logger {
 mod tests {
 	use super::*;
 	use parking_lot::Mutex;
-	use transaction;
+	use types::transaction;
 	use txpool::Listener;
 
 	#[test]

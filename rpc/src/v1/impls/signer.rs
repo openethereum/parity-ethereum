@@ -23,7 +23,7 @@ use ethkey;
 use parity_runtime::Executor;
 use parking_lot::Mutex;
 use rlp::Rlp;
-use transaction::{SignedTransaction, PendingTransaction};
+use types::transaction::{SignedTransaction, PendingTransaction};
 
 use jsonrpc_core::{Result, BoxFuture, Error};
 use jsonrpc_core::futures::{future, Future, IntoFuture};

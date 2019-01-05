@@ -25,9 +25,9 @@ use block::*;
 use engines::{Engine, Seal, ConstructedVerifier, EngineError};
 use error::{BlockError, Error};
 use ethjson;
-use header::{Header, ExtendedHeader};
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
+use types::header::{Header, ExtendedHeader};
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
@@ -215,7 +215,7 @@ mod tests {
 	use block::*;
 	use test_helpers::get_temp_state_db;
 	use account_provider::AccountProvider;
-	use header::Header;
+	use types::header::Header;
 	use spec::Spec;
 	use engines::Seal;
 	use tempdir::TempDir;

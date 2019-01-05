@@ -18,7 +18,6 @@
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use hash::keccak;
-// use rlp::{Rlp, Decodable};
 use super::ViewRlp;
 
 /// View onto transaction rlp.
@@ -34,10 +33,10 @@ impl<'a> TransactionView<'a> {
 	///
 	/// ```
 	/// #[macro_use]
-	/// extern crate ethcore;
-	/// 
-	/// use ethcore::views::{TransactionView};
-	/// 
+	/// extern crate common_types as types;
+	///
+	/// use types::views::{TransactionView};
+	///
 	/// fn main() {
 	/// let bytes : &[u8] = &[];
 	/// let tx_view = view!(TransactionView, bytes);

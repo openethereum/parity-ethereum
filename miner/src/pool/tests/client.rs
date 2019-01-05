@@ -18,7 +18,7 @@ use std::sync::{atomic, Arc};
 
 use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
-use transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
+use types::transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
 
 use pool;
 use pool::client::AccountDetails;

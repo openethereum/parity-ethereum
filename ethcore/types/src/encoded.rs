@@ -26,11 +26,12 @@
 use block::Block as FullBlock;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
-use header::{BlockNumber, Header as FullHeader};
+use header::{Header as FullHeader};
 use heapsize::HeapSizeOf;
 use rlp::{self, Rlp, RlpStream};
 use transaction::UnverifiedTransaction;
 use views::{self, BlockView, HeaderView, BodyView};
+use BlockNumber;
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]

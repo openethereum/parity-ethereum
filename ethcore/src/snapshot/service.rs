@@ -33,7 +33,7 @@ use engines::EthEngine;
 use error::{Error, ErrorKind as SnapshotErrorKind};
 use snapshot::{Error as SnapshotError};
 use hash::keccak;
-use ids::BlockId;
+use types::ids::BlockId;
 
 use io::IoChannel;
 

@@ -9,28 +9,28 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 common-types = { path = "../types" }
-parity-bytes = "0.1"
-ethcore-network = { path = "../../util/network" }
-ethcore-network-devp2p = { path = "../../util/network-devp2p" }
+env_logger = "0.5"
+ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
-ethcore-transaction = { path = "../transaction" }
-ethcore = { path = ".." }
+ethcore-network = { path = "../../util/network" }
+ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethereum-types = "0.4"
-hashdb = "0.3.0"
+ethstore = { path = "../../accounts/ethstore" }
 fastmap = { path = "../../util/fastmap" }
-rlp = { version = "0.3.0", features = ["ethereum"] }
+hashdb = "0.3.0"
+heapsize = "0.4"
 keccak-hash = "0.1"
 keccak-hasher = { path = "../../util/keccak-hasher" }
-triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 kvdb = "0.1"
-macros = { path = "../../util/macros" }
 log = "0.4"
-env_logger = "0.5"
-rand = "0.4"
-heapsize = "0.4"
+macros = { path = "../../util/macros" }
+parity-bytes = "0.1"
 parking_lot = "0.7"
+rand = "0.4"
+rlp = { version = "0.3.0", features = ["ethereum"] }
 trace-time = "0.1"
+triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
 ethcore-io = { path = "../../util/io", features = ["mio"] }

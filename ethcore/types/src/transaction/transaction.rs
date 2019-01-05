@@ -17,14 +17,15 @@
 //! Transaction data structure.
 
 use std::ops::Deref;
+
 use ethereum_types::{H256, H160, Address, U256};
-use error;
 use ethjson;
 use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
-use evm::Schedule;
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
+
+use transaction::error;
 
 type Bytes = Vec<u8>;
 type BlockNumber = u64;
@@ -251,19 +252,6 @@ impl Transaction {
 			public: None,
 		}
 	}
-
-	/// Get the transaction cost in gas for the given params.
-	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> u64 {
-		data.iter().fold(
-			(if is_create {schedule.tx_create_gas} else {schedule.tx_gas}) as u64,
-			|g, b| g + (match *b { 0 => schedule.tx_data_zero_gas, _ => schedule.tx_data_non_zero_gas }) as u64
-		)
-	}
-
-	/// Get the transaction cost in gas for this transaction.
-	pub fn gas_required(&self, schedule: &Schedule) -> u64 {
-		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
-	}
 }
 
 /// Signed transaction information without verified signature.
@@ -355,6 +343,7 @@ impl UnverifiedTransaction {
 		&self.unsigned
 	}
 
+	/// Returns standardized `v` value (0, 1 or 4 (invalid))
 	pub fn standard_v(&self) -> u8 { signature::check_replay_protection(self.v) }
 
 	/// The `v` value that appears in the RLP.

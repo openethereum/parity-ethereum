@@ -22,8 +22,8 @@ use std::{
 };
 use ethereum_types::H256;
 use parking_lot::Mutex;
-use ethcore::filter::Filter;
 use v1::types::Log;
+use types::filter::Filter;
 
 pub type BlockNumber = u64;
 

@@ -20,7 +20,8 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Address};
 
 use machine::{AuxiliaryData, Call, EthereumMachine};
-use header::{BlockNumber, Header};
+use types::BlockNumber;
+use types::header::Header;
 use super::ValidatorSet;
 
 /// Validator set containing a known set of addresses.
@@ -64,7 +65,7 @@ impl HeapSizeOf for SimpleList {
 }
 
 impl ValidatorSet for SimpleList {
-	fn default_caller(&self, _block_id: ::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, _block_id: ::types::ids::BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
 	}
 

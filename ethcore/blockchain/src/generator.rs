@@ -19,51 +19,65 @@
 use std::collections::VecDeque;
 use ethereum_types::{U256, H256, Bloom};
 
-use header::Header;
+use common_types::encoded;
+use common_types::header::Header;
+use common_types::transaction::SignedTransaction;
+use common_types::view;
+use common_types::views::BlockView;
 use rlp::encode;
-use transaction::SignedTransaction;
-use views::BlockView;
-use encoded;
+use rlp_derive::RlpEncodable;
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default, Clone, RlpEncodable)]
 pub struct Block {
+	/// Block header
 	pub header: Header,
+	/// Block transactions
 	pub transactions: Vec<SignedTransaction>,
+	/// Block uncles
 	pub uncles: Vec<Header>
 }
 
 impl Block {
+	/// Get a copy of the header
 	#[inline]
 	pub fn header(&self) -> Header {
 		self.header.clone()
 	}
 
+	/// Get block hash
 	#[inline]
 	pub fn hash(&self) -> H256 {
 		view!(BlockView, &self.encoded().raw()).header_view().hash()
 	}
 
+	/// Get block number
 	#[inline]
 	pub fn number(&self) -> u64 {
 		self.header.number()
 	}
 
+	/// Get RLP encoding of this block
 	#[inline]
 	pub fn encoded(&self) -> encoded::Block {
 		encoded::Block::new(encode(self))
 	}
 
+	/// Get block difficulty
 	#[inline]
 	pub fn difficulty(&self) -> U256 {
 		*self.header.difficulty()
 	}
 }
 
+/// Specify block options for generator
 #[derive(Debug)]
 pub struct BlockOptions {
+	/// Difficulty
 	pub difficulty: U256,
+	/// Set bloom filter
 	pub bloom: Bloom,
+	/// Transactions included in blocks
 	pub transactions: Vec<SignedTransaction>,
 }
 
@@ -77,12 +91,14 @@ impl Default for BlockOptions {
 	}
 }
 
+/// Utility to create blocks
 #[derive(Clone)]
 pub struct BlockBuilder {
 	blocks: VecDeque<Block>,
 }
 
 impl BlockBuilder {
+	/// Create new BlockBuilder starting at genesis.
 	pub fn genesis() -> Self {
 		let mut blocks = VecDeque::with_capacity(1);
 		blocks.push_back(Block::default());
@@ -92,21 +108,25 @@ impl BlockBuilder {
 		}
 	}
 
+	/// Add new block with default options.
 	#[inline]
 	pub fn add_block(&self) -> Self {
 		self.add_block_with(|| BlockOptions::default())
 	}
 
+	/// Add `count` number of blocks with default options.
 	#[inline]
 	pub fn add_blocks(&self, count: usize) -> Self {
 		self.add_blocks_with(count, || BlockOptions::default())
 	}
 
+	/// Add block with specified options.
 	#[inline]
 	pub fn add_block_with<T>(&self, get_metadata: T) -> Self where T: Fn() -> BlockOptions {
 		self.add_blocks_with(1, get_metadata)
 	}
 
+	/// Add a block with given difficulty
 	#[inline]
 	pub fn add_block_with_difficulty<T>(&self, difficulty: T) -> Self where T: Into<U256> {
 		let difficulty = difficulty.into();
@@ -116,6 +136,7 @@ impl BlockBuilder {
 		})
 	}
 
+	/// Add a block with given transactions.
 	#[inline]
 	pub fn add_block_with_transactions<T>(&self, transactions: T) -> Self
 		where T: IntoIterator<Item = SignedTransaction> {
@@ -126,6 +147,7 @@ impl BlockBuilder {
 		})
 	}
 
+	/// Add a block with given bloom filter.
 	#[inline]
 	pub fn add_block_with_bloom(&self, bloom: Bloom) -> Self {
 		self.add_blocks_with(1, move || BlockOptions {
@@ -134,6 +156,7 @@ impl BlockBuilder {
 		})
 	}
 
+	/// Add a bunch of blocks with given metadata.
 	pub fn add_blocks_with<T>(&self, count: usize, get_metadata: T) -> Self where T: Fn() -> BlockOptions {
 		assert!(count > 0, "There must be at least 1 block");
 		let mut parent_hash = self.last().hash();
@@ -160,18 +183,21 @@ impl BlockBuilder {
 		}
 	}
 
+	/// Get a reference to the last generated block.
 	#[inline]
 	pub fn last(&self) -> &Block {
 		self.blocks.back().expect("There is always at least 1 block")
 	}
 }
 
+/// Generates a blockchain from given block builders (blocks will be concatenated).
 #[derive(Clone)]
 pub struct BlockGenerator {
 	builders: VecDeque<BlockBuilder>,
 }
 
 impl BlockGenerator {
+	/// Create new block generator.
 	pub fn new<T>(builders: T) -> Self where T: IntoIterator<Item = BlockBuilder> {
 		BlockGenerator {
 			builders: builders.into_iter().collect(),

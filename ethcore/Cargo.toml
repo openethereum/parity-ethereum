@@ -8,68 +8,68 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
-blooms-db = { path = "../util/blooms-db" }
+blooms-db = { path = "../util/blooms-db", optional = true }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
 crossbeam = "0.4"
-ethash = { path = "../ethash" }
-ethcore-bloom-journal = { path = "../util/bloom" }
-parity-bytes = "0.1"
-hashdb = "0.3.0"
-memorydb = "0.3.0"
-patricia-trie = "0.3.0"
-patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-parity-crypto = "0.2"
 error-chain = { version = "0.12", default-features = false }
+ethabi = "6.0"
+ethabi-contract = "6.0"
+ethabi-derive = "6.0"
+ethash = { path = "../ethash" }
+ethcore-blockchain = { path = "./blockchain" }
+ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
-ethcore-logger = { path = "../logger" }
+ethcore-logger = { path = "../logger", optional = true }
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../miner/stratum", optional = true }
-ethcore-transaction = { path = "./transaction" }
 ethereum-types = "0.4"
-memory-cache = { path = "../util/memory-cache" }
-ethabi = "6.0"
-ethabi-derive = "6.0"
-ethabi-contract = "6.0"
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 evm = { path = "evm" }
+hashdb = "0.3.0"
 heapsize = "0.4"
 itertools = "0.5"
-lazy_static = "1.0"
-log = "0.4"
-lru-cache = "0.1"
-num = { version = "0.1", default-features = false, features = ["bigint"] }
-num_cpus = "1.2"
-parity-machine = { path = "../machine" }
-parking_lot = "0.7"
-rayon = "1.0"
-rand = "0.4"
-rlp = { version = "0.3.0", features = ["ethereum"] }
-rlp_compress = { path = "../util/rlp-compress" }
-rlp_derive = { path = "../util/rlp-derive" }
+journaldb = { path = "../util/journaldb" }
+keccak-hash = "0.1"
+keccak-hasher = { path = "../util/keccak-hasher" }
 kvdb = "0.1"
 kvdb-memorydb = "0.1"
-parity-snappy = "0.1"
+kvdb-rocksdb = { version = "0.1.3", optional = true }
+lazy_static = "1.0"
+len-caching-lock = { path = "../util/len-caching-lock" }
+log = "0.4"
+lru-cache = "0.1"
 macros = { path = "../util/macros" }
+memory-cache = { path = "../util/memory-cache" }
+memorydb = "0.3.0"
+num = { version = "0.1", default-features = false, features = ["bigint"] }
+num_cpus = "1.2"
+parity-bytes = "0.1"
+parity-crypto = "0.2"
+parity-machine = { path = "../machine" }
+parity-snappy = "0.1"
+parking_lot = "0.7"
+patricia-trie = "0.3.0"
+patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
+rand = "0.4"
+rayon = "1.0"
+rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp_derive = { path = "../util/rlp-derive" }
 rustc-hex = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
 stats = { path = "../util/stats" }
+tempdir = {version="0.3", optional = true}
 trace-time = "0.1"
+triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
+unexpected = { path = "../util/unexpected" }
 using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
-keccak-hash = "0.1"
-triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
-unexpected = { path = "../util/unexpected" }
-journaldb = { path = "../util/journaldb" }
-keccak-hasher = { path = "../util/keccak-hasher" }
-kvdb-rocksdb = "0.1.3"
-serde = "1.0"
-serde_derive = "1.0"
-tempdir = {version="0.3", optional = true}
-len-caching-lock = { path = "../util/len-caching-lock" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
 hardware-wallet = { path = "../accounts/hw" }
@@ -78,10 +78,14 @@ hardware-wallet = { path = "../accounts/hw" }
 fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
 
 [dev-dependencies]
-env_logger = "0.4"
+blooms-db = { path = "../util/blooms-db" }
+criterion = "0.2"
+env_logger = "0.5"
+ethcore-logger = { path = "../logger" }
+kvdb-rocksdb = "0.1.3"
+rlp_compress = { path = "../util/rlp-compress" }
 tempdir = "0.3"
 trie-standardmap = "0.1"
-criterion = "0.2"
 
 [features]
 parity = ["work-notify", "price-info", "stratum"]
@@ -105,13 +109,13 @@ evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 # EVM debug traces are printed.
 slow-blocks = []
 # Run JSON consensus tests.
-json-tests = ["ethcore-transaction/json-tests", "test-helpers", "tempdir", "to-pod-full"]
+json-tests = ["ethcore-logger", "test-helpers", "tempdir", "to-pod-full"]
 # Skip JSON consensus tests with pending issues.
 ci-skip-issue = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
-test-helpers = ["tempdir"]
+test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db"]
 # Enables slow 'to-pod-full' method for use in tests and evmbin.
 to-pod-full = []
 

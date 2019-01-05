@@ -31,16 +31,16 @@ use v1::metadata::Metadata;
 use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader, Log};
 
-use ethcore::encoded;
-use ethcore::filter::Filter as EthFilter;
 use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, BlockId};
-use sync::LightSync;
-use light::cache::Cache;
-use light::on_demand::OnDemand;
-use light::client::{LightChainClient, LightChainNotify};
-use parity_runtime::Executor;
 use ethereum_types::H256;
+use light::cache::Cache;
+use light::client::{LightChainClient, LightChainNotify};
+use light::on_demand::OnDemand;
+use parity_runtime::Executor;
 use parking_lot::{RwLock, Mutex};
+use sync::LightSync;
+use types::encoded;
+use types::filter::Filter as EthFilter;
 
 type Client = Sink<pubsub::Result>;
 
