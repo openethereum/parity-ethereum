@@ -2160,11 +2160,11 @@ impl IoClient for Client {
 		let hash = unverified.hash();
 		{
 			// check block order
+			let parent_hash = unverified.parent_hash();
 			let status = self.block_status(BlockId::Hash(parent_hash));
 			if status == BlockStatus::InChain {
 				bail!(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-			let parent_hash = unverified.parent_hash();
 			// NOTE To prevent race condition with import, make sure to check queued blocks first
 			// (and attempt to acquire lock)
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
