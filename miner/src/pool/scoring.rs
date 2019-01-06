@@ -27,7 +27,6 @@
 //! yields more profits for miners. Additionally we prioritize transactions that originate
 //! from our local node (own transactions).
 
-use log::*; // TODO get rid of this line
 use std::cmp;
 
 use ethereum_types::U256;
@@ -188,9 +187,6 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 
 #[cfg(test)]
 mod tests {
-	// TODO: get rid of logs before commiting WIP commit
-	use log::*;
-	use env_logger;
 	use super::*;
 
 	use std::sync::Arc;
@@ -352,7 +348,6 @@ mod tests {
 
 	#[test]
 	fn should_bump_score_of_consecutive_tx() {
-		env_logger::try_init();
 		// given
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 		let multiplier = |i: usize, _| 1000u64.pow(i as u32);
@@ -366,32 +361,31 @@ mod tests {
 		    TxBuilder::default().gas_price(1_000).gas(21_000).nonce(2).build().signed_custom(key_3.clone()),
 		]);
 
-		let initial_scores = vec![U256::from(0), 0.into(), 0.into(), 0.into()];
+		let mut scores_0 = vec![U256::from(0), 0.into(), 0.into(), 0.into()];
+		let mut scores_1 = scores_0[0..2].to_vec().clone();
+		let mut scores_2 = scores_0.clone();
+
 		// Compute score at given index
-		let mut scores0 = initial_scores.clone();
-		scoring.update_scores(&transactions0, &mut *scores0, scoring::Change::InsertedAt(0));
-		scoring.update_scores(&transactions0, &mut *scores0, scoring::Change::InsertedAt(1));
-		scoring.update_scores(&transactions0, &mut *scores0, scoring::Change::InsertedAt(2));
+		scoring.update_scores(&transactions0, &mut *scores_0, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions0, &mut *scores_0, scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions0, &mut *scores_0, scoring::Change::InsertedAt(2));
 
-		let mut scores1 = initial_scores[0..2].to_vec().clone();
-		scoring.update_scores(&transactions1, &mut *scores1, scoring::Change::InsertedAt(0));
-		scoring.update_scores(&transactions1, &mut *scores1, scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions1, &mut *scores_1, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions1, &mut *scores_1, scoring::Change::InsertedAt(1));
 
-		let mut scores2 = initial_scores.clone();
-		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(0));
-		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(1));
-		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(2));
+		scoring.update_scores(&transactions2, &mut *scores_2, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions2, &mut *scores_2, scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions2, &mut *scores_2, scoring::Change::InsertedAt(2));
 
-		assert!(scores0[0] > scores1[0]);
-		assert!(scores0[0] > scores2[0]);
-		assert!(scores0[1] > scores1[1]);
-		assert!(scores0[1] > scores2[1]);
-		assert!(scores0[2] > scores2[2]);
+		assert!(scores_0[0] > scores_1[0]);
+		assert!(scores_0[0] > scores_2[0]);
+		assert!(scores_0[1] > scores_1[1]);
+		assert!(scores_0[1] > scores_2[1]);
+		assert!(scores_0[2] > scores_2[2]);
 	}
 
     #[test]
 	fn should_be_harder_to_bump_larger_tx() {
-		env_logger::try_init();
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 
 		let key_0 = Random.generate().unwrap();
@@ -437,10 +431,6 @@ mod tests {
 
 		scoring.update_scores(&transactions_3, &mut *scores_3, scoring::Change::InsertedAt(0));
 		scoring.update_scores(&transactions_3, &mut *scores_3, scoring::Change::InsertedAt(1));
-		debug!("Scores 0: {:?}", scores_0);
-		debug!("Scores 1: {:?}", scores_1);
-		debug!("SCORES 2: {:?}", scores_2);
-		debug!("SCORES 3: {:?}", scores_3);
 
 		assert!(scores_3[0] > scores_0[0]);
 		assert!(scores_3[0] > scores_1[0]);
@@ -458,18 +448,38 @@ mod tests {
 	}
 
 	#[test]
-	fn possible_attack() {
-		env_logger::try_init();
+	fn should_not_affect_similarly_priced_txs() {
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
-        let key = Random.generate().unwrap();
-    	let transactions = verify_vec(vec![
-    	    TxBuilder::default().gas_price(1).gas(21_000).nonce(0).build().signed_custom(key.clone()),
-    	    TxBuilder::default().gas_price(1).gas(8_000_000).nonce(1).build().signed_custom(key.clone()),
-    	    TxBuilder::default().gas_price(1_000_000_000_000_000_000).gas(21_000).nonce(2).build().signed_custom(key.clone()),
-    	]);
-        let mut scores = vec![U256::from(0), 0.into(), 0.into()];
-    	scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(0));
-    	scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(1));
-    	scoring.update_scores(&transactions, &mut *scores, scoring::Change::InsertedAt(2));
-    }
+
+		let key_0 = Random.generate().unwrap();
+		let key_1 = Random.generate().unwrap();
+
+		let transactions_0 = verify_vec(vec![
+			TxBuilder::default().gas_price(1).gas(21_000).nonce(0).build().signed_custom(key_0.clone()),
+			TxBuilder::default().gas_price(1).gas(21_000).nonce(1).build().signed_custom(key_0.clone()),
+			TxBuilder::default().gas_price(1).gas(21_000).nonce(2).build().signed_custom(key_0),
+		]);
+
+		let transactions_1 = verify_vec(vec![
+			TxBuilder::default().gas_price(1).gas(21_000).nonce(0).build().signed_custom(key_1.clone()),
+			TxBuilder::default().gas_price(1).gas(1_000_000).nonce(1).build().signed_custom(key_1.clone()),
+			TxBuilder::default().gas_price(1).gas(5_000_000).nonce(2).build().signed_custom(key_1),
+		]);
+
+		let mut scores_0 = vec![U256::from(0), 0.into(), 0.into()];
+		let mut scores_1 = scores_0.clone();
+
+		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(2));
+
+		scoring.update_scores(&transactions_1, &mut *scores_1, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions_1, &mut *scores_1, scoring::Change::InsertedAt(1));
+		scoring.update_scores(&transactions_1, &mut *scores_1, scoring::Change::InsertedAt(2));
+
+		assert!(scores_0[0] == scores_1[0]);
+		assert!(scores_0[1] == scores_1[1]);
+		assert!(scores_0[2] == scores_1[2]);
+	}
 }
+

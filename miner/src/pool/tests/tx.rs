@@ -156,14 +156,9 @@ impl TxBuilder {
 		self.gas = Some(gas);
 		self
 	}
-	
+
 	pub fn gas_price(&mut self, gas_price: u64) -> &mut Self {
 		self.gas_price = Some(gas_price);
-		self
-	}
-
-	pub fn multiplier(&mut self, multiplier: u64) -> &mut Self {
-		self.multiplier = Some(multiplier);
 		self
 	}
 }
