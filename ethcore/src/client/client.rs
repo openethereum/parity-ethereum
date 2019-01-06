@@ -2192,9 +2192,15 @@ impl IoClient for Client {
 				let first = queued.write().1.pop_front();
 				if let Some((unverified, receipts_bytes)) = first {
 					let hash = unverified.hash();
+
+					// In the situation where we try to import a normal block A, and right
+					// after it the network situation vastly changed (for example, receiving
+					// a far-ahead best block from another peer) and we try to import an
+					// ancient block B that is a child of A, if A is still queued and
+					// haven't finished importing, we return early here and retry later.
+					// Otherwise `import_old_block` will panic.
 					let parent_hash = unverified.parent_hash();
 					let status = client.importer.block_queue.status(&parent_hash);
-
 					if status == QueueStatus::Queued {
 						break;
 					}
