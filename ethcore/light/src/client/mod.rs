@@ -18,21 +18,22 @@
 
 use std::sync::{Weak, Arc};
 
-use ethcore::block_status::BlockStatus;
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
 use ethcore::error::{Error, EthcoreResult};
-use ethcore::ids::BlockId;
-use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
-use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::{Spec, SpecHardcodedSync};
-use ethcore::encoded;
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::{H256, U256};
 use futures::{IntoFuture, Future};
+use common_types::BlockNumber;
+use common_types::block_status::BlockStatus;
+use common_types::blockchain_info::BlockChainInfo;
+use common_types::encoded;
+use common_types::header::Header;
+use common_types::ids::BlockId;
 
 use kvdb::KeyValueDB;
 

@@ -16,7 +16,7 @@
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
 use blockchain::ImportRoute;
 use std::time::Duration;
 use std::collections::HashMap;

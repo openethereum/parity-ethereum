@@ -17,7 +17,7 @@
 use std::fmt;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
-use super::{Error, H256};
+use super::{Error, Bytes};
 
 #[derive(Debug, PartialEq)]
 pub enum KdfSer {
@@ -111,7 +111,7 @@ pub struct Pbkdf2 {
 	pub c: u32,
 	pub dklen: u32,
 	pub prf: Prf,
-	pub salt: H256,
+	pub salt: Bytes,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -120,7 +120,7 @@ pub struct Scrypt {
 	pub p: u32,
 	pub n: u32,
 	pub r: u32,
-	pub salt: H256,
+	pub salt: Bytes,
 }
 
 #[derive(Debug, PartialEq)]

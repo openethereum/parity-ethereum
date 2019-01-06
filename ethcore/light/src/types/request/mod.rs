@@ -670,7 +670,7 @@ pub trait ResponseLike {
 /// Header request.
 pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
-	use ethcore::encoded;
+	use common_types::encoded;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
 	/// Potentially incomplete headers request.
@@ -753,7 +753,7 @@ pub mod header {
 
 	impl Decodable for Response {
 		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-			use ethcore::header::Header as FullHeader;
+			use common_types::header::Header as FullHeader;
 
 			let mut headers = Vec::new();
 
@@ -954,7 +954,7 @@ pub mod transaction_index {
 /// Request and response for block receipts
 pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use ethcore::receipt::Receipt;
+	use common_types::receipt::Receipt;
 	use ethereum_types::H256;
 
 	/// Potentially incomplete block receipts request.
@@ -1022,7 +1022,7 @@ pub mod block_receipts {
 /// Request and response for a block body
 pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use ethcore::encoded;
+	use common_types::encoded;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 	use ethereum_types::H256;
 
@@ -1089,8 +1089,8 @@ pub mod block_body {
 
 	impl Decodable for Response {
 		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-			use ethcore::header::Header as FullHeader;
-			use transaction::UnverifiedTransaction;
+			use common_types::header::Header as FullHeader;
+			use common_types::transaction::UnverifiedTransaction;
 
 			// check body validity.
 			let _: Vec<UnverifiedTransaction> = rlp.list_at(0)?;
@@ -1406,7 +1406,7 @@ pub mod contract_code {
 /// A request for proof of execution.
 pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use transaction::Action;
+	use common_types::transaction::Action;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBValue;
@@ -1629,7 +1629,7 @@ pub mod epoch_signal {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use ethcore::header::Header;
+	use common_types::header::Header;
 
 	fn check_roundtrip<T>(val: T)
 		where T: ::rlp::Encodable + ::rlp::Decodable + PartialEq + ::std::fmt::Debug
@@ -1676,7 +1676,7 @@ mod tests {
 		let full_req = Request::Headers(req.clone());
 		let res = HeadersResponse {
 			headers: vec![
-				::ethcore::encoded::Header::new(::rlp::encode(&Header::default()))
+				::common_types::encoded::Header::new(::rlp::encode(&Header::default()))
 			]
 		};
 		let full_res = Response::Headers(res.clone());
@@ -1729,7 +1729,7 @@ mod tests {
 
 	#[test]
 	fn receipts_roundtrip() {
-		use ethcore::receipt::{Receipt, TransactionOutcome};
+		use common_types::receipt::{Receipt, TransactionOutcome};
 		let req = IncompleteReceiptsRequest {
 			hash: Field::Scalar(Default::default()),
 		};
@@ -1749,7 +1749,7 @@ mod tests {
 
 	#[test]
 	fn body_roundtrip() {
-		use transaction::{Transaction, UnverifiedTransaction};
+		use common_types::transaction::{Transaction, UnverifiedTransaction};
 		let req = IncompleteBodyRequest {
 			hash: Field::Scalar(Default::default()),
 		};
@@ -1757,13 +1757,13 @@ mod tests {
 		let full_req = Request::Body(req.clone());
 		let res = BodyResponse {
 			body: {
-				let header = ::ethcore::header::Header::default();
+				let header = ::common_types::header::Header::default();
 				let tx = UnverifiedTransaction::from(Transaction::default().fake_sign(Default::default()));
 				let mut stream = RlpStream::new_list(2);
 				stream.begin_list(2).append(&tx).append(&tx)
 					.begin_list(1).append(&header);
 
-				::ethcore::encoded::Body::new(stream.out())
+				::common_types::encoded::Body::new(stream.out())
 			},
 		};
 		let full_res = Response::Body(res.clone());
@@ -1844,7 +1844,7 @@ mod tests {
 		let req = IncompleteExecutionRequest {
 			block_hash: Field::Scalar(Default::default()),
 			from: Default::default(),
-			action: ::transaction::Action::Create,
+			action: ::common_types::transaction::Action::Create,
 			gas: 100_000.into(),
 			gas_price: 0.into(),
 			value: 100_000_001.into(),
@@ -1874,7 +1874,7 @@ mod tests {
 		let reqs: Vec<_> = (0..10).map(|_| IncompleteExecutionRequest {
 			block_hash: Field::Scalar(Default::default()),
 			from: Default::default(),
-			action: ::transaction::Action::Create,
+			action: ::common_types::transaction::Action::Create,
 			gas: 100_000.into(),
 			gas_price: 0.into(),
 			value: 100_000_001.into(),
@@ -1892,11 +1892,11 @@ mod tests {
 
 	#[test]
 	fn responses_vec() {
-		use ethcore::receipt::{Receipt, TransactionOutcome};
+		use common_types::receipt::{Receipt, TransactionOutcome};
 		let mut stream = RlpStream::new_list(2);
 				stream.begin_list(0).begin_list(0);
 
-		let body = ::ethcore::encoded::Body::new(stream.out());
+		let body = ::common_types::encoded::Body::new(stream.out());
 		let reqs = vec![
 			Response::Headers(HeadersResponse { headers: vec![] }),
 			Response::HeaderProof(HeaderProofResponse { proof: vec![], hash: Default::default(), td: 100.into()}),

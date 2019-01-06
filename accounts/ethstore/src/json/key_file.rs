@@ -46,7 +46,7 @@ pub struct KeyFile {
 	pub id: Uuid,
 	pub version: Version,
 	pub crypto: Crypto,
-	pub address: H160,
+	pub address: Option<H160>,
 	pub name: Option<String>,
 	pub meta: Option<String>,
 }
@@ -158,11 +158,6 @@ impl<'a> Visitor<'a> for KeyFileVisitor {
 			None => return Err(V::Error::missing_field("crypto")),
 		};
 
-		let address = match address {
-			Some(address) => address,
-			None => return Err(V::Error::missing_field("address")),
-		};
-
 		let result = KeyFile {
 			id: id,
 			version: version,
@@ -222,7 +217,7 @@ mod tests {
 		let expected = KeyFile {
 			id: Uuid::from_str("8777d9f6-7860-4b9b-88b7-0b57ee6b3a73").unwrap(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),
@@ -273,7 +268,7 @@ mod tests {
 		let expected = KeyFile {
 			id: "8777d9f6-7860-4b9b-88b7-0b57ee6b3a73".into(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),
@@ -301,7 +296,7 @@ mod tests {
 		let file = KeyFile {
 			id: "8777d9f6-7860-4b9b-88b7-0b57ee6b3a73".into(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),

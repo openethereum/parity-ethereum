@@ -34,7 +34,6 @@ use error::{Error, ErrorKind, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
-use header::{Header, BlockNumber, ExtendedHeader};
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 use self::finality::RollingFinality;
@@ -44,6 +43,8 @@ use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
+use types::BlockNumber;
+use types::header::{Header, ExtendedHeader};
 use types::ancestry_action::AncestryAction;
 use unexpected::{Mismatch, OutOfBounds};
 
@@ -1528,7 +1529,7 @@ mod tests {
 	use hash::keccak;
 	use ethereum_types::{Address, H520, H256, U256};
 	use ethkey::Signature;
-	use header::Header;
+	use types::header::Header;
 	use rlp::encode;
 	use block::*;
 	use test_helpers::{
@@ -1537,7 +1538,7 @@ mod tests {
 	};
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use transaction::{Action, Transaction};
+	use types::transaction::{Action, Transaction};
 	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::{TestSet, SimpleList};
 	use error::{Error, ErrorKind};

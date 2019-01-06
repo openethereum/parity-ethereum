@@ -15,5 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 mod client;
+mod blockchain;
 mod evm;
 mod trace;

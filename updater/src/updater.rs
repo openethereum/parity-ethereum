@@ -25,9 +25,9 @@ use parking_lot::{Mutex, MutexGuard};
 use rand::{self, Rng};
 use target_info::Target;
 
-use ethcore::BlockNumber;
+use common_types::BlockNumber;
+use common_types::filter::Filter;
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify, NewBlocks};
-use ethcore::filter::Filter;
 use ethereum_types::H256;
 use hash_fetch::{self as fetch, HashFetch};
 use parity_path::restrict_permissions_owner;

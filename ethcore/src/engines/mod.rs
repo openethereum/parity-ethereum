@@ -24,7 +24,6 @@ mod signer;
 mod validator_set;
 
 pub mod block_reward;
-pub mod epoch;
 
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
@@ -32,20 +31,23 @@ pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
 pub use self::null_engine::NullEngine;
 
+// TODO [ToDr] Remove re-export (#10130)
+pub use types::engines::ForkChoice;
+pub use types::engines::epoch;
+
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
 use std::{fmt, error};
-
-use self::epoch::PendingTransition;
 
 use account_provider::AccountProvider;
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
-use header::{Header, BlockNumber};
+use types::BlockNumber;
+use types::header::Header;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
-use transaction::{self, UnverifiedTransaction, SignedTransaction};
+use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Password, Signature};
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
@@ -57,15 +59,6 @@ use types::ancestry_action::AncestryAction;
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
 pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561006a5760014303600035610100820755610100810715156100455760003561010061010083050761010001555b6201000081071515610064576000356101006201000083050761020001555b5061013e565b4360003512151561008457600060405260206040f361013d565b61010060003543031315156100a857610100600035075460605260206060f361013c565b6101006000350715156100c55762010000600035430313156100c8565b60005b156100ea576101006101006000350507610100015460805260206080f361013b565b620100006000350715156101095763010000006000354303131561010c565b60005b1561012f57610100620100006000350507610200015460a052602060a0f361013a565b600060c052602060c0f35b5b5b5b5b";
-
-/// Fork choice.
-#[derive(Debug, PartialEq, Eq)]
-pub enum ForkChoice {
-	/// Choose the new block.
-	New,
-	/// Choose the current best block.
-	Old,
-}
 
 /// Voting errors.
 #[derive(Debug)]
@@ -175,7 +168,7 @@ pub fn default_system_or_code_call<'a>(machine: &'a ::machine::EthereumMachine, 
 pub type Headers<'a, H> = Fn(H256) -> Option<H> + 'a;
 
 /// Type alias for a function we can query pending transitions by block hash through.
-pub type PendingTransitionStore<'a> = Fn(H256) -> Option<PendingTransition> + 'a;
+pub type PendingTransitionStore<'a> = Fn(H256) -> Option<epoch::PendingTransition> + 'a;
 
 /// Proof dependent on state.
 pub trait StateDependentProof<M: Machine>: Send + Sync {

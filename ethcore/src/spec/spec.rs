@@ -29,10 +29,12 @@ use memorydb::MemoryDB;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::{FromHex, ToHex};
+use types::BlockNumber;
+use types::encoded;
+use types::header::Header;
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
-use encoded;
 use engines::{
 	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority,
 	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
@@ -40,7 +42,6 @@ use engines::{
 use error::Error;
 use executive::Executive;
 use factory::Factories;
-use header::{BlockNumber, Header};
 use machine::EthereumMachine;
 use pod_state::PodState;
 use spec::Genesis;
@@ -840,7 +841,7 @@ impl Spec {
 	/// initialize genesis epoch data, using in-memory database for
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
-		use transaction::{Action, Transaction};
+		use types::transaction::{Action, Transaction};
 		use journaldb;
 		use kvdb_memorydb;
 
@@ -989,8 +990,9 @@ mod tests {
 	use super::*;
 	use state::State;
 	use test_helpers::get_temp_state_db;
-	use views::BlockView;
 	use tempdir::TempDir;
+	use types::view;
+	use types::views::BlockView;
 
 	// https://github.com/paritytech/parity-ethereum/issues/1840
 	#[test]

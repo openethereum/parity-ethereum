@@ -20,8 +20,9 @@ use std::cmp;
 use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{U256, H256, Address};
-use types::BlockNumber;
 use ethjson;
+
+type BlockNumber = u64;
 
 /// Simple vector of hashes, should be at most 256 items large, can be smaller if being used
 /// for a block whose number is less than 257.

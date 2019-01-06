@@ -16,12 +16,12 @@
 
 use std::sync::{Arc, Weak};
 
-use ethcore::encoded;
 use ethcore::engines::{EthEngine, StateDependentProof};
-use ethcore::header::Header;
 use ethcore::machine::EthereumMachine;
-use ethcore::receipt::Receipt;
 use sync::LightSync;
+use types::encoded;
+use types::header::Header;
+use types::receipt::Receipt;
 
 use futures::{future, Future};
 use futures::future::Either;

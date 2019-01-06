@@ -18,13 +18,13 @@
 
 use std::sync::Arc;
 
-use ethcore::encoded;
+use common_types::encoded;
+use common_types::header::Header;
+use common_types::receipt::Receipt;
 use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
-use ethcore::header::Header;
-use ethcore::receipt::Receipt;
-use futures::future::IntoFuture;
 use ethereum_types::H256;
+use futures::future::IntoFuture;
 
 /// Provides full chain data.
 pub trait ChainDataFetcher: Send + Sync + 'static {

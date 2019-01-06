@@ -15,11 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+
+use common_types::BlockNumber;
+use common_types::encoded::Block;
+use common_types::engines::ForkChoice;
+use ethcore_db::keys::{BlockDetails, BlockReceipts, TransactionAddress};
 use ethereum_types::{H256, Bloom};
-use header::BlockNumber;
-use blockchain::block_info::BlockInfo;
-use blockchain::extras::{BlockDetails, BlockReceipts, TransactionAddress};
-use encoded::Block;
+
+use crate::block_info::BlockInfo;
 
 /// Block extras update info.
 pub struct ExtrasUpdate {
@@ -42,7 +45,7 @@ pub struct ExtrasUpdate {
 /// Extra information in block insertion.
 pub struct ExtrasInsert {
 	/// The primitive fork choice before applying finalization rules.
-	pub fork_choice: ::engines::ForkChoice,
+	pub fork_choice: ForkChoice,
 	/// Is the inserted block considered finalized.
 	pub is_finalized: bool,
 }

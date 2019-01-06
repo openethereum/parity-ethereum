@@ -23,7 +23,6 @@ use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
 	ClientConfig, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage};
-use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
@@ -35,6 +34,7 @@ use api::WARP_SYNC_PROTOCOL_ID;
 use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3, PRIVATE_TRANSACTION_PACKET, SIGNED_PRIVATE_TRANSACTION_PACKET, SyncSupplier};
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
+use types::BlockNumber;
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}
@@ -143,6 +143,10 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
 		&self.overlay
+	}
+
+	fn payload_soft_limit(&self) -> usize {
+		100_000
 	}
 }
 
@@ -341,7 +345,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 			let chain = TestBlockChainClient::new();
 			let ss = Arc::new(TestSnapshotService::new());
 			let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
-			let sync = ChainSync::new(config.clone(), &chain, private_tx_handler.clone());
+			let sync = ChainSync::new(config.clone(), &chain, Some(private_tx_handler.clone()));
 			net.peers.push(Arc::new(EthPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
@@ -395,7 +399,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 
 		let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
 		let ss = Arc::new(TestSnapshotService::new());
-		let sync = ChainSync::new(config, &*client, private_tx_handler.clone());
+		let sync = ChainSync::new(config, &*client, Some(private_tx_handler.clone()));
 		let peer = Arc::new(EthPeer {
 			sync: RwLock::new(sync),
 			snapshot_service: ss,

@@ -22,8 +22,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
-
-pub use types::BlockNumber;
+use BlockNumber;
 
 /// Semantic boolean for when a seal/signature is included.
 #[derive(Debug, Clone, Copy)]
@@ -190,13 +189,6 @@ impl Header {
 		self.seal.iter().map(|rlp| {
 			Rlp::new(rlp).data()
 		}).collect()
-	}
-
-	/// Get a mutable reference to extra_data
-	#[cfg(test)]
-	pub fn extra_data_mut(&mut self) -> &mut Bytes {
-		self.hash = None;
-		&mut self.extra_data
 	}
 
 	/// Set the number field of the header.

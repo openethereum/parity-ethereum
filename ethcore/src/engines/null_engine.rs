@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::U256;
 use engines::Engine;
 use engines::block_reward::{self, RewardKind};
-use header::BlockNumber;
+use ethereum_types::U256;
 use machine::WithRewards;
 use parity_machine::{Header, LiveBlock, WithBalances, TotalScoredHeader};
+use types::BlockNumber;
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
