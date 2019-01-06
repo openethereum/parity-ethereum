@@ -140,14 +140,16 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 					Change::InsertedAt(i) | Change::ReplacedAt(i) => {
 						assert!(i < txs.len());
 						assert!(i < scores.len());
-						// scores[i] = *txs[txs.len() - 1].transaction.gas_price() << boost(i);
 						let last_index = txs.len() - 1;
 						scores[last_index] = *txs[last_index].transaction.gas_price();
 
 						for idx in (1..txs.len()).rev() {
-							let consecutive_bump = is_consecutive(idx - 1) * (U256::from(21_000) * scores[idx]) / txs[idx-1].transaction.gas();
+							let consecutive_bump = is_consecutive(idx - 1) *
+								(U256::from(21_000) * scores[i]) /
+								txs[idx - 1].transaction.gas();
 							scores[idx - 1] = txs[idx - 1].transaction.gas_price() + (consecutive_bump / 1000);
 						}
+						// scores[i] <<= boost(i);
 					},
 					// We are only sending an event in case of penalization.
 					// So just lower the priority of all non-local transactions.
@@ -194,7 +196,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethkey::{Random, Generator};
 	use pool::tests::tx::{Tx, TxExt, TxBuilder};
-	use transaction::SignedTransaction;
+	use types::transaction::SignedTransaction;
 	use txpool::Scoring;
 	use txpool::scoring::Choice::*;
 
@@ -380,10 +382,6 @@ mod tests {
 		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(1));
 		scoring.update_scores(&transactions2, &mut *scores2, scoring::Change::InsertedAt(2));
 
-		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores0[0], scores1[0], scores2[0]);
-		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores0[1], scores1[1], scores2[1]);
-		debug!("Score0 {} -- Score2 {}", scores0[2], scores2[1]);
-
 		assert!(scores0[0] > scores1[0]);
 		assert!(scores0[0] > scores2[0]);
 		assert!(scores0[1] > scores1[1]);
@@ -394,12 +392,12 @@ mod tests {
     #[test]
 	fn should_be_harder_to_bump_larger_tx() {
 		env_logger::try_init();
-
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 
 		let key_0 = Random.generate().unwrap();
 		let key_1 = Random.generate().unwrap();
 		let key_2 = Random.generate().unwrap();
+		let key_3 = Random.generate().unwrap();
 
 		let transactions_0 = verify_vec(vec![
 			TxBuilder::default().gas_price(1).gas(1_000_000).nonce(0).build().signed_custom(key_0.clone()),
@@ -417,9 +415,15 @@ mod tests {
 			TxBuilder::default().gas_price(1_000_000).gas(21_000).nonce(1).build().signed_custom(key_2),
 		]);
 
+		let transactions_3 = verify_vec(vec![
+			TxBuilder::default().gas_price(1).gas(21_000).nonce(0).build().signed_custom(key_3.clone()),
+			TxBuilder::default().gas_price(1_000_000).gas(1_000_000).nonce(1).build().signed_custom(key_3)
+		]);
+
 		let mut scores_0 = vec![U256::from(0), 0.into()];
 		let mut scores_1 = vec![U256::from(0), 0.into(), 0.into()];
-		let mut scores_2 = scores_1.clone();
+		let mut scores_2 = scores_0.clone();
+		let mut scores_3 = scores_0.clone();
 
 		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(0));
 		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(1));
@@ -431,14 +435,29 @@ mod tests {
 		scoring.update_scores(&transactions_2, &mut *scores_2, scoring::Change::InsertedAt(0));
 		scoring.update_scores(&transactions_2, &mut *scores_2, scoring::Change::InsertedAt(1));
 
-		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores_0[0], scores_1[0], scores_2[0]);
-		debug!("Score0 {} -- Score1 {} -- Score2 {}", scores_0[1], scores_1[1], scores_2[1]);
-		debug!("Score1 {}", scores_1[2]);
+		scoring.update_scores(&transactions_3, &mut *scores_3, scoring::Change::InsertedAt(0));
+		scoring.update_scores(&transactions_3, &mut *scores_3, scoring::Change::InsertedAt(1));
+		debug!("Scores 1 {:?}", scores_1);
+		debug!("SCORES 2 {:?}", scores_2);
+		assert!(scores_3[0] > scores_0[0]);
+		assert!(scores_3[0] > scores_1[0]);
+		assert!(scores_3[0] > scores_2[0]);
+		assert!(scores_2[0] > scores_0[0]);
+		assert!(scores_2[0] == scores_1[0]);
+
+		assert!(scores_0[1] < scores_1[1]);
+		assert!(scores_0[1] < scores_2[1]);
+		assert!(scores_2[1] > scores_0[1]);
+		assert!(scores_2[1] > scores_1[1]);
+		assert!(scores_3[1] > scores_0[1]);
+		assert!(scores_3[1] > scores_1[1]);
+		assert!(scores_3[1] == scores_2[1]);
 	}
 
 	#[test]
 	fn possible_attack() {
-        let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
+		env_logger::try_init();
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
         let key = Random.generate().unwrap();
     	let transactions = verify_vec(vec![
     	    TxBuilder::default().gas_price(1).gas(21_000).nonce(0).build().signed_custom(key.clone()),
