@@ -145,8 +145,8 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 
 						for idx in (1..txs.len()).rev() {
 							let consecutive_bump = is_consecutive(idx - 1) *
-								(U256::from(21_000) * scores[i]) /
-								txs[idx - 1].transaction.gas();
+								((U256::from(21_000) * scores[idx]) /
+								txs[idx - 1].transaction.gas());
 							scores[idx - 1] = txs[idx - 1].transaction.gas_price() + (consecutive_bump / 1000);
 						}
 						// scores[i] <<= boost(i);
@@ -437,13 +437,16 @@ mod tests {
 
 		scoring.update_scores(&transactions_3, &mut *scores_3, scoring::Change::InsertedAt(0));
 		scoring.update_scores(&transactions_3, &mut *scores_3, scoring::Change::InsertedAt(1));
-		debug!("Scores 1 {:?}", scores_1);
-		debug!("SCORES 2 {:?}", scores_2);
+		debug!("Scores 0: {:?}", scores_0);
+		debug!("Scores 1: {:?}", scores_1);
+		debug!("SCORES 2: {:?}", scores_2);
+		debug!("SCORES 3: {:?}", scores_3);
+
 		assert!(scores_3[0] > scores_0[0]);
 		assert!(scores_3[0] > scores_1[0]);
 		assert!(scores_3[0] > scores_2[0]);
 		assert!(scores_2[0] > scores_0[0]);
-		assert!(scores_2[0] == scores_1[0]);
+		assert!(scores_2[0] > scores_1[0]);
 
 		assert!(scores_0[1] < scores_1[1]);
 		assert!(scores_0[1] < scores_2[1]);
