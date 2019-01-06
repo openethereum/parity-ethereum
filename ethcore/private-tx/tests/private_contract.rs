@@ -16,14 +16,14 @@
 
 //! Contract for private transactions tests.
 
-extern crate rustc_hex;
+extern crate common_types as types;
 extern crate ethcore;
-extern crate ethkey;
-extern crate keccak_hash as hash;
 extern crate ethcore_io;
 extern crate ethcore_logger;
 extern crate ethcore_private_tx;
-extern crate ethcore_transaction;
+extern crate ethkey;
+extern crate keccak_hash as hash;
+extern crate rustc_hex;
 
 #[macro_use]
 extern crate log;
@@ -31,14 +31,14 @@ extern crate log;
 use std::sync::Arc;
 use rustc_hex::FromHex;
 
+use types::ids::BlockId;
+use types::transaction::{Transaction, Action};
 use ethcore::CreateContractAddress;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::BlockChainClient;
-use ethcore::client::BlockId;
 use ethcore::executive::{contract_address};
 use ethcore::miner::Miner;
 use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
-use ethcore_transaction::{Transaction, Action};
 use ethkey::{Secret, KeyPair, Signature};
 use hash::keccak;
 

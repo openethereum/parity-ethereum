@@ -190,7 +190,8 @@ mod tests {
 	use state::*;
 	use super::*;
 	use test_helpers::get_temp_state_db;
-	use views::BlockView;
+	use types::view;
+	use types::views::BlockView;
 
 	#[test]
 	fn ensure_db_good() {

@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use bytes::{Bytes, ToPretty};
 use ethcore::account_provider::AccountProvider;
-use transaction::PendingTransaction;
+use types::transaction::PendingTransaction;
 use ethereum_types::{H520, U128, Address};
 use ethkey::{public_to_address, recover, Signature};
 
@@ -39,7 +39,7 @@ use v1::types::{
 	EIP191Version,
 };
 use v1::metadata::Metadata;
-use eip712::{EIP712, hash_structured_data};
+use eip_712::{EIP712, hash_structured_data};
 use jsonrpc_core::types::Value;
 
 /// Account management (personal) rpc implementation.

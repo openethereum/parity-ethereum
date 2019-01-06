@@ -27,7 +27,7 @@ use vm::{
 	Ext, ContractCreateResult, MessageCallResult, CreateContractAddress,
 	ReturnData, TrapKind
 };
-use transaction::UNSIGNED_SENDER;
+use types::transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -340,7 +340,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
-		use log_entry::LogEntry;
+		use types::log_entry::LogEntry;
 
 		if self.static_flag {
 			return Err(vm::Error::MutableCallInStaticContext);

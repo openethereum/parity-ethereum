@@ -236,7 +236,7 @@ mod tests {
 	use super::*;
 	use ethereum_types::U256;
 	use ethkey::{Random, Generator};
-	use transaction;
+	use types::transaction;
 	use txpool::Listener;
 
 	use pool;

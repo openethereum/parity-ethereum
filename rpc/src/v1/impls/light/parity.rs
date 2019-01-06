@@ -366,7 +366,7 @@ impl Parity for ParityClient {
 	}
 
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader> {
-		use ethcore::encoded;
+		use types::encoded;
 
 		let engine = self.light_dispatch.client.engine().clone();
 		let from_encoded = move |encoded: encoded::Header| {

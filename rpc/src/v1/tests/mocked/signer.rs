@@ -24,7 +24,7 @@ use ethcore::client::TestBlockChainClient;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
 use rlp::encode;
-use transaction::{Transaction, Action, SignedTransaction};
+use types::transaction::{Transaction, Action, SignedTransaction};
 
 use serde_json;
 use jsonrpc_core::IoHandler;

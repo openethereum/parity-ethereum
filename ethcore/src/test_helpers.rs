@@ -19,32 +19,35 @@
 use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
-use account_provider::AccountProvider;
-use ethereum_types::{H256, U256, Address};
-use block::{OpenBlock, Drain};
+
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockChainConfig, ExtrasInsert};
+use blooms_db;
 use bytes::Bytes;
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use ethereum_types::{H256, U256, Address};
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
-use factory::Factories;
 use hash::keccak;
-use header::Header;
-use io::*;
-use miner::Miner;
-use parking_lot::RwLock;
-use rlp::{self, RlpStream};
-use spec::Spec;
-use state_db::StateDB;
-use state::*;
-use transaction::{Action, Transaction, SignedTransaction};
-use views::BlockView;
-use blooms_db;
+use io::IoChannel;
 use kvdb::KeyValueDB;
 use kvdb_rocksdb::{self, Database, DatabaseConfig};
+use parking_lot::RwLock;
+use rlp::{self, RlpStream};
 use tempdir::TempDir;
+use types::transaction::{Action, Transaction, SignedTransaction};
+use types::encoded;
+use types::header::Header;
+use types::view;
+use types::views::BlockView;
+
+use account_provider::AccountProvider;
+use block::{OpenBlock, Drain};
+use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use factory::Factories;
+use miner::Miner;
+use spec::Spec;
+use state::*;
+use state_db::StateDB;
 use verification::queue::kind::blocks::Unverified;
-use encoded;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {

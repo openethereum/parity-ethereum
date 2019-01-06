@@ -156,26 +156,13 @@
 //! }
 //! ```
 
-#![warn(missing_docs, unused_extern_crates)]
+#![warn(missing_docs)]
 
-extern crate serde_json;
-extern crate ethabi;
-extern crate ethereum_types;
-extern crate keccak_hash;
-extern crate itertools;
-extern crate failure;
-extern crate indexmap;
-extern crate lunarity_lexer;
-extern crate toolshed;
-extern crate regex;
-extern crate validator;
 #[macro_use]
 extern crate validator_derive;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate lazy_static;
-extern crate rustc_hex;
+
 
 mod eip712;
 mod error;
@@ -183,8 +170,8 @@ mod parser;
 mod encode;
 
 /// the EIP-712 encoding function
-pub use encode::hash_structured_data;
+pub use crate::encode::hash_structured_data;
 /// encoding Error types
-pub use error::{ErrorKind, Error};
+pub use crate::error::{ErrorKind, Error};
 /// EIP712 struct
-pub use eip712::EIP712;
+pub use crate::eip712::EIP712;

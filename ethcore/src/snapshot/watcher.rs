@@ -18,7 +18,7 @@
 
 use parking_lot::Mutex;
 use client::{BlockInfo, Client, ChainNotify, NewBlocks, ClientIoMessage};
-use ids::BlockId;
+use types::ids::BlockId;
 
 use io::IoChannel;
 use ethereum_types::H256;

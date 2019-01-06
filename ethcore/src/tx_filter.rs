@@ -23,7 +23,7 @@ use ethabi::FunctionOutputDecoder;
 use client::{BlockInfo, CallContract, BlockId};
 use parking_lot::Mutex;
 use spec::CommonParams;
-use transaction::{Action, SignedTransaction};
+use types::transaction::{Action, SignedTransaction};
 use types::BlockNumber;
 use hash::KECCAK_EMPTY;
 
@@ -149,7 +149,7 @@ mod test {
 	use io::IoChannel;
 	use ethkey::{Secret, KeyPair};
 	use super::TransactionFilter;
-	use transaction::{Transaction, Action};
+	use types::transaction::{Transaction, Action};
 	use tempdir::TempDir;
 	use test_helpers;
 
