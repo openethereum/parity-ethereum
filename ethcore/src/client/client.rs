@@ -77,6 +77,7 @@ use types::filter::Filter;
 use types::ancestry_action::AncestryAction;
 use verification;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
+use verification::queue::Status as QueueStatus;
 use verification::queue::kind::blocks::Unverified;
 use verification::queue::kind::BlockLike;
 
@@ -2193,6 +2194,13 @@ impl IoClient for Client {
 				let first = queued.write().1.pop_front();
 				if let Some((unverified, receipts_bytes)) = first {
 					let hash = unverified.hash();
+					let parent_hash = unverified.parent_hash();
+					let status = client.importer.block_queue.status(&parent_hash);
+
+					if status == QueueStatus::Queued {
+						break;
+					}
+
 					let result = client.importer.import_old_block(
 						unverified,
 						&receipts_bytes,
