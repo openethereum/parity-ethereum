@@ -21,7 +21,7 @@ use ethcore::client::{BlockChainClient, BlockId, ClientIoMessage};
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use ethcore::CreateContractAddress;
-use transaction::{Transaction, Action};
+use types::transaction::{Transaction, Action};
 use ethcore::executive::{contract_address};
 use ethcore::test_helpers::{push_block_with_transactions};
 use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction};

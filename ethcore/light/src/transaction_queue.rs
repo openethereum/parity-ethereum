@@ -27,7 +27,7 @@ use std::fmt;
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
 
-use transaction::{self, Condition, PendingTransaction, SignedTransaction};
+use common_types::transaction::{self, Condition, PendingTransaction, SignedTransaction};
 use ethereum_types::{H256, U256, Address};
 use fastmap::H256FastMap;
 
@@ -370,7 +370,7 @@ impl TransactionQueue {
 mod tests {
 	use super::TransactionQueue;
 	use ethereum_types::Address;
-	use transaction::{Transaction, PendingTransaction, Condition};
+	use common_types::transaction::{Transaction, PendingTransaction, Condition};
 
 	#[test]
 	fn queued_senders() {

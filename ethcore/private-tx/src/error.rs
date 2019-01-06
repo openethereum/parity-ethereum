@@ -19,7 +19,7 @@ use rlp::DecoderError;
 use ethtrie::TrieError;
 use ethcore::account_provider::SignError;
 use ethcore::error::{Error as EthcoreError, ExecutionError};
-use transaction::Error as TransactionError;
+use types::transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
 use txpool::Error as TxPoolError;
 

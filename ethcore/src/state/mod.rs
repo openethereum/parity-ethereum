@@ -26,7 +26,7 @@ use std::fmt;
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
 
-use receipt::{Receipt, TransactionOutcome};
+use types::receipt::{Receipt, TransactionOutcome};
 use machine::EthereumMachine as Machine;
 use vm::EnvInfo;
 use error::Error;
@@ -38,7 +38,7 @@ use pod_state::{self, PodState};
 use types::basic_account::BasicAccount;
 use executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 use state_db::StateDB;
 use factory::VmFactory;
 
@@ -960,7 +960,7 @@ impl<B: Backend> State<B> {
 	#[cfg(feature="to-pod-full")]
 	/// Populate a PodAccount map from this state.
 	/// Warning this is not for real time use.
-	/// Use of this method requires FatDB mode to be able 
+	/// Use of this method requires FatDB mode to be able
 	/// to iterate on accounts.
 	pub fn to_pod_full(&self) -> Result<PodState, Error> {
 
@@ -971,7 +971,7 @@ impl<B: Backend> State<B> {
 
 		let trie = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
 
-		// put trie in cache 
+		// put trie in cache
 		for item in trie.iter()? {
 			if let Ok((addr, _dbval)) = item {
 				let address = Address::from_slice(&addr);
@@ -1194,7 +1194,7 @@ impl<B: Backend> State<B> {
 		self.note_cache(a);
 
 		// at this point the entry is guaranteed to be in the cache.
-		Ok(RefMut::map(self.cache.borrow_mut(), |c| {
+		let mut account = RefMut::map(self.cache.borrow_mut(), |c| {
 			let entry = c.get_mut(a).expect("entry known to exist in the cache; qed");
 
 			match &mut entry.account {
@@ -1204,20 +1204,19 @@ impl<B: Backend> State<B> {
 
 			// set the dirty flag after changing account data.
 			entry.state = AccountState::Dirty;
-			match entry.account {
-				Some(ref mut account) => {
-					if require_code {
-						let addr_hash = account.address_hash(a);
-						let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+			entry.account.as_mut().expect("Required account must always exist; qed")
+		});
 
-						// FIXME (Issue #9838): update_account_cache can fail in rare cases, but we cannot return error in RefMut wrapper.
-						Self::update_account_cache(RequireCache::Code, account, &self.db, accountdb.as_hashdb());
-					}
-					account
-				},
-				_ => panic!("Required account must always exist; qed"),
+		if require_code {
+			let addr_hash = account.address_hash(a);
+			let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
+
+			if !Self::update_account_cache(RequireCache::Code, &mut account, &self.db, accountdb.as_hashdb()) {
+				return Err(Box::new(TrieError::IncompleteDatabase(H256::from(a))))
 			}
-		}))
+		}
+
+		Ok(account)
 	}
 
 	/// Replace account code and storage. Creates account if it does not exist.
@@ -1317,7 +1316,7 @@ mod tests {
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
 	use spec::*;
-	use transaction::*;
+	use types::transaction::*;
 	use ethcore_logger::init_log;
 	use trace::{FlatTrace, TraceError, trace};
 	use evm::CallType;

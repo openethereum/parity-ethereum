@@ -77,7 +77,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	// start client and create transaction queue.
 	let mut config = light_client::Config {
 		queue: Default::default(),
-		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
+		chain_column: ::ethcore_db::COL_LIGHT_CHAIN,
 		verify_full: true,
 		check_seal: true,
 		no_hardcoded_sync: true,

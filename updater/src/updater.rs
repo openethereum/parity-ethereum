@@ -25,10 +25,9 @@ use parking_lot::{Mutex, MutexGuard};
 use rand::{self, Rng};
 use target_info::Target;
 
-use bytes::Bytes;
-use ethcore::BlockNumber;
-use ethcore::client::{BlockId, BlockChainClient, ChainNotify, ChainRoute};
-use ethcore::filter::Filter;
+use common_types::BlockNumber;
+use common_types::filter::Filter;
+use ethcore::client::{BlockId, BlockChainClient, ChainNotify, NewBlocks};
 use ethereum_types::H256;
 use hash_fetch::{self as fetch, HashFetch};
 use parity_path::restrict_permissions_owner;
@@ -669,7 +668,8 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 }
 
 impl ChainNotify for Updater {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if new_blocks.has_more_blocks_to_import { return }
 		match (self.client.upgrade(), self.sync.as_ref().and_then(Weak::upgrade)) {
 			(Some(ref c), Some(ref s)) if !s.status().is_syncing(c.queue_info()) => self.poll(),
 			_ => {},

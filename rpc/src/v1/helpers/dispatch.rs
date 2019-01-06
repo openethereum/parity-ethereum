@@ -32,13 +32,13 @@ use stats::Corpus;
 
 use crypto::DEFAULT_MAC;
 use ethcore::account_provider::AccountProvider;
-use ethcore::basic_account::BasicAccount;
 use ethcore::client::BlockChainClient;
-use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService};
 use ethkey::{Password, Signature};
 use sync::LightSync;
-use transaction::{Action, SignedTransaction, PendingTransaction, Transaction, Error as TransactionError};
+use types::transaction::{Action, SignedTransaction, PendingTransaction, Transaction, Error as TransactionError};
+use types::basic_account::BasicAccount;
+use types::ids::BlockId;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};

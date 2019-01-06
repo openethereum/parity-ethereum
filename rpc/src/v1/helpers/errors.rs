@@ -23,12 +23,12 @@ use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use ethcore::client::BlockId;
 use jsonrpc_core::{futures, Result as RpcResult, Error, ErrorCode, Value};
 use rlp::DecoderError;
-use transaction::Error as TransactionError;
+use types::transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
 use vm::Error as VMError;
 use light::on_demand::error::{Error as OnDemandError, ErrorKind as OnDemandErrorKind};
 use ethcore::client::BlockChainClient;
-use ethcore::blockchain_info::BlockChainInfo;
+use types::blockchain_info::BlockChainInfo;
 use v1::types::BlockNumber;
 
 mod codes {
@@ -523,8 +523,8 @@ pub fn filter_block_not_found(id: BlockId) -> Error {
 pub fn on_demand_error(err: OnDemandError) -> Error {
 	match err {
 		OnDemandError(OnDemandErrorKind::ChannelCanceled(e), _) => on_demand_cancel(e),
-		OnDemandError(OnDemandErrorKind::MaxAttemptReach(_), _) => max_attempts_reached(&err),
-		OnDemandError(OnDemandErrorKind::TimeoutOnNewPeers(_,_), _) => timeout_new_peer(&err),
+		OnDemandError(OnDemandErrorKind::RequestLimit, _) => timeout_new_peer(&err),
+		OnDemandError(OnDemandErrorKind::BadResponse(_), _) => max_attempts_reached(&err),
 		_ => on_demand_others(&err),
 	}
 }

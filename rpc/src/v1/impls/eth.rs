@@ -27,15 +27,15 @@ use parking_lot::Mutex;
 use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
-use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
-use ethcore::encoded;
-use sync::SyncProvider;
-use miner::external::ExternalMinerService;
-use transaction::{SignedTransaction, LocalizedTransaction};
 use hash::keccak;
+use miner::external::ExternalMinerService;
+use sync::SyncProvider;
+use types::transaction::{SignedTransaction, LocalizedTransaction};
+use types::BlockNumber as EthBlockNumber;
+use types::encoded;
+use types::filter::Filter as EthcoreFilter;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
@@ -144,6 +144,33 @@ struct PendingUncleId {
 enum PendingTransactionId {
 	Hash(H256),
 	Location(PendingOrBlock, usize)
+}
+
+pub fn base_logs<C, M, T: StateInfo + 'static> (client: &C, miner: &M, filter: Filter) -> BoxFuture<Vec<Log>> where
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T>,
+	M: MinerService<State=T> {
+	let include_pending = filter.to_block == Some(BlockNumber::Pending);
+	let filter: EthcoreFilter = match filter.try_into() {
+		Ok(value) => value,
+		Err(err) => return Box::new(future::err(err)),
+	};
+	let mut logs = match client.logs(filter.clone()) {
+		Ok(logs) => logs
+			.into_iter()
+			.map(From::from)
+			.collect::<Vec<Log>>(),
+		Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
+	};
+
+	if include_pending {
+		let best_block = client.chain_info().best_block_number;
+		let pending = pending_logs(&*miner, best_block, &filter);
+		logs.extend(pending);
+	}
+
+	let logs = limit_logs(logs, filter.limit);
+
+	Box::new(future::ok(logs))
 }
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
@@ -439,7 +466,7 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 }
 
 fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockChainClient {
-	use ethcore::block_status::BlockStatus;
+	use types::block_status::BlockStatus;
 
 	let id = match number {
 		BlockNumber::Pending => return Ok(()),
@@ -598,7 +625,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	
+
 	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256> {
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
@@ -803,28 +830,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
-		let include_pending = filter.to_block == Some(BlockNumber::Pending);
-		let filter: EthcoreFilter = match filter.try_into() {
-			Ok(value) => value,
-			Err(err) => return Box::new(future::err(err)),
-		};
-		let mut logs = match self.client.logs(filter.clone()) {
-			Ok(logs) => logs
-				.into_iter()
-				.map(From::from)
-				.collect::<Vec<Log>>(),
-			Err(id) => return Box::new(future::err(errors::filter_block_not_found(id))),
-		};
-
-		if include_pending {
-			let best_block = self.client.chain_info().best_block_number;
-			let pending = pending_logs(&*self.miner, best_block, &filter);
-			logs.extend(pending);
-		}
-
-		let logs = limit_logs(logs, filter.limit);
-
-		Box::new(future::ok(logs))
+		base_logs(&*self.client, &*self.miner, filter.into())
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work> {

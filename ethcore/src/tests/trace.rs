@@ -26,14 +26,15 @@ use client::*;
 use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
 use std::sync::Arc;
-use header::Header;
 use miner::Miner;
-use transaction::{Action, Transaction};
-use views::BlockView;
+use types::transaction::{Action, Transaction};
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 use test_helpers;
 use verification::queue::kind::blocks::Unverified;
+use types::header::Header;
+use types::view;
+use types::views::BlockView;
 
 #[test]
 fn can_trace_block_and_uncle_reward() {

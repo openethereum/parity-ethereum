@@ -25,7 +25,7 @@ use heapsize::HeapSizeOf;
 use ethkey::Signature;
 use messages::PrivateTransaction;
 use parking_lot::RwLock;
-use transaction::{UnverifiedTransaction, SignedTransaction};
+use types::transaction::{UnverifiedTransaction, SignedTransaction};
 use txpool;
 use txpool::{VerifiedTransaction, Verifier};
 use error::{Error, ErrorKind};
@@ -75,6 +75,11 @@ impl pool::ScoredTransaction for VerifiedPrivateTransaction {
 	/// Gets transaction gas price.
 	fn gas_price(&self) -> &U256 {
 		&self.transaction.gas_price
+	}
+
+	/// Get transaction gas
+	fn gas(&self) -> &U256 {
+		&self.transaction.gas
 	}
 
 	/// Gets transaction nonce.

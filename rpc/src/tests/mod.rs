@@ -17,5 +17,6 @@
 //! RPC integration tests.
 
 mod helpers;
+mod http_client;
 #[cfg(test)] mod rpc;
 pub mod ws;

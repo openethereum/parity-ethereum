@@ -29,6 +29,7 @@ use io::*;
 use error::{BlockError, ImportErrorKind, ErrorKind, Error};
 use engines::EthEngine;
 use client::ClientIoMessage;
+use len_caching_lock::LenCachingMutex;
 
 use self::kind::{BlockLike, Kind};
 
@@ -116,9 +117,9 @@ pub enum Status {
 	Unknown,
 }
 
-impl Into<::block_status::BlockStatus> for Status {
-	fn into(self) -> ::block_status::BlockStatus {
-		use ::block_status::BlockStatus;
+impl Into<::types::block_status::BlockStatus> for Status {
+	fn into(self) -> ::types::block_status::BlockStatus {
+		use ::types::block_status::BlockStatus;
 		match self {
 			Status::Queued => BlockStatus::Queued,
 			Status::Bad => BlockStatus::Bad,
@@ -195,9 +196,9 @@ impl QueueSignal {
 
 struct Verification<K: Kind> {
 	// All locks must be captured in the order declared here.
-	unverified: Mutex<VecDeque<K::Unverified>>,
-	verifying: Mutex<VecDeque<Verifying<K>>>,
-	verified: Mutex<VecDeque<K::Verified>>,
+	unverified: LenCachingMutex<VecDeque<K::Unverified>>,
+	verifying: LenCachingMutex<VecDeque<Verifying<K>>>,
+	verified: LenCachingMutex<VecDeque<K::Verified>>,
 	bad: Mutex<HashSet<H256>>,
 	sizes: Sizes,
 	check_seal: bool,
@@ -207,9 +208,9 @@ impl<K: Kind> VerificationQueue<K> {
 	/// Creates a new queue instance.
 	pub fn new(config: Config, engine: Arc<EthEngine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
 		let verification = Arc::new(Verification {
-			unverified: Mutex::new(VecDeque::new()),
-			verifying: Mutex::new(VecDeque::new()),
-			verified: Mutex::new(VecDeque::new()),
+			unverified: LenCachingMutex::new(VecDeque::new()),
+			verifying: LenCachingMutex::new(VecDeque::new()),
+			verified: LenCachingMutex::new(VecDeque::new()),
 			bad: Mutex::new(HashSet::new()),
 			sizes: Sizes {
 				unverified: AtomicUsize::new(0),
@@ -332,7 +333,7 @@ impl<K: Kind> VerificationQueue<K> {
 						return;
 					}
 
-					wait.wait(&mut unverified);
+					wait.wait(unverified.inner_mut());
 				}
 
 				if let State::Exit = *state.0.lock() {
@@ -453,7 +454,7 @@ impl<K: Kind> VerificationQueue<K> {
 	pub fn flush(&self) {
 		let mut unverified = self.verification.unverified.lock();
 		while !unverified.is_empty() || !self.verification.verifying.lock().is_empty() {
-			self.empty.wait(&mut unverified);
+			self.empty.wait(unverified.inner_mut());
 		}
 	}
 
@@ -584,10 +585,12 @@ impl<K: Kind> VerificationQueue<K> {
 	}
 
 	/// Returns true if there is nothing currently in the queue.
-	/// TODO [ToDr] Optimize to avoid locking
 	pub fn is_empty(&self) -> bool {
 		let v = &self.verification;
-		v.unverified.lock().is_empty() && v.verifying.lock().is_empty() && v.verified.lock().is_empty()
+
+		v.unverified.load_len() == 0
+			&& v.verifying.load_len() == 0
+			&& v.verified.load_len() == 0
 	}
 
 	/// Get queue status.
@@ -595,18 +598,18 @@ impl<K: Kind> VerificationQueue<K> {
 		use std::mem::size_of;
 
 		let (unverified_len, unverified_bytes) = {
-			let len = self.verification.unverified.lock().len();
+			let len = self.verification.unverified.load_len();
 			let size = self.verification.sizes.unverified.load(AtomicOrdering::Acquire);
 
 			(len, size + len * size_of::<K::Unverified>())
 		};
 		let (verifying_len, verifying_bytes) = {
-			let len = self.verification.verifying.lock().len();
+			let len = self.verification.verifying.load_len();
 			let size = self.verification.sizes.verifying.load(AtomicOrdering::Acquire);
 			(len, size + len * size_of::<Verifying<K>>())
 		};
 		let (verified_len, verified_bytes) = {
-			let len = self.verification.verified.lock().len();
+			let len = self.verification.verified.load_len();
 			let size = self.verification.sizes.verified.load(AtomicOrdering::Acquire);
 			(len, size + len * size_of::<K::Verified>())
 		};
@@ -741,8 +744,9 @@ mod tests {
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use error::*;
-	use views::BlockView;
 	use bytes::Bytes;
+	use types::view;
+	use types::views::BlockView;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.

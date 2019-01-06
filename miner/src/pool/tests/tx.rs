@@ -17,7 +17,7 @@
 use ethereum_types::{U256, H256};
 use ethkey::{Random, Generator};
 use rustc_hex::FromHex;
-use transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
+use types::transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
 
 use pool::{verifier, VerifiedTransaction};
 
@@ -26,6 +26,7 @@ pub struct Tx {
 	pub nonce: u64,
 	pub gas: u64,
 	pub gas_price: u64,
+	pub multiplier: u64,
 }
 
 impl Default for Tx {
@@ -34,6 +35,7 @@ impl Default for Tx {
 			nonce: 123,
 			gas: 21_000,
 			gas_price: 1,
+			multiplier: 0,
 		}
 	}
 }
@@ -51,6 +53,10 @@ impl Tx {
 		self.unsigned().sign(keypair.secret(), None)
 	}
 
+	pub fn signed_custom(self, keypair: ethkey::KeyPair) -> SignedTransaction {
+		self.unsigned().sign(keypair.secret(), None)
+	}
+
 	pub fn signed_pair(self) -> (SignedTransaction, SignedTransaction) {
 		let (tx1, tx2, _) = self.signed_triple();
 		(tx1, tx2)
@@ -65,6 +71,20 @@ impl Tx {
 		let tx3 = self.unsigned().sign(keypair.secret(), None);
 
 		(tx1, tx2, tx3)
+	}
+
+	/// Consecutive transactions where the gas_price is decided by the predicate
+	/// P(i, nonce)
+	pub fn signed_consecutive<P>(mut self, amount: usize, fun: P) -> Vec<SignedTransaction>
+		where P: Fn(usize, u64) -> u64
+	{
+		let keypair = Random.generate().unwrap();
+		(0..amount).map(|i| {
+			self.gas_price = fun(i, self.nonce);
+			let tx = self.clone().unsigned().sign(keypair.secret(), None);
+			self.nonce += 1;
+			tx
+		}).collect::<Vec<SignedTransaction>>()
 	}
 
 	pub fn signed_replacement(mut self) -> (SignedTransaction, SignedTransaction) {
@@ -100,6 +120,54 @@ impl Tx {
 		tx.sign(keypair.secret(), None)
 	}
 }
+
+#[derive(Default)]
+pub struct TxBuilder {
+	pub nonce: Option<u64>,
+	pub gas: Option<u64>,
+	pub gas_price: Option<u64>,
+	pub multiplier: Option<u64>,
+}
+
+impl TxBuilder {
+	pub fn build(&mut self) -> Tx {
+		let mut tx = Tx::default();
+		if let Some(n) = self.nonce {
+			tx.nonce = n;
+		}
+		if let Some(g) = self.gas {
+			tx.gas = g;
+		}
+		if let Some(gp) = self.gas_price {
+			tx.gas_price = gp;
+		}
+		if let Some(multiplier) = self.multiplier {
+			tx.multiplier = multiplier;
+		}
+		tx
+	}
+
+	pub fn nonce(&mut self, nonce: u64) -> &mut Self {
+		self.nonce = Some(nonce);
+		self
+	}
+
+	pub fn gas(&mut self, gas: u64) -> &mut Self {
+		self.gas = Some(gas);
+		self
+	}
+	
+	pub fn gas_price(&mut self, gas_price: u64) -> &mut Self {
+		self.gas_price = Some(gas_price);
+		self
+	}
+
+	pub fn multiplier(&mut self, multiplier: u64) -> &mut Self {
+		self.multiplier = Some(multiplier);
+		self
+	}
+}
+
 pub trait TxExt: Sized {
 	type Out;
 	type Verified;

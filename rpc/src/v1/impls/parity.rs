@@ -23,20 +23,20 @@ use ethereum_types::Address;
 use version::version_data;
 
 use crypto::DEFAULT_MAC;
-use ethkey::{crypto::ecies, Brain, Generator};
-use ethstore::random_phrase;
-use sync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, StateClient, Call};
-use ethcore::ids::BlockId;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::{SnapshotService, RestorationStatus};
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
-use updater::{Service as UpdateService};
-use jsonrpc_core::{BoxFuture, Result};
+use ethkey::{crypto::ecies, Brain, Generator};
+use ethstore::random_phrase;
 use jsonrpc_core::futures::future;
+use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
+use sync::{SyncProvider, ManageNetwork};
+use types::ids::BlockId;
+use updater::{Service as UpdateService};
 
 use v1::helpers::block_import::is_major_importing;
 use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings, verify_signature};
@@ -47,7 +47,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, ChainStatus, Log, Filter,
 	AccountInfo, HwAccountInfo, RichHeader, Receipt, RecoveredAccount,
 	block_number_to_id
 };
@@ -503,6 +503,12 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		} else {
 			Err(errors::status_error(has_peers))
 		}
+	}
+
+	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
+		use v1::impls::eth::base_logs;
+		// only specific impl for lightclient
+		base_logs(&*self.client, &*self.miner, filter.into())
 	}
 
 	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {

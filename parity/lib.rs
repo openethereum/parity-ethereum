@@ -42,8 +42,11 @@ extern crate serde_derive;
 extern crate toml;
 
 extern crate blooms_db;
+extern crate cli_signer;
+extern crate common_types as types;
 extern crate ethcore;
 extern crate parity_bytes as bytes;
+extern crate ethcore_db;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
@@ -52,8 +55,8 @@ extern crate ethcore_network as network;
 extern crate ethcore_private_tx;
 extern crate ethcore_service;
 extern crate ethcore_sync as sync;
-extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
+extern crate ethstore;
 extern crate ethkey;
 extern crate kvdb;
 extern crate parity_hash_fetch as hash_fetch;
@@ -65,7 +68,6 @@ extern crate parity_updater as updater;
 extern crate parity_version;
 extern crate parity_whisper;
 extern crate parity_path as path;
-extern crate rpc_cli;
 extern crate node_filter;
 extern crate keccak_hash as hash;
 extern crate journaldb;
@@ -121,6 +123,7 @@ use std::alloc::System;
 
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
+pub use parity_rpc::PubSubSession;
 
 #[cfg(feature = "memory_profiling")]
 #[global_allocator]
@@ -200,9 +203,9 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| ExecutionAction::Instant(None)),
 		Cmd::SignerToken(ws_conf, logger_config) => signer::execute(ws_conf, logger_config).map(|s| ExecutionAction::Instant(Some(s))),
-		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
-		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
-		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
+		Cmd::SignerSign { id, pwfile, port, authfile } => cli_signer::signer_sign(id, pwfile, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
+		Cmd::SignerList { port, authfile } => cli_signer::signer_list(port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
+		Cmd::SignerReject { id, port, authfile } => cli_signer::signer_reject(id, port, authfile).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::ExportHardcodedSync(export_hs_cmd) => export_hardcoded_sync::execute(export_hs_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 	}
