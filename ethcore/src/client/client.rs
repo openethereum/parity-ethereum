@@ -2207,8 +2207,10 @@ impl IoClient for Client {
 					);
 					if let Err(e) = result {
 						error!(target: "client", "Error importing ancient block: {}", e);
-						queued.write().1.clear();
-						queued.write().0.clear();
+
+						let mut queued = queued.write();
+						queued.0.clear();
+						queued.1.clear();
 					}
 					// remove from pending
 					queued.write().0.remove(&hash);
