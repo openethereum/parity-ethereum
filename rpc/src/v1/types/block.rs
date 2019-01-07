@@ -17,10 +17,10 @@
 use std::ops::Deref;
 use std::collections::BTreeMap;
 
-use ethcore::encoded::Header as EthHeader;
-
-use serde::{Serialize, Serializer};
 use serde::ser::Error;
+use serde::{Serialize, Serializer};
+use types::encoded::Header as EthHeader;
+
 use v1::types::{Bytes, Transaction, H160, H256, H2048, U256};
 
 /// Block Transactions

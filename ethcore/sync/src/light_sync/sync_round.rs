@@ -20,8 +20,8 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fmt;
 
-use ethcore::encoded;
-use ethcore::header::Header;
+use types::encoded;
+use types::header::Header;
 
 use light::net::ReqId;
 use light::request::CompleteHeadersRequest as HeadersRequest;

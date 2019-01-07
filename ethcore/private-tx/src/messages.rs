@@ -19,7 +19,7 @@ use bytes::Bytes;
 use hash::keccak;
 use rlp::Encodable;
 use ethkey::Signature;
-use transaction::signature::{add_chain_replay_protection, check_replay_protection};
+use types::transaction::signature::{add_chain_replay_protection, check_replay_protection};
 
 /// Message with private transaction encrypted
 #[derive(Default, Debug, Clone, PartialEq, RlpEncodable, RlpDecodable, Eq)]

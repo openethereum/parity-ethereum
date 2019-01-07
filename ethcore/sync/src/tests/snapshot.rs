@@ -21,8 +21,8 @@ use ethereum_types::H256;
 use parking_lot::Mutex;
 use bytes::Bytes;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
-use ethcore::header::BlockNumber;
 use ethcore::client::EachBlockWith;
+use types::BlockNumber;
 use super::helpers::*;
 use {SyncConfig, WarpSync};
 

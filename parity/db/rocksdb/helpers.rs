@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::Path;
-use ethcore::db::NUM_COLUMNS;
+use ethcore_db::NUM_COLUMNS;
 use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
 use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
 

@@ -25,7 +25,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram, RecoveredAccount,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, ChainStatus, Log, Filter,
 	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 };
 
@@ -241,5 +241,11 @@ build_rpc_trait! {
 		/// as well as checks the signature for chain replay protection
 		#[rpc(name = "parity_verifySignature")]
 		fn verify_signature(&self, bool, Bytes, H256, H256, U64) -> Result<RecoveredAccount>;
+
+		/// Returns logs matching given filter object.
+		/// Is allowed to skip filling transaction hash for faster query.
+		#[rpc(name = "parity_getLogsNoTransactionHash")]
+		fn logs_no_tx_hash(&self, Filter) -> BoxFuture<Vec<Log>>;
+
 	}
 }

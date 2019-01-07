@@ -19,12 +19,14 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use heapsize::HeapSizeOf;
-use ethereum_types::{H256, Address};
+
 use bytes::Bytes;
+use ethereum_types::{H256, Address};
+use heapsize::HeapSizeOf;
+use types::BlockNumber;
+use types::header::Header;
 
 use machine::{AuxiliaryData, Call, EthereumMachine};
-use header::{Header, BlockNumber};
 use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
@@ -34,12 +36,18 @@ pub struct TestSet {
 	last_benign: Arc<AtomicUsize>,
 }
 
+impl Default for TestSet {
+	fn default() -> Self {
+		TestSet::new(Default::default(), Default::default())
+	}
+}
+
 impl TestSet {
 	pub fn new(last_malicious: Arc<AtomicUsize>, last_benign: Arc<AtomicUsize>) -> Self {
 		TestSet {
 			validator: SimpleList::new(vec![Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()]),
-			last_malicious: last_malicious,
-			last_benign: last_benign,
+			last_malicious,
+			last_benign,
 		}
 	}
 }
@@ -51,7 +59,7 @@ impl HeapSizeOf for TestSet {
 }
 
 impl ValidatorSet for TestSet {
-	fn default_caller(&self, _block_id: ::ids::BlockId) -> Box<Call> {
+	fn default_caller(&self, _block_id: ::types::ids::BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Test set doesn't require calls.".into()))
 	}
 

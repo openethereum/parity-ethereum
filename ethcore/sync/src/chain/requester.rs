@@ -17,12 +17,12 @@
 use api::WARP_SYNC_PROTOCOL_ID;
 use block_sync::BlockRequest;
 use bytes::Bytes;
-use ethcore::header::BlockNumber;
 use ethereum_types::H256;
 use network::{PeerId, PacketId};
 use rlp::RlpStream;
 use std::time::Instant;
 use sync_io::SyncIo;
+use types::BlockNumber;
 
 use super::{
 	BlockSet,

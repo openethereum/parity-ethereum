@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Personal rpc interface.
-use eip712::EIP712;
+use eip_712::EIP712;
 use jsonrpc_core::types::Value;
 use jsonrpc_core::{BoxFuture, Result};
 use v1::types::{Bytes, U128, H160, H256, H520, TransactionRequest, RichRawTransaction as RpcRichRawTransaction, EIP191Version};

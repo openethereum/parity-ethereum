@@ -18,7 +18,7 @@
 
 use std::fmt;
 
-use ids::BlockId;
+use types::ids::BlockId;
 
 use ethereum_types::H256;
 use ethtrie::TrieError;

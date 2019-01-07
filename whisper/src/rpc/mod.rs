@@ -28,7 +28,7 @@ use jsonrpc_pubsub::{Session, PubSubMetadata, SubscriptionId};
 use jsonrpc_macros::pubsub;
 
 use ethereum_types::H256;
-use mem::Memzero;
+use memzero::Memzero;
 use parking_lot::RwLock;
 
 use self::filter::Filter;

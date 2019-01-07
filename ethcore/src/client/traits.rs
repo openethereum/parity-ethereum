@@ -17,40 +17,39 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use blockchain::{BlockReceipts, TreeRoute};
+use bytes::Bytes;
+use ethcore_miner::pool::VerifiedTransaction;
+use ethereum_types::{H256, U256, Address};
+use evm::Schedule;
 use itertools::Itertools;
+use kvdb::DBValue;
+use types::transaction::{self, LocalizedTransaction, SignedTransaction};
+use types::BlockNumber;
+use types::basic_account::BasicAccount;
+use types::block_status::BlockStatus;
+use types::blockchain_info::BlockChainInfo;
+use types::call_analytics::CallAnalytics;
+use types::encoded;
+use types::filter::Filter;
+use types::header::Header;
+use types::ids::*;
+use types::log_entry::LocalizedLogEntry;
+use types::pruning_info::PruningInfo;
+use types::receipt::LocalizedReceipt;
+use types::trace_filter::Filter as TraceFilter;
+use vm::LastHashes;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use blockchain::{BlockReceipts, TreeRoute};
 use client::Mode;
-use encoded;
-use vm::LastHashes;
-use error::{Error, CallError, EthcoreResult};
-use evm::Schedule;
+use engines::EthEngine;
+use error::{Error, EthcoreResult};
+use executed::CallError;
 use executive::Executed;
-use filter::Filter;
-use header::{BlockNumber};
-use log_entry::LocalizedLogEntry;
-use receipt::LocalizedReceipt;
+use state::StateInfo;
 use trace::LocalizedTrace;
-use transaction::{self, LocalizedTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 use verification::queue::kind::blocks::Unverified;
-use state::StateInfo;
-use header::Header;
-use engines::EthEngine;
-
-use ethereum_types::{H256, U256, Address};
-use ethcore_miner::pool::VerifiedTransaction;
-use bytes::Bytes;
-use kvdb::DBValue;
-
-use types::ids::*;
-use types::basic_account::BasicAccount;
-use types::trace_filter::Filter as TraceFilter;
-use types::call_analytics::CallAnalytics;
-use types::blockchain_info::BlockChainInfo;
-use types::block_status::BlockStatus;
-use types::pruning_info::PruningInfo;
 
 /// State information to be used during client query
 pub enum StateOrBlock {

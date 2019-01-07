@@ -28,8 +28,8 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::EthEngine;
-use header::Header;
-use ids::BlockId;
+use types::header::Header;
+use types::ids::BlockId;
 
 use ethereum_types::{H256, U256};
 use hashdb::HashDB;
@@ -192,11 +192,11 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 			state_guards.push(state_guard);
 		}
 
-		let block_hashes = block_guard.join()?;
+		let block_hashes = block_guard.join().expect("Sub-thread never panics; qed")?;
 		let mut state_hashes = Vec::new();
 
 		for guard in state_guards {
-			let part_state_hashes = guard.join()?;
+			let part_state_hashes = guard.join().expect("Sub-thread never panics; qed")?;
 			state_hashes.extend(part_state_hashes);
 		}
 

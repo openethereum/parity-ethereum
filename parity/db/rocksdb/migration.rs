@@ -21,7 +21,7 @@ use std::fmt::{Display, Formatter, Error as FmtError};
 use super::migration_rocksdb::{Manager as MigrationManager, Config as MigrationConfig, ChangeColumns};
 use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
 use ethcore::client::DatabaseCompactionProfile;
-use ethcore::{self, db};
+use ethcore;
 
 use super::helpers;
 use super::blooms::migrate_blooms;
@@ -217,7 +217,7 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 				max_open_files: 64,
 				memory_budget: None,
 				compaction: compaction_profile,
-				columns: db::NUM_COLUMNS,
+				columns: ethcore_db::NUM_COLUMNS,
 			};
 
 			migrate_blooms(&db_path, &db_config).map_err(Error::BloomsDB)?;

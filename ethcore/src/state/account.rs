@@ -31,7 +31,7 @@ use ethtrie::{TrieFactory, TrieDB, SecTrieDB, Result as TrieResult};
 use pod_account::*;
 use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
-use basic_account::BasicAccount;
+use types::basic_account::BasicAccount;
 
 use std::cell::{RefCell, Cell};
 

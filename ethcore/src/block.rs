@@ -36,59 +36,58 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use bytes::Bytes;
+use ethereum_types::{H256, U256, Address, Bloom};
+
 use engines::EthEngine;
 use error::{Error, BlockError};
-use ethereum_types::{H256, U256, Address, Bloom};
 use factory::Factories;
-use hash::keccak;
-use header::{Header, ExtendedHeader};
-use receipt::{Receipt, TransactionOutcome};
-use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
 use state_db::StateDB;
 use state::State;
 use trace::Tracing;
-use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
 use verification::PreverifiedBlock;
 use vm::{EnvInfo, LastHashes};
 
-/// A block, encoded as it is on the block chain.
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct Block {
-	/// The header of this block.
-	pub header: Header,
-	/// The transactions in this block.
-	pub transactions: Vec<UnverifiedTransaction>,
-	/// The uncles of this block.
-	pub uncles: Vec<Header>,
+use hash::keccak;
+use rlp::{RlpStream, Encodable, encode_list};
+use types::transaction::{SignedTransaction, Error as TransactionError};
+use types::block::Block;
+use types::header::{Header, ExtendedHeader};
+use types::receipt::{Receipt, TransactionOutcome};
+
+/// Block that is ready for transactions to be added.
+///
+/// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and
+/// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
+pub struct OpenBlock<'x> {
+	block: ExecutedBlock,
+	engine: &'x EthEngine,
 }
 
-impl Block {
-	/// Get the RLP-encoding of the block with the seal.
-	pub fn rlp_bytes(&self) -> Bytes {
-		let mut block_rlp = RlpStream::new_list(3);
-		block_rlp.append(&self.header);
-		block_rlp.append_list(&self.transactions);
-		block_rlp.append_list(&self.uncles);
-		block_rlp.out()
-	}
+/// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
+/// and collected the uncles.
+///
+/// There is no function available to push a transaction.
+#[derive(Clone)]
+pub struct ClosedBlock {
+	block: ExecutedBlock,
+	unclosed_state: State<StateDB>,
 }
 
-impl Decodable for Block {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-		if rlp.as_raw().len() != rlp.payload_info()?.total() {
-			return Err(DecoderError::RlpIsTooBig);
-		}
-		if rlp.item_count()? != 3 {
-			return Err(DecoderError::RlpIncorrectListLen);
-		}
-		Ok(Block {
-			header: rlp.val_at(0)?,
-			transactions: rlp.list_at(1)?,
-			uncles: rlp.list_at(2)?,
-		})
-	}
+/// Just like `ClosedBlock` except that we can't reopen it and it's faster.
+///
+/// We actually store the post-`Engine::on_close_block` state, unlike in `ClosedBlock` where it's the pre.
+#[derive(Clone)]
+pub struct LockedBlock {
+	block: ExecutedBlock,
+}
+
+/// A block that has a valid seal.
+///
+/// The block's header has valid seal arguments. The block cannot be reversed into a `ClosedBlock` or `OpenBlock`.
+pub struct SealedBlock {
+	block: ExecutedBlock,
 }
 
 /// An internal type for a block's common elements.
@@ -214,40 +213,6 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 	fn transactions(&self) -> &[SignedTransaction] {
 		&self.transactions
 	}
-}
-
-/// Block that is ready for transactions to be added.
-///
-/// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and
-/// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
-pub struct OpenBlock<'x> {
-	block: ExecutedBlock,
-	engine: &'x EthEngine,
-}
-
-/// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
-/// and collected the uncles.
-///
-/// There is no function available to push a transaction.
-#[derive(Clone)]
-pub struct ClosedBlock {
-	block: ExecutedBlock,
-	unclosed_state: State<StateDB>,
-}
-
-/// Just like `ClosedBlock` except that we can't reopen it and it's faster.
-///
-/// We actually store the post-`Engine::on_close_block` state, unlike in `ClosedBlock` where it's the pre.
-#[derive(Clone)]
-pub struct LockedBlock {
-	block: ExecutedBlock,
-}
-
-/// A block that has a valid seal.
-///
-/// The block's header has valid seal arguments. The block cannot be reversed into a `ClosedBlock` or `OpenBlock`.
-pub struct SealedBlock {
-	block: ExecutedBlock,
 }
 
 impl<'x> OpenBlock<'x> {
@@ -630,14 +595,15 @@ mod tests {
 	use engines::EthEngine;
 	use vm::LastHashes;
 	use error::Error;
-	use header::Header;
 	use factory::Factories;
 	use state_db::StateDB;
-	use views::BlockView;
 	use ethereum_types::Address;
 	use std::sync::Arc;
-	use transaction::SignedTransaction;
 	use verification::queue::kind::blocks::Unverified;
+	use types::transaction::SignedTransaction;
+	use types::header::Header;
+	use types::view;
+	use types::views::BlockView;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(

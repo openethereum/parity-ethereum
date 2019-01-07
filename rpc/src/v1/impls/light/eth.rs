@@ -30,15 +30,15 @@ use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
 use ethcore::account_provider::AccountProvider;
-use ethcore::encoded;
-use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::ids::BlockId;
-use sync::LightSync;
-use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use ethereum_types::U256;
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use parking_lot::{RwLock, Mutex};
 use rlp::Rlp;
-use transaction::SignedTransaction;
+use sync::LightSync;
+use types::transaction::SignedTransaction;
+use types::encoded;
+use types::filter::Filter as EthcoreFilter;
+use types::ids::BlockId;
 
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};

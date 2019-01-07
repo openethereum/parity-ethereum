@@ -28,10 +28,10 @@ use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
-use ethcore::ethstore::ethkey::Secret;
-use ethcore::client::{BlockChainClient, ChainNotify, ChainRoute, ChainMessageType};
+use ethstore::ethkey::Secret;
+use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
-use ethcore::header::BlockNumber;
+use types::BlockNumber;
 use sync_io::NetSyncIo;
 use chain::{ChainSyncApi, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
@@ -48,7 +48,7 @@ use light::net::{
 };
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -268,7 +268,7 @@ pub struct Params {
 	/// Snapshot service.
 	pub snapshot_service: Arc<SnapshotService>,
 	/// Private tx service.
-	pub private_tx_handler: Arc<PrivateTxHandler>,
+	pub private_tx_handler: Option<Arc<PrivateTxHandler>>,
 	/// Light data provider.
 	pub provider: Arc<::light::Provider>,
 	/// Network layer configuration.
@@ -349,7 +349,7 @@ impl EthSync {
 		let sync = ChainSyncApi::new(
 			params.config,
 			&*params.chain,
-			params.private_tx_handler.clone(),
+			params.private_tx_handler.as_ref().cloned(),
 			priority_tasks_rx,
 		);
 		let service = NetworkService::new(params.network_config.clone().into_basic()?, connection_filter)?;
@@ -498,14 +498,9 @@ impl ChainNotify for EthSync {
 		}
 	}
 
-	fn new_blocks(&self,
-		imported: Vec<H256>,
-		invalid: Vec<H256>,
-		route: ChainRoute,
-		sealed: Vec<H256>,
-		proposed: Vec<Bytes>,
-		_duration: Duration)
+	fn new_blocks(&self, new_blocks: NewBlocks)
 	{
+		if new_blocks.has_more_blocks_to_import { return }
 		use light::net::Announcement;
 
 		self.network.with_context(self.subprotocol_name, |context| {
@@ -513,12 +508,12 @@ impl ChainNotify for EthSync {
 				&self.eth_handler.overlay);
 			self.eth_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
-				&imported,
-				&invalid,
-				route.enacted(),
-				route.retracted(),
-				&sealed,
-				&proposed);
+				&new_blocks.imported,
+				&new_blocks.invalid,
+				new_blocks.route.enacted(),
+				new_blocks.route.retracted(),
+				&new_blocks.sealed,
+				&new_blocks.proposed);
 		});
 
 		self.network.with_context(self.light_subprotocol_name, |context| {
@@ -599,7 +594,7 @@ impl ChainNotify for EthSync {
 struct TxRelay(Arc<BlockChainClient>);
 
 impl LightHandler for TxRelay {
-	fn on_transactions(&self, ctx: &EventContext, relay: &[::transaction::UnverifiedTransaction]) {
+	fn on_transactions(&self, ctx: &EventContext, relay: &[::types::transaction::UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
 		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx)).collect(), ctx.peer())
 	}
