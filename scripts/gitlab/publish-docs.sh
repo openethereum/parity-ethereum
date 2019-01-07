@@ -46,13 +46,13 @@ commit_files() {
     git checkout -b rpcdoc-update-${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}
     git add .
     git commit -m "Update docs to ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
-    git tag -a "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" -m "Update RPC and config docs to ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
+    git tag -a -f "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" -m "Update RPC and config docs to ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}"
 }
 
 upload_files() {
     echo "__________Upload files__________"
     git push -q origin HEAD
-    git push -q --tags
+    git push -q -f --tags
 }
 
 RPC_TRAITS_DIR="rpc/src/v1/traits"
