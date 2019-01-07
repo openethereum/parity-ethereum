@@ -59,7 +59,8 @@ use client::{
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
-use engines::{EthEngine, EpochTransition, ForkChoice};
+use engines::{EthEngine, EpochTransition, ForkChoice, EngineError};
+use engines::epoch::PendingTransition;
 use error::{
 	ImportErrorKind, ExecutionError, CallError, BlockError,
 	QueueError, QueueErrorKind, Error as EthcoreError, EthcoreResult, ErrorKind as EthcoreErrorKind
