@@ -108,7 +108,6 @@ impl<K: Kind> HeapSizeOf for Verifying<K> {
 }
 
 /// Status of items in the queue.
-#[derive(PartialEq, Eq)]
 pub enum Status {
 	/// Currently queued.
 	Queued,
