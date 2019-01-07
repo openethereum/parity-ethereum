@@ -92,8 +92,9 @@ impl File {
 	/// This function needs to be mutable `fs::File` is just a shared reference a system file handle.
 	/// https://users.rust-lang.org/t/how-to-handle-match-with-irrelevant-ok--/6291/15
 	pub fn iterator_from(&mut self, pos: u64) -> io::Result<FileIterator> {
+		let start = std::cmp::min(self.len, pos * 256);
 		let mut buf_reader = io::BufReader::new(&self.file);
-		buf_reader.seek(SeekFrom::Start(pos * 256))?;
+		buf_reader.seek(SeekFrom::Start(start))?;
 
 		let iter = FileIterator {
 			file: buf_reader,
