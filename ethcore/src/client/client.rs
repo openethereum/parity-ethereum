@@ -73,7 +73,6 @@ use state::{self, State};
 use state_db::StateDB;
 use trace::{self, TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use transaction_ext::Transaction;
-use verification::queue::Status as QueueStatus;
 use verification::queue::kind::BlockLike;
 use verification::queue::kind::blocks::Unverified;
 use verification::{PreverifiedBlock, Verifier, BlockQueue};
@@ -2166,11 +2165,8 @@ impl IoClient for Client {
 			// NOTE To prevent race condition with import, make sure to check queued blocks first
 			// (and attempt to acquire lock)
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
-			if !is_parent_pending {
-				let status = self.block_status(BlockId::Hash(parent_hash));
-				if  status == BlockStatus::Unknown {
-					bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(parent_hash)));
-				}
+			if !is_parent_pending && !self.chain.read().is_known(&parent_hash) {
+				bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 			}
 		}
 
@@ -2192,19 +2188,6 @@ impl IoClient for Client {
 				let first = queued.write().1.pop_front();
 				if let Some((unverified, receipts_bytes)) = first {
 					let hash = unverified.hash();
-
-					// In the situation where we try to import a normal block A, and right
-					// after it the network situation vastly changed (for example, receiving
-					// a far-ahead best block from another peer) and we try to import an
-					// ancient block B that is a child of A, if A is still queued and
-					// haven't finished importing, we return early here and retry later.
-					// Otherwise `import_old_block` will panic.
-					let parent_hash = unverified.parent_hash();
-					let status = client.importer.block_queue.status(&parent_hash);
-					if status == QueueStatus::Queued {
-						queued.write().1.push_front((unverified, receipts_bytes));
-						break;
-					}
 
 					let result = client.importer.import_old_block(
 						unverified,
