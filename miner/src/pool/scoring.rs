@@ -141,14 +141,14 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 						assert!(i < scores.len());
 						let last_index = txs.len() - 1;
 						scores[last_index] = *txs[last_index].transaction.gas_price();
-
 						for idx in (1..txs.len()).rev() {
 							let consecutive_bump = is_consecutive(idx - 1) *
 								((U256::from(21_000) * scores[idx]) /
 								txs[idx - 1].transaction.gas());
 							scores[idx - 1] = txs[idx - 1].transaction.gas_price() + (consecutive_bump / 1000);
+							scores[idx] <<= boost(idx - 1);
 						}
-						// scores[i] <<= boost(i);
+						scores[0] <<= boost(last_index);
 					},
 					// We are only sending an event in case of penalization.
 					// So just lower the priority of all non-local transactions.
@@ -187,6 +187,8 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 
 #[cfg(test)]
 mod tests {
+	use log::*;
+
 	use super::*;
 
 	use std::sync::Arc;
@@ -361,11 +363,11 @@ mod tests {
 		    TxBuilder::default().gas_price(1_000).gas(21_000).nonce(2).build().signed_custom(key_3.clone()),
 		]);
 
-		let mut scores_0 = vec![U256::from(0), 0.into(), 0.into(), 0.into()];
+		let mut scores_0 = vec![U256::from(0), 0.into(), 0.into()];
 		let mut scores_1 = scores_0[0..2].to_vec().clone();
 		let mut scores_2 = scores_0.clone();
 
-		// Compute score at given index
+		// Compute score for each transaction
 		scoring.update_scores(&transactions0, &mut *scores_0, scoring::Change::InsertedAt(0));
 		scoring.update_scores(&transactions0, &mut *scores_0, scoring::Change::InsertedAt(1));
 		scoring.update_scores(&transactions0, &mut *scores_0, scoring::Change::InsertedAt(2));
@@ -386,6 +388,7 @@ mod tests {
 
     #[test]
 	fn should_be_harder_to_bump_larger_tx() {
+    	// given
 		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 
 		let key_0 = Random.generate().unwrap();
@@ -419,6 +422,7 @@ mod tests {
 		let mut scores_2 = scores_0.clone();
 		let mut scores_3 = scores_0.clone();
 
+		// compute score for each transaction
 		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(0));
 		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(1));
 
@@ -449,7 +453,8 @@ mod tests {
 
 	#[test]
 	fn should_not_affect_similarly_priced_txs() {
-		let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
+		// given
+        let scoring = NonceAndGasPrice(PrioritizationStrategy::Consecutive);
 
 		let key_0 = Random.generate().unwrap();
 		let key_1 = Random.generate().unwrap();
@@ -469,6 +474,7 @@ mod tests {
 		let mut scores_0 = vec![U256::from(0), 0.into(), 0.into()];
 		let mut scores_1 = scores_0.clone();
 
+		// compute score for each transaction
 		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(0));
 		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(1));
 		scoring.update_scores(&transactions_0, &mut *scores_0, scoring::Change::InsertedAt(2));
