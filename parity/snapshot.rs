@@ -27,8 +27,8 @@ use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
-use ethcore::ids::BlockId;
 use ethcore_service::ClientService;
+use types::ids::BlockId;
 
 use cache::CacheConfig;
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};

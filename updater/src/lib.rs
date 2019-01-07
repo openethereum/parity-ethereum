@@ -18,16 +18,17 @@
 
 #![warn(missing_docs)]
 
+extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;
-extern crate parity_bytes as bytes;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate keccak_hash as hash;
+extern crate parity_bytes as bytes;
 extern crate parity_hash_fetch as hash_fetch;
+extern crate parity_path;
 extern crate parity_version as version;
 extern crate parking_lot;
-extern crate parity_path;
 extern crate rand;
 extern crate semver;
 extern crate target_info;

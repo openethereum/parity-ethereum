@@ -18,11 +18,14 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
+
+use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use bytes::Bytes;
-use ids::BlockId;
-use header::{BlockNumber, Header};
+use types::BlockNumber;
+use types::header::Header;
+use types::ids::BlockId;
+
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{SystemCall, ValidatorSet};
@@ -152,7 +155,7 @@ mod tests {
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
-	use header::Header;
+	use types::header::Header;
 	use miner::MinerService;
 	use spec::Spec;
 	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};

@@ -84,7 +84,8 @@ impl Crypto {
 
 		// two parts of derived key
 		// DK = [ DK[0..15] DK[16..31] ] = [derived_left_bits, derived_right_bits]
-		let (derived_left_bits, derived_right_bits) = crypto::derive_key_iterations(password.as_bytes(), &salt, iterations);
+		let (derived_left_bits, derived_right_bits) =
+			crypto::derive_key_iterations(password.as_bytes(), &salt, iterations);
 
 		// preallocated (on-stack in case of `Secret`) buffer to hold cipher
 		// length = length(plain) as we are using CTR-approach
@@ -104,7 +105,7 @@ impl Crypto {
 			ciphertext: ciphertext.into_vec(),
 			kdf: Kdf::Pbkdf2(Pbkdf2 {
 				dklen: crypto::KEY_LENGTH as u32,
-				salt: salt,
+				salt: salt.to_vec(),
 				c: iterations,
 				prf: Prf::HmacSha256,
 			}),

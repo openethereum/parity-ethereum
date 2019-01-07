@@ -16,8 +16,8 @@
 
 use ethereum_types::{H256, U256};
 
-use encoded;
-use header::{Header, BlockNumber};
+use common_types::{encoded, BlockNumber};
+use common_types::header::Header;
 
 /// Contains information on a best block that is specific to the consensus engine.
 ///

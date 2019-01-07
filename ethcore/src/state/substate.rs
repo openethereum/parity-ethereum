@@ -17,7 +17,7 @@
 //! Execution environment substate.
 use std::collections::HashSet;
 use ethereum_types::Address;
-use log_entry::LogEntry;
+use types::log_entry::LogEntry;
 use evm::{Schedule, CleanDustMode};
 use super::CleanupMode;
 
@@ -69,7 +69,7 @@ impl Substate {
 #[cfg(test)]
 mod tests {
 	use super::Substate;
-	use log_entry::LogEntry;
+	use types::log_entry::LogEntry;
 
 	#[test]
 	fn created() {

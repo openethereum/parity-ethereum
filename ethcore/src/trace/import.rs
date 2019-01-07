@@ -16,7 +16,8 @@
 
 //! Traces import request.
 use ethereum_types::H256;
-use header::BlockNumber;
+use types::BlockNumber;
+
 use trace::FlatBlockTraces;
 
 /// Traces import request.

@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
 use rlp::Rlp;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 
 use jsonrpc_core::Result;
 use jsonrpc_macros::Trailing;

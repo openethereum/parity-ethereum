@@ -18,7 +18,6 @@
 
 extern crate ethereum_types;
 extern crate parity_bytes as bytes;
-extern crate common_types as types;
 extern crate ethjson;
 extern crate rlp;
 extern crate keccak_hash as hash;

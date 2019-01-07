@@ -7,6 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.0"
+common-types = { path = "../ethcore/types" }
 log = "0.4"
 parking_lot = "0.7"
 hyper = { version = "0.12", default-features = false }
@@ -26,7 +27,6 @@ parity-bytes = "0.1"
 parity-crypto = "0.2"
 ethcore-logger = { path = "../logger" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.4"
 kvdb = "0.1"
 keccak-hash = "0.1"

@@ -33,6 +33,9 @@ ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = "0.1"
+common-types = { path = "ethcore/types" }
+ethcore-blockchain = { path = "ethcore/blockchain" }
+ethcore-db = { path = "ethcore/db" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
@@ -41,7 +44,7 @@ ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
-ethcore-transaction = { path = "ethcore/transaction" }
+ethstore = { path = "accounts/ethstore" }
 ethereum-types = "0.4"
 node-filter = { path = "ethcore/node-filter" }
 ethkey = { path = "accounts/ethkey" }

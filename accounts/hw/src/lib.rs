@@ -34,15 +34,18 @@ extern crate trezor_sys;
 mod ledger;
 mod trezor;
 
-use std::sync::{Arc, atomic, atomic::AtomicBool};
+use std::sync::{Arc, atomic, atomic::AtomicBool, Weak};
 use std::{fmt, time::Duration};
+use std::thread;
 
 use ethereum_types::U256;
 use ethkey::{Address, Signature};
 use parking_lot::Mutex;
 
-const USB_DEVICE_CLASS_DEVICE: u8 = 0;
-const POLLING_DURATION: Duration = Duration::from_millis(500);
+const HID_GLOBAL_USAGE_PAGE: u16 = 0xFF00;
+const HID_USB_DEVICE_CLASS: u8 = 0;
+const MAX_POLLING_DURATION: Duration = Duration::from_millis(500);
+const USB_EVENT_POLLING_INTERVAL: Duration = Duration::from_millis(500);
 
 /// `HardwareWallet` device
 #[derive(Debug)]
@@ -60,7 +63,7 @@ pub trait Wallet<'a> {
 
 	/// Sign transaction data with wallet managing `address`.
 	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error>;
-	
+
 	/// Set key derivation path for a chain.
 	fn set_key_path(&self, key_path: KeyPath);
 
@@ -189,7 +192,7 @@ impl From<libusb::Error> for Error {
 }
 
 /// Specifies the direction of the `HardwareWallet` i.e, whether it arrived or left
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DeviceDirection {
 	/// Device arrived
 	Arrived,
@@ -218,13 +221,47 @@ impl HardwareWalletManager {
 	pub fn new() -> Result<Self, Error> {
 		let exiting = Arc::new(AtomicBool::new(false));
 		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|e| Error::Hid(e.to_string().clone()))?));
-		let ledger = ledger::Manager::new(hidapi.clone(), exiting.clone())?;
-		let trezor = trezor::Manager::new(hidapi.clone(), exiting.clone())?;
+		let ledger = ledger::Manager::new(hidapi.clone());
+		let trezor = trezor::Manager::new(hidapi.clone());
+		let usb_context = Arc::new(libusb::Context::new()?);
+
+		let l = ledger.clone();
+		let t = trezor.clone();
+		let exit = exiting.clone();
+
+		// Subscribe to all vendor IDs (VIDs) and product IDs (PIDs)
+		// This means that the `HardwareWalletManager` is responsible to validate the detected device
+		usb_context.register_callback(
+			None, None, Some(HID_USB_DEVICE_CLASS),
+			Box::new(EventHandler::new(
+				Arc::downgrade(&ledger),
+				Arc::downgrade(&trezor)
+			))
+		)?;
+
+		// Hardware event subscriber thread
+		thread::Builder::new()
+			.name("hw_wallet_manager".to_string())
+			.spawn(move || {
+				if let Err(e) = l.update_devices(DeviceDirection::Arrived) {
+					debug!(target: "hw", "Ledger couldn't connect at startup, error: {}", e);
+				}
+				if let Err(e) = t.update_devices(DeviceDirection::Arrived) {
+					debug!(target: "hw", "Trezor couldn't connect at startup, error: {}", e);
+				}
+
+				while !exit.load(atomic::Ordering::Acquire) {
+					if let Err(e) = usb_context.handle_events(Some(USB_EVENT_POLLING_INTERVAL)) {
+						debug!(target: "hw", "HardwareWalletManager event handler error: {}", e);
+					}
+				}
+			})
+			.ok();
 
 		Ok(Self {
 			exiting,
-			ledger,
 			trezor,
+			ledger,
 		})
 	}
 
@@ -292,10 +329,74 @@ impl HardwareWalletManager {
 
 impl Drop for HardwareWalletManager {
 	fn drop(&mut self) {
-		// Indicate to the USB Hotplug handlers that they
-		// shall terminate but don't wait for them to terminate.
-		// If they don't terminate for some reason USB Hotplug events will be handled
+		// Indicate to the USB Hotplug handler that it
+		// shall terminate but don't wait for it to terminate.
+		// If it doesn't terminate for some reason USB Hotplug events will be handled
 		// even if the HardwareWalletManger has been dropped
 		self.exiting.store(true, atomic::Ordering::Release);
 	}
+}
+
+/// Hardware wallet event handler
+///
+/// Note, that this runs to completion and race-conditions can't occur but it can
+/// stop other events for being processed with an infinite loop or similar
+struct EventHandler {
+	ledger: Weak<ledger::Manager>,
+	trezor: Weak<trezor::Manager>,
+}
+
+impl EventHandler {
+	/// Trezor event handler constructor
+	pub fn new(ledger: Weak<ledger::Manager>, trezor: Weak<trezor::Manager>) -> Self {
+		Self { ledger, trezor }
+	}
+
+	fn extract_device_info(device: &libusb::Device) -> Result<(u16, u16), Error> {
+		let desc = device.device_descriptor()?;
+		Ok((desc.vendor_id(), desc.product_id()))
+	}
+}
+
+impl libusb::Hotplug for EventHandler {
+	fn device_arrived(&mut self, device: libusb::Device) {
+		// Upgrade reference to an Arc
+		if let (Some(ledger), Some(trezor)) = (self.ledger.upgrade(), self.trezor.upgrade()) {
+			// Version ID and Product ID are available
+			if let Ok((vid, pid)) = Self::extract_device_info(&device) {
+				if trezor::is_valid_trezor(vid, pid) {
+					if !trezor::try_connect_polling(&trezor, &MAX_POLLING_DURATION, DeviceDirection::Arrived) {
+						trace!(target: "hw", "Trezor device was detected but connection failed");
+					}
+				} else if ledger::is_valid_ledger(vid, pid) {
+					if !ledger::try_connect_polling(&ledger, &MAX_POLLING_DURATION, DeviceDirection::Arrived) {
+						trace!(target: "hw", "Ledger device was detected but connection failed");
+					}
+				}
+			}
+		}
+	}
+
+	fn device_left(&mut self, device: libusb::Device) {
+		// Upgrade reference to an Arc
+		if let (Some(ledger), Some(trezor)) = (self.ledger.upgrade(), self.trezor.upgrade()) {
+			// Version ID and Product ID are available
+			if let Ok((vid, pid)) = Self::extract_device_info(&device) {
+				if trezor::is_valid_trezor(vid, pid) {
+					if !trezor::try_connect_polling(&trezor, &MAX_POLLING_DURATION, DeviceDirection::Left) {
+						trace!(target: "hw", "Trezor device was detected but disconnection failed");
+					}
+				} else if ledger::is_valid_ledger(vid, pid) {
+					if !ledger::try_connect_polling(&ledger, &MAX_POLLING_DURATION, DeviceDirection::Left) {
+						trace!(target: "hw", "Ledger device was detected but disconnection failed");
+					}
+				}
+			}
+		}
+	}
+}
+
+/// Helper to determine if a device is a valid HID
+pub fn is_valid_hid_device(usage_page: u16, interface_number: i32) -> bool {
+	usage_page == HID_GLOBAL_USAGE_PAGE || interface_number == HID_USB_DEVICE_CLASS as i32
 }

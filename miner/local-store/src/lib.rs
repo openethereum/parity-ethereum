@@ -20,17 +20,15 @@ use std::sync::Arc;
 use std::fmt;
 use std::time::Duration;
 
-use transaction::{
+use types::transaction::{
 	SignedTransaction, PendingTransaction, UnverifiedTransaction,
 	Condition as TransactionCondition
 };
-use ethcore::client::ClientIoMessage;
 use io::IoHandler;
 use rlp::Rlp;
 use kvdb::KeyValueDB;
 
-extern crate ethcore;
-extern crate ethcore_transaction as transaction;
+extern crate common_types as types;
 extern crate ethcore_io as io;
 extern crate rlp;
 extern crate serde_json;
@@ -73,7 +71,7 @@ impl fmt::Display for Error {
 
 #[derive(Serialize, Deserialize)]
 enum Condition {
-	Number(::ethcore::header::BlockNumber),
+	Number(types::BlockNumber),
 	Timestamp(u64),
 }
 
@@ -204,14 +202,14 @@ impl<T: NodeInfo> LocalDataStore<T> {
 	}
 }
 
-impl<T: NodeInfo> IoHandler<ClientIoMessage> for LocalDataStore<T> {
-	fn initialize(&self, io: &::io::IoContext<ClientIoMessage>) {
+impl<T: NodeInfo, M: Send + Sync + 'static> IoHandler<M> for LocalDataStore<T> {
+	fn initialize(&self, io: &::io::IoContext<M>) {
 		if let Err(e) = io.register_timer(UPDATE_TIMER, UPDATE_TIMEOUT) {
 			warn!(target: "local_store", "Error registering local store update timer: {}", e);
 		}
 	}
 
-	fn timeout(&self, _io: &::io::IoContext<ClientIoMessage>, timer: ::io::TimerToken) {
+	fn timeout(&self, _io: &::io::IoContext<M>, timer: ::io::TimerToken) {
 		if let UPDATE_TIMER = timer {
 			if let Err(e) = self.update() {
 				debug!(target: "local_store", "Error updating local store: {}", e);
@@ -233,7 +231,7 @@ mod tests {
 	use super::NodeInfo;
 
 	use std::sync::Arc;
-	use transaction::{Transaction, Condition, PendingTransaction};
+	use types::transaction::{Transaction, Condition, PendingTransaction};
 	use ethkey::{Brain, Generator};
 
 	// we want to test: round-trip of good transactions.

@@ -117,9 +117,9 @@ pub enum Status {
 	Unknown,
 }
 
-impl Into<::block_status::BlockStatus> for Status {
-	fn into(self) -> ::block_status::BlockStatus {
-		use ::block_status::BlockStatus;
+impl Into<::types::block_status::BlockStatus> for Status {
+	fn into(self) -> ::types::block_status::BlockStatus {
+		use ::types::block_status::BlockStatus;
 		match self {
 			Status::Queued => BlockStatus::Queued,
 			Status::Bad => BlockStatus::Bad,
@@ -585,10 +585,12 @@ impl<K: Kind> VerificationQueue<K> {
 	}
 
 	/// Returns true if there is nothing currently in the queue.
-	/// TODO [ToDr] Optimize to avoid locking
 	pub fn is_empty(&self) -> bool {
 		let v = &self.verification;
-		v.unverified.lock().is_empty() && v.verifying.lock().is_empty() && v.verified.lock().is_empty()
+
+		v.unverified.load_len() == 0
+			&& v.verifying.load_len() == 0
+			&& v.verified.load_len() == 0
 	}
 
 	/// Get queue status.
@@ -742,8 +744,9 @@ mod tests {
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use error::*;
-	use views::BlockView;
 	use bytes::Bytes;
+	use types::view;
+	use types::views::BlockView;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
