@@ -14,7 +14,7 @@ rand = "0.4"
 tiny-keccak = "1.4"
 rust-crypto = "0.2.34"
 slab = "0.2"
-igd = "0.7"
+igd = { git = "https://github.com/maufl/rust-igd.git", branch = "update-hyper" }
 libc = "0.2.7"
 parking_lot = "0.7"
 ansi_term = "0.10"
