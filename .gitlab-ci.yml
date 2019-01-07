@@ -97,7 +97,9 @@ publish-docker:
 
 publish-snap:
   stage:                           publish
-  only:                            *releaseable_branches
+  only:
+    - a5-ci-snapcraft
+    - pr-10142
   image:                           parity/snapcraft:gitlab-ci
   cache: {}
   before_script:                   *determine_version
