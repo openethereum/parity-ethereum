@@ -53,7 +53,6 @@ test-audit:
 
 build-linux:
   stage:                           build
-  only:                            *releaseable_branches
   script:
     - scripts/gitlab/build-unix.sh
   <<:                              *collect_artifacts
