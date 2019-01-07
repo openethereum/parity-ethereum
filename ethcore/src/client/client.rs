@@ -2202,6 +2202,7 @@ impl IoClient for Client {
 					let parent_hash = unverified.parent_hash();
 					let status = client.importer.block_queue.status(&parent_hash);
 					if status == QueueStatus::Queued {
+						queued.write().1.push_front((unverified, receipts_bytes));
 						break;
 					}
 
