@@ -47,6 +47,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setEngineSigner")]
 		fn set_engine_signer(&self, H160, String) -> Result<bool>;
 
+		/// Sets the secret of engine signer account.
+		#[rpc(name = "parity_setEngineSignerSecret")]
+		fn set_engine_signer_secret(&self, H256) -> Result<bool>;
+
 		/// Sets the limits for transaction queue.
 		#[rpc(name = "parity_setTransactionsLimit")]
 		fn set_transactions_limit(&self, usize) -> Result<bool>;

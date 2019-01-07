@@ -39,6 +39,7 @@ use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 
 use v1::helpers::block_import::is_major_importing;
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::{self, errors, fake_sign, ipfs, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
@@ -67,6 +68,7 @@ pub struct ParityClient<C, M, U> {
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
 	snapshot: Option<Arc<SnapshotService>>,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
@@ -98,6 +100,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 			signer,
 			ws_address,
 			snapshot,
+			deprecation_notice: Default::default(),
 		}
 	}
 }
@@ -111,6 +114,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	type Metadata = Metadata;
 
 	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
+		self.deprecation_notice.print("parity_accountsInfo", deprecated::msgs::ACCOUNTS);
+
 		let dapp_accounts = self.accounts.accounts()
 			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
@@ -128,6 +133,8 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
+		self.deprecation_notice.print("parity_hardwareAccountsInfo", deprecated::msgs::ACCOUNTS);
+
 		let info = self.accounts.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
 			.into_iter()
@@ -137,10 +144,14 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
+		self.deprecation_notice.print("parity_lockedHardwareAccountsInfo", deprecated::msgs::ACCOUNTS);
+
 		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 
 	fn default_account(&self) -> Result<H160> {
+		self.deprecation_notice.print("parity_defaultAccount", deprecated::msgs::ACCOUNTS);
+
 		Ok(self.accounts.default_account()
 			.map(Into::into)
 			.ok()

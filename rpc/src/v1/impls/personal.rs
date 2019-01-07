@@ -27,6 +27,7 @@ use ethkey::{public_to_address, recover, Signature};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use v1::helpers::{errors, eip191};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith};
 use v1::traits::Personal;
 use v1::types::{
@@ -48,6 +49,7 @@ pub struct PersonalClient<D: Dispatcher> {
 	dispatcher: D,
 	allow_perm_unlock: bool,
 	allow_experimental_rpcs: bool,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<D: Dispatcher> PersonalClient<D> {
@@ -63,6 +65,7 @@ impl<D: Dispatcher> PersonalClient<D> {
 			dispatcher,
 			allow_perm_unlock,
 			allow_experimental_rpcs,
+			deprecation_notice: DeprecationNotice::default(),
 		}
 	}
 }
@@ -100,17 +103,23 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	type Metadata = Metadata;
 
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
+		self.deprecation_notice.print("personal_accounts", deprecated::msgs::ACCOUNTS);
+
 		let accounts = self.accounts.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
 		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
 	fn new_account(&self, pass: String) -> Result<RpcH160> {
+		self.deprecation_notice.print("personal_newAccount", deprecated::msgs::ACCOUNTS);
+
 		self.accounts.new_account(&pass.into())
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
 	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<RpcU128>) -> Result<bool> {
+		self.deprecation_notice.print("personal_unlockAccount", deprecated::msgs::ACCOUNTS);
+
 		let account: Address = account.into();
 		let store = self.accounts.clone();
 		let duration = match duration {
@@ -143,6 +152,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		self.deprecation_notice.print("personal_sign", deprecated::msgs::ACCOUNTS);
+
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
@@ -161,6 +172,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_191(&self, version: EIP191Version, data: Value, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		self.deprecation_notice.print("personal_sign191", deprecated::msgs::ACCOUNTS);
+
 		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "191"));
 
 		let data = try_bf!(eip191::hash_message(version, data));
@@ -183,6 +196,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_typed_data(&self, typed_data: EIP712, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		self.deprecation_notice.print("personal_signTypedData", deprecated::msgs::ACCOUNTS);
+
 		try_bf!(errors::require_experimental(self.allow_experimental_rpcs, "712"));
 
 		let data = match hash_structured_data(typed_data) {
@@ -223,11 +238,15 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction> {
+		self.deprecation_notice.print("personal_signTransaction", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.do_sign_transaction(meta, request, password)
 			.map(|(pending_tx, dispatcher)| dispatcher.enrich(pending_tx.transaction)))
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
+		self.deprecation_notice.print("personal_sendTransaction", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.do_sign_transaction(meta, request, password)
 			.and_then(|(pending_tx, dispatcher)| {
 				let chain_id = pending_tx.chain_id();
@@ -240,7 +259,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
-		warn!("Using deprecated personal_signAndSendTransaction, use personal_sendTransaction instead.");
+		self.deprecation_notice.print("personal_signAndSendTransaction", Some("use personal_sendTransaction instead."));
+
 		self.send_transaction(meta, request, password)
 	}
 }

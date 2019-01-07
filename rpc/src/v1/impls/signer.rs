@@ -30,6 +30,7 @@ use jsonrpc_core::futures::{future, Future, IntoFuture};
 use jsonrpc_core::futures::future::Either;
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{self, Dispatcher, WithToken, eth_data_hash};
 use v1::helpers::{errors, ConfirmationPayload, FilledTransactionRequest, Subscribers};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
@@ -43,6 +44,7 @@ pub struct SignerClient<D: Dispatcher> {
 	accounts: Arc<AccountProvider>,
 	dispatcher: D,
 	subscribers: Arc<Mutex<Subscribers<Sink<Vec<ConfirmationRequest>>>>>,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<D: Dispatcher + 'static> SignerClient<D> {
@@ -75,6 +77,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 			accounts: store.clone(),
 			dispatcher,
 			subscribers,
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -157,6 +160,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	type Metadata = Metadata;
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>> {
+		self.deprecation_notice.print("signer_requestsToConfirm", deprecated::msgs::ACCOUNTS);
+
 		Ok(self.signer.requests()
 			.into_iter()
 			.map(Into::into)
@@ -169,6 +174,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String)
 		-> BoxFuture<ConfirmationResponse>
 	{
+		self.deprecation_notice.print("signer_confirmRequest", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
 			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Password(pass.into()))
 		}).map(|v| v.into_value()))
@@ -177,6 +184,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String)
 		-> BoxFuture<ConfirmationResponseWithToken>
 	{
+		self.deprecation_notice.print("signer_confirmRequestWithToken", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
 			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Token(token.into()))
 		}).and_then(|v| match v {
@@ -189,6 +198,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse> {
+		self.deprecation_notice.print("signer_confirmRequestRaw", deprecated::msgs::ACCOUNTS);
+
 		let id = id.into();
 
 		self.signer.take(&id).map(|sender| {
@@ -239,16 +250,22 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool> {
+		self.deprecation_notice.print("signer_rejectRequest", deprecated::msgs::ACCOUNTS);
+
 		let res = self.signer.take(&id.into()).map(|sender| self.signer.request_rejected(sender));
 		Ok(res.is_some())
 	}
 
 	fn generate_token(&self) -> Result<String> {
+		self.deprecation_notice.print("signer_generateAuthorizationToken", deprecated::msgs::ACCOUNTS);
+
 		self.signer.generate_token()
 			.map_err(|e| errors::token(e))
 	}
 
 	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {
+		self.deprecation_notice.print("signer_subscribePending", deprecated::msgs::ACCOUNTS);
+
 		self.subscribers.lock().push(sub)
 	}
 

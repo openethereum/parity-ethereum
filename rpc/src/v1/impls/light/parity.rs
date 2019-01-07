@@ -31,6 +31,7 @@ use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, NetworkSettings, verify_signature};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
@@ -56,6 +57,7 @@ pub struct ParityClient {
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
 	gas_price_percentile: usize,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl ParityClient {
@@ -77,6 +79,7 @@ impl ParityClient {
 			signer,
 			ws_address,
 			gas_price_percentile,
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -96,6 +99,8 @@ impl Parity for ParityClient {
 	type Metadata = Metadata;
 
 	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
+		self.deprecation_notice.print("parity_accountsInfo", deprecated::msgs::ACCOUNTS);
+
 		let store = &self.accounts;
 		let dapp_accounts = store
 			.accounts()
@@ -115,6 +120,8 @@ impl Parity for ParityClient {
 	}
 
 	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
+		self.deprecation_notice.print("parity_hardwareAccountsInfo", deprecated::msgs::ACCOUNTS);
+
 		let store = &self.accounts;
 		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
@@ -125,11 +132,15 @@ impl Parity for ParityClient {
 	}
 
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
+		self.deprecation_notice.print("parity_lockedHardwareAccountsInfo", deprecated::msgs::ACCOUNTS);
+
 		let store = &self.accounts;
 		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
 	}
 
 	fn default_account(&self) -> Result<H160> {
+		self.deprecation_notice.print("parity_defaultAccount", deprecated::msgs::ACCOUNTS);
+
 		Ok(self.accounts
 			.accounts()
 			.ok()

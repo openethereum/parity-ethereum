@@ -42,6 +42,7 @@ use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 
 use v1::helpers::{self, errors, limit_logs, fake_sign};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
@@ -111,6 +112,7 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
 	options: EthClientOptions,
+	deprecation_notice: DeprecationNotice,
 }
 
 #[derive(Debug)]
@@ -199,6 +201,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::default()),
 			options: options,
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -559,6 +562,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
+		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
+
 		let accounts = self.accounts.accounts()
 			.map_err(|e| errors::account("Could not fetch accounts.", e))?;
 		Ok(accounts.into_iter().map(Into::into).collect())
@@ -594,7 +599,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
 			BlockNumber::Pending => {
-				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+				self.deprecation_notice.print("`Pending`", Some("falling back to `Latest`"));
 				BlockId::Latest
 			}
 		};

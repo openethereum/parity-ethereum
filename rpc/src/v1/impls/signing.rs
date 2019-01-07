@@ -27,6 +27,7 @@ use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::helpers::errors;
 use v1::helpers::external_signer::{
@@ -96,6 +97,7 @@ pub struct SigningQueueClient<D> {
 	executor: Executor,
 	// None here means that the request hasn't yet been confirmed
 	confirmations: Arc<Mutex<TransientHashMap<U256, Option<RpcConfirmationResult>>>>,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<D: Dispatcher + 'static> SigningQueueClient<D> {
@@ -107,6 +109,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 			dispatcher,
 			executor,
 			confirmations: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -141,6 +144,8 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	}
 
 	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>> {
+		self.deprecation_notice.print("parity_postSign", deprecated::msgs::ACCOUNTS);
+
 		let executor = self.executor.clone();
 		let confirmations = self.confirmations.clone();
 
@@ -158,6 +163,8 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	}
 
 	fn post_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>> {
+		self.deprecation_notice.print("parity_postTransaction", deprecated::msgs::ACCOUNTS);
+
 		let executor = self.executor.clone();
 		let confirmations = self.confirmations.clone();
 
@@ -172,6 +179,8 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	}
 
 	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>> {
+		self.deprecation_notice.print("parity_checkRequest", deprecated::msgs::ACCOUNTS);
+
 		let id: U256 = id.into();
 		match self.confirmations.lock().get(&id) {
 			None => Err(errors::request_not_found()), // Request info has been dropped, or even never been there
@@ -181,6 +190,8 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	}
 
 	fn decrypt_message(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes> {
+		self.deprecation_notice.print("parity_decryptMessage", deprecated::msgs::ACCOUNTS);
+
 		let res = self.dispatch(
 			RpcConfirmationPayload::Decrypt((address.clone(), data).into()),
 			address.into(),
@@ -201,6 +212,8 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
 	fn sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520> {
+		self.deprecation_notice.print("eth_sign", deprecated::msgs::ACCOUNTS);
+
 		let res = self.dispatch(
 			RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()),
 			address.into(),
@@ -216,6 +229,8 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256> {
+		self.deprecation_notice.print("eth_sendTransaction", deprecated::msgs::ACCOUNTS);
+
 		let res = self.dispatch(
 			RpcConfirmationPayload::SendTransaction(request),
 			self.accounts.default_account().ok().unwrap_or_default(),
@@ -231,6 +246,8 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction> {
+		self.deprecation_notice.print("eth_signTransaction", deprecated::msgs::ACCOUNTS);
+
 		let res = self.dispatch(
 			RpcConfirmationPayload::SignTransaction(request),
 			self.accounts.default_account().ok().unwrap_or_default(),

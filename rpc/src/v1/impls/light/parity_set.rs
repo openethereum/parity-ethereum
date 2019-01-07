@@ -71,6 +71,10 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 		Err(errors::light_unimplemented(None))
 	}
 
+	fn set_engine_signer_secret(&self, _secret: H256) -> Result<bool> {
+		Err(errors::light_unimplemented(None))
+	}
+
 	fn set_transactions_limit(&self, _limit: usize) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}

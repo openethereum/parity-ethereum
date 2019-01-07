@@ -22,13 +22,16 @@ use std::time::Duration;
 use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Mode};
 use ethcore::miner::{self, MinerService};
-use sync::ManageNetwork;
+use ethereum_types::H256 as EthH256;
+use ethkey;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
+use sync::ManageNetwork;
 use updater::{Service as UpdateService};
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::Future;
+use v1::helpers::deprecated::DeprecationNotice;
 use v1::helpers::errors;
 use v1::helpers::engine_signer::EngineSigner;
 use v1::traits::ParitySet;
@@ -42,6 +45,7 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	accounts: Arc<AccountProvider>,
 	net: Arc<ManageNetwork>,
 	fetch: F,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<C, M, U, F> ParitySetClient<C, M, U, F>
@@ -62,7 +66,8 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 			updater: updater.clone(),
 			accounts: accounts.clone(),
 			net: net.clone(),
-			fetch: fetch,
+			fetch,
+			deprecation_notice: Default::default(),
 		}
 	}
 }
@@ -114,12 +119,24 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
+		self.deprecation_notice.print(
+			"parity_setEngineSigner",
+			"use `parity_setEngineSignerSecret` instead. See #9997 for context."
+		);
+
 		let signer = Box::new(EngineSigner::new(
 			self.accounts.clone(),
 			address.clone().into(),
 			password.into(),
 		));
 		self.miner.set_author(miner::Author::Sealer(signer));
+		Ok(true)
+	}
+
+	fn set_engine_signer_secret(&self, secret: H256) -> Result<bool> {
+		let secret: EthH256 = secret.into();
+		let keypair = ethkey::KeyPair::from_secret(secret.into()).map_err(|e| errors::account("Invalid secret", e))?;
+		self.miner.set_author(miner::Author::Sealer(ethcore::engines::signer::from_keypair(keypair)));
 		Ok(true)
 	}
 

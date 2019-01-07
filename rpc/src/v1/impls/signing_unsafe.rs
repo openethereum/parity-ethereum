@@ -24,6 +24,7 @@ use ethereum_types::Address;
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use v1::helpers::{errors};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning};
@@ -41,6 +42,7 @@ use v1::types::{
 pub struct SigningUnsafeClient<D> {
 	accounts: Arc<AccountProvider>,
 	dispatcher: D,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
@@ -48,7 +50,8 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
 			accounts: accounts.clone(),
-			dispatcher: dispatcher,
+			dispatcher,
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -69,6 +72,8 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	type Metadata = Metadata;
 
 	fn sign(&self, _: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520> {
+		self.deprecation_notice.print("eth_sign", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.handle(RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()), address.into())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
@@ -78,6 +83,8 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	}
 
 	fn send_transaction(&self, _meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256> {
+		self.deprecation_notice.print("eth_sendTransaction", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.handle(RpcConfirmationPayload::SendTransaction(request), self.accounts.default_account().ok().unwrap_or_default())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
@@ -87,6 +94,8 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	}
 
 	fn sign_transaction(&self, _meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction> {
+		self.deprecation_notice.print("eth_signTransaction", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.handle(RpcConfirmationPayload::SignTransaction(request), self.accounts.default_account().ok().unwrap_or_default())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
@@ -106,6 +115,8 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 	}
 
 	fn decrypt_message(&self, _: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes> {
+		self.deprecation_notice.print("parity_decryptMessage", deprecated::msgs::ACCOUNTS);
+
 		Box::new(self.handle(RpcConfirmationPayload::Decrypt((address.clone(), data).into()), address.into())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),

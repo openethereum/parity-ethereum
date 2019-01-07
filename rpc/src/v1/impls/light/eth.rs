@@ -43,6 +43,7 @@ use transaction::SignedTransaction;
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};
 use v1::helpers::{SyncPollFilter, PollManager};
+use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
@@ -66,6 +67,7 @@ pub struct EthClient<T> {
 	polls: Mutex<PollManager<SyncPollFilter>>,
 	poll_lifetime: u32,
 	gas_price_percentile: usize,
+	deprecation_notice: DeprecationNotice,
 }
 
 impl<T> Clone for EthClient<T> {
@@ -81,6 +83,7 @@ impl<T> Clone for EthClient<T> {
 			polls: Mutex::new(PollManager::new(self.poll_lifetime)),
 			poll_lifetime: self.poll_lifetime,
 			gas_price_percentile: self.gas_price_percentile,
+			deprecation_notice: Default::default(),
 		}
 	}
 }
@@ -108,6 +111,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 			polls: Mutex::new(PollManager::new(poll_lifetime)),
 			poll_lifetime,
 			gas_price_percentile,
+			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -263,6 +267,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
+		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
+
 		self.accounts.accounts()
 			.map_err(|e| errors::account("Could not fetch accounts.", e))
 			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect())

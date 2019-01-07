@@ -18,6 +18,7 @@
 pub mod errors;
 
 pub mod block_import;
+pub mod deprecated;
 pub mod dispatch;
 pub mod eip191;
 pub mod engine_signer;
