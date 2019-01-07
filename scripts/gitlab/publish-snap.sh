@@ -4,6 +4,7 @@ set -e # fail on any error
 set -u # treat unset variables as error
 
 case ${CI_COMMIT_REF_NAME} in
+  a5-ci-snapcraft|pr-10142) export GRADE="devel" CHANNEL="edge";;
   nightly|*v2.3*) export GRADE="devel" CHANNEL="edge";;
   beta|*v2.2*) export GRADE="stable" CHANNEL="beta";;
   stable|*v2.1*) export GRADE="stable" CHANNEL="stable";;
