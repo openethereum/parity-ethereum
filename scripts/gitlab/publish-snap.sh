@@ -4,7 +4,7 @@ set -e # fail on any error
 set -u # treat unset variables as error
 
 case ${CI_COMMIT_REF_NAME} in
-  a5-ci-snapcraft|pr-10142|nightly|*v2.3*) export GRADE="devel" CHANNEL="edge";;
+  nightly|*v2.3*) export GRADE="devel" CHANNEL="edge";;
   beta|*v2.2*) export GRADE="stable" CHANNEL="beta";;
   stable|*v2.1*) export GRADE="stable" CHANNEL="stable";;
   *) echo "No release" exit 0;;
@@ -19,6 +19,7 @@ cat scripts/snap/snapcraft.template.yaml | envsubst '$VERSION:$GRADE:$BUILD_ARCH
 cat snapcraft.yaml
 snapcraft --target-arch=$BUILD_ARCH
 ls *.snap
+
 echo "__________Calculating checksums__________"
 rhash --sha256 $SNAP_PACKAGE -o $SNAP_PACKAGE".sha256"
 cat $SNAP_PACKAGE".sha256"
