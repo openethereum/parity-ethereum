@@ -19,10 +19,11 @@ cat scripts/snap/snapcraft.template.yaml | envsubst '$VERSION:$GRADE:$BUILD_ARCH
 cat snapcraft.yaml
 snapcraft --target-arch=$BUILD_ARCH
 ls *.snap
-echo "_____ Calculating checksums _____"
+echo "__________Calculating checksums__________"
 rhash --sha256 $SNAP_PACKAGE -o $SNAP_PACKAGE".sha256"
+cat $SNAP_PACKAGE".sha256"
 
-echo "Releasing snap package__________"
+echo "__________Releasing snap package__________"
 echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 
 echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
