@@ -10,7 +10,6 @@ variables:
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
-  BUILD_ARCH:                      amd64
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
@@ -54,6 +53,7 @@ test-audit:
 
 build-linux:
   stage:                           build
+  only:                            *releaseable_branches
   script:
     - scripts/gitlab/build-unix.sh
   <<:                              *collect_artifacts
@@ -97,10 +97,10 @@ publish-docker:
 
 publish-snap:
   stage:                           publish
-  only:
-    - a5-ci-snapcraft
-    - pr-10142
+  only:                            *releaseable_branches
   image:                           parity/snapcraft:gitlab-ci
+  variables:
+    - BUILD_ARCH:                  amd64
   cache: {}
   before_script:                   *determine_version
   dependencies:
@@ -109,6 +109,7 @@ publish-snap:
     - rust-stable
   script:
     - scripts/gitlab/publish-snap.sh
+  allow_failure:                   true
   <<:                              *collect_artifacts
 
 publish-awss3:
