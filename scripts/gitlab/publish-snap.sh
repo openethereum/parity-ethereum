@@ -4,7 +4,7 @@ set -e # fail on any error
 set -u # treat unset variables as error
 
 echo CI_COMMIT_REF NAME: $CI_COMMIT_REF_NAME
-echo CARGO_PKG_VERSION: $CARGO_PKG_VERSION
+echo VERSION: $VERSION
 
 case ${CI_COMMIT_REF_NAME} in
   nightly|*v2.3*) export GRADE="devel" CHANNEL="edge";;
