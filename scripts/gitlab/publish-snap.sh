@@ -10,7 +10,8 @@ case ${CI_COMMIT_REF_NAME} in
   nightly|*v2.3*) export GRADE="devel" CHANNEL="edge";;
   beta|*v2.2*) export GRADE="stable" CHANNEL="beta";;
   stable|*v2.1*) export GRADE="stable" CHANNEL="stable";;
-  *) echo "No release" exit 0;;
+  pr|*10142*) export GRADE="debug_grade" CHANNEL="debug_channel";; # delme
+  *) echo "No release";; # exit 0;;
 esac
 
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
