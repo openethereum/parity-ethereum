@@ -30,8 +30,8 @@ cat $SNAP_PACKAGE".sha256"
 echo "__________Releasing snap package__________"
 echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 
-echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
-snapcraft login --with snapcraft.login
-snapcraft push --release $CHANNEL $SNAP_PACKAGE
-snapcraft status parity
-snapcraft logout
+# echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
+# snapcraft login --with snapcraft.login
+# snapcraft push --release $CHANNEL $SNAP_PACKAGE
+# snapcraft status parity
+# snapcraft logout
