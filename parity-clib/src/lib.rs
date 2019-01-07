@@ -54,14 +54,7 @@ pub struct ParityParams {
 	pub configuration: *mut c_void,
 	pub on_client_restart_cb: Callback,
 	pub on_client_restart_cb_custom: *mut c_void,
-}
-
-#[repr(C)]
-pub struct Logger {
-	pub mode: *const char,
-	pub mode_len: usize,
-	pub file: *const char,
-	pub file_len: usize,
+	pub logger: *mut c_void
 }
 
 #[no_mangle]
@@ -115,34 +108,12 @@ pub unsafe extern fn parity_config_destroy(cfg: *mut c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_start(cfg: *const ParityParams, logger: Logger, output: *mut *mut c_void) -> c_int {
+pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_void) -> c_int {
 	panic::catch_unwind(|| {
 		*output = ptr::null_mut();
 		let cfg: &ParityParams = &*cfg;
 
-		let mode = {
-			if logger.mode_len == 0 {
-				None
-			} else {
-				let mode = slice::from_raw_parts(logger.mode as *const u8, logger.mode_len);
-				String::from_utf8(mode.to_owned()).ok()
-			}
-		};
-
-		let file = {
-			if logger.file_len == 0 {
-				None
-			} else {
-				let mode = slice::from_raw_parts(logger.mode as *const u8, logger.mode_len);
-				String::from_utf8(mode.to_owned()).ok()
-			}
-		};
-
-		let mut log_cfg = parity_ethereum::LoggerConfig::default();
-		log_cfg.mode = mode;
-		log_cfg.file = file;
-
-		let logger = parity_ethereum::setup_log(&log_cfg).expect("Logger initialized only once; qed");
+		let logger = Arc::from_raw(cfg.logger as *mut parity_ethereum::RotatingLogger);
 		let config = Box::from_raw(cfg.configuration as *mut parity_ethereum::Configuration);
 
 		let on_client_restart_cb = {
@@ -291,6 +262,25 @@ pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_voi
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg.as_bytes());
 	});
+}
+
+#[no_mangle]
+pub unsafe extern fn parity_set_logger(
+	logger_mode: *const u8,
+	logger_mode_len: usize,
+	log_file: *const u8,
+	log_file_len: usize,
+	logger: *mut *mut c_void) {
+
+	let mut logger_cfg = parity_ethereum::LoggerConfig::default();
+	logger_cfg.mode = String::from_utf8(slice::from_raw_parts(logger_mode, logger_mode_len).to_owned()).ok();
+
+	// Make sure an empty string is not constructed as file name (to prevent panic)
+	if log_file_len != 0 && !log_file.is_null() {
+		logger_cfg.file = String::from_utf8(slice::from_raw_parts(log_file, log_file_len).to_owned()).ok();
+	}
+
+	*logger = Arc::into_raw(parity_ethereum::setup_log(&logger_cfg).expect("Logger initialized only once; qed")) as *mut _;
 }
 
 // Internal structure for handling callbacks that get passed a string.

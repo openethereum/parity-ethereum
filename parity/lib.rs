@@ -223,6 +223,7 @@ fn execute<Cr, Rr>(
 /// binary.
 ///
 /// On error, returns what to print on stderr.
+// FIXME: @tomaka - totally independent logging capability
 pub fn start<Cr, Rr>(
 	conf: Configuration,
 	logger: Arc<RotatingLogger>,
