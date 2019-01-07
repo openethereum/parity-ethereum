@@ -39,9 +39,6 @@ extern crate log;
 
 use std::sync::Weak;
 
-use lru_cache::LruCache;
-use parking_lot::Mutex;
-
 use ethcore::client::{BlockChainClient, BlockId};
 use ethereum_types::{H256, Address};
 use ethabi::FunctionOutputDecoder;
@@ -50,13 +47,10 @@ use devp2p::NodeId;
 
 use_contract!(peer_set, "res/peer_set.json");
 
-const MAX_CACHE_SIZE: usize = 4096;
-
 /// Connection filter that uses a contract to manage permissions.
 pub struct NodeFilter {
 	client: Weak<BlockChainClient>,
 	contract_address: Address,
-	permission_cache: Mutex<LruCache<(H256, NodeId), bool>>,
 }
 
 impl NodeFilter {
@@ -65,7 +59,6 @@ impl NodeFilter {
 		NodeFilter {
 			client,
 			contract_address,
-			permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 		}
 	}
 }
@@ -76,18 +69,6 @@ impl ConnectionFilter for NodeFilter {
 			Some(client) => client,
 			None => return false,
 		};
-
-		let block_hash = match client.block_hash(BlockId::Latest) {
-			Some(block_hash) => block_hash,
-			None => return false,
-		};
-
-		let key = (block_hash, *connecting_id);
-
-		let mut cache = self.permission_cache.lock();
-		if let Some(res) = cache.get_mut(&key) {
-			return *res;
-		}
 
 		let address = self.contract_address;
 		let own_low = H256::from_slice(&own_id[0..32]);
@@ -103,7 +84,6 @@ impl ConnectionFilter for NodeFilter {
 				false
 			});
 
-		cache.insert(key, allowed);
 		allowed
 	}
 }
