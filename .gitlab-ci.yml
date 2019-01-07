@@ -100,7 +100,7 @@ publish-snap:
   only:                            *releaseable_branches
   image:                           parity/snapcraft:gitlab-ci
   variables:
-    - BUILD_ARCH:                  amd64
+    BUILD_ARCH:                  amd64
   cache: {}
   before_script:                   *determine_version
   dependencies:
