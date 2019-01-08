@@ -63,13 +63,13 @@ impl<'a> Callback<'a> {
 
 #[no_mangle]
 pub extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv, _: JClass, cli: jobjectArray) -> jlong {
-	let cli_len = env.get_array_length(cli).expect("invalid Java bindings");
+	let cli_len = env.get_array_length(cli).expect("invalid Java bindings") as usize;
 
-	let mut jni_strings = Vec::with_capacity(cli_len as usize);
-	let mut opts = Vec::with_capacity(cli_len as usize);
-	let mut opts_lens = Vec::with_capacity(cli_len as usize);
+	let mut jni_strings = Vec::with_capacity(cli_len);
+	let mut opts = Vec::with_capacity(cli_len);
+	let mut opts_lens = Vec::with_capacity(cli_len);
 
-	for n in 0..cli_len {
+	for n in 0..cli_len as i32 {
 		let elem = env.get_object_array_element(cli, n).expect("invalid Java bindings");
 		let elem_str: JString = elem.into();
 		match env.get_string(elem_str) {
@@ -77,7 +77,7 @@ pub extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv,
 				opts.push(s.as_ptr());
 				opts_lens.push(s.to_bytes().len());
 				jni_strings.push(s);
-			},
+			}
 			Err(err) => {
 				let _ = env.throw_new("java/lang/Exception", err.to_string());
 				return 0
@@ -87,7 +87,7 @@ pub extern "system" fn Java_io_parity_ethereum_Parity_configFromCli(env: JNIEnv,
 
 	let mut out = ptr::null_mut();
 	// input verified
-	match unsafe { parity_config_from_cli(opts.as_ptr(), opts_lens.as_ptr(), cli_len as usize, &mut out) } {
+	match unsafe { parity_config_from_cli(opts.as_ptr(), opts_lens.as_ptr(), cli_len, &mut out) } {
 		0 => out as jlong,
 		_ => {
 			let _ = env.throw_new("java/lang/Exception", "failed to create config object");
@@ -123,7 +123,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_build(
 		_ => {
 			let _ = env.throw_new("java/lang/Exception", "failed to start Parity");
 			0
-		},
+		}
 	}
 }
 
@@ -132,7 +132,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_destroy(_env: JNIEn
 	parity_destroy(parity);
 }
 
-unsafe fn async_checker<'a>(client: va_list, rpc: JString, callback: JObject, env: &JNIEnv<'a>)
+unsafe fn java_query_checker<'a>(client: va_list, rpc: JString, callback: JObject, env: &JNIEnv<'a>)
 -> Result<CheckedQuery<'a>, String> {
 	let query: String = env.get_string(rpc)
 		.map(Into::into)
@@ -154,7 +154,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_rpcQueryNative(
 	callback: JObject,
 	)
 {
-	let _ = async_checker(parity, rpc, callback, &env)
+	let _ = java_query_checker(parity, rpc, callback, &env)
 		.map(|(client, query, jvm, global_ref)| {
 			let callback = Arc::new(Callback::new(jvm, global_ref));
 			let cb = callback.clone();
@@ -189,7 +189,7 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_subscribeWebSocketN
 	callback: JObject,
 	) -> va_list {
 
-	async_checker(parity, rpc, callback, &env)
+	java_query_checker(parity, rpc, callback, &env)
 		.map(move |(client, query, jvm, global_ref)| {
 			let callback = Arc::new(Callback::new(jvm, global_ref));
 			let (tx, mut rx) = mpsc::channel(1);
@@ -210,17 +210,11 @@ pub unsafe extern "system" fn Java_io_parity_ethereum_Parity_subscribeWebSocketN
 						return;
 					};
 
-					loop {
+					while weak_session.upgrade().map_or(0, |session| Arc::strong_count(&session)) > 1 {
 						for response in rx.by_ref().wait() {
 							if let Ok(r) = response {
 								callback.call(&r);
 							}
-						}
-
-						let rc = weak_session.upgrade().map_or(0,|session| Arc::strong_count(&session));
-						// No subscription left, then terminate
-						if rc <= 1 {
-							break;
 						}
 					}
 				})

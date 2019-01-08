@@ -150,10 +150,7 @@ pub unsafe extern fn parity_destroy(client: *mut c_void) {
 unsafe fn parity_rpc_query_checker<'a>(client: *const c_void, query: *const c_char, len: usize)
 	-> Option<CheckedQuery<'a>>
 {
-	let query_str = {
-			let string = slice::from_raw_parts(query as *const u8, len);
-			str::from_utf8(string).ok()?
-	};
+	let query_str = str::from_utf8(slice::from_raw_parts(query as *const u8, len)).ok()?;
 	let client: &RunningClient = &*(client as *const RunningClient);
 	Some((client, query_str))
 }
@@ -225,17 +222,11 @@ pub unsafe extern fn parity_subscribe_ws(
 						return;
 					}
 
-					loop {
+					while weak_session.upgrade().map_or(0, |session| Arc::strong_count(&session)) > 1 {
 						for response in rx.by_ref().wait() {
 							if let Ok(r) = response {
 								cb.call(r.as_bytes());
 							}
-						}
-
-						let rc = weak_session.upgrade().map_or(0,|session| Arc::strong_count(&session));
-						// No subscription left, then terminate
-						if rc <= 1 {
-							break;
 						}
 					}
 			})
@@ -293,7 +284,7 @@ unsafe impl Sync for CallbackStr {}
 impl CallbackStr {
 	fn call(&self, msg: &[u8]) {
 		if let Some(ref cb) = self.function {
-			let cstr = CString::new(msg).expect("valid string with no null bytes in the middle; qed").into_raw();
+			let cstr = CString::new(msg).expect("valid string with no nul bytes in the middle; qed").into_raw();
 			cb(self.user_data, cstr, msg.len())
 		}
 	}
