@@ -101,7 +101,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 			}
 		};
 
-		let event = |scores: &mut [U256]| {
+		let penalize = |scores: &mut [U256]| {
 			for (score, tx) in scores.iter_mut().zip(txs) {
 				if !tx.priority().is_local() {
 					*score = *score >> 3;
@@ -122,7 +122,7 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 					},
 					// We are only sending an event in case of penalization.
 					// So just lower the priority of all non-local transactions.
-					Change::Event(_) => event(scores),
+					Change::Event(_) => penalize(scores),
 				}
 			},
 			PrioritizationStrategy::Consecutive => {
@@ -135,24 +135,24 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 				};
 				match change {
 					Change::Culled(_) => {},
-					Change::RemovedAt(_) => {}
-					Change::InsertedAt(i) | Change::ReplacedAt(i) => {
+					Change::RemovedAt(i) | Change::InsertedAt(i) | Change::ReplacedAt(i) => {
 						assert!(i < txs.len());
 						assert!(i < scores.len());
 						let last_index = txs.len() - 1;
 						scores[last_index] = *txs[last_index].transaction.gas_price();
 						for idx in (1..txs.len()).rev() {
-							let consecutive_bump = is_consecutive(idx - 1) *
+							let prev_idx = idx - 1;
+							let consecutive_bump = is_consecutive(prev_idx) *
 								((U256::from(21_000) * scores[idx]) /
-								txs[idx - 1].transaction.gas());
-							scores[idx - 1] = txs[idx - 1].transaction.gas_price() + (consecutive_bump / 1000);
-							scores[idx] <<= boost(idx - 1);
+								txs[prev_idx].transaction.gas());
+							scores[prev_idx] = txs[prev_idx].transaction.gas_price() + (consecutive_bump / 1000);
+							scores[idx] <<= boost(prev_idx);
 						}
 						scores[0] <<= boost(last_index);
 					},
 					// We are only sending an event in case of penalization.
 					// So just lower the priority of all non-local transactions.
-					Change::Event(_) => event(scores)
+					Change::Event(_) => penalize(scores)
 				}
 			}
 		}
