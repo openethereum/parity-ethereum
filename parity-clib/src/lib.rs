@@ -112,7 +112,6 @@ pub unsafe extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_
 	panic::catch_unwind(|| {
 		*output = ptr::null_mut();
 		let cfg: &ParityParams = &*cfg;
-
 		let logger = Arc::from_raw(cfg.logger as *mut parity_ethereum::RotatingLogger);
 		let config = Box::from_raw(cfg.configuration as *mut parity_ethereum::Configuration);
 
@@ -257,7 +256,7 @@ pub unsafe extern fn parity_unsubscribe_ws(session: *const c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern fn parity_set_panic_hook(callback: Callback, param: *mut c_void) {
+pub extern fn parity_set_panic_hook(callback: Callback, param: *mut c_void) {
 	let cb = CallbackStr {user_data: param, function: callback};
 	panic_hook::set_with(move |panic_msg| {
 		cb.call(panic_msg.as_bytes());
