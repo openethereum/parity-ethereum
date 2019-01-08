@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ledger hardware wallet module. Supports Ledger Blue and Nano S.
 //! See <https://github.com/LedgerHQ/blue-app-eth/blob/master/doc/ethapp.asc> for protocol details.
@@ -251,7 +251,6 @@ impl Manager {
 		Self::read(&handle)
 	}
 
-
 	fn get_firmware_version(handle: &hidapi::HidDevice) -> Result<FirmwareVersion, Error> {
 		let ver = Self::send_apdu(&handle, commands::GET_APP_CONFIGURATION, 0, 0, &[])?;
 		if ver.len() != 4 {
@@ -322,7 +321,6 @@ impl Manager {
 		self.signer_helper(address, msg, commands::SIGN_ETH_PERSONAL_MESSAGE)
 	}
 }
-
 
 impl<'a> Wallet<'a> for Manager {
 	type Error = Error;

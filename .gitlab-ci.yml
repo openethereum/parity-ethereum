@@ -121,7 +121,7 @@ publish-docs:
   script:
     - scripts/gitlab/publish-docs.sh
   tags:
-    - shell
+    - linux-docker
 
 build-android:
   stage:                           optional
