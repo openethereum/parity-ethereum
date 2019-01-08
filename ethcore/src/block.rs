@@ -555,7 +555,6 @@ fn enact(
 	// reset the author to what it was originally specified as now that transactions are applied
 	b.block.header.set_author(*header.author());
 
-
 	for u in uncles {
 		b.push_uncle(u)?;
 	}

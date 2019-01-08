@@ -180,7 +180,6 @@ impl Engine<EthereumMachine> for Clique {
         state.apply(&header).unwrap();
     }
 
-
 //
 //
 //		{

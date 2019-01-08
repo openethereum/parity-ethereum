@@ -230,7 +230,6 @@ impl SnapshotState {
 	}
 }
 
-
 fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<(), Error> {
 	state.signers = extract_signers(header)?;
 	state.votes.clear();
