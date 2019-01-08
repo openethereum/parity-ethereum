@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
 
@@ -1422,16 +1422,21 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				let mut finality_proof: Vec<_> = itertools::repeat_call(move || {
 					chain(hash).and_then(|header| {
 						hash = *header.parent_hash();
-						if header.number() == 0 { return None }
-						else { return Some(header) }
+						if header.number() == 0 { None }
+						else { Some(header) }
 					})
 				})
 					.while_some()
 					.take_while(|h| h.hash() != *finalized_hash)
 					.collect();
 
-				let finalized_header = chain(*finalized_hash)
-					.expect("header is finalized; finalized headers must exist in the chain; qed");
+				let finalized_header = if *finalized_hash == chain_head.hash() {
+					// chain closure only stores ancestry, but the chain head is also unfinalized.
+					chain_head.clone()
+				} else {
+					chain(*finalized_hash)
+						.expect("header is finalized; finalized headers must exist in the chain; qed")
+				};
 
 				let signal_number = finalized_header.number();
 				info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
