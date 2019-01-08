@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trezor hardware wallet module. Supports Trezor v1.
 //! See <http://doc.satoshilabs.com/trezor-tech/api-protobuf.html>
@@ -411,7 +411,6 @@ impl<'a> Wallet<'a> for Manager {
 	}
 }
 
-
 /// Poll the device in maximum `max_polling_duration` if it doesn't succeed
 pub fn try_connect_polling(trezor: &Manager, duration: &Duration, dir: DeviceDirection) -> bool {
 	let start_time = Instant::now();
@@ -428,8 +427,6 @@ pub fn try_connect_polling(trezor: &Manager, duration: &Duration, dir: DeviceDir
 pub fn is_valid_trezor(vid: u16, pid: u16) -> bool {
 	vid == TREZOR_VID && TREZOR_PIDS.contains(&pid)
 }
-
-
 
 #[test]
 #[ignore]
