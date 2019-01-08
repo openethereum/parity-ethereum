@@ -4,48 +4,48 @@ sudo: required
 services: docker
 
 addons:
-  apt:
-    packages:
-      - binutils-dev
-      - cmake
-      - file
-      - g++
-      - gcc
-      - libcurl4-openssl-dev
-      - libdw-dev
-      - libelf-dev
-      - libiberty-dev
-      - libudev-dev
-      - make
-      - pkg-config
-      - software-properties-common
+	apt:
+		packages:
+			- binutils-dev
+			- cmake
+			- file
+			- g++
+			- gcc
+			- libcurl4-openssl-dev
+			- libdw-dev
+			- libelf-dev
+			- libiberty-dev
+			- libudev-dev
+			- make
+			- pkg-config
+			- software-properties-common
 
 matrix:
-  include:
+	include:
 
-    # GNU/Linux - Sync Goerli Node
-    - env: TARGET=x86_64-unknown-linux-gnu
-      name: Sync Goerli Node
-      rust: stable
-      script: $TRAVIS_BUILD_DIR/sync.sh
+		# GNU/Linux - Sync Goerli Node
+		- env: TARGET=x86_64-unknown-linux-gnu
+			name: Sync Goerli Node
+			rust: stable
+			script: $TRAVIS_BUILD_DIR/sync.sh
 
-    # GNU/Linux - Deploy Clique Network
-    - env: TARGET=x86_64-unknown-linux-gnu
-      name: Deploy Clique Network
-      rust: stable
-      script: $TRAVIS_BUILD_DIR/clique.sh
+		# GNU/Linux - Deploy Clique Network
+		- env: TARGET=x86_64-unknown-linux-gnu
+			name: Deploy Clique Network
+			rust: stable
+			script: $TRAVIS_BUILD_DIR/clique.sh
 
 cache:
-  timeout: 600
-  cargo: true
-  directories:
-  - $HOME/.cargo
-  - $HOME/.rustup
-  - $TRAVIS_BUILD_DIR/target
+	timeout: 600
+	cargo: true
+	directories:
+	- $HOME/.cargo
+	- $HOME/.rustup
+	- $TRAVIS_BUILD_DIR/target
 
 before_cache:
-  - sudo chmod -R a+r $HOME
+	- sudo chmod -R a+r $HOME
 
 before_script:
-  - rustup self update
-  - source ~/.cargo/env || true
+	- rustup self update
+	- source ~/.cargo/env || true

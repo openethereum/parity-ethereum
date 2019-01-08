@@ -444,12 +444,12 @@ impl LockedBlock {
 		}
 		s.block.header.set_seal(seal);
 
-        engine.seal_header(&mut s.block.header);
-        /*
-        if let Some(extra_data) = engine.seal_block_extra_data(&s.block.header) {
-          s.block.header.set_extra_data(extra_data);
-        }
-        */
+		engine.seal_header(&mut s.block.header);
+		/*
+		if let Some(extra_data) = engine.seal_block_extra_data(&s.block.header) {
+			s.block.header.set_extra_data(extra_data);
+		}
+		*/
 
 		s.block.header.compute_hash();
 		Ok(SealedBlock {
@@ -527,7 +527,7 @@ fn enact(
 		last_hashes,
 		engine.executive_author(&header), // Engine such as Clique will calculate author from extra_data.  this is only important for executing contracts as the 'executive_author'
 		//(*header.gas_limit(), *header.gas_limit()),
-        (3141562.into(), 31415620.into()),
+		(3141562.into(), 31415620.into()),
 		header.extra_data().clone(),
 		is_epoch_begin,
 		ancestry,
@@ -550,11 +550,10 @@ fn enact(
 
 	b.push_transactions(transactions)?;
 
-    trace!(target: "blocks", "resetting author to {}, was {}", *header.author(), b.block.header.author());
+	trace!(target: "blocks", "resetting author to {}, was {}", *header.author(), b.block.header.author());
 
 	// reset the author to what it was originally specified as now that transactions are applied
 	b.block.header.set_author(*header.author());
-
 
 	for u in uncles {
 		b.push_uncle(u)?;
@@ -656,7 +655,7 @@ mod tests {
 	) -> Result<SealedBlock, Error> {
 		let header = Unverified::from_rlp(block_bytes.clone())?.header;
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
-		   .seal(engine, header.seal().to_vec())?)
+			 .seal(engine, header.seal().to_vec())?)
 	}
 
 	#[test]
