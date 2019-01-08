@@ -149,11 +149,11 @@ impl Clique {
 		}
 	}
 
-    fn state(&self, parent: &Header) -> Option<SnapshotState> {
+    fn state(&self, parent: &Header) -> Result<SnapshotState, Error> {
         let mut state = self.state.write();
 
         match state.state(&parent.hash()) {
-            Some(st) => Some(st),
+            Some(st) => Ok(st),
             None => {
                 let client = self.client.read();
                 if let Some(c) = client.as_ref().and_then(|w|{ w.upgrade()}) {
@@ -169,16 +169,14 @@ impl Clique {
                             chain.push(next.decode().unwrap().clone());
                             last = chain.last().unwrap().clone();
                         } else {
-                            trace!(target: "engine", "no parent state for {}", &parent.hash());
-                            return None;
+                            return Err(From::from(format!("parent state could not be recovered for block {}", &parent.hash())));
                         }
                     }
 
                     // Get the last checkpoint header
                     if let Some(last_checkpoint_header) = c.block_header(BlockId::Hash(*chain.last().unwrap().parent_hash())) {
                         if let Err(_) = state.apply_checkpoint(&last_checkpoint_header.decode().unwrap()) {
-                            trace!(target: "engine", "failed to apply checkpoint");
-                            return None;
+                            return Err(From::from("failed to apply checkpoint"));
                         }
                     }
 
@@ -191,15 +189,16 @@ impl Clique {
 
                     for item in chain {
                         if let Err(_) = state.apply(item) {
-                            trace!(target: "engine", "failed to apply item");
-                            return None;
+                            return Err(From::from("failed to apply item"));
                         }
                     }
 
-                    return state.state(&parent.hash());
+                    match state.state(&parent.hash()) {
+                        Some(st) => { return Ok(st); },
+                        None => { panic!("Parent state should exist after being recovered. block {}", &parent.hash()); }
+                    }
                 } else {
-                    trace!(target: "engine", "failed to upgrade client");
-                    return None;
+                    return Err(From::from("failed to upgrade client reference"));
                 }
             }
         }
@@ -340,9 +339,8 @@ impl Engine<EthereumMachine> for Clique {
 			return Seal::None;
 		}
 
-		if self.state(&_parent).is_none() {
-			panic!("could not recover voting state when sealing on block {}", _parent.number() + 1 );
-		}
+        //ensure the voting state exists
+		self.state(&_parent).unwrap();
 
 		let mut state = self.state.write();
 
@@ -471,8 +469,8 @@ impl Engine<EthereumMachine> for Clique {
 					 header.number(), *self.state.read());
 							 */
 
-		if self.state(&parent).is_none() {
-            return Err(From::from(format!("could not parse parent state for {}", &parent.hash())));
+		if let Err(e) = self.state(&parent) {
+            return Err(e);
         }
 
 		let mut state = self.state.write();

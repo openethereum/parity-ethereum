@@ -124,7 +124,6 @@ impl CliqueState {
 	/// Apply an new header
 	pub fn apply(&mut self, header: &Header) -> Result<(), Error> {
 		let db = self.states_by_hash.borrow_mut();
-			trace!(target: "engine", "applying header {}", header.hash());
 
 		// make sure current hash is not in the db
 		match db.get_mut(header.parent_hash()).cloned() {
@@ -144,7 +143,6 @@ impl CliqueState {
 					new_state.recent_signers.pop_back();
 				}
 
-				trace!(target: "engine", "inserting {} {:?}", header.hash(), &new_state);
 				db.insert(header.hash(), new_state.clone());
 				Ok(())
 			}
@@ -220,7 +218,6 @@ fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 	// NOTE: base on geth implmentation , signers list area always sorted to ascending order.
 	signers_list.sort();
 
-	trace!(target: "engine", "extracted signers {:?}", &signers_list);
 	Ok(signers_list)
 }
 
@@ -274,13 +271,9 @@ fn clique_hash(h: &Header) -> U256 {
 /// Apply header to the state, used in block sealing and external block import
 fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64) -> Result<Address, Error> {
 
-	trace!(target: "engine", "called process_header for {}", header.number());
-
 	if header.extra_data().len() < SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize {
 		return Err(From::from(format!("header extra data was too small: {}", header.extra_data().len())));
 	}
-
-	trace!(target: "engine", "extra_data field has valid length: {:?}", header.extra_data());
 
 	let creator = public_to_address(&recover(header).unwrap()).clone();
 
