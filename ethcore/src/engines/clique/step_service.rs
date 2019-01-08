@@ -37,8 +37,8 @@ impl<M: Machine> StepService<M> {
 }
 
 fn set_timeout<S: Sync + Send + Clone + 'static + Debug> (io: &IoContext<S>, timeout: Duration) {
-		io.register_timer((1 as usize).into(), timeout)
-					.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
+	io.register_timer((1 as usize).into(), timeout)
+		.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
 }
 
 impl<S, M> IoHandler<S> for StepService<M>

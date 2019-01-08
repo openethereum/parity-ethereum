@@ -61,14 +61,14 @@ pub struct CliqueBlock {
 pub struct CliqueState {
 	epoch_length: u64,
 	states_by_hash: LruCache<H256, SnapshotState>,
-		signer: RwLock<Option<Address>>,
-		active_prop_delay: Option<(H256, SystemTime, Duration)>
+	signer: RwLock<Option<Address>>,
+	active_prop_delay: Option<(H256, SystemTime, Duration)>
 }
 
 impl fmt::Debug for CliqueState {
-		fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				write!(f, "CliqueState {{ epoch_length: {}, states_by_hash: {:?}, signer: {} }}", self.epoch_length, &self.states_by_hash, self.signer.read().unwrap_or(Address::new()))
-		}
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "CliqueState {{ epoch_length: {}, states_by_hash: {:?}, signer: {} }}", self.epoch_length, &self.states_by_hash, self.signer.read().unwrap_or(Address::new()))
+	}
 }
 
 #[derive(Clone, Debug)]
@@ -84,8 +84,8 @@ impl CliqueState {
 		CliqueState {
 			epoch_length: epoch_length,
 			states_by_hash: LruCache::new(STATE_CACHE_NUM),
-						signer: RwLock::new(None),
-						active_prop_delay: None,
+				signer: RwLock::new(None),
+				active_prop_delay: None,
 		}
 	}
 
@@ -95,36 +95,36 @@ impl CliqueState {
 		return db.get_mut(hash).cloned();
 	}
 
-		pub fn turn_delay(&mut self, header: &Header) -> bool {
-				match self.active_prop_delay {
-						Some((parent_hash, start, duration)) => {
-								if *header.parent_hash() != parent_hash {
-										// reorg.  make sure the timer is reset
-										self.active_prop_delay = Some((header.parent_hash().clone(),
-																									 SystemTime::now(),
-																									 Duration::from_millis(thread_rng().gen_range::<u64>(0, self.state(header.parent_hash()).unwrap().signers.len() as u64 * 500))));
-										return false;
-								}
-
-								if start.elapsed().expect("start delay was after current time") >= duration {
-										return true
-								} else {
-										return false
-								}
-						},
-						None => {
-								self.active_prop_delay = Some((header.parent_hash().clone(),
-																							 SystemTime::now(),
-																							 Duration::from_millis(thread_rng().gen_range::<u64>(0, self.state(header.parent_hash()).unwrap().signers.len() as u64 * 500))));
-								return false;
-						}
+	pub fn turn_delay(&mut self, header: &Header) -> bool {
+		match self.active_prop_delay {
+			Some((parent_hash, start, duration)) => {
+				if *header.parent_hash() != parent_hash {
+					// reorg.  make sure the timer is reset
+					self.active_prop_delay = Some((header.parent_hash().clone(),
+																					SystemTime::now(),
+																					Duration::from_millis(thread_rng().gen_range::<u64>(0, self.state(header.parent_hash()).unwrap().signers.len() as u64 * 500))));
+					return false;
 				}
+
+				if start.elapsed().expect("start delay was after current time") >= duration {
+					return true
+				} else {
+					return false
+				}
+			},
+			None => {
+					self.active_prop_delay = Some((header.parent_hash().clone(),
+																					SystemTime::now(),
+																					Duration::from_millis(thread_rng().gen_range::<u64>(0, self.state(header.parent_hash()).unwrap().signers.len() as u64 * 500))));
+					return false;
+			}
 		}
+	}
 
 	/// Apply an new header
 	pub fn apply(&mut self, header: &Header) -> Result<(), Error> {
 		let db = self.states_by_hash.borrow_mut();
-				trace!(target: "engine", "applying header {}", header.hash());
+			trace!(target: "engine", "applying header {}", header.hash());
 
 		// make sure current hash is not in the db
 		match db.get_mut(header.parent_hash()).cloned() {
@@ -144,7 +144,7 @@ impl CliqueState {
 					new_state.recent_signers.pop_back();
 				}
 
-								trace!(target: "engine", "inserting {} {:?}", header.hash(), &new_state);
+				trace!(target: "engine", "inserting {} {:?}", header.hash(), &new_state);
 				db.insert(header.hash(), new_state.clone());
 				Ok(())
 			}
@@ -167,36 +167,36 @@ impl CliqueState {
 		};
 		process_genesis_header(header, state)?;
 
-				trace!("inserting {} {:?}", header.hash(), &state);
+		trace!("inserting {} {:?}", header.hash(), &state);
 		db.insert(header.hash(), state.clone());
 
 		Ok(())
 	}
 
-		pub fn set_signer_address(&self, signer_address: Address) {
-				trace!(target: "engine", "setting signer {}", signer_address);
-				*self.signer.write() = Some(signer_address.clone());
+	pub fn set_signer_address(&self, signer_address: Address) {
+		trace!(target: "engine", "setting signer {}", signer_address);
+		*self.signer.write() = Some(signer_address.clone());
+	}
+
+	pub fn proposer_authorization(&mut self, header: &Header) -> SignerAuthorization {
+		let mut db = self.states_by_hash.borrow_mut();
+
+		let proposer_address = match *self.signer.read() {
+			Some(address) => address.clone(),
+			None => { return SignerAuthorization::Unauthorized }
+		};
+
+		match db.get_mut(header.parent_hash()).cloned() {
+			Some(ref state) => {
+				return state.get_signer_authorization(header.number(), &proposer_address);
+			},
+			None => {
+				panic!("Parent block (hash: {}) for Block {}, hash {} is not found!",
+								header.parent_hash(),
+								header.number(), header.hash())
+			}
 		}
-
-		pub fn proposer_authorization(&mut self, header: &Header) -> SignerAuthorization {
-				let mut db = self.states_by_hash.borrow_mut();
-
-				let proposer_address = match *self.signer.read() {
-						Some(address) => address.clone(),
-						None => { return SignerAuthorization::Unauthorized }
-				};
-
-				match db.get_mut(header.parent_hash()).cloned() {
-						Some(ref state) => {
-								return state.get_signer_authorization(header.number(), &proposer_address);
-						},
-						None => {
-								panic!("Parent block (hash: {}) for Block {}, hash {} is not found!",
-														header.parent_hash(),
-														header.number(), header.hash())
-						}
-				}
-		}
+	}
 }
 
 fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
@@ -234,14 +234,14 @@ impl SnapshotState {
 				if self.recent_signers.contains(&self.signers[pos]) && pos != self.signers.len()-1 {
 					return SignerAuthorization::Unauthorized;
 				} else {
-										// author didn't sign recently, or will be shifted out of the recent
-										// signer list this block
+					// author didn't sign recently, or will be shifted out of the recent
+					// signer list this block
 					return SignerAuthorization::OutOfTurn;
 				}
 			}
 		}
 
-				trace!(target: "engine", "get_signer_authorization, didn't find {} in signers list {:?}", author, &self.signers);
+		trace!(target: "engine", "get_signer_authorization, didn't find {} in signers list {:?}", author, &self.signers);
 		return SignerAuthorization::Unauthorized;
 	}
 }
@@ -250,10 +250,8 @@ fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<
 	state.signers = extract_signers(header)?;
 	state.votes.clear();
 	state.votes_history.clear();
-		state.recent_signers.clear();
-
-		trace!(target: "engine", "genesis signers are {:?}", &state.signers);
-
+	state.recent_signers.clear();
+	trace!(target: "engine", "genesis signers are {:?}", &state.signers);
 	Ok(())
 }
 
@@ -261,28 +259,28 @@ fn process_genesis_header(header: &Header, state: &mut SnapshotState) -> Result<
 // the signature bytes
 /*
 fn clique_hash(h: &Header) -> U256 {
-		let mut header = header.clone();
-		let new_extra_data_len = h.header.extra_data.len()-SIGNER_SIG_LENGTH
-		let old_extra_data = &h.header.extra_data()[0..new_extra_data_len];
-		let mut extra_data = Vec<u8>::new(new_extra_data_len);
+	let mut header = header.clone();
+	let new_extra_data_len = h.header.extra_data.len()-SIGNER_SIG_LENGTH
+	let old_extra_data = &h.header.extra_data()[0..new_extra_data_len];
+	let mut extra_data = Vec<u8>::new(new_extra_data_len);
 
-		extra_data.copy_from_slice(old_extra_data);
-		header.set_extra_data(extra_data);
+	extra_data.copy_from_slice(old_extra_data);
+	header.set_extra_data(extra_data);
 
-		return header.hash();
+	return header.hash();
 }
 */
 
 /// Apply header to the state, used in block sealing and external block import
 fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64) -> Result<Address, Error> {
 
-		trace!(target: "engine", "called process_header for {}", header.number());
+	trace!(target: "engine", "called process_header for {}", header.number());
 
-		if header.extra_data().len() < SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize {
-				return Err(From::from(format!("header extra data was too small: {}", header.extra_data().len())));
-		}
+	if header.extra_data().len() < SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize {
+		return Err(From::from(format!("header extra data was too small: {}", header.extra_data().len())));
+	}
 
-		trace!(target: "engine", "extra_data field has valid length: {:?}", header.extra_data());
+	trace!(target: "engine", "extra_data field has valid length: {:?}", header.extra_data());
 
 	let creator = public_to_address(&recover(header).unwrap()).clone();
 
@@ -310,9 +308,9 @@ fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64)
 	if header.number() % epoch_length == 0 {
 		let signers = extract_signers(header)?;
 
-				assert!(signers.iter().zip(state.signers.iter()).filter(|(a, b)| { a != b }).count() == 0, "received signer list did not match computed");
+			assert!(signers.iter().zip(state.signers.iter()).filter(|(a, b)| { a != b }).count() == 0, "received signer list did not match computed");
 
-				state.signers = signers;
+			state.signers = signers;
 		state.votes.clear();
 		state.votes_history.clear();
 		return Ok(creator);
@@ -353,7 +351,7 @@ fn process_header(header: &Header, state: &mut SnapshotState, epoch_length: u64)
 		match vote_type {
 			VoteType::Add => {
 				state.signers.push(beneficiary);
-			} ,
+			},
 			VoteType::Remove => {
 				let pos = state.signers.binary_search(&beneficiary);
 				if pos.is_ok() {
