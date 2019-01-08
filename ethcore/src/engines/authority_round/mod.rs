@@ -1422,16 +1422,21 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				let mut finality_proof: Vec<_> = itertools::repeat_call(move || {
 					chain(hash).and_then(|header| {
 						hash = *header.parent_hash();
-						if header.number() == 0 { return None }
-						else { return Some(header) }
+						if header.number() == 0 { None }
+						else { Some(header) }
 					})
 				})
 					.while_some()
 					.take_while(|h| h.hash() != *finalized_hash)
 					.collect();
 
-				let finalized_header = chain(*finalized_hash)
-					.expect("header is finalized; finalized headers must exist in the chain; qed");
+				let finalized_header = if *finalized_hash == chain_head.hash() {
+					// chain closure only stores ancestry, but the chain head is also unfinalized.
+					chain_head.clone()
+				} else {
+					chain(*finalized_hash)
+						.expect("header is finalized; finalized headers must exist in the chain; qed")
+				};
 
 				let signal_number = finalized_header.number();
 				info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
