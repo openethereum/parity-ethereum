@@ -483,11 +483,10 @@ mod tests {
 	use kvdb::DBTransaction;
 	use test_helpers::get_temp_state_db;
 	use state::{Account, Backend};
-	use ethcore_logger::init_log;
 
 	#[test]
 	fn state_db_smoke() {
-		init_log();
+		let _ = ::env_logger::try_init();
 
 		let state_db = get_temp_state_db();
 		let root_parent = H256::random();

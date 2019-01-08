@@ -17,9 +17,9 @@
 //! Contract for private transactions tests.
 
 extern crate common_types as types;
+extern crate env_logger;
 extern crate ethcore;
 extern crate ethcore_io;
-extern crate ethcore_logger;
 extern crate ethcore_private_tx;
 extern crate ethkey;
 extern crate keccak_hash as hash;
@@ -47,7 +47,7 @@ use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig};
 #[test]
 fn private_contract() {
 	// This uses a simple private contract: contract Test1 { bytes32 public x; function setX(bytes32 _x) { x = _x; } }
-	ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 	let client = generate_dummy_client(0);
 	let chain_id = client.signing_chain_id();
 	let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000011")).unwrap();

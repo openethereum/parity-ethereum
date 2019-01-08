@@ -42,7 +42,7 @@ parity-bytes = "0.1"
 parity-crypto = "0.2"
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
-ethcore-logger = { path = "../logger" }
+ethcore-logger = { path = "../parity/logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }

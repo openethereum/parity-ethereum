@@ -13,6 +13,7 @@ bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
 crossbeam = "0.4"
+env_logger = { version = "0.5", optional = true }
 error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
 ethabi-contract = "6.0"
@@ -22,7 +23,6 @@ ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
-ethcore-logger = { path = "../logger", optional = true }
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../miner/stratum", optional = true }
 ethereum-types = "0.4"
@@ -81,7 +81,6 @@ fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
 blooms-db = { path = "../util/blooms-db" }
 criterion = "0.2"
 env_logger = "0.5"
-ethcore-logger = { path = "../logger" }
 kvdb-rocksdb = "0.1.3"
 rlp_compress = { path = "../util/rlp-compress" }
 tempdir = "0.3"
@@ -109,7 +108,7 @@ evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 # EVM debug traces are printed.
 slow-blocks = []
 # Run JSON consensus tests.
-json-tests = ["ethcore-logger", "test-helpers", "tempdir", "to-pod-full"]
+json-tests = ["env_logger", "test-helpers", "to-pod-full"]
 # Skip JSON consensus tests with pending issues.
 ci-skip-issue = []
 # Run memory/cpu heavy tests.

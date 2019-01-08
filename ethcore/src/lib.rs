@@ -108,13 +108,11 @@ extern crate wasm;
 
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
-#[cfg(any(test, feature = "json-tests", feature = "test-helpers"))]
+#[cfg(any(test, feature = "tempdir"))]
 extern crate tempdir;
-#[cfg(any(test, feature = "json-tests"))]
-extern crate ethcore_logger;
-#[cfg(any(test, feature = "test-helpers"))]
+#[cfg(any(test, feature = "kvdb-rocksdb"))]
 extern crate kvdb_rocksdb;
-#[cfg(any(test, feature = "test-helpers"))]
+#[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
@@ -145,7 +143,7 @@ extern crate serde_derive;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;

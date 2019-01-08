@@ -18,4 +18,3 @@ parking_lot = "0.7"
 env_logger = "0.5"
 tokio = "0.1"
 tokio-io = "0.1"
-ethcore-logger = { path = "../../logger" }
