@@ -3,10 +3,9 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-case ${CI_COMMIT_REF_NAME} in
-  nightly|*v2.3*) export GRADE="devel" CHANNEL="edge";;
-  beta|*v2.2*) export GRADE="stable" CHANNEL="beta";;
-  case ${CI_COMMIT_REF_NAME} in
+TRACK=`awk -F '=' '/^track/ {print $2}' ./util/version/Cargo.toml`
+
+case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
   beta) export GRADE="stable" CHANNEL="beta";;
   stable) export GRADE="stable" CHANNEL="stable";;
