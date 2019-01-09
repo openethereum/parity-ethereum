@@ -3,11 +3,10 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-# TRACK=`awk -F '=' '/^track/ {print $2}' util/version/Cargo.toml`
 # some necromancy:
-TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); print $2}' util/version/Cargo.toml`
-
-
+# gsub(/"/, "", $2) deletes "qoutes" 
+# gsub(/ /, "", $2) deletes whitespaces
+TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
 echo $TRACK
 
 case ${TRACK} in
