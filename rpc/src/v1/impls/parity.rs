@@ -44,7 +44,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, ChainStatus, Log, Filter,
 	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 	block_number_to_id
 };
@@ -480,5 +480,11 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn submit_work_detail(&self, nonce: H64, pow_hash: H256, mix_hash: H256) -> Result<H256> {
 		helpers::submit_work_detail(&self.client, &self.miner, nonce, pow_hash, mix_hash)
+	}
+
+	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
+		use v1::impls::eth::base_logs;
+		// only specific impl for lightclient
+		base_logs(&*self.client, &*self.miner, filter.into())
 	}
 }

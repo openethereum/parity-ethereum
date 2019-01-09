@@ -20,13 +20,12 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_macros::Trailing;
-
 use v1::types::{
 	H64, H160, H256, H512, U256, Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, ChainStatus, Log, Filter,
 	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 };
 
@@ -227,5 +226,11 @@ build_rpc_trait! {
 		/// but returns block hash on success, and returns an explicit error message on failure).
 		#[rpc(name = "parity_submitWorkDetail")]
 		fn submit_work_detail(&self, H64, H256, H256) -> Result<H256>;
+
+		/// Returns logs matching given filter object.
+		/// Is allowed to skip filling transaction hash for faster query.
+		#[rpc(name = "parity_getLogsNoTransactionHash")]
+		fn logs_no_tx_hash(&self, Filter) -> BoxFuture<Vec<Log>>;
+
 	}
 }

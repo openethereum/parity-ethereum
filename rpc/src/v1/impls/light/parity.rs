@@ -28,7 +28,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
-use jsonrpc_core::futures::Future;
+use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::LightDispatcher;
@@ -42,6 +42,7 @@ use v1::types::{
 	BlockNumber, LightBlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, ChainStatus,
 	AccountInfo, HwAccountInfo, Header, RichHeader, Receipt,
+	Log, Filter,
 };
 use Host;
 
@@ -413,5 +414,14 @@ impl Parity for ParityClient {
 
 	fn submit_work_detail(&self, _nonce: H64, _pow_hash: H256, _mix_hash: H256) -> Result<H256> {
 		Err(errors::light_unimplemented(None))
+	}
+
+
+	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
+		let filter = match filter.try_into() {
+			Ok(value) => value,
+			Err(err) => return Box::new(future::err(err)),
+		};
+		Box::new(self.fetcher().logs_no_tx_hash(filter)) as BoxFuture<_>
 	}
 }

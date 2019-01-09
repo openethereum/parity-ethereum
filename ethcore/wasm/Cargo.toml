@@ -9,7 +9,7 @@ ethereum-types = "0.4"
 log = "0.4"
 parity-wasm = "0.31"
 libc = "0.2"
-pwasm-utils = "0.2.2"
+pwasm-utils = "0.6.1"
 vm = { path = "../vm" }
 ethcore-logger = { path = "../../logger" }
 wasmi = "0.3.0"

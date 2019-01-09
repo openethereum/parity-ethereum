@@ -69,7 +69,6 @@ pub use error::{Error, ErrorKind};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet};
-use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
 use rlp::*;
@@ -82,7 +81,7 @@ use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
-	Client, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage, BlockId, CallContract
+	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId, CallContract
 };
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
@@ -101,6 +100,12 @@ const INIT_VEC_LEN: usize = 16;
 
 /// Size of nonce cache
 const NONCE_CACHE_SIZE: usize = 128;
+
+/// Version for the initial private contract wrapper
+const INITIAL_PRIVATE_CONTRACT_VER: usize = 1;
+
+/// Version for the private contract notification about private state changes added
+const PRIVATE_CONTRACT_WITH_NOTIFICATION_VER: usize = 2;
 
 /// Configurtion for private transaction provider
 #[derive(Default, PartialEq, Debug, Clone)]
@@ -203,29 +208,29 @@ impl Provider where {
 				bail!(ErrorKind::BadTransactonType);
 			}
 			Action::Call(contract) => {
-				let data = signed_transaction.rlp_bytes();
-				let encrypted_transaction = self.encrypt(&contract, &Self::iv_from_transaction(&signed_transaction), &data)?;
-				let private = PrivateTransaction::new(encrypted_transaction, contract);
+		let data = signed_transaction.rlp_bytes();
+		let encrypted_transaction = self.encrypt(&contract, &Self::iv_from_transaction(&signed_transaction), &data)?;
+		let private = PrivateTransaction::new(encrypted_transaction, contract);
 				// TODO [ToDr] Using BlockId::Latest is bad here,
-				// the block may change in the middle of execution
-				// causing really weird stuff to happen.
-				// We should retrieve hash and stick to that. IMHO
-				// best would be to change the API and only allow H256 instead of BlockID
-				// in private-tx to avoid such mistakes.
-				let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
-				let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction)?;
-				trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
-				let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
-				trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
-				let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-				trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
-				self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, contract_validators, private_state, contract_nonce)?;
-				self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
-				Ok(Receipt {
-					hash: tx_hash,
-					contract_address: Some(contract),
-					status_code: 0,
-				})
+		// the block may change in the middle of execution
+		// causing really weird stuff to happen.
+		// We should retrieve hash and stick to that. IMHO
+		// best would be to change the API and only allow H256 instead of BlockID
+		// in private-tx to avoid such mistakes.
+		let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
+		let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction)?;
+		trace!(target: "privatetx", "Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
+		let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
+		trace!(target: "privatetx", "Required validators: {:?}", contract_validators);
+		let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
+		trace!(target: "privatetx", "Hashed effective private state for sender: {:?}", private_state_hash);
+		self.transactions_for_signing.write().add_transaction(private.hash(), signed_transaction, contract_validators, private_state, contract_nonce)?;
+		self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
+		Ok(Receipt {
+			hash: tx_hash,
+			contract_address: Some(contract),
+			status_code: 0,
+		})
 			}
 		}
 	}
@@ -271,27 +276,27 @@ impl Provider where {
 					let tx_action = transaction.transaction.action.clone();
 					if let Action::Call(contract) = tx_action {
 						// TODO [ToDr] Usage of BlockId::Latest
-						let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest);
-						if let Err(e) = contract_nonce {
-							bail!("Cannot retrieve contract nonce: {:?}", e);
-						}
-						let contract_nonce = contract_nonce.expect("Error was checked before");
-						let private_state = self.execute_private_transaction(BlockId::Latest, &transaction.transaction);
-						if let Err(e) = private_state {
-							bail!("Cannot retrieve private state: {:?}", e);
-						}
-						let private_state = private_state.expect("Error was checked before");
-						let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-						trace!(target: "privatetx", "Hashed effective private state for validator: {:?}", private_state_hash);
-						let password = find_account_password(&self.passwords, &*self.accounts, &validator_account);
-						let signed_state = self.accounts.sign(validator_account, password, private_state_hash);
-						if let Err(e) = signed_state {
-							bail!("Cannot sign the state: {:?}", e);
-						}
-						let signed_state = signed_state.expect("Error was checked before");
-						let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
-						trace!(target: "privatetx", "Sending signature for private transaction: {:?}", signed_private_transaction);
-						self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes());
+					let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest);
+					if let Err(e) = contract_nonce {
+						bail!("Cannot retrieve contract nonce: {:?}", e);
+					}
+					let contract_nonce = contract_nonce.expect("Error was checked before");
+					let private_state = self.execute_private_transaction(BlockId::Latest, &transaction.transaction);
+					if let Err(e) = private_state {
+						bail!("Cannot retrieve private state: {:?}", e);
+					}
+					let private_state = private_state.expect("Error was checked before");
+					let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
+					trace!(target: "privatetx", "Hashed effective private state for validator: {:?}", private_state_hash);
+					let password = find_account_password(&self.passwords, &*self.accounts, &validator_account);
+					let signed_state = self.accounts.sign(validator_account, password, private_state_hash);
+					if let Err(e) = signed_state {
+						bail!("Cannot sign the state: {:?}", e);
+					}
+					let signed_state = signed_state.expect("Error was checked before");
+					let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
+					trace!(target: "privatetx", "Sending signature for private transaction: {:?}", signed_private_transaction);
+					self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes());
 					} else {
 						bail!("Incorrect type of action for the transaction");
 					}
@@ -327,7 +332,7 @@ impl Provider where {
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(signed_tx.signature());
 			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
-			//Create public transaction
+			// Create public transaction
 			let public_tx = self.public_transaction(
 				desc.state.clone(),
 				&desc.original_transaction,
@@ -336,7 +341,7 @@ impl Provider where {
 				desc.original_transaction.gas_price
 			)?;
 			trace!(target: "privatetx", "Last required signature received, public transaction created: {:?}", public_tx);
-			//Sign and add it to the queue
+			// Sign and add it to the queue
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
 			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
@@ -350,13 +355,13 @@ impl Provider where {
 					bail!(err);
 				}
 			}
-			//Remove from store for signing
+			// Remove from store for signing
 			if let Err(err) = self.transactions_for_signing.write().remove(&private_hash) {
 				warn!(target: "privatetx", "Failed to remove transaction from signing store, error: {:?}", err);
 				bail!(err);
 			}
 		} else {
-			//Add signature to the store
+			// Add signature to the store
 			match self.transactions_for_signing.write().add_signature(&private_hash, signed_tx.signature()) {
 				Ok(_) => trace!(target: "privatetx", "Signature stored for private transaction"),
 				Err(err) => {
@@ -684,12 +689,11 @@ fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountPr
 }
 
 impl ChainNotify for Provider {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
-		if !imported.is_empty() {
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if new_blocks.imported.is_empty() || new_blocks.has_more_blocks_to_import { return }
 			trace!(target: "privatetx", "New blocks imported, try to prune the queue");
 			if let Err(err) = self.process_verification_queue() {
 				warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);
-			}
 		}
 	}
 }
