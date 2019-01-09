@@ -115,10 +115,10 @@ extern crate kvdb_rocksdb;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 extern crate hardware_wallet;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 extern crate fake_hardware_wallet as hardware_wallet;
 
 #[macro_use]
