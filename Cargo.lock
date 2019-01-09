@@ -676,7 +676,7 @@ dependencies = [
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "memory-cache 0.1.0",
- "memorydb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.3.0",
  "num 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -757,7 +757,7 @@ dependencies = [
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
- "memorydb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.3.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-util-mem 0.1.0",
  "parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1293,6 +1293,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs_extra"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "fuchsia-zircon"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1639,6 +1644,25 @@ version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "jemalloc-sys"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cc 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fs_extra 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "jemallocator"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "jemalloc-sys 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "jni"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1669,7 +1693,7 @@ dependencies = [
  "kvdb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "memorydb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.3.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-util-mem 0.1.0",
  "parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2015,12 +2039,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "memorydb"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "hashdb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "plain_hasher 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-util-mem 0.1.0",
+ "plain_hasher 0.2.0",
+ "rlp 0.3.0",
 ]
 
 [[package]]
@@ -2355,6 +2378,7 @@ dependencies = [
  "parity-rpc-client 1.4.0",
  "parity-runtime 0.1.0",
  "parity-updater 1.12.0",
+ "parity-util-mem 0.1.0",
  "parity-version 2.3.0",
  "parity-whisper 0.1.0",
  "parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2622,8 +2646,10 @@ dependencies = [
  "clear_on_drop 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jemallocator 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "malloc_size_of_derive 0.0.1",
  "parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2729,7 +2755,7 @@ dependencies = [
  "hashdb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hasher 0.1.1",
- "memorydb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.3.0",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2797,6 +2823,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "siphasher 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "plain_hasher"
+version = "0.2.0"
+dependencies = [
+ "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3100,6 +3133,14 @@ dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rlp"
+version = "0.3.0"
+dependencies = [
+ "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -4312,6 +4353,7 @@ dependencies = [
 "checksum fixedbitset 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "86d4de0081402f5e88cdac65c8dcdcc73118c1a7a465e2a05f0da05843a8ea33"
 "checksum fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "2fad85553e09a6f881f739c29f0b00b0f01357c743266d478b68951ce23285f3"
 "checksum fs-swap 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "921d332c89b3b61a826de38c61ee5b6e02c56806cade1b0e5d81bd71f57a71bb"
+"checksum fs_extra 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5f2a4a2034423744d2cc7ca2068453168dcdb82c438419e639a26bd87839c674"
 "checksum fuchsia-zircon 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2e9763c69ebaae630ba35f74888db465e49e259ba1bc0eda7d06f4a067615d82"
 "checksum fuchsia-zircon-sys 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 "checksum futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)" = "49e7653e374fe0d0c12de4250f0bdb60680b8c80eed558c5c7538eec9c89e21b"
@@ -4348,6 +4390,8 @@ dependencies = [
 "checksum itertools 0.7.8 (registry+https://github.com/rust-lang/crates.io-index)" = "f58856976b776fedd95533137617a02fb25719f40e7d9b01c7043cd65474f450"
 "checksum itertools-num 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "83ca7b70b838f2e34bc6c2f367a1ed1cfe34fb82464adecadd31cdcc7da882fc"
 "checksum itoa 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1306f3464951f30e30d12373d31c79fbd52d236e5e896fd92f96ec7babbbe60b"
+"checksum jemalloc-sys 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "bfc62c8e50e381768ce8ee0428ee53741929f7ebd73e4d83f669bcf7693e00ae"
+"checksum jemallocator 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "9f0cd42ac65f758063fea55126b0148b1ce0a6354ff78e07a4d6806bc65c4ab3"
 "checksum jni 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1ecfa3b81afc64d9a6539c4eece96ac9a93c551c713a313800dade8e33d7b5c1"
 "checksum jni-sys 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 "checksum jsonrpc-core 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)" = "<none>"
@@ -4383,7 +4427,6 @@ dependencies = [
 "checksum memmap 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e2ffa2c986de11a9df78620c01eeaaf27d94d3ff02bf81bfcca953102dd0c6ff"
 "checksum memoffset 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0f9dc261e2b62d7a622bf416ea3c5245cdd5d9a7fcc428c0d06804dfce1775b3"
 "checksum memory_units 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
-"checksum memorydb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e143fbad9f90d2158bca3c4b09015276a6de6f085a77088943901cb26828780f"
 "checksum mime 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)" = "0a907b83e7b9e987032439a387e187119cddafc92d5c2aaeb1d92580a793f630"
 "checksum mime_guess 2.0.0-alpha.6 (registry+https://github.com/rust-lang/crates.io-index)" = "30de2e4613efcba1ec63d8133f344076952090c122992a903359be5a4f99c3ed"
 "checksum mio 0.6.16 (registry+https://github.com/rust-lang/crates.io-index)" = "71646331f2619b1026cc302f87a2b8b648d5c6dd6937846a16cc8ce0f347f432"
