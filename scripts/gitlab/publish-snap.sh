@@ -3,13 +3,13 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-TRACK=`awk -F '=' '/^track/ {print $2}' ./util/version/Cargo.toml`
+TRACK=`awk -F '=' '/^track/ {print $2}' ../../util/version/Cargo.toml`
 
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
   beta) export GRADE="stable" CHANNEL="beta";;
   stable) export GRADE="stable" CHANNEL="stable";;
-  *) echo "No release" exit 0;;
+  *) echo "No release" && exit 0;;
 esac
 
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
