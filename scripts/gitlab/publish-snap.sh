@@ -5,6 +5,8 @@ set -u # treat unset variables as error
 
 TRACK=`awk -F '=' '/^track/ {print $2}' ../../util/version/Cargo.toml`
 
+echo $TRACK
+
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
   beta) export GRADE="stable" CHANNEL="beta";;
@@ -29,8 +31,11 @@ cat $SNAP_PACKAGE".sha256"
 echo "__________Releasing snap package__________"
 echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 
-echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
-snapcraft login --with snapcraft.login
-snapcraft push --release $CHANNEL $SNAP_PACKAGE
-snapcraft status parity
-snapcraft logout
+# remove after tests
+exit
+
+# echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
+# snapcraft login --with snapcraft.login
+# snapcraft push --release $CHANNEL $SNAP_PACKAGE
+# snapcraft status parity
+# snapcraft logout
