@@ -3,7 +3,7 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-TRACK=`awk -F '=' '/^track/ {print $2}' ../../util/version/Cargo.toml`
+TRACK=`awk -F '=' '/^track/ {print $2}' util/version/Cargo.toml`
 
 echo $TRACK
 
