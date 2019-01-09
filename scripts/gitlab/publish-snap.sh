@@ -7,7 +7,7 @@ set -u # treat unset variables as error
 # gsub(/"/, "", $2) deletes "qoutes" 
 # gsub(/ /, "", $2) deletes whitespaces
 TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
-echo $TRACK
+echo Track is: $TRACK
 
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
@@ -33,11 +33,8 @@ cat $SNAP_PACKAGE".sha256"
 echo "__________Releasing snap package__________"
 echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 
-# remove after tests
-exit
-
-# echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
-# snapcraft login --with snapcraft.login
-# snapcraft push --release $CHANNEL $SNAP_PACKAGE
-# snapcraft status parity
-# snapcraft logout
+echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
+snapcraft login --with snapcraft.login
+snapcraft push --release $CHANNEL $SNAP_PACKAGE
+snapcraft status parity
+snapcraft logout
