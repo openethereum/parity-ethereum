@@ -1160,7 +1160,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// This will add local service transactions to the queue. Since `on_new_block` is called before the transactions
 		// are selected from the queue and local transactions are prioritized, they should end up in this block.
 		// TODO: Verify this!
-		if let (Some(contract_addr), Some(our_addr)) = (self.randomness_contract_address, self.signer.read().address()) {
+		if let (Some(contract_addr), Some(our_addr)) =
+			(self.randomness_contract_address, self.signer.read().as_ref().map(|signer| signer.address())) {
 			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
 				Some(client) => client,
 				None => {

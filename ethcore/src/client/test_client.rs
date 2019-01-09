@@ -875,12 +875,14 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
+	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>)
+		-> Result<(), transaction::Error>
+	{
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&self.miner.authoring_params().author),
-			action: Action::Call(address),
-			gas: self.spec.gas_limit,
-			gas_price: U256::zero(),
+			action,
+			gas: gas.unwrap_or(self.spec.gas_limit),
+			gas_price: gas_price.unwrap_or(U256::zero()),
 			value: U256::default(),
 			data: data,
 		};

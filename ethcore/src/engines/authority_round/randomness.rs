@@ -190,7 +190,7 @@ impl RandomnessPhase {
 
 				// Schedule the transaction that commits the hash.
 				let data = aura_random::functions::commit_hash::call(secret_hash);
-				contract.schedule_call_transaction(data).map_err(PhaseError::TransactionFailed)?;
+				contract.schedule_service_transaction(data).map_err(PhaseError::TransactionFailed)?;
 
 				// Store the newly generated secret.
 				Ok(Some(secret))
@@ -210,7 +210,7 @@ impl RandomnessPhase {
 
 				// We are now sure that we have the correct secret and can reveal it.
 				let data = aura_random::functions::reveal_secret::call(secret);
-				contract.schedule_call_transaction(data).map_err(PhaseError::TransactionFailed)?;
+				contract.schedule_service_transaction(data).map_err(PhaseError::TransactionFailed)?;
 
 				// We still pass back the secret -- if anything fails later down the line, we can
 				// resume by simply creating another transaction.
