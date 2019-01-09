@@ -1,25 +1,23 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use api::WARP_SYNC_PROTOCOL_ID;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
-use ethcore::client::{BlockId, BlockStatus};
 use ethcore::error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind, BlockError};
-use ethcore::header::BlockNumber;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
@@ -27,10 +25,12 @@ use hash::keccak;
 use network::PeerId;
 use rlp::Rlp;
 use snapshot::ChunkType;
-use std::cmp;
-use std::mem;
 use std::time::Instant;
+use std::{mem, cmp};
 use sync_io::SyncIo;
+use types::BlockNumber;
+use types::block_status::BlockStatus;
+use types::ids::BlockId;
 
 use super::{
 	BlockSet,
@@ -557,7 +557,9 @@ impl SyncHandler {
 	fn on_peer_status(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
 		sync.handshaking_peers.remove(&peer_id);
 		let protocol_version: u8 = r.val_at(0)?;
-		let warp_protocol = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id) != 0;
+		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id);
+		let warp_protocol = warp_protocol_version != 0;
+		let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
 		let peer = PeerInfo {
 			protocol_version: protocol_version,
 			network_id: r.val_at(1)?,
@@ -576,10 +578,26 @@ impl SyncHandler {
 			snapshot_hash: if warp_protocol { Some(r.val_at(5)?) } else { None },
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,
+			private_tx_enabled: if private_tx_protocol { r.val_at(7).unwrap_or(false) } else { false },
 		};
 
-		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{}, snapshot:{:?})",
-			peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis, peer.snapshot_number);
+		trace!(target: "sync", "New peer {} (\
+			protocol: {}, \
+			network: {:?}, \
+			difficulty: {:?}, \
+			latest:{}, \
+			genesis:{}, \
+			snapshot:{:?}, \
+			private_tx_enabled:{})",
+			peer_id,
+			peer.protocol_version,
+			peer.network_id,
+			peer.difficulty,
+			peer.latest_hash,
+			peer.genesis,
+			peer.snapshot_number,
+			peer.private_tx_enabled
+		);
 		if io.is_expired() {
 			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
 			return Ok(());
@@ -654,9 +672,15 @@ impl SyncHandler {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
-
+		let private_handler = match sync.private_tx_handler {
+			Some(ref handler) => handler,
+			None => {
+				trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
+				return Ok(());
+			}
+		};
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
-		match sync.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
+		match private_handler.import_signed_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
 				//don't send the packet back
 				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
@@ -676,10 +700,15 @@ impl SyncHandler {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
-
+		let private_handler = match sync.private_tx_handler {
+			Some(ref handler) => handler,
+			None => {
+				trace!(target: "sync", "{} Ignoring private tx packet from peer", peer_id);
+				return Ok(());
+			}
+		};
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
-
-		match sync.private_tx_handler.import_private_transaction(r.as_raw()) {
+		match private_handler.import_private_transaction(r.as_raw()) {
 			Ok(transaction_hash) => {
 				//don't send the packet back
 				if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {

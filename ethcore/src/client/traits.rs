@@ -1,56 +1,55 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use blockchain::{BlockReceipts, TreeRoute};
+use bytes::Bytes;
+use ethcore_miner::pool::VerifiedTransaction;
+use ethereum_types::{H256, U256, Address};
+use evm::Schedule;
 use itertools::Itertools;
+use kvdb::DBValue;
+use types::transaction::{self, LocalizedTransaction, SignedTransaction};
+use types::BlockNumber;
+use types::basic_account::BasicAccount;
+use types::block_status::BlockStatus;
+use types::blockchain_info::BlockChainInfo;
+use types::call_analytics::CallAnalytics;
+use types::encoded;
+use types::filter::Filter;
+use types::header::Header;
+use types::ids::*;
+use types::log_entry::LocalizedLogEntry;
+use types::pruning_info::PruningInfo;
+use types::receipt::LocalizedReceipt;
+use types::trace_filter::Filter as TraceFilter;
+use vm::LastHashes;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use blockchain::{BlockReceipts, TreeRoute};
 use client::Mode;
-use encoded;
-use vm::LastHashes;
-use error::{Error, CallError, EthcoreResult};
-use evm::Schedule;
+use engines::EthEngine;
+use error::{Error, EthcoreResult};
+use executed::CallError;
 use executive::Executed;
-use filter::Filter;
-use header::{BlockNumber};
-use log_entry::LocalizedLogEntry;
-use receipt::LocalizedReceipt;
+use state::StateInfo;
 use trace::LocalizedTrace;
-use transaction::{self, LocalizedTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 use verification::queue::kind::blocks::Unverified;
-use state::StateInfo;
-use header::Header;
-use engines::EthEngine;
-
-use ethereum_types::{H256, U256, Address};
-use ethcore_miner::pool::VerifiedTransaction;
-use bytes::Bytes;
-use kvdb::DBValue;
-
-use types::ids::*;
-use types::basic_account::BasicAccount;
-use types::trace_filter::Filter as TraceFilter;
-use types::call_analytics::CallAnalytics;
-use types::blockchain_info::BlockChainInfo;
-use types::block_status::BlockStatus;
-use types::pruning_info::PruningInfo;
 
 /// State information to be used during client query
 pub enum StateOrBlock {

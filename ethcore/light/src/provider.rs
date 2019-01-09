@@ -1,31 +1,31 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A provider for the PIP protocol. This is typically a full node, who can
 //! give as much data as necessary to its peers.
 
 use std::sync::Arc;
 
-use ethcore::blockchain_info::BlockChainInfo;
+use common_types::blockchain_info::BlockChainInfo;
+use common_types::encoded;
+use common_types::ids::BlockId;
+use common_types::transaction::PendingTransaction;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, BlockInfo as ClientBlockInfo};
-use ethcore::ids::BlockId;
-use ethcore::encoded;
 use ethereum_types::H256;
 use parking_lot::RwLock;
-use transaction::PendingTransaction;
 
 use cht::{self, BlockInfo};
 use client::{LightChainClient, AsLightClient};
@@ -161,7 +161,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)
 		-> Option<request::TransactionIndexResponse>
 	{
-		use ethcore::ids::TransactionId;
+		use common_types::ids::TransactionId;
 
 		self.transaction_receipt(TransactionId::Hash(req.hash)).map(|receipt| request::TransactionIndexResponse {
 			num: receipt.block_number,
@@ -265,7 +265,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn transaction_proof(&self, req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
-		use transaction::Transaction;
+		use common_types::transaction::Transaction;
 
 		let id = BlockId::Hash(req.block_hash);
 		let nonce = match self.nonce(&req.from, id) {
