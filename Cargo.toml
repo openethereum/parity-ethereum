@@ -69,10 +69,7 @@ ethcore-secretstore = { path = "secret_store", optional = true }
 
 registrar = { path = "registrar" }
 
-# parity-util-mem = { path = "../../parity-common/parity-util-mem", features = ["jemalloc-global"] }
-# parity-util-mem = { path = "../../parity-common/parity-util-mem", features = ["estimate-heapsize"] }
-parity-util-mem = { path = "../../parity-common/parity-util-mem", features = ["jemalloc-global", "estimate-heapsize"] }
-# parity-util-mem = { path = "../../parity-common/parity-util-mem", features = ["estimate-heapsize"] }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2", features = ["jemalloc-global", "estimate-heapsize"] }
 
 [build-dependencies]
 rustc_version = "0.2"
@@ -144,7 +141,8 @@ members = [
 ]
 
 [patch.crates-io]
-memorydb = { path = "../../parity-common2/memorydb" }
+memorydb = { git = "https://github.com/cheme/parity-common", branch = "rem_heapsize" }
+#memorydb = { path = "../../parity-common2/memorydb" }
 #ethabi = { path = "../../ethabi/ethabi" }
 #ethabi-derive = { path = "../../ethabi/derive" }
 #fixed-hash = { path = "../../parity-common/fixed-hash" }

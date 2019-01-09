@@ -11,7 +11,7 @@ parity-bytes = "0.1"
 ethereum-types = "0.4"
 ethjson = { path = "../../json" }
 keccak-hash = "0.1"
-parity-util-mem = { path = "../../../../parity-common/parity-util-mem" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
 
 [dev-dependencies]
 rustc-hex= "1.0"
