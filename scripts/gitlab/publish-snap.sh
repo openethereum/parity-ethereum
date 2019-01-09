@@ -6,7 +6,10 @@ set -u # treat unset variables as error
 case ${CI_COMMIT_REF_NAME} in
   nightly|*v2.3*) export GRADE="devel" CHANNEL="edge";;
   beta|*v2.2*) export GRADE="stable" CHANNEL="beta";;
-  stable|*v2.1*) export GRADE="stable" CHANNEL="stable";;
+  case ${CI_COMMIT_REF_NAME} in
+  nightly) export GRADE="devel" CHANNEL="edge";;
+  beta) export GRADE="stable" CHANNEL="beta";;
+  stable) export GRADE="stable" CHANNEL="stable";;
   *) echo "No release" exit 0;;
 esac
 
