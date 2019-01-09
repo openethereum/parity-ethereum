@@ -29,6 +29,7 @@ use hash::KECCAK_EMPTY;
 
 use_contract!(transact_acl_deprecated, "res/contracts/tx_acl_deprecated.json");
 use_contract!(transact_acl, "res/contracts/tx_acl.json");
+use_contract!(transact_acl_gas_price, "res/contracts/tx_acl_gas_price.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
 
@@ -80,6 +81,7 @@ impl TransactionFilter {
 
 		let sender = transaction.sender();
 		let value = transaction.value;
+		let gas_price = transaction.gas_price;
 		let key = (*parent_hash, sender);
 
 		if let Some(permissions) = permission_cache.get_mut(&key) {
@@ -104,17 +106,23 @@ impl TransactionFilter {
 						client.call_contract(BlockId::Hash(*parent_hash), contract_address, data)
 							.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
 							.map(|(p, f)| (p.low_u32(), f))
-							.unwrap_or_else(|e| {
-								error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
-								(tx_permissions::NONE, true)
-							})
-					},
+					}
+					0xffff_ffff_ffff_fffe => {
+						trace!(target: "tx_filter", "Using filter with gas price");
+						let (data, decoder) = transact_acl_gas_price::functions::allowed_tx_types::call(sender, to, value, gas_price);
+						client.call_contract(BlockId::Hash(*parent_hash), contract_address, data)
+							.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
+							.map(|(p, f)| (p.low_u32(), f))
+					}
 					_ => {
 						error!(target: "tx_filter", "Unknown version of tx permissions contract is used");
-						(tx_permissions::NONE, true)
+						Ok((tx_permissions::NONE, true))
 					}
-				}
-			},
+				}.unwrap_or_else(|e| {
+					error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
+					(tx_permissions::NONE, true)
+				})
+			}
 			None => {
 				trace!(target: "tx_filter", "Fallback to the deprecated version of tx permission contract");
 				let (data, decoder) = transact_acl_deprecated::functions::allowed_tx_types::call(sender);
@@ -132,8 +140,8 @@ impl TransactionFilter {
 			permission_cache.insert((*parent_hash, sender), permissions);
 		}
 		trace!(target: "tx_filter",
-			"Given transaction data: sender: {:?} to: {:?} value: {}. Permissions required: {:X}, got: {:X}",
-			   sender, to, value, tx_type, permissions
+			"Given transaction data: sender: {:?} to: {:?} value: {}, gas_price: {}. Permissions required: {:X}, got: {:X}",
+			   sender, to, value, gas_price, tx_type, permissions
 		);
 		permissions & tx_type != 0
 	}
