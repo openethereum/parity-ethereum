@@ -22,6 +22,7 @@ use std::sync::Weak;
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
+use transaction::Action;
 
 use client::EngineClient;
 use header::{Header, BlockNumber};
@@ -57,7 +58,7 @@ impl ValidatorContract {
 
 		match client.as_full_client() {
 			Some(c) => {
-				c.transact_contract(self.contract_address, data)
+				c.transact(Action::Call(self.contract_address), data, None, Some(0.into()))
 					.map_err(|e| format!("Transaction import error: {}", e))?;
 				Ok(())
 			},

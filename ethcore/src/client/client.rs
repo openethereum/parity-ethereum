@@ -2110,15 +2110,17 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
+	fn transact(&self, action: Action, data: Bytes, gas: Option<U256>, gas_price: Option<U256>)
+		-> Result<(), transaction::Error>
+	{
 		let authoring_params = self.importer.miner.authoring_params();
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&authoring_params.author),
-			action: Action::Call(address),
-			gas: self.importer.miner.sensible_gas_limit(),
-			gas_price: self.importer.miner.sensible_gas_price(),
+			action,
+			gas: gas.unwrap_or_else(|| self.importer.miner.sensible_gas_limit()),
+			gas_price: gas_price.unwrap_or_else(|| self.importer.miner.sensible_gas_price()),
 			value: U256::zero(),
-			data: data,
+			data,
 		};
 		let chain_id = self.engine.signing_chain_id(&self.latest_env_info());
 		let signature = self.engine.sign(transaction.hash(chain_id))
