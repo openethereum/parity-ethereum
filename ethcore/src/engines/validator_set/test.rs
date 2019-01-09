@@ -23,7 +23,6 @@ use mem::{MallocSizeOf, MallocSizeOfOps};
 
 use bytes::Bytes;
 use ethereum_types::{H256, Address};
-use heapsize::HeapSizeOf;
 use types::BlockNumber;
 use types::header::Header;
 

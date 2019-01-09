@@ -23,7 +23,6 @@ use blockchain::BlockChainDB;
 use db::cache_manager::CacheManager;
 use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
 use ethereum_types::{H256, H264};
-use heapsize::HeapSizeOf;
 use kvdb::{DBTransaction};
 use parking_lot::RwLock;
 use types::BlockNumber;

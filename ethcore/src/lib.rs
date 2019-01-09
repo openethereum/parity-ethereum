@@ -74,7 +74,6 @@ extern crate ethjson;
 extern crate ethkey;
 extern crate ethstore;
 extern crate hashdb;
-extern crate heapsize;
 extern crate itertools;
 extern crate journaldb;
 extern crate keccak_hash as hash;

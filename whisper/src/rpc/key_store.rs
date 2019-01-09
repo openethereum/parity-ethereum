@@ -23,7 +23,7 @@ use std::collections::HashMap;
 
 use ethereum_types::H256;
 use ethkey::{KeyPair, Public, Secret};
-use memzero::Memzero;
+use mem::Memzero;
 use rand::{Rng, OsRng};
 
 use rpc::crypto::{AES_KEY_LEN, EncryptionInstance, DecryptionInstance};

@@ -27,7 +27,6 @@ use common_types::encoded;
 use common_types::BlockNumber;
 use common_types::receipt::Receipt;
 use ethereum_types::{H256, U256};
-use heapsize::HeapSizeOf;
 use memory_cache::MemoryLruCache;
 use stats::Corpus;
 
