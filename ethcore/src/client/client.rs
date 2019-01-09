@@ -2114,15 +2114,15 @@ impl BlockChainClient for Client {
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
 		let service_transaction_checker = ServiceTransactionChecker::default();
-		let gas_price = match service_transaction_checker.check_address(self, address) {
+		let gas_price = match service_transaction_checker.check_address(self, authoring_params.author) {
 			Ok(true) => U256::zero(),
 			_ => self.importer.miner.sensible_gas_price(),
 		};
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
-			gas: gas_price,
-			gas_price: self.importer.miner.sensible_gas_price(),
+			gas: self.importer.miner.sensible_gas_limit(),
+			gas_price: gas_price,
 			value: U256::zero(),
 			data: data,
 		};
