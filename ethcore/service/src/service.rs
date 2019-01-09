@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Creates and registers client and network services.
 
@@ -26,7 +26,7 @@ use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
-use ethcore::{BlockChainDB, BlockChainDBHandler};
+use blockchain::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -275,11 +275,11 @@ mod tests {
 
 	use tempdir::TempDir;
 
+	use ethcore_db::NUM_COLUMNS;
 	use ethcore::account_provider::AccountProvider;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
-	use ethcore::db::NUM_COLUMNS;
 	use ethcore::test_helpers;
 	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;

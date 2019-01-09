@@ -6,31 +6,30 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+common-types = { path = "../types" }
 error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
-ethabi-derive = "6.0"
 ethabi-contract = "6.0"
+ethabi-derive = "6.0"
 ethcore = { path = ".." }
-parity-bytes = "0.1"
-parity-crypto = "0.2"
 ethcore-io = { path = "../../util/io" }
-ethcore-logger = { path = "../../logger" }
 ethcore-miner = { path = "../../miner" }
-ethcore-transaction = { path = "../transaction" }
 ethereum-types = "0.4"
 ethjson = { path = "../../json" }
-ethkey = { path = "../../ethkey" }
+ethkey = { path = "../../accounts/ethkey" }
 fetch = { path = "../../util/fetch" }
 futures = "0.1"
 parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
 keccak-hash = "0.1.2"
 log = "0.4"
-parking_lot = "0.6"
+parity-bytes = "0.1"
+parity-crypto = "0.2"
+parking_lot = "0.7"
 patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rand = "0.3"
 rlp = { version = "0.3.0", features = ["ethereum"] }
-rlp_derive = { path = "../../util/rlp_derive" }
+rlp_derive = { path = "../../util/rlp-derive" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -40,4 +39,5 @@ transaction-pool = "1.13.2"
 url = "1"
 
 [dev-dependencies]
+env_logger = "0.5"
 ethcore = { path = "..", features = ["test-helpers"] }

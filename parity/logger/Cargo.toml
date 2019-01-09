@@ -1,0 +1,17 @@
+[package]
+description = "Log implementation for Parity"
+name = "ethcore-logger"
+version = "1.12.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+log = "0.4"
+env_logger = "0.5"
+atty = "0.2"
+lazy_static = "1.0"
+regex = "1.0"
+time = "0.1"
+parking_lot = "0.7"
+arrayvec = "0.4"
+ansi_term = "0.10"

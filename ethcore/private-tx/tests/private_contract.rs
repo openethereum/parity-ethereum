@@ -1,29 +1,29 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Contract for private transactions tests.
 
-extern crate rustc_hex;
+extern crate common_types as types;
+extern crate env_logger;
 extern crate ethcore;
+extern crate ethcore_io;
+extern crate ethcore_private_tx;
 extern crate ethkey;
 extern crate keccak_hash as hash;
-extern crate ethcore_io;
-extern crate ethcore_logger;
-extern crate ethcore_private_tx;
-extern crate ethcore_transaction;
+extern crate rustc_hex;
 
 #[macro_use]
 extern crate log;
@@ -31,14 +31,14 @@ extern crate log;
 use std::sync::Arc;
 use rustc_hex::FromHex;
 
+use types::ids::BlockId;
+use types::transaction::{Transaction, Action};
 use ethcore::CreateContractAddress;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::BlockChainClient;
-use ethcore::client::BlockId;
 use ethcore::executive::{contract_address};
 use ethcore::miner::Miner;
 use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
-use ethcore_transaction::{Transaction, Action};
 use ethkey::{Secret, KeyPair, Signature};
 use hash::keccak;
 
@@ -47,7 +47,7 @@ use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig};
 #[test]
 fn private_contract() {
 	// This uses a simple private contract: contract Test1 { bytes32 public x; function setX(bytes32 _x) { x = _x; } }
-	ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 	let client = generate_dummy_client(0);
 	let chain_id = client.signing_chain_id();
 	let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000011")).unwrap();

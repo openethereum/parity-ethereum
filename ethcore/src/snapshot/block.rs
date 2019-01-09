@@ -1,29 +1,29 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Block RLP compression.
 
-use block::Block;
-use header::Header;
-use hash::keccak;
-use views::BlockView;
-use rlp::{DecoderError, RlpStream, Rlp};
-use ethereum_types::H256;
 use bytes::Bytes;
+use ethereum_types::H256;
+use hash::keccak;
+use rlp::{DecoderError, RlpStream, Rlp};
 use triehash::ordered_trie_root;
+use types::block::Block;
+use types::header::Header;
+use types::views::BlockView;
 
 const HEADER_FIELDS: usize = 8;
 const BLOCK_FIELDS: usize = 2;
@@ -132,13 +132,14 @@ impl AbridgedBlock {
 
 #[cfg(test)]
 mod tests {
-	use views::BlockView;
-	use block::Block;
 	use super::AbridgedBlock;
-	use transaction::{Action, Transaction};
 
-	use ethereum_types::{H256, U256, Address};
 	use bytes::Bytes;
+	use ethereum_types::{H256, U256, Address};
+	use types::transaction::{Action, Transaction};
+	use types::block::Block;
+	use types::view;
+	use types::views::BlockView;
 
 	fn encode_block(b: &Block) -> Bytes {
 		b.rlp_bytes()

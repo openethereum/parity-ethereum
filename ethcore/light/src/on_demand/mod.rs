@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! On-demand chain requests over LES. This is a major building block for RPCs.
 //! The request service is implemented using Futures. Higher level request handlers
@@ -62,7 +62,7 @@ pub const DEFAULT_REQUEST_MIN_BACKOFF_DURATION: Duration = Duration::from_secs(1
 /// The maximum request interval for OnDemand queries
 pub const DEFAULT_REQUEST_MAX_BACKOFF_DURATION: Duration = Duration::from_secs(100);
 /// The default window length a response is evaluated
-pub const DEFAULT_RESPONSE_TIME_TO_LIVE: Duration = Duration::from_secs(60);
+pub const DEFAULT_RESPONSE_TIME_TO_LIVE: Duration = Duration::from_secs(10);
 /// The default number of maximum backoff iterations
 pub const DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS: usize = 10;
 /// The default number failed request to be regarded as failure

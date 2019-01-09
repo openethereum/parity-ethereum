@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethereum-like state machine definition.
 
@@ -20,22 +20,23 @@ use std::collections::{BTreeMap, HashMap};
 use std::cmp;
 use std::sync::Arc;
 
+use ethereum_types::{U256, H256, Address};
+use rlp::Rlp;
+use types::transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
+use types::BlockNumber;
+use types::header::{Header, ExtendedHeader};
+use vm::{CallType, ActionParams, ActionValue, ParamsType};
+use vm::{EnvInfo, Schedule, CreateContractAddress};
+
 use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
 use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
-use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
-use transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
-
-use ethereum_types::{U256, H256, Address};
-use rlp::Rlp;
-use vm::{CallType, ActionParams, ActionValue, ParamsType};
-use vm::{EnvInfo, Schedule, CreateContractAddress};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -408,7 +409,7 @@ pub struct AuxiliaryData<'a> {
 	/// The full block bytes, including the header.
 	pub bytes: Option<&'a [u8]>,
 	/// The block receipts.
-	pub receipts: Option<&'a [::receipt::Receipt]>,
+	pub receipts: Option<&'a [::types::receipt::Receipt]>,
 }
 
 /// Type alias for a function we can make calls through synchronously.
@@ -526,7 +527,7 @@ mod tests {
 			Default::default(),
 			ethparams,
 		);
-		let mut header = ::header::Header::new();
+		let mut header = ::types::header::Header::new();
 		header.set_number(15);
 
 		let res = machine.verify_transaction_basic(&transaction, &header);
@@ -546,8 +547,8 @@ mod tests {
 			ethparams,
 		);
 
-		let mut parent = ::header::Header::new();
-		let mut header = ::header::Header::new();
+		let mut parent = ::types::header::Header::new();
+		let mut header = ::types::header::Header::new();
 		header.set_number(1);
 
 		// this test will work for this constant only

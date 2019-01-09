@@ -1,28 +1,28 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed, TransactionId};
-use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256};
 use ethstore::ethkey::{Generator, Random};
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use sync::ManageNetwork;
+use types::receipt::{LocalizedReceipt, TransactionOutcome};
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -433,11 +433,11 @@ fn rpc_parity_transactions_stats() {
 fn rpc_parity_local_transactions() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
-	let tx = ::transaction::Transaction {
+	let tx = ::types::transaction::Transaction {
 		value: 5.into(),
 		gas: 3.into(),
 		gas_price: 2.into(),
-		action: ::transaction::Action::Create,
+		action: ::types::transaction::Action::Create,
 		data: vec![1, 2, 3],
 		nonce: 0.into(),
 	}.fake_sign(3.into());

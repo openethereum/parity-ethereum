@@ -1,30 +1,29 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Watcher for snapshot-related chain events.
 
 use parking_lot::Mutex;
-use client::{BlockInfo, Client, ChainNotify, ChainRoute, ClientIoMessage};
-use ids::BlockId;
+use client::{BlockInfo, Client, ChainNotify, NewBlocks, ClientIoMessage};
+use types::ids::BlockId;
 
 use io::IoChannel;
 use ethereum_types::H256;
-use bytes::Bytes;
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 // helper trait for transforming hashes to numbers and checking if syncing.
 trait Oracle: Send + Sync {
@@ -99,20 +98,12 @@ impl Watcher {
 }
 
 impl ChainNotify for Watcher {
-	fn new_blocks(
-		&self,
-		imported: Vec<H256>,
-		_: Vec<H256>,
-		_: ChainRoute,
-		_: Vec<H256>,
-		_: Vec<Bytes>,
-		_duration: Duration)
-	{
-		if self.oracle.is_major_importing() { return }
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if self.oracle.is_major_importing() || new_blocks.has_more_blocks_to_import { return }
 
-		trace!(target: "snapshot_watcher", "{} imported", imported.len());
+		trace!(target: "snapshot_watcher", "{} imported", new_blocks.imported.len());
 
-		let highest = imported.into_iter()
+		let highest = new_blocks.imported.into_iter()
 			.filter_map(|h| self.oracle.to_number(h))
 			.filter(|&num| num >= self.period + self.history)
 			.map(|num| num - self.history)
@@ -130,7 +121,7 @@ impl ChainNotify for Watcher {
 mod tests {
 	use super::{Broadcast, Oracle, Watcher};
 
-	use client::{ChainNotify, ChainRoute};
+	use client::{ChainNotify, NewBlocks, ChainRoute};
 
 	use ethereum_types::{H256, U256};
 
@@ -170,14 +161,15 @@ mod tests {
 			history: history,
 		};
 
-		watcher.new_blocks(
+		watcher.new_blocks(NewBlocks::new(
 			hashes,
 			vec![],
 			ChainRoute::default(),
 			vec![],
 			vec![],
 			DURATION_ZERO,
-		);
+			false
+		));
 	}
 
 	// helper

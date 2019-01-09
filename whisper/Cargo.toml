@@ -10,12 +10,12 @@ byteorder = "1.0.0"
 ethereum-types = "0.4"
 ethcore-network = { path = "../util/network" }
 parity-crypto = "0.2"
-ethkey = { path = "../ethkey" }
+ethkey = { path = "../accounts/ethkey" }
 hex = "0.2"
 log = "0.4"
 parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
 ordered-float = "0.5"
-parking_lot = "0.6"
+parking_lot = "0.7"
 rand = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }
 serde = "1.0"

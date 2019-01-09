@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
 mod usage;
@@ -460,7 +460,6 @@ usage! {
 
 				Ok(())
 			},
-
 
 		["API and Console Options – HTTP JSON-RPC"]
 			FLAG flag_jsonrpc_allow_missing_blocks: (bool) = false, or |c: &Config| c.rpc.as_ref()?.allow_missing_blocks.clone(),
@@ -1835,9 +1834,9 @@ mod tests {
 			arg_snapshot_threads: None,
 
 			// -- Light options.
-			arg_on_demand_response_time_window: Some(2000),
-			arg_on_demand_request_backoff_start: Some(9000),
-			arg_on_demand_request_backoff_max: Some(15000),
+			arg_on_demand_response_time_window: Some(2),
+			arg_on_demand_request_backoff_start: Some(9),
+			arg_on_demand_request_backoff_max: Some(15),
 			arg_on_demand_request_backoff_rounds_max: Some(100),
 			arg_on_demand_request_consecutive_failures: Some(1),
 
@@ -2093,9 +2092,9 @@ mod tests {
 				num_verifiers: None,
 			}),
 			light: Some(Light {
-				on_demand_response_time_window: Some(2000),
-				on_demand_request_backoff_start: Some(9000),
-				on_demand_request_backoff_max: Some(15000),
+				on_demand_response_time_window: Some(2),
+				on_demand_request_backoff_start: Some(9),
+				on_demand_request_backoff_max: Some(15),
 				on_demand_request_backoff_rounds_max: Some(10),
 				on_demand_request_consecutive_failures: Some(1),
 			}),

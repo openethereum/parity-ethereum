@@ -16,16 +16,15 @@ rust-crypto = "0.2.34"
 slab = "0.2"
 igd = "0.7"
 libc = "0.2.7"
-parking_lot = "0.6"
+parking_lot = "0.7"
 ansi_term = "0.10"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io", features = ["mio"] }
 parity-bytes = "0.1"
 parity-crypto = "0.2"
-ethcore-logger = { path ="../../logger" }
 ethcore-network = { path = "../network" }
 ethereum-types = "0.4"
-ethkey = { path = "../../ethkey" }
+ethkey = { path = "../../accounts/ethkey" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 parity-path = "0.1"
 ipnetwork = "0.12.6"
@@ -37,6 +36,7 @@ serde_derive = "1.0"
 error-chain = { version = "0.12", default-features = false }
 
 [dev-dependencies]
+env_logger = "0.5"
 tempdir = "0.3"
 assert_matches = "1.2"
 

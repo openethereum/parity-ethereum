@@ -7,16 +7,17 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ansi_term = "0.10"
 error-chain = { version = "0.12", default-features = false }
 ethcore = { path = ".." }
+ethcore-blockchain = { path = "../blockchain" }
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }
 ethereum-types = "0.4"
 kvdb = "0.1"
 log = "0.4"
-stop-guard = { path = "../../util/stop-guard" }
 trace-time = "0.1"
 
 [dev-dependencies]
+ethcore-db = { path = "../db" }
 ethcore = { path = "..", features = ["test-helpers"] }
 tempdir = "0.3"
 kvdb-rocksdb = "0.1.3"
