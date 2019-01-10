@@ -23,13 +23,13 @@ echo "Release channel :" $GRADE " Branch/tag: " $CI_COMMIT_REF_NAME
 echo $VERSION:$GRADE:$BUILD_ARCH
 # cat scripts/snap/snapcraft.template.yaml | envsubst '$VERSION:$GRADE:$BUILD_ARCH:$CARGO_TARGET' > snapcraft.yaml
 # a bit more necromancy (substitutions):
-cd /parity_ethereum/scripts/snap/
+cd /builds/parity/parity-ethereum/scripts/snap/
 sed -e 's/$VERSION/'"$VERSION"'/g' \
     -e 's/$GRADE/'"$GRADE"'/g' \
     -e 's/$BUILD_ARCH/'"$BUILD_ARCH"'/g' \
     -e 's/$CARGO_TARGET/'"$CARGO_TARGET"'/g' \
-    snapcraft.template.yaml > /parity_ethereum/snapcraft.yaml
-cd /parity_ethereum/
+    snapcraft.template.yaml > /builds/parity/parity-ethereum/snapcraft.yaml
+cd /builds/parity/parity-ethereum/
 cat snapcraft.yaml
 snapcraft --target-arch=$BUILD_ARCH
 ls *.snap
