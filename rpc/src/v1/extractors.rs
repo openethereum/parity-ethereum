@@ -98,7 +98,7 @@ impl ws::RequestMiddleware for WsExtractor {
 	fn process(&self, req: &ws::ws::Request) -> ws::MiddlewareAction {
 		use self::ws::ws::Response;
 
-		// Reply with 200 Ok to HEAD requests.
+		// Reply with 200 OK to HEAD requests.
 		if req.method() == "HEAD" {
 			let mut response = Response::new(200, "OK", vec![]);
 			add_security_headers(&mut response);
