@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tests for the snapshot service.
 
@@ -22,7 +22,7 @@ use std::sync::Arc;
 use tempdir::TempDir;
 use blockchain::BlockProvider;
 use client::{Client, ClientConfig, ImportBlock, BlockInfo};
-use ids::BlockId;
+use types::ids::BlockId;
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{chunk_state, chunk_secondary, ManifestData, Progress, SnapshotService, RestorationStatus};
@@ -36,8 +36,7 @@ use verification::queue::kind::blocks::Unverified;
 
 #[test]
 fn restored_is_equivalent() {
-	use ::ethcore_logger::init_log;
-	init_log();
+	let _ = ::env_logger::try_init();
 
 	const NUM_BLOCKS: u32 = 400;
 	const TX_PER: usize = 5;
@@ -100,7 +99,6 @@ fn restored_is_equivalent() {
 	}
 }
 
-
 // on windows the guards deletion (remove_dir_all)
 // is not happening (error directory is not empty).
 // So the test is disabled until windows api behave.
@@ -153,7 +151,7 @@ fn guards_delete_folders() {
 
 #[test]
 fn keep_ancient_blocks() {
-	::env_logger::init().ok();
+	let _ = ::env_logger::try_init();
 
 	// Test variables
 	const NUM_BLOCKS: u64 = 500;
@@ -272,7 +270,7 @@ fn keep_ancient_blocks() {
 
 #[test]
 fn recover_aborted_recovery() {
-	::env_logger::init().ok();
+	let _ = ::env_logger::try_init();
 
 	const NUM_BLOCKS: u32 = 400;
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];

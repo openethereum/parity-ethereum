@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 ///
 /// Blockchain downloader
@@ -23,7 +23,7 @@ use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use rlp::{self, Rlp};
-use ethcore::header::BlockNumber;
+use types::BlockNumber;
 use ethcore::client::{BlockStatus, BlockId};
 use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError, Error as EthcoreError, ErrorKind as EthcoreErrorKind};
 use sync_io::SyncIo;
@@ -621,7 +621,6 @@ fn all_expected<A, B, F>(values: &[A], expected_values: &[B], is_expected: F) ->
 mod tests {
 	use super::*;
 	use ethcore::client::TestBlockChainClient;
-	use ethcore::header::Header as BlockHeader;
 	use ethcore::spec::Spec;
 	use ethkey::{Generator,Random};
 	use hash::keccak;
@@ -629,8 +628,9 @@ mod tests {
 	use rlp::{encode_list,RlpStream};
 	use tests::helpers::TestIo;
 	use tests::snapshot::TestSnapshotService;
-	use transaction::{Transaction,SignedTransaction};
+	use types::transaction::{Transaction,SignedTransaction};
 	use triehash_ethereum::ordered_trie_root;
+	use types::header::Header as BlockHeader;
 
 	fn dummy_header(number: u64, parent_hash: H256) -> BlockHeader {
 		let mut header = BlockHeader::new();

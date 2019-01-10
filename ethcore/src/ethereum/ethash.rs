@@ -1,34 +1,37 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::path::Path;
 use std::cmp;
 use std::collections::BTreeMap;
+use std::path::Path;
 use std::sync::Arc;
-use hash::{KECCAK_EMPTY_LIST_RLP};
-use engines::block_reward::{self, BlockRewardContract, RewardKind};
-use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
+
 use ethereum_types::{H256, H64, U256};
-use unexpected::{OutOfBounds, Mismatch};
-use block::*;
-use error::{BlockError, Error};
-use header::{Header, BlockNumber, ExtendedHeader};
-use engines::{self, Engine};
 use ethjson;
+use hash::{KECCAK_EMPTY_LIST_RLP};
 use rlp::Rlp;
+use types::header::{Header, ExtendedHeader};
+use types::BlockNumber;
+use unexpected::{OutOfBounds, Mismatch};
+
+use block::ExecutedBlock;
+use engines::block_reward::{self, BlockRewardContract, RewardKind};
+use engines::{self, Engine};
+use error::{BlockError, Error};
+use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use machine::EthereumMachine;
 
 /// Number of blocks in an ethash snapshot.
@@ -482,7 +485,7 @@ mod tests {
 	use block::*;
 	use test_helpers::get_temp_state_db;
 	use error::{BlockError, Error, ErrorKind};
-	use header::Header;
+	use types::header::Header;
 	use spec::Spec;
 	use engines::Engine;
 	use super::super::{new_morden, new_mcip3_test, new_homestead_test_machine};

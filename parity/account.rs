@@ -1,23 +1,23 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::PathBuf;
-use ethcore::ethstore::{EthStore, SecretStore, import_account, import_accounts, read_geth_accounts};
-use ethcore::ethstore::accounts_dir::RootDiskDirectory;
-use ethcore::ethstore::SecretVaultRef;
+use ethstore::{EthStore, SecretStore, import_account, import_accounts, read_geth_accounts};
+use ethstore::accounts_dir::RootDiskDirectory;
+use ethstore::SecretVaultRef;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use helpers::{password_prompt, password_from_file};
 use params::SpecType;
@@ -130,7 +130,7 @@ fn import(i: ImportAccounts) -> Result<String, String> {
 
 fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
 	use std::io::ErrorKind;
-	use ethcore::ethstore::Error;
+	use ethstore::Error;
 
 	let dir = Box::new(keys_dir(i.to, i.spec)?);
 	let secret_store = Box::new(secret_store(dir, None)?);

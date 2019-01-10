@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Cache for data fetched from the network.
 //!
@@ -20,15 +20,15 @@
 //! Furthermore, stores a "gas price corpus" of relative recency, which is a sorted
 //! vector of all gas prices from a recent range of blocks.
 
-use ethcore::encoded;
-use ethcore::header::BlockNumber;
-use ethcore::receipt::Receipt;
-
-use stats::Corpus;
 use std::time::{Instant, Duration};
-use heapsize::HeapSizeOf;
+
+use common_types::encoded;
+use common_types::BlockNumber;
+use common_types::receipt::Receipt;
 use ethereum_types::{H256, U256};
+use heapsize::HeapSizeOf;
 use memory_cache::MemoryLruCache;
+use stats::Corpus;
 
 /// Configuration for how much data to cache.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

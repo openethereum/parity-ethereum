@@ -1,22 +1,22 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
 use blockchain::ImportRoute;
 use std::time::Duration;
 use std::collections::HashMap;
@@ -114,19 +114,51 @@ impl ChainRoute {
 	}
 }
 
+/// Used by `ChainNotify` `new_blocks()`
+pub struct NewBlocks {
+	/// Imported blocks
+	pub imported: Vec<H256>,
+	/// Invalid blocks
+	pub invalid: Vec<H256>,
+	/// Route
+	pub route: ChainRoute,
+	/// Sealed
+	pub sealed: Vec<H256>,
+	/// Block bytes.
+	pub proposed: Vec<Bytes>,
+	/// Duration
+	pub duration: Duration,
+	/// Has more blocks to import
+	pub has_more_blocks_to_import: bool,
+}
+
+impl NewBlocks {
+	/// Constructor
+	pub fn new(
+		imported: Vec<H256>,
+		invalid: Vec<H256>,
+		route: ChainRoute,
+		sealed: Vec<H256>,
+		proposed: Vec<Bytes>,
+		duration: Duration,
+		has_more_blocks_to_import: bool,
+	) -> NewBlocks {
+		NewBlocks {
+			imported,
+			invalid,
+			route,
+			sealed,
+			proposed,
+			duration,
+			has_more_blocks_to_import,
+		}
+	}
+}
+
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
-	fn new_blocks(
-		&self,
-		_imported: Vec<H256>,
-		_invalid: Vec<H256>,
-		_route: ChainRoute,
-		_sealed: Vec<H256>,
-		// Block bytes.
-		_proposed: Vec<Bytes>,
-		_duration: Duration,
-	) {
+	fn new_blocks(&self, _new_blocks: NewBlocks) {
 		// does nothing by default
 	}
 

@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc interface.
 
@@ -25,7 +25,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram, RecoveredAccount,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, ChainStatus, Log, Filter,
 	AccountInfo, HwAccountInfo, RichHeader, Receipt,
 };
 
@@ -241,5 +241,11 @@ build_rpc_trait! {
 		/// as well as checks the signature for chain replay protection
 		#[rpc(name = "parity_verifySignature")]
 		fn verify_signature(&self, bool, Bytes, H256, H256, U64) -> Result<RecoveredAccount>;
+
+		/// Returns logs matching given filter object.
+		/// Is allowed to skip filling transaction hash for faster query.
+		#[rpc(name = "parity_getLogsNoTransactionHash")]
+		fn logs_no_tx_hash(&self, Filter) -> BoxFuture<Vec<Log>>;
+
 	}
 }

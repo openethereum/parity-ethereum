@@ -1,42 +1,44 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
 use std::sync::Arc;
+
+use ethereum_types::{U256, Address};
+use ethkey::KeyPair;
 use hash::keccak;
 use io::IoChannel;
-use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
-use state::{self, State, CleanupMode};
-use executive::{Executive, TransactOptions};
-use ethereum;
+use tempdir::TempDir;
+use types::transaction::{PendingTransaction, Transaction, Action, Condition};
+use types::filter::Filter;
+use types::view;
+use types::views::BlockView;
+
 use block::IsBlock;
+use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use ethereum;
+use executive::{Executive, TransactOptions};
+use miner::{Miner, PendingOrdering, MinerService};
+use spec::Spec;
+use state::{self, State, CleanupMode};
 use test_helpers::{
+	self,
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
-use types::filter::Filter;
-use ethereum_types::{U256, Address};
-use miner::{Miner, PendingOrdering};
-use spec::Spec;
-use views::BlockView;
-use ethkey::KeyPair;
-use transaction::{PendingTransaction, Transaction, Action, Condition};
-use miner::MinerService;
-use tempdir::TempDir;
-use test_helpers;
 use verification::queue::kind::blocks::Unverified;
 
 #[test]

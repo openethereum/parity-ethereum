@@ -20,44 +20,67 @@ package io.parity.ethereum;
  * Interface to the Parity client.
  */
 public class Parity {
-    /**
-     * Starts the Parity client with the CLI options passed as an array of strings.
-     *
-     * Each space-delimited option corresponds to an array entry.
-     * For example: `["--port", "12345"]`
-     *
-     * @param options The CLI options to start Parity with
-     */
-    public Parity(String[] options) {
-        long config = configFromCli(options);
-        inner = build(config);
-    }
+	/**
+	 * Starts the Parity client with the CLI options passed as an array of strings.
+	 *
+	 * Each space-delimited option corresponds to an array entry.
+	 * For example: `["--port", "12345"]`
+	 *
+	 * @param options The CLI options to start Parity with
+	 */
+	public Parity(String[] options) {
+		long config = configFromCli(options);
+		inner = build(config);
+	}
 
-    /** Performs a synchronous RPC query.
-     *
-     * Note that this will block the current thread until the query is finished. You are
-     * encouraged to create a background thread if you don't want to block.
-     *
-     * @param query The JSON-encoded RPC query to perform
-     * @return A JSON-encoded result
-     */
-    public String rpcQuery(String query) {
-        return rpcQueryNative(inner, query);
-    }
+	/** Performs an asynchronous RPC query by spawning a background thread that is executed until
+	 *  either a response is received or the timeout has been expired.
+	 *
+	 * @param query           The JSON-encoded RPC query to perform
+	 * @param timeoutMillis   The maximum time in milliseconds that the query will run
+	 * @param callback        An instance of class which must have a instance method named `callback` that will be
+	 *                        invoke when the result is ready
+	 */
+	public void rpcQuery(String query, long timeoutMillis, Object callback) {
+		rpcQueryNative(inner, query, timeoutMillis, callback);
+	}
 
-    @Override
-    protected void finalize​() {
-        destroy(inner);
-    }
+	/** Subscribes to a specific WebSocket event that will run in a background thread until it is canceled.
+	 *
+	 * @param query     The JSON-encoded RPC query to perform
+	 * @param callback  An instance of class which must have a instance method named `callback` that will be invoked
+	 *                  when the result is ready
+	 *
+	 * @return A pointer to the current sessions which can be used to terminate the session later
+	 */
+	public long subscribeWebSocket(String query, Object callback) {
+		return subscribeWebSocketNative(inner, query, callback);
+	}
 
-    static {
-        System.loadLibrary("parity");
-    }
+	/** Unsubscribes to a specific WebSocket event
+	 *
+	 * @param session	Pointer the the session to terminate
+	 */
+	public void unsubscribeWebSocket(long session) {
+		unsubscribeWebSocketNative(session);
+	}
 
-    private static native long configFromCli(String[] cliOptions);
-    private static native long build(long config);
-    private static native void destroy(long inner);
-    private static native String rpcQueryNative(long inner, String rpc);
+	// FIXME: `finalize` is deprecated - https://github.com/paritytech/parity-ethereum/issues/10066
+	@Override
+	protected void finalize​() {
+		destroy(inner);
+	}
 
-    private long inner;
+	static {
+		System.loadLibrary("parity");
+	}
+
+	private static native long configFromCli(String[] cliOptions);
+	private static native long build(long config);
+	private static native void destroy(long inner);
+	private static native void rpcQueryNative(long inner, String rpc, long timeoutMillis, Object callback);
+	private static native long subscribeWebSocketNative(long inner, String rpc, Object callback);
+	private static native void unsubscribeWebSocketNative(long session);
+
+	private long inner;
 }

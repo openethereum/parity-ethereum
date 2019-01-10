@@ -1,39 +1,39 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! rpc integration tests.
 use std::env;
 use std::sync::Arc;
 
-use ethereum_types::{H256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
-use ethcore::ids::BlockId;
 use ethcore::miner::Miner;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::test_helpers;
-use ethcore::verification::queue::kind::blocks::Unverified;
 use ethcore::verification::VerifierType;
+use ethcore::verification::queue::kind::blocks::Unverified;
+use ethereum_types::{H256, Address};
 use ethjson::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;
 use io::IoChannel;
 use miner::external::ExternalMiner;
-use parking_lot::Mutex;
 use parity_runtime::Runtime;
+use parking_lot::Mutex;
+use types::ids::BlockId;
 
 use jsonrpc_core::IoHandler;
 use v1::helpers::dispatch::FullDispatcher;
@@ -94,7 +94,6 @@ impl EthTester {
 		} else {
 			Self::from_spec(make_spec(chain))
 		};
-
 
 		for b in chain.blocks_rlp() {
 			if let Ok(block) = Unverified::from_rlp(b) {

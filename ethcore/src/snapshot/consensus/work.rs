@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Secondary chunk creation and restoration, implementation for proof-of-work
 //! chains.
@@ -35,7 +35,7 @@ use kvdb::KeyValueDB;
 use bytes::Bytes;
 use rlp::{RlpStream, Rlp};
 use rand::OsRng;
-use encoded;
+use types::encoded;
 
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
@@ -250,7 +250,7 @@ impl Rebuilder for PowRebuilder {
 			let pair = rlp.at(idx)?;
 			let abridged_rlp = pair.at(0)?.as_raw().to_owned();
 			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
-			let receipts: Vec<::receipt::Receipt> = pair.list_at(1)?;
+			let receipts: Vec<::types::receipt::Receipt> = pair.list_at(1)?;
 			let receipts_root = ordered_trie_root(pair.at(1)?.iter().map(|r| r.as_raw()));
 
 			let block = abridged_block.to_block(parent_hash, cur_number, receipts_root)?;

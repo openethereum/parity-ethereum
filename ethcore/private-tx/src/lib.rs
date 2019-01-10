@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Private transactions module.
 
@@ -25,27 +25,27 @@ mod private_transactions;
 mod messages;
 mod error;
 
+extern crate common_types as types;
+extern crate ethabi;
 extern crate ethcore;
-extern crate parity_bytes as bytes;
-extern crate parity_crypto as crypto;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
-extern crate ethcore_transaction as transaction;
-extern crate ethabi;
 extern crate ethereum_types;
-extern crate ethkey;
 extern crate ethjson;
+extern crate ethkey;
 extern crate fetch;
 extern crate futures;
 extern crate heapsize;
 extern crate keccak_hash as hash;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto as crypto;
 extern crate parking_lot;
 extern crate patricia_trie as trie;
-extern crate transaction_pool as txpool;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rlp;
-extern crate url;
 extern crate rustc_hex;
+extern crate transaction_pool as txpool;
+extern crate url;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -60,7 +60,7 @@ extern crate rlp_derive;
 #[cfg(test)]
 extern crate rand;
 #[cfg(test)]
-extern crate ethcore_logger;
+extern crate env_logger;
 
 pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryptor};
 pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
@@ -69,7 +69,6 @@ pub use error::{Error, ErrorKind};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet, BTreeMap};
-use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
 use rlp::*;
@@ -79,10 +78,10 @@ use ethkey::{Signature, recover, public_to_address};
 use io::IoChannel;
 use ethcore::executive::{Executive, TransactOptions};
 use ethcore::executed::{Executed};
-use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
+use types::transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
-	Client, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage, BlockId,
+	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
 	CallContract, Call, BlockInfo
 };
 use ethcore::account_provider::AccountProvider;
@@ -733,12 +732,11 @@ fn find_account_password(passwords: &Vec<Password>, account_provider: &AccountPr
 }
 
 impl ChainNotify for Provider {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
-		if !imported.is_empty() {
-			trace!(target: "privatetx", "New blocks imported, try to prune the queue");
-			if let Err(err) = self.process_verification_queue() {
-				warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);
-			}
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		if new_blocks.imported.is_empty() || new_blocks.has_more_blocks_to_import { return }
+		trace!(target: "privatetx", "New blocks imported, try to prune the queue");
+		if let Err(err) = self.process_verification_queue() {
+			warn!(target: "privatetx", "Cannot prune private transactions queue. error: {:?}", err);
 		}
 	}
 }

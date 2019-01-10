@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, HashMap, hash_map};
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
@@ -22,9 +22,9 @@ use triehash_ethereum::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;
-use ethcore::header::Header as BlockHeader;
 use ethcore::verification::queue::kind::blocks::Unverified;
-use transaction::UnverifiedTransaction;
+use types::transaction::UnverifiedTransaction;
+use types::header::Header as BlockHeader;
 
 known_heap_size!(0, HeaderId);
 
@@ -571,7 +571,7 @@ impl BlockCollection {
 mod test {
 	use super::{BlockCollection, SyncHeader};
 	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
-	use ethcore::header::BlockNumber;
+	use types::BlockNumber;
 	use ethcore::verification::queue::kind::blocks::Unverified;
 	use rlp::*;
 
