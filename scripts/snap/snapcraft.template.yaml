@@ -52,6 +52,7 @@ parts:
       cp -v whisper $SNAPCRAFT_PART_INSTALL/usr/bin/whisper
     stage-packages: [libc6, libudev1, libstdc++6, cmake, libdb5.3]
   df:
+    source:         /bin/df
     plugin:         nil
     stage-packages: [coreutils]
     stage:          [bin/df]
