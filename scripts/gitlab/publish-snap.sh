@@ -3,13 +3,17 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-TRACK=`awk -F '=' '/^track/ {print $2}' ./util/version/Cargo.toml`
+# some necromancy:
+# gsub(/"/, "", $2) deletes "qoutes" 
+# gsub(/ /, "", $2) deletes whitespaces
+TRACK=`awk -F '=' '/^track/ {gsub(/"/, "", $2); gsub(/ /, "", $2); print $2}' ./util/version/Cargo.toml`
+echo Track is: $TRACK
 
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
   beta) export GRADE="stable" CHANNEL="beta";;
   stable) export GRADE="stable" CHANNEL="stable";;
-  *) echo "No release" exit 0;;
+  *) echo "No release" && exit 0;;
 esac
 
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
