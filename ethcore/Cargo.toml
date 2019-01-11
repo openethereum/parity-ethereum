@@ -11,6 +11,7 @@ ansi_term = "0.10"
 blooms-db = { path = "../util/blooms-db", optional = true }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
+call-contract = { path = "./call-contract" }
 common-types = { path = "types" }
 crossbeam = "0.4"
 env_logger = { version = "0.5", optional = true }

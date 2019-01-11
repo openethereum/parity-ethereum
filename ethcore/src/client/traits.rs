@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use blockchain::{BlockReceipts, TreeRoute};
 use bytes::Bytes;
+use call_contract::call_contract::CallContract;
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, U256, Address};
 use evm::Schedule;
@@ -170,11 +171,11 @@ pub trait ImportBlock {
 	fn import_block(&self, block: Unverified) -> EthcoreResult<H256>;
 }
 
-/// Provides `call_contract` method
-pub trait CallContract {
-	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
-}
+// /// Provides `call_contract` method
+// pub trait CallContract {
+// 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+// 	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+// }
 
 /// Provides `call` and `call_many` methods
 pub trait Call {
