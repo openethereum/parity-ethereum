@@ -41,6 +41,7 @@ parts:
       cp -v ./parity.desktop $SNAPCRAFT_PART_INSTALL/usr/share/applications/
       cp -v ./icon.png $SNAPCRAFT_PART_INSTALL/usr/share/pixmaps/
   parity:
+    source-type:    bzr
     source:         ./artifacts/$CARGO_TARGET
     plugin:         nil
     override-build:        |
