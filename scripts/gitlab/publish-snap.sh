@@ -23,7 +23,7 @@ echo "Release channel :" $GRADE " Branch/tag: " $CI_COMMIT_REF_NAME
 echo $VERSION:$GRADE:$BUILD_ARCH
 # cat scripts/snap/snapcraft.template.yaml | envsubst '$VERSION:$GRADE:$BUILD_ARCH:$CARGO_TARGET' > snapcraft.yaml
 # a bit more necromancy (substitutions):
-pwd && ls
+pwd
 cd /builds/$CI_PROJECT_PATH/scripts/snap/
 sed -e 's/$VERSION/'"$VERSION"'/g' \
     -e 's/$GRADE/'"$GRADE"'/g' \
@@ -31,7 +31,8 @@ sed -e 's/$VERSION/'"$VERSION"'/g' \
     -e 's/$CARGO_TARGET/'"$CARGO_TARGET"'/g' \
     snapcraft.template.yaml > /builds/$CI_PROJECT_PATH/snapcraft.yaml
 cd /builds/$CI_PROJECT_PATH
-pwd && ls
+pwd
+apt install tree && tree /builds/$CI_PROJECT_PATH
 cat snapcraft.yaml
 snapcraft --target-arch=$BUILD_ARCH
 ls *.snap
