@@ -30,6 +30,7 @@ sed -e 's/$VERSION/'"$VERSION"'/g' \
     -e 's/$CARGO_TARGET/'"$CARGO_TARGET"'/g' \
     snapcraft.template.yaml > $CI_PROJECT_PATH/snapcraft.yaml
 cd $CI_PROJECT_PATH
+pwd
 cat snapcraft.yaml
 snapcraft --target-arch=$BUILD_ARCH
 ls *.snap
