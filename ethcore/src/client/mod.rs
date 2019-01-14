@@ -36,7 +36,7 @@ pub use self::io_message::ClientIoMessage;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
-    Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, /*CallContract,*/ TransactionInfo, RegistryInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
+    Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, /*CallContract,*/ TransactionInfo, /*RegistryInfo,*/ ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
 };
 pub use state::StateInfo;
@@ -47,6 +47,7 @@ pub use types::trace_filter::Filter as TraceFilter;
 pub use types::pruning_info::PruningInfo;
 pub use types::call_analytics::CallAnalytics;
 pub use call_contract::call_contract::CallContract;
+pub use call_contract::call_contract::RegistryInfo;
 
 pub use executive::{Executed, Executive, TransactOptions};
 pub use vm::{LastHashes, EnvInfo};

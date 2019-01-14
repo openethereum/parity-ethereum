@@ -23,6 +23,7 @@ use std::time::{Instant, Duration};
 
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use bytes::Bytes;
+use call_contract::call_contract::CallContract;
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, Address, U256};
 use evm::Schedule;
@@ -42,8 +43,6 @@ use types::log_entry::LocalizedLogEntry;
 use types::receipt::{Receipt, LocalizedReceipt};
 use types::{BlockNumber, header::{Header, ExtendedHeader}};
 use vm::{EnvInfo, LastHashes};
-
-use call_contract::call_contract::CallContract;
 
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;

@@ -20,6 +20,7 @@ use std::sync::Arc;
 use blockchain::{BlockReceipts, TreeRoute};
 use bytes::Bytes;
 use call_contract::call_contract::CallContract;
+use call_contract::call_contract::RegistryInfo;
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, U256, Address};
 use evm::Schedule;
@@ -158,11 +159,11 @@ pub trait StateClient {
 /// Provides various blockchain information, like block header, chain state etc.
 pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo {}
 
-/// Provides information on a blockchain service and it's registry
-pub trait RegistryInfo {
-	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
-}
+// /// Provides information on a blockchain service and it's registry
+// pub trait RegistryInfo {
+// 	/// Get the address of a particular blockchain service, if available.
+// 	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
+// }
 
 // FIXME Why these methods belong to BlockChainClient and not MiningBlockChainClient?
 /// Provides methods to import block into blockchain
