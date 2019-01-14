@@ -19,8 +19,7 @@ use std::sync::Arc;
 
 use blockchain::{BlockReceipts, TreeRoute};
 use bytes::Bytes;
-use call_contract::CallContract;
-use call_contract::RegistryInfo;
+use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, U256, Address};
 use evm::Schedule;

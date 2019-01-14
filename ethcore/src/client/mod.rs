@@ -46,8 +46,7 @@ pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;
 pub use types::pruning_info::PruningInfo;
 pub use types::call_analytics::CallAnalytics;
-pub use call_contract::CallContract;
-pub use call_contract::RegistryInfo;
+pub use call_contract::{CallContract, RegistryInfo};
 
 pub use executive::{Executed, Executive, TransactOptions};
 pub use vm::{LastHashes, EnvInfo};
