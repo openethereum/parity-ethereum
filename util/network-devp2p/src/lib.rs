@@ -78,7 +78,6 @@ extern crate ethkey;
 extern crate rlp;
 extern crate bytes;
 extern crate parity_path;
-extern crate ethcore_logger;
 extern crate ethcore_network as network;
 extern crate ipnetwork;
 extern crate keccak_hash as hash;
@@ -93,6 +92,8 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
+#[cfg(test)]
+extern crate env_logger;
 #[cfg(test)]
 extern crate tempdir;
 #[cfg(test)] #[macro_use]

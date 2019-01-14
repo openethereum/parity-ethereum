@@ -18,7 +18,7 @@ use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use ethereum_types::U256;
 use machine::WithRewards;
-use parity_machine::{Header, LiveBlock, WithBalances, TotalScoredHeader};
+use parity_machine::{Machine, Header, LiveBlock, TotalScoredHeader};
 use types::BlockNumber;
 
 /// Params for a null engine.
@@ -58,7 +58,7 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: WithBalances + WithRewards> Engine<M> for NullEngine<M>
+impl<M: Machine + WithRewards> Engine<M> for NullEngine<M>
   where M::ExtendedHeader: TotalScoredHeader,
         <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
 {

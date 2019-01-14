@@ -34,7 +34,11 @@
 		"eip140Transition": "0x0",
 		"eip211Transition": "0x0",
 		"eip214Transition": "0x0",
-		"eip658Transition": "0x0"
+		"eip658Transition": "0x0",
+		"eip145Transition": 6843780,
+		"eip1014Transition": 6843780,
+		"eip1052Transition": 6843780,
+		"eip1283Transition": 6843780
 	},
 	"genesis": {
 		"seal": {

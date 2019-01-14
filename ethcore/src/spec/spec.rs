@@ -1018,7 +1018,7 @@ mod tests {
 
 	#[test]
 	fn genesis_constructor() {
-		::ethcore_logger::init_log();
+		let _ = ::env_logger::try_init();
 		let spec = Spec::new_test_constructor();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default())
 			.unwrap();

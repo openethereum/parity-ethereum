@@ -9,7 +9,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 blooms-db = { path = "util/blooms-db" }
 log = "0.4"
-env_logger = "0.5"
 rustc-hex = "1.0"
 docopt = "1.0"
 clap = "2"
@@ -38,7 +37,7 @@ ethcore-blockchain = { path = "ethcore/blockchain" }
 ethcore-db = { path = "ethcore/db" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
-ethcore-logger = { path = "logger" }
+ethcore-logger = { path = "parity/logger" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }

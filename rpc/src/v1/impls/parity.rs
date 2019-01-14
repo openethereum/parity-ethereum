@@ -167,6 +167,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn dev_logs(&self) -> Result<Vec<String>> {
+		warn!("This method is deprecated and will be removed in future. See PR #10102");
 		let logs = self.logger.logs();
 		Ok(logs.as_slice().to_owned())
 	}

@@ -19,6 +19,6 @@ fastmap = { path = "../../util/fastmap" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 
 [dev-dependencies]
-ethcore-logger = { path = "../../logger" }
+env_logger = "0.5"
 keccak-hash = "0.1"
 kvdb-memorydb = "0.1"

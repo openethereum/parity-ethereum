@@ -23,7 +23,6 @@ extern crate docopt;
 #[macro_use]
 extern crate clap;
 extern crate dir;
-extern crate env_logger;
 extern crate futures;
 extern crate atty;
 extern crate jsonrpc_core;

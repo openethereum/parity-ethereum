@@ -13,7 +13,6 @@ ethabi-contract = "6.0"
 ethabi-derive = "6.0"
 ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
-ethcore-logger = { path = "../../logger" }
 ethcore-miner = { path = "../../miner" }
 ethereum-types = "0.4"
 ethjson = { path = "../../json" }
@@ -40,4 +39,5 @@ transaction-pool = "1.13.2"
 url = "1"
 
 [dev-dependencies]
+env_logger = "0.5"
 ethcore = { path = "..", features = ["test-helpers"] }
