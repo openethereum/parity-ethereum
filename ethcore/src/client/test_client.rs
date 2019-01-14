@@ -49,7 +49,7 @@ use types::views::BlockView;
 use vm::Schedule;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use call_contract::call_contract::CallContract;
+use call_contract::CallContract;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, /* CallContract,*/ TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,

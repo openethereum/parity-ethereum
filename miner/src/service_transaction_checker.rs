@@ -16,7 +16,7 @@
 
 //! A service transactions contract checker.
 
-use call_contract::call_contract::{CallContract, RegistryInfo};
+use call_contract::{CallContract, RegistryInfo};
 use types::ids::BlockId;
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;

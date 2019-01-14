@@ -15,3 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod call_contract;
+
+// Re-export
+pub use self::call_contract::*;
