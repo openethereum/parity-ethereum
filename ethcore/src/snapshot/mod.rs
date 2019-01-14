@@ -156,12 +156,12 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	p: &Progress,
 	processing_threads: usize,
 ) -> Result<(), Error> {
-	let start_header = chain.block_header_data(&block_at)
+	let block_header = chain.block_header_data(&block_at)
 		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
-	let state_root = start_header.state_root();
-	let number = start_header.number();
+	let state_root = block_header.state_root();
+	let number = block_header.number();
 
-	info!("Taking snapshot starting at block {}", number);
+	info!("Taking snapshot of state at block {}", number);
 
 	let writer = Mutex::new(writer);
 	let chunker = engine.snapshot_components().ok_or(Error::SnapshotsUnsupported)?;
