@@ -10,26 +10,18 @@ echo "CARGO_TARGET:     " $CARGO_TARGET
 echo "CC:               " $CC
 echo "CXX:              " $CXX
 
-echo "__________CARGO CONFIG__________"
+echo "_____ Building target: "$CARGO_TARGET" _____"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
-  # use build container's cargo config
-  cat /.cargo/config
+# only thing we need for android
+  time cargo build --target $CARGO_TARGET --release -p parity-clib --features final
 else
-  mkdir -p .cargo
-  rm -f .cargo/config
-  echo "[target.$CARGO_TARGET]" >> .cargo/config
-  echo "linker= \"$CC\"" >> .cargo/config
-  cat .cargo/config
+  time cargo build --target $CARGO_TARGET --release --features final
+  time cargo build --target $CARGO_TARGET --release -p evmbin
+  time cargo build --target $CARGO_TARGET --release -p ethstore-cli
+  time cargo build --target $CARGO_TARGET --release -p ethkey-cli
+  time cargo build --target $CARGO_TARGET --release -p whisper-cli
 fi
-
-
-echo "_____ Building target: "$CARGO_TARGET" _____"
-time cargo build --target $CARGO_TARGET --release --features final
-time cargo build --target $CARGO_TARGET --release -p evmbin
-time cargo build --target $CARGO_TARGET --release -p ethstore-cli
-time cargo build --target $CARGO_TARGET --release -p ethkey-cli
-time cargo build --target $CARGO_TARGET --release -p whisper-cli
 
 echo "_____ Post-processing binaries _____"
 rm -rf artifacts
