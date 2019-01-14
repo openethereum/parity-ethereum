@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+#![warn(missing_docs)]
+
+//! Call Contract module
+//! Provides CallContract and RegistryInfo traits
+
 pub mod call_contract;
 
 // Re-export
