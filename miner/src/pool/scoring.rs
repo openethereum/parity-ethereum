@@ -139,16 +139,14 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 						assert!(i < txs.len());
 						assert!(i < scores.len());
 						let last_index = txs.len() - 1;
-						scores[last_index] = *txs[last_index].transaction.gas_price();
+						scores[last_index] = *txs[last_index].transaction.gas_price() << boost(last_index);
 						for idx in (1..txs.len()).rev() {
 							let prev_idx = idx - 1;
 							let consecutive_bump = is_consecutive(prev_idx) *
 								((U256::from(21_000) * scores[idx]) /
 								txs[prev_idx].transaction.gas());
-							scores[prev_idx] = txs[prev_idx].transaction.gas_price() + (consecutive_bump / 1000);
-							scores[idx] <<= boost(prev_idx);
+							scores[prev_idx] = (txs[prev_idx].transaction.gas_price() << boost(prev_idx)) + (consecutive_bump / 1000);
 						}
-						scores[0] <<= boost(last_index);
 					},
 					// We are only sending an event in case of penalization.
 					// So just lower the priority of all non-local transactions.
@@ -187,8 +185,6 @@ impl<P> txpool::Scoring<P> for NonceAndGasPrice where P: ScoredTransaction + txp
 
 #[cfg(test)]
 mod tests {
-	use log::*;
-
 	use super::*;
 
 	use std::sync::Arc;
@@ -484,7 +480,7 @@ mod tests {
 		scoring.update_scores(&transactions_1, &mut *scores_1, scoring::Change::InsertedAt(2));
 
 		assert!(scores_0[0] == scores_1[0]);
-		assert!(scores_0[1] == scores_1[1]);
+		assert!(scores_0[1] > scores_1[1]);
 		assert!(scores_0[2] == scores_1[2]);
 	}
 }
