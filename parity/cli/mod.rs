@@ -309,7 +309,7 @@ usage! {
 		["Convenience Options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
 			"--unsafe-expose",
-			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ui,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
+			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
 
 			ARG arg_config: (String) = "$BASE/config.toml", or |_| None,
 			"-c, --config=[CONFIG]",
