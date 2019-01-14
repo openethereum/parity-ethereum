@@ -46,6 +46,8 @@ pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;
 pub use types::pruning_info::PruningInfo;
 pub use types::call_analytics::CallAnalytics;
+
+// TODO: Get rid of re-exports: https://github.com/paritytech/parity-ethereum/issues/10130
 pub use call_contract::{CallContract, RegistryInfo};
 
 pub use executive::{Executed, Executive, TransactOptions};
