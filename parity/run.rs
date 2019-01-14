@@ -376,7 +376,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 			rpc: rpc_direct,
 			informant,
 			client,
-			keep_alive: Box::new((runtime, service, ws_server, http_server, ipc_server)),
+			keep_alive: Box::new((service, ws_server, http_server, ipc_server, runtime)),
 		}
 	})
 }
