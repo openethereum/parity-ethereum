@@ -30,7 +30,7 @@ ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 evm = { path = "evm" }
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 hashdb = "0.3.0"
 itertools = "0.5"
 journaldb = { path = "../util/journaldb" }
@@ -45,7 +45,8 @@ log = "0.4"
 lru-cache = "0.1"
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
-memorydb = "0.3.0"
+#memorydb = "0.4"
+memorydb = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-bytes = "0.1"

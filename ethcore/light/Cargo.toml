@@ -14,13 +14,14 @@ ethcore = { path = ".."}
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.4"
-memorydb = "0.3.0"
+#memorydb = "0.4"
+memorydb = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
 hashdb = "0.3.0"
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
 failsafe = { version = "0.3.0", default-features = false, features = ["parking_lot_mutex"] }

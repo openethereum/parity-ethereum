@@ -11,7 +11,7 @@ eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 ethereum-types = "0.4"
 lazy_static = "1.0"
 log = "0.4"
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 parity-wordlist = "1.2"
 quick-error = "1.2.2"
 rand = "0.4"

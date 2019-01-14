@@ -19,7 +19,7 @@ common-types = { path = "../ethcore/types" }
 error-chain = "0.12"
 ethereum-types = "0.4"
 futures = "0.1"
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 keccak-hash = "0.1"
 linked-hash-map = "0.5"
 log = "0.4"

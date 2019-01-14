@@ -23,6 +23,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use ethereum_types::H256;
+use mem::{MallocSizeOfExt};
 use hashdb::*;
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
@@ -120,7 +121,7 @@ impl JournalDB for ArchiveDB {
 	}
 
 	fn mem_used(&self) -> usize {
-		self.overlay.mem_used()
+		self.overlay.malloc_size_of()
  	}
 
 	fn is_empty(&self) -> bool {

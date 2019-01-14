@@ -6,5 +6,5 @@ description = "An LRU-cache which operates on memory used"
 license = "GPL3"
 
 [dependencies]
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 lru-cache = "0.1"

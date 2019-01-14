@@ -15,5 +15,6 @@ ethereum-types = "0.4"
 elastic-array = "0.10"
 
 [dev-dependencies]
-memorydb = "0.3.0"
+#memorydb = "0.4"
+memorydb = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 keccak-hash = "0.1.2"

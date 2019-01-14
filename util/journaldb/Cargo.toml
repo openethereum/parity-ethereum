@@ -9,11 +9,12 @@ license = "GPL3"
 parity-bytes = "0.1"
 ethereum-types = "0.4"
 hashdb = "0.3.0"
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 keccak-hasher = { path = "../keccak-hasher" }
 kvdb = "0.1"
 log = "0.4"
-memorydb = "0.3.0"
+#memorydb = "0.4"
+memorydb = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 parking_lot = "0.7"
 fastmap = { path = "../../util/fastmap" }
 rlp = { version = "0.3.0", features = ["ethereum"] }

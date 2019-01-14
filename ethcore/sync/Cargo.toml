@@ -28,7 +28,7 @@ macros = { path = "../../util/macros" }
 parity-bytes = "0.1"
 parking_lot = "0.7"
 rand = "0.4"
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }

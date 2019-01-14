@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 bit-set = "0.4"
 parity-bytes = "0.1"
 ethereum-types = "0.4"
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2" }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize" }
 lazy_static = "1.0"
 log = "0.4"
 vm = { path = "../vm" }

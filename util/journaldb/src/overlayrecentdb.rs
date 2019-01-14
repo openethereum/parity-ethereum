@@ -242,12 +242,11 @@ impl JournalDB for OverlayRecentDB {
 	}
 
 	fn mem_used(&self) -> usize {
-		// TODO could use mem alloc derive instead (require some switch in other crates)
-		let mut mem = self.transaction_overlay.mem_used();
 		let mut ops = new_malloc_size_ops();
+		let mut mem = self.transaction_overlay.size_of(&mut ops);
 		let overlay = self.journal_overlay.read();
 
-		mem += overlay.backing_overlay.mem_used();
+		mem += overlay.backing_overlay.size_of(&mut ops);
 		mem += overlay.pending_overlay.size_of(&mut ops);
 		mem += overlay.journal.size_of(&mut ops);
 

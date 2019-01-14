@@ -24,7 +24,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::H256;
 use hashdb::*;
-use mem::{MallocSizeOf, MallocSizeOfExt};
+use mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use memorydb::*;
@@ -348,8 +348,9 @@ impl JournalDB for EarlyMergeDB {
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn mem_used(&self) -> usize {
-		self.overlay.mem_used() + match self.refs {
-			Some(ref c) => c.read().malloc_size_of(),
+		let mut ops = new_malloc_size_ops();
+		self.overlay.size_of(&mut ops) + match self.refs {
+			Some(ref c) => c.read().size_of(&mut ops),
 			None => 0
 		}
  	}

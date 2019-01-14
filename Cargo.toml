@@ -70,7 +70,7 @@ ethcore-secretstore = { path = "secret-store", optional = true }
 
 registrar = { path = "util/registrar" }
 
-parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "mem-tools2", features = ["jemalloc-global", "estimate-heapsize"] }
+parity-util-mem = { git = "https://github.com/cheme/parity-common", branch = "deprecate_heapsize", features = ["jemalloc-global", "estimate-heapsize"] }
 
 [build-dependencies]
 rustc_version = "0.2"
@@ -135,23 +135,3 @@ members = [
 	"parity-clib",
 	"whisper/cli",
 ]
-
-[patch.crates-io]
-memorydb = { git = "https://github.com/cheme/parity-common", branch = "rem_heapsize" }
-#memorydb = { path = "../../parity-common2/memorydb" }
-#ethabi = { path = "../../ethabi/ethabi" }
-#ethabi-derive = { path = "../../ethabi/derive" }
-#fixed-hash = { path = "../../parity-common/fixed-hash" }
-#keccak-hash = { path = "../../parity-common/keccak-hash" }
-#memorydb = { path = "../../parity-common/memorydb" }
-#hashdb = { path = "../../parity-common/hashdb" }
-#kvdb = { path = "../../parity-common/kvdb" }
-#patricia-trie = { path = "../../parity-common/patricia_trie" }
-#rlp = { path = "../../parity-common/rlp" }
-#uint = { path = "../../parity-common/uint" }
-#ethereum-types = { path = "../../parity-primitives/ethereum-types" }
-#ethbloom = { path = "../../parity-primitives/ethbloom" }
-#[replace]
-#"fixed-hash:0.2.2" = { path = "../../parity-common/fixed-hash" }
-#"uint:0.4.1" = { path = "../../parity-common/uint" }
-#"ethereum-types:0.4.0" = { path = "../../parity-primitives/ethereum-types" }
