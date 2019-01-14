@@ -75,7 +75,7 @@ mod testing {
 		);
 
 		// then
-		assert_eq!(response.status, "HTTP/1.1 200 Ok".to_owned());
+		assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	}
 
 	#[test]

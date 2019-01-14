@@ -54,8 +54,6 @@ test-audit:
 build-linux:
   stage:                           build
   only:                            *releaseable_branches
-  variables:
-    CARGO_TARGET:                  x86_64-unknown-linux-gnu
   script:
     - scripts/gitlab/build-unix.sh
   <<:                              *collect_artifacts
@@ -96,6 +94,23 @@ publish-docker:
     - shell
   script:
     - scripts/gitlab/publish-docker.sh parity
+
+publish-snap:
+  stage:                           publish
+  only:                            *releaseable_branches
+  image:                           parity/snapcraft:gitlab-ci
+  variables:
+    BUILD_ARCH:                  amd64
+  cache: {}
+  before_script:                   *determine_version
+  dependencies:
+    - build-linux
+  tags:
+    - rust-stable
+  script:
+    - scripts/gitlab/publish-snap.sh
+  allow_failure:                   true
+  <<:                              *collect_artifacts
 
 publish-awss3:
   stage:                           publish

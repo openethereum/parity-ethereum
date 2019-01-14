@@ -2165,11 +2165,8 @@ impl IoClient for Client {
 			// NOTE To prevent race condition with import, make sure to check queued blocks first
 			// (and attempt to acquire lock)
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
-			if !is_parent_pending {
-				let status = self.block_status(BlockId::Hash(parent_hash));
-				if  status == BlockStatus::Unknown {
-					bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(parent_hash)));
-				}
+			if !is_parent_pending && !self.chain.read().is_known(&parent_hash) {
+				bail!(EthcoreErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 			}
 		}
 
@@ -2199,6 +2196,10 @@ impl IoClient for Client {
 					);
 					if let Err(e) = result {
 						error!(target: "client", "Error importing ancient block: {}", e);
+
+						let mut queued = queued.write();
+						queued.0.clear();
+						queued.1.clear();
 					}
 					// remove from pending
 					queued.write().0.remove(&hash);
