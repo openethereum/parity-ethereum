@@ -347,7 +347,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 "#;
 
 #[test]
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 fn eth_transaction_count() {
 	use parity_runtime::Runtime;
 	use parking_lot::Mutex;

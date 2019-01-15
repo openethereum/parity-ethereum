@@ -50,7 +50,7 @@ pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 
 /// Signer utilities
 pub mod signer {
-	#[cfg(feature = "accounts")]
+	#[cfg(any(test, feature = "accounts"))]
 	pub use super::helpers::engine_signer::EngineSigner;
 	pub use super::helpers::external_signer::{SignerService, ConfirmationsQueue};
 	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};

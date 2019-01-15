@@ -34,7 +34,7 @@ use v1::helpers::errors;
 use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub mod accounts {
 	use super::*;
 	use accounts::AccountProvider;

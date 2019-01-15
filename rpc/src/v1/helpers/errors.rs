@@ -344,7 +344,7 @@ pub fn invalid_call_data<T: fmt::Display>(error: T) -> Error {
 	}
 }
 
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub fn signing(error: ::accounts::SignError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ACCOUNT_LOCKED),
@@ -353,7 +353,7 @@ pub fn signing(error: ::accounts::SignError) -> Error {
 	}
 }
 
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub fn password(error: ::accounts::SignError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),

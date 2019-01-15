@@ -21,7 +21,7 @@ pub mod block_import;
 pub mod deprecated;
 pub mod dispatch;
 pub mod eip191;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub mod engine_signer;
 pub mod external_signer;
 pub mod fake_sign;

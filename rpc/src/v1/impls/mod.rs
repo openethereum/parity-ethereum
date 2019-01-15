@@ -22,21 +22,21 @@ mod eth_filter;
 mod eth_pubsub;
 mod net;
 mod parity;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 mod parity_accounts;
 mod parity_set;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 mod personal;
 mod private;
 mod pubsub;
 mod rpc;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 mod secretstore;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 mod signer;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 mod signing;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 mod signing_unsafe;
 mod traces;
 mod web3;
@@ -49,23 +49,23 @@ pub use self::eth_filter::EthFilterClient;
 pub use self::eth_pubsub::EthPubSubClient;
 pub use self::net::NetClient;
 pub use self::parity::ParityClient;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub use self::parity_accounts::ParityAccountsClient;
 pub use self::parity_set::ParitySetClient;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub use self::parity_set::accounts::ParitySetAccountsClient;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub use self::personal::PersonalClient;
 pub use self::private::PrivateClient;
 pub use self::pubsub::PubSubClient;
 pub use self::rpc::RpcClient;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub use self::secretstore::SecretStoreClient;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub use self::signer::SignerClient;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub use self::signing::SigningQueueClient;
-#[cfg(feature = "accounts")]
+#[cfg(any(test, feature = "accounts"))]
 pub use self::signing_unsafe::SigningUnsafeClient;
 pub use self::traces::TracesClient;
 pub use self::web3::Web3Client;
