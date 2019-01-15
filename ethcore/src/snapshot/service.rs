@@ -340,7 +340,7 @@ impl Service {
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let migrated_blocks = self.migrate_blocks()?;
-		trace!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
+		info!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
 
 		let rest_db = self.restoration_db();
 		self.client.restore_db(&*rest_db.to_string_lossy())?;
@@ -424,7 +424,7 @@ impl Service {
 			}
 
 			if block_number % 10_000 == 0 {
-				trace!(target: "snapshot", "Block restoration at #{}", block_number);
+				info!(target: "snapshot", "Block restoration at #{}", block_number);
 			}
 		}
 

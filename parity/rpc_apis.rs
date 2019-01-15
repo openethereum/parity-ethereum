@@ -21,7 +21,7 @@ use std::sync::{Arc, Weak};
 
 pub use parity_rpc::signer::SignerService;
 
-use accounts::AccountProvider;
+use account_utils::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;

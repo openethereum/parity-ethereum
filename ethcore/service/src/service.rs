@@ -25,7 +25,6 @@ use ethereum_types::H256;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use stop_guard::StopGuard;
 
-use accounts::AccountProvider;
 use sync::PrivateTxHandler;
 use ethcore::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
@@ -34,7 +33,7 @@ use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as Sn
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
 
-use ethcore_private_tx::{self, Importer};
+use ethcore_private_tx::{self, Importer, Signer};
 use Error;
 
 pub struct PrivateTxService {
@@ -96,7 +95,7 @@ impl ClientService {
 		restoration_db_handler: Box<BlockChainDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
-		account_provider: Arc<AccountProvider>,
+		signer: Arc<Signer>,
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
 		) -> Result<ClientService, Error>
@@ -130,7 +129,7 @@ impl ClientService {
 		let provider = Arc::new(ethcore_private_tx::Provider::new(
 				client.clone(),
 				miner,
-				account_provider,
+				signer,
 				encryptor,
 				private_tx_conf,
 				io_service.channel(),
@@ -275,7 +274,6 @@ mod tests {
 
 	use tempdir::TempDir;
 
-	use accounts::AccountProvider;
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
@@ -311,7 +309,7 @@ mod tests {
 			restoration_db_handler,
 			tempdir.path(),
 			Arc::new(Miner::new_for_tests(&spec, None)),
-			Arc::new(AccountProvider::transient_provider()),
+			Arc::new(ethcore_private_tx::DummySigner),
 			Box::new(ethcore_private_tx::NoopEncryptor),
 			Default::default(),
 		);

@@ -45,6 +45,7 @@ extern crate blooms_db;
 extern crate cli_signer;
 extern crate parity_bytes as bytes;
 extern crate ethcore;
+#[cfg(feature = "ethcore-accounts")]
 extern crate ethcore_accounts as accounts;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
@@ -87,6 +88,7 @@ extern crate pretty_assertions;
 extern crate tempdir;
 
 mod account;
+mod account_utils;
 mod blockchain;
 mod cache;
 mod cli;

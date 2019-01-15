@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use accounts::SignError;
 use ethereum_types::Address;
 use rlp::DecoderError;
 use ethtrie::TrieError;
@@ -152,12 +151,6 @@ error_chain! {
 			display("General signing error {}", err),
 		}
 
-		#[doc = "Account provider signing error."]
-		Sign(err: SignError) {
-			description("Account provider signing error."),
-			display("Account provider signing error {}", err),
-		}
-
 		#[doc = "Error of transactions processing."]
 		Transaction(err: TransactionError) {
 			description("Error of transactions processing."),
@@ -169,12 +162,6 @@ error_chain! {
 			description("General ethcore error."),
 			display("General ethcore error {}", err),
 		}
-	}
-}
-
-impl From<SignError> for Error {
-	fn from(err: SignError) -> Self {
-		ErrorKind::Sign(err).into()
 	}
 }
 

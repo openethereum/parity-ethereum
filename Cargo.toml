@@ -33,7 +33,7 @@ ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 parity-bytes = "0.1"
 ethcore = { path = "ethcore", features = ["parity"] }
-ethcore-accounts = { path = "accounts" }
+ethcore-accounts = { path = "accounts", optional = true }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
@@ -86,6 +86,10 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = "0.3"
 
 [features]
+accounts = [
+	"ethcore-accounts",
+	"ethcore-secretstore/accounts",
+]
 miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
 ci-skip-issue = ["ethcore/ci-skip-issue"]

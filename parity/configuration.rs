@@ -27,7 +27,7 @@ use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use sync::{NetworkConfiguration, validate_node_url, self};
-use ethkey::{Secret, Public};
+use ethkey::{Secret, Public, Password};
 use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
 use ethcore::snapshot::SnapshotConfiguration;
@@ -345,7 +345,7 @@ impl Configuration {
 
 			let verifier_settings = self.verifier_settings();
 			let whisper_config = self.whisper_config();
-			let (private_provider_conf, private_enc_conf, private_tx_enabled) = self.private_provider_config()?;
+			let (private_provider_conf, private_enc_conf, passwords, private_tx_enabled) = self.private_provider_config()?;
 
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
@@ -891,27 +891,24 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
+	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, Vec<Password>, bool), String> {
 		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
 			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
-			passwords: match self.args.arg_private_passwords.clone() {
-				Some(file) => passwords_from_files(&vec![file].as_slice())?,
-				None => Vec::new(),
-			},
 		};
 
 		let encryptor_conf = EncryptorConfig {
 			base_url: self.args.arg_private_sstore_url.clone(),
 			threshold: self.args.arg_private_sstore_threshold.unwrap_or(0),
 			key_server_account: self.args.arg_private_account.clone().and_then(|account| to_address(Some(account)).ok()),
-			passwords: match self.args.arg_private_passwords.clone() {
-				Some(file) => passwords_from_files(&vec![file].as_slice())?,
-				None => Vec::new(),
-			},
 		};
 
-		Ok((provider_conf, encryptor_conf, self.args.flag_private_enabled))
+		let passwords = match self.args.arg_private_passwords.clone() {
+			Some(file) => passwords_from_files(&vec![file].as_slice())?,
+			None => Vec::new(),
+		};
+
+		Ok((provider_conf, encryptor_conf, passwords, self.args.flag_private_enabled))
 	}
 
 	fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
@@ -1049,6 +1046,7 @@ impl Configuration {
 		match self.args.arg_secretstore_secret {
 			Some(ref s) if s.len() == 64 => Ok(Some(NodeSecretKey::Plain(s.parse()
 				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
+			#[cfg(feature = "accounts")]
 			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
 				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
 			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),

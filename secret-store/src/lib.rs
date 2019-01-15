@@ -19,6 +19,7 @@ extern crate ethabi;
 extern crate ethcore;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
+#[cfg(feature = "accounts")]
 extern crate ethcore_accounts as accounts;
 extern crate ethcore_logger as logger;
 extern crate ethcore_sync as sync;
@@ -79,7 +80,9 @@ use parity_runtime::Executor;
 pub use types::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ContractAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::{NodeKeyPair, KeyServer};
-pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
+pub use self::node_key_pair::PlainNodeKeyPair;
+#[cfg(feature = "accounts")]
+pub use self::node_key_pair::KeyStoreNodeKeyPair;
 
 /// Start new key server instance
 pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<NodeKeyPair>, mut config: ServiceConfiguration,

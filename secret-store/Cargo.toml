@@ -24,7 +24,7 @@ url = "1.0"
 ethcore = { path = "../ethcore" }
 parity-bytes = "0.1"
 parity-crypto = "0.2"
-ethcore-accounts = { path = "../accounts" }
+ethcore-accounts = { path = "../accounts", optional = true}
 ethcore-logger = { path = "../logger" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
@@ -41,3 +41,6 @@ ethabi-contract = "6.0"
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
 kvdb-rocksdb = "0.1.3"
+
+[features]
+accounts = ["ethcore-accounts"]

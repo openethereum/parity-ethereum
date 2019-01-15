@@ -18,22 +18,22 @@
 
 use std::io::Read;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::iter::repeat;
 use std::time::{Instant, Duration};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use parking_lot::Mutex;
-use accounts::AccountProvider;
 use ethereum_types::{H128, H256, Address};
 use ethjson;
-use ethkey::{Signature, Password, Public};
+use ethkey::{Signature, Public};
 use crypto;
 use futures::Future;
 use fetch::{Fetch, Client as FetchClient, Method, BodyReader, Request};
 use bytes::{Bytes, ToPretty};
 use error::{Error, ErrorKind};
 use url::Url;
-use super::find_account_password;
+use super::Signer;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -47,7 +47,6 @@ pub trait Encryptor: Send + Sync + 'static {
 	fn encrypt(
 		&self,
 		contract_address: &Address,
-		accounts: &AccountProvider,
 		initialisation_vector: &H128,
 		plain_data: &[u8],
 	) -> Result<Bytes, Error>;
@@ -56,7 +55,6 @@ pub trait Encryptor: Send + Sync + 'static {
 	fn decrypt(
 		&self,
 		contract_address: &Address,
-		accounts: &AccountProvider,
 		cypher: &[u8],
 	) -> Result<Bytes, Error>;
 }
@@ -70,8 +68,6 @@ pub struct EncryptorConfig {
 	pub threshold: u32,
 	/// Account used for signing requests to key server
 	pub key_server_account: Option<Address>,
-	/// Passwords used to unlock accounts
-	pub passwords: Vec<Password>,
 }
 
 struct EncryptionSession {
@@ -84,14 +80,20 @@ pub struct SecretStoreEncryptor {
 	config: EncryptorConfig,
 	client: FetchClient,
 	sessions: Mutex<HashMap<Address, EncryptionSession>>,
+	signer: Arc<Signer>,
 }
 
 impl SecretStoreEncryptor {
 	/// Create new encryptor
-	pub fn new(config: EncryptorConfig, client: FetchClient) -> Result<Self, Error> {
+	pub fn new(
+		config: EncryptorConfig,
+		client: FetchClient,
+		signer: Arc<Signer>,
+	) -> Result<Self, Error> {
 		Ok(SecretStoreEncryptor {
 			config,
 			client,
+			signer,
 			sessions: Mutex::default(),
 		})
 	}
@@ -102,13 +104,12 @@ impl SecretStoreEncryptor {
 		url_suffix: &str,
 		use_post: bool,
 		contract_address: &Address,
-		accounts: &AccountProvider,
 	) -> Result<Bytes, Error> {
 		// check if the key was already cached
 		if let Some(key) = self.obtained_key(contract_address) {
 			return Ok(key);
 		}
-		let contract_address_signature = self.sign_contract_address(contract_address, accounts)?;
+		let contract_address_signature = self.sign_contract_address(contract_address)?;
 		let requester = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
 
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
@@ -148,10 +149,9 @@ impl SecretStoreEncryptor {
 
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
 		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| ErrorKind::Encrypt(e))?;
-		let password = find_account_password(&self.config.passwords, &*accounts, &requester);
 
 		// decrypt Public
-		let decrypted_bytes = accounts.decrypt(requester, password, &crypto::DEFAULT_MAC, &encrypted_bytes)?;
+		let decrypted_bytes = self.signer.decrypt(requester, &crypto::DEFAULT_MAC, &encrypted_bytes)?;
 		let decrypted_key = Public::from_slice(&decrypted_bytes);
 
 		// and now take x coordinate of Public as a key
@@ -187,12 +187,11 @@ impl SecretStoreEncryptor {
 		}
 	}
 
-	fn sign_contract_address(&self, contract_address: &Address, accounts: &AccountProvider) -> Result<Signature, Error> {
+	fn sign_contract_address(&self, contract_address: &Address) -> Result<Signature, Error> {
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
 		let contract_address_extended: H256 = contract_address.into();
 		let key_server_account = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
-		let password = find_account_password(&self.config.passwords, accounts, &key_server_account);
-		Ok(accounts.sign(key_server_account, password, H256::from_slice(&contract_address_extended))?)
+		Ok(self.signer.sign(key_server_account, H256::from_slice(&contract_address_extended))?)
 	}
 }
 
@@ -200,16 +199,15 @@ impl Encryptor for SecretStoreEncryptor {
 	fn encrypt(
 		&self,
 		contract_address: &Address,
-		accounts: &AccountProvider,
 		initialisation_vector: &H128,
 		plain_data: &[u8],
 	) -> Result<Bytes, Error> {
 		// retrieve the key, try to generate it if it doesn't exist yet
-		let key = match self.retrieve_key("", false, contract_address, &*accounts) {
+		let key = match self.retrieve_key("", false, contract_address) {
 			Ok(key) => Ok(key),
 			Err(Error(ErrorKind::EncryptionKeyNotFound(_), _)) => {
 				trace!(target: "privatetx", "Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
-				self.retrieve_key(&format!("/{}", self.config.threshold), true, contract_address, &*accounts)
+				self.retrieve_key(&format!("/{}", self.config.threshold), true, contract_address)
 			}
 			Err(err) => Err(err),
 		}?;
@@ -228,7 +226,6 @@ impl Encryptor for SecretStoreEncryptor {
 	fn decrypt(
 		&self,
 		contract_address: &Address,
-		accounts: &AccountProvider,
 		cypher: &[u8],
 	) -> Result<Bytes, Error> {
 		// initialization vector takes INIT_VEC_LEN bytes
@@ -238,7 +235,7 @@ impl Encryptor for SecretStoreEncryptor {
 		}
 
 		// retrieve existing key
-		let key = self.retrieve_key("", false, contract_address, accounts)?;
+		let key = self.retrieve_key("", false, contract_address)?;
 
 		// use symmetric decryption to decrypt document
 		let (cypher, iv) = cypher.split_at(cypher_len - INIT_VEC_LEN);
@@ -258,7 +255,6 @@ impl Encryptor for NoopEncryptor {
 	fn encrypt(
 		&self,
 		_contract_address: &Address,
-		_accounts: &AccountProvider,
 		_initialisation_vector: &H128,
 		data: &[u8],
 	) -> Result<Bytes, Error> {
@@ -268,7 +264,6 @@ impl Encryptor for NoopEncryptor {
 	fn decrypt(
 		&self,
 		_contract_address: &Address,
-		_accounts: &AccountProvider,
 		data: &[u8],
 	) -> Result<Bytes, Error> {
 		Ok(data.to_vec())

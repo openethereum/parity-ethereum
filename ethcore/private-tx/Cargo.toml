@@ -11,7 +11,6 @@ ethabi = "6.0"
 ethabi-derive = "6.0"
 ethabi-contract = "6.0"
 ethcore = { path = ".." }
-ethcore-accounts = { path = "../../accounts" }
 ethcore-io = { path = "../../util/io" }
 ethcore-logger = { path = "../../logger" }
 ethcore-miner = { path = "../../miner" }
