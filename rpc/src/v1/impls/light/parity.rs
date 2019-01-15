@@ -16,7 +16,7 @@
 
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use version::version_data;
 
@@ -24,14 +24,12 @@ use crypto::DEFAULT_MAC;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::LightSyncProvider;
-use accounts::AccountProvider;
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, NetworkSettings, verify_signature};
-use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
@@ -43,7 +41,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	LightBlockNumber, ChainStatus, Receipt,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, AccountInfo, HwAccountInfo, Header, RichHeader, RecoveredAccount,
+	OperationsInfo, Header, RichHeader, RecoveredAccount,
 	Log, Filter,
 };
 use Host;
@@ -51,20 +49,17 @@ use Host;
 /// Parity implementation for light client.
 pub struct ParityClient {
 	light_dispatch: Arc<LightDispatcher>,
-	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
 	ws_address: Option<Host>,
 	gas_price_percentile: usize,
-	deprecation_notice: DeprecationNotice,
 }
 
 impl ParityClient {
 	/// Creates new `ParityClient`.
 	pub fn new(
 		light_dispatch: Arc<LightDispatcher>,
-		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -73,13 +68,11 @@ impl ParityClient {
 	) -> Self {
 		ParityClient {
 			light_dispatch,
-			accounts,
 			logger,
 			settings,
 			signer,
 			ws_address,
 			gas_price_percentile,
-			deprecation_notice: Default::default(),
 		}
 	}
 
@@ -97,57 +90,6 @@ impl ParityClient {
 
 impl Parity for ParityClient {
 	type Metadata = Metadata;
-
-	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
-		self.deprecation_notice.print("parity_accountsInfo", deprecated::msgs::ACCOUNTS);
-
-		let store = &self.accounts;
-		let dapp_accounts = store
-			.accounts()
-			.map_err(|e| errors::account("Could not fetch accounts.", e))?
-			.into_iter().collect::<HashSet<_>>();
-
-		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		let other = store.addresses_info();
-
-		Ok(info
-			.into_iter()
-			.chain(other.into_iter())
-			.filter(|&(ref a, _)| dapp_accounts.contains(a))
-			.map(|(a, v)| (H160::from(a), AccountInfo { name: v.name }))
-			.collect()
-		)
-	}
-
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
-		self.deprecation_notice.print("parity_hardwareAccountsInfo", deprecated::msgs::ACCOUNTS);
-
-		let store = &self.accounts;
-		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		Ok(info
-			.into_iter()
-			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
-			.collect()
-		)
-	}
-
-	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
-		self.deprecation_notice.print("parity_lockedHardwareAccountsInfo", deprecated::msgs::ACCOUNTS);
-
-		let store = &self.accounts;
-		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
-	}
-
-	fn default_account(&self) -> Result<H160> {
-		self.deprecation_notice.print("parity_defaultAccount", deprecated::msgs::ACCOUNTS);
-
-		Ok(self.accounts
-			.accounts()
-			.ok()
-			.and_then(|accounts| accounts.get(0).cloned())
-			.map(|acc| acc.into())
-			.unwrap_or_default())
-	}
 
 	fn transactions_limit(&self) -> Result<usize> {
 		Ok(usize::max_value())

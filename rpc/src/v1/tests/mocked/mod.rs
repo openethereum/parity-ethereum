@@ -23,13 +23,20 @@ mod eth_pubsub;
 mod manage_network;
 mod net;
 mod parity;
+#[cfg(feature = "accounts")]
 mod parity_accounts;
 mod parity_set;
+#[cfg(feature = "accounts")]
 mod personal;
 mod pubsub;
 mod rpc;
+#[cfg(feature = "accounts")]
 mod secretstore;
+#[cfg(feature = "accounts")]
 mod signer;
+#[cfg(feature = "accounts")]
 mod signing;
+#[cfg(feature = "accounts")]
+mod signing_unsafe;
 mod traces;
 mod web3;

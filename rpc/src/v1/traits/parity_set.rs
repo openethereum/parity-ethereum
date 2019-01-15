@@ -21,6 +21,15 @@ use jsonrpc_core::{BoxFuture, Result};
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
 build_rpc_trait! {
+	/// Parity-specific rpc interface for operations altering the account-related settings.
+	pub trait ParitySetAccounts {
+		/// Sets account for signing consensus messages.
+		#[rpc(name = "parity_setEngineSigner")]
+		fn set_engine_signer(&self, H160, String) -> Result<bool>;
+	}
+}
+
+build_rpc_trait! {
 	/// Parity-specific rpc interface for operations altering the settings.
 	pub trait ParitySet {
 		/// Sets new minimal gas price for mined blocks.
@@ -42,10 +51,6 @@ build_rpc_trait! {
 		/// Sets new author for mined block.
 		#[rpc(name = "parity_setAuthor")]
 		fn set_author(&self, H160) -> Result<bool>;
-
-		/// Sets account for signing consensus messages.
-		#[rpc(name = "parity_setEngineSigner")]
-		fn set_engine_signer(&self, H160, String) -> Result<bool>;
 
 		/// Sets the secret of engine signer account.
 		#[rpc(name = "parity_setEngineSignerSecret")]

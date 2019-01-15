@@ -372,7 +372,6 @@ impl FullDependencies {
 							self.sync.clone(),
 							self.updater.clone(),
 							self.net_service.clone(),
-							self.accounts.clone(),
 							self.logger.clone(),
 							self.settings.clone(),
 							signer,
@@ -380,6 +379,8 @@ impl FullDependencies {
 							self.snapshot.clone().into(),
 						).to_delegate(),
 					);
+					handler
+						.extend_with(ParityAccountsInfo::to_delegate(&ParityAccountsClient::new(&self.accounts)));
 
 					if !for_generic_pubsub {
 						add_signing_methods!(ParitySigning, handler, self, nonces.clone());
@@ -399,18 +400,25 @@ impl FullDependencies {
 				}
 				Api::ParityAccounts => {
 					handler
-						.extend_with(ParityAccountsClient::new(&self.accounts).to_delegate());
+						.extend_with(ParityAccounts::to_delegate(&ParityAccountsClient::new(&self.accounts)));
 				}
-				Api::ParitySet => handler.extend_with(
-					ParitySetClient::new(
-						&self.client,
-						&self.miner,
-						&self.updater,
-						&self.accounts,
-						&self.net_service,
-						self.fetch.clone(),
-					).to_delegate(),
-				),
+				Api::ParitySet => {
+					handler.extend_with(
+						ParitySetClient::new(
+							&self.client,
+							&self.miner,
+							&self.updater,
+							&self.net_service,
+							self.fetch.clone(),
+						).to_delegate(),
+					);
+					handler.extend_with(
+						ParitySetAccountsClient::new(
+							&self.accounts,
+							&self.miner,
+						).to_delegate(),
+					);
+				}
 				Api::Traces => handler.extend_with(TracesClient::new(&self.client).to_delegate()),
 				Api::Rpc => {
 					let modules = to_modules(&apis);
@@ -612,13 +620,15 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(
 						light::ParityClient::new(
 							Arc::new(dispatcher.clone()),
-							self.accounts.clone(),
 							self.logger.clone(),
 							self.settings.clone(),
 							signer,
 							self.ws_address.clone(),
 							self.gas_price_percentile,
 						).to_delegate(),
+					);
+					handler.extend_with(
+						ParityAccountsInfo::to_delegate(&ParityAccountsClient::new(&self.accounts))
 					);
 
 					if !for_generic_pubsub {
@@ -639,7 +649,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				}
 				Api::ParityAccounts => {
 					handler
-						.extend_with(ParityAccountsClient::new(&self.accounts).to_delegate());
+						.extend_with(ParityAccounts::to_delegate(&ParityAccountsClient::new(&self.accounts)));
 				}
 				Api::ParitySet => handler.extend_with(
 					light::ParitySetClient::new(self.sync.clone(), self.fetch.clone())

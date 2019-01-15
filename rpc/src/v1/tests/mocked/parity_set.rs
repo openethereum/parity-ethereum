@@ -19,7 +19,6 @@ use std::str::FromStr;
 use rustc_hex::FromHex;
 use ethereum_types::{U256, Address};
 
-use accounts::AccountProvider;
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
 use sync::ManageNetwork;
@@ -55,15 +54,10 @@ fn parity_set_client(
 	updater: &Arc<TestUpdater>,
 	net: &Arc<TestManageNetwork>,
 ) -> TestParitySetClient {
-	let account_provider = Arc::new(AccountProvider::transient_provider());
-	let addr = account_provider.insert_account(::hash::keccak("cow").into(), &"password".into()).unwrap();
-	println!("{:?}", addr);
-
 	ParitySetClient::new(
 		client,
 		miner,
 		updater,
-		&account_provider,
 		&(net.clone() as Arc<ManageNetwork>),
 		FakeFetch::new(Some(1)),
 	)
@@ -174,26 +168,6 @@ fn rpc_parity_set_author() {
 }
 
 #[test]
-fn rpc_parity_set_engine_signer() {
-	use bytes::ToPretty;
-
-	let miner = miner_service();
-	let client = client_service();
-	let network = network_service();
-	let updater = updater_service();
-	let mut io = IoHandler::new();
-	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setEngineSigner", "params":["0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826", "password"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.authoring_params().author, Address::from_str("cd2a3d9f938e13cd947ec05abc7fe734df8dd826").unwrap());
-	let signature = miner.signer.read().as_ref().unwrap().sign(::hash::keccak("x")).unwrap().to_vec();
-	assert_eq!(&format!("{}", signature.pretty()), "6f46069ded2154af6e806706e4f7f6fd310ac45f3c6dccb85f11c0059ee20a09245df0a0008bb84a10882b1298284bc93058e7bc5938ea728e77620061687a6401");
-}
-
-#[test]
 fn rpc_parity_set_transactions_limit() {
 	let miner = miner_service();
 	let client = client_service();
@@ -251,3 +225,27 @@ fn rpc_parity_remove_transaction() {
 	miner.pending_transactions.lock().insert(hash, signed);
 	assert_eq!(io.handle_request_sync(&request), Some(response.to_owned()));
 }
+
+#[test]
+#[cfg(any(test, feature = "accounts"))]
+fn rpc_parity_set_engine_signer() {
+	use bytes::ToPretty;
+	use accounts::AccountProvider;
+	let account_provider = Arc::new(AccountProvider::transient_provider());
+	let addr = account_provider.insert_account(::hash::keccak("cow").into(), &"password".into()).unwrap();
+
+	let miner = miner_service();
+	let mut io = IoHandler::new();
+	io.extend_with(
+		::v1::impls::parity_set::accounts::ParitySetAccountsClient::new(&account_provider, &miner).to_delegate()
+	);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setEngineSigner", "params":["0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826", "password"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+	assert_eq!(miner.authoring_params().author, Address::from_str("cd2a3d9f938e13cd947ec05abc7fe734df8dd826").unwrap());
+	let signature = miner.signer.read().as_ref().unwrap().sign(::hash::keccak("x")).unwrap().to_vec();
+	assert_eq!(&format!("{}", signature.pretty()), "6f46069ded2154af6e806706e4f7f6fd310ac45f3c6dccb85f11c0059ee20a09245df0a0008bb84a10882b1298284bc93058e7bc5938ea728e77620061687a6401");
+}
+

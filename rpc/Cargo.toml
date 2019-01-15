@@ -39,7 +39,7 @@ ethcore = { path = "../ethcore", features = ["test-helpers"] }
 fastmap = { path = "../util/fastmap" }
 parity-bytes = "0.1"
 parity-crypto = "0.2"
-ethcore-accounts = { path = "../accounts" }
+ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
@@ -63,17 +63,15 @@ eip-712 = { path = "../util/EIP-712" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
-[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
-hardware-wallet = { path = "../accounts/hw" }
-
-[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
-fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
-
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
+ethcore-accounts = { path = "../accounts" }
 ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
 kvdb-memorydb = "0.1"
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"
 transaction-pool = "1.13"
+
+[features]
+accounts = [ "ethcore-accounts" ]

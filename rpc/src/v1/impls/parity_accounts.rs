@@ -25,7 +25,7 @@ use accounts::AccountProvider;
 use jsonrpc_core::Result;
 use v1::helpers::deprecated::{self, DeprecationNotice};
 use v1::helpers::errors;
-use v1::traits::ParityAccounts;
+use v1::traits::{ParityAccounts, ParityAccountsInfo};
 use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo};
 use ethkey::Password;
 
@@ -48,6 +48,53 @@ impl ParityAccountsClient {
 impl ParityAccountsClient {
 	fn deprecation_notice(&self, method: &'static str) {
 		self.deprecation_notice.print(method, deprecated::msgs::ACCOUNTS);
+	}
+}
+
+impl ParityAccountsInfo for ParityAccountsClient {
+	fn accounts_info(&self) -> Result<BTreeMap<H160, AccountInfo>> {
+		self.deprecation_notice("parity_accountsInfo");
+
+		let dapp_accounts = self.accounts.accounts()
+			.map_err(|e| errors::account("Could not fetch accounts.", e))?
+			.into_iter().collect::<HashSet<_>>();
+
+		let info = self.accounts.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
+		let other = self.accounts.addresses_info();
+
+		Ok(info
+			.into_iter()
+			.chain(other.into_iter())
+			.filter(|&(ref a, _)| dapp_accounts.contains(a))
+			.map(|(a, v)| (H160::from(a), AccountInfo { name: v.name }))
+			.collect()
+		)
+	}
+
+	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
+		self.deprecation_notice("parity_hardwareAccountsInfo");
+
+		let info = self.accounts.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
+		Ok(info
+			.into_iter()
+			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
+			.collect()
+		)
+	}
+
+	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
+		self.deprecation_notice("parity_lockedHardwareAccountsInfo");
+
+		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
+	}
+
+	fn default_account(&self) -> Result<H160> {
+		self.deprecation_notice("parity_defaultAccount");
+
+		Ok(self.accounts.default_account()
+			.map(Into::into)
+			.ok()
+			.unwrap_or_default())
 	}
 }
 

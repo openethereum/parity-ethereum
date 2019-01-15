@@ -46,7 +46,6 @@ extern crate ethcore;
 extern crate fastmap;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
-extern crate ethcore_accounts as accounts;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
@@ -68,10 +67,8 @@ extern crate rlp;
 extern crate stats;
 extern crate vm;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
-extern crate hardware_wallet;
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-extern crate fake_hardware_wallet as hardware_wallet;
+#[cfg(any(test, feature = "ethcore-accounts"))]
+extern crate ethcore_accounts as accounts;
 
 #[macro_use]
 extern crate log;
