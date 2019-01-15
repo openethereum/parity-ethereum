@@ -40,7 +40,7 @@ pub trait SocketAddrExt {
 	fn is_documentation_s(&self) -> bool { false }
 	fn is_global_multicast(&self) -> bool { false }
 	fn is_other_multicast(&self) -> bool { false }
-	
+
 	fn is_reserved(&self) -> bool;
 	fn is_usable_public(&self) -> bool;
 	fn is_usable_private(&self) -> bool;
@@ -50,38 +50,38 @@ pub trait SocketAddrExt {
 
 impl SocketAddrExt for Ipv4Addr {
 	fn is_global_s(&self) -> bool {
-		!self.is_private() && 
-		!self.is_loopback() && 
+		!self.is_private() &&
+		!self.is_loopback() &&
 		!self.is_link_local() &&
-		!self.is_broadcast() && 
+		!self.is_broadcast() &&
 		!self.is_documentation()
 	}
 
-	// Used for communications between a service provider and its subscribers when using a carrier-grade NAT 
+	// Used for communications between a service provider and its subscribers when using a carrier-grade NAT
 	// see: https://en.wikipedia.org/wiki/Reserved_IP_addresses
 	fn is_shared_space(&self) -> bool {
-		*self >= Ipv4Addr::new(100, 64, 0, 0) && 
+		*self >= Ipv4Addr::new(100, 64, 0, 0) &&
 		*self <= Ipv4Addr::new(100, 127, 255, 255)
 	}
 
 	// Used for the IANA IPv4 Special Purpose Address Registry
 	// see: https://en.wikipedia.org/wiki/Reserved_IP_addresses
 	fn is_special_purpose(&self) -> bool {
-		*self >= Ipv4Addr::new(192, 0, 0, 0) && 
+		*self >= Ipv4Addr::new(192, 0, 0, 0) &&
 		*self <= Ipv4Addr::new(192, 0, 0, 255)
 	}
 
 	// Used for testing of inter-network communications between two separate subnets
 	// see: https://en.wikipedia.org/wiki/Reserved_IP_addresses
 	fn is_benchmarking(&self) -> bool {
-		*self >= Ipv4Addr::new(198, 18, 0, 0) && 
+		*self >= Ipv4Addr::new(198, 18, 0, 0) &&
 		*self <= Ipv4Addr::new(198, 19, 255, 255)
 	}
 
 	// Reserved for future use
 	// see: https://en.wikipedia.org/wiki/Reserved_IP_addresses
 	fn is_future_use(&self) -> bool {
-		*self >= Ipv4Addr::new(240, 0, 0, 0) && 
+		*self >= Ipv4Addr::new(240, 0, 0, 0) &&
 		*self <= Ipv4Addr::new(255, 255, 255, 254)
 	}
 
@@ -102,7 +102,7 @@ impl SocketAddrExt for Ipv4Addr {
 		!self.is_reserved() &&
 		!self.is_private()
 	}
-	
+
 	fn is_usable_private(&self) -> bool {
 		self.is_private()
 	}
@@ -118,7 +118,7 @@ impl SocketAddrExt for Ipv4Addr {
 impl SocketAddrExt for Ipv6Addr {
 	fn is_global_s(&self) -> bool {
 		self.is_global_multicast() ||
-		(!self.is_loopback() && 
+		(!self.is_loopback() &&
 		!self.is_unique_local_s() &&
 		!self.is_unicast_link_local_s() &&
 		!self.is_documentation_s() &&
@@ -134,7 +134,7 @@ impl SocketAddrExt for Ipv6Addr {
 	fn is_unicast_link_local_s(&self) -> bool {
 		(self.segments()[0] & 0xffc0) == 0xfe80
 	}
-	
+
 	// reserved for documentation (2001:db8::/32).
 	fn is_documentation_s(&self) -> bool {
 		(self.segments()[0] == 0x2001) && (self.segments()[1] == 0xdb8)
@@ -160,7 +160,7 @@ impl SocketAddrExt for Ipv6Addr {
 		!self.is_reserved() &&
 		!self.is_unique_local_s()
 	}
-	
+
 	fn is_usable_private(&self) -> bool {
 		self.is_unique_local_s()
 	}
@@ -194,7 +194,7 @@ impl SocketAddrExt for IpAddr {
 			IpAddr::V6(ref ip) => ip.is_usable_public(),
 		}
 	}
-	
+
 	fn is_usable_private(&self) -> bool {
 		match *self {
 			IpAddr::V4(ref ip) => ip.is_usable_private(),
@@ -308,7 +308,15 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 
 pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 	if let SocketAddr::V4(ref local_addr) = local.address {
-		match search_gateway_from_timeout(*local_addr.ip(), Duration::new(5, 0)) {
+		let local_ip = *local_addr.ip();
+		let search_gateway_child = ::std::thread::spawn(move || {
+			search_gateway_from_timeout(local_ip, Duration::new(5, 0))
+		});
+		let gateway_result = match search_gateway_child.join() {
+			Err(_) => return None,
+			Ok(gateway_result) => gateway_result,
+		};
+		match gateway_result {
 			Err(ref err) => debug!("Gateway search error: {}", err),
 			Ok(gateway) => {
 				match gateway.get_external_ip() {
@@ -425,32 +433,32 @@ fn ipv4_future_use() {
 fn ipv4_usable_public() {
 	assert!(!Ipv4Addr::new(0,0,0,0).is_usable_public()); // unspecified
 	assert!(Ipv4Addr::new(0,0,0,1).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(9,255,255,255).is_usable_public());
 	assert!(!Ipv4Addr::new(10,0,0,0).is_usable_public()); // private intra-network
 	assert!(!Ipv4Addr::new(10,255,255,255).is_usable_public()); // private intra-network
 	assert!(Ipv4Addr::new(11,0,0,0).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(100, 63, 255, 255).is_usable_public());
-	assert!(!Ipv4Addr::new(100, 64, 0, 0).is_usable_public()); // shared space 
+	assert!(!Ipv4Addr::new(100, 64, 0, 0).is_usable_public()); // shared space
 	assert!(!Ipv4Addr::new(100, 127, 255, 255).is_usable_public()); // shared space
 	assert!(Ipv4Addr::new(100, 128, 0, 0).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(126,255,255,255).is_usable_public());
 	assert!(!Ipv4Addr::new(127,0,0,0).is_usable_public()); // loopback
 	assert!(!Ipv4Addr::new(127,255,255,255).is_usable_public()); // loopback
 	assert!(Ipv4Addr::new(128,0,0,0).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(169,253,255,255).is_usable_public());
 	assert!(!Ipv4Addr::new(169,254,0,0).is_usable_public()); // link-local
 	assert!(!Ipv4Addr::new(169,254,255,255).is_usable_public()); // link-local
 	assert!(Ipv4Addr::new(169,255,0,0).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(172,15,255,255).is_usable_public());
 	assert!(!Ipv4Addr::new(172,16,0,0).is_usable_public()); // private intra-network
 	assert!(!Ipv4Addr::new(172,31,255,255).is_usable_public()); // private intra-network
 	assert!(Ipv4Addr::new(172,32,255,255).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(191,255,255,255).is_usable_public());
 	assert!(!Ipv4Addr::new(192,0,0,0).is_usable_public()); // special purpose
 	assert!(!Ipv4Addr::new(192,0,0,255).is_usable_public()); // special purpose
@@ -458,19 +466,19 @@ fn ipv4_usable_public() {
 
 	assert!(Ipv4Addr::new(192,0,1,255).is_usable_public());
 	assert!(!Ipv4Addr::new(192,0,2,0).is_usable_public()); // documentation
-	assert!(!Ipv4Addr::new(192,0,2,255).is_usable_public()); // documentation 
+	assert!(!Ipv4Addr::new(192,0,2,255).is_usable_public()); // documentation
 	assert!(Ipv4Addr::new(192,0,3,0).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(192,167,255,255).is_usable_public());
 	assert!(!Ipv4Addr::new(192,168,0,0).is_usable_public()); // private intra-network
 	assert!(!Ipv4Addr::new(192,168,255,255).is_usable_public()); // private intra-network
 	assert!(Ipv4Addr::new(192,169,0,0).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(198,17,255,255).is_usable_public());
 	assert!(!Ipv4Addr::new(198,18,0,0).is_usable_public()); // benchmarking
 	assert!(!Ipv4Addr::new(198,19,255,255).is_usable_public()); // benchmarking
 	assert!(Ipv4Addr::new(198,20,0,0).is_usable_public());
-	
+
 	assert!(Ipv4Addr::new(198,51,99,255).is_usable_public());
 	assert!(!Ipv4Addr::new(198,51,100,0).is_usable_public()); // documentation
 	assert!(!Ipv4Addr::new(198,51,100,255).is_usable_public()); // documentation
@@ -485,7 +493,7 @@ fn ipv4_usable_public() {
 	assert!(!Ipv4Addr::new(224,0,0,0).is_usable_public()); // multicast
 	assert!(!Ipv4Addr::new(239, 255, 255, 255).is_usable_public()); // multicast
 	assert!(!Ipv4Addr::new(240, 0, 0, 0).is_usable_public()); // future use
-	assert!(!Ipv4Addr::new(255, 255, 255, 254).is_usable_public()); // future use 
+	assert!(!Ipv4Addr::new(255, 255, 255, 254).is_usable_public()); // future use
 	assert!(!Ipv4Addr::new(255, 255, 255, 255).is_usable_public()); // limited broadcast
 }
 
@@ -495,12 +503,12 @@ fn ipv4_usable_private() {
 	assert!(Ipv4Addr::new(10,0,0,0).is_usable_private()); // private intra-network
 	assert!(Ipv4Addr::new(10,255,255,255).is_usable_private()); // private intra-network
 	assert!(!Ipv4Addr::new(11,0,0,0).is_usable_private());
-	
+
 	assert!(!Ipv4Addr::new(172,15,255,255).is_usable_private());
 	assert!(Ipv4Addr::new(172,16,0,0).is_usable_private()); // private intra-network
 	assert!(Ipv4Addr::new(172,31,255,255).is_usable_private()); // private intra-network
 	assert!(!Ipv4Addr::new(172,32,255,255).is_usable_private());
-	
+
 	assert!(!Ipv4Addr::new(192,167,255,255).is_usable_private());
 	assert!(Ipv4Addr::new(192,168,0,0).is_usable_private()); // private intra-network
 	assert!(Ipv4Addr::new(192,168,255,255).is_usable_private()); // private intra-network
