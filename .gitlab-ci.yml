@@ -148,6 +148,7 @@ build-android:
   tags:
     - linux-docker
   allow_failure:                   true
+  <<:                              *collect_artifacts
 
 test-beta:
   stage:                           optional
