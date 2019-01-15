@@ -15,7 +15,6 @@ if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
 # only thing we need for android
   time cargo build --target $CARGO_TARGET --release -p parity-clib --features final
-  ls ../../target/$CARGO_TARGET/release/
 else
   time cargo build --target $CARGO_TARGET --release --features final
   time cargo build --target $CARGO_TARGET --release -p evmbin
