@@ -15,6 +15,7 @@ if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
 # only thing we need for android
   time cargo build --target $CARGO_TARGET --release -p parity-clib --features final
+  ls ../../target/$CARGO_TARGET/release/
 else
   time cargo build --target $CARGO_TARGET --release --features final
   time cargo build --target $CARGO_TARGET --release -p evmbin
@@ -29,11 +30,17 @@ mkdir -p artifacts
 cd artifacts
 mkdir -p $CARGO_TARGET
 cd $CARGO_TARGET
-cp -v ../../target/$CARGO_TARGET/release/parity ./parity
-cp -v ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
-cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
-cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
-cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
+if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
+then
+# only thing we need for android
+ cp -v ../../target/$CARGO_TARGET/release/parity ./parity-clib
+else
+ cp -v ../../target/$CARGO_TARGET/release/parity ./parity
+ cp -v ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
+ cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
+ cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
+ cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
+fi
 
 
 # stripping can also be done on release build time
