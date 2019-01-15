@@ -33,7 +33,7 @@ cd $CARGO_TARGET
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
 # only thing we need for android
- cp -v ../../target/$CARGO_TARGET/release/parity ./parity-clib
+ cp -v ../../target/$CARGO_TARGET/release/libparity.so ./libparity.so
 else
  cp -v ../../target/$CARGO_TARGET/release/parity ./parity
  cp -v ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
