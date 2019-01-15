@@ -41,6 +41,7 @@ extern crate serde_derive;
 extern crate toml;
 
 extern crate blooms_db;
+extern crate call_contract;
 extern crate cli_signer;
 extern crate common_types as types;
 extern crate ethcore;

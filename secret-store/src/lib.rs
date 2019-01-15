@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate byteorder;
+extern crate call_contract;
 extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;

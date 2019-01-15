@@ -6,6 +6,7 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+call-contract = { path = "../call-contract" }
 common-types = { path = "../types" }
 error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"

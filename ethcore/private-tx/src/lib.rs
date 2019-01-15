@@ -25,6 +25,7 @@ mod private_transactions;
 mod messages;
 mod error;
 
+extern crate call_contract;
 extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore;
@@ -82,11 +83,12 @@ use types::transaction::{SignedTransaction, Transaction, Action, UnverifiedTrans
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
 	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
-	CallContract, Call, BlockInfo
+	Call, BlockInfo
 };
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
 use ethcore::trace::{Tracer, VMTracer};
+use call_contract::CallContract;
 use rustc_hex::FromHex;
 use ethkey::Password;
 use ethabi::FunctionOutputDecoder;
