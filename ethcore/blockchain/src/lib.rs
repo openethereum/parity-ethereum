@@ -33,5 +33,5 @@ pub use self::cache::CacheSize;
 pub use self::config::Config;
 pub use self::import_route::ImportRoute;
 pub use self::update::ExtrasInsert;
-pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress};
+pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, BlockNumberKey};
 pub use common_types::tree_route::TreeRoute;

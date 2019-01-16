@@ -482,3 +482,9 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	/// Get an epoch change signal by block hash.
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
 }
+
+/// resets the blockchain
+pub trait BlockChainReset {
+	/// reset to best_block - n
+	fn reset(&self, num: u32) -> Result<(), String>;
+}
