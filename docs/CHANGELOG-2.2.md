@@ -1,5 +1,27 @@
 ## Parity-Ethereum [v2.2.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.7) (2018-01-15)
 
+Parity-Ethereum 2.2.7-stable is a consensus-relevant security release that reverts Constantinople on the Ethereum network. Upgrading is mandatory for Ethereum, and strongly recommended for other networks.
+
+- **Consensus** - Ethereum Network: Pull Constantinople protocol upgrade on Ethereum ([#10189](https://github.com/paritytech/parity-ethereum/pull/10189))
+  - Read more: [Security Alert: Ethereum Constantinople Postponement](https://blog.ethereum.org/2019/01/15/security-alert-ethereum-constantinople-postponement/)
+- **Networking** - All networks: Ping nodes from discovery ([#10167](https://github.com/paritytech/parity-ethereum/pull/10167))
+- **Wasm** - Kovan Network: Update pwasm-utils to 0.6.1 ([#10134](https://github.com/paritytech/parity-ethereum/pull/10134))
+
+_Note:_ This release marks Parity 2.2 as _stable_. All versions of Parity 2.1 now reached _end of life_.
+
+The full list of included changes:
+
+- Backports for stable 2.2.7 ([#10163](https://github.com/paritytech/parity-ethereum/pull/10163))
+  - Version: bump stable to 2.2.7
+  - Version: mark 2.2 track stable
+  - Version: mark update critical on all networks
+  - Handle the case for contract creation on an empty but exist account with storage items ([#10065](https://github.com/paritytech/parity-ethereum/pull/10065))
+  - Fix _cannot recursively call into `Core`_ issue ([#10144](https://github.com/paritytech/parity-ethereum/pull/10144))
+  - Snap: fix path in script ([#10157](https://github.com/paritytech/parity-ethereum/pull/10157))
+  - Ping nodes from discovery ([#10167](https://github.com/paritytech/parity-ethereum/pull/10167))
+  - Version: bump fork blocks for kovan and foundation, mark releases non critical
+  - Pull constantinople on ethereum network ([#10189](https://github.com/paritytech/parity-ethereum/pull/10189))
+
 ## Parity-Ethereum [v2.2.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.6) (2019-01-10)
 
 Parity-Ethereum 2.2.6-beta is a bugfix release that improves performance and stability.
