@@ -1,0 +1,10 @@
+[package]
+name = "blockchain-info"
+version = "0.1.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+
+[dependencies]
+ethereum-types = "0.4"
+types = { path = "../types", package = "common-types" }
