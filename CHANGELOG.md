@@ -7,6 +7,26 @@ Parity-Ethereum 2.3.0-beta is a consensus-relevant security release that reverts
 - **Networking** - All networks: Ping nodes from discovery (#10167)
 - **Wasm** - Kovan Network: Update pwasm-utils to 0.6.1 (#10134)
 
+Other notable changes:
+
+- Existing blocks in the database are now kept when restoring a Snapshot. (#8643)
+- Block and transaction propagation is improved significantly. (#9954)
+- The ERC-191 Signed Data Standard is now supported by `personal_sign191`. (#9701)
+- Add support for ERC-191/712 `eth_signTypedData` as a standard for machine-verifiable and human-readable typed data signing with Ethereum keys. (#9631)
+- Add support for ERC-1186 `eth_getProof` (#9001)
+- Add experimental RPCs flag to enable ERC-191, ERC-712, and ERC-1186 APIs via `--jsonrpc-experimental` (#9928)
+- Make `CALLCODE` to trace value to be the code address. (#9881)
+
+Configuration changes:
+
+- The EIP-98 transition is now disabled by default. If you previously had no `eip98transition` specified in your chain specification, you would enable this now manually on block `0x0`. (#9955)
+- Also, unknown fields in chain specs are now rejected. (#9972)
+- The Tendermint engine was removed from Parity Ethereum and is no longer available and maintained. (#9980)
+- Ropsten testnet data and keys moved from `test/` to `ropsten/` subdir. To reuse your old keys and data either copy or symlink them to the new location.  (#10123)
+- Strict empty steps validation (#10041)
+  - If you have a chain with`empty_steps` already running, some blocks most likely contain non-strict entries (unordered or duplicated empty steps). In this release `strict_empty_steps_transition` is enabled by default at block `0x0` for any chain with `empty_steps`.
+  - If your network uses `empty_steps` you **must** (A) plan a hard fork and change `strict_empty_steps_transition` to the desired fork block and (B) update the clients of the whole network to 2.2.7-stable / 2.3.0-beta. If for some reason you don't want to do this please set`strict_empty_steps_transition` to `0xfffffffff` to disable it.
+
 _Note:_ This release marks Parity 2.3 as _beta_. All versions of Parity 2.2 are now considered _stable_.
 
 The full list of included changes:
