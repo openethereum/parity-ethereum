@@ -25,6 +25,7 @@ use ethereum_types::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth52
 macro_rules! impl_hash {
 	($name: ident, $other: ident, $size: expr) => {
 		/// Hash serialization
+		#[derive(Copy, Clone)]
 		pub struct $name(pub [u8; $size]);
 
 		impl Eq for $name { }
@@ -96,14 +97,6 @@ macro_rules! impl_hash {
 			fn hash<H>(&self, state: &mut H) where H: Hasher {
 				let self_ref: &[u8] = &self.0;
 				Hash::hash(self_ref, state)
-			}
-		}
-
-		impl Clone for $name {
-			fn clone(&self) -> Self {
-				let mut r = [0; $size];
-				r.copy_from_slice(&self.0);
-				$name(r)
 			}
 		}
 
