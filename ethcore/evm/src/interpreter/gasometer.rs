@@ -121,6 +121,10 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				Request::Gas(Gas::from(1))
 			},
 			instructions::SSTORE => {
+				if self.current_gas < Gas::from(schedule.call_stipend) {
+					return Err(vm::Error::OutOfGas);
+				}
+
 				let address = H256::from(stack.peek(0));
 				let newval = stack.peek(1);
 				let val = U256::from(&*ext.storage_at(&address)?);
