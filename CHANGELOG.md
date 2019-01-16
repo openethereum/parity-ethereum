@@ -1,4 +1,4 @@
-## Parity Ethereum v2.3.0
+## Parity-Ethereum [v2.3.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.0) (2018-01-16)
 
 ## Previous releases
 

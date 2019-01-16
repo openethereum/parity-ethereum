@@ -1,13 +1,17 @@
+Note: Parity Ethereum 2.1 reached End-of-Life on 2019-01-16 (EOL).
+
+## Parity-Ethereum [v2.1.11](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.11) (2019-01-09)
+
 ## Parity-Ethereum [v2.1.10](https://github.com/paritytech/parity-ethereum/releases/tag/v2.1.10) (2018-12-14)
-Parity-Ethereum 2.1.10-stable is an important release that introduces Constantinople fork at block 7080000 on Mainnet. 
-This release also contains a fix for chains using AuRa + EmptySteps. Read carefully if this applies to you. 
+Parity-Ethereum 2.1.10-stable is an important release that introduces Constantinople fork at block 7080000 on Mainnet.
+This release also contains a fix for chains using AuRa + EmptySteps. Read carefully if this applies to you.
 If you have a chain with`empty_steps` already running, some blocks most likely contain non-strict entries (unordered or duplicated empty steps). In this release`strict_empty_steps_transition` **is enabled by default at block 0** for any chain with `empty_steps`.
 If your network uses `empty_steps` you **must**:
 - plan a hard fork and change `strict_empty_steps_transition` to the desire fork block
 - update the clients of the whole network to 2.2.5-beta / 2.1.10-stable.
 If for some reason you don't want to do this please set`strict_empty_steps_transition` to `0xfffffffff` to disable it.
 
-The full list of included changes: 
+The full list of included changes:
 
 -  Backports for stable 2.1.10 ([#10046](https://github.com/paritytech/parity-ethereum/pull/10046))
 	- Bump stable to 2.1.10 ([#10046](https://github.com/paritytech/parity-ethereum/pull/10046))

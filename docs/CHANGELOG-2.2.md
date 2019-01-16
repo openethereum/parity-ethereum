@@ -1,4 +1,9 @@
+## Parity-Ethereum [v2.2.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.7) (2018-01-15)
+
+## Parity-Ethereum [v2.2.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.6) (2019-01-10)
+
 ## Parity-Ethereum [v2.2.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.5) (2018-12-14)
+
 Parity-Ethereum 2.2.5-beta is an important release that introduces Constantinople fork at block 7080000 on Mainnet.
 This release also contains a fix for chains using AuRa + EmptySteps. Read carefully if this applies to you.
 If you have a chain with`empty_steps` already running, some blocks most likely contain non-strict entries (unordered or duplicated empty steps). In this release`strict_empty_steps_transition` **is enabled by default at block 0** for any chain with `empty_steps`.
