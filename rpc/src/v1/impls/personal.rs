@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Account management (personal) rpc implementation
 use std::sync::Arc;
@@ -20,9 +20,9 @@ use std::time::Duration;
 
 use accounts::AccountProvider;
 use bytes::{Bytes, ToPretty};
-use transaction::PendingTransaction;
 use ethereum_types::{H520, U128, Address};
 use ethkey::{public_to_address, recover, Signature};
+use types::transaction::PendingTransaction;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
@@ -138,8 +138,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		let r = match (self.allow_perm_unlock, duration) {
 			(false, None) => store.unlock_account_temporarily(account, account_pass.into()),
 			(false, _) => return Err(errors::unsupported(
-				"Time-unlocking is only supported in --geth compatibility mode.",
-				Some("Restart your client with --geth flag or use personal_sendTransaction instead."),
+				"Time-unlocking is not supported when permanent unlock is disabled.",
+				Some("Use personal_sendTransaction or enable permanent unlocking, instead."),
 			)),
 			(true, Some(0)) => store.unlock_account_permanently(account, account_pass.into()),
 			(true, Some(d)) => store.unlock_account_timed(account, account_pass.into(), Duration::from_secs(d.into())),

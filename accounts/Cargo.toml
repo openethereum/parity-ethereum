@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 
 [dependencies]
-ethcore-transaction = { path = "../ethcore/transaction" }
+common-types = { path = "../ethcore/types" }
 ethkey = { path = "ethkey" }
 ethstore = { path = "ethstore" }
 log = "0.4"

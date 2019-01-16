@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
 use std::time::{Instant, Duration};
@@ -21,8 +21,6 @@ use std::sync::Arc;
 
 use ansi_term::Colour;
 use bytes::Bytes;
-use engines::{EthEngine, Seal, EngineSigner};
-use error::{Error, ErrorKind, ExecutionError};
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::local_accounts::LocalAccounts;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
@@ -30,27 +28,32 @@ use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStat
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use io::IoChannel;
+use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
+use miner;
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use transaction::{
+use types::transaction::{
 	self,
 	Action,
 	UnverifiedTransaction,
 	SignedTransaction,
 	PendingTransaction,
 };
+use types::BlockNumber;
+use types::block::Block;
+use types::header::Header;
+use types::receipt::RichReceipt;
 use using_queue::{UsingQueue, GetAction};
 
-use block::{ClosedBlock, IsBlock, Block, SealedBlock};
+use block::{ClosedBlock, IsBlock, SealedBlock};
 use client::{
 	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
+use engines::{EthEngine, Seal, EngineSigner};
+use error::{Error, ErrorKind};
+use executed::ExecutionError;
 use executive::contract_address;
-use header::{Header, BlockNumber};
-use miner;
-use miner::pool_client::{PoolClient, CachedNonceClient, NonceCache};
-use receipt::RichReceipt;
 use spec::Spec;
 use state::State;
 
@@ -1203,7 +1206,6 @@ impl miner::MinerService for Miner {
 		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
 
-
 		// Then import all transactions from retracted blocks.
 		let client = self.pool_client(chain);
 		{
@@ -1296,13 +1298,13 @@ mod tests {
 	use accounts::AccountProvider;
 	use ethkey::{Generator, Random};
 	use hash::keccak;
-	use header::BlockNumber;
 	use rustc_hex::FromHex;
+	use types::BlockNumber;
 
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
 	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec};
-	use transaction::{Transaction};
+	use types::transaction::{Transaction};
 
 	#[test]
 	fn should_prepare_block_to_seal() {

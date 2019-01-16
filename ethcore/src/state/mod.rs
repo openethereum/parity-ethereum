@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A mutable state representation suitable to execute transactions.
 //! Generic over a `Backend`. Deals with `Account`s.
@@ -26,7 +26,7 @@ use std::fmt;
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
 
-use receipt::{Receipt, TransactionOutcome};
+use types::receipt::{Receipt, TransactionOutcome};
 use machine::EthereumMachine as Machine;
 use vm::EnvInfo;
 use error::Error;
@@ -38,7 +38,7 @@ use pod_state::{self, PodState};
 use types::basic_account::BasicAccount;
 use executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 use state_db::StateDB;
 use factory::VmFactory;
 
@@ -539,6 +539,13 @@ impl<B: Backend> State<B> {
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
+	/// Whether the base storage root of an account remains unchanged.
+	pub fn is_base_storage_root_unchanged(&self, a: &Address) -> TrieResult<bool> {
+		Ok(self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map(|account| account.is_base_storage_root_unchanged()))?
+			.unwrap_or(true))
+	}
+
 	/// Get the storage root of account `a`.
 	pub fn storage_root(&self, a: &Address) -> TrieResult<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
@@ -1016,7 +1023,6 @@ impl<B: Backend> State<B> {
 		Ok(pod_account)
 	}
 
-
 	/// Populate a PodAccount map from this state, with another state as the account and storage query.
 	fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> TrieResult<PodState> {
 		assert!(self.checkpoints.borrow().is_empty());
@@ -1316,8 +1322,7 @@ mod tests {
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
 	use spec::*;
-	use transaction::*;
-	use ethcore_logger::init_log;
+	use types::transaction::*;
 	use trace::{FlatTrace, TraceError, trace};
 	use evm::CallType;
 
@@ -1333,7 +1338,7 @@ mod tests {
 
 	#[test]
 	fn should_apply_create_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1373,7 +1378,7 @@ mod tests {
 
 	#[test]
 	fn should_work_when_cloned() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let a = Address::zero();
 
@@ -1391,7 +1396,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_failed_create_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1427,7 +1432,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1469,7 +1474,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_basic_call_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1510,7 +1515,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_transaction_to_builtin() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1551,7 +1556,7 @@ mod tests {
 
 	#[test]
 	fn should_not_trace_subcall_transaction_to_builtin() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1593,7 +1598,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_callcode_properly() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1651,7 +1656,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_delegatecall_properly() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1710,7 +1715,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_failed_call_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1749,7 +1754,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_with_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1808,7 +1813,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_with_basic_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1862,7 +1867,7 @@ mod tests {
 
 	#[test]
 	fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1904,7 +1909,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_failed_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1959,7 +1964,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_with_subcall_with_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -2033,7 +2038,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_failed_subcall_with_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -2105,7 +2110,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_suicide() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -2737,7 +2742,6 @@ mod tests {
 		state.set_storage(&a, storage_address.clone(), H256::from(&U256::from(0u64))).unwrap();
 		let dump = state.to_pod_full().unwrap();
 		assert_eq!(get_pod_state_val(&dump, &a, storage_address.clone()), H256::from(&U256::from(0u64)));
-
 
 	}
 

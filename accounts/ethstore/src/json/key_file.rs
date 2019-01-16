@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
 use std::io::{Read, Write};
@@ -46,7 +46,7 @@ pub struct KeyFile {
 	pub id: Uuid,
 	pub version: Version,
 	pub crypto: Crypto,
-	pub address: H160,
+	pub address: Option<H160>,
 	pub name: Option<String>,
 	pub meta: Option<String>,
 }
@@ -158,11 +158,6 @@ impl<'a> Visitor<'a> for KeyFileVisitor {
 			None => return Err(V::Error::missing_field("crypto")),
 		};
 
-		let address = match address {
-			Some(address) => address,
-			None => return Err(V::Error::missing_field("address")),
-		};
-
 		let result = KeyFile {
 			id: id,
 			version: version,
@@ -222,7 +217,7 @@ mod tests {
 		let expected = KeyFile {
 			id: Uuid::from_str("8777d9f6-7860-4b9b-88b7-0b57ee6b3a73").unwrap(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),
@@ -273,7 +268,7 @@ mod tests {
 		let expected = KeyFile {
 			id: "8777d9f6-7860-4b9b-88b7-0b57ee6b3a73".into(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),
@@ -301,7 +296,7 @@ mod tests {
 		let file = KeyFile {
 			id: "8777d9f6-7860-4b9b-88b7-0b57ee6b3a73".into(),
 			version: Version::V3,
-			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
+			address: Some("6edddfc6349aff20bc6467ccf276c5b52487f7a8".into()),
 			crypto: Crypto {
 				cipher: Cipher::Aes128Ctr(Aes128Ctr {
 					iv: "b5a7ec855ec9e2c405371356855fec83".into(),

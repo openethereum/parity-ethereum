@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::any::Any;
 use std::sync::{Arc, Weak, atomic};
@@ -22,7 +22,6 @@ use std::thread;
 use ansi_term::Colour;
 use bytes::Bytes;
 use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
-use ethcore::engines::EngineSigner;
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -30,7 +29,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use sync::{self, SyncConfig};
+use sync::{self, SyncConfig, PrivateTxHandler};
 use miner::work_notify::WorkPoster;
 use futures::IntoFuture;
 use hash_fetch::{self, fetch};
@@ -40,7 +39,8 @@ use light::Cache as LightDataCache;
 use miner::external::ExternalMiner;
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
-use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing};
+use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult,
+	FutureResponse, FutureOutput};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
@@ -144,7 +144,7 @@ struct FullNodeInfo {
 }
 
 impl ::local_store::NodeInfo for FullNodeInfo {
-	fn pending_transactions(&self) -> Vec<::transaction::PendingTransaction> {
+	fn pending_transactions(&self) -> Vec<::types::transaction::PendingTransaction> {
 		let miner = match self.miner.as_ref() {
 			Some(m) => m,
 			None => return Vec::new(),
@@ -204,7 +204,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	// start client and create transaction queue.
 	let mut config = light_client::Config {
 		queue: Default::default(),
-		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
+		chain_column: ::ethcore_db::COL_LIGHT_CHAIN,
 		verify_full: true,
 		check_seal: cmd.check_seal,
 		no_hardcoded_sync: cmd.no_hardcoded_sync,
@@ -370,7 +370,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 			rpc: rpc_direct,
 			informant,
 			client,
-			keep_alive: Box::new((runtime, service, ws_server, http_server, ipc_server)),
+			keep_alive: Box::new((service, ws_server, http_server, ipc_server, runtime)),
 		}
 	})
 }
@@ -603,7 +603,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			}
 		};
 
-		let store = ::local_store::create(db.key_value().clone(), ::ethcore::db::COL_NODE_INFO, node_info);
+		let store = ::local_store::create(db.key_value().clone(), ::ethcore_db::COL_NODE_INFO, node_info);
 
 		if cmd.no_persistent_txqueue {
 			info!("Running without a persistent transaction queue.");
@@ -651,13 +651,18 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		None
 	};
 
+	let private_tx_sync: Option<Arc<PrivateTxHandler>> = match cmd.private_tx_enabled {
+		true => Some(private_tx_service.clone() as Arc<PrivateTxHandler>),
+		false => None,
+	};
+
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
 		sync_config,
 		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
-		private_tx_service.clone(),
+		private_tx_sync,
 		client.clone(),
 		&cmd.logger_config,
 		attached_protos,
@@ -861,21 +866,19 @@ enum RunningClientInner {
 }
 
 impl RunningClient {
-	/// Performs a synchronous RPC query.
-	/// Blocks execution until the result is ready.
-	pub fn rpc_query_sync(&self, request: &str) -> Option<String> {
+	/// Performs an asynchronous RPC query.
+	// FIXME: [tomaka] This API should be better, with for example a Future
+	pub fn rpc_query(&self, request: &str, session: Option<Arc<PubSubSession>>)
+		-> FutureResult<FutureResponse, FutureOutput>
+	{
 		let metadata = Metadata {
 			origin: Origin::CApi,
-			session: None,
+			session,
 		};
 
 		match self.inner {
-			RunningClientInner::Light { ref rpc, .. } => {
-				rpc.handle_request_sync(request, metadata)
-			},
-			RunningClientInner::Full { ref rpc, .. } => {
-				rpc.handle_request_sync(request, metadata)
-			},
+			RunningClientInner::Light { ref rpc, .. } => rpc.handle_request(request, metadata),
+			RunningClientInner::Full { ref rpc, .. } => rpc.handle_request(request, metadata),
 		}
 	}
 
@@ -958,6 +961,83 @@ fn print_running_environment(data_dir: &str, dirs: &Directories, db_dirs: &Datab
 	info!("DB path {}", Colour::White.bold().paint(db_dirs.db_root_path().to_string_lossy().into_owned()));
 }
 
+<<<<<<< HEAD
+=======
+fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[Password]) -> Result<AccountProvider, String> {
+	use ethstore::EthStore;
+	use ethstore::accounts_dir::RootDiskDirectory;
+
+	let path = dirs.keys_path(data_dir);
+	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
+	let dir = Box::new(RootDiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
+	let account_settings = AccountProviderSettings {
+		enable_hardware_wallets: cfg.enable_hardware_wallets,
+		hardware_wallet_classic_key: spec == &SpecType::Classic,
+		unlock_keep_secret: cfg.enable_fast_unlock,
+		blacklisted_accounts: 	match *spec {
+			SpecType::Morden | SpecType::Ropsten | SpecType::Kovan | SpecType::Sokol | SpecType::Dev => vec![],
+			_ => vec![
+				"00a329c0648769a73afac7f9381e08fb43dbea72".into()
+			],
+		},
+	};
+
+	let ethstore = EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?;
+	if cfg.refresh_time > 0 {
+		ethstore.set_refresh_time(::std::time::Duration::from_secs(cfg.refresh_time));
+	}
+	let account_provider = AccountProvider::new(
+		Box::new(ethstore),
+		account_settings,
+	);
+
+	// Add development account if running dev chain:
+	if let SpecType::Dev = *spec {
+		insert_dev_account(&account_provider);
+	}
+
+	for a in cfg.unlocked_accounts {
+		// Check if the account exists
+		if !account_provider.has_account(a) {
+			return Err(format!("Account {} not found for the current chain. {}", a, build_create_account_hint(spec, &dirs.keys)));
+		}
+
+		// Check if any passwords have been read from the password file(s)
+		if passwords.is_empty() {
+			return Err(format!("No password found to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
+		}
+
+		if !passwords.iter().any(|p| account_provider.unlock_account_permanently(a, (*p).clone()).is_ok()) {
+			return Err(format!("No valid password to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
+		}
+	}
+
+	Ok(account_provider)
+}
+
+fn insert_dev_account(account_provider: &AccountProvider) {
+	let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
+	let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
+	if !account_provider.has_account(dev_account.address()) {
+		match account_provider.insert_account(secret, &Password::from(String::new())) {
+			Err(e) => warn!("Unable to add development account: {}", e),
+			Ok(address) => {
+				let _ = account_provider.set_account_name(address.clone(), "Development Account".into());
+				let _ = account_provider.set_account_meta(address, ::serde_json::to_string(&(vec![
+					("description", "Never use this account outside of development chain!"),
+					("passwordHint","Password is empty string"),
+				].into_iter().collect::<::std::collections::HashMap<_,_>>())).expect("Serialization of hashmap does not fail."));
+			},
+		}
+	}
+}
+
+// Construct an error `String` with an adaptive hint on how to create an account.
+fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
+	format!("You can create an account via RPC, UI or `parity account new --chain {} --keys-path {}`.", spec, keys)
+}
+
+>>>>>>> master
 fn wait_for_drop<T>(w: Weak<T>) {
 	let sleep_duration = Duration::from_secs(1);
 	let warn_timeout = Duration::from_secs(60);

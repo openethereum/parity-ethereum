@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fs, io};
 use std::io::Write;
@@ -23,6 +23,7 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey};
 use super::vault::{VAULT_FILE_NAME, VaultDiskDirectory};
+use ethkey::Password;
 
 const IGNORED_FILES: &'static [&'static str] = &[
 	"thumbs.db",
@@ -106,6 +107,7 @@ pub type RootDiskDirectory = DiskDirectory<DiskKeyFileManager>;
 pub trait KeyFileManager: Send + Sync {
 	/// Read `SafeAccount` from given key file stream
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read;
+
 	/// Write `SafeAccount` to given key file stream
 	fn write<T>(&self, account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write;
 }
@@ -117,7 +119,10 @@ pub struct DiskDirectory<T> where T: KeyFileManager {
 }
 
 /// Keys file manager for root keys directory
-pub struct DiskKeyFileManager;
+#[derive(Default)]
+pub struct DiskKeyFileManager {
+	password: Option<Password>,
+}
 
 impl RootDiskDirectory {
 	pub fn create<P>(path: P) -> Result<Self, Error> where P: AsRef<Path> {
@@ -125,8 +130,13 @@ impl RootDiskDirectory {
 		Ok(Self::at(path))
 	}
 
+	/// allows to read keyfiles with given password (needed for keyfiles w/o address)
+	pub fn with_password(&self, password: Option<Password>) -> Self {
+		DiskDirectory::new(&self.path, DiskKeyFileManager { password })
+	}
+
 	pub fn at<P>(path: P) -> Self where P: AsRef<Path> {
-		DiskDirectory::new(path, DiskKeyFileManager)
+		DiskDirectory::new(path, DiskKeyFileManager::default())
 	}
 }
 
@@ -319,7 +329,7 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 impl KeyFileManager for DiskKeyFileManager {
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
 		let key_file = json::KeyFile::load(reader).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		Ok(SafeAccount::from_file(key_file, filename))
+		SafeAccount::from_file(key_file, filename, &self.password)
 	}
 
 	fn write<T>(&self, mut account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {

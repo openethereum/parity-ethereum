@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -325,7 +325,7 @@ pub mod tests {
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_single_node() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let (key_servers, _, runtime) = make_key_servers(6070, 1);
 
 		// generate document key
@@ -347,7 +347,7 @@ pub mod tests {
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_3_nodes() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let (key_servers, key_storages, runtime) = make_key_servers(6080, 3);
 
 		let test_cases = [0, 1, 2];
@@ -375,7 +375,7 @@ pub mod tests {
 
 	#[test]
 	fn server_key_generation_and_storing_document_key_works_over_network_with_3_nodes() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let (key_servers, _, runtime) = make_key_servers(6090, 3);
 
 		let test_cases = [0, 1, 2];
@@ -407,7 +407,7 @@ pub mod tests {
 
 	#[test]
 	fn server_key_generation_and_message_signing_works_over_network_with_3_nodes() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let (key_servers, _, runtime) = make_key_servers(6100, 3);
 
 		let test_cases = [0, 1, 2];
@@ -433,7 +433,7 @@ pub mod tests {
 
 	#[test]
 	fn decryption_session_is_delegated_when_node_does_not_have_key_share() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let (key_servers, _, runtime) = make_key_servers(6110, 3);
 
 		// generate document key
@@ -456,7 +456,7 @@ pub mod tests {
 
 	#[test]
 	fn schnorr_signing_session_is_delegated_when_node_does_not_have_key_share() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let (key_servers, _, runtime) = make_key_servers(6114, 3);
 		let threshold = 1;
 
@@ -483,7 +483,7 @@ pub mod tests {
 
 	#[test]
 	fn ecdsa_signing_session_is_delegated_when_node_does_not_have_key_share() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let (key_servers, _, runtime) = make_key_servers(6117, 4);
 		let threshold = 1;
 
