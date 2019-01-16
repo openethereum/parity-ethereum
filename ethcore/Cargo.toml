@@ -11,7 +11,6 @@ ansi_term = "0.10"
 blooms-db = { path = "../util/blooms-db", optional = true }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
-call-contract = { path = "./call-contract" }
 common-types = { path = "types" }
 crossbeam = "0.4"
 env_logger = { version = "0.5", optional = true }
@@ -22,6 +21,7 @@ ethabi-derive = "6.0"
 ethash = { path = "../ethash" }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-call-contract = { path = "./call-contract" }
 ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
 ethcore-miner = { path = "../miner" }

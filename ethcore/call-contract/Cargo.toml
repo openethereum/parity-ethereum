@@ -1,5 +1,5 @@
 [package]
-name = "call-contract"
+name = "ethcore-call-contract"
 version = "0.1.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
