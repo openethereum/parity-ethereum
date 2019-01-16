@@ -48,8 +48,8 @@ use vm::{EnvInfo, LastHashes};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
-	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
+	Nonce, Balance, ChainInfo, BlockInfo, TransactionInfo,
+	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
 	ClientIoMessage,

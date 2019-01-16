@@ -20,7 +20,6 @@
 //! Keeps track of transactions and currently sealed pending block.
 
 mod miner;
-mod service_transaction_checker;
 
 pub mod pool_client;
 #[cfg(feature = "stratum")]

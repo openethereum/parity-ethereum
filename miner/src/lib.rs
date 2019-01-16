@@ -21,6 +21,8 @@
 
 extern crate ansi_term;
 extern crate common_types as types;
+extern crate ethabi;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethereum_types;
 extern crate futures;
 extern crate heapsize;
@@ -33,6 +35,10 @@ extern crate price_info;
 extern crate rlp;
 extern crate transaction_pool as txpool;
 
+#[macro_use]
+extern crate ethabi_contract;
+#[macro_use]
+extern crate ethabi_derive;
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
@@ -52,5 +58,6 @@ pub mod external;
 pub mod gas_price_calibrator;
 pub mod gas_pricer;
 pub mod pool;
+pub mod service_transaction_checker;
 #[cfg(feature = "work-notify")]
 pub mod work_notify;
