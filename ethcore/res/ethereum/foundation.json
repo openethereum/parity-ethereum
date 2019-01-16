@@ -9,8 +9,7 @@
 				"durationLimit": "0xd",
 				"blockReward": {
 					"0x0": "0x4563918244f40000",
-					"0x42ae50": "0x29a2241af62c0000",
-					"0x6c0840": "0x1bc16d674ec80000"
+					"0x42ae50": "0x29a2241af62c0000"
 				},
 				"homesteadTransition": "0x118c30",
 				"daoHardforkTransition": "0x1d4c00",
@@ -135,8 +134,7 @@
 				],
 				"eip100bTransition": "0x42ae50",
 				"difficultyBombDelays": {
-					"0x42ae50": "0x2dc6c0",
-					"0x6c0840": "0x1e8480"
+					"0x42ae50": "0x2dc6c0"
 				}
 			}
 		}
@@ -160,11 +158,7 @@
 		"eip140Transition": "0x42ae50",
 		"eip211Transition": "0x42ae50",
 		"eip214Transition": "0x42ae50",
-		"eip658Transition": "0x42ae50",
-		"eip145Transition": "0x6c0840",
-		"eip1014Transition": "0x6c0840",
-		"eip1052Transition": "0x6c0840",
-		"eip1283Transition": "0x6c0840"
+		"eip658Transition": "0x42ae50"
 	},
 	"genesis": {
 		"seal": {
