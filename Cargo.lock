@@ -695,6 +695,7 @@ dependencies = [
  "ethash 1.12.0",
  "ethcore-blockchain 0.1.0",
  "ethcore-bloom-journal 0.1.0",
+ "ethcore-call-contract 0.1.0",
  "ethcore-db 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-miner 1.12.0",
@@ -782,6 +783,15 @@ name = "ethcore-bloom-journal"
 version = "0.1.0"
 dependencies = [
  "siphasher 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-call-contract"
+version = "0.1.0"
+dependencies = [
+ "common-types 0.1.0",
+ "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -879,7 +889,11 @@ dependencies = [
  "common-types 0.1.0",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 6.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-contract 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.12.0",
+ "ethcore-call-contract 0.1.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "fetch 0.1.0",

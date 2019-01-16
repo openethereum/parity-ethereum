@@ -60,6 +60,7 @@
 extern crate ansi_term;
 extern crate bn;
 extern crate byteorder;
+extern crate ethcore_call_contract as call_contract;
 extern crate common_types as types;
 extern crate crossbeam;
 extern crate ethabi;

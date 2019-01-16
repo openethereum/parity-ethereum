@@ -25,6 +25,7 @@ use std::{
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool;
 use ethcore_miner::pool::client::NonceClient;
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use types::transaction::{
 	self,
 	UnverifiedTransaction,
@@ -37,7 +38,6 @@ use account_provider::AccountProvider;
 use client::{TransactionId, BlockInfo, CallContract, Nonce};
 use engines::EthEngine;
 use miner;
-use miner::service_transaction_checker::ServiceTransactionChecker;
 use transaction_ext::Transaction;
 
 /// Cache for state nonces.
