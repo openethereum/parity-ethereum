@@ -1332,8 +1332,8 @@ impl snapshot::DatabaseRestore for Client {
 }
 
 impl BlockChainReset for Client {
-	fn reset(&self, num: u64) -> Result<(), String> {
-		if num > self.pruning_history() {
+	fn reset(&self, num: u32) -> Result<(), String> {
+		if num as u64 > self.pruning_history() {
 			return Err("Attempting to reset to block with pruned state".into())
 		}
 

@@ -187,7 +187,7 @@ impl Configuration {
 				fat_db,
 				compaction,
 				cache_config,
-				num: self.args.arg_db_reset_num.ok_or("the 'num' argument is required")?,
+				num: self.args.arg_db_reset_num,
 			}))
 		} else if self.args.cmd_db && self.args.cmd_db_kill {
 			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {

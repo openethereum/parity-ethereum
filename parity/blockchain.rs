@@ -87,7 +87,7 @@ pub struct ResetBlockchain {
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub cache_config: CacheConfig,
-	pub num: u64,
+	pub num: u32,
 }
 
 #[derive(Debug, PartialEq)]

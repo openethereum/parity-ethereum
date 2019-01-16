@@ -486,5 +486,5 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 /// resets the blockchain
 pub trait BlockChainReset {
 	/// reset to best_block - n
-	fn reset(&self, num: u64) -> Result<(), String>;
+	fn reset(&self, num: u32) -> Result<(), String>;
 }

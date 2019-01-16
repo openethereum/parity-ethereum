@@ -221,7 +221,7 @@ usage! {
 			CMD cmd_db_reset {
 				"Removes NUM latests blocks from the db",
 
-				ARG arg_db_reset_num: (Option<u64>) = None,
+				ARG arg_db_reset_num: (u32) = 10u32,
 				"<NUM>",
 				"Number of blocks to revert",
 			}
@@ -1641,7 +1641,7 @@ mod tests {
 			arg_dapp_path: None,
 			arg_account_import_path: None,
 			arg_wallet_import_path: None,
-			arg_db_reset_num: None,
+			arg_db_reset_num: 10,
 
 			// -- Operating Options
 			arg_mode: "last".into(),

@@ -670,7 +670,7 @@ impl BlockChain {
 
 	/// fetches the list of blocks from best block to n, and n's parent hash
 	/// where n > 0
-	pub fn block_headers_from_best_block(&self, n: u64) -> Option<(Vec<encoded::Header>, H256)> {
+	pub fn block_headers_from_best_block(&self, n: u32) -> Option<(Vec<encoded::Header>, H256)> {
 		let mut blocks = Vec::with_capacity(n as usize);
 		let mut hash = self.best_block_hash();
 
