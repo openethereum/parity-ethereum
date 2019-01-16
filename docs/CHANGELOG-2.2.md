@@ -2,6 +2,27 @@
 
 ## Parity-Ethereum [v2.2.6](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.6) (2019-01-10)
 
+Parity-Ethereum 2.2.6-beta is a bugfix release that improves performance and stability.
+
+The full list of included changes:
+
+- Beta backports v2.2.6 ([#10113](https://github.com/paritytech/parity-ethereum/pull/10113))
+  - Version: bump beta to v2.2.6
+  - Fill transaction hash on ethGetLog of light client. ([#9938](https://github.com/paritytech/parity-ethereum/pull/9938))
+  - Fix pubsub new_blocks notifications to include all blocks ([#9987](https://github.com/paritytech/parity-ethereum/pull/9987))
+  - Finality: dont require chain head to be in the chain ([#10054](https://github.com/paritytech/parity-ethereum/pull/10054))
+  - Handle the case for contract creation on an empty but exist account with storage items ([#10065](https://github.com/paritytech/parity-ethereum/pull/10065))
+  - Autogen docs for the "Configuring Parity Ethereum" wiki page. ([#10067](https://github.com/paritytech/parity-ethereum/pull/10067))
+  - HF in POA Sokol (2019-01-04) ([#10077](https://github.com/paritytech/parity-ethereum/pull/10077))
+  - Add --locked when running cargo ([#10107](https://github.com/paritytech/parity-ethereum/pull/10107))
+  - Ethcore: update hardcoded headers ([#10123](https://github.com/paritytech/parity-ethereum/pull/10123))
+  - Identity fix ([#10128](https://github.com/paritytech/parity-ethereum/pull/10128))
+  - Update pwasm-utils to 0.6.1 ([#10134](https://github.com/paritytech/parity-ethereum/pull/10134))
+  - Make sure parent block is not in importing queue when importing ancient blocks ([#10138](https://github.com/paritytech/parity-ethereum/pull/10138))
+  - CI: re-enable snap publishing ([#10142](https://github.com/paritytech/parity-ethereum/pull/10142))
+  - HF in POA Core (2019-01-18) - Constantinople ([#10155](https://github.com/paritytech/parity-ethereum/pull/10155))
+  - Version: mark upgrade critical on kovan
+
 ## Parity-Ethereum [v2.2.5](https://github.com/paritytech/parity-ethereum/releases/tag/v2.2.5) (2018-12-14)
 
 Parity-Ethereum 2.2.5-beta is an important release that introduces Constantinople fork at block 7080000 on Mainnet.
