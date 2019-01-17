@@ -10,7 +10,7 @@ echo "CARGO_TARGET:     " $CARGO_TARGET
 echo "CC:               " $CC
 echo "CXX:              " $CXX
 #strip ON
-export RUSTFLAGS="${RUSTFLAGS} -C link-arg=-s"
+export RUSTFLAGS=" -C link-arg=-s"
 
 echo "_____ Building target: "$CARGO_TARGET" _____"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
