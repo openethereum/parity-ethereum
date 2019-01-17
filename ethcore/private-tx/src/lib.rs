@@ -57,9 +57,6 @@ extern crate error_chain;
 #[macro_use]
 extern crate rlp_derive;
 
-#[cfg(feature = "accounts")]
-extern crate ethcore_accounts as accounts;
-
 #[cfg(test)]
 extern crate rand;
 #[cfg(test)]

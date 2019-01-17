@@ -87,10 +87,8 @@ winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
 daemonize = "0.3"
 
 [features]
-accounts = [
-	"ethcore-accounts",
-	"ethcore-secretstore/accounts",
-]
+# default = ["accounts"]
+accounts = ["ethcore-accounts", "ethcore-secretstore/accounts", "parity-rpc/accounts"]
 miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
 ci-skip-issue = ["ethcore/ci-skip-issue"]

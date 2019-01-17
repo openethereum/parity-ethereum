@@ -21,7 +21,7 @@ use std::sync::{Arc, Weak};
 
 pub use parity_rpc::signer::SignerService;
 
-use account_utils::AccountProvider;
+use account_utils::{self, AccountProvider};
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
@@ -197,6 +197,26 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 	modules
 }
 
+macro_rules! add_signing_methods {
+	($namespace:ident, $handler:expr, $deps:expr, $dispatch:expr) => {{
+		let deps = &$deps;
+		let (dispatcher, accounts) = $dispatch;
+		if deps.signer_service.is_enabled() {
+			$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(
+				&deps.signer_service,
+				dispatcher.clone(),
+				deps.executor.clone(),
+				accounts,
+			)))
+		} else {
+			$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(
+				accounts,
+				dispatcher.clone(),
+			)))
+			}
+		}};
+}
+
 /// RPC dependencies can be used to initialize RPC endpoints from APIs.
 pub trait Dependencies {
 	type Notifier: ActivityNotifier;
@@ -247,31 +267,6 @@ impl FullDependencies {
 	{
 		use parity_rpc::v1::*;
 
-		macro_rules! add_signing_methods {
-			($namespace:ident, $handler:expr, $deps:expr, $nonces:expr) => {{
-				let deps = &$deps;
-				let dispatcher = FullDispatcher::new(
-					deps.client.clone(),
-					deps.miner.clone(),
-					$nonces,
-					deps.gas_price_percentile,
-				);
-				if deps.signer_service.is_enabled() {
-					$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(
-						&deps.signer_service,
-						dispatcher,
-						deps.executor.clone(),
-						&deps.accounts,
-					)))
-				} else {
-					$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(
-						&deps.accounts,
-						dispatcher,
-					)))
-				}
-			}};
-		}
-
 		let nonces = Arc::new(Mutex::new(dispatch::Reservations::new(
 			self.executor.clone(),
 		)));
@@ -281,6 +276,9 @@ impl FullDependencies {
 			nonces.clone(),
 			self.gas_price_percentile,
 		);
+		let account_signer = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
+		let accounts = account_utils::accounts_list(self.accounts.clone());
+
 		for api in apis {
 			match *api {
 				Api::Debug => {
@@ -297,7 +295,7 @@ impl FullDependencies {
 						&self.client,
 						&self.snapshot,
 						&self.sync,
-						&self.accounts,
+						&accounts,
 						&self.miner,
 						&self.external_miner,
 						EthClientOptions {
@@ -319,7 +317,7 @@ impl FullDependencies {
 						);
 						handler.extend_with(filter_client.to_delegate());
 
-						add_signing_methods!(EthSigning, handler, self, nonces.clone());
+						add_signing_methods!(EthSigning, handler, self, (&dispatcher, &account_signer));
 					}
 				}
 				Api::EthPubSub => {
@@ -341,6 +339,7 @@ impl FullDependencies {
 					}
 				}
 				Api::Personal => {
+					#[cfg(feature = "accounts")]
 					handler.extend_with(
 						PersonalClient::new(
 							&self.accounts,
@@ -353,7 +352,7 @@ impl FullDependencies {
 				Api::Signer => {
 					handler.extend_with(
 						SignerClient::new(
-							&self.accounts,
+							account_signer.clone(),
 							dispatcher.clone(),
 							&self.signer_service,
 							self.executor.clone(),
@@ -379,11 +378,11 @@ impl FullDependencies {
 							self.snapshot.clone().into(),
 						).to_delegate(),
 					);
-					handler
-						.extend_with(ParityAccountsInfo::to_delegate(&ParityAccountsClient::new(&self.accounts)));
+					#[cfg(feature = "accounts")]
+					handler.extend_with(ParityAccountsInfo::to_delegate(&ParityAccountsClient::new(&self.accounts)));
 
 					if !for_generic_pubsub {
-						add_signing_methods!(ParitySigning, handler, self, nonces.clone());
+						add_signing_methods!(ParitySigning, handler, self, (&dispatcher, &account_signer));
 					}
 				}
 				Api::ParityPubSub => {
@@ -399,8 +398,8 @@ impl FullDependencies {
 					}
 				}
 				Api::ParityAccounts => {
-					handler
-						.extend_with(ParityAccounts::to_delegate(&ParityAccountsClient::new(&self.accounts)));
+					#[cfg(feature = "accounts")]
+					handler.extend_with(ParityAccounts::to_delegate(&ParityAccountsClient::new(&self.accounts)));
 				}
 				Api::ParitySet => {
 					handler.extend_with(
@@ -412,6 +411,7 @@ impl FullDependencies {
 							self.fetch.clone(),
 						).to_delegate(),
 					);
+					#[cfg(feature = "accounts")]
 					handler.extend_with(
 						ParitySetAccountsClient::new(
 							&self.accounts,
@@ -425,6 +425,7 @@ impl FullDependencies {
 					handler.extend_with(RpcClient::new(modules).to_delegate());
 				}
 				Api::SecretStore => {
+					#[cfg(feature = "accounts")]
 					handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
 				}
 				Api::Whisper => {
@@ -521,27 +522,8 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 			))),
 			self.gas_price_percentile,
 		);
-
-		macro_rules! add_signing_methods {
-			($namespace:ident, $handler:expr, $deps:expr) => {{
-				let deps = &$deps;
-				let dispatcher = dispatcher.clone();
-				let accounts = deps.accounts.clone();
-				if deps.signer_service.is_enabled() {
-					$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(
-						&deps.signer_service,
-						dispatcher,
-						deps.executor.clone(),
-						&accounts,
-					)))
-				} else {
-					$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(
-						&accounts,
-						dispatcher,
-					)))
-					}
-				}};
-		}
+		let account_signer = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
+		let accounts = account_utils::accounts_list(self.accounts.clone());
 
 		for api in apis {
 			match *api {
@@ -560,7 +542,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.client.clone(),
 						self.on_demand.clone(),
 						self.transaction_queue.clone(),
-						self.accounts.clone(),
+						accounts.clone(),
 						self.cache.clone(),
 						self.gas_price_percentile,
 						self.poll_lifetime,
@@ -569,7 +551,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 
 					if !for_generic_pubsub {
 						handler.extend_with(EthFilter::to_delegate(client));
-						add_signing_methods!(EthSigning, handler, self);
+						add_signing_methods!(EthSigning, handler, self, (&dispatcher, &account_signer));
 					}
 				}
 				Api::EthPubSub => {
@@ -593,6 +575,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(EthPubSub::to_delegate(client));
 				}
 				Api::Personal => {
+					#[cfg(feature = "accounts")]
 					handler.extend_with(
 						PersonalClient::new(
 							&self.accounts,
@@ -605,7 +588,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				Api::Signer => {
 					handler.extend_with(
 						SignerClient::new(
-							&self.accounts,
+							account_signer.clone(),
 							dispatcher.clone(),
 							&self.signer_service,
 							self.executor.clone(),
@@ -627,12 +610,13 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 							self.gas_price_percentile,
 						).to_delegate(),
 					);
+					#[cfg(feature = "accounts")]
 					handler.extend_with(
 						ParityAccountsInfo::to_delegate(&ParityAccountsClient::new(&self.accounts))
 					);
 
 					if !for_generic_pubsub {
-						add_signing_methods!(ParitySigning, handler, self);
+						add_signing_methods!(ParitySigning, handler, self, (&dispatcher, &account_signer));
 					}
 				}
 				Api::ParityPubSub => {
@@ -648,8 +632,8 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					}
 				}
 				Api::ParityAccounts => {
-					handler
-						.extend_with(ParityAccounts::to_delegate(&ParityAccountsClient::new(&self.accounts)));
+					#[cfg(feature = "accounts")]
+					handler.extend_with(ParityAccounts::to_delegate(&ParityAccountsClient::new(&self.accounts)));
 				}
 				Api::ParitySet => handler.extend_with(
 					light::ParitySetClient::new(self.sync.clone(), self.fetch.clone())
@@ -661,6 +645,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					handler.extend_with(RpcClient::new(modules).to_delegate());
 				}
 				Api::SecretStore => {
+					#[cfg(feature = "accounts")]
 					handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
 				}
 				Api::Whisper => {
