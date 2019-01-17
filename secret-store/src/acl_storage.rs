@@ -17,7 +17,8 @@
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use parking_lot::{Mutex, RwLock};
-use ethcore::client::{BlockId, ChainNotify, NewBlocks, CallContract};
+use call_contract::CallContract;
+use ethcore::client::{BlockId, ChainNotify, NewBlocks};
 use ethereum_types::Address;
 use ethabi::FunctionOutputDecoder;
 use trusted_client::TrustedClient;

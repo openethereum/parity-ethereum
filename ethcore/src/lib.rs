@@ -60,13 +60,13 @@
 extern crate ansi_term;
 extern crate bn;
 extern crate byteorder;
-extern crate ethcore_call_contract as call_contract;
 extern crate common_types as types;
 extern crate crossbeam;
 extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;

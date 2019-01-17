@@ -42,8 +42,9 @@ use types::header::Header;
 use types::receipt::RichReceipt;
 
 use block::SealedBlock;
+use call_contract::{CallContract, RegistryInfo};
 use client::{
-	CallContract, RegistryInfo, ScheduleInfo,
+	ScheduleInfo,
 	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
 	AccountData, Nonce,
 };
