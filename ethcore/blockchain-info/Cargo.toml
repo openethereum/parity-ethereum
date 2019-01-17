@@ -1,5 +1,5 @@
 [package]
-name = "blockchain-info"
+name = "ethcore-blockchain-info"
 version = "0.1.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
