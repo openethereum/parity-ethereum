@@ -31,6 +31,13 @@ mod signing {
 	#[derive(Debug, Clone)]
 	pub struct Signer;
 
+	impl Signer {
+		/// Create new instance of dummy signer (accept any AccountProvider)
+		pub fn new<T>(_ap: T) -> Self {
+			Signer
+		}
+	}
+
 	impl super::Accounts for Signer {
 		fn sign_transaction(&self, _filled: FilledTransactionRequest, _chain_id: Option<u64>, _nonce: U256, _password: SignWith) -> Result<WithToken<SignedTransaction>> {
 			Err(errors::account("Signing unsupported", "See #9997"))

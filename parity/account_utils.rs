@@ -51,6 +51,10 @@ mod accounts {
 	pub fn private_tx_signer(_account_provider: Arc<AccountProvider>, _passwords: &[Password]) -> Result<Arc<::ethcore_private_tx::Signer>, String> {
 		Ok(Arc::new(::ethcore_private_tx::DummySigner))
 	}
+
+	pub fn accounts_list(_account_provider: Arc<AccountProvider>) -> Arc<Fn() -> Vec<Address> + Send + Sync> {
+		Arc::new(|| vec![])
+	}
 }
 
 #[cfg(feature = "accounts")]
@@ -199,6 +203,10 @@ mod accounts {
 		})
 	}
 
+	pub fn accounts_list(account_provider: Arc<AccountProvider>) -> Arc<Fn() -> Vec<Address> + Send + Sync> {
+		Arc::new(|| account_provider.accounts().unwrap_or_default())
+	}
+
 	fn insert_dev_account(account_provider: &AccountProvider) {
 		let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
 		let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
@@ -228,5 +236,6 @@ pub use self::accounts::{
 	miner_local_accounts,
 	miner_author,
 	private_tx_signer,
+	accounts_list,
 };
 
