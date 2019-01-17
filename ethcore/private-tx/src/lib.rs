@@ -25,10 +25,10 @@ mod private_transactions;
 mod messages;
 mod error;
 
-extern crate call_contract;
 extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
 extern crate ethereum_types;

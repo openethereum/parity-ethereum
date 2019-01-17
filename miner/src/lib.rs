@@ -20,9 +20,9 @@
 //! Keeps track of transactions and mined block.
 
 extern crate ansi_term;
-extern crate call_contract;
 extern crate common_types as types;
 extern crate ethabi;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethereum_types;
 extern crate futures;
 extern crate heapsize;

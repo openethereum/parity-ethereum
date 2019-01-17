@@ -15,12 +15,12 @@ url = { version = "1", optional = true }
 
 # Miner
 ansi_term = "0.10"
-call-contract = { path = "../ethcore/call-contract" }
 common-types = { path = "../ethcore/types" }
 error-chain = "0.12"
 ethabi = "6.0"
 ethabi-derive = "6.0"
 ethabi-contract = "6.0"
+ethcore-call-contract = { path = "../ethcore/call-contract" }
 ethereum-types = "0.4"
 futures = "0.1"
 heapsize = "0.4"

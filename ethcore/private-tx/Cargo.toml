@@ -6,13 +6,13 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-call-contract = { path = "../call-contract" }
 common-types = { path = "../types" }
 error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
 ethcore = { path = ".." }
+ethcore-call-contract = { path = "../call-contract" }
 ethcore-io = { path = "../../util/io" }
 ethcore-miner = { path = "../../miner" }
 ethereum-types = "0.4"
