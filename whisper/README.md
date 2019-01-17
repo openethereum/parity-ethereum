@@ -6,7 +6,7 @@ Implementation of Whisper based on the Whisper-v2 PoC.
 
 ```
 Parity Whisper-v2 CLI.
-	Copyright 2015-2018 Parity Technologies (UK) Ltd.
+	Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
 	whisper [options]
