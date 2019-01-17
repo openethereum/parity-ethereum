@@ -87,10 +87,11 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 			Err(e) => return Box::new(future::err(e)),
 		};
 
+		let accounts = Arc::new(dispatch::Signer::new(accounts)) as _;
 		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
 			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
-				dispatcher.sign(accounts, filled, SignWith::Password(password.into()))
+				dispatcher.sign(filled, &accounts, SignWith::Password(password.into()))
 					.map(|tx| tx.into_value())
 					.map(move |tx| PendingTransaction::new(tx, condition))
 					.map(move |tx| (tx, dispatcher))
@@ -155,13 +156,13 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		self.deprecation_notice.print("personal_sign", deprecated::msgs::ACCOUNTS);
 
 		let dispatcher = self.dispatcher.clone();
-		let accounts = self.accounts.clone();
+		let accounts = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
 
 		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), data).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
-				 .and_then(|payload| {
-					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+				 .and_then(move |payload| {
+					 dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Password(password.into()))
 				 })
 				 .map(|v| v.into_value())
 				 .then(|res| match res {
@@ -178,13 +179,13 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 		let data = try_bf!(eip191::hash_message(version, data));
 		let dispatcher = self.dispatcher.clone();
-		let accounts = self.accounts.clone();
+		let accounts = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
 
 		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
-			.and_then(|payload| {
-				dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+			.and_then(move |payload| {
+				dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Password(password.into()))
 			})
 			.map(|v| v.into_value())
 			.then(|res| match res {
@@ -205,13 +206,13 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			Err(err) => return Box::new(future::err(errors::invalid_call_data(err.kind()))),
 		};
 		let dispatcher = self.dispatcher.clone();
-		let accounts = self.accounts.clone();
+		let accounts = Arc::new(dispatch::Signer::new(self.accounts.clone())) as _;
 
 		let payload = RpcConfirmationPayload::EIP191SignMessage((account.clone(), data.into()).into());
 
 		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
-			.and_then(|payload| {
-				dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password.into()))
+			.and_then(move |payload| {
+				dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Password(password.into()))
 			})
 			.map(|v| v.into_value())
 			.then(|res| match res {

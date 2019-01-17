@@ -26,7 +26,6 @@ use ethcore::engines::{EthEngine, signer::EngineSigner};
 use ethcore::error::Error;
 use ethcore::miner::{self, MinerService, AuthoringParams};
 use ethereum_types::{H256, U256, Address};
-use ethkey::Password;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};

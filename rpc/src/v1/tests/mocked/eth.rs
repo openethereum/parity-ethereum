@@ -21,9 +21,8 @@ use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use ethereum_types::{H160, H256, U256, Address};
-use ethkey::Secret;
 use miner::external::ExternalMiner;
 use parity_runtime::Runtime;
 use parking_lot::Mutex;
@@ -36,8 +35,6 @@ use types::receipt::{LocalizedReceipt, TransactionOutcome};
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient};
-use v1::helpers::nonce;
-use v1::helpers::dispatch::FullDispatcher;
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 use v1::metadata::Metadata;
 
@@ -88,17 +85,15 @@ impl EthTester {
 		let client = blockchain_client();
 		let sync = sync_provider();
 		let ap = accounts_provider();
-		let opt_ap = ap.clone();
+		let ap2 = ap.clone();
+		let opt_ap = Arc::new(move || ap2.accounts().unwrap_or_default()) as _;
 		let miner = miner_service();
 		let snapshot = snapshot_service();
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
-		let gas_price_percentile = options.gas_price_percentile;
 		let eth = EthClient::new(&client, &snapshot, &sync, &opt_ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(client.clone(), miner.clone(), 60).to_delegate();
-		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
-		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations, gas_price_percentile);
 		let mut io: IoHandler<Metadata> = IoHandler::default();
 		io.extend_with(eth);
 		io.extend_with(filter);
@@ -356,28 +351,6 @@ fn rpc_eth_submit_hashrate() {
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 	assert_eq!(tester.hashrates.lock().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned().unwrap().1,
 		U256::from(0x500_000));
-}
-
-#[test]
-fn rpc_eth_sign() {
-	let tester = EthTester::default();
-
-	let account = tester.accounts_provider.insert_account(Secret::from([69u8; 32]), &"abcd".into()).unwrap();
-	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
-	let _message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
-
-	let req = r#"{
-		"jsonrpc": "2.0",
-		"method": "eth_sign",
-		"params": [
-			""#.to_owned() + &format!("0x{:x}", account) + r#"",
-			"0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f"
-		],
-		"id": 1
-	}"#;
-	let res = r#"{"jsonrpc":"2.0","result":"0xa2870db1d0c26ef93c7b72d2a0830fa6b841e0593f7186bc6c7cc317af8cf3a42fda03bd589a49949aa05db83300cdb553116274518dbe9d90c65d0213f4af491b","id":1}"#;
-
-	assert_eq!(tester.io.handle_request_sync(&req), Some(res.into()));
 }
 
 #[test]

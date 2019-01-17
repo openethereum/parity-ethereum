@@ -34,7 +34,7 @@ use v1::tests::helpers::TestMinerService;
 use v1::types::{Bytes as RpcBytes, H520};
 use v1::helpers::{nonce, FilledTransactionRequest, ConfirmationPayload};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
-use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
+use v1::helpers::dispatch::{self, FullDispatcher, eth_data_hash};
 
 struct SignerTester {
 	_runtime: Runtime,
@@ -61,13 +61,14 @@ fn signer_tester() -> SignerTester {
 	let runtime = Runtime::with_thread_count(1);
 	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
+	let account_signer = Arc::new(dispatch::Signer::new(accounts.clone()));
 	let client = blockchain_client();
 	let miner = miner_service();
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer, runtime.executor()).to_delegate());
+	io.extend_with(SignerClient::new(account_signer, dispatcher, &signer, runtime.executor()).to_delegate());
 
 	SignerTester {
 		_runtime: runtime,

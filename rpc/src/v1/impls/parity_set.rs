@@ -70,10 +70,10 @@ pub mod accounts {
 			);
 
 			let signer = Box::new(EngineSigner::new(
-					self.accounts.clone(),
-					address.clone().into(),
-					password.into(),
-					));
+				self.accounts.clone(),
+				address.clone().into(),
+				password.into(),
+			));
 			self.miner.set_author(miner::Author::Sealer(signer));
 			Ok(true)
 		}

@@ -18,7 +18,6 @@
 
 use std::sync::Arc;
 
-use accounts::AccountProvider;
 use ethkey;
 use parity_runtime::Executor;
 use parking_lot::Mutex;
@@ -41,7 +40,7 @@ use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationRespon
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<D: Dispatcher> {
 	signer: Arc<SignerService>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<dispatch::Accounts>,
 	dispatcher: D,
 	subscribers: Arc<Mutex<Subscribers<Sink<Vec<ConfirmationRequest>>>>>,
 	deprecation_notice: DeprecationNotice,
@@ -50,7 +49,7 @@ pub struct SignerClient<D: Dispatcher> {
 impl<D: Dispatcher + 'static> SignerClient<D> {
 	/// Create new instance of signer client.
 	pub fn new(
-		store: &Arc<AccountProvider>,
+		accounts: Arc<dispatch::Accounts>,
 		dispatcher: D,
 		signer: &Arc<SignerService>,
 		executor: Executor,
@@ -74,7 +73,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 
 		SignerClient {
 			signer: signer.clone(),
-			accounts: store.clone(),
+			accounts: accounts.clone(),
 			dispatcher,
 			subscribers,
 			deprecation_notice: Default::default(),
@@ -82,7 +81,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 	}
 
 	fn confirm_internal<F, T>(&self, id: U256, modification: TransactionModification, f: F) -> BoxFuture<WithToken<ConfirmationResponse>> where
-		F: FnOnce(D, Arc<AccountProvider>, ConfirmationPayload) -> T,
+		F: FnOnce(D, &Arc<dispatch::Accounts>, ConfirmationPayload) -> T,
 		T: IntoFuture<Item=WithToken<ConfirmationResponse>, Error=Error>,
 		T::Future: Send + 'static
 	{
@@ -109,7 +108,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 					request.condition = condition.clone().map(Into::into);
 				}
 			}
-			let fut = f(dispatcher, self.accounts.clone(), payload);
+			let fut = f(dispatcher, &self.accounts, payload);
 			Either::A(fut.into_future().then(move |result| {
 				// Execute
 				if let Ok(ref response) = result {

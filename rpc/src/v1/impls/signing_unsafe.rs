@@ -18,7 +18,6 @@
 
 use std::sync::Arc;
 
-use accounts::AccountProvider;
 use ethereum_types::Address;
 
 use jsonrpc_core::{BoxFuture, Result};
@@ -40,14 +39,14 @@ use v1::types::{
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningUnsafeClient<D> {
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<dispatch::Accounts>,
 	dispatcher: D,
 	deprecation_notice: DeprecationNotice,
 }
 
 impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	/// Creates new SigningUnsafeClient.
-	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D) -> Self {
+	pub fn new(accounts: &Arc<dispatch::Accounts>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
 			accounts: accounts.clone(),
 			dispatcher,
@@ -61,7 +60,7 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 		let dis = self.dispatcher.clone();
 		Box::new(dispatch::from_rpc(payload, account, &dis)
 			.and_then(move |payload| {
-				dispatch::execute(dis, accounts, payload, dispatch::SignWith::Nothing)
+				dispatch::execute(dis, &accounts, payload, dispatch::SignWith::Nothing)
 			})
 			.map(|v| v.into_value()))
 	}
@@ -85,7 +84,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	fn send_transaction(&self, _meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256> {
 		self.deprecation_notice.print("eth_sendTransaction", deprecated::msgs::ACCOUNTS);
 
-		Box::new(self.handle(RpcConfirmationPayload::SendTransaction(request), self.accounts.default_account().ok().unwrap_or_default())
+		Box::new(self.handle(RpcConfirmationPayload::SendTransaction(request), self.accounts.default_account())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
 				Err(e) => Err(e),
@@ -96,7 +95,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	fn sign_transaction(&self, _meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction> {
 		self.deprecation_notice.print("eth_signTransaction", deprecated::msgs::ACCOUNTS);
 
-		Box::new(self.handle(RpcConfirmationPayload::SignTransaction(request), self.accounts.default_account().ok().unwrap_or_default())
+		Box::new(self.handle(RpcConfirmationPayload::SignTransaction(request), self.accounts.default_account())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
 				Err(e) => Err(e),
@@ -110,7 +109,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 
 	fn compose_transaction(&self, _meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest> {
 		let accounts = self.accounts.clone();
-		let default_account = accounts.default_account().ok().unwrap_or_default();
+		let default_account = accounts.default_account();
 		Box::new(self.dispatcher.fill_optional_fields(transaction.into(), default_account, true).map(Into::into))
 	}
 

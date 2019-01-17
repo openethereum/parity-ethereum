@@ -36,10 +36,12 @@ use parking_lot::Mutex;
 use types::ids::BlockId;
 
 use jsonrpc_core::IoHandler;
-use v1::impls::{EthClient, EthClientOptions};
+use v1::helpers::dispatch::{self, FullDispatcher};
+use v1::helpers::nonce;
+use v1::impls::{EthClient, EthClientOptions, SigningUnsafeClient};
 use v1::metadata::Metadata;
 use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
-use v1::traits::eth::Eth;
+use v1::traits::{Eth, EthSigning};
 use v1::types::U256 as NU256;
 
 fn account_provider() -> Arc<AccountProvider> {
@@ -72,9 +74,11 @@ fn make_spec(chain: &BlockChain) -> Spec {
 }
 
 struct EthTester {
-	client: Arc<Client>,
-	miner: Arc<Miner>,
+	_miner: Arc<Miner>,
+	_runtime: Runtime,
 	_snapshot: Arc<TestSnapshotService>,
+	accounts: Arc<AccountProvider>,
+	client: Arc<Client>,
 	handler: IoHandler<Metadata>,
 }
 
@@ -110,8 +114,10 @@ impl EthTester {
 	}
 
 	fn from_spec_conf(spec: Spec, config: ClientConfig) -> Self {
-
+		let runtime = Runtime::with_thread_count(1);
 		let account_provider = account_provider();
+		let ap = account_provider.clone();
+		let accounts  = Arc::new(move || ap.accounts().unwrap_or_default()) as _;
 		let miner_service = miner_service(&spec);
 		let snapshot_service = snapshot_service();
 
@@ -129,7 +135,7 @@ impl EthTester {
 			&client,
 			&snapshot_service,
 			&sync_provider,
-			&account_provider,
+			&accounts,
 			&miner_service,
 			&external_miner,
 			EthClientOptions {
@@ -142,12 +148,24 @@ impl EthTester {
 			},
 		);
 
+		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
+
+		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone(), reservations, 50);
+		let signer = Arc::new(dispatch::Signer::new(account_provider.clone())) as _;
+		let eth_sign = SigningUnsafeClient::new(
+			&signer,
+			dispatcher,
+		);
+
 		let mut handler = IoHandler::default();
 		handler.extend_with(eth_client.to_delegate());
+		handler.extend_with(eth_sign.to_delegate());
 
 		EthTester {
-			miner: miner_service,
+			_miner: miner_service,
+			_runtime: runtime,
 			_snapshot: snapshot_service,
+			accounts: account_provider,
 			client: client,
 			handler: handler,
 		}
@@ -348,21 +366,11 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 "#;
 
 #[test]
-#[cfg(any(test, feature = "accounts"))]
 fn eth_transaction_count() {
-	use parity_runtime::Runtime;
-	use parking_lot::Mutex;
-	use v1::helpers::dispatch::FullDispatcher;
-	use v1::helpers::nonce;
-
 	let secret = "8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2".parse().unwrap();
-	let mut tester = EthTester::from_spec(Spec::load(&env::temp_dir(), TRANSACTION_COUNT_SPEC).expect("invalid chain spec"));
-	let runtime = Runtime::with_thread_count(1);
-	let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
-	let dispatcher = FullDispatcher::new(tester.client.clone(), tester.miner.clone(), reservations, 50);
-	let accounts = ::accounts::AccountProvider::transient_provider();
-	tester.handler.extend_with(::v1::SigningUnsafeClient::new(&accounts, dispatcher).to_delegate());
-	let address = accounts.insert_account(secret, &"".into()).unwrap();
+	let tester = EthTester::from_spec(Spec::load(&env::temp_dir(), TRANSACTION_COUNT_SPEC).expect("invalid chain spec"));
+	let address = tester.accounts.insert_account(secret, &"".into()).unwrap();
+	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
 
 	let req_before = r#"{
 		"jsonrpc": "2.0",

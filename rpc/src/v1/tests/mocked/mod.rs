@@ -32,7 +32,6 @@ mod pubsub;
 mod rpc;
 #[cfg(any(test, feature = "accounts"))]
 mod secretstore;
-#[cfg(any(test, feature = "accounts"))]
 mod signer;
 #[cfg(any(test, feature = "accounts"))]
 mod signing;

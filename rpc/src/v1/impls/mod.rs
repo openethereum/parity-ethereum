@@ -32,11 +32,8 @@ mod pubsub;
 mod rpc;
 #[cfg(any(test, feature = "accounts"))]
 mod secretstore;
-#[cfg(any(test, feature = "accounts"))]
 mod signer;
-#[cfg(any(test, feature = "accounts"))]
 mod signing;
-#[cfg(any(test, feature = "accounts"))]
 mod signing_unsafe;
 mod traces;
 mod web3;
@@ -61,11 +58,8 @@ pub use self::pubsub::PubSubClient;
 pub use self::rpc::RpcClient;
 #[cfg(any(test, feature = "accounts"))]
 pub use self::secretstore::SecretStoreClient;
-#[cfg(any(test, feature = "accounts"))]
 pub use self::signer::SignerClient;
-#[cfg(any(test, feature = "accounts"))]
 pub use self::signing::SigningQueueClient;
-#[cfg(any(test, feature = "accounts"))]
 pub use self::signing_unsafe::SigningUnsafeClient;
 pub use self::traces::TracesClient;
 pub use self::web3::Web3Client;

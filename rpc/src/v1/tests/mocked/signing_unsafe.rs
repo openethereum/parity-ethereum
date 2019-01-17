@@ -15,30 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
-use ethereum_types::{H160, H256, U256, Address};
-use parking_lot::Mutex;
 use accounts::AccountProvider;
-use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
-use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
-use ethcore::miner::{self, MinerService};
-use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
-use ethkey::Secret;
-use sync::SyncState;
-use miner::external::ExternalMiner;
-use rlp;
-use rustc_hex::{FromHex, ToHex};
-use transaction::{Transaction, Action};
+use ethcore::client::TestBlockChainClient;
+use ethereum_types::{U256, Address};
 use parity_runtime::Runtime;
+use parking_lot::Mutex;
+use rlp;
+use rustc_hex::ToHex;
+use types::transaction::{Transaction, Action};
 
 use jsonrpc_core::IoHandler;
-use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
+use v1::{EthClientOptions, EthSigning, SigningUnsafeClient};
 use v1::helpers::nonce;
-use v1::helpers::dispatch::FullDispatcher;
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
+use v1::helpers::dispatch::{self, FullDispatcher};
+use v1::tests::helpers::{TestMinerService};
 use v1::metadata::Metadata;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
@@ -48,13 +40,6 @@ fn blockchain_client() -> Arc<TestBlockChainClient> {
 
 fn accounts_provider() -> Arc<AccountProvider> {
 	Arc::new(AccountProvider::transient_provider())
-}
-
-fn sync_provider() -> Arc<TestSyncProvider> {
-	Arc::new(TestSyncProvider::new(Config {
-		network_id: 3,
-		num_peers: 120,
-	}))
 }
 
 fn miner_service() -> Arc<TestMinerService> {
@@ -79,8 +64,8 @@ impl EthTester {
 	pub fn new_with_options(options: EthClientOptions) -> Self {
 		let runtime = Runtime::with_thread_count(1);
 		let client = blockchain_client();
-		let sync = sync_provider();
-		let ap = accounts_provider();
+		let accounts_provider = accounts_provider();
+		let ap = Arc::new(dispatch::Signer::new(accounts_provider.clone())) as _;
 		let miner = miner_service();
 		let gas_price_percentile = options.gas_price_percentile;
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
@@ -95,13 +80,8 @@ impl EthTester {
 			client,
 			miner,
 			io,
-			accounts_provider: ap,
+			accounts_provider,
 		}
-	}
-
-	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
-		self.client.add_blocks(count, with);
-		self.sync.increase_imported_block_number(count as u64);
 	}
 }
 

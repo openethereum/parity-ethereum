@@ -18,10 +18,8 @@
 
 use std::sync::Arc;
 use transient_hashmap::TransientHashMap;
-use ethereum_types::{U256, Address};
+use ethereum_types::U256;
 use parking_lot::Mutex;
-
-use accounts::AccountProvider;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};
@@ -92,7 +90,7 @@ fn schedule(executor: Executor,
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningQueueClient<D> {
 	signer: Arc<SignerService>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<dispatch::Accounts>,
 	dispatcher: D,
 	executor: Executor,
 	// None here means that the request hasn't yet been confirmed
@@ -102,7 +100,7 @@ pub struct SigningQueueClient<D> {
 
 impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	/// Creates a new signing queue client given shared signing queue.
-	pub fn new(signer: &Arc<SignerService>, dispatcher: D, executor: Executor, accounts: &Arc<AccountProvider>) -> Self {
+	pub fn new(signer: &Arc<SignerService>, dispatcher: D, executor: Executor, accounts: &Arc<dispatch::Accounts>) -> Self {
 		SigningQueueClient {
 			signer: signer.clone(),
 			accounts: accounts.clone(),
@@ -113,7 +111,8 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		}
 	}
 
-	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: Address, origin: Origin) -> BoxFuture<DispatchResult> {
+	fn dispatch(&self, payload: RpcConfirmationPayload, origin: Origin) -> BoxFuture<DispatchResult> {
+		let default_account = self.accounts.default_account();
 		let accounts = self.accounts.clone();
 		let dispatcher = self.dispatcher.clone();
 		let signer = self.signer.clone();
@@ -121,7 +120,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 			.and_then(move |payload| {
 				let sender = payload.sender();
 				if accounts.is_unlocked(&sender) {
-					Either::A(dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Nothing)
+					Either::A(dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Nothing)
 						.map(|v| v.into_value())
 						.map(DispatchResult::Value))
 				} else {
@@ -139,7 +138,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
 	fn compose_transaction(&self, _meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest> {
-		let default_account = self.accounts.default_account().ok().unwrap_or_default();
+		let default_account = self.accounts.default_account();
 		Box::new(self.dispatcher.fill_optional_fields(transaction.into(), default_account, true).map(Into::into))
 	}
 
@@ -151,7 +150,6 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 
 		Box::new(self.dispatch(
 			RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()),
-			address.into(),
 			meta.origin
 		).map(move |result| match result {
 			DispatchResult::Value(v) => RpcEither::Or(v),
@@ -168,7 +166,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		let executor = self.executor.clone();
 		let confirmations = self.confirmations.clone();
 
-		Box::new(self.dispatch(RpcConfirmationPayload::SendTransaction(request), self.accounts.default_account().ok().unwrap_or_default(), meta.origin)
+		Box::new(self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.origin)
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
 				DispatchResult::Future(id, future) => {
@@ -194,7 +192,6 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 
 		let res = self.dispatch(
 			RpcConfirmationPayload::Decrypt((address.clone(), data).into()),
-			address.into(),
 			meta.origin,
 		);
 
@@ -216,7 +213,6 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 
 		let res = self.dispatch(
 			RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()),
-			address.into(),
 			meta.origin,
 		);
 
@@ -233,7 +229,6 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 
 		let res = self.dispatch(
 			RpcConfirmationPayload::SendTransaction(request),
-			self.accounts.default_account().ok().unwrap_or_default(),
 			meta.origin,
 		);
 
@@ -250,7 +245,6 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 
 		let res = self.dispatch(
 			RpcConfirmationPayload::SignTransaction(request),
-			self.accounts.default_account().ok().unwrap_or_default(),
 			meta.origin,
 		);
 

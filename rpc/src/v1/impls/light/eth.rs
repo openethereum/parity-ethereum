@@ -29,8 +29,7 @@ use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
-use accounts::AccountProvider;
-use ethereum_types::U256;
+use ethereum_types::{U256, Address};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use parking_lot::{RwLock, Mutex};
 use rlp::Rlp;
@@ -62,7 +61,7 @@ pub struct EthClient<T> {
 	client: Arc<T>,
 	on_demand: Arc<OnDemand>,
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 	cache: Arc<Mutex<LightDataCache>>,
 	polls: Mutex<PollManager<SyncPollFilter>>,
 	poll_lifetime: u32,
@@ -96,7 +95,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		client: Arc<T>,
 		on_demand: Arc<OnDemand>,
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
-		accounts: Arc<AccountProvider>,
+		accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 		cache: Arc<Mutex<LightDataCache>>,
 		gas_price_percentile: usize,
 		poll_lifetime: u32
@@ -240,9 +239,9 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn author(&self) -> Result<RpcH160> {
-		self.accounts.accounts()
-			.ok()
-			.and_then(|a| a.first().cloned())
+		(self.accounts)()
+			.first()
+			.cloned()
 			.map(From::from)
 			.ok_or_else(|| errors::account("No accounts were found", ""))
 	}
@@ -269,9 +268,10 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
 		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
 
-		self.accounts.accounts()
-			.map_err(|e| errors::account("Could not fetch accounts.", e))
-			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect())
+		Ok((self.accounts)()
+			.into_iter()
+			.map(Into::into)
+			.collect())
 	}
 
 	fn block_number(&self) -> Result<RpcU256> {

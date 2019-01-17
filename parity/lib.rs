@@ -56,7 +56,6 @@ extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
-extern crate ethstore;
 extern crate journaldb;
 extern crate keccak_hash as hash;
 extern crate kvdb;

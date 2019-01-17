@@ -25,7 +25,6 @@ use ethereum_types::{U256, H256, H160, Address};
 use parking_lot::Mutex;
 
 use ethash::{self, SeedHashCompute};
-use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
@@ -107,7 +106,7 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	client: Arc<C>,
 	snapshot: Arc<SN>,
 	sync: Arc<S>,
-	accounts: Arc<AccountProvider>,
+	accounts: Arc<Fn() -> Vec<Address> + Send + Sync>,
 	miner: Arc<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
@@ -187,7 +186,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		client: &Arc<C>,
 		snapshot: &Arc<SN>,
 		sync: &Arc<S>,
-		accounts: &Arc<AccountProvider>,
+		accounts: &Arc<Fn() -> Vec<Address> + Send + Sync>,
 		miner: &Arc<M>,
 		em: &Arc<EM>,
 		options: EthClientOptions
@@ -535,9 +534,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn author(&self) -> Result<RpcH160> {
 		let miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
-			self.accounts.accounts()
-				.ok()
-				.and_then(|a| a.first().cloned())
+			(self.accounts)()
+				.first()
+				.cloned()
 				.map(From::from)
 				.ok_or_else(|| errors::account("No accounts were found", ""))
 		} else {
@@ -564,8 +563,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
 		self.deprecation_notice.print("eth_accounts", deprecated::msgs::ACCOUNTS);
 
-		let accounts = self.accounts.accounts()
-			.map_err(|e| errors::account("Could not fetch accounts.", e))?;
+		let accounts = (self.accounts)();
 		Ok(accounts.into_iter().map(Into::into).collect())
 	}
 

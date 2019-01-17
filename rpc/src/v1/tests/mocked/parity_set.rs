@@ -227,17 +227,19 @@ fn rpc_parity_remove_transaction() {
 }
 
 #[test]
-#[cfg(any(test, feature = "accounts"))]
 fn rpc_parity_set_engine_signer() {
-	use bytes::ToPretty;
 	use accounts::AccountProvider;
+	use bytes::ToPretty;
+	use v1::impls::ParitySetAccountsClient;
+	use v1::traits::ParitySetAccounts;
+
 	let account_provider = Arc::new(AccountProvider::transient_provider());
-	let addr = account_provider.insert_account(::hash::keccak("cow").into(), &"password".into()).unwrap();
+	account_provider.insert_account(::hash::keccak("cow").into(), &"password".into()).unwrap();
 
 	let miner = miner_service();
 	let mut io = IoHandler::new();
 	io.extend_with(
-		::v1::impls::parity_set::accounts::ParitySetAccountsClient::new(&account_provider, &miner).to_delegate()
+		ParitySetAccountsClient::new(&account_provider, &miner).to_delegate()
 	);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setEngineSigner", "params":["0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826", "password"], "id": 1}"#;
