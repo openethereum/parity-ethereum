@@ -9,6 +9,8 @@ echo "CARGO_HOME:       " $CARGO_HOME
 echo "CARGO_TARGET:     " $CARGO_TARGET
 echo "CC:               " $CC
 echo "CXX:              " $CXX
+#strip ON
+export RUSTFLAGS=" -C link-arg=-s"
 
 echo "_____ Building target: "$CARGO_TARGET" _____"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
@@ -39,16 +41,6 @@ else
  cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
  cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
  cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
-fi
-
-
-# stripping can also be done on release build time
-# export RUSTFLAGS="${RUSTFLAGS} -C link-arg=-s"
-if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
-then
-  arm-linux-androideabi-strip -v ./*
-else
-  strip -v ./*
 fi
 
 echo "_____ Calculating checksums _____"
