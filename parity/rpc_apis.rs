@@ -379,7 +379,7 @@ impl FullDependencies {
 						).to_delegate(),
 					);
 					#[cfg(feature = "accounts")]
-					handler.extend_with(ParityAccountsInfo::to_delegate(&ParityAccountsClient::new(&self.accounts)));
+					handler.extend_with(ParityAccountsInfo::to_delegate(ParityAccountsClient::new(&self.accounts)));
 
 					if !for_generic_pubsub {
 						add_signing_methods!(ParitySigning, handler, self, (&dispatcher, &account_signer));
@@ -399,7 +399,7 @@ impl FullDependencies {
 				}
 				Api::ParityAccounts => {
 					#[cfg(feature = "accounts")]
-					handler.extend_with(ParityAccounts::to_delegate(&ParityAccountsClient::new(&self.accounts)));
+					handler.extend_with(ParityAccounts::to_delegate(ParityAccountsClient::new(&self.accounts)));
 				}
 				Api::ParitySet => {
 					handler.extend_with(
@@ -612,7 +612,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					);
 					#[cfg(feature = "accounts")]
 					handler.extend_with(
-						ParityAccountsInfo::to_delegate(&ParityAccountsClient::new(&self.accounts))
+						ParityAccountsInfo::to_delegate(ParityAccountsClient::new(&self.accounts))
 					);
 
 					if !for_generic_pubsub {
@@ -633,7 +633,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				}
 				Api::ParityAccounts => {
 					#[cfg(feature = "accounts")]
-					handler.extend_with(ParityAccounts::to_delegate(&ParityAccountsClient::new(&self.accounts)));
+					handler.extend_with(ParityAccounts::to_delegate(ParityAccountsClient::new(&self.accounts)));
 				}
 				Api::ParitySet => handler.extend_with(
 					light::ParitySetClient::new(self.sync.clone(), self.fetch.clone())

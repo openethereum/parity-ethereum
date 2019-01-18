@@ -44,7 +44,7 @@ mod accounts {
 		AccountProvider
 	}
 
-	pub fn miner_author(_spec: &SpecType, _dirs: &Directories, _account_provider: &AccountProvider, _enigne_signer: Address, _passwords: &[Password]) -> Result<Option<::ethcore::miner::Author>, String> {
+	pub fn miner_author(_spec: &SpecType, _dirs: &Directories, _account_provider: &Arc<AccountProvider>, _engine_signer: Address, _passwords: &[Password]) -> Result<Option<::ethcore::miner::Author>, String> {
 		Ok(None)
 	}
 
@@ -64,10 +64,14 @@ mod accounts {
 
 	pub use accounts::AccountProvider;
 
+	/// Pops along with error messages when a password is missing or invalid.
+	const VERIFY_PASSWORD_HINT: &str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
+
 	/// Initialize account provider
 	pub fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[Password]) -> Result<AccountProvider, String> {
 		use ethstore::EthStore;
 		use ethstore::accounts_dir::RootDiskDirectory;
+		use accounts::AccountProviderSettings;
 
 		let path = dirs.keys_path(data_dir);
 		upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
@@ -128,9 +132,8 @@ mod accounts {
 		LocalAccounts(account_provider)
 	}
 
-	pub fn miner_author(spec: &SpecType, dirs: &Directories, account_provider: &AccountProvider, enigne_signer: Address, passwords: &[Password]) -> Result<Option<::ethcore::miner::Author>, String> {
-		// Pops along with error messages when a password is missing or invalid.
-		const VERIFY_PASSWORD_HINT: &str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
+	pub fn miner_author(spec: &SpecType, dirs: &Directories, account_provider: &Arc<AccountProvider>, engine_signer: Address, passwords: &[Password]) -> Result<Option<::ethcore::miner::Author>, String> {
+		use ethcore::engines::EngineSigner;
 
 		// Check if engine signer exists
 		if !account_provider.has_account(engine_signer) {
@@ -143,14 +146,14 @@ mod accounts {
 		}
 
 		let mut author = None;
-		for password in &passwords {
+		for password in passwords {
 			let signer = parity_rpc::signer::EngineSigner::new(
 				account_provider.clone(),
 				engine_signer,
 				password.clone(),
-				);
+			);
 			if signer.sign(Default::default()).is_ok() {
-				author = Some(miner::Author::Sealer(Box::new(signer)));
+				author = Some(::ethcore::miner::Author::Sealer(Box::new(signer)));
 			}
 		}
 		if author.is_none() {
@@ -166,20 +169,20 @@ mod accounts {
 		use ethkey::{Signature, Message};
 		use ethcore_private_tx::{Error};
 
-		struct AccountSigner {
-			accounts: Arc<AccountProvider>,
-			passwords: Vec<Password>,
+		pub struct AccountSigner {
+			pub accounts: Arc<AccountProvider>,
+			pub passwords: Vec<Password>,
 		}
 
 		impl ::ethcore_private_tx::Signer for AccountSigner {
 			fn decrypt(&self, account: Address, shared_mac: &[u8], payload: &[u8]) -> Result<Vec<u8>, Error> {
 				let password = self.find_account_password(&account);
-				Ok(self.accounts.decrypt(account, password, shared_mac, payload)?)
+				Ok(self.accounts.decrypt(account, password, shared_mac, payload).map_err(|e| e.to_string())?)
 			}
 
 			fn sign(&self, account: Address, hash: Message) -> Result<Signature, Error> {
 				let password = self.find_account_password(&account);
-				Ok(self.accounts.sign(account, password, hash)?)
+				Ok(self.accounts.sign(account, password, hash).map_err(|e| e.to_string())?)
 			}
 		}
 
@@ -197,14 +200,14 @@ mod accounts {
 	}
 
 	pub fn private_tx_signer(accounts: Arc<AccountProvider>, passwords: &[Password]) -> Result<Arc<::ethcore_private_tx::Signer>, String> {
-		Arc::new(self::private_tx::AccountSigner {
+		Ok(Arc::new(self::private_tx::AccountSigner {
 			accounts,
 			passwords: passwords.to_vec(),
-		})
+		}))
 	}
 
 	pub fn accounts_list(account_provider: Arc<AccountProvider>) -> Arc<Fn() -> Vec<Address> + Send + Sync> {
-		Arc::new(|| account_provider.accounts().unwrap_or_default())
+		Arc::new(move || account_provider.accounts().unwrap_or_default())
 	}
 
 	fn insert_dev_account(account_provider: &AccountProvider) {

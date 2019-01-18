@@ -518,7 +518,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let engine_signer = cmd.miner_extras.engine_signer;
 	if engine_signer != Default::default() {
-		if let Some(author) = account_utils::miner_author(&cmd.spec, &cmd.dirs, &*account_provider, engine_signer, &passwords)? {
+		if let Some(author) = account_utils::miner_author(&cmd.spec, &cmd.dirs, &account_provider, engine_signer, &passwords)? {
 			miner.set_author(author);
 		}
 	}

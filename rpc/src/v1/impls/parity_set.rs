@@ -50,6 +50,7 @@ pub mod accounts {
 	}
 
 	impl<M> ParitySetAccountsClient<M> {
+		/// Creates new ParitySetAccountsClient
 		pub fn new(
 			accounts: &Arc<AccountProvider>,
 			miner: &Arc<M>,
