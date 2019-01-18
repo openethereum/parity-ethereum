@@ -187,7 +187,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	fn net_peers(&self) -> Result<Peers> {
 		let sync_status = self.sync.status();
 		let num_peers_range = self.net.num_peers_range();
-		debug_assert!(num_peers_range.end() > num_peers_range.start());
+		debug_assert!(num_peers_range.end() >= num_peers_range.start());
 		let peers = self.sync.peers().into_iter().map(Into::into).collect();
 
 		Ok(Peers {

@@ -946,7 +946,7 @@ impl LightSyncProvider for LightSync {
 	fn peer_numbers(&self) -> PeerNumbers {
 		let (connected, active) = self.proto.peer_count();
 		let peers_range = self.num_peers_range();
-		debug_assert!(peers_range.end() > peers_range.start());
+		debug_assert!(peers_range.end() >= peers_range.start());
 		PeerNumbers {
 			connected: connected,
 			active: active,

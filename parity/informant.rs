@@ -146,7 +146,7 @@ impl InformantData for FullNodeInformantData {
 			(Some(sync), Some(net)) => {
 				let status = sync.status();
 				let num_peers_range = net.num_peers_range();
-				debug_assert!(num_peers_range.end() > num_peers_range.start());
+				debug_assert!(num_peers_range.end() >= num_peers_range.start());
 
 				cache_sizes.insert("sync", status.mem_used);
 
