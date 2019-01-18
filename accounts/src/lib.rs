@@ -22,6 +22,9 @@ mod account_data;
 mod error;
 mod stores;
 
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+extern crate fake_hardware_wallet as hardware_wallet;
+
 use self::account_data::{Unlock, AccountData};
 use self::stores::AddressBook;
 
