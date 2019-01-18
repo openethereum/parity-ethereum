@@ -45,6 +45,7 @@ ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
+ethbloom = "0.5"
 ethereum-types = "0.4"
 fastmap = { path = "../util/fastmap" }
 parity-bytes = "0.1"

@@ -19,8 +19,8 @@
 use std::{ops, str};
 use std::collections::HashMap;
 use jsonrpc_pubsub::{typed::{Subscriber, Sink}, SubscriptionId};
+use ethereum_types::H64;
 use rand::{Rng, StdRng};
-use v1::types::H64;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Id(H64);

@@ -18,7 +18,8 @@
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_derive::rpc;
 
-use v1::types::{U256, H160, Bytes, ConfirmationResponse, TransactionRequest, Either};
+use ethereum_types::{H160, U256};
+use v1::types::{Bytes, ConfirmationResponse, TransactionRequest, Either};
 
 /// Signing methods implementation.
 #[rpc]

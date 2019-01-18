@@ -26,7 +26,7 @@ use ethcore::spec::{Genesis, Spec};
 use ethcore::test_helpers;
 use ethcore::verification::VerifierType;
 use ethcore::verification::queue::kind::blocks::Unverified;
-use ethereum_types::{H256, Address};
+use ethereum_types::{Address, H256, U256};
 use ethjson::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;
 use io::IoChannel;
@@ -42,7 +42,6 @@ use v1::impls::{EthClient, EthClientOptions, SigningUnsafeClient};
 use v1::metadata::Metadata;
 use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
 use v1::traits::{Eth, EthSigning};
-use v1::types::U256 as NU256;
 
 fn account_provider() -> Arc<AccountProvider> {
 	Arc::new(AccountProvider::transient_provider())
@@ -459,7 +458,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 			"jsonrpc": "2.0",
 			"method": "eth_getBlockTransactionCountByNumber",
 			"params": [
-				"#.to_owned() + &::serde_json::to_string(&NU256::from(num)).unwrap() + r#"
+				"#.to_owned() + &::serde_json::to_string(&U256::from(num)).unwrap() + r#"
 			],
 			"id": "# + format!("{}", *id).as_ref() + r#"
 		}"#;

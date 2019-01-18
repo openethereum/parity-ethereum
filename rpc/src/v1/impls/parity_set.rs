@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use ethcore::client::{BlockChainClient, Mode};
 use ethcore::miner::{self, MinerService};
-use ethereum_types::H256 as EthH256;
+use ethereum_types::{H160, H256, U256};
 use ethkey;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
@@ -32,7 +32,7 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::Future;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+use v1::types::{Bytes, ReleaseInfo, Transaction};
 
 #[cfg(any(test, feature = "accounts"))]
 pub mod accounts {

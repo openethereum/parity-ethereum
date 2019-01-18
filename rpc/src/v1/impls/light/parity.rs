@@ -24,6 +24,7 @@ use crypto::DEFAULT_MAC;
 use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::{LightSyncInfo, LightSyncProvider, LightNetworkDispatcher, ManageNetwork};
+use ethereum_types::{H64, H160, H256, H512, U256};
 use ethcore_logger::RotatingLogger;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -35,7 +36,7 @@ use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, U64, H64, H160, H256, H512, CallRequest,
+	Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	LightBlockNumber, ChainStatus, Receipt,
@@ -395,7 +396,7 @@ where
 		Box::new(self.fetcher().logs_no_tx_hash(filter)) as BoxFuture<_>
 	}
 
-	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {
+	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: u64) -> Result<RecoveredAccount> {
 		verify_signature(is_prefixed, message, r, s, v, self.light_dispatch.client.signing_chain_id())
 	}
 }

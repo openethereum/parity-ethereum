@@ -19,6 +19,9 @@ use std::sync::Arc;
 use std::str::FromStr;
 use std::collections::BTreeMap;
 
+use ethereum_types::{Address, H64, H160, H256, H512, U256};
+use version::version_data;
+
 use crypto::DEFAULT_MAC;
 use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::miner::{self, MinerService};
@@ -41,7 +44,7 @@ use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H64, U64, H160, H256, H512, CallRequest,
+	Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -470,7 +473,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		base_logs(&*self.client, &*self.miner, filter.into())
 	}
 
-	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: U64) -> Result<RecoveredAccount> {
+	fn verify_signature(&self, is_prefixed: bool, message: Bytes, r: H256, s: H256, v: u64) -> Result<RecoveredAccount> {
 		verify_signature(is_prefixed, message, r, s, v, self.client.signing_chain_id())
 	}
 }

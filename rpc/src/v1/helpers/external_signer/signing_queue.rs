@@ -15,7 +15,8 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use ethereum_types::U256;
+
+use ethereum_types::{H160, U256, Address};
 use parking_lot::{Mutex, RwLock};
 use super::oneshot;
 use v1::helpers::errors;
@@ -26,6 +27,18 @@ use jsonrpc_core::Error;
 
 /// Result that can be returned from JSON RPC.
 pub type ConfirmationResult = Result<ConfirmationResponse, Error>;
+
+/// Type of default account
+pub enum DefaultAccount {
+	/// Default account is known
+	Provided(Address),
+}
+
+impl From<H160> for DefaultAccount {
+	fn from(address: H160) -> Self {
+		DefaultAccount::Provided(address.into())
+	}
+}
 
 /// Possible events happening in the queue that can be listened to.
 #[derive(Debug, PartialEq, Clone)]
