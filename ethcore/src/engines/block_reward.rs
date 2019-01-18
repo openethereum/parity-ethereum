@@ -130,7 +130,7 @@ impl BlockRewardContract {
 
 		let tokens = ethabi::decode(types, &output)
 			.map_err(|err| err.to_string())
-			.map_err(::engines::EngineError::FailedSystemCall)?;
+			.map_err(::engines::EngineError::SystemCallResultDecoding)?;
 
 		assert!(tokens.len() == 2);
 
@@ -138,7 +138,7 @@ impl BlockRewardContract {
 		let rewards = tokens[1].clone().to_array().expect("type checked by ethabi::decode; qed");
 
 		if addresses.len() != rewards.len() {
-			return Err(::engines::EngineError::FailedSystemCall(
+			return Err(::engines::EngineError::SystemCallResultInvalid(
 				"invalid data returned by reward contract: both arrays must have the same size".into()
 			).into());
 		}
