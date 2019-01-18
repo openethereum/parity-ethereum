@@ -21,7 +21,8 @@ use std::thread;
 
 use ansi_term::Colour;
 use bytes::Bytes;
-use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
+use call_contract::CallContract;
+use ethcore::client::{BlockId, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -29,18 +30,19 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
-use sync::{self, SyncConfig, PrivateTxHandler};
-use miner::work_notify::WorkPoster;
 use futures::IntoFuture;
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
 use miner::external::ExternalMiner;
+use miner::work_notify::WorkPoster;
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
-use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult,
-	FutureResponse, FutureOutput};
+use sync::{self, SyncConfig, PrivateTxHandler};
+use parity_rpc::{
+	Origin, Metadata, NetworkSettings, informant, is_major_importing, PubSubSession, FutureResult, FutureResponse, FutureOutput
+};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};

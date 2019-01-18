@@ -14,24 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Provides CallContract and RegistryInfo traits
 
-#![warn(missing_docs)]
+use bytes::Bytes;
+use ethereum_types::Address;
+use types::ids::BlockId;
 
-mod best_block;
-mod block_info;
-mod blockchain;
-mod cache;
-mod config;
-mod import_route;
-mod update;
+/// Provides `call_contract` method
+pub trait CallContract {
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+}
 
-pub mod generator;
-
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use self::import_route::ImportRoute;
-pub use self::update::ExtrasInsert;
-pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, BlockNumberKey};
-pub use common_types::tree_route::TreeRoute;
+/// Provides information on a blockchain service and it's registry
+pub trait RegistryInfo {
+	/// Get the address of a particular blockchain service, if available.
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
+}

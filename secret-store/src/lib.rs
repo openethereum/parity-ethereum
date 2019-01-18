@@ -18,8 +18,7 @@ extern crate byteorder;
 extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;
-#[cfg(feature = "accounts")]
-extern crate ethcore_accounts as accounts;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate ethkey;
@@ -56,6 +55,9 @@ extern crate log;
 extern crate env_logger;
 #[cfg(test)]
 extern crate kvdb_rocksdb;
+
+#[cfg(feature = "accounts")]
+extern crate ethcore_accounts as accounts;
 
 mod key_server_cluster;
 mod types;
