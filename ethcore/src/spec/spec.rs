@@ -190,6 +190,7 @@ impl CommonParams {
 		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
 		schedule.have_extcodehash = block_number >= self.eip1052_transition;
 		schedule.eip1283 = block_number >= self.eip1283_transition;
+		schedule.eip1706 = block_number >= self.eip1706_transition;
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
 		}
@@ -301,6 +302,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip1014_transition: p.eip1014_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1706_transition: p.eip1706_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
 			),

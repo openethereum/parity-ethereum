@@ -121,7 +121,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				Request::Gas(Gas::from(1))
 			},
 			instructions::SSTORE => {
-				if self.current_gas <= Gas::from(schedule.call_stipend) {
+				if schedule.eip1706 && self.current_gas <= Gas::from(schedule.call_stipend) {
 					return Err(vm::Error::OutOfGas);
 				}
 

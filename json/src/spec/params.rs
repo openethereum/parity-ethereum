@@ -91,6 +91,8 @@ pub struct Params {
 	pub eip1283_transition: Option<Uint>,
 	pub eip1014_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	pub eip1706_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	pub dust_protection_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub nonce_cap_increment: Option<Uint>,
