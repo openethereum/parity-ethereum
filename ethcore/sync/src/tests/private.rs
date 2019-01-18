@@ -17,15 +17,17 @@
 use std::sync::Arc;
 use hash::keccak;
 use io::{IoHandler, IoChannel};
-use accounts::AccountProvider;
-use ethcore::CreateContractAddress;
 use types::transaction::{Transaction, Action};
+use types::ids::BlockId;
+use ethcore::CreateContractAddress;
+use ethcore::client::{ClientIoMessage, BlockChainClient};
 use ethcore::executive::{contract_address};
+use ethcore::engines;
 use ethcore::miner::{self, MinerService};
 use ethcore::spec::Spec;
 use ethcore::test_helpers::{push_block_with_transactions};
 use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction};
-use ethkey::{KeyPair};
+use ethkey::KeyPair;
 use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
 use rlp::Rlp;
@@ -42,9 +44,7 @@ fn send_private_transaction() {
 	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
 	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
 
-	let ap = Arc::new(AccountProvider::transient_provider());
-	ap.insert_account(s0.secret().clone(), &"".into()).unwrap();
-	ap.insert_account(s1.secret().clone(), &"".into()).unwrap();
+	let signer = Arc::new(ethcore_private_tx::KeyPairSigner(vec![s0.clone(), s1.clone()]));
 
 	let mut net = TestNet::with_spec(2, SyncConfig::default(), seal_spec);
 	let client0 = net.peer(0).chain.clone();
@@ -69,19 +69,17 @@ fn send_private_transaction() {
 	let validator_config = ProviderConfig{
 		validator_accounts: vec![s1.address()],
 		signer_account: None,
-		passwords: vec!["".into()],
 	};
 
 	let signer_config = ProviderConfig{
 		validator_accounts: Vec::new(),
 		signer_account: Some(s0.address()),
-		passwords: vec!["".into()],
 	};
 
 	let pm0 = Arc::new(Provider::new(
 			client0.clone(),
 			net.peer(0).miner.clone(),
-			ap.clone(),
+			signer.clone(),
 			Box::new(NoopEncryptor::default()),
 			signer_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler0)),
@@ -91,7 +89,7 @@ fn send_private_transaction() {
 	let pm1 = Arc::new(Provider::new(
 			client1.clone(),
 			net.peer(1).miner.clone(),
-			ap.clone(),
+			signer.clone(),
 			Box::new(NoopEncryptor::default()),
 			validator_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler1)),

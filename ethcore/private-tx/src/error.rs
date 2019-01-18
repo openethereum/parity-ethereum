@@ -20,6 +20,7 @@ use ethtrie::TrieError;
 use ethcore::error::{Error as EthcoreError, ExecutionError};
 use types::transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
+use ethkey::crypto::Error as CryptoError;
 use txpool::Error as TxPoolError;
 
 error_chain! {
@@ -28,6 +29,7 @@ error_chain! {
 		Decoder(DecoderError) #[doc = "RLP decoding error."];
 		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
 		Txpool(TxPoolError) #[doc = "Tx pool error."];
+		Crypto(CryptoError) #[doc = "Crypto error."];
 	}
 
 	errors {

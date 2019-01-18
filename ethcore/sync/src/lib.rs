@@ -40,7 +40,6 @@ extern crate triehash_ethereum;
 extern crate ethcore_light as light;
 
 #[cfg(test)] extern crate env_logger;
-#[cfg(test)] extern crate ethcore_accounts as accounts;
 #[cfg(test)] extern crate ethcore_private_tx;
 #[cfg(test)] extern crate kvdb_memorydb;
 #[cfg(test)] extern crate rustc_hex;

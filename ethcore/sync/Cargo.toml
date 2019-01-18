@@ -35,7 +35,6 @@ triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 [dev-dependencies]
 env_logger = "0.5"
 ethcore = { path = "..", features = ["test-helpers"] }
-ethcore-accounts = { path = "../../accounts" }
 ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethcore-private-tx = { path = "../private-tx" }
 kvdb-memorydb = "0.1"

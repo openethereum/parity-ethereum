@@ -138,7 +138,6 @@ pub trait Signer: Send + Sync {
 
 /// Signer implementation that errors on any request.
 pub struct DummySigner;
-
 impl Signer for DummySigner {
 	fn decrypt(&self, _account: Address, _shared_mac: &[u8], _payload: &[u8]) -> Result<Vec<u8>, Error> {
 		Err("Decrypting is not supported.".to_owned())?
@@ -146,6 +145,20 @@ impl Signer for DummySigner {
 
 	fn sign(&self, _account: Address, _hash: ethkey::Message) -> Result<Signature, Error> {
 		Err("Signing is not supported.".to_owned())?
+	}
+}
+
+/// Signer implementation using multiple keypairs
+pub struct KeyPairSigner(pub Vec<ethkey::KeyPair>);
+impl Signer for KeyPairSigner {
+	fn decrypt(&self, account: Address, shared_mac: &[u8], payload: &[u8]) -> Result<Vec<u8>, Error> {
+		let kp = self.0.iter().find(|k| k.address() == account).ok_or(ethkey::Error::InvalidAddress)?;
+		Ok(ethkey::crypto::ecies::decrypt(kp.secret(), shared_mac, payload)?)
+	}
+
+	fn sign(&self, account: Address, hash: ethkey::Message) -> Result<Signature, Error> {
+		let kp = self.0.iter().find(|k| k.address() == account).ok_or(ethkey::Error::InvalidAddress)?;
+		Ok(ethkey::sign(kp.secret(), &hash)?)
 	}
 }
 
