@@ -123,6 +123,8 @@ pub struct CommonParams {
 	pub eip1283_transition: BlockNumber,
 	/// Number of first block where EIP-1014 rules begin.
 	pub eip1014_transition: BlockNumber,
+	/// Number of first block where EIP-1706 rules begin.
+	pub eip1706_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
