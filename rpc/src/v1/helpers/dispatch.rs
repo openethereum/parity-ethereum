@@ -779,7 +779,6 @@ pub fn execute<D: Dispatcher + 'static>(
 			let res = signature(&accounts, address, data, pass)
 				.map(|result| result
 					.map(|rsv| H520(rsv.into_electrum()))
-					// .map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);
 			Box::new(future::done(res))

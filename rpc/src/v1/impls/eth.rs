@@ -570,8 +570,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn balance(&self, address: H160, num: Trailing<BlockNumber>) -> BoxFuture<U256> {
-		let address = address.into();
-
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
@@ -586,8 +584,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn proof(&self, address: H160, values: Vec<H256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
 		try_bf!(errors::require_experimental(self.options.allow_experimental_rpcs, "1186"));
 
-		let a: H160 = address.clone().into();
-		let key1 = keccak(a);
+		let key1 = keccak(address);
 
 		let num = num.unwrap_or_default();
 		let id = match num {
@@ -625,10 +622,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		Box::new(future::done(res))
 	}
-	fn storage_at(&self, address: H160, pos: U256, num: Trailing<BlockNumber>) -> BoxFuture<H256> {
-		let address: Address = H160::into(address);
-		let position: U256 = U256::into(pos);
 
+	fn storage_at(&self, address: H160, pos: U256, num: Trailing<BlockNumber>) -> BoxFuture<H256> {
+		let address: Address = address.into();
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
@@ -639,8 +635,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		Box::new(future::done(res))
 	}
+
 	fn transaction_count(&self, address: H160, num: Trailing<BlockNumber>) -> BoxFuture<U256> {
-		let address: Address = H160::into(address);
+		let address: Address = address.into();
 
 		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
@@ -749,7 +746,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_by_hash(&self, hash: H256) -> BoxFuture<Option<Transaction>> {
-		let hash: H256 = hash.into();
 		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
 			self.miner.transaction(&hash)
 				.map(|t| Transaction::from_pending(t.pending().clone()))
@@ -781,8 +777,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_receipt(&self, hash: H256) -> BoxFuture<Option<Receipt>> {
-		let hash: H256 = hash.into();
-
 		if self.options.allow_pending_receipt_query {
 			let best_block = self.client.chain_info().best_block_number;
 			if let Some(receipt) = self.miner.pending_receipt(best_block, &hash) {
