@@ -39,7 +39,6 @@ mod trace_filter;
 mod transaction;
 mod transaction_request;
 mod transaction_condition;
-// mod uint;
 mod work;
 mod private_receipt;
 mod eip191;

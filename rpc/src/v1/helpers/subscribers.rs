@@ -22,6 +22,7 @@ use jsonrpc_pubsub::{typed::{Subscriber, Sink}, SubscriptionId};
 use ethereum_types::H64;
 use rand::{Rng, StdRng};
 
+// FIXME: This type is needless use `serde_json::to_string` instead
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Id(H64);
 impl str::FromStr for Id {
@@ -37,7 +38,7 @@ impl str::FromStr for Id {
 }
 impl Id {
 	pub fn as_string(&self) -> String {
-		format!("0x{:?}", self.0)
+		format!("{:?}", self.0)
 	}
 }
 

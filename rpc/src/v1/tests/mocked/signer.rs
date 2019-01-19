@@ -495,7 +495,7 @@ fn should_confirm_data_sign_with_signature() {
 
 	let data_hash = eth_data_hash(vec![1, 2, 3, 4].into());
 	let signature = H520(tester.accounts.sign(address, Some("test".into()), data_hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	// when
 	let request = r#"{

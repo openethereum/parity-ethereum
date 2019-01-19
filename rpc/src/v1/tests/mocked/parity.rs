@@ -574,7 +574,7 @@ fn rpc_parity_verify_signature() {
 			"0xe552acf4caabe9661893fd48c7b5e68af20bf007193442f8ca05ce836699d75e",
 			"0x2089e84151c3cdc45255c07557b349f5bf2ed3e68f6098723eaa90a0f8b2b3e5",
 			"0x5f70e8df7bd0c4417afb5f5a39d82e15d03adeff8796725d8b14889ed1d1aa8a",
-			"0x1"
+			1
 		],
 		"id": 0
 	}"#;

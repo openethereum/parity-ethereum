@@ -156,7 +156,7 @@ fn sign() {
 
 	let hash = eth_data_hash(data);
 	let signature = H520(tester.accounts.sign(address, Some("password123".into()), hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &signature + r#"","id":1}"#;
 
@@ -264,7 +264,7 @@ fn ec_recover() {
 
 	let hash = eth_data_hash(data.clone());
 	let signature = H520(tester.accounts.sign(address, Some("password123".into()), hash).unwrap().into_electrum());
-	let signature = format!("0x{:?}", signature);
+	let signature = format!("{:?}", signature);
 
 	let request = r#"{
 		"jsonrpc": "2.0",

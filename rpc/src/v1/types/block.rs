@@ -252,8 +252,8 @@ mod tests {
 		let rich_block = RichBlock {
 			inner: block,
 			extra_info: map![
-				"mixHash".into() => format!("0x{:?}", H256::default()),
-				"nonce".into() => format!("0x{:?}", H64::default())
+				"mixHash".into() => format!("{:?}", H256::default()),
+				"nonce".into() => format!("{:?}", H64::default())
 			],
 		};
 		let serialized_rich_block = serde_json::to_string(&rich_block).unwrap();
@@ -290,8 +290,8 @@ mod tests {
 		let rich_block = RichBlock {
 			inner: block,
 			extra_info: map![
-				"mixHash".into() => format!("0x{:?}", H256::default()),
-				"nonce".into() => format!("0x{:?}", H64::default())
+				"mixHash".into() => format!("{:?}", H256::default()),
+				"nonce".into() => format!("{:?}", H64::default())
 			],
 		};
 		let serialized_rich_block = serde_json::to_string(&rich_block).unwrap();
@@ -325,8 +325,8 @@ mod tests {
 		let rich_header = RichHeader {
 			inner: header,
 			extra_info: map![
-				"mixHash".into() => format!("0x{:?}", H256::default()),
-				"nonce".into() => format!("0x{:?}", H64::default())
+				"mixHash".into() => format!("{:?}", H256::default()),
+				"nonce".into() => format!("{:?}", H64::default())
 			],
 		};
 		let serialized_rich_header = serde_json::to_string(&rich_header).unwrap();
