@@ -1360,7 +1360,7 @@ pub mod tests {
 
 	#[test]
 	fn error_in_generation_session_broadcasted_to_all_other_nodes() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6016, 3);
 		run_clusters(&clusters);
@@ -1395,7 +1395,7 @@ pub mod tests {
 
 	#[test]
 	fn generation_session_completion_signalled_if_failed_on_master() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6025, 3);
 		run_clusters(&clusters);
@@ -1430,7 +1430,7 @@ pub mod tests {
 
 	#[test]
 	fn generation_session_is_removed_when_succeeded() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6019, 3);
 		run_clusters(&clusters);
@@ -1506,7 +1506,7 @@ pub mod tests {
 	#[test]
 	#[ignore]
 	fn schnorr_signing_session_completes_if_node_does_not_have_a_share() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6028, 3);
 		run_clusters(&clusters);
@@ -1568,7 +1568,7 @@ pub mod tests {
 	#[test]
 	#[ignore]
 	fn ecdsa_signing_session_completes_if_node_does_not_have_a_share() {
-		//::logger::init_log();
+		let _ = ::env_logger::try_init();
 		let runtime = new_runtime();
 		let clusters = make_clusters(&runtime, 6041, 4);
 		run_clusters(&clusters);

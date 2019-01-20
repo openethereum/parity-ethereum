@@ -42,7 +42,7 @@ fn skip_test(name: &String) -> bool {
 }
 
 pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
-	::ethcore_logger::init_log();
+	let _ = ::env_logger::try_init();
 	let tests = ethjson::blockchain::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 

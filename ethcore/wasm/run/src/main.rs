@@ -22,8 +22,8 @@ extern crate ethjson;
 extern crate wasm;
 extern crate vm;
 extern crate clap;
-extern crate ethcore_logger;
 extern crate rustc_hex;
+extern crate env_logger;
 
 mod fixture;
 mod runner;
@@ -33,7 +33,7 @@ use clap::{App, Arg};
 use std::fs;
 
 fn main() {
-	::ethcore_logger::init_log();
+	::env_logger::init();
 
 	let matches = App::new("pwasm-run-test")
 		.arg(Arg::with_name("target")

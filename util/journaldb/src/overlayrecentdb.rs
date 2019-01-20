@@ -494,7 +494,6 @@ mod tests {
 	use keccak::keccak;
 	use super::*;
 	use hashdb::HashDB;
-	use ethcore_logger::init_log;
 	use {kvdb_memorydb, JournalDB};
 
 	fn new_db() -> OverlayRecentDB {
@@ -772,7 +771,7 @@ mod tests {
 
 	#[test]
 	fn insert_delete_insert_delete_insert_expunge() {
-		init_log();
+		let _ = ::env_logger::try_init();
 		let mut jdb = new_db();
 
 		// history is 4
@@ -798,7 +797,7 @@ mod tests {
 
 	#[test]
 	fn forked_insert_delete_insert_delete_insert_expunge() {
-		init_log();
+		let _ = ::env_logger::try_init();
 		let mut jdb = new_db();
 
 		// history is 4
@@ -905,7 +904,7 @@ mod tests {
 
 	#[test]
 	fn reopen_remove_three() {
-		init_log();
+		let _ = ::env_logger::try_init();
 
 		let shared_db = Arc::new(kvdb_memorydb::create(0));
 		let foo = keccak(b"foo");

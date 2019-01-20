@@ -21,8 +21,9 @@ use std::thread;
 
 use ansi_term::Colour;
 use bytes::Bytes;
+use call_contract::CallContract;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
-use ethcore::client::{BlockId, CallContract, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
+use ethcore::client::{BlockId, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
 use ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};
@@ -376,7 +377,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 			rpc: rpc_direct,
 			informant,
 			client,
-			keep_alive: Box::new((runtime, service, ws_server, http_server, ipc_server)),
+			keep_alive: Box::new((service, ws_server, http_server, ipc_server, runtime)),
 		}
 	})
 }

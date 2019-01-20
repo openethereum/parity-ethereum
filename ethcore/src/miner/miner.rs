@@ -21,6 +21,7 @@ use std::sync::Arc;
 
 use ansi_term::Colour;
 use bytes::Bytes;
+use call_contract::CallContract;
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 #[cfg(feature = "work-notify")]
@@ -48,7 +49,7 @@ use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use block::{ClosedBlock, IsBlock, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
+	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
 use engines::{EthEngine, Seal};
