@@ -19,7 +19,6 @@ track = "nightly"
 foundation = { forkBlock = 4370000, critical = true }
 ropsten = { forkBlock = 4230000, critical = false }
 kovan = { forkBlock = 9200000, critical = true }
-goerli = { forkBlock = 0, critical = false }
 
 [dependencies]
 parity-bytes = "0.1"
