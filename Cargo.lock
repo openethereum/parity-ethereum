@@ -696,6 +696,7 @@ dependencies = [
  "ethcore-blockchain 0.1.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-call-contract 0.1.0",
+ "ethcore-chain-info 0.1.0",
  "ethcore-db 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-miner 1.12.0",
@@ -792,6 +793,13 @@ dependencies = [
  "common-types 0.1.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-chain-info"
+version = "0.1.0"
+dependencies = [
+ "common-types 0.1.0",
 ]
 
 [[package]]
@@ -894,6 +902,7 @@ dependencies = [
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.12.0",
  "ethcore-call-contract 0.1.0",
+ "ethcore-chain-info 0.1.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "fetch 0.1.0",

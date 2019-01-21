@@ -68,7 +68,7 @@ use error::{
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
 use miner::{Miner, MinerService};
-use miner::service_transaction_checker::ServiceTransactionChecker;
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
 use state::{self, State};

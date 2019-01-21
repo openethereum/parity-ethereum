@@ -17,7 +17,8 @@
 //! A service transactions contract checker.
 
 use std::collections::BTreeMap;
-use client::{RegistryInfo, CallContract, ChainInfo};
+use call_contract::{RegistryInfo, CallContract};
+use chain_info::ChainInfo;
 use types::ids::BlockId;
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;
