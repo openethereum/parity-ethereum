@@ -95,7 +95,10 @@ impl<'a> BoundContract<'a> {
 			.as_full_client()
 			.ok_or(CallError::NotFullClient)?;
 
-		cl.transact(Action::Call(self.contract_addr), data, None, Some(U256::zero()))
-			.map_err(CallError::TransactionFailed)
+		// Don't return an error if the transaction is already in the queue.
+		match cl.transact(Action::Call(self.contract_addr), data, None, Some(U256::zero())) {
+			Err(transaction::Error::AlreadyImported) | Ok(()) => Ok(()),
+			Err(err) => Err(CallError::TransactionFailed(err)),
+		}
 	}
 }

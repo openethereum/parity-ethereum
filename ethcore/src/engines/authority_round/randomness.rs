@@ -66,7 +66,7 @@ pub enum RandomnessPhase {
 	/// window to make a commitment.
 	Waiting,
 	/// Indicates a commitment is possible, but still missing.
-	BeforeCommit { our_address: Address },
+	BeforeCommit { our_address: Address, round: U256 },
 	/// Indicates a successful commitment, waiting for the commit phase to end.
 	Committed,
 	/// Indicates revealing is expected as the next step.
@@ -93,6 +93,8 @@ pub enum PhaseError {
 	TransactionFailed(CallError),
 	/// When trying to reveal the secret, no secret was found.
 	LostSecret,
+	/// When trying to reveal the secret, the stored secret had the wrong round number.
+	UnexpectedRound(U256),
 	/// A secret was stored, but it did not match the committed hash.
 	StaleSecret,
 }
@@ -143,7 +145,7 @@ impl RandomnessPhase {
 			}
 
 			if !committed {
-				Ok(RandomnessPhase::BeforeCommit { our_address })
+				Ok(RandomnessPhase::BeforeCommit { our_address, round })
 			} else {
 				Ok(RandomnessPhase::Committed)
 			}
@@ -174,18 +176,23 @@ impl RandomnessPhase {
 	pub fn advance<R: Rng>(
 		self,
 		contract: &BoundContract,
-		stored_secret: Option<Secret>,
+		stored_secret: Option<(U256, Secret)>,
 		rng: &mut R,
-	) -> Result<Option<Secret>, PhaseError> {
+	) -> Result<Option<(U256, Secret)>, PhaseError> {
 		match self {
 			RandomnessPhase::Waiting | RandomnessPhase::Committed => Ok(stored_secret),
-			RandomnessPhase::BeforeCommit { .. } => {
+			RandomnessPhase::BeforeCommit { round, .. } => {
 				// We generate a new secret to submit each time, this function will only be called
 				// once per round of randomness generation.
-				let mut buf = [0u8; 32];
-				rng.fill_bytes(&mut buf);
 
-				let secret: Secret = buf.into();
+				let secret: Secret = match stored_secret {
+					Some((r, secret)) if r == round => secret,
+					_ => {
+						let mut buf = [0u8; 32];
+						rng.fill_bytes(&mut buf);
+						buf.into()
+					}
+				};
 				let secret_hash: Hash = keccak(secret.as_ref());
 
 				// Schedule the transaction that commits the hash.
@@ -193,10 +200,13 @@ impl RandomnessPhase {
 				contract.schedule_service_transaction(data).map_err(PhaseError::TransactionFailed)?;
 
 				// Store the newly generated secret.
-				Ok(Some(secret))
+				Ok(Some((round, secret)))
 			}
 			RandomnessPhase::Reveal { round, our_address } => {
-				let secret = stored_secret.ok_or(PhaseError::LostSecret)?;
+				let (r, secret) = stored_secret.ok_or(PhaseError::LostSecret)?;
+				if r != round {
+					return Err(PhaseError::UnexpectedRound(r));
+				}
 
 				// We hash our secret again to check against the already committed hash:
 				let secret_hash: Hash = keccak(secret.as_ref());
@@ -214,7 +224,7 @@ impl RandomnessPhase {
 
 				// We still pass back the secret -- if anything fails later down the line, we can
 				// resume by simply creating another transaction.
-				Ok(Some(secret))
+				Ok(Some((round, secret)))
 			}
 		}
 	}
