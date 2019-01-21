@@ -432,9 +432,8 @@ pub struct AuthorityRound {
 	strict_empty_steps_transition: u64,
 	maximum_empty_steps: usize,
 	machine: EthereumMachine,
-	/// The stored secret contribution to randomness.
-	// TODO: Only used in PoS. Maybe make part of `ConsensusKind`? Or tie together with `randomness_contract_address`?
-	rand_secret: RwLock<Option<randomness::Secret>>,
+	/// The stored secret contribution to randomness, and the collect round it belongs to.
+	rand_secret: RwLock<Option<(U256, randomness::Secret)>>,
 	/// If set, enables random number contract integration.
 	randomness_contract_address: Option<Address>,
 }
