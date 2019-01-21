@@ -116,4 +116,31 @@ mod tests {
 		res.assert_status("HTTP/1.1 200 OK");
 		assert_eq!(res.body, expected);
 	}
+
+	#[test]
+	fn should_respond_valid_to_any_requested_header() {
+		// given
+		let (server, address) = serve();
+		let headers = "Something, Anything, Xyz, 123, _?";
+
+		// when
+		let res = request(server,
+		&format!("\
+				OPTIONS / HTTP/1.1\r\n\
+				Host: {}\r\n\
+				Origin: http://parity.io\r\n\
+				Content-Length: 0\r\n\
+				Content-Type: application/json\r\n\
+				Connection: close\r\n\
+				Access-Control-Request-Headers: {}\r\n\
+				\r\n\
+			", address, headers)
+		);
+
+		// then
+		assert_eq!(res.status, "HTTP/1.1 200 OK".to_owned());
+		let expected = format!("access-control-allow-headers: {}", headers);
+		assert!(res.headers.contains(&expected), "Headers missing in {:?}", res.headers);
+	}
+
 }
