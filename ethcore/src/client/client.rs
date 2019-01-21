@@ -351,6 +351,14 @@ impl Importer {
 
 		let db = client.db.read();
 		db.key_value().flush().expect("DB flush failed.");
+		match ServiceTransactionChecker::default().refresh_cache(client) {
+			Ok(s) => if s {
+				trace!(target: "client", "Service transaction cache was refreshed sucessfully");
+			} else {
+				trace!(target: "client", "Service transaction cache is busy, so it cannot be refreshed");
+			},
+			Err(e) => error!(target: "client", "Error occurred while refreshing service transaction cache: {}", e)
+		};
 		imported
 	}
 
