@@ -16,8 +16,8 @@
 
 //! A service transactions contract checker.
 
-use client::{RegistryInfo, CallContract, BlockId};
 use std::collections::BTreeMap;
+use client::{RegistryInfo, CallContract, BlockId, ChainInfo};
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;
 use ethereum_types::Address;
@@ -60,6 +60,39 @@ impl ServiceTransactionChecker {
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
 		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
 		decoder.decode(&value).map_err(|e| e.to_string())
+	/// Refresh certified addresses cache
+	pub fn refresh_cache<C: CallContract + RegistryInfo + ChainInfo>(&mut self, client: &C) -> Result<bool, String> {
+		trace!(target: "txqueue", "Refreshing certified addresses cache");
+		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
+			.ok_or_else(|| "contract is not configured")?;
+		let mut updated_addresses: BTreeMap<Address, bool> = BTreeMap::default();
+		let cache = self.certified_addresses_cache.cache.try_read();
+		if cache.is_some() {
+			for (address, allowed_before) in cache.unwrap().iter() {
+				let (data, decoder) = service_transaction::functions::certified::call(*address);
+				let value = client.call_contract(BlockId::Latest, contract_address, data)?;
+				let allowed = decoder.decode(&value).map_err(|e| e.to_string())?;
+				if *allowed_before != allowed {
+					updated_addresses.insert(*address, allowed);
+				}
+			};
+			let cache = self.certified_addresses_cache.cache.try_write();
+			if cache.is_some() {
+				let mut unwrapped_cache = cache.unwrap();
+				for (address, allowed) in updated_addresses.iter() {
+					unwrapped_cache.insert(*address, *allowed);
+				}
+				self.certified_addresses_cache.last_block = client.chain_info().best_block_number as u64;
+				Ok(true)
+			} else {
+				Ok(false)
+			}
+		} else {
+			Ok(false)
+		}
+	}
+}
+
 impl Clone for CertifiedAddressesCache {
 	fn clone(&self) -> CertifiedAddressesCache {
 		CertifiedAddressesCache {
