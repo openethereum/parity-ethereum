@@ -20,6 +20,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::cmp;
 use std::sync::Arc;
 
+use blockchain_info::BlockInfo;
 use ethereum_types::{U256, H256, Address};
 use rlp::Rlp;
 use types::transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction};
@@ -31,7 +32,6 @@ use vm::{EnvInfo, Schedule, CreateContractAddress};
 use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
 use call_contract::CallContract;
-use client::BlockInfo;
 use error::Error;
 use executive::Executive;
 use spec::CommonParams;

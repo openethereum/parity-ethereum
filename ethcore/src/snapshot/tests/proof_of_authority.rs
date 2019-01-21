@@ -21,7 +21,8 @@ use std::sync::Arc;
 use std::str::FromStr;
 
 use account_provider::AccountProvider;
-use client::{Client, BlockChainClient, ChainInfo};
+use blockchain_info::ChainInfo;
+use client::{Client, BlockChainClient};
 use ethkey::Secret;
 use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;

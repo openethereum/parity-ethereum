@@ -21,9 +21,10 @@ use std::thread;
 
 use ansi_term::Colour;
 use bytes::Bytes;
+use blockchain_info::BlockInfo;
 use call_contract::CallContract;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
-use ethcore::client::{BlockId, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
+use ethcore::client::{BlockId, Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot::{self, SnapshotConfiguration};

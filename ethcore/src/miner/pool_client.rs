@@ -22,6 +22,7 @@ use std::{
 	sync::Arc,
 };
 
+use blockchain_info::BlockInfo;
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool;
 use ethcore_miner::pool::client::NonceClient;
@@ -36,7 +37,7 @@ use parking_lot::RwLock;
 
 use account_provider::AccountProvider;
 use call_contract::CallContract;
-use client::{TransactionId, BlockInfo, Nonce};
+use client::{TransactionId, Nonce};
 use engines::EthEngine;
 use miner;
 use transaction_ext::Transaction;

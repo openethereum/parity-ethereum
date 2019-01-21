@@ -17,6 +17,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
+use blockchain_info::{BlockInfo, ChainInfo};
 use ethereum_types::{U256, Address};
 use ethkey::KeyPair;
 use hash::keccak;
@@ -28,7 +29,7 @@ use types::view;
 use types::views::BlockView;
 
 use block::IsBlock;
-use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
+use client::{BlockChainClient, Client, ClientConfig, BlockId, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
 use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};

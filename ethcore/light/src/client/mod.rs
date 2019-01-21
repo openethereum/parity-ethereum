@@ -18,6 +18,7 @@
 
 use std::sync::{Weak, Arc};
 
+use blockchain_info::ChainInfo;
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
@@ -588,7 +589,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	}
 }
 
-impl<T: ChainDataFetcher> ::ethcore::client::ChainInfo for Client<T> {
+impl<T: ChainDataFetcher> ChainInfo for Client<T> {
 	fn chain_info(&self) -> BlockChainInfo {
 		Client::chain_info(self)
 	}

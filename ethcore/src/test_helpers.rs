@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::{fs, io};
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockChainConfig, ExtrasInsert};
+use blockchain_info::ChainInfo;
 use blooms_db;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
@@ -41,7 +42,7 @@ use types::views::BlockView;
 
 use account_provider::AccountProvider;
 use block::{OpenBlock, Drain};
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
+use client::{Client, ClientConfig, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use factory::Factories;
 use miner::Miner;
 use spec::Spec;

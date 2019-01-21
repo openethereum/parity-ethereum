@@ -58,6 +58,7 @@
 #![recursion_limit="128"]
 
 extern crate ansi_term;
+extern crate ethcore_blockchain_info as blockchain_info;
 extern crate bn;
 extern crate byteorder;
 extern crate common_types as types;

@@ -11,6 +11,7 @@ log = "0.4"
 parity-bytes = "0.1"
 common-types = { path = "../types" }
 ethcore = { path = ".."}
+ethcore-blockchain-info = { path = "../blockchain-info" }
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.4"

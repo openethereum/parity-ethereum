@@ -25,9 +25,11 @@ mod private_transactions;
 mod messages;
 mod error;
 
+
 extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore;
+extern crate ethcore_blockchain_info as blockchain_info;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;
@@ -75,6 +77,7 @@ use hash::keccak;
 use rlp::*;
 use parking_lot::RwLock;
 use bytes::Bytes;
+use blockchain_info::BlockInfo;
 use ethkey::{Signature, recover, public_to_address};
 use io::IoChannel;
 use ethcore::executive::{Executive, TransactOptions};
@@ -82,8 +85,7 @@ use ethcore::executed::{Executed};
 use types::transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
-	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
-	Call, BlockInfo
+	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId, Call
 };
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};

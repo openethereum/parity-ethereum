@@ -31,6 +31,7 @@ pub use ethcore_miner::pool::PendingOrdering;
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 
+use blockchain_info::ChainInfo;
 use bytes::Bytes;
 use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
 use ethereum_types::{H256, U256, Address};
@@ -45,7 +46,7 @@ use block::SealedBlock;
 use call_contract::{CallContract, RegistryInfo};
 use client::{
 	ScheduleInfo,
-	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
+	BlockChain, BlockProducer, SealedBlockImporter,
 	AccountData, Nonce,
 };
 use error::Error;

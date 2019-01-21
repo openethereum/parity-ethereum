@@ -22,6 +22,7 @@ use std::collections::{HashMap, BTreeMap};
 use std::mem;
 
 use blockchain::{TreeRoute, BlockReceipts};
+use blockchain_info::{BlockInfo, ChainInfo, TransactionInfo};
 use bytes::Bytes;
 use db::{NUM_COLUMNS, COL_STATE};
 use ethcore_miner::pool::VerifiedTransaction;
@@ -51,9 +52,8 @@ use vm::Schedule;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, TransactionInfo,
-	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Mode,
-	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
+	Nonce, Balance, ReopenBlock, PrepareOpenBlock, BlockChainClient, BlockChainInfo,
+	BlockStatus, BlockId, Mode, TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient,
 	BadBlocks,

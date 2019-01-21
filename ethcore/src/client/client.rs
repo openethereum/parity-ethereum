@@ -22,6 +22,7 @@ use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
 use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert, BlockNumberKey};
+use blockchain_info::{BlockInfo, ChainInfo, TransactionInfo};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
@@ -47,8 +48,7 @@ use vm::{EnvInfo, LastHashes};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use client::ancient_import::AncientVerifier;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, TransactionInfo,
-	ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
+	Nonce, Balance, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
 	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
 	ClientIoMessage, BlockChainReset
@@ -2556,7 +2556,8 @@ mod tests {
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
-		use client::{BlockChainClient, ChainInfo};
+		use blockchain_info::ChainInfo;
+		use client::BlockChainClient;
 		use test_helpers::{generate_dummy_client, get_good_dummy_block_hash};
 
 		use std::thread;

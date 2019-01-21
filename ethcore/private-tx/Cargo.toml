@@ -9,6 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 common-types = { path = "../types" }
 error-chain = { version = "0.12", default-features = false }
 ethabi = "6.0"
+ethcore-blockchain-info = { path = "../blockchain-info" }
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
 ethcore = { path = ".." }

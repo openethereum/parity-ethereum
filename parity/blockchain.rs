@@ -20,14 +20,18 @@ use std::io::{BufReader, BufRead};
 use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
+
 use rustc_hex::FromHex;
 use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
+use blockchain_info::BlockInfo;
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo,
-	ImportBlock, BlockChainReset};
+use ethcore::client::{
+	Mode, DatabaseCompactionProfile, VMType, Nonce, Balance,
+	BlockChainClient, BlockId, ImportBlock, BlockChainReset
+};
 use ethcore::error::{ImportErrorKind, ErrorKind as EthcoreErrorKind, Error as EthcoreError};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;

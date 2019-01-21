@@ -56,6 +56,7 @@ extern crate log;
 extern crate bincode;
 extern crate common_types;
 extern crate ethcore_blockchain;
+extern crate ethcore_blockchain_info as blockchain_info;
 extern crate ethcore_db;
 extern crate ethcore_io as io;
 extern crate ethcore_network as network;

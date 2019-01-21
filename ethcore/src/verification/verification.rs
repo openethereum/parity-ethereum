@@ -32,8 +32,8 @@ use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
 
 use blockchain::*;
+use blockchain_info::BlockInfo;
 use call_contract::CallContract;
-use client::BlockInfo;
 use engines::EthEngine;
 use error::{BlockError, Error};
 use types::{BlockNumber, header::Header};

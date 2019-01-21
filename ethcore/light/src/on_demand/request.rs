@@ -1108,7 +1108,8 @@ mod tests {
 	use trie::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
+	use blockchain_info::BlockInfo;
+	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use common_types::header::Header;
 	use common_types::encoded;
 	use common_types::receipt::{Receipt, TransactionOutcome};

@@ -20,8 +20,9 @@ use ethereum_types::{H256, U256, Address};
 use lru_cache::LruCache;
 use ethabi::FunctionOutputDecoder;
 
+use blockchain_info::BlockInfo;
 use call_contract::CallContract;
-use client::{BlockInfo, BlockId};
+use client::BlockId;
 use parking_lot::Mutex;
 use spec::CommonParams;
 use types::transaction::{Action, SignedTransaction};

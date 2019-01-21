@@ -20,6 +20,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
 use ansi_term::Colour;
+use blockchain_info::{ChainInfo, TransactionInfo};
 use bytes::Bytes;
 use call_contract::CallContract;
 use ethcore_miner::gas_pricer::GasPricer;
@@ -49,7 +50,7 @@ use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use block::{ClosedBlock, IsBlock, SealedBlock};
 use client::{
-	BlockChain, ChainInfo, BlockProducer, SealedBlockImporter, Nonce, TransactionInfo, TransactionId
+	BlockChain, BlockProducer, SealedBlockImporter, Nonce, TransactionId
 };
 use client::{BlockId, ClientIoMessage};
 use engines::{EthEngine, Seal};
@@ -1290,7 +1291,8 @@ mod tests {
 	use rustc_hex::FromHex;
 	use types::BlockNumber;
 
-	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
+	use blockchain_info::ChainInfo;
+	use client::{TestBlockChainClient, EachBlockWith, ImportSealedBlock};
 	use miner::{MinerService, PendingOrdering};
 	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 	use types::transaction::{Transaction};

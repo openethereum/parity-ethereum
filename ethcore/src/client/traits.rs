@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use blockchain::{BlockReceipts, TreeRoute};
 use bytes::Bytes;
+use blockchain_info::{BlockInfo, ChainInfo, TransactionInfo};
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, U256, Address};
@@ -29,7 +30,6 @@ use types::transaction::{self, LocalizedTransaction, SignedTransaction};
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::block_status::BlockStatus;
-use types::blockchain_info::BlockChainInfo;
 use types::call_analytics::CallAnalytics;
 use types::encoded;
 use types::filter::Filter;
@@ -111,33 +111,6 @@ pub trait Balance {
 
 /// Provides methods to access account info
 pub trait AccountData: Nonce + Balance {}
-
-/// Provides `chain_info` method
-pub trait ChainInfo {
-	/// Get blockchain information.
-	fn chain_info(&self) -> BlockChainInfo;
-}
-
-/// Provides various information on a block by it's ID
-pub trait BlockInfo {
-	/// Get raw block header data by block id.
-	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
-
-	/// Get the best block header.
-	fn best_block_header(&self) -> Header;
-
-	/// Get raw block data by block header hash.
-	fn block(&self, id: BlockId) -> Option<encoded::Block>;
-
-	/// Get address code hash at given block's state.
-	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
-}
-
-/// Provides various information on a transaction by it's ID
-pub trait TransactionInfo {
-	/// Get the hash of block that contains the transaction, if any.
-	fn transaction_block(&self, id: TransactionId) -> Option<H256>;
-}
 
 /// Provides methods to access chain state
 pub trait StateClient {

@@ -8,6 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
+ethcore-blockchain-info = { path = "./blockchain-info" }
 blooms-db = { path = "../util/blooms-db", optional = true }
 bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
