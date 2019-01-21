@@ -3,7 +3,7 @@
 [package]
 name = "parity-version"
 # NOTE: this value is used for Parity Ethereum version string (via env CARGO_PKG_VERSION)
-version = "2.3.0"
+version = "2.4.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -16,9 +16,9 @@ track = "nightly"
 # Latest supported fork blocks.
 # Indicates a critical release in this track (i.e. consensus issue).
 [package.metadata.networks]
-foundation = { forkBlock = 4370000, critical = false }
+foundation = { forkBlock = 4370000, critical = true }
 ropsten = { forkBlock = 4230000, critical = false }
-kovan = { forkBlock = 6600000, critical = false }
+kovan = { forkBlock = 9200000, critical = true }
 
 [dependencies]
 parity-bytes = "0.1"

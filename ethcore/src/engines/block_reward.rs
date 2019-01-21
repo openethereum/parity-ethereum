@@ -25,7 +25,7 @@ use std::sync::Arc;
 use hash::keccak;
 use error::Error;
 use machine::WithRewards;
-use parity_machine::{Machine, WithBalances};
+use parity_machine::Machine;
 use trace;
 use types::BlockNumber;
 use super::{SystemOrCodeCall, SystemOrCodeCallKind};
@@ -152,7 +152,7 @@ impl BlockRewardContract {
 
 /// Applies the given block rewards, i.e. adds the given balance to each beneficiary' address.
 /// If tracing is enabled the operations are recorded.
-pub fn apply_block_rewards<M: Machine + WithBalances + WithRewards>(
+pub fn apply_block_rewards<M: Machine + WithRewards>(
 	rewards: &[(Address, RewardKind, U256)],
 	block: &mut M::LiveBlock,
 	machine: &M,

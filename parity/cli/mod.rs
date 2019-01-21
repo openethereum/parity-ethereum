@@ -217,6 +217,15 @@ usage! {
 			CMD cmd_db_kill {
 				"Clean the database of the given --chain (default: mainnet)",
 			}
+
+			CMD cmd_db_reset {
+				"Removes NUM latests blocks from the db",
+
+				ARG arg_db_reset_num: (u32) = 10u32,
+				"<NUM>",
+				"Number of blocks to revert",
+			}
+
 		}
 
 		CMD cmd_export_hardcoded_sync
@@ -309,7 +318,7 @@ usage! {
 		["Convenience Options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
 			"--unsafe-expose",
-			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ui,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
+			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
 
 			ARG arg_config: (String) = "$BASE/config.toml", or |_| None,
 			"-c, --config=[CONFIG]",
@@ -1612,6 +1621,7 @@ mod tests {
 			cmd_tools_hash: false,
 			cmd_db: false,
 			cmd_db_kill: false,
+			cmd_db_reset: false,
 			cmd_export_hardcoded_sync: false,
 
 			// Arguments
@@ -1631,6 +1641,7 @@ mod tests {
 			arg_dapp_path: None,
 			arg_account_import_path: None,
 			arg_wallet_import_path: None,
+			arg_db_reset_num: 10,
 
 			// -- Operating Options
 			arg_mode: "last".into(),

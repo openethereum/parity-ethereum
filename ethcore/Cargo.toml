@@ -21,6 +21,7 @@ ethabi-derive = "6.0"
 ethash = { path = "../ethash" }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-call-contract = { path = "./call-contract" }
 ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
 ethcore-miner = { path = "../miner" }
@@ -71,10 +72,10 @@ using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 
-[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
 hardware-wallet = { path = "../accounts/hw" }
 
-[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
+[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))'.dependencies]
 fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
 
 [dev-dependencies]

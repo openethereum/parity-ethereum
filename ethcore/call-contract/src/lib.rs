@@ -14,24 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
-
 #![warn(missing_docs)]
 
-mod best_block;
-mod block_info;
-mod blockchain;
-mod cache;
-mod config;
-mod import_route;
-mod update;
+//! Call Contract module
+//! 
+//! This crate exposes traits required to call contracts at particular block.
+//! All utilities that depend on on-chain data should use those traits to access it.
 
-pub mod generator;
+pub mod call_contract;
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use self::import_route::ImportRoute;
-pub use self::update::ExtrasInsert;
-pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, BlockNumberKey};
-pub use common_types::tree_route::TreeRoute;
+// Re-export
+pub use self::call_contract::*;

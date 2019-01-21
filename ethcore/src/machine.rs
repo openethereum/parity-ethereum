@@ -30,7 +30,8 @@ use vm::{EnvInfo, Schedule, CreateContractAddress};
 
 use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
-use client::{BlockInfo, CallContract};
+use call_contract::CallContract;
+use client::BlockInfo;
 use error::Error;
 use executive::Executive;
 use spec::CommonParams;
@@ -437,14 +438,7 @@ impl ::parity_machine::Machine for EthereumMachine {
 	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;
-}
 
-impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
-	type StateContext = Call<'a>;
-	type AuxiliaryData = AuxiliaryData<'a>;
-}
-
-impl ::parity_machine::WithBalances for EthereumMachine {
 	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
 		live.state().balance(address).map_err(Into::into)
 	}
@@ -452,6 +446,11 @@ impl ::parity_machine::WithBalances for EthereumMachine {
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
+}
+
+impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
+	type StateContext = Call<'a>;
+	type AuxiliaryData = AuxiliaryData<'a>;
 }
 
 /// A state machine that uses block rewards.
