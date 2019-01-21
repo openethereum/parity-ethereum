@@ -356,9 +356,9 @@ impl Importer {
 		db.key_value().flush().expect("DB flush failed.");
 		match ServiceTransactionChecker::default().refresh_cache(client) {
 			Ok(s) => if s {
-				trace!(target: "client", "Service transaction cache was refreshed sucessfully");
+				trace!(target: "client", "Service transaction cache was refreshed successfully");
 			} else {
-				trace!(target: "client", "Service transaction cache is busy, so it cannot be refreshed");
+				trace!(target: "client", "Service transactions contract does not exist or the cache is busy, so it cannot be refreshed");
 			},
 			Err(e) => error!(target: "client", "Error occurred while refreshing service transaction cache: {}", e)
 		};

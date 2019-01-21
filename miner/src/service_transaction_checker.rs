@@ -79,14 +79,16 @@ impl ServiceTransactionChecker {
 	/// Refresh certified addresses cache
 	pub fn refresh_cache<C: CallContract + RegistryInfo + ChainInfo>(&mut self, client: &C) -> Result<bool, String> {
 		trace!(target: "txqueue", "Refreshing certified addresses cache");
-		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
-			.ok_or_else(|| "contract is not configured")?;
+		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest);
+		if contract_address.is_none() {
+			return Ok(false)
+		}
 		let mut updated_addresses: BTreeMap<Address, bool> = BTreeMap::default();
 		let cache = self.certified_addresses_cache.cache.try_read();
 		if cache.is_some() {
 			for (address, allowed_before) in cache.unwrap().iter() {
 				let (data, decoder) = service_transaction::functions::certified::call(*address);
-				let value = client.call_contract(BlockId::Latest, contract_address, data)?;
+				let value = client.call_contract(BlockId::Latest, contract_address.unwrap(), data)?;
 				let allowed = decoder.decode(&value).map_err(|e| e.to_string())?;
 				if *allowed_before != allowed {
 					updated_addresses.insert(*address, allowed);
