@@ -29,6 +29,7 @@ parity-bytes = "0.1"
 parking_lot = "0.7"
 rand = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }
+semver = { version = "0.9" }
 trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 

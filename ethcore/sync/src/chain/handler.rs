@@ -22,7 +22,7 @@ use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
 use hash::keccak;
-use network::PeerId;
+use network::{ClientVersion, PeerId};
 use rlp::Rlp;
 use snapshot::ChunkType;
 use std::time::Instant;
@@ -579,6 +579,7 @@ impl SyncHandler {
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,
 			private_tx_enabled: if private_tx_protocol { r.val_at(7).unwrap_or(false) } else { false },
+			client_version: ClientVersion::from(io.peer_info(peer_id)),
 		};
 
 		trace!(target: "sync", "New peer {} (\

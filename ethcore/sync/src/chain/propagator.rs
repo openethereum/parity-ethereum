@@ -20,7 +20,7 @@ use std::collections::HashSet;
 use bytes::Bytes;
 use ethereum_types::H256;
 use fastmap::H256FastSet;
-use network::{PeerId, PacketId};
+use network::{ClientVersion, PeerId, PacketId};
 use rand::Rng;
 use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
@@ -49,7 +49,7 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 	const LEGACY_CLIENT_ID_PREFIX: &'static str = "Parity/";
 	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity-Ethereum/";
 	const VERSION_PREFIX: &'static str = "/v";
-	
+
 	let idx = client_id.rfind(VERSION_PREFIX).map(|idx| idx + VERSION_PREFIX.len()).unwrap_or(client_id.len());
 	let splitted = if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) || client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
 		client_id[idx..].split('.')
@@ -451,6 +451,7 @@ mod tests {
 				snapshot_hash: None,
 				asking_snapshot_data: None,
 				block_set: None,
+				client_version: ClientVersion::UnknownFormat,
 			});
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
