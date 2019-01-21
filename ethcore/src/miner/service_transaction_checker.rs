@@ -42,7 +42,7 @@ pub struct ServiceTransactionChecker {
 
 impl ServiceTransactionChecker {
 	/// Checks if given address in tx is whitelisted to send service transactions.
-	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		let sender = tx.sender();
 		// Skip checking the contract if the transaction does not have zero gas price
 		if !tx.gas_price.is_zero() {
@@ -53,13 +53,27 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if given address is whitelisted to send service transactions.
-	pub fn check_address<C: CallContract + RegistryInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
+	pub fn check_address<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
+		let cache = self.certified_addresses_cache.cache.try_read();
+		if (client.chain_info().best_block_number as u64 == self.certified_addresses_cache.last_block) && cache.is_some() {
+			if let Some(allowed) = cache.unwrap().get(&sender) {
+				return Ok(*allowed);
+			}
+		}
 		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
 			.ok_or_else(|| "contract is not configured")?;
 		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
 		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
-		decoder.decode(&value).map_err(|e| e.to_string())
+		decoder.decode(&value).and_then(|allowed| {
+			let cache = self.certified_addresses_cache.cache.try_write();
+			if cache.is_some() {
+				cache.unwrap().insert(sender, allowed);
+			};
+			Ok(allowed)
+		}).map_err(|e| e.to_string())
+	}
+
 	/// Refresh certified addresses cache
 	pub fn refresh_cache<C: CallContract + RegistryInfo + ChainInfo>(&mut self, client: &C) -> Result<bool, String> {
 		trace!(target: "txqueue", "Refreshing certified addresses cache");
