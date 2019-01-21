@@ -17,17 +17,28 @@
 //! A service transactions contract checker.
 
 use client::{RegistryInfo, CallContract, BlockId};
+use std::collections::BTreeMap;
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;
 use ethereum_types::Address;
+use parking_lot::RwLock;
 
 use_contract!(service_transaction, "res/contracts/service_transaction.json");
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
+/// Certified addresses cache
+#[derive(Default)]
+struct CertifiedAddressesCache {
+	cache: RwLock<BTreeMap<Address, bool>>,
+	last_block: u64
+}
+
 /// Service transactions checker.
 #[derive(Default, Clone)]
-pub struct ServiceTransactionChecker;
+pub struct ServiceTransactionChecker {
+	certified_addresses_cache: CertifiedAddressesCache
+}
 
 impl ServiceTransactionChecker {
 	/// Checks if given address in tx is whitelisted to send service transactions.
@@ -49,5 +60,16 @@ impl ServiceTransactionChecker {
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
 		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
 		decoder.decode(&value).map_err(|e| e.to_string())
+impl Clone for CertifiedAddressesCache {
+	fn clone(&self) -> CertifiedAddressesCache {
+		CertifiedAddressesCache {
+			cache: RwLock::new(
+				self.cache.try_read()
+					.and_then(|c| Some(c.clone()))
+					.or_else(|| Some(BTreeMap::default()))
+					.unwrap()
+			),
+			last_block: self.last_block.clone()
+		}
 	}
 }
