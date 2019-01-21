@@ -18,8 +18,8 @@
 
 //! Blockchain Info module
 //!
-//! This crate exposes traits required to access data relating to the blockchain
-//! All utilities that depend on (TODO) should use those traits to access it.
+//! This crate exposes traits required to access data relating to the
+//! blockchain such as block headers, chain state, transactions, etc.
 
 pub mod blockchain_info;
 
