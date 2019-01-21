@@ -1,42 +1,4 @@
-{ "block":
-	[
-		{
-			"reference": "None",
-			"comment": "This failing test is deemed skippable. Could not happen on a mainnet.",
-			"failing": "GeneralStateTest_stCreate2",
-			"subtests": ["RevertInCreateInInitCreate2_d0g0v0_Constantinople"]
-		},
-		{
-			"reference": "None",
-			"comment": "This failing test is deemed skippable. Could not happen on a mainnet.",
-			"failing": "GeneralStateTest_stRevertTest",
-			"subtests": ["RevertInCreateInInit_d0g0v0_Constantinople"]
-		}
-	],
-	"state":
-	[
-		{
-			"reference": "None",
-			"comment": "This failing test is deemed skippable. Could not happen on a mainnet.",
-			"failing": "stCreate2Test",
-			"subtests": {
-				"RevertInCreateInInitCreate2": {
-					"subnumbers": ["1"],
-					"chain": "Constantinople (test)"
-				}
-			}
-		},
-		{
-			"reference": "None",
-			"comment": "This failing test is deemed skippable. Could not happen on a mainnet.",
-			"failing": "stRevertTest",
-			"subtests": {
-				"RevertInCreateInInit": {
-					"subnumbers": ["1"],
-					"chain": "Constantinople (test)"
-				}
-			}
-		}
-		
-	]
+{
+	"block": [],
+	"state": []
 }

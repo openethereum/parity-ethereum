@@ -1,4 +1,4 @@
-Note: Parity 2.0 reached End-of-Life on 2018-11-15 (EOL).
+Note: Parity Ethereum 2.0 reached End-of-Life on 2018-11-15 (EOL).
 
 ## Parity-Ethereum [v2.0.9](https://github.com/paritytech/parity-ethereum/releases/tag/v2.0.9) (2018-10-29)
 

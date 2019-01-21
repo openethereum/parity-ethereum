@@ -217,6 +217,15 @@ usage! {
 			CMD cmd_db_kill {
 				"Clean the database of the given --chain (default: mainnet)",
 			}
+
+			CMD cmd_db_reset {
+				"Removes NUM latests blocks from the db",
+
+				ARG arg_db_reset_num: (u32) = 10u32,
+				"<NUM>",
+				"Number of blocks to revert",
+			}
+
 		}
 
 		CMD cmd_export_hardcoded_sync
@@ -1612,6 +1621,7 @@ mod tests {
 			cmd_tools_hash: false,
 			cmd_db: false,
 			cmd_db_kill: false,
+			cmd_db_reset: false,
 			cmd_export_hardcoded_sync: false,
 
 			// Arguments
@@ -1631,6 +1641,7 @@ mod tests {
 			arg_dapp_path: None,
 			arg_account_import_path: None,
 			arg_wallet_import_path: None,
+			arg_db_reset_num: 10,
 
 			// -- Operating Options
 			arg_mode: "last".into(),

@@ -26,7 +26,8 @@ use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, Nonce, Balance, BlockChainClient, BlockId, BlockInfo,
+	ImportBlock, BlockChainReset};
 use ethcore::error::{ImportErrorKind, ErrorKind as EthcoreErrorKind, Error as EthcoreError};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
@@ -40,6 +41,7 @@ use dir::Directories;
 use user_defaults::UserDefaults;
 use ethcore_private_tx;
 use db;
+use ansi_term::Colour;
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
@@ -71,6 +73,21 @@ pub enum BlockchainCmd {
 	Import(ImportBlockchain),
 	Export(ExportBlockchain),
 	ExportState(ExportState),
+	Reset(ResetBlockchain)
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ResetBlockchain {
+	pub dirs: Directories,
+	pub spec: SpecType,
+	pub pruning: Pruning,
+	pub pruning_history: u64,
+	pub pruning_memory: usize,
+	pub tracing: Switch,
+	pub fat_db: Switch,
+	pub compaction: DatabaseCompactionProfile,
+	pub cache_config: CacheConfig,
+	pub num: u32,
 }
 
 #[derive(Debug, PartialEq)]
@@ -153,6 +170,7 @@ pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
 		}
 		BlockchainCmd::Export(export_cmd) => execute_export(export_cmd),
 		BlockchainCmd::ExportState(export_cmd) => execute_export_state(export_cmd),
+		BlockchainCmd::Reset(reset_cmd) => execute_reset(reset_cmd),
 	}
 }
 
@@ -706,6 +724,28 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 	}
 	out.write_fmt(format_args!("\n}}}}")).expect("Write error");
 	info!("Export completed.");
+	Ok(())
+}
+
+fn execute_reset(cmd: ResetBlockchain) -> Result<(), String> {
+	let service = start_client(
+		cmd.dirs,
+		cmd.spec,
+		cmd.pruning,
+		cmd.pruning_history,
+		cmd.pruning_memory,
+		cmd.tracing,
+		cmd.fat_db,
+		cmd.compaction,
+		cmd.cache_config,
+		false,
+		0,
+	)?;
+
+	let client = service.client();
+	client.reset(cmd.num)?;
+	info!("{}", Colour::Green.bold().paint("Successfully reset db!"));
+
 	Ok(())
 }
 

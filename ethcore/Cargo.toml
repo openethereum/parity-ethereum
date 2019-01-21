@@ -21,6 +21,7 @@ ethabi-derive = "6.0"
 ethash = { path = "../ethash" }
 ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-call-contract = { path = "./call-contract" }
 ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
 ethcore-miner = { path = "../miner" }
