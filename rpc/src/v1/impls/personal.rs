@@ -21,6 +21,7 @@ use std::time::Duration;
 use bytes::Bytes;
 use ethcore::account_provider::AccountProvider;
 use types::transaction::PendingTransaction;
+use types::transaction::SignedTransaction;
 use ethereum_types::{H520, U128, Address};
 use ethkey::{public_to_address, recover, Signature};
 
@@ -41,7 +42,6 @@ use v1::types::{
 use v1::metadata::Metadata;
 use eip_712::{EIP712, hash_structured_data};
 use jsonrpc_core::types::Value;
-use transaction::SignedTransaction;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
