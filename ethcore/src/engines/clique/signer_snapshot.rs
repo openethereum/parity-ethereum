@@ -21,7 +21,7 @@ use ethereum_types::{Address, H256, U256};
 use std::collections::{HashMap, VecDeque};
 use engines::clique::{SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH, recover};
 use error::Error;
-use header::{Header, ExtendedHeader};
+use types::header::{Header, ExtendedHeader};
 use super::super::signer::EngineSigner;
 use parking_lot::{RwLock, Mutex};
 use account_provider::AccountProvider;
