@@ -38,6 +38,7 @@ pub struct ServiceTransactionChecker {
 }
 
 impl ServiceTransactionChecker {
+	/// Create new ServiceTransactionChecker instance
 	pub fn new(certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>) -> ServiceTransactionChecker {
 		ServiceTransactionChecker {certified_addresses_cache: certified_addresses_cache.clone()}
 	}
@@ -55,17 +56,17 @@ impl ServiceTransactionChecker {
 
 	/// Checks if given address is whitelisted to send service transactions.
 	pub fn check_address<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
-		let cache = self.certified_addresses_cache.try_read();
-		// TODO: Cache read
+		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
+		if let Some(allowed) = self.certified_addresses_cache.try_read().as_ref().and_then(|c| c.get(&sender)){
+			return Ok(*allowed);
+		}
 		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
 			.ok_or_else(|| "contract is not configured")?;
-		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
 		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
 		decoder.decode(&value).and_then(|allowed| {
-			let cache = self.certified_addresses_cache.try_write();
-			if cache.is_some() {
-				cache.unwrap().insert(sender, allowed);
+			if let Some(mut cache) = self.certified_addresses_cache.try_write() {
+				cache.insert(sender, allowed);
 			};
 			Ok(allowed)
 		}).map_err(|e| e.to_string())
