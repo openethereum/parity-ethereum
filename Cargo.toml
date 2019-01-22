@@ -89,7 +89,7 @@ daemonize = "0.3"
 
 [features]
 default = ["accounts"]
-accounts = ["ethcore-accounts", "ethcore-secretstore/accounts", "parity-rpc/accounts"]
+accounts = ["ethcore-accounts", "parity-rpc/accounts"]
 miner-debug = ["ethcore/miner-debug"]
 json-tests = ["ethcore/json-tests"]
 ci-skip-issue = ["ethcore/ci-skip-issue"]
@@ -97,7 +97,7 @@ test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-secretstore = ["ethcore-secretstore"]
+secretstore = ["ethcore-secretstore", "ethcore-secretstore/accounts"]
 final = ["parity-version/final"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 # to create a memory profile (requires nightly rust), use e.g.
