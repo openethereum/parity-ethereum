@@ -72,11 +72,11 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Refresh certified addresses cache
-	pub fn refresh_cache<C: CallContract + RegistryInfo + ChainInfo>(&mut self, client: &C) -> Result<bool, String> {
+	pub fn refresh_cache<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C) -> Result<bool, String> {
 		trace!(target: "txqueue", "Refreshing certified addresses cache");
 		// replace the cache with an empty list,
 		// since it's not recent it won't be used anyway.
-		let mut cache = mem::replace(&mut self.cache.write(), HashMap::default());
+		let cache = mem::replace(&mut *self.certified_addresses_cache.write(), HashMap::default());
 
 		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest);
 		if contract_address.is_none() {
@@ -84,14 +84,15 @@ impl ServiceTransactionChecker {
 		}
 
 		let addresses: Vec<_> = cache.keys().collect();
+		let mut cache: HashMap<Address, bool> = HashMap::default();
 		for address in addresses {
 			// TODO: DRY
 			let (data, decoder) = service_transaction::functions::certified::call(*address);
 			let value = client.call_contract(BlockId::Latest, contract_address.unwrap(), data)?;
 			let allowed = decoder.decode(&value).map_err(|e| e.to_string())?;
-			cache.insert(address, allowed);
+			cache.insert(*address, allowed);
 		}
-		mem::replace(&mut self.cache.write(),  cache);
+		mem::replace(&mut *self.certified_addresses_cache.write(),  cache);
 		Ok(true)
 	}
 }
