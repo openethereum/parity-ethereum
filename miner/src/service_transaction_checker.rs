@@ -16,7 +16,8 @@
 
 //! A service transactions contract checker.
 
-use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::sync::Arc;
 use call_contract::{RegistryInfo, CallContract};
 use chain_info::ChainInfo;
 use types::ids::BlockId;
@@ -29,20 +30,17 @@ use_contract!(service_transaction, "res/contracts/service_transaction.json");
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
-/// Certified addresses cache
-#[derive(Default)]
-struct CertifiedAddressesCache {
-	cache: RwLock<BTreeMap<Address, bool>>,
-	last_block: u64
-}
-
 /// Service transactions checker.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct ServiceTransactionChecker {
-	certified_addresses_cache: CertifiedAddressesCache
+	certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>
 }
 
 impl ServiceTransactionChecker {
+	pub fn new(certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>) -> ServiceTransactionChecker {
+		ServiceTransactionChecker {certified_addresses_cache: certified_addresses_cache.clone()}
+	}
+
 	/// Checks if given address in tx is whitelisted to send service transactions.
 	pub fn check<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		let sender = tx.sender();
@@ -56,19 +54,15 @@ impl ServiceTransactionChecker {
 
 	/// Checks if given address is whitelisted to send service transactions.
 	pub fn check_address<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
-		let cache = self.certified_addresses_cache.cache.try_read();
-		if (client.chain_info().best_block_number as u64 == self.certified_addresses_cache.last_block) && cache.is_some() {
-			if let Some(allowed) = cache.unwrap().get(&sender) {
-				return Ok(*allowed);
-			}
-		}
+		let cache = self.certified_addresses_cache.try_read();
+		// TODO: Cache read
 		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
 			.ok_or_else(|| "contract is not configured")?;
 		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
 		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
 		decoder.decode(&value).and_then(|allowed| {
-			let cache = self.certified_addresses_cache.cache.try_write();
+			let cache = self.certified_addresses_cache.try_write();
 			if cache.is_some() {
 				cache.unwrap().insert(sender, allowed);
 			};
@@ -83,8 +77,8 @@ impl ServiceTransactionChecker {
 		if contract_address.is_none() {
 			return Ok(false)
 		}
-		let mut updated_addresses: BTreeMap<Address, bool> = BTreeMap::default();
-		let cache = self.certified_addresses_cache.cache.try_read();
+		let mut updated_addresses: HashMap<Address, bool> = HashMap::default();
+		let cache = self.certified_addresses_cache.try_read();
 		if cache.is_some() {
 			for (address, allowed_before) in cache.unwrap().iter() {
 				let (data, decoder) = service_transaction::functions::certified::call(*address);
@@ -94,33 +88,18 @@ impl ServiceTransactionChecker {
 					updated_addresses.insert(*address, allowed);
 				}
 			};
-			let cache = self.certified_addresses_cache.cache.try_write();
+			let cache = self.certified_addresses_cache.try_write();
 			if cache.is_some() {
 				let mut unwrapped_cache = cache.unwrap();
 				for (address, allowed) in updated_addresses.iter() {
 					unwrapped_cache.insert(*address, *allowed);
 				}
-				self.certified_addresses_cache.last_block = client.chain_info().best_block_number as u64;
 				Ok(true)
 			} else {
 				Ok(false)
 			}
 		} else {
 			Ok(false)
-		}
-	}
-}
-
-impl Clone for CertifiedAddressesCache {
-	fn clone(&self) -> CertifiedAddressesCache {
-		CertifiedAddressesCache {
-			cache: RwLock::new(
-				self.cache.try_read()
-					.and_then(|c| Some(c.clone()))
-					.or_else(|| Some(BTreeMap::default()))
-					.unwrap()
-			),
-			last_block: self.last_block.clone()
 		}
 	}
 }

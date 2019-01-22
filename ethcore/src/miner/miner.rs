@@ -16,7 +16,7 @@
 
 use std::cmp;
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -229,6 +229,7 @@ pub struct Miner {
 	engine: Arc<EthEngine>,
 	accounts: Option<Arc<AccountProvider>>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
+	certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>
 }
 
 impl Miner {
@@ -250,6 +251,7 @@ impl Miner {
 		gas_pricer: GasPricer,
 		spec: &Spec,
 		accounts: Option<Arc<AccountProvider>>,
+		certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>
 	) -> Self {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
@@ -275,6 +277,7 @@ impl Miner {
 			accounts,
 			engine: spec.engine.clone(),
 			io_channel: RwLock::new(None),
+			certified_addresses_cache: certified_addresses_cache.clone(),
 		}
 	}
 
@@ -292,7 +295,7 @@ impl Miner {
 			},
 			reseal_min_period: Duration::from_secs(0),
 			..Default::default()
-		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts)
+		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts, Arc::new(RwLock::new(HashMap::default())))
 	}
 
 	/// Sets `IoChannel`
@@ -361,6 +364,7 @@ impl Miner {
 			&*self.engine,
 			self.accounts.as_ref().map(|x| &**x),
 			self.options.refuse_service_transactions,
+			&self.certified_addresses_cache.clone(),
 		)
 	}
 
@@ -1244,6 +1248,7 @@ impl miner::MinerService for Miner {
 				let engine = self.engine.clone();
 				let accounts = self.accounts.clone();
 				let refuse_service_transactions = self.options.refuse_service_transactions;
+				let certified_addresses_cache = self.certified_addresses_cache.clone();
 
 				let cull = move |chain: &::client::Client| {
 					let client = PoolClient::new(
@@ -1252,6 +1257,7 @@ impl miner::MinerService for Miner {
 						&*engine,
 						accounts.as_ref().map(|x| &**x),
 						refuse_service_transactions,
+						&certified_addresses_cache,
 					);
 					queue.cull(client);
 				};

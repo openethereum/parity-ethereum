@@ -14,6 +14,7 @@ ethcore-sync = { path = "../sync" }
 ethereum-types = "0.4"
 kvdb = "0.1"
 log = "0.4"
+parking_lot = "0.7"
 trace-time = "0.1"
 
 [dev-dependencies]

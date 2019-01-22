@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use std::collections::{HashSet, BTreeMap, VecDeque};
+use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
@@ -240,6 +240,7 @@ pub struct Client {
 	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 
 	importer: Importer,
+	certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>,
 }
 
 impl Importer {
@@ -354,7 +355,7 @@ impl Importer {
 
 		let db = client.db.read();
 		db.key_value().flush().expect("DB flush failed.");
-		match ServiceTransactionChecker::default().refresh_cache(client) {
+		match ServiceTransactionChecker::new(client.certified_addresses_cache.clone()).refresh_cache(client) {
 			Ok(s) => if s {
 				trace!(target: "client", "Service transaction cache was refreshed successfully");
 			} else {
@@ -723,6 +724,7 @@ impl Client {
 		db: Arc<BlockChainDB>,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
+		certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>,
 	) -> Result<Arc<Client>, ::error::Error> {
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
@@ -803,6 +805,7 @@ impl Client {
 			exit_handler: Mutex::new(None),
 			importer,
 			config,
+			certified_addresses_cache: certified_addresses_cache.clone(),
 		});
 
 		// prune old states.
@@ -2165,7 +2168,7 @@ impl BlockChainClient for Client {
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
-		let service_transaction_checker = ServiceTransactionChecker::default();
+		let service_transaction_checker = ServiceTransactionChecker::new(self.certified_addresses_cache.clone());
 		let gas_price = match service_transaction_checker.check_address(self, authoring_params.author) {
 			Ok(true) => U256::zero(),
 			_ => self.importer.miner.sensible_gas_price(),

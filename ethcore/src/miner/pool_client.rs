@@ -101,6 +101,7 @@ C: BlockInfo + CallContract,
 		engine: &'a EthEngine,
 		accounts: Option<&'a AccountProvider>,
 		refuse_service_transactions: bool,
+		certified_addresses_cache: &Arc<RwLock<HashMap<Address, bool>>>,
 	) -> Self {
 		let best_block_header = chain.best_block_header();
 		PoolClient {
@@ -112,7 +113,7 @@ C: BlockInfo + CallContract,
 			service_transaction_checker: if refuse_service_transactions {
 				None
 			} else {
-				Some(Default::default())
+				Some(ServiceTransactionChecker::new(certified_addresses_cache.clone()))
 			},
 		}
 	}
