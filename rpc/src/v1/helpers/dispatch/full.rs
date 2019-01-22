@@ -23,12 +23,12 @@ use types::transaction::{SignedTransaction, PendingTransaction};
 use parking_lot::Mutex;
 
 use jsonrpc_core::{BoxFuture, Result};
-use jsonrpc_core::futures::future;
+use jsonrpc_core::futures::{future, Future, IntoFuture};
 use v1::helpers::{errors, nonce, TransactionRequest, FilledTransactionRequest};
 use v1::types::{RichRawTransaction as RpcRichRawTransaction};
 
 use super::prospective_signer::ProspectiveSigner;
-use super::{Dispatcher, Accounts, SignWith, WithToken, default_gas_price};
+use super::{Dispatcher, Accounts, SignWith, PostSign, default_gas_price};
 
 /// A dispatcher which uses references to a client and miner in order to sign
 /// requests locally.
@@ -115,19 +115,30 @@ impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher 
 		}))
 	}
 
-	fn sign(&self, filled: FilledTransactionRequest, signer: &Arc<Accounts>, password: SignWith)
-		-> BoxFuture<WithToken<SignedTransaction>>
+	fn sign<P>(
+		&self,
+		filled: FilledTransactionRequest,
+		signer: &Arc<Accounts>,
+		password: SignWith,
+		post_sign: P,
+	) -> BoxFuture<P::Item>
+		where
+			P: PostSign + 'static,
+		    <P::Out as IntoFuture>::Future: Send,
 	{
 		let chain_id = self.client.signing_chain_id();
 
 		if let Some(nonce) = filled.nonce {
-			return Box::new(future::done(signer.sign_transaction(filled, chain_id, nonce, password)));
+			let future = signer.sign_transaction(filled, chain_id, nonce, password)
+				.into_future()
+				.and_then(move |signed| post_sign.execute(signed));
+			Box::new(future)
+		} else {
+			let state = self.state_nonce(&filled.from);
+			let reserved = self.nonces.lock().reserve(filled.from, state);
+
+			Box::new(ProspectiveSigner::new(signer.clone(), filled, chain_id, reserved, password, post_sign))
 		}
-
-		let state = self.state_nonce(&filled.from);
-		let reserved = self.nonces.lock().reserve(filled.from, state);
-
-		Box::new(ProspectiveSigner::new(signer.clone(), filled, chain_id, reserved, password))
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {

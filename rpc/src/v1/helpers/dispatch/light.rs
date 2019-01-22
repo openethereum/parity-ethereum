@@ -29,12 +29,12 @@ use types::ids::BlockId;
 use types::transaction::{SignedTransaction, PendingTransaction, Error as TransactionError};
 
 use jsonrpc_core::{BoxFuture, Result};
-use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::{future, Future, IntoFuture};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{errors, nonce, TransactionRequest, FilledTransactionRequest};
 use v1::types::{RichRawTransaction as RpcRichRawTransaction,};
 
-use super::{Dispatcher, Accounts, WithToken, SignWith};
+use super::{Dispatcher, Accounts, SignWith, PostSign};
 
 /// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.
 #[derive(Clone)]
@@ -183,12 +183,23 @@ impl Dispatcher for LightDispatcher {
 		}))
 	}
 
-	fn sign(&self, filled: FilledTransactionRequest, signer: &Arc<Accounts>, password: SignWith)
-		-> BoxFuture<WithToken<SignedTransaction>>
+	fn sign<P>(
+		&self,
+		filled: FilledTransactionRequest,
+		signer: &Arc<Accounts>,
+		password: SignWith,
+		post_sign: P
+	) -> BoxFuture<P::Item>
+		where
+			P: PostSign + 'static,
+		    <P::Out as futures::future::IntoFuture>::Future: Send,
 	{
 		let chain_id = self.client.signing_chain_id();
 		let nonce = filled.nonce.expect("nonce is always provided; qed");
-		Box::new(future::done(signer.sign_transaction(filled, chain_id, nonce, password)))
+		let future = signer.sign_transaction(filled, chain_id, nonce, password)
+			.into_future()
+			.and_then(move |signed| post_sign.execute(signed));
+		Box::new(future)
 	}
 
 	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {

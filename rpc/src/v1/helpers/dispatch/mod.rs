@@ -82,11 +82,11 @@ use ethkey::{Password, Signature};
 use hash::keccak;
 use types::transaction::{SignedTransaction, PendingTransaction};
 
-use jsonrpc_core::{BoxFuture, Result};
-use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::{BoxFuture, Result, Error};
+use jsonrpc_core::futures::{future, Future, IntoFuture};
 use v1::helpers::{TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
-	H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes,
+	H520 as RpcH520, Bytes as RpcBytes,
 	RichRawTransaction as RpcRichRawTransaction,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse,
@@ -108,8 +108,15 @@ pub trait Dispatcher: Send + Sync + Clone {
 		-> BoxFuture<FilledTransactionRequest>;
 
 	/// Sign the given transaction request without dispatching, fetching appropriate nonce.
-	fn sign(&self, filled: FilledTransactionRequest, signer: &Arc<Accounts>, password: SignWith)
-		-> BoxFuture<WithToken<SignedTransaction>>;
+	fn sign<P>(
+		&self,
+		filled: FilledTransactionRequest,
+		signer: &Arc<Accounts>,
+		password: SignWith,
+		post_sign: P,
+	) -> BoxFuture<P::Item> where
+		P: PostSign + 'static,
+		<P::Out as futures::future::IntoFuture>::Future: Send;
 
 	/// Converts a `SignedTransaction` into `RichRawTransaction`
 	fn enrich(&self, SignedTransaction) -> RpcRichRawTransaction;
@@ -148,6 +155,35 @@ pub trait Accounts: Send + Sync {
 
 	/// Returns true if account is unlocked (i.e. can sign without a password)
 	fn is_unlocked(&self, address: &Address) -> bool;
+}
+
+/// action to execute after signing
+/// e.g importing a transaction into the chain
+pub trait PostSign: Send {
+	/// item that this PostSign returns
+	type Item: Send;
+	/// incase you need to perform async PostSign actions
+	type Out: IntoFuture<Item = Self::Item, Error = Error> + Send;
+	/// perform an action with the signed transaction
+	fn execute(self, signer: WithToken<SignedTransaction>) -> Self::Out;
+}
+
+impl PostSign for () {
+	type Item = WithToken<SignedTransaction>;
+	type Out = Result<Self::Item>;
+	fn execute(self, signed: WithToken<SignedTransaction>) -> Self::Out {
+		Ok(signed)
+	}
+}
+
+impl<F: Send, T: Send> PostSign for F
+	where F: FnOnce(WithToken<SignedTransaction>) -> Result<T>
+{
+	type Item = T;
+	type Out = Result<Self::Item>;
+	fn execute(self, signed: WithToken<SignedTransaction>) -> Self::Out {
+		(self)(signed)
+	}
 }
 
 /// Single-use account token.
@@ -247,19 +283,22 @@ pub fn execute<D: Dispatcher + 'static>(
 	match payload {
 		ConfirmationPayload::SendTransaction(request) => {
 			let condition = request.condition.clone().map(Into::into);
-			Box::new(dispatcher.sign(request, &signer, pass)
-				.map(move |v| v.map(move |tx| PendingTransaction::new(tx, condition)))
-				.map(WithToken::into_tuple)
-				.map(|(tx, token)| (tx, token, dispatcher))
-				.and_then(|(tx, tok, dispatcher)| {
-					dispatcher.dispatch_transaction(tx)
-						.map(RpcH256::from)
-						.map(ConfirmationResponse::SendTransaction)
-						.map(move |h| WithToken::from((h, tok)))
-				}))
+			let cloned_dispatcher = dispatcher.clone();
+			let post_sign = move |with_token_signed: WithToken<SignedTransaction>| {
+				let (signed, token) = with_token_signed.into_tuple();
+				let signed_transaction = PendingTransaction::new(signed, condition);
+				cloned_dispatcher.dispatch_transaction(signed_transaction)
+					.map(|hash| (hash, token))
+			};
+
+			Box::new(
+				dispatcher.sign(request, &signer, pass, post_sign).map(|(hash, token)| {
+					WithToken::from((ConfirmationResponse::SendTransaction(hash.into()), token))
+				})
+			)
 		},
 		ConfirmationPayload::SignTransaction(request) => {
-			Box::new(dispatcher.sign(request, &signer, pass)
+			Box::new(dispatcher.sign(request, &signer, pass, ())
 				.map(move |result| result
 					.map(move |tx| dispatcher.enrich(tx))
 					.map(ConfirmationResponse::SignTransaction)

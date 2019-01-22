@@ -1498,7 +1498,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		Ok(self.signer.read()
 			.as_ref()
-			.ok_or_else(|| ethkey::Error::InvalidAddress)?
+			.ok_or(ethkey::Error::InvalidAddress)?
 			.sign(hash)?
 		)
 	}
