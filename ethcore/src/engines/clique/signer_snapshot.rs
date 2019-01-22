@@ -14,23 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Weak;
-use client::{EngineClient, BlockId};
-use ethkey::{public_to_address, Signature};
-use ethereum_types::{Address, H256, U256};
-use std::collections::{HashMap, VecDeque};
-use engines::clique::{SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH, recover};
-use error::Error;
-use types::header::{Header, ExtendedHeader};
-use super::super::signer::EngineSigner;
-use parking_lot::{RwLock, Mutex};
-use account_provider::AccountProvider;
-use ethkey::Password;
 use std::borrow::BorrowMut;
-use lru_cache::LruCache;
+use std::collections::{HashMap, VecDeque};
 use std::fmt;
-use std::time::{SystemTime, Duration};
-use rand::{thread_rng, Rng};
+use std::time::{Duration, SystemTime};
+
+use ethereum_types::{Address, H256, U256};
+use lru_cache::LruCache;
+use parking_lot::RwLock;
+use rand::{Rng, thread_rng};
+
+use engines::clique::{recover, SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH};
+use error::Error;
+use ethkey::public_to_address;
+use types::header::Header;
 
 pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x00; 8];
 pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xff; 8];
@@ -222,10 +219,10 @@ fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 }
 
 impl SnapshotState {
-	pub fn get_signer_authorization(&self, currentBlockNumber: u64, author: &Address) -> SignerAuthorization {
+	pub fn get_signer_authorization(&self, current_block_number: u64, author: &Address) -> SignerAuthorization {
 		// TODO: Implement recent signer check list.
 		if let Some(pos) = self.signers.iter().position(|x| *author == *x) {
-			if currentBlockNumber % self.signers.len() as u64 == pos as u64 {
+			if current_block_number % self.signers.len() as u64 == pos as u64 {
 				return SignerAuthorization::InTurn;
 			} else {
 				if self.recent_signers.contains(&self.signers[pos]) && pos != self.signers.len()-1 {

@@ -16,10 +16,9 @@
 
 //! Clique specific parameters.
 
-use ethjson;
-use super::super::validator_set::{ValidatorSet, new_validator_set};
-use ethereum_types::Address;
 use std::time::Duration;
+
+use ethjson;
 
 /// `Clique` params.
 pub struct CliqueParams {

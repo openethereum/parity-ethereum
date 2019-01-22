@@ -52,7 +52,7 @@ use spec::CommonParams;
 use types::transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::{Password, Signature};
-use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader, LiveBlock, Header as LiveHeader};
+use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader, Header as LiveHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;

@@ -14,55 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::{Arc, Weak};
+use std::time::Duration;
+
+use ethereum_types::{Address, H256, Public, U256};
+use parking_lot::RwLock;
+use rlp::encode;
+
+use account_provider::AccountProvider;
+use block::*;
+use client::{BlockId, EngineClient};
+use engines::{ConstructedVerifier, Engine, Headers, PendingTransitionStore, Seal};
+use error::Error;
+use ethkey::{Password, public_to_address, recover as ec_recover, Signature};
+use io::IoService;
+use machine::{AuxiliaryData, Call, EthereumMachine};
+use types::BlockNumber;
+use types::header::{ExtendedHeader, Header};
+
+use super::signer::EngineSigner;
+
+use self::params::CliqueParams;
+use self::signer_snapshot::{CliqueState, DIFF_INTURN, DIFF_NOT_INTURN, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, SignerAuthorization, SnapshotState};
+use self::step_service::StepService;
+
 mod signer_snapshot;
 mod step_service;
 mod params;
-
-use rlp::{encode_list, encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
-use std::time::Duration;
-use itertools::Itertools;
-
-use std::sync::{Weak, Arc};
-use std::collections::{BTreeMap, HashMap};
-use std::{fmt, error};
-use std::str::FromStr;
-use hash::keccak;
-
-use self::params::CliqueParams;
-use self::step_service::StepService;
-
-use super::epoch::{PendingTransition, EpochVerifier, NoOp};
-
-use account_provider::AccountProvider;
-use builtin::Builtin;
-use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
-use error::Error;
-use types::header::{Header, ExtendedHeader};
-use types::BlockNumber;
-use snapshot::SnapshotComponents;
-use spec::CommonParams;
-use super::transaction::{UnverifiedTransaction, SignedTransaction};
-use parking_lot::RwLock;
-use block::*;
-use io::IoService;
-
-use ethkey::{Password, Signature, recover as ec_recover, public_to_address};
-use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
-use ethereum_types::{H256, U256, Address, Public};
-use unexpected::{Mismatch, OutOfBounds};
-use bytes::Bytes;
-use types::ancestry_action::AncestryAction;
-use engines::{Engine, Seal, EngineError, ConstructedVerifier, Headers, PendingTransitionStore};
-use super::signer::EngineSigner;
-use machine::{Call, AuxiliaryData, EthereumMachine};
-use self::signer_snapshot::{CliqueState, SignerAuthorization, SnapshotState, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, DIFF_INTURN, DIFF_NOT_INTURN};
 
 pub const SIGNER_VANITY_LENGTH: u32 = 32;
 // Fixed number of extra-data prefix bytes reserved for signer vanity
 //const EXTRA_DATA_POST_LENGTH: u32 = 128;
 pub const SIGNER_SIG_LENGTH: u32 = 65; // Fixed number of extra-data suffix bytes reserved for signer seal
-
-use client::{EngineClient, BlockId};
 
 pub struct Clique {
 	client: RwLock<Option<Weak<EngineClient>>>,
@@ -476,9 +459,9 @@ impl Engine<EthereumMachine> for Clique {
 
 		let mut state = self.state.write();
 
-		if (header.number() % self.epoch_length == 0) {
+		if header.number() % self.epoch_length == 0 {
 			// TODO: we may still need to validate checkpoint state
-			state.apply_checkpoint(header);
+			state.apply_checkpoint(header)?;
 		} else {
 			state.apply(header)?;
 		}
