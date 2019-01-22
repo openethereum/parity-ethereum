@@ -61,14 +61,12 @@ impl ServiceTransactionChecker {
 		}
 		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
 			.ok_or_else(|| "contract is not configured")?;
-		let (data, decoder) = service_transaction::functions::certified::call(sender);
-		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
-		decoder.decode(&value).and_then(|allowed| {
+		self.call_contract(client, contract_address, sender).and_then(|allowed| {
 			if let Some(mut cache) = self.certified_addresses_cache.try_write() {
 				cache.insert(sender, allowed);
 			};
 			Ok(allowed)
-		}).map_err(|e| e.to_string())
+		})
 	}
 
 	/// Refresh certified addresses cache
@@ -78,21 +76,23 @@ impl ServiceTransactionChecker {
 		// since it's not recent it won't be used anyway.
 		let cache = mem::replace(&mut *self.certified_addresses_cache.write(), HashMap::default());
 
-		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest);
-		if contract_address.is_none() {
-			return Ok(false)
+		if let Some(contract_address) = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest) {
+			let addresses: Vec<_> = cache.keys().collect();
+			let mut cache: HashMap<Address, bool> = HashMap::default();
+			for address in addresses {
+				let allowed = self.call_contract(client, contract_address, *address)?;
+				cache.insert(*address, allowed);
+			}
+			mem::replace(&mut *self.certified_addresses_cache.write(),  cache);
+			Ok(true)
+		} else {
+			Ok(false)
 		}
+	}
 
-		let addresses: Vec<_> = cache.keys().collect();
-		let mut cache: HashMap<Address, bool> = HashMap::default();
-		for address in addresses {
-			// TODO: DRY
-			let (data, decoder) = service_transaction::functions::certified::call(*address);
-			let value = client.call_contract(BlockId::Latest, contract_address.unwrap(), data)?;
-			let allowed = decoder.decode(&value).map_err(|e| e.to_string())?;
-			cache.insert(*address, allowed);
-		}
-		mem::replace(&mut *self.certified_addresses_cache.write(),  cache);
-		Ok(true)
+	fn call_contract<C: CallContract + RegistryInfo>(&self, client: &C, contract_address: Address, sender: Address) -> Result<bool, String> {
+		let (data, decoder) = service_transaction::functions::certified::call(sender);
+		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
+		decoder.decode(&value).map_err(|e| e.to_string())
 	}
 }
