@@ -156,7 +156,7 @@ The full list of included changes:
 
 ## Previous releases
 
-- [CHANGELOG-2.1](docs/CHANGELOG-2.2.md) (_stable_)
+- [CHANGELOG-2.2](docs/CHANGELOG-2.2.md) (_stable_)
 - [CHANGELOG-2.1](docs/CHANGELOG-2.1.md) (EOL: 2019-01-16)
 - [CHANGELOG-2.0](docs/CHANGELOG-2.0.md) (EOL: 2018-11-15)
 - [CHANGELOG-1.11](docs/CHANGELOG-1.11.md) (EOL: 2018-09-19)
