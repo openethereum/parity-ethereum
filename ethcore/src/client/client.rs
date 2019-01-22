@@ -359,7 +359,7 @@ impl Importer {
 			Ok(s) => if s {
 				trace!(target: "client", "Service transaction cache was refreshed successfully");
 			} else {
-				trace!(target: "client", "Service transactions contract does not exist or the cache is busy, so it cannot be refreshed");
+				trace!(target: "client", "Service transactions contract does not exist");
 			},
 			Err(e) => error!(target: "client", "Error occurred while refreshing service transaction cache: {}", e)
 		};

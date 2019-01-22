@@ -17,6 +17,7 @@
 //! A service transactions contract checker.
 
 use std::collections::HashMap;
+use std::mem;
 use std::sync::Arc;
 use call_contract::{RegistryInfo, CallContract};
 use chain_info::ChainInfo;
@@ -73,33 +74,24 @@ impl ServiceTransactionChecker {
 	/// Refresh certified addresses cache
 	pub fn refresh_cache<C: CallContract + RegistryInfo + ChainInfo>(&mut self, client: &C) -> Result<bool, String> {
 		trace!(target: "txqueue", "Refreshing certified addresses cache");
+		// replace the cache with an empty list,
+		// since it's not recent it won't be used anyway.
+		let mut cache = mem::replace(&mut self.cache.write(), HashMap::default());
+
 		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest);
 		if contract_address.is_none() {
 			return Ok(false)
 		}
-		let mut updated_addresses: HashMap<Address, bool> = HashMap::default();
-		let cache = self.certified_addresses_cache.try_read();
-		if cache.is_some() {
-			for (address, allowed_before) in cache.unwrap().iter() {
-				let (data, decoder) = service_transaction::functions::certified::call(*address);
-				let value = client.call_contract(BlockId::Latest, contract_address.unwrap(), data)?;
-				let allowed = decoder.decode(&value).map_err(|e| e.to_string())?;
-				if *allowed_before != allowed {
-					updated_addresses.insert(*address, allowed);
-				}
-			};
-			let cache = self.certified_addresses_cache.try_write();
-			if cache.is_some() {
-				let mut unwrapped_cache = cache.unwrap();
-				for (address, allowed) in updated_addresses.iter() {
-					unwrapped_cache.insert(*address, *allowed);
-				}
-				Ok(true)
-			} else {
-				Ok(false)
-			}
-		} else {
-			Ok(false)
+
+		let addresses: Vec<_> = cache.keys().collect();
+		for address in addresses {
+			// TODO: DRY
+			let (data, decoder) = service_transaction::functions::certified::call(*address);
+			let value = client.call_contract(BlockId::Latest, contract_address.unwrap(), data)?;
+			let allowed = decoder.decode(&value).map_err(|e| e.to_string())?;
+			cache.insert(address, allowed);
 		}
+		mem::replace(&mut self.cache.write(),  cache);
+		Ok(true)
 	}
 }
