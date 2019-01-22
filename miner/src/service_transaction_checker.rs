@@ -20,7 +20,6 @@ use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
 use call_contract::{RegistryInfo, CallContract};
-use chain_info::ChainInfo;
 use types::ids::BlockId;
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;
@@ -44,7 +43,7 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if given address in tx is whitelisted to send service transactions.
-	pub fn check<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		let sender = tx.sender();
 		// Skip checking the contract if the transaction does not have zero gas price
 		if !tx.gas_price.is_zero() {
@@ -55,7 +54,7 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if given address is whitelisted to send service transactions.
-	pub fn check_address<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
+	pub fn check_address<C: CallContract + RegistryInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
 		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
 		if let Some(allowed) = self.certified_addresses_cache.try_read().as_ref().and_then(|c| c.get(&sender)){
 			return Ok(*allowed);
@@ -73,7 +72,7 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Refresh certified addresses cache
-	pub fn refresh_cache<C: CallContract + RegistryInfo + ChainInfo>(&self, client: &C) -> Result<bool, String> {
+	pub fn refresh_cache<C: CallContract + RegistryInfo>(&self, client: &C) -> Result<bool, String> {
 		trace!(target: "txqueue", "Refreshing certified addresses cache");
 		// replace the cache with an empty list,
 		// since it's not recent it won't be used anyway.
