@@ -51,6 +51,7 @@ pub use self::error::SignError;
 type AccountToken = Password;
 
 /// Account management settings.
+#[derive(Debug, Default)]
 pub struct AccountProviderSettings {
 	/// Enable hardware wallet support.
 	pub enable_hardware_wallets: bool,
@@ -60,17 +61,6 @@ pub struct AccountProviderSettings {
 	pub unlock_keep_secret: bool,
 	/// Disallowed accounts.
 	pub blacklisted_accounts: Vec<Address>,
-}
-
-impl Default for AccountProviderSettings {
-	fn default() -> Self {
-		AccountProviderSettings {
-			enable_hardware_wallets: false,
-			hardware_wallet_classic_key: false,
-			unlock_keep_secret: false,
-			blacklisted_accounts: vec![],
-		}
-	}
 }
 
 /// Account management.
