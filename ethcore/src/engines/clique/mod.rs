@@ -37,10 +37,11 @@ use account_provider::AccountProvider;
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress, CallType, ActionValue};
 use error::Error;
-use header::{Header, BlockNumber, ExtendedHeader};
+use types::header::{Header, ExtendedHeader};
+use types::BlockNumber;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
-use transaction::{self, UnverifiedTransaction, SignedTransaction};
+use super::transaction::{UnverifiedTransaction, SignedTransaction};
 use parking_lot::RwLock;
 use block::*;
 use io::IoService;
@@ -54,7 +55,7 @@ use types::ancestry_action::AncestryAction;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier, Headers, PendingTransitionStore};
 use super::signer::EngineSigner;
 use machine::{Call, AuxiliaryData, EthereumMachine};
-use self::signer_snapshot::{CliqueState, SignerAuthorization, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, DIFF_INTURN, DIFF_NOT_INTURN};
+use self::signer_snapshot::{CliqueState, SignerAuthorization, SnapshotState, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, DIFF_INTURN, DIFF_NOT_INTURN};
 
 pub const SIGNER_VANITY_LENGTH: u32 = 32;
 // Fixed number of extra-data prefix bytes reserved for signer vanity
@@ -148,6 +149,61 @@ impl Clique {
 			Err(e) =>  { Err(From::from("failed to sign header")) }
 		}
 	}
+
+    fn state(&self, parent: &Header) -> Result<SnapshotState, Error> {
+        let mut state = self.state.write();
+
+        match state.state(&parent.hash()) {
+            Some(st) => Ok(st),
+            None => {
+                let client = self.client.read();
+                if let Some(c) = client.as_ref().and_then(|w|{ w.upgrade()}) {
+                    let last_checkpoint_number = (parent.number() / self.epoch_length as u64) * self.epoch_length;
+                    let mut chain: &mut Vec<Header> = &mut Vec::new();
+                    chain.push(parent.clone());
+
+                    // populate chain to last checkpoint
+                    let mut last = chain.last().unwrap().clone();
+
+                    while last.number() != last_checkpoint_number +1 {
+                        if let Some(next) = c.block_header(BlockId::Hash(*last.parent_hash())) {
+                            chain.push(next.decode().unwrap().clone());
+                            last = chain.last().unwrap().clone();
+                        } else {
+                            return Err(From::from(format!("parent state could not be recovered for block {}", &parent.hash())));
+                        }
+                    }
+
+                    // Get the last checkpoint header
+                    if let Some(last_checkpoint_header) = c.block_header(BlockId::Hash(*chain.last().unwrap().parent_hash())) {
+                        if let Err(_) = state.apply_checkpoint(&last_checkpoint_header.decode().unwrap()) {
+                            return Err(From::from("failed to apply checkpoint"));
+                        }
+                    }
+
+                    // Catching up state.
+                    chain.reverse();
+
+                    trace!(target: "engine",
+                           "verify_block_family backfilling state. last_checkpoint: {}, chain: {:?}.",
+                           last_checkpoint_number, chain);
+
+                    for item in chain {
+                        if let Err(_) = state.apply(item) {
+                            return Err(From::from("failed to apply item"));
+                        }
+                    }
+
+                    match state.state(&parent.hash()) {
+                        Some(st) => { return Ok(st); },
+                        None => { panic!("Parent state should exist after being recovered. block {}", &parent.hash()); }
+                    }
+                } else {
+                    return Err(From::from("failed to upgrade client reference"));
+                }
+            }
+        }
+    }
 }
 
 impl Engine<EthereumMachine> for Clique {
@@ -284,6 +340,9 @@ impl Engine<EthereumMachine> for Clique {
 			return Seal::None;
 		}
 
+        //ensure the voting state exists
+		self.state(&_parent).unwrap();
+
 		let mut state = self.state.write();
 
 		match state.proposer_authorization(&block.header) {
@@ -411,44 +470,12 @@ impl Engine<EthereumMachine> for Clique {
 					 header.number(), *self.state.read());
 							 */
 
+		if let Err(e) = self.state(&parent) {
+            return Err(e);
+        }
+
 		let mut state = self.state.write();
 
-		// see if we have parent state
-		if state.state(&parent.hash()).is_none() {
-			let client = self.client.read();
-			if let Some(c) = client.as_ref().and_then(|w|{ w.upgrade()}) {
-				let last_checkpoint_number = (parent.number() / self.epoch_length as u64) * self.epoch_length;
-				let mut chain: &mut Vec<Header> = &mut Vec::new();
-				chain.push(parent.clone());
-
-				// populate chain to last checkpoint
-				let mut last = chain.last().unwrap().clone();
-
-				while last.number() != last_checkpoint_number +1 {
-					if let Some(next) = c.block_header(BlockId::Hash(*last.parent_hash())) {
-						chain.push(next.decode().unwrap().clone());
-						last = chain.last().unwrap().clone();
-					} else {
-						return Err(From::from("No parent state exist."));
-					}
-				}
-
-				// Get the last checkpoint header
-				if let Some(last_checkpoint_header) = c.block_header(BlockId::Hash(*chain.last().unwrap().parent_hash())) {
-					state.apply_checkpoint(&last_checkpoint_header.decode().unwrap())?;
-				}
-				// Catching up state.
-				chain.reverse();
-
-				trace!(target: "engine",
-							 "verify_block_family backfilling state. last_checkpoint: {}, chain: {:?}.",
-							 last_checkpoint_number, chain);
-
-				for item in chain {
-					state.apply(item)?;
-				}
-			}
-		}
 		if (header.number() % self.epoch_length == 0) {
 			// TODO: we may still need to validate checkpoint state
 			state.apply_checkpoint(header);
