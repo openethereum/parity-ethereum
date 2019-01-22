@@ -18,7 +18,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use bytes::{Bytes, ToPretty};
+use bytes::Bytes;
 use ethcore::account_provider::AccountProvider;
 use types::transaction::PendingTransaction;
 use ethereum_types::{H520, U128, Address};
@@ -27,7 +27,7 @@ use ethkey::{public_to_address, recover, Signature};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use v1::helpers::{errors, eip191};
-use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith};
+use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith, PostSign, WithToken};
 use v1::traits::Personal;
 use v1::types::{
 	H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U128 as RpcU128,
@@ -41,6 +41,7 @@ use v1::types::{
 use v1::metadata::Metadata;
 use eip_712::{EIP712, hash_structured_data};
 use jsonrpc_core::types::Value;
+use transaction::SignedTransaction;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
@@ -68,7 +69,16 @@ impl<D: Dispatcher> PersonalClient<D> {
 }
 
 impl<D: Dispatcher + 'static> PersonalClient<D> {
-	fn do_sign_transaction(&self, _meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
+	fn do_sign_transaction<P>(
+		&self,
+		_meta: Metadata,
+		request: TransactionRequest,
+		password: String,
+		post_sign: P
+ 	) -> BoxFuture<P::Item>
+		where P: PostSign + 'static,
+ 		      <P::Out as futures::future::IntoFuture>::Future: Send
+	{
 		let dispatcher = self.dispatcher.clone();
 		let accounts = self.accounts.clone();
 
@@ -86,11 +96,7 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 
 		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
 			.and_then(move |filled| {
-				let condition = filled.condition.clone().map(Into::into);
-				dispatcher.sign(accounts, filled, SignWith::Password(password.into()))
-					.map(|tx| tx.into_value())
-					.map(move |tx| PendingTransaction::new(tx, condition))
-					.map(move |tx| (tx, dispatcher))
+				dispatcher.sign(accounts, filled, SignWith::Password(password.into()), post_sign)
 			})
 		)
 	}
@@ -223,18 +229,26 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction> {
-		Box::new(self.do_sign_transaction(meta, request, password)
-			.map(|(pending_tx, dispatcher)| dispatcher.enrich(pending_tx.transaction)))
+		let condition = request.condition.clone().map(Into::into);
+		let dispatcher = self.dispatcher.clone();
+		Box::new(self.do_sign_transaction(meta, request, password, ())
+			.map(move |tx| PendingTransaction::new(tx.into_value(), condition))
+			.map(move |pending_tx| dispatcher.enrich(pending_tx.transaction)))
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
-		Box::new(self.do_sign_transaction(meta, request, password)
-			.and_then(|(pending_tx, dispatcher)| {
-				let chain_id = pending_tx.chain_id();
-				trace!(target: "miner", "send_transaction: dispatching tx: {} for chain ID {:?}",
-					::rlp::encode(&*pending_tx).pretty(), chain_id);
-
-				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
+		let condition = request.condition.clone().map(Into::into);
+		let dispatcher = self.dispatcher.clone();
+		Box::new(self.do_sign_transaction(meta, request, password,  move |signed: WithToken<SignedTransaction>| {
+			dispatcher.dispatch_transaction(
+				PendingTransaction::new(
+					signed.into_value(),
+					condition
+				)
+			)
+		})
+			.and_then(|hash| {
+				Ok(RpcH256::from(hash))
 			})
 		)
 	}
