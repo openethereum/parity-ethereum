@@ -44,7 +44,8 @@
 		"eip145Transition": "0x408b70",
 		"eip1014Transition": "0x408b70",
 		"eip1052Transition": "0x408b70",
-		"eip1283Transition": "0x408b70"
+		"eip1283Transition": "0x408b70",
+		"eip1283DisableTransition": "0x4b5e82"
 	},
 	"genesis": {
 		"seal": {
