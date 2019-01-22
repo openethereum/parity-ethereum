@@ -22,7 +22,6 @@
 mod miner;
 
 pub mod pool_client;
-pub mod service_transaction_checker;
 #[cfg(feature = "stratum")]
 pub mod stratum;
 
