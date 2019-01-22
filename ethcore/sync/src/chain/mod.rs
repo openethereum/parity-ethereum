@@ -103,7 +103,8 @@ use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
-use network::{self, ClientVersion, PeerId, PacketId};
+use network::{self, PeerId, PacketId};
+use network::client_version::ClientVersion;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
@@ -111,7 +112,6 @@ use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot};
-use semver::Version;
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
@@ -1462,7 +1462,7 @@ pub mod tests {
 				snapshot_hash: None,
 				asking_snapshot_data: None,
 				block_set: None,
-				client_version: ClientVersion::UnknownFormat,
+				client_version: ClientVersion::Other,
 			});
 
 	}

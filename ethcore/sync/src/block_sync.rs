@@ -29,7 +29,8 @@ use ethcore::error::{ImportErrorKind, QueueErrorKind, BlockError, Error as Ethco
 use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
-use network::{ClientCapabilities, ClientVersion, PeerId};
+use network::PeerId;
+use network::client_version::{ClientCapabilities, ClientVersion};
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
 const MAX_BODIES_TO_REQUEST_LARGE: usize = 128;

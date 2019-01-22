@@ -20,7 +20,8 @@ use std::collections::HashSet;
 use bytes::Bytes;
 use ethereum_types::H256;
 use fastmap::H256FastSet;
-use network::{ClientVersion, PeerId, PacketId};
+use network::{PeerId, PacketId};
+use network::client_version::ClientVersion;
 use rand::Rng;
 use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
@@ -451,7 +452,7 @@ mod tests {
 				snapshot_hash: None,
 				asking_snapshot_data: None,
 				block_set: None,
-				client_version: ClientVersion::UnknownFormat,
+				client_version: ClientVersion::Other,
 			});
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
