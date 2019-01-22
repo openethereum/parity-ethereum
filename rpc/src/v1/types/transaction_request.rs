@@ -57,8 +57,7 @@ pub fn format_ether(i: U256) -> String {
 	} else {
 		string.insert(idx as usize, '.');
 	}
-	String::from(string.trim_right_matches('0')
-		.trim_right_matches('.'))
+	String::from(string.trim_end_matches('0').trim_end_matches('.'))
 }
 
 impl fmt::Display for TransactionRequest {

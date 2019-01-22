@@ -49,6 +49,7 @@
 		"eip1014Transition": "0x8c6180",
 		"eip1052Transition": "0x8c6180",
 		"eip1283Transition": "0x8c6180",
+		"eip1283DisableTransition": "0x9c7b61",
 		"kip4Transition": "0x8c6180",
 		"kip6Transition": "0x8c6180"
 	},
