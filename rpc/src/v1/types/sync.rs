@@ -157,7 +157,7 @@ impl From<SyncPeerInfo> for PeerInfo {
 	fn from(p: SyncPeerInfo) -> Self {
 		PeerInfo {
 			id: p.id,
-			name: p.client_version,
+			name: p.client_version.to_string(), // TODO reimplement with ClientVersion directly
 			caps: p.capabilities,
 			network: PeerNetworkInfo {
 				remote_address: p.remote_address,

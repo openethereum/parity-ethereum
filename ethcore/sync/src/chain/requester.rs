@@ -19,7 +19,6 @@ use block_sync::BlockRequest;
 use bytes::Bytes;
 use ethereum_types::H256;
 use network::{PeerId, PacketId};
-use network::client_version::{ClientCapabilities, ClientVersion};
 use rlp::RlpStream;
 use std::time::Instant;
 use sync_io::SyncIo;
@@ -63,7 +62,6 @@ impl SyncRequester {
 		for h in &hashes {
 			rlp.append(&h.clone());
 		}
-		let client_version = ClientVersion::from(io.peer_info(peer_id));
 
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::BlockBodies, GET_BLOCK_BODIES_PACKET, rlp.out());
 		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
