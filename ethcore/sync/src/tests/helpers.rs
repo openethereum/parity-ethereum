@@ -394,7 +394,8 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			&spec,
 			test_helpers::new_db(),
 			miner.clone(),
-			channel.clone()
+			channel.clone(),
+			Arc::new(RwLock::new(HashMap::default())),
 		).unwrap();
 
 		let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
