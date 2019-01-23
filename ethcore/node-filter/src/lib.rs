@@ -90,12 +90,14 @@ impl ConnectionFilter for NodeFilter {
 
 #[cfg(test)]
 mod test {
+	use std::collections::HashMap;
 	use std::sync::{Arc, Weak};
 	use ethcore::spec::Spec;
 	use ethcore::client::{BlockChainClient, Client, ClientConfig};
 	use ethcore::miner::Miner;
 	use ethcore::test_helpers;
 	use network::{ConnectionDirection, ConnectionFilter, NodeId};
+	use parking_lot::RwLock;
 	use io::IoChannel;
 	use super::NodeFilter;
 	use tempdir::TempDir;
@@ -115,6 +117,7 @@ mod test {
 			client_db,
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
+			Arc::new(RwLock::new(HashMap::default())),
 		).unwrap();
 		let filter = NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, contract_addr);
 		let self1: NodeId = "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002".into();
