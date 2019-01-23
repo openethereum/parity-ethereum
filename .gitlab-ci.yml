@@ -35,6 +35,17 @@ variables:
   - export VERSION
   - echo "Version = ${VERSION}"
 
+test-build-darwin:
+  stage:                           test
+  variables:
+    CARGO_TARGET:                  x86_64-apple-darwin
+    CC:                            gcc
+    CXX:                           g++
+  script:
+    - scripts/gitlab/build-unix.sh
+  tags:
+    - rust-osx
+
 test-linux:
   stage:                           test
   variables:
