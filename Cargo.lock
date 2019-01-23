@@ -1772,6 +1772,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonrpc-core"
+version = "9.0.0"
+dependencies = [
+ "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.32 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "jsonrpc-http-server"
 version = "9.0.0"
 source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2#84360bf1d03821b8fd669a6a95fcdf847aaf6cca"
@@ -1785,15 +1796,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonrpc-http-server"
+version = "9.0.0"
+dependencies = [
+ "hyper 0.12.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 9.0.0",
+ "jsonrpc-server-utils 9.0.0",
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "net2 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "jsonrpc-ipc-server"
 version = "9.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2#84360bf1d03821b8fd669a6a95fcdf847aaf6cca"
 dependencies = [
- "jsonrpc-core 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
- "jsonrpc-server-utils 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
+ "jsonrpc-core 9.0.0",
+ "jsonrpc-server-utils 9.0.0",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-tokio-ipc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1808,6 +1830,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonrpc-macros"
+version = "9.0.0"
+dependencies = [
+ "jsonrpc-core 9.0.0",
+ "jsonrpc-pubsub 9.0.0",
+ "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "jsonrpc-pubsub"
 version = "9.0.0"
 source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2#84360bf1d03821b8fd669a6a95fcdf847aaf6cca"
@@ -1818,6 +1849,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonrpc-pubsub"
+version = "9.0.0"
+dependencies = [
+ "jsonrpc-core 9.0.0",
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "jsonrpc-server-utils"
 version = "9.0.0"
 source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2#84360bf1d03821b8fd669a6a95fcdf847aaf6cca"
@@ -1825,6 +1866,21 @@ dependencies = [
  "bytes 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "globset 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
+ "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-codec 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "jsonrpc-server-utils"
+version = "9.0.0"
+dependencies = [
+ "bytes 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "globset 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 9.0.0",
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1855,6 +1911,19 @@ dependencies = [
  "jsonrpc-server-utils 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "slab 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ws 0.7.9 (git+https://github.com/tomusdrw/ws-rs)",
+]
+
+[[package]]
+name = "jsonrpc-ws-server"
+version = "9.0.0"
+dependencies = [
+ "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 9.0.0",
+ "jsonrpc-server-utils 9.0.0",
+ "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws 0.7.9 (git+https://github.com/tomusdrw/ws-rs)",
 ]
@@ -2583,12 +2652,12 @@ dependencies = [
  "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "hardware-wallet 1.12.0",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
- "jsonrpc-http-server 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
- "jsonrpc-ipc-server 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
- "jsonrpc-macros 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
- "jsonrpc-pubsub 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
- "jsonrpc-ws-server 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)",
+ "jsonrpc-core 9.0.0",
+ "jsonrpc-http-server 9.0.0",
+ "jsonrpc-ipc-server 9.0.0",
+ "jsonrpc-macros 9.0.0",
+ "jsonrpc-pubsub 9.0.0",
+ "jsonrpc-ws-server 9.0.0",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4500,7 +4569,6 @@ dependencies = [
 "checksum jni-sys 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 "checksum jsonrpc-core 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)" = "<none>"
 "checksum jsonrpc-http-server 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)" = "<none>"
-"checksum jsonrpc-ipc-server 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)" = "<none>"
 "checksum jsonrpc-macros 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)" = "<none>"
 "checksum jsonrpc-pubsub 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)" = "<none>"
 "checksum jsonrpc-server-utils 9.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-2.2)" = "<none>"
