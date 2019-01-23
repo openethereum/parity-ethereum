@@ -136,4 +136,4 @@ members = [
 ]
 
 [patch.crates-io]
-heapsize = { git = "https://github.com/cheme/heapsize.git", branch = "macfix2" }
+heapsize = { git = "https://github.com/cheme/heapsize.git", branch = "ec-macfix" }
