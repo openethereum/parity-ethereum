@@ -49,7 +49,7 @@ use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation};
 const POOL_UNIT: usize = 1024 * 1024;
 const USAGE: &'static str = r#"
 Parity Whisper-v2 CLI.
-	Copyright 2015-2018 Parity Technologies (UK) Ltd.
+	Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
 	whisper [options]
