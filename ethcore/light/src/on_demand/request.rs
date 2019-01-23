@@ -1108,7 +1108,7 @@ mod tests {
 	use trie::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
+	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use common_types::header::Header;
 	use common_types::encoded;
 	use common_types::receipt::{Receipt, TransactionOutcome};
@@ -1125,6 +1125,7 @@ mod tests {
 	#[test]
 	fn check_header_proof() {
 		use ::cht;
+		use Provider;
 
 		let test_client = TestBlockChainClient::new();
 		test_client.add_blocks(10500, EachBlockWith::Nothing);

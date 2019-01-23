@@ -588,6 +588,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	}
 }
 
+// NOTE: Might want to replace this with BlockProvider methods
 impl<T: ChainDataFetcher> ::ethcore::client::ChainInfo for Client<T> {
 	fn chain_info(&self) -> BlockChainInfo {
 		Client::chain_info(self)

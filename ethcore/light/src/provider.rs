@@ -23,7 +23,8 @@ use common_types::blockchain_info::BlockChainInfo;
 use common_types::encoded;
 use common_types::ids::BlockId;
 use common_types::transaction::PendingTransaction;
-use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, BlockInfo as ClientBlockInfo};
+use ethcore_blockchain::BlockProvider;
+use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo};
 use ethereum_types::H256;
 use parking_lot::RwLock;
 
@@ -141,7 +142,7 @@ pub trait Provider: Send + Sync {
 }
 
 // Implementation of a light client data provider for a client.
-impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
+impl<T: ProvingBlockChainClient + BlockProvider + ?Sized> Provider for T {
 	fn chain_info(&self) -> BlockChainInfo {
 		ChainInfo::chain_info(self)
 	}
@@ -155,7 +156,14 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		ClientBlockInfo::block_header(self, id)
+		match id {
+		   BlockId::Number(num) => {
+			   BlockProvider::block_hash(self, num).and_then(|hash| BlockProvider::block_header_data(self, &hash))
+		   },
+		   BlockId::Hash(hash) => BlockProvider::block_header_data(self, &hash),
+		   // NOTE: Do I need to worry about BlockId::Earliest and BlockId::Lastest here?
+		   _ => None,
+		}
 	}
 
 	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)

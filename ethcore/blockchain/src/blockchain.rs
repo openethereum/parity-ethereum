@@ -134,6 +134,7 @@ pub trait BlockProvider {
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
 
 	/// Get the header RLP of a block.
+	// TODO: Rename to block_header()
 	fn block_header_data(&self, hash: &H256) -> Option<encoded::Header>;
 
 	/// Get the block body (uncles and transactions).

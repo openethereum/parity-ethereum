@@ -21,11 +21,13 @@ use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::mem;
 
-use blockchain::{TreeRoute, BlockReceipts};
+use blockchain::{
+	TreeRoute, BlockReceipts, BlockProvider, BlockDetails, TransactionAddress
+};
 use bytes::Bytes;
 use db::{NUM_COLUMNS, COL_STATE};
 use ethcore_miner::pool::VerifiedTransaction;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, BloomRef};
 use ethkey::{Generator, Random};
 use ethtrie;
 use hash::keccak;
@@ -41,7 +43,7 @@ use types::basic_account::BasicAccount;
 use types::encoded;
 use types::filter::Filter;
 use types::header::Header;
-use types::log_entry::LocalizedLogEntry;
+use types::log_entry::{LogEntry, LocalizedLogEntry};
 use types::pruning_info::PruningInfo;
 use types::receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use types::view;
@@ -507,6 +509,7 @@ impl BlockInfo for TestBlockChainClient {
 			.expect("decoding failed")
 	}
 
+	// TODO: Will want to eventually remove this
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {
 		self.block_hash(id)
 			.and_then(|hash| self.blocks.read().get(&hash).cloned())
@@ -519,6 +522,66 @@ impl BlockInfo for TestBlockChainClient {
 			_ => None,
 		}
 	}
+}
+
+// Basing test implementations off/stealing them
+// from `ethcore/src/verification/verification.rs`
+impl BlockProvider for TestBlockChainClient {
+		fn is_known(&self, _hash: &H256) -> bool {
+			unimplemented!()
+		}
+
+		fn first_block(&self) -> Option<H256> {
+			unimplemented!()
+		}
+
+		/// Get raw block data
+		// TODO: Remove BlockInfo implementation of this
+		fn block(&self, hash: &H256) -> Option<encoded::Block> {
+			self.blocks.read().get(&hash).cloned().map(encoded::Block::new)
+		}
+
+		// TODO: Rename to block_header()
+		fn block_header_data(&self, hash: &H256) -> Option<encoded::Header> {
+			BlockProvider::block(self, &hash)
+				.map(|b| b.header_view().rlp().as_raw().to_vec())
+				.map(encoded::Header::new)
+		}
+
+		fn block_body(&self, _hash: &H256) -> Option<encoded::Body> {
+			unimplemented!()
+		}
+
+		fn best_ancient_block(&self) -> Option<H256> {
+			unimplemented!()
+		}
+
+		fn block_details(&self, _hash: &H256) -> Option<BlockDetails> {
+			unimplemented!()
+		}
+
+		fn transaction_address(&self, _hash: &H256) -> Option<TransactionAddress> {
+			unimplemented!()
+		}
+
+		/// Get the hash of given block's number.
+		fn block_hash(&self, index: BlockNumber) -> Option<H256> {
+			self.numbers.read().get(&(index as usize)).cloned()
+		}
+
+		fn block_receipts(&self, _hash: &H256) -> Option<BlockReceipts> {
+			unimplemented!()
+		}
+
+		fn blocks_with_bloom<'a, B, I, II>(&self, _blooms: II, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber>
+		where BloomRef<'a>: From<B>, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B>, Self: Sized {
+			unimplemented!()
+		}
+
+		fn logs<F>(&self, _blocks: Vec<H256>, _matches: F, _limit: Option<usize>) -> Vec<LocalizedLogEntry>
+			where F: Fn(&LogEntry) -> bool, Self: Sized {
+			unimplemented!()
+		}
 }
 
 impl CallContract for TestBlockChainClient {
@@ -745,9 +808,13 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
-		self.block(id)
-			.map(|block| block.view().header())
-			.map(|header| self.spec.engine.extra_info(&header))
+		if let BlockId::Hash(hash) = id {
+			BlockProvider::block(self, &hash)
+				.map(|block| block.view().header())
+				.map(|header| self.spec.engine.extra_info(&header))
+		} else {
+			None
+		}
 	}
 
 	fn block_status(&self, id: BlockId) -> BlockStatus {

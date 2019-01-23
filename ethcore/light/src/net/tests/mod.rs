@@ -129,11 +129,11 @@ impl Provider for TestProvider {
 	}
 
 	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
-		self.0.client.block_body(req)
+		Provider::block_body(&self.0.client, req)
 	}
 
 	fn block_receipts(&self, req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse> {
-		self.0.client.block_receipts(req)
+		Provider::block_receipts(&self.0.client, req)
 	}
 
 	fn account_proof(&self, req: request::CompleteAccountRequest) -> Option<request::AccountResponse> {
@@ -379,7 +379,7 @@ fn get_block_bodies() {
 		builder.push(Request::Body(IncompleteBodyRequest {
 			hash: hash.into(),
 		})).unwrap();
-		bodies.push(Response::Body(provider.client.block_body(CompleteBodyRequest {
+		bodies.push(Response::Body(Provider::block_body(&provider.client, CompleteBodyRequest {
 			hash: hash,
 		}).unwrap()));
 	}
@@ -431,7 +431,7 @@ fn get_block_receipts() {
 	let mut receipts = Vec::new();
 	for hash in block_hashes.iter().cloned() {
 		builder.push(Request::Receipts(IncompleteReceiptsRequest { hash: hash.into() })).unwrap();
-		receipts.push(Response::Receipts(provider.client.block_receipts(CompleteReceiptsRequest {
+		receipts.push(Response::Receipts(Provider::block_receipts(&provider.client, CompleteReceiptsRequest {
 			hash: hash
 		}).unwrap()));
 	}
