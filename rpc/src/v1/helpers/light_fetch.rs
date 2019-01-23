@@ -17,6 +17,7 @@
 //! Helpers for fetching blockchain data either from the light client or the network.
 
 use std::cmp;
+use std::clone::Clone;
 use std::sync::Arc;
 
 use types::basic_account::BasicAccount;
@@ -40,7 +41,9 @@ use light::on_demand::{
 use light::on_demand::error::Error as OnDemandError;
 use light::request::Field;
 
-use sync::LightSync;
+
+use sync::{LightNetworkDispatcher, ManageNetwork, LightSyncProvider};
+
 use ethereum_types::{U256, Address};
 use hash::H256;
 use parking_lot::Mutex;
@@ -52,10 +55,12 @@ use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
 
 const NO_INVALID_BACK_REFS_PROOF: &str = "Fails only on invalid back-references; back-references here known to be valid; qed";
-
 const WRONG_RESPONSE_AMOUNT_TYPE_PROOF: &str = "responses correspond directly with requests in amount and type; qed";
 
-pub fn light_all_transactions(dispatch: &Arc<dispatch::LightDispatcher>) -> impl Iterator<Item=PendingTransaction> {
+pub fn light_all_transactions<S>(dispatch: &Arc<dispatch::LightDispatcher<S>>) -> impl Iterator<Item=PendingTransaction>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	let txq = dispatch.transaction_queue.read();
 	let chain_info = dispatch.client.chain_info();
 
@@ -66,19 +71,35 @@ pub fn light_all_transactions(dispatch: &Arc<dispatch::LightDispatcher>) -> impl
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
-#[derive(Clone)]
-pub struct LightFetch {
+pub struct LightFetch<S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static>
+{
 	/// The light client.
 	pub client: Arc<LightChainClient>,
 	/// The on-demand request service.
 	pub on_demand: Arc<OnDemand>,
 	/// Handle to the network.
-	pub sync: Arc<LightSync>,
+	pub sync: Arc<S>,
 	/// The light data cache.
 	pub cache: Arc<Mutex<Cache>>,
 	/// Gas Price percentile
 	pub gas_price_percentile: usize,
 }
+
+impl<S> Clone for LightFetch<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
+	fn clone(&self) -> Self {
+		Self {
+			client: self.client.clone(),
+			on_demand: self.on_demand.clone(),
+			sync: self.sync.clone(),
+			cache: self.cache.clone(),
+			gas_price_percentile: self.gas_price_percentile
+		}
+	}
+}
+
 
 /// Extract a transaction at given index.
 pub fn extract_transaction_at_index(block: encoded::Block, index: usize) -> Option<Transaction> {
@@ -115,7 +136,10 @@ fn extract_header(res: &[OnDemandResponse], header: HeaderRef) -> Option<encoded
 	}
 }
 
-impl LightFetch {
+impl<S> LightFetch<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	// push the necessary requests onto the request chain to get the header by the given ID.
 	// yield a header reference which other requests can use.
 	fn make_header_requests(&self, id: BlockId, reqs: &mut Vec<OnDemandRequest>) -> Result<HeaderRef> {
@@ -635,20 +659,42 @@ impl LightFetch {
 	}
 }
 
-#[derive(Clone)]
-struct ExecuteParams {
+struct ExecuteParams<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	from: Address,
 	tx: EthTransaction,
 	hdr: encoded::Header,
 	env_info: ::vm::EnvInfo,
 	engine: Arc<::ethcore::engines::EthEngine>,
 	on_demand: Arc<OnDemand>,
-	sync: Arc<LightSync>,
+	sync: Arc<S>,
+}
+
+impl<S> Clone for ExecuteParams<S>
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
+	fn clone(&self) -> Self {
+		Self {
+			from: self.from.clone(),
+			tx: self.tx.clone(),
+			hdr: self.hdr.clone(),
+			env_info: self.env_info.clone(),
+			engine: self.engine.clone(),
+			on_demand: self.on_demand.clone(),
+			sync: self.sync.clone()
+		}
+	}
 }
 
 // Has a peer execute the transaction with given params. If `gas_known` is false, this will set the `gas value` to the
 // `required gas value` unless it exceeds the block gas limit
-fn execute_read_only_tx(gas_known: bool, params: ExecuteParams) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
+fn execute_read_only_tx<S>(gas_known: bool, params: ExecuteParams<S>) -> impl Future<Item = ExecutionResult, Error = Error> + Send
+where
+	S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static
+{
 	if !gas_known {
 		Box::new(future::loop_fn(params, |mut params| {
 			execute_read_only_tx(true, params.clone()).and_then(move |res| {
