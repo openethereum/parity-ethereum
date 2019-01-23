@@ -1505,7 +1505,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "heapsize"
 version = "0.4.2"
-source = "git+https://github.com/cheme/heapsize.git?branch=macfix2#4dcb303d04577ce08c32db806a99779d5b63fa8f"
+source = "git+https://github.com/cheme/heapsize.git?branch=macfix2#1e4259c3c1170d9265e53439840e7f4d58dcf860"
 dependencies = [
  "winapi 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
