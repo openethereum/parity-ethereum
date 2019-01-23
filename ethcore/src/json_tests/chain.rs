@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use client::{EvmTestClient, Client, ClientConfig, ChainInfo, ImportBlock};
@@ -21,6 +22,7 @@ use spec::Genesis;
 use ethjson;
 use miner::Miner;
 use io::IoChannel;
+use parking_lot::RwLock;
 use test_helpers;
 use verification::queue::kind::blocks::Unverified;
 use verification::VerifierType;
@@ -95,6 +97,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(json_data: &[u8], start_stop_ho
 					db,
 					Arc::new(Miner::new_for_tests(&spec, None)),
 					IoChannel::disconnected(),
+					Arc::new(RwLock::new(HashMap::default())),
 				).unwrap();
 				for b in blockchain.blocks_rlp() {
 					if let Ok(block) = Unverified::from_rlp(b) {

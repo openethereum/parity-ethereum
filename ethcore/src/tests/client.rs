@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -32,6 +33,7 @@ use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockIn
 use ethereum;
 use executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
+use parking_lot::RwLock;
 use spec::Spec;
 use state::{self, State, CleanupMode};
 use test_helpers::{
@@ -52,6 +54,7 @@ fn imports_from_empty() {
 		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
+		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 	client.import_verified_blocks();
 	client.flush_queue();
@@ -69,6 +72,7 @@ fn should_return_registrar() {
 		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
+		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 	let params = client.additional_params();
 	let address = &params["registrar"];
@@ -97,6 +101,7 @@ fn imports_good_block() {
 		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
+		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 	let good_block = get_good_dummy_block();
 	if client.import_block(Unverified::from_rlp(good_block).unwrap()).is_err() {
@@ -120,6 +125,7 @@ fn query_none_block() {
 		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
+		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
     let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
@@ -271,7 +277,8 @@ fn change_history_size() {
 			&test_spec,
 			db.clone(),
 			Arc::new(Miner::new_for_tests(&test_spec, None)),
-			IoChannel::disconnected()
+			IoChannel::disconnected(),
+			Arc::new(RwLock::new(HashMap::default())),
 		).unwrap();
 
 		for _ in 0..20 {
@@ -290,6 +297,7 @@ fn change_history_size() {
 		db,
 		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
+		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 	assert_eq!(client.state().balance(&address).unwrap(), 100.into());
 }

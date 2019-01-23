@@ -26,7 +26,9 @@ use client::*;
 use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
 use std::sync::Arc;
+use std::collections::HashMap;
 use miner::Miner;
+use parking_lot::RwLock;
 use types::transaction::{Action, Transaction};
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
@@ -51,6 +53,7 @@ fn can_trace_block_and_uncle_reward() {
 		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
+		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 
 	// Create test data:
