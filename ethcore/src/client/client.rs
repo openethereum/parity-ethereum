@@ -2166,7 +2166,7 @@ impl BlockChainClient for Client {
 			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
 			gas: self.importer.miner.sensible_gas_limit(),
-			gas_price: gas_price,
+			gas_price,
 			value: U256::zero(),
 			data: data,
 		};
