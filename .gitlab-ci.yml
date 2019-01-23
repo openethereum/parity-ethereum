@@ -35,16 +35,21 @@ variables:
   - export VERSION
   - echo "Version = ${VERSION}"
 
-test-build-darwin:
+test-linux:
   stage:                           test
   variables:
-    CARGO_TARGET:                  x86_64-apple-darwin
-    CC:                            gcc
-    CXX:                           g++
+    RUN_TESTS:                     all
   script:
-    - scripts/gitlab/build-unix.sh
+    - scripts/gitlab/test-all.sh stable
   tags:
-    - rust-osx
+    - rust-stable
+
+test-audit:
+  stage:                           test
+  script:
+    - scripts/gitlab/cargo-audit.sh
+  tags:
+    - rust-stable
 
 build-linux:
   stage:                           build
