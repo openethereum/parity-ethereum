@@ -46,22 +46,6 @@ test-build-darwin:
   tags:
     - rust-osx
 
-test-linux:
-  stage:                           test
-  variables:
-    RUN_TESTS:                     all
-  script:
-    - scripts/gitlab/test-all.sh stable
-  tags:
-    - rust-stable
-
-test-audit:
-  stage:                           test
-  script:
-    - scripts/gitlab/cargo-audit.sh
-  tags:
-    - rust-stable
-
 build-linux:
   stage:                           build
   only:                            *releaseable_branches
