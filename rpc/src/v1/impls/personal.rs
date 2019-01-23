@@ -41,7 +41,7 @@ use v1::types::{
 use v1::metadata::Metadata;
 use eip_712::{EIP712, hash_structured_data};
 use jsonrpc_core::types::Value;
-use transaction::SignedTransaction;
+use types::transaction::SignedTransaction;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
