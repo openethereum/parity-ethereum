@@ -6,7 +6,7 @@ EVM implementation for Parity.
 
 ```
 EVM implementation for Parity.
-  Copyright 2015-2018 Parity Technologies (UK) Ltd.
+  Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
     parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
