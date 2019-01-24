@@ -28,8 +28,7 @@ use types::transaction::{SignedTransaction, PendingTransaction};
 use jsonrpc_core::{Result, BoxFuture, Error};
 use jsonrpc_core::futures::{future, Future, IntoFuture};
 use jsonrpc_core::futures::future::Either;
-use jsonrpc_pubsub::SubscriptionId;
-use jsonrpc_macros::pubsub::{Sink, Subscriber};
+use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
 use v1::helpers::dispatch::{self, Dispatcher, WithToken, eth_data_hash};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest, Subscribers};
 use v1::metadata::Metadata;
@@ -255,7 +254,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 		self.subscribers.lock().push(sub)
 	}
 
-	fn unsubscribe_pending(&self, id: SubscriptionId) -> Result<bool> {
+	fn unsubscribe_pending(&self, _: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
 		let res = self.subscribers.lock().remove(&id).is_some();
 		Ok(res)
 	}

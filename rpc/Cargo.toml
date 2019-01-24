@@ -28,10 +28,10 @@ transient-hashmap = "0.4"
 itertools = "0.5"
 
 jsonrpc-core = { path = "/home/andrew/code/paritytech/jsonrpc/core" }
+jsonrpc-derive = { path = "/home/andrew/code/paritytech/jsonrpc/derive" }
 jsonrpc-http-server = { path = "/home/andrew/code/paritytech/jsonrpc/http" }
 jsonrpc-ws-server = { path = "/home/andrew/code/paritytech/jsonrpc/ws" }
 jsonrpc-ipc-server = { path = "/home/andrew/code/paritytech/jsonrpc/ipc" }
-jsonrpc-macros = { path = "/home/andrew/code/paritytech/jsonrpc/macros" }
 jsonrpc-pubsub = { path = "/home/andrew/code/paritytech/jsonrpc/pubsub" }
 
 common-types = { path = "../ethcore/types" }
