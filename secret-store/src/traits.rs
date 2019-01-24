@@ -40,6 +40,10 @@ pub trait ServerKeyGenerator {
 	/// `threshold + 1` is the minimal number of nodes, required to restore private key.
 	/// Result is a public portion of SK.
 	fn generate_key(&self, key_id: &ServerKeyId, author: &Requester, threshold: usize) -> Result<Public, Error>;
+	/// Retrieve public portion of previously generated SK.
+	/// `key_id` is identifier of previously generated SK.
+	/// `author` is the same author, that has created the server key.
+	fn restore_key_public(&self, key_id: &ServerKeyId, author: &Requester) -> Result<Public, Error>;
 }
 
 /// Document key (DK) server.
