@@ -58,7 +58,7 @@ pub struct ImportFromGethAccounts {
 
 #[cfg(not(feature = "accounts"))]
 pub fn execute(cmd: AccountCmd) -> Result<String, String> {
-		Err("Account management is deprecated. Please see #9997 for alternatives:\nhttps://github.com/paritytech/parity-ethereum/issues/9997".into()a)
+		Err("Account management is deprecated. Please see #9997 for alternatives:\nhttps://github.com/paritytech/parity-ethereum/issues/9997".into())
 }
 
 #[cfg(feature = "accounts")]
