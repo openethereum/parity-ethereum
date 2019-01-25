@@ -2749,7 +2749,7 @@ dependencies = [
 [[package]]
 name = "parity-util-mem"
 version = "0.1.0"
-source = "git+https://github.com/cheme/parity-common?branch=deprecate_heapsize#81b2da10d435e710d41dc792b223c84d192028a8"
+source = "git+https://github.com/cheme/parity-common?branch=deprecate_heapsize#df840886bf9e4e19a025642b97e09d744956bd66"
 dependencies = [
  "cfg-if 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "clear_on_drop 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
