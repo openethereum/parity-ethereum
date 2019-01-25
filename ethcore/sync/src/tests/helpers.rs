@@ -122,7 +122,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 
 	fn peer_info(&self, peer_id: PeerId) -> ClientVersion {
 		let client_id = self.peers_info.get(&peer_id)
-         	.cloned()
+			.cloned()
 			.unwrap_or_else(|| peer_id.to_string());
 
 		ClientVersion::from(client_id)

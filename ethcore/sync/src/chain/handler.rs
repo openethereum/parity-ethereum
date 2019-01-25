@@ -22,7 +22,7 @@ use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
 use hash::keccak;
-use network::{PeerId};
+use network::PeerId;
 use network::client_version::ClientVersion;
 use rlp::Rlp;
 use snapshot::ChunkType;
