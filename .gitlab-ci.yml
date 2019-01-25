@@ -45,7 +45,7 @@ test-macos:
   script:
     - scripts/gitlab/test-all.sh stable
   tags:
-    - rust-stable
+    - rust-osx
 
 test-linux:
   stage:                           test
