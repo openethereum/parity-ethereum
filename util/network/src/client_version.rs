@@ -137,8 +137,13 @@ fn is_parity(client_id: &str) -> bool {
 fn parse_parity_format(client_version: &str) -> Result<ParityClientData, ()> {
 	let tokens: Vec<&str> = client_version.split("/").collect();
 
+
 	// Basically strip leading 'v'
 	if let Some(version_number) = &get_number_from_version(tokens[1]) {
+		if tokens.len() < 4 {
+			return Err(());
+		}
+
 		return Ok(
 			ParityClientData {
 				name: tokens[0].to_string(),
@@ -149,6 +154,10 @@ fn parse_parity_format(client_version: &str) -> Result<ParityClientData, ()> {
 			}
 		);
 	} else if let Some(version_number) = &get_number_from_version(tokens[2]) {
+		if tokens.len() < 5 {
+			return Err(());
+		}
+
 		return Ok(
 			ParityClientData {
 				name: tokens[0].to_string(),
@@ -325,6 +334,39 @@ pub mod tests {
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
 			PARITY_CLIENT_COMPILER);
+
+		let client_version = ClientVersion::from(client_version_string.as_str());
+
+		let parity_unknown = ClientVersion::ParityUnknownFormat(client_version_string.to_string());
+
+		assert_eq!(client_version, parity_unknown);
+	}
+
+	#[test]
+	pub fn client_version_when_parity_format_without_variant_and_missing_compiler_field_then_equals_parity_unknown_client_version_string() {
+		let client_version_string = format!(
+			"{}/v{}/{}",
+			PARITY_CLIENT_ID_PREFIX,
+			PARITY_CLIENT_SEMVER,
+			PARITY_CLIENT_OS,
+			);
+
+		let client_version = ClientVersion::from(client_version_string.as_str());
+
+		let parity_unknown = ClientVersion::ParityUnknownFormat(client_version_string.to_string());
+
+		assert_eq!(client_version, parity_unknown);
+	}
+
+	#[test]
+	pub fn client_version_when_parity_format_with_variant_and_missing_compiler_field_then_equals_parity_unknown_client_version_string() {
+		let client_version_string = format!(
+			"{}/{}/v{}/{}",
+			PARITY_CLIENT_ID_PREFIX,
+			PARITY_CLIENT_VARIANT,
+			PARITY_CLIENT_SEMVER,
+			PARITY_CLIENT_OS,
+			);
 
 		let client_version = ClientVersion::from(client_version_string.as_str());
 
