@@ -31,7 +31,6 @@ use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::EngineClient;
 use header::{Header, BlockNumber};
 use machine::{AuxiliaryData, Call, EthereumMachine};
-use ethjson::spec::authority_round::ConsensusKind;
 
 #[cfg(test)]
 pub use self::test::TestSet;
@@ -45,10 +44,8 @@ use super::SystemCall;
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
 	match spec {
 		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
-		ValidatorSpec::SafeContractCallGetPendingValidators(address) => Box::new(ValidatorSafeContract::new(address.into(), ConsensusKind::Pos)),
-		ValidatorSpec::SafeContract(address) => Box::new(ValidatorSafeContract::new(address.into(), ConsensusKind::Poa)),
-		ValidatorSpec::Contract(address) => Box::new(ValidatorContract::new(address.into(), ConsensusKind::Poa)),
-		ValidatorSpec::ContractCallGetPendingValidators(address) => Box::new(ValidatorContract::new(address.into(), ConsensusKind::Pos)),
+		ValidatorSpec::SafeContract(address) => Box::new(ValidatorSafeContract::new(address.into())),
+		ValidatorSpec::Contract(address) => Box::new(ValidatorContract::new(address.into())),
 		ValidatorSpec::Multi(sequence) => Box::new(
 			Multi::new(sequence.into_iter().map(|(block, set)| (block.into(), new_validator_set(set))).collect())
 		),

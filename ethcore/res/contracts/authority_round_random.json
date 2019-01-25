@@ -1,5 +1,4 @@
-[
-	{
+[{
 		"constant": true,
 		"inputs": [],
 		"name": "COMMIT_PHASE_LENGTH",
