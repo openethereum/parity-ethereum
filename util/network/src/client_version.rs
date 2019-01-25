@@ -75,7 +75,7 @@ pub enum ClientVersion {
 	ParityClient(
 		ParityClientData
 	),
-
+	ParityUnknownFormat(String),
 	Other(String), // Id string
 }
 
@@ -103,7 +103,8 @@ impl ClientCapabilities for ClientVersion {
 					true
 				}
 			},
-			_ => true // As far as we know
+			ClientVersion::ParityUnknownFormat(_) => false, // Play it safe
+			ClientVersion::Other(_) => true // As far as we know
 		}
 	}
 
@@ -111,7 +112,8 @@ impl ClientCapabilities for ClientVersion {
 	fn accepts_service_transaction(&self) -> bool {
 		match self {
 			ClientVersion::ParityClient(data) => parity_accepts_service_transaction(&data),
-			_ => false
+			ClientVersion::ParityUnknownFormat(_) => false,
+			ClientVersion::Other(_) => false
 		}
 	}
 
@@ -132,13 +134,12 @@ fn is_parity(client_id: &str) -> bool {
 // allow for an extra argument between identifier and
 // version
 // TODO implement a better logic
-fn parse_parity_format(client_version: &str) -> ClientVersion {
+fn parse_parity_format(client_version: &str) -> Result<ParityClientData, ()> {
 	let tokens: Vec<&str> = client_version.split("/").collect();
 
 	// Basically strip leading 'v'
 	if let Some(version_number) = &get_number_from_version(tokens[1]) {
-
-		return ClientVersion::ParityClient(
+		return Ok(
 			ParityClientData {
 				name: tokens[0].to_string(),
 				variant: None,
@@ -148,8 +149,7 @@ fn parse_parity_format(client_version: &str) -> ClientVersion {
 			}
 		);
 	} else if let Some(version_number) = &get_number_from_version(tokens[2]) {
-
-		return ClientVersion::ParityClient(
+		return Ok(
 			ParityClientData {
 				name: tokens[0].to_string(),
 				variant: Some(tokens[1].to_string()),
@@ -159,22 +159,26 @@ fn parse_parity_format(client_version: &str) -> ClientVersion {
 			}
 		);
 	} else {
-		// We should be able to signal an invalid result,
-		// but because we are calling this function in impl From...
-		// we must return a result. TryFrom should give us flexibility
-		return ClientVersion::Other(client_version.to_string());
+		return Err(());
 	}
 }
 
 // Parses a version string and returns the corresponding
 // ClientVersion. Only Parity clients are destructured right now.
+// The parsing for parity may still fail, in which case return an Other with
+// the original version string. TryFrom would be a better trait to implement.
+
 impl From<&str> for ClientVersion {
-	fn from(client_version: &str) -> Self{
+	fn from(client_version: &str) -> Self {
 		if !is_parity(client_version) {
 			return ClientVersion::Other(client_version.to_string());
 		}
 
-		parse_parity_format(client_version)
+		if let Ok(data) = parse_parity_format(client_version) {
+			ClientVersion::ParityClient(data)
+		} else {
+			ClientVersion::ParityUnknownFormat(client_version.to_string())
+		}
 	}
 }
 
@@ -200,6 +204,7 @@ impl fmt::Display for ClientVersion {
 	fn fmt(&self, f: &mut fmt::Formatter) -> std::fmt::Result {
 		match self {
 			ClientVersion::ParityClient(data) => format_parity_version_string(data, f),
+			ClientVersion::ParityUnknownFormat(id) => write!(f, "{}", id),
 			ClientVersion::Other(id) => write!(f, "{}", id)
 		}
 	}
@@ -312,7 +317,7 @@ pub mod tests {
 	}
 
 	#[test]
-	pub fn client_version_when_parity_format_and_invalid_then_equals_other() {
+	pub fn client_version_when_parity_format_and_invalid_then_equals_parity_unknown_client_version_string() {
 		// This is invalid because version has no leading 'v'
 		let client_version_string = format!(
 			"{}/{}/{}/{}",
@@ -323,15 +328,13 @@ pub mod tests {
 
 		let client_version = ClientVersion::from(client_version_string.as_str());
 
-		let other = ClientVersion::Other(client_version_string.to_string());
+		let parity_unknown = ClientVersion::ParityUnknownFormat(client_version_string.to_string());
 
-		assert_eq!(client_version, other);
+		assert_eq!(client_version, parity_unknown);
 	}
 
 	#[test]
 	pub fn client_version_when_not_parity_format_and_valid_then_other_with_client_version_string() {
-		// We don't support this format yet, simply expect an empty structure.
-		// Unfortunately, From must return a result, and TryFrom is still experimental.
 		let client_version_string = "Geth/main.jnode.network/v1.8.21-stable-9dc5d1a9/linux";
 
 		let client_version = ClientVersion::from(client_version_string);
