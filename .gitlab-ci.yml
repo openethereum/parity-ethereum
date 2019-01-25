@@ -146,8 +146,9 @@ build-android:
   script:
     - scripts/gitlab/build-unix.sh
   tags:
-    - rust-arm
+    - linux-docker
   allow_failure:                   true
+  <<:                              *collect_artifacts
 
 test-beta:
   stage:                           optional

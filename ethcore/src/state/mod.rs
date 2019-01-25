@@ -539,6 +539,13 @@ impl<B: Backend> State<B> {
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
+	/// Whether the base storage root of an account remains unchanged.
+	pub fn is_base_storage_root_unchanged(&self, a: &Address) -> TrieResult<bool> {
+		Ok(self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map(|account| account.is_base_storage_root_unchanged()))?
+			.unwrap_or(true))
+	}
+
 	/// Get the storage root of account `a`.
 	pub fn storage_root(&self, a: &Address) -> TrieResult<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,

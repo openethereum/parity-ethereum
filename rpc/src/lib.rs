@@ -114,7 +114,7 @@ pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestCon
 pub use http::{
 	hyper,
 	RequestMiddleware, RequestMiddlewareAction,
-	AccessControlAllowOrigin, Host, DomainsValidation
+	AccessControlAllowOrigin, Host, DomainsValidation, cors::AccessControlAllowHeaders
 };
 
 pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer};
@@ -151,6 +151,7 @@ pub fn start_http<M, S, H, T>(
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
 		.health_api(("/api/health", "parity_nodeStatus"))
+		.cors_allow_headers(AccessControlAllowHeaders::Any)
 		.max_request_body_size(max_payload * 1024 * 1024)
 		.start_http(addr)?)
 }
@@ -180,6 +181,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 		.threads(threads)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
+		.cors_allow_headers(AccessControlAllowHeaders::Any)
 		.max_request_body_size(max_payload * 1024 * 1024)
 		.request_middleware(middleware)
 		.start_http(addr)?)

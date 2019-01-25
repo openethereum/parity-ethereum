@@ -18,6 +18,7 @@ extern crate byteorder;
 extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate ethkey;
