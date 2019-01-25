@@ -38,13 +38,18 @@ use std::fmt;
 /// "Geth/main.jnode.network/v1.8.21-stable-9dc5d1a9/linux-amd64/go1.11.4"
 
 #[derive(Clone,Debug,PartialEq,Eq)]
+pub struct ParityClientData {
+	name: String,
+	variant: Option<String>,
+	semver: Version,
+	os: String,
+	compiler: String,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub enum ClientVersion {
 	ParityClient(
-		String, // Name
-		Option<String>, // Variant
-		Version, // Semver
-		String, // OS
-		String, // Compiler
+		ParityClientData
 	),
 
 	Other(String), // Id string
@@ -53,35 +58,35 @@ pub enum ClientVersion {
 impl ClientVersion {
 	fn name(&self) -> Option<&str> {
 		match self {
-			ClientVersion::ParityClient(name, _, _, _, _) => Some(name.as_str()),
+			ClientVersion::ParityClient(ref data) => Some(data.name.as_ref()),
 			_ => None
 		}
 	}
 
 	fn variant(&self) -> Option<&str> {
 		match self {
-			ClientVersion::ParityClient(_, variant, _, _, _) => variant.as_ref().map(|s| s.as_str()),
+			ClientVersion::ParityClient(data) => data.variant.as_ref().map(|s| s.as_ref()),
 			_ => None
 		}
 	}
 
 	fn semver(&self) -> Option<&Version> {
 		match self {
-			ClientVersion::ParityClient(_, _, semver, _, _) => Some(&semver),
+			ClientVersion::ParityClient(data) => Some(&data.semver),
 			_ => None
 		}
 	}
 
 	fn os(&self) -> Option<&str> {
 		match self {
-			ClientVersion::ParityClient(_, _, _, os, _) => Some(os.as_str()),
+			ClientVersion::ParityClient(data) => Some(data.os.as_ref()),
 			_ => None
 		}
 	}
 
 	fn compiler(&self) -> Option<&str> {
 		match self {
-			ClientVersion::ParityClient(_, _, _, _, compiler) => Some(compiler.as_str()),
+			ClientVersion::ParityClient(data) => Some(data.compiler.as_ref()),
 			_ => None
 		}
 	}
@@ -97,10 +102,10 @@ pub trait ClientCapabilities {
 // This is a implementation of a function taken from propagator.rs
 fn parity_accepts_service_transaction(client_version: &ClientVersion) -> bool {
 	match client_version {
-		ClientVersion::ParityClient(_, _, semver, _, _) => {
+		ClientVersion::ParityClient(data) => {
 			let service_transactions_version = Version::parse(SERVICE_TRANSACTIONS_VERSION).unwrap();
 
-			semver >= &service_transactions_version
+			data.semver >= service_transactions_version
 		},
 		_ => panic!("should not really be here")
 	}
@@ -109,8 +114,8 @@ fn parity_accepts_service_transaction(client_version: &ClientVersion) -> bool {
 impl ClientCapabilities for ClientVersion {
 	fn can_handle_large_requests(&self) -> bool {
 		match self {
-			ClientVersion::ParityClient(_, _, semver, _, _) => {
-				if *semver < Version::parse(PARITY_CLIENT_LARGE_REQUESTS_VERSION).unwrap() {
+			ClientVersion::ParityClient(data) => {
+				if data.semver < Version::parse(PARITY_CLIENT_LARGE_REQUESTS_VERSION).unwrap() {
 					false
 				} else {
 					true
@@ -123,7 +128,7 @@ impl ClientCapabilities for ClientVersion {
 	/// Checks if peer is able to process service transactions
 	fn accepts_service_transaction(&self) -> bool {
 		match self {
-			ClientVersion::ParityClient(_, _, _, _, _) => parity_accepts_service_transaction(&self),
+			ClientVersion::ParityClient(_) => parity_accepts_service_transaction(&self),
 			_ => false
 		}
 	}
@@ -152,20 +157,24 @@ fn parse_parity_format(client_version: &str) -> ClientVersion {
 	if let Some(version_number) = &get_number_from_version(tokens[1]) {
 
 		return ClientVersion::ParityClient(
-			tokens[0].to_string(),
-			None,
-			Version::parse(version_number).unwrap(),
-			tokens[2].to_string(),
-			tokens[3].to_string()
+			ParityClientData {
+				name: tokens[0].to_string(),
+				variant: None,
+				semver: Version::parse(version_number).unwrap(),
+				os: tokens[2].to_string(),
+				compiler: tokens[3].to_string(),
+			}
 		);
 	} else if let Some(version_number) = &get_number_from_version(tokens[2]) {
 
 		return ClientVersion::ParityClient(
-			tokens[0].to_string(),
-			Some(tokens[1].to_string()),
-			Version::parse(version_number).unwrap(),
-			tokens[3].to_string(),
-			tokens[4].to_string()
+			ParityClientData {
+				name: tokens[0].to_string(),
+				variant: Some(tokens[1].to_string()),
+				semver: Version::parse(version_number).unwrap(),
+				os: tokens[3].to_string(),
+				compiler: tokens[4].to_string(),
+			}
 		);
 	} else {
 		// We should be able to signal an invalid result,
@@ -196,10 +205,11 @@ impl From<String> for ClientVersion {
 impl fmt::Display for ClientVersion {
 	fn fmt(&self, f: &mut fmt::Formatter) -> std::fmt::Result {
 		match self {
-			ClientVersion::ParityClient(name, None, semver, os, compiler) => {
+			ClientVersion::ParityClient(ParityClientData{name, variant: None, semver, os, compiler}) => {
 				write!(f, "{}/v{}/{}/{}", name, semver, os, compiler)
 			},
-			ClientVersion::ParityClient(name, Some(variant), semver, os, compiler) => {
+
+			ClientVersion::ParityClient(ParityClientData{name, variant: Some(variant), semver, os, compiler}) => {
 				write!(f, "{}/{}/v{}/{}/{}", name, variant, semver, os, compiler)
 			},
 			ClientVersion::Other(id) => {

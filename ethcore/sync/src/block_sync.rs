@@ -30,7 +30,7 @@ use sync_io::SyncIo;
 use blocks::{BlockCollection, SyncBody, SyncHeader};
 use chain::BlockSet;
 use network::PeerId;
-use network::client_version::{ClientCapabilities, ClientVersion};
+use network::client_version::ClientCapabilities;
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
 const MAX_BODIES_TO_REQUEST_LARGE: usize = 128;
