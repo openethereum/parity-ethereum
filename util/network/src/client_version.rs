@@ -86,7 +86,7 @@ pub trait ClientCapabilities {
 	fn accepts_service_transaction(&self) -> bool;
 }
 
-// This is a implementation of a function taken from propagator.rs
+// This is an implementation of a function taken from propagator.rs
 fn parity_accepts_service_transaction(parity_client_data: &ParityClientData) -> bool {
 	let service_transactions_version = Version::parse(SERVICE_TRANSACTIONS_VERSION).unwrap();
 
@@ -359,7 +359,7 @@ pub mod tests {
 
 	#[test]
 	pub fn client_capabilities_when_parity_old_version_then_handles_large_requests_false() {
-		let mut client_version_string: String = make_old_semver_version_string();
+		let client_version_string: String = make_old_semver_version_string();
 
 		let client_version = ClientVersion::from(client_version_string.as_str());
 
