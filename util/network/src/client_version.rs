@@ -46,6 +46,30 @@ pub struct ParityClientData {
 	compiler: String,
 }
 
+// Accessor methods for ParityClientData. This will probably
+// need to be abstracted away into a trait.
+impl ParityClientData {
+	fn name(&self) -> &str {
+		self.name.as_str()
+	}
+
+	fn variant(&self) -> Option<&str> {
+		self.variant.as_ref().map(String::as_str)
+	}
+
+	fn semver(&self) -> &Version {
+		&self.semver
+	}
+
+	fn os(&self) -> &str {
+		self.os.as_str()
+	}
+
+	fn compiler(&self) -> &str {
+		self.compiler.as_str()
+	}
+}
+
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum ClientVersion {
 	ParityClient(
@@ -53,43 +77,6 @@ pub enum ClientVersion {
 	),
 
 	Other(String), // Id string
-}
-
-impl ClientVersion {
-	fn name(&self) -> Option<&str> {
-		match self {
-			ClientVersion::ParityClient(ref data) => Some(data.name.as_ref()),
-			_ => None
-		}
-	}
-
-	fn variant(&self) -> Option<&str> {
-		match self {
-			ClientVersion::ParityClient(data) => data.variant.as_ref().map(|s| s.as_ref()),
-			_ => None
-		}
-	}
-
-	fn semver(&self) -> Option<&Version> {
-		match self {
-			ClientVersion::ParityClient(data) => Some(&data.semver),
-			_ => None
-		}
-	}
-
-	fn os(&self) -> Option<&str> {
-		match self {
-			ClientVersion::ParityClient(data) => Some(data.os.as_ref()),
-			_ => None
-		}
-	}
-
-	fn compiler(&self) -> Option<&str> {
-		match self {
-			ClientVersion::ParityClient(data) => Some(data.compiler.as_ref()),
-			_ => None
-		}
-	}
 }
 
 // TODO: Maybe merge with Peercapabilityinfo in ethcore-network?
@@ -100,22 +87,17 @@ pub trait ClientCapabilities {
 }
 
 // This is a implementation of a function taken from propagator.rs
-fn parity_accepts_service_transaction(client_version: &ClientVersion) -> bool {
-	match client_version {
-		ClientVersion::ParityClient(data) => {
-			let service_transactions_version = Version::parse(SERVICE_TRANSACTIONS_VERSION).unwrap();
+fn parity_accepts_service_transaction(parity_client_data: &ParityClientData) -> bool {
+	let service_transactions_version = Version::parse(SERVICE_TRANSACTIONS_VERSION).unwrap();
 
-			data.semver >= service_transactions_version
-		},
-		_ => panic!("should not really be here")
-	}
+	*parity_client_data.semver() >= service_transactions_version
 }
 
 impl ClientCapabilities for ClientVersion {
 	fn can_handle_large_requests(&self) -> bool {
 		match self {
 			ClientVersion::ParityClient(data) => {
-				if data.semver < Version::parse(PARITY_CLIENT_LARGE_REQUESTS_VERSION).unwrap() {
+				if *data.semver() < Version::parse(PARITY_CLIENT_LARGE_REQUESTS_VERSION).unwrap() {
 					false
 				} else {
 					true
@@ -128,7 +110,7 @@ impl ClientCapabilities for ClientVersion {
 	/// Checks if peer is able to process service transactions
 	fn accepts_service_transaction(&self) -> bool {
 		match self {
-			ClientVersion::ParityClient(_) => parity_accepts_service_transaction(&self),
+			ClientVersion::ParityClient(data) => parity_accepts_service_transaction(&data),
 			_ => false
 		}
 	}
@@ -202,19 +184,23 @@ impl From<String> for ClientVersion {
 	}
 }
 
+fn format_parity_version_string(client_version: &ParityClientData, f: &mut fmt::Formatter) -> std::fmt::Result {
+	let name = client_version.name();
+	let semver = client_version.semver();
+	let os = client_version.os();
+	let compiler = client_version.compiler();
+
+	match client_version.variant() {
+		None => write!(f, "{}/v{}/{}/{}", name, semver, os, compiler),
+		Some(variant) => write!(f, "{}/{}/v{}/{}/{}", name, variant, semver, os, compiler),
+	}
+}
+
 impl fmt::Display for ClientVersion {
 	fn fmt(&self, f: &mut fmt::Formatter) -> std::fmt::Result {
 		match self {
-			ClientVersion::ParityClient(ParityClientData{name, variant: None, semver, os, compiler}) => {
-				write!(f, "{}/v{}/{}/{}", name, semver, os, compiler)
-			},
-
-			ClientVersion::ParityClient(ParityClientData{name, variant: Some(variant), semver, os, compiler}) => {
-				write!(f, "{}/{}/v{}/{}/{}", name, variant, semver, os, compiler)
-			},
-			ClientVersion::Other(id) => {
-				write!(f, "{}", id)
-			},
+			ClientVersion::ParityClient(data) => format_parity_version_string(data, f),
+			ClientVersion::Other(id) => write!(f, "{}", id)
 		}
 	}
 }
@@ -286,37 +272,43 @@ pub mod tests {
 	pub fn client_version_when_str_parity_format_and_valid_then_all_fields_match() {
 		let client_version_string = make_default_version_string();
 
-		let client_version = ClientVersion::from(client_version_string.as_str());
-
-		assert_eq!(client_version.name().unwrap(), PARITY_CLIENT_ID_PREFIX);
-		assert_eq!(*client_version.semver().unwrap(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
-		assert_eq!(client_version.os().unwrap(), PARITY_CLIENT_OS);
-		assert_eq!(client_version.compiler().unwrap(), PARITY_CLIENT_COMPILER);
+		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
+			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
+			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
+			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
+			assert_eq!(client_version.compiler(), PARITY_CLIENT_COMPILER);
+		} else {
+			panic!("shouldn't be here");
+		}
 	}
 
 	#[test]
 	pub fn client_version_when_str_parity_long_format_and_valid_then_all_fields_match() {
 		let client_version_string = make_default_long_version_string();
 
-		let client_version = ClientVersion::from(client_version_string.as_str());
-
-		assert_eq!(client_version.name().unwrap(), PARITY_CLIENT_ID_PREFIX);
-		assert_eq!(client_version.variant().unwrap(), PARITY_CLIENT_VARIANT);
-		assert_eq!(*client_version.semver().unwrap(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
-		assert_eq!(client_version.os().unwrap(), PARITY_CLIENT_OS);
-		assert_eq!(client_version.compiler().unwrap(), PARITY_CLIENT_COMPILER);
+		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
+			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
+			assert_eq!(client_version.variant().unwrap(), PARITY_CLIENT_VARIANT);
+			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
+			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
+			assert_eq!(client_version.compiler(), PARITY_CLIENT_COMPILER);
+		} else {
+			panic!("shouldnt be here");
+		}
 	}
 
 	#[test]
 	pub fn client_version_when_string_parity_format_and_valid_then_all_fields_match() {
 		let client_version_string: String = make_default_version_string();
 
-		let client_version = ClientVersion::from(client_version_string.as_str());
-
-		assert_eq!(client_version.name().unwrap(), PARITY_CLIENT_ID_PREFIX);
-		assert_eq!(*client_version.semver().unwrap(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
-		assert_eq!(client_version.os().unwrap(), PARITY_CLIENT_OS);
-		assert_eq!(client_version.compiler().unwrap(), PARITY_CLIENT_COMPILER);
+		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
+			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
+			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
+			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
+			assert_eq!(client_version.compiler(), PARITY_CLIENT_COMPILER);
+		} else {
+			panic!("shouldn't be here");
+		}
 	}
 
 	#[test]
@@ -337,34 +329,14 @@ pub mod tests {
 	}
 
 	#[test]
-	pub fn client_version_when_not_parity_format_and_valid_then_fields_none() {
+	pub fn client_version_when_not_parity_format_and_valid_then_other_with_client_version_string() {
 		// We don't support this format yet, simply expect an empty structure.
 		// Unfortunately, From must return a result, and TryFrom is still experimental.
-		let client_name = "Geth";
-		let network_name = "main.jnode.network";
-		let client_semver = "v1.8.21-stable-9dc5d1a9";
-		let client_os = "linux";
-		let client_compiler = "go";
+		let client_version_string = "Geth/main.jnode.network/v1.8.21-stable-9dc5d1a9/linux";
 
-		let client_version_string = format!(
-			"{}/{}/{}/{}/{}",
-			client_name,
-			network_name,
-			client_semver,
-			client_os,
-			client_compiler);
+		let client_version = ClientVersion::from(client_version_string);
 
-		let client_version = ClientVersion::from(client_version_string.as_str());
-
-		match client_version {
-			ClientVersion::Other(_) => {
-				assert!(client_version.name().is_none());
-				assert!(client_version.compiler().is_none());
-				assert!(client_version.os().is_none());
-				assert!(client_version.semver().is_none());
-			},
-			_ => panic!("Expected Other")
-		}
+		assert_eq!(client_version, ClientVersion::Other(client_version_string.to_string()));
 	}
 
 	#[test]
