@@ -148,6 +148,7 @@ extern crate evm;
 extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;
+extern crate core;
 
 pub mod account_provider;
 pub mod block;
