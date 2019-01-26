@@ -146,7 +146,7 @@ impl InformantData for FullNodeInformantData {
 			(Some(sync), Some(net)) => {
 				let status = sync.status();
 				let num_peers_range = net.num_peers_range();
-				debug_assert!(num_peers_range.end > num_peers_range.start);
+				debug_assert!(num_peers_range.end() >= num_peers_range.start());
 
 				cache_sizes.insert("sync", status.mem_used);
 
@@ -154,7 +154,7 @@ impl InformantData for FullNodeInformantData {
 					last_imported_block_number: status.last_imported_block_number.unwrap_or(chain_info.best_block_number),
 					last_imported_old_block_number: status.last_imported_old_block_number,
 					num_peers: status.num_peers,
-					max_peers: status.current_max_peers(num_peers_range.start, num_peers_range.end - 1),
+					max_peers: status.current_max_peers(*num_peers_range.start(), *num_peers_range.end()),
 					snapshot_sync: status.is_snapshot_syncing(),
 				})
 			}
