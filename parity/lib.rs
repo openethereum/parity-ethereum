@@ -46,6 +46,7 @@ extern crate common_types as types;
 extern crate parity_bytes as bytes;
 extern crate ethcore;
 extern crate ethcore_call_contract as call_contract;
+extern crate ethcore_chain_notify as chain_notify;
 extern crate ethcore_db;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;

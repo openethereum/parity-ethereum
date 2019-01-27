@@ -697,6 +697,7 @@ dependencies = [
  "ethcore-bloom-journal 0.1.0",
  "ethcore-call-contract 0.1.0",
  "ethcore-chain-info 0.1.0",
+ "ethcore-chain-notify 0.1.0",
  "ethcore-db 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-miner 1.12.0",
@@ -803,6 +804,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-chain-notify"
+version = "0.1.0"
+dependencies = [
+ "common-types 0.1.0",
+ "ethcore-blockchain 0.1.0",
+ "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore-db"
 version = "0.1.0"
 dependencies = [
@@ -902,6 +913,7 @@ dependencies = [
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.12.0",
  "ethcore-call-contract 0.1.0",
+ "ethcore-chain-notify 0.1.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "fetch 0.1.0",
@@ -985,6 +997,7 @@ dependencies = [
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
  "ethcore-call-contract 0.1.0",
+ "ethcore-chain-notify 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-miner 1.12.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1024,6 +1037,7 @@ dependencies = [
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
  "ethcore-call-contract 0.1.0",
+ "ethcore-chain-notify 0.1.0",
  "ethcore-sync 1.12.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
@@ -1058,6 +1072,7 @@ dependencies = [
  "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
  "ethcore-blockchain 0.1.0",
+ "ethcore-chain-notify 0.1.0",
  "ethcore-db 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-private-tx 1.0.0",
@@ -1094,6 +1109,7 @@ dependencies = [
  "common-types 0.1.0",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
+ "ethcore-chain-notify 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-light 1.12.0",
  "ethcore-network 1.12.0",
@@ -2420,6 +2436,7 @@ dependencies = [
  "ethcore 1.12.0",
  "ethcore-blockchain 0.1.0",
  "ethcore-call-contract 0.1.0",
+ "ethcore-chain-notify 0.1.0",
  "ethcore-db 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-light 1.12.0",
@@ -2574,6 +2591,7 @@ dependencies = [
  "eip-712 0.1.0",
  "ethash 1.12.0",
  "ethcore 1.12.0",
+ "ethcore-chain-notify 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-light 1.12.0",
  "ethcore-logger 1.12.0",
@@ -2697,6 +2715,7 @@ dependencies = [
  "ethabi-contract 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 6.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
+ "ethcore-chain-notify 0.1.0",
  "ethcore-sync 1.12.0",
  "ethereum-types 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",

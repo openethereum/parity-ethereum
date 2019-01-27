@@ -36,7 +36,6 @@ pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
 pub use self::io_message::ClientIoMessage;
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
     Nonce, Balance, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
@@ -58,5 +57,4 @@ pub use verification::VerifierType;
 
 mod traits;
 
-mod chain_notify;
 mod private_notify;

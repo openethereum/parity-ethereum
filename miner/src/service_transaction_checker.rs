@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
 use call_contract::{RegistryInfo, CallContract};
+use chain_notify::{ChainNotify, NewBlocks};
 use types::ids::BlockId;
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;
@@ -94,5 +95,11 @@ impl ServiceTransactionChecker {
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
 		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
 		decoder.decode(&value).map_err(|e| e.to_string())
+	}
+}
+
+impl ChainNotify for ServiceTransactionChecker {
+	fn new_blocks(&self, new_blocks: NewBlocks) {
+		// self.refresh_cache(client?)
 	}
 }

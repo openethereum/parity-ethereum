@@ -11,6 +11,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 common-types = { path = "../types" }
 env_logger = "0.5"
 ethcore = { path = ".." }
+ethcore-chain-notify = { path = "../chain-notify" }
 ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
 ethcore-network = { path = "../../util/network" }

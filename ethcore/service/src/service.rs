@@ -28,7 +28,8 @@ use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
 use blockchain::{BlockChainDB, BlockChainDBHandler};
-use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
+use chain_notify::ChainNotify;
+use ethcore::client::{Client, ClientConfig, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};

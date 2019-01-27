@@ -23,6 +23,7 @@ ethcore-blockchain = { path = "./blockchain" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-call-contract = { path = "./call-contract" }
 ethcore-chain-info = { path = "./chain-info" }
+ethcore-chain-notify = { path = "./chain-notify" }
 ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
 ethcore-miner = { path = "../miner" }

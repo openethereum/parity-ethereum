@@ -45,6 +45,7 @@ use types::{BlockNumber, header::{Header, ExtendedHeader}};
 use vm::{EnvInfo, LastHashes};
 
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
+use chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainMessageType};
 use client::ancient_import::AncientVerifier;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, TransactionInfo,
@@ -56,7 +57,7 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, Mode,
-	ChainNotify, NewBlocks, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
+	PruningInfo, ProvingBlockChainClient, EngineInfo,
 	IoClient, BadBlocks,
 };
 use client::bad_blocks;
@@ -240,7 +241,8 @@ pub struct Client {
 	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 
 	importer: Importer,
-	certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>,
+
+	service_transaction_checker: Arc<ServiceTransactionChecker>,
 }
 
 impl Importer {
@@ -355,14 +357,6 @@ impl Importer {
 
 		let db = client.db.read();
 		db.key_value().flush().expect("DB flush failed.");
-		match ServiceTransactionChecker::new(client.certified_addresses_cache.clone()).refresh_cache(client) {
-			Ok(s) => if s {
-				trace!(target: "client", "Service transaction cache was refreshed successfully");
-			} else {
-				trace!(target: "client", "Service transactions contract does not exist");
-			},
-			Err(e) => error!(target: "client", "Error occurred while refreshing service transaction cache: {}", e)
-		};
 		imported
 	}
 
@@ -778,6 +772,8 @@ impl Client {
 			trace!(target: "client", "Found registrar at {}", addr);
 		}
 
+		let service_transaction_checker = Arc::new(ServiceTransactionChecker::new(certified_addresses_cache.clone()));
+
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
 			sleep_state: Mutex::new(SleepState::new(awake)),
@@ -805,8 +801,10 @@ impl Client {
 			exit_handler: Mutex::new(None),
 			importer,
 			config,
-			certified_addresses_cache: certified_addresses_cache.clone(),
+			service_transaction_checker: service_transaction_checker.clone(),
 		});
+
+		client.add_notify(service_transaction_checker);
 
 		// prune old states.
 		{
@@ -2168,8 +2166,7 @@ impl BlockChainClient for Client {
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
-		let service_transaction_checker = ServiceTransactionChecker::new(self.certified_addresses_cache.clone());
-		let gas_price = match service_transaction_checker.check_address(self, authoring_params.author) {
+		let gas_price = match self.service_transaction_checker.check_address(self, authoring_params.author) {
 			Ok(true) => U256::zero(),
 			_ => self.importer.miner.sensible_gas_price(),
 		};

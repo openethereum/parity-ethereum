@@ -35,6 +35,7 @@ parity-bytes = "0.1"
 common-types = { path = "ethcore/types" }
 ethcore-blockchain = { path = "ethcore/blockchain" }
 ethcore-call-contract = { path = "ethcore/call-contract"}
+ethcore-chain-notify = { path = "ethcore/chain-notify" }
 ethcore-db = { path = "ethcore/db" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }

@@ -24,7 +24,8 @@ use std::time::Duration;
 
 use v1::{EthPubSub, EthPubSubClient, Metadata};
 
-use ethcore::client::{TestBlockChainClient, EachBlockWith, ChainNotify, NewBlocks, ChainRoute, ChainRouteType};
+use chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType};
+use ethcore::client::{TestBlockChainClient, EachBlockWith};
 use parity_runtime::Runtime;
 
 const DURATION_ZERO: Duration = Duration::from_millis(0);

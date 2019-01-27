@@ -68,6 +68,7 @@ extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_chain_info as chain_info;
+extern crate ethcore_chain_notify as chain_notify;
 extern crate ethcore_db as db;
 extern crate ethcore_io as io;
 extern crate ethcore_miner;

@@ -22,7 +22,7 @@ use ethcore::snapshot::SnapshotService;
 use light::Provider;
 
 pub use sync::{EthSync, SyncProvider, ManageNetwork, PrivateTxHandler};
-pub use ethcore::client::ChainNotify;
+pub use chain_notify::ChainNotify;
 use ethcore_logger::Config as LogConfig;
 
 pub type SyncModules = (
