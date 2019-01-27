@@ -14,6 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+/// How Clique codebase works
+/// 1. mod.rs -> CliqueEngine ,  snapshot.rs -> CliqueBlockState.
+/// CliqueEngine -> {
+///   block_state_by_hash  -> store each block state indexed by their header hash.
+
+/// How syncing works:
+/// 1. Client calls engine.verify_block_family(header).
+/// 2. Engine calls last_state = self.state(parent.hash()), if not found,  trigger an back-fill from last checkpoint.
+/// 3. Engine calls last_state.apply(header)
+/// When executing transactions , Client calls engine.executive_author() to get the correct author.
+
+/// How sealing works:
+
 use core::borrow::Borrow;
 use core::borrow::BorrowMut;
 use std::collections::HashMap;
@@ -65,7 +78,7 @@ lazy_static! {
    static ref SIGNER_BY_HASH: RwLock<LruCache<H256, Address>> = RwLock::new(LruCache::new(SIGNATURE_CACHE_NUM));
 }
 
-// Core Clique State Machine, this should be protected by an RwLock externally.
+/// Clique Engine implementation
 pub struct Clique {
 	epoch_length: u64,
 	period: u64,
@@ -143,7 +156,7 @@ pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
 const step_time: Duration = Duration::from_millis(100);
 
 impl Clique {
-	/// initizlize Clique engine from empty state.
+	/// initialize Clique engine from empty state.
 	pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
 		let engine = Arc::new(
 			Clique {
@@ -172,10 +185,28 @@ impl Clique {
 		}
 	}
 
+	/// Construct an new state from given checkpoint header.
+	#[inline]
+	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
+		assert_eq!(header.number() % self.epoch_length, 0);
+
+		let state = CliqueBlockState::new(
+			recover_creator(header)?,
+			extract_signers(header)?);
+
+		Ok(state)
+	}
+
+	/// get CliqueBlockState for given header, backfill from last checkpoint if needed.
 	fn state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
 		let mut block_state_by_hash = self.block_state_by_hash.write();
 		if let Some(state) = block_state_by_hash.get_mut(&header.hash()) {
 			return Ok(state.clone());
+		}
+		if header.number() % self.epoch_length == 0 {
+			let state = self.new_checkpoint_state(header)?;
+			block_state_by_hash.insert(header.hash().clone(), state.clone());
+			return Ok(state);
 		}
 		// parent BlockState is not found in memory, which means we need to reconstruct state from last
 		// checkpoint.
@@ -185,46 +216,54 @@ impl Clique {
 			}
 			Some(c) => {
 				let last_checkpoint_number = (header.number() / self.epoch_length as u64) * self.epoch_length;
-				let mut chain: &mut Vec<Header> = &mut Vec::new();
-				chain.push(header.clone());
+				assert_ne!(last_checkpoint_number, header.number());
+
+				let mut chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity((header.number() - last_checkpoint_number + 1) as usize);
+
+				// Put ourselves in.
+				chain.push_front(header.clone());
 
 				// populate chain to last checkpoint
-				let mut last = chain.last().unwrap().clone();
+				let mut last = chain.front().unwrap().clone();
 
 				while last.number() != last_checkpoint_number + 1 {
 					match c.block_header(BlockId::Hash(*last.parent_hash())) {
-						Some(next) => {
-							chain.push(next.decode().unwrap().clone());
-							last = chain.last().unwrap().clone();
-						}
 						None => {
 							return Err(From::from(format!("parent block {} of {} could not be recovered.",
 							                              &last.parent_hash(),
 							                              &last.hash())));
 						}
+						Some(next) => {
+							chain.push_front(next.decode().unwrap().clone());
+							last = chain.front().unwrap().clone();
+						}
 					}
 				}
-
-				chain.reverse();
 
 				// Catching up state, note that we don't really store block state for intermediary blocks,
 				// for speed.
 				trace!(target: "engine",
-				       "Back-filling block state. last_checkpoint_number: {}, full_chain: {:?}.",
-				       last_checkpoint_number, chain);
+				       "Back-filling block state. last_checkpoint_number: {}, current_number: {}.",
+				       last_checkpoint_number, header.number());
 
 				// Get the state for last checkpoint.
-				let last_checkpoint_hash = *chain.first().unwrap().parent_hash();
-				let last_checkpoint_header = c.block_header(BlockId::Hash(last_checkpoint_hash))
-					.expect("Unable to find last checkpoint block");
+				let last_checkpoint_hash = *(chain.front().unwrap().parent_hash());
+				let last_checkpoint_header = match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
+					None => return Err(From::from("Unable to find last checkpoint block")),
+					Some(header) => header.decode().unwrap(),
+				};
 
 				let last_checkpoint_state: CliqueBlockState;
+
+				// We probably don't have it cached, but try anyway.
 				if let Some(st) = block_state_by_hash.get_mut(&last_checkpoint_hash) {
 					last_checkpoint_state = (*st).clone();
 				} else {
-					last_checkpoint_state = CliqueBlockState::new(recover_creator(header)?, extract_signers(header)?);
+					last_checkpoint_state = self.new_checkpoint_state(&last_checkpoint_header)?;
 				}
-				block_state_by_hash.insert(last_checkpoint_hash.clone(), last_checkpoint_state.clone());
+				block_state_by_hash.insert(last_checkpoint_header.hash().clone(),last_checkpoint_state.clone());
+
+				// Backfill!
 				let mut new_state = last_checkpoint_state.clone();
 				for item in chain {
 					new_state.apply(item, false)?;
@@ -240,9 +279,9 @@ impl Clique {
 impl Engine<EthereumMachine> for Clique {
 	fn name(&self) -> &str { "Clique" }
 
-	// nonce + mixHash + extraData
-	fn seal_fields(&self, _header: &Header) -> usize { 2 }
 	fn machine(&self) -> &EthereumMachine { &self.machine }
+	/// Clique use same fields, nonce + mixHash
+	fn seal_fields(&self, _header: &Header) -> usize { 2 }
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 //	fn seal_header(&self, header: &mut Header) {
@@ -314,17 +353,41 @@ impl Engine<EthereumMachine> for Clique {
 //		return Some(v);
 //	}
 
-	fn step(&self) {
-		if let Some(ref weak) = *self.client.read() {
-			if let Some(c) = weak.upgrade() {
-				c.update_sealing();
-			}
+	fn on_new_block(
+		&self,
+		_block: &mut ExecutedBlock,
+		_epoch_begin: bool,
+		_ancestry: &mut Iterator<Item=ExtendedHeader>,
+	) -> Result<(), Error> {
+//trace!(target: "engine", "new block {}", _block.header().number());
+
+		/*
+		if let Some(ref mut snapshot) = *self.snapshot.write() {
+			snapshot.rollback();
+		} else {
+			panic!("could not get write access to snapshot");
 		}
+		*/
+
+		/*
+		if let Some(ref mut snapshot) = *self.snapshot.write() {
+			snapshot.apply(_block.header());
+		}
+		*/
+
+		Ok(())
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
-		trace!(target: "engine", "called set_signer");
-		self.signer.write().set(ap, address, password);
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+		/*
+		 * TODO:
+		if not checkpoint block:
+		if the block was successfully sealed, then grab the signature from the seal data and
+		append it to the block extraData
+		*/
+// trace!(target: "engine", "closing block {}...", block.header().number());
+
+		Ok(())
 	}
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
@@ -355,7 +418,7 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 //		// if sealing period is 0, refuse to seal
-		if self.epoch_length == 0 {
+		if self.period == 0 {
 			return Seal::None;
 		}
 //
@@ -396,51 +459,9 @@ impl Engine<EthereumMachine> for Clique {
 		Seal::None
 	}
 
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		/*
-		 * TODO:
-		if not checkpoint block:
-		if the block was successfully sealed, then grab the signature from the seal data and
-		append it to the block extraData
-		*/
-// trace!(target: "engine", "closing block {}...", block.header().number());
-
-		Ok(())
-	}
-
-	fn on_new_block(
-		&self,
-		_block: &mut ExecutedBlock,
-		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item=ExtendedHeader>,
-	) -> Result<(), Error> {
-//trace!(target: "engine", "new block {}", _block.header().number());
-
-		/*
-		if let Some(ref mut snapshot) = *self.snapshot.write() {
-			snapshot.rollback();
-		} else {
-			panic!("could not get write access to snapshot");
-		}
-		*/
-
-		/*
-		if let Some(ref mut snapshot) = *self.snapshot.write() {
-			snapshot.apply(_block.header());
-		}
-		*/
-
-		Ok(())
-	}
-
-	fn executive_author(&self, header: &Header) -> Address {
-// Should have been verified now.
-		return recover_creator(header).unwrap();
-	}
+	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> { Ok(()) }
 
 	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
-//trace!(target: "engine", "called verify_block_basic for block {}", _header.number());
-
 // Ignore genisis block.
 		if _header.number() == 0 {
 			return Ok(());
@@ -473,13 +494,6 @@ impl Engine<EthereumMachine> for Clique {
 		Ok(())
 	}
 
-//	fn on_block_applied(&self, header: &Header) -> Result<(), Error> {
-//		self.snapshot.apply(&header);
-//		self.snapshot.commit();
-//
-//		Ok(())
-//	}
-
 	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
 // Verifying the genesis block is not supported
 // Retrieve the snapshot needed to verify this header and cache it
@@ -491,10 +505,28 @@ impl Engine<EthereumMachine> for Clique {
 	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		let parent_state = self.state(&parent)?;
+
 		let mut new_state = parent_state.clone();
 		new_state.apply(header, header.number() % self.epoch_length == 0)?;
 		self.block_state_by_hash.write().insert(header.hash(), new_state);
+
 		Ok(())
+	}
+
+//	fn on_block_applied(&self, header: &Header) -> Result<(), Error> {
+//		self.snapshot.apply(&header);
+//		self.snapshot.commit();
+//
+//		Ok(())
+//	}
+
+	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
+		let state = CliqueBlockState::new(
+			recover_creator(header).expect("Unable to recover creator"),
+			extract_signers(header).expect("Unable to recover signers"),
+		);
+		self.block_state_by_hash.write().insert(header.hash(), state);
+		Ok(Vec::new())
 	}
 
 	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
@@ -517,25 +549,31 @@ impl Engine<EthereumMachine> for Clique {
 		ConstructedVerifier::Trusted(Box::new(super::epoch::NoOp))
 	}
 
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
+		trace!(target: "engine", "called set_signer");
+		self.signer.write().set(ap, address, password);
+	}
+
+	fn register_client(&self, client: Weak<EngineClient>) {
+		*self.client.write() = Some(client.clone());
+	}
+
+	fn step(&self) {
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
+			}
+		}
+	}
+
 	fn stop(&self) {}
-
-	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> { Ok(()) }
-
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
-	}
-
-	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
-		let state = CliqueBlockState::new(
-			recover_creator(header).expect("Unable to recover creator"),
-			extract_signers(header).expect("Unable to recover signers"),
-		);
-		self.block_state_by_hash.write().insert(header.hash(), state);
-		Ok(Vec::new())
-	}
 
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp + self.period
+	}
+
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
+		super::total_difficulty_fork_choice(new, current)
 	}
 
 //	/// Check if current signer is the current proposer.
@@ -557,9 +595,9 @@ impl Engine<EthereumMachine> for Clique {
 //		return authorized;
 //	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
-		trace!(target: "engine", "client regsitered.");
-		*self.client.write() = Some(client.clone());
+	fn executive_author(&self, header: &Header) -> Address {
+// Should have been verified now.
+		return recover_creator(header).unwrap();
 	}
 }
 

@@ -78,12 +78,20 @@ impl CliqueBlockState {
 
 		// Check signer list
 		if !self.signers.contains(&creator) {
-			return Err(From::from(format!("{} is not in the signer list!", creator)));
+			trace!(target: "engine", "current state: {:?}", self);
+			return Err(From::from(format!("Error applying #{}({}): {} is not in the signer list!",
+			                              header.number(),
+			                              header.hash(),
+				                          creator)));
 		}
 
 		// Check recent signer.
 		if self.recent_signers.contains(&creator) {
-			return Err(From::from(format!("{} is in the recent_signer list!", creator)));
+			trace!(target: "engine", "current state: {:?}", self);
+			return Err(From::from(format!("Error applying #{}({}): {} is in the recent_signer list!",
+			                              header.number(),
+			                              header.hash(),
+			                              creator)));
 		}
 
 		Ok(creator)
@@ -109,7 +117,7 @@ impl CliqueBlockState {
 			self.votes.clear();
 			self.votes_history.clear();
 
-			// release some memory.
+			// maybe release some memory.
 			self.votes.shrink_to_fit();
 			self.votes_history.shrink_to_fit();
 
