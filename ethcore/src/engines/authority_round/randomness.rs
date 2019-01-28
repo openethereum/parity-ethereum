@@ -9,12 +9,12 @@
 
 use ethabi::Hash;
 use ethereum_types::{Address, U256};
+use ethkey::crypto::ecies;
 use hash::keccak;
 use rand::Rng;
 
-use super::util::{BoundContract, CallError};
-use account_provider::{self, AccountProvider};
-use ethstore::ethkey::crypto::{self, ecies};
+use engines::authority_round::util::{BoundContract, CallError};
+use engines::EngineSigner;
 
 /// Secret type expected by the contract.
 // Note: Conversion from `U256` back into `[u8; 32]` is cumbersome (missing implementations), for
@@ -94,11 +94,9 @@ pub enum PhaseError {
 	/// A secret was stored, but it did not match the committed hash.
 	StaleSecret,
 	/// An error with ECIES encryption.
-	Crypto(crypto::Error),
+	Crypto(ethkey::crypto::Error),
 	/// Failed to decrypt stored secret.
-	Decrypt(account_provider::SignError),
-	/// Failed to retrieve the account's public key.
-	AccountPublic(account_provider::SignError),
+	Decrypt(ethkey::crypto::Error),
 }
 
 impl RandomnessPhase {
@@ -177,7 +175,7 @@ impl RandomnessPhase {
 		self,
 		contract: &BoundContract,
 		rng: &mut R,
-		accounts: &AccountProvider,
+		signer: &EngineSigner,
 	) -> Result<(), PhaseError> {
 		match self {
 			RandomnessPhase::Waiting | RandomnessPhase::Committed => (),
@@ -193,8 +191,7 @@ impl RandomnessPhase {
 				// Generate a new secret. Compute the secret's hash, and encrypt the secret to ourselves.
 				let secret: Secret = rng.gen();
 				let secret_hash: Hash = keccak(secret.as_ref());
-				let public = accounts.account_public(our_address, None).map_err(PhaseError::AccountPublic)?;
-				let cipher = ecies::encrypt(&public, &secret_hash, &secret).map_err(PhaseError::Crypto)?;
+				let cipher = ecies::encrypt(&signer.public(), &secret_hash, &secret).map_err(PhaseError::Crypto)?;
 
 				// Schedule the transaction that commits the hash and the encrypted secret.
 				contract.schedule_service_transaction(aura_random::functions::commit_hash::call(secret_hash, cipher))
@@ -210,8 +207,7 @@ impl RandomnessPhase {
 					.map_err(PhaseError::LoadFailed)?;
 
 				// Decrypt the secret and check against the hash.
-				let secret_vec = accounts.decrypt(our_address, None, &committed_hash, &cipher)
-					.map_err(PhaseError::Decrypt)?;
+				let secret_vec = signer.decrypt(&committed_hash, &cipher).map_err(PhaseError::Decrypt)?;
 				let secret = if secret_vec.len() == 32 {
 					let mut buf = [0u8; 32];
 					buf.copy_from_slice(&secret_vec);

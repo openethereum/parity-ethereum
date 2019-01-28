@@ -18,6 +18,7 @@
 
 use ethereum_types::{H256, Address};
 use ethkey::{self, Signature};
+use ethkey::crypto::ecies;
 
 /// Everything that an Engine needs to sign messages.
 pub trait EngineSigner: Send + Sync {
@@ -26,6 +27,12 @@ pub trait EngineSigner: Send + Sync {
 
 	/// Signing address
 	fn address(&self) -> Address;
+
+	/// Decrypt a message that was encrypted to this signer's key.
+	fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, ethkey::crypto::Error>;
+
+	/// The signer's public key.
+	fn public(&self) -> &ethkey::Public;
 }
 
 /// Creates a new `EngineSigner` from given key pair.
@@ -40,8 +47,16 @@ impl EngineSigner for Signer {
 		ethkey::sign(self.0.secret(), &hash)
 	}
 
+	fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, ethkey::crypto::Error> {
+		ecies::decrypt(self.0.secret(), auth_data, cipher)
+	}
+
 	fn address(&self) -> Address {
 		self.0.address()
+	}
+
+	fn public(&self) -> &ethkey::Public {
+		self.0.public()
 	}
 }
 
@@ -76,13 +91,16 @@ mod test_signer {
 			}
 		}
 
+		fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, ethkey::crypto::Error> {
+			self.0.decrypt(self.1, None, auth_data, cipher)
+		}
+
 		fn address(&self) -> Address {
 			self.1
 		}
-	}
 
-	/// Returns the account provider.
-	pub fn account_provider(&self) -> &Arc<AccountProvider> {
-		&self.account_provider
+		fn public(&self) -> &ethkey::Public {
+			self.0.account_public(self.1, self.2)
+		}
 	}
 }
