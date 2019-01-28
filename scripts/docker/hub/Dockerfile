@@ -1,5 +1,5 @@
 FROM ubuntu:xenial
-LABEL MAINTAINER="Parity Technologies <devops@parity.io>"
+LABEL MAINTAINER="Parity Technologies devops-team@parity.io"
 #set ENVIROMENT
 ARG TARGET
 ENV TARGET ${TARGET}
@@ -29,4 +29,4 @@ USER parity
 VOLUME [ "/home/parity/.local/share/io.parity.ethereum" ]
 EXPOSE 5001 8080 8082 8083 8545 8546 8180 30303/tcp 30303/udp
 # setup ENTRYPOINT
-ENTRYPOINT ["parity"]
+ENTRYPOINT ["/bin/parity"]
