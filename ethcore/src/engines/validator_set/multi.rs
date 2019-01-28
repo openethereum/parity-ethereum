@@ -43,6 +43,12 @@ impl Multi {
 		}
 	}
 
+	fn map_children(&self, header: &Header, func: &mut dyn FnMut(&dyn ValidatorSet, bool) -> Result<(), ::error::Error>) -> Result<(), ::error::Error> {
+		let (set_block, set) = self.correct_set_by_number(header.number());
+		let first = set_block == header.number();
+		func(set, first)
+	}
+
 	fn correct_set(&self, id: BlockId) -> Option<&ValidatorSet> {
 		match self.block_number.read()(id).map(|parent_block| self.correct_set_by_number(parent_block)) {
 			Ok((_, set)) => Some(set),
@@ -74,11 +80,14 @@ impl ValidatorSet for Multi {
 			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
-		let (set_block, set) = self.correct_set_by_number(header.number());
-		let first = set_block == header.number();
+	fn on_new_block(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+		error!("on_new_block");
+		self.map_children(header, &mut |set: &dyn ValidatorSet, first| set.on_new_block(first, header, call))
+	}
 
-		set.on_epoch_begin(first, header, call)
+
+	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+		self.map_children(header, &mut |set: &dyn ValidatorSet, first| set.on_epoch_begin(first, header, call))
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {

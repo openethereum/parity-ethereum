@@ -72,6 +72,12 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.default_caller(id)
 	}
 
+	fn on_new_block(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+		error!("on_new_block");
+		self.validators.on_new_block(first, header, call)
+	}
+
+
 	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
 		self.validators.on_epoch_begin(first, header, call)
 	}
