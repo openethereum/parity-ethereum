@@ -34,7 +34,6 @@ extern crate parity_bytes as bytes;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
-extern crate semver;
 extern crate triehash_ethereum;
 
 extern crate ethcore_light as light;

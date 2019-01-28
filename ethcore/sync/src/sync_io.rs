@@ -42,7 +42,7 @@ pub trait SyncIo {
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &SnapshotService;
 	/// Returns peer version identifier
-	fn peer_info(&self, peer_id: PeerId) -> ClientVersion {
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
 		ClientVersion::from(peer_id.to_string())
 	}
 	/// Returns information on p2p session
@@ -135,7 +135,7 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 		self.network.protocol_version(*protocol, peer_id).unwrap_or(0)
 	}
 
-	fn peer_info(&self, peer_id: PeerId) -> ClientVersion {
+	fn peer_version(&self, peer_id: PeerId) -> ClientVersion {
 		self.network.peer_client_version(peer_id)
 	}
 

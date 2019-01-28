@@ -125,7 +125,7 @@ impl SyncPropagator {
 		// most of times service_transactions will be empty
 		// => there's no need to merge packets
 		if !service_transactions.is_empty() {
-			let service_transactions_peers = SyncPropagator::select_peers_for_transactions(sync, |peer_id| io.peer_info(*peer_id).accepts_service_transaction());
+			let service_transactions_peers = SyncPropagator::select_peers_for_transactions(sync, |peer_id| io.peer_version(*peer_id).accepts_service_transaction());
 			let service_transactions_affected_peers = SyncPropagator::propagate_transactions_to_peers(
 				sync, io, service_transactions_peers, service_transactions, &mut should_continue
 			);
@@ -579,19 +579,16 @@ mod tests {
 		// and peer#2 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 2, block_hash);
 		io.peers_info.insert(2, "Parity-Ethereum/v2.6.0/linux/rustc".to_owned());
-		// and peer#3 is Parity, discarding service transactions
+		// and peer#3 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 3, block_hash);
-		io.peers_info.insert(3, "Parity/v1.5.0/linux/rustc".to_owned());
-		// and peer#4 is Parity, accepting service transactions
-		insert_dummy_peer(&mut sync, 4, block_hash);
-		io.peers_info.insert(4, "Parity-Ethereum/ABCDEFGH/v2.7.3/linux/rustc".to_owned());
+		io.peers_info.insert(3, "Parity-Ethereum/ABCDEFGH/v2.7.3/linux/rustc".to_owned());
 
 		// and new service transaction is propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 
-		// peer#2 && peer#4 are receiving service transaction
+		// peer#2 && peer#3 are receiving service transaction
 		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 2)); // TRANSACTIONS_PACKET
-		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 4)); // TRANSACTIONS_PACKET
+		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 3)); // TRANSACTIONS_PACKET
 		assert_eq!(io.packets.len(), 2);
 	}
 

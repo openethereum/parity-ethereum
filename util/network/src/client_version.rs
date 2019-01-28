@@ -14,47 +14,72 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// Parity client string prefix
-const LEGACY_CLIENT_ID_PREFIX: &str = "Parity";
-const PARITY_CLIENT_ID_PREFIX: &str = "Parity-Ethereum";
+#![warn(missing_docs)]
 
-// Parity versions starting from this will accept block bodies requests
-// of 256 bodies
-const PARITY_CLIENT_LARGE_REQUESTS_VERSION: &str = "2.3.0";
-
-// Parity versions starting from this will accept service-transactions
-const SERVICE_TRANSACTIONS_VERSION: &str = "1.6.0";
+//! Parse ethereum client ID strings and provide querying functionality
 
 use semver::Version;
 use std::fmt;
 
+/// Parity client string prefix
+const LEGACY_CLIENT_ID_PREFIX: &str = "Parity";
+const PARITY_CLIENT_ID_PREFIX: &str = "Parity-Ethereum";
+
+const PARITY_ID_STRING_MINIMUM_LENGTH: usize = 4;
+
+lazy_static! {
+/// Parity versions starting from this will accept block bodies requests
+/// of 256 bodies
+	static ref PARITY_CLIENT_LARGE_REQUESTS_VERSION: Version = Version::parse("2.3.0").unwrap();
+}
 
 /// Description of the software version running in a peer
 /// according to https://github.com/ethereum/wiki/wiki/Client-Version-Strings
 /// This structure as it is represents the format used by Parity clients. Other
 /// vendors may provide additional fields.
-///
-/// TODO support formats with extra fields, e.g.:
-/// "Geth/main.jnode.network/v1.8.21-stable-9dc5d1a9/linux-amd64/go1.11.4"
-
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Clone,Debug,PartialEq,Eq,Serialize)]
 pub struct ParityClientData {
 	name: String,
-	variant: Option<String>,
+	identity: Option<String>,
 	semver: Version,
 	os: String,
 	compiler: String,
+
+	// Capability flags, should be calculated in constructor
+	can_handle_large_requests: bool,
 }
 
-// Accessor methods for ParityClientData. This will probably
-// need to be abstracted away into a trait.
+/// Accessor methods for ParityClientData. This will probably
+/// need to be abstracted away into a trait.
 impl ParityClientData {
+	fn new(
+		name: String,
+		identity: Option<String>,
+		semver: Version,
+		os: String,
+		compiler: String,
+	) -> Self {
+		// Flags logic
+		let can_handle_large_requests = &semver >= &PARITY_CLIENT_LARGE_REQUESTS_VERSION;
+
+		// Instantiate and return
+		ParityClientData {
+			name: name,
+			identity: identity,
+			semver: semver,
+			os: os,
+			compiler: compiler,
+
+			can_handle_large_requests: can_handle_large_requests,
+		}
+	}
+
 	fn name(&self) -> &str {
 		self.name.as_str()
 	}
 
-	fn variant(&self) -> Option<&str> {
-		self.variant.as_ref().map(String::as_str)
+	fn identity(&self) -> Option<&str> {
+		self.identity.as_ref().map(String::as_str)
 	}
 
 	fn semver(&self) -> &Version {
@@ -68,132 +93,126 @@ impl ParityClientData {
 	fn compiler(&self) -> &str {
 		self.compiler.as_str()
 	}
+
+	fn can_handle_large_requests(&self) -> bool {
+		self.can_handle_large_requests
+	}
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+/// Enum describing the version of the software running on a peer.
+#[derive(Clone,Debug,Eq,PartialEq,Serialize)]
 pub enum ClientVersion {
+	/// The peer runs software from parity and the string format is known
 	ParityClient(
+		/// The actual information fields: name, version, os, ...
 		ParityClientData
 	),
+	/// The string ID is recognized as Parity but the overall format
+	/// could not be parsed
 	ParityUnknownFormat(String),
-	Other(String), // Id string
+	/// Other software vendors than Parity
+	Other(String),
 }
 
-// TODO: Maybe merge with Peercapabilityinfo in ethcore-network?
+impl Default for ClientVersion {
+	fn default() -> Self {
+		ClientVersion::Other("".to_owned())
+	}
+}
+
+/// Provide information about what a particular version of a
+/// peer software can do
 pub trait ClientCapabilities {
+	/// Parity versions before PARITY_CLIENT_LARGE_REQUESTS_VERSION would not
+	/// check the accumulated size of a packet when building a response to a
+	/// GET_BLOCK_BODIES request. If the packet was larger than a given limit,
+	/// instead of sending fewer blocks no packet would get sent at all. Query
+	/// if this version can handle requests for a large number of block bodies.
 	fn can_handle_large_requests(&self) -> bool;
 
+	/// Service transactions are specific to parity. Query if this version
+	/// accepts them.
 	fn accepts_service_transaction(&self) -> bool;
-}
-
-// This is an implementation of a function taken from propagator.rs
-fn parity_accepts_service_transaction(parity_client_data: &ParityClientData) -> bool {
-	let service_transactions_version = Version::parse(SERVICE_TRANSACTIONS_VERSION).unwrap();
-
-	*parity_client_data.semver() >= service_transactions_version
 }
 
 impl ClientCapabilities for ClientVersion {
 	fn can_handle_large_requests(&self) -> bool {
 		match self {
-			ClientVersion::ParityClient(data) => {
-				if *data.semver() < Version::parse(PARITY_CLIENT_LARGE_REQUESTS_VERSION).unwrap() {
-					false
-				} else {
-					true
-				}
-			},
+			ClientVersion::ParityClient(data) => data.can_handle_large_requests(),
 			ClientVersion::ParityUnknownFormat(_) => false, // Play it safe
 			ClientVersion::Other(_) => true // As far as we know
 		}
 	}
 
-	/// Checks if peer is able to process service transactions
 	fn accepts_service_transaction(&self) -> bool {
 		match self {
-			ClientVersion::ParityClient(data) => parity_accepts_service_transaction(&data),
-			ClientVersion::ParityUnknownFormat(_) => false,
+			ClientVersion::ParityClient(_) => true,
+			ClientVersion::ParityUnknownFormat(_) => true,
 			ClientVersion::Other(_) => false
 		}
 	}
 
 }
 
-
 fn is_parity(client_id: &str) -> bool {
-	if client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) || client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
-		return true;
-	} else {
-		return false;
-	}
+	client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) || client_id.starts_with(PARITY_CLIENT_ID_PREFIX)
 }
 
-// Parse known parity formats.
-//
-// This is really not robust: parse four arguments and
-// allow for an extra argument between identifier and
-// version
-// TODO implement a better logic
+/// Parse known parity formats. Recognizes either a short format with four fields
+/// or a long format which includes the same fields and an identity one.
 fn parse_parity_format(client_version: &str) -> Result<ParityClientData, ()> {
 	let tokens: Vec<&str> = client_version.split("/").collect();
 
-
-	// Basically strip leading 'v'
-	if let Some(version_number) = &get_number_from_version(tokens[1]) {
-		if tokens.len() < 4 {
-			return Err(());
-		}
-
-		return Ok(
-			ParityClientData {
-				name: tokens[0].to_string(),
-				variant: None,
-				semver: Version::parse(version_number).unwrap(),
-				os: tokens[2].to_string(),
-				compiler: tokens[3].to_string(),
-			}
-		);
-	} else if let Some(version_number) = &get_number_from_version(tokens[2]) {
-		if tokens.len() < 5 {
-			return Err(());
-		}
-
-		return Ok(
-			ParityClientData {
-				name: tokens[0].to_string(),
-				variant: Some(tokens[1].to_string()),
-				semver: Version::parse(version_number).unwrap(),
-				os: tokens[3].to_string(),
-				compiler: tokens[4].to_string(),
-			}
-		);
-	} else {
-		return Err(());
+	if tokens.len() < PARITY_ID_STRING_MINIMUM_LENGTH {
+		return Err(())
 	}
+
+	let name = tokens[0];
+
+	let identity = if tokens.len() - 3 > 1 {
+		Some(tokens[1..(tokens.len() - 3)].join("/"))
+	} else {
+		None
+	};
+
+	let compiler = tokens[tokens.len() - 1];
+	let os = tokens[tokens.len() - 2];
+
+	// If version is in the right position and valid format return a valid
+	// result. Otherwise return an error.
+	get_number_from_version(tokens[tokens.len() - 3])
+		.and_then(|v| Version::parse(v).ok())
+		.map(|semver| ParityClientData::new(
+			name.to_owned(),
+			identity,
+			semver,
+			os.to_owned(),
+			compiler.to_owned(),
+		)
+		)
+		.ok_or(())
 }
 
-// Parses a version string and returns the corresponding
-// ClientVersion. Only Parity clients are destructured right now.
-// The parsing for parity may still fail, in which case return an Other with
-// the original version string. TryFrom would be a better trait to implement.
+/// Parse a version string and return the corresponding
+/// ClientVersion. Only Parity clients are destructured right now, other
+/// strings will just get wrapped in a variant so that the information is
+/// not lost.
+/// The parsing for parity may still fail, in which case return a ParityUnknownFormat with
+/// the original version string. TryFrom would be a better trait to implement.
+impl<T> From<T> for ClientVersion
+where T: AsRef<str> {
+	fn from(client_version: T) -> Self {
+		let client_version_str: &str = client_version.as_ref();
 
-impl From<&str> for ClientVersion {
-	fn from(client_version: &str) -> Self {
-		if !is_parity(client_version) {
-			return ClientVersion::Other(client_version.to_string());
+		if !is_parity(client_version_str) {
+			return ClientVersion::Other(client_version_str.to_owned());
 		}
 
-		if let Ok(data) = parse_parity_format(client_version) {
+		if let Ok(data) = parse_parity_format(client_version_str) {
 			ClientVersion::ParityClient(data)
 		} else {
-			ClientVersion::ParityUnknownFormat(client_version.to_string())
+			ClientVersion::ParityUnknownFormat(client_version_str.to_owned())
 		}
-	}
-}
-
-impl From<String> for ClientVersion {
-	fn from(client_version: String) -> Self{
-		ClientVersion::from(client_version.as_ref())
 	}
 }
 
@@ -203,9 +222,9 @@ fn format_parity_version_string(client_version: &ParityClientData, f: &mut fmt::
 	let os = client_version.os();
 	let compiler = client_version.compiler();
 
-	match client_version.variant() {
+	match client_version.identity() {
 		None => write!(f, "{}/v{}/{}/{}", name, semver, os, compiler),
-		Some(variant) => write!(f, "{}/{}/v{}/{}/{}", name, variant, semver, os, compiler),
+		Some(identity) => write!(f, "{}/{}/v{}/{}/{}", name, identity, semver, os, compiler),
 	}
 }
 
@@ -219,9 +238,9 @@ impl fmt::Display for ClientVersion {
 	}
 }
 
-fn get_number_from_version(version: &str) -> Option<String> {
+fn get_number_from_version(version: &str) -> Option<&str> {
 	if version.starts_with("v") {
-		return version.get(1..).map(|s| s.to_string());
+		return version.get(1..);
 	}
 
 	None
@@ -235,7 +254,9 @@ pub mod tests {
 	const PARITY_CLIENT_OLD_SEMVER: &str = "2.2.0";
 	const PARITY_CLIENT_OS: &str = "linux";
 	const PARITY_CLIENT_COMPILER: &str = "rustc";
-	const PARITY_CLIENT_VARIANT: &str = "ExpanseSOLO";
+	const PARITY_CLIENT_IDENTITY: &str = "ExpanseSOLO";
+	const PARITY_CLIENT_MULTITOKEN_IDENTITY: &str = "ExpanseSOLO/abc/v1.2.3";
+
 
 	fn make_default_version_string() -> String {
 		format!(
@@ -251,7 +272,18 @@ pub mod tests {
 		format!(
 			"{}/{}/v{}/{}/{}",
 			PARITY_CLIENT_ID_PREFIX,
-			PARITY_CLIENT_VARIANT,
+			PARITY_CLIENT_IDENTITY,
+			PARITY_CLIENT_SEMVER,
+			PARITY_CLIENT_OS,
+			PARITY_CLIENT_COMPILER
+		)
+	}
+
+	fn make_multitoken_identity_long_version_string() -> String {
+		format!(
+			"{}/{}/v{}/{}/{}",
+			PARITY_CLIENT_ID_PREFIX,
+			PARITY_CLIENT_MULTITOKEN_IDENTITY,
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
 			PARITY_CLIENT_COMPILER
@@ -269,10 +301,10 @@ pub mod tests {
 	}
 
 	#[test]
-	pub fn client_version_when_from_empty_string_then_other() {
-		let other = ClientVersion::Other("".to_string());
+	pub fn client_version_when_from_empty_string_then_default() {
+		let default = ClientVersion::default();
 
-		assert_eq!(ClientVersion::from(""), other);
+		assert_eq!(ClientVersion::from(""), default);
 	}
 
 	#[test]
@@ -302,7 +334,22 @@ pub mod tests {
 
 		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
 			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
-			assert_eq!(client_version.variant().unwrap(), PARITY_CLIENT_VARIANT);
+			assert_eq!(client_version.identity().unwrap(), PARITY_CLIENT_IDENTITY);
+			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
+			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
+			assert_eq!(client_version.compiler(), PARITY_CLIENT_COMPILER);
+		} else {
+			panic!("shouldnt be here");
+		}
+	}
+
+	#[test]
+	pub fn client_version_when_str_parity_long_format_and_valid_and_identity_multiple_tokens_then_all_fields_match() {
+		let client_version_string = make_multitoken_identity_long_version_string();
+
+		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
+			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
+			assert_eq!(client_version.identity().unwrap(), PARITY_CLIENT_MULTITOKEN_IDENTITY);
 			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
 			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
 			assert_eq!(client_version.compiler(), PARITY_CLIENT_COMPILER);
@@ -343,7 +390,7 @@ pub mod tests {
 	}
 
 	#[test]
-	pub fn client_version_when_parity_format_without_variant_and_missing_compiler_field_then_equals_parity_unknown_client_version_string() {
+	pub fn client_version_when_parity_format_without_identity_and_missing_compiler_field_then_equals_parity_unknown_client_version_string() {
 		let client_version_string = format!(
 			"{}/v{}/{}",
 			PARITY_CLIENT_ID_PREFIX,
@@ -359,11 +406,11 @@ pub mod tests {
 	}
 
 	#[test]
-	pub fn client_version_when_parity_format_with_variant_and_missing_compiler_field_then_equals_parity_unknown_client_version_string() {
+	pub fn client_version_when_parity_format_with_identity_and_missing_compiler_field_then_equals_parity_unknown_client_version_string() {
 		let client_version_string = format!(
 			"{}/{}/v{}/{}",
 			PARITY_CLIENT_ID_PREFIX,
-			PARITY_CLIENT_VARIANT,
+			PARITY_CLIENT_IDENTITY,
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
 			);
@@ -411,14 +458,12 @@ pub mod tests {
 		assert!(!client_version.can_handle_large_requests());
 	}
 
-	// FIXME For some reason the version in this test is considered older than 2.3.0.
-	// A client with this ID _should_ actually be able to handle large requests
 	#[test]
-	pub fn client_capabilities_when_parity_new_version_then_handles_large_requests_true() {
+	pub fn client_capabilities_when_parity_beta_version_then_not_handles_large_requests_true() {
 		let client_version_string: String = format!(
 			"{}/v{}/{}/{}",
 			"Parity-Ethereum",
-			"2.3.0-beta-10657d9-20190115",
+			"2.3.0-beta",
 			"x86_64-linux-gnu",
 			"rustc1.31.1")
 			.to_string();
@@ -444,8 +489,6 @@ pub mod tests {
 	#[test]
 	fn client_version_accepts_service_transaction_for_different_versions() {
 		assert!(!ClientVersion::from("Geth").accepts_service_transaction());
-		assert!(!ClientVersion::from("Parity/v1.5.0/linux/rustc").accepts_service_transaction());
-
 		assert!(ClientVersion::from("Parity-Ethereum/v2.6.0/linux/rustc").accepts_service_transaction());
 		assert!(ClientVersion::from("Parity-Ethereum/ABCDEFGH/v2.7.3/linux/rustc").accepts_service_transaction());
 	}

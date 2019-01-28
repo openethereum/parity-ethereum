@@ -44,6 +44,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
 ethcore-miner = { path = "../miner" }
+ethcore-network = { path = "../util/network" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
@@ -70,7 +71,6 @@ fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
 
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
-ethcore-network = { path = "../util/network" }
 fake-fetch = { path = "../util/fake-fetch" }
 kvdb-memorydb = "0.1"
 macros = { path = "../util/macros" }

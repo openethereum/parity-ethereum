@@ -490,7 +490,7 @@ impl BlockDownloader {
 			},
 			State::Blocks => {
 				// check to see if we need to download any block bodies first
-				let client_version = io.peer_info(peer_id);
+				let client_version = io.peer_version(peer_id);
 
 				let number_of_bodies_to_request = if client_version.can_handle_large_requests() {
 					MAX_BODIES_TO_REQUEST_LARGE

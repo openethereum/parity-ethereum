@@ -25,12 +25,19 @@ extern crate ipnetwork;
 extern crate parity_snappy as snappy;
 extern crate libc;
 extern crate semver;
+extern crate serde;
+
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)] #[macro_use]
 extern crate assert_matches;
 
 #[macro_use]
 extern crate error_chain;
+
+#[macro_use]
+extern crate lazy_static;
 
 pub mod client_version;
 
