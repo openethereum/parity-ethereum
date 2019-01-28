@@ -39,7 +39,10 @@
 /// When executing transactions, Client will calls engine.executive_author().
 
 /// How sealing works:
-/// 1. client call engine.set_signer() to activate sealing
+/// 1. make engine.seals_internally() return Some(true).
+/// 2. on startup, if miner account was setup on config/cli, miner.set_author() will be called, then miner also calls
+/// engine.set_signer() to pass through the signer.
+/// 3. once sealing is enabled, it should be triggered by 1. period timer, turn-ness  2. pending tx.   ???
 ///
 
 use core::borrow::BorrowMut;
@@ -77,6 +80,7 @@ use super::signer::EngineSigner;
 use self::params::CliqueParams;
 use self::block_state::CliqueBlockState;
 use self::step_service::StepService;
+use std::time;
 
 mod params;
 mod block_state;
@@ -130,8 +134,8 @@ impl Clique {
 				step_service: IoService::<Duration>::start()?,
 			});
 
-		let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
-		engine.step_service.register_handler(Arc::new(handler))?;
+		// let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
+		// engine.step_service.register_handler(Arc::new(handler))?;
 
 		return Ok(engine);
 	}
@@ -205,7 +209,8 @@ impl Clique {
 
 				// Catching up state, note that we don't really store block state for intermediary blocks,
 				// for speed.
-				trace!(target: "engine",
+				let backfill_start = time::Instant::now();
+				info!(target: "engine",
 				       "Back-filling block state. last_checkpoint_number: {}, current_number: {}.",
 				       last_checkpoint_number, header.number());
 
@@ -232,6 +237,9 @@ impl Clique {
 					new_state.apply(item, false)?;
 				}
 				block_state_by_hash.insert(header.hash(), new_state.clone());
+
+				info!(target: "engine",
+				      "Back-filling succeed, took {}.", backfill_start.elapsed());
 
 				Ok(new_state)
 			}
@@ -322,22 +330,6 @@ impl Engine<EthereumMachine> for Clique {
 		_epoch_begin: bool,
 		_ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
-//trace!(target: "engine", "new block {}", _block.header().number());
-
-		/*
-		if let Some(ref mut snapshot) = *self.snapshot.write() {
-			snapshot.rollback();
-		} else {
-			panic!("could not get write access to snapshot");
-		}
-		*/
-
-		/*
-		if let Some(ref mut snapshot) = *self.snapshot.write() {
-			snapshot.apply(_block.header());
-		}
-		*/
-
 		Ok(())
 	}
 
@@ -353,12 +345,7 @@ impl Engine<EthereumMachine> for Clique {
 		Ok(())
 	}
 
-	/// None means that it requires external input (e.g. PoW) to seal a block.
-	/// /// Some(true) means the engine is currently prime for seal generation (i.e. node
-	///     is the current validator).
-	/// /// Some(false) means that the node might seal internally but is not qualified
-	///     now.
-	///
+	/// Clique doesn't require external work to seal.
 	fn seals_internally(&self) -> Option<bool> {
 		Some(true)
 	}
@@ -529,11 +516,9 @@ impl Engine<EthereumMachine> for Clique {
 //	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
-		let state = CliqueBlockState::new(
-			NULL_AUTHOR,
-			extract_signers(header).expect("Unable to recover signers"),
-		);
+		let state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
 		self.block_state_by_hash.write().insert(header.hash(), state);
+
 		Ok(Vec::new())
 	}
 
