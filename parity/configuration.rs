@@ -18,7 +18,8 @@ use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::collections::BTreeMap;
+use std::collections::{HashSet, BTreeMap};
+use std::iter::FromIterator;
 use std::cmp;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -438,6 +439,7 @@ impl Configuration {
 			gas_range_target: (floor, ceil),
 			engine_signer: self.engine_signer()?,
 			work_notify: self.work_notify(),
+			local_accounts: HashSet::from_iter(to_addresses(&self.args.arg_tx_queue_locals)?.into_iter()),
 		};
 
 		Ok(extras)

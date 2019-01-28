@@ -506,7 +506,10 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		cmd.miner_options,
 		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), runtime.executor()),
 		&spec,
-		account_utils::miner_local_accounts(account_provider.clone()),
+		(
+			cmd.miner_extras.local_accounts,
+			account_utils::miner_local_accounts(account_provider.clone()),
+		)
 	));
 	miner.set_author(miner::Author::External(cmd.miner_extras.author));
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);

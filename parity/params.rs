@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{str, fs, fmt};
+use std::collections::HashSet;
 use std::time::Duration;
+use std::{str, fs, fmt};
 
 use ethcore::client::Mode;
 use ethcore::ethereum;
@@ -282,6 +283,7 @@ pub struct MinerExtras {
 	pub extra_data: Vec<u8>,
 	pub gas_range_target: (U256, U256),
 	pub work_notify: Vec<String>,
+	pub local_accounts: HashSet<Address>,
 }
 
 impl Default for MinerExtras {
@@ -292,6 +294,7 @@ impl Default for MinerExtras {
 			extra_data: version_data(),
 			gas_range_target: (8_000_000.into(), 10_000_000.into()),
 			work_notify: Default::default(),
+			local_accounts: Default::default(),
 		}
 	}
 }
