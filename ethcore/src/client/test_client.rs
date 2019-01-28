@@ -813,7 +813,7 @@ impl BlockChainClient for TestBlockChainClient {
 				.map(|block| block.view().header())
 				.map(|header| self.spec.engine.extra_info(&header))
 		} else {
-			None
+			panic!("Expected BlockId::Hash, got {:?} instead.", id)
 		}
 	}
 
