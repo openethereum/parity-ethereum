@@ -35,18 +35,6 @@ variables:
   - export VERSION
   - echo "Version = ${VERSION}"
 
-test-macos:
-  stage:                           test
-  variables:
-    RUN_TESTS:                     all
-    CARGO_TARGET:                  x86_64-apple-darwin
-    CC:                            gcc
-    CXX:                           g++
-  script:
-    - scripts/gitlab/test-all.sh stable
-  tags:
-    - rust-osx
-
 test-linux:
   stage:                           test
   variables:
