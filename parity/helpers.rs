@@ -18,6 +18,7 @@ use std::io;
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
+use std::collections::HashSet;
 use ethereum_types::{U256, clean_0x, Address};
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
@@ -132,6 +133,13 @@ pub fn to_addresses(s: &Option<String>) -> Result<Vec<Address>, String> {
 /// Tries to parse string as a price.
 pub fn to_price(s: &str) -> Result<f32, String> {
 	s.parse::<f32>().map_err(|_| format!("Invalid transaciton price 's' given. Must be a decimal number."))
+}
+
+pub fn join_set(set: Option<&HashSet<String>>) -> Option<String> {
+	match set {
+		Some(s) => Some(s.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(",")),
+		None => None
+	}
 }
 
 /// Flush output buffer.
@@ -327,12 +335,13 @@ mod tests {
 	use std::time::Duration;
 	use std::fs::File;
 	use std::io::Write;
+	use std::collections::HashSet;
 	use tempdir::TempDir;
 	use ethereum_types::U256;
 	use ethcore::client::{Mode, BlockId};
 	use ethcore::miner::PendingSet;
 	use ethkey::Password;
-	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};
+	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, join_set, password_from_file};
 
 	#[test]
 	fn test_to_duration() {
@@ -471,5 +480,14 @@ but the first password is trimmed
 		assert_eq!(to_bootnodes(&None), Ok(vec![]));
 		assert_eq!(to_bootnodes(&Some(one_bootnode.into())), Ok(vec![one_bootnode.into()]));
 		assert_eq!(to_bootnodes(&Some(two_bootnodes.into())), Ok(vec![one_bootnode.into(), one_bootnode.into()]));
+	}
+
+	#[test]
+	fn test_join_set() {
+		let mut test_set = HashSet::new();
+		test_set.insert("0x1111111111111111111111111111111111111111".to_string());
+		test_set.insert("0x0000000000000000000000000000000000000000".to_string());
+		assert_eq!("0x1111111111111111111111111111111111111111,0x0000000000000000000000000000000000000000".to_string(),
+		join_set(Some(&test_set)).unwrap());
 	}
 }

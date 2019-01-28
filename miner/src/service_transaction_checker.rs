@@ -42,7 +42,6 @@ impl ServiceTransactionChecker {
 	pub fn new(certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>) -> ServiceTransactionChecker {
 		ServiceTransactionChecker {certified_addresses_cache: certified_addresses_cache.clone()}
 	}
-
 	/// Checks if given address in tx is whitelisted to send service transactions.
 	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		let sender = tx.sender();
