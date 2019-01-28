@@ -156,14 +156,16 @@ impl<T: ProvingBlockChainClient + BlockProvider + ?Sized> Provider for T {
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		match id {
-		   BlockId::Number(num) => {
-			   BlockProvider::block_hash(self, num).and_then(|hash| BlockProvider::block_header_data(self, &hash))
-		   },
-		   BlockId::Hash(hash) => BlockProvider::block_header_data(self, &hash),
-		   // NOTE: Do I need to worry about BlockId::Earliest and BlockId::Lastest here?
-		   _ => None,
-		}
+		let block_hash = match id {
+			BlockId::Number(num) => BlockProvider::block_hash(self, num),
+			BlockId::Earliest => BlockProvider::block_hash(self, 0),
+			BlockId::Latest => {
+				BlockProvider::block_hash(self, self.chain_info().best_block_number)
+			},
+			BlockId::Hash(hash) => Some(hash),
+		};
+
+		block_hash.and_then(|hash| BlockProvider::block_header_data(self, &hash))
 	}
 
 	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)
