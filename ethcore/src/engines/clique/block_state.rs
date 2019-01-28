@@ -22,7 +22,8 @@ use std::time::{Duration, SystemTime};
 use ethereum_types::{Address, H256, U256};
 use rand::{Rng, thread_rng};
 
-use engines::clique::{extract_signers, recover_creator, NULL_AUTHOR, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, DIFF_INTURN, DIFF_NOT_INTURN};
+use engines::clique::{DIFF_INTURN, DIFF_NOT_INTURN, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR};
+use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
 use types::header::Header;
 

@@ -64,6 +64,7 @@ use account_provider::AccountProvider;
 use block::*;
 use client::{BlockId, EngineClient};
 use engines::{ConstructedVerifier, Engine, Headers, PendingTransitionStore, Seal};
+use engines::clique::util::{extract_signers, recover_creator, sig_hash};
 use error::Error;
 use ethkey::{Password, public_to_address, recover as ec_recover, Signature};
 use io::IoService;
@@ -74,12 +75,13 @@ use types::header::{ExtendedHeader, Header};
 use super::signer::EngineSigner;
 
 use self::params::CliqueParams;
-use self::snapshot::CliqueBlockState;
+use self::block_state::CliqueBlockState;
 use self::step_service::StepService;
 
 mod params;
-mod snapshot;
+mod block_state;
 mod step_service;
+mod util;
 
 // protocol constants
 /// Fixed number of extra-data prefix bytes reserved for signer vanity
@@ -98,13 +100,6 @@ pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
 // Caches
 /// How many CliqueBlockState to cache in the memory.
 pub const STATE_CACHE_NUM: usize = 128;
-/// How many recovered signature to cache in the memory.
-pub const CREATOR_CACHE_NUM: usize = 4096;
-lazy_static! {
-	/// key: header hash
-	/// value: creator address
-	static ref CREATOR_BY_HASH: RwLock<LruCache<H256, Address>> = RwLock::new(LruCache::new(CREATOR_CACHE_NUM));
-}
 
 /// Clique Engine implementation
 pub struct Clique {
@@ -117,82 +112,6 @@ pub struct Clique {
 	signer: RwLock<EngineSigner>,
 	step_service: IoService<Duration>,
 }
-
-/*
- * only sign over non-signature bytes (vanity data).  There shouldn't be a signature here to sign
- * yet.
- */
-pub fn sig_hash(header: &Header) -> Result<H256, Error> {
-	if header.extra_data().len() >= SIGNER_VANITY_LENGTH {
-		let extra_data = header.extra_data().clone();
-		let mut reduced_header = header.clone();
-		reduced_header.set_extra_data(
-			extra_data[..extra_data.len() - SIGNER_SIG_LENGTH].to_vec());
-
-		Ok(reduced_header.hash())
-	} else {
-		Ok(header.hash())
-	}
-}
-
-/// Recover block creator from signature
-pub fn recover_creator(header: &Header) -> Result<Address, Error> {
-	// Initialization
-	let mut cache = CREATOR_BY_HASH.write();
-
-	if let Some(creator) = cache.get_mut(&header.hash()) {
-		return Ok(*creator);
-	}
-
-	let data = header.extra_data();
-	let mut sig = [0; SIGNER_SIG_LENGTH];
-	sig.copy_from_slice(&data[(data.len() - SIGNER_SIG_LENGTH)..]);
-
-	let msg = sig_hash(header)?;
-	let pubkey = ec_recover(&Signature::from(sig), &msg)?;
-	let creator = public_to_address(&pubkey);
-
-	cache.insert(header.hash(), creator.clone());
-	Ok(creator)
-}
-
-/// Extract signer list from extra_data.
-///
-/// Layout of extra_data:
-/// ----
-/// VANITY: 32 bytes
-/// Signers: N * 32 bytes as hex encoded (20 characters)
-/// Signature: 65 bytes
-/// --
-pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
-	let data = header.extra_data();
-
-	if data.len() <= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
-		return Err(Box::new("Invalid extra_data size.").into());
-	}
-
-	// extract only the portion of extra_data which includes the signer list
-	let signers_raw = &data[(SIGNER_VANITY_LENGTH)..data.len() - (SIGNER_SIG_LENGTH)];
-
-	if signers_raw.len() % 20 != 0 {
-		return Err(Box::new("bad signer list.").into());
-	}
-
-	let num_signers = signers_raw.len() / 20;
-	let mut signers_list: Vec<Address> = Vec::with_capacity(num_signers);
-
-	for i in 0..num_signers {
-		let mut signer = Address::default();
-		signer.copy_from_slice(&signers_raw[i * 20..(i + 1) * 20]);
-		signers_list.push(signer);
-	}
-
-	// NOTE: signers list must be sorted by ascending order.
-	signers_list.sort();
-
-	Ok(signers_list)
-}
-
 
 const step_time: Duration = Duration::from_millis(100);
 
