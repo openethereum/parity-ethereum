@@ -76,7 +76,7 @@ int parity_config_from_cli(char const* const* args, size_t const* arg_lens, size
 ///	- logger		: Pointer to point to the created `Logger` object
 
 /// **Important**: This function must only be called exactly once otherwise it will panic. If you want to disable a
-///					logging mode or logging to a file make sure that you pass the `length` as zero
+/// logging mode or logging to a file make sure that you pass the `length` as zero
 ///
 /// # Example
 ///
@@ -87,8 +87,8 @@ int parity_config_from_cli(char const* const* args, size_t const* arg_lens, size
 /// if (parity_config_from_cli(args, str_lens, 2, &cfg) != 0) {
 ///		return 1;
 /// }
-///	char[] logger_mode = "rpc=trace";
-/// parity_set_logger(logger_mode, strlen(logger_mode), nullptr, 0, &cfg.logger)
+/// char[] logger_mode = "rpc=trace";
+/// parity_set_logger(logger_mode, strlen(logger_mode), nullptr, 0, &cfg.logger);
 /// ```
 ///
 int parity_set_logger(const char* log_mode, size_t log_mode_len, const char* log_file, size_t log_file_len, void** logger);
