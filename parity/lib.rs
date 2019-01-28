@@ -223,7 +223,7 @@ fn execute<Cr, Rr>(
 /// binary.
 ///
 /// On error, returns what to print on stderr.
-// FIXME: @tomaka - totally independent logging capability
+// FIXME: totally independent logging capability, see https://github.com/paritytech/parity-ethereum/issues/10252
 pub fn start<Cr, Rr>(
 	conf: Configuration,
 	logger: Arc<RotatingLogger>,
