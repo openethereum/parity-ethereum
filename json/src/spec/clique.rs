@@ -17,9 +17,8 @@
 //! Clique params deserialization.
 
 use uint::Uint;
-use ethereum_types::Address;
 
-/// Tendermint params deserialization.
+/// Clique params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct CliqueParams {
 	pub period: Option<Uint>,

@@ -14,29 +14,46 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-/// How Clique codebase works
-/// 1. mod.rs -> CliqueEngine ,  snapshot.rs -> CliqueBlockState.
-/// CliqueEngine -> {
-///   block_state_by_hash  -> store each block state indexed by their header hash.
+//! Implemenation of Clique (POA) Engine.
+//!
+//! mod.rs -> CliqueEngine, the engine api implementation, with additional block state tracking.
+//!
+//! CliqueEngine -> {
+//!   block_state_by_hash  -> block state indexed by header hash.
+//!   ...rest
+//! }
+//!
+//! snapshot.rs -> CliqueBlockState , record clique state for given block.
+//! param.rs -> Clique Params.
+//!
 
-/// How syncing works:
-/// 1. Client calls engine.verify_block_family(header).
-/// 2. Engine calls last_state = self.state(parent.hash()), if not found,  trigger an back-fill from last checkpoint.
-/// 3. Engine calls last_state.apply(header)
-/// When executing transactions , Client calls engine.executive_author() to get the correct author.
+/// How syncing code path works:
+/// 1. Client calls engine.verify_block_basic() and engine.verify_block_unordered().
+/// 2. Client calls engine.verify_block_family(header, parent).
+/// 3. Engine first find parent state: last_state = self.state(parent.hash())
+///    if not found, trigger an back-fill from last checkpoint.
+/// 4. Engine calls last_state.apply(header)
+///
+/// executive_author()
+/// Clique use author field for voting, the real author is hidden in the extra_data field. So
+/// When executing transactions, Client will calls engine.executive_author().
 
 /// How sealing works:
+/// 1. client call engine.set_signer() to activate sealing
+///
 
-use core::borrow::Borrow;
 use core::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fmt;
+use std::mem;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
-use ethereum_types::{Address, H256, Public, U256};
+use ethereum_types::{Address, H160, H256, Public, U256};
+use hash::KECCAK_EMPTY_LIST_RLP;
 use lru_cache::LruCache;
 use parking_lot::RwLock;
 use parking_lot::RwLockUpgradableReadGuard;
@@ -57,25 +74,36 @@ use types::header::{ExtendedHeader, Header};
 use super::signer::EngineSigner;
 
 use self::params::CliqueParams;
-use self::snapshot::{CliqueBlockState, DIFF_INTURN, DIFF_NOT_INTURN, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR};
+use self::snapshot::CliqueBlockState;
 use self::step_service::StepService;
 
 mod params;
 mod snapshot;
 mod step_service;
 
-pub const SIGNER_VANITY_LENGTH: u32 = 32;
-// Fixed number of extra-data prefix bytes reserved for signer vanity
-//const EXTRA_DATA_POST_LENGTH: u32 = 128;
-pub const SIGNER_SIG_LENGTH: u32 = 65; // Fixed number of extra-data suffix bytes reserved for signer seal
+// protocol constants
+/// Fixed number of extra-data prefix bytes reserved for signer vanity
+pub const SIGNER_VANITY_LENGTH: usize = 32;
+/// Fixed number of extra-data suffix bytes reserved for signer signature
+pub const SIGNER_SIG_LENGTH: usize = 65;
+pub const NONCE_DROP_VOTE: [u8; 8] = [0x00; 8];
+pub const NONCE_AUTH_VOTE: [u8; 8] = [0xff; 8];
+pub const DIFF_INTURN: U256 = U256([2, 0, 0, 0]);
+pub const DIFF_NOT_INTURN: U256 = U256([1, 0, 0, 0]);
+pub const NULL_AUTHOR: Address = H160([0x00; 20]);
+pub const NULL_NONCE: [u8; 8] = NONCE_DROP_VOTE;
+pub const NULL_MIXHASH: [u8; 32] = [0x00; 32];
+pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
 
+// Caches
 /// How many CliqueBlockState to cache in the memory.
 pub const STATE_CACHE_NUM: usize = 128;
 /// How many recovered signature to cache in the memory.
-pub const SIGNATURE_CACHE_NUM: usize = 4096;
-
+pub const CREATOR_CACHE_NUM: usize = 4096;
 lazy_static! {
-   static ref SIGNER_BY_HASH: RwLock<LruCache<H256, Address>> = RwLock::new(LruCache::new(SIGNATURE_CACHE_NUM));
+	/// key: header hash
+	/// value: creator address
+	static ref CREATOR_BY_HASH: RwLock<LruCache<H256, Address>> = RwLock::new(LruCache::new(CREATOR_CACHE_NUM));
 }
 
 /// Clique Engine implementation
@@ -95,11 +123,11 @@ pub struct Clique {
  * yet.
  */
 pub fn sig_hash(header: &Header) -> Result<H256, Error> {
-	if header.extra_data().len() >= SIGNER_VANITY_LENGTH as usize {
+	if header.extra_data().len() >= SIGNER_VANITY_LENGTH {
 		let extra_data = header.extra_data().clone();
 		let mut reduced_header = header.clone();
 		reduced_header.set_extra_data(
-			extra_data[..extra_data.len() - SIGNER_SIG_LENGTH as usize].to_vec());
+			extra_data[..extra_data.len() - SIGNER_SIG_LENGTH].to_vec());
 
 		Ok(reduced_header.hash())
 	} else {
@@ -110,15 +138,15 @@ pub fn sig_hash(header: &Header) -> Result<H256, Error> {
 /// Recover block creator from signature
 pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 	// Initialization
-	let mut cache = SIGNER_BY_HASH.write();
+	let mut cache = CREATOR_BY_HASH.write();
 
 	if let Some(creator) = cache.get_mut(&header.hash()) {
-		return Ok(*creator.borrow());
+		return Ok(*creator);
 	}
 
 	let data = header.extra_data();
-	let mut sig: [u8; 65] = [0; 65];
-	sig.copy_from_slice(&data[(data.len() - SIGNER_SIG_LENGTH as usize)..]);
+	let mut sig = [0; SIGNER_SIG_LENGTH];
+	sig.copy_from_slice(&data[(data.len() - SIGNER_SIG_LENGTH)..]);
 
 	let msg = sig_hash(header)?;
 	let pubkey = ec_recover(&Signature::from(sig), &msg)?;
@@ -128,25 +156,38 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 	Ok(creator)
 }
 
+/// Extract signer list from extra_data.
+///
+/// Layout of extra_data:
+/// ----
+/// VANITY: 32 bytes
+/// Signers: N * 32 bytes as hex encoded (20 characters)
+/// Signature: 65 bytes
+/// --
 pub fn extract_signers(header: &Header) -> Result<Vec<Address>, Error> {
-	let min_extra_data_size = (SIGNER_VANITY_LENGTH as usize) + (SIGNER_SIG_LENGTH as usize);
+	let data = header.extra_data();
 
-	assert!(header.extra_data().len() >= min_extra_data_size, "need minimum genesis extra data size {}.  found {}.", min_extra_data_size, header.extra_data().len());
+	if data.len() <= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
+		return Err(Box::new("Invalid extra_data size.").into());
+	}
 
 	// extract only the portion of extra_data which includes the signer list
-	let signers_raw = &header.extra_data()[(SIGNER_VANITY_LENGTH as usize)..header.extra_data().len() - (SIGNER_SIG_LENGTH as usize)];
+	let signers_raw = &data[(SIGNER_VANITY_LENGTH)..data.len() - (SIGNER_SIG_LENGTH)];
 
-	assert_eq!(signers_raw.len() % 20, 0, "bad signer list length {}", signers_raw.len());
+	if signers_raw.len() % 20 != 0 {
+		return Err(Box::new("bad signer list.").into());
+	}
 
 	let num_signers = signers_raw.len() / 20;
-	let mut signers_list: Vec<Address> = vec![];
+	let mut signers_list: Vec<Address> = Vec::with_capacity(num_signers);
 
 	for i in 0..num_signers {
 		let mut signer = Address::default();
 		signer.copy_from_slice(&signers_raw[i * 20..(i + 1) * 20]);
 		signers_list.push(signer);
 	}
-	// NOTE: base on geth implmentation , signers list area always sorted to ascending order.
+
+	// NOTE: signers list must be sorted by ascending order.
 	signers_list.sort();
 
 	Ok(signers_list)
@@ -191,7 +232,10 @@ impl Clique {
 		assert_eq!(header.number() % self.epoch_length, 0);
 
 		let state = CliqueBlockState::new(
-			recover_creator(header)?,
+			match header.number() {
+				0 => NULL_AUTHOR,
+				_ => recover_creator(header)?,
+			},
 			extract_signers(header)?);
 
 		Ok(state)
@@ -461,51 +505,96 @@ impl Engine<EthereumMachine> for Clique {
 
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> { Ok(()) }
 
-	fn verify_block_basic(&self, _header: &Header) -> Result<(), Error> {
-// Ignore genisis block.
-		if _header.number() == 0 {
+	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
+		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
+
+		// Ignore genesis block.
+		if header.number() == 0 {
 			return Ok(());
 		}
 
-// don't allow blocks from the future
-// Checkpoint blocks need to enforce zero beneficiary
-		if _header.number() % self.epoch_length == 0 {
-			if _header.author() != &[0; 20].into() {
-				return Err(Box::new("Checkpoint blocks need to enforce zero beneficiary").into());
-			}
-			let nonce = _header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
-			if nonce != &NONCE_DROP_VOTE[..] {
-				return Err(Box::new("Seal nonce zeros enforced on checkpoints").into());
-			}
-		} else {
-// TODO
-// - ensure header extraData has length SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH
-// - ensure header signature corresponds to the right validator for the turn-ness of the
-// block
+		// Don't waste time checking blocks from the future
+		if header.timestamp() > SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() {
+			return Err(Box::new("block in the future").into());
 		}
-// Nonces must be 0x00..0 or 0xff..f, zeroes enforced on checkpoints
-// Check that the extra-data contains both the vanity and signature
-// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise
-// Ensure that the mix digest is zero as we don't have fork protection currently
-// Ensure that the block doesn't contain any uncles which are meaningless in PoA
-// Ensure that the block's difficulty is meaningful
-// ...
 
+		let is_checkpoint = header.number() % self.epoch_length == 0;
+
+		if is_checkpoint && *header.author() != NULL_AUTHOR {
+			return Err(Box::new("Checkpoint block must enforce zero beneficiary").into());
+		}
+
+		// Nonce must be 0x00..0 or 0xff..f
+		let nonce = header.decode_seal::<Vec<&[u8]>>()?[1];
+		if *nonce != NONCE_DROP_VOTE && *nonce != NONCE_AUTH_VOTE {
+			return Err(Box::new("nonce must be 0x00..0 or 0xff..f").into());
+		}
+		if is_checkpoint && *nonce != NULL_NONCE[..] {
+			return Err(Box::new("Checkpoint block must have zero nonce").into());
+		}
+
+		// Ensure that the extra-data contains a signer list on checkpoint, but none otherwise.
+		if (!is_checkpoint && header.extra_data().len() != (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH))
+			|| (is_checkpoint && header.extra_data().len() <= (SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH)) {
+			return Err(Box::new("Invalid extra_data length").into());
+		}
+
+		// Ensure that the mix digest is zero as we don't have fork protection currently
+		let mixhash = header.decode_seal::<Vec<&[u8]>>()?[0];
+		if mixhash != NULL_MIXHASH {
+			return Err(Box::new("mixhash must be 0x00..0 or 0xff..f.").into())
+		}
+
+		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
+		if *header.uncles_hash() != NULL_UNCLES_HASH {
+			return Err(Box::new(format!(
+				"Invalid uncle hash, got: {}, expected: {}.",
+				header.uncles_hash(),
+				NULL_UNCLES_HASH,
+			)).into())
+		}
+
+		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
+		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOT_INTURN {
+			return Err(Box::new(format!(
+				"invalid difficulty: expected {} or {}, got: {}.",
+				DIFF_INTURN,
+				DIFF_NOT_INTURN,
+				header.difficulty(),
+			)).into())
+		}
+
+		// All basic checks passed, continue to next phase
 		Ok(())
 	}
 
 	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
-// Verifying the genesis block is not supported
-// Retrieve the snapshot needed to verify this header and cache it
-// Resolve the authorization key and check against signers
-// Ensure that the difficulty corresponds to the turn-ness of the signer
+		// Nothing to check here.
 		Ok(())
 	}
 
 	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
+	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+		// Ignore genesis block.
+		if header.number() == 0 {
+			return Ok(());
+		}
+
+		// parent sanity check
+		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
+			return Err(Box::new("invalid parent").into());
+		}
+
+		// Ensure that the block's timestamp isn't too close to it's parent
+		if parent.timestamp() + self.period > header.timestamp() {
+			return Err(Box::new("invalid timestamp").into());
+		}
+
+		// Retrieve the parent state
 		let parent_state = self.state(&parent)?;
 
+		// Try to apply current state, apply() will further check signer and recent signer.
 		let mut new_state = parent_state.clone();
 		new_state.apply(header, header.number() % self.epoch_length == 0)?;
 		self.block_state_by_hash.write().insert(header.hash(), new_state);
@@ -522,7 +611,7 @@ impl Engine<EthereumMachine> for Clique {
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
 		let state = CliqueBlockState::new(
-			recover_creator(header).expect("Unable to recover creator"),
+			NULL_AUTHOR,
 			extract_signers(header).expect("Unable to recover signers"),
 		);
 		self.block_state_by_hash.write().insert(header.hash(), state);
@@ -596,7 +685,7 @@ impl Engine<EthereumMachine> for Clique {
 //	}
 
 	fn executive_author(&self, header: &Header) -> Address {
-// Should have been verified now.
+		// Should have been verified now.
 		return recover_creator(header).unwrap();
 	}
 }

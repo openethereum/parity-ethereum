@@ -20,21 +20,11 @@ use std::fmt;
 use std::time::{Duration, SystemTime};
 
 use ethereum_types::{Address, H256, U256};
-use lru_cache::LruCache;
-use parking_lot::RwLock;
 use rand::{Rng, thread_rng};
 
-use engines::clique::{recover_creator, SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH};
+use engines::clique::{extract_signers, recover_creator, NULL_AUTHOR, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, DIFF_INTURN, DIFF_NOT_INTURN};
 use error::Error;
-use ethkey::public_to_address;
 use types::header::Header;
-use engines::clique::extract_signers;
-
-pub const NONCE_DROP_VOTE: &[u8; 8] = &[0x00; 8];
-pub const NONCE_AUTH_VOTE: &[u8; 8] = &[0xff; 8];
-pub const NULL_AUTHOR: [u8; 20] = [0; 20];
-pub const DIFF_INTURN: u8 = 2;
-pub const DIFF_NOT_INTURN: u8 = 1;
 
 #[derive(PartialEq, Clone, Debug, Copy)]
 pub enum SignerAuthorization {
@@ -68,12 +58,9 @@ impl CliqueBlockState {
 			recent_signers: VecDeque::from(vec![author]),
 		};
 	}
-	// Verify given header, this is an internal check for data integrity and consensus rule complaint, should
-	// not be used externally.
+
+	// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L474
 	fn verify(&self, header: &Header) -> Result<(Address), Error>{
-		if header.extra_data().len() < SIGNER_VANITY_LENGTH as usize + SIGNER_SIG_LENGTH as usize {
-			return Err(From::from(format!("header extra data was too small: {}", header.extra_data().len())));
-		}
 		let creator = recover_creator(header)?.clone();
 
 		// Check signer list
@@ -92,6 +79,16 @@ impl CliqueBlockState {
 			                              header.number(),
 			                              header.hash(),
 			                              creator)));
+		}
+
+		// Ensure that the difficulty corresponds to the turn-ness of the signer
+		let inturn = self.inturn(header.number(), &creator);
+
+		if (inturn && *header.difficulty() != DIFF_INTURN) ||
+			(!inturn && *header.difficulty() != DIFF_NOT_INTURN) {
+			return Err(From::from(format!("Error applying #{}({}): wrong difficulty!",
+			                              header.number(),
+			                              header.hash())));
 		}
 
 		Ok(creator)
@@ -124,10 +121,10 @@ impl CliqueBlockState {
 			return Ok(creator);
 		}
 
-		let beneficiary = header.author().clone();
+		let beneficiary = *header.author();
 
 		// No vote, ignore.
-		if beneficiary[0..20] == NULL_AUTHOR {
+		if beneficiary == NULL_AUTHOR {
 			return Ok(creator);
 		}
 
