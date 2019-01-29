@@ -20,6 +20,7 @@ use call_contract::{CallContract, RegistryInfo};
 use types::ids::BlockId;
 use types::transaction::SignedTransaction;
 use ethabi::FunctionOutputDecoder;
+use ethereum_types::Address;
 
 use_contract!(service_transaction, "res/contracts/service_transaction.json");
 
@@ -30,23 +31,24 @@ const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transa
 pub struct ServiceTransactionChecker;
 
 impl ServiceTransactionChecker {
-	/// Checks if given address is whitelisted to send service transactions.
+	/// Checks if given address in tx is whitelisted to send service transactions.
 	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		let sender = tx.sender();
-		let hash = tx.hash();
-
 		// Skip checking the contract if the transaction does not have zero gas price
 		if !tx.gas_price.is_zero() {
 			return Ok(false)
 		}
 
-		let address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
+		self.check_address(client, sender)
+	}
+
+	/// Checks if given address is whitelisted to send service transactions.
+	pub fn check_address<C: CallContract + RegistryInfo>(&self, client: &C, sender: Address) -> Result<bool, String> {
+		let contract_address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
 			.ok_or_else(|| "contract is not configured")?;
-
-		trace!(target: "txqueue", "[{:?}] Checking service transaction checker contract from {}", hash, sender);
-
+		trace!(target: "txqueue", "Checking service transaction checker contract from {}", sender);
 		let (data, decoder) = service_transaction::functions::certified::call(sender);
-		let value = client.call_contract(BlockId::Latest, address, data)?;
+		let value = client.call_contract(BlockId::Latest, contract_address, data)?;
 		decoder.decode(&value).map_err(|e| e.to_string())
 	}
 }
