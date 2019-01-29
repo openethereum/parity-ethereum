@@ -17,7 +17,7 @@ RUN groupadd -g 1000 parity \
 
 # add parity to docker image
 COPY artifacts/x86_64-unknown-linux-gnu/parity /bin/parity
-
+RUN echo "#!/bin/bash \n /bin/parity \$@" > ./entrypoint.sh
 COPY scripts/docker/hub/check_sync.sh /check_sync.sh
 
 # switch to user parity here
