@@ -28,9 +28,9 @@ public class Parity {
 	 *
 	 * @param options The CLI options to start Parity with
 	 */
-	public Parity(String[] options) {
+	public Parity(String[] options, String loggerMode, String loggerFile) {
 		long config = configFromCli(options);
-		inner = build(config);
+		inner = build(config, loggerMode, loggerFile);
 	}
 
 	/** Performs an asynchronous RPC query by spawning a background thread that is executed until
@@ -76,7 +76,7 @@ public class Parity {
 	}
 
 	private static native long configFromCli(String[] cliOptions);
-	private static native long build(long config);
+	private static native long build(long config, String loggerMode, String loggerFile);
 	private static native void destroy(long inner);
 	private static native void rpcQueryNative(long inner, String rpc, long timeoutMillis, Object callback);
 	private static native long subscribeWebSocketNative(long inner, String rpc, Object callback);
