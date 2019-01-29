@@ -80,4 +80,9 @@ mod test_signer {
 			self.1
 		}
 	}
+
+	/// Returns the account provider.
+	pub fn account_provider(&self) -> &Arc<AccountProvider> {
+		&self.account_provider
+	}
 }
