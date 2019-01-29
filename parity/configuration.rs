@@ -18,7 +18,8 @@ use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::collections::BTreeMap;
+use std::collections::{HashSet, BTreeMap};
+use std::iter::FromIterator;
 use std::cmp;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -48,7 +49,7 @@ use ethcore_private_tx::{ProviderConfig, EncryptorConfig};
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat, ResetBlockchain};
 use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
@@ -176,6 +177,19 @@ impl Configuration {
 			}
 		} else if self.args.cmd_tools && self.args.cmd_tools_hash {
 			Cmd::Hash(self.args.arg_tools_hash_file)
+		} else if self.args.cmd_db && self.args.cmd_db_reset {
+			Cmd::Blockchain(BlockchainCmd::Reset(ResetBlockchain {
+				dirs,
+				spec,
+				pruning,
+				pruning_history,
+				pruning_memory: self.args.arg_pruning_memory,
+				tracing,
+				fat_db,
+				compaction,
+				cache_config,
+				num: self.args.arg_db_reset_num,
+			}))
 		} else if self.args.cmd_db && self.args.cmd_db_kill {
 			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {
 				spec: spec,
@@ -559,6 +573,7 @@ impl Configuration {
 			infinite_pending_block: self.args.flag_infinite_pending_block,
 
 			tx_queue_penalization: to_queue_penalization(self.args.arg_tx_time_limit)?,
+			tx_queue_locals: HashSet::from_iter(to_addresses(&self.args.arg_tx_queue_locals)?.into_iter()),
 			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
 			tx_queue_no_unfamiliar_locals: self.args.flag_tx_queue_no_unfamiliar_locals,
 			refuse_service_transactions: self.args.flag_refuse_service_transactions,

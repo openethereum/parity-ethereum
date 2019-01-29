@@ -23,7 +23,6 @@ extern crate docopt;
 #[macro_use]
 extern crate clap;
 extern crate dir;
-extern crate env_logger;
 extern crate futures;
 extern crate atty;
 extern crate jsonrpc_core;
@@ -44,8 +43,9 @@ extern crate toml;
 extern crate blooms_db;
 extern crate cli_signer;
 extern crate common_types as types;
-extern crate ethcore;
 extern crate parity_bytes as bytes;
+extern crate ethcore;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;

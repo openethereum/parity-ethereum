@@ -20,7 +20,7 @@ use host::Host;
 use io::*;
 use parking_lot::RwLock;
 use std::net::SocketAddr;
-use std::ops::Range;
+use std::ops::RangeInclusive;
 use std::sync::Arc;
 use ansi_term::Colour;
 use network::ConnectionFilter;
@@ -95,12 +95,8 @@ impl NetworkService {
 	}
 
 	/// Returns the number of peers allowed.
-	///
-	/// Keep in mind that `range.end` is *exclusive*.
-	pub fn num_peers_range(&self) -> Range<u32> {
-		let start = self.config.min_peers;
-		let end = self.config.max_peers + 1;
-		start .. end
+	pub fn num_peers_range(&self) -> RangeInclusive<u32> {
+		self.config.min_peers..=self.config.max_peers
 	}
 
 	/// Returns external url if available.

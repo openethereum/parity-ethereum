@@ -112,6 +112,13 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;
+
+	/// Get the balance, in base units, associated with an account.
+	/// Extracts data from the live block.
+	fn balance(&self, live: &Self::LiveBlock, address: &Address) -> Result<U256, Self::Error>;
+
+	/// Increment the balance of an account in the state of the live block.
+	fn add_balance(&self, live: &mut Self::LiveBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
 }
 
 /// Machine-related types localized to a specific lifetime.
@@ -122,14 +129,4 @@ pub trait LocalizedMachine<'a>: Sync + Send {
 	/// A context providing access to the state in a controlled capacity.
 	/// Generally also provides verifiable proofs.
 	type StateContext: ?Sized + 'a;
-}
-
-/// A state machine that uses balances.
-pub trait WithBalances: Machine {
-	/// Get the balance, in base units, associated with an account.
-	/// Extracts data from the live block.
-	fn balance(&self, live: &Self::LiveBlock, address: &Address) -> Result<U256, Self::Error>;
-
-	/// Increment the balance of an account in the state of the live block.
-	fn add_balance(&self, live: &mut Self::LiveBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
 }

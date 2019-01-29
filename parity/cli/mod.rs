@@ -18,6 +18,9 @@
 mod usage;
 mod presets;
 
+use std::collections::HashSet;
+use super::helpers;
+
 usage! {
 	{
 		// CLI subcommands
@@ -217,6 +220,15 @@ usage! {
 			CMD cmd_db_kill {
 				"Clean the database of the given --chain (default: mainnet)",
 			}
+
+			CMD cmd_db_reset {
+				"Removes NUM latests blocks from the db",
+
+				ARG arg_db_reset_num: (u32) = 10u32,
+				"<NUM>",
+				"Number of blocks to revert",
+			}
+
 		}
 
 		CMD cmd_export_hardcoded_sync
@@ -309,7 +321,7 @@ usage! {
 		["Convenience Options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
 			"--unsafe-expose",
-			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ui,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
+			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
 
 			ARG arg_config: (String) = "$BASE/config.toml", or |_| None,
 			"-c, --config=[CONFIG]",
@@ -760,10 +772,13 @@ usage! {
 			"--tx-queue-per-sender=[LIMIT]",
 			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
 
-			// INSI: Not sure about the name for this strategy -- 'dynamic'?
+			ARG arg_tx_queue_locals: (Option<String>) = None, or |c: &Config| helpers::join_set(c.mining.as_ref()?.tx_queue_locals.as_ref()),
+			"--tx-queue-locals=[ACCOUNTS]",
+			"Specify local accounts for which transactions are prioritized in the queue. ACCOUNTS is a comma-delimited list of addresses.",
+
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| c.mining.as_ref()?.tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
-			"Prioritization strategy used to order transactions in the queue. S may be: gas_price - Prioritize txs with high gas price, consecutive - Include the entire chain of transactions when calculating their score. This means one may increase the priority of a transaction in the pool by sending another transaction from the same account",
+			"Prioritization strategy used to order transactions in the queue. S may be: gas_price - Prioritize txs with high gas price",
 
 			ARG arg_stratum_interface: (String) = "local", or |c: &Config| c.stratum.as_ref()?.interface.clone(),
 			"--stratum-interface=[IP]",
@@ -1348,6 +1363,7 @@ struct Mining {
 	tx_queue_size: Option<usize>,
 	tx_queue_per_sender: Option<usize>,
 	tx_queue_mem_limit: Option<u32>,
+	tx_queue_locals: Option<HashSet<String>>,
 	tx_queue_strategy: Option<String>,
 	tx_queue_ban_count: Option<u16>,
 	tx_queue_ban_time: Option<u16>,
@@ -1358,7 +1374,6 @@ struct Mining {
 	refuse_service_transactions: Option<bool>,
 	infinite_pending_block: Option<bool>,
 	max_round_blocks_to_import: Option<usize>,
-	experimental_scoring: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1614,6 +1629,7 @@ mod tests {
 			cmd_tools_hash: false,
 			cmd_db: false,
 			cmd_db_kill: false,
+			cmd_db_reset: false,
 			cmd_export_hardcoded_sync: false,
 
 			// Arguments
@@ -1633,6 +1649,7 @@ mod tests {
 			arg_dapp_path: None,
 			arg_account_import_path: None,
 			arg_wallet_import_path: None,
+			arg_db_reset_num: 10,
 
 			// -- Operating Options
 			arg_mode: "last".into(),
@@ -1790,6 +1807,7 @@ mod tests {
 			arg_tx_queue_size: 8192usize,
 			arg_tx_queue_per_sender: None,
 			arg_tx_queue_mem_limit: 4u32,
+			arg_tx_queue_locals: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_tx_queue_strategy: "gas_factor".into(),
 			arg_tx_queue_ban_count: Some(1u16),
 			arg_tx_queue_ban_time: Some(180u16),
@@ -2063,6 +2081,7 @@ mod tests {
 				tx_queue_size: Some(8192),
 				tx_queue_per_sender: None,
 				tx_queue_mem_limit: None,
+				tx_queue_locals: None,
 				tx_queue_strategy: None,
 				tx_queue_ban_count: None,
 				tx_queue_ban_time: None,

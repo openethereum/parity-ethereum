@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate parking_lot;
-extern crate parity_bytes;
+extern crate env_logger;
 extern crate ethcore_io as io;
-extern crate ethcore_logger;
 extern crate ethcore_network;
 extern crate ethcore_network_devp2p;
 extern crate ethkey;
+extern crate parity_bytes;
+extern crate parking_lot;
 
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;

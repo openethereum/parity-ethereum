@@ -22,7 +22,6 @@ rustc-hex = "1.0"
 ethcore-io = { path = "../io", features = ["mio"] }
 parity-bytes = "0.1"
 parity-crypto = "0.2"
-ethcore-logger = { path ="../../logger" }
 ethcore-network = { path = "../network" }
 ethereum-types = "0.4"
 ethkey = { path = "../../accounts/ethkey" }
@@ -37,6 +36,7 @@ serde_derive = "1.0"
 error-chain = { version = "0.12", default-features = false }
 
 [dev-dependencies]
+env_logger = "0.5"
 tempdir = "0.3"
 assert_matches = "1.2"
 

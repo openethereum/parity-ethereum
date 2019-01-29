@@ -9,27 +9,21 @@ echo "CARGO_HOME:       " $CARGO_HOME
 echo "CARGO_TARGET:     " $CARGO_TARGET
 echo "CC:               " $CC
 echo "CXX:              " $CXX
-
-echo "__________CARGO CONFIG__________"
-if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
-then
-  # use build container's cargo config
-  cat /.cargo/config
-else
-  mkdir -p .cargo
-  rm -f .cargo/config
-  echo "[target.$CARGO_TARGET]" >> .cargo/config
-  echo "linker= \"$CC\"" >> .cargo/config
-  cat .cargo/config
-fi
-
+#strip ON
+export RUSTFLAGS=" -C link-arg=-s"
 
 echo "_____ Building target: "$CARGO_TARGET" _____"
-time cargo build --target $CARGO_TARGET --release --features final
-time cargo build --target $CARGO_TARGET --release -p evmbin
-time cargo build --target $CARGO_TARGET --release -p ethstore-cli
-time cargo build --target $CARGO_TARGET --release -p ethkey-cli
-time cargo build --target $CARGO_TARGET --release -p whisper-cli
+if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
+then
+# only thing we need for android
+  time cargo build --target $CARGO_TARGET --release -p parity-clib --features final
+else
+  time cargo build --target $CARGO_TARGET --release --features final
+  time cargo build --target $CARGO_TARGET --release -p evmbin
+  time cargo build --target $CARGO_TARGET --release -p ethstore-cli
+  time cargo build --target $CARGO_TARGET --release -p ethkey-cli
+  time cargo build --target $CARGO_TARGET --release -p whisper-cli
+fi
 
 echo "_____ Post-processing binaries _____"
 rm -rf artifacts
@@ -37,20 +31,16 @@ mkdir -p artifacts
 cd artifacts
 mkdir -p $CARGO_TARGET
 cd $CARGO_TARGET
-cp -v ../../target/$CARGO_TARGET/release/parity ./parity
-cp -v ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
-cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
-cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
-cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
-
-
-# stripping can also be done on release build time
-# export RUSTFLAGS="${RUSTFLAGS} -C link-arg=-s"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
-  arm-linux-androideabi-strip -v ./*
+# only thing we need for android
+ cp -v ../../target/$CARGO_TARGET/release/libparity.so ./libparity.so
 else
-  strip -v ./*
+ cp -v ../../target/$CARGO_TARGET/release/parity ./parity
+ cp -v ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
+ cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
+ cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
+ cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
 fi
 
 echo "_____ Calculating checksums _____"

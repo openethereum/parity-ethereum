@@ -539,6 +539,13 @@ impl<B: Backend> State<B> {
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
+	/// Whether the base storage root of an account remains unchanged.
+	pub fn is_base_storage_root_unchanged(&self, a: &Address) -> TrieResult<bool> {
+		Ok(self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map(|account| account.is_base_storage_root_unchanged()))?
+			.unwrap_or(true))
+	}
+
 	/// Get the storage root of account `a`.
 	pub fn storage_root(&self, a: &Address) -> TrieResult<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
@@ -1316,7 +1323,6 @@ mod tests {
 	use vm::EnvInfo;
 	use spec::*;
 	use types::transaction::*;
-	use ethcore_logger::init_log;
 	use trace::{FlatTrace, TraceError, trace};
 	use evm::CallType;
 
@@ -1332,7 +1338,7 @@ mod tests {
 
 	#[test]
 	fn should_apply_create_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1372,7 +1378,7 @@ mod tests {
 
 	#[test]
 	fn should_work_when_cloned() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let a = Address::zero();
 
@@ -1390,7 +1396,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_failed_create_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1426,7 +1432,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1468,7 +1474,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_basic_call_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1509,7 +1515,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_transaction_to_builtin() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1550,7 +1556,7 @@ mod tests {
 
 	#[test]
 	fn should_not_trace_subcall_transaction_to_builtin() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1592,7 +1598,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_callcode_properly() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1650,7 +1656,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_delegatecall_properly() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1709,7 +1715,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_failed_call_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1748,7 +1754,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_with_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1807,7 +1813,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_with_basic_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1861,7 +1867,7 @@ mod tests {
 
 	#[test]
 	fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1903,7 +1909,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_failed_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -1958,7 +1964,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_call_with_subcall_with_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -2032,7 +2038,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_failed_subcall_with_subcall_transaction() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 
@@ -2104,7 +2110,7 @@ mod tests {
 
 	#[test]
 	fn should_trace_suicide() {
-		init_log();
+		let _ = env_logger::try_init();
 
 		let mut state = get_temp_state();
 

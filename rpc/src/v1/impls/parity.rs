@@ -167,6 +167,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn dev_logs(&self) -> Result<Vec<String>> {
+		warn!("This method is deprecated and will be removed in future. See PR #10102");
 		let logs = self.logger.logs();
 		Ok(logs.as_slice().to_owned())
 	}
@@ -186,13 +187,13 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	fn net_peers(&self) -> Result<Peers> {
 		let sync_status = self.sync.status();
 		let num_peers_range = self.net.num_peers_range();
-		debug_assert!(num_peers_range.end > num_peers_range.start);
+		debug_assert!(num_peers_range.end() >= num_peers_range.start());
 		let peers = self.sync.peers().into_iter().map(Into::into).collect();
 
 		Ok(Peers {
 			active: sync_status.num_active_peers,
 			connected: sync_status.num_peers,
-			max: sync_status.current_max_peers(num_peers_range.start, num_peers_range.end - 1),
+			max: sync_status.current_max_peers(*num_peers_range.start(), *num_peers_range.end()),
 			peers: peers
 		})
 	}
