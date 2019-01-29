@@ -524,8 +524,7 @@ impl BlockInfo for TestBlockChainClient {
 	}
 }
 
-// Basing test implementations off/stealing them
-// from `ethcore/src/verification/verification.rs`
+// TODO: Address redundant implementation of BlockProvider (#10253)
 impl BlockProvider for TestBlockChainClient {
 		fn is_known(&self, _hash: &H256) -> bool {
 			unimplemented!()
