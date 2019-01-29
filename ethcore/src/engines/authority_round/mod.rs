@@ -432,8 +432,6 @@ pub struct AuthorityRound {
 	strict_empty_steps_transition: u64,
 	maximum_empty_steps: usize,
 	machine: EthereumMachine,
-	/// The stored secret contribution to randomness, and the collect round it belongs to.
-	rand_secret: RwLock<Option<(U256, randomness::Secret)>>,
 	/// If set, enables random number contract integration.
 	randomness_contract_address: Option<Address>,
 }
@@ -689,7 +687,6 @@ impl AuthorityRound {
 				maximum_empty_steps: our_params.maximum_empty_steps,
 				strict_empty_steps_transition: our_params.strict_empty_steps_transition,
 				machine: machine,
-				rand_secret: Default::default(),
 				randomness_contract_address: our_params.randomness_contract_address,
 			});
 
@@ -1158,12 +1155,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			};
 			let block_id = BlockId::Latest;
 			let mut contract = util::BoundContract::bind(&*client, block_id, contract_addr);
+			let accounts = self.signer.read().account_provider().clone();
 			// TODO: How should these errors be handled?
 			let phase = randomness::RandomnessPhase::load(&contract, our_addr)
 				.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
-			let secret = *self.rand_secret.read();
 			let mut rng = ::rand::OsRng::new()?;
-			*self.rand_secret.write() = phase.advance(&contract, secret, &mut rng)
+			phase.advance(&contract, &mut rng, &*accounts)
 				.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
 		}
 

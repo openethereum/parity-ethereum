@@ -66,4 +66,9 @@ impl EngineSigner {
 	pub fn is_some(&self) -> bool {
 		self.address.is_some()
 	}
+
+	/// Returns the account provider.
+	pub fn account_provider(&self) -> &Arc<AccountProvider> {
+		&self.account_provider
+	}
 }

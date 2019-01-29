@@ -367,9 +367,17 @@ impl AccountProvider {
 		}
 	}
 
-	/// Returns account public key.
-	pub fn account_public(&self, address: Address, password: &Password) -> Result<Public, Error> {
-		self.sstore.public(&self.sstore.account_ref(&address)?, password)
+	/// Returns account public key. If no password is specified, the account must be unlocked.
+	pub fn account_public<'a, T>(&'a self, address: Address, opt_pw: T) -> Result<Public, SignError>
+		where T: Into<Option<&'a Password>>,
+	{
+		Ok(match opt_pw.into() {
+			Some(password) => self.sstore.public(&self.sstore.account_ref(&address)?, password),
+			None => {
+				let password = self.password(&StoreAccountRef::root(address))?;
+				self.sstore.public(&self.sstore.account_ref(&address)?, &password)
+			}
+		}?)
 	}
 
 	/// Returns each account along with name and meta.
@@ -437,6 +445,7 @@ impl AccountProvider {
 		Ok(())
 	}
 
+	/// Returns the account's password if it is unlocked.
 	fn password(&self, account: &StoreAccountRef) -> Result<Password, SignError> {
 		let mut unlocked = self.unlocked.write();
 		let data = unlocked.get(account).ok_or(SignError::NotUnlocked)?.clone();
