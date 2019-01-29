@@ -47,6 +47,7 @@ pub enum SpecType {
 	Kovan,
 	Rinkeby,
 	Goerli,
+	Kotti,
 	Sokol,
 	Dev,
 	Custom(String),
@@ -79,6 +80,7 @@ impl str::FromStr for SpecType {
 			"kovan" | "testnet" => SpecType::Kovan,
 			"rinkeby" => SpecType::Rinkeby,
 			"goerli" | "görli" => SpecType::Goerli,
+			"kotti" => SpecType::Kotti,
 			"sokol" | "poasokol" => SpecType::Sokol,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
@@ -106,6 +108,7 @@ impl fmt::Display for SpecType {
 			SpecType::Kovan => "kovan",
 			SpecType::Rinkeby => "rinkeby",
 			SpecType::Goerli => "goerli",
+			SpecType::Kotti => "kotti",
 			SpecType::Sokol => "sokol",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
@@ -133,6 +136,7 @@ impl SpecType {
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
 			SpecType::Rinkeby => Ok(ethereum::new_rinkeby(params)),
 			SpecType::Goerli => Ok(ethereum::new_goerli(params)),
+			SpecType::Kotti => Ok(ethereum::new_kotti(params)),
 			SpecType::Sokol => Ok(ethereum::new_sokol(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
@@ -392,6 +396,7 @@ mod tests {
 		assert_eq!(SpecType::Rinkeby, "rinkeby".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "goerli".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "görli".parse().unwrap());
+		assert_eq!(SpecType::Kotti, "kotti".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
 	}
@@ -419,6 +424,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");
 		assert_eq!(format!("{}", SpecType::Goerli), "goerli");
+		assert_eq!(format!("{}", SpecType::Kotti), "kotti");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
