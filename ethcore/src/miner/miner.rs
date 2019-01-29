@@ -1527,12 +1527,7 @@ mod tests {
 
 	#[test]
 	fn should_prioritize_locals() {
-		let keypair = Random.generate().unwrap();
 		let client = TestBlockChainClient::default();
-		let account_provider = AccountProvider::transient_provider();
-		account_provider.insert_account(keypair.secret().clone(), &"".into())
-		    .expect("can add accounts to the provider we just created");
-
 		let transaction = transaction();
 		let miner = Miner::new(
 			MinerOptions {
@@ -1541,7 +1536,7 @@ mod tests {
 			},
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
-			Some((Arc::new(account_provider), HashSet::from_iter(vec![transaction.sender()].into_iter()))),
+			HashSet::from_iter(vec![transaction.sender()].into_iter()),
 		);
 		let best_block = 0;
 
