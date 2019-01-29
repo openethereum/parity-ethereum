@@ -37,7 +37,7 @@ impl<M: Machine> StepService<M> {
 }
 
 fn set_timeout<S: Sync + Send + Clone + 'static + Debug> (io: &IoContext<S>, timeout: Duration) {
-	io.register_timer((1 as usize).into(), timeout)
+	io.register_timer_once((1 as usize).into(), timeout)
 		.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
 }
 
@@ -50,9 +50,10 @@ impl<S, M> IoHandler<S> for StepService<M>
 	}
 
 	/// Call step after timeout.
-	fn timeout(&self, _io: &IoContext<S>, timer: TimerToken) {
+	fn timeout(&self, io: &IoContext<S>, timer: TimerToken) {
 		if let Some(engine) = self.engine.upgrade() {
 			engine.step();
+			set_timeout(io, self.timeout);
 		}
 	}
 

@@ -552,11 +552,6 @@ fn enact(
 
 	b.push_transactions(transactions)?;
 
-	trace!(target: "blocks", "resetting author to {}, was {}", *header.author(), b.block.header.author());
-
-	// reset the author to what it was originally specified as now that transactions are applied
-	b.block.header.set_author(*header.author());
-
 	for u in uncles {
 		b.push_uncle(u)?;
 	}

@@ -58,6 +58,7 @@ use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
 use parity_machine::LiveBlock;
+use std::time::Duration;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
@@ -257,7 +258,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 		_epoch_begin: bool,
 		_ancestry: &mut Iterator<Item=M::ExtendedHeader>,
 	) -> Result<(), M::Error> {
-		// must set diffcuity!!!
 		Ok(())
 	}
 

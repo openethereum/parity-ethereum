@@ -50,7 +50,7 @@
 ///   c. Seal:: None
 /// 5. Miner will create new block, in process it will call several engine method, which they need to do following:
 ///   a. `engine_open_header_timestamp()` can use default impl.
-///   b. `on_new_block` must set difficulty to correct value.
+///   b. `engine.populate_from_parent()` must set difficulty to correct value.
 /// 5. Implement `engine.on_seal_block()`, which is the new hook that allow modifying header after block is locked.
 ///    This is also where we should implement an delay timer??
 /// 6. engine.verify_local_seal() will be called, then normal syncing code path will also be called.
@@ -127,8 +127,6 @@ pub struct Clique {
 	step_service: IoService<Duration>,
 }
 
-const step_time: Duration = Duration::from_millis(1000);
-
 impl Clique {
 	/// initialize Clique engine from empty state.
 	pub fn new(our_params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
@@ -144,8 +142,10 @@ impl Clique {
 				step_service: IoService::<Duration>::start()?,
 			});
 
-		let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, step_time);
-		engine.step_service.register_handler(Arc::new(handler))?;
+		if engine.period > 0 {
+			let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, Duration::from_secs(our_params.period / 2));
+			engine.step_service.register_handler(Arc::new(handler))?;
+		}
 
 		return Ok(engine);
 	}
@@ -225,8 +225,8 @@ impl Clique {
 				// for speed.
 				let backfill_start = time::Instant::now();
 				info!(target: "engine",
-				       "Back-filling block state. last_checkpoint_number: {}, current_number: {}.",
-				       last_checkpoint_number, header.number());
+				       "Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
+				       last_checkpoint_number, header.number(), header.hash());
 
 				// Get the state for last checkpoint.
 				let last_checkpoint_hash = *(chain.front().unwrap().parent_hash());
@@ -272,45 +272,46 @@ impl Engine<EthereumMachine> for Clique {
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
-	// Our task here is to set diffcuity
 	fn on_new_block(
 		&self,
 		block: &mut ExecutedBlock,
 		_epoch_begin: bool,
 		ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
-		trace!(target: "engine", "on_open_block");
+		Ok(())
+	}
 
-		let signer = self.signer.read().address().ok_or_else(
-			|| "on_new_block: trying to open block without signer."
-		)?;
-
-		let parent = ancestry.next().ok_or_else(
-			|| "on_new_block: trying to open block with no parent."
-		)?;
-
-		match self.state(&parent.header) {
-			Err(e) => {
-				return Err(Box::new(format!(
-					"on_new_block: Unable to find parent state: {}",
-					e)
-				).into());
+	// Our task here is to set difficulty
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+		// TODO: this is a horrible hack, it is due to the fact that enact_verified and miner both use
+		// OpenBlock::new() which will both call this function. more refactoring is definitely needed.
+		match header.extra_data().len() >= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
+			true => {
+				// we are importing blocks, do nothing.
 			}
-			Ok(state) => {
-				if !state.is_authoirzed(&signer) {
-					return Err(Box::new(format!(
-						"on_new_block: Bug! unauthorized to sign: {}, state: {:?}",
-						signer, state)
-					).into());
-				}
-				if state.inturn(block.header.number(), &signer) {
-					block.header.set_difficulty(DIFF_INTURN);
-				} else {
-					block.header.set_difficulty(DIFF_NOT_INTURN);
+			false => {
+				trace!(target: "engine", "populate_from_parent in sealing");
+
+				// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
+				// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
+				if let Some(signer) = self.signer.read().address() {
+					match self.state(&parent) {
+						Err(e) => {
+							trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
+						}
+						Ok(state) => {
+							if state.is_authoirzed(&signer) {
+								if state.inturn(header.number(), &signer) {
+									header.set_difficulty(DIFF_INTURN);
+								} else {
+									header.set_difficulty(DIFF_NOT_INTURN);
+								}
+							}
+						}
+					}
 				}
 			}
 		}
-		Ok(())
 	}
 
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
@@ -360,6 +361,11 @@ impl Engine<EthereumMachine> for Clique {
 		let (sig, msg) = self.sign_header(&header)?;
 		seal.extend_from_slice(&sig[..]);
 		header.set_extra_data(seal.clone());
+
+		// Record state
+		let mut new_state = state.clone();
+		new_state.apply(&header, header.number() % self.epoch_length == 0)?;
+		self.block_state_by_hash.write().insert(header.hash(), new_state);
 
 		trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
 
