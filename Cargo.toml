@@ -137,3 +137,6 @@ members = [
 	"util/patricia-trie-ethereum",
 	"util/fastmap",
 ]
+
+[patch.crates-io]
+heapsize = { git = "https://github.com/cheme/heapsize.git", branch = "ec-macfix" }
