@@ -57,6 +57,7 @@ use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
+use parity_machine::LiveBlock;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
@@ -256,12 +257,18 @@ pub trait Engine<M: Machine>: Sync + Send {
 		_epoch_begin: bool,
 		_ancestry: &mut Iterator<Item=M::ExtendedHeader>,
 	) -> Result<(), M::Error> {
+		// must set diffcuity!!!
 		Ok(())
 	}
 
 	/// Block transformation functions, after the transactions.
 	fn on_close_block(&self, _block: &mut M::LiveBlock) -> Result<(), M::Error> {
 		Ok(())
+	}
+
+	/// Allow modifying block header after seal generation. Currently only used by Clique.
+	fn on_seal_block(&self, block: &M::LiveBlock) -> Result<Option<Header>, M::Error> {
+		Ok(None)
 	}
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
@@ -361,10 +368,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 		None
 	}
 
-		/// Allow hook to set extra data before closing the block (after txs are applied).  used by
-		/// clique for block signing
-		fn seal_block_extra_data(&self, _parent: &M::Header) -> Option<Vec<u8>> { None }
-
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
 	fn epoch_verifier<'a>(&self, _header: &M::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a, M> {
@@ -382,8 +385,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: Password) {}
 
-	fn seal_header(&self, header: &mut Header) {}
-
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
 
@@ -394,7 +395,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn step(&self) {}
 
 	/// Stops any services that the may hold the Engine and makes it safe to drop.
-	fn stop(&self) {}
+	fn stop(&mut self) {}
 
 	/// Create a factory for building snapshot chunks and restoring from them.
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.

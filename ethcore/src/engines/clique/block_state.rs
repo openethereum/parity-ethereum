@@ -56,7 +56,7 @@ impl CliqueBlockState {
 			votes: Default::default(),
 			votes_history: Default::default(),
 			signers: signers_sorted,
-			recent_signers: VecDeque::from(vec![author]),
+			recent_signers: Default::default(),
 		};
 	}
 
@@ -182,10 +182,14 @@ impl CliqueBlockState {
 		Ok(creator)
 	}
 
-	fn inturn(&self, current_block_number: u64, author: &Address) -> bool {
+	pub fn inturn(&self, current_block_number: u64, author: &Address) -> bool {
 		if let Some(pos) = self.signers.iter().position(|x| *author == *x) {
 			return current_block_number % self.signers.len() as u64 == pos as u64;
 		}
 		return false;
+	}
+
+	pub fn is_authoirzed(&self, author: &Address) -> bool {
+		return self.signers.contains(author) && !self.recent_signers.contains(author);
 	}
 }

@@ -35,23 +35,6 @@ lazy_static! {
 	static ref CREATOR_BY_HASH: RwLock<LruCache<H256, Address>> = RwLock::new(LruCache::new(CREATOR_CACHE_NUM));
 }
 
-/*
- * only sign over non-signature bytes (vanity data).  There shouldn't be a signature here to sign
- * yet.
- */
-pub fn sig_hash(header: &Header) -> Result<H256, Error> {
-	if header.extra_data().len() >= SIGNER_VANITY_LENGTH {
-		let extra_data = header.extra_data().clone();
-		let mut reduced_header = header.clone();
-		reduced_header.set_extra_data(
-			extra_data[..extra_data.len() - SIGNER_SIG_LENGTH].to_vec());
-
-		Ok(reduced_header.hash())
-	} else {
-		Ok(header.hash())
-	}
-}
-
 /// Recover block creator from signature
 pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 	// Initialization
@@ -62,10 +45,16 @@ pub fn recover_creator(header: &Header) -> Result<Address, Error> {
 	}
 
 	let data = header.extra_data();
-	let mut sig = [0; SIGNER_SIG_LENGTH];
-	sig.copy_from_slice(&data[(data.len() - SIGNER_SIG_LENGTH)..]);
+	let mut sig_data = data[data.len() - SIGNER_SIG_LENGTH..].to_vec();
+	sig_data.resize(SIGNER_SIG_LENGTH, 0);
 
-	let msg = sig_hash(header)?;
+	let mut sig = [0; SIGNER_SIG_LENGTH];
+	sig.copy_from_slice(&sig_data[..]);
+
+	let reduced_header = &mut header.clone();
+	reduced_header.set_extra_data(data[..data.len() - SIGNER_SIG_LENGTH].to_vec());
+
+	let msg = reduced_header.hash();
 	let pubkey = ec_recover(&Signature::from(sig), &msg)?;
 	let creator = public_to_address(&pubkey);
 

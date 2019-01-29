@@ -153,6 +153,9 @@ impl ExecutedBlock {
 	pub fn traces_mut(&mut self) -> &mut Tracing {
 		&mut self.traces
 	}
+
+	/// Get mutable reference to header.
+	pub fn header_mut(&mut self) -> &mut Header { &mut self.header }
 }
 
 /// Trait for a object that is a `ExecutedBlock`.
@@ -435,21 +438,19 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
-	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
+	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
 		let expected_seal_fields = engine.seal_fields(self.header());
-		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			return Err(BlockError::InvalidSealArity(
-				Mismatch { expected: expected_seal_fields, found: seal.len() }));
+			return Err(Box::new(BlockError::InvalidSealArity(
+				Mismatch { expected: expected_seal_fields, found: seal.len() })).into());
 		}
+		let mut s = self;
+
 		s.block.header.set_seal(seal);
 
-		engine.seal_header(&mut s.block.header);
-		/*
-		if let Some(extra_data) = engine.seal_block_extra_data(&s.block.header) {
-			s.block.header.set_extra_data(extra_data);
+		if let Some(new_header) = engine.on_seal_block(&s.block)? {
+			s.block.header = new_header;
 		}
-		*/
 
 		s.block.header.compute_hash();
 		Ok(SealedBlock {
@@ -460,6 +461,7 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	/// This does check the validity of `seal` with the engine.
 	/// Returns the `ClosedBlock` back again if the seal is no good.
+	/// TODO(sunyc): This is currently only used in POW chain call paths, we should really merge it with seal() above.
 	pub fn try_seal(
 		self,
 		engine: &EthEngine,

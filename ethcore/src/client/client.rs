@@ -86,6 +86,7 @@ pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
 use db::Writable;
+use std::borrow::BorrowMut;
 
 use_contract!(registry, "res/contracts/registrar.json");
 
@@ -2499,7 +2500,7 @@ impl SnapshotClient for Client {}
 
 impl Drop for Client {
 	fn drop(&mut self) {
-		self.engine.stop();
+		Arc::get_mut(&mut self.engine).and_then(|x| Some(x.stop()));
 	}
 }
 
