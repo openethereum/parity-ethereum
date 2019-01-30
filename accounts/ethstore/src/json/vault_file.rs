@@ -41,6 +41,9 @@ impl VaultFile {
 mod test {
 	use serde_json;
 	use json::{VaultFile, Crypto, Cipher, Aes128Ctr, Kdf, Pbkdf2, Prf};
+	use std::num::NonZeroU32;
+
+	const ITERATIONS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(1024) };
 
 	#[test]
 	fn to_and_from_json() {
@@ -51,7 +54,7 @@ mod test {
 				}),
 				ciphertext: "4d6938a1f49b7782".into(),
 				kdf: Kdf::Pbkdf2(Pbkdf2 {
-					c: 1024,
+					c: ITERATIONS,
 					dklen: 32,
 					prf: Prf::HmacSha256,
 					salt: "b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5".into(),
@@ -76,7 +79,7 @@ mod test {
 				}),
 				ciphertext: "4d6938a1f49b7782".into(),
 				kdf: Kdf::Pbkdf2(Pbkdf2 {
-					c: 1024,
+					c: ITERATIONS,
 					dklen: 32,
 					prf: Prf::HmacSha256,
 					salt: "b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5".into(),
