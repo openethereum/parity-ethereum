@@ -133,3 +133,6 @@ members = [
 	"parity-clib",
 	"whisper/cli",
 ]
+
+[patch.crates-io]
+heapsize = { git = "https://github.com/cheme/heapsize.git", branch = "ec-macfix" }
