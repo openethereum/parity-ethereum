@@ -29,7 +29,7 @@ mod vote_collector;
 pub mod block_reward;
 pub mod epoch;
 
-pub use self::authority_round::AuthorityRound;
+pub use self::authority_round::{AuthorityRound, RandomnessPhaseError};
 pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::{InstantSeal, InstantSealParams};
@@ -86,6 +86,10 @@ pub enum EngineError {
 	BadSealFieldSize(OutOfBounds<usize>),
 	/// Validation proof insufficient.
 	InsufficientProof(String),
+	/// Randomness error in load method
+	RandomnessLoadError(RandomnessPhaseError),
+	/// Randomness error in advance method
+	RandomnessAdvanceError(RandomnessPhaseError),
 	/// Failed system call.
 	FailedSystemCall(String),
 	/// Failed to decode the result of a system call.
@@ -108,6 +112,8 @@ impl fmt::Display for EngineError {
 			UnexpectedMessage => "This Engine should not be fed messages.".into(),
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
 			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
+			RandomnessLoadError(ref rerr) => format!("Randomness error in load(): {:?}", rerr),
+			RandomnessAdvanceError(ref rerr) => format!("Randomness error in advance(): {:?}", rerr),
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
 			SystemCallResultDecoding(ref msg) => format!("Failed to decode the result of a system call: {}", msg),
 			SystemCallResultInvalid(ref msg) => format!("The result of a system call is invalid: {}", msg),
