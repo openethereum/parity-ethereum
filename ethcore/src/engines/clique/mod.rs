@@ -442,8 +442,13 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// Don't waste time checking blocks from the future
-		if header.timestamp() > SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() {
-			return Err(Box::new("block in the future").into());
+		{
+			let limit = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() + self.period;
+			if header.timestamp() > limit {
+				return Err(Box::new(
+					format!("Block is too far in the future, timestamp: {}, limit: {}", header.timestamp(), limit)
+				).into());
+			}
 		}
 
 		let is_checkpoint = header.number() % self.epoch_length == 0;
