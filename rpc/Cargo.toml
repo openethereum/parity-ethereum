@@ -74,4 +74,4 @@ pretty_assertions = "0.1"
 transaction-pool = "1.13"
 
 [features]
-accounts = [ "ethcore-accounts" ]
+accounts = ["ethcore-accounts"]
