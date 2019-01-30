@@ -54,6 +54,9 @@ mod finality;
 mod randomness;
 pub(crate) mod util;
 
+/// Export PhaseError from randomness to use in EngineError
+pub type RandomnessPhaseError = randomness::PhaseError;
+
 /// `AuthorityRound` params.
 pub struct AuthorityRoundParams {
 	/// Time to wait before next block or authority switching,
