@@ -210,8 +210,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_spec_name(&self, spec_name: String) -> Result<bool> {
-		self.client.set_spec_name(spec_name);
-		Ok(true)
+		self.client.set_spec_name(spec_name).map(|_| true).map_err(|()| errors::cannot_restart())
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256> {

@@ -248,6 +248,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 						};
 						e.1.notify_all();
 					}
+          Ok(())
 				}
 			},
 			{
@@ -268,7 +269,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		)
 	} else {
 		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
-		start(conf, logger, move |_| {}, move || {})
+		start(conf, logger, move |_| { Err(()) }, move || {})
 	};
 
 	let res = match exec {

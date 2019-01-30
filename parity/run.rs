@@ -166,7 +166,7 @@ type LightClient = ::light::client::Client<::light_helpers::EpochFetch>;
 
 // helper for light execution.
 fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr) -> Result<RunningClient, String>
-  where Cr: Fn(String) + 'static + Send
+  where Cr: Fn(String) -> Result<(), ()> + 'static + Send
 {
 	use light::client as light_client;
 	use sync::{LightSyncParams, LightSync, ManageNetwork};
@@ -383,7 +383,7 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 
 fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr,
 						on_updater_rq: Rr) -> Result<RunningClient, String>
-	where Cr: Fn(String) + 'static + Send,
+	where Cr: Fn(String) -> Result<(), ()> + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
 	// load spec
@@ -930,7 +930,7 @@ impl RunningClient {
 /// On error, returns what to print on stderr.
 pub fn execute<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>,
 						on_client_rq: Cr, on_updater_rq: Rr) -> Result<RunningClient, String>
-	where Cr: Fn(String) + 'static + Send,
+	where Cr: Fn(String) -> Result<(), ()> + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
 	if cmd.light {
