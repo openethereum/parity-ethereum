@@ -21,7 +21,6 @@ use std::path::PathBuf;
 use parking_lot::{Mutex, RwLock};
 use std::time::{Instant, Duration};
 
-use crypto::KEY_ITERATIONS;
 use random::Random;
 use ethkey::{self, Signature, Password, Address, Message, Secret, Public, KeyPair, ExtendedKeyPair};
 use accounts_dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
@@ -29,6 +28,9 @@ use account::SafeAccount;
 use presale::PresaleWallet;
 use json::{self, Uuid, OpaqueKeyFile};
 use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation, OpaqueSecret};
+
+
+const KEY_ITERATIONS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(crypto::KEY_ITERATIONS as u32) };
 
 /// Accounts store.
 pub struct EthStore {
@@ -38,7 +40,7 @@ pub struct EthStore {
 impl EthStore {
 	/// Open a new accounts store with given key directory backend.
 	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
-		Self::open_with_iterations(directory, NonZeroU32::new(KEY_ITERATIONS as u32).expect("KEY_ITERATIONS > 0; qed"))
+		Self::open_with_iterations(directory, KEY_ITERATIONS)
 	}
 
 	/// Open a new account store with given key directory backend and custom number of iterations.
@@ -274,7 +276,7 @@ struct Timestamp {
 impl EthMultiStore {
 	/// Open new multi-accounts store with given key directory backend.
 	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
-		Self::open_with_iterations(directory, NonZeroU32::new(KEY_ITERATIONS as u32).expect("KEY_ITERATIONS > 0; qed"))
+		Self::open_with_iterations(directory, KEY_ITERATIONS)
 	}
 
 	/// Open new multi-accounts store with given key directory backend and custom number of iterations for new keys.
