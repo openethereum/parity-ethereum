@@ -20,9 +20,7 @@ use std::collections::BTreeMap;
 use ethereum_types::H256;
 use parking_lot::RwLock;
 use sync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats};
-use self::ethcore_network::client_version::ClientVersion;
-
-extern crate ethcore_network;
+use network::client_version::ClientVersion;
 
 /// TestSyncProvider config.
 pub struct Config {

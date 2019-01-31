@@ -25,8 +25,6 @@ use std::fmt;
 const LEGACY_CLIENT_ID_PREFIX: &str = "Parity";
 const PARITY_CLIENT_ID_PREFIX: &str = "Parity-Ethereum";
 
-const PARITY_ID_STRING_MINIMUM_LENGTH: usize = 4;
-
 lazy_static! {
 /// Parity versions starting from this will accept block bodies requests
 /// of 256 bodies
@@ -161,9 +159,11 @@ fn is_parity(client_id: &str) -> bool {
 /// Parse known parity formats. Recognizes either a short format with four fields
 /// or a long format which includes the same fields and an identity one.
 fn parse_parity_format(client_version: &str) -> Result<ParityClientData, ()> {
+	const PARITY_ID_STRING_MINIMUM_TOKENS: usize = 4;
+
 	let tokens: Vec<&str> = client_version.split("/").collect();
 
-	if tokens.len() < PARITY_ID_STRING_MINIMUM_LENGTH {
+	if tokens.len() < PARITY_ID_STRING_MINIMUM_TOKENS {
 		return Err(())
 	}
 
