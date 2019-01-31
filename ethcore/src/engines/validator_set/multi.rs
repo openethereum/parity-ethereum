@@ -81,7 +81,6 @@ impl ValidatorSet for Multi {
 	}
 
 	fn on_new_block(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
-		error!("on_new_block");
 		self.map_children(header, &mut |set: &dyn ValidatorSet, first| set.on_new_block(first, header, call))
 	}
 

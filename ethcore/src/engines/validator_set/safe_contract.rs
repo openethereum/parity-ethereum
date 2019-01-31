@@ -291,13 +291,13 @@ impl ValidatorSet for ValidatorSafeContract {
 	}
 
 	fn on_new_block(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
-		error!("New block issued ― calling emitInitiateChange()");
+		trace!(target: "engine", "New block issued ― calling emitInitiateChange()");
 		let (data, decoder) = validator_set::functions::emit_initiate_change_callable::call();
 		if !caller(self.contract_address, data)
 			.and_then(|x| decoder.decode(&x)
 			.map_err(|x| format!("chain spec bug: could not decode: {:?}", x)))
 			.map_err(::engines::EngineError::FailedSystemCall)? {
-			debug!(target: "engine", "No need to call emitInitiateChange()");
+			trace!(target: "engine", "No need to call emitInitiateChange()");
 			return Ok(());
 		}
 
@@ -315,7 +315,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		bound_contract.schedule_service_transaction(data)
 			.map_err(|x|format!("Error scheduling a transaction: {:?}", x))
 			.map_err(::engines::EngineError::FailedSystemCall)?;
-		debug!(target: "engine", "Successfully called emitInitiateChange()");
+		trace!(target: "engine", "Successfully called emitInitiateChange()");
 		Ok(())
 	}
 

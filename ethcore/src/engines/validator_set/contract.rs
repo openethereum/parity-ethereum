@@ -73,7 +73,6 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn on_new_block(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
-		error!("on_new_block");
 		self.validators.on_new_block(first, header, call)
 	}
 
