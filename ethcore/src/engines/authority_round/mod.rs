@@ -43,8 +43,9 @@ use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use types::BlockNumber;
-use types::header::{Header, ExtendedHeader};
 use types::ancestry_action::AncestryAction;
+use types::header::{Header, ExtendedHeader};
+use types::transaction::SignedTransaction;
 use unexpected::{Mismatch, OutOfBounds};
 
 #[cfg(not(time_checked_add))]
@@ -820,8 +821,8 @@ impl AuthorityRound {
 					// Stop reporting once validators start repeating.
 					if !reported.insert(skipped_primary) { break; }
 					self.validators.report_benign(&skipped_primary, set_number, header.number());
- 				}
- 			}
+				}
+			}
 		}
 	}
 
@@ -1155,31 +1156,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		epoch_begin: bool,
 		_ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
-		// Random number generation
-		// This will add local service transactions to the queue. Since `on_new_block` is called before the transactions
-		// are selected from the queue and local transactions are prioritized, they should end up in this block.
-		// TODO: Verify this!
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				debug!(target: "engine", "Unable to close block: missing client ref.");
-				return Err(EngineError::RequiresClient.into())
-			},
-		};
-		if let (Some(contract_addr), opt_signer) =
-			(self.randomness_contract_address, self.signer.read()) {
-			if let Some(signer) = opt_signer.as_ref() {
-				let block_id = BlockId::Latest;
-				let mut contract = util::BoundContract::bind(&*client, block_id, contract_addr);
-				// TODO: How should these errors be handled?
-				let phase = randomness::RandomnessPhase::load(&contract, signer.address())
-					.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
-				let mut rng = ::rand::OsRng::new()?;
-				phase.advance(&contract, &mut rng, signer.as_ref())
-					.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
-			}
-		}
-
 		// genesis is never a new block, but might as well check.
 		let header = block.header().clone();
 		let first = header.number() == 0;
@@ -1194,8 +1170,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 			result.map_err(|e| format!("{}", e))
 		};
-
-		self.validators.on_new_block(first, &header, &mut call)?;
 
 		// with immediate transitions, we don't use the epoch mechanism anyway.
 		// the genesis is always considered an epoch, but we ignore it intentionally.
@@ -1252,6 +1226,46 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		};
 
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
+	}
+
+	/// Make calls to the randomness and validator set contracts.
+	fn on_prepare_block(&self, block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
+		// Genesis is never a new block, but might as well check.
+		let header = block.header().clone();
+		let first = header.number() == 0;
+
+		// Random number generation
+		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => client,
+			None => {
+				debug!(target: "engine", "Unable to close block: missing client ref.");
+				return Err(EngineError::RequiresClient.into())
+			},
+		};
+		if let (Some(contract_addr), opt_signer) =
+			(self.randomness_contract_address, self.signer.read()) {
+			if let Some(signer) = opt_signer.as_ref() {
+				let block_id = BlockId::Latest;
+				let mut contract = util::BoundContract::bind(&*client, block_id, contract_addr);
+				// TODO: How should these errors be handled?
+				let phase = randomness::RandomnessPhase::load(&contract, signer.address())
+					.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
+				let mut rng = ::rand::OsRng::new()?;
+				phase.advance(&contract, &mut rng, signer.as_ref())
+					.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
+			}
+		}
+
+
+		let mut call = |to, data| {
+			let full_client = client.as_full_client().ok_or("Failed to upgrade to BlockchainClient.".to_string())?;
+			full_client.call_contract(BlockId::Latest, to, data).map_err(|e| format!("{}", e))
+		};
+
+		self.validators.on_new_block(first, &header, &mut call)?;
+
+		// TODO: Return new transactions instead of putting them on the queue.
+		Ok(Vec::new())
 	}
 
 	/// Check the number of seal fields.
