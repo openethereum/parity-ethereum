@@ -45,7 +45,7 @@ use parking_lot::{Mutex, RwLock};
 use types::BlockNumber;
 use types::ancestry_action::AncestryAction;
 use types::header::{Header, ExtendedHeader};
-use types::transaction::SignedTransaction;
+use types::transaction::{Action, SignedTransaction, Transaction};
 use unexpected::{Mismatch, OutOfBounds};
 
 #[cfg(not(time_checked_add))]
@@ -1234,6 +1234,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let header = block.header().clone();
 		let first = header.number() == 0;
 
+		let mut transactions = Vec::new();
+
 		// Random number generation
 		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
 			Some(client) => client,
@@ -1242,8 +1244,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				return Err(EngineError::RequiresClient.into())
 			},
 		};
-		if let (Some(contract_addr), opt_signer) =
-			(self.randomness_contract_address, self.signer.read()) {
+		if let (Some(contract_addr), opt_signer) = (self.randomness_contract_address, self.signer.read()) {
 			if let Some(signer) = opt_signer.as_ref() {
 				let block_id = BlockId::Latest;
 				let mut contract = util::BoundContract::bind(&*client, block_id, contract_addr);
@@ -1251,8 +1252,23 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				let phase = randomness::RandomnessPhase::load(&contract, signer.address())
 					.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
 				let mut rng = ::rand::OsRng::new()?;
-				phase.advance(&contract, &mut rng, signer.as_ref())
-					.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
+				if let Some(data) = phase.advance(&contract, &mut rng, signer.as_ref())
+					.map_err(EngineError::RandomnessAdvanceError)? {
+					// TODO: Find a better way to create these transactions.
+					let transaction = Transaction {
+						nonce: block.state.nonce(&signer.address()).unwrap(), // TODO
+						action: Action::Call(contract_addr),
+						gas: U256::from(1000000),
+						gas_price: U256::zero(),
+						value: U256::zero(),
+						data,
+					};
+					let chain_id = Some(self.machine.params().chain_id); // TODO: See EIP155?
+					let signature = signer.sign(transaction.hash(chain_id))
+						.map_err(|e| types::transaction::Error::InvalidSignature(e.to_string())).unwrap(); // TODO
+					let signed_tx = SignedTransaction::new(transaction.with_signature(signature, chain_id)).unwrap();
+					transactions.push(signed_tx);
+				}
 			}
 		}
 
@@ -1262,10 +1278,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			full_client.call_contract(BlockId::Latest, to, data).map_err(|e| format!("{}", e))
 		};
 
+		// TODO: Return new validator set transactions instead of putting them on the queue.
 		self.validators.on_new_block(first, &header, &mut call)?;
 
-		// TODO: Return new transactions instead of putting them on the queue.
-		Ok(Vec::new())
+		Ok(transactions)
 	}
 
 	/// Check the number of seal fields.
