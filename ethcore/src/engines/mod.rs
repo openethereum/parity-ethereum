@@ -285,6 +285,12 @@ pub trait Engine<M: Machine>: Sync + Send {
 		Ok(())
 	}
 
+	/// Returns a list of transactions for a new block if we are the author.
+	///
+	/// This is called when the miner prepares a new block that this node will author and seal. It returns a list of
+	/// transactions that will be added to the block before any other transactions from the queue.
+	fn on_prepare_block(&self, _block: &M::LiveBlock) -> Result<Vec<SignedTransaction>, M::Error> { Ok(Vec::new()) }
+
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
 	/// Some(false) means that the node might seal internally but is not qualified now.

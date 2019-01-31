@@ -44,6 +44,7 @@ use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
+use transaction::SignedTransaction;
 use types::ancestry_action::AncestryAction;
 use unexpected::{Mismatch, OutOfBounds};
 
@@ -809,8 +810,8 @@ impl AuthorityRound {
 					// Stop reporting once validators start repeating.
 					if !reported.insert(skipped_primary) { break; }
 					self.validators.report_benign(&skipped_primary, set_number, header.number());
- 				}
- 			}
+				}
+			}
 		}
 	}
 
@@ -1144,29 +1145,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		epoch_begin: bool,
 		_ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
-		// Random number generation
-		// This will add local service transactions to the queue. Since `on_new_block` is called before the transactions
-		// are selected from the queue and local transactions are prioritized, they should end up in this block.
-		// TODO: Verify this!
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				debug!(target: "engine", "Unable to close block: missing client ref.");
-				return Err(EngineError::RequiresClient.into())
-			},
-		};
-		if let (Some(contract_addr), Some(our_addr)) = (self.randomness_contract_address, self.signer.read().address()) {
-			let block_id = BlockId::Latest;
-			let mut contract = util::BoundContract::bind(&*client, block_id, contract_addr);
-			let accounts = self.signer.read().account_provider().clone();
-			// TODO: How should these errors be handled?
-			let phase = randomness::RandomnessPhase::load(&contract, our_addr)
-				.map_err(EngineError::RandomnessLoadError)?;
-			let mut rng = ::rand::OsRng::new()?;
-			phase.advance(&contract, &mut rng, &*accounts)
-				.map_err(EngineError::RandomnessAdvanceError)?;
-		}
-
 		// genesis is never a new block, but might as well check.
 		let header = block.header().clone();
 		let first = header.number() == 0;
@@ -1181,8 +1159,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 			result.map_err(|e| format!("{}", e))
 		};
-
-		self.validators.on_new_block(first, &header, &mut call)?;
 
 		// with immediate transitions, we don't use the epoch mechanism anyway.
 		// the genesis is always considered an epoch, but we ignore it intentionally.
@@ -1239,6 +1215,42 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		};
 
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
+	}
+
+	/// Make calls to the randomness and validator set contracts.
+	fn on_prepare_block(&self, block: &ExecutedBlock) -> Result<Vec<SignedTransaction>, Error> {
+		// Genesis is never a new block, but might as well check.
+		let header = block.header().clone();
+		let first = header.number() == 0;
+
+		// Random number generation
+		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => client,
+			None => {
+				debug!(target: "engine", "Unable to close block: missing client ref.");
+				return Err(EngineError::RequiresClient.into())
+			},
+		};
+		if let (Some(contract_addr), Some(our_addr)) = (self.randomness_contract_address, self.signer.read().address()) {
+			let block_id = BlockId::Latest;
+			let mut contract = util::BoundContract::bind(&*client, block_id, contract_addr);
+			let accounts = self.signer.read().account_provider().clone();
+			let phase = randomness::RandomnessPhase::load(&contract, our_addr)
+				.map_err(EngineError::RandomnessLoadError)?;
+			let mut rng = ::rand::OsRng::new()?;
+			phase.advance(&contract, &mut rng, &*accounts)
+				.map_err(EngineError::RandomnessAdvanceError)?;
+		}
+
+		let mut call = |to, data| {
+			let full_client = client.as_full_client().ok_or("Failed to upgrade to BlockchainClient.".to_string())?;
+			full_client.call_contract(BlockId::Latest, to, data).map_err(|e| format!("{}", e))
+		};
+
+		self.validators.on_new_block(first, &header, &mut call)?;
+
+		// TODO: Return new transactions instead of putting them on the queue.
+		Ok(Vec::new())
 	}
 
 	/// Check the number of seal fields.

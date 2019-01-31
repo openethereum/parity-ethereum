@@ -397,7 +397,8 @@ impl Miner {
 					) {
 						Ok(block) => block,
 						Err(err) => {
-							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in chain specificiations or on-chain consensus smart contracts.", err);
+							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in \
+								  chain specification or on-chain consensus smart contracts.", err);
 							return None;
 						}
 					}
@@ -434,13 +435,23 @@ impl Miner {
 			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.block().header().gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
 		};
 
-		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
+		// Before adding transactions from the queue to the new block, give the engine a chance to add transactions.
+		let engine_pending = match self.engine.on_prepare_block(open_block.block()) {
+			Ok(transactions) => transactions,
+			Err(err) => {
+				error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
+					   This is likely an error in chain specification or on-chain consensus smart contracts.", err);
+				return None;
+			}
+		};
+
+		let queue_pending: Vec<Arc<_>> = self.transaction_queue.pending(
 			client.clone(),
 			pool::PendingSettings {
 				block_number: chain_info.best_block_number,
 				current_timestamp: chain_info.best_block_timestamp,
 				nonce_cap,
-				max_len: max_transactions,
+				max_len: max_transactions.saturating_sub(engine_pending.len()),
 				ordering: miner::PendingOrdering::Priority,
 			}
 		);
@@ -450,12 +461,11 @@ impl Miner {
 		};
 
 		let block_start = Instant::now();
-		debug!(target: "miner", "Attempting to push {} transactions.", pending.len());
+		debug!(target: "miner", "Attempting to push {} transactions.", engine_pending.len() + queue_pending.len());
 
-		for tx in pending {
+		for transaction in engine_pending.into_iter().chain(queue_pending.into_iter().map(|tx| tx.signed().clone())) {
 			let start = Instant::now();
 
-			let transaction = tx.signed().clone();
 			let hash = transaction.hash();
 			let sender = transaction.sender();
 
