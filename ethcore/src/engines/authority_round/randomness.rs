@@ -7,7 +7,7 @@
 //!
 //! No additional state is kept inside the `RandomnessPhase`, it must be passed in each time.
 
-use ethabi::Hash;
+use ethabi::{Bytes, Hash};
 use ethereum_types::{Address, U256};
 use hash::keccak;
 use rand::Rng;
@@ -168,8 +168,7 @@ impl RandomnessPhase {
 
 	/// Advance the randomness state, if necessary.
 	///
-	/// Creates the transaction necessary to advance the randomness contract's state and schedules
-	/// them to run on the `client` inside `contract`.
+	/// Returns the contract calls necessary to advance the randomness contract's state.
 	///
 	/// **Warning**: The `advance()` function should be called only once per block state; otherwise
 	///              spurious transactions resulting in punishments might be executed.
@@ -178,16 +177,16 @@ impl RandomnessPhase {
 		contract: &BoundContract,
 		rng: &mut R,
 		accounts: &AccountProvider,
-	) -> Result<(), PhaseError> {
+	) -> Result<Option<Bytes>, PhaseError> {
 		match self {
-			RandomnessPhase::Waiting | RandomnessPhase::Committed => (),
+			RandomnessPhase::Waiting | RandomnessPhase::Committed => Ok(None),
 			RandomnessPhase::BeforeCommit { round, our_address } => {
 				// Check whether a secret has already been committed in this round.
 				let committed_hash: Hash = contract
 					.call_const(aura_random::functions::get_commit::call(round, our_address))
 					.map_err(PhaseError::LoadFailed)?;
 				if !committed_hash.is_zero() {
-					return Ok(()); // Already committed.
+					return Ok(None); // Already committed.
 				}
 
 				// Generate a new secret. Compute the secret's hash, and encrypt the secret to ourselves.
@@ -197,8 +196,8 @@ impl RandomnessPhase {
 				let cipher = ecies::encrypt(&public, &secret_hash, &secret).map_err(PhaseError::Crypto)?;
 
 				// Schedule the transaction that commits the hash and the encrypted secret.
-				contract.schedule_service_transaction(aura_random::functions::commit_hash::call(secret_hash, cipher))
-					.map_err(PhaseError::TransactionFailed)?;
+				let (data, _decoder) = aura_random::functions::commit_hash::call(secret_hash, cipher);
+				Ok(Some(data))
 			}
 			RandomnessPhase::Reveal { round, our_address } => {
 				// Load the hash and encrypted secret that we stored in the commit phase.
@@ -229,10 +228,9 @@ impl RandomnessPhase {
 				}
 
 				// We are now sure that we have the correct secret and can reveal it.
-				contract.schedule_service_transaction(aura_random::functions::reveal_secret::call(secret))
-					.map_err(PhaseError::TransactionFailed)?;
+				let (data, _decoder) = aura_random::functions::reveal_secret::call(secret);
+				Ok(Some(data))
 			}
 		}
-		Ok(())
 	}
 }
