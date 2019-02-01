@@ -21,7 +21,7 @@ use serde::{Serialize, Serializer};
 use v1::types::{U256, H512};
 
 /// Sync info
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncInfo {
 	/// Starting block
@@ -126,7 +126,7 @@ impl From<sync::PipProtocolInfo> for PipProtocolInfo {
 }
 
 /// Sync status
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SyncStatus {
 	/// Info when syncing
 	Info(SyncInfo),

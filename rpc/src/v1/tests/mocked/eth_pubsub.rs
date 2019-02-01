@@ -23,6 +23,7 @@ use jsonrpc_pubsub::Session;
 use std::time::Duration;
 
 use v1::{EthPubSub, EthPubSubClient, Metadata};
+use v1::tests::helpers:{TestSnapshotService};
 
 use ethcore::client::{TestBlockChainClient, EachBlockWith, ChainNotify, NewBlocks, ChainRoute, ChainRouteType};
 use parity_runtime::Runtime;
@@ -40,7 +41,7 @@ fn should_subscribe_to_new_heads() {
 	let h2 = client.block_hash_delta_minus(2);
 	let h1 = client.block_hash_delta_minus(3);
 
-	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.executor());
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), Arc::new(TestSnapshotService::new()), el.executor());
 	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
