@@ -112,6 +112,7 @@ impl BlockRewardContract {
 		beneficiaries: &[(Address, RewardKind)],
 		caller: &mut SystemOrCodeCall,
 	) -> Result<Vec<(Address, U256)>, Error> {
+		trace!(target: "reward", "Block reward benefactors: {:?}", beneficiaries);
 		let input = block_reward_contract::functions::reward::encode_input(
 			beneficiaries.iter().map(|&(address, _)| H160::from(address)),
 			beneficiaries.iter().map(|&(_, ref reward_kind)| u16::from(*reward_kind)),
