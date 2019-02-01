@@ -26,8 +26,11 @@ extern crate log;
 extern crate panic_hook;
 extern crate parity_ethereum;
 extern crate parking_lot;
+extern crate parity_daemonize;
+extern crate ansi_term;
 
 #[cfg(windows)] extern crate winapi;
+extern crate ethcore_logger;
 
 use std::ffi::OsString;
 use std::fs::{remove_file, metadata, File, create_dir_all};
@@ -36,12 +39,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{process, env};
-
+use ansi_term::Colour;
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
 use parity_ethereum::{start, ExecutionAction};
 use parking_lot::{Condvar, Mutex};
+use ethcore_logger::setup_log;
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 const PARITY_EXECUTABLE_NAME: &str = "parity";
@@ -184,10 +188,32 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
+	let logger = setup_log(&conf.logger_config()).expect("Logger is initialized only once; qed");
+
 	if let Some(spec_override) = take_spec_name_override() {
 		conf.args.flag_testnet = false;
 		conf.args.arg_chain = spec_override;
 	}
+
+	let handle = if let Some(ref pid) = conf.args.arg_daemon_pid_file {
+		info!("{}", Colour::Blue.paint("starting in daemon mode").to_string());
+		let _ = std::io::stdout().flush();
+
+		match parity_daemonize::daemonize(pid) {
+			Ok(h) => Some(h),
+			Err(e) => {
+				error!(
+					"{}",
+					Colour::Red.paint(format!("{}", e))
+				);
+				// flush before returning
+				let _ = std::io::stderr().flush();
+				return 1;
+			}
+		}
+	} else {
+		None
+	};
 
 	let can_restart = force_can_restart || conf.args.flag_can_restart;
 
@@ -208,6 +234,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 	let exec = if can_restart {
 		start(
 			conf,
+			logger,
 			{
 				let e = exit.clone();
 				let exiting = exiting.clone();
@@ -239,10 +266,9 @@ fn main_direct(force_can_restart: bool) -> i32 {
 				}
 			}
 		)
-
 	} else {
 		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
-		start(conf, move |_| {}, move || {})
+		start(conf, logger, move |_| {}, move || {})
 	};
 
 	let res = match exec {
@@ -283,6 +309,12 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					}
 				});
 
+				// so the client has started successfully
+				// if this is a daemon, detach from the parent process
+				if let Some(mut handle) = handle {
+					handle.detach()
+				}
+
 				// Wait for signal
 				let mut lock = exit.0.lock();
 				if !lock.should_exit {
@@ -306,6 +338,11 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			},
 		},
 		Err(err) => {
+			// error occured during start up
+			// if this is a daemon, detach from the parent process
+			if let Some(mut handle) = handle {
+				handle.detach_with_msg(format!("{}", Colour::Red.paint(&err)))
+			}
 			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
 			1
 		},
