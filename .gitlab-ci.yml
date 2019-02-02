@@ -96,9 +96,9 @@ publish-docker:
     - scripts/gitlab/publish-docker.sh parity
 
 publish-snap:
-  stage:                           publish
-  only:                            *releaseable_branches
-  image:                           parity/snapcraft:gitlab-ci
+  stage:                           optional #publish
+  # only:                            *releaseable_branches
+  image:                           snapcore/snapcraft
   variables:
     BUILD_ARCH:                  amd64
   cache: {}
