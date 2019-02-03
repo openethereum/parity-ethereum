@@ -129,7 +129,7 @@ macro_rules! impl_hash {
 
 					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
 
-						if value.len() < 2 || &value[0..2] != "0x" {
+						if value.len() < 2 || !value.starts_with("0x") {
 							return Err(E::custom("expected a hex-encoded hash with 0x prefix"));
 						}
 						if value.len() != 2 + $size * 2 {
