@@ -57,6 +57,8 @@ cpp_test () {
       cd $DIR
       cmake ..
       make -j $THREADS
+      # Note: we don't try to run the example because it tries to sync Kovan, and we don't want
+      #       that to happen on CI
       cd -
       rm -rf $DIR
       ;;
