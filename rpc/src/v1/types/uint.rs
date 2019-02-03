@@ -72,7 +72,7 @@ macro_rules! impl_uint {
 					}
 
 					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
-						if value.len() < 2  || &value[0..2] != "0x" {
+						if value.len() < 2  || !value.starts_with("0x") {
 							return Err(E::custom("expected a hex-encoded numbers with 0x prefix"))
 						}
 
@@ -140,12 +140,14 @@ mod tests {
 
 	#[test]
 	fn should_fail_to_deserialize_decimals() {
+		let deserialized0: Res = serde_json::from_str(r#""∀∂""#);
 		let deserialized1: Res = serde_json::from_str(r#""""#);
 		let deserialized2: Res = serde_json::from_str(r#""0""#);
 		let deserialized3: Res = serde_json::from_str(r#""10""#);
 		let deserialized4: Res = serde_json::from_str(r#""1000000""#);
 		let deserialized5: Res = serde_json::from_str(r#""1000000000000000000""#);
 
+		assert!(deserialized0.is_err());
 		assert!(deserialized1.is_err());
 		assert!(deserialized2.is_err());
 		assert!(deserialized3.is_err());
