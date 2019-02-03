@@ -346,7 +346,7 @@ impl NodeTable {
 		for (_, node) in update.added.drain() {
 			let entry = self.nodes.entry(node.id).or_insert_with(|| Node::new(node.id, node.endpoint.clone()));
 			entry.endpoint = node.endpoint;
-		}
+		};
 		for r in update.removed {
 			if !reserved.contains(&r) {
 				self.nodes.remove(&r);
