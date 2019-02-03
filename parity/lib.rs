@@ -111,19 +111,22 @@ mod user_defaults;
 mod whisper;
 mod db;
 
-use std::io::BufReader;
 use std::fs::File;
-use hash::keccak_buffer;
+use std::io::BufReader;
+use std::sync::Arc;
+
 use cli::Args;
 use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
-use ethcore_logger::setup_log;
+use hash::keccak_buffer;
+
 #[cfg(feature = "memory_profiling")]
 use std::alloc::System;
 
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
 pub use parity_rpc::PubSubSession;
+pub use ethcore_logger::{Config as LoggerConfig, setup_log, RotatingLogger};
 
 #[cfg(feature = "memory_profiling")]
 #[global_allocator]
@@ -180,14 +183,13 @@ pub enum ExecutionAction {
 	Running(RunningClient),
 }
 
-fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Result<ExecutionAction, String>
+fn execute<Cr, Rr>(
+	command: Execute,
+	logger: Arc<RotatingLogger>,
+	on_client_rq: Cr, on_updater_rq: Rr) -> Result<ExecutionAction, String>
 	where Cr: Fn(String) + 'static + Send,
 		  Rr: Fn() + 'static + Send
 {
-	// TODO: move this to `main()` and expose in the C API so that users can setup logging the way
-	// 		they want
-	let logger = setup_log(&command.logger).expect("Logger is initialized only once; qed");
-
 	#[cfg(feature = "deadlock_detection")]
 	run_deadlock_detection_thread();
 
@@ -221,14 +223,21 @@ fn execute<Cr, Rr>(command: Execute, on_client_rq: Cr, on_updater_rq: Rr) -> Res
 /// binary.
 ///
 /// On error, returns what to print on stderr.
-pub fn start<Cr, Rr>(conf: Configuration, on_client_rq: Cr, on_updater_rq: Rr) -> Result<ExecutionAction, String>
-	where Cr: Fn(String) + 'static + Send,
-			Rr: Fn() + 'static + Send
+// FIXME: totally independent logging capability, see https://github.com/paritytech/parity-ethereum/issues/10252
+pub fn start<Cr, Rr>(
+	conf: Configuration,
+	logger: Arc<RotatingLogger>,
+	on_client_rq: Cr,
+	on_updater_rq: Rr
+) -> Result<ExecutionAction, String>
+	where
+		Cr: Fn(String) + 'static + Send,
+		Rr: Fn() + 'static + Send
 {
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
 		println!("{}", d);
 	}
 
-	execute(conf.into_command()?, on_client_rq, on_updater_rq)
+	execute(conf.into_command()?, logger, on_client_rq, on_updater_rq)
 }

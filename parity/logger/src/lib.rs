@@ -94,7 +94,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	let maybe_file = match config.file.as_ref() {
 		Some(f) => Some(open_options
 			.append(true).create(true).open(f)
-			.map_err(|_| format!("Cannot write to log file given: {}", f))?),
+			.map_err(|e| format!("Cannot write to log file given: {}, {}", f, e))?),
 		None => None,
 	};
 

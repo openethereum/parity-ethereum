@@ -57,8 +57,8 @@ cpp_test () {
       cd $DIR
       cmake ..
       make -j $THREADS
-      ./parity-example > example.logs
-      tail --lines 100 example.logs
+      # Note: we don't try to run the example because it tries to sync Kovan, and we don't want
+      #       that to happen on CI
       cd -
       rm -rf $DIR
       ;;
