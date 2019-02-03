@@ -57,8 +57,6 @@ cpp_test () {
       cd $DIR
       cmake ..
       make -j $THREADS
-      ./parity-example > example.logs
-      tail --lines 100 example.logs
       cd -
       rm -rf $DIR
       ;;
