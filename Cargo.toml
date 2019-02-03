@@ -50,6 +50,7 @@ node-filter = { path = "ethcore/node-filter" }
 ethkey = { path = "accounts/ethkey" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "cli-signer" }
+parity-daemonize = "0.1.1"
 parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
@@ -82,9 +83,6 @@ fake-fetch = { path = "util/fake-fetch" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
-
-[target.'cfg(not(windows))'.dependencies]
-parity-daemonize = "0.1.1"
 
 [features]
 miner-debug = ["ethcore/miner-debug"]
