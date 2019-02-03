@@ -22,6 +22,7 @@ dir = { path = "../../util/dir" }
 smallvec = "0.6"
 parity-wordlist = "1.0"
 tempdir = "0.3"
+lazy_static = "1.2.0"
 
 [dev-dependencies]
 matches = "0.1"

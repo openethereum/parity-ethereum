@@ -227,7 +227,7 @@ pub struct AccountsConfig {
 impl Default for AccountsConfig {
 	fn default() -> Self {
 		AccountsConfig {
-			iterations: unsafe { NonZeroU32::new_unchecked(10240) },
+			iterations: NonZeroU32::new(10240).expect("10240 > 0; qed"),
 			refresh_time: 5,
 			testnet: false,
 			password_files: Vec::new(),

@@ -1217,7 +1217,9 @@ mod tests {
 
 	use super::*;
 
-	const ITERATIONS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(10240) };
+	lazy_static! {
+		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(10240).expect("10240 > 0; qed");
+	}
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -1240,7 +1242,7 @@ mod tests {
 		let args = vec!["parity", "account", "new"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
-			iterations: ITERATIONS,
+			iterations: *ITERATIONS,
 			path: Directories::default().keys,
 			password_file: None,
 			spec: SpecType::default(),
@@ -1275,7 +1277,7 @@ mod tests {
 		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
-			iterations: ITERATIONS,
+			iterations: *ITERATIONS,
 			path: Directories::default().keys,
 			wallet_path: "my_wallet.json".into(),
 			password_file: Some("pwd".into()),

@@ -203,14 +203,17 @@ mod tests {
 	use ethkey::{Generator, Random, verify_public, Message};
 	use super::{SafeAccount, NonZeroU32};
 
-	const ITERATIONS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(10240) };
+	lazy_static! {
+		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(10240).expect("10240 > 0; qed");
+	}
+
 
 	#[test]
 	fn sign_and_verify_public() {
 		let keypair = Random.generate().unwrap();
 		let password = "hello world".into();
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, ITERATIONS, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0u8; 16], &password, *ITERATIONS, "Test".to_owned(), "{}".to_owned());
 		let signature = account.unwrap().sign(&password, &message).unwrap();
 		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
 	}
@@ -221,8 +224,8 @@ mod tests {
 		let first_password = "hello world".into();
 		let sec_password = "this is sparta".into();
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], &first_password, ITERATIONS, "Test".to_owned(), "{}".to_owned()).unwrap();
-		let new_account = account.change_password(&first_password, &sec_password, ITERATIONS).unwrap();
+		let account = SafeAccount::create(&keypair, [0u8; 16], &first_password, *ITERATIONS, "Test".to_owned(), "{}".to_owned()).unwrap();
+		let new_account = account.change_password(&first_password, &sec_password, *ITERATIONS).unwrap();
 		assert!(account.sign(&first_password, &message).is_ok());
 		assert!(account.sign(&sec_password, &message).is_err());
 		assert!(new_account.sign(&first_password, &message).is_err());

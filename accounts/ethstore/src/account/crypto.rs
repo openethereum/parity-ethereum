@@ -162,13 +162,15 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use super::{Crypto, Error, NonZeroU32};
 
-	const ITERATIONS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(10240) };
+	lazy_static! {
+		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(10240).expect("10240 > 0; qed");
+	}
 
 	#[test]
 	fn crypto_with_secret_create() {
 		let keypair = Random.generate().unwrap();
 		let passwd = "this is sparta".into();
-		let crypto = Crypto::with_secret(keypair.secret(), &passwd, ITERATIONS).unwrap();
+		let crypto = Crypto::with_secret(keypair.secret(), &passwd, *ITERATIONS).unwrap();
 		let secret = crypto.secret(&passwd).unwrap();
 		assert_eq!(keypair.secret(), &secret);
 	}
@@ -176,7 +178,7 @@ mod tests {
 	#[test]
 	fn crypto_with_secret_invalid_password() {
 		let keypair = Random.generate().unwrap();
-		let crypto = Crypto::with_secret(keypair.secret(), &"this is sparta".into(), ITERATIONS).unwrap();
+		let crypto = Crypto::with_secret(keypair.secret(), &"this is sparta".into(), *ITERATIONS).unwrap();
 		assert_matches!(crypto.secret(&"this is sparta!".into()), Err(Error::InvalidPassword))
 	}
 
@@ -184,7 +186,7 @@ mod tests {
 	fn crypto_with_null_plain_data() {
 		let original_data = b"";
 		let passwd = "this is sparta".into();
-		let crypto = Crypto::with_plain(&original_data[..], &passwd, ITERATIONS).unwrap();
+		let crypto = Crypto::with_plain(&original_data[..], &passwd, *ITERATIONS).unwrap();
 		let decrypted_data = crypto.decrypt(&passwd).unwrap();
 		assert_eq!(original_data[..], *decrypted_data);
 	}
@@ -193,7 +195,7 @@ mod tests {
 	fn crypto_with_tiny_plain_data() {
 		let original_data = b"{}";
 		let passwd = "this is sparta".into();
-		let crypto = Crypto::with_plain(&original_data[..], &passwd, ITERATIONS).unwrap();
+		let crypto = Crypto::with_plain(&original_data[..], &passwd, *ITERATIONS).unwrap();
 		let decrypted_data = crypto.decrypt(&passwd).unwrap();
 		assert_eq!(original_data[..], *decrypted_data);
 	}
@@ -202,7 +204,7 @@ mod tests {
 	fn crypto_with_huge_plain_data() {
 		let original_data: Vec<_> = (1..65536).map(|i| (i % 256) as u8).collect();
 		let passwd = "this is sparta".into();
-		let crypto = Crypto::with_plain(&original_data, &passwd, ITERATIONS).unwrap();
+		let crypto = Crypto::with_plain(&original_data, &passwd, *ITERATIONS).unwrap();
 		let decrypted_data = crypto.decrypt(&passwd).unwrap();
 		assert_eq!(&original_data, &decrypted_data);
 	}

@@ -30,7 +30,10 @@ use json::{self, Uuid, OpaqueKeyFile};
 use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation, OpaqueSecret};
 
 
-const KEY_ITERATIONS: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(crypto::KEY_ITERATIONS as u32) };
+lazy_static! {
+	static ref KEY_ITERATIONS: NonZeroU32 =
+		NonZeroU32::new(crypto::KEY_ITERATIONS as u32).expect("KEY_ITERATIONS > 0; qed");
+}
 
 /// Accounts store.
 pub struct EthStore {
@@ -40,7 +43,7 @@ pub struct EthStore {
 impl EthStore {
 	/// Open a new accounts store with given key directory backend.
 	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
-		Self::open_with_iterations(directory, KEY_ITERATIONS)
+		Self::open_with_iterations(directory, *KEY_ITERATIONS)
 	}
 
 	/// Open a new account store with given key directory backend and custom number of iterations.
@@ -276,7 +279,7 @@ struct Timestamp {
 impl EthMultiStore {
 	/// Open new multi-accounts store with given key directory backend.
 	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
-		Self::open_with_iterations(directory, KEY_ITERATIONS)
+		Self::open_with_iterations(directory, *KEY_ITERATIONS)
 	}
 
 	/// Open new multi-accounts store with given key directory backend and custom number of iterations for new keys.

@@ -59,8 +59,8 @@ impl PresaleWallet {
 		let mut derived_key = [0u8; 32];
 		let salt = pbkdf2::Salt(password.as_bytes());
 		let sec = pbkdf2::Secret(password.as_bytes());
-		const ITER: NonZeroU32 = unsafe { NonZeroU32::new_unchecked(2000) };
-		pbkdf2::sha256(ITER, salt, sec, &mut derived_key);
+		let iter = NonZeroU32::new(2000).expect("2000 > 0; qed");
+		pbkdf2::sha256(iter, salt, sec, &mut derived_key);
 
 		let mut key = vec![0; self.ciphertext.len()];
 		let len = crypto::aes::decrypt_128_cbc(&derived_key[0..16], &self.iv, &self.ciphertext, &mut key)
