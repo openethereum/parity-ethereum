@@ -23,6 +23,7 @@ use serde_json;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::iter::FromIterator;
 use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, Ipv6Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -235,22 +236,27 @@ impl Hash for Node {
 	}
 }
 
-const MAX_NODES: usize = 1024;
+pub const MAX_NODES_IN_TABLE: usize = 4096;
+const MAX_NODES_IN_FILE: usize = 1024;
 const NODES_FILE: &str = "nodes.json";
 
 /// Node table backed by disk file.
 pub struct NodeTable {
 	nodes: HashMap<NodeId, Node>,
+	ordered_ids: Vec<NodeId>,
 	useless_nodes: HashSet<NodeId>,
 	path: Option<String>,
 }
 
 impl NodeTable {
 	pub fn new(path: Option<String>) -> NodeTable {
+		let nodes = NodeTable::load(path.clone());
+		let ordered_ids = NodeTable::make_ordered_entries(&nodes).iter().map(|m| m.id).collect();
 		NodeTable {
-			path: path.clone(),
-			nodes: NodeTable::load(path),
+			path,
+			nodes,
 			useless_nodes: HashSet::new(),
+			ordered_ids
 		}
 	}
 
@@ -258,24 +264,72 @@ impl NodeTable {
 	pub fn add_node(&mut self, mut node: Node) {
 		// preserve node last_contact
 		node.last_contact = self.nodes.get(&node.id).and_then(|n| n.last_contact);
-		self.nodes.insert(node.id, node);
+		let id = node.id;
+		if self.ordered_ids.len() == MAX_NODES_IN_TABLE {
+			self.nodes.remove(&self.ordered_ids.pop().unwrap());
+		};
+		let index = self.get_index_to_insert(node.last_contact);
+		if self.nodes.insert(node.id, node).is_none() {
+			self.ordered_ids.insert(index, id);
+		};
 	}
 
-	/// Returns a list of ordered nodes according to their most recent contact
-	/// and filtering useless nodes. The algorithm for creating the sorted nodes
-	/// is:
+	/// Get index in the ordered entries vector to insert node based on its last contact value
+	fn get_index_to_insert(&self, last_contact: Option<NodeContact>) -> usize {
+		let len = self.ordered_ids.len();
+		let mut	index = len;
+		match last_contact {
+			Some(NodeContact::Success(last_contact_time)) => {
+				if let Some(i) = self.ordered_ids.iter().position(|&item| {
+					match self.nodes.get(&item).unwrap().last_contact {
+						Some(NodeContact::Success(last)) => last > last_contact_time,
+						_ => true
+					}
+				}) { index = i; };
+			},
+			None => {
+				if let Some(i) = self.ordered_ids.iter().position(|&item| {
+					match self.nodes.get(&item).unwrap().last_contact {
+						Some(NodeContact::Success(_)) => false,
+						_ => true
+					}
+				}) { index = i; };
+			},
+			Some(NodeContact::Failure(last_contact_time)) => {
+				if let Some(i) = self.ordered_ids.iter().rev().position(|&item| {
+					match self.nodes.get(&item).unwrap().last_contact {
+						Some(NodeContact::Failure(last)) if last >= last_contact_time => false,
+						_ => true
+					}
+				}) { index = len - i - 1; };
+			}
+		};
+		index
+	}
+
+	/// Returns a list of ordered entries from table
+	fn ordered(&self) -> Vec<&Node> {
+		Vec::from_iter(
+			self.ordered_ids
+				.iter()
+				.filter(|id| !self.useless_nodes.contains(&id))
+				.map(|id| self.nodes.get(&id).expect("Id to remove should exist"))
+		)
+	}
+
+	/// Makes a list of ordered nodes according to their most recent contact.
+	/// The algorithm for creating the sorted nodes is:
 	/// - Contacts that aren't recent (older than 1 week) are discarded
 	/// - (1) Nodes with a successful contact are ordered (most recent success first)
 	/// - (2) Nodes with unknown contact (older than 1 week or new nodes) are randomly shuffled
 	/// - (3) Nodes with a failed contact are ordered (oldest failure first)
 	/// - The final result is the concatenation of (1), (2) and (3)
-	fn ordered_entries(&self) -> Vec<&Node> {
+	fn make_ordered_entries(node_table: &HashMap<NodeId, Node>) -> Vec<&Node> {
 		let mut success = Vec::new();
 		let mut failures = Vec::new();
 		let mut unknown = Vec::new();
 
-		let nodes = self.nodes.values()
-			.filter(|n| !self.useless_nodes.contains(&n.id));
+		let nodes = node_table.values();
 
 		for node in nodes {
 			// discard contact points older that aren't recent
@@ -316,7 +370,7 @@ impl NodeTable {
 	/// Returns node ids sorted by failure percentage, for nodes with the same failure percentage the absolute number of
 	/// failures is considered.
 	pub fn nodes(&self, filter: &IpFilter) -> Vec<NodeId> {
-		self.ordered_entries().iter()
+		self.ordered().iter()
 			.filter(|n| n.endpoint.is_allowed(&filter))
 			.map(|n| n.id)
 			.collect()
@@ -325,7 +379,7 @@ impl NodeTable {
 	/// Ordered list of all entries by failure percentage, for nodes with the same failure percentage the absolute
 	/// number of failures is considered.
 	pub fn entries(&self) -> Vec<NodeEntry> {
-		self.ordered_entries().iter().map(|n| NodeEntry {
+		self.ordered().iter().map(|n| NodeEntry {
 			endpoint: n.endpoint.clone(),
 			id: n.id,
 		}).collect()
@@ -344,11 +398,22 @@ impl NodeTable {
 	/// Apply table changes coming from discovery
 	pub fn update(&mut self, mut update: TableUpdates, reserved: &HashSet<NodeId>) {
 		for (_, node) in update.added.drain() {
-			let entry = self.nodes.entry(node.id).or_insert_with(|| Node::new(node.id, node.endpoint.clone()));
-			entry.endpoint = node.endpoint;
+			let mut add = false;
+			{
+				let entry = self.nodes.entry(node.id).or_insert_with(|| {add = true; Node::new(node.id, node.endpoint.clone())});
+				entry.endpoint = node.endpoint;
+			}
+			if add {
+				if self.ordered_ids.len() == MAX_NODES_IN_TABLE {
+					self.nodes.remove(&self.ordered_ids.pop().unwrap());
+				};
+				let index = self.get_index_to_insert(None);
+				self.ordered_ids.insert(index, node.id);
+			};
 		};
 		for r in update.removed {
 			if !reserved.contains(&r) {
+				self.ordered_ids.iter().position(|&i| r == i).map(|p| self.ordered_ids.remove(p));
 				self.nodes.remove(&r);
 			}
 		}
@@ -356,16 +421,26 @@ impl NodeTable {
 
 	/// Set last contact as failure for a node
 	pub fn note_failure(&mut self, id: &NodeId) {
+		let mut last_contact = None;
 		if let Some(node) = self.nodes.get_mut(id) {
 			node.last_contact = Some(NodeContact::failure());
+			last_contact = node.last_contact
 		}
+		self.ordered_ids.iter().position(|i| id == i).map(|p| self.ordered_ids.remove(p));
+		let index = self.get_index_to_insert(last_contact);
+		self.ordered_ids.insert(index, *id);
 	}
 
 	/// Set last contact as success for a node
 	pub fn note_success(&mut self, id: &NodeId) {
+		let mut last_contact = None;
 		if let Some(node) = self.nodes.get_mut(id) {
 			node.last_contact = Some(NodeContact::success());
+			last_contact = node.last_contact
 		}
+		self.ordered_ids.iter().position(|i| id == i).map(|p| self.ordered_ids.remove(p));
+		let index = self.get_index_to_insert(last_contact);
+		self.ordered_ids.insert(index, *id);
 	}
 
 	/// Mark as useless, no further attempts to connect until next call to `clear_useless`.
@@ -392,7 +467,7 @@ impl NodeTable {
 		let node_ids = self.nodes(&IpFilter::default());
 		let nodes = node_ids.into_iter()
 			.map(|id| self.nodes.get(&id).expect("self.nodes() only returns node IDs from self.nodes"))
-			.take(MAX_NODES)
+			.take(MAX_NODES_IN_FILE)
 			.map(Into::into)
 			.collect();
 		let table = json::NodeTable { nodes };
