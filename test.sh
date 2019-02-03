@@ -57,7 +57,6 @@ cpp_test () {
         cd build && \
         cmake .. && \
         make -j $THREADS && \
-        ./parity-example && \
         cd .. && \
         rm -rf build && \
         cd ../..
@@ -98,4 +97,3 @@ then
 else
   cargo_test $@
 fi
-
