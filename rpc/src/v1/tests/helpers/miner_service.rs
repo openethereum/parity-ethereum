@@ -53,6 +53,8 @@ pub struct TestMinerService {
 	pub next_nonces: RwLock<HashMap<Address, U256>>,
 	/// Password held by Engine.
 	pub password: RwLock<Password>,
+	/// Minimum gas price
+	pub min_gas_price: RwLock<U256>,
 
 	authoring_params: RwLock<AuthoringParams>,
 }
@@ -66,6 +68,7 @@ impl Default for TestMinerService {
 			pending_receipts: Default::default(),
 			next_nonces: Default::default(),
 			password: RwLock::new("".into()),
+			min_gas_price: RwLock::new(0.into()),
 			authoring_params: RwLock::new(AuthoringParams {
 				author: Address::zero(),
 				gas_range_target: (12345.into(), 54321.into()),
@@ -281,5 +284,11 @@ impl MinerService for TestMinerService {
 
 	fn sensible_gas_limit(&self) -> U256 {
 		0x5208.into()
+	}
+
+	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, ()> {
+		let mut min_gas_price = self.min_gas_price.write();
+		*min_gas_price = gas_price;
+		Ok(true)
 	}
 }
