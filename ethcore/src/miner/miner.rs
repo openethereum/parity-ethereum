@@ -865,6 +865,26 @@ impl miner::MinerService for Miner {
 		self.params.read().gas_range_target.0 / 5
 	}
 
+	fn set_minimal_gas_price(&self, new_price: U256) -> Result<bool, ()> {
+		if cfg!(feature = "price-info") {
+			warn!("Can't update fixed gas price while automatic gas calibration is enabled.");
+			return Err(());
+		}
+
+		trace!(target: "miner", "minimal_gas_price: recalibrating fixed...");
+		*self.gas_pricer.lock() = GasPricer::new_fixed(new_price);
+
+		let txq = self.transaction_queue.clone();
+		let mut options = self.options.pool_verification_options.clone();
+		self.gas_pricer.lock().recalibrate(move |gas_price| {
+			debug!(target: "miner", "minimal_gas_price: Got gas price! {}", gas_price);
+			options.minimal_gas_price = gas_price;
+			txq.set_verifier_options(options);
+		});
+
+		Ok(true)
+	}
+
 	fn import_external_transactions<C: miner::BlockChainClient>(
 		&self,
 		chain: &C,
@@ -1645,5 +1665,19 @@ mod tests {
 		miner.update_sealing(&*client);
 
 		assert!(miner.is_currently_sealing());
+	}
+
+	#[test]
+	fn should_set_new_minimum_gas_price() {
+		// Creates a new GasPricer::Fixed behind the scenes
+		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+
+		let expected_minimum_gas_price: U256 = 0x1337.into();
+		miner.set_minimal_gas_price(expected_minimum_gas_price).unwrap();
+
+		let txq_options = miner.transaction_queue.status().options;
+		let current_minimum_gas_price = txq_options.minimal_gas_price;
+
+		assert!(current_minimum_gas_price == expected_minimum_gas_price);
 	}
 }
