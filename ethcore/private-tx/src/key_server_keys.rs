@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use parking_lot::RwLock;
 use ethereum_types::{H256, Address};
-use ethcore::client::{BlockId, CallContract, Client, RegistryInfo};
+use ethcore::client::{BlockId, CallContract, RegistryInfo};
 use ethabi::FunctionOutputDecoder;
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
@@ -52,34 +52,24 @@ pub trait KeyProvider: Send + Sync + 'static {
 }
 
 /// Secret Store keys provider
-pub struct SecretStoreKeys {
-	client: Arc<Client>,
+pub struct SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
+	client: Arc<C>,
 	key_server_account: Option<Address>,
 	keys_acl_contract: RwLock<Option<Address>>,
 }
 
-impl SecretStoreKeys {
+impl<C> SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
 	/// Create provider
-	pub fn new(client: Arc<Client>, key_server_account: Option<Address>) -> Self {
+	pub fn new(client: Arc<C>, key_server_account: Option<Address>) -> Self {
 		SecretStoreKeys {
 			client,
 			key_server_account,
 			keys_acl_contract: RwLock::new(None),
 		}
 	}
-
-	fn keys_to_addresses(&self, keys: Option<Vec<H256>>) -> Option<Vec<Address>> {
-		keys.map(|key_values| {
-			let mut addresses: Vec<Address> = Vec::new();
-			for key in key_values {
-				addresses.push(key_to_address(&key));
-			}
-			addresses
-		})
-	}
 }
 
-impl KeyProvider for SecretStoreKeys {
+impl<C> KeyProvider for SecretStoreKeys<C> where C: CallContract + RegistryInfo + Send + Sync + 'static {
 	fn key_server_account(&self) -> Option<Address> {
 		self.key_server_account
 	}
@@ -89,7 +79,9 @@ impl KeyProvider for SecretStoreKeys {
 			Some(acl_contract_address) => {
 				let (data, decoder) = keys_acl_contract::functions::available_keys::call(*account);
 				if let Ok(value) = self.client.call_contract(block, acl_contract_address, data) {
-					self.keys_to_addresses(decoder.decode(&value).ok())
+					decoder.decode(&value).ok().map(|key_values| {
+						key_values.iter().map(key_to_address).collect()
+					})
 				} else {
 					None
 				}
@@ -100,14 +92,10 @@ impl KeyProvider for SecretStoreKeys {
 
 	fn update_acl_contract(&self) {
 		let contract_address = self.client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.into(), BlockId::Latest);
-		let current_address = self.keys_acl_contract.read();
-
-		if *current_address != contract_address {
+		if *self.keys_acl_contract.read() != contract_address {
 			trace!(target: "privatetx", "Configuring for ACL checker contract from address {:?}",
 				contract_address);
-
-			let keys_acl_contract = self.keys_acl_contract.write();
-			keys_acl_contract.and(contract_address);
+			*self.keys_acl_contract.write() = contract_address;
 		}
 	}
 }
@@ -121,8 +109,7 @@ pub struct StoringKeyProvider {
 impl StoringKeyProvider {
 	/// Store available keys
 	pub fn set_available_keys(&self, keys: &Vec<Address>) {
-		let mut current = self.available_keys.write();
-		current.replace(keys.to_vec());
+		*self.available_keys.write() = Some(keys.clone())
 	}
 }
 
@@ -145,4 +132,41 @@ impl KeyProvider for StoringKeyProvider {
 	}
 
 	fn update_acl_contract(&self) {}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use ethkey::{Secret, KeyPair};
+	use bytes::Bytes;
+	use super::*;
+
+	struct DummyRegistryClient {
+		registry_address: Option<Address>,
+	}
+
+	impl DummyRegistryClient {
+		pub fn new(registry_address: Option<Address>) -> Self {
+			DummyRegistryClient {
+				registry_address
+			}
+		}
+	}
+
+	impl RegistryInfo for DummyRegistryClient {
+		fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { self.registry_address }
+	}
+
+	impl CallContract for DummyRegistryClient {
+		fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+	}
+
+	#[test]
+	fn should_update_acl_contract() {
+		let key = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000011")).unwrap();
+		let client = DummyRegistryClient::new(Some(key.address()));
+		let keys_data = SecretStoreKeys::new(Arc::new(client), None);
+		keys_data.update_acl_contract();
+		assert_eq!(keys_data.keys_acl_contract.read().unwrap(), key.address());
+	}
 }

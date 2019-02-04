@@ -129,8 +129,8 @@ pub struct ProviderConfig {
 pub struct Receipt {
 	/// Private transaction hash.
 	pub hash: H256,
-	/// Created contract address if any.
-	pub contract_address: Option<Address>,
+	/// Contract address.
+	pub contract_address: Address,
 	/// Execution status.
 	pub status_code: u8,
 }
@@ -155,7 +155,7 @@ pub struct Provider {
 pub struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	code: Option<Bytes>,
 	state: Bytes,
-	contract_address: Option<Address>,
+	contract_address: Address,
 	result: Executed<T::Output, V::Output>,
 }
 
@@ -234,7 +234,7 @@ impl Provider where {
 		self.broadcast_private_transaction(private.hash(), private.rlp_bytes());
 		Ok(Receipt {
 			hash: tx_hash,
-			contract_address: Some(contract),
+			contract_address: contract,
 			status_code: 0,
 		})
 	}
@@ -525,7 +525,8 @@ impl Provider where {
 			let (new_address, _) = ethcore_contract_address(engine.create_address_scheme(env_info.number), &sender, &nonce, &transaction.data);
 			Some(new_address)
 		});
-		let contract_address = contract_address.expect("Private contract address should be non zero by this moment; qed");
+		let contract_address = contract_address.expect("Private contract address is non zero by this point, \
+			it was either non zero (if it's Action::Call) or created (for Action::Create); qed");
 		// Patch other available private contracts' states as well
 		// TODO: #10133 patch only required for the contract states
 		if let Some(key_server_account) = self.keys_provider.key_server_account() {
@@ -553,7 +554,7 @@ impl Provider where {
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
 			state: encrypted_storage,
-			contract_address: Some(contract_address),
+			contract_address: contract_address,
 			result,
 		})
 	}
@@ -582,7 +583,7 @@ impl Provider where {
 	}
 
 	/// Create encrypted public contract deployment transaction.
-	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Option<Address>), Error> {
+	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Address), Error> {
 		if let Action::Call(_) = source.action {
 			bail!(ErrorKind::BadTransactonType);
 		}
