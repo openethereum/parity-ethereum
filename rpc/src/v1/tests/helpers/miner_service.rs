@@ -286,7 +286,7 @@ impl MinerService for TestMinerService {
 		0x5208.into()
 	}
 
-	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, ()> {
+	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, &str> {
 		let mut min_gas_price = self.min_gas_price.write();
 		*min_gas_price = gas_price;
 		Ok(true)

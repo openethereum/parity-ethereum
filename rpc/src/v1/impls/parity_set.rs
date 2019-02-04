@@ -72,7 +72,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool> {
 		match self.miner.set_minimal_gas_price(gas_price.into()) {
 			Ok(success) => Ok(success),
-			Err(_) => Err(errors::request_rejected()),
+			Err(e) => Err(errors::unsupported(e, None)),
 		}
 	}
 
