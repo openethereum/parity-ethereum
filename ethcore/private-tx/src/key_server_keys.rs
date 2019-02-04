@@ -19,7 +19,8 @@
 use std::sync::Arc;
 use parking_lot::RwLock;
 use ethereum_types::{H256, Address};
-use ethcore::client::{BlockId, CallContract, RegistryInfo};
+use call_contract::{CallContract, RegistryInfo};
+use ethcore::client::BlockId;
 use ethabi::FunctionOutputDecoder;
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";

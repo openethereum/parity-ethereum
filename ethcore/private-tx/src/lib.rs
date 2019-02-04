@@ -85,7 +85,7 @@ use types::transaction::{SignedTransaction, Transaction, Action, UnverifiedTrans
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
 	Client, ChainNotify, NewBlocks, ChainMessageType, ClientIoMessage, BlockId,
-	Call, BlockInfo, CallContract
+	Call, BlockInfo
 };
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService, pool_client::NonceCache};
