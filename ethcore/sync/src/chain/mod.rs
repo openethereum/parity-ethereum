@@ -103,7 +103,7 @@ use fastmap::{H256FastMap, H256FastSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
-use network::{self, PeerId, PacketId};
+use network::{self, PeerId, PacketId, ProtocolId};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
@@ -111,7 +111,7 @@ use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot};
-use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID, PriorityTask};
+use api::{EthProtocolInfo as PeerInfoDigest, ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID, PriorityTask};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use types::transaction::UnverifiedTransaction;
@@ -481,7 +481,7 @@ impl ChainSyncApi {
 					for peers in sync.get_peers(&chain_info, PeerState::SameBlock).chunks(10) {
 						check_deadline(deadline)?;
 						for peer in peers {
-							SyncPropagator::send_packet(io, *peer, NEW_BLOCK_PACKET, rlp.clone());
+							SyncPropagator::send_packet(io, ETH_PROTOCOL, *peer, NEW_BLOCK_PACKET, rlp.clone());
 							if let Some(ref mut peer) = sync.peers.get_mut(peer) {
 								peer.latest_hash = hash;
 							}
@@ -1328,8 +1328,8 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet_id: PacketId, packet: Bytes) {
-		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet_id, packet);
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, protocol: ProtocolId, packet_id: PacketId, packet: Bytes) {
+		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, protocol, packet_id, packet);
 	}
 }
 
