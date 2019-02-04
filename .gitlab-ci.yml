@@ -4,9 +4,11 @@ stages:
   - publish
   - optional
 
-image:                             parity/rust:gitlab-ci
+image:                             parity/rust-ci:latest
 
 variables:
+  GIT_STRATEGY:                    fetch
+  GIT_SUBMODULE_STRATEGY:          recursive
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "${CI_PROJECT_DIR}/.cargo"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
@@ -40,14 +42,16 @@ test-linux:
   variables:
     RUN_TESTS:                     all
   script:
-    - scripts/gitlab/test-all.sh stable
+    - scripts/gitlab/test-all.sh
   tags:
     - rust-stable
 
 test-audit:
   stage:                           test
   script:
-    - scripts/gitlab/cargo-audit.sh
+    - set -e
+    - set -u
+    - cargo audit
   tags:
     - rust-stable
 
@@ -150,22 +154,3 @@ build-android:
   allow_failure:                   true
   <<:                              *collect_artifacts
 
-test-beta:
-  stage:                           optional
-  variables:
-    RUN_TESTS:                     cargo
-  script:
-    - scripts/gitlab/test-all.sh beta
-  tags:
-    - rust-beta
-  allow_failure:                   true
-
-test-nightly:
-  stage:                           optional
-  variables:
-    RUN_TESTS:                     all
-  script:
-    - scripts/gitlab/test-all.sh nightly
-  tags:
-    - rust-nightly
-  allow_failure:                   true
