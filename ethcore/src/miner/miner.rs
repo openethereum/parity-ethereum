@@ -1685,4 +1685,20 @@ mod tests {
 
 		assert!(current_minimum_gas_price == expected_minimum_gas_price);
 	}
+
+	#[test]
+	#[cfg(feature = "price-info")]
+	fn should_fail_to_set_new_minimum_gas_price() {
+		// Creates a new GasPricer::Fixed behind the scenes
+		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+
+		let expected_minimum_gas_price: U256 = 0x1337.into();
+		let result = miner.set_minimal_gas_price(expected_minimum_gas_price);
+		assert!(result.is_err());
+
+		let received_error_msg = result.unwrap_err();
+		let expected_error_msg = "Can't update fixed gas price while automatic gas calibration is enabled.";
+
+		assert!(received_error_msg == expected_error_msg);
+	}
 }
