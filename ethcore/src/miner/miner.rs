@@ -865,24 +865,28 @@ impl miner::MinerService for Miner {
 		self.params.read().gas_range_target.0 / 5
 	}
 
-	fn set_minimal_gas_price(&self, new_price: U256) -> Result<bool, ()> {
-		if cfg!(feature = "price-info") {
-			warn!("Can't update fixed gas price while automatic gas calibration is enabled.");
-			return Err(());
+	fn set_minimal_gas_price(&self, new_price: U256) -> Result<bool, &str> {
+		match *self.gas_pricer.lock() {
+			GasPricer::Fixed(ref mut val) => {
+				trace!(target: "miner", "minimal_gas_price: recalibrating fixed...");
+				*val = new_price;
+
+				let txq = self.transaction_queue.clone();
+				let mut options = self.options.pool_verification_options.clone();
+				self.gas_pricer.lock().recalibrate(move |gas_price| {
+					debug!(target: "miner", "minimal_gas_price: Got gas price! {}", gas_price);
+					options.minimal_gas_price = gas_price;
+					txq.set_verifier_options(options);
+				});
+
+				Ok(true)
+			},
+			#[cfg(feature = "price-info")]
+			GasPricer::Calibrated(_) => {
+				let error_msg = "Can't update fixed gas price while automatic gas calibration is enabled.";
+				return Err(error_msg);
+			},
 		}
-
-		trace!(target: "miner", "minimal_gas_price: recalibrating fixed...");
-		*self.gas_pricer.lock() = GasPricer::new_fixed(new_price);
-
-		let txq = self.transaction_queue.clone();
-		let mut options = self.options.pool_verification_options.clone();
-		self.gas_pricer.lock().recalibrate(move |gas_price| {
-			debug!(target: "miner", "minimal_gas_price: Got gas price! {}", gas_price);
-			options.minimal_gas_price = gas_price;
-			txq.set_verifier_options(options);
-		});
-
-		Ok(true)
 	}
 
 	fn import_external_transactions<C: miner::BlockChainClient>(
