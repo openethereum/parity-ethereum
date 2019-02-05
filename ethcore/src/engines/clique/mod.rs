@@ -153,7 +153,8 @@ impl Clique {
 			});
 
 		if engine.period > 0 {
-			let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>, Duration::from_secs(our_params.period / 2));
+			let handler = StepService::new(Arc::downgrade(&engine) as Weak<Engine<_>>,
+			                               Duration::from_secs(our_params.period) / 2 + Duration::from_millis(10) );
 			engine.step_service.register_handler(Arc::new(handler))?;
 		}
 
