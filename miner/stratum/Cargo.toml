@@ -8,8 +8,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethereum-types = "0.4"
 keccak-hash = "0.1"
-jsonrpc-core = { path = "/home/andrew/code/paritytech/jsonrpc/core" }
-jsonrpc-tcp-server = { path = "/home/andrew/code/paritytech/jsonrpc/tcp" }
+jsonrpc-core = "10.0.1"
+jsonrpc-tcp-server = "10.0.1"
 log = "0.4"
 parking_lot = "0.7"
 
