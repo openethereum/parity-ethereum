@@ -1674,7 +1674,6 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg(not(feature = "price-info"))]
 	fn should_set_new_minimum_gas_price() {
 		// Creates a new GasPricer::Fixed behind the scenes
 		let miner = Miner::new_for_tests(&Spec::new_test(), None);
