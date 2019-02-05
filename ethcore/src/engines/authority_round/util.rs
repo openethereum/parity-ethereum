@@ -96,8 +96,11 @@ impl<'a> BoundContract<'a> {
 			.ok_or(CallError::NotFullClient)?;
 
 		// Don't return an error if the transaction is already in the queue.
+		// TODO: Find out why we get `Old` errors. These seem to be about the transaction having an outdated nonce. But
+		// the nonce is set to `latest_nonce` inside `Client::transact`!
 		match cl.transact(Action::Call(self.contract_addr), data, None, Some(U256::zero())) {
 			Err(transaction::Error::AlreadyImported) | Ok(()) => Ok(()),
+			Err(err @ transaction::Error::Old) => Ok(error!(target: "engine", "Client::transact failed: {:?}", err)),
 			Err(err) => Err(CallError::TransactionFailed(err)),
 		}
 	}

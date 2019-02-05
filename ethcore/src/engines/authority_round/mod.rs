@@ -1234,29 +1234,26 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let header = block.header().clone();
 		let first = header.number() == 0;
 
+		let client = self.client.read().as_ref().and_then(|weak| weak.upgrade()).ok_or_else(|| {
+			debug!(target: "engine", "Unable to prepare block: missing client ref.");
+			EngineError::RequiresClient
+		})?;
+
 		let mut transactions = Vec::new();
 
 		// Random number generation
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				debug!(target: "engine", "Unable to close block: missing client ref.");
-				return Err(EngineError::RequiresClient.into())
-			},
-		};
 		if let (Some(contract_addr), opt_signer) = (self.randomness_contract_address, self.signer.read()) {
 			if let Some(signer) = opt_signer.as_ref() {
-				let block_id = BlockId::Latest;
-				let mut contract = util::BoundContract::bind(&*client, block_id, contract_addr);
+				let mut contract = util::BoundContract::bind(&*client, BlockId::Latest, contract_addr);
 				// TODO: How should these errors be handled?
 				let phase = randomness::RandomnessPhase::load(&contract, signer.address())
-					.map_err(|err| EngineError::FailedSystemCall(format!("Randomness error: {:?}", err)))?;
+					.map_err(EngineError::RandomnessLoadError)?;
 				let mut rng = ::rand::OsRng::new()?;
 				if let Some(data) = phase.advance(&contract, &mut rng, signer.as_ref())
 					.map_err(EngineError::RandomnessAdvanceError)? {
 					// TODO: Find a better way to create these transactions.
 					let transaction = Transaction {
-						nonce: block.state.nonce(&signer.address()).unwrap(), // TODO
+						nonce: block.state.nonce(&signer.address())?,
 						action: Action::Call(contract_addr),
 						gas: U256::from(1000000),
 						gas_price: U256::zero(),
@@ -1265,13 +1262,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					};
 					let chain_id = Some(self.machine.params().chain_id); // TODO: See EIP155?
 					let signature = signer.sign(transaction.hash(chain_id))
-						.map_err(|e| types::transaction::Error::InvalidSignature(e.to_string())).unwrap(); // TODO
-					let signed_tx = SignedTransaction::new(transaction.with_signature(signature, chain_id)).unwrap();
+						.map_err(|e| types::transaction::Error::InvalidSignature(e.to_string()))?;
+					let signed_tx = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 					transactions.push(signed_tx);
 				}
 			}
 		}
-
 
 		let mut call = |to, data| {
 			let full_client = client.as_full_client().ok_or("Failed to upgrade to BlockchainClient.".to_string())?;
