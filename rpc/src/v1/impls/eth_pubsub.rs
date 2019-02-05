@@ -21,9 +21,7 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
-use jsonrpc_macros::Trailing;
-use jsonrpc_macros::pubsub::{Sink, Subscriber};
-use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
 
 use v1::helpers::{errors, limit_logs, Subscribers};
 use v1::helpers::light_fetch::LightFetch;
@@ -262,7 +260,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		_meta: Metadata,
 		subscriber: Subscriber<pubsub::Result>,
 		kind: pubsub::Kind,
-		params: Trailing<pubsub::Params>,
+		params: Option<pubsub::Params>,
 	) {
 		let error = match (kind, params.into()) {
 			(pubsub::Kind::NewHeads, None) => {
@@ -299,7 +297,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let _ = subscriber.reject(error);
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
+	fn unsubscribe(&self, _: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 		let res3 = self.transactions_subscribers.write().remove(&id).is_some();

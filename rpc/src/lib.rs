@@ -37,6 +37,7 @@ extern crate tokio_timer;
 extern crate transient_hashmap;
 
 extern crate jsonrpc_core;
+extern crate jsonrpc_derive;
 extern crate jsonrpc_http_server as http;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
@@ -74,8 +75,6 @@ extern crate fake_hardware_wallet as hardware_wallet;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate jsonrpc_macros;
 #[macro_use]
 extern crate serde_derive;
 

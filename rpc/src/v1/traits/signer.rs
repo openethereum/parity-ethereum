@@ -16,52 +16,50 @@
 
 //! Parity Signer-related rpc interface.
 use jsonrpc_core::{BoxFuture, Result};
-use jsonrpc_pubsub::SubscriptionId;
-use jsonrpc_macros::pubsub::Subscriber;
+use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
+use jsonrpc_derive::rpc;
 
 use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
 
-build_rpc_trait! {
-	/// Signer extension for confirmations rpc interface.
-	pub trait Signer {
-		type Metadata;
+/// Signer extension for confirmations rpc interface.
+#[rpc]
+pub trait Signer {
+	/// RPC Metadata
+	type Metadata;
 
-		/// Returns a list of items to confirm.
-		#[rpc(name = "signer_requestsToConfirm")]
-		fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>>;
+	/// Returns a list of items to confirm.
+	#[rpc(name = "signer_requestsToConfirm")]
+	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>>;
 
-		/// Confirm specific request.
-		#[rpc(name = "signer_confirmRequest")]
-		fn confirm_request(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponse>;
+	/// Confirm specific request.
+	#[rpc(name = "signer_confirmRequest")]
+	fn confirm_request(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponse>;
 
-		/// Confirm specific request with token.
-		#[rpc(name = "signer_confirmRequestWithToken")]
-		fn confirm_request_with_token(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponseWithToken>;
+	/// Confirm specific request with token.
+	#[rpc(name = "signer_confirmRequestWithToken")]
+	fn confirm_request_with_token(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponseWithToken>;
 
-		/// Confirm specific request with already signed data.
-		#[rpc(name = "signer_confirmRequestRaw")]
-		fn confirm_request_raw(&self, U256, Bytes) -> Result<ConfirmationResponse>;
+	/// Confirm specific request with already signed data.
+	#[rpc(name = "signer_confirmRequestRaw")]
+	fn confirm_request_raw(&self, U256, Bytes) -> Result<ConfirmationResponse>;
 
-		/// Reject the confirmation request.
-		#[rpc(name = "signer_rejectRequest")]
-		fn reject_request(&self, U256) -> Result<bool>;
+	/// Reject the confirmation request.
+	#[rpc(name = "signer_rejectRequest")]
+	fn reject_request(&self, U256) -> Result<bool>;
 
-		/// Generates new authorization token.
-		#[rpc(name = "signer_generateAuthorizationToken")]
-		fn generate_token(&self) -> Result<String>;
+	/// Generates new authorization token.
+	#[rpc(name = "signer_generateAuthorizationToken")]
+	fn generate_token(&self) -> Result<String>;
 
-		/// Generates new web proxy access token for particular domain.
-		#[rpc(name = "signer_generateWebProxyAccessToken")]
-		fn generate_web_proxy_token(&self, String) -> Result<String>;
+	/// Generates new web proxy access token for particular domain.
+	#[rpc(name = "signer_generateWebProxyAccessToken")]
+	fn generate_web_proxy_token(&self, String) -> Result<String>;
 
-		#[pubsub(name = "signer_pending")] {
-			/// Subscribe to new pending requests on signer interface.
-			#[rpc(name = "signer_subscribePending")]
-			fn subscribe_pending(&self, Self::Metadata, Subscriber<Vec<ConfirmationRequest>>);
+	/// Subscribe to new pending requests on signer interface.
+	#[pubsub(subscription = "signer_pending", subscribe, name = "signer_subscribePending")]
+	fn subscribe_pending(&self, Self::Metadata, Subscriber<Vec<ConfirmationRequest>>);
 
-			/// Unsubscribe from pending requests subscription.
-			#[rpc(name = "signer_unsubscribePending")]
-			fn unsubscribe_pending(&self, SubscriptionId) -> Result<bool>;
-		}
-	}
+	/// Unsubscribe from pending requests subscription.
+	#[pubsub(subscription = "signer_pending", unsubscribe, name = "signer_unsubscribePending")]
+	fn unsubscribe_pending(&self, Option<Self::Metadata>, SubscriptionId) -> Result<bool>;
 }
