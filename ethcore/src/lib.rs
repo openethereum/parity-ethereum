@@ -149,6 +149,11 @@ extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;
 
+#[cfg(test)]
+extern crate fetch;
+#[cfg(test)]
+extern crate parity_runtime;
+
 pub mod account_provider;
 pub mod block;
 pub mod builtin;

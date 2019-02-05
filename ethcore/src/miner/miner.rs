@@ -1686,11 +1686,36 @@ mod tests {
 		assert!(current_minimum_gas_price == expected_minimum_gas_price);
 	}
 
+	fn dynamic_gas_pricer() -> GasPricer {
+		use std::time::Duration;
+		use parity_runtime::Executor;
+		use fetch::Client as FetchClient;
+		use ethcore_miner::gas_price_calibrator::{GasPriceCalibrator, GasPriceCalibratorOptions};
+
+		// Don't really care about any of these settings since
+		// the gas pricer is never actually going to be used
+		let fetch = FetchClient::new(1).unwrap();
+		let p = Executor::new_sync();
+
+		GasPricer::new_calibrated(
+			GasPriceCalibrator::new(
+				GasPriceCalibratorOptions {
+					usd_per_tx: 0.0,
+					recalibration_period: Duration::from_secs(0),
+				},
+				fetch,
+				p,
+			)
+		)
+	}
+
 	#[test]
 	#[cfg(feature = "price-info")]
 	fn should_fail_to_set_new_minimum_gas_price() {
-		// Creates a new GasPricer::Fixed behind the scenes
+		// We get a fixed gas pricer by default, need to change that
 		let miner = Miner::new_for_tests(&Spec::new_test(), None);
+		let calibrated_gas_pricer = dynamic_gas_pricer();
+		*miner.gas_pricer.lock() = calibrated_gas_pricer;
 
 		let expected_minimum_gas_price: U256 = 0x1337.into();
 		let result = miner.set_minimal_gas_price(expected_minimum_gas_price);
