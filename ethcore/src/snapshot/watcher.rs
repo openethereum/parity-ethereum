@@ -122,7 +122,8 @@ impl ChainNotify for Watcher {
 mod tests {
 	use super::{Broadcast, Oracle, Watcher};
 
-	use chain_notify::{ChainNotify, NewBlocks, ChainRoute};
+	use client::{NewBlocks, ChainRoute};
+	use chain_notify::ChainNotify;
 
 	use ethereum_types::{H256, U256};
 
