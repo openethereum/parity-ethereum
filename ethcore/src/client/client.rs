@@ -25,7 +25,6 @@ use blockchain::{BlockReceipts, BlockChain, BlockChainDB, BlockProvider, TreeRou
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
 use ethcore_miner::pool::VerifiedTransaction;
-use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use ethereum_types::{H256, Address, U256};
 use evm::Schedule;
 use hash::keccak;
@@ -2175,7 +2174,7 @@ impl BlockChainClient for Client {
 			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
 			gas: self.importer.miner.sensible_gas_limit(),
-			gas_price,
+			gas_price: gas_price,
 			value: U256::zero(),
 			data: data,
 		};
