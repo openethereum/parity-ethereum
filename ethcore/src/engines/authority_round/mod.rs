@@ -1223,16 +1223,14 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let header = block.header().clone();
 		let first = header.number() == 0;
 
+		let client = self.client.read().as_ref().and_then(|weak| weak.upgrade()).ok_or_else(|| {
+			debug!(target: "engine", "Unable to prepare block: missing client ref.");
+			EngineError::RequiresClient
+		})?;
+
 		let mut transactions = Vec::new();
 
 		// Random number generation
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				debug!(target: "engine", "Unable to close block: missing client ref.");
-				return Err(EngineError::RequiresClient.into())
-			},
-		};
 		if let (Some(contract_addr), Some(our_addr)) =
 				(self.randomness_contract_address, self.signer.read().address()) {
 			let mut contract = util::BoundContract::bind(&*client, BlockId::Latest, contract_addr);
@@ -1244,7 +1242,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					.map_err(EngineError::RandomnessAdvanceError)? {
 				// TODO: Find a better way to create these transactions.
 				let transaction = Transaction {
-					nonce: block.state.nonce(&our_addr).unwrap(), // TODO
+					nonce: block.state.nonce(&our_addr)?,
 					action: Action::Call(contract_addr),
 					gas: U256::from(1000000),
 					gas_price: U256::zero(),
@@ -1253,8 +1251,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				};
 				let chain_id = Some(self.machine.params().chain_id); // TODO: See EIP155?
 				let signature = self.signer.read().sign(transaction.hash(chain_id))
-					.map_err(|e| transaction::Error::InvalidSignature(e.to_string())).unwrap(); // TODO
-				let signed_tx = SignedTransaction::new(transaction.with_signature(signature, chain_id)).unwrap();
+					.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
+				let signed_tx = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 				transactions.push(signed_tx);
 			}
 		}

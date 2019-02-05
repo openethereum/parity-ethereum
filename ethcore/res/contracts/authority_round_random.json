@@ -25,18 +25,6 @@
 	{
 		"constant": false,
 		"inputs": [{
-			"name": "_secretHash",
-			"type": "bytes32"
-		}],
-		"name": "commitHash",
-		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [{
 				"name": "_secretHash",
 				"type": "bytes32"
 			},
