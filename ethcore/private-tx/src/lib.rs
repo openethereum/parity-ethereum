@@ -519,14 +519,12 @@ impl Provider where {
 		};
 
 		let engine = self.client.engine();
-		let contract_address = contract_address.or({
-			let sender = transaction.sender();
-			let nonce = state.nonce(&sender)?;
+		let sender = transaction.sender();
+		let nonce = state.nonce(&sender)?;
+		let contract_address = contract_address.unwrap_or_else(|| {
 			let (new_address, _) = ethcore_contract_address(engine.create_address_scheme(env_info.number), &sender, &nonce, &transaction.data);
-			Some(new_address)
+			new_address
 		});
-		let contract_address = contract_address.expect("Private contract address is non zero by this point, \
-			it was either non zero (if it's Action::Call) or created (for Action::Create); qed");
 		// Patch other available private contracts' states as well
 		// TODO: #10133 patch only required for the contract states
 		if let Some(key_server_account) = self.keys_provider.key_server_account() {
