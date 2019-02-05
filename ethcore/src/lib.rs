@@ -149,9 +149,10 @@ extern crate env_logger;
 #[cfg(test)]
 extern crate rlp_compress;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "price-info"))]
 extern crate fetch;
-#[cfg(test)]
+
+#[cfg(all(test, feature = "price-info"))]
 extern crate parity_runtime;
 
 pub mod account_provider;
