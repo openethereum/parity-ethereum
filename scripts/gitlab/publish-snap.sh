@@ -32,7 +32,7 @@ sed -e 's/$VERSION/'"$VERSION"'/g' \
     snapcraft.template.yaml > /builds/$CI_PROJECT_PATH/snapcraft.yaml
 cd /builds/$CI_PROJECT_PATH
 pwd
-apt install tree && tree /builds/$CI_PROJECT_PATH
+apt install rhash
 cat snapcraft.yaml
 snapcraft --target-arch=$BUILD_ARCH
 ls *.snap
