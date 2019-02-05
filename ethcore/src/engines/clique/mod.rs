@@ -373,6 +373,12 @@ impl Engine<EthereumMachine> for Clique {
 
 		header.compute_hash();
 
+		// locally sealed block don't go through valid_block_family(), so we have to record state here.
+		let mut new_state = state.clone();
+		new_state.apply(&header, header.number() % self.epoch_length == 0)?;
+		new_state.calc_next_timestamp(&header, self.period);
+		self.block_state_by_hash.write().insert(header.hash(), new_state);
+
 		trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
 
 		Ok(Some(header))
@@ -427,7 +433,8 @@ impl Engine<EthereumMachine> for Clique {
 				let inturn = state.inturn(block.header.number(), &author.unwrap());
 				let now = SystemTime::now();
 
-				if (inturn && now < state.next_timestamp_inturn.unwrap()) ||
+				if (now < UNIX_EPOCH + Duration::from_secs(block.header().timestamp())) ||
+					(inturn && now < state.next_timestamp_inturn.unwrap()) ||
 					(!inturn && now < state.next_timestamp_noturn.unwrap()) {
 					trace!(target: "engine", "generate_seal: too early to sign right now.");
 					return Seal::None;
