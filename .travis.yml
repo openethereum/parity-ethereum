@@ -1,0 +1,18 @@
+sudo: required
+
+services:
+  - docker
+
+env:
+  global:
+    - IMAGE_NAME=parity-ethereum
+
+before_script:
+
+script:
+  - docker build -t "oceanprotocol/${IMAGE_NAME}:${TRAVIS_BRANCH}" -f scripts/docker/centos-ocean/Dockerfile .
+
+after_script:
+  - docker images
+  - docker login -u "${DOCKERHUB_USER}" -p "${DOCKERHUB_PASS}"
+  - docker push "oceanprotocol/${IMAGE_NAME}:${TRAVIS_BRANCH}"

@@ -1,0 +1,307 @@
+diff --git a/.travis.yml b/.travis.yml
+new file mode 100644
+index 000000000..e02c5a32f
+--- /dev/null
++++ b/.travis.yml
+@@ -0,0 +1,18 @@
++sudo: required
++
++services:
++  - docker
++
++env:
++  global:
++    - IMAGE_NAME=parity-ethereum
++
++before_script:
++
++script:
++  - docker build -t "oceanprotocol/${IMAGE_NAME}:${TRAVIS_BRANCH}" -f scripts/docker/centos-ocean/Dockerfile .
++
++after_script:
++  - docker images
++  - docker login -u "${DOCKERHUB_USER}" -p "${DOCKERHUB_PASS}"
++  - docker push "oceanprotocol/${IMAGE_NAME}:${TRAVIS_BRANCH}"
+diff --git a/ocean.diff b/ocean.diff
+new file mode 100644
+index 000000000..04ab8ee6e
+--- /dev/null
++++ b/ocean.diff
+@@ -0,0 +1,148 @@
++diff --git a/.travis.yml b/.travis.yml
++new file mode 100644
++index 000000000..e02c5a32f
++--- /dev/null
+++++ b/.travis.yml
++@@ -0,0 +1,18 @@
+++sudo: required
+++
+++services:
+++  - docker
+++
+++env:
+++  global:
+++    - IMAGE_NAME=parity-ethereum
+++
+++before_script:
+++
+++script:
+++  - docker build -t "oceanprotocol/${IMAGE_NAME}:${TRAVIS_BRANCH}" -f scripts/docker/centos-ocean/Dockerfile .
+++
+++after_script:
+++  - docker images
+++  - docker login -u "${DOCKERHUB_USER}" -p "${DOCKERHUB_PASS}"
+++  - docker push "oceanprotocol/${IMAGE_NAME}:${TRAVIS_BRANCH}"
++diff --git a/scripts/docker/centos-ocean/Dockerfile b/scripts/docker/centos-ocean/Dockerfile
++new file mode 100644
++index 000000000..12d537b97
++--- /dev/null
+++++ b/scripts/docker/centos-ocean/Dockerfile
++@@ -0,0 +1,50 @@
+++#Building image
+++FROM centos:latest as builder
+++
+++ADD . /build/parity-ethereum
+++
+++RUN yum -y update && \
+++    yum install -y systemd-devel git make gcc-c++ gcc file binutils && \
+++    curl -L "https://cmake.org/files/v3.12/cmake-3.12.0-Linux-x86_64.tar.gz" -o cmake.tar.gz && \
+++    tar -xzf cmake.tar.gz && \
+++    cp -r cmake-3.12.0-Linux-x86_64/* /usr/ && \
+++    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+++    PATH=/root/.cargo/bin:$PATH && \
+++    RUST_BACKTRACE=1 && \
+++    rustc -vV && \
+++    cargo -V && \
+++    gcc -v && \
+++    g++ -v && \
+++    cmake --version && \
+++    cd /build/parity-ethereum && \
+++    cargo build --verbose --release --features "final secretstore" && \
+++    strip /build/parity-ethereum/target/release/parity && \
+++    file /build/parity-ethereum/target/release/parity
+++
+++
+++# Runtime image
+++FROM centos:latest
+++
+++RUN mkdir -p /opt/parity/data && \
+++    chmod g+rwX /opt/parity/data && \
+++    curl -L https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -o /usr/local/bin/jq && \
+++    chmod +x /usr/local/bin/jq
+++
+++COPY --from=builder /build/parity-ethereum/target/release /opt/parity/
+++
+++WORKDIR /opt/parity/data
+++ADD ./scripts/docker/centos-ocean/entrypoint.sh /entrypoint.sh
+++
+++# exposing default ports
+++#
+++#           secret
+++#      ipfs store     ui   rpc  ws   listener  discovery
+++#      ↓    ↓         ↓    ↓    ↓    ↓         ↓
+++EXPOSE 5001 8082 8083 8180 8545 8546 30303/tcp 30303/udp
+++
+++# switch to non-root user
+++# USER 1001
+++
+++#if no base path provided, assume it's current workdir
+++CMD ["--base-path","."]
+++ENTRYPOINT ["/opt/parity/parity"]
++diff --git a/scripts/docker/centos-ocean/build.sh b/scripts/docker/centos-ocean/build.sh
++new file mode 100644
++index 000000000..b23665177
++--- /dev/null
+++++ b/scripts/docker/centos-ocean/build.sh
++@@ -0,0 +1,29 @@
+++#!/usr/bin/env sh
+++
+++# The image name
+++PARITY_IMAGE_REPO=${PARITY_IMAGE_REPO:-parity/parity}
+++# The tag to be used for builder image
+++PARITY_BUILDER_IMAGE_TAG=${PARITY_BUILDER_IMAGE_TAG:-build}
+++# The tag to be used for runner image
+++PARITY_RUNNER_IMAGE_TAG=${PARITY_RUNNER_IMAGE_TAG:-latest}
+++
+++echo Building $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
+++docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") . -f docker/centos/Dockerfile.build
+++
+++echo Creating $PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H"), extracting binary
+++docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
+++mkdir docker/centos/parity
+++docker cp extract:/build/parity-ethereum/target/release/parity docker/centos/parity
+++
+++echo Building $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG
+++docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG docker/centos/ -f docker/centos/Dockerfile
+++
+++echo Cleaning up ...
+++rm -rf docker/centos/parity
+++docker rm -f extract
+++docker rmi -f $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
+++
+++echo Echoing Parity version:
+++docker run $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG --version
+++
+++echo Done.
++diff --git a/scripts/docker/centos-ocean/entrypoint.sh b/scripts/docker/centos-ocean/entrypoint.sh
++new file mode 100755
++index 000000000..b4025289a
++--- /dev/null
+++++ b/scripts/docker/centos-ocean/entrypoint.sh
++@@ -0,0 +1,14 @@
+++#!/bin/bash
+++
+++if [ "${CONFIGURE_ACL}" = "true" ]; then
+++  echo "Waiting for contracts to be generated..."
+++  while [ ! -f "/contracts/ready" ]; do
+++    sleep 2
+++  done
+++  acl_contract=$(cat /contracts/AccessConditions.*.json | jq -r .address)
+++  sed -i -e "/acl_contract = .*/c acl_contract = \"${acl_contract:2}\"" /etc/parity/secretstore/config.toml
+++else
+++  sed -i -e "/acl_contract = .*/c acl_contract = \"none\"" /etc/parity/secretstore/config.toml
+++fi
+++
+++/opt/parity/parity "$@"
++diff --git a/scripts/docker/centos/build.sh b/scripts/docker/centos/build.sh
++index 7215e745f..b23665177 100755
++--- a/scripts/docker/centos/build.sh
+++++ b/scripts/docker/centos/build.sh
++@@ -11,7 +11,7 @@ echo Building $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format
++ docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") . -f docker/centos/Dockerfile.build
++ 
++ echo Creating $PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H"), extracting binary
++-docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") 
+++docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
++ mkdir docker/centos/parity
++ docker cp extract:/build/parity-ethereum/target/release/parity docker/centos/parity
++ 
+diff --git a/scripts/docker/centos-ocean/Dockerfile b/scripts/docker/centos-ocean/Dockerfile
+new file mode 100644
+index 000000000..12d537b97
+--- /dev/null
++++ b/scripts/docker/centos-ocean/Dockerfile
+@@ -0,0 +1,50 @@
++#Building image
++FROM centos:latest as builder
++
++ADD . /build/parity-ethereum
++
++RUN yum -y update && \
++    yum install -y systemd-devel git make gcc-c++ gcc file binutils && \
++    curl -L "https://cmake.org/files/v3.12/cmake-3.12.0-Linux-x86_64.tar.gz" -o cmake.tar.gz && \
++    tar -xzf cmake.tar.gz && \
++    cp -r cmake-3.12.0-Linux-x86_64/* /usr/ && \
++    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
++    PATH=/root/.cargo/bin:$PATH && \
++    RUST_BACKTRACE=1 && \
++    rustc -vV && \
++    cargo -V && \
++    gcc -v && \
++    g++ -v && \
++    cmake --version && \
++    cd /build/parity-ethereum && \
++    cargo build --verbose --release --features "final secretstore" && \
++    strip /build/parity-ethereum/target/release/parity && \
++    file /build/parity-ethereum/target/release/parity
++
++
++# Runtime image
++FROM centos:latest
++
++RUN mkdir -p /opt/parity/data && \
++    chmod g+rwX /opt/parity/data && \
++    curl -L https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -o /usr/local/bin/jq && \
++    chmod +x /usr/local/bin/jq
++
++COPY --from=builder /build/parity-ethereum/target/release /opt/parity/
++
++WORKDIR /opt/parity/data
++ADD ./scripts/docker/centos-ocean/entrypoint.sh /entrypoint.sh
++
++# exposing default ports
++#
++#           secret
++#      ipfs store     ui   rpc  ws   listener  discovery
++#      ↓    ↓         ↓    ↓    ↓    ↓         ↓
++EXPOSE 5001 8082 8083 8180 8545 8546 30303/tcp 30303/udp
++
++# switch to non-root user
++# USER 1001
++
++#if no base path provided, assume it's current workdir
++CMD ["--base-path","."]
++ENTRYPOINT ["/opt/parity/parity"]
+diff --git a/scripts/docker/centos-ocean/build.sh b/scripts/docker/centos-ocean/build.sh
+new file mode 100644
+index 000000000..b23665177
+--- /dev/null
++++ b/scripts/docker/centos-ocean/build.sh
+@@ -0,0 +1,29 @@
++#!/usr/bin/env sh
++
++# The image name
++PARITY_IMAGE_REPO=${PARITY_IMAGE_REPO:-parity/parity}
++# The tag to be used for builder image
++PARITY_BUILDER_IMAGE_TAG=${PARITY_BUILDER_IMAGE_TAG:-build}
++# The tag to be used for runner image
++PARITY_RUNNER_IMAGE_TAG=${PARITY_RUNNER_IMAGE_TAG:-latest}
++
++echo Building $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
++docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") . -f docker/centos/Dockerfile.build
++
++echo Creating $PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H"), extracting binary
++docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
++mkdir docker/centos/parity
++docker cp extract:/build/parity-ethereum/target/release/parity docker/centos/parity
++
++echo Building $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG
++docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG docker/centos/ -f docker/centos/Dockerfile
++
++echo Cleaning up ...
++rm -rf docker/centos/parity
++docker rm -f extract
++docker rmi -f $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
++
++echo Echoing Parity version:
++docker run $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG --version
++
++echo Done.
+diff --git a/scripts/docker/centos-ocean/entrypoint.sh b/scripts/docker/centos-ocean/entrypoint.sh
+new file mode 100755
+index 000000000..cf6104365
+--- /dev/null
++++ b/scripts/docker/centos-ocean/entrypoint.sh
+@@ -0,0 +1,19 @@
++#!/bin/bash
++
++if [ "${CONFIGURE_ACL}" = "true" ]; then
++  if [ ! -z "${ACL_CONTRACT_ADDRESS}" ]; then
++    acl_contract="${ACL_CONTRACT_ADDRESS}"
++  else
++    echo "Waiting for contracts to be generated..."
++    while [ ! -f "/contracts/ready" ] || [ ! -f "/contracts/AccessConditions.${NETWORK}.json" ]; do
++      sleep 2
++    done
++    acl_contract=$(cat /contracts/AccessConditions.${NETWORK}.json | jq -r .address)
++  fi
++  echo "ACL Contract Address: ${acl_contract}"
++  sed -i -e "/acl_contract = .*/c acl_contract = \"${acl_contract:2}\"" /etc/parity/secretstore/config.toml
++else
++  sed -i -e "/acl_contract = .*/c acl_contract = \"none\"" /etc/parity/secretstore/config.toml
++fi
++
++/opt/parity/parity "$@"
+diff --git a/scripts/docker/centos/build.sh b/scripts/docker/centos/build.sh
+index 7215e745f..b23665177 100755
+--- a/scripts/docker/centos/build.sh
++++ b/scripts/docker/centos/build.sh
+@@ -11,7 +11,7 @@ echo Building $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format
+ docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") . -f docker/centos/Dockerfile.build
+ 
+ echo Creating $PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H"), extracting binary
+-docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") 
++docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H")
+ mkdir docker/centos/parity
+ docker cp extract:/build/parity-ethereum/target/release/parity docker/centos/parity
+ 
