@@ -250,7 +250,7 @@ fn get_number_from_version(version: &str) -> Option<&str> {
 pub mod tests {
 	use super::*;
 
-	const PARITY_CLIENT_SEMVER: &str = "2.3.0";
+	const PARITY_CLIENT_SEMVER: &str = "2.4.0";
 	const PARITY_CLIENT_OLD_SEMVER: &str = "2.2.0";
 	const PARITY_CLIENT_OS: &str = "linux";
 	const PARITY_CLIENT_COMPILER: &str = "rustc";
