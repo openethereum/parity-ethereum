@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Implemenation of Clique (POA) Engine.
+//! Implementation of Clique (POA) Engine.
 //!
 //! mod.rs -> CliqueEngine, the engine api implementation, with additional block state tracking.
 //!
@@ -23,14 +23,17 @@
 //!   ...rest
 //! }
 //!
-//! snapshot.rs -> CliqueBlockState , record clique state for given block.
+//! block_state.rs -> CliqueBlockState , record clique state for given block.
 //! param.rs -> Clique Params.
+//! step_service.rs -> an event loop to trigger sealing.
+//! util.rs -> various standalone util functions
+//!
 //!
 
 /// How syncing code path works:
-/// 1. Client calls `engine.verify_block_basic()` and `engine.verify_block_unordered()`.
+/// 1. Client calls `engine.verify_block_basic()` then `engine.verify_block_unordered()`.
 /// 2. Client calls `engine.verify_block_family(header, parent)`.
-/// 3. Engine first find parent state: `last_state = self.state(parent.hash())`
+/// 3. Engine first need to find parent state: `last_state = self.state(parent.hash())`
 ///    if not found, trigger an back-fill from last checkpoint.
 /// 4. Engine calls `last_state.apply(header)`
 ///
@@ -56,41 +59,38 @@
 /// 6. engine.verify_local_seal() will be called, then normal syncing code path will also be called.
 
 use core::borrow::BorrowMut;
-use std::collections::HashMap;
+use std::cmp;
 use std::collections::VecDeque;
-use std::fmt;
-use std::mem;
 use std::sync::{Arc, Weak};
+use std::time;
 use std::time::Duration;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-use ethereum_types::{Address, H160, H256, Public, U256};
+use ethereum_types::{Address, H160, H256, U256};
 use hash::KECCAK_EMPTY_LIST_RLP;
+use itertools::Itertools;
 use lru_cache::LruCache;
 use parking_lot::RwLock;
-use parking_lot::RwLockUpgradableReadGuard;
-use rand::thread_rng;
 use rlp::encode;
 
 use account_provider::AccountProvider;
 use block::*;
 use client::{BlockId, EngineClient};
-use engines::{ConstructedVerifier, Engine, Headers, PendingTransitionStore, Seal};
+use engines::{Engine, Seal};
 use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
-use ethkey::{Password, public_to_address, recover as ec_recover, Signature};
+use ethkey::{Password, Signature};
 use io::IoService;
-use machine::{AuxiliaryData, Call, EthereumMachine};
+use machine::{Call, EthereumMachine};
 use types::BlockNumber;
 use types::header::{ExtendedHeader, Header};
-use itertools::Itertools;
+
 use super::signer::EngineSigner;
 
-use self::params::CliqueParams;
 use self::block_state::CliqueBlockState;
+use self::params::CliqueParams;
 use self::step_service::StepService;
-use std::time;
 
 mod params;
 mod block_state;
@@ -105,11 +105,12 @@ pub const SIGNER_SIG_LENGTH: usize = 65;
 pub const NONCE_DROP_VOTE: [u8; 8] = [0x00; 8];
 pub const NONCE_AUTH_VOTE: [u8; 8] = [0xff; 8];
 pub const DIFF_INTURN: U256 = U256([2, 0, 0, 0]);
-pub const DIFF_NOT_INTURN: U256 = U256([1, 0, 0, 0]);
+pub const DIFF_NOTURN: U256 = U256([1, 0, 0, 0]);
 pub const NULL_AUTHOR: Address = H160([0x00; 20]);
 pub const NULL_NONCE: [u8; 8] = NONCE_DROP_VOTE;
 pub const NULL_MIXHASH: [u8; 32] = [0x00; 32];
 pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
+pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
 
 // Caches
 /// How many CliqueBlockState to cache in the memory.
@@ -122,7 +123,6 @@ pub struct Clique {
 	machine: EthereumMachine,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
-	active_prop_delay: Option<(H256, SystemTime, Duration)>,
 	signer: RwLock<EngineSigner>,
 	step_service: IoService<Duration>,
 }
@@ -137,7 +137,6 @@ impl Clique {
 				client: RwLock::new(Option::default()),
 				block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
 				signer: RwLock::new(Default::default()),
-				active_prop_delay: None,
 				machine,
 				step_service: IoService::<Duration>::start()?,
 			});
@@ -155,7 +154,7 @@ impl Clique {
 
 		match (*self.signer.read()).sign(digest) {
 			Ok(sig) => { Ok((sig, digest)) }
-			Err(e) => { Err(From::from("failed to sign header")) }
+			Err(e) => { Err(Box::new(format!("sign_header: failed to sign header, error: {}", e)).into()) }
 		}
 	}
 
@@ -164,12 +163,14 @@ impl Clique {
 	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
 		assert_eq!(header.number() % self.epoch_length, 0);
 
-		let state = CliqueBlockState::new(
+		let mut state = CliqueBlockState::new(
 			match header.number() {
 				0 => NULL_AUTHOR,
 				_ => recover_creator(header)?,
 			},
 			extract_signers(header)?);
+
+		state.calc_next_timestamp(header, self.period);
 
 		Ok(state)
 	}
@@ -184,13 +185,13 @@ impl Clique {
 		if let Some(state) = block_state_by_hash.get_mut(&header.hash()) {
 			return Ok(state.clone());
 		}
+		// If we are looking for an checkpoint block state, we can directly reconstruct it.
 		if header.number() % self.epoch_length == 0 {
 			let state = self.new_checkpoint_state(header)?;
 			block_state_by_hash.insert(header.hash().clone(), state.clone());
 			return Ok(state);
 		}
-		// parent BlockState is not found in memory, which means we need to reconstruct state from last
-		// checkpoint.
+		// BlockState is not found in memory, which means we need to reconstruct state from last checkpoint.
 		match self.client.read().as_ref().and_then(|w| { w.upgrade() }) {
 			None => {
 				return Err(From::from("failed to upgrade client reference"));
@@ -250,6 +251,7 @@ impl Clique {
 				for item in chain {
 					new_state.apply(item, false)?;
 				}
+				new_state.calc_next_timestamp(header, self.period);
 				block_state_by_hash.insert(header.hash(), new_state.clone());
 
 				let elapsed = backfill_start.elapsed();
@@ -272,64 +274,33 @@ impl Engine<EthereumMachine> for Clique {
 	fn seal_fields(&self, _header: &Header) -> usize { 2 }
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
+	// No Uncle in Clique
+	fn maximum_uncle_age(&self) -> usize { 0 }
+
 	fn on_new_block(
 		&self,
-		block: &mut ExecutedBlock,
+		_block: &mut ExecutedBlock,
 		_epoch_begin: bool,
-		ancestry: &mut Iterator<Item=ExtendedHeader>,
+		_ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
 		Ok(())
 	}
 
-	// Our task here is to set difficulty
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		// TODO: this is a horrible hack, it is due to the fact that enact_verified and miner both use
-		// OpenBlock::new() which will both call this function. more refactoring is definitely needed.
-		match header.extra_data().len() >= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
-			true => {
-				// we are importing blocks, do nothing.
-			}
-			false => {
-				trace!(target: "engine", "populate_from_parent in sealing");
-
-				// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
-				// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
-				if let Some(signer) = self.signer.read().address() {
-					match self.state(&parent) {
-						Err(e) => {
-							trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
-						}
-						Ok(state) => {
-							if state.is_authoirzed(&signer) {
-								if state.inturn(header.number(), &signer) {
-									header.set_difficulty(DIFF_INTURN);
-								} else {
-									header.set_difficulty(DIFF_NOT_INTURN);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
+		// Clique has no block reward.
 		Ok(())
 	}
 
 	fn on_seal_block(&self, block: &ExecutedBlock) -> Result<Option<Header>, Error> {
 		trace!(target: "engine", "on_seal_block");
-		// TODO: implement wiggle here?
 
 		let mut header = block.header().clone();
-
-		header.set_author(NULL_AUTHOR);
 
 		let state = self.state_no_backfill(header.parent_hash()).ok_or_else(
 			|| format!("on_seal_block: Unable to get parent state: {}", header.parent_hash())
 		)?;
 
+		header.set_author(NULL_AUTHOR);
 		// TODO: cast an random Vote if not checkpoint
 
 		// Work on clique seal.
@@ -358,22 +329,16 @@ impl Engine<EthereumMachine> for Clique {
 		header.set_extra_data(seal.clone());
 
 		// append signature onto extra_data
-		let (sig, msg) = self.sign_header(&header)?;
+		let (sig, _msg) = self.sign_header(&header)?;
 		seal.extend_from_slice(&sig[..]);
 		header.set_extra_data(seal.clone());
 
-		// Record state
-		let mut new_state = state.clone();
-		new_state.apply(&header, header.number() % self.epoch_length == 0)?;
-		self.block_state_by_hash.write().insert(header.hash(), new_state);
+		header.compute_hash();
 
 		trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
 
 		Ok(Some(header))
 	}
-
-	// No Uncle in Clique
-	fn maximum_uncle_age(&self) -> usize { 0 }
 
 	/// Clique doesn't require external work to seal. once signer is set we will begin sealing.
 	fn seals_internally(&self) -> Option<bool> {
@@ -400,11 +365,6 @@ impl Engine<EthereumMachine> for Clique {
 			return Seal::Regular(NULL_SEAL);
 		}
 
-		// If we are too early
-		if block.header.timestamp() <= parent.timestamp() + self.period {
-			return Seal::None;
-		}
-
 		// Check we actually have authority to seal.
 		let author = self.signer.read().address();
 		if author.is_none() {
@@ -420,18 +380,29 @@ impl Engine<EthereumMachine> for Clique {
 			}
 			Ok(state) => {
 				// Are we authorized to seal?
-				if state.is_authoirzed(&author.unwrap()) {
-					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
-					       block.header.number(), block.transactions.len());
-					return Seal::Regular(NULL_SEAL);
+				if !state.is_authoirzed(&author.unwrap()) {
+					trace!(target: "engine", "generate_seal: Not authorized to sign right now.");
+					return Seal::None;
 				}
-				trace!(target: "engine", "generate_seal: Not authorized to sign right now.")
+
+				// If we are too early
+				let inturn = state.inturn(block.header.number(), &author.unwrap());
+				let now = SystemTime::now();
+
+				if (inturn && now < state.next_timestamp_inturn.unwrap()) ||
+					(!inturn && now < state.next_timestamp_noturn.unwrap()) {
+					trace!(target: "engine", "generate_seal: too early to sign right now.");
+					return Seal::None;
+				}
+
+				trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
+				       block.header.number(), block.transactions.len());
+				return Seal::Regular(NULL_SEAL);
 			}
 		}
-		Seal::None
 	}
 
-	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
@@ -489,11 +460,11 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
-		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOT_INTURN {
+		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
 			return Err(Box::new(format!(
 				"invalid difficulty: expected {} or {}, got: {}.",
 				DIFF_INTURN,
-				DIFF_NOT_INTURN,
+				DIFF_NOTURN,
 				header.difficulty(),
 			)).into())
 		}
@@ -531,36 +502,51 @@ impl Engine<EthereumMachine> for Clique {
 		// Try to apply current state, apply() will further check signer and recent signer.
 		let mut new_state = parent_state.clone();
 		new_state.apply(header, header.number() % self.epoch_length == 0)?;
+		new_state.calc_next_timestamp(header, self.period);
 		self.block_state_by_hash.write().insert(header.hash(), new_state);
 
 		Ok(())
 	}
 
-	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
-		let state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
+	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
+		let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
+		state.calc_next_timestamp(header, self.period);
 		self.block_state_by_hash.write().insert(header.hash(), state);
 
 		Ok(Vec::new())
 	}
 
-	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
-	                     -> super::EpochChange<EthereumMachine>
-	{
-		super::EpochChange::No
-	}
+	// Our task here is to set difficulty
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+		// TODO: this is a horrible hack, it is due to the fact that enact_verified and miner both use
+		// OpenBlock::new() which will both call this function. more refactoring is definitely needed.
+		match header.extra_data().len() >= SIGNER_VANITY_LENGTH + SIGNER_SIG_LENGTH {
+			true => {
+				// we are importing blocks, do nothing.
+			}
+			false => {
+				trace!(target: "engine", "populate_from_parent in sealing");
 
-	fn is_epoch_end(
-		&self,
-		chain_head: &Header,
-		_finalized: &[H256],
-		_chain: &Headers<Header>,
-		_transition_store: &PendingTransitionStore,
-	) -> Option<Vec<u8>> {
-		None
-	}
-
-	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
-		ConstructedVerifier::Trusted(Box::new(super::epoch::NoOp))
+				// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
+				// it's just to ignore setting an correct difficulty here, we will check authorization in next step in generate_seal anyway.
+				if let Some(signer) = self.signer.read().address() {
+					match self.state(&parent) {
+						Err(e) => {
+							trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
+						}
+						Ok(state) => {
+							if state.is_authoirzed(&signer) {
+								if state.inturn(header.number(), &signer) {
+									header.set_difficulty(DIFF_INTURN);
+								} else {
+									header.set_difficulty(DIFF_NOTURN);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: Password) {
@@ -584,6 +570,12 @@ impl Engine<EthereumMachine> for Clique {
 		self.step_service.borrow_mut().stop();
 	}
 
+	/// Clique timestamp is set to parent + period , or current time which ever is higher.
+	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
+		let now = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
+		cmp::max(now.as_secs() as u64, parent_timestamp + self.period)
+	}
+
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp + self.period
 	}
@@ -597,112 +589,3 @@ impl Engine<EthereumMachine> for Clique {
 		return recover_creator(header).unwrap();
 	}
 }
-
-//impl CliqueState {
-//	pub fn new(epoch_length: u64) -> Self {
-//		CliqueState {
-//			epoch_length: epoch_length,
-//			states: RwLock::new(Default::default()),
-//		}
-//	}
-//	/// Get an valid block state
-//	pub fn state(&mut self, hash: &H256) -> Option<CliqueBlockState> {
-//		let db = self.states_by_hash.borrow_mut();
-//		return db.get_mut(hash).cloned();
-//	}
-//
-//	pub fn turn_delay(&mut self, header: &Header) -> bool {
-//		match self.active_prop_delay {
-//			Some((parent_hash, start, duration)) => {
-//				if *header.parent_hash() != parent_hash {
-//					// reorg.  make sure the timer is reset
-//					self.active_prop_delay = Some((header.parent_hash().clone(),
-//					                               SystemTime::now(),
-//					                               Duration::from_millis(thread_rng().gen_range::<u64>(0, self.state(header.parent_hash()).unwrap().signers.len() as u64 * 500))));
-//					return false;
-//				}
-//
-//				if start.elapsed().expect("start delay was after current time") >= duration {
-//					return true;
-//				} else {
-//					return false;
-//				}
-//			}
-//			None => {
-//				self.active_prop_delay = Some((header.parent_hash().clone(),
-//				                               SystemTime::now(),
-//				                               Duration::from_millis(thread_rng().gen_range::<u64>(0, self.state(header.parent_hash()).unwrap().signers.len() as u64 * 500))));
-//				return false;
-//			}
-//		}
-//	}
-//
-//	/// Apply an new header
-//	pub fn apply(&mut self, header: &Header) -> Result<(), Error> {
-//		let db = self.states_by_hash.borrow_mut();
-//
-//		// make sure current hash is not in the db
-//		match db.get_mut(header.parent_hash()).cloned() {
-//			Some(ref mut new_state) => {
-//				let creator = match process_header(&header, new_state, self.epoch_length) {
-//					Err(e) => {
-//						return Err(From::from(
-//							format!("Error applying header: {}, current state: {:?}", e, new_state)
-//						));
-//					}
-//					Ok(creator) => { creator }
-//				};
-//
-//				db.insert(header.hash(), new_state.clone());
-//				Ok(())
-//			}
-//			None => {
-//				Err(From::from(
-//					format!("Parent block (hash: {}) for Block {}, hash {} is not found!",
-//					        header.parent_hash(),
-//					        header.number(), header.hash())))
-//			}
-//		}
-//	}
-//
-//	pub fn apply_checkpoint(&mut self, header: &Header) -> Result<(), Error> {
-//		let db = self.states.write().borrow_mut();
-//		let state = &mut CliqueBlockState {
-//			votes: HashMap::new(),
-//			votes_history: Vec::new(),
-//			signers: Vec::new(),
-//			recent_signers: VecDeque::new(),
-//		};
-//		process_genesis_header(header, state)?;
-//
-//		trace!("inserting {} {:?}", header.hash(), &state);
-//		db.insert(header.hash(), state.clone());
-//
-//		Ok(())
-//	}
-//
-//	pub fn set_signer_address(&self, signer_address: Address) {
-//		trace!(target: "engine", "setting signer {}", signer_address);
-//		*self.signer.write() = Some(signer_address.clone());
-//	}
-//
-//	pub fn proposer_authorization(&mut self, header: &Header) -> SignerAuthorization {
-//		let mut db = self.states_by_hash.borrow_mut();
-//
-//		let proposer_address = match *self.signer.read() {
-//			Some(address) => address.clone(),
-//			None => { return SignerAuthorization::Unauthorized; }
-//		};
-//
-//		match db.get_mut(header.parent_hash()).cloned() {
-//			Some(ref state) => {
-//				return state.get_signer_authorization(header.number(), &proposer_address);
-//			}
-//			None => {
-//				panic!("Parent block (hash: {}) for Block {}, hash {} is not found!",
-//				       header.parent_hash(),
-//				       header.number(), header.hash())
-//			}
-//		}
-//	}
-//}

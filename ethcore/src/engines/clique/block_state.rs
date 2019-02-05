@@ -14,26 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::borrow::BorrowMut;
 use std::collections::{HashMap, VecDeque};
-use std::fmt;
 use std::time::{Duration, SystemTime};
+use std::time::UNIX_EPOCH;
 
-use ethereum_types::{Address, H256, U256};
-use rand::{Rng, thread_rng};
+use ethereum_types::Address;
+use rand::Rng;
 
-use engines::clique::{DIFF_INTURN, DIFF_NOT_INTURN, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR};
+use engines::clique::{DIFF_INTURN, DIFF_NOTURN, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
 use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
 use types::header::Header;
-
-#[derive(PartialEq, Clone, Debug, Copy)]
-pub enum SignerAuthorization {
-	InTurn,
-	OutOfTurn,
-	TooRecently,
-	Unauthorized,
-}
 
 #[derive(PartialEq, Clone, Debug, Copy)]
 pub enum VoteType {
@@ -47,16 +38,20 @@ pub struct CliqueBlockState {
 	pub votes_history: Vec<(u64, Address, VoteType, Address)>, // blockNumber, Voter, VoteType, beneficiary
 	pub signers: Vec<Address>,
 	pub recent_signers: VecDeque<Address>,
+	pub next_timestamp_inturn: Option<SystemTime>, // inturn signing should wait until this time
+	pub next_timestamp_noturn: Option<SystemTime>, // noturn signing should wait until this time
 }
 
 impl CliqueBlockState {
 	/// Create new state with given information, this is used creating new state from Checkpoint block.
-	pub fn new(author: Address, signers_sorted: Vec<Address>) -> Self {
+	pub fn new(_author: Address, signers_sorted: Vec<Address>) -> Self {
 		return CliqueBlockState {
 			votes: Default::default(),
 			votes_history: Default::default(),
 			signers: signers_sorted,
 			recent_signers: Default::default(),
+			next_timestamp_inturn: None,
+			next_timestamp_noturn: None,
 		};
 	}
 
@@ -86,7 +81,7 @@ impl CliqueBlockState {
 		let inturn = self.inturn(header.number(), &creator);
 
 		if (inturn && *header.difficulty() != DIFF_INTURN) ||
-			(!inturn && *header.difficulty() != DIFF_NOT_INTURN) {
+			(!inturn && *header.difficulty() != DIFF_NOTURN) {
 			return Err(From::from(format!("Error applying #{}({}): wrong difficulty!",
 			                              header.number(),
 			                              header.hash())));
@@ -131,7 +126,8 @@ impl CliqueBlockState {
 
 		let nonce = header.decode_seal::<Vec<&[u8]>>().unwrap()[1];
 
-		let mut vote_type = VoteType::Add;
+		let vote_type: VoteType;
+
 		if NONCE_AUTH_VOTE == nonce {
 			vote_type = VoteType::Add;
 		} else if NONCE_DROP_VOTE == nonce {
@@ -168,7 +164,7 @@ impl CliqueBlockState {
 			// Remove all votes about or made by this beneficiary
 			{
 				let votes_copy = self.votes.clone();
-				let items: Vec<_> = votes_copy.iter().filter(|(key, value)| {
+				let items: Vec<_> = votes_copy.iter().filter(|(key, _value)| {
 					(**key).0 == beneficiary || (**key).1 == beneficiary
 				}).collect();
 
@@ -180,6 +176,16 @@ impl CliqueBlockState {
 
 		// No cascading votes.
 		Ok(creator)
+	}
+
+	pub fn calc_next_timestamp(&mut self, header: &Header, period: u64) {
+		let base_time = UNIX_EPOCH + Duration::from_secs(header.timestamp());
+
+		self.next_timestamp_inturn = Some(base_time + Duration::from_secs(period));
+
+		let mut rng = rand::thread_rng();
+		let delay = Duration::from_millis(rng.gen_range(0u64, (self.signers.len() as u64 / 2 + 1) * SIGNING_DELAY_NOTURN_MS));
+		self.next_timestamp_noturn = Some(base_time + Duration::from_secs(period) + delay);
 	}
 
 	pub fn inturn(&self, current_block_number: u64, author: &Address) -> bool {

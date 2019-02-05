@@ -58,7 +58,6 @@ use executed::ExecutionError;
 use executive::contract_address;
 use spec::Spec;
 use state::State;
-use std::borrow::BorrowMut;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]

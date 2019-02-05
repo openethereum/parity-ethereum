@@ -1,31 +1,11 @@
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::fmt;
-use std::mem;
-use std::sync::{Arc, Weak};
-use std::time::Duration;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
-
-use ethereum_types::{Address, H160, H256, Public, U256};
-use hash::KECCAK_EMPTY_LIST_RLP;
+use ethereum_types::{Address, H256};
 use lru_cache::LruCache;
 use parking_lot::RwLock;
-use parking_lot::RwLockUpgradableReadGuard;
-use rand::thread_rng;
-use rlp::encode;
 
-use account_provider::AccountProvider;
-use block::*;
-use client::{BlockId, EngineClient};
-use engines::{ConstructedVerifier, Engine, Headers, PendingTransitionStore, Seal};
-use error::Error;
-use ethkey::{Password, public_to_address, recover as ec_recover, Signature};
-use io::IoService;
-use machine::{AuxiliaryData, Call, EthereumMachine};
-use types::BlockNumber;
-use types::header::{ExtendedHeader, Header};
 use engines::clique::{SIGNER_SIG_LENGTH, SIGNER_VANITY_LENGTH};
+use error::Error;
+use ethkey::{public_to_address, recover as ec_recover, Signature};
+use types::header::Header;
 
 /// How many recovered signature to cache in the memory.
 pub const CREATOR_CACHE_NUM: usize = 4096;

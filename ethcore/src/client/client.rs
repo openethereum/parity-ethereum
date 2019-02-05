@@ -87,7 +87,6 @@ pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::QueueInfo as BlockQueueInfo;
 use db::Writable;
-use std::borrow::BorrowMut;
 
 use_contract!(registry, "res/contracts/registrar.json");
 

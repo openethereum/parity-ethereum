@@ -50,7 +50,7 @@ impl<S, M> IoHandler<S> for StepService<M>
 	}
 
 	/// Call step after timeout.
-	fn timeout(&self, io: &IoContext<S>, timer: TimerToken) {
+	fn timeout(&self, io: &IoContext<S>, _timer: TimerToken) {
 		if let Some(engine) = self.engine.upgrade() {
 			engine.step();
 			set_timeout(io, self.timeout);
@@ -58,7 +58,7 @@ impl<S, M> IoHandler<S> for StepService<M>
 	}
 
 	/// Set a new timer on message.
-	fn message(&self, io: &IoContext<S>, next: &S) {
+	fn message(&self, _io: &IoContext<S>, _next: &S) {
 		warn!(target: "engine", "Cannot set step timer")
 	}
 }

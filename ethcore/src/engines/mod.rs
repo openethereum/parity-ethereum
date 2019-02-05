@@ -57,8 +57,6 @@ use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
-use parity_machine::LiveBlock;
-use std::time::Duration;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
@@ -267,9 +265,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	}
 
 	/// Allow modifying block header after seal generation. Currently only used by Clique.
-	fn on_seal_block(&self, block: &M::LiveBlock) -> Result<Option<Header>, M::Error> {
-		Ok(None)
-	}
+	fn on_seal_block(&self, _block: &M::LiveBlock) -> Result<Option<Header>, M::Error> { Ok(None) }
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
