@@ -463,7 +463,7 @@ pub mod tests {
 		let client_version_string: String = format!(
 			"{}/v{}/{}/{}",
 			"Parity-Ethereum",
-			"2.3.0-beta",
+			"2.4.0-beta",
 			"x86_64-linux-gnu",
 			"rustc1.31.1")
 			.to_string();
