@@ -387,9 +387,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	where Cr: Fn(String) + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
-	use std::collections::HashMap;
-	use parking_lot::RwLock;
-
 	// load spec
 	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
@@ -510,15 +507,12 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
 
-	let certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>> = Arc::new(RwLock::new(HashMap::default()));
-
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,
 		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), runtime.executor()),
 		&spec,
 		Some(account_provider.clone()),
-		certified_addresses_cache.clone(),
 	));
 	miner.set_author(cmd.miner_extras.author, None).expect("Fails only if password is Some; password is None; qed");
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
@@ -599,7 +593,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		account_provider.clone(),
 		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf, fetch.clone()).map_err(|e| e.to_string())?),
 		cmd.private_provider_conf,
-		certified_addresses_cache.clone()
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	let connection_filter_address = spec.params().node_permission_contract;

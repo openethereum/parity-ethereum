@@ -243,14 +243,12 @@ impl Provider where {
 
 	fn pool_client<'a>(&'a self, nonce_cache: &'a NonceCache) -> miner::pool_client::PoolClient<'a, Client> {
 		let engine = self.client.engine();
-		let refuse_service_transactions = true;
 		miner::pool_client::PoolClient::new(
 			&*self.client,
 			nonce_cache,
 			engine,
 			Some(&*self.accounts),
-			refuse_service_transactions,
-			&Arc::new(RwLock::new(HashMap::default())),  // Cache does not make sense here because service txes are disabled
+			None,  // refuse_service_transactions = true
 		)
 	}
 

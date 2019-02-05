@@ -16,7 +16,6 @@
 
 //! Creates and registers client and network services.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::path::Path;
 use std::time::Duration;
@@ -36,9 +35,7 @@ use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 
 use ethcore_private_tx::{self, Importer};
-use ethereum_types::Address;
 use Error;
-use parking_lot::RwLock;
 
 pub struct PrivateTxService {
 	provider: Arc<ethcore_private_tx::Provider>,
@@ -102,7 +99,6 @@ impl ClientService {
 		account_provider: Arc<AccountProvider>,
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
-		certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>,
 	) -> Result<ClientService, Error>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
@@ -116,7 +112,6 @@ impl ClientService {
 			blockchain_db.clone(),
 			miner.clone(),
 			io_service.channel(),
-			certified_addresses_cache
 		)?;
 		miner.set_io_channel(io_service.channel());
 		miner.set_in_chain_checker(&client.clone());
@@ -319,7 +314,6 @@ mod tests {
 			Arc::new(AccountProvider::transient_provider()),
 			Box::new(ethcore_private_tx::NoopEncryptor),
 			Default::default(),
-			Arc::new(RwLock::new(HashMap::default())),
 		);
 		assert!(service.is_ok());
 		drop(service.unwrap());

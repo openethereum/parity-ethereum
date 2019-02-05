@@ -135,9 +135,6 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 impl SnapshotCommand {
 	// shared portion of snapshot commands: start the client service
 	fn start_service(self) -> Result<ClientService, String> {
-		use std::collections::HashMap;
-		use parking_lot::RwLock;
-
 		// load spec file
 		let spec = self.spec.spec(&self.dirs.cache)?;
 
@@ -205,7 +202,6 @@ impl SnapshotCommand {
 			Arc::new(AccountProvider::transient_provider()),
 			Box::new(ethcore_private_tx::NoopEncryptor),
 			Default::default(),
-			Arc::new(RwLock::new(HashMap::default())),
 		).map_err(|e| format!("Client service error: {:?}", e))?;
 
 		Ok(service)

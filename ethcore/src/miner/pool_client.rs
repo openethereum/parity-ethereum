@@ -75,7 +75,7 @@ pub struct PoolClient<'a, C: 'a> {
 	engine: &'a EthEngine,
 	accounts: Option<&'a AccountProvider>,
 	best_block_header: Header,
-	service_transaction_checker: Option<ServiceTransactionChecker>,
+	service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 }
 
 impl<'a, C: 'a> Clone for PoolClient<'a, C> {
@@ -100,8 +100,7 @@ C: BlockInfo + CallContract,
 		cache: &'a NonceCache,
 		engine: &'a EthEngine,
 		accounts: Option<&'a AccountProvider>,
-		refuse_service_transactions: bool,
-		certified_addresses_cache: &Arc<RwLock<HashMap<Address, bool>>>,
+		service_transaction_checker: Option<&'a ServiceTransactionChecker>,
 	) -> Self {
 		let best_block_header = chain.best_block_header();
 		PoolClient {
@@ -110,11 +109,7 @@ C: BlockInfo + CallContract,
 			engine,
 			accounts,
 			best_block_header,
-			service_transaction_checker: if refuse_service_transactions {
-				None
-			} else {
-				Some(ServiceTransactionChecker::new(certified_addresses_cache.clone()))
-			},
+			service_transaction_checker
 		}
 	}
 

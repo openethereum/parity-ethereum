@@ -38,8 +38,8 @@ pub struct ServiceTransactionChecker {
 
 impl ServiceTransactionChecker {
 	/// Create new ServiceTransactionChecker instance
-	pub fn new(certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>) -> ServiceTransactionChecker {
-		ServiceTransactionChecker {certified_addresses_cache: certified_addresses_cache.clone()}
+	pub fn new() -> ServiceTransactionChecker {
+		ServiceTransactionChecker {certified_addresses_cache: Arc::new(RwLock::new(HashMap::default()))}
 	}
 
 	/// Checks if given address in tx is whitelisted to send service transactions.

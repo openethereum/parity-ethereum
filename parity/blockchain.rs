@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
 use std::str::{FromStr, from_utf8};
 use std::{io, fs};
 use std::io::{BufReader, BufRead};
@@ -37,7 +36,6 @@ use ethcore_service::ClientService;
 use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use parking_lot::RwLock;
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -400,7 +398,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		Arc::new(AccountProvider::transient_provider()),
 		Box::new(ethcore_private_tx::NoopEncryptor),
 		Default::default(),
-		Arc::new(RwLock::new(HashMap::default())),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	// free up the spec in memory.
@@ -592,7 +589,6 @@ fn start_client(
 		Arc::new(AccountProvider::transient_provider()),
 		Box::new(ethcore_private_tx::NoopEncryptor),
 		Default::default(),
-		Arc::new(RwLock::new(HashMap::default())),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	drop(spec);

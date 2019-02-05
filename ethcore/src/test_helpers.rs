@@ -16,7 +16,6 @@
 
 //! Set of different helpers for client tests
 
-use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
@@ -131,7 +130,6 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 		client_db,
 		Arc::new(Miner::new_for_tests(&test_spec, accounts)),
 		IoChannel::disconnected(),
-		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 	let test_engine = &*test_spec.engine;
 
@@ -256,7 +254,6 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		client_db,
 		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
-		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 
 	for block in blocks {

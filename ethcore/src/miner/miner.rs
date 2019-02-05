@@ -16,7 +16,7 @@
 
 use std::cmp;
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -24,6 +24,7 @@ use bytes::Bytes;
 use call_contract::CallContract;
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
@@ -229,7 +230,7 @@ pub struct Miner {
 	engine: Arc<EthEngine>,
 	accounts: Option<Arc<AccountProvider>>,
 	io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
-	certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>
+	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
 impl Miner {
@@ -251,12 +252,12 @@ impl Miner {
 		gas_pricer: GasPricer,
 		spec: &Spec,
 		accounts: Option<Arc<AccountProvider>>,
-		certified_addresses_cache: Arc<RwLock<HashMap<Address, bool>>>
 	) -> Self {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
 		let nonce_cache_size = cmp::max(4096, limits.max_count / 4);
+		let refuse_service_transactions = options.refuse_service_transactions.clone();
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -277,7 +278,11 @@ impl Miner {
 			accounts,
 			engine: spec.engine.clone(),
 			io_channel: RwLock::new(None),
-			certified_addresses_cache: certified_addresses_cache.clone(),
+			service_transaction_checker: if refuse_service_transactions {
+				None
+			} else {
+				Some(ServiceTransactionChecker::new())
+			},
 		}
 	}
 
@@ -295,7 +300,7 @@ impl Miner {
 			},
 			reseal_min_period: Duration::from_secs(0),
 			..Default::default()
-		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts, Arc::new(RwLock::new(HashMap::default())))
+		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts)
 	}
 
 	/// Sets `IoChannel`
@@ -336,6 +341,11 @@ impl Miner {
 		});
 	}
 
+	/// Returns ServiceTransactionChecker
+	pub fn service_transaction_checker(&self) -> Option<ServiceTransactionChecker> {
+		self.service_transaction_checker.clone()
+	}
+
 	/// Retrieves an existing pending block iff it's not older than given block number.
 	///
 	/// NOTE: This will not prepare a new pending block if it's not existing.
@@ -363,8 +373,7 @@ impl Miner {
 			&self.nonce_cache,
 			&*self.engine,
 			self.accounts.as_ref().map(|x| &**x),
-			self.options.refuse_service_transactions,
-			&self.certified_addresses_cache.clone(),
+			self.service_transaction_checker.as_ref(),
 		)
 	}
 
@@ -1247,8 +1256,7 @@ impl miner::MinerService for Miner {
 				let nonce_cache = self.nonce_cache.clone();
 				let engine = self.engine.clone();
 				let accounts = self.accounts.clone();
-				let refuse_service_transactions = self.options.refuse_service_transactions;
-				let certified_addresses_cache = self.certified_addresses_cache.clone();
+				let service_transaction_checker = self.service_transaction_checker.clone();
 
 				let cull = move |chain: &::client::Client| {
 					let client = PoolClient::new(
@@ -1256,8 +1264,7 @@ impl miner::MinerService for Miner {
 						&nonce_cache,
 						&*engine,
 						accounts.as_ref().map(|x| &**x),
-						refuse_service_transactions,
-						&certified_addresses_cache,
+						service_transaction_checker.as_ref(),
 					);
 					queue.cull(client);
 				};
@@ -1269,6 +1276,17 @@ impl miner::MinerService for Miner {
 				self.transaction_queue.cull(client);
 			}
 		}
+		if self.service_transaction_checker.is_some() {
+			match self.service_transaction_checker.clone().unwrap().refresh_cache(chain) {
+				Ok(true) => {
+					trace!(target: "client", "Service transaction cache was refreshed successfully");
+				},
+				Ok(false) => {
+					trace!(target: "client", "Registrar or/and service transactions contract does not exist");
+				},
+				Err(e) => error!(target: "client", "Error occurred while refreshing service transaction cache: {}", e)
+			};
+		};
 	}
 
 	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State> {
