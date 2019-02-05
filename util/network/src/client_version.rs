@@ -28,7 +28,7 @@ const PARITY_CLIENT_ID_PREFIX: &str = "Parity-Ethereum";
 lazy_static! {
 /// Parity versions starting from this will accept block bodies requests
 /// of 256 bodies
-	static ref PARITY_CLIENT_LARGE_REQUESTS_VERSION: Version = Version::parse("2.3.0").unwrap();
+	static ref PARITY_CLIENT_LARGE_REQUESTS_VERSION: Version = Version::parse("2.4.0").unwrap();
 }
 
 /// Description of the software version running in a peer
