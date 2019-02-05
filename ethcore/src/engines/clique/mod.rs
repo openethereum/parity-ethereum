@@ -33,31 +33,32 @@
 /// How syncing code path works:
 /// 1. Client calls `engine.verify_block_basic()` then `engine.verify_block_unordered()`.
 /// 2. Client calls `engine.verify_block_family(header, parent)`.
-/// 3. Engine first need to find parent state: `last_state = self.state(parent.hash())`
+/// 3. Engine first need to find parent state: `state = self.state(parent.hash())`
 ///    if not found, trigger an back-fill from last checkpoint.
-/// 4. Engine calls `last_state.apply(header)`
-///
-/// executive_author()
+/// 4. Engine calls `state.apply(header)` and record the new state.
+
+/// About executive_author()
 /// Clique use author field for voting, the real author is hidden in the extra_data field. So
-/// When executing transactions, Client will calls engine.executive_author().
+/// When executing transactions (in `enact_verified()`, it will calls engine.executive_author() and use that.
 
 /// How sealing works:
-/// 1. implement `engine.set_signer()` . on startup, if miner account was setup on config/cli,
-///    miner.set_author() which will eventually pass to here.
-/// 2. make `engine.seals_internally()` return Some(true) if signer is present.
+/// 1. implement `engine.set_signer()`. on startup, if miner account was setup on config/cli,
+///    `miner.set_author()` which will eventually be pass to here.
+/// 2. make `engine.seals_internally()` return Some(true).
 /// 3. on Clique::new setup IOService that impalement an timer that just calls `engine.step()`,
 ///    which just calls `engine.client.update_sealing()` which triggers generating an new block.
-/// 4. `engine.generate_seal()` will be called by miner, which should return Seal::None or Seal:Regular
-///   a. if period == 0 and block has transactions -> Seal::Regular, else Seal::None
-///   b. if block.timestamp() > parent().timestamp() + period -> Seal::Regular
-///   c. Seal:: None
+/// 4. `engine.generate_seal()` will be called by miner, which should return either Seal::None or Seal:Regular.
+///   a. return `Seal::None` if no signer or signer is not authorized.
+///   b. if period == 0 and block has transactions -> Seal::Regular, else Seal::None
+///   c. if we INTURN, wait for at least `period` since last block, otherwise wait for an random using algorithm as
+///      specified in the EIP.
 /// 5. Miner will create new block, in process it will call several engine method, which they need to do following:
-///   a. `engine_open_header_timestamp()` can use default impl.
-///   b. `engine.populate_from_parent()` must set difficulty to correct value.
-/// 5. Implement `engine.on_seal_block()`, which is the new hook that allow modifying header after block is locked.
-///    This is also where we should implement an delay timer??
-/// 6. engine.verify_local_seal() will be called, then normal syncing code path will also be called.
-
+///   a. `engine_open_header_timestamp()` must set timestamp correctly.
+///   b. `engine.populate_from_parent()` must set difficulty to correct value. NOTE: this is used both in SYNCing and
+///       SEALing code path, for now we use an ugly hack to differentiate.
+/// 6. Implement `engine.on_seal_block()`, which is the new hook that allow modifying header after block is locked.
+/// 7. `engine.verify_local_seal()` will later be called, then normal syncing code path will also be called to import
+///    the new block.
 use core::borrow::BorrowMut;
 use std::cmp;
 use std::collections::VecDeque;
@@ -376,9 +377,9 @@ impl Engine<EthereumMachine> for Clique {
 		Ok(Some(header))
 	}
 
-	/// Clique doesn't require external work to seal. once signer is set we will begin sealing.
+	/// Clique doesn't require external work to seal, so we always return true here.
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.read().is_some())
+		Some(true)
 	}
 
 	/// Returns if we are ready to seal, the real sealing (signing extra_data) is actually done in `on_seal_block()`.
@@ -595,9 +596,11 @@ impl Engine<EthereumMachine> for Clique {
 	}
 
 	fn step(&self) {
-		if let Some(ref weak) = *self.client.read() {
-			if let Some(c) = weak.upgrade() {
-				c.update_sealing();
+		if self.signer.read().is_some() {
+			if let Some(ref weak) = *self.client.read() {
+				if let Some(c) = weak.upgrade() {
+					c.update_sealing();
+				}
 			}
 		}
 	}
