@@ -41,9 +41,8 @@ parts:
       cp -v ./parity.desktop $SNAPCRAFT_PART_INSTALL/usr/share/applications/
       cp -v ./icon.png $SNAPCRAFT_PART_INSTALL/usr/share/pixmaps/
   parity:
-    source-type:    bzr
     source:         ./artifacts/$CARGO_TARGET
-    plugin:         copy
+    plugin:         nil
     override-build:        |
       mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
       cp -v parity $SNAPCRAFT_PART_INSTALL/usr/bin/parity
@@ -52,8 +51,3 @@ parts:
       cp -v ethstore $SNAPCRAFT_PART_INSTALL/usr/bin/ethstore
       cp -v whisper $SNAPCRAFT_PART_INSTALL/usr/bin/whisper
     stage-packages: [libc6, libudev1, libstdc++6, cmake, libdb5.3]
-  # df:
-  #   source:         /bin/
-  #   plugin:         nil
-  #   stage-packages: [coreutils]
-  #   stage:          [bin/df]
