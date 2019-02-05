@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fmt, str};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -52,6 +52,7 @@ enum CryptoField {
 	Kdf,
 	KdfParams,
 	Mac,
+	Version,
 }
 
 impl<'a> Deserialize<'a> for CryptoField {
@@ -81,6 +82,7 @@ impl<'a> Visitor<'a> for CryptoFieldVisitor {
 			"kdf" => Ok(CryptoField::Kdf),
 			"kdfparams" => Ok(CryptoField::KdfParams),
 			"mac" => Ok(CryptoField::Mac),
+			"version" => Ok(CryptoField::Version),
 			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
 		}
 	}
@@ -122,6 +124,8 @@ impl<'a> Visitor<'a> for CryptoVisitor {
 				Some(CryptoField::Kdf) => { kdf = Some(visitor.next_value()?); }
 				Some(CryptoField::KdfParams) => { kdfparams = Some(visitor.next_value()?); }
 				Some(CryptoField::Mac) => { mac = Some(visitor.next_value()?); }
+				// skip not required version field (it appears in pyethereum generated keystores)
+				Some(CryptoField::Version) => { visitor.next_value().unwrap_or(()) }
 				None => { break; }
 			}
 		}

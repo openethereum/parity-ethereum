@@ -34,6 +34,7 @@ jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
 
+common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
 fastmap = { path = "../util/fastmap" }
@@ -41,11 +42,10 @@ parity-bytes = "0.1"
 parity-crypto = "0.2"
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
-ethcore-logger = { path = "../logger" }
+ethcore-logger = { path = "../parity/logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.4"
 
 ethjson = { path = "../json" }
@@ -62,10 +62,10 @@ eip-712 = { path = "../util/EIP-712" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
-[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))'.dependencies]
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
 hardware-wallet = { path = "../accounts/hw" }
 
-[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))'.dependencies]
+[target.'cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))'.dependencies]
 fake-hardware-wallet = { path = "../accounts/fake-hardware-wallet" }
 
 [dev-dependencies]

@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
 extern crate criterion;
@@ -154,7 +154,6 @@ fn ecrecover(b: &mut Criterion) {
 	);
 }
 
-
 fn sha256(b: &mut Criterion) {
 	bench(
 		"sha256",
@@ -164,7 +163,6 @@ fn sha256(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn ripemd(b: &mut Criterion) {
 	bench(
@@ -176,7 +174,6 @@ fn ripemd(b: &mut Criterion) {
 	);
 }
 
-
 fn identity(b: &mut Criterion) {
 	bench(
 		"identity",
@@ -186,7 +183,6 @@ fn identity(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn modexp_eip_example1(b: &mut Criterion) {
 	bench(
@@ -198,7 +194,6 @@ fn modexp_eip_example1(b: &mut Criterion) {
 	);
 }
 
-
 fn modexp_eip_example2(b: &mut Criterion) {
 	bench(
 		"modexp_eip_example2",
@@ -208,7 +203,6 @@ fn modexp_eip_example2(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn modexp_nagydani_1_square(b: &mut Criterion) {
 	bench(
@@ -220,7 +214,6 @@ fn modexp_nagydani_1_square(b: &mut Criterion) {
 	);
 }
 
-
 fn modexp_nagydani_1_qube(b: &mut Criterion) {
 	bench(
 		"modexp_nagydani_1_qube",
@@ -230,7 +223,6 @@ fn modexp_nagydani_1_qube(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn modexp_nagydani_1_pow0x10001(b: &mut Criterion) {
 	bench(
@@ -242,7 +234,6 @@ fn modexp_nagydani_1_pow0x10001(b: &mut Criterion) {
 	);
 }
 
-
 fn modexp_nagydani_2_square(b: &mut Criterion) {
 	bench(
 		"modexp_nagydani_2_square",
@@ -252,8 +243,6 @@ fn modexp_nagydani_2_square(b: &mut Criterion) {
 		b,
 	);
 }
-
-
 
 fn modexp_nagydani_2_qube(b: &mut Criterion) {
 	bench(
@@ -265,7 +254,6 @@ fn modexp_nagydani_2_qube(b: &mut Criterion) {
 	);
 }
 
-
 fn modexp_nagydani_2_pow0x10001(b: &mut Criterion) {
 	bench(
 		"modexp_nagydani_2_pow0x10001",
@@ -275,7 +263,6 @@ fn modexp_nagydani_2_pow0x10001(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn modexp_nagydani_3_square(b: &mut Criterion) {
 	bench(
@@ -287,7 +274,6 @@ fn modexp_nagydani_3_square(b: &mut Criterion) {
 	);
 }
 
-
 fn modexp_nagydani_3_qube(b: &mut Criterion) {
 	bench(
 		"modexp_nagydani_3_qube",
@@ -297,7 +283,6 @@ fn modexp_nagydani_3_qube(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn modexp_nagydani_3_pow0x10001(b: &mut Criterion) {
 	bench(
@@ -309,7 +294,6 @@ fn modexp_nagydani_3_pow0x10001(b: &mut Criterion) {
 	);
 }
 
-
 fn modexp_nagydani_4_square(b: &mut Criterion) {
 	bench(
 		"modexp_nagydani_4_square",
@@ -319,7 +303,6 @@ fn modexp_nagydani_4_square(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn modexp_nagydani_4_qube(b: &mut Criterion) {
 	bench(
@@ -331,7 +314,6 @@ fn modexp_nagydani_4_qube(b: &mut Criterion) {
 	);
 }
 
-
 fn modexp_nagydani_4_pow0x10001(b: &mut Criterion) {
 	bench(
 		"modexp_nagydani_4_pow0x10001",
@@ -341,7 +323,6 @@ fn modexp_nagydani_4_pow0x10001(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn modexp_nagydani_5_square(b: &mut Criterion) {
 	bench(
@@ -353,7 +334,6 @@ fn modexp_nagydani_5_square(b: &mut Criterion) {
 	);
 }
 
-
 fn modexp_nagydani_5_qube(b: &mut Criterion) {
 	bench(
 		"modexp_nagydani_5_qube",
@@ -363,8 +343,6 @@ fn modexp_nagydani_5_qube(b: &mut Criterion) {
 		b,
 	);
 }
-
-
 
 fn modexp_nagydani_5_pow0x10001(b: &mut Criterion) {
 	bench(
@@ -376,7 +354,6 @@ fn modexp_nagydani_5_pow0x10001(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_add_chfast1(b: &mut Criterion) {
 	bench(
 		"alt_bn128_add_chfast1",
@@ -386,7 +363,6 @@ fn alt_bn128_add_chfast1(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_add_chfast2(b: &mut Criterion) {
 	bench(
@@ -398,7 +374,6 @@ fn alt_bn128_add_chfast2(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_add_cdetrio1(b: &mut Criterion) {
 	bench(
 		"alt_bn128_add_cdetrio1",
@@ -408,7 +383,6 @@ fn alt_bn128_add_cdetrio1(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_add_cdetrio2(b: &mut Criterion) {
 	bench(
@@ -420,7 +394,6 @@ fn alt_bn128_add_cdetrio2(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_add_cdetrio3(b: &mut Criterion) {
 	bench(
 		"alt_bn128_add_cdetrio3",
@@ -430,7 +403,6 @@ fn alt_bn128_add_cdetrio3(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_add_cdetrio4(b: &mut Criterion) {
 	bench(
@@ -442,7 +414,6 @@ fn alt_bn128_add_cdetrio4(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_add_cdetrio5(b: &mut Criterion) {
 	bench(
 		"alt_bn128_add_cdetrio5",
@@ -452,7 +423,6 @@ fn alt_bn128_add_cdetrio5(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_add_cdetrio6(b: &mut Criterion) {
 	bench(
@@ -464,7 +434,6 @@ fn alt_bn128_add_cdetrio6(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_add_cdetrio7(b: &mut Criterion) {
 	bench(
 		"alt_bn128_add_cdetrio7",
@@ -474,7 +443,6 @@ fn alt_bn128_add_cdetrio7(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_add_cdetrio8(b: &mut Criterion) {
 	bench(
@@ -486,7 +454,6 @@ fn alt_bn128_add_cdetrio8(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_add_cdetrio9(b: &mut Criterion) {
 	bench(
 		"alt_bn128_add_cdetrio9",
@@ -496,7 +463,6 @@ fn alt_bn128_add_cdetrio9(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_add_cdetrio10(b: &mut Criterion) {
 	bench(
@@ -508,7 +474,6 @@ fn alt_bn128_add_cdetrio10(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_add_cdetrio11(b: &mut Criterion) {
 	bench(
 		"alt_bn128_add_cdetrio11",
@@ -518,7 +483,6 @@ fn alt_bn128_add_cdetrio11(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_add_cdetrio12(b: &mut Criterion) {
 	bench(
@@ -530,7 +494,6 @@ fn alt_bn128_add_cdetrio12(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_add_cdetrio13(b: &mut Criterion) {
 	bench(
 		"alt_bn128_add_cdetrio13",
@@ -540,7 +503,6 @@ fn alt_bn128_add_cdetrio13(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_add_cdetrio14(b: &mut Criterion) {
 	bench(
@@ -552,7 +514,6 @@ fn alt_bn128_add_cdetrio14(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_mul_chfast1(b: &mut Criterion) {
 	bench(
 		"alt_bn128_mul_chfast1",
@@ -562,7 +523,6 @@ fn alt_bn128_mul_chfast1(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_mul_chfast2(b: &mut Criterion) {
 	bench(
@@ -574,7 +534,6 @@ fn alt_bn128_mul_chfast2(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_mul_chfast3(b: &mut Criterion) {
 	bench(
 		"alt_bn128_mul_chfast3",
@@ -584,7 +543,6 @@ fn alt_bn128_mul_chfast3(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_mul_cdetrio1(b: &mut Criterion) {
 	bench(
@@ -596,7 +554,6 @@ fn alt_bn128_mul_cdetrio1(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_mul_cdetrio6(b: &mut Criterion) {
 	bench(
 		"alt_bn128_mul_cdetrio6",
@@ -606,7 +563,6 @@ fn alt_bn128_mul_cdetrio6(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_mul_cdetrio11(b: &mut Criterion) {
 	bench(
@@ -618,7 +574,6 @@ fn alt_bn128_mul_cdetrio11(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_pairing_jeff1(b: &mut Criterion) {
 	bench(
 		"alt_bn128_pairing_jeff1",
@@ -628,7 +583,6 @@ fn alt_bn128_pairing_jeff1(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_pairing_jeff2(b: &mut Criterion) {
 	bench(
@@ -640,7 +594,6 @@ fn alt_bn128_pairing_jeff2(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_pairing_jeff3(b: &mut Criterion) {
 	bench(
 		"alt_bn128_pairing_jeff3",
@@ -650,7 +603,6 @@ fn alt_bn128_pairing_jeff3(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_pairing_jeff4(b: &mut Criterion) {
 	bench(
@@ -662,7 +614,6 @@ fn alt_bn128_pairing_jeff4(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_pairing_jeff5(b: &mut Criterion) {
 	bench(
 		"alt_bn128_pairing_jeff5",
@@ -672,7 +623,6 @@ fn alt_bn128_pairing_jeff5(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_pairing_jeff6(b: &mut Criterion) {
 	bench(
@@ -684,7 +634,6 @@ fn alt_bn128_pairing_jeff6(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_pairing_empty_data(b: &mut Criterion) {
 	bench(
 		"alt_bn128_pairing_empty_data",
@@ -694,7 +643,6 @@ fn alt_bn128_pairing_empty_data(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_pairing_one_point(b: &mut Criterion) {
 	bench(
@@ -706,7 +654,6 @@ fn alt_bn128_pairing_one_point(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_pairing_two_point_match_2(b: &mut Criterion) {
 	bench(
 		"alt_bn128_pairing_two_point_match_2",
@@ -716,7 +663,6 @@ fn alt_bn128_pairing_two_point_match_2(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_pairing_two_point_match_3(b: &mut Criterion) {
 	bench(
@@ -728,7 +674,6 @@ fn alt_bn128_pairing_two_point_match_3(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_pairing_two_point_match_4(b: &mut Criterion) {
 	bench(
 		"alt_bn128_pairing_two_point_match_4",
@@ -738,7 +683,6 @@ fn alt_bn128_pairing_two_point_match_4(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_pairing_ten_point_match_1(b: &mut Criterion) {
 	bench(
@@ -750,7 +694,6 @@ fn alt_bn128_pairing_ten_point_match_1(b: &mut Criterion) {
 	);
 }
 
-
 fn alt_bn128_pairing_ten_point_match_2(b: &mut Criterion) {
 	bench(
 		"alt_bn128_pairing_ten_point_match_2",
@@ -760,7 +703,6 @@ fn alt_bn128_pairing_ten_point_match_2(b: &mut Criterion) {
 		b,
 	);
 }
-
 
 fn alt_bn128_pairing_ten_point_match_3(b: &mut Criterion) {
 	bench(

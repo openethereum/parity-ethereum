@@ -1,38 +1,38 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
-use ethereum_types::{H160, H256, U256, Address};
-use parking_lot::Mutex;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
-use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::miner::MinerService;
-use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
+use ethereum_types::{H160, H256, U256, Address};
 use ethkey::Secret;
-use sync::SyncState;
 use miner::external::ExternalMiner;
+use parity_runtime::Runtime;
+use parking_lot::Mutex;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
-use transaction::{Transaction, Action};
-use parity_runtime::Runtime;
+use sync::SyncState;
+use types::transaction::{Transaction, Action};
+use types::log_entry::{LocalizedLogEntry, LogEntry};
+use types::receipt::{LocalizedReceipt, TransactionOutcome};
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
@@ -584,7 +584,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 fn rpc_eth_pending_transaction_by_hash() {
 	use ethereum_types::H256;
 	use rlp;
-	use transaction::SignedTransaction;
+	use types::transaction::SignedTransaction;
 
 	let tester = EthTester::default();
 	{

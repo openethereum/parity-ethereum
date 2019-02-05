@@ -1,24 +1,25 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::collections::BTreeMap;
+use std::collections::{HashSet, BTreeMap};
+use std::iter::FromIterator;
 use std::cmp;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -27,7 +28,7 @@ use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use sync::{NetworkConfiguration, validate_node_url, self};
-use ethcore::ethstore::ethkey::{Secret, Public};
+use ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{stratum, MinerOptions};
 use ethcore::snapshot::SnapshotConfiguration;
@@ -48,7 +49,7 @@ use ethcore_private_tx::{ProviderConfig, EncryptorConfig};
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat, ResetBlockchain};
 use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
@@ -176,6 +177,19 @@ impl Configuration {
 			}
 		} else if self.args.cmd_tools && self.args.cmd_tools_hash {
 			Cmd::Hash(self.args.arg_tools_hash_file)
+		} else if self.args.cmd_db && self.args.cmd_db_reset {
+			Cmd::Blockchain(BlockchainCmd::Reset(ResetBlockchain {
+				dirs,
+				spec,
+				pruning,
+				pruning_history,
+				pruning_memory: self.args.arg_pruning_memory,
+				tracing,
+				fat_db,
+				compaction,
+				cache_config,
+				num: self.args.arg_db_reset_num,
+			}))
 		} else if self.args.cmd_db && self.args.cmd_db_kill {
 			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {
 				spec: spec,
@@ -459,7 +473,8 @@ impl Configuration {
 		}
 	}
 
-	fn logger_config(&self) -> LogConfig {
+	/// returns logger config
+	pub fn logger_config(&self) -> LogConfig {
 		LogConfig {
 			mode: self.args.arg_logging.clone(),
 			color: !self.args.flag_no_color && !cfg!(windows),
@@ -559,6 +574,7 @@ impl Configuration {
 			infinite_pending_block: self.args.flag_infinite_pending_block,
 
 			tx_queue_penalization: to_queue_penalization(self.args.arg_tx_time_limit)?,
+			tx_queue_locals: HashSet::from_iter(to_addresses(&self.args.arg_tx_queue_locals)?.into_iter()),
 			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
 			tx_queue_no_unfamiliar_locals: self.args.flag_tx_queue_no_unfamiliar_locals,
 			refuse_service_transactions: self.args.flag_refuse_service_transactions,

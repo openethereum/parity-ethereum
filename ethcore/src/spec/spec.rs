@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parameters for a block chain.
 
@@ -29,10 +29,12 @@ use memorydb::MemoryDB;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::{FromHex, ToHex};
+use types::BlockNumber;
+use types::encoded;
+use types::header::Header;
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
-use encoded;
 use engines::{
 	EthEngine, NullEngine, InstantSeal, InstantSealParams, BasicAuthority,
 	AuthorityRound, DEFAULT_BLOCKHASH_CONTRACT
@@ -40,7 +42,6 @@ use engines::{
 use error::Error;
 use executive::Executive;
 use factory::Factories;
-use header::{BlockNumber, Header};
 use machine::EthereumMachine;
 use pod_state::PodState;
 use spec::Genesis;
@@ -120,6 +121,8 @@ pub struct CommonParams {
 	pub eip1052_transition: BlockNumber,
 	/// Number of first block where EIP-1283 rules begin.
 	pub eip1283_transition: BlockNumber,
+	/// Number of first block where EIP-1283 rules end.
+	pub eip1283_disable_transition: BlockNumber,
 	/// Number of first block where EIP-1014 rules begin.
 	pub eip1014_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
@@ -188,7 +191,7 @@ impl CommonParams {
 		schedule.have_return_data = block_number >= self.eip211_transition;
 		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
 		schedule.have_extcodehash = block_number >= self.eip1052_transition;
-		schedule.eip1283 = block_number >= self.eip1283_transition;
+		schedule.eip1283 = block_number >= self.eip1283_transition && !(block_number >= self.eip1283_disable_transition);
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
 		}
@@ -296,6 +299,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip1283_transition: p.eip1283_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip1283_disable_transition: p.eip1283_disable_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
 			),
@@ -840,7 +847,7 @@ impl Spec {
 	/// initialize genesis epoch data, using in-memory database for
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
-		use transaction::{Action, Transaction};
+		use types::transaction::{Action, Transaction};
 		use journaldb;
 		use kvdb_memorydb;
 
@@ -989,8 +996,9 @@ mod tests {
 	use super::*;
 	use state::State;
 	use test_helpers::get_temp_state_db;
-	use views::BlockView;
 	use tempdir::TempDir;
+	use types::view;
+	use types::views::BlockView;
 
 	// https://github.com/paritytech/parity-ethereum/issues/1840
 	#[test]
@@ -1016,7 +1024,7 @@ mod tests {
 
 	#[test]
 	fn genesis_constructor() {
-		::ethcore_logger::init_log();
+		let _ = ::env_logger::try_init();
 		let spec = Spec::new_test_constructor();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default())
 			.unwrap();

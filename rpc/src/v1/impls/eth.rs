@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// This file is part of Parity Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Parity Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Parity Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
 
@@ -27,15 +27,15 @@ use parking_lot::Mutex;
 use ethash::{self, SeedHashCompute};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo, ProvingBlockChainClient};
-use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
-use ethcore::encoded;
-use sync::SyncProvider;
-use miner::external::ExternalMinerService;
-use transaction::{SignedTransaction, LocalizedTransaction};
 use hash::keccak;
+use miner::external::ExternalMinerService;
+use sync::SyncProvider;
+use types::transaction::{SignedTransaction, LocalizedTransaction};
+use types::BlockNumber as EthBlockNumber;
+use types::encoded;
+use types::filter::Filter as EthcoreFilter;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
@@ -466,7 +466,7 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 }
 
 fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockChainClient {
-	use ethcore::block_status::BlockStatus;
+	use types::block_status::BlockStatus;
 
 	let id = match number {
 		BlockNumber::Pending => return Ok(()),
@@ -625,7 +625,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	
 	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256> {
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
