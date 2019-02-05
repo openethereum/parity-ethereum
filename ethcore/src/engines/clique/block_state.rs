@@ -21,16 +21,11 @@ use std::time::UNIX_EPOCH;
 use ethereum_types::Address;
 use rand::Rng;
 
-use engines::clique::{DIFF_INTURN, DIFF_NOTURN, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
+use engines::clique::{VoteType, DIFF_INTURN, DIFF_NOTURN, NONCE_AUTH_VOTE, NONCE_DROP_VOTE, NULL_AUTHOR, SIGNING_DELAY_NOTURN_MS};
 use engines::clique::util::{extract_signers, recover_creator};
 use error::Error;
 use types::header::Header;
 
-#[derive(PartialEq, Clone, Debug, Copy)]
-pub enum VoteType {
-	Add,
-	Remove
-}
 
 #[derive(Clone, Debug)]
 pub struct CliqueBlockState {
@@ -183,8 +178,7 @@ impl CliqueBlockState {
 
 		self.next_timestamp_inturn = Some(base_time + Duration::from_secs(period));
 
-		let mut rng = rand::thread_rng();
-		let delay = Duration::from_millis(rng.gen_range(0u64, (self.signers.len() as u64 / 2 + 1) * SIGNING_DELAY_NOTURN_MS));
+		let delay = Duration::from_millis(rand::thread_rng().gen_range(0u64, (self.signers.len() as u64 / 2 + 1) * SIGNING_DELAY_NOTURN_MS));
 		self.next_timestamp_noturn = Some(base_time + Duration::from_secs(period) + delay);
 	}
 
@@ -197,5 +191,15 @@ impl CliqueBlockState {
 
 	pub fn is_authoirzed(&self, author: &Address) -> bool {
 		return self.signers.contains(author) && !self.recent_signers.contains(author);
+	}
+
+	// returns whether it makes sense to cast the specified vote in the
+	// current state (e.g. don't try to add an already authorized signer).
+	pub fn is_valid_vote(&self, address: &Address, vote_type: VoteType) -> bool {
+		let res = self.signers.binary_search(address);
+		match vote_type {
+			VoteType::Add => { return res.is_ok(); },
+			VoteType::Remove => { return res.is_err(); },
+		}
 	}
 }

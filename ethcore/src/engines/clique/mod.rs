@@ -91,6 +91,8 @@ use super::signer::EngineSigner;
 use self::block_state::CliqueBlockState;
 use self::params::CliqueParams;
 use self::step_service::StepService;
+use std::collections::HashMap;
+use rand::Rng;
 
 mod params;
 mod block_state;
@@ -112,6 +114,12 @@ pub const NULL_MIXHASH: [u8; 32] = [0x00; 32];
 pub const NULL_UNCLES_HASH: H256 = KECCAK_EMPTY_LIST_RLP;
 pub const SIGNING_DELAY_NOTURN_MS: u64 = 500;
 
+#[derive(PartialEq, Clone, Debug, Copy)]
+pub enum VoteType {
+	Add,
+	Remove
+}
+
 // Caches
 /// How many CliqueBlockState to cache in the memory.
 pub const STATE_CACHE_NUM: usize = 128;
@@ -123,6 +131,7 @@ pub struct Clique {
 	machine: EthereumMachine,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
+	proposals: RwLock<HashMap<Address, VoteType>>,
 	signer: RwLock<EngineSigner>,
 	step_service: IoService<Duration>,
 }
@@ -136,6 +145,7 @@ impl Clique {
 				period: our_params.period,
 				client: RwLock::new(Option::default()),
 				block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
+				proposals: RwLock::new(Default::default()),
 				signer: RwLock::new(Default::default()),
 				machine,
 				step_service: IoService::<Duration>::start()?,
@@ -300,8 +310,34 @@ impl Engine<EthereumMachine> for Clique {
 			|| format!("on_seal_block: Unable to get parent state: {}", header.parent_hash())
 		)?;
 
+		let is_checkpoint = header.number() % self.epoch_length == 0;
+
 		header.set_author(NULL_AUTHOR);
-		// TODO: cast an random Vote if not checkpoint
+
+		// cast an random Vote if not checkpoint
+		if !is_checkpoint {
+			let votes = self.proposals.read().iter()
+				.filter(|item| state.is_valid_vote(item.0, *item.1))
+				.map(|item| (*item.0, *item.1))
+				.collect_vec();
+
+			if !votes.is_empty() {
+				// Pick an random vote.
+				let i = rand::thread_rng().gen_range(0 as usize, votes.len());
+				let vote = votes[i];
+
+				trace!(target: "engine", "Casting vote: beneficiary {}, type {:?} ", vote.0, vote.1);
+
+				header.set_author(vote.0);
+
+				header.set_seal(
+					match vote.1 {
+						VoteType::Add => { vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_AUTH_VOTE.to_vec())) }
+						VoteType::Remove => {vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NONCE_DROP_VOTE.to_vec()))}
+					}
+				)
+			}
+		}
 
 		// Work on clique seal.
 
@@ -319,7 +355,7 @@ impl Engine<EthereumMachine> for Clique {
 		}
 
 		// If we are building an checkpoint block, add all signers now.
-		if header.number() % self.epoch_length == 0 {
+		if is_checkpoint {
 			seal.reserve(state.signers.len() * 20);
 			state.signers.iter().foreach(|addr| {
 				seal.extend_from_slice(&addr[..]);
@@ -348,7 +384,7 @@ impl Engine<EthereumMachine> for Clique {
 	/// Returns if we are ready to seal, the real sealing (signing extra_data) is actually done in `on_seal_block()`.
 	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
 		// make this pub
-		let NULL_SEAL = vec!(encode(&vec![0; 32]), encode(&vec![0; 8]));
+		let NULL_SEAL = vec!(encode(&NULL_MIXHASH.to_vec()), encode(&NULL_NONCE.to_vec()));
 
 		trace!(target: "engine", "tried to generate seal");
 
