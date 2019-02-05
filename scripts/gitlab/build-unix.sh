@@ -15,7 +15,6 @@ export RUSTFLAGS=" -C link-arg=-s"
 echo "_____ Building target: "$CARGO_TARGET" _____"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
-# only thing we need for android
   time cargo build --target $CARGO_TARGET --release -p parity-clib --features final
 else
   time cargo build --target $CARGO_TARGET --release --features final
@@ -26,19 +25,18 @@ else
 fi
 
 echo "_____ Post-processing binaries _____"
-rm -rf artifacts
 mkdir -p artifacts/$CARGO_TARGET
+cd artifacts/$CARGO_TARGET
 
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
-# only thing we need for android
-  cp -v target/$CARGO_TARGET/release/libparity.so ./libparity.so
+ cp -v ../../target/$CARGO_TARGET/release/libparity.so ./libparity.so
 else
-  cp -v target/$CARGO_TARGET/release/parity ./parity
-  cp -v target/$CARGO_TARGET/release/parity-evm ./parity-evm
-  cp -v target/$CARGO_TARGET/release/ethstore ./ethstore
-  cp -v target/$CARGO_TARGET/release/ethkey ./ethkey
-  cp -v target/$CARGO_TARGET/release/whisper ./whisper
+ cp -v ../../target/$CARGO_TARGET/release/parity ./parity
+ cp -v ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
+ cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
+ cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
+ cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
 fi
 
 echo "_____ Calculating checksums _____"
