@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tests for the snapshot service.
-use std::collections::HashMap;
+
 use std::fs;
 use std::sync::Arc;
 
@@ -29,7 +29,7 @@ use snapshot::{chunk_state, chunk_secondary, ManifestData, Progress, SnapshotSer
 use spec::Spec;
 use test_helpers::{new_db, new_temp_db, generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use io::IoChannel;
 use kvdb_rocksdb::DatabaseConfig;
 use verification::queue::kind::blocks::Unverified;
@@ -59,7 +59,6 @@ fn restored_is_equivalent() {
 		blockchain_db,
 		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
-		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 
 	let service_params = ServiceParams {
@@ -212,7 +211,6 @@ fn keep_ancient_blocks() {
 		client_db,
 		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
-		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 
 	// Add some ancient blocks
@@ -288,7 +286,6 @@ fn recover_aborted_recovery() {
 		client_db,
 		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
-		Arc::new(RwLock::new(HashMap::default())),
 	).unwrap();
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),

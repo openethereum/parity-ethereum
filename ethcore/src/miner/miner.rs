@@ -1362,7 +1362,6 @@ mod tests {
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
 			None, // accounts provider
-			Arc::new(RwLock::new(HashMap::default())),
 		)
 	}
 
@@ -1486,7 +1485,6 @@ mod tests {
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
 			Some(Arc::new(account_provider)),
-			Arc::new(RwLock::new(HashMap::default())),
 		);
 		let transaction = transaction();
 		let best_block = 0;

@@ -142,7 +142,6 @@ impl TransactionFilter {
 
 #[cfg(test)]
 mod test {
-	use std::collections::HashMap;
 	use std::sync::Arc;
 	use spec::Spec;
 	use client::{BlockChainClient, Client, ClientConfig, BlockId};
@@ -150,7 +149,6 @@ mod test {
 	use ethereum_types::{U256, Address};
 	use io::IoChannel;
 	use ethkey::{Secret, KeyPair};
-	use parking_lot::RwLock;
 	use super::TransactionFilter;
 	use types::transaction::{Transaction, Action};
 	use tempdir::TempDir;
@@ -171,7 +169,6 @@ mod test {
 			db,
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
-			Arc::new(RwLock::new(HashMap::default())),
 		).unwrap();
 		let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000001")).unwrap();
 		let key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000002")).unwrap();
@@ -251,7 +248,6 @@ mod test {
 			db,
 			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
-			Arc::new(RwLock::new(HashMap::default())),
 		).unwrap();
 		let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000001")).unwrap();
 		let key2 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000002")).unwrap();

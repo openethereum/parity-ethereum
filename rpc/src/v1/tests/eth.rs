@@ -15,7 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! rpc integration tests.
-use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 
@@ -33,7 +32,7 @@ use ethjson::spec::ForkSpec;
 use io::IoChannel;
 use miner::external::ExternalMiner;
 use parity_runtime::Runtime;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use types::ids::BlockId;
 
 use jsonrpc_core::IoHandler;
@@ -129,7 +128,6 @@ impl EthTester {
 			test_helpers::new_db(),
 			miner_service.clone(),
 			IoChannel::disconnected(),
-			Arc::new(RwLock::new(HashMap::default())),
 		).unwrap();
 		let sync_provider = sync_provider();
 		let external_miner = Arc::new(ExternalMiner::default());
