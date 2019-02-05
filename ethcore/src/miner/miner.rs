@@ -140,6 +140,8 @@ pub struct MinerOptions {
 	/// will be invalid if mined.
 	pub infinite_pending_block: bool,
 
+	/// Prioritized Local Addresses
+	pub tx_queue_locals: HashSet<Address>,
 	/// Strategy to use for prioritizing transactions in the queue.
 	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Simple senders penalization.
@@ -167,6 +169,7 @@ impl Default for MinerOptions {
 			work_queue_size: 20,
 			enable_resubmission: true,
 			infinite_pending_block: false,
+			tx_queue_locals: HashSet::new(),
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			tx_queue_penalization: Penalization::Disabled,
 			tx_queue_no_unfamiliar_locals: false,
@@ -917,11 +920,13 @@ impl miner::MinerService for Miner {
 		pending: PendingTransaction,
 		trusted: bool
 	) -> Result<(), transaction::Error> {
-		// treat the tx as local if the option is enabled, or if we have the account
+		// treat the tx as local if the option is enabled, if we have the account, or if
+		// the account is specified as a Prioritized Local Addresses
 		let sender = pending.sender();
 		let treat_as_local = trusted
 			|| !self.options.tx_queue_no_unfamiliar_locals
-			|| self.accounts.as_ref().map(|accts| accts.has_account(sender)).unwrap_or(false);
+			|| self.accounts.as_ref().map(|accts| accts.has_account(sender)).unwrap_or(false)
+			|| self.options.tx_queue_locals.contains(&sender);
 
 		if treat_as_local {
 			self.import_own_transaction(chain, pending)
@@ -1284,6 +1289,8 @@ impl miner::MinerService for Miner {
 
 #[cfg(test)]
 mod tests {
+	use std::iter::FromIterator;
+
 	use super::*;
 	use ethkey::{Generator, Random};
 	use hash::keccak;
@@ -1342,6 +1349,7 @@ mod tests {
 				enable_resubmission: true,
 				infinite_pending_block: false,
 				tx_queue_penalization: Penalization::Disabled,
+				tx_queue_locals: HashSet::new(),
 				tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 				tx_queue_no_unfamiliar_locals: false,
 				refuse_service_transactions: false,
@@ -1507,6 +1515,38 @@ mod tests {
 		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 2);
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 2);
 		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 2);
+		assert_eq!(miner.prepare_pending_block(&client), BlockPreparationStatus::NotPrepared);
+	}
+
+	#[test]
+	fn should_prioritize_locals() {
+		let keypair = Random.generate().unwrap();
+		let client = TestBlockChainClient::default();
+		let account_provider = AccountProvider::transient_provider();
+		account_provider.insert_account(keypair.secret().clone(), &"".into())
+		    .expect("can add accounts to the provider we just created");
+
+		let transaction = transaction();
+		let miner = Miner::new(
+			MinerOptions {
+				tx_queue_no_unfamiliar_locals: true, // should work even with this enabled
+				tx_queue_locals: HashSet::from_iter(vec![transaction.sender()].into_iter()),
+				..miner().options
+			},
+			GasPricer::new_fixed(0u64.into()),
+			&Spec::new_test(),
+			Some(Arc::new(account_provider)),
+		);
+		let best_block = 0;
+
+		// Miner with sender as a known local address should prioritize transactions from that address
+		let res2 = miner.import_claimed_local_transaction(&client, PendingTransaction::new(transaction, None), false);
+
+		// check to make sure the prioritized transaction is pending
+		assert_eq!(res2.unwrap(), ());
+		assert_eq!(miner.pending_transactions(best_block).unwrap().len(), 1);
+		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 1);
+		assert_eq!(miner.ready_transactions(&client, 10, PendingOrdering::Priority).len(), 1);
 		assert_eq!(miner.prepare_pending_block(&client), BlockPreparationStatus::NotPrepared);
 	}
 
