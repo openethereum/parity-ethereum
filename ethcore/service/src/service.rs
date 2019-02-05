@@ -99,7 +99,7 @@ impl ClientService {
 		account_provider: Arc<AccountProvider>,
 		encryptor: Box<ethcore_private_tx::Encryptor>,
 		private_tx_conf: ethcore_private_tx::ProviderConfig,
-	) -> Result<ClientService, Error>
+		) -> Result<ClientService, Error>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
 

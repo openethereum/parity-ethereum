@@ -506,7 +506,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let fetch = fetch::Client::new(FETCH_FULL_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
-
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,

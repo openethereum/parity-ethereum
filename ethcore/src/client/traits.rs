@@ -20,7 +20,6 @@ use std::sync::Arc;
 use blockchain::{BlockReceipts, TreeRoute};
 use bytes::Bytes;
 use call_contract::{CallContract, RegistryInfo};
-use chain_info::ChainInfo;
 use ethcore_miner::pool::VerifiedTransaction;
 use ethereum_types::{H256, U256, Address};
 use evm::Schedule;
@@ -30,6 +29,7 @@ use types::transaction::{self, LocalizedTransaction, SignedTransaction};
 use types::BlockNumber;
 use types::basic_account::BasicAccount;
 use types::block_status::BlockStatus;
+use types::blockchain_info::BlockChainInfo;
 use types::call_analytics::CallAnalytics;
 use types::encoded;
 use types::filter::Filter;
@@ -111,6 +111,12 @@ pub trait Balance {
 
 /// Provides methods to access account info
 pub trait AccountData: Nonce + Balance {}
+
+/// Provides `chain_info` method
+pub trait ChainInfo {
+	/// Get blockchain information.
+	fn chain_info(&self) -> BlockChainInfo;
+}
 
 /// Provides various information on a block by it's ID
 pub trait BlockInfo {

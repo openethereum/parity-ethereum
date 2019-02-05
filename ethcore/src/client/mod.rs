@@ -27,8 +27,6 @@ mod io_message;
 mod test_client;
 mod trace;
 
-pub use chain_info::ChainInfo;
-
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 #[cfg(any(test, feature = "test-helpers"))]
@@ -38,7 +36,7 @@ pub use self::io_message::ClientIoMessage;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
-    Nonce, Balance, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
+    Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
 	BlockChainReset
 };
