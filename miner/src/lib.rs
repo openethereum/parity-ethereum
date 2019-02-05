@@ -23,7 +23,6 @@ extern crate ansi_term;
 extern crate common_types as types;
 extern crate ethabi;
 extern crate ethcore_call_contract as call_contract;
-extern crate ethcore_chain_notify as chain_notify;
 extern crate ethereum_types;
 extern crate futures;
 extern crate heapsize;

@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use parking_lot::Mutex;
-use chain_notify::{ChainNotify, NewBlocks};
+use ethcore::client::{ChainNotify, NewBlocks};
 use ethkey::{Public, public_to_address};
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};

@@ -47,7 +47,6 @@ extern crate ethcore;
 extern crate fastmap;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
-extern crate ethcore_chain_notify as chain_notify;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;

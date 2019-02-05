@@ -17,7 +17,6 @@
 extern crate ansi_term;
 extern crate ethcore;
 extern crate ethcore_blockchain as blockchain;
-extern crate ethcore_chain_notify as chain_notify;
 extern crate ethcore_io as io;
 extern crate ethcore_private_tx;
 extern crate ethcore_sync as sync;

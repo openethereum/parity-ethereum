@@ -8,7 +8,6 @@ ansi_term = "0.10"
 error-chain = { version = "0.12", default-features = false }
 ethcore = { path = ".." }
 ethcore-blockchain = { path = "../blockchain" }
-ethcore-chain-notify = { path = "../chain-notify" }
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }

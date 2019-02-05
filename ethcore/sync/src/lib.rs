@@ -23,7 +23,6 @@
 
 extern crate common_types as types;
 extern crate ethcore;
-extern crate ethcore_chain_notify;
 extern crate ethcore_io as io;
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;

@@ -42,8 +42,7 @@ use types::views::BlockView;
 
 use account_provider::AccountProvider;
 use block::{OpenBlock, Drain};
-use chain_notify::{ChainNotify, ChainMessageType};
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, PrepareOpenBlock};
+use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use factory::Factories;
 use miner::Miner;
 use spec::Spec;

@@ -11,7 +11,6 @@ ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
 ethcore = { path = "../ethcore" }
-ethcore-chain-notify = { path = "../ethcore/chain-notify"}
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
 keccak-hash = "0.1"

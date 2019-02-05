@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use parity_bytes::Bytes;
+use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use types::transaction::UnverifiedTransaction;
-use ethcore_blockchain::ImportRoute;
+use blockchain::ImportRoute;
 use std::time::Duration;
 use std::collections::HashMap;
 
@@ -185,8 +185,8 @@ pub trait ChainNotify : Send + Sync {
 
 	/// fires when new transactions are received from a peer
 	fn transactions_received(&self,
-							 _txs: &[UnverifiedTransaction],
-							 _peer_id: usize,
+		_txs: &[UnverifiedTransaction],
+		_peer_id: usize,
 	) {
 		// does nothing by default
 	}

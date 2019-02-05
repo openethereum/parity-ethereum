@@ -23,10 +23,9 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant, Duration};
 
 use atty;
-use chain_notify::{ChainNotify, NewBlocks};
 use ethcore::client::{
 	BlockId, BlockChainClient, ChainInfo, BlockInfo, BlockChainInfo,
-	BlockQueueInfo, ClientReport, Client, ClientIoMessage
+	BlockQueueInfo, ChainNotify, NewBlocks, ClientReport, Client, ClientIoMessage
 };
 use types::BlockNumber;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
