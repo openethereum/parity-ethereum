@@ -4,7 +4,7 @@ stages:
   - publish
   - optional
 
-image:                             parity/rust:gitlab-ci
+image:                             parity/rust-linux:stretch
 
 variables:
   GIT_STRATEGY:                    fetch
