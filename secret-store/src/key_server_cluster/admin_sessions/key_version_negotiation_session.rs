@@ -18,10 +18,11 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::{Address, H256};
 use ethkey::Secret;
-use parking_lot::{Mutex, Condvar};
+use futures::Oneshot;
+use parking_lot::Mutex;
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
+use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession, CompletionSignal};
 use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
 use key_server_cluster::signing_session_ecdsa::SessionImpl as EcdsaSigningSession;
 use key_server_cluster::signing_session_schnorr::SessionImpl as SchnorrSigningSession;
@@ -87,8 +88,8 @@ struct SessionCore<T: SessionTransport> {
 	pub transport: T,
 	/// Session nonce.
 	pub nonce: u64,
-	/// SessionImpl completion condvar.
-	pub completed: Condvar,
+	/// Session completion signal.
+	pub completed: CompletionSignal<Option<(H256, NodeId)>>,
 }
 
 /// Mutable session data.
@@ -166,9 +167,10 @@ pub struct LargestSupportResultComputer;
 
 impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new session.
-	pub fn new(params: SessionParams<T>) -> Self {
+	pub fn new(params: SessionParams<T>) -> (Self, Oneshot<Result<Option<(H256, NodeId)>, Error>>) {
 		let threshold = params.key_share.as_ref().map(|key_share| key_share.threshold);
-		SessionImpl {
+		let (completed, oneshot) = CompletionSignal::new();
+		(SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
 				sub_session: params.sub_session,
@@ -176,7 +178,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				result_computer: params.result_computer,
 				transport: params.transport,
 				nonce: params.nonce,
-				completed: Condvar::new(),
+				completed,
 			},
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
@@ -187,7 +189,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				continue_with: None,
 				failed_continue_with: None,
 			})
-		}
+		}, oneshot)
 	}
 
 	/// Return session meta.
@@ -223,10 +225,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		self.data.lock().failed_continue_with.take()
 	}
 
-	/// Wait for session completion.
-	pub fn wait(&self) -> Result<Option<(H256, NodeId)>, Error> {
-		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
-			.expect("wait_session returns Some if called without timeout; qed")
+	/// Return session completion result (if available).
+	pub fn result(&self) -> Option<Result<Option<(H256, NodeId)>, Error>> {
+		self.data.lock().result.clone()
 	}
 
 	/// Initialize session.
@@ -336,7 +337,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// update state
 		data.state = SessionState::Finished;
 		data.result = Some(Ok(None));
-		self.core.completed.notify_all();
+		self.core.completed.send(Ok(None));
 
 		Ok(())
 	}
@@ -428,15 +429,18 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				}
 			}
 
+			let result = result.map(Some);
 			data.state = SessionState::Finished;
-			data.result = Some(result.map(Some));
-			core.completed.notify_all();
+			data.result = Some(result.clone());
+			core.completed.send(result);
 		}
 	}
 }
 
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	type Id = SessionIdWithSubSession;
+	type CreationData = ();
+	type SuccessfulResult = Option<(H256, NodeId)>;
 
 	fn type_name() -> &'static str {
 		"version negotiation"
@@ -460,7 +464,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 				warn!(target: "secretstore_net", "{}: key version negotiation session failed with timeout", self.core.meta.self_node_id);
 
 				data.result = Some(Err(Error::ConsensusTemporaryUnreachable));
-				self.core.completed.notify_all();
+				self.core.completed.send(Err(Error::ConsensusTemporaryUnreachable));
 			}
 		}
 	}
@@ -488,8 +492,8 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 			self.core.meta.self_node_id, error, node);
 
 		data.state = SessionState::Finished;
-		data.result = Some(Err(error));
-		self.core.completed.notify_all();
+		data.result = Some(Err(error.clone()));
+		self.core.completed.send(Err(error));
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
@@ -670,7 +674,7 @@ mod tests {
 								cluster: cluster,
 							},
 							nonce: 0,
-						}),
+						}).0,
 					})
 				}).collect(),
 				queue: VecDeque::new(),

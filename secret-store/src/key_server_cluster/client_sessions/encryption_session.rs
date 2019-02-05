@@ -16,15 +16,15 @@
 
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter, Error as FmtError};
-use std::time;
 use std::sync::Arc;
-use parking_lot::{Condvar, Mutex};
+use futures::Oneshot;
+use parking_lot::Mutex;
 use ethereum_types::Address;
 use ethkey::Public;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, KeyStorage,
 	DocumentKeyShare, ServerKeyId};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::ClusterSession;
+use key_server_cluster::cluster_sessions::{ClusterSession, CompletionSignal};
 use key_server_cluster::message::{Message, EncryptionMessage, InitializeEncryptionSession,
 	ConfirmEncryptionInitialization, EncryptionSessionError};
 
@@ -49,8 +49,8 @@ pub struct SessionImpl {
 	cluster: Arc<Cluster>,
 	/// Session nonce.
 	nonce: u64,
-	/// SessionImpl completion condvar.
-	completed: Condvar,
+	/// Session completion signal.
+	completed: CompletionSignal<()>,
 	/// Mutable session data.
 	data: Mutex<SessionData>,
 }
@@ -108,34 +108,29 @@ pub enum SessionState {
 
 impl SessionImpl {
 	/// Create new encryption session.
-	pub fn new(params: SessionParams) -> Result<Self, Error> {
+	pub fn new(params: SessionParams) -> Result<(Self, Oneshot<Result<(), Error>>), Error> {
 		check_encrypted_data(params.encrypted_data.as_ref())?;
 
-		Ok(SessionImpl {
+		let (completed, oneshot) = CompletionSignal::new();
+		Ok((SessionImpl {
 			id: params.id,
 			self_node_id: params.self_node_id,
 			encrypted_data: params.encrypted_data,
 			key_storage: params.key_storage,
 			cluster: params.cluster,
 			nonce: params.nonce,
-			completed: Condvar::new(),
+			completed,
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
 				nodes: BTreeMap::new(),
 				result: None,
 			}),
-		})
+		}, oneshot))
 	}
 
 	/// Get this node Id.
 	pub fn node(&self) -> &NodeId {
 		&self.self_node_id
-	}
-
-	/// Wait for session completion.
-	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
-		Self::wait_session(&self.completed, &self.data, timeout, |data| data.result.clone())
-			.expect("wait_session returns Some if called without timeout; qed")
 	}
 
 	/// Start new session initialization. This must be called on master node.
@@ -175,7 +170,7 @@ impl SessionImpl {
 		} else {
 			data.state = SessionState::Finished;
 			data.result = Some(Ok(()));
-			self.completed.notify_all();
+			self.completed.send(Ok(()));
 
 			Ok(())
 		}
@@ -230,7 +225,7 @@ impl SessionImpl {
 		// update state
 		data.state = SessionState::Finished;
 		data.result = Some(Ok(()));
-		self.completed.notify_all();
+		self.completed.send(Ok(()));
 
 		Ok(())
 	}
@@ -238,6 +233,8 @@ impl SessionImpl {
 
 impl ClusterSession for SessionImpl {
 	type Id = SessionId;
+	type CreationData = ();
+	type SuccessfulResult = ();
 
 	fn type_name() -> &'static str {
 		"encryption"
@@ -260,7 +257,7 @@ impl ClusterSession for SessionImpl {
 
 		data.state = SessionState::Failed;
 		data.result = Some(Err(Error::NodeDisconnected));
-		self.completed.notify_all();
+		self.completed.send(Err(Error::NodeDisconnected));
 	}
 
 	fn on_session_timeout(&self) {
@@ -270,7 +267,7 @@ impl ClusterSession for SessionImpl {
 
 		data.state = SessionState::Failed;
 		data.result = Some(Err(Error::NodeDisconnected));
-		self.completed.notify_all();
+		self.completed.send(Err(Error::NodeDisconnected));
 	}
 
 	fn on_session_error(&self, node: &NodeId, error: Error) {
@@ -290,8 +287,8 @@ impl ClusterSession for SessionImpl {
 		warn!("{}: encryption session failed with error: {} from {}", self.node(), error, node);
 
 		data.state = SessionState::Failed;
-		data.result = Some(Err(error));
-		self.completed.notify_all();
+		data.result = Some(Err(error.clone()));
+		self.completed.send(Err(error));
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {

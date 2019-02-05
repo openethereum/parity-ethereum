@@ -192,7 +192,7 @@ impl SessionsMessageProcessor {
 
 				let nonce = Some(message.session_nonce().ok_or(Error::InvalidMessage)?);
 				let exclusive = message.is_exclusive_session_message();
-				sessions.insert(cluster, master, session_id, nonce, exclusive, creation_data)
+				sessions.insert(cluster, master, session_id, nonce, exclusive, creation_data).map(|s| s.session)
 			},
 		}
 	}
