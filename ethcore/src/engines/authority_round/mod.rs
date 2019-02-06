@@ -25,6 +25,7 @@ use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, SystemTime, Duration};
 
 use block::*;
+use bytes::Bytes;
 use client::{BlockId, EngineClient};
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use engines::block_reward;
@@ -1234,48 +1235,61 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let header = block.header().clone();
 		let first = header.number() == 0;
 
+		let opt_signer = self.signer.read();
+		let signer = match opt_signer.as_ref() {
+			Some(signer) => signer,
+			None => return Ok(Vec::new()), // We are not a validator, so we shouldn't call the contracts.
+		};
+
+		let chain_id = Some(self.machine.params().chain_id); // TODO: See EIP155?
+		let mut tx_nonce = block.state.nonce(&signer.address())?;
+
 		let client = self.client.read().as_ref().and_then(|weak| weak.upgrade()).ok_or_else(|| {
 			debug!(target: "engine", "Unable to prepare block: missing client ref.");
 			EngineError::RequiresClient
 		})?;
 
-		let mut transactions = Vec::new();
-
-		// Random number generation
-		if let (Some(contract_addr), opt_signer) = (self.randomness_contract_address, self.signer.read()) {
-			if let Some(signer) = opt_signer.as_ref() {
-				let mut contract = util::BoundContract::bind(&*client, BlockId::Latest, contract_addr);
-				// TODO: How should these errors be handled?
-				let phase = randomness::RandomnessPhase::load(&contract, signer.address())
-					.map_err(EngineError::RandomnessLoadError)?;
-				let mut rng = ::rand::OsRng::new()?;
-				if let Some(data) = phase.advance(&contract, &mut rng, signer.as_ref())
-					.map_err(EngineError::RandomnessAdvanceError)? {
-					// TODO: Find a better way to create these transactions.
-					let transaction = Transaction {
-						nonce: block.state.nonce(&signer.address())?,
-						action: Action::Call(contract_addr),
-						gas: U256::from(1000000),
-						gas_price: U256::zero(),
-						value: U256::zero(),
-						data,
-					};
-					let chain_id = Some(self.machine.params().chain_id); // TODO: See EIP155?
-					let signature = signer.sign(transaction.hash(chain_id))
-						.map_err(|e| types::transaction::Error::InvalidSignature(e.to_string()))?;
-					let signed_tx = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
-					transactions.push(signed_tx);
-				}
-			}
-		}
-
-		let mut call = |to, data| {
+		// Makes a constant contract call.
+		let mut call = |to: Address, data: Bytes| {
 			let full_client = client.as_full_client().ok_or("Failed to upgrade to BlockchainClient.".to_string())?;
 			full_client.call_contract(BlockId::Latest, to, data).map_err(|e| format!("{}", e))
 		};
 
-		// TODO: Return new validator set transactions instead of putting them on the queue.
-		self.validators.on_new_block(first, &header, &mut call)?;
+		let mut transactions = Vec::new();
+
+		// Creates and signs a transaction with the given contract call.
+		let mut make_transaction = |to: Address, data: Bytes| -> Result<SignedTransaction, Error> {
+			let nonce = tx_nonce;
+			tx_nonce += U256::from(1);
+			let transaction = Transaction {
+				nonce,
+				action: Action::Call(to),
+				gas: U256::from(1_000_000),
+				gas_price: U256::zero(),
+				value: U256::zero(),
+				data,
+			};
+			let signature = signer.sign(transaction.hash(chain_id))
+				.map_err(|e| types::transaction::Error::InvalidSignature(e.to_string()))?;
+			Ok(SignedTransaction::new(transaction.with_signature(signature, chain_id))?)
+		};
+
+		// Random number generation
+		if let Some(contract_addr) = self.randomness_contract_address {
+			let mut contract = util::BoundContract::bind(&*client, BlockId::Latest, contract_addr);
+			// TODO: How should these errors be handled?
+			let phase = randomness::RandomnessPhase::load(&contract, signer.address())
+				.map_err(EngineError::RandomnessLoadError)?;
+			let mut rng = ::rand::OsRng::new()?;
+			if let Some(data) = phase.advance(&contract, &mut rng, signer.as_ref())
+					.map_err(EngineError::RandomnessAdvanceError)? {
+				transactions.push(make_transaction(contract_addr, data)?);
+			}
+		}
+
+		for (addr, data) in self.validators.on_prepare_block(first, &header, &mut call)? {
+			transactions.push(make_transaction(addr, data)?);
+		}
 
 		Ok(transactions)
 	}
