@@ -20,6 +20,7 @@ use std::collections::{HashSet, HashMap, VecDeque};
 use std::collections::hash_map::Entry;
 use std::default::Default;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use lru_cache::LruCache;
 use hash::keccak;
 use ethereum_types::{H256, H520};
 use rlp::{Rlp, RlpStream};
@@ -145,6 +146,7 @@ pub struct Discovery<'a> {
 	discovery_id: NodeId,
 	discovery_nodes: HashSet<NodeId>,
 	node_buckets: Vec<NodeBucket>,
+	other_observerd_nodes: LruCache<NodeId, NodeEndpoint>, // Sometimes we don't want to add nodes to the NodeTable, but still want to
 	in_flight_pings: HashMap<NodeId, PingRequest>,
 	in_flight_find_nodes: HashMap<NodeId, FindNodeRequest>,
 	send_queue: VecDeque<Datagram>,
@@ -171,6 +173,7 @@ impl<'a> Discovery<'a> {
 			discovery_id: NodeId::new(),
 			discovery_nodes: HashSet::new(),
 			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
+			other_observerd_nodes: LruCache::new(256),
 			in_flight_pings: HashMap::new(),
 			in_flight_find_nodes: HashMap::new(),
 			send_queue: VecDeque::new(),
@@ -543,8 +546,14 @@ impl<'a> Discovery<'a> {
 		if let Some((node, ping_reason)) = expected_node {
 			if let PingReason::FromDiscoveryRequest(target) = ping_reason {
 				self.respond_with_discovery(target, &node)?;
+				// kirushik: I would prefer to probe the network id of the remote node here, and add it to the nodes list if it's on "our" net --
+				// but `on_packet` happens synchronously, so doing the full TCP handshake ceremony here is a bad idea.
+				// So instead we just LRU-caching 256 most recently seen nodes to avoid unnecessary pinging
+				self.other_observerd_nodes.insert(node.id, node.endpoint);
+				Ok(None)
+			} else {
+				Ok(self.update_node(node))
 			}
-			Ok(self.update_node(node))
 		} else {
 			debug!(target: "discovery", "Got unexpected Pong from {:?} ; request not found", &from);
 			Ok(None)
@@ -574,7 +583,7 @@ impl<'a> Discovery<'a> {
 		Ok(None)
 	}
 
-	fn is_a_valid_known_node(&self, node: &NodeEntry) -> bool {
+	fn is_a_valid_known_node(&mut self, node: &NodeEntry) -> bool {
 		let id_hash = keccak(node.id);
 		let dist = match Discovery::distance(&self.id_hash, &id_hash) {
 			Some(dist) => dist,
@@ -589,7 +598,7 @@ impl<'a> Discovery<'a> {
 			debug!(target: "discovery", "Found a known node in a bucket when processing discovery: {:?}/{:?}", known_node, node);
 			(known_node.address.endpoint == node.endpoint) && (known_node.last_seen.elapsed() < NODE_LAST_SEEN_TIMEOUT)
 		} else {
-			false
+			self.other_observerd_nodes.get_mut(&node.id).map_or(false, |endpoint| node.endpoint==*endpoint)
 		}
 	}
 
