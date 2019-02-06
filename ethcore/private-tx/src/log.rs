@@ -21,7 +21,7 @@ use std::collections::{HashMap};
 use std::fs::{File};
 use std::path::{PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use parking_lot::{RwLock, Mutex};
+use parking_lot::{RwLock};
 use serde::ser::{Serializer, SerializeSeq};
 use error::{Error};
 
@@ -73,9 +73,10 @@ pub struct TransactionLog {
 }
 
 /// Wrapper other JSON serializer
-pub trait LogsSerializer {
+pub trait LogsSerializer: Send + Sync + 'static {
 	/// Read logs from the source
 	fn read_logs(&self) -> Result<Vec<TransactionLog>, Error>;
+
 	/// Write all logs to the source
 	fn flush_logs(&self, logs: &HashMap<H256, TransactionLog>) -> Result<(), Error>;
 }
@@ -90,15 +91,13 @@ impl FileLogsSerializer {
 			logs_dir: logs_dir.map(|dir| PathBuf::from(dir)),
 		}
 	}
-}
 
-impl LogsSerializer for FileLogsSerializer {
-	fn read_logs(&self) -> Result<Vec<TransactionLog>, Error> {
+	fn open_file(&self, to_create: bool) -> Result<Option<File>, Error> {
 		let log_file = match self.logs_dir {
 			Some(ref path) => {
 				let mut file_path = path.clone();
 				file_path.push("private_tx.log");
-				match File::open(&file_path) {
+				match if to_create { File::create(&file_path) } else { File::open(&file_path) } {
 					Ok(file) => file,
 					Err(err) => {
 						trace!(target: "privatetx", "Cannot open logs file: {}", err);
@@ -108,46 +107,47 @@ impl LogsSerializer for FileLogsSerializer {
 			}
 			None => {
 				warn!(target: "privatetx", "Logs path is not defined");
-				return Ok(());
+				return Ok(None);
 			}
 		};
-		let mut transaction_logs: Vec<TransactionLog> = match serde_json::from_reader(log_file) {
-			Ok(logs) => logs,
-			Err(err) => {
-				error!(target: "privatetx", "Cannot deserialize logs from file: {}", err);
-				bail!("Cannot deserialize logs from file: {:?}", err);
+		Ok(Some(log_file))
+	}
+}
+
+impl LogsSerializer for FileLogsSerializer {
+	fn read_logs(&self) -> Result<Vec<TransactionLog>, Error> {
+		let log_file = self.open_file(false)?;
+		match log_file {
+			Some(log_file) => {
+				let transaction_logs: Vec<TransactionLog> = match serde_json::from_reader(log_file) {
+					Ok(logs) => logs,
+					Err(err) => {
+						error!(target: "privatetx", "Cannot deserialize logs from file: {}", err);
+						bail!("Cannot deserialize logs from file: {:?}", err);
+					}
+				};
+				Ok(transaction_logs)
 			}
-		};
-		Ok(transaction_logs)
+			None => {
+				Ok(Vec::new())
+			}
+		}
 	}
 
 	fn flush_logs(&self, logs: &HashMap<H256, TransactionLog>) -> Result<(), Error> {
-		if self.logs.read().is_empty() {
+		if logs.is_empty() {
 			// Do not create empty file
 			return Ok(());
 		}
-		let log_file = match self.logs_dir {
-			Some(ref path) => {
-				let mut file_path = path.clone();
-				file_path.push("private_tx.log");
-				match File::create(&file_path) {
-					Ok(file) => file,
-					Err(err) => {
-						trace!(target: "privatetx", "Cannot open logs file for writing: {}", err);
-						bail!("Cannot open logs file for writing: {:?}", err);
-					}
-				}
+		let log_file = self.open_file(true)?;
+		if let Some(log_file) = log_file {
+			let mut json = serde_json::Serializer::new(log_file);
+			let mut json_array = json.serialize_seq(Some(logs.len()))?;
+			for v in logs.values() {
+				json_array.serialize_element(v)?;
 			}
-			None => {
-				return Ok(());
-			}
-		};
-		let mut json = serde_json::Serializer::new(log_file);
-		let mut json_array = json.serialize_seq(Some(logs.len()))?;
-		for v in logs.values() {
-			json_array.serialize_element(v)?;
+			json_array.end()?;
 		}
-		json_array.end()?;
 		Ok(())
 	}
 }
@@ -155,15 +155,15 @@ impl LogsSerializer for FileLogsSerializer {
 /// Private transactions logging
 pub struct Logging {
 	logs: RwLock<HashMap<H256, TransactionLog>>,
-	logs_serializer: Mutex<FileLogsSerializer>,
+	logs_serializer: Box<LogsSerializer>,
 }
 
 impl Logging {
 	/// Creates the logging object
-	pub fn new(serializer: FileLogsSerializer) -> Self {
+	pub fn new(logs_serializer: Box<LogsSerializer>) -> Self {
 		let logging = Logging {
 			logs: RwLock::new(HashMap::new()),
-			logs_serializer: Mutex::new(serializer),
+			logs_serializer,
 		};
 		if let Err(err) = logging.read_logs() {
 			warn!(target: "privatetx", "Cannot read logs: {:?}", err);
@@ -229,7 +229,7 @@ impl Logging {
 	}
 
 	fn read_logs(&self) -> Result<(), Error> {
-		let mut transaction_logs = self.logs_serializer.lock().read_logs()?;
+		let mut transaction_logs = self.logs_serializer.read_logs()?;
 		// Drop old logs
 		let current_timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
 		transaction_logs.retain(|tx_log| current_timestamp - tx_log.creation_timestamp < MAX_STORING_TIME);
@@ -242,7 +242,7 @@ impl Logging {
 
 	fn flush_logs(&self) -> Result<(), Error> {
 		let logs = self.logs.read();
-		self.logs_serializer.lock().flush_logs(&logs)
+		self.logs_serializer.flush_logs(&logs)
 	}
 }
 
@@ -258,8 +258,40 @@ impl Drop for Logging {
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use error::{Error};
+	use ethereum_types::{H256};
+	use std::collections::{HashMap};
 	use transaction::{Transaction};
-	use super::{TransactionLog, Logging, PrivateTxStatus};
+	use parking_lot::{RwLock};
+	use super::{TransactionLog, Logging, PrivateTxStatus, LogsSerializer};
+
+	struct StringLogSerializer {
+		string_log: RwLock<String>,
+	}
+
+	impl StringLogSerializer {
+		fn new(source: String) -> Self {
+			StringLogSerializer {
+				string_log: RwLock::new(source),
+			}
+		}
+	}
+
+	impl LogsSerializer for StringLogSerializer {
+		fn read_logs(&self) -> Result<Vec<TransactionLog>, Error> {
+			let source = self.string_log.read();
+			if source.is_empty() {
+				return Ok(Vec::new())
+			}
+			let logs = serde_json::from_str(&source).unwrap();
+			Ok(logs)
+		}
+
+		fn flush_logs(&self, logs: &HashMap<H256, TransactionLog>) -> Result<(), Error> {
+			*self.string_log.write() = serde_json::to_string(logs)?;
+			Ok(())
+		}
+	}
 
 	#[test]
 	fn private_log_format() {
@@ -281,13 +313,13 @@ mod tests {
 
 	#[test]
 	fn private_log_status() {
-		let logger = Logging::new(None);
+		let logger = Logging::new(Box::new(StringLogSerializer::new("".into())));
 		let private_tx = Transaction::default();
 		let hash = private_tx.hash(None);
-		logger.private_tx_created(hash, &vec!["0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()]);
-		logger.signature_added(hash, "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into());
-		logger.tx_deployed(hash, hash);
-		let tx_log = logger.tx_log(hash).unwrap();
+		logger.private_tx_created(&hash, &vec!["0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()]);
+		logger.signature_added(&hash, &"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into());
+		logger.tx_deployed(&hash, &hash);
+		let tx_log = logger.tx_log(&hash).unwrap();
 		assert_eq!(tx_log.status, PrivateTxStatus::Deployed);
 	}
 }
