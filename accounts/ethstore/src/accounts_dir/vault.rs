@@ -282,10 +282,16 @@ mod test {
 
 	use std::fs;
 	use std::io::Write;
+	use std::num::NonZeroU32;
 	use std::path::PathBuf;
 	use super::VaultKey;
 	use super::{VAULT_FILE_NAME, check_vault_name, make_vault_dir_path, create_vault_file, read_vault_file, VaultDiskDirectory};
 	use self::tempdir::TempDir;
+
+	
+	lazy_static! {
+		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(1024).expect("1024 > 0; qed");
+	}
 
 	#[test]
 	fn check_vault_name_succeeds() {
@@ -325,7 +331,7 @@ mod test {
 	fn create_vault_file_succeeds() {
 		// given
 		let temp_path = TempDir::new("").unwrap();
-		let key = VaultKey::new(&"password".into(), 1024);
+		let key = VaultKey::new(&"password".into(), *ITERATIONS);
 		let mut vault_dir: PathBuf = temp_path.path().into();
 		vault_dir.push("vault");
 		fs::create_dir_all(&vault_dir).unwrap();
@@ -344,7 +350,7 @@ mod test {
 	fn read_vault_file_succeeds() {
 		// given
 		let temp_path = TempDir::new("").unwrap();
-		let key = VaultKey::new(&"password".into(), 1024);
+		let key = VaultKey::new(&"password".into(), *ITERATIONS);
 		let vault_file_contents = r#"{"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"758696c8dc6378ab9b25bb42790da2f5"},"ciphertext":"54eb50683717d41caaeb12ea969f2c159daada5907383f26f327606a37dc7168","kdf":"pbkdf2","kdfparams":{"c":1024,"dklen":32,"prf":"hmac-sha256","salt":"3c320fa566a1a7963ac8df68a19548d27c8f40bf92ef87c84594dcd5bbc402b6"},"mac":"9e5c2314c2a0781962db85611417c614bd6756666b6b1e93840f5b6ed895f003"}}"#;
 		let dir: PathBuf = temp_path.path().into();
 		let mut vault_file_path: PathBuf = dir.clone();
@@ -365,7 +371,7 @@ mod test {
 	fn read_vault_file_fails() {
 		// given
 		let temp_path = TempDir::new("").unwrap();
-		let key = VaultKey::new(&"password1".into(), 1024);
+		let key = VaultKey::new(&"password1".into(), *ITERATIONS);
 		let dir: PathBuf = temp_path.path().into();
 		let mut vault_file_path: PathBuf = dir.clone();
 		vault_file_path.push(VAULT_FILE_NAME);
@@ -394,7 +400,7 @@ mod test {
 	fn vault_directory_can_be_created() {
 		// given
 		let temp_path = TempDir::new("").unwrap();
-		let key = VaultKey::new(&"password".into(), 1024);
+		let key = VaultKey::new(&"password".into(), *ITERATIONS);
 		let dir: PathBuf = temp_path.path().into();
 
 		// when
@@ -414,7 +420,7 @@ mod test {
 	fn vault_directory_cannot_be_created_if_already_exists() {
 		// given
 		let temp_path = TempDir::new("").unwrap();
-		let key = VaultKey::new(&"password".into(), 1024);
+		let key = VaultKey::new(&"password".into(), *ITERATIONS);
 		let dir: PathBuf = temp_path.path().into();
 		let mut vault_dir = dir.clone();
 		vault_dir.push("vault");
@@ -431,7 +437,7 @@ mod test {
 	fn vault_directory_cannot_be_opened_if_not_exists() {
 		// given
 		let temp_path = TempDir::new("").unwrap();
-		let key = VaultKey::new(&"password".into(), 1024);
+		let key = VaultKey::new(&"password".into(), *ITERATIONS);
 		let dir: PathBuf = temp_path.path().into();
 
 		// when

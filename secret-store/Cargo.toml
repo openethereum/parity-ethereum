@@ -25,7 +25,7 @@ tokio-service = "0.1"
 url = "1.0"
 ethcore = { path = "../ethcore" }
 parity-bytes = "0.1"
-parity-crypto = "0.2"
+parity-crypto = "0.3.0"
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
 kvdb = "0.1"

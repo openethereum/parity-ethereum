@@ -86,6 +86,10 @@ extern crate pretty_assertions;
 #[cfg(test)]
 extern crate tempdir;
 
+#[cfg(test)]
+#[macro_use]
+extern crate lazy_static;
+
 mod account;
 mod blockchain;
 mod cache;

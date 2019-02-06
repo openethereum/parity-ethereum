@@ -9,7 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 futures = "0.1"
 hyper = "~0.12.9"
-hyper-rustls = "0.14"
+hyper-rustls = "0.16.0"
 http = "0.1"
 log = "0.4"
 tokio = "~0.1.8"
