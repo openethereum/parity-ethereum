@@ -26,6 +26,7 @@ use std::time::{UNIX_EPOCH, SystemTime, Duration};
 
 use account_provider::AccountProvider;
 use block::*;
+use bytes::Bytes;
 use client::{BlockId, EngineClient};
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use engines::block_reward;
@@ -1223,16 +1224,42 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let header = block.header().clone();
 		let first = header.number() == 0;
 
+		let our_addr = self.signer.read().address().ok_or_else(|| EngineError::NotAuthorized(*header.author()))?;
+		let chain_id = Some(self.machine.params().chain_id); // TODO: See EIP155?
+		let mut tx_nonce = block.state.nonce(&our_addr)?;
+
 		let client = self.client.read().as_ref().and_then(|weak| weak.upgrade()).ok_or_else(|| {
 			debug!(target: "engine", "Unable to prepare block: missing client ref.");
 			EngineError::RequiresClient
 		})?;
 
+		// Makes a constant contract call.
+		let mut call = |to: Address, data: Bytes| {
+			let full_client = client.as_full_client().ok_or("Failed to upgrade to BlockchainClient.".to_string())?;
+			full_client.call_contract(BlockId::Latest, to, data).map_err(|e| format!("{}", e))
+		};
+
 		let mut transactions = Vec::new();
 
+		// Creates and signs a transaction with the given contract call.
+		let mut make_transaction = |to: Address, data: Bytes| -> Result<SignedTransaction, Error> {
+			let nonce = tx_nonce;
+			tx_nonce += U256::from(1);
+			let transaction = Transaction {
+				nonce,
+				action: Action::Call(to),
+				gas: U256::from(1_000_000),
+				gas_price: U256::zero(),
+				value: U256::zero(),
+				data,
+			};
+			let signature = self.signer.read().sign(transaction.hash(chain_id))
+				.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
+			Ok(SignedTransaction::new(transaction.with_signature(signature, chain_id))?)
+		};
+
 		// Random number generation
-		if let (Some(contract_addr), Some(our_addr)) =
-				(self.randomness_contract_address, self.signer.read().address()) {
+		if let Some(contract_addr) = self.randomness_contract_address {
 			let mut contract = util::BoundContract::bind(&*client, BlockId::Latest, contract_addr);
 			let accounts = self.signer.read().account_provider().clone();
 			let phase = randomness::RandomnessPhase::load(&contract, our_addr)
@@ -1240,30 +1267,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			let mut rng = ::rand::OsRng::new()?;
 			if let Some(data) = phase.advance(&contract, &mut rng, &*accounts)
 					.map_err(EngineError::RandomnessAdvanceError)? {
-				// TODO: Find a better way to create these transactions.
-				let transaction = Transaction {
-					nonce: block.state.nonce(&our_addr)?,
-					action: Action::Call(contract_addr),
-					gas: U256::from(1000000),
-					gas_price: U256::zero(),
-					value: U256::zero(),
-					data,
-				};
-				let chain_id = Some(self.machine.params().chain_id); // TODO: See EIP155?
-				let signature = self.signer.read().sign(transaction.hash(chain_id))
-					.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
-				let signed_tx = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
-				transactions.push(signed_tx);
+				transactions.push(make_transaction(contract_addr, data)?);
 			}
 		}
 
-		let mut call = |to, data| {
-			let full_client = client.as_full_client().ok_or("Failed to upgrade to BlockchainClient.".to_string())?;
-			full_client.call_contract(BlockId::Latest, to, data).map_err(|e| format!("{}", e))
-		};
-
-		// TODO: Return new validator set transactions instead of putting them on the queue.
-		self.validators.on_new_block(first, &header, &mut call)?;
+		for (addr, data) in self.validators.on_prepare_block(first, &header, &mut call)? {
+			transactions.push(make_transaction(addr, data)?);
+		}
 
 		Ok(transactions)
 	}

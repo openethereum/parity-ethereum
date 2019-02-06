@@ -72,8 +72,10 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.default_caller(id)
 	}
 
-	fn on_new_block(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
-		self.validators.on_new_block(first, header, call)
+	fn on_prepare_block(&self, first: bool, header: &Header, call: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, ::error::Error>
+	{
+		self.validators.on_prepare_block(first, header, call)
 	}
 
 

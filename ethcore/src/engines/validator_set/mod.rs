@@ -90,12 +90,16 @@ pub trait ValidatorSet: Send + Sync + 'static {
 	}
 
 	#[cfg(all())]
-	/// Called for each new block.  If this block is the first block of an
-	/// epoch, this is called *before* on_epoch_begin(), but with the same
-	/// parameters.
-	fn on_new_block(&self, _first: bool, _header: &Header, _call: &mut SystemCall) -> Result<(), ::error::Error> {
-		error!("on_new_block");
-		Ok(())
+	/// Called for each new block this node is creating.  If this block is
+	/// the first block of an epoch, this is called *after* on_epoch_begin(),
+	/// but with the same parameters.
+	///
+	/// Returns a list of contract calls to be pushed onto the new block.
+	fn on_prepare_block(&self, _first: bool, _header: &Header, _call: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, ::error::Error>
+	{
+		trace!(target: "engine", "on_new_block");
+		Ok(Vec::new())
 	}
 
 	/// Extract genesis epoch data from the genesis state and header.

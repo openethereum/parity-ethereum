@@ -32,7 +32,6 @@ use rlp::{Rlp, RlpStream};
 use std::sync::{Weak, Arc};
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
-use super::super::authority_round::util::BoundContract;
 use unexpected::Mismatch;
 use ethabi::FunctionOutputDecoder;
 
@@ -290,33 +289,21 @@ impl ValidatorSet for ValidatorSafeContract {
 			.map(|out| (out, Vec::new()))) // generate no proofs in general
 	}
 
-	fn on_new_block(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
-		trace!(target: "engine", "New block issued ― calling emitInitiateChange()");
+	fn on_prepare_block(&self, _first: bool, header: &Header, caller: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, ::error::Error>
+	{
 		let (data, decoder) = validator_set::functions::emit_initiate_change_callable::call();
 		if !caller(self.contract_address, data)
 			.and_then(|x| decoder.decode(&x)
 			.map_err(|x| format!("chain spec bug: could not decode: {:?}", x)))
 			.map_err(::engines::EngineError::FailedSystemCall)? {
-			trace!(target: "engine", "No need to call emitInitiateChange()");
-			return Ok(());
+			trace!(target: "engine", "New block #{} issued ― no need to call emitInitiateChange()", header.number());
+			return Ok(Vec::new());
 		}
 
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				error!(target: "engine", "Unable to close block: missing client ref.");
-				return Err(::engines::EngineError::RequiresClient.into())
-			},
-		};
-
-
-		let bound_contract = BoundContract::bind(&*client, BlockId::Latest, self.contract_address);
-		let data = validator_set::functions::emit_initiate_change::call();
-		bound_contract.schedule_service_transaction(data)
-			.map_err(|x|format!("Error scheduling a transaction: {:?}", x))
-			.map_err(::engines::EngineError::FailedSystemCall)?;
-		trace!(target: "engine", "Successfully called emitInitiateChange()");
-		Ok(())
+		trace!(target: "engine", "New block issued #{} ― calling emitInitiateChange()", header.number());
+		let (data, _decoder) = validator_set::functions::emit_initiate_change::call();
+		Ok(vec![(self.contract_address, data)])
 	}
 
 	fn on_epoch_begin(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {

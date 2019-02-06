@@ -43,7 +43,9 @@ impl Multi {
 		}
 	}
 
-	fn map_children(&self, header: &Header, func: &mut dyn FnMut(&dyn ValidatorSet, bool) -> Result<(), ::error::Error>) -> Result<(), ::error::Error> {
+	fn map_children<T, F>(&self, header: &Header, mut func: F) -> Result<T, ::error::Error>
+		where F: FnMut(&dyn ValidatorSet, bool) -> Result<T, ::error::Error>
+	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
 		func(set, first)
@@ -80,8 +82,10 @@ impl ValidatorSet for Multi {
 			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn on_new_block(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
-		self.map_children(header, &mut |set: &dyn ValidatorSet, first| set.on_new_block(first, header, call))
+	fn on_prepare_block(&self, _first: bool, header: &Header, call: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, ::error::Error>
+	{
+		self.map_children(header, &mut |set: &dyn ValidatorSet, first| set.on_prepare_block(first, header, call))
 	}
 
 
