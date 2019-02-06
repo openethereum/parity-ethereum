@@ -25,6 +25,7 @@ use ethkey::Error as KeyError;
 use ethkey::crypto::Error as CryptoError;
 use txpool::VerifiedTransaction;
 use private_transactions::VerifiedPrivateTransaction;
+use serde_json::{Error as SerdeError};
 
 type TxPoolError = txpool::Error<<VerifiedPrivateTransaction as VerifiedTransaction>::Hash>;
 
@@ -45,6 +46,9 @@ pub enum Error {
 	/// Crypto error.
 	#[display(fmt = "Crypto Error {}", _0)]
 	Crypto(CryptoError),
+	/// Serialization error.
+	#[display(fmt = "Serialization Error {}", _0)]
+	Json(SerdeError),
 	/// Encryption error.
 	#[display(fmt = "Encryption error. ({})", _0)]
 	Encrypt(String),
@@ -99,6 +103,7 @@ pub enum Error {
 	/// Key server URL is not set.
 	#[display(fmt = "Key server URL is not set.")]
 	KeyServerNotSet,
+	/// Transaction not found in logs.
 	#[display(fmt = "Private transaction not found in logs.")]
 	TxNotFoundInLog,
 	/// VM execution error.
@@ -125,6 +130,7 @@ impl error::Error for Error {
 			Error::Decoder(e) => Some(e),
 			Error::Trie(e) => Some(e),
 			Error::TxPool(e) => Some(e),
+			Error::Json(e) => Some(e),
 			Error::Crypto(e) => Some(e),
 			Error::Execution(e) => Some(e),
 			Error::Key(e) => Some(e),
@@ -186,6 +192,12 @@ impl From<TrieError> for Error {
 impl From<TxPoolError> for Error {
 	fn from(err: TxPoolError) -> Self {
 		Error::TxPool(err).into()
+	}
+}
+
+impl From<SerdeError> for Error {
+	fn from(err: SerdeError) -> Self {
+		Error::Json(err).into()
 	}
 }
 

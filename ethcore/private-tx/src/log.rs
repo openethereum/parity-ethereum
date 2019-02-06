@@ -22,6 +22,8 @@ use std::fs::{File};
 use std::path::{PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use parking_lot::{RwLock};
+use serde::ser::{Serializer, SerializeSeq};
+use error::{Error};
 
 /// Maximum amount of stored private transaction logs.
 const MAX_JOURNAL_LEN: usize = 1000;
@@ -83,17 +85,19 @@ impl Logging {
 			logs: RwLock::new(HashMap::new()),
 			logs_dir: logs_dir.map(|dir| PathBuf::from(dir)),
 		};
-		logging.read_logs();
+		if let Err(err) = logging.read_logs() {
+			warn!(target: "privatetx", "Cannot read logs: {:?}", err);
+		}
 		logging
 	}
 
 	/// Retrieves log for the corresponding tx hash
-	pub fn tx_log(&self, tx_hash: H256) -> Option<TransactionLog> {
+	pub fn tx_log(&self, tx_hash: &H256) -> Option<TransactionLog> {
 		self.logs.read().get(&tx_hash).cloned()
 	}
 
 	/// Logs the creation of private transaction
-	pub fn private_tx_created(&self, tx_hash: H256, validators: &Vec<Address>) {
+	pub fn private_tx_created<'a>(&self, tx_hash: &H256, validators: &Vec<Address>) {
 		let mut validator_logs = Vec::new();
 		for account in validators {
 			validator_logs.push(ValidatorLog {
@@ -105,12 +109,15 @@ impl Logging {
 		let mut logs = self.logs.write();
 		if logs.len() > MAX_JOURNAL_LEN {
 			// Remove the oldest log
-			let mut sorted_logs = logs.values().cloned().collect::<Vec<TransactionLog>>();
-			sorted_logs.sort_by(|a, b| a.creation_timestamp.cmp(&b.creation_timestamp));
-			logs.remove(&sorted_logs[0].tx_hash);
+			if let Some(tx_hash) = logs.values()
+				.min_by(|x, y| x.creation_timestamp.cmp(&y.creation_timestamp))
+				.map(|oldest| oldest.tx_hash)
+			{
+				logs.remove(&tx_hash);
+			}
 		}
-		logs.insert(tx_hash, TransactionLog {
-			tx_hash,
+		logs.insert(*tx_hash, TransactionLog {
+			tx_hash: *tx_hash,
 			status: PrivateTxStatus::Created,
 			creation_timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
 			validators: validator_logs,
@@ -120,11 +127,11 @@ impl Logging {
 	}
 
 	/// Logs the obtaining of the signature for the private transaction
-	pub fn signature_added(&self, tx_hash: H256, validator: Address) {
+	pub fn signature_added(&self, tx_hash: &H256, validator: &Address) {
 		let mut logs = self.logs.write();
 		if let Some(transaction_log) = logs.get_mut(&tx_hash) {
 			transaction_log.status = PrivateTxStatus::Validating;
-			if let Some(ref mut validator_log) = transaction_log.validators.iter_mut().find(|log| log.account == validator) {
+			if let Some(ref mut validator_log) = transaction_log.validators.iter_mut().find(|log| log.account == *validator) {
 				validator_log.validated = true;
 				validator_log.validation_timestamp = Some(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
 			}
@@ -132,16 +139,16 @@ impl Logging {
 	}
 
 	/// Logs the final deployment of the resulting public transaction
-	pub fn tx_deployed(&self, tx_hash: H256, public_tx_hash: H256) {
+	pub fn tx_deployed(&self, tx_hash: &H256, public_tx_hash: &H256) {
 		let mut logs = self.logs.write();
 		if let Some(log) = logs.get_mut(&tx_hash) {
 			log.status = PrivateTxStatus::Deployed;
 			log.deployment_timestamp = Some(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
-			log.public_tx_hash = Some(public_tx_hash);
+			log.public_tx_hash = Some(*public_tx_hash);
 		}
 	}
 
-	fn read_logs(&self) {
+	fn read_logs(&self) -> Result<(), Error> {
 		let log_file = match self.logs_dir {
 			Some(ref path) => {
 				let mut file_path = path.clone();
@@ -150,20 +157,20 @@ impl Logging {
 					Ok(file) => file,
 					Err(err) => {
 						trace!(target: "privatetx", "Cannot open logs file: {}", err);
-						return;
+						bail!("Cannot open logs file: {:?}", err);
 					}
 				}
 			}
 			None => {
 				warn!(target: "privatetx", "Logs path is not defined");
-				return;
+				return Ok(());
 			}
 		};
 		let mut transaction_logs: Vec<TransactionLog> = match serde_json::from_reader(log_file) {
 			Ok(logs) => logs,
 			Err(err) => {
 				error!(target: "privatetx", "Cannot deserialize logs from file: {}", err);
-				return;
+				bail!("Cannot deserialize logs from file: {:?}", err);
 			}
 		};
 		// Drop old logs
@@ -173,12 +180,13 @@ impl Logging {
 		for log in transaction_logs {
 			logs.insert(log.tx_hash, log);
 		}
+		Ok(())
 	}
 
-	fn flush_logs(&self) {
+	fn flush_logs(&self) -> Result<(), Error> {
 		if self.logs.read().is_empty() {
 			// Do not create empty file
-			return;
+			return Ok(());
 		}
 		let log_file = match self.logs_dir {
 			Some(ref path) => {
@@ -188,24 +196,31 @@ impl Logging {
 					Ok(file) => file,
 					Err(err) => {
 						trace!(target: "privatetx", "Cannot open logs file for writing: {}", err);
-						return;
+						bail!("Cannot open logs file for writing: {:?}", err);
 					}
 				}
 			}
 			None => {
-				return;
+				return Ok(());
 			}
 		};
-		if let Err(err) = serde_json::to_writer(log_file, &self.logs.read().values().cloned().collect::<Vec<TransactionLog>>()) {
-			error!(target: "privatetx", "Error during logs serialisation: {}", err);
+		let logs = self.logs.read();
+		let mut json = serde_json::Serializer::new(log_file);
+		let mut json_array = json.serialize_seq(Some(logs.len()))?;
+		for v in logs.values() {
+			json_array.serialize_element(v)?;
 		}
+		json_array.end()?;
+		Ok(())
 	}
 }
 
 // Flush all logs on drop
 impl Drop for Logging {
 	fn drop(&mut self) {
-		self.flush_logs();
+		if let Err(err) = self.flush_logs() {
+			warn!(target: "privatetx", "Cannot write logs: {:?}", err);
+		}
 	}
 }
 
