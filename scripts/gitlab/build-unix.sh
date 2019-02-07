@@ -37,8 +37,6 @@ else
  cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
  cp -v ../../target/$CARGO_TARGET/release/ethkey ./ethkey
  cp -v ../../target/$CARGO_TARGET/release/whisper ./whisper
- echo "_____ Cache status _____"
- sccache -s
 fi
 
 echo "_____ Calculating checksums _____"
