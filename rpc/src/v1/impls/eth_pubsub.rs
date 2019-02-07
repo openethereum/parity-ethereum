@@ -20,15 +20,16 @@ use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
-use jsonrpc_core::futures::{self, Future, IntoFuture};
+use jsonrpc_core::futures::{self, Future, IntoFuture, Stream};
 use jsonrpc_pubsub::{SubscriptionId, typed::{Sink, Subscriber}};
 
-use v1::helpers::{errors, limit_logs, Subscribers};
+use v1::helpers::{errors, limit_logs, Subscribers, };
 use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader, Log};
 
+use sync::{SyncState, Notification};
 use ethcore::client::{BlockChainClient, ChainNotify, NewBlocks, ChainRouteType, BlockId};
 use ethereum_types::H256;
 use light::cache::Cache;
@@ -45,19 +46,55 @@ use types::filter::Filter as EthFilter;
 type Client = Sink<pubsub::Result>;
 
 /// Eth PubSub implementation.
-pub struct EthPubSubClient<C> {
+pub struct EthPubSubClient<C: 'static + Send + Sync> {
 	handler: Arc<ChainNotificationHandler<C>>,
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
 	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	sync_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
-impl<C> EthPubSubClient<C> {
+impl <C: BlockChainClient> EthPubSubClient<C> {
+	/// adds a sync notification channel to the pubsub client
+	pub fn add_sync_notifier(&mut self, receiver: Notification<SyncState>) {
+		let handler = self.handler.clone();
+		let client = self.handler.client.clone() as Arc<BlockChainClient>;
+		self.handler.executor.spawn(
+			receiver.for_each(move |state| {
+				let queue_info = client.queue_info();
+				let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+				let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+				handler.notify_syncing(pubsub::PubSubSyncStatus { is_syncing: is_verifying || is_syncing_state });
+				Ok(())
+			})
+		)
+	}
+}
+
+impl <C: LightChainClient> EthPubSubClient<C> {
+	/// add a light chain sync notification channel to the pubsub client
+	pub fn add_light_sync_notifier(&mut self, receiver: Notification<SyncState>) {
+		let handler = self.handler.clone();
+		let client = self.handler.client.clone() as Arc<LightChainClient>;
+		self.handler.executor.spawn(
+			receiver.for_each(move |state| {
+				let queue_info = client.queue_info();
+				let is_syncing_state = match state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+				let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+				handler.notify_syncing(pubsub::PubSubSyncStatus { is_syncing: is_verifying || is_syncing_state });
+				Ok(())
+			})
+		)
+	}
+}
+
+impl<C: Send + Sync> EthPubSubClient<C> {
 	/// Creates new `EthPubSubClient`.
 	pub fn new(client: Arc<C>, executor: Executor) -> Self {
 		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+		let sync_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 
 		EthPubSubClient {
 			handler: Arc::new(ChainNotificationHandler {
@@ -66,7 +103,9 @@ impl<C> EthPubSubClient<C> {
 				heads_subscribers: heads_subscribers.clone(),
 				logs_subscribers: logs_subscribers.clone(),
 				transactions_subscribers: transactions_subscribers.clone(),
+				sync_subscribers: sync_subscribers.clone(),
 			}),
+			sync_subscribers,
 			heads_subscribers,
 			logs_subscribers,
 			transactions_subscribers,
@@ -121,6 +160,7 @@ pub struct ChainNotificationHandler<C> {
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
 	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	sync_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> ChainNotificationHandler<C> {
@@ -140,6 +180,12 @@ impl<C> ChainNotificationHandler<C> {
 					extra_info: extra_info.clone(),
 				})));
 			}
+		}
+	}
+
+	fn notify_syncing(&self, sync_status: pubsub::PubSubSyncStatus) {
+		for subscriber in self.sync_subscribers.read().values() {
+			Self::notify(&self.executor, subscriber, pubsub::Result::SyncState(sync_status.clone()));
 		}
 	}
 
@@ -272,6 +318,10 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let error = match (kind, params) {
 			(pubsub::Kind::NewHeads, None) => {
 				self.heads_subscribers.write().push(subscriber);
+				return;
+			},
+			(pubsub::Kind::Syncing, None) => {
+				self.sync_subscribers.write().push(subscriber);
 				return;
 			},
 			(pubsub::Kind::NewHeads, _) => {

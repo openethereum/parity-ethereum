@@ -320,8 +320,9 @@ impl FullDependencies {
 				}
 				Api::EthPubSub => {
 					if !for_generic_pubsub {
-						let client =
+						let mut client =
 							EthPubSubClient::new(self.client.clone(), self.executor.clone());
+						client.add_sync_notifier(self.sync.sync_notification());
 						let h = client.handler();
 						self.miner
 							.add_transactions_listener(Box::new(move |hashes| {

@@ -19,8 +19,9 @@
 use std::collections::BTreeMap;
 use ethereum_types::H256;
 use parking_lot::RwLock;
-use sync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats};
 use network::client_version::ClientVersion;
+use futures::sync::mpsc;
+use sync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats, SyncState};
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -122,5 +123,9 @@ impl SyncProvider for TestSyncProvider {
 				],
 			}
 		]
+	}
+
+	fn sync_notification(&self) -> mpsc::UnboundedReceiver<SyncState> {
+		unimplemented!()
 	}
 }
