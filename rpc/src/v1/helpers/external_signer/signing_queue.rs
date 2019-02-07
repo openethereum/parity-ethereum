@@ -15,27 +15,17 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use ethereum_types::{U256, Address};
+use ethereum_types::U256;
 use parking_lot::{Mutex, RwLock};
-use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot, errors};
-use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin};
+use super::oneshot;
+use v1::helpers::errors;
+use v1::helpers::requests::{ConfirmationRequest, ConfirmationPayload};
+use v1::types::{ConfirmationResponse, Origin};
 
 use jsonrpc_core::Error;
 
 /// Result that can be returned from JSON RPC.
 pub type ConfirmationResult = Result<ConfirmationResponse, Error>;
-
-/// Type of default account
-pub enum DefaultAccount {
-	/// Default account is known
-	Provided(Address),
-}
-
-impl From<RpcH160> for DefaultAccount {
-	fn from(address: RpcH160) -> Self {
-		DefaultAccount::Provided(address.into())
-	}
-}
 
 /// Possible events happening in the queue that can be listened to.
 #[derive(Debug, PartialEq, Clone)]
@@ -225,9 +215,8 @@ mod test {
 	use ethereum_types::{U256, Address};
 	use parking_lot::Mutex;
 	use jsonrpc_core::futures::Future;
-	use v1::helpers::{
-		SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload,
-	};
+	use v1::helpers::external_signer::{SigningQueue, ConfirmationsQueue, QueueEvent};
+	use v1::helpers::{FilledTransactionRequest, ConfirmationPayload};
 	use v1::types::ConfirmationResponse;
 
 	fn request() -> ConfirmationPayload {
@@ -299,3 +288,4 @@ mod test {
 		assert_eq!(el.payload, request);
 	}
 }
+

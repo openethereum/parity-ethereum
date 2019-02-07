@@ -89,6 +89,9 @@ pub struct Params {
 	pub eip1052_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub eip1283_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	pub eip1283_disable_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	pub eip1014_transition: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub eip1706_transition: Option<Uint>,

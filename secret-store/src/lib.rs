@@ -18,6 +18,7 @@ extern crate byteorder;
 extern crate common_types;
 extern crate ethabi;
 extern crate ethcore;
+extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate ethkey;
@@ -55,6 +56,9 @@ extern crate env_logger;
 #[cfg(test)]
 extern crate kvdb_rocksdb;
 
+#[cfg(feature = "accounts")]
+extern crate ethcore_accounts as accounts;
+
 mod key_server_cluster;
 mod types;
 mod helpers;
@@ -79,7 +83,9 @@ use parity_runtime::Executor;
 pub use types::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ContractAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::{NodeKeyPair, KeyServer};
-pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
+pub use self::node_key_pair::PlainNodeKeyPair;
+#[cfg(feature = "accounts")]
+pub use self::node_key_pair::KeyStoreNodeKeyPair;
 
 /// Start new key server instance
 pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<NodeKeyPair>, mut config: ServiceConfiguration,

@@ -27,6 +27,7 @@ extern crate ethcore_io as io;
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;
 extern crate ethereum_types;
+extern crate ethkey;
 extern crate ethstore;
 extern crate fastmap;
 extern crate keccak_hash as hash;
@@ -40,7 +41,6 @@ extern crate ethcore_light as light;
 
 #[cfg(test)] extern crate env_logger;
 #[cfg(test)] extern crate ethcore_private_tx;
-#[cfg(test)] extern crate ethkey;
 #[cfg(test)] extern crate kvdb_memorydb;
 #[cfg(test)] extern crate rustc_hex;
 

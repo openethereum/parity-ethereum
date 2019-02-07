@@ -53,10 +53,8 @@ const std::vector<std::string> ws_subscriptions {
 void callback(void* user_data, const char* response, size_t _len) {
 	Callback* cb = static_cast<Callback*>(user_data);
 	if (cb->type == CALLBACK_RPC) {
-		printf("rpc response: %s\r\n", response);
 		cb->counter -= 1;
 	} else if (cb->type == CALLBACK_WS) {
-		printf("websocket response: %s\r\n", response);
 		std::regex is_subscription ("\\{\"jsonrpc\":\"2.0\",\"result\":\"0[xX][a-fA-F0-9]{16}\",\"id\":1\\}");
 		if (std::regex_match(response, is_subscription) == true) {
 			cb->counter -= 1;
@@ -153,7 +151,8 @@ void* parity_run(std::vector<const char*> args) {
 	ParityParams cfg = {
 		.configuration = nullptr,
 		.on_client_restart_cb = callback,
-		.on_client_restart_cb_custom = nullptr
+		.on_client_restart_cb_custom = nullptr,
+		.logger = nullptr
 	};
 
 	std::vector<size_t> str_lens;
@@ -172,6 +171,10 @@ void* parity_run(std::vector<const char*> args) {
 			return nullptr;
 		}
 	}
+
+	// enable logging but only the `rpc module` and don't write it to a file
+	char log_mode [] = "rpc=trace";
+	parity_set_logger(log_mode, strlen(log_mode), nullptr, 0, &cfg.logger);
 
 	void *parity = nullptr;
 	if (parity_start(&cfg, &parity) != 0) {

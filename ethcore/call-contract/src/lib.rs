@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
-use ethcore::account_provider::AccountProvider;
-use jsonrpc_core::Error;
-use v1::helpers::errors;
+#![warn(missing_docs)]
 
-pub fn unwrap_provider(provider: &Option<Arc<AccountProvider>>) -> Result<Arc<AccountProvider>, Error> {
-	match *provider {
-		Some(ref arc) => Ok(arc.clone()),
-		None => Err(errors::public_unsupported(None)),
-	}
-}
+//! Call Contract module
+//! 
+//! This crate exposes traits required to call contracts at particular block.
+//! All utilities that depend on on-chain data should use those traits to access it.
+
+pub mod call_contract;
+
+// Re-export
+pub use self::call_contract::*;

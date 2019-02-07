@@ -309,40 +309,40 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 	if let SocketAddr::V4(ref local_addr) = local.address {
 		let local_ip = *local_addr.ip();
+		let local_port = local_addr.port();
+		let local_udp_port = local.udp_port;
+
 		let search_gateway_child = ::std::thread::spawn(move || {
-			search_gateway_from_timeout(local_ip, Duration::new(5, 0))
+			match search_gateway_from_timeout(local_ip, Duration::new(5, 0)) {
+				Err(ref err) => debug!("Gateway search error: {}", err),
+				Ok(gateway) => {
+					match gateway.get_external_ip() {
+						Err(ref err) => {
+							debug!("IP request error: {}", err);
+						},
+						Ok(external_addr) => {
+							match gateway.add_any_port(PortMappingProtocol::TCP, SocketAddrV4::new(local_ip, local_port), 0, "Parity Node/TCP") {
+								Err(ref err) => {
+									debug!("Port mapping error: {}", err);
+								},
+								Ok(tcp_port) => {
+									match gateway.add_any_port(PortMappingProtocol::UDP, SocketAddrV4::new(local_ip, local_udp_port), 0, "Parity Node/UDP") {
+										Err(ref err) => {
+											debug!("Port mapping error: {}", err);
+										},
+										Ok(udp_port) => {
+											return Some(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(external_addr, tcp_port)), udp_port });
+										},
+									}
+								},
+							}
+						},
+					}
+				},
+			}
+			None
 		});
-		let gateway_result = match search_gateway_child.join() {
-			Err(_) => return None,
-			Ok(gateway_result) => gateway_result,
-		};
-		match gateway_result {
-			Err(ref err) => debug!("Gateway search error: {}", err),
-			Ok(gateway) => {
-				match gateway.get_external_ip() {
-					Err(ref err) => {
-						debug!("IP request error: {}", err);
-					},
-					Ok(external_addr) => {
-						match gateway.add_any_port(PortMappingProtocol::TCP, SocketAddrV4::new(*local_addr.ip(), local_addr.port()), 0, "Parity Node/TCP") {
-							Err(ref err) => {
-								debug!("Port mapping error: {}", err);
-							},
-							Ok(tcp_port) => {
-								match gateway.add_any_port(PortMappingProtocol::UDP, SocketAddrV4::new(*local_addr.ip(), local.udp_port), 0, "Parity Node/UDP") {
-									Err(ref err) => {
-										debug!("Port mapping error: {}", err);
-									},
-									Ok(udp_port) => {
-										return Some(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(external_addr, tcp_port)), udp_port });
-									},
-								}
-							},
-						}
-					},
-				}
-			},
-		}
+		return search_gateway_child.join().ok()?;
 	}
 	None
 }

@@ -21,7 +21,7 @@ use std::{sync::{Arc, atomic, atomic::AtomicBool, mpsc}, thread};
 
 use ethereum_types::{H256, H512};
 use ethkey::Public;
-use jsonrpc_macros::pubsub::{Subscriber, Sink};
+use jsonrpc_pubsub::typed::{Subscriber, Sink};
 use parking_lot::{Mutex, RwLock};
 use rand::{Rng, OsRng};
 

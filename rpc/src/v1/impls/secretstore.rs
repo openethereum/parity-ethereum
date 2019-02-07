@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 use crypto::DEFAULT_MAC;
 use ethkey::Secret;
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 
 use jsonrpc_core::Result;
 use v1::helpers::errors;

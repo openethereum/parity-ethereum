@@ -12,6 +12,7 @@ ethabi = "6.0"
 ethabi-contract = "6.0"
 ethabi-derive = "6.0"
 ethcore = { path = ".." }
+ethcore-call-contract = { path = "../call-contract" }
 ethcore-io = { path = "../../util/io" }
 ethcore-miner = { path = "../../miner" }
 ethereum-types = "0.4"
@@ -23,7 +24,7 @@ heapsize = "0.4"
 keccak-hash = "0.1.2"
 log = "0.4"
 parity-bytes = "0.1"
-parity-crypto = "0.2"
+parity-crypto = "0.3.0"
 parking_lot = "0.7"
 patricia-trie = "0.3.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }

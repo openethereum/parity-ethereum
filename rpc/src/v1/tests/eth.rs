@@ -18,7 +18,7 @@
 use std::env;
 use std::sync::Arc;
 
-use ethcore::account_provider::AccountProvider;
+use accounts::AccountProvider;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
 use ethcore::miner::Miner;
@@ -36,13 +36,12 @@ use parking_lot::Mutex;
 use types::ids::BlockId;
 
 use jsonrpc_core::IoHandler;
-use v1::helpers::dispatch::FullDispatcher;
+use v1::helpers::dispatch::{self, FullDispatcher};
 use v1::helpers::nonce;
 use v1::impls::{EthClient, EthClientOptions, SigningUnsafeClient};
 use v1::metadata::Metadata;
 use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
-use v1::traits::eth::Eth;
-use v1::traits::eth_signing::EthSigning;
+use v1::traits::{Eth, EthSigning};
 use v1::types::U256 as NU256;
 
 fn account_provider() -> Arc<AccountProvider> {
@@ -56,8 +55,8 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 	}))
 }
 
-fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-	Arc::new(Miner::new_for_tests(spec, Some(accounts)))
+fn miner_service(spec: &Spec) -> Arc<Miner> {
+	Arc::new(Miner::new_for_tests(spec, None))
 }
 
 fn snapshot_service() -> Arc<TestSnapshotService> {
@@ -75,11 +74,11 @@ fn make_spec(chain: &BlockChain) -> Spec {
 }
 
 struct EthTester {
-	_runtime: Runtime,
-	client: Arc<Client>,
 	_miner: Arc<Miner>,
+	_runtime: Runtime,
 	_snapshot: Arc<TestSnapshotService>,
 	accounts: Arc<AccountProvider>,
+	client: Arc<Client>,
 	handler: IoHandler<Metadata>,
 }
 
@@ -115,11 +114,11 @@ impl EthTester {
 	}
 
 	fn from_spec_conf(spec: Spec, config: ClientConfig) -> Self {
-
 		let runtime = Runtime::with_thread_count(1);
 		let account_provider = account_provider();
-		let opt_account_provider = account_provider.clone();
-		let miner_service = miner_service(&spec, account_provider.clone());
+		let ap = account_provider.clone();
+		let accounts  = Arc::new(move || ap.accounts().unwrap_or_default()) as _;
+		let miner_service = miner_service(&spec);
 		let snapshot_service = snapshot_service();
 
 		let client = Client::new(
@@ -136,7 +135,7 @@ impl EthTester {
 			&client,
 			&snapshot_service,
 			&sync_provider,
-			&opt_account_provider,
+			&accounts,
 			&miner_service,
 			&external_miner,
 			EthClientOptions {
@@ -152,8 +151,9 @@ impl EthTester {
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
 		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone(), reservations, 50);
+		let signer = Arc::new(dispatch::Signer::new(account_provider.clone())) as _;
 		let eth_sign = SigningUnsafeClient::new(
-			&opt_account_provider,
+			&signer,
 			dispatcher,
 		);
 
@@ -162,11 +162,11 @@ impl EthTester {
 		handler.extend_with(eth_sign.to_delegate());
 
 		EthTester {
-			_runtime: runtime,
 			_miner: miner_service,
+			_runtime: runtime,
 			_snapshot: snapshot_service,
-			client: client,
 			accounts: account_provider,
+			client: client,
 			handler: handler,
 		}
 	}

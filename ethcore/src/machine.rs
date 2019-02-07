@@ -30,7 +30,8 @@ use vm::{EnvInfo, Schedule, CreateContractAddress};
 
 use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
-use client::{BlockInfo, CallContract};
+use call_contract::CallContract;
+use client::BlockInfo;
 use error::Error;
 use executive::Executive;
 use spec::CommonParams;

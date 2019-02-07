@@ -14,19 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Misc deserialization.
+//! Local Accounts checker
 
-use hash;
+use std::collections::HashSet;
 
-/// Collected account metadata
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AccountMeta {
-	/// The name of the account.
-	pub name: String,
-	/// The rest of the metadata of the account.
-	pub meta: String,
-	/// The 128-bit Uuid of the account, if it has one (brain-wallets don't).
-	pub uuid: Option<String>,
+use ethereum_types::Address;
+
+/// Local accounts checker
+pub trait LocalAccounts: Send + Sync {
+	/// Returns true if given address should be considered local account.
+	fn is_local(&self, &Address) -> bool;
 }
 
-impl_serialization!(hash::Address => AccountMeta);
+impl LocalAccounts for HashSet<Address> {
+	fn is_local(&self, address: &Address) -> bool {
+		self.contains(address)
+	}
+}
+
+impl<A, B> LocalAccounts for (A, B) where
+	A: LocalAccounts,
+	B: LocalAccounts,
+{
+	fn is_local(&self, address: &Address) -> bool {
+		self.0.is_local(address) || self.1.is_local(address)
+	}
+}
+
