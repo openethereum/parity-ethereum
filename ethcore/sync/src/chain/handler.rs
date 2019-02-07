@@ -23,6 +23,7 @@ use ethcore::verification::queue::kind::blocks::Unverified;
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
+use network::client_version::ClientVersion;
 use rlp::Rlp;
 use snapshot::ChunkType;
 use std::time::Instant;
@@ -107,7 +108,7 @@ impl SyncHandler {
 
 	/// Called by peer when it is disconnecting
 	pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
-		trace!(target: "sync", "== Disconnecting {}: {}", peer_id, io.peer_info(peer_id));
+		trace!(target: "sync", "== Disconnecting {}: {}", peer_id, io.peer_version(peer_id));
 		sync.handshaking_peers.remove(&peer_id);
 		if sync.peers.contains_key(&peer_id) {
 			debug!(target: "sync", "Disconnected {}", peer_id);
@@ -133,7 +134,7 @@ impl SyncHandler {
 
 	/// Called when a new peer is connected
 	pub fn on_peer_connected(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId) {
-		trace!(target: "sync", "== Connected {}: {}", peer, io.peer_info(peer));
+		trace!(target: "sync", "== Connected {}: {}", peer, io.peer_version(peer));
 		if let Err(e) = sync.send_status(io, peer) {
 			debug!(target:"sync", "Error sending status request: {:?}", e);
 			io.disconnect_peer(peer);
@@ -579,6 +580,7 @@ impl SyncHandler {
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,
 			private_tx_enabled: if private_tx_protocol { r.val_at(7).unwrap_or(false) } else { false },
+			client_version: ClientVersion::from(io.peer_version(peer_id)),
 		};
 
 		trace!(target: "sync", "New peer {} (\
@@ -599,12 +601,12 @@ impl SyncHandler {
 			peer.private_tx_enabled
 		);
 		if io.is_expired() {
-			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
+			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_version(peer_id));
 			return Ok(());
 		}
 
 		if sync.peers.contains_key(&peer_id) {
-			debug!(target: "sync", "Unexpected status packet from {}:{}", peer_id, io.peer_info(peer_id));
+			debug!(target: "sync", "Unexpected status packet from {}:{}", peer_id, io.peer_version(peer_id));
 			return Ok(());
 		}
 		let chain_info = io.chain().chain_info();
@@ -633,7 +635,7 @@ impl SyncHandler {
 		// Don't activate peer immediatelly when searching for common block.
 		// Let the current sync round complete first.
 		sync.active_peers.insert(peer_id.clone());
-		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
+		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_version(peer_id));
 
 		if let Some((fork_block, _)) = sync.fork_block {
 			SyncRequester::request_fork_header(sync, io, peer_id, fork_block);

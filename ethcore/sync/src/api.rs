@@ -24,6 +24,7 @@ use devp2p::NetworkService;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
 	ConnectionFilter};
+use network::client_version::ClientVersion;
 
 use types::pruning_info::PruningInfo;
 use ethereum_types::{H256, H512, U256};
@@ -158,7 +159,7 @@ pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
 	/// Node client ID
-	pub client_version: String,
+	pub client_version: ClientVersion,
 	/// Capabilities
 	pub capabilities: Vec<String>,
 	/// Remote endpoint address

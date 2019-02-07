@@ -29,6 +29,7 @@ use handshake::Handshake;
 use io::{IoContext, StreamToken};
 use network::{Error, ErrorKind, DisconnectReason, SessionInfo, ProtocolId, PeerCapabilityInfo};
 use network::SessionCapabilityInfo;
+use network::client_version::ClientVersion;
 use host::*;
 use node_table::NodeId;
 use snappy;
@@ -112,7 +113,7 @@ impl Session {
 			had_hello: false,
 			info: SessionInfo {
 				id: id.cloned(),
-				client_version: String::new(),
+				client_version: ClientVersion::from(""),
 				protocol_version: 0,
 				capabilities: Vec::new(),
 				peer_capabilities: Vec::new(),
@@ -419,7 +420,8 @@ impl Session {
 	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &Rlp, host: &HostInfo) -> Result<(), Error>
 	where Message: Send + Sync + Clone {
 		let protocol = rlp.val_at::<u32>(0)?;
-		let client_version = rlp.val_at::<String>(1)?;
+		let client_version_string = rlp.val_at::<String>(1)?;
+		let client_version = ClientVersion::from(client_version_string);
 		let peer_caps: Vec<PeerCapabilityInfo> = rlp.list_at(2)?;
 		let id = rlp.val_at::<NodeId>(4)?;
 
