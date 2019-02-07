@@ -22,7 +22,6 @@ use std::sync::Arc;
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
-use jsonrpc_macros::Trailing;
 
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
@@ -272,12 +271,12 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		Ok(self.client.chain_info().best_block_number.into())
 	}
 
-	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn balance(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		Box::new(self.fetcher().account(address.into(), num.unwrap_or_default().to_block_id())
 			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()))
 	}
 
-	fn storage_at(&self, _address: RpcH160, _key: RpcU256, _num: Trailing<BlockNumber>) -> BoxFuture<RpcH256> {
+	fn storage_at(&self, _address: RpcH160, _key: RpcU256, _num: Option<BlockNumber>) -> BoxFuture<RpcH256> {
 		Box::new(future::err(errors::unimplemented(None)))
 	}
 
@@ -289,7 +288,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		Box::new(self.rich_block(num.to_block_id(), include_txs).map(Some))
 	}
 
-	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn transaction_count(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		Box::new(self.fetcher().account(address.into(), num.unwrap_or_default().to_block_id())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()))
 	}
@@ -358,7 +357,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn code_at(&self, address: RpcH160, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
 		Box::new(self.fetcher().code(address.into(), num.unwrap_or_default().to_block_id()).map(Into::into))
 	}
 
@@ -385,7 +384,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+	fn call(&self, req: CallRequest, num: Option<BlockNumber>) -> BoxFuture<Bytes> {
 		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.output.into()),
@@ -394,7 +393,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
+	fn estimate_gas(&self, req: CallRequest, num: Option<BlockNumber>) -> BoxFuture<RpcU256> {
 		// TODO: binary chop for more accurate estimates.
 		Box::new(self.fetcher().proved_read_only_execution(req, num).and_then(|res| {
 			match res {
@@ -475,7 +474,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-	fn proof(&self, _address: RpcH160, _values:Vec<RpcH256>, _num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+	fn proof(&self, _address: RpcH160, _values:Vec<RpcH256>, _num: Option<BlockNumber>) -> BoxFuture<EthAccount> {
 		Box::new(future::err(errors::unimplemented(None)))
 	}
 
@@ -505,7 +504,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 			}).map(move |logs| limit_logs(logs, limit)))
 	}
 
-	fn work(&self, _timeout: Trailing<u64>) -> Result<Work> {
+	fn work(&self, _timeout: Option<u64>) -> Result<Work> {
 		Err(errors::light_unimplemented(None))
 	}
 

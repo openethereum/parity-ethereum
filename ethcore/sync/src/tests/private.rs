@@ -24,7 +24,7 @@ use ethcore::CreateContractAddress;
 use types::transaction::{Transaction, Action};
 use ethcore::executive::{contract_address};
 use ethcore::test_helpers::{push_block_with_transactions};
-use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction};
+use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer, SignedPrivateTransaction, StoringKeyProvider};
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair};
 use tests::helpers::{TestNet, TestIoHandler};
@@ -78,6 +78,8 @@ fn send_private_transaction() {
 		passwords: vec!["".into()],
 	};
 
+	let private_keys = Arc::new(StoringKeyProvider::default());
+
 	let pm0 = Arc::new(Provider::new(
 			client0.clone(),
 			net.peer(0).miner.clone(),
@@ -85,6 +87,7 @@ fn send_private_transaction() {
 			Box::new(NoopEncryptor::default()),
 			signer_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler0)),
+			private_keys.clone(),
 	));
 	pm0.add_notify(net.peers[0].clone());
 
@@ -95,6 +98,7 @@ fn send_private_transaction() {
 			Box::new(NoopEncryptor::default()),
 			validator_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler1)),
+			private_keys.clone(),
 	));
 	pm1.add_notify(net.peers[1].clone());
 

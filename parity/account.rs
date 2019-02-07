@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 use ethstore::{EthStore, SecretStore, import_account, import_accounts, read_geth_accounts};
 use ethstore::accounts_dir::RootDiskDirectory;
@@ -38,7 +39,7 @@ pub struct ListAccounts {
 
 #[derive(Debug, PartialEq)]
 pub struct NewAccount {
-	pub iterations: u32,
+	pub iterations: NonZeroU32,
 	pub path: String,
 	pub spec: SpecType,
 	pub password_file: Option<String>,
@@ -77,7 +78,7 @@ fn keys_dir(path: String, spec: SpecType) -> Result<RootDiskDirectory, String> {
 	RootDiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))
 }
 
-fn secret_store(dir: Box<RootDiskDirectory>, iterations: Option<u32>) -> Result<EthStore, String> {
+fn secret_store(dir: Box<RootDiskDirectory>, iterations: Option<NonZeroU32>) -> Result<EthStore, String> {
 	match iterations {
 		Some(i) => EthStore::open_with_iterations(dir, i),
 		_ => EthStore::open(dir)

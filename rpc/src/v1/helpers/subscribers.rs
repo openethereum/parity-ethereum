@@ -18,7 +18,7 @@
 
 use std::{ops, str};
 use std::collections::HashMap;
-use jsonrpc_macros::pubsub::{Subscriber, Sink, SubscriptionId};
+use jsonrpc_pubsub::{typed::{Subscriber, Sink}, SubscriptionId};
 use rand::{Rng, StdRng};
 use v1::types::H64;
 

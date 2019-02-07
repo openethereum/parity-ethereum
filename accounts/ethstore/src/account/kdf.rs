@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use json;
+use std::num::NonZeroU32;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Prf {
@@ -23,7 +24,7 @@ pub enum Prf {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Pbkdf2 {
-	pub c: u32,
+	pub c: NonZeroU32,
 	pub dklen: u32,
 	pub prf: Prf,
 	pub salt: Vec<u8>,

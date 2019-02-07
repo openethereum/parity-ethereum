@@ -34,6 +34,7 @@ extern crate smallvec;
 extern crate tiny_keccak;
 
 extern crate jsonrpc_core;
+extern crate jsonrpc_derive;
 extern crate jsonrpc_pubsub;
 
 #[macro_use]
@@ -41,9 +42,6 @@ extern crate bitflags;
 
 #[macro_use]
 extern crate log;
-
-#[macro_use]
-extern crate jsonrpc_macros;
 
 #[macro_use]
 extern crate serde_derive;

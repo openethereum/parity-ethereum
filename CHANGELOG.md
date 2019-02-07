@@ -1,4 +1,4 @@
-## Parity-Ethereum [v2.3.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.0) (2018-01-16)
+## Parity-Ethereum [v2.3.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.3.0) (2019-01-16)
 
 Parity-Ethereum 2.3.0-beta is a consensus-relevant security release that reverts Constantinople on the Ethereum network. Upgrading is mandatory for Ethereum, and strongly recommended for other networks.
 
@@ -156,7 +156,7 @@ The full list of included changes:
 
 ## Previous releases
 
-- [CHANGELOG-2.1](docs/CHANGELOG-2.2.md) (_stable_)
+- [CHANGELOG-2.2](docs/CHANGELOG-2.2.md) (_stable_)
 - [CHANGELOG-2.1](docs/CHANGELOG-2.1.md) (EOL: 2019-01-16)
 - [CHANGELOG-2.0](docs/CHANGELOG-2.0.md) (EOL: 2018-11-15)
 - [CHANGELOG-1.11](docs/CHANGELOG-1.11.md) (EOL: 2018-09-19)

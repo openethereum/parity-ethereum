@@ -21,7 +21,7 @@ ansi_term = "0.10"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io", features = ["mio"] }
 parity-bytes = "0.1"
-parity-crypto = "0.2"
+parity-crypto = "0.3.0"
 ethcore-network = { path = "../network" }
 ethereum-types = "0.4"
 ethkey = { path = "../../accounts/ethkey" }

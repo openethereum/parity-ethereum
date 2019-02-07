@@ -29,7 +29,7 @@ serde_derive = "1.0"
 futures = "0.1"
 fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-2.2" }
+jsonrpc-core = "10.0.1"
 ethcore = { path = "ethcore", features = ["parity"] }
 parity-bytes = "0.1"
 common-types = { path = "ethcore/types" }
@@ -50,6 +50,7 @@ node-filter = { path = "ethcore/node-filter" }
 ethkey = { path = "accounts/ethkey" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "cli-signer" }
+parity-daemonize = "0.2"
 parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
@@ -79,12 +80,10 @@ pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
 tempdir = "0.3"
 fake-fetch = { path = "util/fake-fetch" }
+lazy_static = "1.2.0"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
-
-[target.'cfg(not(windows))'.dependencies]
-daemonize = "0.3"
 
 [features]
 miner-debug = ["ethcore/miner-debug"]
@@ -133,4 +132,11 @@ members = [
 	"evmbin",
 	"parity-clib",
 	"whisper/cli",
+	"util/triehash-ethereum",
+	"util/keccak-hasher",
+	"util/patricia-trie-ethereum",
+	"util/fastmap"
 ]
+
+[patch.crates-io]
+heapsize = { git = "https://github.com/cheme/heapsize.git", branch = "ec-macfix" }

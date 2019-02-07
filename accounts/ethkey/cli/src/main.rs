@@ -35,7 +35,7 @@ use rustc_hex::{FromHex, FromHexError};
 
 const USAGE: &'static str = r#"
 Parity Ethereum keys generator.
-  Copyright 2015-2018 Parity Technologies (UK) Ltd.
+  Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
     ethkey info <secret-or-phrase> [options]
